@@ -18,7 +18,7 @@ export function Footer() {
               alt="Knightly Digital Group"
               width={220}
               height={54}
-              className="h-12 w-auto object-contain brightness-0 invert mb-5"
+              className="h-14 w-auto object-contain invert mb-5"
             />
             <p className="text-sm text-primary-foreground/70 leading-relaxed">
               Equipping DFW businesses for digital victory through custom software, precision ad campaigns, and consistent social media.

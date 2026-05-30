@@ -88,9 +88,9 @@ export function Header() {
             <Image
               src="/logo.png"
               alt="Knightly Digital Group"
-              width={380}
-              height={94}
-              className="h-20 w-auto object-contain brightness-0 invert"
+              width={480}
+              height={120}
+              className="h-28 w-auto object-contain invert"
               priority
             />
           </Link>
