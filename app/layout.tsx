@@ -2,15 +2,16 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
+import { SessionProviderWrapper } from "@/components/SessionProviderWrapper";
 
 export const metadata: Metadata = {
   title: {
-    default: "Knightly Digital Group | Allen, TX",
-    template: "%s | Knightly Digital Group",
+    default: "Streamflare Media Group | Allen, TX",
+    template: "%s | Streamflare Media Group",
   },
   description:
-    "Knightly Digital Group provides custom software design, Meta ads management, and social media posting for businesses across the DFW Metroplex.",
-  metadataBase: new URL("https://knightlydigital.com"),
+    "Streamflare Media Group delivers precision digital marketing, custom software, and social media management for growth-minded businesses across the DFW Metroplex.",
+  metadataBase: new URL("https://streamflaremedia.com"),
 };
 
 export default function RootLayout({
@@ -29,9 +30,11 @@ export default function RootLayout({
         />
       </head>
       <body>
-        <Header />
-        <main>{children}</main>
-        <Footer />
+        <SessionProviderWrapper>
+          <Header />
+          <main>{children}</main>
+          <Footer />
+        </SessionProviderWrapper>
       </body>
     </html>
   );

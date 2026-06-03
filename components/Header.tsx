@@ -45,26 +45,25 @@ export function Header() {
         visible ? "translate-y-0" : "-translate-y-full"
       }`}
     >
-      {/* ── Row 1: Top info bar (darkest) ── */}
+      {/* ── Row 1: Top info bar ── */}
       <div className="bg-primary border-b border-primary-foreground/10">
         <div className="max-w-7xl mx-auto px-5 py-2 flex items-center justify-between gap-4 text-xs text-primary-foreground/70">
           <div className="flex items-center gap-2">
-            <span className="text-yellow-400 tracking-tight text-sm">★★★★★</span>
-            <span className="hidden sm:inline font-medium">5-Star Rated Digital Agency</span>
+            <span className="text-accent tracking-tight text-sm font-black">★★★★★</span>
+            <span className="hidden sm:inline font-medium tracking-wide">Premium Digital Agency &mdash; Allen, TX</span>
           </div>
-          {/* Social icons */}
           <div className="hidden md:flex items-center gap-1">
-            <a href="#" aria-label="Facebook" className="w-7 h-7 bg-primary-foreground/10 hover:bg-primary-foreground/20 text-primary-foreground flex items-center justify-center transition-colors">
+            <a href="#" aria-label="Facebook" className="w-7 h-7 bg-primary-foreground/10 hover:bg-accent/20 text-primary-foreground flex items-center justify-center transition-colors">
               <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3z"/>
               </svg>
             </a>
-            <a href="#" aria-label="Instagram" className="w-7 h-7 bg-primary-foreground/10 hover:bg-primary-foreground/20 text-primary-foreground flex items-center justify-center transition-colors">
+            <a href="#" aria-label="Instagram" className="w-7 h-7 bg-primary-foreground/10 hover:bg-accent/20 text-primary-foreground flex items-center justify-center transition-colors">
               <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1112.63 8 4 4 0 0116 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
               </svg>
             </a>
-            <a href="#" aria-label="LinkedIn" className="w-7 h-7 bg-primary-foreground/10 hover:bg-primary-foreground/20 text-primary-foreground flex items-center justify-center transition-colors">
+            <a href="#" aria-label="LinkedIn" className="w-7 h-7 bg-primary-foreground/10 hover:bg-accent/20 text-primary-foreground flex items-center justify-center transition-colors">
               <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M16 8a6 6 0 016 6v7h-4v-7a2 2 0 00-2-2 2 2 0 00-2 2v7h-4v-7a6 6 0 016-6zM2 9h4v12H2z"/><circle cx="4" cy="4" r="2"/>
               </svg>
@@ -79,26 +78,23 @@ export function Header() {
         </div>
       </div>
 
-      {/* ── Row 2: Logo + contact + CTA (medium dark olive) ── */}
-      <div className="border-b border-primary-foreground/10" style={{ backgroundColor: "oklch(0.31 0.016 107.4)" }}>
-        <div className="max-w-7xl mx-auto px-5 py-4 flex items-center justify-between gap-6">
+      {/* ── Row 2: Logo + contact (white background for colored logo) ── */}
+      <div className="bg-white border-b border-border">
+        <div className="max-w-7xl mx-auto px-5 py-3 flex items-center justify-between gap-6">
 
-          {/* Logo */}
           <Link href="/" className="flex-shrink-0">
             <Image
               src="/logo.png"
-              alt="Knightly Digital Group"
+              alt="Streamflare Media Group"
               width={480}
               height={120}
-              className="h-28 w-auto object-contain invert"
+              className="h-16 w-auto object-contain"
               priority
             />
           </Link>
 
-          {/* Desktop: contact blocks + CTA */}
           <div className="hidden lg:flex items-center gap-6">
 
-            {/* Phone */}
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-accent flex items-center justify-center flex-shrink-0">
                 <svg className="w-5 h-5 text-accent-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -106,16 +102,15 @@ export function Header() {
                 </svg>
               </div>
               <div>
-                <p className="text-xs text-primary-foreground/50 font-bold uppercase tracking-wider">Phone Number</p>
-                <a href="tel:2145550100" className="text-primary-foreground font-black text-lg hover:text-accent transition-colors leading-tight">
+                <p className="text-xs text-muted-foreground font-bold uppercase tracking-wider">Call Us</p>
+                <a href="tel:2145550100" className="text-foreground font-black text-lg hover:text-accent transition-colors leading-tight">
                   (214) 555-0100
                 </a>
               </div>
             </div>
 
-            <div className="w-px h-12 bg-primary-foreground/15" />
+            <div className="w-px h-12 bg-border" />
 
-            {/* Email */}
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-accent flex items-center justify-center flex-shrink-0">
                 <svg className="w-5 h-5 text-accent-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -124,30 +119,28 @@ export function Header() {
                 </svg>
               </div>
               <div>
-                <p className="text-xs text-primary-foreground/50 font-bold uppercase tracking-wider">Send Your Mail</p>
-                <a href="mailto:info@knightlydigital.com" className="text-primary-foreground font-bold text-sm hover:text-accent transition-colors">
-                  info@knightlydigital.com
+                <p className="text-xs text-muted-foreground font-bold uppercase tracking-wider">Email Us</p>
+                <a href="mailto:info@streamflaremedia.com" className="text-foreground font-bold text-sm hover:text-accent transition-colors">
+                  info@streamflaremedia.com
                 </a>
               </div>
             </div>
 
-            <div className="w-px h-12 bg-primary-foreground/15" />
+            <div className="w-px h-12 bg-border" />
 
-            {/* CTA */}
             <Link
               href="/contact"
-              className="bg-accent hover:bg-accent/80 text-accent-foreground font-black px-8 py-4 text-sm tracking-wider uppercase transition-colors whitespace-nowrap"
+              className="bg-accent hover:bg-accent/85 text-accent-foreground font-black px-8 py-4 text-sm tracking-wider uppercase transition-colors whitespace-nowrap"
             >
               Free Consultation
             </Link>
           </div>
 
-          {/* Mobile: phone + hamburger */}
           <div className="flex lg:hidden items-center gap-3">
             <a href="tel:2145550100" className="text-accent font-bold text-sm">(214) 555-0100</a>
             <button
               onClick={() => setMobileOpen(!mobileOpen)}
-              className="p-2 text-primary-foreground/70 hover:text-primary-foreground transition-colors"
+              className="p-2 text-foreground/70 hover:text-foreground transition-colors"
               aria-label="Toggle menu"
             >
               {mobileOpen ? (
@@ -160,15 +153,15 @@ export function Header() {
         </div>
       </div>
 
-      {/* ── Row 3: Nav bar (primary) ── */}
+      {/* ── Row 3: Nav bar ── */}
       <nav className="bg-primary hidden lg:block">
         <div className="max-w-7xl mx-auto px-5 flex items-center">
           <Link
             href="/"
             className={`px-5 py-4 text-sm font-bold tracking-wide transition-colors ${
               pathname === "/"
-                ? "bg-black/20 text-primary-foreground"
-                : "text-primary-foreground/75 hover:text-primary-foreground hover:bg-black/15"
+                ? "bg-accent/20 text-accent"
+                : "text-primary-foreground/75 hover:text-primary-foreground hover:bg-white/5"
             }`}
           >
             Home
@@ -177,7 +170,7 @@ export function Header() {
           <div className="relative" ref={dropdownRef}>
             <button
               onClick={() => setServicesOpen(!servicesOpen)}
-              className="flex items-center gap-1.5 px-5 py-4 text-sm font-bold tracking-wide text-primary-foreground/75 hover:text-primary-foreground hover:bg-black/15 transition-colors"
+              className="flex items-center gap-1.5 px-5 py-4 text-sm font-bold tracking-wide text-primary-foreground/75 hover:text-primary-foreground hover:bg-white/5 transition-colors"
             >
               Services
               <svg
@@ -188,7 +181,7 @@ export function Header() {
               </svg>
             </button>
             {servicesOpen && (
-              <div className="absolute top-full left-0 bg-card border border-border shadow-xl min-w-[300px] z-50">
+              <div className="absolute top-full left-0 bg-card border border-border shadow-xl min-w-[320px] z-50">
                 {services.map((s) => (
                   <Link
                     key={s.slug}
@@ -207,28 +200,44 @@ export function Header() {
             href="/about"
             className={`px-5 py-4 text-sm font-bold tracking-wide transition-colors ${
               pathname === "/about"
-                ? "bg-black/20 text-primary-foreground"
-                : "text-primary-foreground/75 hover:text-primary-foreground hover:bg-black/15"
+                ? "bg-accent/20 text-accent"
+                : "text-primary-foreground/75 hover:text-primary-foreground hover:bg-white/5"
             }`}
           >
-            About Us
+            About
           </Link>
           <Link
             href="/contact"
             className={`px-5 py-4 text-sm font-bold tracking-wide transition-colors ${
               pathname === "/contact"
-                ? "bg-black/20 text-primary-foreground"
-                : "text-primary-foreground/75 hover:text-primary-foreground hover:bg-black/15"
+                ? "bg-accent/20 text-accent"
+                : "text-primary-foreground/75 hover:text-primary-foreground hover:bg-white/5"
             }`}
           >
             Contact
           </Link>
+
+          <div className="ml-auto">
+            <Link
+              href="/portal/login"
+              className={`flex items-center gap-2 px-5 py-4 text-sm font-bold tracking-wide transition-colors ${
+                pathname.startsWith("/portal")
+                  ? "bg-accent/20 text-accent"
+                  : "text-primary-foreground/75 hover:text-accent hover:bg-white/5"
+              }`}
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>
+              </svg>
+              Client Portal
+            </Link>
+          </div>
         </div>
       </nav>
 
       {/* Mobile menu */}
       {mobileOpen && (
-        <div className="lg:hidden border-b border-border shadow-lg" style={{ backgroundColor: "oklch(0.31 0.016 107.4)" }}>
+        <div className="lg:hidden bg-primary border-b border-border shadow-lg">
           <div className="max-w-7xl mx-auto px-5 py-4 flex flex-col">
             <Link href="/" className="py-3 px-2 font-bold text-primary-foreground border-b border-primary-foreground/10 text-sm">Home</Link>
             <div className="py-3 px-2 border-b border-primary-foreground/10">
@@ -239,8 +248,9 @@ export function Header() {
                 </Link>
               ))}
             </div>
-            <Link href="/about" className="py-3 px-2 font-bold text-sm text-primary-foreground border-b border-primary-foreground/10">About Us</Link>
+            <Link href="/about" className="py-3 px-2 font-bold text-sm text-primary-foreground border-b border-primary-foreground/10">About</Link>
             <Link href="/contact" className="py-3 px-2 font-bold text-sm text-primary-foreground border-b border-primary-foreground/10">Contact</Link>
+            <Link href="/portal/login" className="py-3 px-2 font-bold text-sm text-accent border-b border-primary-foreground/10">Client Portal</Link>
             <a href="tel:2145550100" className="py-3 px-2 text-sm text-primary-foreground/70">(214) 555-0100</a>
             <Link href="/contact" className="mt-3 bg-accent text-accent-foreground font-bold px-5 py-3 text-sm text-center uppercase tracking-wider">
               Free Consultation

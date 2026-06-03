@@ -18,8 +18,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const city = getCityBySlug(slug);
   if (!city) return {};
   return {
-    title: `Digital Marketing Agency | ${city.name}, TX | Knightly Digital Group`,
-    description: `Knightly Digital Group serves ${city.name}, TX — ${city.blurb}. Custom software, Meta ads, and social media posting for local businesses. Call (214) 555-0100.`,
+    title: `Digital Marketing Agency | ${city.name}, TX | Streamflare Media Group`,
+    description: `Streamflare Media Group serves ${city.name}, TX — ${city.blurb}. Custom software, Meta ads, and social media posting for local businesses. Call (214) 555-0100.`,
   };
 }
 
@@ -36,7 +36,7 @@ export default async function CityPage({ params }: Props) {
         headline="SOFTWARE & MARKETING"
         highlightWord="FOR"
         subHeadline={city.name.toUpperCase()}
-        sub={`Knightly Digital Group brings custom software, Meta ad management, and social media posting to businesses in ${city.name} — ${city.blurb}.`}
+        sub={`Streamflare Media Group brings custom software, Meta ad management, and social media posting to businesses in ${city.name} — ${city.blurb}.`}
         bgImage="https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=1600&q=80"
       />
 
@@ -57,7 +57,7 @@ export default async function CityPage({ params }: Props) {
               {city.name} is {city.blurb}. Businesses here compete for a sophisticated, digitally-active customer base — and standing out requires more than a website.
             </p>
             <p className="text-muted-foreground leading-relaxed">
-              Knightly Digital Group, based in nearby Allen, TX, brings the same high-performance software development, targeted Meta advertising, and consistent social media presence that grows DFW businesses month after month.
+              Streamflare Media Group, based in nearby Allen, TX, brings the same high-performance software development, targeted Meta advertising, and consistent social media presence that grows DFW businesses month after month.
             </p>
           </div>
           <div className="bg-primary text-primary-foreground p-10">

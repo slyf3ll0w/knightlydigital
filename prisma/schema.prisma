@@ -1,0 +1,84 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String    @id @default(cuid())
+  email            String    @unique
+  name             String
+  passwordHash     String
+  role             Role      @default(CLIENT)
+  company          String?
+  phone            String?
+  accountManagerId String?
+  accountManager   User?     @relation("ManagedBy", fields: [accountManagerId], references: [id])
+  clients          User[]    @relation("ManagedBy")
+  sentMessages     Message[] @relation("SentMessages")
+  receivedMessages Message[] @relation("ReceivedMessages")
+  orders           Order[]
+  invoices         Invoice[]
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+}
+
+enum Role {
+  CLIENT
+  ADMIN
+}
+
+model Message {
+  id        String    @id @default(cuid())
+  body      String
+  fromId    String
+  toId      String
+  from      User      @relation("SentMessages", fields: [fromId], references: [id])
+  to        User      @relation("ReceivedMessages", fields: [toId], references: [id])
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+}
+
+model Order {
+  id          String      @id @default(cuid())
+  clientId    String
+  client      User        @relation(fields: [clientId], references: [id])
+  serviceName String
+  status      OrderStatus @default(PENDING)
+  notes       String?
+  adminNotes  String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+enum OrderStatus {
+  PENDING
+  IN_REVIEW
+  ACTIVE
+  PAUSED
+  COMPLETED
+  CANCELLED
+}
+
+model Invoice {
+  id          String        @id @default(cuid())
+  clientId    String
+  client      User          @relation(fields: [clientId], references: [id])
+  amount      Decimal       @db.Decimal(10, 2)
+  status      InvoiceStatus @default(DRAFT)
+  description String?
+  dueDate     DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  OVERDUE
+  CANCELLED
+}

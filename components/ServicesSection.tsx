@@ -38,7 +38,7 @@ export function ServicesSection({ citySlug, cityName }: ServicesSectionProps) {
       <div className="max-w-7xl mx-auto px-5">
         <div className="mb-16">
           <p className="text-xs tracking-[0.25em] font-bold uppercase text-muted-foreground mb-3">
-            What We Do
+            What We Deliver
           </p>
           <h2 className="text-4xl lg:text-5xl font-black uppercase leading-tight">
             {cityName ? (
@@ -49,9 +49,9 @@ export function ServicesSection({ citySlug, cityName }: ServicesSectionProps) {
               </>
             ) : (
               <>
-                <span className="text-primary">Three Pillars.</span>
+                <span className="text-primary">Current Offerings.</span>
                 <br />
-                <span className="text-muted-foreground">One Focused Team.</span>
+                <span className="text-muted-foreground">More Coming.</span>
               </>
             )}
           </h2>
@@ -63,9 +63,8 @@ export function ServicesSection({ citySlug, cityName }: ServicesSectionProps) {
               key={s.slug}
               className={`flex flex-col lg:flex-row ${
                 i % 2 === 1 ? "lg:flex-row-reverse" : ""
-              } border border-border group hover:border-primary/30 transition-colors`}
+              } border border-border group hover:border-accent/30 transition-colors`}
             >
-              {/* Number + Icon block */}
               <div className="lg:w-64 flex-shrink-0 bg-primary text-primary-foreground flex flex-col justify-center items-center p-10 gap-4">
                 <span className="text-7xl font-black opacity-20 leading-none select-none">
                   0{i + 1}
@@ -74,7 +73,6 @@ export function ServicesSection({ citySlug, cityName }: ServicesSectionProps) {
                   {icons[s.slug as keyof typeof icons]}
                 </div>
               </div>
-              {/* Content */}
               <div className="flex-1 p-10 lg:p-14 flex flex-col justify-center bg-card">
                 <h3 className="text-2xl font-black uppercase tracking-tight mb-4 text-foreground">
                   {s.name}
@@ -84,7 +82,7 @@ export function ServicesSection({ citySlug, cityName }: ServicesSectionProps) {
                 </p>
                 <Link
                   href={`${prefix}/${s.slug}`}
-                  className="self-start bg-primary text-primary-foreground font-bold px-6 py-3 text-xs tracking-widest uppercase hover:bg-primary/80 transition-colors"
+                  className="self-start bg-primary text-primary-foreground font-bold px-6 py-3 text-xs tracking-widest uppercase hover:bg-accent transition-colors"
                 >
                   Learn More &rarr;
                 </Link>

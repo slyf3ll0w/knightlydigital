@@ -25,7 +25,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const svc = getServiceBySlug(svcSlug);
   if (!city || !svc) return {};
   return {
-    title: `${svc.name} | ${city.name}, TX | Knightly Digital Group`,
+    title: `${svc.name} | ${city.name}, TX | Streamflare Media Group`,
     description: `${svc.description} Serving ${city.name}, TX and the greater DFW Metroplex.`,
   };
 }
@@ -83,7 +83,7 @@ export default async function CityServicePage({ params }: Props) {
               {svc.description}
             </p>
             <p className="text-muted-foreground leading-relaxed mb-10">
-              {city.name} is {city.blurb}. Businesses here need a digital edge — and that starts with the right tools and the right team. Knightly Digital Group delivers {svc.shortName.toLowerCase()} services built specifically for {city.name} and the surrounding DFW market.
+              {city.name} is {city.blurb}. Businesses here need a digital edge — and that starts with the right tools and the right team. Streamflare Media Group delivers {svc.shortName.toLowerCase()} services built specifically for {city.name} and the surrounding DFW market.
             </p>
 
             {/* What's included */}
@@ -148,7 +148,7 @@ export default async function CityServicePage({ params }: Props) {
                   (214) 555-0100
                 </a>
                 <a
-                  href="mailto:info@knightlydigital.com"
+                  href="mailto:info@streamflaremedia.com"
                   className="flex items-center gap-3 text-sm text-primary-foreground/80 hover:text-primary-foreground transition-colors"
                 >
                   <div className="w-9 h-9 bg-primary-foreground/10 flex items-center justify-center flex-shrink-0">
@@ -156,7 +156,7 @@ export default async function CityServicePage({ params }: Props) {
                       <rect x="2" y="4" width="20" height="16" rx="2" /><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
                     </svg>
                   </div>
-                  info@knightlydigital.com
+                  info@streamflaremedia.com
                 </a>
               </div>
             </div>

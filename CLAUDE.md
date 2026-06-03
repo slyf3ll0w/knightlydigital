@@ -1,24 +1,32 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code when working with this repository.
 
 ## Commands
 
 ```bash
-npm run dev      # local dev server at localhost:3000
-npm run build    # production build (required before deploy)
-npm start        # production server (Railway uses this)
+npm run dev        # local dev server at localhost:3000
+npm run build      # production build (required before deploy)
+npm start          # production server (Railway uses this)
+npm run db:push    # push Prisma schema to database (needs DATABASE_URL)
+npm run db:seed    # seed initial admin user
+npm run db:generate # regenerate Prisma client after schema changes
+```
+
+To regenerate the Prisma client locally (required after schema changes):
+```bash
+node node_modules/prisma/build/index.js generate
 ```
 
 ## Architecture
 
-Next.js 15 App Router, React 19, TypeScript, Tailwind CSS v4. No external UI library.
+Next.js 15 App Router, React 19, TypeScript, Tailwind CSS v4. Prisma 5 ORM with PostgreSQL (Railway). NextAuth v4 for authentication.
 
-**Font**: Oxanium (Google Fonts, loaded via `next/font/google` in `app/layout.tsx`, exposed as `--font-oxanium` CSS variable, mapped to `--font-sans` in `@theme`).
+**Font**: Oxanium (Google Fonts, loaded in `app/layout.tsx` via `<link>` tag).
 
-**Theme**: Olive/charcoal palette defined as CSS custom properties in `app/globals.css`. All Tailwind color classes (`bg-primary`, `text-muted-foreground`, etc.) resolve to these variables.
+**Theme**: Black + Streamflare blue (`oklch(0.45 0.20 265)`) palette defined as CSS custom properties in `app/globals.css`. The logo row in the header uses a white background so the colored logo displays correctly.
 
-**Background pattern**: `/public/bg-pattern.svg` (diamond grid). Applied via `.bg-patterned` and `.bg-muted-patterned` utility classes in globals.css — not via Tailwind.
+**Background pattern**: `/public/bg-pattern.svg` (diamond grid). Applied via `.bg-patterned` utility class.
 
 ## Page structure
 
@@ -32,26 +40,56 @@ app/
   social-media-posting/page.tsx     → Allen service page
   about/page.tsx
   contact/page.tsx
+  portal/
+    login/page.tsx                  → Client/admin login
+    dashboard/page.tsx              → Client dashboard
+    messages/page.tsx               → Client messaging
+    orders/page.tsx                 → Client orders list
+    orders/new/page.tsx             → Request new service
+  admin/
+    dashboard/page.tsx              → Admin overview
+    clients/page.tsx                → Client list
+    clients/[id]/page.tsx           → Client detail + messaging
+    messages/page.tsx               → All conversations
+    orders/page.tsx                 → All orders with status management
 ```
-
-Allen's service pages live at the root level (`/custom-software`) rather than `/allen-tx/custom-software` for SEO reasons. All other city service pages use the dynamic `[city]/[service]` route.
 
 ## Data layer
 
-**`lib/cities.ts`** — 21 cities with name, slug, and a one-sentence local blurb. `getAllCitySlugs()` returns all slugs except Allen (used in `generateStaticParams`). `getCityBySlug()` used in dynamic routes.
+**`lib/cities.ts`** — 21 DFW cities. **`lib/services.ts`** — 3 services.
+**`lib/auth-options.ts`** — NextAuth v4 config (credentials provider, JWT strategy).
+**`lib/db.ts`** — Prisma client singleton.
 
-**`lib/services.ts`** — 3 services with name, slug, tagline, description, details array, and hero image URL. `getServiceBySlug()` used in dynamic routes.
+## Authentication
 
-Both files feed `generateStaticParams()` in the dynamic route pages so all city/service combos are pre-rendered at build time.
+NextAuth v4 with Credentials provider. JWT sessions.
+- Login URL: `/portal/login` (handles both client and admin)
+- After login, role-based redirect: CLIENT → `/portal/dashboard`, ADMIN → `/admin/dashboard`
+- Middleware in `middleware.ts` enforces role-based access to `/portal/*` and `/admin/*`
+
+## Environment variables required
+
+```
+AUTH_SECRET=     # generate: openssl rand -base64 32
+DATABASE_URL=    # PostgreSQL connection string from Railway
+NEXTAUTH_URL=    # your deployed URL (e.g. https://streamflaremedia.com)
+```
+
+## Database setup (Railway)
+
+1. Create PostgreSQL database in Railway
+2. Set `DATABASE_URL` in Railway environment variables
+3. Run `npm run db:push` to push the schema
+4. Run `npm run db:seed` to create the initial admin user (admin@streamflaremedia.com / ChangeMe123!)
+5. **Change the admin password immediately after first login**
 
 ## Deployment
 
-Railway detects Next.js automatically and runs `next start`. No special config needed. Ensure `npm run build` passes before pushing.
-
-GitHub remote: `https://github.com/slyf3ll0w/knightlydigital`
+Railway detects Next.js automatically and runs `next start`. GitHub remote: `https://github.com/slyf3ll0w/knightlydigital`
 
 ## Business details to update
 
-- **Phone**: Replace `(214) 555-0100` / `tel:2145550100` — appears in Header, Footer, contact forms, and sidebar contact blocks on service pages.
-- **Email**: Replace `info@knightlydigital.com` — same locations.
-- **Contact form**: `components/ContactForm.tsx` currently fakes submission (`setSubmitted(true)`). Wire up to Formspree, Resend, or a Next.js API route for real email delivery.
+- **Phone**: Replace `(214) 555-0100` / `tel:2145550100`
+- **Email**: `info@streamflaremedia.com` (update when domain is live)
+- **Contact form**: `components/ContactForm.tsx` currently fakes submission. Wire to Formspree, Resend, or an API route.
+- **Social links**: Header social icons link to `#` — update when accounts are set up.

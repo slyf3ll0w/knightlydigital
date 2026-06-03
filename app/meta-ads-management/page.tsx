@@ -9,7 +9,7 @@ const svc = getServiceBySlug("meta-ads-management")!;
 const otherServices = services.filter((s) => s.slug !== svc.slug);
 
 export const metadata: Metadata = {
-  title: `Meta Ads Management | Allen, TX | Knightly Digital Group`,
+  title: `Meta Ads Management | Allen, TX | Streamflare Media Group`,
   description: `${svc.description} Serving Allen, TX and the greater DFW Metroplex.`,
 };
 
@@ -33,12 +33,12 @@ export default function MetaAdsPage() {
       <section className="bg-patterned py-20">
         <div className="max-w-7xl mx-auto px-5 grid lg:grid-cols-3 gap-12">
           <div className="lg:col-span-2">
-            <p className="text-xs tracking-[0.25em] font-bold uppercase text-muted-foreground mb-4">{svc.shortName} in Allen, TX</p>
+            <p className="text-xs tracking-[0.25em] font-bold uppercase text-muted-foreground mb-4">{svc.shortName} — Allen, TX</p>
             <h2 className="text-3xl font-black uppercase leading-tight mb-6">{svc.tagline}</h2>
-            <div className="h-1 w-12 bg-primary mb-8" />
+            <div className="h-1 w-12 bg-accent mb-8" />
             <p className="text-muted-foreground leading-relaxed text-lg mb-8">{svc.description}</p>
             <p className="text-muted-foreground leading-relaxed mb-10">
-              The DFW Metroplex has millions of Facebook and Instagram users. Allen businesses that appear in front of their ideal customers at the right moment win market share — those that don&apos;t watch their competitors do. Our campaigns are built on data, not guesswork.
+              The DFW Metroplex has millions of Facebook and Instagram users. Businesses that appear in front of their ideal customers at the right moment win market share — those that don&apos;t watch their competitors do. Every campaign we manage is built on data, not guesswork, and refined continuously for performance.
             </p>
             <h3 className="text-lg font-black uppercase tracking-wide mb-6">What&apos;s Included</h3>
             <div className="flex flex-col gap-0 border border-border">
@@ -50,11 +50,11 @@ export default function MetaAdsPage() {
               ))}
             </div>
             <div className="mt-14">
-              <p className="text-xs tracking-[0.25em] font-bold uppercase text-muted-foreground mb-5">Also Available in Allen</p>
+              <p className="text-xs tracking-[0.25em] font-bold uppercase text-muted-foreground mb-5">Also Available</p>
               <div className="grid sm:grid-cols-2 gap-4">
                 {otherServices.map((s) => (
-                  <Link key={s.slug} href={`/${s.slug}`} className="border border-border p-6 hover:border-primary hover:bg-muted transition-colors group">
-                    <p className="font-bold text-sm uppercase tracking-wide group-hover:text-primary transition-colors">{s.shortName}</p>
+                  <Link key={s.slug} href={`/${s.slug}`} className="border border-border p-6 hover:border-accent hover:bg-muted transition-colors group">
+                    <p className="font-bold text-sm uppercase tracking-wide group-hover:text-accent transition-colors">{s.shortName}</p>
                     <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{s.tagline.split("—")[0].trim()}</p>
                   </Link>
                 ))}
@@ -63,8 +63,8 @@ export default function MetaAdsPage() {
           </div>
           <div>
             <div className="bg-primary text-primary-foreground p-8 mb-6">
-              <h3 className="font-black uppercase text-lg mb-1">Get Started Today</h3>
-              <p className="text-sm text-primary-foreground/70 mb-6">Let&apos;s talk Meta ads for your Allen business.</p>
+              <h3 className="font-black uppercase text-lg mb-1">Get Started</h3>
+              <p className="text-sm text-primary-foreground/70 mb-6">Talk to us about Meta ads for your business.</p>
               <div className="flex flex-col gap-4">
                 <a href="tel:2145550100" className="flex items-center gap-3 text-sm text-primary-foreground/80 hover:text-primary-foreground transition-colors">
                   <div className="w-9 h-9 bg-primary-foreground/10 flex items-center justify-center flex-shrink-0">
@@ -72,11 +72,11 @@ export default function MetaAdsPage() {
                   </div>
                   (214) 555-0100
                 </a>
-                <a href="mailto:info@knightlydigital.com" className="flex items-center gap-3 text-sm text-primary-foreground/80 hover:text-primary-foreground transition-colors">
+                <a href="mailto:info@streamflaremedia.com" className="flex items-center gap-3 text-sm text-primary-foreground/80 hover:text-primary-foreground transition-colors">
                   <div className="w-9 h-9 bg-primary-foreground/10 flex items-center justify-center flex-shrink-0">
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="4" width="20" height="16" rx="2" /><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" /></svg>
                   </div>
-                  info@knightlydigital.com
+                  info@streamflaremedia.com
                 </a>
               </div>
             </div>

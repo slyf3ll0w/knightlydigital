@@ -22,7 +22,7 @@ function ContactPageInner() {
             Let&apos;s Talk.
           </h1>
           <p className="text-primary-foreground/60 mt-4 max-w-md">
-            Tell us about your business and what you&apos;re trying to accomplish. We&apos;ll get back to you within one business day.
+            Tell us about your business and what you&apos;re trying to accomplish. We&apos;ll respond within one business day.
           </p>
         </div>
       </section>
@@ -31,26 +31,24 @@ function ContactPageInner() {
       <section className="bg-patterned py-20">
         <div className="max-w-7xl mx-auto px-5 grid lg:grid-cols-3 gap-16">
 
-          {/* Form */}
           <div className="lg:col-span-2">
             <h2 className="text-2xl font-black uppercase mb-8">Send a Message</h2>
             <ContactForm defaultValues={defaultValues} />
           </div>
 
-          {/* Contact info */}
           <div>
             <h2 className="text-2xl font-black uppercase mb-8">Contact Info</h2>
             <div className="flex flex-col gap-8">
               <div>
                 <p className="text-xs tracking-[0.2em] font-bold uppercase text-muted-foreground mb-3">Phone</p>
-                <a href="tel:2145550100" className="text-xl font-bold text-foreground hover:text-primary transition-colors">
+                <a href="tel:2145550100" className="text-xl font-bold text-foreground hover:text-accent transition-colors">
                   (214) 555-0100
                 </a>
               </div>
               <div>
                 <p className="text-xs tracking-[0.2em] font-bold uppercase text-muted-foreground mb-3">Email</p>
-                <a href="mailto:info@knightlydigital.com" className="text-base font-bold text-foreground hover:text-primary transition-colors">
-                  info@knightlydigital.com
+                <a href="mailto:info@streamflaremedia.com" className="text-base font-bold text-foreground hover:text-accent transition-colors">
+                  info@streamflaremedia.com
                 </a>
               </div>
               <div>
@@ -66,13 +64,13 @@ function ContactPageInner() {
             </div>
 
             <div className="mt-10 bg-primary text-primary-foreground p-8">
-              <p className="font-black uppercase text-sm mb-2">Prefer a Call?</p>
+              <p className="font-black uppercase text-sm mb-2">Prefer a Quick Call?</p>
               <p className="text-xs text-primary-foreground/60 mb-5">
-                We&apos;re happy to have a quick 15-minute conversation to see if we&apos;re a good fit.
+                We&apos;re happy to spend 15 minutes determining if we&apos;re a good fit — no pressure, no pitch deck.
               </p>
               <a
                 href="tel:2145550100"
-                className="block bg-accent text-accent-foreground font-bold px-6 py-3 text-sm tracking-widest uppercase text-center hover:bg-accent/80 transition-colors"
+                className="block bg-accent text-accent-foreground font-bold px-6 py-3 text-sm tracking-widest uppercase text-center hover:bg-accent/85 transition-colors"
               >
                 Call Now
               </a>

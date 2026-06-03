@@ -11,30 +11,30 @@ export function Footer() {
       <div className="max-w-7xl mx-auto px-5 py-16">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-10 pb-12 border-b border-primary-foreground/15">
 
-          {/* Brand */}
           <div className="md:col-span-1">
-            <Image
-              src="/logo.png"
-              alt="Knightly Digital Group"
-              width={220}
-              height={54}
-              className="h-14 w-auto object-contain invert mb-5"
-            />
+            <div className="bg-white inline-block p-3 mb-5">
+              <Image
+                src="/logo.png"
+                alt="Streamflare Media Group"
+                width={200}
+                height={50}
+                className="h-10 w-auto object-contain"
+              />
+            </div>
             <p className="text-sm text-primary-foreground/70 leading-relaxed">
-              Equipping DFW businesses for digital victory through custom software, precision ad campaigns, and consistent social media.
+              Streamflare Media Group partners with growth-minded businesses to build their digital presence through precision strategy, technology, and execution.
             </p>
             <div className="mt-6 flex flex-col gap-2 text-sm text-primary-foreground/70">
               <a href="tel:2145550100" className="hover:text-primary-foreground transition-colors">
                 (214) 555-0100
               </a>
-              <a href="mailto:info@knightlydigital.com" className="hover:text-primary-foreground transition-colors">
-                info@knightlydigital.com
+              <a href="mailto:info@streamflaremedia.com" className="hover:text-primary-foreground transition-colors">
+                info@streamflaremedia.com
               </a>
               <span>Allen, TX 75002</span>
             </div>
           </div>
 
-          {/* Services */}
           <div>
             <h4 className="text-xs font-bold tracking-[0.15em] uppercase text-primary-foreground/50 mb-5">
               Services
@@ -44,7 +44,7 @@ export function Footer() {
                 <li key={s.slug}>
                   <Link
                     href={`/${s.slug}`}
-                    className="text-sm text-primary-foreground/70 hover:text-primary-foreground transition-colors"
+                    className="text-sm text-primary-foreground/70 hover:text-accent transition-colors"
                   >
                     {s.shortName}
                   </Link>
@@ -55,12 +55,12 @@ export function Footer() {
               Company
             </h4>
             <ul className="flex flex-col gap-2.5">
-              <li><Link href="/about" className="text-sm text-primary-foreground/70 hover:text-primary-foreground transition-colors">About Us</Link></li>
-              <li><Link href="/contact" className="text-sm text-primary-foreground/70 hover:text-primary-foreground transition-colors">Contact</Link></li>
+              <li><Link href="/about" className="text-sm text-primary-foreground/70 hover:text-accent transition-colors">About Us</Link></li>
+              <li><Link href="/contact" className="text-sm text-primary-foreground/70 hover:text-accent transition-colors">Contact</Link></li>
+              <li><Link href="/portal/login" className="text-sm text-primary-foreground/70 hover:text-accent transition-colors">Client Portal</Link></li>
             </ul>
           </div>
 
-          {/* Service Areas */}
           <div className="md:col-span-2">
             <h4 className="text-xs font-bold tracking-[0.15em] uppercase text-primary-foreground/50 mb-5">
               DFW Service Areas
@@ -70,7 +70,7 @@ export function Footer() {
                 <Link
                   key={city.slug}
                   href={city.slug === "allen-tx" ? "/" : `/${city.slug}`}
-                  className="text-sm text-primary-foreground/70 hover:text-primary-foreground transition-colors"
+                  className="text-sm text-primary-foreground/70 hover:text-accent transition-colors"
                 >
                   {city.name}
                 </Link>
@@ -79,7 +79,7 @@ export function Footer() {
                 <Link
                   key={city.slug}
                   href={`/${city.slug}`}
-                  className="text-sm text-primary-foreground/70 hover:text-primary-foreground transition-colors"
+                  className="text-sm text-primary-foreground/70 hover:text-accent transition-colors"
                 >
                   {city.name}
                 </Link>
@@ -89,8 +89,8 @@ export function Footer() {
         </div>
 
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-primary-foreground/40">
-          <p>© {new Date().getFullYear()} Knightly Digital Group. All rights reserved. Allen, TX</p>
-          <p>Built for the DFW Metroplex</p>
+          <p>© {new Date().getFullYear()} Streamflare Media Group. All rights reserved. Allen, TX</p>
+          <p>Built for growth-minded businesses across DFW</p>
         </div>
       </div>
     </footer>

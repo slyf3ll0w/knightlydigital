@@ -4,9 +4,9 @@ import { services } from "@/lib/services";
 import { CtaStrip } from "@/components/CtaStrip";
 
 export const metadata: Metadata = {
-  title: "Digital Marketing & Custom Software | Allen, TX | Knightly Digital Group",
+  title: "Digital Marketing & Custom Software | Allen, TX | Streamflare Media Group",
   description:
-    "Knightly Digital Group is an Allen TX digital agency delivering custom software, Meta ads management, and social media posting for businesses across the DFW Metroplex. Call (214) 555-0100.",
+    "Streamflare Media Group is a premium digital agency in Allen, TX — delivering custom software, Meta ads management, and social media strategy for businesses across the DFW Metroplex.",
 };
 
 export default function AllenHome() {
@@ -18,9 +18,8 @@ export default function AllenHome() {
           className="absolute inset-0 bg-cover bg-center bg-no-repeat"
           style={{ backgroundImage: "url('https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=1800&q=80')" }}
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/75 via-black/65 to-black/80" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-black/70 to-black/85" />
 
-        {/* Wave bottom */}
         <div className="absolute bottom-0 left-0 right-0 overflow-hidden h-20 z-10">
           <svg viewBox="0 0 1440 80" preserveAspectRatio="none" className="w-full h-full" fill="white">
             <path d="M0,80 C360,0 1080,0 1440,80 L1440,80 L0,80 Z" />
@@ -28,18 +27,20 @@ export default function AllenHome() {
         </div>
 
         <div className="relative z-10 max-w-6xl mx-auto px-5 py-28 text-center">
+          <p className="text-xs tracking-[0.3em] font-bold uppercase text-accent/80 mb-6">
+            Allen, TX &mdash; Serving the DFW Metroplex
+          </p>
           <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black uppercase leading-tight tracking-tight text-white mb-6">
-            Digital Solutions
-            <br />
-            <span className="text-accent">That Grow</span> Your Business
+            Where Strategy<br />
+            <span className="text-accent">Meets Execution.</span>
           </h1>
           <p className="text-lg text-white/75 max-w-2xl mx-auto mb-10 leading-relaxed font-medium">
-            Knightly Digital Group delivers custom software, targeted Meta ad campaigns, and consistent social media — built for DFW businesses that want real results.
+            Streamflare Media Group partners with businesses that take their digital presence seriously — delivering custom software, precision ad campaigns, and strategic social media with a level of ownership you won&apos;t find anywhere else.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <a
               href="tel:2145550100"
-              className="bg-accent text-accent-foreground font-black px-10 py-4 text-base tracking-wider uppercase hover:bg-accent/80 transition-colors"
+              className="bg-accent text-accent-foreground font-black px-10 py-4 text-base tracking-wider uppercase hover:bg-accent/85 transition-colors"
             >
               (214) 555-0100
             </a>
@@ -57,10 +58,10 @@ export default function AllenHome() {
       <section className="bg-patterned py-24">
         <div className="max-w-7xl mx-auto px-5">
           <div className="mb-14">
-            <p className="text-xs tracking-[0.3em] font-bold uppercase text-muted-foreground mb-3">What We Do</p>
+            <p className="text-xs tracking-[0.3em] font-bold uppercase text-muted-foreground mb-3">Current Offerings</p>
             <h2 className="text-4xl lg:text-5xl font-black uppercase">
-              Three Services.<br />
-              <span className="text-muted-foreground">One Focused Team.</span>
+              High-Impact Services.<br />
+              <span className="text-muted-foreground">Expertly Executed.</span>
             </h2>
           </div>
 
@@ -78,7 +79,7 @@ export default function AllenHome() {
                     i < services.length - 1 ? "lg:border-r border-b lg:border-b-0 border-border" : ""
                   }`}
                 >
-                  <div className="w-14 h-14 bg-primary text-primary-foreground flex items-center justify-center flex-shrink-0">
+                  <div className="w-14 h-14 bg-primary text-primary-foreground flex items-center justify-center flex-shrink-0 group-hover:bg-accent transition-colors">
                     {icons[i]}
                   </div>
                   <div>
@@ -87,7 +88,7 @@ export default function AllenHome() {
                   </div>
                   <Link
                     href={`/${s.slug}`}
-                    className="self-start text-xs font-bold uppercase tracking-widest text-primary group-hover:underline mt-auto"
+                    className="self-start text-xs font-bold uppercase tracking-widest text-primary group-hover:text-accent mt-auto transition-colors"
                   >
                     Learn More &rarr;
                   </Link>
@@ -98,20 +99,20 @@ export default function AllenHome() {
         </div>
       </section>
 
-      {/* ── About strip ───────────────────────────────────────── */}
+      {/* ── Identity strip ───────────────────────────────────────── */}
       <section className="bg-primary text-primary-foreground py-20">
         <div className="max-w-7xl mx-auto px-5 grid lg:grid-cols-2 gap-16 items-center">
           <div>
             <p className="text-xs tracking-[0.3em] font-bold uppercase text-accent/70 mb-4">Who We Are</p>
             <h2 className="text-4xl lg:text-5xl font-black uppercase leading-tight mb-6">
-              A DFW Agency<br />
-              <span className="text-primary-foreground/50">That Delivers.</span>
+              A Premium Digital<br />
+              <span className="text-primary-foreground/40">Partner.</span>
             </h2>
             <p className="text-primary-foreground/70 leading-relaxed mb-5">
-              Knightly Digital Group is based in Allen, TX — and we work with businesses across the DFW Metroplex and beyond. We keep our service offerings tight on purpose: custom software, Meta ads, and social media posting. Three things. Done exceptionally well.
+              Streamflare Media Group is based in Allen, TX and works with businesses across the DFW Metroplex and beyond. We don&apos;t operate like a traditional agency — every client has a dedicated point of contact, every strategy is built from scratch, and every engagement is treated as a partnership.
             </p>
             <p className="text-primary-foreground/70 leading-relaxed mb-8">
-              Every client has a dedicated point of contact. Every strategy is built around your specific business — not pulled from a template. And every month, you get a report that tells you plainly what&apos;s happening and what comes next.
+              We&apos;re selective about who we work with because we commit fully to every client we take on. If we&apos;re a fit, you&apos;ll have a team that operates like an extension of your own business — not a vendor you have to manage.
             </p>
             <Link
               href="/about"
@@ -123,10 +124,10 @@ export default function AllenHome() {
 
           <div className="grid grid-cols-2 gap-px bg-primary-foreground/10">
             {[
-              { value: "21+", label: "DFW Cities Served" },
-              { value: "3", label: "Specialized Services" },
+              { value: "DFW", label: "Market Expertise" },
+              { value: "1:1", label: "Dedicated Account Management" },
               { value: "100%", label: "Texas-Based Team" },
-              { value: "0", label: "Cookie-Cutter Strategies" },
+              { value: "0", label: "Generic Playbooks" },
             ].map((stat) => (
               <div key={stat.label} className="bg-primary py-10 px-8 text-center">
                 <p className="text-4xl font-black text-accent mb-2">{stat.value}</p>
@@ -141,42 +142,63 @@ export default function AllenHome() {
       <section className="bg-patterned py-20">
         <div className="max-w-7xl mx-auto px-5">
           <div className="mb-14">
-            <p className="text-xs tracking-[0.3em] font-bold uppercase text-muted-foreground mb-3">Why Knightly Digital</p>
-            <h2 className="text-4xl font-black uppercase">Built Different.</h2>
+            <p className="text-xs tracking-[0.3em] font-bold uppercase text-muted-foreground mb-3">Why Streamflare</p>
+            <h2 className="text-4xl font-black uppercase">What Sets Us Apart.</h2>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-0 border border-border">
             {[
               {
                 title: "Dedicated Contact",
-                body: "One person owns your account. They know your business, answer calls, and are accountable for your results.",
+                body: "One person owns your account — knows your business, answers your calls, and takes full accountability for results.",
               },
               {
                 title: "Market-First Strategy",
-                body: "Every campaign and software build is designed around your city and your customer — not a generic playbook.",
+                body: "Every campaign and build is designed around your specific market and customer profile — not a copy-pasted playbook.",
               },
               {
                 title: "Transparent Reporting",
-                body: "Plain-English monthly reports. You always know exactly what your investment is doing and what we&apos;re doing next.",
+                body: "Plain-English reports on a consistent schedule. You always know what your investment is doing and what comes next.",
               },
               {
                 title: "Built to Scale",
-                body: "Our services grow with you. There&apos;s no need to switch agencies as your business expands across the Metroplex.",
+                body: "Our engagements are structured to grow alongside your business — no switching agencies as your needs evolve.",
               },
             ].map((r, i) => (
               <div
                 key={r.title}
                 className={`bg-card p-8 ${i < 3 ? "border-b md:border-b-0 md:border-r border-border" : ""}`}
               >
-                <div className="text-3xl font-black text-primary/15 mb-4">0{i + 1}</div>
+                <div className="text-3xl font-black text-accent/20 mb-4">0{i + 1}</div>
                 <h3 className="font-black uppercase text-sm tracking-wide mb-3">{r.title}</h3>
-                <p
-                  className="text-sm text-muted-foreground leading-relaxed"
-                  dangerouslySetInnerHTML={{ __html: r.body }}
-                />
+                <p className="text-sm text-muted-foreground leading-relaxed">{r.body}</p>
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* ── Client portal CTA ──────────────────────────────────── */}
+      <section className="bg-primary text-primary-foreground py-16">
+        <div className="max-w-7xl mx-auto px-5 flex flex-col lg:flex-row items-center justify-between gap-8">
+          <div>
+            <p className="text-xs tracking-[0.25em] font-bold uppercase text-accent/70 mb-2">Existing Clients</p>
+            <h2 className="text-2xl font-black uppercase leading-tight">
+              Access Your Client Portal
+            </h2>
+            <p className="text-primary-foreground/60 text-sm mt-2">
+              Order services, message your account manager, and track your projects — all in one place.
+            </p>
+          </div>
+          <Link
+            href="/portal/login"
+            className="flex items-center gap-3 bg-accent hover:bg-accent/85 text-accent-foreground font-bold px-8 py-4 text-sm tracking-widest uppercase transition-colors whitespace-nowrap"
+          >
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>
+            </svg>
+            Sign In to Portal
+          </Link>
         </div>
       </section>
 
