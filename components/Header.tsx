@@ -79,18 +79,20 @@ export function Header() {
       </div>
 
       {/* ── Row 2: Logo only ── */}
-      <div className="bg-white border-b border-border">
-        <div className="max-w-7xl mx-auto px-5 py-5 flex items-center justify-between">
+      <div className="bg-primary border-b border-primary-foreground/10">
+        <div className="max-w-7xl mx-auto px-5 py-4 flex items-center justify-between">
 
           <Link href="/" className="flex-shrink-0">
-            <Image
-              src="/logo.png"
-              alt="Streamflare Media Group"
-              width={1811}
-              height={222}
-              className="h-8 w-auto sm:h-12 lg:h-28 object-contain object-left"
-              priority
-            />
+            <div className="bg-white px-4 py-2">
+              <Image
+                src="/logo.png"
+                alt="Streamflare Media Group"
+                width={1811}
+                height={222}
+                className="h-6 w-auto sm:h-8 lg:h-14 object-contain object-left"
+                priority
+              />
+            </div>
           </Link>
 
           {/* Mobile: phone icon + hamburger */}
