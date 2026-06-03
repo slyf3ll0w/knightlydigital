@@ -16,9 +16,9 @@ export function Footer() {
               <Image
                 src="/logo.png"
                 alt="Streamflare Media Group"
-                width={200}
-                height={50}
-                className="h-10 w-auto object-contain"
+                width={1811}
+                height={222}
+                className="h-8 w-auto object-contain object-left"
               />
             </div>
             <p className="text-sm text-primary-foreground/70 leading-relaxed">

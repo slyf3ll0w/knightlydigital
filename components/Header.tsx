@@ -78,66 +78,28 @@ export function Header() {
         </div>
       </div>
 
-      {/* ── Row 2: Logo + contact (white background for colored logo) ── */}
+      {/* ── Row 2: Logo only ── */}
       <div className="bg-white border-b border-border">
-        <div className="max-w-7xl mx-auto px-5 py-5 flex items-center justify-between gap-6">
+        <div className="max-w-7xl mx-auto px-5 py-5 flex items-center justify-between">
 
           <Link href="/" className="flex-shrink-0">
             <Image
               src="/logo.png"
               alt="Streamflare Media Group"
-              width={480}
-              height={120}
-              className="h-28 w-auto object-contain"
+              width={1811}
+              height={222}
+              className="h-8 w-auto sm:h-12 lg:h-28 object-contain object-left"
               priority
             />
           </Link>
 
-          <div className="hidden lg:flex items-center gap-6">
-
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-accent flex items-center justify-center flex-shrink-0">
-                <svg className="w-5 h-5 text-accent-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.67A2 2 0 012 1h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/>
-                </svg>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground font-bold uppercase tracking-wider">Call Us</p>
-                <a href="tel:2145550100" className="text-foreground font-black text-lg hover:text-accent transition-colors leading-tight">
-                  (214) 555-0100
-                </a>
-              </div>
-            </div>
-
-            <div className="w-px h-12 bg-border" />
-
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-accent flex items-center justify-center flex-shrink-0">
-                <svg className="w-5 h-5 text-accent-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-                  <polyline points="22,6 12,13 2,6"/>
-                </svg>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground font-bold uppercase tracking-wider">Email Us</p>
-                <a href="mailto:info@streamflaremedia.com" className="text-foreground font-bold text-sm hover:text-accent transition-colors">
-                  info@streamflaremedia.com
-                </a>
-              </div>
-            </div>
-
-            <div className="w-px h-12 bg-border" />
-
-            <Link
-              href="/contact"
-              className="bg-accent hover:bg-accent/85 text-accent-foreground font-black px-8 py-4 text-sm tracking-wider uppercase transition-colors whitespace-nowrap"
-            >
-              Free Consultation
-            </Link>
-          </div>
-
+          {/* Mobile: phone icon + hamburger */}
           <div className="flex lg:hidden items-center gap-3">
-            <a href="tel:2145550100" className="text-accent font-bold text-sm">(214) 555-0100</a>
+            <a href="tel:2145550100" aria-label="Call us" className="text-accent">
+              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.67A2 2 0 012 1h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/>
+              </svg>
+            </a>
             <button
               onClick={() => setMobileOpen(!mobileOpen)}
               className="p-2 text-foreground/70 hover:text-foreground transition-colors"
@@ -153,7 +115,7 @@ export function Header() {
         </div>
       </div>
 
-      {/* ── Row 3: Nav bar ── */}
+      {/* ── Row 3: Nav + contact ── */}
       <nav className="bg-primary hidden lg:block">
         <div className="max-w-7xl mx-auto px-5 flex items-center">
           <Link
@@ -217,7 +179,19 @@ export function Header() {
             Contact
           </Link>
 
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center">
+            <a
+              href="tel:2145550100"
+              className="px-5 py-4 text-sm font-bold text-primary-foreground/60 hover:text-primary-foreground transition-colors tracking-wide"
+            >
+              (214) 555-0100
+            </a>
+            <Link
+              href="/contact"
+              className="bg-accent hover:bg-accent/85 text-white font-black px-6 py-4 text-xs tracking-widest uppercase transition-colors whitespace-nowrap"
+            >
+              Free Consultation
+            </Link>
             <Link
               href="/portal/login"
               className={`flex items-center gap-2 px-5 py-4 text-sm font-bold tracking-wide transition-colors ${
@@ -252,7 +226,7 @@ export function Header() {
             <Link href="/contact" className="py-3 px-2 font-bold text-sm text-primary-foreground border-b border-primary-foreground/10">Contact</Link>
             <Link href="/portal/login" className="py-3 px-2 font-bold text-sm text-accent border-b border-primary-foreground/10">Client Portal</Link>
             <a href="tel:2145550100" className="py-3 px-2 text-sm text-primary-foreground/70">(214) 555-0100</a>
-            <Link href="/contact" className="mt-3 bg-accent text-accent-foreground font-bold px-5 py-3 text-sm text-center uppercase tracking-wider">
+            <Link href="/contact" className="mt-3 bg-accent text-white font-bold px-5 py-3 text-sm text-center uppercase tracking-wider">
               Free Consultation
             </Link>
           </div>
