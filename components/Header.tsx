@@ -80,7 +80,7 @@ export function Header() {
 
       {/* ── Row 2: Logo + contact (white background for colored logo) ── */}
       <div className="bg-white border-b border-border">
-        <div className="max-w-7xl mx-auto px-5 py-3 flex items-center justify-between gap-6">
+        <div className="max-w-7xl mx-auto px-5 py-5 flex items-center justify-between gap-6">
 
           <Link href="/" className="flex-shrink-0">
             <Image
@@ -88,7 +88,7 @@ export function Header() {
               alt="Streamflare Media Group"
               width={480}
               height={120}
-              className="h-16 w-auto object-contain"
+              className="h-28 w-auto object-contain"
               priority
             />
           </Link>
