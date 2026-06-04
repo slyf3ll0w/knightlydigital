@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import Image from 'next/image';
 import { AnimateIn } from '@/components/AnimateIn';
 import { SketchUnderline } from '@/components/SketchUnderline';
 
@@ -117,45 +118,51 @@ export default function AboutPage() {
               </div>
             </AnimateIn>
 
-            {/* Right: stats card */}
-            <AnimateIn delay={150} className="lg:pt-8">
+            {/* Right: photo + stats */}
+            <AnimateIn delay={150} className="lg:pt-4">
+              <div className="relative overflow-hidden" style={{ height: '380px' }}>
+                <Image
+                  src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=700&q=85"
+                  alt="Team collaborating"
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 1024px) 100vw, 50vw"
+                />
+                <div
+                  className="absolute inset-0"
+                  style={{ background: 'linear-gradient(to bottom, transparent 50%, rgba(12,15,12,0.7) 100%)' }}
+                />
+              </div>
+
               <div
-                className="p-8"
-                style={{ backgroundColor: '#0C0F0C', border: '1px solid rgba(255,255,255,0.08)' }}
+                className="grid grid-cols-2 gap-0 mt-0"
+                style={{ backgroundColor: '#0C0F0C', border: '1px solid rgba(255,255,255,0.07)', borderTop: 'none' }}
               >
-                <p
-                  className="text-xs font-bold uppercase tracking-widest mb-6"
-                  style={{ color: '#6B7280', fontFamily: 'Oxanium, system-ui, sans-serif' }}
-                >
-                  By the Numbers
-                </p>
-                <div className="flex flex-col gap-1">
-                  {[
-                    { value: '21+', label: 'DFW Cities Served' },
-                    { value: '3', label: 'Core Service Lines' },
-                    { value: '100%', label: 'Custom Strategy — No Templates' },
-                    { value: 'Allen, TX', label: 'Headquarters' },
-                  ].map((stat) => (
-                    <div
-                      key={stat.label}
-                      className="flex items-center justify-between py-4"
-                      style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}
+                {[
+                  { value: 'Allen, TX', label: 'Headquarters' },
+                  { value: '100%', label: 'Custom-Built' },
+                  { value: 'One Team', label: 'Web, Ads & Social' },
+                  { value: 'Fixed', label: 'Transparent Pricing' },
+                ].map((stat) => (
+                  <div
+                    key={stat.label}
+                    className="px-6 py-5 text-center"
+                    style={{ borderRight: '1px solid rgba(255,255,255,0.06)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}
+                  >
+                    <p
+                      className="text-lg font-bold mb-1"
+                      style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
                     >
-                      <span
-                        className="text-2xl font-bold"
-                        style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
-                      >
-                        {stat.value}
-                      </span>
-                      <span
-                        className="text-xs uppercase tracking-widest text-right max-w-[160px]"
-                        style={{ color: '#6B7280', fontFamily: 'Oxanium, system-ui, sans-serif' }}
-                      >
-                        {stat.label}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+                      {stat.value}
+                    </p>
+                    <p
+                      className="text-xs uppercase tracking-widest"
+                      style={{ color: 'rgba(255,255,255,0.4)', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                    >
+                      {stat.label}
+                    </p>
+                  </div>
+                ))}
               </div>
             </AnimateIn>
           </div>

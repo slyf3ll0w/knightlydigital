@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import Image from 'next/image';
 import { AnimateIn } from '@/components/AnimateIn';
 import { SketchUnderline } from '@/components/SketchUnderline';
 
@@ -112,52 +113,19 @@ export default function ServicesPage() {
               </div>
             </div>
 
-            {/* Right: dark info card */}
-            <div className="lg:pt-4">
+            {/* Right: photo */}
+            <div className="lg:pt-4 relative overflow-hidden" style={{ height: '420px' }}>
+              <Image
+                src="https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=700&q=85"
+                alt="Software development"
+                fill
+                className="object-cover"
+                sizes="(max-width: 1024px) 100vw, 50vw"
+              />
               <div
-                className="p-8"
-                style={{ backgroundColor: '#0C0F0C', border: '1px solid rgba(255,255,255,0.08)' }}
-              >
-                <p
-                  className="text-xs font-bold uppercase tracking-widest mb-6"
-                  style={{ color: '#6B7280', fontFamily: 'Oxanium, system-ui, sans-serif' }}
-                >
-                  Project Overview
-                </p>
-                <div className="flex flex-col gap-1 mb-6">
-                  {[
-                    { label: 'Type', value: 'Custom Build' },
-                    { label: 'Timeline', value: '4–8 Weeks' },
-                    { label: 'Stack', value: 'Next.js / React' },
-                    { label: 'Mobile', value: '100% Responsive' },
-                  ].map((row) => (
-                    <div
-                      key={row.label}
-                      className="flex items-center justify-between py-3"
-                      style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}
-                    >
-                      <span style={{ color: '#6B7280', fontFamily: 'Oxanium, system-ui, sans-serif', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                        {row.label}
-                      </span>
-                      <span style={{ color: '#ffffff', fontFamily: 'Oxanium, system-ui, sans-serif', fontSize: '0.875rem' }}>
-                        {row.value}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-                <div
-                  className="h-2 w-full"
-                  style={{ backgroundColor: 'rgba(34,197,94,0.2)' }}
-                >
-                  <div className="h-2 w-4/5" style={{ backgroundColor: '#22C55E' }} />
-                </div>
-                <p
-                  className="text-xs mt-2 uppercase tracking-widest"
-                  style={{ color: '#6B7280', fontFamily: 'Oxanium, system-ui, sans-serif' }}
-                >
-                  Avg. Client Satisfaction
-                </p>
-              </div>
+                className="absolute inset-0"
+                style={{ background: 'linear-gradient(135deg, rgba(12,15,12,0.3) 0%, transparent 60%)' }}
+              />
             </div>
           </div>
         </div>
@@ -230,49 +198,19 @@ export default function ServicesPage() {
               </div>
             </div>
 
-            {/* Right: metrics card */}
-            <div className="lg:pt-4">
+            {/* Right: photo */}
+            <div className="lg:pt-4 relative overflow-hidden" style={{ height: '420px' }}>
+              <Image
+                src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=700&q=85"
+                alt="Marketing analytics"
+                fill
+                className="object-cover"
+                sizes="(max-width: 1024px) 100vw, 50vw"
+              />
               <div
-                className="p-8"
-                style={{ backgroundColor: '#0C0F0C', border: '1px solid rgba(255,255,255,0.08)' }}
-              >
-                <p
-                  className="text-xs font-bold uppercase tracking-widest mb-6"
-                  style={{ color: '#6B7280', fontFamily: 'Oxanium, system-ui, sans-serif' }}
-                >
-                  Campaign Metrics
-                </p>
-                <div className="grid grid-cols-2 gap-4 mb-6">
-                  {[
-                    { label: 'Avg. ROAS', value: '4.2×' },
-                    { label: 'CTR', value: '3.1%' },
-                    { label: 'Reach', value: '50K+' },
-                    { label: 'Cost/Lead', value: '-38%' },
-                  ].map((m) => (
-                    <div
-                      key={m.label}
-                      className="p-4 text-center"
-                      style={{ backgroundColor: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}
-                    >
-                      <p
-                        className="text-xl font-bold"
-                        style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
-                      >
-                        {m.value}
-                      </p>
-                      <p
-                        className="text-xs mt-1 uppercase tracking-widest"
-                        style={{ color: '#6B7280', fontFamily: 'Oxanium, system-ui, sans-serif' }}
-                      >
-                        {m.label}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-                <p className="text-xs text-center" style={{ color: 'rgba(255,255,255,0.3)', fontFamily: 'Oxanium, system-ui, sans-serif' }}>
-                  Representative client results
-                </p>
-              </div>
+                className="absolute inset-0"
+                style={{ background: 'linear-gradient(135deg, rgba(12,15,12,0.3) 0%, transparent 60%)' }}
+              />
             </div>
           </div>
         </div>
@@ -345,66 +283,19 @@ export default function ServicesPage() {
               </div>
             </div>
 
-            {/* Right: content calendar card */}
-            <div className="lg:pt-4">
+            {/* Right: photo */}
+            <div className="lg:pt-4 relative overflow-hidden" style={{ height: '420px' }}>
+              <Image
+                src="https://images.unsplash.com/photo-1611162616475-46b635cb6868?w=700&q=85"
+                alt="Social media content creation"
+                fill
+                className="object-cover"
+                sizes="(max-width: 1024px) 100vw, 50vw"
+              />
               <div
-                className="p-8"
-                style={{ backgroundColor: '#0C0F0C', border: '1px solid rgba(255,255,255,0.08)' }}
-              >
-                <p
-                  className="text-xs font-bold uppercase tracking-widest mb-6"
-                  style={{ color: '#6B7280', fontFamily: 'Oxanium, system-ui, sans-serif' }}
-                >
-                  Monthly Content
-                </p>
-                <div className="flex flex-col gap-3">
-                  {[
-                    { platform: 'Facebook', posts: '12 Posts' },
-                    { platform: 'Instagram', posts: '16 Posts' },
-                    { platform: 'LinkedIn', posts: '8 Posts' },
-                  ].map((p) => (
-                    <div
-                      key={p.platform}
-                      className="flex items-center justify-between py-3"
-                      style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}
-                    >
-                      <span
-                        className="text-sm font-semibold text-white"
-                        style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
-                      >
-                        {p.platform}
-                      </span>
-                      <span
-                        className="text-xs px-3 py-1 font-semibold uppercase tracking-widest"
-                        style={{
-                          backgroundColor: 'rgba(34,197,94,0.15)',
-                          color: '#22C55E',
-                          fontFamily: 'Oxanium, system-ui, sans-serif',
-                          border: '1px solid rgba(34,197,94,0.3)',
-                        }}
-                      >
-                        {p.posts}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-6 pt-4" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-                  <div className="flex items-center justify-between">
-                    <span
-                      className="text-xs uppercase tracking-widest"
-                      style={{ color: '#6B7280', fontFamily: 'Oxanium, system-ui, sans-serif' }}
-                    >
-                      Total Monthly Posts
-                    </span>
-                    <span
-                      className="text-xl font-bold"
-                      style={{ color: '#ffffff', fontFamily: 'Oxanium, system-ui, sans-serif' }}
-                    >
-                      36+
-                    </span>
-                  </div>
-                </div>
-              </div>
+                className="absolute inset-0"
+                style={{ background: 'linear-gradient(135deg, rgba(12,15,12,0.3) 0%, transparent 60%)' }}
+              />
             </div>
           </div>
         </div>

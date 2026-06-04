@@ -94,13 +94,13 @@ export default function HomePage() {
         style={{
           clipPath: 'polygon(0 0, 100% 0, 100% 96%, 0 100%)',
           paddingTop: '108px',
-          paddingBottom: '80px',
+          paddingBottom: '44px',
         }}
       >
-        <div className="max-w-3xl mx-auto px-6 lg:px-8 w-full pt-4 pb-12 text-center">
+        <div className="max-w-3xl mx-auto px-6 lg:px-8 w-full pt-2 pb-4 text-center">
 
           {/* Large logo — own colors on light background */}
-          <div className="anim-fade-up flex justify-center mb-8">
+          <div className="anim-fade-up flex justify-center mb-4">
             <Image
               src="/logo.png"
               alt="Streamflare Media Group"
@@ -113,13 +113,13 @@ export default function HomePage() {
           </div>
 
           {/* Thin green rule */}
-          <div className="anim-fade-up anim-delay-1 flex justify-center mb-10">
+          <div className="anim-fade-up anim-delay-1 flex justify-center mb-5">
             <div style={{ width: '56px', height: '2px', backgroundColor: '#22C55E' }} />
           </div>
 
           {/* Headline */}
           <h1
-            className="anim-fade-up anim-delay-2 font-bold tracking-tight mb-6"
+            className="anim-fade-up anim-delay-2 font-bold tracking-tight mb-4"
             style={{
               fontFamily: 'Oxanium, system-ui, sans-serif',
               fontSize: 'clamp(2.4rem, 5vw, 3.8rem)',
@@ -135,14 +135,14 @@ export default function HomePage() {
           </h1>
 
           <p
-            className="anim-fade-up anim-delay-3 text-lg leading-relaxed mb-10 mx-auto"
+            className="anim-fade-up anim-delay-3 text-lg leading-relaxed mb-7 mx-auto"
             style={{ color: '#4B5563', maxWidth: '560px' }}
           >
             We design and build custom web applications, business software, and digital marketing systems for businesses ready to grow — wherever you are.
           </p>
 
           {/* CTAs */}
-          <div className="anim-fade-up anim-delay-4 flex flex-wrap justify-center gap-4 mb-12">
+          <div className="anim-fade-up anim-delay-4 flex flex-wrap justify-center gap-4 mb-8">
             <Link
               href="/contact"
               className="text-sm font-bold uppercase tracking-wider px-8 py-4 text-white transition-all hover:opacity-90 hover:-translate-y-0.5"
@@ -163,24 +163,23 @@ export default function HomePage() {
             </Link>
           </div>
 
-          {/* Stat pills */}
+          {/* Clean stat row — no pill boxes */}
           <div
-            className="anim-fade-up anim-delay-5 flex flex-wrap justify-center gap-3 pt-8"
+            className="anim-fade-up anim-delay-5 flex items-center justify-center gap-0 pt-6"
             style={{ borderTop: '1px solid rgba(0,0,0,0.08)' }}
           >
-            {['No Templates — Ever', 'Modern Tech Stack', 'Fixed-Price Projects'].map((stat) => (
-              <span
-                key={stat}
-                className="text-xs uppercase tracking-widest px-4 py-2 font-semibold"
-                style={{
-                  border: '1px solid rgba(0,0,0,0.14)',
-                  color: '#6B7280',
-                  backgroundColor: 'rgba(255,255,255,0.65)',
-                  fontFamily: 'Oxanium, system-ui, sans-serif',
-                }}
-              >
-                {stat}
-              </span>
+            {['No Templates — Ever', 'Modern Tech Stack', 'Fixed-Price Projects'].map((stat, i) => (
+              <div key={stat} className="flex items-center">
+                {i > 0 && (
+                  <span className="mx-5" style={{ color: '#22C55E', fontSize: '1rem', lineHeight: 1 }}>·</span>
+                )}
+                <span
+                  className="text-xs uppercase tracking-widest font-medium"
+                  style={{ color: '#6B7280', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                >
+                  {stat}
+                </span>
+              </div>
             ))}
           </div>
         </div>
@@ -463,6 +462,36 @@ export default function HomePage() {
         </AnimateIn>
       </section>
 
+      {/* ── VISUAL FEATURE IMAGE ── */}
+      <section className="relative overflow-hidden" style={{ height: '360px' }}>
+        <Image
+          src="https://images.unsplash.com/photo-1551434678-e076c223a692?w=1400&q=85"
+          alt="Team collaborating on a project"
+          fill
+          className="object-cover"
+          sizes="100vw"
+        />
+        <div
+          className="absolute inset-0 flex items-center"
+          style={{ background: 'linear-gradient(to right, rgba(12,15,12,0.88) 0%, rgba(12,15,12,0.6) 45%, rgba(12,15,12,0.15) 100%)' }}
+        >
+          <div className="max-w-7xl mx-auto px-6 lg:px-8">
+            <p
+              className="text-xs font-bold uppercase tracking-widest mb-4"
+              style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+            >
+              Our Approach
+            </p>
+            <h2
+              className="text-3xl lg:text-4xl font-bold text-white max-w-xl leading-tight"
+              style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
+            >
+              We treat your project like it&apos;s our own business on the line.
+            </h2>
+          </div>
+        </div>
+      </section>
+
       {/* ── PAIN POINTS ── paper-warm section ── */}
       <section className="py-24 bg-paper-warm">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
@@ -614,42 +643,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── SERVICE AREA ── dark ── */}
-      <section className="py-24 bg-dot-pattern" style={{ backgroundColor: '#0C0F0C' }}>
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <AnimateIn className="mb-12">
-            <p
-              className="text-xs font-bold uppercase tracking-widest mb-4"
-              style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
-            >
-              Our Service Area
-            </p>
-            <h2
-              className="text-4xl lg:text-5xl font-bold mb-6 text-white"
-              style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
-            >
-              Serving DFW — All of It.
-            </h2>
-            <p className="text-base max-w-2xl leading-relaxed" style={{ color: 'rgba(255,255,255,0.45)' }}>
-              Based in Allen, TX, we work with businesses across the entire DFW Metroplex.
-            </p>
-          </AnimateIn>
-
-          <AnimateIn delay={100}>
-            <div className="flex flex-wrap gap-2">
-              {cities.map((city) => (
-                <span
-                  key={city}
-                  className="text-xs px-3 py-1.5 uppercase tracking-wide font-medium transition-colors"
-                  style={{ border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.45)' }}
-                >
-                  {city}
-                </span>
-              ))}
-            </div>
-          </AnimateIn>
-        </div>
-      </section>
     </>
   );
 }
