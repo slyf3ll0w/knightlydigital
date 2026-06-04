@@ -84,33 +84,20 @@ const processSteps = [
   },
 ];
 
-const softwareFeatures = [
-  {
-    title: 'Built for Your Workflow',
-    body: "Off-the-shelf software makes your team adapt to it. We build software that adapts to you — your processes, your team, and your customers.",
-  },
-  {
-    title: 'Web Apps & Client Portals',
-    body: 'Give your clients a branded portal to view orders, send messages, and track progress. Reduce back-and-forth and deliver a professional experience.',
-  },
-  {
-    title: 'Integrated & Scalable',
-    body: 'Built on modern frameworks that grow with your business. We think about your Year 1 and your Year 5 before we write the first line of code.',
-  },
-];
 
 export default function HomePage() {
   return (
     <>
       {/* ── HERO — centered, brand-forward, paper warm background ── */}
       <section
-        className="relative flex items-center min-h-screen pt-[100px] bg-paper-warm"
+        className="relative bg-paper-warm"
         style={{
           clipPath: 'polygon(0 0, 100% 0, 100% 96%, 0 100%)',
-          paddingBottom: '7rem',
+          paddingTop: '108px',
+          paddingBottom: '80px',
         }}
       >
-        <div className="max-w-3xl mx-auto px-6 lg:px-8 w-full py-20 text-center">
+        <div className="max-w-3xl mx-auto px-6 lg:px-8 w-full py-16 text-center">
 
           {/* Large logo — own colors on light background */}
           <div className="anim-fade-up flex justify-center mb-8">
@@ -141,7 +128,7 @@ export default function HomePage() {
             Custom Software &amp; Digital Marketing
             <br />
             <span style={{ color: '#22C55E', display: 'inline-block', marginTop: '4px' }}>
-              <SketchUnderline>Built for DFW.</SketchUnderline>
+              <SketchUnderline>Built for Your Business.</SketchUnderline>
             </span>
           </h1>
 
@@ -149,7 +136,7 @@ export default function HomePage() {
             className="anim-fade-up anim-delay-3 text-lg leading-relaxed mb-10 mx-auto"
             style={{ color: '#4B5563', maxWidth: '560px' }}
           >
-            We design and build custom web applications, business software, and digital marketing systems for North Texas businesses ready to grow.
+            We design and build custom web applications, business software, and digital marketing systems for businesses ready to grow — wherever you are.
           </p>
 
           {/* CTAs */}
@@ -179,7 +166,7 @@ export default function HomePage() {
             className="anim-fade-up anim-delay-5 flex flex-wrap justify-center gap-3 pt-8"
             style={{ borderTop: '1px solid rgba(0,0,0,0.08)' }}
           >
-            {['Allen, TX Headquarters', 'DFW-Focused', 'No Templates — Ever'].map((stat) => (
+            {['No Templates — Ever', 'Modern Tech Stack', 'Fixed-Price Projects'].map((stat) => (
               <span
                 key={stat}
                 className="text-xs uppercase tracking-widest px-4 py-2 font-semibold"
@@ -219,57 +206,143 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── SOFTWARE FOCUS CALLOUT ── dark section ── */}
+      {/* ── MODERN TECH / PRICING ADVANTAGE ── dark section ── */}
       <section className="py-24 bg-dot-pattern" style={{ backgroundColor: '#0C0F0C' }}>
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <AnimateIn className="mb-14">
-            <p
-              className="text-xs font-bold uppercase tracking-widest mb-4"
-              style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
-            >
-              Custom Software Design
-            </p>
-            <h2
-              className="text-4xl lg:text-5xl font-bold text-white leading-tight max-w-2xl"
-              style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
-            >
-              Software That Works the Way You Do
-            </h2>
-          </AnimateIn>
+          <div className="grid lg:grid-cols-2 gap-16 items-start">
 
-          <div className="grid md:grid-cols-3 gap-6">
-            {softwareFeatures.map((feat, i) => (
-              <AnimateIn key={feat.title} delay={i * 120}>
-                <div
-                  className="card-lift p-7 h-full"
-                  style={{ border: '1px solid rgba(255,255,255,0.08)', backgroundColor: '#111511' }}
-                >
-                  <div style={{ width: '32px', height: '2px', backgroundColor: '#22C55E', marginBottom: '20px' }} />
-                  <h3
-                    className="text-base font-bold text-white mb-3"
-                    style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
-                  >
-                    {feat.title}
-                  </h3>
-                  <p className="text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.5)' }}>
-                    {feat.body}
-                  </p>
-                </div>
-              </AnimateIn>
-            ))}
-          </div>
-
-          <AnimateIn delay={400}>
-            <div className="mt-10">
-              <Link
-                href="/services"
-                className="inline-flex items-center gap-2 text-sm font-bold uppercase tracking-wider transition-opacity hover:opacity-75"
+            {/* Left: tech advantage copy */}
+            <AnimateIn>
+              <p
+                className="text-xs font-bold uppercase tracking-widest mb-5"
                 style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
               >
-                See All Services →
+                Software Design &amp; Development
+              </p>
+              <h2
+                className="text-4xl lg:text-5xl font-bold text-white leading-tight mb-6"
+                style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
+              >
+                Modern Tech. Real Prices. Zero Bloat.
+              </h2>
+              <p className="text-base leading-relaxed mb-6" style={{ color: 'rgba(255,255,255,0.55)' }}>
+                Most agencies build on outdated platforms, charge for things you don&apos;t need, and lock you into long, expensive timelines. We build with today&apos;s leading open-source frameworks — the same stack powering the world&apos;s fastest-growing software companies.
+              </p>
+              <p className="text-base leading-relaxed mb-10" style={{ color: 'rgba(255,255,255,0.55)' }}>
+                That means faster builds, cleaner code, and a final price that actually makes sense — without sacrificing quality or cutting corners.
+              </p>
+
+              {/* Tech badges */}
+              <div className="flex flex-wrap gap-2 mb-10">
+                {['Next.js', 'React', 'TypeScript', 'PostgreSQL', 'Tailwind CSS', 'Cloud-Native'].map((tech) => (
+                  <span
+                    key={tech}
+                    className="text-xs font-semibold px-3 py-1.5 uppercase tracking-wider"
+                    style={{
+                      border: '1px solid rgba(34,197,94,0.35)',
+                      color: '#22C55E',
+                      backgroundColor: 'rgba(34,197,94,0.07)',
+                      fontFamily: 'Oxanium, system-ui, sans-serif',
+                    }}
+                  >
+                    {tech}
+                  </span>
+                ))}
+              </div>
+
+              <Link
+                href="/contact"
+                className="inline-block text-sm font-bold uppercase tracking-wider px-7 py-3 text-white transition-all hover:opacity-90"
+                style={{ backgroundColor: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+              >
+                Tell Us About Your Project →
               </Link>
+            </AnimateIn>
+
+            {/* Right: two use-case cards */}
+            <div className="flex flex-col gap-5">
+              <AnimateIn delay={150}>
+                <div
+                  className="card-lift p-8"
+                  style={{ border: '1px solid rgba(255,255,255,0.08)', backgroundColor: '#111511' }}
+                >
+                  <div className="flex items-center gap-3 mb-4">
+                    <span
+                      className="text-2xl font-bold"
+                      style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                    >
+                      01
+                    </span>
+                    <h3
+                      className="text-lg font-bold text-white"
+                      style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                    >
+                      For Your Business
+                    </h3>
+                  </div>
+                  <p className="text-sm leading-relaxed mb-5" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                    Running on spreadsheets, disconnected apps, or too many manual steps? We build custom systems — CRMs, client portals, scheduling tools, inventory managers — designed around exactly how your business works. No subscription bloat, no features you don&apos;t need.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {['CRM Systems', 'Client Portals', 'Booking Tools', 'Internal Dashboards'].map((tag) => (
+                      <span
+                        key={tag}
+                        className="text-xs px-2.5 py-1"
+                        style={{
+                          border: '1px solid rgba(255,255,255,0.1)',
+                          color: 'rgba(255,255,255,0.4)',
+                          fontFamily: 'Oxanium, system-ui, sans-serif',
+                        }}
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </AnimateIn>
+
+              <AnimateIn delay={280}>
+                <div
+                  className="card-lift p-8"
+                  style={{ border: '1px solid rgba(255,255,255,0.08)', backgroundColor: '#111511' }}
+                >
+                  <div className="flex items-center gap-3 mb-4">
+                    <span
+                      className="text-2xl font-bold"
+                      style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                    >
+                      02
+                    </span>
+                    <h3
+                      className="text-lg font-bold text-white"
+                      style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                    >
+                      For Your Software Idea
+                    </h3>
+                  </div>
+                  <p className="text-sm leading-relaxed mb-5" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                    Have an idea for a software product you want to launch and sell? We take concepts from zero to a live, polished application. Whether it&apos;s a SaaS tool, a marketplace, or a niche platform — if you can imagine it, we can build it.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {['SaaS Products', 'Marketplaces', 'Web Platforms', 'MVP Builds'].map((tag) => (
+                      <span
+                        key={tag}
+                        className="text-xs px-2.5 py-1"
+                        style={{
+                          border: '1px solid rgba(255,255,255,0.1)',
+                          color: 'rgba(255,255,255,0.4)',
+                          fontFamily: 'Oxanium, system-ui, sans-serif',
+                        }}
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </AnimateIn>
             </div>
-          </AnimateIn>
+
+          </div>
         </div>
       </section>
 

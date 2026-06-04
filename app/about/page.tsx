@@ -47,7 +47,7 @@ export default function AboutPage() {
     <>
       {/* ── HERO ── */}
       <section
-        className="pt-[140px] pb-24 bg-dot-pattern"
+        className="pt-[148px] pb-24 bg-dot-pattern"
         style={{ backgroundColor: '#0C0F0C' }}
       >
         <div className="max-w-7xl mx-auto px-6 lg:px-8">

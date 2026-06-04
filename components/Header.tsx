@@ -55,15 +55,15 @@ export function Header() {
         style={{ borderBottom: '1px solid #E5E7EB' }}
       >
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
+          <div className="flex items-center justify-between h-[72px]">
 
             {/* Logo — own colors on white background */}
             <Link href="/" className="flex-shrink-0">
               <Image
                 src="/logo.png"
                 alt="Streamflare Media Group"
-                width={230}
-                height={46}
+                width={270}
+                height={54}
                 priority
               />
             </Link>
