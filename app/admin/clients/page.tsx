@@ -8,9 +8,15 @@ export default async function AdminClients() {
   const session = await getServerSession(authOptions);
   if (!session?.user) return null;
 
+  const role = session.user.role as string;
+  const clientFilter =
+    role === "STAFF"
+      ? { role: "CLIENT" as const, accountManagerId: session.user.id }
+      : { role: "CLIENT" as const };
+
   const [clients, unreadCount] = await Promise.all([
     prisma.user.findMany({
-      where: { role: "CLIENT" },
+      where: clientFilter,
       include: {
         accountManager: { select: { id: true, name: true } },
         orders: { select: { id: true, status: true } },
@@ -22,12 +28,17 @@ export default async function AdminClients() {
   ]);
 
   return (
-    <AdminShell userName={session.user.name ?? "Admin"} unreadCount={unreadCount}>
+    <AdminShell userName={session.user.name ?? "Admin"} unreadCount={unreadCount} userRole={role}>
       <div className="max-w-5xl">
-        <div className="mb-8">
-          <p className="text-xs tracking-[0.25em] font-bold uppercase text-muted-foreground mb-1">Admin</p>
-          <h1 className="text-3xl font-black uppercase">Clients</h1>
-          <p className="text-muted-foreground text-sm mt-1">{clients.length} total client{clients.length !== 1 ? "s" : ""}</p>
+        <div className="mb-8 flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs tracking-[0.25em] font-bold uppercase text-muted-foreground mb-1">Admin</p>
+            <h1 className="text-3xl font-black uppercase">Clients</h1>
+            <p className="text-muted-foreground text-sm mt-1">{clients.length} client{clients.length !== 1 ? "s" : ""}</p>
+          </div>
+          <Link href="/admin/clients/new" className="bg-accent text-accent-foreground font-black text-xs uppercase tracking-widest px-6 py-3 hover:bg-accent/85 transition-colors shrink-0">
+            + New Client
+          </Link>
         </div>
 
         {clients.length === 0 ? (

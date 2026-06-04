@@ -6,43 +6,34 @@ import bcrypt from "bcryptjs";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
-  if (!session?.user || !["ADMIN", "STAFF"].includes(session.user.role ?? "")) {
+  if (!session?.user || session.user.role !== "ADMIN") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const where =
-    session.user.role === "STAFF"
-      ? { role: "CLIENT" as const, accountManagerId: session.user.id }
-      : { role: "CLIENT" as const };
-
-  const clients = await prisma.user.findMany({
-    where,
+  const staff = await prisma.user.findMany({
+    where: { role: { in: ["ADMIN", "STAFF"] } },
     select: {
       id: true,
       name: true,
       email: true,
-      company: true,
-      phone: true,
-      accountManagerId: true,
-      accountManager: { select: { id: true, name: true } },
-      orders: { select: { id: true, status: true } },
-      receivedMessages: { where: { readAt: null }, select: { id: true } },
+      role: true,
       createdAt: true,
+      _count: { select: { clients: true } },
     },
-    orderBy: { createdAt: "desc" },
+    orderBy: { createdAt: "asc" },
   });
 
-  return NextResponse.json(clients);
+  return NextResponse.json(staff);
 }
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
-  if (!session?.user || !["ADMIN", "STAFF"].includes(session.user.role ?? "")) {
+  if (!session?.user || session.user.role !== "ADMIN") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const body = await req.json();
-  const { name, email, password, company, phone, accountManagerId } = body;
+  const { name, email, password } = body;
 
   if (!name || !email || !password) {
     return NextResponse.json({ error: "Name, email, and password are required." }, { status: 400 });
@@ -56,16 +47,8 @@ export async function POST(req: Request) {
   const passwordHash = await bcrypt.hash(password, 12);
 
   const user = await prisma.user.create({
-    data: {
-      name,
-      email,
-      passwordHash,
-      role: "CLIENT",
-      company: company || null,
-      phone: phone || null,
-      accountManagerId: accountManagerId || null,
-    },
-    select: { id: true, name: true, email: true, company: true, role: true },
+    data: { name, email, passwordHash, role: "STAFF" },
+    select: { id: true, name: true, email: true, role: true },
   });
 
   return NextResponse.json(user, { status: 201 });

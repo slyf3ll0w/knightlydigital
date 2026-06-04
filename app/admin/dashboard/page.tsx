@@ -17,10 +17,16 @@ export default async function AdminDashboard() {
   const session = await getServerSession(authOptions);
   if (!session?.user) return null;
 
+  const role = session.user.role as string;
+  const isStaff = role === "STAFF";
+  const clientFilter = isStaff ? { role: "CLIENT" as const, accountManagerId: session.user.id } : { role: "CLIENT" as const };
+  const orderFilter = isStaff ? { client: { accountManagerId: session.user.id } } : {};
+
   const [clientCount, pendingOrders, recentOrders, unreadCount] = await Promise.all([
-    prisma.user.count({ where: { role: "CLIENT" } }),
-    prisma.order.count({ where: { status: "PENDING" } }),
+    prisma.user.count({ where: clientFilter }),
+    prisma.order.count({ where: { status: "PENDING", ...orderFilter } }),
     prisma.order.findMany({
+      where: orderFilter,
       include: { client: { select: { name: true, company: true } } },
       orderBy: { createdAt: "desc" },
       take: 8,
@@ -31,7 +37,7 @@ export default async function AdminDashboard() {
   ]);
 
   return (
-    <AdminShell userName={session.user.name ?? "Admin"} unreadCount={unreadCount}>
+    <AdminShell userName={session.user.name ?? "Admin"} unreadCount={unreadCount} userRole={role}>
       <div className="max-w-5xl">
         <div className="mb-8">
           <p className="text-xs tracking-[0.25em] font-bold uppercase text-muted-foreground mb-1">Streamflare</p>
@@ -88,11 +94,12 @@ export default async function AdminDashboard() {
         </div>
 
         {/* Quick links */}
-        <div className="grid sm:grid-cols-3 gap-4">
+        <div className={`grid gap-4 ${isStaff ? "sm:grid-cols-3" : "sm:grid-cols-2 lg:grid-cols-4"}`}>
           {[
             { href: "/admin/clients", label: "Manage Clients", icon: "👥" },
             { href: "/admin/messages", label: "View All Messages", icon: "💬" },
             { href: "/admin/orders", label: "Manage Orders", icon: "📋" },
+            ...(!isStaff ? [{ href: "/admin/staff", label: "Team Members", icon: "🧑‍💼" }] : []),
           ].map((l) => (
             <Link
               key={l.href}

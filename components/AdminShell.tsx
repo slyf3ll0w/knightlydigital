@@ -56,9 +56,11 @@ type Props = {
   children: React.ReactNode;
   userName: string;
   unreadCount?: number;
+  userRole?: string;
 };
 
-export function AdminShell({ children, userName, unreadCount = 0 }: Props) {
+export function AdminShell({ children, userName, unreadCount = 0, userRole }: Props) {
+  const isAdmin = userRole === "ADMIN";
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -100,7 +102,15 @@ export function AdminShell({ children, userName, unreadCount = 0 }: Props) {
       <div className="flex flex-1 overflow-hidden">
         <aside className={`${mobileOpen ? "block" : "hidden"} lg:block w-56 bg-white border-r border-border shrink-0 flex flex-col absolute lg:relative z-20 h-full lg:h-auto`}>
           <nav className="flex flex-col p-4 gap-1">
-            {adminNav.map((item) => {
+            {[...adminNav, ...(isAdmin ? [{
+              href: "/admin/staff",
+              label: "Team",
+              icon: (
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+                </svg>
+              ),
+            }] : [])].map((item) => {
               const active = pathname === item.href || (item.href !== "/admin/dashboard" && pathname.startsWith(item.href));
               return (
                 <Link

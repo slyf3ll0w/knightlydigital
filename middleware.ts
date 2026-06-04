@@ -7,11 +7,13 @@ export default withAuth(
     const role = (token?.role as string) ?? "";
     const path = req.nextUrl.pathname;
 
-    if (path.startsWith("/admin") && role !== "ADMIN") {
+    const isStaff = role === "ADMIN" || role === "STAFF";
+
+    if (path.startsWith("/admin") && !isStaff) {
       return NextResponse.redirect(new URL("/portal/dashboard", req.url));
     }
 
-    if (path.startsWith("/portal") && !path.startsWith("/portal/login") && role === "ADMIN") {
+    if (path.startsWith("/portal") && !path.startsWith("/portal/login") && isStaff) {
       return NextResponse.redirect(new URL("/admin/dashboard", req.url));
     }
   },
