@@ -5,6 +5,16 @@ export const metadata: Metadata = {
     default: "Client Portal | Streamflare Media Group",
     template: "%s | Client Portal",
   },
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Streamflare",
+  },
+  icons: {
+    icon: "/icon.png",
+    apple: "/icon.png",
+  },
 };
 
 export default function PortalLayout({ children }: { children: React.ReactNode }) {

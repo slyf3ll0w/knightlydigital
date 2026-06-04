@@ -11,15 +11,8 @@ export const metadata: Metadata = {
   description:
     "Streamflare Media Group delivers precision digital marketing, custom software, and social media management for growth-minded businesses across the DFW Metroplex.",
   metadataBase: new URL("https://streamflaremedia.com"),
-  manifest: "/manifest.webmanifest",
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "black-translucent",
-    title: "Streamflare",
-  },
   icons: {
     icon: "/icon.png",
-    apple: "/icon.png",
   },
 };
 
