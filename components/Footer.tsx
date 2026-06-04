@@ -49,16 +49,16 @@ const socialLinks = [
 
 export function Footer() {
   return (
-    <footer style={{ backgroundColor: '#07080E', color: '#ffffff' }}>
-      {/* Top blue accent line */}
-      <div style={{ height: '2px', backgroundColor: '#1A52E8' }} />
+    <footer style={{ backgroundColor: '#0C0F0C', color: '#ffffff' }}>
+      {/* Top green accent line */}
+      <div style={{ height: '2px', backgroundColor: '#22C55E' }} />
 
       <div className="max-w-7xl mx-auto px-6 lg:px-8 py-16">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 pb-12" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
 
           {/* Brand column */}
           <div>
-            <div className="bg-white inline-block px-2 py-1 mb-5">
+            <div className="inline-block px-2 py-1 mb-5" style={{ backgroundColor: '#6D7070' }}>
               <Image
                 src="/logo.png"
                 alt="Streamflare Media Group"

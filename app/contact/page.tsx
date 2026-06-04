@@ -46,8 +46,8 @@ export default function ContactPage() {
     <>
       {/* Page hero + two-column layout */}
       <section
-        className="min-h-screen pt-16"
-        style={{ backgroundColor: '#07080E' }}
+        className="min-h-screen pt-16 bg-dot-pattern"
+        style={{ backgroundColor: '#0C0F0C' }}
       >
         <div className="max-w-7xl mx-auto px-6 lg:px-8 py-20">
           <div className="grid lg:grid-cols-2 gap-16 items-start">
@@ -56,7 +56,7 @@ export default function ContactPage() {
             <div>
               <p
                 className="text-xs font-bold uppercase tracking-widest mb-5"
-                style={{ color: '#1A52E8', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
               >
                 Get in Touch
               </p>
@@ -66,7 +66,7 @@ export default function ContactPage() {
               >
                 Let&apos;s Talk About Your Business
               </h1>
-              <p className="text-base leading-relaxed mb-12" style={{ color: '#6B7280' }}>
+              <p className="text-base leading-relaxed mb-12" style={{ color: 'rgba(255,255,255,0.55)' }}>
                 Fill out the form and a member of our team will reach back within one business day.
               </p>
 
@@ -78,9 +78,9 @@ export default function ContactPage() {
                 >
                   <div
                     className="w-10 h-10 flex items-center justify-center flex-shrink-0"
-                    style={{ backgroundColor: 'rgba(26,82,232,0.15)', border: '1px solid rgba(26,82,232,0.3)' }}
+                    style={{ backgroundColor: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.3)' }}
                   >
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="#1A52E8" strokeWidth="2">
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="#22C55E" strokeWidth="2">
                       <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
                       <circle cx="12" cy="10" r="3" />
                     </svg>
@@ -103,9 +103,9 @@ export default function ContactPage() {
                 >
                   <div
                     className="w-10 h-10 flex items-center justify-center flex-shrink-0"
-                    style={{ backgroundColor: 'rgba(26,82,232,0.15)', border: '1px solid rgba(26,82,232,0.3)' }}
+                    style={{ backgroundColor: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.3)' }}
                   >
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="#1A52E8" strokeWidth="2">
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="#22C55E" strokeWidth="2">
                       <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.67A2 2 0 012 1h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" />
                     </svg>
                   </div>
@@ -133,9 +133,9 @@ export default function ContactPage() {
                 >
                   <div
                     className="w-10 h-10 flex items-center justify-center flex-shrink-0"
-                    style={{ backgroundColor: 'rgba(26,82,232,0.15)', border: '1px solid rgba(26,82,232,0.3)' }}
+                    style={{ backgroundColor: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.3)' }}
                   >
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="#1A52E8" strokeWidth="2">
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="#22C55E" strokeWidth="2">
                       <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
                       <polyline points="22,6 12,13 2,6" />
                     </svg>
@@ -161,9 +161,9 @@ export default function ContactPage() {
                 <div className="flex items-start gap-4">
                   <div
                     className="w-10 h-10 flex items-center justify-center flex-shrink-0"
-                    style={{ backgroundColor: 'rgba(26,82,232,0.15)', border: '1px solid rgba(26,82,232,0.3)' }}
+                    style={{ backgroundColor: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.3)' }}
                   >
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="#1A52E8" strokeWidth="2">
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="#22C55E" strokeWidth="2">
                       <circle cx="12" cy="12" r="10" />
                       <polyline points="12 6 12 12 16 14" />
                     </svg>
@@ -188,9 +188,9 @@ export default function ContactPage() {
                   <div className="text-center py-12">
                     <div
                       className="w-14 h-14 mx-auto mb-6 flex items-center justify-center"
-                      style={{ backgroundColor: 'rgba(26,82,232,0.1)', border: '1px solid rgba(26,82,232,0.3)' }}
+                      style={{ backgroundColor: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)' }}
                     >
-                      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="#1A52E8" strokeWidth="2.5">
+                      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="#22C55E" strokeWidth="2.5">
                         <polyline points="20 6 9 17 4 12" />
                       </svg>
                     </div>
@@ -206,7 +206,7 @@ export default function ContactPage() {
                     <button
                       onClick={() => setSubmitted(false)}
                       className="text-sm font-semibold uppercase tracking-wider transition-colors"
-                      style={{ color: '#1A52E8', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                      style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
                     >
                       Send Another Message →
                     </button>
@@ -227,7 +227,7 @@ export default function ContactPage() {
                           className="block text-xs font-bold uppercase tracking-wider mb-2"
                           style={{ color: '#6B7280', fontFamily: 'Oxanium, system-ui, sans-serif' }}
                         >
-                          Full Name <span style={{ color: '#1A52E8' }}>*</span>
+                          Full Name <span style={{ color: '#22C55E' }}>*</span>
                         </label>
                         <input
                           id="fullName"
@@ -272,7 +272,7 @@ export default function ContactPage() {
                           className="block text-xs font-bold uppercase tracking-wider mb-2"
                           style={{ color: '#6B7280', fontFamily: 'Oxanium, system-ui, sans-serif' }}
                         >
-                          Email <span style={{ color: '#1A52E8' }}>*</span>
+                          Email <span style={{ color: '#22C55E' }}>*</span>
                         </label>
                         <input
                           id="email"
@@ -354,9 +354,9 @@ export default function ContactPage() {
                     <button
                       type="submit"
                       disabled={submitting}
-                      className="w-full text-sm font-bold uppercase tracking-wider py-4 transition-colors disabled:opacity-70"
+                      className="w-full text-sm font-bold uppercase tracking-wider py-4 transition-opacity hover:opacity-90 disabled:opacity-70"
                       style={{
-                        backgroundColor: '#1A52E8',
+                        backgroundColor: '#22C55E',
                         color: '#ffffff',
                         fontFamily: 'Oxanium, system-ui, sans-serif',
                       }}

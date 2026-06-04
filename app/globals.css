@@ -8,11 +8,11 @@
 :root {
   --background: #ffffff;
   --foreground: #0A0A0F;
-  --sf-dark: #07080E;
-  --sf-mid: #0F1019;
-  --sf-blue: #1A52E8;
-  --sf-blue-dark: #1340C4;
-  --sf-light: #F5F6FA;
+  --sf-dark: #0C0F0C;
+  --sf-mid: #111511;
+  --sf-green: #22C55E;
+  --sf-green-dark: #16A34A;
+  --sf-light: #F5F7F5;
   --sf-border: rgba(255,255,255,0.08);
   --sf-border-light: #E5E7EB;
   --sf-muted: #6B7280;
@@ -30,4 +30,16 @@ h1, h2, h3, h4, h5, h6, .font-display {
 
 html {
   scroll-behavior: smooth;
+}
+
+.bg-dot-pattern {
+  background-image: radial-gradient(circle, rgba(34,197,94,0.08) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+.bg-grid-pattern {
+  background-image:
+    linear-gradient(rgba(34,197,94,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(34,197,94,0.04) 1px, transparent 1px);
+  background-size: 40px 40px;
 }

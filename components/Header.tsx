@@ -19,14 +19,14 @@ export function Header() {
   return (
     <header
       className="fixed top-0 left-0 right-0 z-50"
-      style={{ backgroundColor: '#07080E', borderBottom: '1px solid rgba(255,255,255,0.08)' }}
+      style={{ backgroundColor: '#0C0F0C', borderBottom: '1px solid rgba(255,255,255,0.08)' }}
     >
       <div className="max-w-7xl mx-auto px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
 
           {/* Logo */}
           <Link href="/" className="flex-shrink-0">
-            <div className="bg-white px-2 py-1">
+            <div className="inline-block px-2 py-1" style={{ backgroundColor: '#6D7070' }}>
               <Image
                 src="/logo.png"
                 alt="Streamflare Media Group"
@@ -67,9 +67,9 @@ export function Header() {
             </Link>
             <Link
               href="/contact"
-              className="text-sm font-semibold uppercase tracking-wider px-5 py-2 transition-colors"
+              className="text-sm font-semibold uppercase tracking-wider px-5 py-2 transition-colors hover:opacity-90"
               style={{
-                backgroundColor: '#1A52E8',
+                backgroundColor: '#22C55E',
                 color: '#ffffff',
                 fontFamily: 'Oxanium, system-ui, sans-serif',
               }}
@@ -108,7 +108,7 @@ export function Header() {
         <div
           className="md:hidden"
           style={{
-            backgroundColor: '#07080E',
+            backgroundColor: '#0C0F0C',
             borderTop: '1px solid rgba(255,255,255,0.08)',
           }}
         >
@@ -147,9 +147,9 @@ export function Header() {
               <Link
                 href="/contact"
                 onClick={() => setMobileOpen(false)}
-                className="block text-center text-sm font-semibold uppercase tracking-wider px-5 py-3 w-full"
+                className="block text-center text-sm font-semibold uppercase tracking-wider px-5 py-3 w-full transition-colors hover:opacity-90"
                 style={{
-                  backgroundColor: '#1A52E8',
+                  backgroundColor: '#22C55E',
                   color: '#ffffff',
                   fontFamily: 'Oxanium, system-ui, sans-serif',
                 }}
