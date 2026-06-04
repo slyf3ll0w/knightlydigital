@@ -97,7 +97,7 @@ export default function HomePage() {
           paddingBottom: '80px',
         }}
       >
-        <div className="max-w-3xl mx-auto px-6 lg:px-8 w-full py-16 text-center">
+        <div className="max-w-3xl mx-auto px-6 lg:px-8 w-full pt-4 pb-12 text-center">
 
           {/* Large logo — own colors on light background */}
           <div className="anim-fade-up flex justify-center mb-8">
@@ -107,6 +107,8 @@ export default function HomePage() {
               width={340}
               height={68}
               priority
+              quality={100}
+              sizes="340px"
             />
           </div>
 
@@ -225,28 +227,47 @@ export default function HomePage() {
               >
                 Modern Tech. Real Prices. Zero Bloat.
               </h2>
-              <p className="text-base leading-relaxed mb-6" style={{ color: 'rgba(255,255,255,0.55)' }}>
-                Most agencies build on outdated platforms, charge for things you don&apos;t need, and lock you into long, expensive timelines. We build with today&apos;s leading open-source frameworks — the same stack powering the world&apos;s fastest-growing software companies.
+              <p className="text-base leading-relaxed mb-5" style={{ color: 'rgba(255,255,255,0.55)' }}>
+                A lot of what traditional agencies charge for is overhead — slow processes, expensive licensed platforms, and team structures that bill hours just to stay in motion.
               </p>
               <p className="text-base leading-relaxed mb-10" style={{ color: 'rgba(255,255,255,0.55)' }}>
-                That means faster builds, cleaner code, and a final price that actually makes sense — without sacrificing quality or cutting corners.
+                We stay lean on purpose. Modern open-source tools let us build faster and cleaner, which means lower costs for you and software that won&apos;t need a full rewrite in two years.
               </p>
 
-              {/* Tech badges */}
-              <div className="flex flex-wrap gap-2 mb-10">
-                {['Next.js', 'React', 'TypeScript', 'PostgreSQL', 'Tailwind CSS', 'Cloud-Native'].map((tech) => (
-                  <span
-                    key={tech}
-                    className="text-xs font-semibold px-3 py-1.5 uppercase tracking-wider"
-                    style={{
-                      border: '1px solid rgba(34,197,94,0.35)',
-                      color: '#22C55E',
-                      backgroundColor: 'rgba(34,197,94,0.07)',
-                      fontFamily: 'Oxanium, system-ui, sans-serif',
-                    }}
+              {/* Three honest differentiators */}
+              <div
+                className="flex flex-col mb-10"
+                style={{ borderTop: '1px solid rgba(255,255,255,0.10)' }}
+              >
+                {[
+                  {
+                    title: 'You own everything.',
+                    body: 'No proprietary platforms, no lock-in. The code, the data, the hosting — all yours from day one.',
+                  },
+                  {
+                    title: 'No agency markup.',
+                    body: "We use proven open-source tools and don't charge a premium for them. You pay for the work, not the overhead.",
+                  },
+                  {
+                    title: 'Faster than you expect.',
+                    body: 'Modern frameworks let us skip a lot of what legacy agencies bill hours for. Most builds ship in 4–8 weeks.',
+                  },
+                ].map((item) => (
+                  <div
+                    key={item.title}
+                    className="py-5"
+                    style={{ borderBottom: '1px solid rgba(255,255,255,0.10)' }}
                   >
-                    {tech}
-                  </span>
+                    <p
+                      className="text-sm font-bold text-white mb-1"
+                      style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                    >
+                      {item.title}
+                    </p>
+                    <p className="text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                      {item.body}
+                    </p>
+                  </div>
                 ))}
               </div>
 
@@ -361,7 +382,7 @@ export default function HomePage() {
               className="text-4xl lg:text-5xl font-bold"
               style={{ color: '#0A0A0F', fontFamily: 'Oxanium, system-ui, sans-serif' }}
             >
-              Everything Your Business Needs Online
+              Everything Your Business <SketchUnderline>Needs Online</SketchUnderline>
             </h2>
           </AnimateIn>
 
@@ -577,7 +598,7 @@ export default function HomePage() {
               className="text-3xl lg:text-4xl font-bold text-white mb-4"
               style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
             >
-              Ready to Build Something That Actually Works?
+              Ready to Build Something That <SketchUnderline color="#ffffff">Actually Works?</SketchUnderline>
             </h2>
             <p className="text-base mb-10 max-w-xl mx-auto" style={{ color: 'rgba(255,255,255,0.85)' }}>
               Get a free consultation and see what Streamflare can build for your DFW business.

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { AnimateIn } from '@/components/AnimateIn';
+import { SketchUnderline } from '@/components/SketchUnderline';
 
 export const metadata: Metadata = {
   title: 'About Us',
@@ -61,7 +62,7 @@ export default function AboutPage() {
             className="anim-fade-up anim-delay-1 text-4xl sm:text-5xl lg:text-6xl font-bold text-white leading-tight max-w-3xl mb-6"
             style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
           >
-            We&apos;re Not Your Average DFW Agency
+            We&apos;re Not Your <SketchUnderline color="#22C55E">Average</SketchUnderline> Agency
           </h1>
           <p
             className="anim-fade-up anim-delay-2 text-lg max-w-2xl leading-relaxed"
@@ -251,7 +252,7 @@ export default function AboutPage() {
             className="text-3xl lg:text-4xl font-bold text-white mb-4"
             style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
           >
-            Ready to Work With an Agency That Actually Gives a Damn?
+            Ready to Work With an Agency That <SketchUnderline color="#ffffff">Actually Delivers?</SketchUnderline>
           </h2>
           <p className="text-base mb-10 max-w-xl mx-auto" style={{ color: 'rgba(255,255,255,0.85)' }}>
             Get a free consultation and see what Streamflare can do for your DFW business.

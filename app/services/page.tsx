@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { AnimateIn } from '@/components/AnimateIn';
+import { SketchUnderline } from '@/components/SketchUnderline';
 
 export const metadata: Metadata = {
   title: 'Services',
@@ -35,7 +36,7 @@ export default function ServicesPage() {
             className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white leading-tight max-w-3xl mb-6"
             style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
           >
-            Services That Move the Needle
+            Services That <SketchUnderline color="#22C55E">Move the Needle</SketchUnderline>
           </h1>
           <p className="text-lg max-w-2xl leading-relaxed" style={{ color: 'rgba(255,255,255,0.6)' }}>
             Built for businesses that want better systems, better visibility, and better growth. Every service is delivered custom — no cookie-cutter packages, no recycled strategies.
@@ -417,7 +418,7 @@ export default function ServicesPage() {
               className="text-3xl lg:text-4xl font-bold text-white mb-6"
               style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
             >
-              You Get What You Pay For.
+              You Get What <SketchUnderline color="#22C55E">You Pay For.</SketchUnderline>
             </h2>
             <p className="text-base leading-relaxed mb-6" style={{ color: 'rgba(255,255,255,0.6)' }}>
               There are hundreds of digital agencies in DFW. Most of them sell you on a low monthly retainer, automate your posts with scheduling software, run the same ad templates for every client, and call it a month. You get a PDF report with impressions and engagement numbers that don&apos;t translate to anything that matters to your business.
