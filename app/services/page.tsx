@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { AnimateIn } from '@/components/AnimateIn';
 
 export const metadata: Metadata = {
   title: 'Services',
@@ -20,7 +21,7 @@ export default function ServicesPage() {
     <>
       {/* ── HERO ── */}
       <section
-        className="pt-32 pb-24 bg-dot-pattern"
+        className="pt-36 pb-24 bg-dot-pattern"
         style={{ backgroundColor: '#0C0F0C' }}
       >
         <div className="max-w-7xl mx-auto px-6 lg:px-8">

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { AnimateIn } from '@/components/AnimateIn';
 
 export const metadata: Metadata = {
   title: 'About Us',
@@ -46,34 +47,37 @@ export default function AboutPage() {
     <>
       {/* ── HERO ── */}
       <section
-        className="pt-32 pb-24 bg-dot-pattern"
+        className="pt-36 pb-24 bg-dot-pattern"
         style={{ backgroundColor: '#0C0F0C' }}
       >
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <p
-            className="text-xs font-bold uppercase tracking-widest mb-5"
+            className="anim-fade-up text-xs font-bold uppercase tracking-widest mb-5"
             style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
           >
             About Streamflare
           </p>
           <h1
-            className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white leading-tight max-w-3xl mb-6"
+            className="anim-fade-up anim-delay-1 text-4xl sm:text-5xl lg:text-6xl font-bold text-white leading-tight max-w-3xl mb-6"
             style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
           >
             We&apos;re Not Your Average DFW Agency
           </h1>
-          <p className="text-lg max-w-2xl leading-relaxed" style={{ color: 'rgba(255,255,255,0.6)' }}>
+          <p
+            className="anim-fade-up anim-delay-2 text-lg max-w-2xl leading-relaxed"
+            style={{ color: 'rgba(255,255,255,0.6)' }}
+          >
             Headquartered in Allen, TX. Built to serve DFW businesses that are tired of being treated like line items on someone else&apos;s spreadsheet.
           </p>
         </div>
       </section>
 
       {/* ── OUR STORY ── */}
-      <section className="py-24 bg-white">
+      <section className="py-24 bg-grid-pattern" style={{ backgroundColor: '#ffffff' }}>
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-16 items-start">
             {/* Left: story text */}
-            <div>
+            <AnimateIn>
               <p
                 className="text-xs font-bold uppercase tracking-widest mb-4"
                 style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
@@ -110,10 +114,10 @@ export default function AboutPage() {
                   That&apos;s not a tagline — it&apos;s how we evaluate every decision we make for your business.
                 </p>
               </div>
-            </div>
+            </AnimateIn>
 
             {/* Right: stats card */}
-            <div className="lg:pt-8">
+            <AnimateIn delay={150} className="lg:pt-8">
               <div
                 className="p-8"
                 style={{ backgroundColor: '#0C0F0C', border: '1px solid rgba(255,255,255,0.08)' }}
@@ -152,7 +156,7 @@ export default function AboutPage() {
                   ))}
                 </div>
               </div>
-            </div>
+            </AnimateIn>
           </div>
         </div>
       </section>

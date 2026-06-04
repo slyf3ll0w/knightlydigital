@@ -22,19 +22,17 @@ export function Header() {
       style={{ backgroundColor: '#0C0F0C', borderBottom: '1px solid rgba(255,255,255,0.08)' }}
     >
       <div className="max-w-7xl mx-auto px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+        <div className="flex items-center justify-between h-20">
 
           {/* Logo */}
           <Link href="/" className="flex-shrink-0">
-            <div className="inline-block px-2 py-1" style={{ backgroundColor: '#6D7070' }}>
-              <Image
-                src="/logo.png"
-                alt="Streamflare Media Group"
-                width={160}
-                height={32}
-                priority
-              />
-            </div>
+            <Image
+              src="/logo.png"
+              alt="Streamflare Media Group"
+              width={220}
+              height={44}
+              priority
+            />
           </Link>
 
           {/* Desktop Nav */}

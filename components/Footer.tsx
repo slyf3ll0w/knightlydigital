@@ -58,12 +58,12 @@ export function Footer() {
 
           {/* Brand column */}
           <div>
-            <div className="inline-block px-2 py-1 mb-5" style={{ backgroundColor: '#6D7070' }}>
+            <div className="mb-5">
               <Image
                 src="/logo.png"
                 alt="Streamflare Media Group"
-                width={160}
-                height={32}
+                width={190}
+                height={38}
               />
             </div>
             <p className="text-sm leading-relaxed mb-6" style={{ color: '#6B7280' }}>
