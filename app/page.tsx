@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import { LeadForm } from '@/components/LeadForm';
-import { EstimateForm } from '@/components/EstimateForm';
 import { AnimateIn } from '@/components/AnimateIn';
 
 const cities = [
@@ -101,19 +100,18 @@ const softwareFeatures = [
 export default function HomePage() {
   return (
     <>
-      {/* ── HERO ── light background, Jobber-inspired ── */}
+      {/* ── HERO — paper texture, single form ── */}
       <section
-        className="relative flex items-center min-h-screen pt-[100px] bg-dot-pattern-light"
+        className="relative flex items-center min-h-screen pt-[100px] bg-paper"
         style={{
-          backgroundColor: '#F8FAF8',
           clipPath: 'polygon(0 0, 100% 0, 100% 96%, 0 100%)',
           paddingBottom: '7rem',
         }}
       >
         <div className="max-w-7xl mx-auto px-6 lg:px-8 w-full py-16 lg:py-0">
-          <div className="grid lg:grid-cols-2 gap-14 items-center">
+          <div className="grid lg:grid-cols-2 gap-16 items-center">
 
-            {/* Left: copy + inline lead form */}
+            {/* Left: headline + one lead form */}
             <div>
               <p
                 className="anim-fade-up text-xs font-bold uppercase tracking-widest mb-5"
@@ -125,9 +123,9 @@ export default function HomePage() {
                 className="anim-fade-up anim-delay-1 font-bold leading-none tracking-tight mb-6"
                 style={{
                   fontFamily: 'Oxanium, system-ui, sans-serif',
-                  fontSize: 'clamp(2.8rem, 6vw, 4.5rem)',
+                  fontSize: 'clamp(2.6rem, 5.5vw, 4.2rem)',
                   color: '#0A0A0F',
-                  lineHeight: 1.08,
+                  lineHeight: 1.1,
                 }}
               >
                 Custom Software.
@@ -159,6 +157,7 @@ export default function HomePage() {
                     style={{
                       border: '1px solid rgba(0,0,0,0.12)',
                       color: '#6B7280',
+                      backgroundColor: 'rgba(255,255,255,0.7)',
                       fontFamily: 'Oxanium, system-ui, sans-serif',
                     }}
                   >
@@ -168,13 +167,110 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* Right: dark estimate card */}
+            {/* Right: product mockup card */}
             <div className="hidden lg:block anim-fade-up anim-delay-2">
               <div
-                className="p-8 shadow-2xl"
+                className="overflow-hidden"
                 style={{ backgroundColor: '#0C0F0C', border: '1px solid rgba(255,255,255,0.07)' }}
               >
-                <EstimateForm dark />
+                {/* Mock browser bar */}
+                <div
+                  className="flex items-center gap-2 px-4 py-3"
+                  style={{ backgroundColor: '#111511', borderBottom: '1px solid rgba(255,255,255,0.07)' }}
+                >
+                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#EF4444' }} />
+                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#F59E0B' }} />
+                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#22C55E' }} />
+                  <div
+                    className="flex-1 mx-3 px-3 py-1 text-xs text-center"
+                    style={{
+                      backgroundColor: 'rgba(255,255,255,0.05)',
+                      color: 'rgba(255,255,255,0.3)',
+                      fontFamily: 'Oxanium, system-ui, sans-serif',
+                    }}
+                  >
+                    portal.streamflaremedia.com
+                  </div>
+                </div>
+
+                {/* Mock portal content */}
+                <div className="p-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <p
+                        className="text-xs uppercase tracking-widest font-bold mb-1"
+                        style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                      >
+                        Client Portal
+                      </p>
+                      <p className="text-white font-bold text-lg" style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}>
+                        Good morning, Alex.
+                      </p>
+                    </div>
+                    <div
+                      className="w-2 h-2 rounded-full"
+                      style={{ backgroundColor: '#22C55E', boxShadow: '0 0 8px #22C55E' }}
+                    />
+                  </div>
+
+                  {/* Active projects */}
+                  <div className="flex flex-col gap-3 mb-6">
+                    {[
+                      { name: 'Custom CRM Build', status: 'In Progress', pct: 68 },
+                      { name: 'Meta Ads — Q3 Campaign', status: 'Active', pct: 100 },
+                      { name: 'Website Redesign', status: 'Review', pct: 92 },
+                    ].map((proj) => (
+                      <div
+                        key={proj.name}
+                        className="p-3"
+                        style={{ backgroundColor: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}
+                      >
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="text-xs font-semibold text-white" style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}>
+                            {proj.name}
+                          </span>
+                          <span
+                            className="text-xs px-2 py-0.5"
+                            style={{
+                              color: '#22C55E',
+                              backgroundColor: 'rgba(34,197,94,0.1)',
+                              fontFamily: 'Oxanium, system-ui, sans-serif',
+                            }}
+                          >
+                            {proj.status}
+                          </span>
+                        </div>
+                        <div className="w-full h-1" style={{ backgroundColor: 'rgba(255,255,255,0.08)' }}>
+                          <div
+                            className="h-1"
+                            style={{ width: `${proj.pct}%`, backgroundColor: '#22C55E' }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Stats row */}
+                  <div
+                    className="grid grid-cols-3 gap-3 pt-4"
+                    style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}
+                  >
+                    {[
+                      { label: 'Messages', value: '3' },
+                      { label: 'Invoices', value: '2' },
+                      { label: 'Reports', value: '1' },
+                    ].map((s) => (
+                      <div key={s.label} className="text-center">
+                        <p className="text-xl font-bold text-white" style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}>
+                          {s.value}
+                        </p>
+                        <p className="text-xs mt-0.5 uppercase tracking-wide" style={{ color: 'rgba(255,255,255,0.4)', fontFamily: 'Oxanium, system-ui, sans-serif' }}>
+                          {s.label}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -236,8 +332,8 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── BUILD / GROW / MANAGE ── light section ── */}
-      <section className="py-24 bg-grid-pattern" style={{ backgroundColor: '#ffffff' }}>
+      {/* ── BUILD / GROW / MANAGE ── paper section ── */}
+      <section className="py-24 bg-paper">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
 
           <AnimateIn className="mb-14">
@@ -277,7 +373,10 @@ export default function HomePage() {
               },
             ].map((col) => (
               <AnimateIn key={col.title} delay={col.delay}>
-                <div className="card-lift h-full" style={{ border: '1px solid #E5E7EB' }}>
+                <div
+                  className="card-lift h-full bg-white"
+                  style={{ border: '1px solid #E5E7EB' }}
+                >
                   <div style={{ height: '5px', backgroundColor: '#22C55E' }} />
                   <div className="p-7">
                     <h3
@@ -305,7 +404,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── THREE PILLARS strip ── */}
+      {/* ── THREE PILLARS strip ── dark ── */}
       <section className="py-16 bg-dot-pattern" style={{ backgroundColor: '#0C0F0C' }}>
         <AnimateIn>
           <div className="max-w-7xl mx-auto px-6 lg:px-8">
@@ -329,8 +428,8 @@ export default function HomePage() {
         </AnimateIn>
       </section>
 
-      {/* ── PAIN POINTS ── light section ── */}
-      <section className="py-24 bg-dot-pattern-light" style={{ backgroundColor: '#F5F7F5' }}>
+      {/* ── PAIN POINTS ── paper-warm section ── */}
+      <section className="py-24 bg-paper-warm">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-16 items-start">
 
@@ -348,7 +447,7 @@ export default function HomePage() {
                 Is Your Business Held Back by Bad Tech or Bad Marketing?
               </h2>
               <p className="text-base leading-relaxed mb-8" style={{ color: '#6B7280' }}>
-                You&apos;re great at what you do. But outdated software and a weak digital presence cost you time, money, and customers — every single day.
+                You&apos;re great at what you do. But outdated software and a weak digital presence cost you time, money, and customers every day.
               </p>
               <ul className="flex flex-col gap-3 mb-8">
                 {painPoints.map((point) => (
@@ -370,7 +469,7 @@ export default function HomePage() {
             <AnimateIn delay={150}>
               <div
                 className="p-8"
-                style={{ backgroundColor: '#0C0F0C', border: '1px solid rgba(255,255,255,0.10)' }}
+                style={{ backgroundColor: '#0C0F0C', border: '1px solid rgba(255,255,255,0.08)' }}
               >
                 <p
                   className="text-xl font-bold mb-3 tracking-wide"
@@ -403,8 +502,8 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── OUR PROCESS ── white section ── */}
-      <section className="py-24 bg-grid-pattern" style={{ backgroundColor: '#ffffff' }}>
+      {/* ── OUR PROCESS ── paper section ── */}
+      <section className="py-24 bg-paper">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-16 items-start">
 
@@ -480,7 +579,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── SERVICE AREA ── dark section ── */}
+      {/* ── SERVICE AREA ── dark ── */}
       <section className="py-24 bg-dot-pattern" style={{ backgroundColor: '#0C0F0C' }}>
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <AnimateIn className="mb-12">
@@ -497,7 +596,7 @@ export default function HomePage() {
               Serving DFW — All of It.
             </h2>
             <p className="text-base max-w-2xl leading-relaxed" style={{ color: 'rgba(255,255,255,0.45)' }}>
-              Based in Allen, TX, we work with businesses across the entire DFW Metroplex. If you&apos;re in North Texas, we&apos;ve got you covered.
+              Based in Allen, TX, we work with businesses across the entire DFW Metroplex.
             </p>
           </AnimateIn>
 

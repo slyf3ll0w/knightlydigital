@@ -73,7 +73,7 @@ export default function AboutPage() {
       </section>
 
       {/* ── OUR STORY ── */}
-      <section className="py-24 bg-grid-pattern" style={{ backgroundColor: '#ffffff' }}>
+      <section className="py-24 bg-paper">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-16 items-start">
             {/* Left: story text */}
@@ -102,7 +102,7 @@ export default function AboutPage() {
 
               <div
                 className="p-6"
-                style={{ backgroundColor: '#F5F7F5', borderLeft: '4px solid #22C55E' }}
+                style={{ backgroundColor: '#F4F3EF', borderLeft: '4px solid #22C55E' }}
               >
                 <p
                   className="text-lg font-bold"
@@ -162,7 +162,7 @@ export default function AboutPage() {
       </section>
 
       {/* ── VALUES ── */}
-      <section className="py-24 bg-dot-pattern" style={{ backgroundColor: '#F5F7F5' }}>
+      <section className="py-24 bg-paper-warm">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="max-w-3xl mx-auto">
             <p
@@ -209,7 +209,7 @@ export default function AboutPage() {
       </section>
 
       {/* ── SERVICE AREA ── */}
-      <section className="py-24 bg-white">
+      <section className="py-24 bg-paper">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="mb-12">
             <p

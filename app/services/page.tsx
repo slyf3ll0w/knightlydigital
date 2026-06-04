@@ -44,7 +44,7 @@ export default function ServicesPage() {
       </section>
 
       {/* ── SERVICE 1: Custom Software ── */}
-      <section className="py-24 bg-white">
+      <section className="py-24 bg-paper">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-16 items-start">
             {/* Left: content */}
@@ -163,7 +163,7 @@ export default function ServicesPage() {
       </section>
 
       {/* ── SERVICE 2: Meta Ads ── */}
-      <section className="py-24 bg-dot-pattern" style={{ backgroundColor: '#F5F7F5' }}>
+      <section className="py-24 bg-paper-warm">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-16 items-start">
             {/* Left: content */}
@@ -278,7 +278,7 @@ export default function ServicesPage() {
       </section>
 
       {/* ── SERVICE 3: Social Media ── */}
-      <section className="py-24 bg-white">
+      <section className="py-24 bg-paper">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-16 items-start">
             {/* Left: content */}

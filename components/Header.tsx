@@ -19,39 +19,29 @@ export function Header() {
   return (
     <header className="fixed top-0 left-0 right-0 z-50">
 
-      {/* ── Top info bar ── */}
+      {/* ── Top info bar — dark strip ── */}
       <div
-        className="hidden md:flex items-center justify-between px-6 lg:px-8 h-9 text-xs"
-        style={{
-          backgroundColor: '#0A0D0A',
-          borderBottom: '1px solid rgba(255,255,255,0.06)',
-          fontFamily: 'Oxanium, system-ui, sans-serif',
-          color: 'rgba(255,255,255,0.45)',
-        }}
+        className="hidden md:block"
+        style={{ backgroundColor: '#0C0F0C', borderBottom: '1px solid rgba(255,255,255,0.06)' }}
       >
-        <div className="flex items-center gap-5 max-w-7xl mx-auto w-full">
-          <span>📍 Allen, TX — Serving the DFW Metroplex</span>
-          <span style={{ color: 'rgba(255,255,255,0.2)' }}>|</span>
-          <a
-            href="tel:2145550100"
-            className="transition-colors hover:text-white"
-            style={{ color: 'rgba(255,255,255,0.45)' }}
+        <div className="max-w-7xl mx-auto px-6 lg:px-8 flex items-center justify-between h-9">
+          <div
+            className="flex items-center gap-4 text-xs"
+            style={{ color: 'rgba(255,255,255,0.45)', fontFamily: 'Oxanium, system-ui, sans-serif' }}
           >
-            (214) 555-0100
-          </a>
-          <span style={{ color: 'rgba(255,255,255,0.2)' }}>|</span>
-          <a
-            href="mailto:info@streamflaremedia.com"
-            className="transition-colors hover:text-white"
-            style={{ color: 'rgba(255,255,255,0.45)' }}
-          >
-            info@streamflaremedia.com
-          </a>
-        </div>
-        <div className="max-w-7xl mx-auto flex items-center flex-shrink-0">
+            <span>Allen, TX — Serving the DFW Metroplex</span>
+            <span style={{ color: 'rgba(255,255,255,0.18)' }}>|</span>
+            <a href="tel:2145550100" className="hover:text-white transition-colors">
+              (214) 555-0100
+            </a>
+            <span style={{ color: 'rgba(255,255,255,0.18)' }}>|</span>
+            <a href="mailto:info@streamflaremedia.com" className="hover:text-white transition-colors">
+              info@streamflaremedia.com
+            </a>
+          </div>
           <Link
             href="/contact"
-            className="transition-colors hover:text-white font-semibold"
+            className="text-xs font-semibold transition-colors hover:opacity-80"
             style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
           >
             Schedule a Free Consultation →
@@ -59,23 +49,22 @@ export function Header() {
         </div>
       </div>
 
-      {/* ── Main nav ── */}
+      {/* ── Main nav — white background ── */}
       <div
-        className="border-b"
-        style={{ backgroundColor: '#0C0F0C', borderBottomColor: 'rgba(255,255,255,0.08)' }}
+        className="bg-white"
+        style={{ borderBottom: '1px solid #E5E7EB' }}
       >
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
 
-            {/* Logo — white filter so it's visible on dark background */}
+            {/* Logo — own colors on white background */}
             <Link href="/" className="flex-shrink-0">
               <Image
                 src="/logo.png"
                 alt="Streamflare Media Group"
-                width={210}
-                height={42}
+                width={200}
+                height={40}
                 priority
-                style={{ filter: 'brightness(0) invert(1)' }}
               />
             </Link>
 
@@ -87,10 +76,11 @@ export function Header() {
                   <Link
                     key={link.href}
                     href={link.href}
-                    className={`text-sm font-medium tracking-wide transition-colors ${
-                      isActive ? 'text-white' : 'text-white/65 hover:text-white'
-                    }`}
-                    style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                    className="text-sm font-medium tracking-wide transition-colors"
+                    style={{
+                      color: isActive ? '#0A0A0F' : '#6B7280',
+                      fontFamily: 'Oxanium, system-ui, sans-serif',
+                    }}
                   >
                     {link.label}
                   </Link>
@@ -102,19 +92,15 @@ export function Header() {
             <div className="hidden md:flex items-center gap-5">
               <Link
                 href="/portal"
-                className="text-sm text-white/50 hover:text-white/90 transition-colors tracking-wide"
-                style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                className="text-sm transition-colors hover:text-gray-900"
+                style={{ color: '#9CA3AF', fontFamily: 'Oxanium, system-ui, sans-serif' }}
               >
                 Client Portal
               </Link>
               <Link
                 href="/contact"
-                className="text-sm font-bold uppercase tracking-wider px-5 py-2 transition-all hover:opacity-90 hover:-translate-y-px"
-                style={{
-                  backgroundColor: '#22C55E',
-                  color: '#ffffff',
-                  fontFamily: 'Oxanium, system-ui, sans-serif',
-                }}
+                className="text-sm font-bold uppercase tracking-wider px-5 py-2 text-white transition-all hover:opacity-90 hover:-translate-y-px"
+                style={{ backgroundColor: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
               >
                 Get Started
               </Link>
@@ -126,9 +112,9 @@ export function Header() {
               onClick={() => setMobileOpen(!mobileOpen)}
               aria-label="Toggle menu"
             >
-              <span className={`block w-6 h-0.5 bg-white transition-all duration-200 origin-center ${mobileOpen ? 'rotate-45 translate-y-2' : ''}`} />
-              <span className={`block w-6 h-0.5 bg-white transition-all duration-200 ${mobileOpen ? 'opacity-0 scale-x-0' : ''}`} />
-              <span className={`block w-6 h-0.5 bg-white transition-all duration-200 origin-center ${mobileOpen ? '-rotate-45 -translate-y-2' : ''}`} />
+              <span className={`block w-6 h-0.5 bg-gray-800 transition-all duration-200 origin-center ${mobileOpen ? 'rotate-45 translate-y-2' : ''}`} />
+              <span className={`block w-6 h-0.5 bg-gray-800 transition-all duration-200 ${mobileOpen ? 'opacity-0 scale-x-0' : ''}`} />
+              <span className={`block w-6 h-0.5 bg-gray-800 transition-all duration-200 origin-center ${mobileOpen ? '-rotate-45 -translate-y-2' : ''}`} />
             </button>
           </div>
         </div>
@@ -136,7 +122,7 @@ export function Header() {
 
       {/* Mobile Menu */}
       {mobileOpen && (
-        <div style={{ backgroundColor: '#0C0F0C', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+        <div className="md:hidden bg-white" style={{ borderTop: '1px solid #E5E7EB' }}>
           <div className="px-6 py-4 flex flex-col">
             {navLinks.map((link) => {
               const isActive = pathname === link.href;
@@ -145,8 +131,12 @@ export function Header() {
                   key={link.href}
                   href={link.href}
                   onClick={() => setMobileOpen(false)}
-                  className={`py-3 text-sm font-medium tracking-wide transition-colors ${isActive ? 'text-white' : 'text-white/65 hover:text-white'}`}
-                  style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                  className="py-3 text-sm font-medium tracking-wide transition-colors"
+                  style={{
+                    borderBottom: '1px solid #F3F4F6',
+                    color: isActive ? '#0A0A0F' : '#6B7280',
+                    fontFamily: 'Oxanium, system-ui, sans-serif',
+                  }}
                 >
                   {link.label}
                 </Link>
@@ -155,8 +145,8 @@ export function Header() {
             <Link
               href="/portal"
               onClick={() => setMobileOpen(false)}
-              className="py-3 text-sm text-white/50 hover:text-white tracking-wide transition-colors"
-              style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+              className="py-3 text-sm transition-colors hover:text-gray-900"
+              style={{ borderBottom: '1px solid #F3F4F6', color: '#9CA3AF', fontFamily: 'Oxanium, system-ui, sans-serif' }}
             >
               Client Portal
             </Link>
@@ -164,8 +154,8 @@ export function Header() {
               <Link
                 href="/contact"
                 onClick={() => setMobileOpen(false)}
-                className="block text-center text-sm font-bold uppercase tracking-wider px-5 py-3 w-full"
-                style={{ backgroundColor: '#22C55E', color: '#ffffff', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                className="block text-center text-sm font-bold uppercase tracking-wider px-5 py-3 w-full text-white"
+                style={{ backgroundColor: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
               >
                 Get Started
               </Link>

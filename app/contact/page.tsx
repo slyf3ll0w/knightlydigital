@@ -46,7 +46,7 @@ export default function ContactPage() {
     <>
       {/* Page hero + two-column layout */}
       <section
-        className="min-h-screen pt-[100px] bg-dot-pattern"
+        className="min-h-screen pt-[100px] bg-paper"
         style={{ backgroundColor: '#0C0F0C' }}
       >
         <div className="max-w-7xl mx-auto px-6 lg:px-8 py-20">
