@@ -33,7 +33,15 @@ export default function ClientDetailPage() {
   const [messageBody, setMessageBody] = useState("");
   const [sending, setSending] = useState(false);
   const [tab, setTab] = useState<"messages" | "orders">("messages");
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const msgContainerRef = useRef<HTMLDivElement>(null);
+  const isFirstLoad = useRef(true);
+
+  function scrollToBottom(force = false) {
+    const c = msgContainerRef.current;
+    if (!c) return;
+    const nearBottom = c.scrollHeight - c.scrollTop - c.clientHeight < 120;
+    if (force || nearBottom) c.scrollTop = c.scrollHeight;
+  }
 
   async function fetchClient() {
     const res = await fetch(`/api/admin/clients/${id}`);
@@ -42,19 +50,27 @@ export default function ClientDetailPage() {
 
   async function fetchMessages() {
     const res = await fetch(`/api/admin/messages?clientId=${id}`);
-    if (res.ok) setMessages(await res.json());
+    if (res.ok) {
+      setMessages(await res.json());
+    }
   }
 
   useEffect(() => {
     fetchClient();
     fetchMessages();
-    const interval = setInterval(fetchMessages, 15000);
+    const interval = setInterval(fetchMessages, 20000);
     return () => clearInterval(interval);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (isFirstLoad.current && messages.length > 0) {
+      isFirstLoad.current = false;
+      scrollToBottom(true);
+    } else {
+      scrollToBottom();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages]);
 
   async function handleSend(e: FormEvent) {
@@ -70,6 +86,7 @@ export default function ClientDetailPage() {
       const msg = await res.json();
       setMessages((prev) => [...prev, msg]);
       setMessageBody("");
+      setTimeout(() => scrollToBottom(true), 50);
     }
     setSending(false);
   }
@@ -125,14 +142,14 @@ export default function ClientDetailPage() {
         {/* Messages tab */}
         {tab === "messages" && (
           <div className="flex flex-col gap-0">
-            <div className="bg-white border border-border h-96 overflow-auto p-6 flex flex-col gap-4">
+            <div ref={msgContainerRef} className="bg-white border border-border h-96 overflow-auto p-6 flex flex-col gap-4">
               {messages.length === 0 && (
                 <div className="flex items-center justify-center h-full">
-                  <p className="text-sm text-muted-foreground">No messages with this client yet.</p>
+                  <p className="text-sm text-muted-foreground">No messages yet — send the first one below.</p>
                 </div>
               )}
               {messages.map((msg) => {
-                const isMe = msg.from.role === "ADMIN";
+                const isMe = msg.from.role === "ADMIN" || msg.from.role === "STAFF";
                 return (
                   <div key={msg.id} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
                     <div className={`max-w-[75%] flex flex-col gap-1 ${isMe ? "items-end" : "items-start"}`}>
@@ -150,7 +167,6 @@ export default function ClientDetailPage() {
                   </div>
                 );
               })}
-              <div ref={bottomRef} />
             </div>
             <form onSubmit={handleSend} className="flex border-x border-b border-border bg-white">
               <input

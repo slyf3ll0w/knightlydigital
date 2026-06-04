@@ -164,6 +164,21 @@ export function AdminShell({ children, userName, unreadCount = 0, userRole }: Pr
         </aside>
 
         <main className="flex-1 overflow-auto p-6 lg:p-8">
+          {/* Back to dashboard breadcrumb — shows on all non-dashboard pages */}
+          {pathname !== '/admin/dashboard' && (
+            <div className="mb-5">
+              <Link
+                href="/admin/dashboard"
+                className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest transition-colors"
+                style={{ color: '#6B7280', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+              >
+                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M19 12H5M12 5l-7 7 7 7"/>
+                </svg>
+                Dashboard
+              </Link>
+            </div>
+          )}
           {children}
         </main>
       </div>
