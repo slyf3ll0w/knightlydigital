@@ -62,8 +62,9 @@ export function Footer() {
               <Image
                 src="/logo.png"
                 alt="Streamflare Media Group"
-                width={190}
-                height={38}
+                width={240}
+                height={48}
+                style={{ filter: 'brightness(0) invert(1)' }}
               />
             </div>
             <p className="text-sm leading-relaxed mb-6" style={{ color: '#6B7280' }}>

@@ -45,9 +45,14 @@ export default function PortalLoginPage() {
       {/* Top bar */}
       <div className="bg-primary py-4 px-6 flex items-center justify-between">
         <Link href="/">
-          <div className="bg-white inline-block px-3 py-1.5">
-            <Image src="/logo.png" alt="Streamflare Media Group" width={160} height={40} className="h-8 w-auto object-contain" />
-          </div>
+          <Image
+            src="/logo.png"
+            alt="Streamflare Media Group"
+            width={220}
+            height={44}
+            className="h-10 w-auto object-contain"
+            style={{ filter: 'brightness(0) invert(1)' }}
+          />
         </Link>
         <Link href="/" className="text-xs text-primary-foreground/60 hover:text-primary-foreground transition-colors uppercase tracking-wider font-bold">
           &larr; Back to Site
