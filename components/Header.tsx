@@ -62,8 +62,8 @@ export function Header() {
               <Image
                 src="/logo.png"
                 alt="Streamflare Media Group"
-                width={200}
-                height={40}
+                width={230}
+                height={46}
                 priority
               />
             </Link>
