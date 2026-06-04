@@ -32,7 +32,10 @@ export default function ClientDetailPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [messageBody, setMessageBody] = useState("");
   const [sending, setSending] = useState(false);
-  const [tab, setTab] = useState<"messages" | "orders">("messages");
+  const [tab, setTab] = useState<"messages" | "orders" | "edit">("messages");
+  const [editForm, setEditForm] = useState({ name: "", email: "", company: "", phone: "", password: "" });
+  const [editSaving, setEditSaving] = useState(false);
+  const [editMsg, setEditMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
   const msgContainerRef = useRef<HTMLDivElement>(null);
   const isFirstLoad = useRef(true);
 
@@ -45,7 +48,38 @@ export default function ClientDetailPage() {
 
   async function fetchClient() {
     const res = await fetch(`/api/admin/clients/${id}`);
-    if (res.ok) setClient(await res.json());
+    if (res.ok) {
+      const data = await res.json();
+      setClient(data);
+      setEditForm({ name: data.name ?? "", email: data.email ?? "", company: data.company ?? "", phone: data.phone ?? "", password: "" });
+    }
+  }
+
+  async function handleSaveEdit(e: FormEvent) {
+    e.preventDefault();
+    setEditSaving(true);
+    setEditMsg(null);
+    const payload: Record<string, string> = {
+      name: editForm.name,
+      email: editForm.email,
+      company: editForm.company,
+      phone: editForm.phone,
+    };
+    if (editForm.password) payload.password = editForm.password;
+    const res = await fetch(`/api/admin/clients/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (res.ok) {
+      setEditMsg({ type: "ok", text: editForm.password ? "Password updated successfully." : "Client info updated." });
+      setEditForm((p) => ({ ...p, password: "" }));
+      fetchClient();
+    } else {
+      const d = await res.json();
+      setEditMsg({ type: "err", text: d.error ?? "Something went wrong." });
+    }
+    setEditSaving(false);
   }
 
   async function fetchMessages() {
@@ -124,17 +158,21 @@ export default function ClientDetailPage() {
 
         {/* Tabs */}
         <div className="flex border-b border-border mb-6">
-          {(["messages", "orders"] as const).map((t) => (
+          {([
+            { key: "messages", label: `Messages (${messages.length})` },
+            { key: "orders", label: `Orders (${client.orders.length})` },
+            { key: "edit", label: "Edit Client" },
+          ] as const).map((t) => (
             <button
-              key={t}
-              onClick={() => setTab(t)}
+              key={t.key}
+              onClick={() => { setTab(t.key); setEditMsg(null); }}
               className={`px-6 py-3 text-sm font-bold uppercase tracking-wide transition-colors ${
-                tab === t
+                tab === t.key
                   ? "border-b-2 border-accent text-accent"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              {t === "messages" ? `Messages (${messages.length})` : `Orders (${client.orders.length})`}
+              {t.label}
             </button>
           ))}
         </div>
@@ -233,6 +271,91 @@ export default function ClientDetailPage() {
               </div>
             )}
           </div>
+        )}
+
+        {/* Edit tab */}
+        {tab === "edit" && (
+          <form onSubmit={handleSaveEdit} className="bg-white border border-border">
+            <div className="p-6 border-b border-border">
+              <h2 className="text-xs font-black uppercase tracking-widest mb-5">Client Information</h2>
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5">Full Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={editForm.name}
+                    onChange={(e) => setEditForm((p) => ({ ...p, name: e.target.value }))}
+                    className="w-full px-4 py-3 text-sm border border-border bg-white focus:outline-none focus:border-accent transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5">Email Address</label>
+                  <input
+                    type="email"
+                    required
+                    value={editForm.email}
+                    onChange={(e) => setEditForm((p) => ({ ...p, email: e.target.value }))}
+                    className="w-full px-4 py-3 text-sm border border-border bg-white focus:outline-none focus:border-accent transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5">Company</label>
+                  <input
+                    type="text"
+                    value={editForm.company}
+                    onChange={(e) => setEditForm((p) => ({ ...p, company: e.target.value }))}
+                    className="w-full px-4 py-3 text-sm border border-border bg-white focus:outline-none focus:border-accent transition-colors"
+                    placeholder="Optional"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5">Phone</label>
+                  <input
+                    type="tel"
+                    value={editForm.phone}
+                    onChange={(e) => setEditForm((p) => ({ ...p, phone: e.target.value }))}
+                    className="w-full px-4 py-3 text-sm border border-border bg-white focus:outline-none focus:border-accent transition-colors"
+                    placeholder="Optional"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 border-b border-border">
+              <h2 className="text-xs font-black uppercase tracking-widest mb-1">Reset Password</h2>
+              <p className="text-xs text-muted-foreground mb-4">Leave blank to keep the current password unchanged.</p>
+              <div className="max-w-sm">
+                <input
+                  type="text"
+                  value={editForm.password}
+                  onChange={(e) => setEditForm((p) => ({ ...p, password: e.target.value }))}
+                  className="w-full px-4 py-3 text-sm border border-border bg-white focus:outline-none focus:border-accent transition-colors"
+                  placeholder="New password"
+                />
+              </div>
+            </div>
+
+            {editMsg && (
+              <div className={`mx-6 mt-4 px-4 py-3 text-sm font-medium border ${
+                editMsg.type === "ok"
+                  ? "bg-green-50 border-green-200 text-green-700"
+                  : "bg-red-50 border-red-200 text-red-700"
+              }`}>
+                {editMsg.text}
+              </div>
+            )}
+
+            <div className="p-6">
+              <button
+                type="submit"
+                disabled={editSaving}
+                className="bg-accent text-accent-foreground font-black text-xs uppercase tracking-widest px-8 py-3 hover:bg-accent/85 transition-colors disabled:opacity-50"
+              >
+                {editSaving ? "Saving..." : "Save Changes"}
+              </button>
+            </div>
+          </form>
         )}
       </div>
     </AdminShell>
