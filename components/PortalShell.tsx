@@ -65,24 +65,31 @@ export function PortalShell({ children, userName, unreadCount = 0 }: Props) {
   return (
     <div className="min-h-screen bg-muted flex flex-col">
 
-      {/* Top bar */}
-      <header className="bg-primary text-primary-foreground px-5 flex items-center justify-between shrink-0 z-10" style={{ height: 56, paddingTop: 'env(safe-area-inset-top)' }}>
-        <Link href="/">
-          <div className="bg-white inline-block px-2 py-1">
-            <Image src="/logo.png" alt="Streamflare" width={120} height={30} className="h-6 w-auto object-contain" />
+      {/* Top bar — paddingTop handles iPhone status bar, inner div holds the 56px content row */}
+      <header className="bg-primary text-primary-foreground shrink-0 z-10" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+        <div className="h-14 flex items-center justify-between px-5">
+          <Link href="/">
+            <Image
+              src="/logo.png"
+              alt="Streamflare"
+              width={150}
+              height={30}
+              className="h-7 w-auto object-contain"
+              style={{ filter: 'brightness(0) invert(1)' }}
+            />
+          </Link>
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-primary-foreground/70 hidden sm:block">{userName}</span>
+            <button
+              onClick={() => signOut({ callbackUrl: "/portal/login" })}
+              className="text-xs text-primary-foreground/60 hover:text-primary-foreground font-bold uppercase tracking-wider transition-colors flex items-center gap-1.5 active:opacity-60"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/>
+              </svg>
+              <span className="hidden sm:inline">Sign Out</span>
+            </button>
           </div>
-        </Link>
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-primary-foreground/70 hidden sm:block">{userName}</span>
-          <button
-            onClick={() => signOut({ callbackUrl: "/portal/login" })}
-            className="text-xs text-primary-foreground/60 hover:text-primary-foreground font-bold uppercase tracking-wider transition-colors flex items-center gap-1.5 active:opacity-60"
-          >
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/>
-            </svg>
-            <span className="hidden sm:inline">Sign Out</span>
-          </button>
         </div>
       </header>
 

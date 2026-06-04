@@ -76,46 +76,47 @@ export function AdminShell({ children, userName, unreadCount = 0, userRole }: Pr
   return (
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#F5F7F5' }}>
 
-      {/* Header */}
+      {/* Header — paddingTop handles iPhone status bar, inner div holds the 56px content row */}
       <header
-        className="shrink-0 z-30 flex items-center justify-between px-5"
+        className="shrink-0 z-30"
         style={{
           backgroundColor: '#0C0F0C',
           borderBottom: '1px solid rgba(255,255,255,0.08)',
-          height: 56,
           paddingTop: 'env(safe-area-inset-top)',
         }}
       >
-        <div className="flex items-center gap-3">
-          <Link href="/" className="flex items-center">
-            <Image
-              src="/logo.png"
-              alt="Streamflare"
-              width={130}
-              height={26}
-              style={{ filter: 'brightness(0) invert(1)' }}
-            />
-          </Link>
-          <span
-            className="text-xs font-bold uppercase tracking-widest hidden sm:block px-2 py-0.5"
-            style={{ backgroundColor: 'rgba(34,197,94,0.15)', color: '#22C55E', border: '1px solid rgba(34,197,94,0.3)' }}
-          >
-            {userRole === "STAFF" ? "Staff" : "Admin"}
-          </span>
-        </div>
+        <div className="h-14 flex items-center justify-between px-5">
+          <div className="flex items-center gap-3">
+            <Link href="/" className="flex items-center">
+              <Image
+                src="/logo.png"
+                alt="Streamflare"
+                width={140}
+                height={28}
+                style={{ filter: 'brightness(0) invert(1)' }}
+              />
+            </Link>
+            <span
+              className="text-xs font-bold uppercase tracking-widest hidden sm:block px-2 py-0.5"
+              style={{ backgroundColor: 'rgba(34,197,94,0.15)', color: '#22C55E', border: '1px solid rgba(34,197,94,0.3)' }}
+            >
+              {userRole === "STAFF" ? "Staff" : "Admin"}
+            </span>
+          </div>
 
-        <div className="flex items-center gap-4">
-          <span className="text-sm hidden sm:block" style={{ color: 'rgba(255,255,255,0.55)' }}>{userName}</span>
-          <button
-            onClick={() => signOut({ callbackUrl: "/portal/login" })}
-            className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider transition-colors px-3 py-1.5 active:opacity-60"
-            style={{ color: 'rgba(255,255,255,0.7)', border: '1px solid rgba(255,255,255,0.15)' }}
-          >
-            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/>
-            </svg>
-            <span className="hidden sm:inline">Sign Out</span>
-          </button>
+          <div className="flex items-center gap-4">
+            <span className="text-sm hidden sm:block" style={{ color: 'rgba(255,255,255,0.55)' }}>{userName}</span>
+            <button
+              onClick={() => signOut({ callbackUrl: "/portal/login" })}
+              className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider transition-colors px-3 py-1.5 active:opacity-60"
+              style={{ color: 'rgba(255,255,255,0.7)', border: '1px solid rgba(255,255,255,0.15)' }}
+            >
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/>
+              </svg>
+              <span className="hidden sm:inline">Sign Out</span>
+            </button>
+          </div>
         </div>
       </header>
 
