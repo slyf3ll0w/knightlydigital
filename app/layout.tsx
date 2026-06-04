@@ -11,6 +11,16 @@ export const metadata: Metadata = {
   description:
     "Streamflare Media Group delivers precision digital marketing, custom software, and social media management for growth-minded businesses across the DFW Metroplex.",
   metadataBase: new URL("https://streamflaremedia.com"),
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Streamflare",
+  },
+  icons: {
+    icon: "/icon.png",
+    apple: "/icon.png",
+  },
 };
 
 export default function RootLayout({
@@ -21,6 +31,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        <meta name="theme-color" content="#0C0F0C" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
