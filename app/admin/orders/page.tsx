@@ -52,7 +52,7 @@ export default function AdminOrdersPage() {
   const filtered = filterStatus === "ALL" ? orders : orders.filter((o) => o.status === filterStatus);
 
   return (
-    <AdminShell userName={session?.user?.name ?? "Admin"}>
+    <AdminShell userName={session?.user?.name ?? "Admin"} userRole={session?.user?.role}>
       <div className="max-w-5xl">
         <div className="mb-8">
           <p className="text-xs tracking-[0.25em] font-bold uppercase text-muted-foreground mb-1">Admin</p>

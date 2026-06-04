@@ -84,7 +84,7 @@ export default function ClientDetailPage() {
   }
 
   if (!client) return (
-    <AdminShell userName={session?.user?.name ?? "Admin"}>
+    <AdminShell userName={session?.user?.name ?? "Admin"} userRole={session?.user?.role}>
       <div className="flex items-center justify-center h-32">
         <p className="text-muted-foreground text-sm">Loading client...</p>
       </div>
@@ -92,7 +92,7 @@ export default function ClientDetailPage() {
   );
 
   return (
-    <AdminShell userName={session?.user?.name ?? "Admin"}>
+    <AdminShell userName={session?.user?.name ?? "Admin"} userRole={session?.user?.role}>
       <div className="max-w-4xl">
         {/* Header */}
         <div className="mb-6">

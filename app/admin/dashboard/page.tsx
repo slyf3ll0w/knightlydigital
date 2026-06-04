@@ -96,17 +96,25 @@ export default async function AdminDashboard() {
         {/* Quick links */}
         <div className={`grid gap-4 ${isStaff ? "sm:grid-cols-3" : "sm:grid-cols-2 lg:grid-cols-4"}`}>
           {[
-            { href: "/admin/clients", label: "Manage Clients", icon: "👥" },
-            { href: "/admin/messages", label: "View All Messages", icon: "💬" },
-            { href: "/admin/orders", label: "Manage Orders", icon: "📋" },
-            ...(!isStaff ? [{ href: "/admin/staff", label: "Team Members", icon: "🧑‍💼" }] : []),
+            { href: "/admin/clients", label: "Manage Clients", icon: (
+              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+            )},
+            { href: "/admin/messages", label: "View All Messages", icon: (
+              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+            )},
+            { href: "/admin/orders", label: "Manage Orders", icon: (
+              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg>
+            )},
+            ...(!isStaff ? [{ href: "/admin/staff", label: "Team Members", icon: (
+              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+            ) }] : []),
           ].map((l) => (
             <Link
               key={l.href}
               href={l.href}
               className="bg-white border border-border p-6 hover:border-accent transition-colors group"
             >
-              <span className="text-2xl mb-3 block">{l.icon}</span>
+              <span className="mb-3 block text-muted-foreground group-hover:text-accent transition-colors">{l.icon}</span>
               <p className="font-black uppercase text-sm tracking-wide group-hover:text-accent transition-colors">{l.label} &rarr;</p>
             </Link>
           ))}
