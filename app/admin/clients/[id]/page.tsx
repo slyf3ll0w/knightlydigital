@@ -10,7 +10,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
 
   const { id } = await params;
 
-  const [client, messages, unreadCount] = await Promise.all([
+  const [client, messages, unreadCount, onboardings] = await Promise.all([
     prisma.user.findUnique({
       where: { id },
       select: {
@@ -40,6 +40,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
       orderBy: { createdAt: "asc" },
     }),
     prisma.message.count({ where: { toId: session.user.id, readAt: null } }),
+    prisma.onboarding.findMany({ where: { clientId: id } }),
   ]);
 
   if (!client) notFound();
@@ -72,6 +73,9 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
       unreadCount={Math.max(0, unreadCount - 1)}
       adminName={session.user.name ?? "Admin"}
       adminRole={session.user.role ?? "ADMIN"}
+      initialOnboardings={Object.fromEntries(
+        onboardings.map((o) => [o.serviceKey, { responses: o.responses as Record<string, string | string[]>, completedAt: o.completedAt?.toISOString() ?? null }])
+      )}
     />
   );
 }

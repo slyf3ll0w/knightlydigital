@@ -2,6 +2,8 @@
 
 import { useEffect, useState, FormEvent, useRef } from "react";
 import { AdminShell } from "@/components/AdminShell";
+import { OnboardingForm } from "@/components/OnboardingForm";
+import { SERVICE_ONBOARDING, OnboardingResponses } from "@/lib/onboarding";
 
 type Client = {
   id: string; name: string; email: string; company?: string; phone?: string;
@@ -23,20 +25,25 @@ const statusColors: Record<string, string> = {
 
 const ALL_STATUSES = ["PENDING", "IN_REVIEW", "ACTIVE", "PAUSED", "COMPLETED", "CANCELLED"];
 
+type OnboardingState = Record<string, { responses: OnboardingResponses; completedAt: string | null }>;
+
 interface Props {
   initialClient: Client;
   initialMessages: Message[];
   unreadCount: number;
   adminName: string;
   adminRole: string;
+  initialOnboardings: OnboardingState;
 }
 
-export function ClientDetailClient({ initialClient, initialMessages, unreadCount, adminName, adminRole }: Props) {
+export function ClientDetailClient({ initialClient, initialMessages, unreadCount, adminName, adminRole, initialOnboardings }: Props) {
   const [client, setClient] = useState<Client>(initialClient);
   const [messages, setMessages] = useState<Message[]>(initialMessages);
+  const [onboardings, setOnboardings] = useState<OnboardingState>(initialOnboardings);
+  const [openService, setOpenService] = useState<string | null>(null);
   const [messageBody, setMessageBody] = useState("");
   const [sending, setSending] = useState(false);
-  const [tab, setTab] = useState<"messages" | "orders" | "edit">("messages");
+  const [tab, setTab] = useState<"messages" | "orders" | "onboarding" | "edit">("messages");
   const [editForm, setEditForm] = useState({
     name: initialClient.name,
     email: initialClient.email,
@@ -131,6 +138,21 @@ export function ClientDetailClient({ initialClient, initialMessages, unreadCount
     setEditSaving(false);
   }
 
+  async function saveOnboarding(serviceKey: string, responses: OnboardingResponses) {
+    const res = await fetch("/api/admin/onboarding", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clientId: client.id, serviceKey, responses }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setOnboardings((prev) => ({
+        ...prev,
+        [serviceKey]: { responses, completedAt: data.completedAt ?? null },
+      }));
+    }
+  }
+
   async function updateOrderStatus(orderId: string, status: string) {
     const res = await fetch("/api/admin/orders", {
       method: "PATCH",
@@ -153,10 +175,11 @@ export function ClientDetailClient({ initialClient, initialMessages, unreadCount
           </div>
         </div>
 
-        <div className="flex border-b border-border mb-6">
+        <div className="flex border-b border-border mb-6 overflow-x-auto">
           {([
             { key: "messages", label: `Messages (${messages.length})` },
             { key: "orders", label: `Orders (${client.orders.length})` },
+            { key: "onboarding", label: "Onboarding" },
             { key: "edit", label: "Edit Client" },
           ] as const).map((t) => (
             <button
@@ -264,6 +287,62 @@ export function ClientDetailClient({ initialClient, initialMessages, unreadCount
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {tab === "onboarding" && (
+          <div className="flex flex-col gap-4">
+            <p className="text-sm text-muted-foreground">
+              Fill out intake information for each service. Required fields must be complete before a service is marked complete.
+            </p>
+            {SERVICE_ONBOARDING.map((service) => {
+              const saved = onboardings[service.serviceKey];
+              const isComplete = !!saved?.completedAt;
+              const hasData = saved && Object.keys(saved.responses).length > 0;
+              const isOpen = openService === service.serviceKey;
+
+              return (
+                <div key={service.serviceKey} className="bg-white border border-border">
+                  <button
+                    type="button"
+                    onClick={() => setOpenService(isOpen ? null : service.serviceKey)}
+                    className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-muted transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div>
+                        <p className="font-black text-sm uppercase tracking-wide">{service.label}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{service.description}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0 ml-4">
+                      {isComplete ? (
+                        <span className="text-xs font-black uppercase tracking-wide px-2 py-1 bg-green-100 text-green-700">Complete</span>
+                      ) : hasData ? (
+                        <span className="text-xs font-black uppercase tracking-wide px-2 py-1 bg-yellow-100 text-yellow-700">In Progress</span>
+                      ) : (
+                        <span className="text-xs font-black uppercase tracking-wide px-2 py-1 bg-gray-100 text-gray-500">Not Started</span>
+                      )}
+                      <svg
+                        className={`w-4 h-4 text-muted-foreground transition-transform ${isOpen ? "rotate-180" : ""}`}
+                        viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+                      >
+                        <path d="M6 9l6 6 6-6"/>
+                      </svg>
+                    </div>
+                  </button>
+
+                  {isOpen && (
+                    <div className="px-6 pb-6 border-t border-border pt-5">
+                      <OnboardingForm
+                        service={service}
+                        initialResponses={saved?.responses ?? {}}
+                        onSave={(responses) => saveOnboarding(service.serviceKey, responses)}
+                      />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
 
