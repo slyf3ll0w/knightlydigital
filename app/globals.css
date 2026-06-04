@@ -53,6 +53,27 @@ h1, h2, h3, h4, h5, h6, .font-display {
 
 html {
   scroll-behavior: smooth;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  overscroll-behavior: none;
+}
+
+/* Prevent iOS viewport zoom on input focus — requires 16px minimum */
+@media (max-width: 1023px) {
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="tel"],
+  input[type="url"],
+  input[type="search"],
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
 }
 
 /* ── Paper texture — organic, non-symmetrical dot pattern (not a grid) ── */

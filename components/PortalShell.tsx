@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -30,7 +29,7 @@ const clientNav: NavItem[] = [
   },
   {
     href: "/portal/orders",
-    label: "My Orders",
+    label: "Orders",
     icon: (
       <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/>
@@ -62,49 +61,35 @@ type Props = {
 
 export function PortalShell({ children, userName, unreadCount = 0 }: Props) {
   const pathname = usePathname();
-  const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-muted flex flex-col">
+
       {/* Top bar */}
-      <header className="bg-primary text-primary-foreground px-5 py-3 flex items-center justify-between shrink-0 z-10">
+      <header className="bg-primary text-primary-foreground px-5 flex items-center justify-between shrink-0 z-10" style={{ height: 56, paddingTop: 'env(safe-area-inset-top)' }}>
+        <Link href="/">
+          <div className="bg-white inline-block px-2 py-1">
+            <Image src="/logo.png" alt="Streamflare" width={120} height={30} className="h-6 w-auto object-contain" />
+          </div>
+        </Link>
         <div className="flex items-center gap-4">
-          <button
-            className="lg:hidden p-1 text-primary-foreground/70 hover:text-primary-foreground"
-            onClick={() => setMobileOpen(!mobileOpen)}
-          >
-            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M3 6h18M3 12h18M3 18h18"/>
-            </svg>
-          </button>
-          <Link href="/">
-            <div className="bg-white inline-block px-2 py-1">
-              <Image src="/logo.png" alt="Streamflare" width={120} height={30} className="h-6 w-auto object-contain" />
-            </div>
-          </Link>
-          <span className="text-xs text-primary-foreground/50 font-bold uppercase tracking-widest hidden sm:block">
-            Client Portal
-          </span>
-        </div>
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-primary-foreground/70 hidden sm:block">
-            {userName}
-          </span>
+          <span className="text-sm text-primary-foreground/70 hidden sm:block">{userName}</span>
           <button
             onClick={() => signOut({ callbackUrl: "/portal/login" })}
-            className="text-xs text-primary-foreground/60 hover:text-primary-foreground font-bold uppercase tracking-wider transition-colors flex items-center gap-1.5"
+            className="text-xs text-primary-foreground/60 hover:text-primary-foreground font-bold uppercase tracking-wider transition-colors flex items-center gap-1.5 active:opacity-60"
           >
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/>
             </svg>
-            Sign Out
+            <span className="hidden sm:inline">Sign Out</span>
           </button>
         </div>
       </header>
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar */}
-        <aside className={`${mobileOpen ? "block" : "hidden"} lg:block w-56 bg-white border-r border-border shrink-0 flex flex-col absolute lg:relative z-20 h-full lg:h-auto`}>
+
+        {/* Sidebar — desktop only */}
+        <aside className="hidden lg:flex lg:flex-col w-56 bg-white border-r border-border shrink-0">
           <nav className="flex flex-col p-4 gap-1">
             {clientNav.map((item) => {
               const active = pathname === item.href;
@@ -112,8 +97,7 @@ export function PortalShell({ children, userName, unreadCount = 0 }: Props) {
                 <Link
                   key={item.href}
                   href={item.href}
-                  onClick={() => setMobileOpen(false)}
-                  className={`flex items-center gap-3 px-4 py-3 text-sm font-bold transition-colors relative ${
+                  className={`flex items-center gap-3 px-4 py-3 text-sm font-bold transition-colors ${
                     active
                       ? "bg-accent text-accent-foreground"
                       : "text-foreground/70 hover:text-foreground hover:bg-muted"
@@ -130,7 +114,6 @@ export function PortalShell({ children, userName, unreadCount = 0 }: Props) {
               );
             })}
           </nav>
-
           <div className="mt-auto p-4 border-t border-border">
             <Link
               href="/contact"
@@ -144,11 +127,42 @@ export function PortalShell({ children, userName, unreadCount = 0 }: Props) {
           </div>
         </aside>
 
-        {/* Main */}
-        <main className="flex-1 overflow-auto p-6 lg:p-8">
+        {/* Main content — extra bottom padding on mobile for tab bar */}
+        <main className="flex-1 overflow-auto p-4 lg:p-8 pb-24 lg:pb-8">
           {children}
         </main>
       </div>
+
+      {/* Bottom tab bar — mobile only */}
+      <nav
+        className="lg:hidden fixed bottom-0 left-0 right-0 z-40 flex bg-white border-t border-border"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      >
+        {clientNav.map((item) => {
+          const active = pathname === item.href;
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`flex-1 flex flex-col items-center justify-center py-2 gap-0.5 transition-colors active:opacity-50 ${
+                active ? "text-accent" : "text-muted-foreground"
+              }`}
+            >
+              <span className="relative">
+                {item.icon}
+                {item.label === "Messages" && unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1.5 min-w-[14px] h-[14px] flex items-center justify-center text-[9px] font-black bg-destructive text-white px-0.5">
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
+                )}
+              </span>
+              <span className="text-[9px] font-bold uppercase tracking-wide leading-none">
+                {item.label}
+              </span>
+            </Link>
+          );
+        })}
+      </nav>
     </div>
   );
 }

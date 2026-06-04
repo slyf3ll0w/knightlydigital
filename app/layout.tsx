@@ -1,5 +1,11 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
 import { MarketingWrapper } from "@/components/MarketingWrapper";
 import { SessionProviderWrapper } from "@/components/SessionProviderWrapper";
 
