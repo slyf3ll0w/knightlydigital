@@ -2,7 +2,9 @@
 
 import { useState } from 'react';
 
-export function EstimateForm() {
+interface Props { dark?: boolean; }
+
+export function EstimateForm({ dark = false }: Props) {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
@@ -32,11 +34,11 @@ export function EstimateForm() {
         </div>
         <h3
           className="text-xl font-bold mb-2"
-          style={{ color: '#0A0A0F', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+          style={{ color: dark ? '#ffffff' : '#0A0A0F', fontFamily: 'Oxanium, system-ui, sans-serif' }}
         >
           Request Received!
         </h3>
-        <p className="text-sm" style={{ color: '#6B7280' }}>
+        <p className="text-sm" style={{ color: dark ? 'rgba(255,255,255,0.55)' : '#6B7280' }}>
           Thanks, {firstName}. We&apos;ll get back to you within 1 business day.
         </p>
       </div>
@@ -47,11 +49,11 @@ export function EstimateForm() {
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <h3
         className="text-xl font-bold mb-1"
-        style={{ color: '#0A0A0F', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+        style={{ color: dark ? '#ffffff' : '#0A0A0F', fontFamily: 'Oxanium, system-ui, sans-serif' }}
       >
         Get a Free Estimate
       </h3>
-      <p className="text-sm mb-2" style={{ color: '#6B7280' }}>
+      <p className="text-sm mb-2" style={{ color: dark ? 'rgba(255,255,255,0.55)' : '#6B7280' }}>
         Tell us about your project and we&apos;ll get back to you within 1 business day.
       </p>
 
@@ -62,16 +64,24 @@ export function EstimateForm() {
           placeholder="First Name"
           type="text"
           required
-          className="px-4 py-3 text-sm outline-none bg-white"
-          style={{ border: '1px solid #E5E7EB', color: '#0A0A0F' }}
+          className="px-4 py-3 text-sm outline-none"
+          style={{
+            border: dark ? '1px solid rgba(255,255,255,0.15)' : '1px solid #E5E7EB',
+            color: dark ? '#ffffff' : '#0A0A0F',
+            backgroundColor: dark ? 'rgba(255,255,255,0.05)' : '#ffffff',
+          }}
         />
         <input
           value={lastName}
           onChange={(e) => setLastName(e.target.value)}
           placeholder="Last Name"
           type="text"
-          className="px-4 py-3 text-sm outline-none bg-white"
-          style={{ border: '1px solid #E5E7EB', color: '#0A0A0F' }}
+          className="px-4 py-3 text-sm outline-none"
+          style={{
+            border: dark ? '1px solid rgba(255,255,255,0.15)' : '1px solid #E5E7EB',
+            color: dark ? '#ffffff' : '#0A0A0F',
+            backgroundColor: dark ? 'rgba(255,255,255,0.05)' : '#ffffff',
+          }}
         />
       </div>
 
@@ -80,8 +90,12 @@ export function EstimateForm() {
         onChange={(e) => setPhone(e.target.value)}
         placeholder="Phone Number"
         type="tel"
-        className="px-4 py-3 text-sm outline-none bg-white"
-        style={{ border: '1px solid #E5E7EB', color: '#0A0A0F' }}
+        className="px-4 py-3 text-sm outline-none"
+        style={{
+          border: dark ? '1px solid rgba(255,255,255,0.15)' : '1px solid #E5E7EB',
+          color: dark ? '#ffffff' : '#0A0A0F',
+          backgroundColor: dark ? 'rgba(255,255,255,0.05)' : '#ffffff',
+        }}
       />
 
       <textarea
@@ -89,8 +103,12 @@ export function EstimateForm() {
         onChange={(e) => setProjectDetails(e.target.value)}
         placeholder="Tell us about your project or what you're looking for..."
         rows={3}
-        className="px-4 py-3 text-sm outline-none resize-none bg-white"
-        style={{ border: '1px solid #E5E7EB', color: '#0A0A0F' }}
+        className="px-4 py-3 text-sm outline-none resize-none"
+        style={{
+          border: dark ? '1px solid rgba(255,255,255,0.15)' : '1px solid #E5E7EB',
+          color: dark ? '#ffffff' : '#0A0A0F',
+          backgroundColor: dark ? 'rgba(255,255,255,0.05)' : '#ffffff',
+        }}
       />
 
       <button

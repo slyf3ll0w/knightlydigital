@@ -17,99 +17,126 @@ export function Header() {
   const pathname = usePathname();
 
   return (
-    <header
-      className="fixed top-0 left-0 right-0 z-50"
-      style={{ backgroundColor: '#0C0F0C', borderBottom: '1px solid rgba(255,255,255,0.08)' }}
-    >
-      <div className="max-w-7xl mx-auto px-6 lg:px-8">
-        <div className="flex items-center justify-between h-20">
+    <header className="fixed top-0 left-0 right-0 z-50">
 
-          {/* Logo */}
-          <Link href="/" className="flex-shrink-0">
-            <Image
-              src="/logo.png"
-              alt="Streamflare Media Group"
-              width={220}
-              height={44}
-              priority
-            />
-          </Link>
-
-          {/* Desktop Nav */}
-          <nav className="hidden md:flex items-center gap-8">
-            {navLinks.map((link) => {
-              const isActive = pathname === link.href;
-              return (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className={`text-sm font-medium tracking-wide transition-colors ${
-                    isActive ? 'text-white' : 'text-white/70 hover:text-white'
-                  }`}
-                  style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
-                >
-                  {link.label}
-                </Link>
-              );
-            })}
-          </nav>
-
-          {/* Desktop CTA */}
-          <div className="hidden md:flex items-center gap-5">
-            <Link
-              href="/portal"
-              className="text-sm text-white/60 hover:text-white/90 transition-colors tracking-wide"
-              style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
-            >
-              Client Portal
-            </Link>
-            <Link
-              href="/contact"
-              className="text-sm font-semibold uppercase tracking-wider px-5 py-2 transition-colors hover:opacity-90"
-              style={{
-                backgroundColor: '#22C55E',
-                color: '#ffffff',
-                fontFamily: 'Oxanium, system-ui, sans-serif',
-              }}
-            >
-              Get Started
-            </Link>
-          </div>
-
-          {/* Mobile Hamburger */}
-          <button
-            className="md:hidden flex flex-col justify-center items-center w-9 h-9 gap-1.5"
-            onClick={() => setMobileOpen(!mobileOpen)}
-            aria-label="Toggle menu"
+      {/* ── Top info bar ── */}
+      <div
+        className="hidden md:flex items-center justify-between px-6 lg:px-8 h-9 text-xs"
+        style={{
+          backgroundColor: '#0A0D0A',
+          borderBottom: '1px solid rgba(255,255,255,0.06)',
+          fontFamily: 'Oxanium, system-ui, sans-serif',
+          color: 'rgba(255,255,255,0.45)',
+        }}
+      >
+        <div className="flex items-center gap-5 max-w-7xl mx-auto w-full">
+          <span>📍 Allen, TX — Serving the DFW Metroplex</span>
+          <span style={{ color: 'rgba(255,255,255,0.2)' }}>|</span>
+          <a
+            href="tel:2145550100"
+            className="transition-colors hover:text-white"
+            style={{ color: 'rgba(255,255,255,0.45)' }}
           >
-            <span
-              className={`block w-6 h-0.5 bg-white transition-all duration-200 origin-center ${
-                mobileOpen ? 'rotate-45 translate-y-2' : ''
-              }`}
-            />
-            <span
-              className={`block w-6 h-0.5 bg-white transition-all duration-200 ${
-                mobileOpen ? 'opacity-0 scale-x-0' : ''
-              }`}
-            />
-            <span
-              className={`block w-6 h-0.5 bg-white transition-all duration-200 origin-center ${
-                mobileOpen ? '-rotate-45 -translate-y-2' : ''
-              }`}
-            />
-          </button>
+            (214) 555-0100
+          </a>
+          <span style={{ color: 'rgba(255,255,255,0.2)' }}>|</span>
+          <a
+            href="mailto:info@streamflaremedia.com"
+            className="transition-colors hover:text-white"
+            style={{ color: 'rgba(255,255,255,0.45)' }}
+          >
+            info@streamflaremedia.com
+          </a>
+        </div>
+        <div className="max-w-7xl mx-auto flex items-center flex-shrink-0">
+          <Link
+            href="/contact"
+            className="transition-colors hover:text-white font-semibold"
+            style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+          >
+            Schedule a Free Consultation →
+          </Link>
+        </div>
+      </div>
+
+      {/* ── Main nav ── */}
+      <div
+        className="border-b"
+        style={{ backgroundColor: '#0C0F0C', borderBottomColor: 'rgba(255,255,255,0.08)' }}
+      >
+        <div className="max-w-7xl mx-auto px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+
+            {/* Logo — white filter so it's visible on dark background */}
+            <Link href="/" className="flex-shrink-0">
+              <Image
+                src="/logo.png"
+                alt="Streamflare Media Group"
+                width={210}
+                height={42}
+                priority
+                style={{ filter: 'brightness(0) invert(1)' }}
+              />
+            </Link>
+
+            {/* Desktop Nav */}
+            <nav className="hidden md:flex items-center gap-8">
+              {navLinks.map((link) => {
+                const isActive = pathname === link.href;
+                return (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className={`text-sm font-medium tracking-wide transition-colors ${
+                      isActive ? 'text-white' : 'text-white/65 hover:text-white'
+                    }`}
+                    style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                  >
+                    {link.label}
+                  </Link>
+                );
+              })}
+            </nav>
+
+            {/* Desktop CTA */}
+            <div className="hidden md:flex items-center gap-5">
+              <Link
+                href="/portal"
+                className="text-sm text-white/50 hover:text-white/90 transition-colors tracking-wide"
+                style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
+              >
+                Client Portal
+              </Link>
+              <Link
+                href="/contact"
+                className="text-sm font-bold uppercase tracking-wider px-5 py-2 transition-all hover:opacity-90 hover:-translate-y-px"
+                style={{
+                  backgroundColor: '#22C55E',
+                  color: '#ffffff',
+                  fontFamily: 'Oxanium, system-ui, sans-serif',
+                }}
+              >
+                Get Started
+              </Link>
+            </div>
+
+            {/* Mobile Hamburger */}
+            <button
+              className="md:hidden flex flex-col justify-center items-center w-9 h-9 gap-1.5"
+              onClick={() => setMobileOpen(!mobileOpen)}
+              aria-label="Toggle menu"
+            >
+              <span className={`block w-6 h-0.5 bg-white transition-all duration-200 origin-center ${mobileOpen ? 'rotate-45 translate-y-2' : ''}`} />
+              <span className={`block w-6 h-0.5 bg-white transition-all duration-200 ${mobileOpen ? 'opacity-0 scale-x-0' : ''}`} />
+              <span className={`block w-6 h-0.5 bg-white transition-all duration-200 origin-center ${mobileOpen ? '-rotate-45 -translate-y-2' : ''}`} />
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Mobile Menu */}
       {mobileOpen && (
-        <div
-          className="md:hidden"
-          style={{
-            backgroundColor: '#0C0F0C',
-            borderTop: '1px solid rgba(255,255,255,0.08)',
-          }}
-        >
+        <div style={{ backgroundColor: '#0C0F0C', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
           <div className="px-6 py-4 flex flex-col">
             {navLinks.map((link) => {
               const isActive = pathname === link.href;
@@ -118,13 +145,8 @@ export function Header() {
                   key={link.href}
                   href={link.href}
                   onClick={() => setMobileOpen(false)}
-                  className={`py-3 text-sm font-medium tracking-wide transition-colors ${
-                    isActive ? 'text-white' : 'text-white/70 hover:text-white'
-                  }`}
-                  style={{
-                    borderBottom: '1px solid rgba(255,255,255,0.06)',
-                    fontFamily: 'Oxanium, system-ui, sans-serif',
-                  }}
+                  className={`py-3 text-sm font-medium tracking-wide transition-colors ${isActive ? 'text-white' : 'text-white/65 hover:text-white'}`}
+                  style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', fontFamily: 'Oxanium, system-ui, sans-serif' }}
                 >
                   {link.label}
                 </Link>
@@ -133,11 +155,8 @@ export function Header() {
             <Link
               href="/portal"
               onClick={() => setMobileOpen(false)}
-              className="py-3 text-sm text-white/60 hover:text-white tracking-wide transition-colors"
-              style={{
-                borderBottom: '1px solid rgba(255,255,255,0.06)',
-                fontFamily: 'Oxanium, system-ui, sans-serif',
-              }}
+              className="py-3 text-sm text-white/50 hover:text-white tracking-wide transition-colors"
+              style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', fontFamily: 'Oxanium, system-ui, sans-serif' }}
             >
               Client Portal
             </Link>
@@ -145,12 +164,8 @@ export function Header() {
               <Link
                 href="/contact"
                 onClick={() => setMobileOpen(false)}
-                className="block text-center text-sm font-semibold uppercase tracking-wider px-5 py-3 w-full transition-colors hover:opacity-90"
-                style={{
-                  backgroundColor: '#22C55E',
-                  color: '#ffffff',
-                  fontFamily: 'Oxanium, system-ui, sans-serif',
-                }}
+                className="block text-center text-sm font-bold uppercase tracking-wider px-5 py-3 w-full"
+                style={{ backgroundColor: '#22C55E', color: '#ffffff', fontFamily: 'Oxanium, system-ui, sans-serif' }}
               >
                 Get Started
               </Link>
