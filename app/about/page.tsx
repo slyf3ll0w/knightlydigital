@@ -1,161 +1,289 @@
-import type { Metadata } from "next";
-import Link from "next/link";
-import { services } from "@/lib/services";
-import { CtaStrip } from "@/components/CtaStrip";
+import type { Metadata } from 'next';
+import Link from 'next/link';
 
 export const metadata: Metadata = {
-  title: "About | Streamflare Media Group",
+  title: 'About Us',
   description:
-    "Streamflare Media Group is a premium digital agency in Allen, TX — partnering with growth-minded businesses through custom software, paid advertising, and strategic social media.",
+    'Streamflare Media Group is a full-service digital agency headquartered in Allen, TX, dedicated to helping DFW businesses build a dominant online presence.',
 };
+
+const serviceCards = [
+  {
+    num: '01',
+    name: 'Custom Software & Web Design',
+    description:
+      'We build custom websites and web applications designed to convert visitors into customers. No templates — every project is built around your brand and your goals.',
+    href: '/services',
+  },
+  {
+    num: '02',
+    name: 'Meta Ads Management',
+    description:
+      'Data-driven paid social campaigns on Facebook and Instagram that generate measurable ROI. From creative strategy to audience targeting and A/B testing, we handle it all.',
+    href: '/services',
+  },
+  {
+    num: '03',
+    name: 'Social Media Management',
+    description:
+      'Consistent, on-brand content that builds your audience and keeps your business top of mind. Authentic voice, community management, and real engagement.',
+    href: '/services',
+  },
+];
+
+const cities = [
+  'Allen', 'Plano', 'Frisco', 'McKinney', 'Dallas', 'Fort Worth',
+  'Arlington', 'Garland', 'Irving', 'Richardson', 'Mesquite', 'Carrollton',
+  'Denton', 'Lewisville', 'Flower Mound', 'Southlake', 'Grapevine',
+  'Colleyville', 'Rockwall', 'Grand Prairie', 'Bedford',
+];
+
+const values = [
+  'Quality Over Volume',
+  'Transparent Communication',
+  'DFW-First Focus',
+  'Results That Matter',
+];
 
 export default function AboutPage() {
   return (
     <>
-      {/* ── Hero ── */}
-      <section className="bg-primary text-primary-foreground pt-24 pb-20 relative overflow-hidden">
-        <div className="absolute bottom-0 left-0 right-0 overflow-hidden h-16 z-10">
-          <svg viewBox="0 0 1440 64" preserveAspectRatio="none" className="w-full h-full" fill="white">
-            <path d="M0,64 L1440,0 L1440,64 Z" />
-          </svg>
-        </div>
-        <div className="max-w-7xl mx-auto px-5 relative z-10">
-          <p className="text-xs tracking-[0.3em] font-bold uppercase text-accent/70 mb-5">Who We Are</p>
-          <h1 className="text-5xl lg:text-7xl font-black uppercase leading-tight max-w-3xl mb-8">
-            Built in Allen.<br />
-            <span className="text-primary-foreground/30">Built for Results.</span>
+      {/* ── HERO ── */}
+      <section
+        className="pt-32 pb-24"
+        style={{ backgroundColor: '#07080E' }}
+      >
+        <div className="max-w-7xl mx-auto px-6 lg:px-8">
+          <p
+            className="text-xs font-bold uppercase tracking-widest mb-5"
+            style={{ color: '#1A52E8', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+          >
+            About Streamflare
+          </p>
+          <h1
+            className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white leading-tight max-w-3xl mb-6"
+            style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
+          >
+            Built for Businesses That Take Marketing Seriously
           </h1>
-          <p className="text-primary-foreground/55 max-w-lg leading-relaxed">
-            A premium digital agency serving DFW businesses that are serious about growth. We operate with the accountability of a direct partner, not the anonymity of a large agency.
+          <p className="text-lg max-w-2xl leading-relaxed" style={{ color: '#6B7280' }}>
+            Streamflare Media Group is a full-service digital agency headquartered in Allen, TX, dedicated to
+            helping DFW businesses build a dominant online presence.
           </p>
         </div>
       </section>
 
-      {/* ── Story ── */}
-      <section className="bg-patterned py-24">
-        <div className="max-w-7xl mx-auto px-5">
-          <div className="grid lg:grid-cols-2 gap-0 border border-border">
-            <div className="bg-card p-12 lg:p-16">
-              <h2 className="text-3xl font-black uppercase leading-tight mb-6">
-                We Built This Around<br />One Premise
+      {/* ── OUR STORY ── */}
+      <section className="py-24 bg-white">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8">
+          <div className="grid lg:grid-cols-2 gap-16 items-start">
+            {/* Left: story text */}
+            <div>
+              <p
+                className="text-xs font-bold uppercase tracking-widest mb-4"
+                style={{ color: '#1A52E8', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+              >
+                Our Story
+              </p>
+              <h2
+                className="text-3xl lg:text-4xl font-bold mb-6"
+                style={{ color: '#0A0A0F', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+              >
+                A Clear Mission from Day One
               </h2>
-              <div className="h-1 w-12 bg-accent mb-8" />
-              <div className="flex flex-col gap-5 text-muted-foreground leading-relaxed">
-                <p>
-                  Most businesses either deal with solo freelancers who can&apos;t handle the full scope, or large agencies where their account gets passed to junior staff and templated solutions. Neither approach produces the results that serious businesses need.
-                </p>
-                <p>
-                  Streamflare Media Group was founded in Allen, TX to operate at a different standard — the focused capability of a specialized team, combined with the accountability of a direct partnership. Every client has a named point of contact. Every strategy is built around their specific goals, market, and customers.
-                </p>
-                <p>
-                  We&apos;re growing our service offerings deliberately, adding capabilities only when we can deliver them at the same level we hold everything else to. What&apos;s available today is what we do exceptionally well — and we stand behind every engagement we take on.
-                </p>
-              </div>
-              <div className="mt-10">
-                <Link
-                  href="/contact"
-                  className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-foreground hover:text-accent transition-colors border-b border-border hover:border-accent pb-1"
+              <p className="text-base leading-relaxed mb-6" style={{ color: '#6B7280' }}>
+                Streamflare was founded with a clear mission — to give DFW small and mid-size businesses access to
+                the same caliber of digital marketing typically reserved for enterprise brands. We don&apos;t use
+                cookie-cutter templates or automated strategies.
+              </p>
+              <p className="text-base leading-relaxed mb-10" style={{ color: '#6B7280' }}>
+                Every campaign, every website, every post is crafted specifically for your business and your market.
+                When you work with Streamflare, you get a dedicated team that treats your growth like their own.
+              </p>
+
+              <div
+                className="pt-8"
+                style={{ borderTop: '1px solid #E5E7EB' }}
+              >
+                <p
+                  className="text-xs font-bold uppercase tracking-widest mb-5"
+                  style={{ color: '#6B7280', fontFamily: 'Oxanium, system-ui, sans-serif' }}
                 >
-                  Start a Conversation &rarr;
+                  Our Values
+                </p>
+                <ul className="flex flex-col gap-3">
+                  {values.map((v) => (
+                    <li
+                      key={v}
+                      className="flex items-center gap-3 text-sm font-semibold"
+                      style={{ color: '#0A0A0F', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                    >
+                      <span
+                        className="w-1.5 h-1.5 flex-shrink-0"
+                        style={{ backgroundColor: '#1A52E8' }}
+                      />
+                      {v}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+
+            {/* Right: decorative dark card */}
+            <div className="lg:pt-8">
+              <div
+                className="p-8"
+                style={{ backgroundColor: '#07080E', border: '1px solid rgba(255,255,255,0.08)' }}
+              >
+                <p
+                  className="text-xs font-bold uppercase tracking-widest mb-6"
+                  style={{ color: '#6B7280', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                >
+                  By the Numbers
+                </p>
+                <div className="flex flex-col gap-6">
+                  {[
+                    { value: '21+', label: 'DFW Cities Served' },
+                    { value: '3', label: 'Core Service Lines' },
+                    { value: '100%', label: 'Custom Strategy — No Templates' },
+                    { value: 'Allen, TX', label: 'Headquarters' },
+                  ].map((stat) => (
+                    <div
+                      key={stat.label}
+                      className="flex items-center justify-between py-4"
+                      style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}
+                    >
+                      <span
+                        className="text-2xl font-bold text-white"
+                        style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                      >
+                        {stat.value}
+                      </span>
+                      <span
+                        className="text-xs uppercase tracking-widest text-right max-w-[160px]"
+                        style={{ color: '#6B7280', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                      >
+                        {stat.label}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── WHAT WE DO ── */}
+      <section className="py-24" style={{ backgroundColor: '#F5F6FA' }}>
+        <div className="max-w-7xl mx-auto px-6 lg:px-8">
+          <div className="mb-14">
+            <p
+              className="text-xs font-bold uppercase tracking-widest mb-4"
+              style={{ color: '#1A52E8', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+            >
+              What We Do
+            </p>
+            <h2
+              className="text-4xl lg:text-5xl font-bold"
+              style={{ color: '#0A0A0F', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+            >
+              Services Built for Growth
+            </h2>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6">
+            {serviceCards.map((svc) => (
+              <div
+                key={svc.num}
+                className="p-8 flex flex-col bg-white transition-all"
+                style={{ border: '1px solid #E5E7EB' }}
+              >
+                <span
+                  className="text-3xl font-bold mb-6 block"
+                  style={{ color: '#1A52E8', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                >
+                  {svc.num}
+                </span>
+                <h3
+                  className="text-lg font-bold mb-3"
+                  style={{ color: '#0A0A0F', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                >
+                  {svc.name}
+                </h3>
+                <p className="text-sm leading-relaxed flex-1 mb-6" style={{ color: '#6B7280' }}>
+                  {svc.description}
+                </p>
+                <Link
+                  href={svc.href}
+                  className="text-sm font-semibold inline-flex items-center gap-1"
+                  style={{ color: '#1A52E8', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                >
+                  Learn More →
                 </Link>
               </div>
-            </div>
-            <div className="flex flex-col gap-px bg-border">
-              <div className="bg-primary text-primary-foreground p-12 flex-1 flex flex-col justify-between">
-                <p className="text-7xl font-black text-accent mb-4">DFW</p>
-                <p className="text-sm text-primary-foreground/55 leading-relaxed">
-                  The Dallas-Fort Worth Metroplex is our home market. We know the competitive landscape, the consumer base, and what it takes to win here — and we bring that to every engagement.
-                </p>
-              </div>
-              <div className="bg-muted p-12 flex-1 flex flex-col justify-between">
-                <p className="text-5xl font-black text-primary mb-4">1:1</p>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  Every client has a dedicated account owner — not a rotating team, not a ticketing system. One person who knows your business and is responsible for your results.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── Founding Quote ── */}
-      <section className="bg-accent text-white py-20">
-        <div className="max-w-5xl mx-auto px-5 text-center">
-          <p className="text-3xl lg:text-4xl font-black uppercase leading-tight mb-6">
-            &ldquo;Serious businesses deserve serious partners — not a rotating cast of junior staff and recycled templates.&rdquo;
-          </p>
-          <div className="w-16 h-1 bg-white/30 mx-auto mb-5" />
-          <p className="text-white/60 text-xs font-bold uppercase tracking-[0.3em]">
-            The Premise Behind Streamflare Media Group
-          </p>
-        </div>
-      </section>
-
-      {/* ── Values ── */}
-      <section className="bg-primary text-primary-foreground py-24">
-        <div className="max-w-7xl mx-auto px-5">
-          <p className="text-xs tracking-[0.25em] font-bold uppercase text-accent/70 mb-4">How We Operate</p>
-          <h2 className="text-4xl font-black uppercase mb-14">Our Commitments to Every Client</h2>
-          <div className="grid md:grid-cols-3 gap-0 border border-primary-foreground/10">
-            {[
-              {
-                n: "01",
-                title: "Dedicated Ownership",
-                body: "Your account has one owner on our team — someone who knows your business, picks up the phone, and takes full responsibility for outcomes.",
-              },
-              {
-                n: "02",
-                title: "Market-Specific Strategy",
-                body: "We don't duplicate campaigns. Every strategy is built around your specific city, customer profile, and competitive environment.",
-              },
-              {
-                n: "03",
-                title: "Radical Transparency",
-                body: "You see everything — spend, results, what worked, what didn't. No spin, no vanity metrics, no information gaps.",
-              },
-            ].map((v, i) => (
-              <div key={v.n} className={`p-10 ${i < 2 ? "border-b md:border-b-0 md:border-r border-primary-foreground/10" : ""}`}>
-                <div className="w-10 h-1 bg-accent mb-8" />
-                <p className="text-5xl font-black text-accent/20 mb-4">{v.n}</p>
-                <h3 className="font-black uppercase text-lg mb-3">{v.title}</h3>
-                <p className="text-sm text-primary-foreground/55 leading-relaxed">{v.body}</p>
-              </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ── Services ── */}
-      <section className="bg-background border-y border-border py-20">
-        <div className="max-w-7xl mx-auto px-5">
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 mb-10">
-            <div>
-              <p className="text-xs tracking-[0.25em] font-bold uppercase text-muted-foreground mb-3">What We Offer</p>
-              <h2 className="text-3xl font-black uppercase">Current Services</h2>
-            </div>
-            <p className="text-sm text-muted-foreground max-w-sm">More offerings are coming — we expand only when we can deliver at the same standard we hold everything else to.</p>
+      {/* ── SERVICE AREA ── */}
+      <section className="py-24 bg-white">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8">
+          <div className="mb-12">
+            <p
+              className="text-xs font-bold uppercase tracking-widest mb-4"
+              style={{ color: '#1A52E8', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+            >
+              Our Service Area
+            </p>
+            <h2
+              className="text-4xl lg:text-5xl font-bold mb-6"
+              style={{ color: '#0A0A0F', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+            >
+              Serving 21+ Cities Across DFW
+            </h2>
+            <p className="text-base max-w-2xl leading-relaxed" style={{ color: '#6B7280' }}>
+              Headquartered in Allen, TX, Streamflare Media Group works with businesses throughout the DFW
+              Metroplex — from Plano and Frisco to Dallas, Fort Worth, and every city in between.
+            </p>
           </div>
-          <div className="grid md:grid-cols-3 gap-4">
-            {services.map((s) => (
-              <Link
-                key={s.slug}
-                href={`/${s.slug}`}
-                className="border border-border p-8 hover:border-accent hover:bg-muted transition-all group"
+
+          <div className="flex flex-wrap gap-2">
+            {cities.map((city) => (
+              <span
+                key={city}
+                className="text-xs px-3 py-1.5 uppercase tracking-wide font-medium"
+                style={{ border: '1px solid #E5E7EB', color: '#6B7280' }}
               >
-                <p className="font-black text-xl uppercase tracking-tight group-hover:text-accent transition-colors mb-2">
-                  {s.shortName}
-                </p>
-                <p className="text-sm text-muted-foreground leading-relaxed mb-5">{s.tagline}</p>
-                <span className="text-xs font-bold uppercase tracking-widest text-primary/60 group-hover:text-accent transition-colors">
-                  Learn More &rarr;
-                </span>
-              </Link>
+                {city}
+              </span>
             ))}
           </div>
         </div>
       </section>
 
-      <CtaStrip city="Allen" />
+      {/* ── CTA STRIP ── */}
+      <section className="py-20" style={{ backgroundColor: '#1A52E8' }}>
+        <div className="max-w-7xl mx-auto px-6 lg:px-8 text-center">
+          <h2
+            className="text-3xl lg:text-4xl font-bold text-white mb-4"
+            style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
+          >
+            Ready to grow your business?
+          </h2>
+          <p className="text-base mb-10 max-w-xl mx-auto" style={{ color: 'rgba(255,255,255,0.75)' }}>
+            Get a free consultation and see what Streamflare can do for you.
+          </p>
+          <Link
+            href="/contact"
+            className="inline-block bg-white font-bold text-sm uppercase tracking-wider px-10 py-4 transition-colors hover:bg-gray-100"
+            style={{ color: '#1A52E8', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+          >
+            Schedule a Consultation →
+          </Link>
+        </div>
+      </section>
     </>
   );
 }

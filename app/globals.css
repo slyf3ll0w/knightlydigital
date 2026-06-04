@@ -1,81 +1,33 @@
 @import "tailwindcss";
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-border: var(--border);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
-  --color-destructive: var(--destructive);
   --font-sans: 'Oxanium', system-ui, sans-serif;
+  --font-body: 'Inter', system-ui, sans-serif;
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.1 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.1 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.1 0 0);
-  --primary: oklch(0.1 0 0);
-  --primary-foreground: oklch(0.98 0 0);
-  --secondary: oklch(0.96 0 0);
-  --secondary-foreground: oklch(0.1 0 0);
-  --muted: oklch(0.96 0 0);
-  --muted-foreground: oklch(0.45 0 0);
-  --accent: oklch(0.45 0.20 265);
-  --accent-foreground: oklch(1 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.9 0 0);
-  --input: oklch(0.9 0 0);
-  --ring: oklch(0.45 0.20 265);
-  --radius: 0;
-  --highlight: oklch(0.45 0.20 265);
+  --background: #ffffff;
+  --foreground: #0A0A0F;
+  --sf-dark: #07080E;
+  --sf-mid: #0F1019;
+  --sf-blue: #1A52E8;
+  --sf-blue-dark: #1340C4;
+  --sf-light: #F5F6FA;
+  --sf-border: rgba(255,255,255,0.08);
+  --sf-border-light: #E5E7EB;
+  --sf-muted: #6B7280;
 }
 
 body {
   background-color: var(--background);
   color: var(--foreground);
+  font-family: var(--font-body);
+}
+
+h1, h2, h3, h4, h5, h6, .font-display {
   font-family: var(--font-sans);
 }
 
 html {
   scroll-behavior: smooth;
-}
-
-.bg-patterned {
-  background-color: var(--background);
-  background-image: url('/bg-pattern.svg');
-  background-size: 80px 80px;
-}
-
-.bg-muted-patterned {
-  background-color: var(--muted);
-  background-image: url('/bg-pattern.svg');
-  background-size: 80px 80px;
-}
-
-.clip-diagonal-down {
-  clip-path: polygon(0 0, 100% 0, 100% 88%, 0 100%);
-}
-
-.clip-diagonal-up {
-  clip-path: polygon(0 0, 100% 6%, 100% 100%, 0 100%);
-}
-
-.highlight-box {
-  background-color: var(--highlight);
-  color: oklch(1 0 0);
-  padding: 0 0.25em;
-  display: inline-block;
 }

@@ -1,77 +1,282 @@
-import type { Metadata } from "next";
-import Link from "next/link";
-import { services } from "@/lib/services";
-import { CtaStrip } from "@/components/CtaStrip";
+import Link from 'next/link';
 
-export const metadata: Metadata = {
-  title: "Digital Marketing & Custom Software | Allen, TX | Streamflare Media Group",
-  description:
-    "Streamflare Media Group is a premium digital agency in Allen, TX — delivering custom software, Meta ads management, and social media strategy for businesses across the DFW Metroplex.",
-};
-
-const serviceIcons = [
-  <svg key="code" className="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>,
-  <svg key="ads" className="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>,
-  <svg key="social" className="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>,
+const cities = [
+  'Allen', 'Plano', 'Frisco', 'McKinney', 'Dallas', 'Fort Worth',
+  'Arlington', 'Garland', 'Irving', 'Richardson', 'Mesquite', 'Carrollton',
+  'Denton', 'Lewisville', 'Flower Mound', 'Southlake', 'Grapevine',
+  'Colleyville', 'Rockwall', 'Grand Prairie', 'Bedford',
 ];
 
-export default function AllenHome() {
+const serviceCards = [
+  {
+    num: '01',
+    name: 'Custom Software & Web Design',
+    description:
+      'We build custom websites and web applications designed to convert visitors into customers. No templates — every project is built around your brand and your goals.',
+    href: '/services',
+  },
+  {
+    num: '02',
+    name: 'Meta Ads Management',
+    description:
+      'Data-driven paid social campaigns on Facebook and Instagram that generate measurable ROI. From creative strategy to audience targeting and A/B testing, we handle it all.',
+    href: '/services',
+  },
+  {
+    num: '03',
+    name: 'Social Media Management',
+    description:
+      'Consistent, on-brand content that builds your audience and keeps your business top of mind. Authentic voice, community management, and real engagement.',
+    href: '/services',
+  },
+];
+
+const reasons = [
+  {
+    title: 'DFW-Native',
+    body: 'We know the Dallas-Fort Worth market inside and out — the neighborhoods, the competition, the customers.',
+  },
+  {
+    title: 'Full-Service',
+    body: 'One team handles your web presence, paid ads, and social media. No juggling multiple vendors.',
+  },
+  {
+    title: 'Data-Driven',
+    body: 'Every decision is backed by real analytics. We measure what matters and optimize relentlessly.',
+  },
+  {
+    title: 'Transparent',
+    body: "Regular reporting in plain language so you always know exactly what's working and why.",
+  },
+];
+
+export default function HomePage() {
   return (
     <>
-      {/* ── Hero ── */}
-      <section className="relative min-h-[88vh] flex flex-col justify-center overflow-hidden">
-        <div
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-          style={{ backgroundImage: "url('https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=1800&q=80')" }}
-        />
-        <div className="absolute inset-0 bg-black/72" />
+      {/* ── HERO ── */}
+      <section
+        className="relative flex items-center min-h-screen pt-16"
+        style={{ backgroundColor: '#07080E' }}
+      >
+        <div className="max-w-7xl mx-auto px-6 lg:px-8 w-full py-20 lg:py-0">
+          <div className="grid lg:grid-cols-2 gap-16 items-center">
 
-        <div className="relative z-10 max-w-6xl mx-auto px-5 py-20">
-          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black uppercase leading-tight text-white mb-6 max-w-3xl">
-            Where Strategy<br />Meets Execution.
-          </h1>
-          <p className="text-lg text-white/65 max-w-xl mb-10 leading-relaxed">
-            We work with a select group of DFW businesses and give each a dedicated partner who takes full ownership of their digital presence — custom software, paid advertising, and strategic content.
-          </p>
-          <div className="flex flex-wrap gap-4">
-            <a
-              href="tel:2145550100"
-              className="bg-accent text-white font-bold px-8 py-4 text-sm tracking-wider uppercase hover:bg-accent/85 transition-colors"
-            >
-              (214) 555-0100
-            </a>
-            <Link
-              href="/contact"
-              className="border-2 border-white/40 text-white font-bold px-8 py-4 text-sm tracking-wider uppercase hover:bg-white/10 transition-colors"
-            >
-              Free Consultation
-            </Link>
+            {/* Left: copy */}
+            <div>
+              <h1
+                className="text-5xl sm:text-6xl lg:text-7xl font-bold leading-none tracking-tight mb-6"
+                style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
+              >
+                <span className="block text-white">DIGITAL MARKETING</span>
+                <span className="block text-white">
+                  THAT DRIVES{' '}
+                  <span style={{ color: '#1A52E8' }}>RESULTS</span>
+                </span>
+              </h1>
+
+              <p className="text-lg mb-10 max-w-xl" style={{ color: '#6B7280' }}>
+                Full-service digital agency serving businesses across the DFW Metroplex.
+              </p>
+
+              <div className="flex flex-wrap items-center gap-4 mb-12">
+                <Link
+                  href="/contact"
+                  className="inline-block text-sm font-semibold uppercase tracking-wider px-8 py-3 transition-colors hover:opacity-90"
+                  style={{ backgroundColor: '#1A52E8', color: '#ffffff', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                >
+                  Start a Project
+                </Link>
+                <Link
+                  href="/services"
+                  className="inline-flex items-center gap-2 text-sm font-semibold uppercase tracking-wider transition-colors text-white/70 hover:text-white"
+                  style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                >
+                  View Services <span aria-hidden>→</span>
+                </Link>
+              </div>
+
+              {/* Stat pills */}
+              <div
+                className="pt-8"
+                style={{ borderTop: '1px solid rgba(255,255,255,0.10)' }}
+              >
+                <div className="flex flex-wrap gap-3">
+                  {['21+ Cities Served', 'DFW-Focused', 'Full-Service Agency'].map((stat) => (
+                    <span
+                      key={stat}
+                      className="text-xs uppercase tracking-widest px-4 py-2 font-semibold"
+                      style={{
+                        border: '1px solid rgba(255,255,255,0.15)',
+                        color: 'rgba(255,255,255,0.6)',
+                        fontFamily: 'Oxanium, system-ui, sans-serif',
+                      }}
+                    >
+                      {stat}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Right: mock dashboard card */}
+            <div className="hidden lg:block">
+              <div
+                className="p-6"
+                style={{ backgroundColor: '#0F1019', border: '1px solid rgba(255,255,255,0.08)' }}
+              >
+                {/* Card header */}
+                <div
+                  className="flex items-center justify-between mb-6 pb-4"
+                  style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}
+                >
+                  <div>
+                    <p
+                      className="text-xs uppercase tracking-widest font-semibold mb-1"
+                      style={{ color: '#6B7280', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                    >
+                      Active Campaigns
+                    </p>
+                    <p
+                      className="text-2xl font-bold text-white"
+                      style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                    >
+                      4 Running
+                    </p>
+                  </div>
+                  <div
+                    className="w-2 h-2 rounded-full"
+                    style={{ backgroundColor: '#1A52E8', boxShadow: '0 0 8px #1A52E8' }}
+                  />
+                </div>
+
+                {/* Stats row */}
+                <div className="grid grid-cols-3 gap-4 mb-6">
+                  {[
+                    { label: 'Impressions', value: '124K' },
+                    { label: 'Clicks', value: '3,840' },
+                    { label: 'Conversions', value: '216' },
+                  ].map((s) => (
+                    <div key={s.label} className="text-center">
+                      <p
+                        className="text-xl font-bold text-white"
+                        style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                      >
+                        {s.value}
+                      </p>
+                      <p
+                        className="text-xs mt-1 uppercase tracking-wide"
+                        style={{ color: '#6B7280', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                      >
+                        {s.label}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Bar chart */}
+                <div>
+                  <p
+                    className="text-xs uppercase tracking-widest font-semibold mb-3"
+                    style={{ color: '#6B7280', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                  >
+                    Weekly Performance
+                  </p>
+                  <div className="flex items-end gap-2 h-20">
+                    {[45, 62, 55, 78, 90, 68, 85].map((pct, i) => (
+                      <div key={i} className="flex-1 flex flex-col justify-end h-full">
+                        <div
+                          style={{
+                            height: `${pct}%`,
+                            backgroundColor: i === 4 || i === 6 ? '#1A52E8' : 'rgba(26,82,232,0.25)',
+                          }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex justify-between mt-2">
+                    {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
+                      <span
+                        key={i}
+                        className="flex-1 text-center text-xs"
+                        style={{ color: '#6B7280', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                      >
+                        {d}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Bottom metric */}
+                <div
+                  className="mt-6 pt-4 flex items-center justify-between"
+                  style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}
+                >
+                  <span
+                    className="text-xs uppercase tracking-widest"
+                    style={{ color: '#6B7280', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                  >
+                    Avg. ROAS
+                  </span>
+                  <span
+                    className="text-sm font-bold"
+                    style={{ color: '#1A52E8', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                  >
+                    4.2×
+                  </span>
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
       </section>
 
-      {/* ── Services ── */}
-      <section className="bg-patterned py-20">
-        <div className="max-w-7xl mx-auto px-5">
-          <div className="mb-12">
-            <p className="text-xs tracking-[0.25em] font-bold uppercase text-muted-foreground mb-3">What We Do</p>
-            <h2 className="text-3xl lg:text-4xl font-black uppercase">Our Services</h2>
-            <div className="h-1 w-10 bg-accent mt-4" />
+      {/* ── WHAT WE DO ── */}
+      <section className="py-24 bg-white">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8">
+          <div className="mb-14">
+            <p
+              className="text-xs font-bold uppercase tracking-widest mb-4"
+              style={{ color: '#1A52E8', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+            >
+              What We Do
+            </p>
+            <h2
+              className="text-4xl lg:text-5xl font-bold"
+              style={{ color: '#0A0A0F', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+            >
+              Services Built for Growth
+            </h2>
           </div>
 
-          <div className="grid lg:grid-cols-3 gap-6">
-            {services.map((s, i) => (
-              <div key={s.slug} className="bg-card border border-border p-8 hover:border-accent transition-colors group flex flex-col">
-                <div className="w-12 h-12 bg-primary text-primary-foreground flex items-center justify-center mb-6 group-hover:bg-accent transition-colors">
-                  {serviceIcons[i]}
-                </div>
-                <h3 className="font-black text-lg uppercase tracking-tight mb-3">{s.name}</h3>
-                <p className="text-muted-foreground text-sm leading-relaxed mb-6 flex-1">{s.description}</p>
-                <Link
-                  href={`/${s.slug}`}
-                  className="text-xs font-bold uppercase tracking-widest text-foreground group-hover:text-accent transition-colors"
+          <div className="grid md:grid-cols-3 gap-6">
+            {serviceCards.map((svc) => (
+              <div
+                key={svc.num}
+                className="p-8 flex flex-col transition-all"
+                style={{ border: '1px solid #E5E7EB' }}
+              >
+                <span
+                  className="text-3xl font-bold mb-6 block"
+                  style={{ color: '#1A52E8', fontFamily: 'Oxanium, system-ui, sans-serif' }}
                 >
-                  Learn More &rarr;
+                  {svc.num}
+                </span>
+                <h3
+                  className="text-lg font-bold mb-3"
+                  style={{ color: '#0A0A0F', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                >
+                  {svc.name}
+                </h3>
+                <p className="text-sm leading-relaxed flex-1 mb-6" style={{ color: '#6B7280' }}>
+                  {svc.description}
+                </p>
+                <Link
+                  href={svc.href}
+                  className="text-sm font-semibold inline-flex items-center gap-1 transition-colors"
+                  style={{ color: '#1A52E8', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                >
+                  Learn More →
                 </Link>
               </div>
             ))}
@@ -79,45 +284,117 @@ export default function AllenHome() {
         </div>
       </section>
 
-      {/* ── About / Identity ── */}
-      <section className="bg-primary text-primary-foreground py-20">
-        <div className="max-w-7xl mx-auto px-5 grid lg:grid-cols-2 gap-16 items-center">
-          <div>
-            <p className="text-xs tracking-[0.25em] font-bold uppercase text-accent/70 mb-4">Based in Allen, TX</p>
-            <h2 className="text-3xl lg:text-4xl font-black uppercase leading-tight mb-6">
-              A Direct Partnership.<br />Not a Vendor Relationship.
-            </h2>
-            <p className="text-primary-foreground/65 leading-relaxed mb-5">
-              We work with a select group of DFW businesses and give each one a dedicated point of contact — someone who knows your business, answers your calls, and takes full responsibility for results.
-            </p>
-            <p className="text-primary-foreground/65 leading-relaxed mb-8">
-              Every strategy is built from scratch around your market and goals. No recycled playbooks.
-            </p>
-            <Link
-              href="/about"
-              className="inline-flex items-center gap-2 text-sm font-bold text-white border-b border-white/30 hover:border-accent hover:text-accent pb-0.5 transition-colors"
+      {/* ── WHY STREAMFLARE ── */}
+      <section className="py-24" style={{ backgroundColor: '#07080E' }}>
+        <div className="max-w-7xl mx-auto px-6 lg:px-8">
+          <div className="grid lg:grid-cols-2 gap-16 items-start">
+            {/* Left */}
+            <div>
+              <p
+                className="text-xs font-bold uppercase tracking-widest mb-4"
+                style={{ color: '#1A52E8', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+              >
+                Why Streamflare
+              </p>
+              <h2
+                className="text-4xl lg:text-5xl font-bold text-white leading-tight"
+                style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
+              >
+                Precision Marketing for DFW Businesses
+              </h2>
+              <div
+                className="mt-8 pt-8"
+                style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}
+              >
+                <p className="text-base leading-relaxed" style={{ color: '#6B7280' }}>
+                  Most agencies treat every client the same. We don&apos;t. Every campaign, every website, and every
+                  piece of content is crafted specifically for your business, your market, and your customers — with the
+                  DFW Metroplex in focus from day one.
+                </p>
+              </div>
+            </div>
+
+            {/* Right: reasons */}
+            <div className="flex flex-col gap-6">
+              {reasons.map((r) => (
+                <div
+                  key={r.title}
+                  className="pl-5 py-1"
+                  style={{ borderLeft: '2px solid #1A52E8' }}
+                >
+                  <h3
+                    className="text-base font-bold text-white mb-1"
+                    style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                  >
+                    {r.title}
+                  </h3>
+                  <p className="text-sm leading-relaxed" style={{ color: '#6B7280' }}>
+                    {r.body}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── SERVICE AREA ── */}
+      <section className="py-24" style={{ backgroundColor: '#F5F6FA' }}>
+        <div className="max-w-7xl mx-auto px-6 lg:px-8">
+          <div className="mb-12">
+            <p
+              className="text-xs font-bold uppercase tracking-widest mb-4"
+              style={{ color: '#1A52E8', fontFamily: 'Oxanium, system-ui, sans-serif' }}
             >
-              About Streamflare &rarr;
-            </Link>
+              Our Service Area
+            </p>
+            <h2
+              className="text-4xl lg:text-5xl font-bold mb-6"
+              style={{ color: '#0A0A0F', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+            >
+              Serving 21+ Cities Across DFW
+            </h2>
+            <p className="text-base max-w-2xl leading-relaxed" style={{ color: '#6B7280' }}>
+              Headquartered in Allen, TX, Streamflare Media Group works with businesses throughout the DFW
+              Metroplex — from Plano and Frisco to Dallas, Fort Worth, and every city in between.
+            </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-px bg-primary-foreground/10">
-            {[
-              { value: "DFW", label: "Home Market" },
-              { value: "1:1", label: "Account Management" },
-              { value: "21+", label: "Cities Served" },
-              { value: "0", label: "Generic Playbooks" },
-            ].map((stat) => (
-              <div key={stat.label} className="bg-primary p-8 text-center">
-                <p className="text-4xl font-black text-accent mb-2">{stat.value}</p>
-                <p className="text-xs tracking-wider uppercase text-primary-foreground/45">{stat.label}</p>
-              </div>
+          <div className="flex flex-wrap gap-2">
+            {cities.map((city) => (
+              <span
+                key={city}
+                className="text-xs px-3 py-1.5 uppercase tracking-wide font-medium"
+                style={{ border: '1px solid #E5E7EB', color: '#6B7280' }}
+              >
+                {city}
+              </span>
             ))}
           </div>
         </div>
       </section>
 
-      <CtaStrip city="Allen" />
+      {/* ── CTA STRIP ── */}
+      <section className="py-20" style={{ backgroundColor: '#1A52E8' }}>
+        <div className="max-w-7xl mx-auto px-6 lg:px-8 text-center">
+          <h2
+            className="text-3xl lg:text-4xl font-bold text-white mb-4"
+            style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
+          >
+            Ready to grow your business?
+          </h2>
+          <p className="text-base mb-10 max-w-xl mx-auto" style={{ color: 'rgba(255,255,255,0.75)' }}>
+            Get a free consultation and see what Streamflare can do for you.
+          </p>
+          <Link
+            href="/contact"
+            className="inline-block bg-white font-bold text-sm uppercase tracking-wider px-10 py-4 transition-colors hover:bg-gray-100"
+            style={{ color: '#1A52E8', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+          >
+            Schedule a Consultation →
+          </Link>
+        </div>
+      </section>
     </>
   );
 }

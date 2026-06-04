@@ -1,236 +1,162 @@
-"use client";
+'use client';
 
-import { useState, useEffect, useRef } from "react";
-import Link from "next/link";
-import Image from "next/image";
-import { usePathname } from "next/navigation";
-import { services } from "@/lib/services";
+import { useState } from 'react';
+import Link from 'next/link';
+import Image from 'next/image';
+import { usePathname } from 'next/navigation';
+
+const navLinks = [
+  { label: 'Home', href: '/' },
+  { label: 'About', href: '/about' },
+  { label: 'Services', href: '/services' },
+  { label: 'Contact', href: '/contact' },
+];
 
 export function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [servicesOpen, setServicesOpen] = useState(false);
-  const [visible, setVisible] = useState(true);
-  const lastScrollY = useRef(0);
-  const dropdownRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
-
-  useEffect(() => {
-    const onScroll = () => {
-      const cur = window.scrollY;
-      setVisible(cur < lastScrollY.current || cur < 80);
-      lastScrollY.current = cur;
-    };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setServicesOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
-  useEffect(() => {
-    setMobileOpen(false);
-    setServicesOpen(false);
-  }, [pathname]);
 
   return (
     <header
-      className={`sticky top-0 z-[1001] transition-transform duration-300 ${
-        visible ? "translate-y-0" : "-translate-y-full"
-      }`}
+      className="fixed top-0 left-0 right-0 z-50"
+      style={{ backgroundColor: '#07080E', borderBottom: '1px solid rgba(255,255,255,0.08)' }}
     >
-      {/* ── Row 1: Top info bar ── */}
-      <div className="bg-primary border-b border-primary-foreground/10">
-        <div className="max-w-7xl mx-auto px-5 py-2 flex items-center justify-between gap-4 text-xs text-primary-foreground/70">
-          <div className="flex items-center gap-2">
-            <span className="text-accent tracking-tight text-sm font-black">★★★★★</span>
-            <span className="hidden sm:inline font-medium tracking-wide">Premium Digital Agency &mdash; Allen, TX</span>
-          </div>
-          <div className="hidden md:flex items-center gap-1">
-            <a href="#" aria-label="Facebook" className="w-7 h-7 bg-primary-foreground/10 hover:bg-accent/20 text-primary-foreground flex items-center justify-center transition-colors">
-              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3z"/>
-              </svg>
-            </a>
-            <a href="#" aria-label="Instagram" className="w-7 h-7 bg-primary-foreground/10 hover:bg-accent/20 text-primary-foreground flex items-center justify-center transition-colors">
-              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1112.63 8 4 4 0 0116 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
-              </svg>
-            </a>
-            <a href="#" aria-label="LinkedIn" className="w-7 h-7 bg-primary-foreground/10 hover:bg-accent/20 text-primary-foreground flex items-center justify-center transition-colors">
-              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M16 8a6 6 0 016 6v7h-4v-7a2 2 0 00-2-2 2 2 0 00-2 2v7h-4v-7a6 6 0 016-6zM2 9h4v12H2z"/><circle cx="4" cy="4" r="2"/>
-              </svg>
-            </a>
-          </div>
-          <div className="flex items-center gap-1.5 font-medium">
-            <svg className="w-3 h-3 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-            </svg>
-            Mon–Fri &nbsp;9AM–6PM CST
-          </div>
-        </div>
-      </div>
+      <div className="max-w-7xl mx-auto px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16">
 
-      {/* ── Row 2: Logo only ── */}
-      <div className="bg-primary border-b border-primary-foreground/10">
-        <div className="max-w-7xl mx-auto px-5 py-4 flex items-center justify-between">
-
+          {/* Logo */}
           <Link href="/" className="flex-shrink-0">
-            <div className="bg-white px-4 py-2">
+            <div className="bg-white px-2 py-1">
               <Image
                 src="/logo.png"
                 alt="Streamflare Media Group"
-                width={1811}
-                height={222}
-                className="h-6 w-auto sm:h-8 lg:h-14 object-contain object-left"
+                width={160}
+                height={32}
                 priority
               />
             </div>
           </Link>
 
-          {/* Mobile: phone icon + hamburger */}
-          <div className="flex lg:hidden items-center gap-3">
-            <a href="tel:2145550100" aria-label="Call us" className="text-accent">
-              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.67A2 2 0 012 1h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/>
-              </svg>
-            </a>
-            <button
-              onClick={() => setMobileOpen(!mobileOpen)}
-              className="p-2 text-foreground/70 hover:text-foreground transition-colors"
-              aria-label="Toggle menu"
+          {/* Desktop Nav */}
+          <nav className="hidden md:flex items-center gap-8">
+            {navLinks.map((link) => {
+              const isActive = pathname === link.href;
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={`text-sm font-medium tracking-wide transition-colors ${
+                    isActive ? 'text-white' : 'text-white/70 hover:text-white'
+                  }`}
+                  style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                >
+                  {link.label}
+                </Link>
+              );
+            })}
+          </nav>
+
+          {/* Desktop CTA */}
+          <div className="hidden md:flex items-center gap-5">
+            <Link
+              href="/portal"
+              className="text-sm text-white/60 hover:text-white/90 transition-colors tracking-wide"
+              style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
             >
-              {mobileOpen ? (
-                <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
-              ) : (
-                <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
-              )}
-            </button>
+              Client Portal
+            </Link>
+            <Link
+              href="/contact"
+              className="text-sm font-semibold uppercase tracking-wider px-5 py-2 transition-colors"
+              style={{
+                backgroundColor: '#1A52E8',
+                color: '#ffffff',
+                fontFamily: 'Oxanium, system-ui, sans-serif',
+              }}
+            >
+              Get Started
+            </Link>
           </div>
+
+          {/* Mobile Hamburger */}
+          <button
+            className="md:hidden flex flex-col justify-center items-center w-9 h-9 gap-1.5"
+            onClick={() => setMobileOpen(!mobileOpen)}
+            aria-label="Toggle menu"
+          >
+            <span
+              className={`block w-6 h-0.5 bg-white transition-all duration-200 origin-center ${
+                mobileOpen ? 'rotate-45 translate-y-2' : ''
+              }`}
+            />
+            <span
+              className={`block w-6 h-0.5 bg-white transition-all duration-200 ${
+                mobileOpen ? 'opacity-0 scale-x-0' : ''
+              }`}
+            />
+            <span
+              className={`block w-6 h-0.5 bg-white transition-all duration-200 origin-center ${
+                mobileOpen ? '-rotate-45 -translate-y-2' : ''
+              }`}
+            />
+          </button>
         </div>
       </div>
 
-      {/* ── Row 3: Nav + contact ── */}
-      <nav className="bg-primary hidden lg:block">
-        <div className="max-w-7xl mx-auto px-5 flex items-center">
-          <Link
-            href="/"
-            className={`px-5 py-4 text-sm font-bold tracking-wide transition-colors ${
-              pathname === "/"
-                ? "bg-accent/20 text-accent"
-                : "text-primary-foreground/75 hover:text-primary-foreground hover:bg-white/5"
-            }`}
-          >
-            Home
-          </Link>
-
-          <div className="relative" ref={dropdownRef}>
-            <button
-              onClick={() => setServicesOpen(!servicesOpen)}
-              className="flex items-center gap-1.5 px-5 py-4 text-sm font-bold tracking-wide text-primary-foreground/75 hover:text-primary-foreground hover:bg-white/5 transition-colors"
-            >
-              Services
-              <svg
-                className={`w-3.5 h-3.5 transition-transform ${servicesOpen ? "rotate-180" : ""}`}
-                viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2"
-              >
-                <path d="M2 4l4 4 4-4"/>
-              </svg>
-            </button>
-            {servicesOpen && (
-              <div className="absolute top-full left-0 bg-card border border-border shadow-xl min-w-[320px] z-50">
-                {services.map((s) => (
-                  <Link
-                    key={s.slug}
-                    href={`/${s.slug}`}
-                    className="block px-5 py-4 hover:bg-muted transition-colors border-b border-border last:border-0"
-                  >
-                    <span className="font-bold text-sm text-foreground">{s.name}</span>
-                    <span className="block text-xs text-muted-foreground mt-0.5">{s.tagline.split("—")[0].trim()}</span>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <Link
-            href="/about"
-            className={`px-5 py-4 text-sm font-bold tracking-wide transition-colors ${
-              pathname === "/about"
-                ? "bg-accent/20 text-accent"
-                : "text-primary-foreground/75 hover:text-primary-foreground hover:bg-white/5"
-            }`}
-          >
-            About
-          </Link>
-          <Link
-            href="/contact"
-            className={`px-5 py-4 text-sm font-bold tracking-wide transition-colors ${
-              pathname === "/contact"
-                ? "bg-accent/20 text-accent"
-                : "text-primary-foreground/75 hover:text-primary-foreground hover:bg-white/5"
-            }`}
-          >
-            Contact
-          </Link>
-
-          <div className="ml-auto flex items-center">
-            <a
-              href="tel:2145550100"
-              className="px-5 py-4 text-sm font-bold text-primary-foreground/60 hover:text-primary-foreground transition-colors tracking-wide"
-            >
-              (214) 555-0100
-            </a>
+      {/* Mobile Menu */}
+      {mobileOpen && (
+        <div
+          className="md:hidden"
+          style={{
+            backgroundColor: '#07080E',
+            borderTop: '1px solid rgba(255,255,255,0.08)',
+          }}
+        >
+          <div className="px-6 py-4 flex flex-col">
+            {navLinks.map((link) => {
+              const isActive = pathname === link.href;
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  onClick={() => setMobileOpen(false)}
+                  className={`py-3 text-sm font-medium tracking-wide transition-colors ${
+                    isActive ? 'text-white' : 'text-white/70 hover:text-white'
+                  }`}
+                  style={{
+                    borderBottom: '1px solid rgba(255,255,255,0.06)',
+                    fontFamily: 'Oxanium, system-ui, sans-serif',
+                  }}
+                >
+                  {link.label}
+                </Link>
+              );
+            })}
             <Link
-              href="/contact"
-              className="bg-accent hover:bg-accent/85 text-white font-black px-6 py-4 text-xs tracking-widest uppercase transition-colors whitespace-nowrap"
+              href="/portal"
+              onClick={() => setMobileOpen(false)}
+              className="py-3 text-sm text-white/60 hover:text-white tracking-wide transition-colors"
+              style={{
+                borderBottom: '1px solid rgba(255,255,255,0.06)',
+                fontFamily: 'Oxanium, system-ui, sans-serif',
+              }}
             >
-              Free Consultation
-            </Link>
-            <Link
-              href="/portal/login"
-              className={`flex items-center gap-2 px-5 py-4 text-sm font-bold tracking-wide transition-colors ${
-                pathname.startsWith("/portal")
-                  ? "bg-accent/20 text-accent"
-                  : "text-primary-foreground/75 hover:text-accent hover:bg-white/5"
-              }`}
-            >
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>
-              </svg>
               Client Portal
             </Link>
-          </div>
-        </div>
-      </nav>
-
-      {/* Mobile menu */}
-      {mobileOpen && (
-        <div className="lg:hidden bg-primary border-b border-border shadow-lg">
-          <div className="max-w-7xl mx-auto px-5 py-4 flex flex-col">
-            <Link href="/" className="py-3 px-2 font-bold text-primary-foreground border-b border-primary-foreground/10 text-sm">Home</Link>
-            <div className="py-3 px-2 border-b border-primary-foreground/10">
-              <p className="font-bold text-sm text-primary-foreground mb-2">Services</p>
-              {services.map((s) => (
-                <Link key={s.slug} href={`/${s.slug}`} className="block py-2 px-3 text-sm text-primary-foreground/70 hover:text-primary-foreground">
-                  {s.shortName}
-                </Link>
-              ))}
+            <div className="pt-4 pb-2">
+              <Link
+                href="/contact"
+                onClick={() => setMobileOpen(false)}
+                className="block text-center text-sm font-semibold uppercase tracking-wider px-5 py-3 w-full"
+                style={{
+                  backgroundColor: '#1A52E8',
+                  color: '#ffffff',
+                  fontFamily: 'Oxanium, system-ui, sans-serif',
+                }}
+              >
+                Get Started
+              </Link>
             </div>
-            <Link href="/about" className="py-3 px-2 font-bold text-sm text-primary-foreground border-b border-primary-foreground/10">About</Link>
-            <Link href="/contact" className="py-3 px-2 font-bold text-sm text-primary-foreground border-b border-primary-foreground/10">Contact</Link>
-            <Link href="/portal/login" className="py-3 px-2 font-bold text-sm text-accent border-b border-primary-foreground/10">Client Portal</Link>
-            <a href="tel:2145550100" className="py-3 px-2 text-sm text-primary-foreground/70">(214) 555-0100</a>
-            <Link href="/contact" className="mt-3 bg-accent text-white font-bold px-5 py-3 text-sm text-center uppercase tracking-wider">
-              Free Consultation
-            </Link>
           </div>
         </div>
       )}
