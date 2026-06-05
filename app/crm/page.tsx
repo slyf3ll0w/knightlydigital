@@ -38,15 +38,39 @@ const allFeatures = [
 export default function CRMPage() {
   return (
     <>
-      {/* ── HERO ── */}
+      {/* ── HERO — centered, landscape photo ── */}
       <section
-        className="pt-[148px] pb-24 bg-dot-pattern"
-        style={{ backgroundColor: '#0C0F0C' }}
+        className="relative overflow-hidden flex items-center"
+        style={{ minHeight: '700px', paddingTop: '148px', paddingBottom: '100px' }}
       >
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
+        {/* Background image */}
+        <Image
+          src="https://images.unsplash.com/photo-1565402170291-8491f14678db?w=1800&q=90"
+          alt="Aerial view of a suburban neighborhood"
+          fill
+          className="object-cover object-center"
+          priority
+          sizes="100vw"
+        />
+
+        {/* Gradient overlay — dark enough for text, slight green tint at top */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background: 'linear-gradient(to bottom, rgba(6,14,6,0.70) 0%, rgba(6,14,6,0.88) 100%)',
+          }}
+        />
+
+        {/* Centered content */}
+        <div className="relative z-10 w-full max-w-4xl mx-auto px-6 lg:px-8 flex flex-col items-center text-center">
+
+          {/* Badge */}
           <div
-            className="inline-flex items-center gap-2 mb-7 px-4 py-2"
-            style={{ border: '1px solid rgba(34,197,94,0.3)', backgroundColor: 'rgba(34,197,94,0.07)' }}
+            className="inline-flex items-center gap-2 mb-8 px-4 py-2"
+            style={{
+              border: '1px solid rgba(34,197,94,0.45)',
+              backgroundColor: 'rgba(34,197,94,0.1)',
+            }}
           >
             <div style={{ width: '6px', height: '6px', backgroundColor: '#22C55E' }} />
             <span
@@ -56,17 +80,31 @@ export default function CRMPage() {
               Free Forever — No Plans, No Upsell
             </span>
           </div>
+
+          {/* Headline */}
           <h1
-            className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white leading-tight max-w-4xl mb-6"
+            className="text-5xl sm:text-6xl lg:text-7xl font-bold text-white leading-tight mb-6"
             style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
           >
-            The CRM Built to{' '}
-            <SketchUnderline color="#22C55E">Run a Service Business.</SketchUnderline>
+            The Free Job Manager
+            <br />
+            <span style={{ color: '#22C55E' }}>
+              <SketchUnderline color="#22C55E">Built for Your Trade.</SketchUnderline>
+            </span>
           </h1>
-          <p className="text-lg max-w-2xl leading-relaxed mb-10" style={{ color: 'rgba(255,255,255,0.6)' }}>
-            Job pipeline, scheduling calendar, quoting, invoicing, online payments, and automated review requests — built specifically for trades and home service businesses. Every feature below is included. Free for everyone.
+
+          {/* Subheadline */}
+          <p
+            className="text-lg lg:text-xl leading-relaxed mb-10 max-w-2xl"
+            style={{ color: 'rgba(255,255,255,0.68)' }}
+          >
+            Job pipeline, scheduling, invoicing, online payments, and review automation —
+            built for trades and home service businesses.
+            All 14 features included. Free for everyone.
           </p>
-          <div className="flex flex-wrap gap-4">
+
+          {/* CTAs */}
+          <div className="flex flex-wrap justify-center gap-4 mb-14">
             <Link
               href="/contact"
               className="text-sm font-bold uppercase tracking-wider px-8 py-4 text-white transition-opacity hover:opacity-90"
@@ -78,14 +116,35 @@ export default function CRMPage() {
               href="#features"
               className="text-sm font-bold uppercase tracking-wider px-8 py-4 transition-all hover:bg-white hover:text-black"
               style={{
-                border: '1.5px solid rgba(255,255,255,0.25)',
-                color: 'rgba(255,255,255,0.8)',
+                border: '1.5px solid rgba(255,255,255,0.3)',
+                color: 'rgba(255,255,255,0.85)',
                 fontFamily: 'Oxanium, system-ui, sans-serif',
               }}
             >
               See All Features
             </a>
           </div>
+
+          {/* Stat strip */}
+          <div
+            className="flex items-center justify-center pt-8"
+            style={{ borderTop: '1px solid rgba(255,255,255,0.12)' }}
+          >
+            {['14 Features Included', 'Free Forever', 'No Credit Card Required'].map((stat, i) => (
+              <div key={stat} className="flex items-center">
+                {i > 0 && (
+                  <span className="mx-5" style={{ color: '#22C55E', fontSize: '1rem', lineHeight: 1 }}>·</span>
+                )}
+                <span
+                  className="text-xs uppercase tracking-widest font-medium"
+                  style={{ color: 'rgba(255,255,255,0.45)', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                >
+                  {stat}
+                </span>
+              </div>
+            ))}
+          </div>
+
         </div>
       </section>
 
