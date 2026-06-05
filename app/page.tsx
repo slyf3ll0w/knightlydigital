@@ -641,6 +641,117 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ── FREE CRM TEASER ── */}
+      <section className="py-24 bg-dot-pattern" style={{ backgroundColor: '#0C0F0C' }}>
+        <div className="max-w-7xl mx-auto px-6 lg:px-8">
+
+          <AnimateIn className="mb-14">
+            <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-10">
+              <div>
+                <p
+                  className="text-xs font-bold uppercase tracking-widest mb-5"
+                  style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                >
+                  Free Tool — Built for Service Businesses
+                </p>
+                <h2
+                  className="text-4xl lg:text-5xl font-bold text-white leading-tight"
+                  style={{ fontFamily: 'Oxanium, system-ui, sans-serif', maxWidth: '680px' }}
+                >
+                  The CRM That <SketchUnderline color="#22C55E">Runs Your Trades Business.</SketchUnderline>
+                </h2>
+              </div>
+              <div className="lg:max-w-xs lg:pb-1">
+                <p className="text-sm leading-relaxed mb-6" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                  Job pipeline, scheduling, invoicing, payments, and review automation — all in one tool. No subscription. No upsell. Free forever.
+                </p>
+                <Link
+                  href="/crm"
+                  className="inline-block text-sm font-bold uppercase tracking-wider px-7 py-3.5 transition-opacity hover:opacity-90"
+                  style={{ backgroundColor: '#22C55E', color: '#ffffff', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                >
+                  See All Features →
+                </Link>
+              </div>
+            </div>
+          </AnimateIn>
+
+          <AnimateIn>
+            <div
+              className="grid grid-cols-1 md:grid-cols-3"
+              style={{ border: '1px solid rgba(255,255,255,0.09)' }}
+            >
+              {[
+                {
+                  title: 'Job Pipeline',
+                  desc: 'Lead → Scheduled → In Progress → Invoiced → Paid. Board or list view — one click moves a job.',
+                },
+                {
+                  title: 'Scheduling Calendar',
+                  desc: 'Drag a job onto a day and assign a tech. No double-bookings. No missed appointments.',
+                },
+                {
+                  title: 'Quotes & Invoicing',
+                  desc: 'Build a quote, send it, get it accepted online, then flip it to an invoice in one step.',
+                },
+                {
+                  title: 'Online Payments',
+                  desc: 'Card, ACH, pay-by-link — processed through your payment processor. Surcharging built in.',
+                },
+                {
+                  title: 'Review Automation',
+                  desc: 'The moment a job is paid, a Google review request fires automatically.',
+                },
+                {
+                  title: 'Mobile Field Access',
+                  desc: 'Full tool from any phone browser. Mark jobs complete, upload photos, send invoices — on the roof.',
+                },
+              ].map((item, i) => (
+                <div
+                  key={item.title}
+                  className="p-7 lg:p-8"
+                  style={{
+                    borderRight: (i + 1) % 3 !== 0 ? '1px solid rgba(255,255,255,0.09)' : 'none',
+                    borderBottom: '1px solid rgba(255,255,255,0.09)',
+                    backgroundColor: '#111511',
+                  }}
+                >
+                  <div style={{ width: '22px', height: '2px', backgroundColor: '#22C55E', marginBottom: '14px' }} />
+                  <h3
+                    className="text-sm font-bold text-white mb-2"
+                    style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                  >
+                    {item.title}
+                  </h3>
+                  <p className="text-xs leading-relaxed" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                    {item.desc}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </AnimateIn>
+
+          <AnimateIn className="mt-6">
+            <div
+              className="flex items-center gap-5 p-5"
+              style={{ border: '1px solid rgba(34,197,94,0.2)', backgroundColor: 'rgba(34,197,94,0.05)' }}
+            >
+              <div style={{ width: '4px', minHeight: '44px', backgroundColor: '#22C55E', flexShrink: 0 }} />
+              <p className="text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.65)' }}>
+                <span
+                  className="font-bold text-white"
+                  style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                >
+                  Free forever — no plans, no upgrade path, no catch.
+                </span>{' '}
+                Every feature listed. Not a trial. Not a "basic tier." The full tool, free, for every Streamflare client.
+              </p>
+            </div>
+          </AnimateIn>
+
+        </div>
+      </section>
+
       {/* ── CTA STRIP ── */}
       <section className="py-20" style={{ backgroundColor: '#22C55E' }}>
         <div className="max-w-7xl mx-auto px-6 lg:px-8 text-center">
