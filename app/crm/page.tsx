@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import Image from 'next/image';
 import { AnimateIn } from '@/components/AnimateIn';
 import { SketchUnderline } from '@/components/SketchUnderline';
 
@@ -125,6 +126,36 @@ export default function CRMPage() {
         </div>
       </section>
 
+      {/* ── FULL-WIDTH IMAGE STRIP 1 — on the job site ── */}
+      <section className="relative overflow-hidden" style={{ height: '380px' }}>
+        <Image
+          src="https://plus.unsplash.com/premium_photo-1683134512538-7b390d0adc9e?w=1400&q=85"
+          alt="Home service technician on the job"
+          fill
+          className="object-cover"
+          sizes="100vw"
+        />
+        <div
+          className="absolute inset-0 flex items-center"
+          style={{ background: 'linear-gradient(to right, rgba(12,15,12,0.90) 0%, rgba(12,15,12,0.65) 50%, rgba(12,15,12,0.2) 100%)' }}
+        >
+          <div className="max-w-7xl mx-auto px-6 lg:px-8">
+            <p
+              className="text-xs font-bold uppercase tracking-widest mb-4"
+              style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+            >
+              Built for Your Trade
+            </p>
+            <h2
+              className="text-3xl lg:text-4xl font-bold text-white max-w-xl leading-tight"
+              style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
+            >
+              The tool your crew needs — from the office to the job site.
+            </h2>
+          </div>
+        </div>
+      </section>
+
       {/* ── SECTION 01: THE CORE OPERATION ── dark ── */}
       <section className="py-24 bg-dot-pattern" style={{ backgroundColor: '#0C0F0C' }}>
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
@@ -243,7 +274,8 @@ export default function CRMPage() {
             </p>
           </AnimateIn>
 
-          <div className="grid md:grid-cols-2 gap-6 mb-6">
+          {/* Payment image + quote cards row */}
+          <div className="grid lg:grid-cols-2 gap-6 mb-6">
 
             <AnimateIn delay={0}>
               <div
@@ -293,7 +325,7 @@ export default function CRMPage() {
 
           </div>
 
-          <div className="grid md:grid-cols-3 gap-5">
+          <div className="grid md:grid-cols-3 gap-5 mb-10">
 
             <AnimateIn delay={0}>
               <div
@@ -356,6 +388,38 @@ export default function CRMPage() {
             </AnimateIn>
 
           </div>
+
+          {/* Inline payment photo */}
+          <AnimateIn>
+            <div className="relative overflow-hidden" style={{ height: '260px' }}>
+              <Image
+                src="https://images.unsplash.com/photo-1653330963134-329a61aedc68?w=1200&q=85"
+                alt="Customer paying via smartphone"
+                fill
+                className="object-cover"
+                sizes="(max-width: 1280px) 100vw, 1280px"
+              />
+              <div
+                className="absolute inset-0 flex items-center justify-end"
+                style={{ background: 'linear-gradient(to left, rgba(12,15,12,0.88) 0%, rgba(12,15,12,0.5) 50%, rgba(12,15,12,0.1) 100%)' }}
+              >
+                <div className="max-w-7xl mx-auto px-6 lg:px-8 w-full flex justify-end">
+                  <div className="max-w-sm text-right">
+                    <p
+                      className="text-xl font-bold text-white mb-2"
+                      style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                    >
+                      &ldquo;Send a link. They pay. Done.&rdquo;
+                    </p>
+                    <p className="text-sm" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                      Card, ACH, or pay-by-link — no separate payment app required.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </AnimateIn>
+
         </div>
       </section>
 
@@ -363,7 +427,7 @@ export default function CRMPage() {
       <section className="py-24 bg-paper-warm">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
 
-          <AnimateIn className="mb-14">
+          <AnimateIn className="mb-12">
             <span
               className="text-6xl font-bold block mb-4"
               style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif', lineHeight: 1 }}
@@ -381,53 +445,99 @@ export default function CRMPage() {
             </p>
           </AnimateIn>
 
-          <div
-            className="grid lg:grid-cols-2 gap-10 items-center"
-          >
+          <div className="grid lg:grid-cols-2 gap-10 items-stretch">
+
+            {/* Left: field photo */}
             <AnimateIn>
-              <div
-                className="p-8"
-                style={{ backgroundColor: '#0C0F0C', border: '1px solid rgba(255,255,255,0.08)' }}
-              >
-                <p
-                  className="text-xs font-bold uppercase tracking-widest mb-4"
-                  style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
-                >
-                  Mobile-Friendly Field Access
-                </p>
-                <p className="text-base leading-relaxed mb-5" style={{ color: 'rgba(255,255,255,0.6)' }}>
-                  The full CRM works on any phone browser — no app to download, no version to update. A tech can mark a job complete, upload before-and-after photos, add job notes, and send the invoice before they back out of the driveway.
-                </p>
-                <p className="text-base leading-relaxed" style={{ color: 'rgba(255,255,255,0.6)' }}>
-                  Responsive web is the right call here. Everyone has a browser. Not everyone has the right app. We don&apos;t make your field guys jump through hoops to do their job.
-                </p>
+              <div className="relative overflow-hidden h-full" style={{ minHeight: '380px' }}>
+                <Image
+                  src="https://plus.unsplash.com/premium_photo-1661964300839-f02563414f19?w=800&q=85"
+                  alt="Service technician using smartphone on the job site"
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 1024px) 100vw, 50vw"
+                />
+                <div
+                  className="absolute inset-0"
+                  style={{ background: 'linear-gradient(135deg, rgba(12,15,12,0.25) 0%, transparent 60%)' }}
+                />
               </div>
             </AnimateIn>
 
+            {/* Right: content */}
             <AnimateIn delay={150}>
-              <div className="flex flex-col gap-5">
-                {[
-                  { label: 'Mark jobs complete from the job site', sub: 'Status updates in real time — office knows instantly.' },
-                  { label: 'Upload before & after photos on the spot', sub: 'Stored on the job record. No digging through camera rolls.' },
-                  { label: 'Add job notes while details are fresh', sub: 'What was found, what was done, what to watch for.' },
-                  { label: 'Send the invoice before you leave', sub: 'Customer gets it while they\'re still happy about the work.' },
-                ].map((item) => (
-                  <div
-                    key={item.label}
-                    className="flex items-start gap-4 p-5 bg-white"
-                    style={{ border: '1px solid #E5E7EB' }}
+              <div className="flex flex-col gap-0 h-full">
+                <div
+                  className="p-8 mb-5"
+                  style={{ backgroundColor: '#0C0F0C', border: '1px solid rgba(255,255,255,0.08)' }}
+                >
+                  <p
+                    className="text-xs font-bold uppercase tracking-widest mb-4"
+                    style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
                   >
-                    <CheckIcon />
-                    <div>
-                      <p className="text-sm font-bold mb-1" style={{ color: '#0A0A0F', fontFamily: 'Oxanium, system-ui, sans-serif' }}>
-                        {item.label}
-                      </p>
-                      <p className="text-xs" style={{ color: '#6B7280' }}>{item.sub}</p>
+                    Mobile-Friendly Field Access
+                  </p>
+                  <p className="text-sm leading-relaxed mb-4" style={{ color: 'rgba(255,255,255,0.6)' }}>
+                    The full tool works on any phone browser — no app to download, no version to update. A tech can mark a job complete, upload before-and-after photos, add job notes, and send the invoice before they back out of the driveway.
+                  </p>
+                  <p className="text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.6)' }}>
+                    Responsive web is the right call here. Everyone has a browser. Not everyone has the right app installed. We don&apos;t make your field guys jump through hoops.
+                  </p>
+                </div>
+                <div className="flex flex-col gap-3">
+                  {[
+                    { label: 'Mark jobs complete from the job site', sub: 'Status updates in real time — office knows instantly.' },
+                    { label: 'Upload before & after photos on the spot', sub: 'Stored on the job record. No digging through camera rolls.' },
+                    { label: 'Send the invoice before you leave', sub: 'Customer gets it while they\'re still happy about the work.' },
+                  ].map((item) => (
+                    <div
+                      key={item.label}
+                      className="flex items-start gap-4 px-5 py-4 bg-white"
+                      style={{ border: '1px solid #E5E7EB' }}
+                    >
+                      <CheckIcon />
+                      <div>
+                        <p className="text-sm font-bold mb-0.5" style={{ color: '#0A0A0F', fontFamily: 'Oxanium, system-ui, sans-serif' }}>
+                          {item.label}
+                        </p>
+                        <p className="text-xs" style={{ color: '#6B7280' }}>{item.sub}</p>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             </AnimateIn>
+
+          </div>
+        </div>
+      </section>
+
+      {/* ── FULL-WIDTH IMAGE STRIP 2 — outdoor service work ── */}
+      <section className="relative overflow-hidden" style={{ height: '320px' }}>
+        <Image
+          src="https://plus.unsplash.com/premium_photo-1661884973994-d7625e52631a?w=1400&q=85"
+          alt="Contractor working outdoors on a job site"
+          fill
+          className="object-cover object-top"
+          sizes="100vw"
+        />
+        <div
+          className="absolute inset-0 flex items-center"
+          style={{ background: 'linear-gradient(to right, rgba(12,15,12,0.85) 0%, rgba(12,15,12,0.55) 55%, rgba(12,15,12,0.15) 100%)' }}
+        >
+          <div className="max-w-7xl mx-auto px-6 lg:px-8">
+            <p
+              className="text-xs font-bold uppercase tracking-widest mb-3"
+              style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+            >
+              Built for Every Vertical
+            </p>
+            <h2
+              className="text-2xl lg:text-3xl font-bold text-white max-w-lg leading-tight"
+              style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
+            >
+              Lawn care, roofing, HVAC, plumbing, pest, pool — if you run jobs, this runs your business.
+            </h2>
           </div>
         </div>
       </section>
@@ -601,7 +711,7 @@ export default function CRMPage() {
               Ready to Run a Tighter Operation?
             </h2>
             <p className="text-base mb-10 max-w-xl mx-auto" style={{ color: 'rgba(255,255,255,0.85)' }}>
-              Get started with Streamflare and the CRM is yours — no trial, no card required. Let&apos;s talk about what your business needs.
+              Get started with Streamflare and the job manager is yours — no trial, no card required. Let&apos;s talk about what your business needs.
             </p>
             <Link
               href="/contact"
