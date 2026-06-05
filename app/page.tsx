@@ -14,7 +14,8 @@ function CheckIcon() {
 export default function HomePage() {
   return (
     <>
-      {/* ── HERO ── */}
+      {/* ── HERO ── green wrapper so clipPath cut shows green, not white ── */}
+      <div style={{ backgroundColor: '#22C55E' }}>
       <section
         className="relative bg-paper-warm"
         style={{
@@ -106,38 +107,39 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+      </div>
 
-      {/* ── INTRODUCING FREE JOB MANAGER ── */}
-      <section className="py-24 bg-dot-pattern" style={{ backgroundColor: '#0C0F0C' }}>
+      {/* ── INTRODUCING FREE JOB MANAGER ── green ── */}
+      <section className="py-24" style={{ backgroundColor: '#22C55E' }}>
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
 
           <AnimateIn className="mb-14 text-center">
             <p
               className="text-xs font-bold uppercase tracking-widest mb-5"
-              style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+              style={{ color: 'rgba(0,0,0,0.45)', fontFamily: 'Oxanium, system-ui, sans-serif' }}
             >
               Free for Everyone
             </p>
             <h2
-              className="text-4xl lg:text-5xl font-bold text-white leading-tight mx-auto mb-6"
-              style={{ fontFamily: 'Oxanium, system-ui, sans-serif', maxWidth: '820px' }}
+              className="text-4xl lg:text-5xl font-bold leading-tight mx-auto mb-6"
+              style={{ fontFamily: 'Oxanium, system-ui, sans-serif', color: '#0A0A0F', maxWidth: '820px' }}
             >
               Introducing Streamflare&apos;s{' '}
-              <SketchUnderline color="#22C55E">Free Job Manager</SketchUnderline>
+              <SketchUnderline color="rgba(0,0,0,0.35)">Free Job Manager</SketchUnderline>
               {' '}for Service Businesses
             </h2>
             <p
               className="text-base lg:text-lg mx-auto leading-relaxed"
-              style={{ color: 'rgba(255,255,255,0.55)', maxWidth: '600px' }}
+              style={{ color: 'rgba(0,0,0,0.6)', maxWidth: '600px' }}
             >
-              The whole software — job pipeline, scheduling, invoicing, payments, and more — is completely free. Every feature. No trial period. No plans to upgrade into. Free forever.
+              The whole software — job pipeline, scheduling, invoicing, payments, and more — is completely free. Every feature. No trial. No plans to upgrade into. Free forever.
             </p>
           </AnimateIn>
 
           <AnimateIn className="mb-8">
             <div
               className="grid grid-cols-1 md:grid-cols-3"
-              style={{ border: '1px solid rgba(255,255,255,0.09)' }}
+              style={{ gap: '2px', backgroundColor: 'rgba(0,0,0,0.18)' }}
             >
               {[
                 {
@@ -164,15 +166,11 @@ export default function HomePage() {
                   title: 'Mobile Field Access',
                   desc: 'Full tool from any phone browser. Mark jobs complete, upload photos, send invoices — on the roof.',
                 },
-              ].map((item, i) => (
+              ].map((item) => (
                 <div
                   key={item.title}
                   className="p-7 lg:p-8"
-                  style={{
-                    borderRight: (i + 1) % 3 !== 0 ? '1px solid rgba(255,255,255,0.09)' : 'none',
-                    borderBottom: '1px solid rgba(255,255,255,0.09)',
-                    backgroundColor: '#111511',
-                  }}
+                  style={{ backgroundColor: '#0C0F0C' }}
                 >
                   <div style={{ width: '22px', height: '2px', backgroundColor: '#22C55E', marginBottom: '14px' }} />
                   <h3
@@ -192,13 +190,12 @@ export default function HomePage() {
           <AnimateIn>
             <div
               className="flex items-center gap-5 p-5 mb-10"
-              style={{ border: '1px solid rgba(34,197,94,0.2)', backgroundColor: 'rgba(34,197,94,0.05)' }}
+              style={{ backgroundColor: 'rgba(0,0,0,0.14)', borderLeft: '4px solid rgba(0,0,0,0.25)' }}
             >
-              <div style={{ width: '4px', minHeight: '44px', backgroundColor: '#22C55E', flexShrink: 0 }} />
-              <p className="text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.65)' }}>
+              <p className="text-sm leading-relaxed" style={{ color: 'rgba(0,0,0,0.7)' }}>
                 <span
-                  className="font-bold text-white"
-                  style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                  className="font-bold"
+                  style={{ color: '#0A0A0F', fontFamily: 'Oxanium, system-ui, sans-serif' }}
                 >
                   Free forever — no plans, no upgrade path, no catch.
                 </span>{' '}
@@ -208,8 +205,8 @@ export default function HomePage() {
             <div className="text-center">
               <Link
                 href="/crm"
-                className="inline-block text-sm font-bold uppercase tracking-wider px-8 py-4 transition-opacity hover:opacity-90"
-                style={{ backgroundColor: '#22C55E', color: '#ffffff', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                className="inline-block text-sm font-bold uppercase tracking-wider px-8 py-4 transition-all hover:opacity-80"
+                style={{ backgroundColor: '#0A0A0F', color: '#ffffff', fontFamily: 'Oxanium, system-ui, sans-serif' }}
               >
                 Explore All Features →
               </Link>
