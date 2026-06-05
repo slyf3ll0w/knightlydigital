@@ -8,15 +8,37 @@ import { usePathname } from 'next/navigation';
 const navLinks = [
   { label: 'Home', href: '/' },
   { label: 'About', href: '/about' },
-  { label: 'Services', href: '/services' },
   { label: 'Contact', href: '/contact' },
 ];
 
+const serviceItems = [
+  {
+    label: 'Free Job Manager',
+    href: '/crm',
+    desc: 'Pipeline, scheduling, invoicing & payments — free.',
+  },
+  {
+    label: 'Custom Software Design',
+    href: '/custom-software',
+    desc: 'Software built for your workflows or your idea.',
+  },
+  {
+    label: 'All-Inclusive Digital Marketing',
+    href: '/digital-marketing',
+    desc: 'SEO, Google LSA, Meta Ads & Social — one team.',
+  },
+];
+
+const serviceHrefs = serviceItems.map((s) => s.href);
+
 export function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [servicesMobileOpen, setServicesMobileOpen] = useState(false);
+  const [servicesOpen, setServicesOpen] = useState(false);
   const [visible, setVisible] = useState(true);
   const pathname = usePathname();
   const lastScrollY = useRef(0);
+  const servicesTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     function handleScroll() {
@@ -35,13 +57,24 @@ export function Header() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  function handleServicesEnter() {
+    if (servicesTimeoutRef.current) clearTimeout(servicesTimeoutRef.current);
+    setServicesOpen(true);
+  }
+
+  function handleServicesLeave() {
+    servicesTimeoutRef.current = setTimeout(() => setServicesOpen(false), 160);
+  }
+
+  const isServicesActive = serviceHrefs.some((href) => pathname === href);
+
   return (
     <header
       className="fixed top-0 left-0 right-0 z-50"
       style={{ transform: visible ? 'translateY(0)' : 'translateY(-100%)', transition: 'transform 0.3s ease' }}
     >
 
-      {/* ── Top info bar — dark strip ── */}
+      {/* ── Top info bar ── */}
       <div
         className="hidden md:block"
         style={{ backgroundColor: '#0C0F0C', borderBottom: '1px solid rgba(255,255,255,0.06)' }}
@@ -71,15 +104,12 @@ export function Header() {
         </div>
       </div>
 
-      {/* ── Main nav — white background ── */}
-      <div
-        className="bg-white"
-        style={{ borderBottom: '1px solid #E5E7EB' }}
-      >
+      {/* ── Main nav ── */}
+      <div className="bg-white" style={{ borderBottom: '1px solid #E5E7EB' }}>
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="flex items-center justify-between h-[72px]">
 
-            {/* Logo — own colors on white background */}
+            {/* Logo */}
             <Link href="/" className="flex-shrink-0">
               <Image
                 src="/logo.png"
@@ -108,6 +138,82 @@ export function Header() {
                   </Link>
                 );
               })}
+
+              {/* Services dropdown trigger */}
+              <div
+                className="relative"
+                onMouseEnter={handleServicesEnter}
+                onMouseLeave={handleServicesLeave}
+              >
+                <button
+                  className="flex items-center gap-1.5 text-sm font-medium tracking-wide transition-colors"
+                  style={{
+                    color: isServicesActive ? '#0A0A0F' : '#6B7280',
+                    fontFamily: 'Oxanium, system-ui, sans-serif',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    padding: 0,
+                  }}
+                >
+                  Services
+                  <svg
+                    width="10"
+                    height="6"
+                    viewBox="0 0 10 6"
+                    fill="none"
+                    style={{
+                      transform: servicesOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                      transition: 'transform 0.2s ease',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+
+                {/* Dropdown panel */}
+                {servicesOpen && (
+                  <div
+                    className="absolute top-full left-1/2 bg-white z-50"
+                    style={{
+                      transform: 'translateX(-50%)',
+                      marginTop: '12px',
+                      border: '1px solid #E5E7EB',
+                      boxShadow: '0 8px 32px rgba(0,0,0,0.10)',
+                      minWidth: '280px',
+                    }}
+                    onMouseEnter={handleServicesEnter}
+                    onMouseLeave={handleServicesLeave}
+                  >
+                    <div style={{ height: '3px', backgroundColor: '#22C55E' }} />
+                    {serviceItems.map((item, i) => (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={() => setServicesOpen(false)}
+                        className="block px-5 py-4 transition-colors hover:bg-gray-50"
+                        style={{
+                          borderBottom: i < serviceItems.length - 1 ? '1px solid #F3F4F6' : 'none',
+                        }}
+                      >
+                        <p
+                          className="text-sm font-bold mb-0.5"
+                          style={{
+                            color: pathname === item.href ? '#22C55E' : '#0A0A0F',
+                            fontFamily: 'Oxanium, system-ui, sans-serif',
+                          }}
+                        >
+                          {item.label}
+                        </p>
+                        <p className="text-xs" style={{ color: '#9CA3AF' }}>
+                          {item.desc}
+                        </p>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
             </nav>
 
             {/* Desktop CTA */}
@@ -164,6 +270,64 @@ export function Header() {
                 </Link>
               );
             })}
+
+            {/* Mobile Services accordion */}
+            <button
+              onClick={() => setServicesMobileOpen(!servicesMobileOpen)}
+              className="text-sm font-medium tracking-wide flex items-center justify-between w-full"
+              style={{
+                color: isServicesActive ? '#0A0A0F' : '#6B7280',
+                fontFamily: 'Oxanium, system-ui, sans-serif',
+                background: 'none',
+                border: 'none',
+                borderBottom: '1px solid #F3F4F6',
+                cursor: 'pointer',
+                padding: '12px 0',
+              }}
+            >
+              Services
+              <svg
+                width="10"
+                height="6"
+                viewBox="0 0 10 6"
+                fill="none"
+                style={{
+                  transform: servicesMobileOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                  transition: 'transform 0.2s ease',
+                  color: '#6B7280',
+                }}
+              >
+                <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+
+            {servicesMobileOpen && (
+              <div style={{ backgroundColor: '#F9FAFB', marginLeft: '12px', borderLeft: '2px solid #22C55E' }}>
+                {serviceItems.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => { setMobileOpen(false); setServicesMobileOpen(false); }}
+                    className="block px-4 py-3"
+                    style={{ borderBottom: '1px solid #F3F4F6' }}
+                  >
+                    <p
+                      className="text-sm font-bold"
+                      style={{
+                        color: pathname === item.href ? '#22C55E' : '#0A0A0F',
+                        fontFamily: 'Oxanium, system-ui, sans-serif',
+                      }}
+                    >
+                      {item.label}
+                    </p>
+                    <p className="text-xs mt-0.5" style={{ color: '#9CA3AF' }}>
+                      {item.desc}
+                    </p>
+                  </Link>
+                ))}
+              </div>
+            )}
+
             <Link
               href="/portal"
               onClick={() => setMobileOpen(false)}

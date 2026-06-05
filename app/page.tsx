@@ -152,7 +152,7 @@ export default function HomePage() {
               Start a Project →
             </Link>
             <Link
-              href="/services"
+              href="/custom-software"
               className="text-sm font-bold uppercase tracking-wider px-8 py-4 transition-all hover:bg-black hover:text-white"
               style={{
                 border: '1.5px solid #0A0A0F',
@@ -195,7 +195,7 @@ export default function HomePage() {
               className="text-xs font-bold uppercase tracking-widest mb-5"
               style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
             >
-              Free for Every Streamflare Client
+              Free for Everyone
             </p>
             <h2
               className="text-4xl lg:text-5xl font-bold text-white leading-tight mx-auto mb-6"
@@ -281,7 +281,7 @@ export default function HomePage() {
                 >
                   Free forever — no plans, no upgrade path, no catch.
                 </span>{' '}
-                Every feature listed. Not a trial. Not a &ldquo;basic tier.&rdquo; The full tool, free, for every Streamflare client.
+                Every feature listed. Not a trial. Not a &ldquo;basic tier.&rdquo; The full tool — free, for any service business.
               </p>
             </div>
             <div className="text-center">

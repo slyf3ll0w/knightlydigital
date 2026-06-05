@@ -7,7 +7,7 @@ import { SketchUnderline } from '@/components/SketchUnderline';
 export const metadata: Metadata = {
   title: 'Free CRM for Service Businesses',
   description:
-    'Job pipeline, scheduling, quoting, invoicing, online payments, and review automation — all 14 features, free forever. No plans, no upsell, no catch. For every Streamflare client.',
+    'Job pipeline, scheduling, quoting, invoicing, online payments, and review automation — all 14 features, free forever. No plans, no upsell, no catch.',
 };
 
 function CheckIcon() {
@@ -64,7 +64,7 @@ export default function CRMPage() {
             <SketchUnderline color="#22C55E">Run a Service Business.</SketchUnderline>
           </h1>
           <p className="text-lg max-w-2xl leading-relaxed mb-10" style={{ color: 'rgba(255,255,255,0.6)' }}>
-            Job pipeline, scheduling calendar, quoting, invoicing, online payments, and automated review requests — built specifically for trades and home service businesses. Every feature below is included. Free for every Streamflare client.
+            Job pipeline, scheduling calendar, quoting, invoicing, online payments, and automated review requests — built specifically for trades and home service businesses. Every feature below is included. Free for everyone.
           </p>
           <div className="flex flex-wrap gap-4">
             <Link
@@ -648,7 +648,7 @@ export default function CRMPage() {
                 Most CRM tools give you 90 days free, let you build your whole operation inside them, then hit you with a $49–$149/month bill right when you depend on them. They call it a free trial. We call it a sales tactic.
               </p>
               <p className="text-base leading-relaxed mb-5" style={{ color: '#6B7280' }}>
-                There is no paid version of this tool. There is no higher plan. Every feature listed on this page — the job pipeline, the scheduling calendar, the payment processing, the review automation, all of it — is included. Free. For every Streamflare client.
+                There is no paid version of this tool. There is no higher plan. Every feature listed on this page — the job pipeline, the scheduling calendar, the payment processing, the review automation, all of it — is included. Free. For every service business.
               </p>
               <p className="text-base leading-relaxed" style={{ color: '#6B7280' }}>
                 The tool exists because we believe the businesses we work with deserve software that actually helps them run. The goal isn&apos;t to hook you on a subscription — it&apos;s to run your operation well enough that when you&apos;re ready to build something custom, we&apos;re the ones you call.
@@ -686,11 +686,11 @@ export default function CRMPage() {
                   style={{ borderLeft: '4px solid #22C55E', backgroundColor: 'rgba(34,197,94,0.07)' }}
                 >
                   <p className="text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.7)' }}>
-                    This is available to Streamflare clients. If you&apos;re not already working with us,{' '}
+                    Ready to get started?{' '}
                     <Link href="/contact" className="underline" style={{ color: '#22C55E' }}>
-                      start a conversation
+                      Reach out
                     </Link>{' '}
-                    — getting started is free too.
+                    and we&apos;ll get you set up — no credit card, no commitment, no catch.
                   </p>
                 </div>
               </div>
