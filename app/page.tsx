@@ -15,7 +15,7 @@ export default function HomePage() {
   return (
     <>
       {/* ── HERO ── green wrapper so clipPath cut shows green, not white ── */}
-      <div style={{ backgroundColor: '#22C55E' }}>
+      <div style={{ backgroundColor: '#F3F4F6' }}>
       <section
         className="relative bg-paper-warm"
         style={{
@@ -109,110 +109,128 @@ export default function HomePage() {
       </section>
       </div>
 
-      {/* ── INTRODUCING FREE JOB MANAGER ── green ── */}
-      <section className="py-24" style={{ backgroundColor: '#22C55E' }}>
+      {/* ── INTRODUCING FREE JOB MANAGER ── light gray ── */}
+      <section className="py-24" style={{ backgroundColor: '#F3F4F6' }}>
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
+          <div className="grid lg:grid-cols-2 gap-16 items-center">
 
-          <AnimateIn className="mb-14 text-center">
-            <p
-              className="text-xs font-bold uppercase tracking-widest mb-5"
-              style={{ color: 'rgba(0,0,0,0.45)', fontFamily: 'Oxanium, system-ui, sans-serif' }}
-            >
-              Free for Everyone
-            </p>
-            <h2
-              className="text-4xl lg:text-5xl font-bold leading-tight mx-auto mb-6"
-              style={{ fontFamily: 'Oxanium, system-ui, sans-serif', color: '#0A0A0F', maxWidth: '820px' }}
-            >
-              Introducing Streamflare&apos;s{' '}
-              <SketchUnderline color="rgba(0,0,0,0.35)">Free Job Manager</SketchUnderline>
-              {' '}for Service Businesses
-            </h2>
-            <p
-              className="text-base lg:text-lg mx-auto leading-relaxed"
-              style={{ color: 'rgba(0,0,0,0.6)', maxWidth: '600px' }}
-            >
-              The whole software — job pipeline, scheduling, invoicing, payments, and more — is completely free. Every feature. No trial. No plans to upgrade into. Free forever.
-            </p>
-          </AnimateIn>
-
-          <AnimateIn className="mb-8">
-            <div
-              className="grid grid-cols-1 md:grid-cols-3"
-              style={{ gap: '2px', backgroundColor: 'rgba(0,0,0,0.18)' }}
-            >
-              {[
-                {
-                  title: 'Job Pipeline',
-                  desc: 'Lead → Scheduled → In Progress → Invoiced → Paid. Board or list view — one click moves a job.',
-                },
-                {
-                  title: 'Scheduling Calendar',
-                  desc: 'Drag a job onto a day and assign a tech. No double-bookings. No missed appointments.',
-                },
-                {
-                  title: 'Quotes & Invoicing',
-                  desc: 'Build a quote, send it, get it accepted online, then flip it to an invoice in one step.',
-                },
-                {
-                  title: 'Online Payments',
-                  desc: 'Card, ACH, pay-by-link — processed through your payment processor. Surcharging built in.',
-                },
-                {
-                  title: 'Review Automation',
-                  desc: 'The moment a job is paid, a Google review request fires automatically.',
-                },
-                {
-                  title: 'Mobile Field Access',
-                  desc: 'Full tool from any phone browser. Mark jobs complete, upload photos, send invoices — on the roof.',
-                },
-              ].map((item) => (
+            {/* Image left */}
+            <AnimateIn>
+              <div className="relative overflow-hidden" style={{ height: '480px' }}>
+                <Image
+                  src="https://plus.unsplash.com/premium_photo-1661964300839-f02563414f19?w=800&q=85"
+                  alt="Service technician using smartphone on the job"
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 1024px) 100vw, 50vw"
+                />
                 <div
-                  key={item.title}
-                  className="p-7 lg:p-8"
-                  style={{ backgroundColor: '#0C0F0C' }}
+                  className="absolute inset-0"
+                  style={{ background: 'linear-gradient(135deg, rgba(12,15,12,0.2) 0%, transparent 55%)' }}
+                />
+                <div
+                  className="absolute bottom-0 left-0 right-0 p-6"
+                  style={{ background: 'linear-gradient(to top, rgba(12,15,12,0.75) 0%, transparent 100%)' }}
                 >
-                  <div style={{ width: '22px', height: '2px', backgroundColor: '#22C55E', marginBottom: '14px' }} />
-                  <h3
-                    className="text-sm font-bold text-white mb-2"
+                  <p
+                    className="text-sm font-bold text-white mb-1"
                     style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
                   >
-                    {item.title}
-                  </h3>
-                  <p className="text-xs leading-relaxed" style={{ color: 'rgba(255,255,255,0.4)' }}>
-                    {item.desc}
+                    Built for the Field.
+                  </p>
+                  <p className="text-xs" style={{ color: 'rgba(255,255,255,0.6)' }}>
+                    Full access from any phone — no app download, no laptop required.
                   </p>
                 </div>
-              ))}
-            </div>
-          </AnimateIn>
+              </div>
+            </AnimateIn>
 
-          <AnimateIn>
-            <div
-              className="flex items-center gap-5 p-5 mb-10"
-              style={{ backgroundColor: 'rgba(0,0,0,0.14)', borderLeft: '4px solid rgba(0,0,0,0.25)' }}
-            >
-              <p className="text-sm leading-relaxed" style={{ color: 'rgba(0,0,0,0.7)' }}>
-                <span
-                  className="font-bold"
-                  style={{ color: '#0A0A0F', fontFamily: 'Oxanium, system-ui, sans-serif' }}
-                >
-                  Free forever — no plans, no upgrade path, no catch.
-                </span>{' '}
-                Every feature listed. Not a trial. Not a &ldquo;basic tier.&rdquo; The full tool — free, for any service business.
-              </p>
-            </div>
-            <div className="text-center">
-              <Link
-                href="/crm"
-                className="inline-block text-sm font-bold uppercase tracking-wider px-8 py-4 transition-all hover:opacity-80"
-                style={{ backgroundColor: '#0A0A0F', color: '#ffffff', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+            {/* Content right */}
+            <AnimateIn delay={150}>
+              <p
+                className="text-xs font-bold uppercase tracking-widest mb-4"
+                style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
               >
-                Explore All Features →
-              </Link>
-            </div>
-          </AnimateIn>
+                Free for Everyone
+              </p>
+              <h2
+                className="text-3xl lg:text-4xl font-bold mb-6 leading-tight"
+                style={{ color: '#0A0A0F', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+              >
+                Introducing the{' '}
+                <SketchUnderline>Free Job Manager</SketchUnderline>
+                {' '}for Service Businesses
+              </h2>
+              <p className="text-base leading-relaxed mb-8" style={{ color: '#6B7280' }}>
+                The whole software — job pipeline, scheduling calendar, invoicing, online payments, and more — completely free. Every feature. No trial period. No plans to upgrade into. Free forever.
+              </p>
 
+              <div className="grid sm:grid-cols-2 gap-4 mb-8">
+                <div className="p-5 bg-white" style={{ border: '1px solid #E5E7EB' }}>
+                  <p
+                    className="text-xs font-bold uppercase tracking-widest mb-3"
+                    style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                  >
+                    Run Your Jobs
+                  </p>
+                  <ul className="flex flex-col gap-2">
+                    {['Job Pipeline', 'Scheduling Calendar', 'Customer Database'].map((item) => (
+                      <li key={item} className="flex items-center gap-2 text-sm" style={{ color: '#374151' }}>
+                        <CheckIcon />
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="p-5 bg-white" style={{ border: '1px solid #E5E7EB' }}>
+                  <p
+                    className="text-xs font-bold uppercase tracking-widest mb-3"
+                    style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                  >
+                    Get Paid
+                  </p>
+                  <ul className="flex flex-col gap-2">
+                    {['Quotes & Invoicing', 'Online Payments', 'Auto Reminders'].map((item) => (
+                      <li key={item} className="flex items-center gap-2 text-sm" style={{ color: '#374151' }}>
+                        <CheckIcon />
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+
+              <div
+                className="mb-8 p-4"
+                style={{ borderLeft: '3px solid #22C55E', backgroundColor: '#ffffff' }}
+              >
+                <p className="text-sm" style={{ color: '#374151' }}>
+                  <span className="font-bold" style={{ color: '#0A0A0F', fontFamily: 'Oxanium, system-ui, sans-serif' }}>
+                    14 features total — all free.
+                  </span>{' '}
+                  No trial, no tiers, no catch. Review automation, recurring jobs, mobile field access, online booking, and more.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-4">
+                <Link
+                  href="/crm"
+                  className="inline-block text-sm font-bold uppercase tracking-wider px-7 py-3 text-white transition-opacity hover:opacity-90"
+                  style={{ backgroundColor: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                >
+                  Explore All Features →
+                </Link>
+                <Link
+                  href="/crm"
+                  className="inline-block text-sm font-bold uppercase tracking-wider px-7 py-3 transition-all hover:bg-black hover:text-white"
+                  style={{ border: '1.5px solid #0A0A0F', color: '#0A0A0F', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                >
+                  Learn More
+                </Link>
+              </div>
+            </AnimateIn>
+
+          </div>
         </div>
       </section>
 
