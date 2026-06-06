@@ -177,10 +177,26 @@ export function Footer() {
             &ldquo;Whatever you do, work heartily, as for the Lord and not for men, knowing that from the Lord you will receive the inheritance as your reward. You are serving the Lord Christ.&rdquo;
           </p>
           <p
-            className="text-xs font-bold uppercase tracking-widest"
+            className="text-xs font-bold uppercase tracking-widest mb-6"
             style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
           >
             Colossians 3:23–24
+          </p>
+          <div
+            className="w-16 mx-auto mb-6"
+            style={{ height: '1px', backgroundColor: 'rgba(255,255,255,0.08)' }}
+          />
+          <p
+            className="text-sm italic leading-relaxed mb-1"
+            style={{ color: 'rgba(255,255,255,0.45)' }}
+          >
+            &ldquo;For I am not ashamed of the gospel, for it is the power of God for salvation to everyone who believes, to the Jew first and also to the Greek.&rdquo;
+          </p>
+          <p
+            className="text-xs font-bold uppercase tracking-widest"
+            style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+          >
+            Romans 1:16
           </p>
         </div>
 

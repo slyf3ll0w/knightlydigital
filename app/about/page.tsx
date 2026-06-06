@@ -320,8 +320,9 @@ export default function AboutPage() {
                   className="text-xs font-bold uppercase tracking-widest mb-6"
                   style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
                 >
-                  Our Verse
+                  Our Scripture
                 </p>
+
                 <blockquote className="mb-6">
                   <p
                     className="text-xl lg:text-2xl font-bold text-white leading-relaxed mb-4"
@@ -336,12 +337,53 @@ export default function AboutPage() {
                     — Colossians 3:23–24 (ESV)
                   </cite>
                 </blockquote>
+
+                <div
+                  className="pt-6 mb-6"
+                  style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}
+                >
+                  <blockquote>
+                    <p
+                      className="text-base font-bold text-white leading-relaxed mb-3"
+                      style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                    >
+                      &ldquo;Do not lay up for yourselves treasures on earth, where moth and rust destroy and where thieves break in and steal, but lay up for yourselves treasures in heaven, where neither moth nor rust destroys and where thieves do not break in and steal. For where your treasure is, there your heart will be also.&rdquo;
+                    </p>
+                    <cite
+                      className="text-sm font-bold not-italic"
+                      style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                    >
+                      — Matthew 6:19–21 (ESV)
+                    </cite>
+                  </blockquote>
+                </div>
+
+                <div
+                  className="pt-6 mb-6"
+                  style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}
+                >
+                  <blockquote>
+                    <p
+                      className="text-base font-bold text-white leading-relaxed mb-3"
+                      style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                    >
+                      &ldquo;For I am not ashamed of the gospel, for it is the power of God for salvation to everyone who believes, to the Jew first and also to the Greek.&rdquo;
+                    </p>
+                    <cite
+                      className="text-sm font-bold not-italic"
+                      style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                    >
+                      — Romans 1:16 (ESV)
+                    </cite>
+                  </blockquote>
+                </div>
+
                 <div
                   className="pt-6"
                   style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}
                 >
                   <p className="text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.5)' }}>
-                    This verse is on the wall. It&apos;s the lens through which we evaluate our work — not just whether the client is satisfied, but whether we gave everything we had and held ourselves to a standard worth being proud of.
+                    These verses are the foundation we build on. We work for the Lord, not for earthly recognition. We don&apos;t chase treasure in this world — our purpose is eternal. And we are not ashamed of the Gospel that Jesus gave His life to bring us, offering salvation and eternal life to all who believe.
                   </p>
                 </div>
               </div>
