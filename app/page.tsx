@@ -29,7 +29,7 @@ export default function HomePage() {
           <div className="anim-fade-up flex justify-center mb-4">
             <Image
               src="/logo.png"
-              alt="Streamflare Media Group"
+              alt="Streamflaire Media Group"
               width={340}
               height={68}
               priority
@@ -467,7 +467,7 @@ export default function HomePage() {
               Ready to Build Something That <SketchUnderline color="#ffffff">Actually Works?</SketchUnderline>
             </h2>
             <p className="text-base mb-10 max-w-xl mx-auto" style={{ color: 'rgba(255,255,255,0.85)' }}>
-              Get a free consultation and see what Streamflare can build for your DFW business.
+              Get a free consultation and see what Streamflaire can build for your DFW business.
             </p>
             <Link
               href="/contact"

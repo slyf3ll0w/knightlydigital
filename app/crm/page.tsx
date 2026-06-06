@@ -753,7 +753,7 @@ export default function CRMPage() {
               Ready to Run a Tighter Operation?
             </h2>
             <p className="text-base mb-10 max-w-xl mx-auto" style={{ color: 'rgba(255,255,255,0.85)' }}>
-              Get started with Streamflare and the job manager is yours — no trial, no card required. Let&apos;s talk about what your business needs.
+              Get started with Streamflaire and the job manager is yours — no trial, no card required. Let&apos;s talk about what your business needs.
             </p>
             <Link
               href="/contact"

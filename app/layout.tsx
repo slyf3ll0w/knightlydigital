@@ -11,11 +11,11 @@ import { SessionProviderWrapper } from "@/components/SessionProviderWrapper";
 
 export const metadata: Metadata = {
   title: {
-    default: "Streamflare Media Group | Allen, TX",
-    template: "%s | Streamflare Media Group",
+    default: "Streamflaire Media Group | Allen, TX",
+    template: "%s | Streamflaire Media Group",
   },
   description:
-    "Streamflare Media Group delivers precision digital marketing, custom software, and social media management for growth-minded businesses across the DFW Metroplex.",
+    "Streamflaire Media Group delivers precision digital marketing, custom software, and social media management for growth-minded businesses across the DFW Metroplex.",
   metadataBase: new URL("https://streamflaremedia.com"),
   icons: {
     icon: "/icon.png",

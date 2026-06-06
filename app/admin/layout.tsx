@@ -2,14 +2,14 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: {
-    default: "Admin | Streamflare Media Group",
+    default: "Admin | Streamflaire Media Group",
     template: "%s | Admin",
   },
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Streamflare",
+    title: "Streamflaire",
   },
   icons: {
     icon: "/icon.png",

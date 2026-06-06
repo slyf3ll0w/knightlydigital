@@ -7,15 +7,8 @@ import { SketchUnderline } from '@/components/SketchUnderline';
 export const metadata: Metadata = {
   title: 'About Us',
   description:
-    'Streamflare Media Group is a full-service digital agency headquartered in Allen, TX. We\'re not your average DFW agency — dedicated strategies, real attention, and real results.',
+    'Streamflaire is a faith-based digital agency headquartered in Allen, TX — built on streamlined processes, genuine talent, and a commitment to excellence for the glory of God.',
 };
-
-const cities = [
-  'Allen', 'Plano', 'Frisco', 'McKinney', 'Dallas', 'Fort Worth',
-  'Arlington', 'Garland', 'Irving', 'Richardson', 'Mesquite', 'Carrollton',
-  'Denton', 'Lewisville', 'Flower Mound', 'Southlake', 'Grapevine',
-  'Colleyville', 'Rockwall', 'Grand Prairie', 'Bedford',
-];
 
 function CheckIcon() {
   return (
@@ -57,7 +50,7 @@ export default function AboutPage() {
             className="anim-fade-up text-xs font-bold uppercase tracking-widest mb-5"
             style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
           >
-            About Streamflare
+            About Streamflaire
           </p>
           <h1
             className="anim-fade-up anim-delay-1 text-4xl sm:text-5xl lg:text-6xl font-bold text-white leading-tight max-w-3xl mb-6"
@@ -78,7 +71,7 @@ export default function AboutPage() {
       <section className="py-24 bg-paper">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-16 items-start">
-            {/* Left: story text */}
+
             <AnimateIn>
               <p
                 className="text-xs font-bold uppercase tracking-widest mb-4"
@@ -93,13 +86,13 @@ export default function AboutPage() {
                 Built on a Simple Observation
               </h2>
               <p className="text-base leading-relaxed mb-5" style={{ color: '#6B7280' }}>
-                Streamflare was built on a simple observation: most small businesses in the DFW Metroplex are getting underserved by agencies that treat their accounts like line items. The same template websites. The same boosted posts. The same monthly reports full of vanity metrics that don&apos;t mean anything.
+                Streamflaire was built on a simple observation: most small businesses in the DFW Metroplex are getting underserved by agencies that treat their accounts like line items. The same template websites. The same boosted posts. The same monthly reports full of vanity metrics that don&apos;t mean anything.
               </p>
               <p className="text-base leading-relaxed mb-5" style={{ color: '#6B7280' }}>
                 We do it differently. Every client gets a dedicated account manager, a custom strategy, and direct access to the team doing the work — not a revolving door of junior contractors or offshore freelancers reading from a playbook.
               </p>
               <p className="text-base leading-relaxed mb-10" style={{ color: '#6B7280' }}>
-                We keep our client roster intentionally small. That&apos;s not a limitation — it&apos;s a commitment. When you work with Streamflare, your growth is our focus. Not a checkbox on an afternoon to-do list.
+                We keep our client roster intentionally small. That&apos;s not a limitation — it&apos;s a commitment. When you work with Streamflaire, your growth is our focus. Not a checkbox on an afternoon to-do list.
               </p>
 
               <div
@@ -118,7 +111,6 @@ export default function AboutPage() {
               </div>
             </AnimateIn>
 
-            {/* Right: photo + stats */}
             <AnimateIn delay={150} className="lg:pt-4">
               <div className="relative overflow-hidden" style={{ height: '380px' }}>
                 <Image
@@ -141,7 +133,7 @@ export default function AboutPage() {
                 {[
                   { value: 'Allen, TX', label: 'Headquarters' },
                   { value: '100%', label: 'Custom-Built' },
-                  { value: 'One Team', label: 'Web, Ads & Social' },
+                  { value: 'One Team', label: 'Software, Ads & Social' },
                   { value: 'Fixed', label: 'Transparent Pricing' },
                 ].map((stat) => (
                   <div
@@ -165,6 +157,80 @@ export default function AboutPage() {
                 ))}
               </div>
             </AnimateIn>
+          </div>
+        </div>
+      </section>
+
+      {/* ── THE NAME ── */}
+      <section className="py-24 bg-dot-pattern" style={{ backgroundColor: '#0C0F0C' }}>
+        <div className="max-w-7xl mx-auto px-6 lg:px-8">
+
+          <AnimateIn className="mb-16 text-center">
+            <p
+              className="text-xs font-bold uppercase tracking-widest mb-4"
+              style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+            >
+              The Name
+            </p>
+            <h2
+              className="text-3xl lg:text-4xl font-bold text-white mb-4"
+              style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
+            >
+              Why <SketchUnderline color="#22C55E">Streamflaire</SketchUnderline>?
+            </h2>
+            <p className="text-base max-w-xl mx-auto leading-relaxed" style={{ color: 'rgba(255,255,255,0.5)' }}>
+              Every part of the name means something. It&apos;s not a made-up word — it&apos;s a statement about how we operate and what we bring to every client.
+            </p>
+          </AnimateIn>
+
+          <div className="grid md:grid-cols-2 gap-px" style={{ backgroundColor: 'rgba(255,255,255,0.08)' }}>
+
+            <AnimateIn>
+              <div className="p-10 h-full" style={{ backgroundColor: '#0C0F0C' }}>
+                <p
+                  className="text-5xl lg:text-7xl font-bold mb-6 tracking-tight"
+                  style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif', lineHeight: 1 }}
+                >
+                  STREAM
+                </p>
+                <h3
+                  className="text-lg font-bold text-white mb-4"
+                  style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                >
+                  Streamlined. Efficient. Built to Save You Money.
+                </h3>
+                <p className="text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.55)' }}>
+                  Our processes are built lean from the ground up. We use modern technology, AI-assisted development, and refined workflows that eliminate the overhead most agencies pass on to you. Streamlined operations mean faster turnaround times, fewer errors, and lower costs — all without cutting corners on quality.
+                </p>
+                <p className="text-sm leading-relaxed mt-4" style={{ color: 'rgba(255,255,255,0.55)' }}>
+                  When we say your software ships in 4–8 weeks or your campaign is live faster than you expected, that&apos;s not luck. That&apos;s the stream — the current we&apos;ve built that keeps everything moving forward.
+                </p>
+              </div>
+            </AnimateIn>
+
+            <AnimateIn delay={120}>
+              <div className="p-10 h-full" style={{ backgroundColor: '#111511' }}>
+                <p
+                  className="text-5xl lg:text-7xl font-bold mb-6 tracking-tight"
+                  style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif', lineHeight: 1 }}
+                >
+                  FLAIRE
+                </p>
+                <h3
+                  className="text-lg font-bold text-white mb-4"
+                  style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                >
+                  Talented. Precise. We Know What We&apos;re Doing.
+                </h3>
+                <p className="text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.55)' }}>
+                  Flair isn&apos;t decoration — it&apos;s mastery. It&apos;s the kind of instinct that comes from doing the work until you&apos;re genuinely good at it. We don&apos;t hand your project off to junior contractors or run the same playbook we used for the last client. Every strategy, every line of code, every campaign is the product of real expertise.
+                </p>
+                <p className="text-sm leading-relaxed mt-4" style={{ color: 'rgba(255,255,255,0.55)' }}>
+                  The &ldquo;e&rdquo; at the end isn&apos;t a typo — it&apos;s intentional. It&apos;s there to remind us that what we do is more than functional. It&apos;s done with care, with craft, and with a standard most agencies simply don&apos;t hold themselves to.
+                </p>
+              </div>
+            </AnimateIn>
+
           </div>
         </div>
       </section>
@@ -216,38 +282,71 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* ── SERVICE AREA ── */}
+      {/* ── FAITH & FOUNDATION ── */}
       <section className="py-24 bg-paper">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="mb-12">
-            <p
-              className="text-xs font-bold uppercase tracking-widest mb-4"
-              style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
-            >
-              Our Service Area
-            </p>
-            <h2
-              className="text-4xl lg:text-5xl font-bold mb-6"
-              style={{ color: '#0A0A0F', fontFamily: 'Oxanium, system-ui, sans-serif' }}
-            >
-              Serving 21+ Cities Across DFW
-            </h2>
-            <p className="text-base max-w-2xl leading-relaxed" style={{ color: '#6B7280' }}>
-              Headquartered in Allen, TX, Streamflare Media Group works with businesses throughout the DFW
-              Metroplex — from Plano and Frisco to Dallas, Fort Worth, and every city in between.
-            </p>
-          </div>
+          <div className="grid lg:grid-cols-2 gap-16 items-start">
 
-          <div className="flex flex-wrap gap-2">
-            {cities.map((city) => (
-              <span
-                key={city}
-                className="text-xs px-3 py-1.5 uppercase tracking-wide font-medium"
-                style={{ border: '1px solid #E5E7EB', color: '#6B7280' }}
+            <AnimateIn>
+              <p
+                className="text-xs font-bold uppercase tracking-widest mb-4"
+                style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
               >
-                {city}
-              </span>
-            ))}
+                Our Foundation
+              </p>
+              <h2
+                className="text-3xl lg:text-4xl font-bold mb-6 leading-tight"
+                style={{ color: '#0A0A0F', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+              >
+                Faith-Based. <SketchUnderline>Purpose-Driven.</SketchUnderline>
+              </h2>
+              <p className="text-base leading-relaxed mb-5" style={{ color: '#6B7280' }}>
+                Streamflaire is a faith-based company. That&apos;s not a tagline or a section we added for optics — it&apos;s the reason the company exists and the standard we hold every decision to.
+              </p>
+              <p className="text-base leading-relaxed mb-5" style={{ color: '#6B7280' }}>
+                We believe that how you do your work matters as much as what you deliver. Our faith shapes the way we treat clients, the integrity we bring to every project, and the commitment we have to genuinely serving the businesses that trust us.
+              </p>
+              <p className="text-base leading-relaxed" style={{ color: '#6B7280' }}>
+                We don&apos;t do excellent work because it looks good on a portfolio. We do it because we answer to a higher standard than a client review — we do everything for the glory of God, because He is our ultimate fulfillment. That conviction shows in every line of code, every ad campaign, and every interaction we have.
+              </p>
+            </AnimateIn>
+
+            <AnimateIn delay={150}>
+              <div
+                className="p-10"
+                style={{ backgroundColor: '#0C0F0C', border: '1px solid rgba(255,255,255,0.08)' }}
+              >
+                <p
+                  className="text-xs font-bold uppercase tracking-widest mb-6"
+                  style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                >
+                  Our Verse
+                </p>
+                <blockquote className="mb-6">
+                  <p
+                    className="text-xl lg:text-2xl font-bold text-white leading-relaxed mb-4"
+                    style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                  >
+                    &ldquo;Whatever you do, work heartily, as for the Lord and not for men, knowing that from the Lord you will receive the inheritance as your reward. You are serving the Lord Christ.&rdquo;
+                  </p>
+                  <cite
+                    className="text-sm font-bold not-italic"
+                    style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                  >
+                    — Colossians 3:23–24 (ESV)
+                  </cite>
+                </blockquote>
+                <div
+                  className="pt-6"
+                  style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}
+                >
+                  <p className="text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                    This verse is on the wall. It&apos;s the lens through which we evaluate our work — not just whether the client is satisfied, but whether we gave everything we had and held ourselves to a standard worth being proud of.
+                  </p>
+                </div>
+              </div>
+            </AnimateIn>
+
           </div>
         </div>
       </section>
@@ -262,7 +361,7 @@ export default function AboutPage() {
             Ready to Work With an Agency That <SketchUnderline color="#ffffff">Actually Delivers?</SketchUnderline>
           </h2>
           <p className="text-base mb-10 max-w-xl mx-auto" style={{ color: 'rgba(255,255,255,0.85)' }}>
-            Get a free consultation and see what Streamflare can do for your DFW business.
+            Get a free consultation and see what Streamflaire can do for your DFW business.
           </p>
           <Link
             href="/contact"

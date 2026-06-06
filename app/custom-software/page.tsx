@@ -7,7 +7,7 @@ import { SketchUnderline } from '@/components/SketchUnderline';
 export const metadata: Metadata = {
   title: 'Custom Software Design',
   description:
-    'Custom software built for your exact workflow or your idea — owned by you, built by Streamflare. Fast turnaround, competitive pricing, and a free no-obligation quote.',
+    'Custom software built for your exact workflow or your idea — owned by you, built by Streamflaire. Fast turnaround, competitive pricing, and a free no-obligation quote.',
 };
 
 function CheckIcon() {
@@ -265,7 +265,7 @@ export default function CustomSoftwarePage() {
                   className="text-xs font-bold uppercase tracking-widest mb-5"
                   style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
                 >
-                  Why Streamflare
+                  Why Streamflaire
                 </p>
                 <h2
                   className="text-4xl lg:text-5xl font-bold text-white leading-tight"

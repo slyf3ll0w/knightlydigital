@@ -47,7 +47,7 @@ export default function PortalLoginPage() {
         <Link href="/">
           <Image
             src="/logo.png"
-            alt="Streamflare Media Group"
+            alt="Streamflaire Media Group"
             width={220}
             height={44}
             className="h-10 w-auto object-contain"

@@ -2,9 +2,9 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Streamflare Media Group",
-    short_name: "Streamflare",
-    description: "Client portal for Streamflare Media Group",
+    name: "Streamflaire Media Group",
+    short_name: "Streamflaire",
+    description: "Client portal for Streamflaire Media Group",
     start_url: "/portal/dashboard",
     display: "standalone",
     orientation: "portrait",

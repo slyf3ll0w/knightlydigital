@@ -71,7 +71,7 @@ export function PortalShell({ children, userName, unreadCount = 0 }: Props) {
           <Link href="/">
             <Image
               src="/logo.png"
-              alt="Streamflare"
+              alt="Streamflaire"
               width={150}
               height={30}
               className="h-7 w-auto object-contain"

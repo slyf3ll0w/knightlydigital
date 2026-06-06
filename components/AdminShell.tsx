@@ -90,7 +90,7 @@ export function AdminShell({ children, userName, unreadCount = 0, userRole }: Pr
             <Link href="/" className="flex items-center">
               <Image
                 src="/logo.png"
-                alt="Streamflare"
+                alt="Streamflaire"
                 width={140}
                 height={28}
                 style={{ filter: 'brightness(0) invert(1)' }}

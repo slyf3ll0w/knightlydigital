@@ -2,14 +2,13 @@ import Link from 'next/link';
 import Image from 'next/image';
 
 const serviceLinks = [
-  { label: 'Custom Software & Web Design', href: '/services' },
-  { label: 'Meta Ads Management', href: '/services' },
-  { label: 'Social Media Management', href: '/services' },
+  { label: 'Free Job Manager', href: '/crm' },
+  { label: 'Custom Software Design', href: '/custom-software' },
+  { label: 'All-Inclusive Digital Marketing', href: '/digital-marketing' },
 ];
 
 const companyLinks = [
   { label: 'About Us', href: '/about' },
-  { label: 'Services', href: '/services' },
   { label: 'Contact', href: '/contact' },
   { label: 'Client Portal', href: '/portal' },
 ];
@@ -61,14 +60,14 @@ export function Footer() {
             <div className="mb-5">
               <Image
                 src="/logo.png"
-                alt="Streamflare Media Group"
+                alt="Streamflaire"
                 width={240}
                 height={48}
                 style={{ filter: 'brightness(0) invert(1)' }}
               />
             </div>
             <p className="text-sm leading-relaxed mb-6" style={{ color: '#6B7280' }}>
-              Full-service digital agency serving growth-minded businesses across the DFW Metroplex.
+              Faith-based digital agency serving growth-minded businesses across the DFW Metroplex.
             </p>
             <div className="flex items-center gap-3">
               {socialLinks.map((s) => (
@@ -147,10 +146,7 @@ export function Footer() {
                 <span>DFW Metroplex</span>
               </li>
               <li>
-                <a
-                  href="tel:2145550100"
-                  className="transition-colors hover:text-white"
-                >
+                <a href="tel:2145550100" className="transition-colors hover:text-white">
                   (214) 555-0100
                 </a>
               </li>
@@ -169,13 +165,29 @@ export function Footer() {
           </div>
         </div>
 
-        {/* Bottom strip */}
-        <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>
-          <p>© 2025 Streamflare Media Group. All rights reserved.</p>
-          <Link
-            href="/privacy"
-            className="transition-colors hover:text-white/60"
+        {/* Verse strip */}
+        <div
+          className="py-8 text-center"
+          style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}
+        >
+          <p
+            className="text-sm italic leading-relaxed mb-1"
+            style={{ color: 'rgba(255,255,255,0.45)' }}
           >
+            &ldquo;Whatever you do, work heartily, as for the Lord and not for men, knowing that from the Lord you will receive the inheritance as your reward. You are serving the Lord Christ.&rdquo;
+          </p>
+          <p
+            className="text-xs font-bold uppercase tracking-widest"
+            style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+          >
+            Colossians 3:23–24
+          </p>
+        </div>
+
+        {/* Bottom strip */}
+        <div className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>
+          <p>© 2025 Streamflaire Media Group. All rights reserved.</p>
+          <Link href="/privacy" className="transition-colors hover:text-white/60">
             Privacy Policy
           </Link>
         </div>

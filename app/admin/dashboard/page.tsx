@@ -40,7 +40,7 @@ export default async function AdminDashboard() {
     <AdminShell userName={session.user.name ?? "Admin"} unreadCount={unreadCount} userRole={role}>
       <div className="max-w-5xl">
         <div className="mb-8">
-          <p className="text-xs tracking-[0.25em] font-bold uppercase text-muted-foreground mb-1">Streamflare</p>
+          <p className="text-xs tracking-[0.25em] font-bold uppercase text-muted-foreground mb-1">Streamflaire</p>
           <h1 className="text-3xl font-black uppercase">Admin Dashboard</h1>
         </div>
 

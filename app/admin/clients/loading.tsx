@@ -7,7 +7,7 @@ export default function Loading() {
         className="shrink-0 z-30 flex items-center justify-between px-5"
         style={{ backgroundColor: '#0C0F0C', borderBottom: '1px solid rgba(255,255,255,0.08)', height: '56px' }}
       >
-        <Image src="/logo.png" alt="Streamflare" width={130} height={26} style={{ filter: 'brightness(0) invert(1)' }} />
+        <Image src="/logo.png" alt="Streamflaire" width={130} height={26} style={{ filter: 'brightness(0) invert(1)' }} />
         <div className="h-3 w-20 rounded animate-pulse" style={{ backgroundColor: 'rgba(255,255,255,0.1)' }} />
       </header>
 
