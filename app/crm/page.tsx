@@ -64,23 +64,6 @@ export default function CRMPage() {
         {/* Centered content */}
         <div className="relative z-10 w-full max-w-4xl mx-auto px-6 lg:px-8 flex flex-col items-center text-center">
 
-          {/* Badge */}
-          <div
-            className="inline-flex items-center gap-2 mb-8 px-4 py-2"
-            style={{
-              border: '1px solid rgba(34,197,94,0.45)',
-              backgroundColor: 'rgba(34,197,94,0.1)',
-            }}
-          >
-            <div style={{ width: '6px', height: '6px', backgroundColor: '#22C55E' }} />
-            <span
-              className="text-xs font-bold uppercase tracking-widest"
-              style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
-            >
-              Free Forever — No Plans, No Upsell
-            </span>
-          </div>
-
           {/* Headline */}
           <h1
             className="text-5xl sm:text-6xl lg:text-7xl font-bold text-white leading-tight mb-6"
