@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { signOut, useSession } from "next-auth/react";
+import { signOut } from "next-auth/react";
 import {
   LayoutDashboard,
   Briefcase,
@@ -35,9 +35,14 @@ const mobileNav = [
   { href: "/app/dashboard", label: "More", icon: Menu },
 ];
 
-export default function AppShell({ children }: { children: React.ReactNode }) {
+interface AppShellProps {
+  children: React.ReactNode;
+  userName?: string | null;
+  userEmail?: string | null;
+}
+
+export default function AppShell({ children, userName, userEmail }: AppShellProps) {
   const pathname = usePathname();
-  const { data: session } = useSession();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   function isActive(href: string) {
@@ -92,11 +97,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </Link>
           <div className="px-3 py-3 flex items-center gap-3">
             <div className="w-7 h-7 rounded-full bg-green-500/20 flex items-center justify-center text-green-400 text-xs font-bold">
-              {session?.user?.name?.charAt(0).toUpperCase() ?? "?"}
+              {userName?.charAt(0).toUpperCase() ?? "?"}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-white truncate">{session?.user?.name}</p>
-              <p className="text-xs text-white/40 truncate">{session?.user?.email}</p>
+              <p className="text-xs font-medium text-white truncate">{userName}</p>
+              <p className="text-xs text-white/40 truncate">{userEmail}</p>
             </div>
             <button
               onClick={() => signOut({ callbackUrl: "/app/login" })}

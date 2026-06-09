@@ -9,5 +9,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // Middleware + individual pages handle auth redirects for protected routes.
   if (!session) return <>{children}</>;
 
-  return <AppShell>{children}</AppShell>;
+  return (
+    <AppShell userName={session.user.name} userEmail={session.user.email}>
+      {children}
+    </AppShell>
+  );
 }
