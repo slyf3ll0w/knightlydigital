@@ -1,6 +1,4 @@
 @import "tailwindcss";
-@source "../app";
-@source "../components";
 
 @theme inline {
   --font-sans: 'Oxanium', system-ui, sans-serif;

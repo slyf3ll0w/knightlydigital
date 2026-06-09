@@ -1,53 +1,44 @@
-import { withAuth } from "next-auth/middleware";
+import { getToken } from "next-auth/jwt";
 import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
-export default withAuth(
-  function middleware(req) {
-    const token = req.nextauth.token;
-    const role = (token?.role as string) ?? "";
-    const path = req.nextUrl.pathname;
+export async function middleware(req: NextRequest) {
+  const path = req.nextUrl.pathname;
 
-    const isSuperAdmin = role === "SUPERADMIN";
-    const hasCompany = !!token?.companyId;
+  // Public app routes — no auth needed
+  const isPublic =
+    path.startsWith("/app/login") ||
+    path.startsWith("/app/register") ||
+    path.startsWith("/book/") ||
+    path.startsWith("/pay/") ||
+    path.startsWith("/quote/");
 
-    // Superadmin → /superadmin only
-    if (path.startsWith("/superadmin") && !isSuperAdmin) {
-      return NextResponse.redirect(new URL("/app/dashboard", req.url));
-    }
+  if (isPublic) return NextResponse.next();
 
-    // App routes require a company (except register flow)
-    if (path.startsWith("/app") && !path.startsWith("/app/login") && !path.startsWith("/app/register")) {
-      if (!hasCompany && !isSuperAdmin) {
-        return NextResponse.redirect(new URL("/app/register", req.url));
-      }
-    }
-  },
-  {
-    callbacks: {
-      authorized: ({ token, req }) => {
-        const path = req.nextUrl.pathname;
-        // Public pages don't need a token
-        if (
-          path.startsWith("/app/login") ||
-          path.startsWith("/app/register") ||
-          path.startsWith("/book/") ||
-          path.startsWith("/pay/") ||
-          path.startsWith("/quote/")
-        ) {
-          return true;
-        }
-        return !!token;
-      },
-    },
-    pages: {
-      signIn: "/app/login",
-    },
+  // All other /app/* and /superadmin/* routes require a valid token
+  const token = await getToken({ req, secret: process.env.AUTH_SECRET });
+
+  if (!token) {
+    return NextResponse.redirect(new URL("/app/login", req.url));
   }
-);
+
+  const role = (token.role as string) ?? "";
+  const isSuperAdmin = role === "SUPERADMIN";
+  const hasCompany = !!token.companyId;
+
+  // Non-superadmin users without a company go to register
+  if (path.startsWith("/app") && !hasCompany && !isSuperAdmin) {
+    return NextResponse.redirect(new URL("/app/register", req.url));
+  }
+
+  // Only superadmins can access /superadmin/*
+  if (path.startsWith("/superadmin") && !isSuperAdmin) {
+    return NextResponse.redirect(new URL("/app/dashboard", req.url));
+  }
+
+  return NextResponse.next();
+}
 
 export const config = {
-  matcher: [
-    "/app/:path*",
-    "/superadmin/:path*",
-  ],
+  matcher: ["/app/:path*", "/superadmin/:path*"],
 };
