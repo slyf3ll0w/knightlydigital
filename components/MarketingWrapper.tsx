@@ -6,7 +6,7 @@ import { Footer } from './Footer';
 
 export function MarketingWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const isApp = pathname.startsWith('/portal') || pathname.startsWith('/admin');
+  const isApp = pathname.startsWith('/app') || pathname.startsWith('/portal') || pathname.startsWith('/admin');
 
   if (isApp) return <>{children}</>;
 
