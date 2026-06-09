@@ -47,7 +47,7 @@ export default withAuth(
 
 export const config = {
   matcher: [
-    "/app/((?!login|register).*)",
+    "/app/:path*",
     "/superadmin/:path*",
   ],
 };
