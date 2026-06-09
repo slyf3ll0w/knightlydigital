@@ -7,86 +7,231 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id               String    @id @default(cuid())
-  email            String    @unique
-  name             String
-  passwordHash     String
-  role             Role      @default(CLIENT)
-  company          String?
-  phone            String?
-  accountManagerId String?
-  accountManager   User?     @relation("ManagedBy", fields: [accountManagerId], references: [id])
-  clients          User[]    @relation("ManagedBy")
-  sentMessages     Message[] @relation("SentMessages")
-  receivedMessages Message[] @relation("ReceivedMessages")
-  orders           Order[]
-  invoices         Invoice[]
-  onboardings      Onboarding[]
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+// ─── Tenancy ─────────────────────────────────────────────────────────────────
 
+model Company {
+  id               String   @id @default(cuid())
+  name             String
+  slug             String   @unique
+  phone            String?
+  email            String?
+  address          String?
+  city             String?
+  state            String?
+  zip              String?
+  website          String?
+  logoUrl          String?
+  timezone         String   @default("America/Chicago")
+  surchargeEnabled Boolean  @default(false)
+  surchargeRate    Decimal  @default(0.0300) @db.Decimal(5, 4)
+  reviewLink       String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  users           User[]
+  contacts        Contact[]
+  jobs            Job[]
+  quotes          Quote[]
+  invoices        Invoice[]
+  payments        Payment[]
+  servicePlans    ServicePlan[]
+  bookingRequests BookingRequest[]
+  reviewRequests  ReviewRequest[]
+
+  @@index([slug])
+}
+
+// ─── Users ───────────────────────────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String
+  role         Role     @default(TECH)
+  companyId    String?
+  company      Company? @relation(fields: [companyId], references: [id])
+  phone        String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  assignments JobAssignment[]
+  notes       JobNote[]
+
+  @@index([companyId])
   @@index([role])
-  @@index([accountManagerId])
 }
 
 enum Role {
-  CLIENT
-  STAFF
-  ADMIN
+  SUPERADMIN
+  OWNER
+  MANAGER
+  TECH
 }
 
-model Message {
-  id        String    @id @default(cuid())
+// ─── Contacts ────────────────────────────────────────────────────────────────
+
+model Contact {
+  id        String   @id @default(cuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id])
+  firstName String
+  lastName  String
+  email     String?
+  phone     String?
+  address   String?
+  city      String?
+  state     String?
+  zip       String?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  jobs            Job[]
+  quotes          Quote[]
+  invoices        Invoice[]
+  servicePlans    ServicePlan[]
+  bookingRequests BookingRequest[]
+
+  @@index([companyId])
+  @@index([companyId, lastName])
+}
+
+// ─── Jobs ─────────────────────────────────────────────────────────────────────
+
+enum JobStatus {
+  LEAD
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETE
+  INVOICED
+  PAID
+}
+
+model Job {
+  id           String    @id @default(cuid())
+  companyId    String
+  company      Company   @relation(fields: [companyId], references: [id])
+  contactId    String
+  contact      Contact   @relation(fields: [contactId], references: [id])
+  jobNumber    Int
+  title        String
+  description  String?
+  status       JobStatus @default(LEAD)
+  scheduledAt  DateTime?
+  scheduledEnd DateTime?
+  completedAt  DateTime?
+  address      String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  assignments JobAssignment[]
+  notes       JobNote[]
+  photos      JobPhoto[]
+  quote       Quote?
+  invoice     Invoice?
+
+  @@index([companyId])
+  @@index([companyId, status])
+  @@index([companyId, scheduledAt])
+  @@unique([companyId, jobNumber])
+}
+
+model JobAssignment {
+  id     String @id @default(cuid())
+  jobId  String
+  job    Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@unique([jobId, userId])
+  @@index([userId])
+}
+
+model JobNote {
+  id        String   @id @default(cuid())
+  jobId     String
+  job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
   body      String
-  fromId    String
-  toId      String
-  from      User      @relation("SentMessages", fields: [fromId], references: [id])
-  to        User      @relation("ReceivedMessages", fields: [toId], references: [id])
-  readAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([jobId])
+}
+
+enum PhotoType {
+  BEFORE
+  AFTER
+  GENERAL
+}
+
+model JobPhoto {
+  id        String    @id @default(cuid())
+  jobId     String
+  job       Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  url       String
+  caption   String?
+  type      PhotoType @default(GENERAL)
   createdAt DateTime  @default(now())
 
-  @@index([toId])
-  @@index([fromId])
-  @@index([fromId, toId])
-  @@index([toId, readAt])
-  @@index([createdAt])
+  @@index([jobId])
 }
 
-model Order {
+// ─── Quotes ───────────────────────────────────────────────────────────────────
+
+enum QuoteStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  DECLINED
+  EXPIRED
+}
+
+model Quote {
   id          String      @id @default(cuid())
-  clientId    String
-  client      User        @relation(fields: [clientId], references: [id])
-  serviceName String
-  status      OrderStatus @default(PENDING)
+  companyId   String
+  company     Company     @relation(fields: [companyId], references: [id])
+  contactId   String
+  contact     Contact     @relation(fields: [contactId], references: [id])
+  jobId       String?     @unique
+  job         Job?        @relation(fields: [jobId], references: [id])
+  quoteNumber Int
+  status      QuoteStatus @default(DRAFT)
+  subtotal    Decimal     @db.Decimal(10, 2)
+  taxRate     Decimal?    @db.Decimal(5, 4)
+  tax         Decimal?    @db.Decimal(10, 2)
+  total       Decimal     @db.Decimal(10, 2)
   notes       String?
-  adminNotes  String?
+  validUntil  DateTime?
+  acceptedAt  DateTime?
+  sentAt      DateTime?
+  publicToken String      @unique @default(cuid())
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
-  @@index([clientId])
+  lineItems QuoteLineItem[]
+
+  @@index([companyId])
+  @@index([contactId])
+  @@unique([companyId, quoteNumber])
 }
 
-enum OrderStatus {
-  PENDING
-  IN_REVIEW
-  ACTIVE
-  PAUSED
-  COMPLETED
-  CANCELLED
+model QuoteLineItem {
+  id          String  @id @default(cuid())
+  quoteId     String
+  quote       Quote   @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  description String
+  quantity    Decimal @db.Decimal(10, 3)
+  unitPrice   Decimal @db.Decimal(10, 2)
+  total       Decimal @db.Decimal(10, 2)
+  sortOrder   Int     @default(0)
+
+  @@index([quoteId])
 }
 
-model Invoice {
-  id          String        @id @default(cuid())
-  clientId    String
-  client      User          @relation(fields: [clientId], references: [id])
-  amount      Decimal       @db.Decimal(10, 2)
-  status      InvoiceStatus @default(DRAFT)
-  description String?
-  dueDate     DateTime?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-}
+// ─── Invoices ─────────────────────────────────────────────────────────────────
 
 enum InvoiceStatus {
   DRAFT
@@ -96,16 +241,160 @@ enum InvoiceStatus {
   CANCELLED
 }
 
-model Onboarding {
+model Invoice {
+  id            String        @id @default(cuid())
+  companyId     String
+  company       Company       @relation(fields: [companyId], references: [id])
+  contactId     String?
+  contact       Contact?      @relation(fields: [contactId], references: [id])
+  jobId         String?       @unique
+  job           Job?          @relation(fields: [jobId], references: [id])
+  invoiceNumber Int
+  status        InvoiceStatus @default(DRAFT)
+  subtotal      Decimal       @db.Decimal(10, 2)
+  taxRate       Decimal?      @db.Decimal(5, 4)
+  tax           Decimal?      @db.Decimal(10, 2)
+  surcharge     Decimal?      @db.Decimal(10, 2)
+  total         Decimal       @db.Decimal(10, 2)
+  notes         String?
+  dueDate       DateTime?
+  paidAt        DateTime?
+  publicToken   String        @unique @default(cuid())
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  lineItems InvoiceLineItem[]
+  payments  Payment[]
+  reminders PaymentReminder[]
+
+  @@index([companyId])
+  @@index([companyId, status])
+  @@unique([companyId, invoiceNumber])
+}
+
+model InvoiceLineItem {
+  id          String  @id @default(cuid())
+  invoiceId   String
+  invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  description String
+  quantity    Decimal @db.Decimal(10, 3)
+  unitPrice   Decimal @db.Decimal(10, 2)
+  total       Decimal @db.Decimal(10, 2)
+  sortOrder   Int     @default(0)
+
+  @@index([invoiceId])
+}
+
+// ─── Payments ─────────────────────────────────────────────────────────────────
+
+enum PaymentMethod {
+  CARD
+  ACH
+  CASH
+  CHECK
+  OTHER
+}
+
+model Payment {
+  id              String        @id @default(cuid())
+  companyId       String
+  company         Company       @relation(fields: [companyId], references: [id])
+  invoiceId       String
+  invoice         Invoice       @relation(fields: [invoiceId], references: [id])
+  amount          Decimal       @db.Decimal(10, 2)
+  method          PaymentMethod
+  processorRef    String?
+  surchargeAmount Decimal?      @db.Decimal(10, 2)
+  paidAt          DateTime      @default(now())
+  createdAt       DateTime      @default(now())
+
+  @@index([companyId])
+  @@index([invoiceId])
+}
+
+model PaymentReminder {
+  id        String   @id @default(cuid())
+  invoiceId String
+  invoice   Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  type      String
+  sentAt    DateTime
+
+  @@index([invoiceId])
+}
+
+// ─── Service Plans ────────────────────────────────────────────────────────────
+
+enum Frequency {
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+  QUARTERLY
+  ANNUALLY
+}
+
+model ServicePlan {
   id          String    @id @default(cuid())
-  clientId    String
-  client      User      @relation(fields: [clientId], references: [id])
-  serviceKey  String
-  responses   Json      @default("{}")
-  completedAt DateTime?
+  companyId   String
+  company     Company   @relation(fields: [companyId], references: [id])
+  contactId   String
+  contact     Contact   @relation(fields: [contactId], references: [id])
+  name        String
+  description String?
+  frequency   Frequency
+  price       Decimal   @db.Decimal(10, 2)
+  nextJobDate DateTime
+  isActive    Boolean   @default(true)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  @@unique([clientId, serviceKey])
-  @@index([clientId])
+  @@index([companyId])
+  @@index([companyId, nextJobDate])
+}
+
+// ─── Booking Requests ─────────────────────────────────────────────────────────
+
+enum BookingStatus {
+  NEW
+  CONTACTED
+  CONVERTED
+  DECLINED
+}
+
+model BookingRequest {
+  id            String        @id @default(cuid())
+  companyId     String
+  company       Company       @relation(fields: [companyId], references: [id])
+  contactId     String?
+  contact       Contact?      @relation(fields: [contactId], references: [id])
+  firstName     String
+  lastName      String
+  email         String?
+  phone         String?
+  address       String?
+  service       String
+  preferredDate DateTime?
+  message       String?
+  status        BookingStatus @default(NEW)
+  createdAt     DateTime      @default(now())
+
+  @@index([companyId])
+  @@index([companyId, status])
+}
+
+// ─── Review Requests ──────────────────────────────────────────────────────────
+
+model ReviewRequest {
+  id        String   @id @default(cuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id])
+  contactId String?
+  jobId     String?
+  email     String?
+  phone     String?
+  sentAt    DateTime
+  method    String
+  status    String   @default("sent")
+  createdAt DateTime @default(now())
+
+  @@index([companyId])
 }

@@ -1,0 +1,242 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { Loader2, Plus, Trash2, ArrowLeft } from "lucide-react";
+
+type Contact = { id: string; firstName: string; lastName: string };
+
+type LineItem = {
+  description: string;
+  quantity: string;
+  unitPrice: string;
+};
+
+export default function QuoteEditor({ contacts }: { contacts: Contact[] }) {
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [contactId, setContactId] = useState("");
+  const [notes, setNotes] = useState("");
+  const [taxRate, setTaxRate] = useState("");
+  const [lineItems, setLineItems] = useState<LineItem[]>([
+    { description: "", quantity: "1", unitPrice: "" },
+  ]);
+
+  function addLine() {
+    setLineItems((l) => [...l, { description: "", quantity: "1", unitPrice: "" }]);
+  }
+
+  function removeLine(i: number) {
+    setLineItems((l) => l.filter((_, idx) => idx !== i));
+  }
+
+  function updateLine(i: number, field: keyof LineItem, value: string) {
+    setLineItems((l) => l.map((item, idx) => (idx === i ? { ...item, [field]: value } : item)));
+  }
+
+  const subtotal = lineItems.reduce((sum, li) => {
+    const qty = parseFloat(li.quantity) || 0;
+    const price = parseFloat(li.unitPrice) || 0;
+    return sum + qty * price;
+  }, 0);
+
+  const tax = taxRate ? subtotal * (parseFloat(taxRate) / 100) : 0;
+  const total = subtotal + tax;
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!contactId) {
+      setError("Please select a customer.");
+      return;
+    }
+    setError("");
+    setLoading(true);
+
+    const res = await fetch("/api/app/quotes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contactId,
+        notes,
+        taxRate: taxRate ? parseFloat(taxRate) / 100 : null,
+        lineItems: lineItems.map((li, i) => ({
+          description: li.description,
+          quantity: parseFloat(li.quantity) || 1,
+          unitPrice: parseFloat(li.unitPrice) || 0,
+          sortOrder: i,
+        })),
+      }),
+    });
+
+    const data = await res.json();
+    setLoading(false);
+
+    if (!res.ok) {
+      setError(data.error ?? "Failed to create quote.");
+      return;
+    }
+
+    router.push(`/app/quotes/${data.id}`);
+  }
+
+  return (
+    <div className="p-4 lg:p-8 max-w-3xl mx-auto">
+      <div className="flex items-center gap-3 mb-6">
+        <Link href="/app/quotes" className="text-gray-400 hover:text-gray-600">
+          <ArrowLeft size={18} />
+        </Link>
+        <h1 className="text-2xl font-bold text-gray-900">New Quote</h1>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-5">
+        {error && (
+          <div className="px-4 py-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+            {error}
+          </div>
+        )}
+
+        <div className="bg-white border border-gray-200 rounded-lg p-5">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Customer *</label>
+          <select
+            value={contactId}
+            onChange={(e) => setContactId(e.target.value)}
+            required
+            className="w-full max-w-xs px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+          >
+            <option value="">Select a customer...</option>
+            {contacts.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.firstName} {c.lastName}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Line items */}
+        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+          <div className="px-5 py-4 border-b border-gray-100">
+            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Line Items</h2>
+          </div>
+          <div className="p-5">
+            <div className="hidden lg:grid grid-cols-[1fr_80px_120px_32px] gap-3 mb-2">
+              {["Description", "Qty", "Unit Price", ""].map((h) => (
+                <span key={h} className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{h}</span>
+              ))}
+            </div>
+            <div className="space-y-2">
+              {lineItems.map((li, i) => (
+                <div key={i} className="grid grid-cols-[1fr_80px_120px_32px] gap-2 items-start">
+                  <input
+                    type="text"
+                    placeholder="Description"
+                    value={li.description}
+                    onChange={(e) => updateLine(i, "description", e.target.value)}
+                    required
+                    className="px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                  <input
+                    type="number"
+                    placeholder="1"
+                    value={li.quantity}
+                    onChange={(e) => updateLine(i, "quantity", e.target.value)}
+                    min="0"
+                    step="0.001"
+                    className="px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                  <input
+                    type="number"
+                    placeholder="0.00"
+                    value={li.unitPrice}
+                    onChange={(e) => updateLine(i, "unitPrice", e.target.value)}
+                    min="0"
+                    step="0.01"
+                    className="px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeLine(i)}
+                    disabled={lineItems.length === 1}
+                    className="p-2 text-gray-300 hover:text-red-400 transition-colors disabled:opacity-0"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={addLine}
+              className="mt-3 flex items-center gap-1 text-sm text-green-600 hover:underline font-medium"
+            >
+              <Plus size={13} />
+              Add line item
+            </button>
+          </div>
+
+          {/* Totals */}
+          <div className="px-5 py-4 border-t border-gray-100 bg-gray-50">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-gray-600">Tax rate</label>
+                <input
+                  type="number"
+                  value={taxRate}
+                  onChange={(e) => setTaxRate(e.target.value)}
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  placeholder="0"
+                  className="w-20 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                />
+                <span className="text-sm text-gray-500">%</span>
+              </div>
+              <div className="text-right space-y-1 text-sm">
+                <div className="flex justify-between gap-8">
+                  <span className="text-gray-500">Subtotal</span>
+                  <span className="font-medium">${subtotal.toFixed(2)}</span>
+                </div>
+                {tax > 0 && (
+                  <div className="flex justify-between gap-8">
+                    <span className="text-gray-500">Tax</span>
+                    <span className="font-medium">${tax.toFixed(2)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between gap-8 font-bold text-base border-t border-gray-200 pt-1">
+                  <span>Total</span>
+                  <span>${total.toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white border border-gray-200 rounded-lg p-5">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={3}
+            className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
+            placeholder="Terms, special conditions, etc."
+          />
+        </div>
+
+        <div className="flex items-center gap-3">
+          <button
+            type="submit"
+            disabled={loading}
+            className="flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded transition-colors disabled:opacity-50"
+          >
+            {loading && <Loader2 size={14} className="animate-spin" />}
+            Save Quote
+          </button>
+          <Link href="/app/quotes" className="px-5 py-2.5 border border-gray-300 text-sm font-medium text-gray-600 rounded hover:bg-gray-50">
+            Cancel
+          </Link>
+        </div>
+      </form>
+    </div>
+  );
+}

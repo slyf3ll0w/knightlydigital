@@ -17,6 +17,7 @@
     "@prisma/client": "^5.22.0",
     "@types/bcryptjs": "^2.4.6",
     "bcryptjs": "^3.0.3",
+    "lucide-react": "^0.400.0",
     "next": "^15.5.18",
     "next-auth": "^4.24.14",
     "prisma": "^5.22.0",

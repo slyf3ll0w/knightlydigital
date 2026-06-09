@@ -7,26 +7,47 @@ export default withAuth(
     const role = (token?.role as string) ?? "";
     const path = req.nextUrl.pathname;
 
-    const isStaff = role === "ADMIN" || role === "STAFF";
+    const isSuperAdmin = role === "SUPERADMIN";
+    const hasCompany = !!token?.companyId;
 
-    if (path.startsWith("/admin") && !isStaff) {
-      return NextResponse.redirect(new URL("/portal/dashboard", req.url));
+    // Superadmin → /superadmin only
+    if (path.startsWith("/superadmin") && !isSuperAdmin) {
+      return NextResponse.redirect(new URL("/app/dashboard", req.url));
     }
 
-    if (path.startsWith("/portal") && !path.startsWith("/portal/login") && isStaff) {
-      return NextResponse.redirect(new URL("/admin/dashboard", req.url));
+    // App routes require a company (except register flow)
+    if (path.startsWith("/app") && !path.startsWith("/app/login") && !path.startsWith("/app/register")) {
+      if (!hasCompany && !isSuperAdmin) {
+        return NextResponse.redirect(new URL("/app/register", req.url));
+      }
     }
   },
   {
     callbacks: {
-      authorized: ({ token }) => !!token,
+      authorized: ({ token, req }) => {
+        const path = req.nextUrl.pathname;
+        // Public pages don't need a token
+        if (
+          path.startsWith("/app/login") ||
+          path.startsWith("/app/register") ||
+          path.startsWith("/book/") ||
+          path.startsWith("/pay/") ||
+          path.startsWith("/quote/")
+        ) {
+          return true;
+        }
+        return !!token;
+      },
     },
     pages: {
-      signIn: "/portal/login",
+      signIn: "/app/login",
     },
   }
 );
 
 export const config = {
-  matcher: ["/portal/((?!login).*)", "/admin/:path*"],
+  matcher: [
+    "/app/((?!login|register).*)",
+    "/superadmin/:path*",
+  ],
 };
