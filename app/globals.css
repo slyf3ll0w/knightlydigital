@@ -1,23 +1,6 @@
-@import "tailwindcss";
-@source "../app/**/*.{tsx,ts,jsx,js}";
-@source "../components/**/*.{tsx,ts,jsx,js}";
-
-@theme inline {
-  --font-sans: 'Oxanium', system-ui, sans-serif;
-  --font-body: 'Inter', system-ui, sans-serif;
-  /* Portal/admin UI color utilities */
-  --color-background:        var(--background);
-  --color-foreground:        var(--foreground);
-  --color-primary:           var(--primary);
-  --color-primary-foreground:var(--primary-foreground);
-  --color-accent:            var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-muted:             var(--muted);
-  --color-muted-foreground:  var(--muted-foreground);
-  --color-border:            var(--border);
-  --color-destructive:       var(--destructive);
-  --color-destructive-foreground: var(--destructive-foreground);
-}
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 :root {
   /* Marketing site colors */
