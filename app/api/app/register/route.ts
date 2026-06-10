@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
+import { starterWorkItems } from "@/lib/pricebook";
 
 function slugify(name: string) {
   return name
@@ -53,6 +54,7 @@ export async function POST(req: NextRequest) {
           phone: phone || null,
         },
       },
+      workItems: { create: starterWorkItems },
     },
   });
 

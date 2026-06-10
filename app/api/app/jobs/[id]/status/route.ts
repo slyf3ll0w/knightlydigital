@@ -14,19 +14,23 @@ export async function PATCH(
   const { id } = await params;
   const { status } = await req.json();
 
-  const validStatuses = ["LEAD", "SCHEDULED", "IN_PROGRESS", "COMPLETE", "INVOICED", "PAID"];
+  const validStatuses = ["ACTIVE", "REQUIRES_INVOICING", "ARCHIVED"];
   if (!validStatuses.includes(status)) {
     return NextResponse.json({ error: "Invalid status." }, { status: 400 });
   }
 
-  const extra: Record<string, Date | null> = {};
-  if (status === "COMPLETE") extra.completedAt = new Date();
-  if (status !== "COMPLETE") extra.completedAt = null;
+  const job = await prisma.job.findFirst({ where: { id, companyId } });
+  if (!job) return NextResponse.json({ error: "Job not found." }, { status: 404 });
 
-  await prisma.job.updateMany({
-    where: { id, companyId },
-    data: { status, ...extra },
-  });
+  const extra: Record<string, Date | null> = {};
+  if (status === "REQUIRES_INVOICING") extra.completedAt = new Date();
+  if (status === "ARCHIVED") extra.closedAt = new Date();
+  if (status === "ACTIVE") {
+    extra.completedAt = null;
+    extra.closedAt = null;
+  }
+
+  await prisma.job.update({ where: { id }, data: { status, ...extra } });
 
   return NextResponse.json({ success: true });
 }

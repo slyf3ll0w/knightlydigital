@@ -3,13 +3,13 @@
 import { useState } from "react";
 import { CreditCard, Building2, Loader2, CheckCircle, Lock } from "lucide-react";
 
-type LineItem = { id: string; description: string; quantity: number; unitPrice: number; total: number };
+type LineItem = { id: string; name?: string; description: string; quantity: number; unitPrice: number; total: number };
 type Invoice = {
-  id: string; invoiceNumber: number; status: string;
+  id: string; invoiceNumber: number; status: string; publicToken: string;
   subtotal: number; tax: number | null; surcharge: number | null; total: number;
   notes: string | null; dueDate: string | null;
   contact: { firstName: string; lastName: string; email: string | null } | null;
-  company: { name: string; surchargeEnabled: boolean; surchargeRate: number | null };
+  company: { name: string; phone: string | null; email: string | null; surchargeEnabled: boolean; surchargeRate: number | null };
   lineItems: LineItem[];
 };
 
@@ -45,21 +45,11 @@ export default function PayPage({ invoice }: { invoice: Invoice }) {
     );
   }
 
-  if (invoice.status === "CANCELLED") {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-        <div className="max-w-sm w-full bg-white rounded-lg border border-gray-200 p-8 text-center shadow-sm">
-          <p className="text-gray-500 text-sm">This invoice has been cancelled.</p>
-        </div>
-      </div>
-    );
-  }
-
   async function handlePay() {
     setError("");
     setLoading(true);
 
-    const res = await fetch(`/api/public/pay/${invoice.id}`, {
+    const res = await fetch(`/api/public/pay/${invoice.publicToken}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ method }),
@@ -69,7 +59,16 @@ export default function PayPage({ invoice }: { invoice: Invoice }) {
 
     if (!res.ok) {
       const data = await res.json();
-      setError(data.error ?? "Payment failed. Please try again.");
+      if (res.status === 503) {
+        const contactBits = [invoice.company.phone, invoice.company.email]
+          .filter(Boolean)
+          .join(" or ");
+        setError(
+          `Online payments are coming soon. Please contact ${invoice.company.name}${contactBits ? ` at ${contactBits}` : ""} to arrange payment.`
+        );
+      } else {
+        setError(data.error ?? "Payment failed. Please try again.");
+      }
       return;
     }
 
@@ -104,7 +103,7 @@ export default function PayPage({ invoice }: { invoice: Invoice }) {
           <div className="mt-4 border-t border-gray-100 pt-4 space-y-2">
             {invoice.lineItems.map((li) => (
               <div key={li.id} className="flex justify-between text-sm">
-                <span className="text-gray-700">{li.description}</span>
+                <span className="text-gray-700">{li.name || li.description}</span>
                 <span className="font-medium text-gray-900">${Number(li.total).toFixed(2)}</span>
               </div>
             ))}

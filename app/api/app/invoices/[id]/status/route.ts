@@ -14,16 +14,20 @@ export async function PATCH(
   const { id } = await params;
   const { status } = await req.json();
 
-  const valid = ["DRAFT", "SENT", "PAID", "OVERDUE", "CANCELLED"];
-  if (!valid.includes(status)) {
+  const validStatuses = ["DRAFT", "AWAITING_PAYMENT", "PAID", "PAST_DUE"];
+  if (!validStatuses.includes(status)) {
     return NextResponse.json({ error: "Invalid status." }, { status: 400 });
   }
 
-  await prisma.invoice.updateMany({
-    where: { id, companyId },
+  const invoice = await prisma.invoice.findFirst({ where: { id, companyId } });
+  if (!invoice) return NextResponse.json({ error: "Invoice not found." }, { status: 404 });
+
+  await prisma.invoice.update({
+    where: { id },
     data: {
       status,
-      ...(status === "PAID" && { paidAt: new Date() }),
+      ...(status === "AWAITING_PAYMENT" && !invoice.issuedAt && { issuedAt: new Date() }),
+      ...(status === "PAID" ? { paidAt: new Date() } : { paidAt: null }),
     },
   });
 

@@ -1,8 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Send, CreditCard, Loader2, Copy, Check } from "lucide-react";
+import {
+  Send,
+  DollarSign,
+  Loader2,
+  Copy,
+  MoreHorizontal,
+  Eye,
+  RotateCcw,
+} from "lucide-react";
 
 export default function InvoiceActions({
   invoiceId,
@@ -14,68 +22,109 @@ export default function InvoiceActions({
   publicUrl: string;
 }) {
   const router = useRouter();
-  const [loading, setLoading] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
 
-  async function markSent() {
-    setLoading("send");
+  useEffect(() => {
+    function onClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, []);
+
+  async function setStatus(newStatus: string) {
+    setOpen(false);
+    setBusy(true);
     await fetch(`/api/app/invoices/${invoiceId}/status`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "SENT" }),
+      body: JSON.stringify({ status: newStatus }),
     });
-    setLoading(null);
-    router.refresh();
-  }
-
-  async function markPaid() {
-    setLoading("paid");
-    await fetch(`/api/app/invoices/${invoiceId}/pay`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ method: "OTHER" }),
-    });
-    setLoading(null);
+    setBusy(false);
     router.refresh();
   }
 
   async function copyLink() {
     await navigator.clipboard.writeText(publicUrl);
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setTimeout(() => setCopied(false), 1500);
   }
 
   return (
-    <div className="flex items-center gap-2 shrink-0">
+    <div className="flex items-center gap-2 shrink-0" ref={ref}>
+      {busy && <Loader2 size={16} className="animate-spin text-gray-400" />}
+
       {status === "DRAFT" && (
         <button
-          onClick={markSent}
-          disabled={!!loading}
-          className="flex items-center gap-1.5 px-3 py-2 border border-gray-300 text-sm font-medium text-gray-700 rounded hover:bg-gray-50 transition-colors disabled:opacity-50"
+          onClick={() => setStatus("AWAITING_PAYMENT")}
+          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded transition-colors"
         >
-          {loading === "send" ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
-          Mark Sent
+          <Send size={13} />
+          Mark as Sent
         </button>
       )}
-      {(status === "SENT" || status === "OVERDUE") && (
-        <>
-          <button
-            onClick={copyLink}
-            className="flex items-center gap-1.5 px-3 py-2 border border-gray-300 text-sm font-medium text-gray-700 rounded hover:bg-gray-50 transition-colors"
-          >
-            {copied ? <Check size={13} className="text-green-600" /> : <Copy size={13} />}
-            {copied ? "Copied!" : "Copy Link"}
-          </button>
-          <button
-            onClick={markPaid}
-            disabled={!!loading}
-            className="flex items-center gap-1.5 px-3 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded transition-colors disabled:opacity-50"
-          >
-            {loading === "paid" ? <Loader2 size={13} className="animate-spin" /> : <CreditCard size={13} />}
-            Record Payment
-          </button>
-        </>
+      {(status === "AWAITING_PAYMENT" || status === "PAST_DUE") && (
+        <button
+          onClick={() => router.push(`/app/payments/new?invoiceId=${invoiceId}`)}
+          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded transition-colors"
+        >
+          <DollarSign size={13} />
+          Collect Payment
+        </button>
       )}
+      {status === "PAID" && (
+        <button
+          onClick={() => setStatus("AWAITING_PAYMENT")}
+          className="flex items-center gap-1.5 px-4 py-2 border border-gray-300 text-sm font-medium text-gray-700 rounded hover:bg-gray-50 transition-colors"
+        >
+          <RotateCcw size={13} />
+          Re-open Invoice
+        </button>
+      )}
+
+      <div className="relative">
+        <button
+          onClick={() => setOpen((v) => !v)}
+          className="p-2 border border-gray-300 rounded text-gray-600 hover:bg-gray-50 transition-colors"
+        >
+          <MoreHorizontal size={16} />
+        </button>
+        {open && (
+          <div className="absolute right-0 top-full mt-1 z-30 w-56 bg-white rounded-lg shadow-xl border border-gray-200 py-1.5">
+            <a
+              href={publicUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
+            >
+              <Eye size={14} className="text-gray-400" />
+              Preview as Client
+            </a>
+            <button
+              onClick={copyLink}
+              className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
+            >
+              <Copy size={14} className="text-gray-400" />
+              {copied ? "Copied!" : "Copy payment link"}
+            </button>
+            {status !== "PAID" && (
+              <>
+                <div className="my-1 border-t border-gray-100" />
+                <button
+                  onClick={() => router.push(`/app/payments/new?invoiceId=${invoiceId}`)}
+                  className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                >
+                  <DollarSign size={14} className="text-gray-400" />
+                  Collect Payment
+                </button>
+              </>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

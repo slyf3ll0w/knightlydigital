@@ -12,12 +12,9 @@ const MONTHS = [
 ];
 
 const statusColors: Record<string, string> = {
-  LEAD: "bg-blue-500",
-  SCHEDULED: "bg-amber-500",
-  IN_PROGRESS: "bg-orange-500",
-  COMPLETE: "bg-teal-500",
-  INVOICED: "bg-violet-500",
-  PAID: "bg-green-500",
+  ACTIVE: "bg-blue-500",
+  REQUIRES_INVOICING: "bg-amber-500",
+  ARCHIVED: "bg-gray-400",
 };
 
 export default async function SchedulePage({
@@ -165,7 +162,7 @@ export default async function SchedulePage({
         {Object.entries(statusColors).map(([s, c]) => (
           <div key={s} className="flex items-center gap-1.5 text-xs text-gray-500">
             <div className={`w-2.5 h-2.5 rounded ${c}`} />
-            {s.replace("_", " ")}
+            {s.replaceAll("_", " ")}
           </div>
         ))}
       </div>

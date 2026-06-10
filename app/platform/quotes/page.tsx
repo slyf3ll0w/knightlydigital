@@ -4,35 +4,75 @@ import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/db";
 import Link from "next/link";
 import { FileText, Plus, ChevronRight } from "lucide-react";
+import { quoteStatusColor, quoteStatusLabel, money, shortDate } from "@/lib/statuses";
+import type { QuoteStatus } from "@prisma/client";
 
-const statusColors: Record<string, string> = {
-  DRAFT: "bg-gray-100 text-gray-600",
-  SENT: "bg-blue-100 text-blue-700",
-  ACCEPTED: "bg-green-100 text-green-700",
-  DECLINED: "bg-red-100 text-red-700",
-  EXPIRED: "bg-gray-100 text-gray-500",
-};
+const statusFilters = [
+  { value: "", label: "All" },
+  { value: "DRAFT", label: "Draft" },
+  { value: "AWAITING_RESPONSE", label: "Awaiting Response" },
+  { value: "APPROVED", label: "Approved" },
+  { value: "CHANGES_REQUESTED", label: "Changes Requested" },
+  { value: "CONVERTED", label: "Converted" },
+  { value: "ARCHIVED", label: "Archived" },
+];
 
-export default async function QuotesPage() {
+const validValues = statusFilters.map((f) => f.value).filter(Boolean);
+
+export default async function QuotesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ status?: string }>;
+}) {
   const session = await getServerSession(authOptions);
   if (!session) redirect("/app/login");
 
   const companyId = session.user.companyId;
   if (!companyId) redirect("/app/register");
 
-  const quotes = await prisma.quote.findMany({
-    where: { companyId },
-    include: { contact: true },
-    orderBy: { createdAt: "desc" },
-  });
+  const { status } = await searchParams;
+  const validStatus = validValues.includes(status ?? "") ? (status as QuoteStatus) : undefined;
+
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000);
+
+  const [quotes, draftCount, awaitingCount, approvedCount, sent30, approved30] = await Promise.all([
+    prisma.quote.findMany({
+      where: { companyId, ...(validStatus ? { status: validStatus } : {}) },
+      include: { contact: true },
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.quote.count({ where: { companyId, status: "DRAFT" } }),
+    prisma.quote.count({ where: { companyId, status: "AWAITING_RESPONSE" } }),
+    prisma.quote.count({ where: { companyId, status: "APPROVED" } }),
+    prisma.quote.count({ where: { companyId, sentAt: { gte: thirtyDaysAgo } } }),
+    prisma.quote.aggregate({
+      where: {
+        companyId,
+        approvedAt: { gte: thirtyDaysAgo },
+      },
+      _count: true,
+      _sum: { total: true },
+    }),
+  ]);
+
+  const conversionRate = sent30 > 0 ? Math.round((approved30._count / sent30) * 100) : null;
+
+  const kpis = [
+    { label: "Draft", value: draftCount, href: "/app/quotes?status=DRAFT" },
+    { label: "Awaiting response", value: awaitingCount, href: "/app/quotes?status=AWAITING_RESPONSE" },
+    { label: "Approved", value: approvedCount, href: "/app/quotes?status=APPROVED" },
+    {
+      label: "Approved (30 days)",
+      value: money(Number(approved30._sum.total) || 0),
+      sub: conversionRate !== null ? `${conversionRate}% conversion` : undefined,
+      href: "/app/quotes?status=APPROVED",
+    },
+  ];
 
   return (
-    <div className="p-4 lg:p-8 max-w-5xl mx-auto">
+    <div className="p-4 lg:p-8 max-w-6xl mx-auto">
       <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Quotes</h1>
-          <p className="text-sm text-gray-500">{quotes.length} total</p>
-        </div>
+        <h1 className="text-2xl font-bold text-gray-900">Quotes</h1>
         <Link
           href="/app/quotes/new"
           className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded transition-colors"
@@ -42,49 +82,84 @@ export default async function QuotesPage() {
         </Link>
       </div>
 
+      {/* KPI strip */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+        {kpis.map((k) => (
+          <Link
+            key={k.label}
+            href={k.href}
+            className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow"
+          >
+            <p className="text-xs font-medium text-gray-500 mb-1">{k.label}</p>
+            <p className="text-2xl font-bold text-gray-900">{k.value}</p>
+            {k.sub && <p className="text-xs text-gray-500 mt-0.5">{k.sub}</p>}
+          </Link>
+        ))}
+      </div>
+
+      {/* Filter tabs */}
+      <div className="flex items-center gap-1 mb-4 flex-wrap">
+        {statusFilters.map((f) => (
+          <Link
+            key={f.value}
+            href={f.value ? `/app/quotes?status=${f.value}` : "/app/quotes"}
+            className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+              (validStatus ?? "") === f.value
+                ? "bg-gray-900 text-white"
+                : "text-gray-600 hover:bg-gray-100"
+            }`}
+          >
+            {f.label}
+          </Link>
+        ))}
+      </div>
+
       <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
         {quotes.length === 0 ? (
           <div className="py-16 text-center">
             <FileText size={36} className="text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500 text-sm mb-4">No quotes yet.</p>
+            <p className="text-gray-500 text-sm mb-4">
+              No quotes{validStatus ? " with this status" : " yet"}.
+            </p>
             <Link
               href="/app/quotes/new"
               className="inline-flex items-center gap-1 text-sm text-green-600 hover:underline font-medium"
             >
               <Plus size={13} />
-              Create your first quote
+              Create a quote
             </Link>
           </div>
         ) : (
           <div className="divide-y divide-gray-100">
-            <div className="hidden lg:grid grid-cols-[80px_1fr_140px_100px_100px_40px] gap-4 px-5 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide bg-gray-50">
+            <div className="hidden lg:grid grid-cols-[1fr_70px_140px_150px_100px_40px] gap-4 px-5 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide bg-gray-50">
+              <span>Client</span>
               <span>#</span>
-              <span>Customer</span>
               <span>Created</span>
-              <span>Total</span>
               <span>Status</span>
+              <span className="text-right">Total</span>
               <span></span>
             </div>
             {quotes.map((q) => (
               <Link
                 key={q.id}
                 href={`/app/quotes/${q.id}`}
-                className="flex lg:grid lg:grid-cols-[80px_1fr_140px_100px_100px_40px] gap-4 items-center px-5 py-3.5 hover:bg-gray-50 transition-colors"
+                className="flex lg:grid lg:grid-cols-[1fr_70px_140px_150px_100px_40px] gap-4 items-center px-5 py-3.5 hover:bg-gray-50 transition-colors"
               >
-                <span className="text-sm text-gray-500 font-medium">#{q.quoteNumber}</span>
-                <div>
-                  <p className="text-sm font-medium text-gray-900">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">
                     {q.contact.firstName} {q.contact.lastName}
                   </p>
+                  {q.title && <p className="text-xs text-gray-500 truncate">{q.title}</p>}
                 </div>
-                <span className="hidden lg:block text-sm text-gray-500">
-                  {new Date(q.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                <span className="text-sm text-gray-500">#{q.quoteNumber}</span>
+                <span className="hidden lg:block text-sm text-gray-500">{shortDate(q.createdAt)}</span>
+                <span
+                  className={`text-xs font-medium px-2 py-0.5 rounded w-fit ${quoteStatusColor[q.status]}`}
+                >
+                  {quoteStatusLabel[q.status]}
                 </span>
-                <span className="text-sm font-semibold text-gray-900">
-                  ${Number(q.total).toFixed(2)}
-                </span>
-                <span className={`text-xs font-medium px-2 py-0.5 rounded ${statusColors[q.status]}`}>
-                  {q.status}
+                <span className="text-sm font-semibold text-gray-900 lg:text-right">
+                  {money(q.total)}
                 </span>
                 <ChevronRight size={14} className="text-gray-400 shrink-0 hidden lg:block" />
               </Link>

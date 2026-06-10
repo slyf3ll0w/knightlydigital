@@ -4,10 +4,13 @@ import QuoteAcceptPage from "./QuoteAcceptPage";
 
 export default async function PublicQuotePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ token: string }>;
+  searchParams: Promise<{ preview?: string }>;
 }) {
   const { token } = await params;
+  const { preview } = await searchParams;
 
   const quote = await prisma.quote.findFirst({
     where: { publicToken: token },
@@ -20,5 +23,5 @@ export default async function PublicQuotePage({
 
   if (!quote) notFound();
 
-  return <QuoteAcceptPage quote={JSON.parse(JSON.stringify(quote))} />;
+  return <QuoteAcceptPage quote={JSON.parse(JSON.stringify(quote))} preview={preview === "1"} />;
 }

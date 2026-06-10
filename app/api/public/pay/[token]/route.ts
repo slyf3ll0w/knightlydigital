@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { chargePayment, calculateSurcharge, sendReviewRequest } from "@/lib/payments";
+import { getProcessor, recordPayment, calculateSurcharge, sendReviewRequest } from "@/lib/payments";
 
+/**
+ * Public online payment endpoint. Routes through the active payment processor;
+ * while the processor is "manual" (pre-launch) online charges are declined with
+ * a friendly message and the client is asked to pay the company directly.
+ */
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ token: string }> }
@@ -11,62 +16,57 @@ export async function POST(
 
   const invoice = await prisma.invoice.findFirst({
     where: { publicToken: token },
-    include: { contact: true, company: true },
+    include: { contact: true, company: true, payments: true },
   });
 
   if (!invoice) return NextResponse.json({ error: "Invoice not found." }, { status: 404 });
-  if (invoice.status === "PAID") return NextResponse.json({ error: "Already paid." }, { status: 400 });
-
-  const baseAmount = Number(invoice.total);
-  let surchargeAmount = 0;
-
-  if (method === "CARD" && invoice.company.surchargeEnabled) {
-    surchargeAmount = calculateSurcharge(baseAmount, Number(invoice.company.surchargeRate));
+  if (invoice.status === "PAID") {
+    return NextResponse.json({ error: "Already paid." }, { status: 400 });
   }
 
-  const totalCharged = baseAmount + surchargeAmount;
+  const paid = invoice.payments.reduce((s, p) => s + Number(p.amount), 0);
+  const balance = Math.round((Number(invoice.total) - paid) * 100) / 100;
+  if (balance <= 0) return NextResponse.json({ error: "Nothing left to pay." }, { status: 400 });
 
-  const result = await chargePayment({
-    amount: totalCharged,
+  let surchargeAmount = 0;
+  if (method === "CARD" && invoice.company.surchargeEnabled) {
+    surchargeAmount = calculateSurcharge(balance, Number(invoice.company.surchargeRate));
+  }
+
+  const processor = getProcessor();
+  const result = await processor.charge({
+    amount: balance + surchargeAmount,
     method: method === "CARD" ? "card" : "ach",
+    surcharge: surchargeAmount,
     description: `Invoice #${invoice.invoiceNumber} — ${invoice.company.name}`,
     metadata: { invoiceId: invoice.id, companyId: invoice.companyId },
   });
 
   if (!result.success) {
-    return NextResponse.json({ error: result.error }, { status: 402 });
+    // Pre-launch: the manual processor can't move money
+    return NextResponse.json(
+      { error: result.error, processorLive: processor.live },
+      { status: 503 }
+    );
   }
 
-  await prisma.$transaction([
-    prisma.invoice.update({
-      where: { id: invoice.id },
-      data: {
-        status: "PAID",
-        paidAt: new Date(),
-        surcharge: surchargeAmount > 0 ? surchargeAmount : undefined,
-      },
-    }),
-    prisma.payment.create({
-      data: {
-        companyId: invoice.companyId,
-        invoiceId: invoice.id,
-        amount: totalCharged,
-        method: method ?? "CARD",
-        processorRef: result.transactionId,
-        surchargeAmount: surchargeAmount > 0 ? surchargeAmount : null,
-      },
-    }),
-    ...(invoice.jobId
-      ? [
-          prisma.job.updateMany({
-            where: { id: invoice.jobId, companyId: invoice.companyId },
-            data: { status: "PAID" },
-          }),
-        ]
-      : []),
-  ]);
+  const { fullyPaid } = await recordPayment({
+    companyId: invoice.companyId,
+    invoiceId: invoice.id,
+    amount: balance + surchargeAmount,
+    method: method === "CARD" ? "CARD" : "ACH",
+    processorRef: result.transactionId,
+    surchargeAmount: surchargeAmount > 0 ? surchargeAmount : null,
+  });
 
-  if (invoice.company.reviewLink) {
+  if (surchargeAmount > 0) {
+    await prisma.invoice.update({
+      where: { id: invoice.id },
+      data: { surcharge: surchargeAmount },
+    });
+  }
+
+  if (fullyPaid && invoice.company.reviewLink) {
     await sendReviewRequest({
       companyName: invoice.company.name,
       reviewLink: invoice.company.reviewLink,

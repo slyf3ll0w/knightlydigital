@@ -27,35 +27,50 @@ export async function POST(req: NextRequest) {
   if (!companyId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
-  const { contactId, title, description, status, scheduledAt, scheduledEnd, address } = body;
+  const { contactId, requestId, title, description, scheduledAt, scheduledEnd, address } = body;
 
   if (!contactId || !title) {
-    return NextResponse.json({ error: "Contact and title are required." }, { status: 400 });
+    return NextResponse.json({ error: "Client and title are required." }, { status: 400 });
   }
 
-  // Verify contact belongs to company
   const contact = await prisma.contact.findFirst({ where: { id: contactId, companyId } });
-  if (!contact) return NextResponse.json({ error: "Contact not found." }, { status: 404 });
+  if (!contact) return NextResponse.json({ error: "Client not found." }, { status: 404 });
 
-  // Auto-increment job number
-  const last = await prisma.job.findFirst({
-    where: { companyId },
-    orderBy: { jobNumber: "desc" },
-  });
-  const jobNumber = (last?.jobNumber ?? 0) + 1;
+  if (requestId) {
+    const request = await prisma.request.findFirst({ where: { id: requestId, companyId } });
+    if (!request) return NextResponse.json({ error: "Request not found." }, { status: 404 });
+  }
 
-  const job = await prisma.job.create({
-    data: {
-      companyId,
-      contactId,
-      jobNumber,
-      title,
-      description: description || null,
-      status: status || "LEAD",
-      scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
-      scheduledEnd: scheduledEnd ? new Date(scheduledEnd) : null,
-      address: address || contact.address || null,
-    },
+  const job = await prisma.$transaction(async (tx) => {
+    const last = await tx.job.findFirst({
+      where: { companyId },
+      orderBy: { jobNumber: "desc" },
+    });
+
+    const created = await tx.job.create({
+      data: {
+        companyId,
+        contactId,
+        requestId: requestId || null,
+        jobNumber: (last?.jobNumber ?? 0) + 1,
+        title,
+        description: description || null,
+        scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
+        scheduledEnd: scheduledEnd ? new Date(scheduledEnd) : null,
+        address: address || contact.address || null,
+      },
+    });
+
+    if (requestId) {
+      await tx.request.update({ where: { id: requestId }, data: { status: "CONVERTED" } });
+    }
+
+    // First real work for a lead makes them an active client (Jobber behavior)
+    if (contact.status === "LEAD") {
+      await tx.contact.update({ where: { id: contactId }, data: { status: "ACTIVE" } });
+    }
+
+    return created;
   });
 
   return NextResponse.json(job, { status: 201 });

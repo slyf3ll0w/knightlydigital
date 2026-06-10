@@ -9,14 +9,34 @@ export async function POST(req: NextRequest) {
   if (!companyId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
-  const { contactId, jobId, lineItems, taxRate, notes, validUntil } = body;
+  const {
+    contactId,
+    requestId,
+    title,
+    lineItems,
+    taxRate,
+    depositType,
+    depositValue,
+    clientMessage,
+    disclaimer,
+    notes,
+    validUntil,
+  } = body;
 
   if (!contactId || !lineItems?.length) {
-    return NextResponse.json({ error: "Contact and at least one line item are required." }, { status: 400 });
+    return NextResponse.json(
+      { error: "Client and at least one line item are required." },
+      { status: 400 }
+    );
   }
 
   const contact = await prisma.contact.findFirst({ where: { id: contactId, companyId } });
-  if (!contact) return NextResponse.json({ error: "Contact not found." }, { status: 404 });
+  if (!contact) return NextResponse.json({ error: "Client not found." }, { status: 404 });
+
+  if (requestId) {
+    const request = await prisma.request.findFirst({ where: { id: requestId, companyId } });
+    if (!request) return NextResponse.json({ error: "Request not found." }, { status: 404 });
+  }
 
   const last = await prisma.quote.findFirst({
     where: { companyId },
@@ -31,28 +51,53 @@ export async function POST(req: NextRequest) {
   const tax = taxRate ? subtotal * taxRate : null;
   const total = subtotal + (tax ?? 0);
 
-  const quote = await prisma.quote.create({
-    data: {
-      companyId,
-      contactId,
-      jobId: jobId || null,
-      quoteNumber,
-      subtotal,
-      taxRate: taxRate || null,
-      tax,
-      total,
-      notes: notes || null,
-      validUntil: validUntil ? new Date(validUntil) : null,
-      lineItems: {
-        create: lineItems.map((li: { description: string; quantity: number; unitPrice: number; sortOrder: number }) => ({
-          description: li.description,
-          quantity: li.quantity,
-          unitPrice: li.unitPrice,
-          total: li.quantity * li.unitPrice,
-          sortOrder: li.sortOrder ?? 0,
-        })),
+  const quote = await prisma.$transaction(async (tx) => {
+    const created = await tx.quote.create({
+      data: {
+        companyId,
+        contactId,
+        requestId: requestId || null,
+        quoteNumber,
+        title: title || null,
+        subtotal,
+        taxRate: taxRate || null,
+        tax,
+        total,
+        depositType: depositType === "PERCENT" || depositType === "FIXED" ? depositType : "NONE",
+        depositValue: depositValue ?? null,
+        clientMessage: clientMessage || null,
+        disclaimer: disclaimer || null,
+        notes: notes || null,
+        validUntil: validUntil ? new Date(validUntil) : null,
+        lineItems: {
+          create: lineItems.map(
+            (li: {
+              name?: string;
+              description: string;
+              quantity: number;
+              unitPrice: number;
+              isOptional?: boolean;
+              sortOrder?: number;
+            }) => ({
+              name: li.name ?? "",
+              description: li.description ?? "",
+              quantity: li.quantity,
+              unitPrice: li.unitPrice,
+              total: li.quantity * li.unitPrice,
+              isOptional: li.isOptional ?? false,
+              sortOrder: li.sortOrder ?? 0,
+            })
+          ),
+        },
       },
-    },
+    });
+
+    // Converting a request to a quote marks the request Converted (Jobber behavior)
+    if (requestId) {
+      await tx.request.update({ where: { id: requestId }, data: { status: "CONVERTED" } });
+    }
+
+    return created;
   });
 
   return NextResponse.json(quote, { status: 201 });

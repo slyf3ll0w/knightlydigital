@@ -12,15 +12,16 @@ function NewJobForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const prefilledContactId = searchParams.get("contactId") ?? "";
+  const requestId = searchParams.get("requestId") ?? "";
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [form, setForm] = useState({
     contactId: prefilledContactId,
+    requestId,
     title: "",
     description: "",
-    status: "LEAD",
     scheduledAt: "",
     scheduledEnd: "",
     address: "",
@@ -133,18 +134,6 @@ function NewJobForm() {
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Initial status</label>
-            <select
-              value={form.status}
-              onChange={(e) => set("status", e.target.value)}
-              className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-            >
-              <option value="LEAD">Lead</option>
-              <option value="SCHEDULED">Scheduled</option>
-              <option value="IN_PROGRESS">In Progress</option>
-            </select>
-          </div>
         </div>
 
         <div className="bg-white border border-gray-200 rounded-lg p-5 space-y-4">

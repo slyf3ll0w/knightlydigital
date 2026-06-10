@@ -6,13 +6,16 @@ import Link from "next/link";
 import { Loader2, Plus, Trash2, ArrowLeft } from "lucide-react";
 
 type Contact = { id: string; firstName: string; lastName: string };
-type LineItem = { description: string; quantity: string; unitPrice: string };
+type LineItem = { name: string; description: string; quantity: string; unitPrice: string };
 type PrefillJob = {
   id: string;
   title: string;
   contactId: string;
   contact: Contact;
-  quote?: { lineItems: { description: string; quantity: number; unitPrice: number }[] } | null;
+  lineItems?: { name: string; description: string | null; quantity: number; unitPrice: number }[];
+  quote?: {
+    lineItems: { name: string; description: string; quantity: number; unitPrice: number }[];
+  } | null;
 };
 
 export default function InvoiceEditor({
@@ -26,21 +29,30 @@ export default function InvoiceEditor({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const initLines: LineItem[] = prefillJob?.quote?.lineItems.map((li) => ({
-    description: li.description,
+  // Prefer the job's own line items; fall back to its quote's items
+  const sourceLines =
+    prefillJob?.lineItems?.length
+      ? prefillJob.lineItems
+      : prefillJob?.quote?.lineItems?.length
+        ? prefillJob.quote.lineItems
+        : null;
+  const initLines: LineItem[] = sourceLines?.map((li) => ({
+    name: li.name ?? "",
+    description: li.description ?? "",
     quantity: String(li.quantity),
     unitPrice: String(li.unitPrice),
-  })) ?? [{ description: "", quantity: "1", unitPrice: "" }];
+  })) ?? [{ name: "", description: "", quantity: "1", unitPrice: "" }];
 
   const [contactId, setContactId] = useState(prefillJob?.contactId ?? "");
   const [jobId] = useState(prefillJob?.id ?? "");
+  const [subject, setSubject] = useState(prefillJob?.title ?? "");
   const [notes, setNotes] = useState("");
   const [taxRate, setTaxRate] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [lineItems, setLineItems] = useState<LineItem[]>(initLines);
 
   function addLine() {
-    setLineItems((l) => [...l, { description: "", quantity: "1", unitPrice: "" }]);
+    setLineItems((l) => [...l, { name: "", description: "", quantity: "1", unitPrice: "" }]);
   }
   function removeLine(i: number) {
     setLineItems((l) => l.filter((_, idx) => idx !== i));
@@ -66,10 +78,12 @@ export default function InvoiceEditor({
       body: JSON.stringify({
         contactId,
         jobId: jobId || null,
+        subject: subject || null,
         notes,
         taxRate: taxRate ? parseFloat(taxRate) / 100 : null,
         dueDate: dueDate || null,
         lineItems: lineItems.map((li, i) => ({
+          name: li.name,
           description: li.description,
           quantity: parseFloat(li.quantity) || 1,
           unitPrice: parseFloat(li.unitPrice) || 0,
@@ -107,6 +121,16 @@ export default function InvoiceEditor({
         )}
 
         <div className="bg-white border border-gray-200 rounded-lg p-5 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
+            <input
+              type="text"
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              placeholder="e.g. Pressure Washing Services"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+            />
+          </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Customer *</label>
@@ -140,46 +164,50 @@ export default function InvoiceEditor({
             <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Line Items</h2>
           </div>
           <div className="p-5">
-            <div className="hidden lg:grid grid-cols-[1fr_80px_120px_32px] gap-3 mb-2">
-              {["Description","Qty","Unit Price",""].map((h) => (
-                <span key={h} className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{h}</span>
-              ))}
-            </div>
-            <div className="space-y-2">
+            <div className="space-y-3">
               {lineItems.map((li, i) => (
-                <div key={i} className="grid grid-cols-[1fr_80px_120px_32px] gap-2 items-start">
+                <div key={i} className="border border-gray-100 rounded-lg p-3 space-y-2">
+                  <div className="grid grid-cols-[1fr_70px_110px_32px] gap-2 items-start">
+                    <input
+                      type="text"
+                      placeholder="Name (e.g. House Wash)"
+                      value={li.name}
+                      onChange={(e) => updateLine(i, "name", e.target.value)}
+                      required
+                      className="px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                    />
+                    <input
+                      type="number"
+                      placeholder="Qty"
+                      value={li.quantity}
+                      onChange={(e) => updateLine(i, "quantity", e.target.value)}
+                      min="0" step="0.001"
+                      className="px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                    />
+                    <input
+                      type="number"
+                      placeholder="Unit price"
+                      value={li.unitPrice}
+                      onChange={(e) => updateLine(i, "unitPrice", e.target.value)}
+                      min="0" step="0.01"
+                      className="px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeLine(i)}
+                      disabled={lineItems.length === 1}
+                      className="p-2 text-gray-300 hover:text-red-400 transition-colors disabled:opacity-0"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
                   <input
                     type="text"
                     placeholder="Description"
                     value={li.description}
                     onChange={(e) => updateLine(i, "description", e.target.value)}
-                    required
-                    className="px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                   />
-                  <input
-                    type="number"
-                    placeholder="1"
-                    value={li.quantity}
-                    onChange={(e) => updateLine(i, "quantity", e.target.value)}
-                    min="0" step="0.001"
-                    className="px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-                  />
-                  <input
-                    type="number"
-                    placeholder="0.00"
-                    value={li.unitPrice}
-                    onChange={(e) => updateLine(i, "unitPrice", e.target.value)}
-                    min="0" step="0.01"
-                    className="px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeLine(i)}
-                    disabled={lineItems.length === 1}
-                    className="p-2 text-gray-300 hover:text-red-400 transition-colors disabled:opacity-0"
-                  >
-                    <Trash2 size={14} />
-                  </button>
                 </div>
               ))}
             </div>

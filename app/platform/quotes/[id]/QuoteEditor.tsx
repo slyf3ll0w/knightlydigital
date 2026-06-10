@@ -8,34 +8,57 @@ import { Loader2, Plus, Trash2, ArrowLeft } from "lucide-react";
 type Contact = { id: string; firstName: string; lastName: string };
 
 type LineItem = {
+  name: string;
   description: string;
   quantity: string;
   unitPrice: string;
+  isOptional: boolean;
 };
 
-export default function QuoteEditor({ contacts }: { contacts: Contact[] }) {
+const emptyLine: LineItem = {
+  name: "",
+  description: "",
+  quantity: "1",
+  unitPrice: "",
+  isOptional: false,
+};
+
+export default function QuoteEditor({
+  contacts,
+  prefilledContactId = "",
+  requestId = "",
+  requestTitle = "",
+}: {
+  contacts: Contact[];
+  prefilledContactId?: string;
+  requestId?: string;
+  requestTitle?: string;
+}) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [contactId, setContactId] = useState("");
-  const [notes, setNotes] = useState("");
+  const [contactId, setContactId] = useState(prefilledContactId);
+  const [title, setTitle] = useState(requestTitle);
   const [taxRate, setTaxRate] = useState("");
-  const [lineItems, setLineItems] = useState<LineItem[]>([
-    { description: "", quantity: "1", unitPrice: "" },
-  ]);
+  const [depositType, setDepositType] = useState<"NONE" | "PERCENT" | "FIXED">("NONE");
+  const [depositValue, setDepositValue] = useState("");
+  const [clientMessage, setClientMessage] = useState("");
+  const [disclaimer, setDisclaimer] = useState("");
+  const [lineItems, setLineItems] = useState<LineItem[]>([{ ...emptyLine }]);
 
   function addLine() {
-    setLineItems((l) => [...l, { description: "", quantity: "1", unitPrice: "" }]);
+    setLineItems((l) => [...l, { ...emptyLine }]);
   }
 
   function removeLine(i: number) {
     setLineItems((l) => l.filter((_, idx) => idx !== i));
   }
 
-  function updateLine(i: number, field: keyof LineItem, value: string) {
+  function updateLine(i: number, field: keyof LineItem, value: string | boolean) {
     setLineItems((l) => l.map((item, idx) => (idx === i ? { ...item, [field]: value } : item)));
   }
 
+  // Optional items count toward the total by default (client can opt out in the hub)
   const subtotal = lineItems.reduce((sum, li) => {
     const qty = parseFloat(li.quantity) || 0;
     const price = parseFloat(li.unitPrice) || 0;
@@ -44,11 +67,17 @@ export default function QuoteEditor({ contacts }: { contacts: Contact[] }) {
 
   const tax = taxRate ? subtotal * (parseFloat(taxRate) / 100) : 0;
   const total = subtotal + tax;
+  const deposit =
+    depositType === "PERCENT"
+      ? total * ((parseFloat(depositValue) || 0) / 100)
+      : depositType === "FIXED"
+        ? Math.min(parseFloat(depositValue) || 0, total)
+        : 0;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!contactId) {
-      setError("Please select a customer.");
+      setError("Please select a client.");
       return;
     }
     setError("");
@@ -59,12 +88,19 @@ export default function QuoteEditor({ contacts }: { contacts: Contact[] }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         contactId,
-        notes,
+        requestId: requestId || null,
+        title: title || null,
         taxRate: taxRate ? parseFloat(taxRate) / 100 : null,
+        depositType,
+        depositValue: depositValue ? parseFloat(depositValue) : null,
+        clientMessage: clientMessage || null,
+        disclaimer: disclaimer || null,
         lineItems: lineItems.map((li, i) => ({
+          name: li.name,
           description: li.description,
           quantity: parseFloat(li.quantity) || 1,
           unitPrice: parseFloat(li.unitPrice) || 0,
+          isOptional: li.isOptional,
           sortOrder: i,
         })),
       }),
@@ -88,6 +124,11 @@ export default function QuoteEditor({ contacts }: { contacts: Contact[] }) {
           <ArrowLeft size={18} />
         </Link>
         <h1 className="text-2xl font-bold text-gray-900">New Quote</h1>
+        {requestId && (
+          <span className="text-xs font-medium px-2 py-0.5 rounded bg-blue-100 text-blue-700">
+            From request
+          </span>
+        )}
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-5">
@@ -97,71 +138,98 @@ export default function QuoteEditor({ contacts }: { contacts: Contact[] }) {
           </div>
         )}
 
-        <div className="bg-white border border-gray-200 rounded-lg p-5">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Customer *</label>
-          <select
-            value={contactId}
-            onChange={(e) => setContactId(e.target.value)}
-            required
-            className="w-full max-w-xs px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-          >
-            <option value="">Select a customer...</option>
-            {contacts.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.firstName} {c.lastName}
-              </option>
-            ))}
-          </select>
+        <div className="bg-white border border-gray-200 rounded-lg p-5 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Client *</label>
+            <select
+              value={contactId}
+              onChange={(e) => setContactId(e.target.value)}
+              required
+              className="w-full max-w-xs px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+            >
+              <option value="">Select a client...</option>
+              {contacts.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.firstName} {c.lastName}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              placeholder="e.g. Pressure Washing Services"
+            />
+          </div>
         </div>
 
         {/* Line items */}
         <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-100">
-            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Line Items</h2>
+            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+              Product / Service
+            </h2>
           </div>
           <div className="p-5">
-            <div className="hidden lg:grid grid-cols-[1fr_80px_120px_32px] gap-3 mb-2">
-              {["Description", "Qty", "Unit Price", ""].map((h) => (
-                <span key={h} className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{h}</span>
-              ))}
-            </div>
-            <div className="space-y-2">
+            <div className="space-y-4">
               {lineItems.map((li, i) => (
-                <div key={i} className="grid grid-cols-[1fr_80px_120px_32px] gap-2 items-start">
+                <div key={i} className="border border-gray-100 rounded-lg p-3 space-y-2">
+                  <div className="grid grid-cols-[1fr_70px_110px_32px] gap-2 items-start">
+                    <input
+                      type="text"
+                      placeholder="Name (e.g. House Wash)"
+                      value={li.name}
+                      onChange={(e) => updateLine(i, "name", e.target.value)}
+                      required
+                      className="px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                    />
+                    <input
+                      type="number"
+                      placeholder="Qty"
+                      value={li.quantity}
+                      onChange={(e) => updateLine(i, "quantity", e.target.value)}
+                      min="0"
+                      step="0.001"
+                      className="px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                    />
+                    <input
+                      type="number"
+                      placeholder="Unit price"
+                      value={li.unitPrice}
+                      onChange={(e) => updateLine(i, "unitPrice", e.target.value)}
+                      min="0"
+                      step="0.01"
+                      className="px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeLine(i)}
+                      disabled={lineItems.length === 1}
+                      className="p-2 text-gray-300 hover:text-red-400 transition-colors disabled:opacity-0"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
                   <input
                     type="text"
                     placeholder="Description"
                     value={li.description}
                     onChange={(e) => updateLine(i, "description", e.target.value)}
-                    required
-                    className="px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                   />
-                  <input
-                    type="number"
-                    placeholder="1"
-                    value={li.quantity}
-                    onChange={(e) => updateLine(i, "quantity", e.target.value)}
-                    min="0"
-                    step="0.001"
-                    className="px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-                  />
-                  <input
-                    type="number"
-                    placeholder="0.00"
-                    value={li.unitPrice}
-                    onChange={(e) => updateLine(i, "unitPrice", e.target.value)}
-                    min="0"
-                    step="0.01"
-                    className="px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeLine(i)}
-                    disabled={lineItems.length === 1}
-                    className="p-2 text-gray-300 hover:text-red-400 transition-colors disabled:opacity-0"
-                  >
-                    <Trash2 size={14} />
-                  </button>
+                  <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer w-fit">
+                    <input
+                      type="checkbox"
+                      checked={li.isOptional}
+                      onChange={(e) => updateLine(i, "isOptional", e.target.checked)}
+                      className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+                    />
+                    Mark as optional — client can remove this item when approving
+                  </label>
                 </div>
               ))}
             </div>
@@ -175,8 +243,8 @@ export default function QuoteEditor({ contacts }: { contacts: Contact[] }) {
             </button>
           </div>
 
-          {/* Totals */}
-          <div className="px-5 py-4 border-t border-gray-100 bg-gray-50">
+          {/* Totals + deposit */}
+          <div className="px-5 py-4 border-t border-gray-100 bg-gray-50 space-y-4">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-2">
                 <label className="text-sm text-gray-600">Tax rate</label>
@@ -207,19 +275,72 @@ export default function QuoteEditor({ contacts }: { contacts: Contact[] }) {
                   <span>Total</span>
                   <span>${total.toFixed(2)}</span>
                 </div>
+                {deposit > 0 && (
+                  <div className="flex justify-between gap-8 text-green-700">
+                    <span>Required deposit</span>
+                    <span className="font-semibold">${deposit.toFixed(2)}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Deposit */}
+            <div className="border-t border-gray-200 pt-3">
+              <p className="text-sm font-medium text-gray-700 mb-2">Required deposit</p>
+              <p className="text-xs text-gray-500 mb-2">
+                Collect an upfront payment when the client approves this quote.
+              </p>
+              <div className="flex items-center gap-2">
+                <select
+                  value={depositType}
+                  onChange={(e) => setDepositType(e.target.value as "NONE" | "PERCENT" | "FIXED")}
+                  className="px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                >
+                  <option value="NONE">No deposit</option>
+                  <option value="PERCENT">Percent of total</option>
+                  <option value="FIXED">Fixed amount</option>
+                </select>
+                {depositType !== "NONE" && (
+                  <div className="flex items-center gap-1.5">
+                    {depositType === "FIXED" && <span className="text-sm text-gray-500">$</span>}
+                    <input
+                      type="number"
+                      value={depositValue}
+                      onChange={(e) => setDepositValue(e.target.value)}
+                      min="0"
+                      step={depositType === "PERCENT" ? "1" : "0.01"}
+                      placeholder={depositType === "PERCENT" ? "25" : "100.00"}
+                      className="w-28 px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                    />
+                    {depositType === "PERCENT" && <span className="text-sm text-gray-500">%</span>}
+                  </div>
+                )}
               </div>
             </div>
           </div>
         </div>
 
         <div className="bg-white border border-gray-200 rounded-lg p-5">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Client message</label>
           <textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
+            value={clientMessage}
+            onChange={(e) => setClientMessage(e.target.value)}
             rows={3}
             className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
-            placeholder="Terms, special conditions, etc."
+            placeholder="A message the client sees at the top of the quote..."
+          />
+        </div>
+
+        <div className="bg-white border border-gray-200 rounded-lg p-5">
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Contract / disclaimer
+          </label>
+          <textarea
+            value={disclaimer}
+            onChange={(e) => setDisclaimer(e.target.value)}
+            rows={4}
+            className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
+            placeholder="Terms and conditions the client agrees to when approving..."
           />
         </div>
 
@@ -232,7 +353,10 @@ export default function QuoteEditor({ contacts }: { contacts: Contact[] }) {
             {loading && <Loader2 size={14} className="animate-spin" />}
             Save Quote
           </button>
-          <Link href="/app/quotes" className="px-5 py-2.5 border border-gray-300 text-sm font-medium text-gray-600 rounded hover:bg-gray-50">
+          <Link
+            href="/app/quotes"
+            className="px-5 py-2.5 border border-gray-300 text-sm font-medium text-gray-600 rounded hover:bg-gray-50"
+          >
             Cancel
           </Link>
         </div>

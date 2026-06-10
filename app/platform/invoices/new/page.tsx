@@ -25,7 +25,11 @@ export default async function NewInvoicePage({
     jobId
       ? prisma.job.findFirst({
           where: { id: jobId, companyId },
-          include: { contact: true, quote: { include: { lineItems: true } } },
+          include: {
+            contact: true,
+            lineItems: { orderBy: { sortOrder: "asc" } },
+            quote: { include: { lineItems: true } },
+          },
         })
       : null,
   ]);

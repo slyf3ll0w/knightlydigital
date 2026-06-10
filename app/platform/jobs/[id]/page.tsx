@@ -3,36 +3,18 @@ import { notFound, redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/db";
 import Link from "next/link";
-import { ArrowLeft, MapPin, CalendarDays, User, FileText, Receipt, Camera } from "lucide-react";
-import JobDetailClient from "./JobDetailClient";
+import { ArrowLeft, MapPin, CalendarDays, User, Camera } from "lucide-react";
+import {
+  jobStatusColor,
+  jobStatusLabel,
+  invoiceStatusColor,
+  invoiceStatusLabel,
+  quoteStatusLabel,
+  money,
+  shortDate,
+} from "@/lib/statuses";
+import JobActions from "./JobActions";
 import NoteForm from "./NoteForm";
-
-const statusColors: Record<string, string> = {
-  LEAD: "bg-blue-100 text-blue-700",
-  SCHEDULED: "bg-amber-100 text-amber-700",
-  IN_PROGRESS: "bg-orange-100 text-orange-700",
-  COMPLETE: "bg-teal-100 text-teal-700",
-  INVOICED: "bg-violet-100 text-violet-700",
-  PAID: "bg-green-100 text-green-700",
-};
-
-const STATUS_FLOW: Record<string, string | null> = {
-  LEAD: "SCHEDULED",
-  SCHEDULED: "IN_PROGRESS",
-  IN_PROGRESS: "COMPLETE",
-  COMPLETE: "INVOICED",
-  INVOICED: "PAID",
-  PAID: null,
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  LEAD: "Lead",
-  SCHEDULED: "Scheduled",
-  IN_PROGRESS: "In Progress",
-  COMPLETE: "Complete",
-  INVOICED: "Invoiced",
-  PAID: "Paid",
-};
 
 export default async function JobDetailPage({
   params,
@@ -51,73 +33,111 @@ export default async function JobDetailPage({
     where: { id, companyId },
     include: {
       contact: true,
+      request: true,
       assignments: { include: { user: true } },
       notes: { include: { user: true }, orderBy: { createdAt: "asc" } },
       photos: { orderBy: { createdAt: "asc" } },
-      quote: { include: { lineItems: true } },
-      invoice: { include: { lineItems: true } },
+      lineItems: { orderBy: { sortOrder: "asc" } },
+      quote: true,
+      invoice: { include: { payments: true } },
     },
   });
 
   if (!job) notFound();
 
-  const nextStatus = STATUS_FLOW[job.status];
+  const lineTotal = job.lineItems.reduce((s, li) => s + Number(li.total), 0);
+  const lineCost = job.lineItems.reduce(
+    (s, li) => s + Number(li.unitCost ?? 0) * Number(li.quantity),
+    0
+  );
 
   return (
     <div className="p-4 lg:p-8 max-w-5xl mx-auto">
       {/* Header */}
-      <div className="flex items-start gap-4 mb-6">
-        <Link href="/app/jobs" className="text-gray-400 hover:text-gray-600 mt-1 shrink-0">
+      <div className="flex items-center gap-3 mb-4">
+        <Link href="/app/jobs" className="text-gray-400 hover:text-gray-600">
           <ArrowLeft size={18} />
         </Link>
-        <div className="flex-1 min-w-0">
-          <div className="flex flex-wrap items-center gap-2 mb-1">
-            <span className="text-xs text-gray-400 font-medium">#{job.jobNumber}</span>
-            <span className={`px-2 py-0.5 rounded text-xs font-semibold ${statusColors[job.status]}`}>
-              {STATUS_LABELS[job.status]}
-            </span>
-          </div>
-          <h1 className="text-xl font-bold text-gray-900">{job.title}</h1>
+        <span className={`px-2 py-0.5 rounded text-xs font-semibold ${jobStatusColor[job.status]}`}>
+          {jobStatusLabel[job.status]}
+        </span>
+      </div>
+
+      <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold text-gray-900">{job.title}</h1>
           <Link
             href={`/app/contacts/${job.contact.id}`}
-            className="text-sm text-gray-500 hover:text-green-600"
+            className="text-sm text-green-700 hover:underline"
           >
             {job.contact.firstName} {job.contact.lastName}
           </Link>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          {nextStatus && (
-            <JobDetailClient jobId={job.id} nextStatus={nextStatus} nextLabel={STATUS_LABELS[nextStatus]} />
-          )}
+        <JobActions jobId={job.id} status={job.status} hasInvoice={!!job.invoice} />
+      </div>
+
+      {/* Header facts with backlinks */}
+      <div className="flex flex-wrap gap-x-8 gap-y-2 px-5 py-4 bg-white border border-gray-200 rounded-lg mb-6 text-sm">
+        <div>
+          <span className="text-xs uppercase font-semibold text-gray-400 block">Job #</span>
+          <span className="text-gray-800">{job.jobNumber}</span>
         </div>
+        <div>
+          <span className="text-xs uppercase font-semibold text-gray-400 block">Scheduled</span>
+          <span className="text-gray-800">
+            {job.scheduledAt ? shortDate(job.scheduledAt) : "Unscheduled"}
+          </span>
+        </div>
+        {job.quote && (
+          <div>
+            <span className="text-xs uppercase font-semibold text-gray-400 block">From quote</span>
+            <Link href={`/app/quotes/${job.quote.id}`} className="text-green-700 hover:underline">
+              Quote #{job.quote.quoteNumber} ({quoteStatusLabel[job.quote.status]})
+            </Link>
+          </div>
+        )}
+        {job.request && (
+          <div>
+            <span className="text-xs uppercase font-semibold text-gray-400 block">From request</span>
+            <Link href={`/app/requests/${job.request.id}`} className="text-green-700 hover:underline">
+              {job.request.title}
+            </Link>
+          </div>
+        )}
+        {job.closedAt && (
+          <div>
+            <span className="text-xs uppercase font-semibold text-gray-400 block">Closed</span>
+            <span className="text-gray-800">{shortDate(job.closedAt)}</span>
+          </div>
+        )}
       </div>
 
       <div className="grid lg:grid-cols-3 gap-5">
-        {/* Main info */}
+        {/* Main column */}
         <div className="lg:col-span-2 space-y-4">
-          {/* Job details */}
+          {/* Schedule + details */}
           <div className="bg-white border border-gray-200 rounded-lg p-5">
-            <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-4">Details</h2>
+            <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-4">
+              Details
+            </h2>
             <div className="space-y-3">
               {job.scheduledAt && (
                 <div className="flex items-start gap-3">
                   <CalendarDays size={15} className="text-gray-400 mt-0.5 shrink-0" />
-                  <div>
-                    <p className="text-sm text-gray-800">
-                      {new Date(job.scheduledAt).toLocaleDateString("en-US", {
-                        weekday: "long",
-                        month: "long",
-                        day: "numeric",
-                        year: "numeric",
-                      })}
-                      {" "}
-                      {new Date(job.scheduledAt).toLocaleTimeString("en-US", {
-                        hour: "numeric",
-                        minute: "2-digit",
-                      })}
-                      {job.scheduledEnd && ` – ${new Date(job.scheduledEnd).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`}
-                    </p>
-                  </div>
+                  <p className="text-sm text-gray-800">
+                    {new Date(job.scheduledAt).toLocaleDateString("en-US", {
+                      weekday: "long",
+                      month: "long",
+                      day: "numeric",
+                      year: "numeric",
+                    })}{" "}
+                    {new Date(job.scheduledAt).toLocaleTimeString("en-US", {
+                      hour: "numeric",
+                      minute: "2-digit",
+                    })}
+                    {job.scheduledEnd &&
+                      ` – ${new Date(job.scheduledEnd).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`}
+                  </p>
                 </div>
               )}
               {job.address && (
@@ -141,6 +161,68 @@ export default async function JobDetailPage({
               )}
             </div>
           </div>
+
+          {/* Line items */}
+          {job.lineItems.length > 0 && (
+            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+              <div className="px-5 py-4 border-b border-gray-100">
+                <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                  Product / Service
+                </h2>
+              </div>
+              <div className="px-5 py-3">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-100">
+                      <th className="text-left py-2 text-xs uppercase text-gray-500 font-semibold">
+                        Line item
+                      </th>
+                      <th className="text-right py-2 text-xs uppercase text-gray-500 font-semibold w-14">
+                        Qty
+                      </th>
+                      <th className="text-right py-2 text-xs uppercase text-gray-500 font-semibold w-24">
+                        Unit Price
+                      </th>
+                      <th className="text-right py-2 text-xs uppercase text-gray-500 font-semibold w-24">
+                        Total
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {job.lineItems.map((li) => (
+                      <tr key={li.id}>
+                        <td className="py-2.5">
+                          <p className="text-gray-900 font-medium">{li.name}</p>
+                          {li.description && (
+                            <p className="text-gray-500 text-xs mt-0.5">{li.description}</p>
+                          )}
+                        </td>
+                        <td className="py-2.5 text-right text-gray-600">{Number(li.quantity)}</td>
+                        <td className="py-2.5 text-right text-gray-600">{money(li.unitPrice)}</td>
+                        <td className="py-2.5 text-right font-medium text-gray-900">
+                          {money(li.total)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="px-5 py-3 border-t border-gray-100 bg-gray-50">
+                <div className="ml-auto w-56 space-y-1 text-sm">
+                  {lineCost > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Total cost</span>
+                      <span className="text-gray-700">{money(lineCost)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between font-bold">
+                    <span className="text-gray-900">Total price</span>
+                    <span className="text-gray-900">{money(lineTotal)}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Notes */}
           <div className="bg-white border border-gray-200 rounded-lg">
@@ -171,7 +253,6 @@ export default async function JobDetailPage({
                   </div>
                 </div>
               ))}
-              {/* Note input */}
               <NoteForm jobId={job.id} />
             </div>
           </div>
@@ -179,13 +260,7 @@ export default async function JobDetailPage({
           {/* Photos */}
           <div className="bg-white border border-gray-200 rounded-lg">
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                Photos
-              </h2>
-              <button className="flex items-center gap-1 text-xs text-green-600 hover:underline font-medium">
-                <Camera size={12} />
-                Add photo
-              </button>
+              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Photos</h2>
             </div>
             {job.photos.length === 0 ? (
               <div className="px-5 py-8 text-center">
@@ -217,85 +292,78 @@ export default async function JobDetailPage({
 
         {/* Sidebar */}
         <div className="space-y-4">
-          {/* Quote */}
+          {/* Billing */}
           <div className="bg-white border border-gray-200 rounded-lg p-4">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Quote</h2>
-              {!job.quote && (
-                <Link
-                  href={`/app/quotes/new?jobId=${job.id}`}
-                  className="text-xs text-green-600 hover:underline font-medium"
-                >
-                  + Create
-                </Link>
-              )}
-            </div>
-            {job.quote ? (
-              <Link href={`/app/quotes/${job.quote.id}`} className="block hover:opacity-80">
-                <div className="flex items-center gap-2">
-                  <FileText size={14} className="text-violet-500" />
-                  <span className="text-sm font-medium text-gray-800">
-                    Quote #{job.quote.quoteNumber}
-                  </span>
-                </div>
-                <p className="text-lg font-bold text-gray-900 mt-1">
-                  ${Number(job.quote.total).toFixed(2)}
-                </p>
-                <span className="text-xs text-gray-400">{job.quote.status}</span>
-              </Link>
-            ) : (
-              <p className="text-xs text-gray-400">No quote yet</p>
-            )}
-          </div>
-
-          {/* Invoice */}
-          <div className="bg-white border border-gray-200 rounded-lg p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Invoice</h2>
-              {!job.invoice && job.status === "COMPLETE" && (
+              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Billing</h2>
+              {!job.invoice && (
                 <Link
                   href={`/app/invoices/new?jobId=${job.id}`}
                   className="text-xs text-green-600 hover:underline font-medium"
                 >
-                  + Create
+                  + Create Invoice
                 </Link>
               )}
             </div>
             {job.invoice ? (
               <Link href={`/app/invoices/${job.invoice.id}`} className="block hover:opacity-80">
-                <div className="flex items-center gap-2">
-                  <Receipt size={14} className="text-green-600" />
-                  <span className="text-sm font-medium text-gray-800">
-                    Invoice #{job.invoice.invoiceNumber}
-                  </span>
-                </div>
-                <p className="text-lg font-bold text-gray-900 mt-1">
-                  ${Number(job.invoice.total).toFixed(2)}
+                <p className="text-sm font-medium text-gray-800">
+                  Invoice #{job.invoice.invoiceNumber}
                 </p>
-                <span className="text-xs text-gray-400">{job.invoice.status}</span>
+                <p className="text-lg font-bold text-gray-900 mt-1">{money(job.invoice.total)}</p>
+                <span
+                  className={`inline-block mt-1 text-xs font-medium px-2 py-0.5 rounded ${invoiceStatusColor[job.invoice.status]}`}
+                >
+                  {invoiceStatusLabel[job.invoice.status]}
+                </span>
               </Link>
             ) : (
               <p className="text-xs text-gray-400">
-                {job.status === "COMPLETE"
-                  ? "Ready to invoice"
-                  : "Complete the job first"}
+                {job.status === "REQUIRES_INVOICING"
+                  ? "This job is waiting to be invoiced."
+                  : "No invoice yet."}
               </p>
             )}
           </div>
 
-          {/* Customer */}
+          {/* Profit (when costs are tracked) */}
+          {lineCost > 0 && (
+            <div className="bg-white border border-gray-200 rounded-lg p-4">
+              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                Profit margin
+              </h2>
+              <div className="space-y-1.5 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Revenue</span>
+                  <span className="text-gray-800">{money(lineTotal)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Line item cost</span>
+                  <span className="text-gray-800">-{money(lineCost)}</span>
+                </div>
+                <div className="flex justify-between font-semibold border-t border-gray-100 pt-1.5">
+                  <span className="text-gray-900">Profit</span>
+                  <span className={lineTotal - lineCost >= 0 ? "text-green-700" : "text-red-600"}>
+                    {money(lineTotal - lineCost)}
+                    {lineTotal > 0 &&
+                      ` (${Math.round(((lineTotal - lineCost) / lineTotal) * 100)}%)`}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Client */}
           <div className="bg-white border border-gray-200 rounded-lg p-4">
-            <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Customer</h2>
+            <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+              Client
+            </h2>
             <Link href={`/app/contacts/${job.contact.id}`} className="block hover:opacity-80">
               <p className="text-sm font-semibold text-gray-900">
                 {job.contact.firstName} {job.contact.lastName}
               </p>
-              {job.contact.phone && (
-                <p className="text-xs text-gray-500 mt-1">{job.contact.phone}</p>
-              )}
-              {job.contact.email && (
-                <p className="text-xs text-gray-500">{job.contact.email}</p>
-              )}
+              {job.contact.phone && <p className="text-xs text-gray-500 mt-1">{job.contact.phone}</p>}
+              {job.contact.email && <p className="text-xs text-gray-500">{job.contact.email}</p>}
             </Link>
           </div>
         </div>
@@ -303,4 +371,3 @@ export default async function JobDetailPage({
     </div>
   );
 }
-

@@ -30,10 +30,12 @@ model Company {
 
   users           User[]
   contacts        Contact[]
+  requests        Request[]
   jobs            Job[]
   quotes          Quote[]
   invoices        Invoice[]
   payments        Payment[]
+  workItems       WorkItem[]
   servicePlans    ServicePlan[]
   bookingRequests BookingRequest[]
   reviewRequests  ReviewRequest[]
@@ -70,43 +72,84 @@ enum Role {
   TECH
 }
 
-// ─── Contacts ────────────────────────────────────────────────────────────────
+// ─── Contacts (Clients) ──────────────────────────────────────────────────────
+
+enum ContactStatus {
+  LEAD
+  ACTIVE
+  ARCHIVED
+}
 
 model Contact {
-  id        String   @id @default(cuid())
-  companyId String
-  company   Company  @relation(fields: [companyId], references: [id])
-  firstName String
-  lastName  String
-  email     String?
-  phone     String?
-  address   String?
-  city      String?
-  state     String?
-  zip       String?
-  notes     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id               String        @id @default(cuid())
+  companyId        String
+  company          Company       @relation(fields: [companyId], references: [id])
+  firstName        String
+  lastName         String
+  email            String?
+  phone            String?
+  address          String?
+  city             String?
+  state            String?
+  zip              String?
+  notes            String?
+  status           ContactStatus @default(LEAD)
+  leadSource       String?
+  paymentTermsDays Int           @default(30)
+  hubToken         String        @unique @default(cuid())
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
 
+  requests        Request[]
   jobs            Job[]
   quotes          Quote[]
   invoices        Invoice[]
+  payments        Payment[]
   servicePlans    ServicePlan[]
   bookingRequests BookingRequest[]
 
   @@index([companyId])
+  @@index([companyId, status])
   @@index([companyId, lastName])
+}
+
+// ─── Requests ────────────────────────────────────────────────────────────────
+
+enum RequestStatus {
+  NEW
+  CONVERTED
+  ARCHIVED
+}
+
+model Request {
+  id            String        @id @default(cuid())
+  companyId     String
+  company       Company       @relation(fields: [companyId], references: [id])
+  contactId     String
+  contact       Contact       @relation(fields: [contactId], references: [id])
+  requestNumber Int
+  title         String
+  details       String?
+  status        RequestStatus @default(NEW)
+  assessmentAt  DateTime?
+  source        String        @default("internal") // internal | client_hub | booking_form
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  quotes Quote[]
+  jobs   Job[]
+
+  @@unique([companyId, requestNumber])
+  @@index([companyId])
+  @@index([companyId, status])
 }
 
 // ─── Jobs ─────────────────────────────────────────────────────────────────────
 
 enum JobStatus {
-  LEAD
-  SCHEDULED
-  IN_PROGRESS
-  COMPLETE
-  INVOICED
-  PAID
+  ACTIVE
+  REQUIRES_INVOICING
+  ARCHIVED
 }
 
 model Job {
@@ -115,13 +158,16 @@ model Job {
   company      Company   @relation(fields: [companyId], references: [id])
   contactId    String
   contact      Contact   @relation(fields: [contactId], references: [id])
+  requestId    String?
+  request      Request?  @relation(fields: [requestId], references: [id])
   jobNumber    Int
   title        String
   description  String?
-  status       JobStatus @default(LEAD)
+  status       JobStatus @default(ACTIVE)
   scheduledAt  DateTime?
   scheduledEnd DateTime?
   completedAt  DateTime?
+  closedAt     DateTime?
   address      String?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
@@ -129,13 +175,29 @@ model Job {
   assignments JobAssignment[]
   notes       JobNote[]
   photos      JobPhoto[]
+  lineItems   JobLineItem[]
   quote       Quote?
   invoice     Invoice?
 
+  @@unique([companyId, jobNumber])
   @@index([companyId])
   @@index([companyId, status])
   @@index([companyId, scheduledAt])
-  @@unique([companyId, jobNumber])
+}
+
+model JobLineItem {
+  id          String   @id @default(cuid())
+  jobId       String
+  job         Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  quantity    Decimal  @db.Decimal(10, 3)
+  unitCost    Decimal? @db.Decimal(10, 2)
+  unitPrice   Decimal  @db.Decimal(10, 2)
+  total       Decimal  @db.Decimal(10, 2)
+  sortOrder   Int      @default(0)
+
+  @@index([jobId])
 }
 
 model JobAssignment {
@@ -183,49 +245,70 @@ model JobPhoto {
 
 enum QuoteStatus {
   DRAFT
-  SENT
-  ACCEPTED
-  DECLINED
-  EXPIRED
+  AWAITING_RESPONSE
+  APPROVED
+  CHANGES_REQUESTED
+  CONVERTED
+  ARCHIVED
+}
+
+enum DepositType {
+  NONE
+  PERCENT
+  FIXED
 }
 
 model Quote {
-  id          String      @id @default(cuid())
-  companyId   String
-  company     Company     @relation(fields: [companyId], references: [id])
-  contactId   String
-  contact     Contact     @relation(fields: [contactId], references: [id])
-  jobId       String?     @unique
-  job         Job?        @relation(fields: [jobId], references: [id])
-  quoteNumber Int
-  status      QuoteStatus @default(DRAFT)
-  subtotal    Decimal     @db.Decimal(10, 2)
-  taxRate     Decimal?    @db.Decimal(5, 4)
-  tax         Decimal?    @db.Decimal(10, 2)
-  total       Decimal     @db.Decimal(10, 2)
-  notes       String?
-  validUntil  DateTime?
-  acceptedAt  DateTime?
-  sentAt      DateTime?
-  publicToken String      @unique @default(cuid())
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id            String      @id @default(cuid())
+  companyId     String
+  company       Company     @relation(fields: [companyId], references: [id])
+  contactId     String
+  contact       Contact     @relation(fields: [contactId], references: [id])
+  requestId     String?
+  request       Request?    @relation(fields: [requestId], references: [id])
+  jobId         String?     @unique // set when this quote is converted into a job
+  job           Job?        @relation(fields: [jobId], references: [id])
+  quoteNumber   Int
+  title         String?
+  status        QuoteStatus @default(DRAFT)
+  subtotal      Decimal     @db.Decimal(10, 2)
+  taxRate       Decimal?    @db.Decimal(5, 4)
+  tax           Decimal?    @db.Decimal(10, 2)
+  total         Decimal     @db.Decimal(10, 2)
+  depositType   DepositType @default(NONE)
+  depositValue  Decimal?    @db.Decimal(10, 2) // percent (0-100) or fixed dollars
+  clientMessage String?
+  disclaimer    String?
+  notes         String?
+  validUntil    DateTime?
+  sentAt        DateTime?
+  approvedAt    DateTime?
+  signatureName String?
+  changeRequest String?
+  publicToken   String      @unique @default(cuid())
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
 
   lineItems QuoteLineItem[]
 
-  @@index([companyId])
-  @@index([contactId])
   @@unique([companyId, quoteNumber])
+  @@index([companyId])
+  @@index([companyId, status])
+  @@index([contactId])
 }
 
 model QuoteLineItem {
   id          String  @id @default(cuid())
   quoteId     String
   quote       Quote   @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  name        String  @default("")
   description String
   quantity    Decimal @db.Decimal(10, 3)
+  unitCost    Decimal? @db.Decimal(10, 2)
   unitPrice   Decimal @db.Decimal(10, 2)
   total       Decimal @db.Decimal(10, 2)
+  isOptional  Boolean @default(false)
+  optedOut    Boolean @default(false) // client unchecked this optional item in the hub
   sortOrder   Int     @default(0)
 
   @@index([quoteId])
@@ -235,10 +318,9 @@ model QuoteLineItem {
 
 enum InvoiceStatus {
   DRAFT
-  SENT
+  AWAITING_PAYMENT
   PAID
-  OVERDUE
-  CANCELLED
+  PAST_DUE
 }
 
 model Invoice {
@@ -250,6 +332,7 @@ model Invoice {
   jobId         String?       @unique
   job           Job?          @relation(fields: [jobId], references: [id])
   invoiceNumber Int
+  subject       String?
   status        InvoiceStatus @default(DRAFT)
   subtotal      Decimal       @db.Decimal(10, 2)
   taxRate       Decimal?      @db.Decimal(5, 4)
@@ -257,6 +340,7 @@ model Invoice {
   surcharge     Decimal?      @db.Decimal(10, 2)
   total         Decimal       @db.Decimal(10, 2)
   notes         String?
+  issuedAt      DateTime?
   dueDate       DateTime?
   paidAt        DateTime?
   publicToken   String        @unique @default(cuid())
@@ -267,19 +351,21 @@ model Invoice {
   payments  Payment[]
   reminders PaymentReminder[]
 
+  @@unique([companyId, invoiceNumber])
   @@index([companyId])
   @@index([companyId, status])
-  @@unique([companyId, invoiceNumber])
 }
 
 model InvoiceLineItem {
   id          String  @id @default(cuid())
   invoiceId   String
   invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  name        String  @default("")
   description String
   quantity    Decimal @db.Decimal(10, 3)
   unitPrice   Decimal @db.Decimal(10, 2)
   total       Decimal @db.Decimal(10, 2)
+  serviceDate DateTime?
   sortOrder   Int     @default(0)
 
   @@index([invoiceId])
@@ -292,6 +378,10 @@ enum PaymentMethod {
   ACH
   CASH
   CHECK
+  CASH_APP
+  PAYPAL
+  VENMO
+  ZELLE
   OTHER
 }
 
@@ -299,17 +389,22 @@ model Payment {
   id              String        @id @default(cuid())
   companyId       String
   company         Company       @relation(fields: [companyId], references: [id])
+  contactId       String?
+  contact         Contact?      @relation(fields: [contactId], references: [id])
   invoiceId       String
   invoice         Invoice       @relation(fields: [invoiceId], references: [id])
   amount          Decimal       @db.Decimal(10, 2)
   method          PaymentMethod
-  processorRef    String?
+  referenceNumber String?
+  details         String?
+  processorRef    String? // transaction id from the payment processor (card/ACH)
   surchargeAmount Decimal?      @db.Decimal(10, 2)
   paidAt          DateTime      @default(now())
   createdAt       DateTime      @default(now())
 
   @@index([companyId])
   @@index([invoiceId])
+  @@index([contactId])
 }
 
 model PaymentReminder {
@@ -320,6 +415,30 @@ model PaymentReminder {
   sentAt    DateTime
 
   @@index([invoiceId])
+}
+
+// ─── Price Book ───────────────────────────────────────────────────────────────
+
+enum WorkItemType {
+  SERVICE
+  PRODUCT
+}
+
+model WorkItem {
+  id          String       @id @default(cuid())
+  companyId   String
+  company     Company      @relation(fields: [companyId], references: [id])
+  name        String
+  description String?
+  type        WorkItemType @default(SERVICE)
+  unitCost    Decimal?     @db.Decimal(10, 2)
+  unitPrice   Decimal      @default(0) @db.Decimal(10, 2)
+  isActive    Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([companyId])
+  @@index([companyId, name])
 }
 
 // ─── Service Plans ────────────────────────────────────────────────────────────
@@ -351,7 +470,7 @@ model ServicePlan {
   @@index([companyId, nextJobDate])
 }
 
-// ─── Booking Requests ─────────────────────────────────────────────────────────
+// ─── Booking Requests (legacy public booking form) ───────────────────────────
 
 enum BookingStatus {
   NEW
