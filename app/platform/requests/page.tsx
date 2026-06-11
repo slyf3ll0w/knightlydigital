@@ -1,12 +1,10 @@
-import { getServerSession } from "next-auth";
-import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/db";
 import Link from "next/link";
-import { Plus, ChevronRight } from "lucide-react";
+import { Plus, ChevronRight, UserCheck } from "lucide-react";
 import { shortDate } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
 import EmptyState from "@/components/EmptyState";
+import { requirePageActor, canSell, viaContactScope, seesAllLeads } from "@/lib/permissions";
 import type { RequestStatus } from "@prisma/client";
 
 const statusFilters: { value: string; label: string }[] = [
@@ -19,26 +17,40 @@ const statusFilters: { value: string; label: string }[] = [
 export default async function RequestsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ status?: string; assignee?: string }>;
 }) {
-  const session = await getServerSession(authOptions);
-  if (!session) redirect("/app/login");
-  const companyId = session.user.companyId;
-  if (!companyId) redirect("/app/register");
+  const actor = await requirePageActor((a) => canSell(a.role));
+  const companyId = actor.companyId;
 
-  const { status } = await searchParams;
+  const { status, assignee } = await searchParams;
   const validStatus = ["NEW", "CONVERTED", "ARCHIVED"].includes(status ?? "")
     ? (status as RequestStatus)
     : undefined;
 
+  const showAll = seesAllLeads(actor.role);
+  const mineOnly = showAll && assignee === "me";
+  const scope = {
+    ...viaContactScope(actor),
+    ...(mineOnly ? { contact: { assignedToId: actor.id } } : {}),
+  };
+
   const [requests, newCount] = await Promise.all([
     prisma.request.findMany({
-      where: { companyId, ...(validStatus ? { status: validStatus } : {}) },
+      where: { companyId, ...scope, ...(validStatus ? { status: validStatus } : {}) },
       include: { contact: true },
       orderBy: { createdAt: "desc" },
     }),
-    prisma.request.count({ where: { companyId, status: "NEW" } }),
+    prisma.request.count({ where: { companyId, ...scope, status: "NEW" } }),
   ]);
+
+  const qs = (opts: { status?: string; mine?: boolean }) => {
+    const p = new URLSearchParams();
+    const s = opts.status ?? validStatus ?? "";
+    if (s) p.set("status", s);
+    if (opts.mine ?? mineOnly) p.set("assignee", "me");
+    const str = p.toString();
+    return str ? `/app/requests?${str}` : "/app/requests";
+  };
 
   return (
     <div className="p-4 lg:p-8 max-w-6xl mx-auto">
@@ -65,11 +77,11 @@ export default async function RequestsPage({
       </div>
 
       {/* Filter tabs */}
-      <div className="flex items-center gap-1 mb-4">
+      <div className="flex flex-wrap items-center gap-1 mb-4">
         {statusFilters.map((f) => (
           <Link
             key={f.value}
-            href={f.value ? `/app/requests?status=${f.value}` : "/app/requests"}
+            href={qs({ status: f.value })}
             className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
               (validStatus ?? "") === f.value
                 ? "bg-gray-900 text-white"
@@ -79,6 +91,20 @@ export default async function RequestsPage({
             {f.label}
           </Link>
         ))}
+        {showAll && (
+          <>
+            <span className="mx-1 h-5 w-px bg-gray-200" />
+            <Link
+              href={qs({ mine: !mineOnly })}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                mineOnly ? "bg-green-500 text-white" : "text-gray-600 hover:bg-gray-100"
+              }`}
+            >
+              <UserCheck size={13} />
+              My leads
+            </Link>
+          </>
+        )}
       </div>
 
       <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">

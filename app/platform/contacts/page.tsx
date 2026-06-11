@@ -1,12 +1,10 @@
-import { getServerSession } from "next-auth";
-import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/db";
 import Link from "next/link";
-import { Plus, ChevronRight } from "lucide-react";
+import { Plus, ChevronRight, UserCheck } from "lucide-react";
 import { shortDate } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
 import EmptyState from "@/components/EmptyState";
+import { requirePageActor, canSell, contactScope, seesAllLeads } from "@/lib/permissions";
 
 const statusFilters = [
   { value: "", label: "Leads and Active" },
@@ -18,22 +16,25 @@ const statusFilters = [
 export default async function ContactsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; status?: string }>;
+  searchParams: Promise<{ q?: string; status?: string; assignee?: string }>;
 }) {
-  const session = await getServerSession(authOptions);
-  if (!session) redirect("/app/login");
+  const actor = await requirePageActor((a) => canSell(a.role));
+  const companyId = actor.companyId;
 
-  const companyId = session.user.companyId;
-  if (!companyId) redirect("/app/register");
-
-  const { q, status } = await searchParams;
+  const { q, status, assignee } = await searchParams;
   const validStatus = ["LEAD", "ACTIVE", "ARCHIVED"].includes(status ?? "")
     ? (status as "LEAD" | "ACTIVE" | "ARCHIVED")
     : undefined;
 
+  // Managers can flip to "My leads"; sales/user are always scoped to theirs
+  const showAll = seesAllLeads(actor.role);
+  const mineOnly = showAll && assignee === "me";
+
   const contacts = await prisma.contact.findMany({
     where: {
       companyId,
+      ...contactScope(actor),
+      ...(mineOnly ? { assignedToId: actor.id } : {}),
       status: validStatus ? validStatus : { in: ["LEAD", "ACTIVE"] },
       ...(q
         ? {
@@ -46,8 +47,24 @@ export default async function ContactsPage({
           }
         : {}),
     },
+    include: { assignedTo: { select: { name: true } } },
     orderBy: { updatedAt: "desc" },
   });
+
+  const statusQS = (v: string) => {
+    const p = new URLSearchParams();
+    if (v) p.set("status", v);
+    if (mineOnly) p.set("assignee", "me");
+    const s = p.toString();
+    return s ? `/app/contacts?${s}` : "/app/contacts";
+  };
+  const assigneeQS = (mine: boolean) => {
+    const p = new URLSearchParams();
+    if (validStatus) p.set("status", validStatus);
+    if (mine) p.set("assignee", "me");
+    const s = p.toString();
+    return s ? `/app/contacts?${s}` : "/app/contacts";
+  };
 
   return (
     <div className="p-4 lg:p-8 max-w-6xl mx-auto">
@@ -75,11 +92,11 @@ export default async function ContactsPage({
       </form>
 
       {/* Filter tabs */}
-      <div className="flex items-center gap-1 mb-4">
+      <div className="flex flex-wrap items-center gap-1 mb-4">
         {statusFilters.map((f) => (
           <Link
             key={f.value}
-            href={f.value ? `/app/contacts?status=${f.value}` : "/app/contacts"}
+            href={statusQS(f.value)}
             className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
               (validStatus ?? "") === f.value
                 ? "bg-gray-900 text-white"
@@ -89,6 +106,20 @@ export default async function ContactsPage({
             {f.label}
           </Link>
         ))}
+        {showAll && (
+          <>
+            <span className="mx-1 h-5 w-px bg-gray-200" />
+            <Link
+              href={assigneeQS(!mineOnly)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                mineOnly ? "bg-green-500 text-white" : "text-gray-600 hover:bg-gray-100"
+              }`}
+            >
+              <UserCheck size={13} />
+              My leads
+            </Link>
+          </>
+        )}
       </div>
 
       <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
@@ -106,10 +137,11 @@ export default async function ContactsPage({
           />
         ) : (
           <div className="divide-y divide-gray-100">
-            <div className="hidden lg:grid grid-cols-[1fr_1fr_110px_140px_40px] gap-4 px-4 py-2 text-[11px] font-semibold text-gray-600 uppercase tracking-wider bg-gray-50">
+            <div className="hidden lg:grid grid-cols-[1fr_1fr_110px_120px_120px_40px] gap-4 px-4 py-2 text-[11px] font-semibold text-gray-600 uppercase tracking-wider bg-gray-50">
               <span>Name</span>
               <span>Address</span>
               <span>Status</span>
+              <span>Assigned To</span>
               <span>Last Activity</span>
               <span></span>
             </div>
@@ -117,7 +149,7 @@ export default async function ContactsPage({
               <Link
                 key={c.id}
                 href={`/app/contacts/${c.id}`}
-                className="flex lg:grid lg:grid-cols-[1fr_1fr_110px_140px_40px] gap-4 items-center px-4 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
+                className="flex lg:grid lg:grid-cols-[1fr_1fr_110px_120px_120px_40px] gap-4 items-center px-4 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
               >
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-gray-900 truncate">
@@ -131,6 +163,9 @@ export default async function ContactsPage({
                   {[c.address, c.city, c.state].filter(Boolean).join(", ") || "—"}
                 </span>
                 <StatusChip kind="contact" status={c.status} />
+                <span className="hidden lg:block text-sm text-gray-500 truncate">
+                  {c.assignedTo?.name ?? "—"}
+                </span>
                 <span className="hidden lg:block text-sm text-gray-500">
                   {shortDate(c.updatedAt)}
                 </span>

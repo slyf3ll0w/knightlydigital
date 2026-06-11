@@ -1,7 +1,5 @@
-import { getServerSession } from "next-auth";
-import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/db";
+import { requirePageActor, canSeeMoney, viaContactScope } from "@/lib/permissions";
 import Link from "next/link";
 import { Plus, ChevronRight, DollarSign } from "lucide-react";
 import { money, shortDate } from "@/lib/statuses";
@@ -22,11 +20,9 @@ export default async function InvoicesPage({
 }: {
   searchParams: Promise<{ status?: string }>;
 }) {
-  const session = await getServerSession(authOptions);
-  if (!session) redirect("/app/login");
-
-  const companyId = session.user.companyId;
-  if (!companyId) redirect("/app/register");
+  const actor = await requirePageActor(canSeeMoney);
+  const companyId = actor.companyId;
+  const scope = viaContactScope(actor);
 
   const { status } = await searchParams;
   const validStatus = ["DRAFT", "AWAITING_PAYMENT", "PAST_DUE", "PAID"].includes(status ?? "")
@@ -41,22 +37,22 @@ export default async function InvoicesPage({
 
   const [invoices, pastDue, awaiting, draft] = await Promise.all([
     prisma.invoice.findMany({
-      where: { companyId, ...(validStatus ? { status: validStatus } : {}) },
+      where: { companyId, ...scope, ...(validStatus ? { status: validStatus } : {}) },
       include: { contact: true, payments: true },
       orderBy: { createdAt: "desc" },
     }),
     prisma.invoice.aggregate({
-      where: { companyId, status: "PAST_DUE" },
+      where: { companyId, ...scope, status: "PAST_DUE" },
       _count: true,
       _sum: { total: true },
     }),
     prisma.invoice.aggregate({
-      where: { companyId, status: "AWAITING_PAYMENT" },
+      where: { companyId, ...scope, status: "AWAITING_PAYMENT" },
       _count: true,
       _sum: { total: true },
     }),
     prisma.invoice.aggregate({
-      where: { companyId, status: "DRAFT" },
+      where: { companyId, ...scope, status: "DRAFT" },
       _count: true,
       _sum: { total: true },
     }),

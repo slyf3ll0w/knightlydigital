@@ -142,6 +142,7 @@ export default function ScheduleClient({
   jobs,
   unscheduled,
   users,
+  canCreateJob = true,
 }: {
   view: View;
   date: string;
@@ -149,6 +150,7 @@ export default function ScheduleClient({
   jobs: ScheduleJobDTO[];
   unscheduled: ScheduleJobDTO[];
   users: { id: string; name: string }[];
+  canCreateJob?: boolean;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -575,13 +577,15 @@ export default function ScheduleClient({
               </span>
             )}
           </button>
-          <Link
-            href="/app/jobs/new"
-            className="flex items-center gap-1.5 rounded bg-green-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-600 active:bg-green-700"
-          >
-            <Plus size={15} />
-            New Job
-          </Link>
+          {canCreateJob && (
+            <Link
+              href="/app/jobs/new"
+              className="flex items-center gap-1.5 rounded bg-green-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-600 active:bg-green-700"
+            >
+              <Plus size={15} />
+              New Job
+            </Link>
+          )}
         </div>
       </div>
 

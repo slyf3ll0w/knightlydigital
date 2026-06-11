@@ -1,7 +1,5 @@
-import { getServerSession } from "next-auth";
-import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/db";
+import { requirePageActor, isManager, jobScope } from "@/lib/permissions";
 import ScheduleClient, { type ScheduleJobDTO } from "./ScheduleClient";
 
 /**
@@ -54,13 +52,13 @@ export default async function SchedulePage({
 }: {
   searchParams: Promise<{ view?: string; date?: string; team?: string }>;
 }) {
-  const session = await getServerSession(authOptions);
-  if (!session) redirect("/app/login");
+  const actor = await requirePageActor();
+  const companyId = actor.companyId;
+  // Sales/tech are already scoped to their own work — no team filter for them
+  const canFilterTeam = isManager(actor.role) || actor.role === "USER";
 
-  const companyId = session.user.companyId;
-  if (!companyId) redirect("/app/register");
-
-  const { view: viewParam, date: dateParam, team } = await searchParams;
+  const { view: viewParam, date: dateParam, team: teamParam } = await searchParams;
+  const team = canFilterTeam ? teamParam : undefined;
   const view = viewParam === "week" || viewParam === "day" ? viewParam : "month";
   const anchor = parseDateParam(dateParam);
 
@@ -85,24 +83,27 @@ export default async function SchedulePage({
   }
 
   const teamWhere = team ? { assignments: { some: { userId: team } } } : {};
+  const scope = jobScope(actor);
 
   const [jobs, unscheduled, users] = await Promise.all([
     prisma.job.findMany({
-      where: { companyId, scheduledAt: { gte: start, lte: end }, ...teamWhere },
+      where: { companyId, ...scope, scheduledAt: { gte: start, lte: end }, ...teamWhere },
       include: { contact: { select: { firstName: true, lastName: true } } },
       orderBy: { scheduledAt: "asc" },
     }),
     prisma.job.findMany({
-      where: { companyId, status: "ACTIVE", scheduledAt: null, ...teamWhere },
+      where: { companyId, ...scope, status: "ACTIVE", scheduledAt: null, ...teamWhere },
       include: { contact: { select: { firstName: true, lastName: true } } },
       orderBy: { createdAt: "desc" },
       take: 100,
     }),
-    prisma.user.findMany({
-      where: { companyId, isActive: true },
-      select: { id: true, name: true },
-      orderBy: { name: "asc" },
-    }),
+    canFilterTeam
+      ? prisma.user.findMany({
+          where: { companyId, isActive: true },
+          select: { id: true, name: true },
+          orderBy: { name: "asc" },
+        })
+      : Promise.resolve([]),
   ]);
 
   return (
@@ -113,6 +114,7 @@ export default async function SchedulePage({
       jobs={jobs.map(toDTO)}
       unscheduled={unscheduled.map(toDTO)}
       users={users}
+      canCreateJob={canFilterTeam}
     />
   );
 }

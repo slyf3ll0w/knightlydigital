@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/db";
+import { getActor, canSeeMoney, viaContactScope } from "@/lib/permissions";
 
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getServerSession(authOptions);
-  const companyId = session?.user.companyId;
-  if (!companyId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const actor = await getActor();
+  if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!canSeeMoney(actor)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const companyId = actor.companyId;
 
   const { id } = await params;
   const { status } = await req.json();
@@ -19,7 +19,9 @@ export async function PATCH(
     return NextResponse.json({ error: "Invalid status." }, { status: 400 });
   }
 
-  const invoice = await prisma.invoice.findFirst({ where: { id, companyId } });
+  const invoice = await prisma.invoice.findFirst({
+    where: { id, companyId, ...viaContactScope(actor) },
+  });
   if (!invoice) return NextResponse.json({ error: "Invoice not found." }, { status: 404 });
 
   await prisma.invoice.update({

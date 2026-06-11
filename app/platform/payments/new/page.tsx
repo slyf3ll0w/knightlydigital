@@ -1,7 +1,5 @@
-import { getServerSession } from "next-auth";
-import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/db";
+import { requirePageActor, canSeeMoney, viaContactScope } from "@/lib/permissions";
 import CollectPaymentForm from "./CollectPaymentForm";
 
 export default async function NewPaymentPage({
@@ -9,10 +7,8 @@ export default async function NewPaymentPage({
 }: {
   searchParams: Promise<{ invoiceId?: string; contactId?: string }>;
 }) {
-  const session = await getServerSession(authOptions);
-  if (!session) redirect("/app/login");
-  const companyId = session.user.companyId;
-  if (!companyId) redirect("/app/register");
+  const actor = await requirePageActor(canSeeMoney);
+  const companyId = actor.companyId;
 
   const { invoiceId, contactId } = await searchParams;
 
@@ -20,6 +16,7 @@ export default async function NewPaymentPage({
   const invoices = await prisma.invoice.findMany({
     where: {
       companyId,
+      ...viaContactScope(actor),
       status: { in: ["DRAFT", "AWAITING_PAYMENT", "PAST_DUE"] },
       ...(contactId ? { contactId } : {}),
     },

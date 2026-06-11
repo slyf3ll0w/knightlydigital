@@ -1,19 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/db";
-
-async function getSession() {
-  return getServerSession(authOptions);
-}
+import { getActor, isManager, jobScope, contactScope } from "@/lib/permissions";
 
 export async function GET() {
-  const session = await getSession();
-  const companyId = session?.user.companyId;
-  if (!companyId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const actor = await getActor();
+  if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const jobs = await prisma.job.findMany({
-    where: { companyId },
+    where: { companyId: actor.companyId, ...jobScope(actor) },
     include: { contact: true, assignments: { include: { user: true } } },
     orderBy: { updatedAt: "desc" },
   });
@@ -22,9 +16,14 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await getSession();
-  const companyId = session?.user.companyId;
-  if (!companyId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const actor = await getActor();
+  if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // Creating jobs is for managers + Sales/Tech combo; pure sales converts
+  // quotes instead, pure techs only work assigned jobs.
+  if (!isManager(actor.role) && actor.role !== "USER") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  const companyId = actor.companyId;
 
   const body = await req.json();
   const { contactId, requestId, title, description, scheduledAt, scheduledEnd, scheduledAnytime, address, leadSource } = body;
@@ -33,7 +32,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Client and title are required." }, { status: 400 });
   }
 
-  const contact = await prisma.contact.findFirst({ where: { id: contactId, companyId } });
+  const contact = await prisma.contact.findFirst({
+    where: { id: contactId, companyId, ...contactScope(actor) },
+  });
   if (!contact) return NextResponse.json({ error: "Client not found." }, { status: 404 });
 
   if (requestId) {

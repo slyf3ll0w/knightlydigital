@@ -1,19 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/db";
-
-async function getCompanyId() {
-  const session = await getServerSession(authOptions);
-  return session?.user.companyId ?? null;
-}
+import { getActor, canSell, contactScope, isManager } from "@/lib/permissions";
 
 export async function GET() {
-  const companyId = await getCompanyId();
-  if (!companyId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const actor = await getActor();
+  if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!canSell(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const contacts = await prisma.contact.findMany({
-    where: { companyId },
+    where: { companyId: actor.companyId, ...contactScope(actor) },
     orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
   });
 
@@ -21,8 +16,9 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const companyId = await getCompanyId();
-  if (!companyId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const actor = await getActor();
+  if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!canSell(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const body = await req.json();
   const { firstName, lastName, email, phone, address, city, state, zip, notes, leadSource } = body;
@@ -31,9 +27,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "First and last name are required." }, { status: 400 });
   }
 
+  // Managers may assign to anyone in the company; sales/user always own
+  // the leads they create.
+  let assignedToId = actor.id;
+  if (isManager(actor.role) && body.assignedToId) {
+    const target = await prisma.user.findFirst({
+      where: { id: body.assignedToId, companyId: actor.companyId, isActive: true },
+      select: { id: true },
+    });
+    if (target) assignedToId = target.id;
+  }
+
   const contact = await prisma.contact.create({
     data: {
-      companyId,
+      companyId: actor.companyId,
       firstName,
       lastName,
       email: email || null,
@@ -44,6 +51,7 @@ export async function POST(req: NextRequest) {
       zip: zip || null,
       notes: notes || null,
       leadSource: leadSource || null,
+      assignedToId,
     },
   });
 

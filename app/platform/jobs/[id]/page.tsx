@@ -1,41 +1,50 @@
-import { getServerSession } from "next-auth";
-import { notFound, redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth-options";
+import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import Link from "next/link";
 import { ArrowLeft, MapPin, CalendarDays, User, Camera } from "lucide-react";
 import { quoteStatusLabel, money, shortDate } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
+import { requirePageActor, jobScope, canSeePricing, canSell, isManager } from "@/lib/permissions";
 import JobActions from "./JobActions";
 import NoteForm from "./NoteForm";
 import ScheduleJob from "./ScheduleJob";
+import AssignTeam from "./AssignTeam";
 
 export default async function JobDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const session = await getServerSession(authOptions);
-  if (!session) redirect("/app/login");
-
-  const companyId = session.user.companyId;
-  if (!companyId) redirect("/app/register");
+  const actor = await requirePageActor();
+  const companyId = actor.companyId;
+  const showMoney = canSeePricing(actor.role); // techs see the work, not the prices
+  const canEdit = isManager(actor.role) || actor.role === "USER";
+  const canOpenContact = canSell(actor.role);
 
   const { id } = await params;
 
-  const job = await prisma.job.findFirst({
-    where: { id, companyId },
-    include: {
-      contact: true,
-      request: true,
-      assignments: { include: { user: true } },
-      notes: { include: { user: true }, orderBy: { createdAt: "asc" } },
-      photos: { orderBy: { createdAt: "asc" } },
-      lineItems: { orderBy: { sortOrder: "asc" } },
-      quote: true,
-      invoice: { include: { payments: true } },
-    },
-  });
+  const [job, teamUsers] = await Promise.all([
+    prisma.job.findFirst({
+      where: { id, companyId, ...jobScope(actor) },
+      include: {
+        contact: true,
+        request: true,
+        assignments: { include: { user: true } },
+        notes: { include: { user: true }, orderBy: { createdAt: "asc" } },
+        photos: { orderBy: { createdAt: "asc" } },
+        lineItems: { orderBy: { sortOrder: "asc" } },
+        quote: true,
+        invoice: { include: { payments: true } },
+      },
+    }),
+    canEdit
+      ? prisma.user.findMany({
+          where: { companyId, isActive: true },
+          select: { id: true, name: true },
+          orderBy: { name: "asc" },
+        })
+      : Promise.resolve([]),
+  ]);
 
   if (!job) notFound();
 
@@ -58,14 +67,22 @@ export default async function JobDetailPage({
       <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
         <div className="min-w-0">
           <h1 className="text-2xl font-bold text-gray-900">{job.title}</h1>
-          <Link
-            href={`/app/contacts/${job.contact.id}`}
-            className="text-sm text-green-700 hover:underline"
-          >
-            {job.contact.firstName} {job.contact.lastName}
-          </Link>
+          {canOpenContact ? (
+            <Link
+              href={`/app/contacts/${job.contact.id}`}
+              className="text-sm text-green-700 hover:underline"
+            >
+              {job.contact.firstName} {job.contact.lastName}
+            </Link>
+          ) : (
+            <p className="text-sm text-gray-600">
+              {job.contact.firstName} {job.contact.lastName}
+            </p>
+          )}
         </div>
-        <JobActions jobId={job.id} status={job.status} hasInvoice={!!job.invoice} />
+        {actor.role !== "SALES" && (
+          <JobActions jobId={job.id} status={job.status} hasInvoice={!!job.invoice} />
+        )}
       </div>
 
       {/* Header facts with backlinks */}
@@ -175,12 +192,16 @@ export default async function JobDetailPage({
                       <th className="text-right py-2 text-xs uppercase text-gray-500 font-semibold w-14">
                         Qty
                       </th>
-                      <th className="text-right py-2 text-xs uppercase text-gray-500 font-semibold w-24">
-                        Unit Price
-                      </th>
-                      <th className="text-right py-2 text-xs uppercase text-gray-500 font-semibold w-24">
-                        Total
-                      </th>
+                      {showMoney && (
+                        <>
+                          <th className="text-right py-2 text-xs uppercase text-gray-500 font-semibold w-24">
+                            Unit Price
+                          </th>
+                          <th className="text-right py-2 text-xs uppercase text-gray-500 font-semibold w-24">
+                            Total
+                          </th>
+                        </>
+                      )}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
@@ -193,29 +214,35 @@ export default async function JobDetailPage({
                           )}
                         </td>
                         <td className="py-2.5 text-right text-gray-600">{Number(li.quantity)}</td>
-                        <td className="py-2.5 text-right text-gray-600">{money(li.unitPrice)}</td>
-                        <td className="py-2.5 text-right font-medium text-gray-900">
-                          {money(li.total)}
-                        </td>
+                        {showMoney && (
+                          <>
+                            <td className="py-2.5 text-right text-gray-600">{money(li.unitPrice)}</td>
+                            <td className="py-2.5 text-right font-medium text-gray-900">
+                              {money(li.total)}
+                            </td>
+                          </>
+                        )}
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-              <div className="px-5 py-3 border-t border-gray-100 bg-gray-50">
-                <div className="ml-auto w-56 space-y-1 text-sm">
-                  {lineCost > 0 && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Total cost</span>
-                      <span className="text-gray-700">{money(lineCost)}</span>
+              {showMoney && (
+                <div className="px-5 py-3 border-t border-gray-100 bg-gray-50">
+                  <div className="ml-auto w-56 space-y-1 text-sm">
+                    {lineCost > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Total cost</span>
+                        <span className="text-gray-700">{money(lineCost)}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between font-bold">
+                      <span className="text-gray-900">Total price</span>
+                      <span className="text-gray-900">{money(lineTotal)}</span>
                     </div>
-                  )}
-                  <div className="flex justify-between font-bold">
-                    <span className="text-gray-900">Total price</span>
-                    <span className="text-gray-900">{money(lineTotal)}</span>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           )}
 
@@ -287,7 +314,17 @@ export default async function JobDetailPage({
 
         {/* Sidebar */}
         <div className="space-y-4">
+          {/* Team assignment */}
+          {canEdit && teamUsers.length > 1 && (
+            <AssignTeam
+              jobId={job.id}
+              users={teamUsers}
+              assignedIds={job.assignments.map((a) => a.userId)}
+            />
+          )}
+
           {/* Billing */}
+          {showMoney && (
           <div className="bg-white border border-gray-200 rounded-lg p-4">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Billing</h2>
@@ -316,9 +353,10 @@ export default async function JobDetailPage({
               </p>
             )}
           </div>
+          )}
 
           {/* Profit (when costs are tracked) */}
-          {lineCost > 0 && (
+          {showMoney && lineCost > 0 && (
             <div className="bg-white border border-gray-200 rounded-lg p-4">
               <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
                 Profit margin
@@ -349,13 +387,29 @@ export default async function JobDetailPage({
             <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
               Client
             </h2>
-            <Link href={`/app/contacts/${job.contact.id}`} className="block hover:opacity-80">
-              <p className="text-sm font-semibold text-gray-900">
-                {job.contact.firstName} {job.contact.lastName}
-              </p>
-              {job.contact.phone && <p className="text-xs text-gray-500 mt-1">{job.contact.phone}</p>}
-              {job.contact.email && <p className="text-xs text-gray-500">{job.contact.email}</p>}
-            </Link>
+            {(() => {
+              const card = (
+                <>
+                  <p className="text-sm font-semibold text-gray-900">
+                    {job.contact.firstName} {job.contact.lastName}
+                  </p>
+                  {job.contact.phone && (
+                    <p className="text-xs text-gray-500 mt-1">{job.contact.phone}</p>
+                  )}
+                  {job.contact.email && <p className="text-xs text-gray-500">{job.contact.email}</p>}
+                  {job.contact.address && (
+                    <p className="text-xs text-gray-500">{job.contact.address}</p>
+                  )}
+                </>
+              );
+              return canOpenContact ? (
+                <Link href={`/app/contacts/${job.contact.id}`} className="block hover:opacity-80">
+                  {card}
+                </Link>
+              ) : (
+                <div>{card}</div>
+              );
+            })()}
           </div>
         </div>
       </div>

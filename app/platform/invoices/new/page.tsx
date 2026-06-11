@@ -1,7 +1,5 @@
-import { getServerSession } from "next-auth";
-import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/db";
+import { requirePageActor, canSeeMoney, contactScope, viaContactScope } from "@/lib/permissions";
 import InvoiceEditor from "./InvoiceEditor";
 
 export default async function NewInvoicePage({
@@ -9,17 +7,14 @@ export default async function NewInvoicePage({
 }: {
   searchParams: Promise<{ jobId?: string }>;
 }) {
-  const session = await getServerSession(authOptions);
-  if (!session) redirect("/app/login");
-
-  const companyId = session.user.companyId;
-  if (!companyId) redirect("/app/register");
+  const actor = await requirePageActor(canSeeMoney);
+  const companyId = actor.companyId;
 
   const { jobId } = await searchParams;
 
   const [contacts, workItems, job] = await Promise.all([
     prisma.contact.findMany({
-      where: { companyId },
+      where: { companyId, ...contactScope(actor) },
       orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
     }),
     prisma.workItem.findMany({
@@ -28,7 +23,7 @@ export default async function NewInvoicePage({
     }),
     jobId
       ? prisma.job.findFirst({
-          where: { id: jobId, companyId },
+          where: { id: jobId, companyId, ...viaContactScope(actor) },
           include: {
             contact: true,
             lineItems: { orderBy: { sortOrder: "asc" } },

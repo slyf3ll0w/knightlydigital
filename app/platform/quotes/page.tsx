@@ -1,7 +1,5 @@
-import { getServerSession } from "next-auth";
-import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/db";
+import { requirePageActor, canSell, viaContactScope } from "@/lib/permissions";
 import Link from "next/link";
 import { Plus, ChevronRight } from "lucide-react";
 import { money, shortDate } from "@/lib/statuses";
@@ -26,11 +24,9 @@ export default async function QuotesPage({
 }: {
   searchParams: Promise<{ status?: string }>;
 }) {
-  const session = await getServerSession(authOptions);
-  if (!session) redirect("/app/login");
-
-  const companyId = session.user.companyId;
-  if (!companyId) redirect("/app/register");
+  const actor = await requirePageActor((a) => canSell(a.role));
+  const companyId = actor.companyId;
+  const scope = viaContactScope(actor);
 
   const { status } = await searchParams;
   const validStatus = validValues.includes(status ?? "") ? (status as QuoteStatus) : undefined;
@@ -39,17 +35,18 @@ export default async function QuotesPage({
 
   const [quotes, draftCount, awaitingCount, approvedCount, sent30, approved30] = await Promise.all([
     prisma.quote.findMany({
-      where: { companyId, ...(validStatus ? { status: validStatus } : {}) },
+      where: { companyId, ...scope, ...(validStatus ? { status: validStatus } : {}) },
       include: { contact: true },
       orderBy: { createdAt: "desc" },
     }),
-    prisma.quote.count({ where: { companyId, status: "DRAFT" } }),
-    prisma.quote.count({ where: { companyId, status: "AWAITING_RESPONSE" } }),
-    prisma.quote.count({ where: { companyId, status: "APPROVED" } }),
-    prisma.quote.count({ where: { companyId, sentAt: { gte: thirtyDaysAgo } } }),
+    prisma.quote.count({ where: { companyId, ...scope, status: "DRAFT" } }),
+    prisma.quote.count({ where: { companyId, ...scope, status: "AWAITING_RESPONSE" } }),
+    prisma.quote.count({ where: { companyId, ...scope, status: "APPROVED" } }),
+    prisma.quote.count({ where: { companyId, ...scope, sentAt: { gte: thirtyDaysAgo } } }),
     prisma.quote.aggregate({
       where: {
         companyId,
+        ...scope,
         approvedAt: { gte: thirtyDaysAgo },
       },
       _count: true,

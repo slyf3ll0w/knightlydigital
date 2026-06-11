@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/db";
 import { sanitizeBookingForm } from "@/lib/booking-form";
+import { getActor, isManager } from "@/lib/permissions";
 
 export async function PATCH(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  const companyId = session?.user.companyId;
-  if (!companyId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const actor = await getActor();
+  if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!isManager(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const companyId = actor.companyId;
 
   const body = await req.json();
 

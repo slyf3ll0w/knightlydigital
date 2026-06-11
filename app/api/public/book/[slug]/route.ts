@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { verifyCaptcha } from "@/lib/captcha";
 import { sanitizeBookingForm } from "@/lib/booking-form";
 import { sendEmail, newRequestEmail } from "@/lib/email";
+import { defaultLeadAssignee } from "@/lib/permissions";
 
 // Generous backstop so one runaway account or bot can't flood a company
 const MAX_REQUESTS_PER_COMPANY_PER_DAY = 200;
@@ -90,6 +91,9 @@ export async function POST(
     );
   }
 
+  // Website leads go to the company's preset assignee, else the owner
+  const assignedToId = await defaultLeadAssignee(company.id);
+
   const request = await prisma.$transaction(async (tx) => {
     // Match an existing contact by phone or email; otherwise create a lead
     let contact = await tx.contact.findFirst({
@@ -108,6 +112,7 @@ export async function POST(
           phone,
           address: address || null,
           leadSource: "Online booking",
+          assignedToId,
         },
       });
     }

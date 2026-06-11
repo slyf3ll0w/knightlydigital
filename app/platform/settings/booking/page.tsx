@@ -1,16 +1,12 @@
-import { getServerSession } from "next-auth";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/db";
+import { requirePageActor, isManager } from "@/lib/permissions";
 import BookingSettingsClient from "./BookingSettingsClient";
 
 export default async function BookingSettingsPage() {
-  const session = await getServerSession(authOptions);
-  if (!session) redirect("/app/login");
-
-  const companyId = session.user.companyId;
-  if (!companyId) redirect("/app/register");
+  const actor = await requirePageActor((a) => isManager(a.role));
+  const companyId = actor.companyId;
 
   const company = await prisma.company.findUnique({
     where: { id: companyId },

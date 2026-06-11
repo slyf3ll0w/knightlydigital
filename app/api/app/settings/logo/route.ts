@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/db";
+import { getActor, isManager } from "@/lib/permissions";
 
 // Client-side optimization shrinks uploads before they get here; this is a
 // generous backstop, not the user-facing limit.
@@ -11,9 +10,11 @@ const allowedTypes = ["image/png", "image/jpeg", "image/webp", "image/gif"];
 
 /** Upload a company logo (multipart form, field "file"). */
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  const companyId = session?.user.companyId;
-  if (!companyId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const actor = await getActor();
+  if (!actor || !isManager(actor.role)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const companyId = actor.companyId;
 
   const formData = await req.formData();
   const file = formData.get("file");
@@ -43,9 +44,11 @@ export async function POST(req: NextRequest) {
 
 /** Remove the company logo. */
 export async function DELETE() {
-  const session = await getServerSession(authOptions);
-  const companyId = session?.user.companyId;
-  if (!companyId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const actor = await getActor();
+  if (!actor || !isManager(actor.role)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const companyId = actor.companyId;
 
   await prisma.company.update({
     where: { id: companyId },

@@ -18,18 +18,27 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // Middleware + individual pages handle auth redirects for protected routes.
   if (!session) return <>{children}</>;
 
-  // Fresh from DB (not JWT) so logo/brand changes apply without re-login
-  const company = session.user.companyId
-    ? await prisma.company.findUnique({
-        where: { id: session.user.companyId },
-        select: { name: true, logoUrl: true, brandColor: true },
-      })
-    : null;
+  // Fresh from DB (not JWT) so logo/brand and role changes apply without re-login
+  const [company, user] = await Promise.all([
+    session.user.companyId
+      ? prisma.company.findUnique({
+          where: { id: session.user.companyId },
+          select: { name: true, logoUrl: true, brandColor: true },
+        })
+      : null,
+    session.user.id
+      ? prisma.user.findUnique({
+          where: { id: session.user.id },
+          select: { role: true, name: true },
+        })
+      : null,
+  ]);
 
   return (
     <AppShell
-      userName={session.user.name}
+      userName={user?.name ?? session.user.name}
       userEmail={session.user.email}
+      role={user?.role ?? session.user.role}
       companyName={company?.name ?? session.user.companyName}
       companyLogoUrl={company?.logoUrl}
       brandColor={company?.brandColor}

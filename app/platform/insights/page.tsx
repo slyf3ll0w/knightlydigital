@@ -1,7 +1,5 @@
-import { getServerSession } from "next-auth";
-import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/db";
+import { requirePageActor, isManager } from "@/lib/permissions";
 import Link from "next/link";
 import { money } from "@/lib/statuses";
 
@@ -78,10 +76,8 @@ export default async function InsightsPage({
 }: {
   searchParams: Promise<{ range?: string }>;
 }) {
-  const session = await getServerSession(authOptions);
-  if (!session) redirect("/app/login");
-  const companyId = session.user.companyId;
-  if (!companyId) redirect("/app/register");
+  const actor = await requirePageActor((a) => isManager(a.role));
+  const companyId = actor.companyId;
 
   const { range } = await searchParams;
   const days = range === "all" ? null : parseInt(range ?? "90") || 90;

@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/db";
+import { getActor, canSeeMoney, contactScope } from "@/lib/permissions";
 
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  const companyId = session?.user.companyId;
-  if (!companyId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const actor = await getActor();
+  if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!canSeeMoney(actor)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const companyId = actor.companyId;
 
   const body = await req.json();
   const { contactId, jobId, subject, lineItems, taxRate, notes, dueDate } = body;
@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
   }
 
   const contact = contactId
-    ? await prisma.contact.findFirst({ where: { id: contactId, companyId } })
+    ? await prisma.contact.findFirst({ where: { id: contactId, companyId, ...contactScope(actor) } })
     : null;
 
   const subtotal = lineItems.reduce(

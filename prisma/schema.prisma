@@ -30,6 +30,10 @@ model Company {
   reviewLink       String?
   bookingForm      Json? // booking/embed form config (custom fields etc.) — see lib/booking-form.ts
   industry         String? // onboarding answer; drives starter price book + future industry defaults
+  // Team settings: who gets website/booking leads (null = company owner),
+  // and whether SALES users can see invoices & payments for their leads.
+  defaultLeadUserId String?
+  salesSeePayments  Boolean @default(true)
   teamSize         String? // onboarding answers below — analytics/marketing
   currentSoftware  String?
   topPriority      String?
@@ -67,8 +71,9 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  assignments JobAssignment[]
-  notes       JobNote[]
+  assignments      JobAssignment[]
+  notes            JobNote[]
+  assignedContacts Contact[]       @relation("AssignedContacts")
 
   @@index([companyId])
   @@index([role])
@@ -77,8 +82,10 @@ model User {
 enum Role {
   SUPERADMIN
   OWNER
-  MANAGER
-  TECH
+  ADMIN // pretty much everything except managing owners/admins' roles
+  USER // sales + tech combined, no admin powers (UI label: "Sales + Tech")
+  SALES // sells: assigned leads, their requests/quotes
+  TECH // performs: assigned jobs + schedule, no pricing
 }
 
 // ─── Contacts (Clients) ──────────────────────────────────────────────────────
@@ -104,6 +111,9 @@ model Contact {
   notes            String?
   status           ContactStatus @default(LEAD)
   leadSource       String?
+  // Lead ownership: SALES/USER roles only see contacts assigned to them
+  assignedToId     String?
+  assignedTo       User?         @relation("AssignedContacts", fields: [assignedToId], references: [id])
   paymentTermsDays Int           @default(30)
   hubToken         String        @unique @default(cuid())
   createdAt        DateTime      @default(now())
@@ -120,6 +130,7 @@ model Contact {
   @@index([companyId])
   @@index([companyId, status])
   @@index([companyId, lastName])
+  @@index([companyId, assignedToId])
 }
 
 // ─── Requests ────────────────────────────────────────────────────────────────

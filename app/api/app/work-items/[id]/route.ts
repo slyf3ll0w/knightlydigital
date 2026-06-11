@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/db";
+import { getActor, isManager } from "@/lib/permissions";
 
+// Price-book edits are settings territory: managers only
 async function getCompanyId() {
-  const session = await getServerSession(authOptions);
-  return session?.user.companyId ?? null;
+  const actor = await getActor();
+  if (!actor || !isManager(actor.role)) return null;
+  return actor.companyId;
 }
 
 export async function PATCH(

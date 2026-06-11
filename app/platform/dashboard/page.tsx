@@ -1,19 +1,30 @@
-import { getServerSession } from "next-auth";
-import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/db";
 import Link from "next/link";
 import { Inbox, FileText, Briefcase, Receipt, ArrowRight } from "lucide-react";
 import { money, type StatusKind } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
 import EmptyState from "@/components/EmptyState";
+import {
+  requirePageActor,
+  isManager,
+  canSell,
+  canSeeMoney,
+  canSeePricing,
+  viaContactScope,
+  jobScope,
+} from "@/lib/permissions";
 
 export default async function DashboardPage() {
-  const session = await getServerSession(authOptions);
-  if (!session) redirect("/app/login");
+  const actor = await requirePageActor();
+  const companyId = actor.companyId;
 
-  const companyId = session.user.companyId;
-  if (!companyId) redirect("/app/register");
+  // Role lens: what this person's dashboard talks about
+  const sell = canSell(actor.role);
+  const seeMoney = canSeeMoney(actor);
+  const seePrices = canSeePricing(actor.role);
+  const seePerformance = isManager(actor.role) || actor.role === "USER";
+  const leadScope = viaContactScope(actor);
+  const jScope = jobScope(actor);
 
   const now = new Date();
   const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -39,32 +50,38 @@ export default async function DashboardPage() {
     upcomingJobsWeek,
     monthPayments,
   ] = await Promise.all([
-    prisma.request.count({ where: { companyId, status: "NEW" } }),
-    prisma.request.count({ where: { companyId, status: "ARCHIVED" } }),
-    prisma.quote.count({ where: { companyId, status: "APPROVED" } }),
-    prisma.quote.count({ where: { companyId, status: "DRAFT" } }),
-    prisma.quote.count({ where: { companyId, status: "CHANGES_REQUESTED" } }),
-    prisma.job.count({ where: { companyId, status: "REQUIRES_INVOICING" } }),
-    prisma.job.count({ where: { companyId, status: "ACTIVE" } }),
-    prisma.job.count({ where: { companyId, status: "ACTIVE", scheduledAt: null } }),
-    prisma.invoice.count({ where: { companyId, status: "AWAITING_PAYMENT" } }),
-    prisma.invoice.count({ where: { companyId, status: "DRAFT" } }),
-    prisma.invoice.count({ where: { companyId, status: "PAST_DUE" } }),
+    prisma.request.count({ where: { companyId, ...leadScope, status: "NEW" } }),
+    prisma.request.count({ where: { companyId, ...leadScope, status: "ARCHIVED" } }),
+    prisma.quote.count({ where: { companyId, ...leadScope, status: "APPROVED" } }),
+    prisma.quote.count({ where: { companyId, ...leadScope, status: "DRAFT" } }),
+    prisma.quote.count({ where: { companyId, ...leadScope, status: "CHANGES_REQUESTED" } }),
+    prisma.job.count({ where: { companyId, ...jScope, status: "REQUIRES_INVOICING" } }),
+    prisma.job.count({ where: { companyId, ...jScope, status: "ACTIVE" } }),
+    prisma.job.count({ where: { companyId, ...jScope, status: "ACTIVE", scheduledAt: null } }),
+    prisma.invoice.count({ where: { companyId, ...leadScope, status: "AWAITING_PAYMENT" } }),
+    prisma.invoice.count({ where: { companyId, ...leadScope, status: "DRAFT" } }),
+    prisma.invoice.count({ where: { companyId, ...leadScope, status: "PAST_DUE" } }),
     prisma.job.findMany({
-      where: { companyId, scheduledAt: { gte: startOfDay, lt: endOfDay } },
+      where: { companyId, ...jScope, scheduledAt: { gte: startOfDay, lt: endOfDay } },
       include: { contact: true, lineItems: true, assignments: { include: { user: true } } },
       orderBy: { scheduledAt: "asc" },
     }),
-    prisma.invoice.findMany({
-      where: { companyId, status: { in: ["AWAITING_PAYMENT", "PAST_DUE"] } },
-      include: { payments: true },
-    }),
-    prisma.job.findMany({
-      where: { companyId, status: "ACTIVE", scheduledAt: { gte: startOfWeek, lt: endOfWeek } },
-      include: { lineItems: true },
-    }),
+    seePerformance
+      ? prisma.invoice.findMany({
+          where: { companyId, status: { in: ["AWAITING_PAYMENT", "PAST_DUE"] } },
+          include: { payments: true },
+        })
+      : Promise.resolve([]),
+    seePerformance
+      ? prisma.job.findMany({
+          where: { companyId, status: "ACTIVE", scheduledAt: { gte: startOfWeek, lt: endOfWeek } },
+          include: { lineItems: true },
+        })
+      : Promise.resolve([]),
     prisma.payment.aggregate({
-      where: { companyId, paidAt: { gte: startOfMonth } },
+      where: seePerformance
+        ? { companyId, paidAt: { gte: startOfMonth } }
+        : { companyId, id: "none" }, // skipped for non-managers
       _sum: { amount: true },
     }),
   ]);
@@ -84,10 +101,12 @@ export default async function DashboardPage() {
     label: string;
     icon: typeof Inbox;
     kind: StatusKind;
+    show: boolean;
     headline: { count: number; status: string; href: string };
     secondary: { count: number; label: string; href: string }[];
   }[] = [
     {
+      show: sell,
       label: "Requests",
       icon: Inbox,
       kind: "request",
@@ -97,6 +116,7 @@ export default async function DashboardPage() {
       ],
     },
     {
+      show: sell,
       label: "Quotes",
       icon: FileText,
       kind: "quote",
@@ -111,6 +131,7 @@ export default async function DashboardPage() {
       ],
     },
     {
+      show: true,
       label: "Jobs",
       icon: Briefcase,
       kind: "job",
@@ -125,6 +146,7 @@ export default async function DashboardPage() {
       ],
     },
     {
+      show: seeMoney,
       label: "Invoices",
       icon: Receipt,
       kind: "invoice",
@@ -140,7 +162,7 @@ export default async function DashboardPage() {
     },
   ];
 
-  const firstName = session.user.name?.split(" ")[0] ?? "there";
+  const firstName = actor.name?.split(" ")[0] ?? "there";
   const hour = now.getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
@@ -158,7 +180,7 @@ export default async function DashboardPage() {
       {/* ── Workflow strip ─────────────────────────────────────────────────── */}
       <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Workflow</p>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
-        {workflow.map((w) => (
+        {workflow.filter((w) => w.show).map((w) => (
           <div key={w.label} className="bg-white border border-gray-200 rounded-lg overflow-hidden">
             <Link
               href={w.headline.href}
@@ -232,7 +254,7 @@ export default async function DashboardPage() {
                           ` · ${job.assignments.map((a) => a.user.name).join(", ")}`}
                       </p>
                     </div>
-                    {value > 0 && (
+                    {seePrices && value > 0 && (
                       <span className="text-sm font-semibold text-gray-900">{money(value)}</span>
                     )}
                   </Link>
@@ -243,6 +265,7 @@ export default async function DashboardPage() {
         </div>
 
         {/* ── Business performance rail ────────────────────────────────────── */}
+        {seePerformance && (
         <div className="space-y-3">
           <h2 className="font-semibold text-gray-900 text-sm px-1">Business performance</h2>
           <Link
@@ -278,6 +301,7 @@ export default async function DashboardPage() {
             <p className="text-xs text-gray-500 mt-0.5">This month so far</p>
           </Link>
         </div>
+        )}
       </div>
     </div>
   );

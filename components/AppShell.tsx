@@ -20,6 +20,7 @@ import {
   BarChart3,
   Search,
   Globe,
+  UserPlus,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import Avatar from "@/components/Avatar";
@@ -37,44 +38,57 @@ function sidebarAccent(hex: string): string {
   return luminance < 60 ? "#ffffff" : hex;
 }
 
+// Per-role visibility, mirroring lib/permissions.ts (server still enforces):
+// sell = managers/USER/SALES, money = managers/USER/SALES-with-toggle (the
+// toggle isn't known client-side, so SALES keeps the nav item and the page
+// decides), manage = OWNER/ADMIN.
+type NavItem = { href: string; label: string; icon: typeof Home; show?: (role: string) => boolean };
+
+const isManagerRole = (r: string) => r === "OWNER" || r === "ADMIN";
+const sellRoles = (r: string) => isManagerRole(r) || r === "USER" || r === "SALES";
+const moneyRoles = (r: string) => isManagerRole(r) || r === "USER" || r === "SALES";
+
 // Jobber-style grouping: Home + Schedule, then the work lifecycle in order.
-const navGroups = [
+const navGroups: NavItem[][] = [
   [
     { href: "/app/dashboard", label: "Home", icon: Home },
     { href: "/app/schedule", label: "Schedule", icon: CalendarDays },
   ],
   [
-    { href: "/app/contacts", label: "Clients", icon: Users },
-    { href: "/app/requests", label: "Requests", icon: Inbox },
-    { href: "/app/quotes", label: "Quotes", icon: FileText },
+    { href: "/app/contacts", label: "Clients", icon: Users, show: sellRoles },
+    { href: "/app/requests", label: "Requests", icon: Inbox, show: sellRoles },
+    { href: "/app/quotes", label: "Quotes", icon: FileText, show: sellRoles },
     { href: "/app/jobs", label: "Jobs", icon: Briefcase },
-    { href: "/app/invoices", label: "Invoices", icon: Receipt },
+    { href: "/app/invoices", label: "Invoices", icon: Receipt, show: moneyRoles },
   ],
-  [{ href: "/app/insights", label: "Insights", icon: BarChart3 }],
+  [{ href: "/app/insights", label: "Insights", icon: BarChart3, show: isManagerRole }],
 ];
 
-const createItems = [
-  { href: "/app/contacts/new", label: "Client", icon: Users },
-  { href: "/app/requests/new", label: "Request", icon: Inbox },
-  { href: "/app/quotes/new", label: "Quote", icon: FileText },
-  { href: "/app/jobs/new", label: "Job", icon: Briefcase },
-  { href: "/app/invoices/new", label: "Invoice", icon: Receipt },
-  { href: "/app/payments/new", label: "Payment", icon: DollarSign },
+const createItems: NavItem[] = [
+  { href: "/app/contacts/new", label: "Client", icon: Users, show: sellRoles },
+  { href: "/app/requests/new", label: "Request", icon: Inbox, show: sellRoles },
+  { href: "/app/quotes/new", label: "Quote", icon: FileText, show: sellRoles },
+  { href: "/app/jobs/new", label: "Job", icon: Briefcase, show: (r) => isManagerRole(r) || r === "USER" },
+  { href: "/app/invoices/new", label: "Invoice", icon: Receipt, show: moneyRoles },
+  { href: "/app/payments/new", label: "Payment", icon: DollarSign, show: moneyRoles },
 ];
 
-const mobileNav = [
+const mobileNav: NavItem[] = [
   { href: "/app/dashboard", label: "Home", icon: Home },
   { href: "/app/schedule", label: "Schedule", icon: CalendarDays },
   { href: "/app/jobs", label: "Jobs", icon: Briefcase },
-  { href: "/app/invoices", label: "Invoices", icon: Receipt },
+  { href: "/app/invoices", label: "Invoices", icon: Receipt, show: moneyRoles },
 ];
+
+const forRole = (items: NavItem[], role: string) =>
+  items.filter((i) => !i.show || i.show(role));
 
 /**
  * Global create menu. Self-contained state + ref so each sidebar instance
  * (desktop + mobile drawer) gets its own — a shared ref made the click-outside
  * handler swallow item clicks.
  */
-function CreateMenu({ accent }: { accent: string }) {
+function CreateMenu({ accent, role }: { accent: string; role: string }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -103,7 +117,7 @@ function CreateMenu({ accent }: { accent: string }) {
       </button>
       {open && (
         <div className="absolute left-3 right-3 top-full mt-1.5 z-50 bg-white rounded-lg shadow-xl ring-1 ring-black/5 py-1.5 overflow-hidden">
-          {createItems.map(({ href, label, icon: Icon }) => (
+          {forRole(createItems, role).map(({ href, label, icon: Icon }) => (
             <Link
               key={href}
               href={href}
@@ -124,6 +138,7 @@ interface AppShellProps {
   children: React.ReactNode;
   userName?: string | null;
   userEmail?: string | null;
+  role?: string | null;
   companyName?: string | null;
   companyLogoUrl?: string | null;
   brandColor?: string | null;
@@ -133,10 +148,13 @@ export default function AppShell({
   children,
   userName,
   userEmail,
+  role,
   companyName,
   companyLogoUrl,
   brandColor,
 }: AppShellProps) {
+  const userRole = role ?? "OWNER";
+  const manager = isManagerRole(userRole);
   const accent = sidebarAccent(brandColor || DEFAULT_ACCENT);
   const pathname = usePathname();
   const router = useRouter();
@@ -152,9 +170,15 @@ export default function AppShell({
 
   function isActive(href: string) {
     if (href === "/app/dashboard") return pathname === href;
-    // Booking Form lives under /app/settings/ but has its own nav item
+    // Booking Form / Team / My Profile live under /app/settings/ but have
+    // their own nav items
     if (href === "/app/settings") {
-      return pathname.startsWith(href) && !pathname.startsWith("/app/settings/booking");
+      return (
+        pathname.startsWith(href) &&
+        !pathname.startsWith("/app/settings/booking") &&
+        !pathname.startsWith("/app/settings/team") &&
+        !pathname.startsWith("/app/settings/profile")
+      );
     }
     return pathname.startsWith(href);
   }
@@ -190,24 +214,29 @@ export default function AppShell({
 
   const sidebarInner = (
     <>
-      <CreateMenu accent={accent} />
+      <CreateMenu accent={accent} role={userRole} />
 
       {/* Nav groups */}
       <nav className="flex-1 px-3 py-4 overflow-y-auto">
-        {navGroups.map((group, i) => (
-          <div key={i}>
-            {i > 0 && <div className="my-3 border-t border-white/[0.07]" />}
-            <div className="space-y-0.5">
-              {group.map(({ href, label, icon: Icon }) => navLink(href, label, Icon))}
+        {navGroups
+          .map((group) => forRole(group, userRole))
+          .filter((group) => group.length > 0)
+          .map((group, i) => (
+            <div key={i}>
+              {i > 0 && <div className="my-3 border-t border-white/[0.07]" />}
+              <div className="space-y-0.5">
+                {group.map(({ href, label, icon: Icon }) => navLink(href, label, Icon))}
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
       </nav>
 
       {/* Settings + user */}
       <div className="px-3 py-3 border-t border-white/[0.07] space-y-0.5">
-        {navLink("/app/settings/booking", "Booking Form", Globe)}
-        {navLink("/app/settings", "Settings", Settings)}
+        {manager && navLink("/app/settings/booking", "Booking Form", Globe)}
+        {manager && navLink("/app/settings/team", "Team", UserPlus)}
+        {manager && navLink("/app/settings", "Settings", Settings)}
+        {!manager && navLink("/app/settings/profile", "My Profile", Settings)}
         <div className="px-3 py-2.5 flex items-center gap-3">
           <Avatar name={userName} size={28} />
           <div className="flex-1 min-w-0">
@@ -299,7 +328,10 @@ export default function AppShell({
             {companyName ?? "JobFlow"}
           </span>
 
-          <form onSubmit={onSearch} className="ml-auto hidden sm:block w-full max-w-xs">
+          <form
+            onSubmit={onSearch}
+            className={`ml-auto w-full max-w-xs ${sellRoles(userRole) ? "hidden sm:block" : "hidden"}`}
+          >
             <div className="relative">
               <Search
                 size={14}
@@ -316,9 +348,11 @@ export default function AppShell({
           </form>
 
           <Link
-            href="/app/settings"
-            className="hidden sm:flex p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-            title="Settings"
+            href={manager ? "/app/settings" : "/app/settings/profile"}
+            className={`hidden sm:flex p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors ${
+              sellRoles(userRole) ? "" : "ml-auto"
+            }`}
+            title={manager ? "Settings" : "My Profile"}
           >
             <Settings size={17} />
           </Link>
@@ -331,7 +365,7 @@ export default function AppShell({
 
       {/* ── Mobile bottom tab bar ─────────────────────────────────────────── */}
       <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-white border-t border-gray-200 flex">
-        {mobileNav.map(({ href, label, icon: Icon }) => {
+        {forRole(mobileNav, userRole).map(({ href, label, icon: Icon }) => {
           const active = isActive(href);
           return (
             <Link

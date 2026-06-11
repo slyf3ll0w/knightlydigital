@@ -1,7 +1,5 @@
-import { getServerSession } from "next-auth";
-import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/db";
+import { requirePageActor, jobScope, canSeePricing, isManager } from "@/lib/permissions";
 import Link from "next/link";
 import { Plus, ChevronRight } from "lucide-react";
 import { money, shortDate } from "@/lib/statuses";
@@ -21,11 +19,11 @@ export default async function JobsPage({
 }: {
   searchParams: Promise<{ status?: string; unscheduled?: string }>;
 }) {
-  const session = await getServerSession(authOptions);
-  if (!session) redirect("/app/login");
-
-  const companyId = session.user.companyId;
-  if (!companyId) redirect("/app/register");
+  const actor = await requirePageActor();
+  const companyId = actor.companyId;
+  const scope = jobScope(actor);
+  const showMoney = canSeePricing(actor.role);
+  const canCreate = isManager(actor.role) || actor.role === "USER";
 
   const { status, unscheduled } = await searchParams;
   const validStatus = ["ACTIVE", "REQUIRES_INVOICING", "ARCHIVED"].includes(status ?? "")
@@ -36,15 +34,16 @@ export default async function JobsPage({
     prisma.job.findMany({
       where: {
         companyId,
+        ...scope,
         ...(validStatus ? { status: validStatus } : {}),
         ...(unscheduled ? { scheduledAt: null } : {}),
       },
       include: { contact: true, lineItems: true },
       orderBy: { updatedAt: "desc" },
     }),
-    prisma.job.count({ where: { companyId, status: "ACTIVE" } }),
-    prisma.job.count({ where: { companyId, status: "REQUIRES_INVOICING" } }),
-    prisma.job.count({ where: { companyId, status: "ACTIVE", scheduledAt: null } }),
+    prisma.job.count({ where: { companyId, ...scope, status: "ACTIVE" } }),
+    prisma.job.count({ where: { companyId, ...scope, status: "REQUIRES_INVOICING" } }),
+    prisma.job.count({ where: { companyId, ...scope, status: "ACTIVE", scheduledAt: null } }),
   ]);
 
   const kpis = [
@@ -61,13 +60,15 @@ export default async function JobsPage({
     <div className="p-4 lg:p-8 max-w-6xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Jobs</h1>
-        <Link
-          href="/app/jobs/new"
-          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors"
-        >
-          <Plus size={15} />
-          New Job
-        </Link>
+        {canCreate && (
+          <Link
+            href="/app/jobs/new"
+            className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors"
+          >
+            <Plus size={15} />
+            New Job
+          </Link>
+        )}
       </div>
 
       {/* KPI strip */}
@@ -144,7 +145,7 @@ export default async function JobsPage({
                   </span>
                   <StatusChip kind="job" status={j.status} />
                   <span className="text-sm font-semibold text-gray-900 lg:text-right">
-                    {total > 0 ? money(total) : "—"}
+                    {showMoney && total > 0 ? money(total) : "—"}
                   </span>
                   <ChevronRight size={14} className="text-gray-400 shrink-0 hidden lg:block" />
                 </Link>

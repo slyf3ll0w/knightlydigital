@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/db";
+import { getActor, canSell, isManager, viaContactScope } from "@/lib/permissions";
 
 const allowedStatuses = [
   "DRAFT",
@@ -15,12 +14,15 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getServerSession(authOptions);
-  const companyId = session?.user.companyId;
-  if (!companyId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const actor = await getActor();
+  if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!canSell(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const companyId = actor.companyId;
 
   const { id } = await params;
-  const quote = await prisma.quote.findFirst({ where: { id, companyId } });
+  const quote = await prisma.quote.findFirst({
+    where: { id, companyId, ...viaContactScope(actor) },
+  });
   if (!quote) return NextResponse.json({ error: "Quote not found." }, { status: 404 });
 
   const body = await req.json();
@@ -46,9 +48,10 @@ export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getServerSession(authOptions);
-  const companyId = session?.user.companyId;
-  if (!companyId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const actor = await getActor();
+  if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!isManager(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const companyId = actor.companyId;
 
   const { id } = await params;
   const quote = await prisma.quote.findFirst({ where: { id, companyId } });

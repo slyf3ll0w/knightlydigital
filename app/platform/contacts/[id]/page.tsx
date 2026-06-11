@@ -1,37 +1,46 @@
-import { getServerSession } from "next-auth";
-import { notFound, redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth-options";
+import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
+import { requirePageActor, canSell, contactScope, seesAllLeads } from "@/lib/permissions";
 import Link from "next/link";
 import { ArrowLeft, Phone, Mail, MapPin, ChevronRight, ExternalLink } from "lucide-react";
 import { money, shortDate, type StatusKind } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
 import ContactCreateMenu from "./ContactCreateMenu";
 import DeleteContactButton from "./DeleteContactButton";
+import AssignLead from "./AssignLead";
 
 export default async function ContactDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const session = await getServerSession(authOptions);
-  if (!session) redirect("/app/login");
-
-  const companyId = session.user.companyId;
-  if (!companyId) redirect("/app/register");
+  const actor = await requirePageActor((a) => canSell(a.role));
+  const companyId = actor.companyId;
 
   const { id } = await params;
 
-  const contact = await prisma.contact.findFirst({
-    where: { id, companyId },
-    include: {
-      requests: { orderBy: { createdAt: "desc" } },
-      quotes: { orderBy: { createdAt: "desc" } },
-      jobs: { orderBy: { createdAt: "desc" } },
-      invoices: { include: { payments: true }, orderBy: { createdAt: "desc" } },
-      payments: true,
-    },
-  });
+  const canReassign = seesAllLeads(actor.role);
+
+  const [contact, teamUsers] = await Promise.all([
+    prisma.contact.findFirst({
+      where: { id, companyId, ...contactScope(actor) },
+      include: {
+        requests: { orderBy: { createdAt: "desc" } },
+        quotes: { orderBy: { createdAt: "desc" } },
+        jobs: { orderBy: { createdAt: "desc" } },
+        invoices: { include: { payments: true }, orderBy: { createdAt: "desc" } },
+        payments: true,
+        assignedTo: { select: { id: true, name: true } },
+      },
+    }),
+    canReassign
+      ? prisma.user.findMany({
+          where: { companyId, isActive: true },
+          select: { id: true, name: true },
+          orderBy: { name: "asc" },
+        })
+      : Promise.resolve([]),
+  ]);
 
   if (!contact) notFound();
 
@@ -209,6 +218,21 @@ export default async function ContactDetailPage({
 
         {/* Rail: overview + hub link */}
         <div className="space-y-4">
+          <div className="bg-white border border-gray-200 rounded-lg p-4">
+            <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+              Assigned to
+            </h2>
+            {canReassign ? (
+              <AssignLead
+                contactId={contact.id}
+                assignedToId={contact.assignedTo?.id ?? ""}
+                users={teamUsers}
+              />
+            ) : (
+              <p className="text-sm text-gray-800">{contact.assignedTo?.name ?? "Unassigned"}</p>
+            )}
+          </div>
+
           <div className="bg-white border border-gray-200 rounded-lg p-4">
             <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
               Overview

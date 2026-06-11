@@ -1,7 +1,5 @@
-import { getServerSession } from "next-auth";
-import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/db";
+import { requirePageActor, canSell, contactScope } from "@/lib/permissions";
 import QuoteEditor from "../[id]/QuoteEditor";
 
 export default async function NewQuotePage({
@@ -9,17 +7,14 @@ export default async function NewQuotePage({
 }: {
   searchParams: Promise<{ contactId?: string; requestId?: string }>;
 }) {
-  const session = await getServerSession(authOptions);
-  if (!session) redirect("/app/login");
-
-  const companyId = session.user.companyId;
-  if (!companyId) redirect("/app/register");
+  const actor = await requirePageActor((a) => canSell(a.role));
+  const companyId = actor.companyId;
 
   const { contactId, requestId } = await searchParams;
 
   const [contacts, workItems, request] = await Promise.all([
     prisma.contact.findMany({
-      where: { companyId },
+      where: { companyId, ...contactScope(actor) },
       orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
     }),
     prisma.workItem.findMany({
@@ -27,7 +22,9 @@ export default async function NewQuotePage({
       orderBy: { name: "asc" },
     }),
     requestId
-      ? prisma.request.findFirst({ where: { id: requestId, companyId } })
+      ? prisma.request.findFirst({
+          where: { id: requestId, companyId, contact: contactScope(actor) },
+        })
       : Promise.resolve(null),
   ]);
 

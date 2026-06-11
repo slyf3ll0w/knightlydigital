@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/db";
+import { getActor, canSell, viaContactScope } from "@/lib/permissions";
 
 /**
  * POST — convert an approved quote into a job (Jobber's "Convert to Job").
@@ -12,13 +11,14 @@ export async function POST(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getServerSession(authOptions);
-  const companyId = session?.user.companyId;
-  if (!companyId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const actor = await getActor();
+  if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!canSell(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const companyId = actor.companyId;
 
   const { id } = await params;
   const quote = await prisma.quote.findFirst({
-    where: { id, companyId },
+    where: { id, companyId, ...viaContactScope(actor) },
     include: { lineItems: { orderBy: { sortOrder: "asc" } }, contact: true },
   });
   if (!quote) return NextResponse.json({ error: "Quote not found." }, { status: 404 });

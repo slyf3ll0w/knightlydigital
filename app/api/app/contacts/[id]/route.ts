@@ -1,35 +1,48 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/db";
-
-async function getCompanyId() {
-  const session = await getServerSession(authOptions);
-  return session?.user.companyId ?? null;
-}
+import { getActor, canSell, contactScope, isManager } from "@/lib/permissions";
 
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const companyId = await getCompanyId();
-  if (!companyId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const actor = await getActor();
+  if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!canSell(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { id } = await params;
   const body = await req.json();
 
+  // Reassigning a lead is a manager action
+  let assignment: { assignedToId: string | null } | undefined;
+  if (isManager(actor.role) && body.assignedToId !== undefined) {
+    if (body.assignedToId === null || body.assignedToId === "") {
+      assignment = { assignedToId: null };
+    } else {
+      const target = await prisma.user.findFirst({
+        where: { id: body.assignedToId, companyId: actor.companyId, isActive: true },
+        select: { id: true },
+      });
+      if (!target) return NextResponse.json({ error: "Team member not found." }, { status: 400 });
+      assignment = { assignedToId: target.id };
+    }
+  }
+
   const contact = await prisma.contact.updateMany({
-    where: { id, companyId },
+    where: { id, companyId: actor.companyId, ...contactScope(actor) },
     data: {
-      firstName: body.firstName,
-      lastName: body.lastName,
-      email: body.email || null,
-      phone: body.phone || null,
-      address: body.address || null,
-      city: body.city || null,
-      state: body.state || null,
-      zip: body.zip || null,
-      notes: body.notes || null,
+      ...(body.firstName !== undefined && {
+        firstName: body.firstName,
+        lastName: body.lastName,
+        email: body.email || null,
+        phone: body.phone || null,
+        address: body.address || null,
+        city: body.city || null,
+        state: body.state || null,
+        zip: body.zip || null,
+        notes: body.notes || null,
+      }),
+      ...assignment,
     },
   });
 
@@ -47,10 +60,12 @@ export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const companyId = await getCompanyId();
-  if (!companyId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const actor = await getActor();
+  if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!isManager(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { id } = await params;
+  const companyId = actor.companyId;
 
   const contact = await prisma.contact.findFirst({
     where: { id, companyId },

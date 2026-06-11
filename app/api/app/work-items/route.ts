@@ -1,16 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/db";
-
-async function getCompanyId() {
-  const session = await getServerSession(authOptions);
-  return session?.user.companyId ?? null;
-}
+import { getActor, canSell, isManager } from "@/lib/permissions";
 
 export async function GET() {
-  const companyId = await getCompanyId();
-  if (!companyId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // Read access for anyone who builds quotes (price-book autocomplete)
+  const actor = await getActor();
+  if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!canSell(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const companyId = actor.companyId;
 
   const items = await prisma.workItem.findMany({
     where: { companyId, isActive: true },
@@ -21,8 +18,10 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const companyId = await getCompanyId();
-  if (!companyId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const actor = await getActor();
+  if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!isManager(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const companyId = actor.companyId;
 
   const body = await req.json();
   const { name, description, type, unitPrice, unitCost } = body;

@@ -1,7 +1,6 @@
-import { getServerSession } from "next-auth";
-import { notFound, redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth-options";
+import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
+import { requirePageActor, canSell, viaContactScope } from "@/lib/permissions";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { money, shortDate, quoteDepositAmount } from "@/lib/statuses";
@@ -13,16 +12,13 @@ export default async function QuoteDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const session = await getServerSession(authOptions);
-  if (!session) redirect("/app/login");
-
-  const companyId = session.user.companyId;
-  if (!companyId) redirect("/app/register");
+  const actor = await requirePageActor((a) => canSell(a.role));
+  const companyId = actor.companyId;
 
   const { id } = await params;
 
   const quote = await prisma.quote.findFirst({
-    where: { id, companyId },
+    where: { id, companyId, ...viaContactScope(actor) },
     include: {
       contact: true,
       lineItems: { orderBy: { sortOrder: "asc" } },
