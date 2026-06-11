@@ -4,6 +4,7 @@ import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Loader2, Check, Copy, ExternalLink, Upload, Trash2 } from "lucide-react";
+import { resizeImageFile } from "@/lib/resize-image";
 
 type Company = {
   id: string; name: string; slug: string; phone: string | null;
@@ -45,10 +46,28 @@ export default function SettingsClient({ company }: { company: Company }) {
 
   async function uploadLogo(file: File) {
     setLogoError("");
+
+    if (file.size > 15 * 1024 * 1024) {
+      setLogoError("That file is over 15MB — please use a smaller image.");
+      return;
+    }
+
     setLogoBusy(true);
     try {
+      // Animated GIFs pass through untouched (canvas would freeze the first
+      // frame); everything else gets downscaled + compressed client-side.
+      let payload: { blob: Blob; filename: string };
+      if (file.type === "image/gif" && file.size <= 2 * 1024 * 1024) {
+        payload = { blob: file, filename: file.name };
+      } else if (file.type === "image/gif") {
+        setLogoError("Animated GIFs must be under 2MB. Use a PNG or JPG for larger logos.");
+        return;
+      } else {
+        payload = await resizeImageFile(file);
+      }
+
       const fd = new FormData();
-      fd.append("file", file);
+      fd.append("file", new File([payload.blob], payload.filename, { type: payload.blob.type }));
       const res = await fetch("/api/app/settings/logo", { method: "POST", body: fd });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
@@ -229,7 +248,8 @@ export default function SettingsClient({ company }: { company: Company }) {
             </div>
             {logoError && <p className="text-xs text-red-600 mt-1">{logoError}</p>}
             <p className="text-xs text-gray-400 mt-1">
-              PNG, JPG, WebP, or GIF up to 1MB. Transparent-background PNG looks best.
+              Any PNG, JPG, WebP, or GIF up to 15MB — it&apos;s optimized automatically.
+              Transparent-background PNG looks best.
             </p>
           </div>
           <div>

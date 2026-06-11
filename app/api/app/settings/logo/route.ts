@@ -3,7 +3,9 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/db";
 
-const MAX_BYTES = 1024 * 1024; // 1MB is plenty for a logo
+// Client-side optimization shrinks uploads before they get here; this is a
+// generous backstop, not the user-facing limit.
+const MAX_BYTES = 2 * 1024 * 1024;
 // No SVG: same-origin SVGs can carry scripts
 const allowedTypes = ["image/png", "image/jpeg", "image/webp", "image/gif"];
 
@@ -25,7 +27,7 @@ export async function POST(req: NextRequest) {
     );
   }
   if (file.size > MAX_BYTES) {
-    return NextResponse.json({ error: "Logo must be under 1MB." }, { status: 400 });
+    return NextResponse.json({ error: "Processed logo is too large." }, { status: 400 });
   }
 
   const bytes = Buffer.from(await file.arrayBuffer());
