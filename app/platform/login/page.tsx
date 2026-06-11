@@ -1,23 +1,30 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { signIn, useSession } from "next-auth/react";
+import { signIn, signOut, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Briefcase, Loader2 } from "lucide-react";
 import Link from "next/link";
 
 export default function AppLoginPage() {
   const router = useRouter();
-  const { status } = useSession();
+  const { data: session, status } = useSession();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Already signed in — go straight to the dashboard
+  // Already signed in with a company — go straight to the dashboard.
+  // Sessions WITHOUT a company (superadmin, or a deleted test company) must
+  // stay here, or login → dashboard → register becomes a bounce loop and the
+  // register page's "Sign in" link appears dead.
   useEffect(() => {
-    if (status === "authenticated") router.replace("/app/dashboard");
-  }, [status, router]);
+    if (status === "authenticated" && session?.user?.companyId) {
+      router.replace("/app/dashboard");
+    }
+  }, [status, session, router]);
+
+  const staleSession = status === "authenticated" && !session?.user?.companyId;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -55,6 +62,22 @@ export default function AppLoginPage() {
         <div className="bg-white rounded-lg border border-gray-200 p-8 shadow-sm">
           <h1 className="text-xl font-bold text-gray-900 mb-1">Sign in</h1>
           <p className="text-sm text-gray-500 mb-6">Welcome back to JobFlow</p>
+
+          {staleSession && (
+            <div className="mb-4 px-4 py-3 bg-amber-50 border border-amber-200 rounded text-sm text-amber-800">
+              You&apos;re signed in as{" "}
+              <span className="font-semibold">{session?.user?.email}</span>, which doesn&apos;t
+              have a company workspace.{" "}
+              <button
+                type="button"
+                onClick={() => signOut({ redirect: false })}
+                className="font-semibold text-amber-900 underline hover:no-underline"
+              >
+                Sign out
+              </button>{" "}
+              or sign in below with another account.
+            </div>
+          )}
 
           {error && (
             <div className="mb-4 px-4 py-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
