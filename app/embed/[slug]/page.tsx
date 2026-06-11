@@ -3,16 +3,23 @@ import { prisma } from "@/lib/db";
 import BookingForm from "@/app/book/[slug]/BookingForm";
 import EmbedAutoResize from "./EmbedAutoResize";
 import { brandAccent } from "@/lib/branding";
-import { bookingAccent, sanitizeBookingForm } from "@/lib/booking-form";
+import {
+  bookingAccent,
+  sanitizeBookingForm,
+  FONT_SIZE_ZOOM,
+  GOOGLE_FONT_RE,
+} from "@/lib/booking-form";
 
 /**
  * Chrome-less booking form for embedding in a company's own website via
  * <iframe>. Same form + API as /book/[slug], minus header and page styling.
  *
- * Query params so it blends into the host site:
- *   ?theme=dark         dark inputs/labels (default light)
+ * Appearance (theme/font/size) comes from the company's saved form config;
+ * query params override per embed:
+ *   ?theme=dark         dark inputs/labels
+ *   ?theme=light        force light
  *   ?transparent=1      no card background — sits directly on the host page
- *   ?accent=2563eb      hex accent override (defaults to the brand color)
+ *   ?accent=2563eb      hex accent override (defaults to button/brand color)
  *   ?font=Oxanium       Google Font to match the host site's typography
  *   ?service=Lawn+care  prefill the service field
  *
@@ -38,17 +45,26 @@ export default async function EmbedBookingPage({
   const company = await prisma.company.findUnique({ where: { slug } });
   if (!company) notFound();
 
-  const dark = theme === "dark";
-  const isTransparent = transparent === "1";
   const config = sanitizeBookingForm(company.bookingForm);
+
+  // Saved appearance is the default; explicit URL params win per embed
+  const effectiveTheme =
+    transparent === "1"
+      ? "transparent"
+      : theme === "dark" || theme === "light"
+        ? theme
+        : config.appearance.theme;
+  const dark = effectiveTheme === "dark";
+  const isTransparent = effectiveTheme === "transparent";
 
   // Accent precedence: explicit ?accent= > configured button color > brand
   const accentHex = /^#?[0-9a-fA-F]{6}$/.test(accent ?? "")
     ? `#${(accent as string).replace("#", "")}`
     : bookingAccent(config, brandAccent(company));
 
-  // Google Font name: letters/digits/spaces only — anything else is ignored
-  const fontName = /^[a-zA-Z0-9 ]{2,40}$/.test(font ?? "") ? (font as string).trim() : null;
+  const fontName = GOOGLE_FONT_RE.test(font ?? "")
+    ? (font as string).trim()
+    : (config.appearance.font ?? null);
   const fontHref = fontName
     ? `https://fonts.googleapis.com/css2?family=${fontName.replace(/ /g, "+")}:wght@400;500;600;700&display=swap`
     : null;
@@ -63,6 +79,7 @@ export default async function EmbedBookingPage({
       className="app-ui p-4"
       style={{
         backgroundColor: pageBg,
+        zoom: FONT_SIZE_ZOOM[config.appearance.fontSize],
         ...(fontName ? { fontFamily: `"${fontName}", sans-serif` } : {}),
       }}
     >

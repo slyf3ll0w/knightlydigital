@@ -14,7 +14,7 @@ export default async function BookingSettingsPage() {
 
   const company = await prisma.company.findUnique({
     where: { id: companyId },
-    select: { name: true, slug: true, bookingForm: true },
+    select: { name: true, slug: true, brandColor: true, bookingForm: true },
   });
   if (!company) redirect("/app/register");
 

@@ -39,8 +39,22 @@ export type BookingFormConfig = {
     label: string;
     color?: string; // hex; overrides the brand color as the form accent
   };
+  appearance: {
+    theme: "light" | "dark" | "transparent";
+    font?: string; // Google Font name, loaded inside the embed
+    fontSize: "sm" | "md" | "lg";
+  };
   customFields: CustomField[];
 };
+
+/** Form scale per font size — applied as CSS zoom so everything tracks. */
+export const FONT_SIZE_ZOOM: Record<BookingFormConfig["appearance"]["fontSize"], number> = {
+  sm: 0.9,
+  md: 1,
+  lg: 1.15,
+};
+
+export const GOOGLE_FONT_RE = /^[a-zA-Z0-9 ]{2,40}$/;
 
 export const DEFAULT_BOOKING_FORM: BookingFormConfig = {
   showAddress: true,
@@ -58,6 +72,10 @@ export const DEFAULT_BOOKING_FORM: BookingFormConfig = {
   },
   button: {
     label: "Request Appointment",
+  },
+  appearance: {
+    theme: "light",
+    fontSize: "md",
   },
   customFields: [],
 };
@@ -92,6 +110,8 @@ export function sanitizeBookingForm(raw: unknown): BookingFormConfig {
   const message = (r.message ?? {}) as Record<string, unknown>;
   const button = (r.button ?? {}) as Record<string, unknown>;
   const buttonColor = str(button.color, 7);
+  const appearance = (r.appearance ?? {}) as Record<string, unknown>;
+  const font = str(appearance.font, 40);
 
   const serviceType = service.type === "select" || service.type === "radio" ? service.type : "text";
   const customFields: CustomField[] = Array.isArray(r.customFields)
@@ -132,6 +152,15 @@ export function sanitizeBookingForm(raw: unknown): BookingFormConfig {
     button: {
       label: str(button.label, 40) || d.button.label,
       color: /^#[0-9a-fA-F]{6}$/.test(buttonColor) ? buttonColor : undefined,
+    },
+    appearance: {
+      theme:
+        appearance.theme === "dark" || appearance.theme === "transparent"
+          ? appearance.theme
+          : "light",
+      font: GOOGLE_FONT_RE.test(font) ? font : undefined,
+      fontSize:
+        appearance.fontSize === "sm" || appearance.fontSize === "lg" ? appearance.fontSize : "md",
     },
     customFields,
   };
