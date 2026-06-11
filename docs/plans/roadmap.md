@@ -47,21 +47,34 @@ via build + isolated component render). Worth a quick prod click-through.
   field builder + share link + embed snippet. Send button text + color are
   customizable; the color doubles as the whole-form accent (selected cards,
   success check). Accent precedence: ?accent= > button color > brand color.
-- First real client: Excellent PC Building — configure his form (radio
-  Build Only / Parts + Build, City dropdown, Budget) in his account, then
-  swap his site's static form for the embed.
+- First real client: Excellent PC Building — DONE. David configured the form
+  in his account; his site's ContactForm.tsx renders the param-free embed
+  (commit 8af9e06 in his repo) so saved appearance drives the site.
+- Later additions same day: saved appearance (theme/font/text-size in config,
+  embed params override), live-preview builder with option rows, transparent
+  white-body fix, anti-spam (honeypot + <3s speed gate, fake success), spam
+  delete (requests + leads, guarded against real work).
 
-### 3. Schedule rebuild (big)
+### 3. Schedule rebuild (big) ← NEXT UP
 
 Week/day views, unscheduled-jobs drawer, "Anytime" row, team filter — per
 `docs/jobber-research/jobber-build-spec.md` §6. Current schedule is a month
 grid only.
 
-### 4. Email automations via Resend
+### 4. Email automations via Resend — Phase 1 SHIPPED 2026-06-11
 
-Quote follow-ups, payment reminders, visit reminders + email verification at
-signup (spec §8). SMS stays ON HOLD as a future paid add-on (per-message cost
-vs free software — David's call).
+- DONE: new-request notification to company.email from booking form + client
+  hub (lib/email.ts, env-gated on RESEND_API_KEY; EMAIL_FROM default
+  notifications@streamflaremedia.com; Reply-To = customer). David set the API
+  key; domain DNS verification was pending — TEST once verified: submit his
+  site's form, check email arrives; if not, Railway logs show
+  "[email] resend send failed" with the reason (usually from-domain mismatch
+  → set EMAIL_FROM to the verified domain).
+- TODO Phase 2 (spec §8): quote sent/approved notifications, payment
+  receipts, quote follow-ups + payment reminders + visit reminders (need a
+  daily cron hitting an API route), email verification at signup. SMS stays
+  ON HOLD as a future paid add-on (per-message cost vs free software —
+  David's call).
 
 ### 5. Payments go-live (blocked on BotPay payfac approval)
 
@@ -88,7 +101,12 @@ existing companies from the dashboard.
 ## David's own action items
 
 - Create Cloudflare Turnstile widget; set `NEXT_PUBLIC_TURNSTILE_SITE_KEY` +
-  `TURNSTILE_SECRET_KEY` on Railway (captcha code is deployed, inert until then)
+  `TURNSTILE_SECRET_KEY` on Railway (captcha code is deployed, inert until
+  then). David deferred 2026-06-11 ("a little later"). NOTE: allowed
+  hostnames must include streamflaire.com AND excellentpcbuilding.com (the
+  embed runs inside his site).
+- Confirm Resend domain DNS verified + test a form submission end-to-end
+  (see §4 above)
 - Verify daily backups on the Railway Postgres service (highest-priority ops item)
 - `railway login` — CLI session expired 2026-06-11
 
