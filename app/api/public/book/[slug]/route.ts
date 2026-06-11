@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { verifyCaptcha } from "@/lib/captcha";
+import { sanitizeBookingForm } from "@/lib/booking-form";
 
 // Generous backstop so one runaway account or bot can't flood a company
 const MAX_REQUESTS_PER_COMPANY_PER_DAY = 200;
@@ -37,6 +38,35 @@ export async function POST(
   );
   if (tooLong || (message && String(message).length > 5000)) {
     return NextResponse.json({ error: "Input too long." }, { status: 400 });
+  }
+
+  // Custom fields: validate against the company's configured form. Answers
+  // have no column of their own, so they ride along in the request details as
+  // "Label - value" lines.
+  const config = sanitizeBookingForm(company.bookingForm);
+  const rawCustom = (body.custom ?? {}) as Record<string, unknown>;
+  const customLines: string[] = [];
+  for (const field of config.customFields) {
+    const value = typeof rawCustom[field.id] === "string" ? (rawCustom[field.id] as string).trim() : "";
+    if (!value) {
+      if (field.required) {
+        return NextResponse.json({ error: `"${field.label}" is required.` }, { status: 400 });
+      }
+      continue;
+    }
+    if (value.length > 1000) {
+      return NextResponse.json({ error: "Input too long." }, { status: 400 });
+    }
+    if (
+      (field.type === "select" || field.type === "radio") &&
+      !(field.options ?? []).some((o) => o.label === value)
+    ) {
+      return NextResponse.json({ error: `Invalid value for "${field.label}".` }, { status: 400 });
+    }
+    customLines.push(`${field.label} - ${value}`);
+  }
+  if (config.message.required && !message) {
+    return NextResponse.json({ error: `"${config.message.label}" is required.` }, { status: 400 });
   }
 
   const since = new Date(Date.now() - 86400000);
@@ -85,6 +115,7 @@ export async function POST(
         title: service,
         details: [
           message,
+          ...customLines,
           preferredDate ? `Preferred date: ${preferredDate}` : null,
           address ? `Address: ${address}` : null,
         ]

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/db";
+import { sanitizeBookingForm } from "@/lib/booking-form";
 
 export async function PATCH(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -32,6 +33,7 @@ export async function PATCH(req: NextRequest) {
       surchargeEnabled: body.surchargeEnabled ?? undefined,
       surchargeRate: body.surchargeRate ?? undefined,
       reviewLink: body.reviewLink || null,
+      bookingForm: body.bookingForm !== undefined ? sanitizeBookingForm(body.bookingForm) : undefined,
     },
   });
 

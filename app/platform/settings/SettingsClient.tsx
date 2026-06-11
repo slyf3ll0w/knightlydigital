@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Loader2, Check, Copy, ExternalLink, Upload, Trash2 } from "lucide-react";
 import { resizeImageFile } from "@/lib/resize-image";
 import { INDUSTRIES } from "@/lib/pricebooks";
+import BookingFormBuilder from "./BookingFormBuilder";
 
 type Company = {
   id: string; name: string; slug: string; phone: string | null;
@@ -14,6 +15,7 @@ type Company = {
   logoUrl: string | null; brandColor: string | null;
   surchargeEnabled: boolean; surchargeRate: string | number | null;
   reviewLink: string | null; industry: string | null;
+  bookingForm: unknown;
 };
 
 export default function SettingsClient({
@@ -103,10 +105,19 @@ export default function SettingsClient({
     }
   }
 
+  const [embedFont, setEmbedFont] = useState("");
+
   const bookingUrl = `${baseUrl}/book/${company.slug}`;
-  const embedParams =
-    embedTheme === "dark" ? "?theme=dark" : embedTheme === "transparent" ? "?transparent=1" : "";
-  const embedSnippet = `<iframe src="${baseUrl}/embed/${company.slug}${embedParams}" style="width:100%;max-width:560px;height:780px;border:0;" title="Request a service from ${company.name}"></iframe>`;
+  const embedQuery = new URLSearchParams();
+  if (embedTheme === "dark") embedQuery.set("theme", "dark");
+  if (embedTheme === "transparent") embedQuery.set("transparent", "1");
+  if (embedFont.trim()) embedQuery.set("font", embedFont.trim());
+  const embedParams = embedQuery.toString() ? `?${embedQuery.toString()}` : "";
+  // Iframe + listener pair: the embed posts its content height (jobflow:height)
+  // and this script resizes the matching iframe — no scrollbars, no dead gap.
+  const embedOrigin = baseUrl ? new URL(baseUrl).origin : "";
+  const embedSnippet = `<iframe src="${baseUrl}/embed/${company.slug}${embedParams}" data-jobflow="${company.slug}" style="width:100%;max-width:560px;height:760px;border:0;" title="Request a service from ${company.name}"></iframe>
+<script>window.addEventListener("message",function(e){var d=e.data;if(e.origin==="${embedOrigin}"&&d&&d.type==="jobflow:height"&&d.slug==="${company.slug}"){var f=document.querySelector('iframe[data-jobflow="${company.slug}"]');if(f)f.style.height=d.height+"px";}});</script>`;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -365,6 +376,19 @@ export default function SettingsClient({
           </div>
         </div>
 
+        <div>
+          <button type="submit" disabled={loading}
+            className="flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors disabled:opacity-50">
+            {loading ? <Loader2 size={14} className="animate-spin" /> : saved ? <Check size={14} /> : null}
+            {saved ? "Saved!" : "Save Settings"}
+          </button>
+        </div>
+      </form>
+
+      <div className="mt-6 space-y-6">
+        {/* Booking form fields (saves on its own) */}
+        <BookingFormBuilder initial={company.bookingForm} />
+
         {/* Booking widget */}
         <div className="bg-white border border-gray-200 rounded-lg p-5">
           <div className="mb-3">
@@ -422,6 +446,23 @@ export default function SettingsClient({
                 Transparent inherits your website&apos;s background
               </span>
             </div>
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              <label className="text-xs font-medium text-gray-500">Match your website&apos;s font:</label>
+              <input
+                type="text"
+                value={embedFont}
+                onChange={(e) => setEmbedFont(e.target.value)}
+                placeholder="e.g. Oxanium"
+                className="px-2.5 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-green-500 w-40"
+              />
+              <span className="text-[11px] text-gray-400">
+                Any{" "}
+                <a href="https://fonts.google.com" target="_blank" rel="noreferrer" className="underline">
+                  Google Font
+                </a>{" "}
+                name — added to the code automatically
+              </span>
+            </div>
             <pre className="p-3 bg-gray-50 border border-gray-200 rounded text-xs font-mono text-gray-600 whitespace-pre-wrap break-all">
               {embedSnippet}
             </pre>
@@ -436,15 +477,7 @@ export default function SettingsClient({
             </a>
           </div>
         </div>
-
-        <div>
-          <button type="submit" disabled={loading}
-            className="flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors disabled:opacity-50">
-            {loading ? <Loader2 size={14} className="animate-spin" /> : saved ? <Check size={14} /> : null}
-            {saved ? "Saved!" : "Save Settings"}
-          </button>
-        </div>
-      </form>
+      </div>
     </div>
   );
 }
