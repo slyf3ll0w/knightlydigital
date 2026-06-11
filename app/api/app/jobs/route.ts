@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
   if (!companyId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
-  const { contactId, requestId, title, description, scheduledAt, scheduledEnd, address, leadSource } = body;
+  const { contactId, requestId, title, description, scheduledAt, scheduledEnd, scheduledAnytime, address, leadSource } = body;
 
   if (!contactId || !title) {
     return NextResponse.json({ error: "Client and title are required." }, { status: 400 });
@@ -58,6 +58,7 @@ export async function POST(req: NextRequest) {
         leadSource: leadSource || contact.leadSource || null,
         scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
         scheduledEnd: scheduledEnd ? new Date(scheduledEnd) : null,
+        scheduledAnytime: Boolean(scheduledAnytime),
         address: address || contact.address || null,
       },
     });

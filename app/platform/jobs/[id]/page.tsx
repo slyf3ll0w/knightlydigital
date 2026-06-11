@@ -80,6 +80,7 @@ export default async function JobDetailPage({
             jobId={job.id}
             scheduledAt={job.scheduledAt?.toISOString() ?? null}
             scheduledEnd={job.scheduledEnd?.toISOString() ?? null}
+            scheduledAnytime={job.scheduledAnytime}
           />
         </div>
         {job.quote && (

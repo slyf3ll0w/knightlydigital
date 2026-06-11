@@ -27,6 +27,7 @@ export async function PATCH(
       ...(body.status && validStatuses.includes(body.status) && { status: body.status }),
       ...(body.scheduledAt !== undefined && { scheduledAt: body.scheduledAt ? new Date(body.scheduledAt) : null }),
       ...(body.scheduledEnd !== undefined && { scheduledEnd: body.scheduledEnd ? new Date(body.scheduledEnd) : null }),
+      ...(body.scheduledAnytime !== undefined && { scheduledAnytime: Boolean(body.scheduledAnytime) }),
       ...(body.address !== undefined && { address: body.address }),
       ...(body.leadSource !== undefined && { leadSource: body.leadSource || null }),
     },

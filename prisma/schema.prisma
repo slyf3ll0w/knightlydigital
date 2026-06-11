@@ -176,6 +176,9 @@ model Job {
   status       JobStatus @default(ACTIVE)
   scheduledAt  DateTime?
   scheduledEnd DateTime?
+  // Date-only scheduling: scheduledAt anchored at T12:00, shown in the
+  // calendar's "Anytime" row rather than at a clock position.
+  scheduledAnytime Boolean @default(false)
   completedAt  DateTime?
   closedAt     DateTime?
   address      String?

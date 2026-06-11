@@ -222,7 +222,7 @@ export default async function DashboardPage() {
                         {job.contact.firstName} {job.contact.lastName} — {job.title}
                       </p>
                       <p className="text-xs text-gray-500">
-                        {job.scheduledAt
+                        {job.scheduledAt && !job.scheduledAnytime
                           ? new Date(job.scheduledAt).toLocaleTimeString("en-US", {
                               hour: "numeric",
                               minute: "2-digit",

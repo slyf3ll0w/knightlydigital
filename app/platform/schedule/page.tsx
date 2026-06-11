@@ -2,25 +2,57 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/db";
-import Link from "next/link";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import ScheduleClient, { type ScheduleJobDTO } from "./ScheduleClient";
 
-const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const MONTHS = [
-  "January","February","March","April","May","June",
-  "July","August","September","October","November","December",
-];
+/**
+ * Schedule — month / week / day calendar (Jobber-style, spec §6).
+ * Server side only loads data for the visible range; all rendering,
+ * navigation and drag-to-schedule lives in ScheduleClient.
+ */
 
-const statusColors: Record<string, string> = {
-  ACTIVE: "bg-blue-500",
-  REQUIRES_INVOICING: "bg-amber-500",
-  ARCHIVED: "bg-gray-400",
+function pad(n: number) {
+  return String(n).padStart(2, "0");
+}
+
+function parseDateParam(s?: string): Date {
+  if (s) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+    if (m) {
+      const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+      if (!isNaN(d.getTime())) return d;
+    }
+  }
+  return new Date();
+}
+
+type JobWithContact = {
+  id: string;
+  jobNumber: number;
+  title: string;
+  status: string;
+  scheduledAt: Date | null;
+  scheduledEnd: Date | null;
+  scheduledAnytime: boolean;
+  contact: { firstName: string; lastName: string };
 };
+
+function toDTO(j: JobWithContact): ScheduleJobDTO {
+  return {
+    id: j.id,
+    jobNumber: j.jobNumber,
+    title: j.title,
+    status: j.status,
+    scheduledAt: j.scheduledAt ? j.scheduledAt.toISOString() : null,
+    scheduledEnd: j.scheduledEnd ? j.scheduledEnd.toISOString() : null,
+    scheduledAnytime: j.scheduledAnytime,
+    contactName: `${j.contact.firstName} ${j.contact.lastName}`.trim(),
+  };
+}
 
 export default async function SchedulePage({
   searchParams,
 }: {
-  searchParams: Promise<{ year?: string; month?: string }>;
+  searchParams: Promise<{ view?: string; date?: string; team?: string }>;
 }) {
   const session = await getServerSession(authOptions);
   if (!session) redirect("/app/login");
@@ -28,144 +60,59 @@ export default async function SchedulePage({
   const companyId = session.user.companyId;
   if (!companyId) redirect("/app/register");
 
-  const { year, month } = await searchParams;
-  const now = new Date();
-  const y = year ? parseInt(year) : now.getFullYear();
-  const m = month ? parseInt(month) : now.getMonth();
+  const { view: viewParam, date: dateParam, team } = await searchParams;
+  const view = viewParam === "week" || viewParam === "day" ? viewParam : "month";
+  const anchor = parseDateParam(dateParam);
 
-  const startOfMonth = new Date(y, m, 1);
-  const endOfMonth = new Date(y, m + 1, 0, 23, 59, 59);
-
-  const jobs = await prisma.job.findMany({
-    where: {
-      companyId,
-      scheduledAt: { gte: startOfMonth, lte: endOfMonth },
-    },
-    include: { contact: true },
-    orderBy: { scheduledAt: "asc" },
-  });
-
-  // Build calendar grid
-  const firstDow = startOfMonth.getDay();
-  const daysInMonth = new Date(y, m + 1, 0).getDate();
-
-  const prevMonth = m === 0 ? `?year=${y - 1}&month=11` : `?year=${y}&month=${m - 1}`;
-  const nextMonth = m === 11 ? `?year=${y + 1}&month=0` : `?year=${y}&month=${m + 1}`;
-
-  // Group jobs by day
-  const jobsByDay: Record<number, typeof jobs> = {};
-  for (const job of jobs) {
-    if (!job.scheduledAt) continue;
-    const d = new Date(job.scheduledAt).getDate();
-    if (!jobsByDay[d]) jobsByDay[d] = [];
-    jobsByDay[d].push(job);
+  // Visible range (server TZ = company TZ via Railway TZ env)
+  let start: Date;
+  let end: Date;
+  if (view === "month") {
+    start = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
+    end = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0, 23, 59, 59, 999);
+  } else if (view === "week") {
+    start = new Date(anchor);
+    start.setDate(start.getDate() - start.getDay());
+    start.setHours(0, 0, 0, 0);
+    end = new Date(start);
+    end.setDate(end.getDate() + 6);
+    end.setHours(23, 59, 59, 999);
+  } else {
+    start = new Date(anchor);
+    start.setHours(0, 0, 0, 0);
+    end = new Date(anchor);
+    end.setHours(23, 59, 59, 999);
   }
 
+  const teamWhere = team ? { assignments: { some: { userId: team } } } : {};
+
+  const [jobs, unscheduled, users] = await Promise.all([
+    prisma.job.findMany({
+      where: { companyId, scheduledAt: { gte: start, lte: end }, ...teamWhere },
+      include: { contact: { select: { firstName: true, lastName: true } } },
+      orderBy: { scheduledAt: "asc" },
+    }),
+    prisma.job.findMany({
+      where: { companyId, status: "ACTIVE", scheduledAt: null, ...teamWhere },
+      include: { contact: { select: { firstName: true, lastName: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    }),
+    prisma.user.findMany({
+      where: { companyId, isActive: true },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
+  ]);
+
   return (
-    <div className="p-4 lg:p-8 max-w-5xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Schedule</h1>
-        <Link
-          href="/app/jobs/new"
-          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors"
-        >
-          <Plus size={15} />
-          New Job
-        </Link>
-      </div>
-
-      {/* Month nav */}
-      <div className="flex items-center justify-between mb-4">
-        <Link href={prevMonth} className="p-2 hover:bg-gray-100 rounded transition-colors">
-          <ChevronLeft size={18} className="text-gray-600" />
-        </Link>
-        <h2 className="text-lg font-bold text-gray-900">
-          {MONTHS[m]} {y}
-        </h2>
-        <Link href={nextMonth} className="p-2 hover:bg-gray-100 rounded transition-colors">
-          <ChevronRight size={18} className="text-gray-600" />
-        </Link>
-      </div>
-
-      {/* Calendar grid */}
-      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-        {/* Day headers */}
-        <div className="grid grid-cols-7 border-b border-gray-100">
-          {DAYS.map((d) => (
-            <div key={d} className="py-2 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">
-              {d}
-            </div>
-          ))}
-        </div>
-
-        {/* Weeks */}
-        {(() => {
-          const cells: React.ReactNode[] = [];
-          let day = 1;
-
-          // Leading empty cells
-          for (let i = 0; i < firstDow; i++) {
-            cells.push(<div key={`empty-${i}`} className="min-h-[80px] lg:min-h-[100px] p-1 bg-gray-50 border-r border-b border-gray-100" />);
-          }
-
-          for (let d = 1; d <= daysInMonth; d++) {
-            const isToday = d === now.getDate() && m === now.getMonth() && y === now.getFullYear();
-            const dayJobs = jobsByDay[d] ?? [];
-
-            cells.push(
-              <div
-                key={d}
-                className={`min-h-[80px] lg:min-h-[100px] p-1.5 border-r border-b border-gray-100 ${isToday ? "bg-green-50" : ""}`}
-              >
-                <span
-                  className={`inline-flex w-6 h-6 items-center justify-center text-xs font-semibold rounded-full mb-1 ${
-                    isToday ? "bg-green-500 text-white" : "text-gray-700"
-                  }`}
-                >
-                  {d}
-                </span>
-                <div className="space-y-0.5">
-                  {dayJobs.slice(0, 3).map((job) => (
-                    <Link
-                      key={job.id}
-                      href={`/app/jobs/${job.id}`}
-                      className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-xs text-white font-medium truncate ${statusColors[job.status]}`}
-                    >
-                      {job.contact.firstName.charAt(0)}. {job.contact.lastName} — {job.title}
-                    </Link>
-                  ))}
-                  {dayJobs.length > 3 && (
-                    <p className="text-xs text-gray-400 pl-1">+{dayJobs.length - 3} more</p>
-                  )}
-                </div>
-              </div>
-            );
-            day++;
-          }
-
-          // Trailing empty cells to fill last week
-          const total = firstDow + daysInMonth;
-          const remainder = total % 7;
-          if (remainder > 0) {
-            for (let i = 0; i < 7 - remainder; i++) {
-              cells.push(<div key={`trail-${i}`} className="min-h-[80px] lg:min-h-[100px] p-1 bg-gray-50 border-r border-b border-gray-100" />);
-            }
-          }
-
-          return <div className="grid grid-cols-7">{cells}</div>;
-        })()}
-      </div>
-
-      {/* Legend */}
-      <div className="flex flex-wrap gap-3 mt-4">
-        {Object.entries(statusColors).map(([s, c]) => (
-          <div key={s} className="flex items-center gap-1.5 text-xs text-gray-500">
-            <div className={`w-2.5 h-2.5 rounded ${c}`} />
-            {s.replaceAll("_", " ")}
-          </div>
-        ))}
-      </div>
-    </div>
+    <ScheduleClient
+      view={view}
+      date={`${anchor.getFullYear()}-${pad(anchor.getMonth() + 1)}-${pad(anchor.getDate())}`}
+      team={team ?? ""}
+      jobs={jobs.map(toDTO)}
+      unscheduled={unscheduled.map(toDTO)}
+      users={users}
+    />
   );
 }
