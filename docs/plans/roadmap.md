@@ -84,7 +84,7 @@ Per `docs/jobber-research/jobber-build-spec.md` §6:
   "Find an appointment time", layout customization wizard. Touch devices
   can't drag (HTML5 DnD) — they schedule via the job detail editor.
 
-### 3b. Team roles + lead assignment — SHIPPED 2026-06-11 commits 2c2b07f + 9c55cb0(fix) + create-menu fix, verified live
+### 3b. Team roles + lead assignment — SHIPPED 2026-06-11 commits 2c2b07f + cdc05c1 (assignments fix) + b91d500, verified live
 
 David's spec (approved matrix in session 2026-06-11): Owner / Admin /
 "Sales + Tech" (enum USER) / Sales / Tech. Adding users is free.
