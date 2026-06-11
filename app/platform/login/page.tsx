@@ -35,7 +35,9 @@ export default function AppLoginPage() {
     if (res?.error) {
       setError("Invalid email or password.");
     } else {
-      router.push("/app/dashboard");
+      // Full page load so the app layout re-renders with the new session
+      // (client-side navigation would reuse the signed-out layout — no sidebar)
+      window.location.href = "/app/dashboard";
     }
   }
 

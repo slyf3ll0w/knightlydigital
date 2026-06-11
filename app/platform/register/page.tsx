@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
+
 import { Briefcase, Loader2, Check } from "lucide-react";
 import Link from "next/link";
 
@@ -16,7 +16,7 @@ const perks = [
 ];
 
 export default function RegisterPage() {
-  const router = useRouter();
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [form, setForm] = useState({
@@ -50,14 +50,15 @@ export default function RegisterPage() {
       return;
     }
 
-    // Auto sign in after registration
+    // Auto sign in after registration, then do a full page load so the app
+    // layout re-renders with the new session (sidebar included)
     await signIn("credentials", {
       email: form.email,
       password: form.password,
       redirect: false,
     });
 
-    router.push("/app/dashboard");
+    window.location.href = "/app/dashboard";
   }
 
   return (
