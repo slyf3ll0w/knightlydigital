@@ -55,13 +55,36 @@ via build + isolated component render). Worth a quick prod click-through.
   white-body fix, anti-spam (honeypot + <3s speed gate, fake success), spam
   delete (requests + leads, guarded against real work).
 
-### 3. Schedule rebuild (big) ← NEXT UP
+### 3. Schedule rebuild — SHIPPED 2026-06-11 commit 892b31a, verified live
 
-Week/day views, unscheduled-jobs drawer, "Anytime" row, team filter — per
-`docs/jobber-research/jobber-build-spec.md` §6. Current schedule is a month
-grid only.
+Per `docs/jobber-research/jobber-build-spec.md` §6:
 
-### 4. Email automations via Resend — Phase 1 SHIPPED 2026-06-11
+- **Month / Week / Day views** with segmented toggle, prev/next/Today;
+  URL state `?view=&date=&team=` so views are linkable. Server page loads
+  only the visible range; all rendering in
+  `app/platform/schedule/ScheduleClient.tsx`.
+- **Week/day time grids** — 24h grid (48px/hr) auto-scrolled to 7 AM,
+  overlap-aware block layout (greedy column packing), red current-time
+  line on today, day headers click through to day view.
+- **"Anytime" all-day row** — new `Job.scheduledAnytime` boolean
+  (date-only jobs anchored at noon per existing convention). Set via the
+  job-detail Schedule editor (new Anytime checkbox) or by dropping on the
+  row. Dashboard today-list shows "Anytime" instead of a fake noon time.
+- **Unscheduled-jobs drawer** — ACTIVE + no date; drag onto an hour cell
+  (keeps previous duration, default 1h), the Anytime row, or a month day
+  (keeps time-of-day if it had one, else anytime). Existing blocks drag to
+  reschedule. Drop = PATCH `/api/app/jobs/[id]` + router.refresh.
+- **Team filter** — select over company users, filters via JobAssignment;
+  hidden for single-user companies (demo co), so not yet seen live.
+- Verified live 2026-06-11 on the demo account (Playwright): all three
+  views, anytime editor, drag-from-drawer → Friday 10 AM. Demo data left
+  in place for demos: client Marcus Webb + 3 jobs (Jun 11 2–4 PM, Jun 12
+  anytime, Jun 12 10 AM).
+- Not built (spec extras, parked): map split view, route optimization,
+  "Find an appointment time", layout customization wizard. Touch devices
+  can't drag (HTML5 DnD) — they schedule via the job detail editor.
+
+### 4. Email automations via Resend — Phase 1 SHIPPED 2026-06-11 ← NEXT UP (Phase 2)
 
 - DONE: new-request notification to company.email from booking form + client
   hub (lib/email.ts, env-gated on RESEND_API_KEY; EMAIL_FROM default
