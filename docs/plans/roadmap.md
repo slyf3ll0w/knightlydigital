@@ -43,7 +43,10 @@ via build + isolated component render). Worth a quick prod click-through.
   text/dropdown/multiple-choice cards, message label/placeholder/required,
   up to 10 custom fields. Custom answers append to request details as
   "Label - value" lines (David's spec: "Budget - $1,500").
-- Settings → "Booking Form Fields" builder card (saves on its own).
+- Dedicated **/app/settings/booking** page ("Booking Form" sidebar item):
+  field builder + share link + embed snippet. Send button text + color are
+  customizable; the color doubles as the whole-form accent (selected cards,
+  success check). Accent precedence: ?accent= > button color > brand color.
 - First real client: Excellent PC Building — configure his form (radio
   Build Only / Parts + Build, City dropdown, Budget) in his account, then
   swap his site's static form for the embed.
