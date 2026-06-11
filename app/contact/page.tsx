@@ -21,6 +21,11 @@ const initialForm: FormState = {
   message: '',
 };
 
+// TEST: JobFlow embeddable booking form (Excellent PC Building account).
+// Flip to false to restore the original Streamflaire contact form.
+const USE_JOBFLOW_EMBED = true;
+const JOBFLOW_EMBED_SRC = 'https://streamflaire.com/embed/excellent-pc-building';
+
 export default function ContactPage() {
   const [form, setForm] = useState<FormState>(initialForm);
   const [submitting, setSubmitting] = useState(false);
@@ -184,7 +189,13 @@ export default function ContactPage() {
             {/* Right column: form */}
             <div>
               <div className="bg-white p-8 lg:p-10">
-                {submitted ? (
+                {USE_JOBFLOW_EMBED ? (
+                  <iframe
+                    src={JOBFLOW_EMBED_SRC}
+                    style={{ width: '100%', maxWidth: 560, height: 760, border: 0 }}
+                    title="Request a service from Excellent PC Building"
+                  />
+                ) : submitted ? (
                   <div className="text-center py-12">
                     <div
                       className="w-14 h-14 mx-auto mb-6 flex items-center justify-center"

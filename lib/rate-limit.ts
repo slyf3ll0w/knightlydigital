@@ -53,9 +53,17 @@ export function limit(key: string, max: number, windowMs: number): RateLimitResu
   return { ok: true, remaining: max - bucket.count, retryAfterSeconds: 0 };
 }
 
-/** Client IP from proxy headers (Railway sets x-forwarded-for). */
+/**
+ * Client IP from proxy headers. The site sits behind Cloudflare → Railway, so
+ * x-forwarded-for starts with a rotating Cloudflare edge IP — useless as a
+ * rate-limit key. cf-connecting-ip / x-real-ip carry the real client.
+ */
 export function clientIp(headers: Headers): string {
+  const cf = headers.get("cf-connecting-ip");
+  if (cf) return cf.trim();
+  const real = headers.get("x-real-ip");
+  if (real) return real.trim();
   const fwd = headers.get("x-forwarded-for");
   if (fwd) return fwd.split(",")[0].trim();
-  return headers.get("x-real-ip") ?? "unknown";
+  return "unknown";
 }
