@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Loader2, Plus, Trash2, ArrowLeft } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
+import WorkItemPicker, { type PickerWorkItem } from "@/components/WorkItemPicker";
 
 type Contact = { id: string; firstName: string; lastName: string };
 type LineItem = { name: string; description: string; quantity: string; unitPrice: string };
@@ -21,9 +22,11 @@ type PrefillJob = {
 
 export default function InvoiceEditor({
   contacts,
+  workItems = [],
   prefillJob,
 }: {
   contacts: Contact[];
+  workItems?: PickerWorkItem[];
   prefillJob: PrefillJob | null;
 }) {
   const router = useRouter();
@@ -60,6 +63,21 @@ export default function InvoiceEditor({
   }
   function updateLine(i: number, field: keyof LineItem, value: string) {
     setLineItems((l) => l.map((item, idx) => (idx === i ? { ...item, [field]: value } : item)));
+  }
+
+  function applyWorkItem(i: number, item: PickerWorkItem) {
+    setLineItems((l) =>
+      l.map((li, idx) =>
+        idx === i
+          ? {
+              ...li,
+              name: item.name,
+              description: item.description ?? li.description,
+              unitPrice: String(Number(item.unitPrice)),
+            }
+          : li
+      )
+    );
   }
 
   const subtotal = lineItems.reduce((sum, li) => {
@@ -164,13 +182,12 @@ export default function InvoiceEditor({
               {lineItems.map((li, i) => (
                 <div key={i} className="border border-gray-100 rounded-lg p-3 space-y-2">
                   <div className="grid grid-cols-[1fr_70px_110px_32px] gap-2 items-start">
-                    <input
-                      type="text"
-                      placeholder="Name (e.g. House Wash)"
+                    <WorkItemPicker
                       value={li.name}
-                      onChange={(e) => updateLine(i, "name", e.target.value)}
+                      items={workItems}
+                      onChange={(text) => updateLine(i, "name", text)}
+                      onSelect={(item) => applyWorkItem(i, item)}
                       required
-                      className="px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                     />
                     <input
                       type="number"

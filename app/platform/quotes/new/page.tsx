@@ -17,10 +17,14 @@ export default async function NewQuotePage({
 
   const { contactId, requestId } = await searchParams;
 
-  const [contacts, request] = await Promise.all([
+  const [contacts, workItems, request] = await Promise.all([
     prisma.contact.findMany({
       where: { companyId },
       orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+    }),
+    prisma.workItem.findMany({
+      where: { companyId, isActive: true },
+      orderBy: { name: "asc" },
     }),
     requestId
       ? prisma.request.findFirst({ where: { id: requestId, companyId } })
@@ -30,6 +34,7 @@ export default async function NewQuotePage({
   return (
     <QuoteEditor
       contacts={contacts}
+      workItems={JSON.parse(JSON.stringify(workItems))}
       prefilledContactId={request?.contactId ?? contactId ?? ""}
       requestId={request?.id ?? ""}
       requestTitle={request?.title ?? ""}

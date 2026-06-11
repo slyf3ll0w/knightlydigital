@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Loader2, Plus, Trash2, ArrowLeft } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
+import WorkItemPicker, { type PickerWorkItem } from "@/components/WorkItemPicker";
 
 type Contact = { id: string; firstName: string; lastName: string };
 
@@ -13,6 +14,7 @@ type LineItem = {
   description: string;
   quantity: string;
   unitPrice: string;
+  unitCost: string; // hidden; filled from the price book for margin tracking
   isOptional: boolean;
 };
 
@@ -21,16 +23,19 @@ const emptyLine: LineItem = {
   description: "",
   quantity: "1",
   unitPrice: "",
+  unitCost: "",
   isOptional: false,
 };
 
 export default function QuoteEditor({
   contacts,
+  workItems = [],
   prefilledContactId = "",
   requestId = "",
   requestTitle = "",
 }: {
   contacts: Contact[];
+  workItems?: PickerWorkItem[];
   prefilledContactId?: string;
   requestId?: string;
   requestTitle?: string;
@@ -57,6 +62,22 @@ export default function QuoteEditor({
 
   function updateLine(i: number, field: keyof LineItem, value: string | boolean) {
     setLineItems((l) => l.map((item, idx) => (idx === i ? { ...item, [field]: value } : item)));
+  }
+
+  function applyWorkItem(i: number, item: PickerWorkItem) {
+    setLineItems((l) =>
+      l.map((li, idx) =>
+        idx === i
+          ? {
+              ...li,
+              name: item.name,
+              description: item.description ?? li.description,
+              unitPrice: String(Number(item.unitPrice)),
+              unitCost: item.unitCost !== null ? String(Number(item.unitCost)) : "",
+            }
+          : li
+      )
+    );
   }
 
   // Optional items count toward the total by default (client can opt out in the hub)
@@ -98,6 +119,7 @@ export default function QuoteEditor({
         description: li.description,
         quantity: parseFloat(li.quantity) || 1,
         unitPrice: parseFloat(li.unitPrice) || 0,
+        unitCost: li.unitCost === "" ? null : parseFloat(li.unitCost) || 0,
         isOptional: li.isOptional,
         sortOrder: i,
       })),
@@ -175,13 +197,12 @@ export default function QuoteEditor({
               {lineItems.map((li, i) => (
                 <div key={i} className="border border-gray-100 rounded-lg p-3 space-y-2">
                   <div className="grid grid-cols-[1fr_70px_110px_32px] gap-2 items-start">
-                    <input
-                      type="text"
-                      placeholder="Name (e.g. House Wash)"
+                    <WorkItemPicker
                       value={li.name}
-                      onChange={(e) => updateLine(i, "name", e.target.value)}
+                      items={workItems}
+                      onChange={(text) => updateLine(i, "name", text)}
+                      onSelect={(item) => applyWorkItem(i, item)}
                       required
-                      className="px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                     />
                     <input
                       type="number"

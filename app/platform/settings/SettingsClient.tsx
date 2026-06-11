@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Loader2, Check, Copy, ExternalLink } from "lucide-react";
 
 type Company = {
@@ -77,6 +78,22 @@ export default function SettingsClient({ company }: { company: Company }) {
         <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
         <p className="text-sm text-gray-500">Manage your business profile and configuration</p>
       </div>
+
+      {/* Price book */}
+      <Link
+        href="/app/settings/products"
+        className="flex items-center justify-between bg-white border border-gray-200 rounded-lg p-5 mb-6 hover:shadow-sm transition-shadow"
+      >
+        <div>
+          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+            Products &amp; Services
+          </h2>
+          <p className="text-xs text-gray-400 mt-0.5">
+            Your price book — items autocomplete on quotes and invoices
+          </p>
+        </div>
+        <span className="text-sm font-medium text-green-600">Manage →</span>
+      </Link>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Business info */}

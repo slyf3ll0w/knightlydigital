@@ -76,6 +76,7 @@ export async function POST(req: NextRequest) {
               description: string;
               quantity: number;
               unitPrice: number;
+              unitCost?: number | null;
               isOptional?: boolean;
               sortOrder?: number;
             }) => ({
@@ -83,6 +84,7 @@ export async function POST(req: NextRequest) {
               description: li.description ?? "",
               quantity: li.quantity,
               unitPrice: li.unitPrice,
+              unitCost: li.unitCost ?? null,
               total: li.quantity * li.unitPrice,
               isOptional: li.isOptional ?? false,
               sortOrder: li.sortOrder ?? 0,

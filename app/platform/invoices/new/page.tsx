@@ -17,10 +17,14 @@ export default async function NewInvoicePage({
 
   const { jobId } = await searchParams;
 
-  const [contacts, job] = await Promise.all([
+  const [contacts, workItems, job] = await Promise.all([
     prisma.contact.findMany({
       where: { companyId },
       orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+    }),
+    prisma.workItem.findMany({
+      where: { companyId, isActive: true },
+      orderBy: { name: "asc" },
     }),
     jobId
       ? prisma.job.findFirst({
@@ -34,5 +38,11 @@ export default async function NewInvoicePage({
       : null,
   ]);
 
-  return <InvoiceEditor contacts={contacts} prefillJob={job ? JSON.parse(JSON.stringify(job)) : null} />;
+  return (
+    <InvoiceEditor
+      contacts={contacts}
+      workItems={JSON.parse(JSON.stringify(workItems))}
+      prefillJob={job ? JSON.parse(JSON.stringify(job)) : null}
+    />
+  );
 }
