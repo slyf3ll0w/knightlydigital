@@ -5,7 +5,7 @@ import AppShell from "@/components/AppShell";
 
 export const metadata: Metadata = {
   title: {
-    default: "JobFlow",
+    absolute: "JobFlow",
     template: "%s · JobFlow",
   },
 };
