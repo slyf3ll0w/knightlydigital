@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Loader2, ArrowLeft } from "lucide-react";
+import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 
 type Contact = { id: string; firstName: string; lastName: string };
 
@@ -42,17 +43,11 @@ function NewRequestForm() {
     setError("");
     setLoading(true);
 
-    const res = await fetch("/api/app/requests", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    });
-
-    const data = await res.json();
+    const { ok, data } = await postJson<{ id: string }>("/api/app/requests", form);
     setLoading(false);
 
-    if (!res.ok) {
-      setError(data.error ?? "Failed to create request.");
+    if (!ok || !data?.id) {
+      setError(data?.error ?? GENERIC_ERROR);
       return;
     }
 

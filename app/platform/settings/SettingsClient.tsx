@@ -37,6 +37,7 @@ export default function SettingsClient({ company }: { company: Company }) {
 
   const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
   const bookingUrl = `${baseUrl}/book/${company.slug}`;
+  const embedSnippet = `<iframe src="${baseUrl}/embed/${company.slug}" style="width:100%;max-width:560px;height:760px;border:0;" title="Request a service from ${company.name}"></iframe>`;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -61,6 +62,13 @@ export default function SettingsClient({ company }: { company: Company }) {
     await navigator.clipboard.writeText(bookingUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  }
+
+  const [embedCopied, setEmbedCopied] = useState(false);
+  async function copyEmbed() {
+    await navigator.clipboard.writeText(embedSnippet);
+    setEmbedCopied(true);
+    setTimeout(() => setEmbedCopied(false), 2000);
   }
 
   return (
@@ -187,6 +195,26 @@ export default function SettingsClient({ company }: { company: Company }) {
               className="shrink-0 text-gray-400 hover:text-gray-600">
               <ExternalLink size={13} />
             </a>
+          </div>
+
+          {/* Embeddable form */}
+          <div className="mt-5 pt-4 border-t border-gray-100">
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700">Embed on your website</h3>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  Paste this code into your site to show the request form directly on your page
+                </p>
+              </div>
+              <button type="button" onClick={copyEmbed}
+                className="shrink-0 flex items-center gap-1 text-xs font-medium text-green-600 hover:underline">
+                {embedCopied ? <Check size={12} /> : <Copy size={12} />}
+                {embedCopied ? "Copied" : "Copy code"}
+              </button>
+            </div>
+            <pre className="p-3 bg-gray-50 border border-gray-200 rounded text-xs font-mono text-gray-600 whitespace-pre-wrap break-all">
+              {embedSnippet}
+            </pre>
           </div>
         </div>
 

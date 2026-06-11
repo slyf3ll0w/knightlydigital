@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Loader2, ArrowLeft } from "lucide-react";
 import { Suspense } from "react";
+import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 
 type Contact = { id: string; firstName: string; lastName: string; address: string | null };
 
@@ -22,6 +23,7 @@ function NewJobForm() {
     requestId,
     title: "",
     description: "",
+    leadSource: "",
     scheduledAt: "",
     scheduledEnd: "",
     address: "",
@@ -55,17 +57,11 @@ function NewJobForm() {
     setError("");
     setLoading(true);
 
-    const res = await fetch("/api/app/jobs", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    });
-
-    const data = await res.json();
+    const { ok, data } = await postJson<{ id: string }>("/api/app/jobs", form);
     setLoading(false);
 
-    if (!res.ok) {
-      setError(data.error ?? "Failed to create job.");
+    if (!ok || !data?.id) {
+      setError(data?.error ?? GENERIC_ERROR);
       return;
     }
 
@@ -134,6 +130,30 @@ function NewJobForm() {
             />
           </div>
 
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Lead source</label>
+            <input
+              type="text"
+              list="lead-sources"
+              value={form.leadSource}
+              onChange={(e) => set("leadSource", e.target.value)}
+              className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              placeholder="Where did this job come from?"
+            />
+            <datalist id="lead-sources">
+              <option value="Google" />
+              <option value="Referral" />
+              <option value="Online booking" />
+              <option value="Facebook" />
+              <option value="Nextdoor" />
+              <option value="Yard sign" />
+              <option value="Repeat client" />
+              <option value="Door hanger" />
+            </datalist>
+            <p className="text-xs text-gray-400 mt-1">
+              Used in Insights to show which sources bring in the most revenue.
+            </p>
+          </div>
         </div>
 
         <div className="bg-white border border-gray-200 rounded-lg p-5 space-y-4">

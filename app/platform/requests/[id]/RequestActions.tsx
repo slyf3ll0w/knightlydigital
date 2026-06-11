@@ -27,12 +27,15 @@ export default function RequestActions({
 
   async function setStatus(newStatus: string) {
     setOpen(false);
-    await fetch(`/api/app/requests/${requestId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: newStatus }),
-    });
-    router.refresh();
+    try {
+      await fetch(`/api/app/requests/${requestId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+    } finally {
+      router.refresh();
+    }
   }
 
   return (

@@ -6,9 +6,10 @@ import { Footer } from './Footer';
 
 export function MarketingWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const isApp = pathname.startsWith('/app') || pathname.startsWith('/portal') || pathname.startsWith('/admin');
-
-  if (isApp) return <>{children}</>;
+  // App + all client-facing pages (hub, quote approval, payment, booking,
+  // embeds) render without the marketing site chrome
+  const bare = ['/app', '/portal', '/admin', '/hub', '/quote', '/pay', '/book', '/embed'];
+  if (bare.some((p) => pathname.startsWith(p))) return <>{children}</>;
 
   return (
     <>

@@ -16,6 +16,7 @@ export const authOptions: NextAuthOptions = {
 
         const user = await prisma.user.findUnique({
           where: { email: credentials.email },
+          include: { company: { select: { name: true } } },
         });
         if (!user || !user.isActive) return null;
 
@@ -28,6 +29,7 @@ export const authOptions: NextAuthOptions = {
           name: user.name,
           role: user.role,
           companyId: user.companyId,
+          companyName: user.company?.name ?? null,
         };
       },
     }),
@@ -39,6 +41,15 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id;
         token.role = (user as { role?: string }).role;
         token.companyId = (user as { companyId?: string | null }).companyId;
+        token.companyName = (user as { companyName?: string | null }).companyName ?? null;
+      }
+      // Users registered before signing in get their company on next token refresh
+      if (token.companyId && !token.companyName) {
+        const company = await prisma.company.findUnique({
+          where: { id: token.companyId as string },
+          select: { name: true },
+        });
+        token.companyName = company?.name ?? null;
       }
       return token;
     },
@@ -46,6 +57,7 @@ export const authOptions: NextAuthOptions = {
       session.user.id = token.id as string;
       session.user.role = token.role as string;
       session.user.companyId = (token.companyId as string | null) ?? null;
+      session.user.companyName = (token.companyName as string | null) ?? null;
       return session;
     },
   },

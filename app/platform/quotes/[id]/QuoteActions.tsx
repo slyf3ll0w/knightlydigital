@@ -42,30 +42,44 @@ export default function QuoteActions({
   async function setStatus(newStatus: string) {
     setOpen(false);
     setBusy(true);
-    await fetch(`/api/app/quotes/${quoteId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: newStatus }),
-    });
-    setBusy(false);
-    router.refresh();
+    try {
+      await fetch(`/api/app/quotes/${quoteId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+    } finally {
+      setBusy(false);
+      router.refresh();
+    }
   }
 
   async function convertToJob() {
     setOpen(false);
     setBusy(true);
-    const res = await fetch(`/api/app/quotes/${quoteId}/convert`, { method: "POST" });
-    const data = await res.json();
-    setBusy(false);
-    if (res.ok) router.push(`/app/jobs/${data.id}`);
-    else router.refresh();
+    try {
+      const res = await fetch(`/api/app/quotes/${quoteId}/convert`, { method: "POST" });
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.id) {
+        router.push(`/app/jobs/${data.id}`);
+        return;
+      }
+      router.refresh();
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function deleteQuote() {
     if (!confirm("Delete this quote? This cannot be undone.")) return;
     setOpen(false);
-    const res = await fetch(`/api/app/quotes/${quoteId}`, { method: "DELETE" });
-    if (res.ok) router.push("/app/quotes");
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/app/quotes/${quoteId}`, { method: "DELETE" });
+      if (res.ok) router.push("/app/quotes");
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function copyLink() {

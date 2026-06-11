@@ -79,17 +79,22 @@ export default function QuoteAcceptPage({
     }
     setError("");
     setLoading(true);
-    const res = await fetch(`/api/public/quote/${quote.id}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "approve", signatureName, optedOutItemIds: optedOut }),
-    });
-    setLoading(false);
-    if (!res.ok) {
+    try {
+      const res = await fetch(`/api/public/quote/${quote.id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "approve", signatureName, optedOutItemIds: optedOut }),
+      });
+      if (!res.ok) {
+        setError("Something went wrong. Please try again.");
+        return;
+      }
+      setDone("approved");
+    } catch {
       setError("Something went wrong. Please try again.");
-      return;
+    } finally {
+      setLoading(false);
     }
-    setDone("approved");
   }
 
   async function requestChanges() {
@@ -99,17 +104,22 @@ export default function QuoteAcceptPage({
     }
     setError("");
     setLoading(true);
-    const res = await fetch(`/api/public/quote/${quote.id}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "request_changes", message: changeMessage }),
-    });
-    setLoading(false);
-    if (!res.ok) {
+    try {
+      const res = await fetch(`/api/public/quote/${quote.id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "request_changes", message: changeMessage }),
+      });
+      if (!res.ok) {
+        setError("Something went wrong. Please try again.");
+        return;
+      }
+      setDone("changes");
+    } catch {
       setError("Something went wrong. Please try again.");
-      return;
+    } finally {
+      setLoading(false);
     }
-    setDone("changes");
   }
 
   if (quote.status === "APPROVED" || quote.status === "CONVERTED" || done === "approved") {

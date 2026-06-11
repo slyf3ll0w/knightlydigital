@@ -17,6 +17,7 @@ import {
   X,
   Plus,
   DollarSign,
+  BarChart3,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
@@ -33,6 +34,7 @@ const navGroups = [
     { href: "/app/jobs", label: "Jobs", icon: Briefcase },
     { href: "/app/invoices", label: "Invoices", icon: Receipt },
   ],
+  [{ href: "/app/insights", label: "Insights", icon: BarChart3 }],
 ];
 
 const createItems = [
@@ -64,6 +66,9 @@ export default function AppShell({ children, userName, userEmail, companyName }:
   const [createOpen, setCreateOpen] = useState(false);
   const createRef = useRef<HTMLDivElement>(null);
 
+  // Auth pages render standalone even when a session cookie exists
+  const isAuthPage = pathname.startsWith("/app/login") || pathname.startsWith("/app/register");
+
   useEffect(() => {
     function onClick(e: MouseEvent) {
       if (createRef.current && !createRef.current.contains(e.target as Node)) {
@@ -83,6 +88,8 @@ export default function AppShell({ children, userName, userEmail, companyName }:
     if (href === "/app/dashboard") return pathname === href;
     return pathname.startsWith(href);
   }
+
+  if (isAuthPage) return <>{children}</>;
 
   const navLink = (href: string, label: string, Icon: typeof Home, onClick?: () => void) => (
     <Link

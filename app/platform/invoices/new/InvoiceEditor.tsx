@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Loader2, Plus, Trash2, ArrowLeft } from "lucide-react";
+import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 
 type Contact = { id: string; firstName: string; lastName: string };
 type LineItem = { name: string; description: string; quantity: string; unitPrice: string };
@@ -72,29 +73,24 @@ export default function InvoiceEditor({
     if (!contactId) { setError("Please select a customer."); return; }
     setError(""); setLoading(true);
 
-    const res = await fetch("/api/app/invoices", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contactId,
-        jobId: jobId || null,
-        subject: subject || null,
-        notes,
-        taxRate: taxRate ? parseFloat(taxRate) / 100 : null,
-        dueDate: dueDate || null,
-        lineItems: lineItems.map((li, i) => ({
-          name: li.name,
-          description: li.description,
-          quantity: parseFloat(li.quantity) || 1,
-          unitPrice: parseFloat(li.unitPrice) || 0,
-          sortOrder: i,
-        })),
-      }),
+    const { ok, data } = await postJson<{ id: string }>("/api/app/invoices", {
+      contactId,
+      jobId: jobId || null,
+      subject: subject || null,
+      notes,
+      taxRate: taxRate ? parseFloat(taxRate) / 100 : null,
+      dueDate: dueDate || null,
+      lineItems: lineItems.map((li, i) => ({
+        name: li.name,
+        description: li.description,
+        quantity: parseFloat(li.quantity) || 1,
+        unitPrice: parseFloat(li.unitPrice) || 0,
+        sortOrder: i,
+      })),
     });
 
-    const data = await res.json();
     setLoading(false);
-    if (!res.ok) { setError(data.error ?? "Failed to create invoice."); return; }
+    if (!ok || !data?.id) { setError(data?.error ?? GENERIC_ERROR); return; }
     router.push(`/app/invoices/${data.id}`);
   }
 

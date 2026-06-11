@@ -18,15 +18,17 @@ export async function PATCH(
   const { id } = await params;
   const body = await req.json();
 
+  const validStatuses = ["ACTIVE", "REQUIRES_INVOICING", "ARCHIVED"];
   const updated = await prisma.job.updateMany({
     where: { id, companyId },
     data: {
       ...(body.title && { title: body.title }),
       ...(body.description !== undefined && { description: body.description }),
-      ...(body.status && { status: body.status }),
+      ...(body.status && validStatuses.includes(body.status) && { status: body.status }),
       ...(body.scheduledAt !== undefined && { scheduledAt: body.scheduledAt ? new Date(body.scheduledAt) : null }),
       ...(body.scheduledEnd !== undefined && { scheduledEnd: body.scheduledEnd ? new Date(body.scheduledEnd) : null }),
       ...(body.address !== undefined && { address: body.address }),
+      ...(body.leadSource !== undefined && { leadSource: body.leadSource || null }),
     },
   });
 

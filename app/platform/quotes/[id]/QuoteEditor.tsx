@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Loader2, Plus, Trash2, ArrowLeft } from "lucide-react";
+import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 
 type Contact = { id: string; firstName: string; lastName: string };
 
@@ -83,34 +84,29 @@ export default function QuoteEditor({
     setError("");
     setLoading(true);
 
-    const res = await fetch("/api/app/quotes", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contactId,
-        requestId: requestId || null,
-        title: title || null,
-        taxRate: taxRate ? parseFloat(taxRate) / 100 : null,
-        depositType,
-        depositValue: depositValue ? parseFloat(depositValue) : null,
-        clientMessage: clientMessage || null,
-        disclaimer: disclaimer || null,
-        lineItems: lineItems.map((li, i) => ({
-          name: li.name,
-          description: li.description,
-          quantity: parseFloat(li.quantity) || 1,
-          unitPrice: parseFloat(li.unitPrice) || 0,
-          isOptional: li.isOptional,
-          sortOrder: i,
-        })),
-      }),
+    const { ok, data } = await postJson<{ id: string }>("/api/app/quotes", {
+      contactId,
+      requestId: requestId || null,
+      title: title || null,
+      taxRate: taxRate ? parseFloat(taxRate) / 100 : null,
+      depositType,
+      depositValue: depositValue ? parseFloat(depositValue) || 0 : null,
+      clientMessage: clientMessage || null,
+      disclaimer: disclaimer || null,
+      lineItems: lineItems.map((li, i) => ({
+        name: li.name,
+        description: li.description,
+        quantity: parseFloat(li.quantity) || 1,
+        unitPrice: parseFloat(li.unitPrice) || 0,
+        isOptional: li.isOptional,
+        sortOrder: i,
+      })),
     });
 
-    const data = await res.json();
     setLoading(false);
 
-    if (!res.ok) {
-      setError(data.error ?? "Failed to create quote.");
+    if (!ok || !data?.id) {
+      setError(data?.error ?? GENERIC_ERROR);
       return;
     }
 

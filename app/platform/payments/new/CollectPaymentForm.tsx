@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Loader2, ArrowLeft, CreditCard } from "lucide-react";
+import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 
 type OutstandingInvoice = {
   id: string;
@@ -68,24 +69,19 @@ export default function CollectPaymentForm({
     setError("");
     setLoading(true);
 
-    const res = await fetch("/api/app/payments", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        invoiceId,
-        amount: parseFloat(amount) || 0,
-        method,
-        paidAt,
-        referenceNumber: referenceNumber || null,
-        details: details || null,
-      }),
+    const { ok, data } = await postJson("/api/app/payments", {
+      invoiceId,
+      amount: parseFloat(amount) || 0,
+      method,
+      paidAt,
+      referenceNumber: referenceNumber || null,
+      details: details || null,
     });
 
-    const data = await res.json();
     setLoading(false);
 
-    if (!res.ok) {
-      setError(data.error ?? "Failed to record payment.");
+    if (!ok) {
+      setError(data?.error ?? GENERIC_ERROR);
       return;
     }
 

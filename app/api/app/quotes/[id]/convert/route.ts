@@ -39,6 +39,7 @@ export async function POST(
         requestId: quote.requestId,
         jobNumber: (last?.jobNumber ?? 0) + 1,
         title: quote.title || `Job for ${quote.contact.firstName} ${quote.contact.lastName}`,
+        leadSource: quote.contact.leadSource,
         address: quote.contact.address,
         lineItems: {
           create: quote.lineItems

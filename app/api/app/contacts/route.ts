@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
   if (!companyId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
-  const { firstName, lastName, email, phone, address, city, state, zip, notes } = body;
+  const { firstName, lastName, email, phone, address, city, state, zip, notes, leadSource } = body;
 
   if (!firstName || !lastName) {
     return NextResponse.json({ error: "First and last name are required." }, { status: 400 });
@@ -43,6 +43,7 @@ export async function POST(req: NextRequest) {
       state: state || null,
       zip: zip || null,
       notes: notes || null,
+      leadSource: leadSource || null,
     },
   });
 

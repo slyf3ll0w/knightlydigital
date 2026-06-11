@@ -163,6 +163,7 @@ model Job {
   jobNumber    Int
   title        String
   description  String?
+  leadSource   String?
   status       JobStatus @default(ACTIVE)
   scheduledAt  DateTime?
   scheduledEnd DateTime?

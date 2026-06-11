@@ -15,20 +15,23 @@ export default function HubRequestForm({ token }: { token: string }) {
     e.preventDefault();
     setError("");
     setLoading(true);
-
-    const res = await fetch("/api/hub/requests", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token, title, details }),
-    });
-
-    setLoading(false);
-    if (!res.ok) {
-      const data = await res.json();
-      setError(data.error ?? "Something went wrong. Please try again.");
-      return;
+    try {
+      const res = await fetch("/api/hub/requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, title, details }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        setError(data?.error ?? "Something went wrong. Please try again.");
+        return;
+      }
+      setDone(true);
+    } catch {
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
     }
-    setDone(true);
   }
 
   if (done) {

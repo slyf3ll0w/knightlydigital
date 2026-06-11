@@ -38,13 +38,16 @@ export default function InvoiceActions({
   async function setStatus(newStatus: string) {
     setOpen(false);
     setBusy(true);
-    await fetch(`/api/app/invoices/${invoiceId}/status`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: newStatus }),
-    });
-    setBusy(false);
-    router.refresh();
+    try {
+      await fetch(`/api/app/invoices/${invoiceId}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+    } finally {
+      setBusy(false);
+      router.refresh();
+    }
   }
 
   async function copyLink() {

@@ -15,6 +15,7 @@ import {
 } from "@/lib/statuses";
 import JobActions from "./JobActions";
 import NoteForm from "./NoteForm";
+import ScheduleJob from "./ScheduleJob";
 
 export default async function JobDetailPage({
   params,
@@ -84,9 +85,11 @@ export default async function JobDetailPage({
         </div>
         <div>
           <span className="text-xs uppercase font-semibold text-gray-400 block">Scheduled</span>
-          <span className="text-gray-800">
-            {job.scheduledAt ? shortDate(job.scheduledAt) : "Unscheduled"}
-          </span>
+          <ScheduleJob
+            jobId={job.id}
+            scheduledAt={job.scheduledAt?.toISOString() ?? null}
+            scheduledEnd={job.scheduledEnd?.toISOString() ?? null}
+          />
         </div>
         {job.quote && (
           <div>
