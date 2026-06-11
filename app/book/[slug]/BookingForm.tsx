@@ -299,7 +299,7 @@ export default function BookingForm({
         className="w-full py-3 font-semibold text-sm rounded transition-opacity hover:opacity-90 active:opacity-80 flex items-center justify-center gap-2 disabled:opacity-50"
         style={{ backgroundColor: accent, color: textOn(accent) }}>
         {loading && <Loader2 size={14} className="animate-spin" />}
-        Request Appointment
+        {config.button.label}
       </button>
     </form>
   );

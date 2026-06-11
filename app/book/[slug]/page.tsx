@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import BookingForm from "./BookingForm";
 import { brandAccent } from "@/lib/branding";
-import { sanitizeBookingForm } from "@/lib/booking-form";
+import { bookingAccent, sanitizeBookingForm } from "@/lib/booking-form";
 
 export default async function BookingPage({
   params,
@@ -13,6 +13,8 @@ export default async function BookingPage({
 
   const company = await prisma.company.findUnique({ where: { slug } });
   if (!company) notFound();
+
+  const config = sanitizeBookingForm(company.bookingForm);
 
   return (
     <div className="app-ui min-h-screen bg-gray-50 py-10 px-4">
@@ -31,8 +33,8 @@ export default async function BookingPage({
         </div>
         <BookingForm
           companySlug={slug}
-          accent={brandAccent(company)}
-          config={sanitizeBookingForm(company.bookingForm)}
+          accent={bookingAccent(config, brandAccent(company))}
+          config={config}
         />
       </div>
     </div>

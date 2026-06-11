@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import BookingForm from "@/app/book/[slug]/BookingForm";
 import EmbedAutoResize from "./EmbedAutoResize";
 import { brandAccent } from "@/lib/branding";
-import { sanitizeBookingForm } from "@/lib/booking-form";
+import { bookingAccent, sanitizeBookingForm } from "@/lib/booking-form";
 
 /**
  * Chrome-less booking form for embedding in a company's own website via
@@ -40,10 +40,12 @@ export default async function EmbedBookingPage({
 
   const dark = theme === "dark";
   const isTransparent = transparent === "1";
+  const config = sanitizeBookingForm(company.bookingForm);
 
+  // Accent precedence: explicit ?accent= > configured button color > brand
   const accentHex = /^#?[0-9a-fA-F]{6}$/.test(accent ?? "")
     ? `#${(accent as string).replace("#", "")}`
-    : brandAccent(company);
+    : bookingAccent(config, brandAccent(company));
 
   // Google Font name: letters/digits/spaces only — anything else is ignored
   const fontName = /^[a-zA-Z0-9 ]{2,40}$/.test(font ?? "") ? (font as string).trim() : null;
@@ -73,7 +75,7 @@ export default async function EmbedBookingPage({
         theme={dark ? "dark" : "light"}
         accent={accentHex}
         transparent={isTransparent}
-        config={sanitizeBookingForm(company.bookingForm)}
+        config={config}
         initialService={typeof service === "string" ? service.slice(0, 120) : ""}
       />
     </div>

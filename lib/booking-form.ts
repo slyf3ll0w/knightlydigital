@@ -35,6 +35,10 @@ export type BookingFormConfig = {
     placeholder?: string;
     required: boolean;
   };
+  button: {
+    label: string;
+    color?: string; // hex; overrides the brand color as the form accent
+  };
   customFields: CustomField[];
 };
 
@@ -51,6 +55,9 @@ export const DEFAULT_BOOKING_FORM: BookingFormConfig = {
     label: "Message",
     placeholder: "Any additional details...",
     required: false,
+  },
+  button: {
+    label: "Request Appointment",
   },
   customFields: [],
 };
@@ -83,6 +90,8 @@ export function sanitizeBookingForm(raw: unknown): BookingFormConfig {
   const r = raw as Record<string, unknown>;
   const service = (r.service ?? {}) as Record<string, unknown>;
   const message = (r.message ?? {}) as Record<string, unknown>;
+  const button = (r.button ?? {}) as Record<string, unknown>;
+  const buttonColor = str(button.color, 7);
 
   const serviceType = service.type === "select" || service.type === "radio" ? service.type : "text";
   const customFields: CustomField[] = Array.isArray(r.customFields)
@@ -120,6 +129,15 @@ export function sanitizeBookingForm(raw: unknown): BookingFormConfig {
       placeholder: str(message.placeholder, 200) || d.message.placeholder,
       required: message.required === true,
     },
+    button: {
+      label: str(button.label, 40) || d.button.label,
+      color: /^#[0-9a-fA-F]{6}$/.test(buttonColor) ? buttonColor : undefined,
+    },
     customFields,
   };
+}
+
+/** Form accent: explicit button color beats the company brand color. */
+export function bookingAccent(config: BookingFormConfig, brandFallback: string): string {
+  return config.button.color ?? brandFallback;
 }

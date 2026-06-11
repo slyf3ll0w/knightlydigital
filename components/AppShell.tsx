@@ -19,6 +19,7 @@ import {
   DollarSign,
   BarChart3,
   Search,
+  Globe,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import Avatar from "@/components/Avatar";
@@ -151,6 +152,10 @@ export default function AppShell({
 
   function isActive(href: string) {
     if (href === "/app/dashboard") return pathname === href;
+    // Booking Form lives under /app/settings/ but has its own nav item
+    if (href === "/app/settings") {
+      return pathname.startsWith(href) && !pathname.startsWith("/app/settings/booking");
+    }
     return pathname.startsWith(href);
   }
 
@@ -201,6 +206,7 @@ export default function AppShell({
 
       {/* Settings + user */}
       <div className="px-3 py-3 border-t border-white/[0.07] space-y-0.5">
+        {navLink("/app/settings/booking", "Booking Form", Globe)}
         {navLink("/app/settings", "Settings", Settings)}
         <div className="px-3 py-2.5 flex items-center gap-3">
           <Avatar name={userName} size={28} />

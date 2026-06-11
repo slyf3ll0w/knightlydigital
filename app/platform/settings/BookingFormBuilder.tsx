@@ -67,6 +67,10 @@ export default function BookingFormBuilder({ initial }: { initial: unknown }) {
     setConfig((c) => ({ ...c, message: { ...c.message, ...patch } }));
   }
 
+  function setButton(patch: Partial<BookingFormConfig["button"]>) {
+    setConfig((c) => ({ ...c, button: { ...c.button, ...patch } }));
+  }
+
   function setField(id: string, patch: Partial<CustomField>) {
     setConfig((c) => ({
       ...c,
@@ -340,6 +344,51 @@ export default function BookingFormBuilder({ initial }: { initial: unknown }) {
           />
           Required
         </label>
+      </div>
+
+      {/* Send button */}
+      <div className="border border-gray-200 rounded-lg p-4 space-y-3">
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Send button</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className={smallLabel}>Button text</label>
+            <input
+              type="text"
+              value={config.button.label}
+              onChange={(e) => setButton({ label: e.target.value })}
+              placeholder="e.g. Send My Request"
+              maxLength={40}
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className={smallLabel}>Button color</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={config.button.color ?? "#16A34A"}
+                onChange={(e) => setButton({ color: e.target.value })}
+                className="h-9 w-12 rounded border border-gray-300 cursor-pointer p-1"
+              />
+              <span className="text-xs font-mono text-gray-500">
+                {config.button.color ?? "Brand color"}
+              </span>
+              {config.button.color && (
+                <button
+                  type="button"
+                  onClick={() => setButton({ color: undefined })}
+                  className="text-xs text-gray-400 hover:text-gray-600 underline"
+                >
+                  Reset
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+        <p className="text-xs text-gray-400">
+          The color is also used for selected choices and the success checkmark, so the whole form
+          matches your website.
+        </p>
       </div>
 
       <button
