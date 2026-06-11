@@ -174,7 +174,7 @@ export default function QuoteAcceptPage({
               <img
                 src={quote.company.logoUrl}
                 alt={`${quote.company.name} logo`}
-                className="h-14 w-auto max-w-[220px] object-contain shrink-0"
+                className="h-20 w-auto max-w-[300px] object-contain shrink-0"
               />
             )}
             <div>
