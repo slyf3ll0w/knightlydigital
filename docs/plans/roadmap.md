@@ -84,6 +84,47 @@ Per `docs/jobber-research/jobber-build-spec.md` §6:
   "Find an appointment time", layout customization wizard. Touch devices
   can't drag (HTML5 DnD) — they schedule via the job detail editor.
 
+### 3b. Team roles + lead assignment — SHIPPED 2026-06-11 commits 2c2b07f + 9c55cb0(fix) + create-menu fix, verified live
+
+David's spec (approved matrix in session 2026-06-11): Owner / Admin /
+"Sales + Tech" (enum USER) / Sales / Tech. Adding users is free.
+
+- **Roles**: enum now SUPERADMIN/OWNER/ADMIN/USER/SALES/TECH (MANAGER
+  dropped — never assigned). `lib/permissions.ts` is the single source:
+  `getActor()` loads the user fresh from the DB on every API/page request
+  so deactivation + role changes are instant (JWT only updates at sign-in);
+  capability helpers (isManager/canSell/canSeeMoney/canSeePricing) +
+  Prisma scope builders (contactScope/viaContactScope/jobScope).
+- **Lead assignment**: `Contact.assignedToId`. Sales/USER see only their
+  assigned leads + those leads' requests/quotes/invoices/jobs; owners and
+  admins see all + "My leads" filter tab on Clients/Requests + Assigned To
+  column + reassign select on contact detail. In-app leads auto-assign to
+  creator; website/booking leads → `Company.defaultLeadUserId` preset else
+  the owner (preset dropdown on Team page).
+- **Sales money toggle**: `Company.salesSeePayments` (default ON) gates
+  Sales' access to invoices/collect-payment (their leads only).
+- **Tech**: assigned jobs (JobAssignment) + schedule only; job detail
+  shows client name/phone/address (David's call) but NO pricing, billing,
+  or profit; can complete jobs, add notes, drag-reschedule own jobs.
+- **Team page** /app/settings/team (owner/admin): add member
+  (name/email/phone/role/starting password), inline role change, password
+  reset, deactivate (last-active-owner guarded), lead routing + sales
+  toggle. /app/settings/profile for everyone (name/phone/password —
+  password change didn't exist before). Job detail gets a Team checkbox
+  card (drives tech visibility + schedule team filter).
+- Nav/create-menu/mobile-tabs/dashboard cards all role-filtered; admin
+  manages only USER/SALES/TECH, owner manages everyone.
+- **Verified live** on demo co with real accounts: Sam Seller (Sales,
+  demo-sales@streamflaremedia.com / SalesDemo2026!) sees only his assigned
+  lead Marcus Webb + that lead's jobs; Tina Tech (demo-tech@…/
+  TechDemo2026!) sees only her assigned job, no prices. Both left in the
+  demo co as demo data.
+- Bug found in verification: job PATCH with only assigneeIds hit
+  updateMany-with-empty-data (0 rows) → 404; fixed (findFirst then
+  conditional update).
+- NOT built (later): invite emails (needs Resend), per-user notification
+  prefs, SUPERADMIN impersonation, audit log.
+
 ### 4. Email automations via Resend — Phase 1 SHIPPED 2026-06-11 ← NEXT UP (Phase 2)
 
 - DONE: new-request notification to company.email from booking form + client
