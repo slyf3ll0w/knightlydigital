@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { sendEmail, newRequestEmail } from "@/lib/email";
 
 /** Public: a client submits a work request from their hub. */
 export async function POST(req: NextRequest) {
@@ -10,7 +11,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Title is required." }, { status: 400 });
   }
 
-  const contact = await prisma.contact.findUnique({ where: { hubToken: token } });
+  const contact = await prisma.contact.findUnique({
+    where: { hubToken: token },
+    include: { company: { select: { name: true, email: true } } },
+  });
   if (!contact) return NextResponse.json({ error: "Hub not found." }, { status: 404 });
 
   // Backstop: cap requests per company per day (matches the booking form)
@@ -39,6 +43,27 @@ export async function POST(req: NextRequest) {
       source: "client_hub",
     },
   });
+
+  // Notify the company inbox; reply goes straight to the customer
+  if (contact.company.email) {
+    const { subject, html } = newRequestEmail({
+      companyName: contact.company.name,
+      requestId: request.id,
+      requestNumber: request.requestNumber,
+      title: request.title,
+      details: request.details,
+      contactName: `${contact.firstName} ${contact.lastName}`,
+      contactPhone: contact.phone,
+      contactEmail: contact.email,
+      source: "client_hub",
+    });
+    await sendEmail({
+      to: contact.company.email,
+      subject,
+      html,
+      replyTo: contact.email ?? undefined,
+    });
+  }
 
   return NextResponse.json({ id: request.id }, { status: 201 });
 }

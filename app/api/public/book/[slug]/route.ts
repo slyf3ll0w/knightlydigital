@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { verifyCaptcha } from "@/lib/captcha";
 import { sanitizeBookingForm } from "@/lib/booking-form";
+import { sendEmail, newRequestEmail } from "@/lib/email";
 
 // Generous backstop so one runaway account or bot can't flood a company
 const MAX_REQUESTS_PER_COMPANY_PER_DAY = 200;
@@ -80,7 +81,7 @@ export async function POST(
     );
   }
 
-  await prisma.$transaction(async (tx) => {
+  const request = await prisma.$transaction(async (tx) => {
     // Match an existing contact by phone or email; otherwise create a lead
     let contact = await tx.contact.findFirst({
       where: {
@@ -107,7 +108,7 @@ export async function POST(
       orderBy: { requestNumber: "desc" },
     });
 
-    await tx.request.create({
+    return tx.request.create({
       data: {
         companyId: company.id,
         contactId: contact.id,
@@ -125,6 +126,22 @@ export async function POST(
       },
     });
   });
+
+  // Notify the company inbox; reply goes straight to the customer
+  if (company.email) {
+    const { subject, html } = newRequestEmail({
+      companyName: company.name,
+      requestId: request.id,
+      requestNumber: request.requestNumber,
+      title: request.title,
+      details: request.details,
+      contactName: `${firstName} ${lastName}`,
+      contactPhone: phone,
+      contactEmail: email || null,
+      source: "booking_form",
+    });
+    await sendEmail({ to: company.email, subject, html, replyTo: email || undefined });
+  }
 
   return NextResponse.json({ success: true }, { status: 201 });
 }
