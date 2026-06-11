@@ -38,6 +38,10 @@ export default function BookingForm({
     address: "", service: initialService, preferredDate: "", message: "",
   });
   const [custom, setCustom] = useState<Record<string, string>>({});
+  // Anti-spam: bots fill the off-screen "website" field and submit instantly;
+  // the API silently drops submissions that trip either signal
+  const [honeypot, setHoneypot] = useState("");
+  const [startedAt] = useState(() => Date.now());
 
   const dark = theme === "dark";
   const card = transparent
@@ -69,7 +73,13 @@ export default function BookingForm({
       const res = await fetch(`/api/public/book/${companySlug}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, custom, captchaToken }),
+        body: JSON.stringify({
+          ...form,
+          custom,
+          captchaToken,
+          website: honeypot,
+          elapsedMs: Date.now() - startedAt,
+        }),
       });
 
       if (!res.ok) {
@@ -216,10 +226,24 @@ export default function BookingForm({
   const svc = config.service;
 
   return (
-    <form onSubmit={handleSubmit} className={`${card} space-y-4`}>
+    <form onSubmit={handleSubmit} className={`${card} space-y-4 relative`}>
       {error && (
         <div className="px-4 py-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">{error}</div>
       )}
+      {/* Honeypot — humans never see it, bots fill it */}
+      <div aria-hidden="true" className="absolute -left-[9999px] top-0 h-0 overflow-hidden">
+        <label>
+          Website
+          <input
+            type="text"
+            name="website"
+            tabIndex={-1}
+            autoComplete="off"
+            value={honeypot}
+            onChange={(e) => setHoneypot(e.target.value)}
+          />
+        </label>
+      </div>
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className={label}>First name *</label>

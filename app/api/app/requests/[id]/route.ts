@@ -33,3 +33,33 @@ export async function PATCH(
   const updated = await prisma.request.update({ where: { id }, data });
   return NextResponse.json(updated);
 }
+
+/**
+ * DELETE — permanently remove a request (spam/marketer cleanup). Refused when
+ * quotes or jobs link to it; real work should be archived, not deleted.
+ */
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await getServerSession(authOptions);
+  const companyId = session?.user.companyId;
+  if (!companyId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { id } = await params;
+  const request = await prisma.request.findFirst({
+    where: { id, companyId },
+    include: { _count: { select: { quotes: true, jobs: true } } },
+  });
+  if (!request) return NextResponse.json({ error: "Request not found." }, { status: 404 });
+
+  if (request._count.quotes > 0 || request._count.jobs > 0) {
+    return NextResponse.json(
+      { error: "This request is linked to quotes or jobs — archive it instead." },
+      { status: 400 }
+    );
+  }
+
+  await prisma.request.delete({ where: { id } });
+  return NextResponse.json({ success: true });
+}

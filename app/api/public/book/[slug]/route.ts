@@ -29,6 +29,15 @@ export async function POST(
   const company = await prisma.company.findUnique({ where: { slug } });
   if (!company) return NextResponse.json({ error: "Company not found." }, { status: 404 });
 
+  // Bot signals: filled honeypot, or the form was completed inhumanly fast.
+  // Pretend success so the bot doesn't learn it was caught.
+  const filledHoneypot = typeof body.website === "string" && body.website.trim() !== "";
+  const tooFast =
+    typeof body.elapsedMs === "number" && body.elapsedMs >= 0 && body.elapsedMs < 3000;
+  if (filledHoneypot || tooFast) {
+    return NextResponse.json({ success: true }, { status: 201 });
+  }
+
   const { firstName, lastName, email, phone, address, service, preferredDate, message } = body;
 
   if (!firstName || !lastName || !phone || !service) {

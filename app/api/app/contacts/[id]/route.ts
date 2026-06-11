@@ -38,6 +38,11 @@ export async function PATCH(
   return NextResponse.json({ success: true });
 }
 
+/**
+ * DELETE — permanently remove a contact (spam/marketer cleanup). Refused when
+ * the contact has any real work (quotes, jobs, invoices, payments, plans);
+ * their requests and booking submissions are spam artifacts and go with them.
+ */
 export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -47,7 +52,29 @@ export async function DELETE(
 
   const { id } = await params;
 
-  await prisma.contact.deleteMany({ where: { id, companyId } });
+  const contact = await prisma.contact.findFirst({
+    where: { id, companyId },
+    include: {
+      _count: {
+        select: { quotes: true, jobs: true, invoices: true, payments: true, servicePlans: true },
+      },
+    },
+  });
+  if (!contact) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  const c = contact._count;
+  if (c.quotes > 0 || c.jobs > 0 || c.invoices > 0 || c.payments > 0 || c.servicePlans > 0) {
+    return NextResponse.json(
+      { error: "This client has quotes, jobs, or billing history — archive them instead." },
+      { status: 400 }
+    );
+  }
+
+  await prisma.$transaction([
+    prisma.request.deleteMany({ where: { contactId: id, companyId } }),
+    prisma.bookingRequest.deleteMany({ where: { contactId: id, companyId } }),
+    prisma.contact.delete({ where: { id } }),
+  ]);
 
   return NextResponse.json({ success: true });
 }

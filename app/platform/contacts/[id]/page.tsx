@@ -7,6 +7,7 @@ import { ArrowLeft, Phone, Mail, MapPin, ChevronRight, ExternalLink } from "luci
 import { money, shortDate, type StatusKind } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
 import ContactCreateMenu from "./ContactCreateMenu";
+import DeleteContactButton from "./DeleteContactButton";
 
 export default async function ContactDetailPage({
   params,
@@ -133,7 +134,10 @@ export default async function ContactDetailPage({
             )}
           </div>
         </div>
-        <ContactCreateMenu contactId={contact.id} />
+        <div className="flex items-center gap-2">
+          <DeleteContactButton contactId={contact.id} />
+          <ContactCreateMenu contactId={contact.id} />
+        </div>
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6">

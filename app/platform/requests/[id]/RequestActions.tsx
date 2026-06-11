@@ -38,6 +38,19 @@ export default function RequestActions({
     }
   }
 
+  async function deleteRequest() {
+    setOpen(false);
+    if (!confirm("Permanently delete this request? This can't be undone.")) return;
+    const res = await fetch(`/api/app/requests/${requestId}`, { method: "DELETE" });
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      alert(data?.error ?? "Couldn't delete this request.");
+      return;
+    }
+    router.push("/app/requests");
+    router.refresh();
+  }
+
   return (
     <div className="flex items-center gap-2" ref={ref}>
       {status === "NEW" && (
@@ -91,10 +104,17 @@ export default function RequestActions({
                 onClick={() => setStatus("NEW")}
                 className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
               >
-                <Trash2 size={14} className="text-gray-400" />
+                <Archive size={14} className="text-gray-400" />
                 Restore to New
               </button>
             )}
+            <button
+              onClick={deleteRequest}
+              className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-red-600 hover:bg-red-50"
+            >
+              <Trash2 size={14} className="text-red-400" />
+              Delete (spam)
+            </button>
           </div>
         )}
       </div>
