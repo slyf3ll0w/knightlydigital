@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Loader2, Check, Copy, ExternalLink } from "lucide-react";
+import { Loader2, Check, Copy, ExternalLink, Upload, Trash2 } from "lucide-react";
 
 type Company = {
   id: string; name: string; slug: string; phone: string | null;
@@ -20,6 +20,9 @@ export default function SettingsClient({ company }: { company: Company }) {
   const [saved, setSaved] = useState(false);
   const [copied, setCopied] = useState(false);
   const [embedTheme, setEmbedTheme] = useState<"light" | "dark" | "transparent">("light");
+  const [logoBusy, setLogoBusy] = useState(false);
+  const [logoError, setLogoError] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState({
     name: company.name,
     phone: company.phone ?? "",
@@ -38,6 +41,39 @@ export default function SettingsClient({ company }: { company: Company }) {
 
   function set(field: string, value: string | boolean) {
     setForm((f) => ({ ...f, [field]: value }));
+  }
+
+  async function uploadLogo(file: File) {
+    setLogoError("");
+    setLogoBusy(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/app/settings/logo", { method: "POST", body: fd });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setLogoError(data?.error ?? "Upload failed. Please try again.");
+        return;
+      }
+      set("logoUrl", data.logoUrl);
+      router.refresh();
+    } catch {
+      setLogoError("Upload failed. Please try again.");
+    } finally {
+      setLogoBusy(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  async function removeLogo() {
+    setLogoBusy(true);
+    try {
+      await fetch("/api/app/settings/logo", { method: "DELETE" });
+      set("logoUrl", "");
+      router.refresh();
+    } finally {
+      setLogoBusy(false);
+    }
   }
 
   const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
@@ -158,16 +194,42 @@ export default function SettingsClient({ company }: { company: Company }) {
             </p>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Logo URL</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Logo</label>
             <input
-              type="url"
-              value={form.logoUrl}
-              onChange={(e) => set("logoUrl", e.target.value)}
-              placeholder="https://yoursite.com/logo.png"
-              className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              ref={fileInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/gif"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) uploadLogo(file);
+              }}
             />
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={logoBusy}
+                className="flex items-center gap-1.5 px-4 py-2 border border-gray-300 text-sm font-medium text-gray-700 rounded hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                {logoBusy ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />}
+                {form.logoUrl ? "Replace Logo" : "Upload Logo"}
+              </button>
+              {form.logoUrl && (
+                <button
+                  type="button"
+                  onClick={removeLogo}
+                  disabled={logoBusy}
+                  className="flex items-center gap-1 text-xs text-gray-400 hover:text-red-500 transition-colors"
+                >
+                  <Trash2 size={12} />
+                  Remove
+                </button>
+              )}
+            </div>
+            {logoError && <p className="text-xs text-red-600 mt-1">{logoError}</p>}
             <p className="text-xs text-gray-400 mt-1">
-              Link to a hosted image (PNG with transparent background looks best). Direct upload is coming.
+              PNG, JPG, WebP, or GIF up to 1MB. Transparent-background PNG looks best.
             </p>
           </div>
           <div>

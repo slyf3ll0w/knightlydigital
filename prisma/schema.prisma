@@ -20,7 +20,9 @@ model Company {
   state            String?
   zip              String?
   website          String?
-  logoUrl          String?
+  logoUrl          String? // display URL; points at /api/logo/[id] for uploaded logos
+  logoData         Bytes? // uploaded logo bytes (small files only; move to R2 with job photos)
+  logoMime         String?
   brandColor       String? // hex accent used on client-facing pages (quotes, invoices, hub, booking)
   timezone         String   @default("America/Chicago")
   surchargeEnabled Boolean  @default(false)
