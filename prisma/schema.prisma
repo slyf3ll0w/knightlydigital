@@ -21,6 +21,7 @@ model Company {
   zip              String?
   website          String?
   logoUrl          String?
+  brandColor       String? // hex accent used on client-facing pages (quotes, invoices, hub, booking)
   timezone         String   @default("America/Chicago")
   surchargeEnabled Boolean  @default(false)
   surchargeRate    Decimal  @default(0.0300) @db.Decimal(5, 4)

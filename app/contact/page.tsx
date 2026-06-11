@@ -23,7 +23,7 @@ const initialForm: FormState = {
 
 // TEST: JobFlow embeddable booking form (Excellent PC Building account).
 // Flip to false to restore the original Streamflaire contact form.
-const USE_JOBFLOW_EMBED = true;
+const USE_JOBFLOW_EMBED = false;
 const JOBFLOW_EMBED_SRC = 'https://streamflaire.com/embed/excellent-pc-building';
 
 export default function ContactPage() {

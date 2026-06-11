@@ -9,6 +9,7 @@ type Company = {
   id: string; name: string; slug: string; phone: string | null;
   email: string | null; address: string | null; city: string | null;
   state: string | null; zip: string | null; website: string | null;
+  logoUrl: string | null; brandColor: string | null;
   surchargeEnabled: boolean; surchargeRate: string | number | null;
   reviewLink: string | null;
 };
@@ -18,6 +19,7 @@ export default function SettingsClient({ company }: { company: Company }) {
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [embedTheme, setEmbedTheme] = useState<"light" | "dark" | "transparent">("light");
   const [form, setForm] = useState({
     name: company.name,
     phone: company.phone ?? "",
@@ -27,6 +29,8 @@ export default function SettingsClient({ company }: { company: Company }) {
     state: company.state ?? "",
     zip: company.zip ?? "",
     website: company.website ?? "",
+    logoUrl: company.logoUrl ?? "",
+    brandColor: company.brandColor ?? "",
     surchargeEnabled: company.surchargeEnabled,
     surchargeRate: company.surchargeRate ? (Number(company.surchargeRate) * 100).toFixed(2) : "3.00",
     reviewLink: company.reviewLink ?? "",
@@ -38,7 +42,9 @@ export default function SettingsClient({ company }: { company: Company }) {
 
   const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
   const bookingUrl = `${baseUrl}/book/${company.slug}`;
-  const embedSnippet = `<iframe src="${baseUrl}/embed/${company.slug}" style="width:100%;max-width:560px;height:760px;border:0;" title="Request a service from ${company.name}"></iframe>`;
+  const embedParams =
+    embedTheme === "dark" ? "?theme=dark" : embedTheme === "transparent" ? "?transparent=1" : "";
+  const embedSnippet = `<iframe src="${baseUrl}/embed/${company.slug}${embedParams}" style="width:100%;max-width:560px;height:780px;border:0;" title="Request a service from ${company.name}"></iframe>`;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -143,6 +149,67 @@ export default function SettingsClient({ company }: { company: Company }) {
           </div>
         </div>
 
+        {/* Branding */}
+        <div className="bg-white border border-gray-200 rounded-lg p-5 space-y-4">
+          <div>
+            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Branding</h2>
+            <p className="text-xs text-gray-400 mt-0.5">
+              Shown on everything your clients see — quotes, invoices, the client hub, and booking forms
+            </p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Logo URL</label>
+            <input
+              type="url"
+              value={form.logoUrl}
+              onChange={(e) => set("logoUrl", e.target.value)}
+              placeholder="https://yoursite.com/logo.png"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+            />
+            <p className="text-xs text-gray-400 mt-1">
+              Link to a hosted image (PNG with transparent background looks best). Direct upload is coming.
+            </p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Brand color</label>
+            <div className="flex items-center gap-3">
+              <input
+                type="color"
+                value={form.brandColor || "#16A34A"}
+                onChange={(e) => set("brandColor", e.target.value)}
+                className="h-10 w-14 rounded border border-gray-300 cursor-pointer p-1"
+              />
+              <span className="text-sm font-mono text-gray-600">
+                {form.brandColor || "Default"}
+              </span>
+              {form.brandColor && (
+                <button
+                  type="button"
+                  onClick={() => set("brandColor", "")}
+                  className="text-xs text-gray-400 hover:text-gray-600 underline"
+                >
+                  Reset to default
+                </button>
+              )}
+            </div>
+          </div>
+          {(form.logoUrl || form.brandColor) && (
+            <div>
+              <p className="text-xs font-medium text-gray-500 mb-2">Preview</p>
+              <div
+                className="rounded-lg px-5 py-4 flex items-center gap-3"
+                style={{ backgroundColor: form.brandColor || "#0C0F0C" }}
+              >
+                {form.logoUrl && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={form.logoUrl} alt="Logo preview" className="h-9 w-auto max-w-[120px] object-contain" />
+                )}
+                <span className="font-bold text-white drop-shadow-sm">{form.name}</span>
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Surcharging */}
         <div className="bg-white border border-gray-200 rounded-lg p-5 space-y-4">
           <div>
@@ -229,9 +296,41 @@ export default function SettingsClient({ company }: { company: Company }) {
                 {embedCopied ? "Copied" : "Copy code"}
               </button>
             </div>
+            <div className="flex items-center gap-1 mb-2">
+              {([
+                { value: "light", label: "Light" },
+                { value: "dark", label: "Dark" },
+                { value: "transparent", label: "Transparent" },
+              ] as const).map((t) => (
+                <button
+                  key={t.value}
+                  type="button"
+                  onClick={() => setEmbedTheme(t.value)}
+                  className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+                    embedTheme === t.value
+                      ? "bg-gray-900 text-white"
+                      : "text-gray-600 hover:bg-gray-100"
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
+              <span className="text-[11px] text-gray-400 ml-2">
+                Transparent inherits your website&apos;s background
+              </span>
+            </div>
             <pre className="p-3 bg-gray-50 border border-gray-200 rounded text-xs font-mono text-gray-600 whitespace-pre-wrap break-all">
               {embedSnippet}
             </pre>
+            <a
+              href={`${baseUrl}/embed/${company.slug}${embedParams}`}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 mt-2 text-xs font-medium text-green-600 hover:underline"
+            >
+              <ExternalLink size={11} />
+              Preview this theme
+            </a>
           </div>
         </div>
 

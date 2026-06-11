@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { CheckCircle, Loader2, MessageSquare } from "lucide-react";
+import { brandHeader, brandAccent, textOn } from "@/lib/branding";
 
 type Quote = {
   id: string;
@@ -19,7 +20,7 @@ type Quote = {
   disclaimer: string | null;
   validUntil: string | null;
   contact: { firstName: string; lastName: string } | null;
-  company: { name: string };
+  company: { name: string; logoUrl: string | null; brandColor: string | null };
   lineItems: {
     id: string;
     name: string;
@@ -164,9 +165,32 @@ export default function QuoteAcceptPage({
 
         <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
           {/* Branded header */}
-          <div className="bg-[#0C0F0C] px-6 py-5">
-            <h1 className="text-lg font-bold text-white">{quote.company.name}</h1>
-            <p className="text-sm text-white/60">Quote #{quote.quoteNumber}</p>
+          <div
+            className="px-6 py-5 flex items-center gap-4"
+            style={{ backgroundColor: brandHeader(quote.company) }}
+          >
+            {quote.company.logoUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={quote.company.logoUrl}
+                alt={`${quote.company.name} logo`}
+                className="h-10 w-auto max-w-[140px] object-contain shrink-0"
+              />
+            )}
+            <div>
+              <h1
+                className="text-lg font-bold"
+                style={{ color: textOn(brandHeader(quote.company)) }}
+              >
+                {quote.company.name}
+              </h1>
+              <p
+                className="text-sm"
+                style={{ color: textOn(brandHeader(quote.company)), opacity: 0.65 }}
+              >
+                Quote #{quote.quoteNumber}
+              </p>
+            </div>
           </div>
 
           <div className="p-6">
@@ -305,7 +329,11 @@ export default function QuoteAcceptPage({
                   <button
                     onClick={approve}
                     disabled={loading}
-                    className="flex items-center justify-center gap-2 px-6 py-3 bg-green-500 hover:bg-green-600 text-white font-semibold text-sm rounded transition-colors disabled:opacity-50"
+                    className="flex items-center justify-center gap-2 px-6 py-3 font-semibold text-sm rounded transition-opacity hover:opacity-90 disabled:opacity-50"
+                    style={{
+                      backgroundColor: brandAccent(quote.company),
+                      color: textOn(brandAccent(quote.company)),
+                    }}
                   >
                     {loading ? (
                       <Loader2 size={14} className="animate-spin" />

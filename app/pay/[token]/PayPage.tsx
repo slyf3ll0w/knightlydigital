@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { CreditCard, Building2, Loader2, CheckCircle, Lock } from "lucide-react";
+import { brandHeader, brandAccent, textOn } from "@/lib/branding";
 
 type LineItem = { id: string; name?: string; description: string; quantity: number; unitPrice: number; total: number };
 type Invoice = {
@@ -9,7 +10,11 @@ type Invoice = {
   subtotal: number; tax: number | null; surcharge: number | null; total: number;
   notes: string | null; dueDate: string | null;
   contact: { firstName: string; lastName: string; email: string | null } | null;
-  company: { name: string; phone: string | null; email: string | null; surchargeEnabled: boolean; surchargeRate: number | null };
+  company: {
+    name: string; phone: string | null; email: string | null;
+    logoUrl: string | null; brandColor: string | null;
+    surchargeEnabled: boolean; surchargeRate: number | null;
+  };
   lineItems: LineItem[];
 };
 
@@ -79,11 +84,30 @@ export default function PayPage({ invoice }: { invoice: Invoice }) {
     <div className="app-ui min-h-screen bg-gray-50 py-10 px-4">
       <div className="max-w-lg mx-auto space-y-4">
         {/* Company + invoice header */}
-        <div className="bg-white rounded-lg border border-gray-200 p-5 shadow-sm">
+        <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+          <div
+            className="px-5 py-4 flex items-center gap-3"
+            style={{ backgroundColor: brandHeader(invoice.company) }}
+          >
+            {invoice.company.logoUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={invoice.company.logoUrl}
+                alt={`${invoice.company.name} logo`}
+                className="h-9 w-auto max-w-[120px] object-contain shrink-0"
+              />
+            )}
+            <p
+              className="font-bold text-lg"
+              style={{ color: textOn(brandHeader(invoice.company)) }}
+            >
+              {invoice.company.name}
+            </p>
+          </div>
+          <div className="p-5">
           <div className="flex justify-between items-start">
             <div>
-              <p className="font-bold text-gray-900 text-lg">{invoice.company.name}</p>
-              <p className="text-sm text-gray-500 mt-0.5">Invoice #{invoice.invoiceNumber}</p>
+              <p className="text-sm text-gray-500">Invoice #{invoice.invoiceNumber}</p>
             </div>
             <div className="text-right">
               {invoice.contact && (
@@ -131,6 +155,7 @@ export default function PayPage({ invoice }: { invoice: Invoice }) {
               <span>Total due</span>
               <span>${chargeTotal.toFixed(2)}</span>
             </div>
+          </div>
           </div>
         </div>
 
@@ -186,7 +211,11 @@ export default function PayPage({ invoice }: { invoice: Invoice }) {
           <button
             onClick={handlePay}
             disabled={loading}
-            className="w-full py-3 bg-green-500 hover:bg-green-600 text-white font-semibold text-sm rounded transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+            className="w-full py-3 font-semibold text-sm rounded transition-opacity hover:opacity-90 flex items-center justify-center gap-2 disabled:opacity-50"
+            style={{
+              backgroundColor: brandAccent(invoice.company),
+              color: textOn(brandAccent(invoice.company)),
+            }}
           >
             {loading ? (
               <Loader2 size={14} className="animate-spin" />

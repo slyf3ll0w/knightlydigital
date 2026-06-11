@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import Link from "next/link";
+import { brandHeader, textOn } from "@/lib/branding";
 
 export default async function HubLayout({
   children,
@@ -13,7 +14,7 @@ export default async function HubLayout({
 
   const contact = await prisma.contact.findUnique({
     where: { hubToken: token },
-    include: { company: { select: { name: true } } },
+    include: { company: { select: { name: true, logoUrl: true, brandColor: true } } },
   });
   if (!contact) notFound();
 
@@ -24,21 +25,44 @@ export default async function HubLayout({
     { href: `${base}/invoices`, label: "Invoices" },
   ];
 
+  const headerBg = brandHeader(contact.company);
+  const headerText = textOn(headerBg);
+
   return (
     <div className="app-ui min-h-screen bg-gray-50">
       {/* Company-branded header */}
-      <header className="bg-[#0C0F0C]">
+      <header style={{ backgroundColor: headerBg }}>
         <div className="max-w-3xl mx-auto px-4 py-5">
-          <h1 className="text-lg font-bold text-white">{contact.company.name}</h1>
-          <p className="text-xs text-white/50">
-            Client hub for {contact.firstName} {contact.lastName}
-          </p>
+          <div className="flex items-center gap-3">
+            {contact.company.logoUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={contact.company.logoUrl}
+                alt={`${contact.company.name} logo`}
+                className="h-10 w-auto max-w-[140px] object-contain shrink-0"
+              />
+            )}
+            <div>
+              <h1 className="text-lg font-bold" style={{ color: headerText }}>
+                {contact.company.name}
+              </h1>
+              <p className="text-xs" style={{ color: headerText, opacity: 0.55 }}>
+                Client hub for {contact.firstName} {contact.lastName}
+              </p>
+            </div>
+          </div>
           <nav className="flex gap-1 mt-4 -mb-5">
             {nav.map((n) => (
               <Link
                 key={n.href}
                 href={n.href}
-                className="px-3 py-2 text-sm font-medium text-white/70 hover:text-white rounded-t bg-white/5 hover:bg-white/10 transition-colors"
+                className="px-3 py-2 text-sm font-medium rounded-t transition-opacity hover:opacity-100"
+                style={{
+                  color: headerText,
+                  opacity: 0.75,
+                  backgroundColor:
+                    headerText === "#ffffff" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
+                }}
               >
                 {n.label}
               </Link>

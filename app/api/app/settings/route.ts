@@ -21,6 +21,13 @@ export async function PATCH(req: NextRequest) {
       state: body.state || null,
       zip: body.zip || null,
       website: body.website || null,
+      logoUrl: body.logoUrl !== undefined ? body.logoUrl || null : undefined,
+      brandColor:
+        body.brandColor !== undefined
+          ? /^#[0-9a-fA-F]{6}$/.test(body.brandColor ?? "")
+            ? body.brandColor
+            : null
+          : undefined,
       surchargeEnabled: body.surchargeEnabled ?? undefined,
       surchargeRate: body.surchargeRate ?? undefined,
       reviewLink: body.reviewLink || null,

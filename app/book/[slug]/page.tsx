@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import BookingForm from "./BookingForm";
+import { brandAccent } from "@/lib/branding";
 
 export default async function BookingPage({
   params,
@@ -16,10 +17,18 @@ export default async function BookingPage({
     <div className="app-ui min-h-screen bg-gray-50 py-10 px-4">
       <div className="max-w-lg mx-auto">
         <div className="text-center mb-8">
+          {company.logoUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={company.logoUrl}
+              alt={`${company.name} logo`}
+              className="h-12 w-auto max-w-[180px] object-contain mx-auto mb-3"
+            />
+          )}
           <h1 className="text-2xl font-bold text-gray-900">{company.name}</h1>
           <p className="text-gray-500 text-sm mt-1">Request a service appointment</p>
         </div>
-        <BookingForm companySlug={slug} />
+        <BookingForm companySlug={slug} accent={brandAccent(company)} />
       </div>
     </div>
   );
