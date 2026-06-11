@@ -62,7 +62,7 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col lg:flex-row">
+    <div className="app-ui min-h-screen bg-gray-50 flex flex-col lg:flex-row">
       {/* Left panel */}
       <div className="hidden lg:flex flex-col justify-center bg-[#0C0F0C] text-white px-12 w-96 xl:w-[480px] shrink-0">
         <div className="flex items-center gap-2 mb-12">

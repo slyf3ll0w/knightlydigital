@@ -93,6 +93,15 @@ export function shortDate(d: Date | string | null | undefined): string {
   return new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
+/**
+ * Convert a datetime-local input value ("2026-06-11T08:00") to an ISO string
+ * using the browser's timezone. Always do this client-side before sending —
+ * the raw string is ambiguous and the server would store it in its own zone.
+ */
+export function localInputToISO(value: string): string | null {
+  return value ? new Date(value).toISOString() : null;
+}
+
 /** Deposit owed on a quote, given its totals and deposit settings. */
 export function quoteDepositAmount(q: {
   total: number | { toString(): string };

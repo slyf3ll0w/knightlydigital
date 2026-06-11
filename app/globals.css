@@ -3,6 +3,13 @@
 @tailwind utilities;
 
 :root {
+  /* Typography: Inter for UI text, Oxanium for marketing display headings.
+     (These vars were previously referenced but never defined, so the site
+     fell back to browser default fonts.) */
+  --font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --font-sans: "Oxanium", var(--font-body);
+
   /* Marketing site colors */
   --background: #ffffff;
   --foreground: #0A0A0F;
@@ -34,6 +41,39 @@ body {
 
 h1, h2, h3, h4, h5, h6, .font-display {
   font-family: var(--font-sans);
+}
+
+/* The product UI (app, client hub, public client pages) uses the clean UI
+   font throughout — display headings are a marketing-site thing. */
+.app-ui,
+.app-ui h1, .app-ui h2, .app-ui h3, .app-ui h4, .app-ui h5, .app-ui h6 {
+  font-family: var(--font-body);
+}
+.app-ui {
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  -webkit-font-smoothing: antialiased;
+  /* Money columns and counts line up like a real ledger */
+  font-variant-numeric: tabular-nums;
+}
+
+/* Slim, quiet scrollbars inside the product UI */
+.app-ui ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.app-ui ::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.app-ui ::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.app-ui ::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 html {

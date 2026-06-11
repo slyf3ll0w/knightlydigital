@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Loader2, ArrowLeft } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
+import { localInputToISO } from "@/lib/statuses";
 
 type Contact = { id: string; firstName: string; lastName: string };
 
@@ -43,7 +44,10 @@ function NewRequestForm() {
     setError("");
     setLoading(true);
 
-    const { ok, data } = await postJson<{ id: string }>("/api/app/requests", form);
+    const { ok, data } = await postJson<{ id: string }>("/api/app/requests", {
+      ...form,
+      assessmentAt: localInputToISO(form.assessmentAt),
+    });
     setLoading(false);
 
     if (!ok || !data?.id) {

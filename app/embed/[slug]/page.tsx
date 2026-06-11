@@ -17,7 +17,7 @@ export default async function EmbedBookingPage({
   if (!company) notFound();
 
   return (
-    <div className="bg-white p-4">
+    <div className="app-ui bg-white p-4">
       <BookingForm companySlug={slug} />
     </div>
   );

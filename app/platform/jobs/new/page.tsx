@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Loader2, ArrowLeft } from "lucide-react";
 import { Suspense } from "react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
+import { localInputToISO } from "@/lib/statuses";
 
 type Contact = { id: string; firstName: string; lastName: string; address: string | null };
 
@@ -57,7 +58,11 @@ function NewJobForm() {
     setError("");
     setLoading(true);
 
-    const { ok, data } = await postJson<{ id: string }>("/api/app/jobs", form);
+    const { ok, data } = await postJson<{ id: string }>("/api/app/jobs", {
+      ...form,
+      scheduledAt: localInputToISO(form.scheduledAt),
+      scheduledEnd: localInputToISO(form.scheduledEnd),
+    });
     setLoading(false);
 
     if (!ok || !data?.id) {

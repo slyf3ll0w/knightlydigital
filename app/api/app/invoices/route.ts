@@ -26,10 +26,12 @@ export async function POST(req: NextRequest) {
   const tax = taxRate ? subtotal * taxRate : null;
   const total = subtotal + (tax ?? 0);
 
-  // Due date from explicit value, else the client's payment terms (Net N)
+  // Due date from explicit value, else the client's payment terms (Net N).
+  // Date-only strings get anchored to midday so they don't shift a day in
+  // timezone conversion.
   const issuedAt = new Date();
   const due = dueDate
-    ? new Date(dueDate)
+    ? new Date(dueDate.length === 10 ? `${dueDate}T12:00:00` : dueDate)
     : contact
       ? new Date(issuedAt.getTime() + contact.paymentTermsDays * 86400000)
       : null;

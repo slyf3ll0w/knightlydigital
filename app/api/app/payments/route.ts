@@ -48,7 +48,9 @@ export async function POST(req: NextRequest) {
       method: method as PaymentMethod,
       referenceNumber: referenceNumber || null,
       details: details || null,
-      paidAt: paidAt ? new Date(paidAt) : undefined,
+      paidAt: paidAt
+        ? new Date(paidAt.length === 10 ? `${paidAt}T12:00:00` : paidAt)
+        : undefined,
     });
     return NextResponse.json({ payment, fullyPaid }, { status: 201 });
   } catch (e) {

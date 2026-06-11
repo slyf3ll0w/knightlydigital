@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CalendarDays, Loader2, X } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
+import { localInputToISO } from "@/lib/statuses";
 
 function toLocalInput(d: string | null): string {
   if (!d) return "";
@@ -33,7 +34,7 @@ export default function ScheduleJob({
     setLoading(true);
     const { ok, data } = await postJson(
       `/api/app/jobs/${jobId}`,
-      { scheduledAt: start || null, scheduledEnd: end || null },
+      { scheduledAt: localInputToISO(start), scheduledEnd: localInputToISO(end) },
       "PATCH"
     );
     setLoading(false);

@@ -124,7 +124,7 @@ export default function QuoteAcceptPage({
 
   if (quote.status === "APPROVED" || quote.status === "CONVERTED" || done === "approved") {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+      <div className="app-ui min-h-screen bg-gray-50 flex items-center justify-center px-4">
         <div className="max-w-sm w-full bg-white rounded-lg border border-gray-200 p-8 text-center shadow-sm">
           <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <CheckCircle size={28} className="text-green-600" />
@@ -141,7 +141,7 @@ export default function QuoteAcceptPage({
 
   if (done === "changes") {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+      <div className="app-ui min-h-screen bg-gray-50 flex items-center justify-center px-4">
         <div className="max-w-sm w-full bg-white rounded-lg border border-gray-200 p-8 text-center shadow-sm">
           <h1 className="text-xl font-bold text-gray-900 mb-2">Changes requested</h1>
           <p className="text-gray-500 text-sm">
@@ -153,7 +153,7 @@ export default function QuoteAcceptPage({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-10 px-4">
+    <div className="app-ui min-h-screen bg-gray-50 py-10 px-4">
       <div className="max-w-2xl mx-auto space-y-4">
         {preview && (
           <div className="px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-700 text-center">

@@ -31,7 +31,7 @@ export default function PayPage({ invoice }: { invoice: Invoice }) {
 
   if (invoice.status === "PAID" || done) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+      <div className="app-ui min-h-screen bg-gray-50 flex items-center justify-center px-4">
         <div className="max-w-sm w-full bg-white rounded-lg border border-gray-200 p-8 text-center shadow-sm">
           <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <CheckCircle size={28} className="text-green-600" />
@@ -76,7 +76,7 @@ export default function PayPage({ invoice }: { invoice: Invoice }) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-10 px-4">
+    <div className="app-ui min-h-screen bg-gray-50 py-10 px-4">
       <div className="max-w-lg mx-auto space-y-4">
         {/* Company + invoice header */}
         <div className="bg-white rounded-lg border border-gray-200 p-5 shadow-sm">

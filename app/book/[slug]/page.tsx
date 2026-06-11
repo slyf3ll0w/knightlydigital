@@ -13,7 +13,7 @@ export default async function BookingPage({
   if (!company) notFound();
 
   return (
-    <div className="min-h-screen bg-gray-50 py-10 px-4">
+    <div className="app-ui min-h-screen bg-gray-50 py-10 px-4">
       <div className="max-w-lg mx-auto">
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold text-gray-900">{company.name}</h1>
