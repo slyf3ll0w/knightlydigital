@@ -53,14 +53,20 @@ export default async function EmbedBookingPage({
     ? `https://fonts.googleapis.com/css2?family=${fontName.replace(/ /g, "+")}:wght@400;500;600;700&display=swap`
     : null;
 
+  // globals.css paints <body> white (--background); the wrapper div being
+  // transparent isn't enough — the body behind it must go transparent too,
+  // or the embed shows as a white box on dark host sites.
+  const pageBg = isTransparent ? "transparent" : dark ? "#0C0F0C" : "#ffffff";
+
   return (
     <div
       className="app-ui p-4"
       style={{
-        backgroundColor: isTransparent ? "transparent" : dark ? "#0C0F0C" : "#ffffff",
+        backgroundColor: pageBg,
         ...(fontName ? { fontFamily: `"${fontName}", sans-serif` } : {}),
       }}
     >
+      <style>{`html,body{background:${pageBg} !important}`}</style>
       {fontHref && (
         <>
           {/* eslint-disable-next-line @next/next/no-page-custom-font */}
