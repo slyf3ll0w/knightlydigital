@@ -1,6 +1,13 @@
 # Plan: Industry-based starter price books (onboarding)
 
-**Status: planned, not built.** Agreed 2026-06-10. Build alongside the onboarding flow.
+**Status: BUILT & deployed 2026-06-11** (commit `569a814`) as part of the
+9-step onboarding wizard at /app/register. Implementation diverged from this
+plan in two agreed ways: presets live in `lib/pricebooks.ts` as one
+`INDUSTRY_PRICEBOOKS` record (16 industries incl. PC Building & Repair), and
+"Other" seeds an EMPTY price book (David's call) rather than a generic set.
+Seeding stayed in the register route (wizard submits once at the end).
+The "Later, on top of this" section below is still open — tracked in
+`roadmap.md`.
 
 ## Problem
 
