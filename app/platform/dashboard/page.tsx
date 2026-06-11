@@ -4,7 +4,9 @@ import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/db";
 import Link from "next/link";
 import { Inbox, FileText, Briefcase, Receipt, ArrowRight } from "lucide-react";
-import { money } from "@/lib/statuses";
+import { money, type StatusKind } from "@/lib/statuses";
+import StatusChip from "@/components/StatusChip";
+import EmptyState from "@/components/EmptyState";
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
@@ -78,11 +80,18 @@ export default async function DashboardPage() {
   );
 
   // Workflow strip: one card per lifecycle entity, headline status + 2 secondary
-  const workflow = [
+  const workflow: {
+    label: string;
+    icon: typeof Inbox;
+    kind: StatusKind;
+    headline: { count: number; status: string; href: string };
+    secondary: { count: number; label: string; href: string }[];
+  }[] = [
     {
       label: "Requests",
       icon: Inbox,
-      headline: { count: newRequests, label: "New", href: "/app/requests?status=NEW" },
+      kind: "request",
+      headline: { count: newRequests, status: "NEW", href: "/app/requests?status=NEW" },
       secondary: [
         { count: archivedRequests, label: "Archived", href: "/app/requests?status=ARCHIVED" },
       ],
@@ -90,7 +99,8 @@ export default async function DashboardPage() {
     {
       label: "Quotes",
       icon: FileText,
-      headline: { count: approvedQuotes, label: "Approved", href: "/app/quotes?status=APPROVED" },
+      kind: "quote",
+      headline: { count: approvedQuotes, status: "APPROVED", href: "/app/quotes?status=APPROVED" },
       secondary: [
         { count: draftQuotes, label: "Draft", href: "/app/quotes?status=DRAFT" },
         {
@@ -103,9 +113,10 @@ export default async function DashboardPage() {
     {
       label: "Jobs",
       icon: Briefcase,
+      kind: "job",
       headline: {
         count: requiresInvoicingJobs,
-        label: "Requires invoicing",
+        status: "REQUIRES_INVOICING",
         href: "/app/jobs?status=REQUIRES_INVOICING",
       },
       secondary: [
@@ -116,9 +127,10 @@ export default async function DashboardPage() {
     {
       label: "Invoices",
       icon: Receipt,
+      kind: "invoice",
       headline: {
         count: awaitingInvoices,
-        label: "Awaiting payment",
+        status: "AWAITING_PAYMENT",
         href: "/app/invoices?status=AWAITING_PAYMENT",
       },
       secondary: [
@@ -148,13 +160,16 @@ export default async function DashboardPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
         {workflow.map((w) => (
           <div key={w.label} className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-            <Link href={w.headline.href} className="block p-4 hover:bg-gray-50 transition-colors">
+            <Link
+              href={w.headline.href}
+              className="block p-4 hover:bg-gray-50 active:bg-gray-100 transition-colors"
+            >
               <div className="flex items-center gap-2 mb-3">
                 <w.icon size={15} className="text-gray-400" />
                 <span className="text-sm font-semibold text-gray-700">{w.label}</span>
               </div>
               <p className="text-3xl font-bold text-gray-900">{w.headline.count}</p>
-              <p className="text-xs text-gray-500 mt-0.5">{w.headline.label}</p>
+              <StatusChip kind={w.kind} status={w.headline.status} className="mt-1.5" />
             </Link>
             <div className="border-t border-gray-100 divide-y divide-gray-100">
               {w.secondary.map((s) => (
@@ -184,18 +199,14 @@ export default async function DashboardPage() {
             </Link>
           </div>
           {todayVisits.length === 0 ? (
-            <div className="px-5 py-12 text-center">
-              <p className="text-gray-500 text-sm mb-3">
-                This is where you&apos;ll get an overview of your appointments for today once they
-                are scheduled.
-              </p>
-              <Link
-                href="/app/jobs/new"
-                className="inline-flex items-center gap-1 text-sm text-green-600 hover:underline font-medium"
-              >
-                Schedule a job
-              </Link>
-            </div>
+            <EmptyState
+              art="schedule"
+              title="Nothing scheduled today"
+              body="Appointments you schedule for today will show up here."
+              actionHref="/app/jobs/new"
+              actionLabel="Schedule a Job"
+              showPlusIcon={false}
+            />
           ) : (
             <div className="divide-y divide-gray-50">
               {todayVisits.map((job) => {

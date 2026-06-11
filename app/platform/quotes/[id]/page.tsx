@@ -4,13 +4,8 @@ import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/db";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import {
-  quoteStatusColor,
-  quoteStatusLabel,
-  money,
-  shortDate,
-  quoteDepositAmount,
-} from "@/lib/statuses";
+import { money, shortDate, quoteDepositAmount } from "@/lib/statuses";
+import StatusChip from "@/components/StatusChip";
 import QuoteActions from "./QuoteActions";
 
 export default async function QuoteDetailPage({
@@ -48,11 +43,7 @@ export default async function QuoteDetailPage({
         <Link href="/app/quotes" className="text-gray-400 hover:text-gray-600">
           <ArrowLeft size={18} />
         </Link>
-        <span
-          className={`px-2 py-0.5 rounded text-xs font-semibold ${quoteStatusColor[quote.status]}`}
-        >
-          {quoteStatusLabel[quote.status]}
-        </span>
+        <StatusChip kind="quote" status={quote.status} />
       </div>
 
       <div className="flex flex-wrap items-start justify-between gap-4 mb-6">

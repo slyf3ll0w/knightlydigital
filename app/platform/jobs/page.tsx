@@ -3,8 +3,10 @@ import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/db";
 import Link from "next/link";
-import { Briefcase, Plus, ChevronRight } from "lucide-react";
-import { jobStatusColor, jobStatusLabel, money, shortDate } from "@/lib/statuses";
+import { Plus, ChevronRight } from "lucide-react";
+import { money, shortDate } from "@/lib/statuses";
+import StatusChip from "@/components/StatusChip";
+import EmptyState from "@/components/EmptyState";
 import type { JobStatus } from "@prisma/client";
 
 const statusFilters = [
@@ -61,7 +63,7 @@ export default async function JobsPage({
         <h1 className="text-2xl font-bold text-gray-900">Jobs</h1>
         <Link
           href="/app/jobs/new"
-          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded transition-colors"
+          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors"
         >
           <Plus size={15} />
           New Job
@@ -101,22 +103,20 @@ export default async function JobsPage({
 
       <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
         {jobs.length === 0 ? (
-          <div className="py-16 text-center">
-            <Briefcase size={36} className="text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500 text-sm mb-4">
-              No jobs{validStatus || unscheduled ? " match this filter" : " yet"}.
-            </p>
-            <Link
-              href="/app/jobs/new"
-              className="inline-flex items-center gap-1 text-sm text-green-600 hover:underline font-medium"
-            >
-              <Plus size={13} />
-              Create a job
-            </Link>
-          </div>
+          <EmptyState
+            art="jobs"
+            title={validStatus || unscheduled ? "No jobs match this filter" : "No jobs yet"}
+            body={
+              validStatus || unscheduled
+                ? "Try a different status, or create a new job."
+                : "Track work from first visit to final payment — create your first job to get going."
+            }
+            actionHref="/app/jobs/new"
+            actionLabel="Create a Job"
+          />
         ) : (
           <div className="divide-y divide-gray-100">
-            <div className="hidden lg:grid grid-cols-[1fr_70px_150px_160px_100px_40px] gap-4 px-5 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide bg-gray-50">
+            <div className="hidden lg:grid grid-cols-[1fr_70px_150px_160px_100px_40px] gap-4 px-4 py-2 text-[11px] font-semibold text-gray-600 uppercase tracking-wider bg-gray-50">
               <span>Client</span>
               <span>#</span>
               <span>Schedule</span>
@@ -130,7 +130,7 @@ export default async function JobsPage({
                 <Link
                   key={j.id}
                   href={`/app/jobs/${j.id}`}
-                  className="flex lg:grid lg:grid-cols-[1fr_70px_150px_160px_100px_40px] gap-4 items-center px-5 py-3.5 hover:bg-gray-50 transition-colors"
+                  className="flex lg:grid lg:grid-cols-[1fr_70px_150px_160px_100px_40px] gap-4 items-center px-4 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
                 >
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">
@@ -142,11 +142,7 @@ export default async function JobsPage({
                   <span className="hidden lg:block text-sm text-gray-500">
                     {j.scheduledAt ? shortDate(j.scheduledAt) : "Unscheduled"}
                   </span>
-                  <span
-                    className={`text-xs font-medium px-2 py-0.5 rounded w-fit ${jobStatusColor[j.status]}`}
-                  >
-                    {jobStatusLabel[j.status]}
-                  </span>
+                  <StatusChip kind="job" status={j.status} />
                   <span className="text-sm font-semibold text-gray-900 lg:text-right">
                     {total > 0 ? money(total) : "—"}
                   </span>

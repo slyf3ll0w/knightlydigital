@@ -68,7 +68,7 @@ export default async function SchedulePage({
         <h1 className="text-2xl font-bold text-gray-900">Schedule</h1>
         <Link
           href="/app/jobs/new"
-          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded transition-colors"
+          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors"
         >
           <Plus size={15} />
           New Job

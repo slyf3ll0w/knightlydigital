@@ -3,8 +3,10 @@ import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/db";
 import Link from "next/link";
-import { Inbox, Plus, ChevronRight } from "lucide-react";
-import { requestStatusColor, requestStatusLabel, shortDate } from "@/lib/statuses";
+import { Plus, ChevronRight } from "lucide-react";
+import { shortDate } from "@/lib/statuses";
+import StatusChip from "@/components/StatusChip";
+import EmptyState from "@/components/EmptyState";
 import type { RequestStatus } from "@prisma/client";
 
 const statusFilters: { value: string; label: string }[] = [
@@ -44,7 +46,7 @@ export default async function RequestsPage({
         <h1 className="text-2xl font-bold text-gray-900">Requests</h1>
         <Link
           href="/app/requests/new"
-          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded transition-colors"
+          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors"
         >
           <Plus size={15} />
           New Request
@@ -81,20 +83,20 @@ export default async function RequestsPage({
 
       <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
         {requests.length === 0 ? (
-          <div className="py-16 text-center">
-            <Inbox size={36} className="text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500 text-sm mb-4">No requests{validStatus ? " with this status" : " yet"}.</p>
-            <Link
-              href="/app/requests/new"
-              className="inline-flex items-center gap-1 text-sm text-green-600 hover:underline font-medium"
-            >
-              <Plus size={13} />
-              Create a request
-            </Link>
-          </div>
+          <EmptyState
+            art="requests"
+            title={validStatus ? "No requests with this status" : "No requests yet"}
+            body={
+              validStatus
+                ? "Try a different status, or log a request yourself."
+                : "New work starts here — requests arrive from your booking form, or log them yourself."
+            }
+            actionHref="/app/requests/new"
+            actionLabel="Create a Request"
+          />
         ) : (
           <div className="divide-y divide-gray-100">
-            <div className="hidden lg:grid grid-cols-[1fr_1fr_140px_130px_40px] gap-4 px-5 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide bg-gray-50">
+            <div className="hidden lg:grid grid-cols-[1fr_1fr_140px_130px_40px] gap-4 px-4 py-2 text-[11px] font-semibold text-gray-600 uppercase tracking-wider bg-gray-50">
               <span>Client</span>
               <span>Title</span>
               <span>Requested</span>
@@ -105,18 +107,14 @@ export default async function RequestsPage({
               <Link
                 key={r.id}
                 href={`/app/requests/${r.id}`}
-                className="flex lg:grid lg:grid-cols-[1fr_1fr_140px_130px_40px] gap-4 items-center px-5 py-3.5 hover:bg-gray-50 transition-colors"
+                className="flex lg:grid lg:grid-cols-[1fr_1fr_140px_130px_40px] gap-4 items-center px-4 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
               >
                 <span className="text-sm font-medium text-gray-900">
                   {r.contact.firstName} {r.contact.lastName}
                 </span>
                 <span className="text-sm text-gray-600 truncate">{r.title}</span>
                 <span className="hidden lg:block text-sm text-gray-500">{shortDate(r.createdAt)}</span>
-                <span
-                  className={`text-xs font-medium px-2 py-0.5 rounded w-fit ${requestStatusColor[r.status]}`}
-                >
-                  {requestStatusLabel[r.status]}
-                </span>
+                <StatusChip kind="request" status={r.status} />
                 <ChevronRight size={14} className="text-gray-400 shrink-0 hidden lg:block" />
               </Link>
             ))}

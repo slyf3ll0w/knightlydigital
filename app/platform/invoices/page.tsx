@@ -3,8 +3,10 @@ import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/db";
 import Link from "next/link";
-import { Receipt, Plus, ChevronRight, DollarSign } from "lucide-react";
-import { invoiceStatusColor, invoiceStatusLabel, money, shortDate } from "@/lib/statuses";
+import { Plus, ChevronRight, DollarSign } from "lucide-react";
+import { money, shortDate } from "@/lib/statuses";
+import StatusChip from "@/components/StatusChip";
+import EmptyState from "@/components/EmptyState";
 import type { InvoiceStatus } from "@prisma/client";
 
 const statusFilters = [
@@ -88,14 +90,14 @@ export default async function InvoicesPage({
         <div className="flex items-center gap-2">
           <Link
             href="/app/payments/new"
-            className="flex items-center gap-1.5 px-4 py-2 border border-gray-300 text-sm font-medium text-gray-700 rounded hover:bg-gray-50 transition-colors"
+            className="flex items-center gap-1.5 px-4 py-2 border border-gray-300 text-sm font-medium text-gray-700 rounded hover:bg-gray-50 active:bg-gray-100 transition-colors"
           >
             <DollarSign size={14} />
             Collect Payment
           </Link>
           <Link
             href="/app/invoices/new"
-            className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded transition-colors"
+            className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors"
           >
             <Plus size={15} />
             New Invoice
@@ -138,22 +140,20 @@ export default async function InvoicesPage({
 
       <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
         {invoices.length === 0 ? (
-          <div className="py-16 text-center">
-            <Receipt size={36} className="text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500 text-sm mb-4">
-              No invoices{validStatus ? " with this status" : " yet"}.
-            </p>
-            <Link
-              href="/app/invoices/new"
-              className="inline-flex items-center gap-1 text-sm text-green-600 hover:underline font-medium"
-            >
-              <Plus size={13} />
-              Create an invoice
-            </Link>
-          </div>
+          <EmptyState
+            art="invoices"
+            title={validStatus ? "No invoices with this status" : "No invoices yet"}
+            body={
+              validStatus
+                ? "Try a different status, or create a new invoice."
+                : "Get paid for finished work — send your first invoice with a pay-online link."
+            }
+            actionHref="/app/invoices/new"
+            actionLabel="Create an Invoice"
+          />
         ) : (
           <div className="divide-y divide-gray-100">
-            <div className="hidden lg:grid grid-cols-[1fr_70px_130px_150px_100px_100px_40px] gap-4 px-5 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide bg-gray-50">
+            <div className="hidden lg:grid grid-cols-[1fr_70px_130px_150px_100px_100px_40px] gap-4 px-4 py-2 text-[11px] font-semibold text-gray-600 uppercase tracking-wider bg-gray-50">
               <span>Client</span>
               <span>#</span>
               <span>Due date</span>
@@ -169,7 +169,7 @@ export default async function InvoicesPage({
                 <Link
                   key={inv.id}
                   href={`/app/invoices/${inv.id}`}
-                  className="flex lg:grid lg:grid-cols-[1fr_70px_130px_150px_100px_100px_40px] gap-4 items-center px-5 py-3.5 hover:bg-gray-50 transition-colors"
+                  className="flex lg:grid lg:grid-cols-[1fr_70px_130px_150px_100px_100px_40px] gap-4 items-center px-4 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
                 >
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">
@@ -181,11 +181,7 @@ export default async function InvoicesPage({
                   <span className="hidden lg:block text-sm text-gray-500">
                     {shortDate(inv.dueDate)}
                   </span>
-                  <span
-                    className={`text-xs font-medium px-2 py-0.5 rounded w-fit ${invoiceStatusColor[inv.status]}`}
-                  >
-                    {invoiceStatusLabel[inv.status]}
-                  </span>
+                  <StatusChip kind="invoice" status={inv.status} />
                   <span className="text-sm text-gray-700 lg:text-right">{money(inv.total)}</span>
                   <span className="text-sm font-semibold text-gray-900 lg:text-right">
                     {money(balance)}

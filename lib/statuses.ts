@@ -1,18 +1,21 @@
 /**
- * Shared status labels + badge colors for the work lifecycle:
+ * Shared status labels + tones for the work lifecycle:
  * Request → Quote → Job → Invoice → Payment
+ *
+ * One color system everywhere (render via <StatusChip>):
+ *   green = done/positive (paid, approved, active, converted)
+ *   amber = waiting on someone (awaiting response/payment, new request, lead)
+ *   red   = needs attention (past due, changes requested)
+ *   gray  = inert (draft, archived)
  */
+
+export type StatusTone = "green" | "amber" | "red" | "gray";
+export type StatusKind = "request" | "quote" | "job" | "invoice" | "contact";
 
 export const requestStatusLabel: Record<string, string> = {
   NEW: "New",
   CONVERTED: "Converted",
   ARCHIVED: "Archived",
-};
-
-export const requestStatusColor: Record<string, string> = {
-  NEW: "bg-blue-100 text-blue-700",
-  CONVERTED: "bg-green-100 text-green-700",
-  ARCHIVED: "bg-gray-100 text-gray-500",
 };
 
 export const quoteStatusLabel: Record<string, string> = {
@@ -24,25 +27,10 @@ export const quoteStatusLabel: Record<string, string> = {
   ARCHIVED: "Archived",
 };
 
-export const quoteStatusColor: Record<string, string> = {
-  DRAFT: "bg-gray-100 text-gray-600",
-  AWAITING_RESPONSE: "bg-blue-100 text-blue-700",
-  APPROVED: "bg-green-100 text-green-700",
-  CHANGES_REQUESTED: "bg-amber-100 text-amber-700",
-  CONVERTED: "bg-emerald-100 text-emerald-700",
-  ARCHIVED: "bg-gray-100 text-gray-500",
-};
-
 export const jobStatusLabel: Record<string, string> = {
   ACTIVE: "Active",
   REQUIRES_INVOICING: "Requires Invoicing",
   ARCHIVED: "Archived",
-};
-
-export const jobStatusColor: Record<string, string> = {
-  ACTIVE: "bg-blue-100 text-blue-700",
-  REQUIRES_INVOICING: "bg-amber-100 text-amber-700",
-  ARCHIVED: "bg-gray-100 text-gray-500",
 };
 
 export const invoiceStatusLabel: Record<string, string> = {
@@ -52,23 +40,33 @@ export const invoiceStatusLabel: Record<string, string> = {
   PAST_DUE: "Past Due",
 };
 
-export const invoiceStatusColor: Record<string, string> = {
-  DRAFT: "bg-gray-100 text-gray-600",
-  AWAITING_PAYMENT: "bg-blue-100 text-blue-700",
-  PAID: "bg-green-100 text-green-700",
-  PAST_DUE: "bg-red-100 text-red-700",
-};
-
 export const contactStatusLabel: Record<string, string> = {
   LEAD: "Lead",
   ACTIVE: "Active",
   ARCHIVED: "Archived",
 };
 
-export const contactStatusColor: Record<string, string> = {
-  LEAD: "bg-amber-100 text-amber-700",
-  ACTIVE: "bg-green-100 text-green-700",
-  ARCHIVED: "bg-gray-100 text-gray-500",
+export const statusLabels: Record<StatusKind, Record<string, string>> = {
+  request: requestStatusLabel,
+  quote: quoteStatusLabel,
+  job: jobStatusLabel,
+  invoice: invoiceStatusLabel,
+  contact: contactStatusLabel,
+};
+
+export const statusTones: Record<StatusKind, Record<string, StatusTone>> = {
+  request: { NEW: "amber", CONVERTED: "green", ARCHIVED: "gray" },
+  quote: {
+    DRAFT: "gray",
+    AWAITING_RESPONSE: "amber",
+    APPROVED: "green",
+    CHANGES_REQUESTED: "red",
+    CONVERTED: "green",
+    ARCHIVED: "gray",
+  },
+  job: { ACTIVE: "green", REQUIRES_INVOICING: "amber", ARCHIVED: "gray" },
+  invoice: { DRAFT: "gray", AWAITING_PAYMENT: "amber", PAID: "green", PAST_DUE: "red" },
+  contact: { LEAD: "amber", ACTIVE: "green", ARCHIVED: "gray" },
 };
 
 export const paymentMethodLabel: Record<string, string> = {

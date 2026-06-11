@@ -4,13 +4,8 @@ import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/db";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight } from "lucide-react";
-import {
-  invoiceStatusColor,
-  invoiceStatusLabel,
-  paymentMethodLabel,
-  money,
-  shortDate,
-} from "@/lib/statuses";
+import { paymentMethodLabel, money, shortDate } from "@/lib/statuses";
+import StatusChip from "@/components/StatusChip";
 import InvoiceActions from "./InvoiceActions";
 
 export default async function InvoiceDetailPage({
@@ -53,11 +48,7 @@ export default async function InvoiceDetailPage({
         <Link href="/app/invoices" className="text-gray-400 hover:text-gray-600">
           <ArrowLeft size={18} />
         </Link>
-        <span
-          className={`px-2 py-0.5 rounded text-xs font-semibold ${invoiceStatusColor[invoice.status]}`}
-        >
-          {invoiceStatusLabel[invoice.status]}
-        </span>
+        <StatusChip kind="invoice" status={invoice.status} />
       </div>
 
       <div className="flex flex-wrap items-start justify-between gap-4 mb-6">

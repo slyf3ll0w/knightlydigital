@@ -4,7 +4,8 @@ import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/db";
 import Link from "next/link";
 import { ArrowLeft, Mail, Phone, MapPin } from "lucide-react";
-import { requestStatusColor, requestStatusLabel, shortDate, money } from "@/lib/statuses";
+import { shortDate, money } from "@/lib/statuses";
+import StatusChip from "@/components/StatusChip";
 import RequestActions from "./RequestActions";
 
 export default async function RequestDetailPage({
@@ -36,11 +37,7 @@ export default async function RequestDetailPage({
         <Link href="/app/requests" className="text-gray-400 hover:text-gray-600">
           <ArrowLeft size={18} />
         </Link>
-        <span
-          className={`text-xs font-medium px-2 py-0.5 rounded ${requestStatusColor[request.status]}`}
-        >
-          {requestStatusLabel[request.status]}
-        </span>
+        <StatusChip kind="request" status={request.status} />
       </div>
 
       <div className="flex flex-wrap items-start justify-between gap-4 mb-6">

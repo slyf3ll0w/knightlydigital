@@ -16,7 +16,13 @@ type Company = {
   reviewLink: string | null; industry: string | null;
 };
 
-export default function SettingsClient({ company }: { company: Company }) {
+export default function SettingsClient({
+  company,
+  baseUrl,
+}: {
+  company: Company;
+  baseUrl: string;
+}) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -97,7 +103,6 @@ export default function SettingsClient({ company }: { company: Company }) {
     }
   }
 
-  const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
   const bookingUrl = `${baseUrl}/book/${company.slug}`;
   const embedParams =
     embedTheme === "dark" ? "?theme=dark" : embedTheme === "transparent" ? "?transparent=1" : "";
@@ -245,7 +250,7 @@ export default function SettingsClient({ company }: { company: Company }) {
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={logoBusy}
-                className="flex items-center gap-1.5 px-4 py-2 border border-gray-300 text-sm font-medium text-gray-700 rounded hover:bg-gray-50 transition-colors disabled:opacity-50"
+                className="flex items-center gap-1.5 px-4 py-2 border border-gray-300 text-sm font-medium text-gray-700 rounded hover:bg-gray-50 active:bg-gray-100 transition-colors disabled:opacity-50"
               >
                 {logoBusy ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />}
                 {form.logoUrl ? "Replace Logo" : "Upload Logo"}
@@ -434,7 +439,7 @@ export default function SettingsClient({ company }: { company: Company }) {
 
         <div>
           <button type="submit" disabled={loading}
-            className="flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded transition-colors disabled:opacity-50">
+            className="flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors disabled:opacity-50">
             {loading ? <Loader2 size={14} className="animate-spin" /> : saved ? <Check size={14} /> : null}
             {saved ? "Saved!" : "Save Settings"}
           </button>

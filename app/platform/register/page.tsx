@@ -151,7 +151,7 @@ export default function RegisterPage() {
   const optionClass =
     "w-full text-left px-4 py-2.5 border rounded-lg text-sm font-medium transition-colors hover:border-green-500 hover:bg-green-50";
   const continueClass =
-    "px-6 py-2.5 bg-green-500 hover:bg-green-600 text-white font-semibold text-sm rounded transition-colors flex items-center gap-2 disabled:opacity-50";
+    "px-6 py-2.5 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white font-semibold text-sm rounded transition-colors flex items-center gap-2 disabled:opacity-50";
 
   function selectedClass(selected: boolean) {
     return selected

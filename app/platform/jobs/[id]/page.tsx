@@ -4,15 +4,8 @@ import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/db";
 import Link from "next/link";
 import { ArrowLeft, MapPin, CalendarDays, User, Camera } from "lucide-react";
-import {
-  jobStatusColor,
-  jobStatusLabel,
-  invoiceStatusColor,
-  invoiceStatusLabel,
-  quoteStatusLabel,
-  money,
-  shortDate,
-} from "@/lib/statuses";
+import { quoteStatusLabel, money, shortDate } from "@/lib/statuses";
+import StatusChip from "@/components/StatusChip";
 import JobActions from "./JobActions";
 import NoteForm from "./NoteForm";
 import ScheduleJob from "./ScheduleJob";
@@ -59,9 +52,7 @@ export default async function JobDetailPage({
         <Link href="/app/jobs" className="text-gray-400 hover:text-gray-600">
           <ArrowLeft size={18} />
         </Link>
-        <span className={`px-2 py-0.5 rounded text-xs font-semibold ${jobStatusColor[job.status]}`}>
-          {jobStatusLabel[job.status]}
-        </span>
+        <StatusChip kind="job" status={job.status} />
       </div>
 
       <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
@@ -314,11 +305,7 @@ export default async function JobDetailPage({
                   Invoice #{job.invoice.invoiceNumber}
                 </p>
                 <p className="text-lg font-bold text-gray-900 mt-1">{money(job.invoice.total)}</p>
-                <span
-                  className={`inline-block mt-1 text-xs font-medium px-2 py-0.5 rounded ${invoiceStatusColor[job.invoice.status]}`}
-                >
-                  {invoiceStatusLabel[job.invoice.status]}
-                </span>
+                <StatusChip kind="invoice" status={job.invoice.status} className="mt-1" />
               </Link>
             ) : (
               <p className="text-xs text-gray-400">

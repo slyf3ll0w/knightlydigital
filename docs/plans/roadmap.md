@@ -1,32 +1,36 @@
 # JobFlow build roadmap
 
 Living document — agreed priorities and parked work. Last updated 2026-06-11
-(after the onboarding wizard + responsive/design batch shipped, commits
-`569a814` and `bc3520c`).
+(after the design polish batch: StatusChip system, denser lists, illustrated
+empty states, skeletons, settings hydration fix).
 
 ## Next up (agreed order)
 
-### 1. Design polish backlog (approved 2026-06-11, ride along page by page)
+### 1. Design polish backlog — SHIPPED 2026-06-11
 
-David's verdict: the app reads "AI-generated." Shipped already: company
-logo/name owns the sidebar ("Powered by JobFlow" footer), gradient avatars,
-brandColor accents in the chrome, PWA install. Remaining:
+David's verdict was the app read "AI-generated." Earlier batch: company
+logo/name owns the sidebar, gradient avatars, brandColor chrome, PWA install.
+This batch shipped the rest:
 
-- **Status chips, one system everywhere** — green = paid/approved/active,
-  amber = awaiting/draft-sent, red = past due/changes requested,
-  gray = draft/archived. Same component on list pages, detail pages,
-  dashboard cards.
-- **Denser, column-aligned lists** — tighter row height, right-aligned money
-  columns with `tabular-nums`, stronger column headers (Jobber-style density
-  is what makes it feel like established software).
-- **Illustrated empty states** — small line-art + a single action button
-  instead of centered gray text. New accounts see empty states first; this is
-  the first impression.
-- **Micro-polish** — row hover states, button press states, skeleton loaders
-  instead of blank flashes during navigation.
-- Small bug while in there: `/app/settings` throws React #418 (hydration —
-  embed snippet builds from `window.location.origin`; render it client-only
-  or from a server-passed base URL).
+- **Status chips** — one `components/StatusChip.tsx` (dot + tinted pill)
+  everywhere: list pages, detail headers, contact work table, dashboard
+  workflow cards. Tones in `lib/statuses.ts`: green = paid/approved/active,
+  amber = awaiting/new/lead, red = past due/changes requested, gray =
+  draft/archived (awaiting states used to be blue).
+- **Denser lists** — rows `py-2.5 px-4`, stronger `text-[11px] font-semibold`
+  uppercase column headers; money right-aligned (tabular-nums is global on
+  `.app-ui`).
+- **Illustrated empty states** — `components/EmptyState.tsx`, line-art SVG per
+  section + one solid action button; on all 5 list pages + dashboard
+  appointments panel.
+- **Micro-polish** — `active:` press states on rows and every green primary
+  button; per-route skeleton `loading.tsx` for jobs/quotes/invoices/contacts/
+  requests/dashboard (`components/ListSkeleton.tsx`).
+- `/app/settings` React #418 fixed — base URL now comes from request headers
+  via the server page instead of `window.location.origin`.
+
+NOT yet eyeballed against live demo data (no local `DATABASE_URL`; verified
+via build + isolated component render). Worth a quick prod click-through.
 
 ### 2. Auto-resizing embed iframe (small)
 

@@ -3,8 +3,10 @@ import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/db";
 import Link from "next/link";
-import { FileText, Plus, ChevronRight } from "lucide-react";
-import { quoteStatusColor, quoteStatusLabel, money, shortDate } from "@/lib/statuses";
+import { Plus, ChevronRight } from "lucide-react";
+import { money, shortDate } from "@/lib/statuses";
+import StatusChip from "@/components/StatusChip";
+import EmptyState from "@/components/EmptyState";
 import type { QuoteStatus } from "@prisma/client";
 
 const statusFilters = [
@@ -75,7 +77,7 @@ export default async function QuotesPage({
         <h1 className="text-2xl font-bold text-gray-900">Quotes</h1>
         <Link
           href="/app/quotes/new"
-          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded transition-colors"
+          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors"
         >
           <Plus size={15} />
           New Quote
@@ -116,22 +118,20 @@ export default async function QuotesPage({
 
       <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
         {quotes.length === 0 ? (
-          <div className="py-16 text-center">
-            <FileText size={36} className="text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500 text-sm mb-4">
-              No quotes{validStatus ? " with this status" : " yet"}.
-            </p>
-            <Link
-              href="/app/quotes/new"
-              className="inline-flex items-center gap-1 text-sm text-green-600 hover:underline font-medium"
-            >
-              <Plus size={13} />
-              Create a quote
-            </Link>
-          </div>
+          <EmptyState
+            art="quotes"
+            title={validStatus ? "No quotes with this status" : "No quotes yet"}
+            body={
+              validStatus
+                ? "Try a different status, or create a new quote."
+                : "Win the work before it starts — send your first quote and clients can approve it online."
+            }
+            actionHref="/app/quotes/new"
+            actionLabel="Create a Quote"
+          />
         ) : (
           <div className="divide-y divide-gray-100">
-            <div className="hidden lg:grid grid-cols-[1fr_70px_140px_150px_100px_40px] gap-4 px-5 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide bg-gray-50">
+            <div className="hidden lg:grid grid-cols-[1fr_70px_140px_150px_100px_40px] gap-4 px-4 py-2 text-[11px] font-semibold text-gray-600 uppercase tracking-wider bg-gray-50">
               <span>Client</span>
               <span>#</span>
               <span>Created</span>
@@ -143,7 +143,7 @@ export default async function QuotesPage({
               <Link
                 key={q.id}
                 href={`/app/quotes/${q.id}`}
-                className="flex lg:grid lg:grid-cols-[1fr_70px_140px_150px_100px_40px] gap-4 items-center px-5 py-3.5 hover:bg-gray-50 transition-colors"
+                className="flex lg:grid lg:grid-cols-[1fr_70px_140px_150px_100px_40px] gap-4 items-center px-4 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
               >
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-gray-900 truncate">
@@ -153,11 +153,7 @@ export default async function QuotesPage({
                 </div>
                 <span className="text-sm text-gray-500">#{q.quoteNumber}</span>
                 <span className="hidden lg:block text-sm text-gray-500">{shortDate(q.createdAt)}</span>
-                <span
-                  className={`text-xs font-medium px-2 py-0.5 rounded w-fit ${quoteStatusColor[q.status]}`}
-                >
-                  {quoteStatusLabel[q.status]}
-                </span>
+                <StatusChip kind="quote" status={q.status} />
                 <span className="text-sm font-semibold text-gray-900 lg:text-right">
                   {money(q.total)}
                 </span>

@@ -4,20 +4,8 @@ import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/db";
 import Link from "next/link";
 import { ArrowLeft, Phone, Mail, MapPin, ChevronRight, ExternalLink } from "lucide-react";
-import {
-  contactStatusColor,
-  contactStatusLabel,
-  requestStatusLabel,
-  quoteStatusLabel,
-  jobStatusLabel,
-  invoiceStatusLabel,
-  requestStatusColor,
-  quoteStatusColor,
-  jobStatusColor,
-  invoiceStatusColor,
-  money,
-  shortDate,
-} from "@/lib/statuses";
+import { money, shortDate, type StatusKind } from "@/lib/statuses";
+import StatusChip from "@/components/StatusChip";
 import ContactCreateMenu from "./ContactCreateMenu";
 
 export default async function ContactDetailPage({
@@ -65,8 +53,8 @@ export default async function ContactDetailPage({
       type: "Request",
       label: r.title,
       date: r.createdAt,
-      status: requestStatusLabel[r.status],
-      statusColor: requestStatusColor[r.status],
+      kind: "request" as StatusKind,
+      status: r.status as string,
       amount: null as number | null,
     })),
     ...contact.quotes.map((q) => ({
@@ -75,8 +63,8 @@ export default async function ContactDetailPage({
       type: "Quote",
       label: q.title || `Quote #${q.quoteNumber}`,
       date: q.createdAt,
-      status: quoteStatusLabel[q.status],
-      statusColor: quoteStatusColor[q.status],
+      kind: "quote" as StatusKind,
+      status: q.status as string,
       amount: Number(q.total),
     })),
     ...contact.jobs.map((j) => ({
@@ -85,8 +73,8 @@ export default async function ContactDetailPage({
       type: "Job",
       label: `#${j.jobNumber} ${j.title}`,
       date: j.createdAt,
-      status: jobStatusLabel[j.status],
-      statusColor: jobStatusColor[j.status],
+      kind: "job" as StatusKind,
+      status: j.status as string,
       amount: null as number | null,
     })),
     ...contact.invoices.map((inv) => ({
@@ -95,8 +83,8 @@ export default async function ContactDetailPage({
       type: "Invoice",
       label: inv.subject || `Invoice #${inv.invoiceNumber}`,
       date: inv.createdAt,
-      status: invoiceStatusLabel[inv.status],
-      statusColor: invoiceStatusColor[inv.status],
+      kind: "invoice" as StatusKind,
+      status: inv.status as string,
       amount: Number(inv.total),
     })),
   ].sort((a, b) => b.date.getTime() - a.date.getTime());
@@ -108,11 +96,7 @@ export default async function ContactDetailPage({
         <Link href="/app/contacts" className="text-gray-400 hover:text-gray-600">
           <ArrowLeft size={18} />
         </Link>
-        <span
-          className={`px-2 py-0.5 rounded text-xs font-semibold ${contactStatusColor[contact.status]}`}
-        >
-          {contactStatusLabel[contact.status]}
-        </span>
+        <StatusChip kind="contact" status={contact.status} />
       </div>
 
       <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
@@ -165,7 +149,7 @@ export default async function ContactDetailPage({
               </p>
             ) : (
               <div className="divide-y divide-gray-50">
-                <div className="hidden lg:grid grid-cols-[90px_1fr_110px_140px_90px_30px] gap-3 px-4 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-wide bg-gray-50">
+                <div className="hidden lg:grid grid-cols-[90px_1fr_110px_140px_90px_30px] gap-3 px-4 py-2 text-[11px] font-semibold text-gray-600 uppercase tracking-wider bg-gray-50">
                   <span>Item</span>
                   <span></span>
                   <span>Date</span>
@@ -177,18 +161,14 @@ export default async function ContactDetailPage({
                   <Link
                     key={row.key}
                     href={row.href}
-                    className="flex lg:grid lg:grid-cols-[90px_1fr_110px_140px_90px_30px] gap-3 items-center px-4 py-3 hover:bg-gray-50 transition-colors"
+                    className="flex lg:grid lg:grid-cols-[90px_1fr_110px_140px_90px_30px] gap-3 items-center px-4 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
                   >
                     <span className="text-xs font-semibold text-gray-500">{row.type}</span>
                     <span className="text-sm font-medium text-gray-900 truncate">{row.label}</span>
                     <span className="hidden lg:block text-sm text-gray-500">
                       {shortDate(row.date)}
                     </span>
-                    <span
-                      className={`text-xs font-medium px-2 py-0.5 rounded w-fit ${row.statusColor}`}
-                    >
-                      {row.status}
-                    </span>
+                    <StatusChip kind={row.kind} status={row.status} />
                     <span className="text-sm font-semibold text-gray-900 lg:text-right">
                       {row.amount !== null ? money(row.amount) : "—"}
                     </span>

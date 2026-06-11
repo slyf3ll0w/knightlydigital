@@ -63,7 +63,7 @@ export default function InvoiceActions({
       {status === "DRAFT" && (
         <button
           onClick={() => setStatus("AWAITING_PAYMENT")}
-          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded transition-colors"
+          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors"
         >
           <Send size={13} />
           Mark as Sent
@@ -72,7 +72,7 @@ export default function InvoiceActions({
       {(status === "AWAITING_PAYMENT" || status === "PAST_DUE") && (
         <button
           onClick={() => router.push(`/app/payments/new?invoiceId=${invoiceId}`)}
-          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded transition-colors"
+          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors"
         >
           <DollarSign size={13} />
           Collect Payment

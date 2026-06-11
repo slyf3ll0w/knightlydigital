@@ -3,8 +3,10 @@ import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/db";
 import Link from "next/link";
-import { Users, Plus, ChevronRight } from "lucide-react";
-import { contactStatusColor, contactStatusLabel, shortDate } from "@/lib/statuses";
+import { Plus, ChevronRight } from "lucide-react";
+import { shortDate } from "@/lib/statuses";
+import StatusChip from "@/components/StatusChip";
+import EmptyState from "@/components/EmptyState";
 
 const statusFilters = [
   { value: "", label: "Leads and Active" },
@@ -53,7 +55,7 @@ export default async function ContactsPage({
         <h1 className="text-2xl font-bold text-gray-900">Clients</h1>
         <Link
           href="/app/contacts/new"
-          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded transition-colors"
+          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors"
         >
           <Plus size={15} />
           New Client
@@ -91,22 +93,20 @@ export default async function ContactsPage({
 
       <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
         {contacts.length === 0 ? (
-          <div className="py-16 text-center">
-            <Users size={36} className="text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500 text-sm mb-4">
-              No clients{q || validStatus ? " match this filter" : " yet"}.
-            </p>
-            <Link
-              href="/app/contacts/new"
-              className="inline-flex items-center gap-1 text-sm text-green-600 hover:underline font-medium"
-            >
-              <Plus size={13} />
-              Add your first client
-            </Link>
-          </div>
+          <EmptyState
+            art="contacts"
+            title={q || validStatus ? "No clients match this filter" : "No clients yet"}
+            body={
+              q || validStatus
+                ? "Try a different search or status filter."
+                : "Your client list powers everything — quotes, jobs, and invoices all start here."
+            }
+            actionHref="/app/contacts/new"
+            actionLabel="Add Your First Client"
+          />
         ) : (
           <div className="divide-y divide-gray-100">
-            <div className="hidden lg:grid grid-cols-[1fr_1fr_110px_140px_40px] gap-4 px-5 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide bg-gray-50">
+            <div className="hidden lg:grid grid-cols-[1fr_1fr_110px_140px_40px] gap-4 px-4 py-2 text-[11px] font-semibold text-gray-600 uppercase tracking-wider bg-gray-50">
               <span>Name</span>
               <span>Address</span>
               <span>Status</span>
@@ -117,7 +117,7 @@ export default async function ContactsPage({
               <Link
                 key={c.id}
                 href={`/app/contacts/${c.id}`}
-                className="flex lg:grid lg:grid-cols-[1fr_1fr_110px_140px_40px] gap-4 items-center px-5 py-3.5 hover:bg-gray-50 transition-colors"
+                className="flex lg:grid lg:grid-cols-[1fr_1fr_110px_140px_40px] gap-4 items-center px-4 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
               >
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-gray-900 truncate">
@@ -130,11 +130,7 @@ export default async function ContactsPage({
                 <span className="hidden lg:block text-sm text-gray-500 truncate">
                   {[c.address, c.city, c.state].filter(Boolean).join(", ") || "—"}
                 </span>
-                <span
-                  className={`text-xs font-medium px-2 py-0.5 rounded w-fit ${contactStatusColor[c.status]}`}
-                >
-                  {contactStatusLabel[c.status]}
-                </span>
+                <StatusChip kind="contact" status={c.status} />
                 <span className="hidden lg:block text-sm text-gray-500">
                   {shortDate(c.updatedAt)}
                 </span>
