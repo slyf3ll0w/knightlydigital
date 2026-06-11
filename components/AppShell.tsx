@@ -21,6 +21,20 @@ import {
   Search,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import Avatar from "@/components/Avatar";
+import { textOn } from "@/lib/branding";
+
+const DEFAULT_ACCENT = "#22C55E"; // green-500
+
+/** Brand accent, guarded: too-dark colors are invisible on the dark sidebar. */
+function sidebarAccent(hex: string): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex);
+  if (!m) return DEFAULT_ACCENT;
+  const n = parseInt(m[1], 16);
+  const luminance =
+    0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255);
+  return luminance < 60 ? "#ffffff" : hex;
+}
 
 // Jobber-style grouping: Home + Schedule, then the work lifecycle in order.
 const navGroups = [
@@ -59,7 +73,7 @@ const mobileNav = [
  * (desktop + mobile drawer) gets its own — a shared ref made the click-outside
  * handler swallow item clicks.
  */
-function CreateMenu() {
+function CreateMenu({ accent }: { accent: string }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -80,7 +94,8 @@ function CreateMenu() {
     <div className="px-3 pt-4 relative" ref={ref}>
       <button
         onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 bg-green-600 hover:bg-green-500 text-white text-sm font-semibold rounded-md shadow-sm transition-colors"
+        style={{ backgroundColor: accent, color: textOn(accent) }}
+        className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 hover:brightness-110 text-sm font-semibold rounded-md shadow-sm transition-[filter]"
       >
         <Plus size={15} />
         Create
@@ -109,9 +124,19 @@ interface AppShellProps {
   userName?: string | null;
   userEmail?: string | null;
   companyName?: string | null;
+  companyLogoUrl?: string | null;
+  brandColor?: string | null;
 }
 
-export default function AppShell({ children, userName, userEmail, companyName }: AppShellProps) {
+export default function AppShell({
+  children,
+  userName,
+  userEmail,
+  companyName,
+  companyLogoUrl,
+  brandColor,
+}: AppShellProps) {
+  const accent = sidebarAccent(brandColor || DEFAULT_ACCENT);
   const pathname = usePathname();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -147,9 +172,12 @@ export default function AppShell({ children, userName, userEmail, companyName }:
         }`}
       >
         {active && (
-          <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full bg-green-500" />
+          <span
+            className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full"
+            style={{ backgroundColor: accent }}
+          />
         )}
-        <Icon size={16} className={active ? "text-green-400" : ""} />
+        <Icon size={16} style={active ? { color: accent } : undefined} />
         {label}
       </Link>
     );
@@ -157,7 +185,7 @@ export default function AppShell({ children, userName, userEmail, companyName }:
 
   const sidebarInner = (
     <>
-      <CreateMenu />
+      <CreateMenu accent={accent} />
 
       {/* Nav groups */}
       <nav className="flex-1 px-3 py-4 overflow-y-auto">
@@ -175,9 +203,7 @@ export default function AppShell({ children, userName, userEmail, companyName }:
       <div className="px-3 py-3 border-t border-white/[0.07] space-y-0.5">
         {navLink("/app/settings", "Settings", Settings)}
         <div className="px-3 py-2.5 flex items-center gap-3">
-          <div className="w-7 h-7 rounded-full bg-green-500/20 flex items-center justify-center text-green-400 text-xs font-bold shrink-0">
-            {userName?.charAt(0).toUpperCase() ?? "?"}
-          </div>
+          <Avatar name={userName} size={28} />
           <div className="flex-1 min-w-0">
             <p className="text-xs font-medium text-white truncate">{userName}</p>
             <p className="text-[11px] text-white/40 truncate">{userEmail}</p>
@@ -190,19 +216,36 @@ export default function AppShell({ children, userName, userEmail, companyName }:
             <LogOut size={14} />
           </button>
         </div>
+        <p className="px-3 pt-1.5 pb-1 text-[10px] text-white/30 flex items-center gap-1">
+          <Briefcase size={9} className="shrink-0" />
+          Powered by JobFlow
+        </p>
       </div>
     </>
   );
 
+  // Sidebar header is the company's identity, not ours (their logo when
+  // uploaded, otherwise a brand-colored initial tile).
   const logo = (
-    <div className="flex items-center gap-2.5 px-5 py-[17px] border-b border-white/[0.07]">
-      <div className="w-7 h-7 bg-green-500 rounded-md flex items-center justify-center shrink-0">
-        <Briefcase size={14} className="text-[#0C0F0C]" />
-      </div>
-      <div className="leading-none">
-        <span className="font-bold text-[15px] tracking-tight text-white">JobFlow</span>
-        <span className="block text-[10px] text-white/35 mt-0.5">by Streamflaire</span>
-      </div>
+    <div className="flex items-center gap-2.5 px-5 py-[15px] border-b border-white/[0.07] min-w-0">
+      {companyLogoUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={companyLogoUrl}
+          alt=""
+          className="h-8 w-8 rounded-md object-contain bg-white p-0.5 shrink-0"
+        />
+      ) : (
+        <div
+          className="w-8 h-8 rounded-md flex items-center justify-center shrink-0 font-bold text-sm"
+          style={{ backgroundColor: accent, color: textOn(accent) }}
+        >
+          {companyName?.charAt(0).toUpperCase() ?? "J"}
+        </div>
+      )}
+      <span className="font-bold text-[14px] tracking-tight text-white truncate">
+        {companyName ?? "JobFlow"}
+      </span>
     </div>
   );
 
@@ -245,7 +288,8 @@ export default function AppShell({ children, userName, userEmail, companyName }:
           >
             <Menu size={20} />
           </button>
-          <span className="font-semibold text-[15px] text-gray-900 truncate">
+          {/* Company name lives in the sidebar on desktop; header shows it on mobile */}
+          <span className="lg:hidden font-semibold text-[15px] text-gray-900 truncate">
             {companyName ?? "JobFlow"}
           </span>
 
@@ -272,12 +316,7 @@ export default function AppShell({ children, userName, userEmail, companyName }:
           >
             <Settings size={17} />
           </Link>
-          <div
-            className="hidden sm:flex w-8 h-8 rounded-full bg-[#0C0F0C] items-center justify-center text-green-400 text-xs font-bold shrink-0"
-            title={userName ?? undefined}
-          >
-            {userName?.charAt(0).toUpperCase() ?? "?"}
-          </div>
+          <Avatar name={userName} size={32} className="hidden sm:flex ring-gray-200" />
         </header>
 
         {/* Scrollable content */}
@@ -286,18 +325,22 @@ export default function AppShell({ children, userName, userEmail, companyName }:
 
       {/* ── Mobile bottom tab bar ─────────────────────────────────────────── */}
       <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-white border-t border-gray-200 flex">
-        {mobileNav.map(({ href, label, icon: Icon }) => (
-          <Link
-            key={href}
-            href={href}
-            className={`flex-1 flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium transition-colors ${
-              isActive(href) ? "text-green-600" : "text-gray-400 hover:text-gray-600"
-            }`}
-          >
-            <Icon size={18} />
-            {label}
-          </Link>
-        ))}
+        {mobileNav.map(({ href, label, icon: Icon }) => {
+          const active = isActive(href);
+          return (
+            <Link
+              key={href}
+              href={href}
+              style={active ? { color: accent } : undefined}
+              className={`flex-1 flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium transition-colors ${
+                active ? "" : "text-gray-400 hover:text-gray-600"
+              }`}
+            >
+              <Icon size={18} />
+              {label}
+            </Link>
+          );
+        })}
       </nav>
     </div>
   );

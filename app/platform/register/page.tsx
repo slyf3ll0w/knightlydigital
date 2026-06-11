@@ -149,7 +149,7 @@ export default function RegisterPage() {
     "w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent";
   const labelClass = "block text-sm font-medium text-gray-700 mb-1";
   const optionClass =
-    "w-full text-left px-4 py-3 border rounded-lg text-sm font-medium transition-colors hover:border-green-500 hover:bg-green-50";
+    "w-full text-left px-4 py-2.5 border rounded-lg text-sm font-medium transition-colors hover:border-green-500 hover:bg-green-50";
   const continueClass =
     "px-6 py-2.5 bg-green-500 hover:bg-green-600 text-white font-semibold text-sm rounded transition-colors flex items-center gap-2 disabled:opacity-50";
 
@@ -160,11 +160,11 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="app-ui min-h-screen bg-white flex">
+    <div className="app-ui h-screen bg-white flex overflow-hidden">
       {/* Question panel */}
-      <div className="flex-1 flex flex-col min-h-screen">
+      <div className="flex-1 flex flex-col h-screen min-w-0">
         {/* Header: logo + progress */}
-        <div className="px-6 lg:px-12 pt-6">
+        <div className="px-6 lg:px-12 pt-6 shrink-0">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 bg-[#0C0F0C] rounded flex items-center justify-center">
@@ -184,9 +184,9 @@ export default function RegisterPage() {
           </div>
         </div>
 
-        {/* Question body */}
-        <div className="flex-1 flex flex-col justify-center px-6 lg:px-12 py-10">
-          <div key={current.id} className="w-full max-w-lg mx-auto wizard-step">
+        {/* Question body — my-auto centers short steps, tall steps scroll */}
+        <div className="flex-1 overflow-y-auto flex flex-col px-6 lg:px-12 py-8">
+          <div key={current.id} className="w-full max-w-lg mx-auto my-auto wizard-step">
             {step > 0 && (
               <button
                 type="button"
@@ -565,7 +565,7 @@ export default function RegisterPage() {
       </div>
 
       {/* Stock image panel */}
-      <div className="hidden lg:block w-[42%] xl:w-[45%] relative">
+      <div className="hidden lg:block w-[42%] xl:w-[45%] relative h-screen shrink-0">
         <img
           key={current.image}
           src={current.image}

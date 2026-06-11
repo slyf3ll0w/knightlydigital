@@ -181,21 +181,32 @@ export default function InvoiceEditor({
             <div className="space-y-3">
               {lineItems.map((li, i) => (
                 <div key={i} className="border border-gray-100 rounded-lg p-3 space-y-2">
-                  <div className="grid grid-cols-[1fr_70px_110px_32px] gap-2 items-start">
-                    <WorkItemPicker
-                      value={li.name}
-                      items={workItems}
-                      onChange={(text) => updateLine(i, "name", text)}
-                      onSelect={(item) => applyWorkItem(i, item)}
-                      required
-                    />
+                  {/* Phone: name + delete on row 1, qty/price on row 2; sm+: one row */}
+                  <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_32px] sm:grid-cols-[minmax(0,1fr)_70px_110px_32px] gap-2 items-start">
+                    <div className="col-span-2 sm:col-span-1 min-w-0 sm:order-1">
+                      <WorkItemPicker
+                        value={li.name}
+                        items={workItems}
+                        onChange={(text) => updateLine(i, "name", text)}
+                        onSelect={(item) => applyWorkItem(i, item)}
+                        required
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeLine(i)}
+                      disabled={lineItems.length === 1}
+                      className="p-2 text-gray-300 hover:text-red-400 transition-colors disabled:opacity-0 sm:order-4"
+                    >
+                      <Trash2 size={14} />
+                    </button>
                     <input
                       type="number"
                       placeholder="Qty"
                       value={li.quantity}
                       onChange={(e) => updateLine(i, "quantity", e.target.value)}
                       min="0" step="0.001"
-                      className="px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className="px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 sm:order-2"
                     />
                     <input
                       type="number"
@@ -203,16 +214,8 @@ export default function InvoiceEditor({
                       value={li.unitPrice}
                       onChange={(e) => updateLine(i, "unitPrice", e.target.value)}
                       min="0" step="0.01"
-                      className="px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className="px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 sm:order-3"
                     />
-                    <button
-                      type="button"
-                      onClick={() => removeLine(i)}
-                      disabled={lineItems.length === 1}
-                      className="p-2 text-gray-300 hover:text-red-400 transition-colors disabled:opacity-0"
-                    >
-                      <Trash2 size={14} />
-                    </button>
                   </div>
                   <input
                     type="text"
