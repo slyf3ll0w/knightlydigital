@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
-import { starterWorkItems } from "@/lib/pricebook";
+import { pricebookForIndustry } from "@/lib/pricebooks";
 import { verifyCaptcha } from "@/lib/captcha";
 
 function slugify(name: string) {
@@ -24,6 +24,8 @@ async function uniqueSlug(base: string) {
 export async function POST(req: NextRequest) {
   const body = await req.json();
   const { companyName, yourName, email, password, phone, captchaToken } = body;
+  // Onboarding answers — all optional so the wizard can never hard-fail on them
+  const { industry, teamSize, currentSoftware, topPriority, referralSource } = body;
 
   if (!(await verifyCaptcha(captchaToken))) {
     return NextResponse.json(
@@ -40,7 +42,12 @@ export async function POST(req: NextRequest) {
     String(companyName).length > 120 ||
     String(yourName).length > 120 ||
     String(email).length > 254 ||
-    String(phone ?? "").length > 30
+    String(phone ?? "").length > 30 ||
+    String(industry ?? "").length > 80 ||
+    String(teamSize ?? "").length > 40 ||
+    String(currentSoftware ?? "").length > 80 ||
+    String(topPriority ?? "").length > 80 ||
+    String(referralSource ?? "").length > 80
   ) {
     return NextResponse.json({ error: "Input too long." }, { status: 400 });
   }
@@ -62,6 +69,11 @@ export async function POST(req: NextRequest) {
       name: companyName,
       slug,
       phone: phone || null,
+      industry: industry || null,
+      teamSize: teamSize || null,
+      currentSoftware: currentSoftware || null,
+      topPriority: topPriority || null,
+      referralSource: referralSource || null,
       users: {
         create: {
           email,
@@ -71,7 +83,8 @@ export async function POST(req: NextRequest) {
           phone: phone || null,
         },
       },
-      workItems: { create: starterWorkItems },
+      // Industry-matched starter price book; "Other"/unknown industries start empty
+      workItems: { create: pricebookForIndustry(industry) },
     },
   });
 

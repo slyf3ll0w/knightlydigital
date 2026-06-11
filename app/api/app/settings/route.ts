@@ -21,6 +21,7 @@ export async function PATCH(req: NextRequest) {
       state: body.state || null,
       zip: body.zip || null,
       website: body.website || null,
+      industry: body.industry !== undefined ? body.industry || null : undefined,
       logoUrl: body.logoUrl !== undefined ? body.logoUrl || null : undefined,
       brandColor:
         body.brandColor !== undefined

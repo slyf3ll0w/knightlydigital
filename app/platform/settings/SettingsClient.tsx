@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Loader2, Check, Copy, ExternalLink, Upload, Trash2 } from "lucide-react";
 import { resizeImageFile } from "@/lib/resize-image";
+import { INDUSTRIES } from "@/lib/pricebooks";
 
 type Company = {
   id: string; name: string; slug: string; phone: string | null;
@@ -12,7 +13,7 @@ type Company = {
   state: string | null; zip: string | null; website: string | null;
   logoUrl: string | null; brandColor: string | null;
   surchargeEnabled: boolean; surchargeRate: string | number | null;
-  reviewLink: string | null;
+  reviewLink: string | null; industry: string | null;
 };
 
 export default function SettingsClient({ company }: { company: Company }) {
@@ -33,6 +34,7 @@ export default function SettingsClient({ company }: { company: Company }) {
     state: company.state ?? "",
     zip: company.zip ?? "",
     website: company.website ?? "",
+    industry: company.industry ?? "",
     logoUrl: company.logoUrl ?? "",
     brandColor: company.brandColor ?? "",
     surchargeEnabled: company.surchargeEnabled,
@@ -201,6 +203,20 @@ export default function SettingsClient({ company }: { company: Company }) {
             <input type="url" value={form.website} onChange={(e) => set("website", e.target.value)}
               placeholder="https://"
               className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Industry</label>
+            <select value={INDUSTRIES.includes(form.industry as (typeof INDUSTRIES)[number]) ? form.industry : form.industry ? "Other" : ""}
+              onChange={(e) => set("industry", e.target.value)}
+              className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white">
+              <option value="">Not set</option>
+              {INDUSTRIES.map((ind) => (
+                <option key={ind} value={ind}>{ind}</option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-400 mt-1">
+              Changing this doesn&apos;t touch your price book — edit that in Products &amp; Services.
+            </p>
           </div>
         </div>
 

@@ -28,6 +28,11 @@ model Company {
   surchargeEnabled Boolean  @default(false)
   surchargeRate    Decimal  @default(0.0300) @db.Decimal(5, 4)
   reviewLink       String?
+  industry         String? // onboarding answer; drives starter price book + future industry defaults
+  teamSize         String? // onboarding answers below — analytics/marketing
+  currentSoftware  String?
+  topPriority      String?
+  referralSource   String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
