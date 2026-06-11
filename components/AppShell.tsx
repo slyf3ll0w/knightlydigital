@@ -92,6 +92,7 @@ function CreateMenu({ accent, role }: { accent: string; role: string }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const items = forRole(createItems, role);
 
   useEffect(() => {
     function onClick(e: MouseEvent) {
@@ -105,6 +106,9 @@ function CreateMenu({ accent, role }: { accent: string; role: string }) {
     setOpen(false);
   }, [pathname]);
 
+  // Techs can't create anything — no point showing the button
+  if (items.length === 0) return null;
+
   return (
     <div className="px-3 pt-4 relative" ref={ref}>
       <button
@@ -117,7 +121,7 @@ function CreateMenu({ accent, role }: { accent: string; role: string }) {
       </button>
       {open && (
         <div className="absolute left-3 right-3 top-full mt-1.5 z-50 bg-white rounded-lg shadow-xl ring-1 ring-black/5 py-1.5 overflow-hidden">
-          {forRole(createItems, role).map(({ href, label, icon: Icon }) => (
+          {items.map(({ href, label, icon: Icon }) => (
             <Link
               key={href}
               href={href}
