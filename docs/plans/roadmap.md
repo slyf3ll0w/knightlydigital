@@ -32,11 +32,21 @@ This batch shipped the rest:
 NOT yet eyeballed against live demo data (no local `DATABASE_URL`; verified
 via build + isolated component render). Worth a quick prod click-through.
 
-### 2. Auto-resizing embed iframe (small)
+### 2. Auto-resizing embed + customizable booking form — SHIPPED 2026-06-11
 
-postMessage height script so the embedded request form hugs its content.
-Other embed ideas David liked: `?font=` matching, `?service=` prefill,
-script-tag/WordPress packaging.
+- Embed posts `jobflow:height` (ResizeObserver, `EmbedAutoResize.tsx`); the
+  settings snippet is now an iframe + listener pair that hugs the content.
+- Embed params: `?font=` (Google Font loaded in-iframe), `?accent=` hex
+  override, `?service=` prefill. Script-tag/WordPress packaging still open.
+- Booking form is configurable per company (`Company.bookingForm` JSON,
+  `lib/booking-form.ts`): address/date toggles, service question as
+  text/dropdown/multiple-choice cards, message label/placeholder/required,
+  up to 10 custom fields. Custom answers append to request details as
+  "Label - value" lines (David's spec: "Budget - $1,500").
+- Settings → "Booking Form Fields" builder card (saves on its own).
+- First real client: Excellent PC Building — configure his form (radio
+  Build Only / Parts + Build, City dropdown, Budget) in his account, then
+  swap his site's static form for the embed.
 
 ### 3. Schedule rebuild (big)
 
