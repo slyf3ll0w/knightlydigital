@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import { CheckCircle, Loader2 } from "lucide-react";
+import TurnstileWidget from "@/components/TurnstileWidget";
 
 export default function BookingForm({ companySlug }: { companySlug: string }) {
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState("");
+  const [captchaToken, setCaptchaToken] = useState("");
   const [form, setForm] = useState({
     firstName: "", lastName: "", email: "", phone: "",
     address: "", service: "", preferredDate: "", message: "",
@@ -21,20 +23,24 @@ export default function BookingForm({ companySlug }: { companySlug: string }) {
     setError("");
     setLoading(true);
 
-    const res = await fetch(`/api/public/book/${companySlug}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    });
+    try {
+      const res = await fetch(`/api/public/book/${companySlug}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...form, captchaToken }),
+      });
 
-    setLoading(false);
-    if (!res.ok) {
-      const data = await res.json();
-      setError(data.error ?? "Something went wrong. Please try again.");
-      return;
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        setError(data?.error ?? "Something went wrong. Please try again.");
+        return;
+      }
+      setDone(true);
+    } catch {
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
     }
-
-    setDone(true);
   }
 
   if (done) {
@@ -103,6 +109,7 @@ export default function BookingForm({ companySlug }: { companySlug: string }) {
           placeholder="Any additional details..."
           className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none" />
       </div>
+      <TurnstileWidget onToken={setCaptchaToken} />
       <button type="submit" disabled={loading}
         className="w-full py-3 bg-green-500 hover:bg-green-600 text-white font-semibold text-sm rounded transition-colors flex items-center justify-center gap-2 disabled:opacity-50">
         {loading && <Loader2 size={14} className="animate-spin" />}

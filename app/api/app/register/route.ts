@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { starterWorkItems } from "@/lib/pricebook";
+import { verifyCaptcha } from "@/lib/captcha";
 
 function slugify(name: string) {
   return name
@@ -22,10 +23,26 @@ async function uniqueSlug(base: string) {
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { companyName, yourName, email, password, phone } = body;
+  const { companyName, yourName, email, password, phone, captchaToken } = body;
+
+  if (!(await verifyCaptcha(captchaToken))) {
+    return NextResponse.json(
+      { error: "Captcha verification failed. Please try again." },
+      { status: 400 }
+    );
+  }
 
   if (!companyName || !yourName || !email || !password) {
     return NextResponse.json({ error: "All required fields must be filled." }, { status: 400 });
+  }
+
+  if (
+    String(companyName).length > 120 ||
+    String(yourName).length > 120 ||
+    String(email).length > 254 ||
+    String(phone ?? "").length > 30
+  ) {
+    return NextResponse.json({ error: "Input too long." }, { status: 400 });
   }
 
   if (password.length < 8) {

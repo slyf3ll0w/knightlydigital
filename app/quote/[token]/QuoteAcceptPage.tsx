@@ -5,6 +5,7 @@ import { CheckCircle, Loader2, MessageSquare } from "lucide-react";
 
 type Quote = {
   id: string;
+  publicToken: string;
   quoteNumber: number;
   title: string | null;
   status: string;
@@ -80,7 +81,7 @@ export default function QuoteAcceptPage({
     setError("");
     setLoading(true);
     try {
-      const res = await fetch(`/api/public/quote/${quote.id}`, {
+      const res = await fetch(`/api/public/quote/${quote.publicToken}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "approve", signatureName, optedOutItemIds: optedOut }),
@@ -105,7 +106,7 @@ export default function QuoteAcceptPage({
     setError("");
     setLoading(true);
     try {
-      const res = await fetch(`/api/public/quote/${quote.id}`, {
+      const res = await fetch(`/api/public/quote/${quote.publicToken}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "request_changes", message: changeMessage }),

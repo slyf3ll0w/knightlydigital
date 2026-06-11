@@ -13,6 +13,17 @@ export async function POST(req: NextRequest) {
   const contact = await prisma.contact.findUnique({ where: { hubToken: token } });
   if (!contact) return NextResponse.json({ error: "Hub not found." }, { status: 404 });
 
+  // Backstop: cap requests per company per day (matches the booking form)
+  const recent = await prisma.request.count({
+    where: { companyId: contact.companyId, createdAt: { gte: new Date(Date.now() - 86400000) } },
+  });
+  if (recent >= 200) {
+    return NextResponse.json(
+      { error: "Too many requests today. Please call instead." },
+      { status: 429 }
+    );
+  }
+
   const last = await prisma.request.findFirst({
     where: { companyId: contact.companyId },
     orderBy: { requestNumber: "desc" },

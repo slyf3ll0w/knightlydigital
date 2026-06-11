@@ -5,6 +5,7 @@ import { signIn } from "next-auth/react";
 
 import { Briefcase, Loader2, Check } from "lucide-react";
 import Link from "next/link";
+import TurnstileWidget from "@/components/TurnstileWidget";
 
 const perks = [
   "Unlimited jobs, contacts & users",
@@ -19,6 +20,7 @@ export default function RegisterPage() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [captchaToken, setCaptchaToken] = useState("");
   const [form, setForm] = useState({
     companyName: "",
     yourName: "",
@@ -39,7 +41,7 @@ export default function RegisterPage() {
     const res = await fetch("/api/app/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify({ ...form, captchaToken }),
     });
 
     const data = await res.json();
@@ -171,6 +173,7 @@ export default function RegisterPage() {
                   placeholder="Min. 8 characters"
                 />
               </div>
+              <TurnstileWidget onToken={setCaptchaToken} />
               <button
                 type="submit"
                 disabled={loading}

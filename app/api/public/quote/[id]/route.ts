@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 
 /**
- * Public quote response endpoint (client-facing, no auth — quote id acts with
- * its public token via the hub/quote page).
+ * Public quote response endpoint (client-facing, no auth — the [id] segment
+ * is the quote's unguessable publicToken — never the database id).
  * Actions:
  *  - approve { signatureName, optedOutItemIds: string[] }
  *  - request_changes { message }
@@ -12,7 +12,7 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params;
+  const { id: token } = await params;
   const body = await req.json();
   const { action } = body;
 
@@ -20,8 +20,15 @@ export async function POST(
     return NextResponse.json({ error: "Invalid action." }, { status: 400 });
   }
 
+  if (typeof body.signatureName === "string" && body.signatureName.length > 120) {
+    return NextResponse.json({ error: "Input too long." }, { status: 400 });
+  }
+  if (typeof body.message === "string" && body.message.length > 5000) {
+    return NextResponse.json({ error: "Input too long." }, { status: 400 });
+  }
+
   const quote = await prisma.quote.findUnique({
-    where: { id },
+    where: { publicToken: token },
     include: { lineItems: true, contact: true },
   });
   if (!quote) return NextResponse.json({ error: "Quote not found." }, { status: 404 });
@@ -32,7 +39,7 @@ export async function POST(
 
   if (action === "request_changes") {
     await prisma.quote.update({
-      where: { id },
+      where: { id: quote.id },
       data: {
         status: "CHANGES_REQUESTED",
         changeRequest: body.message || null,
@@ -61,7 +68,7 @@ export async function POST(
       });
     }
     await tx.quote.update({
-      where: { id },
+      where: { id: quote.id },
       data: {
         status: "APPROVED",
         approvedAt: new Date(),
