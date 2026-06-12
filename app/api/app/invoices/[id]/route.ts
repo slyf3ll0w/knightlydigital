@@ -31,7 +31,16 @@ export async function DELETE(
     );
   }
 
-  // line items + payments cascade
-  await prisma.invoice.delete({ where: { id: invoice.id } });
+  // line items + reminders cascade; payments deliberately don't (money
+  // records never vanish implicitly) — remove them explicitly
+  try {
+    await prisma.$transaction([
+      prisma.payment.deleteMany({ where: { invoiceId: invoice.id } }),
+      prisma.invoice.delete({ where: { id: invoice.id } }),
+    ]);
+  } catch (e) {
+    console.error("[invoice delete] failed", { invoiceId: invoice.id, error: e });
+    return NextResponse.json({ error: "Couldn't delete this invoice. Please try again." }, { status: 500 });
+  }
   return NextResponse.json({ success: true });
 }

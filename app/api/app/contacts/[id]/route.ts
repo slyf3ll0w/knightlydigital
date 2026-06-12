@@ -140,6 +140,9 @@ export async function DELETE(
       }
 
       await tx.payment.deleteMany({ where: { contactId: id, companyId } });
+      // payments have no DB cascade — catch any on their invoices that
+      // were recorded without a contact link
+      await tx.payment.deleteMany({ where: { invoice: { contactId: id, companyId } } });
       await tx.invoice.deleteMany({ where: { contactId: id, companyId } });
       await tx.quote.deleteMany({ where: { contactId: id, companyId } });
       await tx.job.deleteMany({ where: { contactId: id, companyId } });
