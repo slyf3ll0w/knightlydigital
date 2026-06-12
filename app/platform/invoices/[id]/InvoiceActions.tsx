@@ -10,21 +10,35 @@ import {
   MoreHorizontal,
   Eye,
   RotateCcw,
+  Trash2,
+  AlertTriangle,
+  X,
 } from "lucide-react";
+import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
+import { money } from "@/lib/statuses";
 
 export default function InvoiceActions({
   invoiceId,
   status,
   publicUrl,
+  canDelete = false,
+  paymentCount = 0,
+  paymentTotal = 0,
 }: {
   invoiceId: string;
   status: string;
   publicUrl: string;
+  canDelete?: boolean;
+  paymentCount?: number;
+  paymentTotal?: number;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [confirmText, setConfirmText] = useState("");
+  const [deleteError, setDeleteError] = useState("");
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -54,6 +68,34 @@ export default function InvoiceActions({
     await navigator.clipboard.writeText(publicUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
+  }
+
+  async function doDelete(force: boolean) {
+    setBusy(true);
+    setDeleteError("");
+    const { ok, data } = await postJson(
+      `/api/app/invoices/${invoiceId}${force ? "?force=1" : ""}`,
+      undefined,
+      "DELETE"
+    );
+    setBusy(false);
+    if (!ok) {
+      setDeleteError(data?.error ?? GENERIC_ERROR);
+      return;
+    }
+    router.push("/app/invoices");
+    router.refresh();
+  }
+
+  function onDeleteClick() {
+    setOpen(false);
+    setDeleteError("");
+    if (paymentCount === 0) {
+      if (confirm("Permanently delete this invoice? This can't be undone.")) doDelete(false);
+      return;
+    }
+    setConfirmText("");
+    setDeleteOpen(true);
   }
 
   return (
@@ -125,9 +167,82 @@ export default function InvoiceActions({
                 </button>
               </>
             )}
+            {canDelete && (
+              <>
+                <div className="my-1 border-t border-gray-100" />
+                <button
+                  onClick={onDeleteClick}
+                  className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-red-600 hover:bg-red-50"
+                >
+                  <Trash2 size={14} />
+                  Delete Invoice
+                </button>
+              </>
+            )}
           </div>
         )}
       </div>
+
+      {deleteOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40" onClick={() => !busy && setDeleteOpen(false)} />
+          <div className="relative w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+            <div className="flex items-start justify-between mb-3">
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-red-100">
+                <AlertTriangle size={17} className="text-red-600" />
+              </span>
+              <button
+                onClick={() => setDeleteOpen(false)}
+                disabled={busy}
+                className="p-1 text-gray-400 hover:text-gray-600"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <h2 className="text-lg font-bold text-gray-900 mb-1">Delete this invoice?</h2>
+            <p className="text-sm text-gray-600 mb-3">
+              It has{" "}
+              <span className="font-semibold text-gray-900">
+                {paymentCount} recorded {paymentCount === 1 ? "payment" : "payments"} totaling{" "}
+                {money(paymentTotal)}
+              </span>
+              {" "}— those records are deleted with it, and your revenue history changes. There is
+              no undo.
+            </p>
+
+            <label className="block text-xs text-gray-500 mb-1">
+              Type <span className="font-semibold text-gray-700">DELETE</span> to confirm
+            </label>
+            <input
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              autoFocus
+              className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-red-500 mb-3"
+            />
+
+            {deleteError && <p className="text-xs text-red-600 mb-3">{deleteError}</p>}
+
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setDeleteOpen(false)}
+                disabled={busy}
+                className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => doDelete(true)}
+                disabled={confirmText.trim().toUpperCase() !== "DELETE" || busy}
+                className="flex items-center gap-1.5 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded transition-colors disabled:opacity-40"
+              >
+                {busy ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                Delete Invoice
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

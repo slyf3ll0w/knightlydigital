@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { requirePageActor, canSeeMoney, viaContactScope } from "@/lib/permissions";
+import { requirePageActor, canSeeMoney, viaContactScope, isManager } from "@/lib/permissions";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { paymentMethodLabel, money, shortDate } from "@/lib/statuses";
@@ -61,7 +61,14 @@ export default async function InvoiceDetailPage({
             </Link>
           )}
         </div>
-        <InvoiceActions invoiceId={invoice.id} status={invoice.status} publicUrl={publicUrl} />
+        <InvoiceActions
+          invoiceId={invoice.id}
+          status={invoice.status}
+          publicUrl={publicUrl}
+          canDelete={isManager(actor.role)}
+          paymentCount={invoice.payments.length}
+          paymentTotal={totalPaid}
+        />
       </div>
 
       {/* Close-job nudge */}
