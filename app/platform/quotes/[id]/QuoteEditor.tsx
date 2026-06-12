@@ -27,30 +27,69 @@ const emptyLine: LineItem = {
   isOptional: false,
 };
 
+export type ExistingQuote = {
+  id: string;
+  contactId: string;
+  title: string;
+  taxRate: number | null; // fraction (0.0825)
+  depositType: "NONE" | "PERCENT" | "FIXED";
+  depositValue: number | null;
+  clientMessage: string;
+  disclaimer: string;
+  lineItems: {
+    name: string;
+    description: string;
+    quantity: number;
+    unitPrice: number;
+    unitCost: number | null;
+    isOptional: boolean;
+  }[];
+};
+
 export default function QuoteEditor({
   contacts,
   workItems = [],
   prefilledContactId = "",
   requestId = "",
   requestTitle = "",
+  existingQuote,
 }: {
   contacts: Contact[];
   workItems?: PickerWorkItem[];
   prefilledContactId?: string;
   requestId?: string;
   requestTitle?: string;
+  existingQuote?: ExistingQuote;
 }) {
   const router = useRouter();
+  const editing = Boolean(existingQuote);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [contactId, setContactId] = useState(prefilledContactId);
-  const [title, setTitle] = useState(requestTitle);
-  const [taxRate, setTaxRate] = useState("");
-  const [depositType, setDepositType] = useState<"NONE" | "PERCENT" | "FIXED">("NONE");
-  const [depositValue, setDepositValue] = useState("");
-  const [clientMessage, setClientMessage] = useState("");
-  const [disclaimer, setDisclaimer] = useState("");
-  const [lineItems, setLineItems] = useState<LineItem[]>([{ ...emptyLine }]);
+  const [contactId, setContactId] = useState(existingQuote?.contactId ?? prefilledContactId);
+  const [title, setTitle] = useState(existingQuote?.title ?? requestTitle);
+  const [taxRate, setTaxRate] = useState(
+    existingQuote?.taxRate ? String(Math.round(existingQuote.taxRate * 100000) / 1000) : ""
+  );
+  const [depositType, setDepositType] = useState<"NONE" | "PERCENT" | "FIXED">(
+    existingQuote?.depositType ?? "NONE"
+  );
+  const [depositValue, setDepositValue] = useState(
+    existingQuote?.depositValue != null ? String(existingQuote.depositValue) : ""
+  );
+  const [clientMessage, setClientMessage] = useState(existingQuote?.clientMessage ?? "");
+  const [disclaimer, setDisclaimer] = useState(existingQuote?.disclaimer ?? "");
+  const [lineItems, setLineItems] = useState<LineItem[]>(
+    existingQuote && existingQuote.lineItems.length > 0
+      ? existingQuote.lineItems.map((li) => ({
+          name: li.name,
+          description: li.description,
+          quantity: String(li.quantity),
+          unitPrice: String(li.unitPrice),
+          unitCost: li.unitCost != null ? String(li.unitCost) : "",
+          isOptional: li.isOptional,
+        }))
+      : [{ ...emptyLine }]
+  );
 
   function addLine() {
     setLineItems((l) => [...l, { ...emptyLine }]);
@@ -105,7 +144,7 @@ export default function QuoteEditor({
     setError("");
     setLoading(true);
 
-    const { ok, data } = await postJson<{ id: string }>("/api/app/quotes", {
+    const payload = {
       contactId,
       requestId: requestId || null,
       title: title || null,
@@ -123,25 +162,32 @@ export default function QuoteEditor({
         isOptional: li.isOptional,
         sortOrder: i,
       })),
-    });
+    };
+
+    const { ok, data } = editing
+      ? await postJson<{ id: string }>(`/api/app/quotes/${existingQuote!.id}`, payload, "PATCH")
+      : await postJson<{ id: string }>("/api/app/quotes", payload);
 
     setLoading(false);
 
-    if (!ok || !data?.id) {
+    if (!ok || (!editing && !data?.id)) {
       setError(data?.error ?? GENERIC_ERROR);
       return;
     }
 
-    router.push(`/app/quotes/${data.id}`);
+    router.push(`/app/quotes/${editing ? existingQuote!.id : data!.id}`);
   }
 
   return (
     <div className="p-4 lg:p-8 max-w-3xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
-        <Link href="/app/quotes" className="text-gray-400 hover:text-gray-600">
+        <Link
+          href={editing ? `/app/quotes/${existingQuote!.id}` : "/app/quotes"}
+          className="text-gray-400 hover:text-gray-600"
+        >
           <ArrowLeft size={18} />
         </Link>
-        <h1 className="text-2xl font-bold text-gray-900">New Quote</h1>
+        <h1 className="text-2xl font-bold text-gray-900">{editing ? "Edit Quote" : "New Quote"}</h1>
         {requestId && (
           <span className="text-xs font-medium px-2 py-0.5 rounded bg-blue-100 text-blue-700">
             From request
@@ -163,7 +209,8 @@ export default function QuoteEditor({
               value={contactId}
               onChange={(e) => setContactId(e.target.value)}
               required
-              className="w-full max-w-xs px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              disabled={editing}
+              className="w-full max-w-xs px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-50 disabled:text-gray-500"
             >
               <option value="">Select a client...</option>
               {contacts.map((c) => (
@@ -371,7 +418,7 @@ export default function QuoteEditor({
             className="flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors disabled:opacity-50"
           >
             {loading && <Loader2 size={14} className="animate-spin" />}
-            Save Quote
+            {editing ? "Save Changes" : "Save Quote"}
           </button>
           <Link
             href="/app/quotes"

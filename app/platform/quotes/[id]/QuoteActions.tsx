@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   MoreHorizontal,
   Send,
@@ -12,6 +13,7 @@ import {
   Trash2,
   Copy,
   Loader2,
+  Pencil,
 } from "lucide-react";
 
 export default function QuoteActions({
@@ -71,16 +73,27 @@ export default function QuoteActions({
   }
 
   async function deleteQuote() {
-    if (!confirm("Delete this quote? This cannot be undone.")) return;
+    const warning =
+      status === "CONVERTED"
+        ? "Delete this quote? The job it was converted into stays. This cannot be undone."
+        : "Delete this quote? This cannot be undone.";
+    if (!confirm(warning)) return;
     setOpen(false);
     setBusy(true);
     try {
       const res = await fetch(`/api/app/quotes/${quoteId}`, { method: "DELETE" });
-      if (res.ok) router.push("/app/quotes");
+      if (res.ok) {
+        router.push("/app/quotes");
+        return;
+      }
+      const data = await res.json().catch(() => null);
+      alert(data?.error ?? "Couldn't delete this quote.");
     } finally {
       setBusy(false);
     }
   }
+
+  const editable = status === "DRAFT" || status === "AWAITING_RESPONSE";
 
   async function copyLink() {
     await navigator.clipboard.writeText(publicUrl);
@@ -119,6 +132,16 @@ export default function QuoteActions({
           <Briefcase size={13} />
           Convert to Job
         </button>
+      )}
+
+      {editable && (
+        <Link
+          href={`/app/quotes/${quoteId}/edit`}
+          className="p-2 border border-gray-300 rounded text-gray-600 hover:bg-gray-50 transition-colors"
+          title="Edit quote"
+        >
+          <Pencil size={15} />
+        </Link>
       )}
 
       <div className="relative">
@@ -174,15 +197,22 @@ export default function QuoteActions({
                 Archive
               </button>
             )}
-            {status !== "CONVERTED" && (
-              <button
-                onClick={deleteQuote}
-                className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-red-600 hover:bg-red-50"
+            {editable && (
+              <Link
+                href={`/app/quotes/${quoteId}/edit`}
+                className="flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
               >
-                <Trash2 size={14} />
-                Delete
-              </button>
+                <Pencil size={14} className="text-gray-400" />
+                Edit Quote
+              </Link>
             )}
+            <button
+              onClick={deleteQuote}
+              className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-red-600 hover:bg-red-50"
+            >
+              <Trash2 size={14} />
+              Delete
+            </button>
           </div>
         )}
       </div>
