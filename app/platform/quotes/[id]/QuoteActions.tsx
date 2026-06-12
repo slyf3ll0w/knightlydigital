@@ -14,6 +14,7 @@ import {
   Copy,
   Loader2,
   Pencil,
+  RotateCcw,
 } from "lucide-react";
 
 export default function QuoteActions({
@@ -21,11 +22,13 @@ export default function QuoteActions({
   status,
   publicUrl,
   hasJob,
+  wasSent = false,
 }: {
   quoteId: string;
   status: string;
   publicUrl: string;
   hasJob: boolean;
+  wasSent?: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -131,6 +134,17 @@ export default function QuoteActions({
         >
           <Briefcase size={13} />
           Convert to Job
+        </button>
+      )}
+      {/* Archived quotes reopen where they left off: sent ones go back to
+          Awaiting Response, never-sent ones to Draft */}
+      {status === "ARCHIVED" && (
+        <button
+          onClick={() => setStatus(wasSent ? "AWAITING_RESPONSE" : "DRAFT")}
+          className="flex items-center gap-1.5 px-4 py-2 border border-gray-300 text-sm font-medium text-gray-700 rounded hover:bg-gray-50 transition-colors"
+        >
+          <RotateCcw size={13} />
+          Reopen Quote
         </button>
       )}
 

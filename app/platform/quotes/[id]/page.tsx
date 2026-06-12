@@ -58,6 +58,7 @@ export default async function QuoteDetailPage({
           status={quote.status}
           publicUrl={publicUrl}
           hasJob={!!quote.jobId}
+          wasSent={!!quote.sentAt}
         />
       </div>
 

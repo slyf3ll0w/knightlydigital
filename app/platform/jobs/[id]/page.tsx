@@ -81,7 +81,13 @@ export default async function JobDetailPage({
           )}
         </div>
         {actor.role !== "SALES" && (
-          <JobActions jobId={job.id} status={job.status} hasInvoice={!!job.invoice} />
+          <JobActions
+            jobId={job.id}
+            status={job.status}
+            hasInvoice={!!job.invoice}
+            hasQuote={!!job.quote}
+            canDelete={isManager(actor.role)}
+          />
         )}
       </div>
 

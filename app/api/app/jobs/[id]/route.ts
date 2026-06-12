@@ -57,3 +57,44 @@ export async function PATCH(
 
   return NextResponse.json({ success: true });
 }
+
+/**
+ * DELETE — permanently remove a job (managers only; for test entries and
+ * mistakes). Assignments, notes, photos, and line items cascade. Money and
+ * client documents never vanish implicitly: a linked invoice survives with
+ * its job link cleared, and a converted quote reopens as APPROVED so it can
+ * be converted again.
+ */
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const actor = await getActor();
+  if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!isManager(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  const { id } = await params;
+  const job = await prisma.job.findFirst({
+    where: { id, companyId: actor.companyId },
+    select: { id: true },
+  });
+  if (!job) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  try {
+    await prisma.$transaction([
+      prisma.invoice.updateMany({ where: { jobId: job.id }, data: { jobId: null } }),
+      prisma.quote.updateMany({
+        where: { jobId: job.id },
+        data: { jobId: null, status: "APPROVED" },
+      }),
+      prisma.job.delete({ where: { id: job.id } }),
+    ]);
+  } catch (e) {
+    console.error("[job delete] failed", { jobId: job.id, error: e });
+    return NextResponse.json(
+      { error: "Couldn't delete this job. Please try again." },
+      { status: 500 }
+    );
+  }
+  return NextResponse.json({ success: true });
+}
