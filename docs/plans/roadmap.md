@@ -240,7 +240,8 @@ public forms per company, three types:
 - INQUIRY: collect info → lead + request in the inbox.
 - BOOKING: + preferred date (required by default) → Request.preferredDate,
   shown on the request and prefilled into Schedule Appointment.
-- SERVICE_REQUEST: company-defined services w/ prices on the form (single
+- SERVICE_REQUEST: services picked from the price book (price snapshot,
+  overridable per form; inline "add it to your price book" prompt) (single
   or multi-pick) → submission auto-creates an invoice as Draft or
   auto-sent (AWAITING_PAYMENT + payment-link email via invoiceLinkEmail,
   env-gated on Resend).
