@@ -33,8 +33,9 @@ deliberately left out, roughly in impact order:
    so screens are recognizable at a glance (the icons already exist; this
    is just consistent color).
 6. **Count-up numerals + view transitions** — the big Fraunces counts
-   animate from 0 on first paint (small client component); page-to-page
-   navigation gets the View Transitions API fade. Pure polish, do last.
+   animate from 0 on first paint (small client component). ~~Page-to-page
+   fade~~ DONE 2026-06-12 via template.tsx `.page-enter` (roadmap §3m) —
+   count-up still parked.
 7. **Empty-state coverage** — the line-art empty states cover the 5 list
    pages + dashboard; extend the same style to search-no-results, filtered
    tabs with zero items, and the schedule's empty day/week views.

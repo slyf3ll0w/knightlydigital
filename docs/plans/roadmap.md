@@ -385,6 +385,50 @@ per-service (price-book flag), not per-company.
   today), portal sessions/cookies (link IS the login), agreement
   auto-attach at "Mark as Sent", login page link from the hub header.
 
+### 3m. Sidebar polish + page fades + portal glow-up — SHIPPED 2026-06-12 commit f1d46ba, verified live
+
+David's asks: sidebar more like mainstream software (+ add Services and
+Contracts items), entrance fade on every page, client portals "a lot cooler".
+
+- **Sidebar (AppShell)**: labeled sections ("Work" / "Business") instead of
+  bare dividers; new manager items Services (`/app/settings/products`, Tag
+  icon) + Contracts (`/app/settings/contracts`, FileSignature) under
+  Business — `/app/settings` isActive exclusion list extended so Settings
+  doesn't co-light; live badges via new `GET /api/app/nav-counts`
+  (role-scoped: requests gated canSell, invoices canSeeMoney; past-due
+  count includes overdue AWAITING_PAYMENT not yet lazily flipped) —
+  Requests = neutral pill, Invoices = red pill, refetched on every
+  pathname change; active state = accent-tinted rounded pill
+  (`${accent}24` bg, accent icon) replacing the 3px edge bar; user row →
+  UserMenu popover (My Profile / Sign out, CreateMenu's per-instance
+  click-outside pattern — sidebar renders twice); mobile Invoices tab gets
+  a red dot when past-due > 0. Non-managers' standalone "My Profile" nav
+  item removed (lives in the popover now).
+- **Page fades**: `app/platform/template.tsx` re-mounts per navigation →
+  `.page-enter` (0.22s, 5px rise, from-only keyframe so no lingering
+  transform breaks fixed/sticky). `.anim-portal` (0.45s/12px, forwards,
+  reuses .anim-delay-*) for portal landings. `prefers-reduced-motion`
+  kills page-enter/anim-portal/anim-fade-up.
+- **Portal glow-up**: hub layout + `/portal/[slug]` get a brand-gradient
+  hero (`shade()` added to lib/branding) with dot-grain overlay (headerText
+  at 7%), white logo tile, Fraunces "Hi {firstName} 👋" greeting, and
+  underline tabs with real active state (`HubNav.tsx` client component —
+  layout stays server). Hub home: ledger stat strip (Open balance / Next
+  visit / Quotes to review, Fraunces numerals), appointment-ticket date
+  tiles on Upcoming visits (red month over Fraunces day), stamps on
+  agreements (Signed / Awaiting signature); hub quotes + invoices pages
+  get client-facing stamps (Needs your approval / Approved / Changes
+  requested; Due / Past due / Paid) + Fraunces money; hub
+  `template.tsx` fades tab switches; staggered anim-portal on home cards
+  and login page.
+- Verified live: portal login hero, dashboard sidebar (labels, badge "2"
+  matching dashboard NEW count, blue brand pill on demo co), Services
+  active state isolated from Settings, user popover, Marcus Webb hub
+  (greeting, stat strip, Jun 12 ticket tile, SIGNED stamp, tab underline
+  moves, empty quotes state).
+- Parked (ideas.md pass-2): count-up numerals, brand-color stamps,
+  per-entity hues, needs-attention feed, schedule/insights ledger pass.
+
 ### 4. Email automations via Resend — Phase 1 SHIPPED 2026-06-11 ← NEXT UP (Phase 2)
 
 - DONE: new-request notification to company.email from booking form + client
