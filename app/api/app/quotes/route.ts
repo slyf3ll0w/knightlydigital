@@ -50,8 +50,19 @@ export async function POST(req: NextRequest) {
     (s: number, li: { quantity: number; unitPrice: number }) => s + li.quantity * li.unitPrice,
     0
   );
-  const tax = taxRate ? subtotal * taxRate : null;
-  const total = subtotal + (tax ?? 0);
+  // Discount comes off the subtotal before tax (mirrors invoices)
+  const discountType =
+    body.discountType === "PERCENT" || body.discountType === "FIXED" ? body.discountType : "NONE";
+  const discountValue = Number(body.discountValue) || 0;
+  const discount =
+    discountType === "PERCENT"
+      ? Math.round(subtotal * Math.min(Math.max(discountValue, 0), 100)) / 100
+      : discountType === "FIXED"
+        ? Math.min(Math.max(discountValue, 0), subtotal)
+        : 0;
+  const taxable = subtotal - discount;
+  const tax = taxRate ? taxable * taxRate : null;
+  const total = taxable + (tax ?? 0);
 
   const quote = await prisma.$transaction(async (tx) => {
     const created = await tx.quote.create({
@@ -62,6 +73,9 @@ export async function POST(req: NextRequest) {
         quoteNumber,
         title: title || null,
         subtotal,
+        discountType,
+        discountValue: discount > 0 ? discountValue : null,
+        discount: discount > 0 ? discount : null,
         taxRate: taxRate || null,
         tax,
         total,

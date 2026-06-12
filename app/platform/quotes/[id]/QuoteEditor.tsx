@@ -32,6 +32,8 @@ export type ExistingQuote = {
   contactId: string;
   title: string;
   taxRate: number | null; // fraction (0.0825)
+  discountType: "NONE" | "PERCENT" | "FIXED";
+  discountValue: number | null;
   depositType: "NONE" | "PERCENT" | "FIXED";
   depositValue: number | null;
   clientMessage: string;
@@ -69,6 +71,12 @@ export default function QuoteEditor({
   const [title, setTitle] = useState(existingQuote?.title ?? requestTitle);
   const [taxRate, setTaxRate] = useState(
     existingQuote?.taxRate ? String(Math.round(existingQuote.taxRate * 100000) / 1000) : ""
+  );
+  const [discountType, setDiscountType] = useState<"NONE" | "PERCENT" | "FIXED">(
+    existingQuote?.discountType ?? "NONE"
+  );
+  const [discountValue, setDiscountValue] = useState(
+    existingQuote?.discountValue != null ? String(existingQuote.discountValue) : ""
   );
   const [depositType, setDepositType] = useState<"NONE" | "PERCENT" | "FIXED">(
     existingQuote?.depositType ?? "NONE"
@@ -126,8 +134,15 @@ export default function QuoteEditor({
     return sum + qty * price;
   }, 0);
 
-  const tax = taxRate ? subtotal * (parseFloat(taxRate) / 100) : 0;
-  const total = subtotal + tax;
+  const discountNum = parseFloat(discountValue) || 0;
+  const discount =
+    discountType === "PERCENT"
+      ? Math.round(subtotal * Math.min(Math.max(discountNum, 0), 100)) / 100
+      : discountType === "FIXED"
+        ? Math.min(Math.max(discountNum, 0), subtotal)
+        : 0;
+  const tax = taxRate ? (subtotal - discount) * (parseFloat(taxRate) / 100) : 0;
+  const total = subtotal - discount + tax;
   const deposit =
     depositType === "PERCENT"
       ? total * ((parseFloat(depositValue) || 0) / 100)
@@ -149,6 +164,8 @@ export default function QuoteEditor({
       requestId: requestId || null,
       title: title || null,
       taxRate: taxRate ? parseFloat(taxRate) / 100 : null,
+      discountType,
+      discountValue: discountNum || null,
       depositType,
       depositValue: depositValue ? parseFloat(depositValue) || 0 : null,
       clientMessage: clientMessage || null,
@@ -312,26 +329,57 @@ export default function QuoteEditor({
 
           {/* Totals + deposit */}
           <div className="px-5 py-4 border-t border-gray-100 bg-gray-50 space-y-4">
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-2">
-                <label className="text-sm text-gray-600">Tax rate</label>
-                <input
-                  type="number"
-                  value={taxRate}
-                  onChange={(e) => setTaxRate(e.target.value)}
-                  min="0"
-                  max="100"
-                  step="0.1"
-                  placeholder="0"
-                  className="w-20 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-                />
-                <span className="text-sm text-gray-500">%</span>
+            <div className="flex items-start justify-between gap-4 flex-wrap">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <label className="text-sm text-gray-600">Tax rate</label>
+                  <input
+                    type="number"
+                    value={taxRate}
+                    onChange={(e) => setTaxRate(e.target.value)}
+                    min="0"
+                    max="100"
+                    step="0.1"
+                    placeholder="0"
+                    className="w-20 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                  <span className="text-sm text-gray-500">%</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-sm text-gray-600">Discount</label>
+                  <select
+                    value={discountType}
+                    onChange={(e) => setDiscountType(e.target.value as "NONE" | "PERCENT" | "FIXED")}
+                    className="px-2 py-1 border border-gray-300 rounded text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                  >
+                    <option value="NONE">None</option>
+                    <option value="PERCENT">%</option>
+                    <option value="FIXED">$</option>
+                  </select>
+                  {discountType !== "NONE" && (
+                    <input
+                      type="number"
+                      value={discountValue}
+                      onChange={(e) => setDiscountValue(e.target.value)}
+                      min="0"
+                      step="0.01"
+                      placeholder="0"
+                      className="w-24 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                    />
+                  )}
+                </div>
               </div>
               <div className="text-right space-y-1 text-sm">
                 <div className="flex justify-between gap-8">
                   <span className="text-gray-500">Subtotal</span>
                   <span className="font-medium">${subtotal.toFixed(2)}</span>
                 </div>
+                {discount > 0 && (
+                  <div className="flex justify-between gap-8 text-green-700">
+                    <span>Discount{discountType === "PERCENT" ? ` (${discountNum}%)` : ""}</span>
+                    <span className="font-medium">-${discount.toFixed(2)}</span>
+                  </div>
+                )}
                 {tax > 0 && (
                   <div className="flex justify-between gap-8">
                     <span className="text-gray-500">Tax</span>

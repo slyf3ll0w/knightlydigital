@@ -175,6 +175,17 @@ export default async function QuoteDetailPage({
               <span className="text-gray-500">Subtotal</span>
               <span className="text-gray-800">{money(quote.subtotal)}</span>
             </div>
+            {quote.discount && Number(quote.discount) > 0 && (
+              <div className="flex justify-between text-green-700">
+                <span>
+                  Discount
+                  {quote.discountType === "PERCENT" && quote.discountValue
+                    ? ` (${Number(quote.discountValue)}%)`
+                    : ""}
+                </span>
+                <span>-{money(quote.discount)}</span>
+              </div>
+            )}
             {quote.tax && (
               <div className="flex justify-between">
                 <span className="text-gray-500">

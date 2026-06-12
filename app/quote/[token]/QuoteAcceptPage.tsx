@@ -11,6 +11,8 @@ type Quote = {
   title: string | null;
   status: string;
   subtotal: number;
+  discountType: string;
+  discountValue: number | null;
   taxRate: number | null;
   tax: number | null;
   total: number;
@@ -60,8 +62,18 @@ export default function QuoteAcceptPage({
   // Live totals as the client toggles optional items
   const includedItems = quote.lineItems.filter((li) => !optedOut.includes(li.id));
   const subtotal = includedItems.reduce((s, li) => s + Number(li.total), 0);
-  const tax = quote.taxRate ? Math.round(subtotal * Number(quote.taxRate) * 100) / 100 : 0;
-  const total = subtotal + tax;
+  // Discount tracks the live subtotal (percent recomputes as optional items
+  // toggle; fixed never exceeds what's left)
+  const discount =
+    quote.discountType === "PERCENT"
+      ? Math.round(subtotal * Number(quote.discountValue ?? 0)) / 100
+      : quote.discountType === "FIXED"
+        ? Math.min(Number(quote.discountValue ?? 0), subtotal)
+        : 0;
+  const tax = quote.taxRate
+    ? Math.round((subtotal - discount) * Number(quote.taxRate) * 100) / 100
+    : 0;
+  const total = subtotal - discount + tax;
   const deposit =
     quote.depositType === "PERCENT"
       ? Math.round(total * (Number(quote.depositValue ?? 0) / 100) * 100) / 100
@@ -279,6 +291,15 @@ export default function QuoteAcceptPage({
                 </span>
                 <span>{money(subtotal)}</span>
               </div>
+              {discount > 0 && (
+                <div className="flex justify-between text-green-700">
+                  <span>
+                    Discount
+                    {quote.discountType === "PERCENT" ? ` (${Number(quote.discountValue)}%)` : ""}
+                  </span>
+                  <span>-{money(discount)}</span>
+                </div>
+              )}
               {tax > 0 && (
                 <div className="flex justify-between">
                   <span className="text-gray-500">Tax</span>

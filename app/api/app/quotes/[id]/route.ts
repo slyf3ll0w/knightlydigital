@@ -58,9 +58,18 @@ export async function PATCH(
       sortOrder?: number;
     }[];
     const subtotal = lineItems.reduce((s, li) => s + (li.quantity || 0) * (li.unitPrice || 0), 0);
+    const discountType =
+      body.discountType === "PERCENT" || body.discountType === "FIXED" ? body.discountType : "NONE";
+    const discountValue = Number(body.discountValue) || 0;
+    const discount =
+      discountType === "PERCENT"
+        ? Math.round(subtotal * Math.min(Math.max(discountValue, 0), 100)) / 100
+        : discountType === "FIXED"
+          ? Math.min(Math.max(discountValue, 0), subtotal)
+          : 0;
     const taxRate = Number(body.taxRate) || null;
-    const tax = taxRate ? subtotal * taxRate : null;
-    const total = subtotal + (tax ?? 0);
+    const tax = taxRate ? (subtotal - discount) * taxRate : null;
+    const total = subtotal - discount + (tax ?? 0);
 
     const updated = await prisma.$transaction(async (tx) => {
       await tx.quoteLineItem.deleteMany({ where: { quoteId: quote.id } });
@@ -69,6 +78,9 @@ export async function PATCH(
         data: {
           title: body.title || null,
           subtotal,
+          discountType,
+          discountValue: discount > 0 ? discountValue : null,
+          discount: discount > 0 ? discount : null,
           taxRate,
           tax,
           total,

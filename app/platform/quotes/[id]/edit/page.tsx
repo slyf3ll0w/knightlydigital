@@ -43,6 +43,8 @@ export default async function EditQuotePage({
         contactId: quote.contactId,
         title: quote.title ?? "",
         taxRate: quote.taxRate ? Number(quote.taxRate) : null,
+        discountType: quote.discountType as "NONE" | "PERCENT" | "FIXED",
+        discountValue: quote.discountValue ? Number(quote.discountValue) : null,
         depositType: quote.depositType as "NONE" | "PERCENT" | "FIXED",
         depositValue: quote.depositValue ? Number(quote.depositValue) : null,
         clientMessage: quote.clientMessage ?? "",

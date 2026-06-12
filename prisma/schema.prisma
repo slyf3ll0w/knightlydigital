@@ -497,6 +497,10 @@ model Quote {
   job           Job?        @relation(fields: [jobId], references: [id])
   quoteNumber   Int
   title         String?
+  // Discount applies to the subtotal before tax; carries to the invoice
+  discountType  DepositType @default(NONE)
+  discountValue Decimal?    @db.Decimal(10, 2)
+  discount      Decimal?    @db.Decimal(10, 2) // computed amount
   status        QuoteStatus @default(DRAFT)
   subtotal      Decimal     @db.Decimal(10, 2)
   taxRate       Decimal?    @db.Decimal(5, 4)

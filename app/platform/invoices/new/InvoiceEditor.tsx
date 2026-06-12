@@ -17,6 +17,8 @@ type PrefillJob = {
   lineItems?: { name: string; description: string | null; quantity: number; unitPrice: number }[];
   quote?: {
     lineItems: { name: string; description: string; quantity: number; unitPrice: number }[];
+    discountType?: string;
+    discountValue?: number | null;
   } | null;
 };
 
@@ -54,8 +56,18 @@ export default function InvoiceEditor({
   const [subject, setSubject] = useState(prefillJob?.title ?? "");
   const [notes, setNotes] = useState("");
   const [taxRate, setTaxRate] = useState("");
-  const [discountType, setDiscountType] = useState<"NONE" | "PERCENT" | "FIXED">("NONE");
-  const [discountValue, setDiscountValue] = useState("");
+  // Quote discounts carry over when invoicing a quoted job
+  const quoteDiscount = prefillJob?.quote;
+  const [discountType, setDiscountType] = useState<"NONE" | "PERCENT" | "FIXED">(
+    quoteDiscount?.discountType === "PERCENT" || quoteDiscount?.discountType === "FIXED"
+      ? quoteDiscount.discountType
+      : "NONE"
+  );
+  const [discountValue, setDiscountValue] = useState(
+    quoteDiscount?.discountValue != null && quoteDiscount.discountValue > 0
+      ? String(Number(quoteDiscount.discountValue))
+      : ""
+  );
   const [dueDate, setDueDate] = useState("");
   const [lineItems, setLineItems] = useState<LineItem[]>(initLines);
 
