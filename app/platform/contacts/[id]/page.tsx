@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requirePageActor, canSell, contactScope, seesAllLeads } from "@/lib/permissions";
 import Link from "next/link";
-import { ArrowLeft, Phone, Mail, MapPin, ChevronRight, ExternalLink } from "lucide-react";
+import { ArrowLeft, Phone, Mail, MapPin, ChevronRight } from "lucide-react";
 import { money, shortDate, type StatusKind } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
 import ContactCreateMenu from "./ContactCreateMenu";
@@ -10,6 +10,7 @@ import DeleteContactButton from "./DeleteContactButton";
 import AssignLead from "./AssignLead";
 import CustomFieldsCard from "./CustomFieldsCard";
 import ContactNoteForm from "./ContactNoteForm";
+import PortalAccessCard from "./PortalAccessCard";
 import { getActiveFieldDefs } from "@/lib/contact-fields";
 
 export default async function ContactDetailPage({
@@ -330,23 +331,7 @@ export default async function ContactDetailPage({
             </div>
           </div>
 
-          <div className="card-ledger p-4">
-            <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-              Client hub
-            </h2>
-            <p className="text-xs text-gray-500 mb-3">
-              The client can view quotes, approve work, and pay invoices from their hub.
-            </p>
-            <a
-              href={hubUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 text-sm text-green-600 hover:underline font-medium"
-            >
-              <ExternalLink size={13} />
-              Open client hub
-            </a>
-          </div>
+          <PortalAccessCard contactId={contact.id} hubUrl={hubUrl} hasEmail={!!contact.email} />
         </div>
       </div>
     </div>

@@ -56,6 +56,7 @@ export default async function EditQuotePage({
           unitPrice: Number(li.unitPrice),
           unitCost: li.unitCost != null ? Number(li.unitCost) : null,
           isOptional: li.isOptional,
+          requiresAgreement: li.requiresAgreement,
         })),
       }}
     />

@@ -194,6 +194,49 @@ export function contractSignEmail({
   return { subject: `${companyName} sent you an agreement to sign: ${title}`, html };
 }
 
+/**
+ * Client-portal access link — sent when the company shares portal access
+ * from a contact page, or when a client requests a sign-in link from the
+ * portal login page. The link IS the login (magic-link style).
+ */
+export function hubAccessEmail({
+  companyName,
+  contactFirstName,
+  hubUrl,
+}: {
+  companyName: string;
+  contactFirstName: string;
+  hubUrl: string;
+}): { subject: string; html: string } {
+  const html = `
+<div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f3f4f6;padding:24px;">
+  <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
+    <div style="background:#0C0F0C;padding:16px 24px;">
+      <p style="margin:0;color:#22C55E;font-size:13px;font-weight:700;letter-spacing:0.5px;">${esc(companyName.toUpperCase())}</p>
+    </div>
+    <div style="padding:24px;">
+      <p style="margin:0 0 12px;color:#111827;font-size:15px;">Hi ${esc(contactFirstName)},</p>
+      <p style="margin:0 0 16px;color:#374151;font-size:14px;">
+        Here's your personal link to the ${esc(companyName)} client portal — view your
+        quotes and invoices, check scheduled visits, and send us new requests.
+      </p>
+      <a href="${esc(hubUrl)}"
+         style="display:inline-block;background:#22C55E;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:10px 20px;border-radius:6px;">
+        Open Your Client Portal
+      </a>
+      <p style="margin:16px 0 0;color:#6b7280;font-size:12px;">
+        This link is unique to you — keep it handy, or request a fresh one
+        anytime from the portal sign-in page.
+      </p>
+    </div>
+    <div style="padding:12px 24px;border-top:1px solid #f3f4f6;">
+      <p style="margin:0;color:#9ca3af;font-size:12px;">Sent by ${esc(companyName)} via Streamflaire Hub</p>
+    </div>
+  </div>
+</div>`;
+  return { subject: `Your ${companyName} client portal`, html };
+}
+
 /** Signed copy back to the client (their record of the agreement). */
 export function contractSignedCopyEmail({
   companyName,

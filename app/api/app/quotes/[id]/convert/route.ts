@@ -19,11 +19,34 @@ export async function POST(
   const { id } = await params;
   const quote = await prisma.quote.findFirst({
     where: { id, companyId, ...viaContactScope(actor) },
-    include: { lineItems: { orderBy: { sortOrder: "asc" } }, contact: true },
+    include: {
+      lineItems: { orderBy: { sortOrder: "asc" } },
+      contact: true,
+      contracts: { select: { status: true } },
+    },
   });
   if (!quote) return NextResponse.json({ error: "Quote not found." }, { status: 404 });
   if (quote.jobId) {
     return NextResponse.json({ error: "Quote was already converted." }, { status: 400 });
+  }
+
+  // Agreement gate: services flagged in the price book require a signed
+  // agreement on this quote before work can start (client-removed optional
+  // items don't count)
+  const needsAgreement = quote.lineItems.some(
+    (li) => li.requiresAgreement && !(li.isOptional && li.optedOut)
+  );
+  if (needsAgreement && !quote.contracts.some((c) => c.status === "SIGNED")) {
+    const pending = quote.contracts.some((c) => c.status === "SENT");
+    return NextResponse.json(
+      {
+        error: pending
+          ? "This quote includes services that require a signed agreement — it's been sent, but the client hasn't signed yet."
+          : "This quote includes services that require a signed agreement. Send the agreement first.",
+        agreementRequired: true,
+      },
+      { status: 400 }
+    );
   }
 
   const job = await prisma.$transaction(async (tx) => {

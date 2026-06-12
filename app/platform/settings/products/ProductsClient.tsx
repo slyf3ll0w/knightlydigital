@@ -12,6 +12,7 @@ type WorkItem = {
   type: "SERVICE" | "PRODUCT";
   unitPrice: number | string;
   unitCost: number | string | null;
+  requiresAgreement: boolean;
 };
 
 type FormState = {
@@ -20,6 +21,7 @@ type FormState = {
   type: "SERVICE" | "PRODUCT";
   unitPrice: string;
   unitCost: string;
+  requiresAgreement: boolean;
 };
 
 const emptyForm: FormState = {
@@ -28,6 +30,7 @@ const emptyForm: FormState = {
   type: "SERVICE",
   unitPrice: "",
   unitCost: "",
+  requiresAgreement: false,
 };
 
 function money(n: number | string | null) {
@@ -54,6 +57,7 @@ export default function ProductsClient({ initialItems }: { initialItems: WorkIte
       type: item.type,
       unitPrice: String(Number(item.unitPrice)),
       unitCost: item.unitCost !== null ? String(Number(item.unitCost)) : "",
+      requiresAgreement: item.requiresAgreement,
     });
     setEditingId(item.id);
     setError("");
@@ -77,6 +81,7 @@ export default function ProductsClient({ initialItems }: { initialItems: WorkIte
       type: form.type,
       unitPrice: parseFloat(form.unitPrice) || 0,
       unitCost: form.unitCost === "" ? null : parseFloat(form.unitCost) || 0,
+      requiresAgreement: form.requiresAgreement,
     };
 
     const { ok, data } =
@@ -167,6 +172,21 @@ export default function ProductsClient({ initialItems }: { initialItems: WorkIte
           className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
         />
       </div>
+      <label className="flex items-start gap-2.5 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={form.requiresAgreement}
+          onChange={(e) => setForm((f) => ({ ...f, requiresAgreement: e.target.checked }))}
+          className="mt-0.5 h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+        />
+        <span className="text-sm text-gray-700">
+          Requires a signed agreement
+          <span className="block text-xs text-gray-500">
+            Quotes containing this item can&apos;t be converted to a job until the client signs
+            an agreement.
+          </span>
+        </span>
+      </label>
       <div className="flex items-center gap-2">
         <button
           onClick={save}
@@ -246,7 +266,14 @@ export default function ProductsClient({ initialItems }: { initialItems: WorkIte
                     className="grid sm:grid-cols-[1fr_90px_100px_100px_70px] gap-2 sm:gap-4 items-center px-5 py-3.5"
                   >
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-gray-900">{item.name}</p>
+                      <p className="text-sm font-medium text-gray-900">
+                        {item.name}
+                        {item.requiresAgreement && (
+                          <span className="ml-2 stamp border-blue-600/30 bg-blue-600/[0.06] text-blue-700">
+                            Agreement
+                          </span>
+                        )}
+                      </p>
                       {item.description && (
                         <p className="text-xs text-gray-500 truncate">{item.description}</p>
                       )}

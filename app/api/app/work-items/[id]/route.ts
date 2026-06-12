@@ -31,6 +31,9 @@ export async function PATCH(
       ...(body.unitCost !== undefined && {
         unitCost: body.unitCost === null || body.unitCost === "" ? null : Number(body.unitCost),
       }),
+      ...(body.requiresAgreement !== undefined && {
+        requiresAgreement: Boolean(body.requiresAgreement),
+      }),
     },
   });
 

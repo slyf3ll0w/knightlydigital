@@ -16,13 +16,22 @@ export async function POST(req: NextRequest) {
   const companyId = actor.companyId;
 
   const body = await req.json();
-  const { contactId, templateId } = body;
+  const { contactId, templateId, quoteId } = body;
   if (!contactId) return NextResponse.json({ error: "Pick a client." }, { status: 400 });
 
   const contact = await prisma.contact.findFirst({
     where: { id: contactId, companyId, ...contactScope(actor) },
   });
   if (!contact) return NextResponse.json({ error: "Client not found." }, { status: 404 });
+
+  // Attaching to a quote: that quote's conversion gate watches this contract
+  if (quoteId) {
+    const quote = await prisma.quote.findFirst({
+      where: { id: quoteId, companyId, contactId },
+      select: { id: true },
+    });
+    if (!quote) return NextResponse.json({ error: "Quote not found." }, { status: 404 });
+  }
 
   let title = typeof body.title === "string" ? body.title.trim().slice(0, 120) : "";
   let text = typeof body.body === "string" ? body.body.trim().slice(0, 50000) : "";
@@ -58,6 +67,7 @@ export async function POST(req: NextRequest) {
       companyId,
       contactId,
       templateId: templateId || null,
+      quoteId: quoteId || null,
       title,
       body: text,
       status: "SENT",

@@ -39,7 +39,7 @@ export default async function HubLayout({
   const headerText = textOn(headerBg);
 
   return (
-    <div className="app-ui min-h-screen bg-gray-50">
+    <div className="app-ui min-h-screen bg-paper">
       {/* Company-branded header */}
       <header style={{ backgroundColor: headerBg }}>
         <div className="max-w-3xl mx-auto px-4 py-5">

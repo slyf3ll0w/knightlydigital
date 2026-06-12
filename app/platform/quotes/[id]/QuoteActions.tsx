@@ -15,7 +15,15 @@ import {
   Loader2,
   Pencil,
   RotateCcw,
+  FileSignature,
+  Clock,
 } from "lucide-react";
+
+type AgreementState = {
+  signed: boolean;
+  sent: boolean;
+  templates: { id: string; name: string }[];
+} | null;
 
 export default function QuoteActions({
   quoteId,
@@ -23,17 +31,24 @@ export default function QuoteActions({
   publicUrl,
   hasJob,
   wasSent = false,
+  contactId = "",
+  agreement = null,
 }: {
   quoteId: string;
   status: string;
   publicUrl: string;
   hasJob: boolean;
   wasSent?: boolean;
+  contactId?: string;
+  agreement?: AgreementState;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [agreementOpen, setAgreementOpen] = useState(false);
+  const [templateId, setTemplateId] = useState(agreement?.templates[0]?.id ?? "");
+  const [agreementError, setAgreementError] = useState("");
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -69,6 +84,29 @@ export default function QuoteActions({
         router.push(`/app/jobs/${data.id}`);
         return;
       }
+      if (data?.error) alert(data.error);
+      router.refresh();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function sendAgreement() {
+    if (!templateId) return;
+    setBusy(true);
+    setAgreementError("");
+    try {
+      const res = await fetch("/api/app/contracts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contactId, templateId, quoteId }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setAgreementError(data?.error ?? "Couldn't send the agreement.");
+        return;
+      }
+      setAgreementOpen(false);
       router.refresh();
     } finally {
       setBusy(false);
@@ -127,14 +165,34 @@ export default function QuoteActions({
           Mark Approved
         </button>
       )}
-      {status === "APPROVED" && !hasJob && (
-        <button
-          onClick={convertToJob}
-          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors"
-        >
-          <Briefcase size={13} />
-          Convert to Job
-        </button>
+      {/* Approved quotes convert — unless an agreement-requiring service is
+          waiting on a signature (price-book flag) */}
+      {status === "APPROVED" && !hasJob && agreement && !agreement.signed ? (
+        agreement.sent ? (
+          <span className="flex items-center gap-1.5 px-4 py-2 border border-amber-300 bg-amber-50 text-amber-800 text-sm font-medium rounded">
+            <Clock size={13} />
+            Awaiting agreement signature
+          </span>
+        ) : (
+          <button
+            onClick={() => setAgreementOpen(true)}
+            className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors"
+          >
+            <FileSignature size={13} />
+            Send Agreement
+          </button>
+        )
+      ) : (
+        status === "APPROVED" &&
+        !hasJob && (
+          <button
+            onClick={convertToJob}
+            className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors"
+          >
+            <Briefcase size={13} />
+            Convert to Job
+          </button>
+        )
       )}
       {/* Archived quotes reopen where they left off: sent ones go back to
           Awaiting Response, never-sent ones to Draft */}
@@ -202,6 +260,18 @@ export default function QuoteActions({
                 Convert to Job
               </button>
             )}
+            {agreement && !agreement.signed && status !== "ARCHIVED" && status !== "CONVERTED" && (
+              <button
+                onClick={() => {
+                  setOpen(false);
+                  setAgreementOpen(true);
+                }}
+                className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
+              >
+                <FileSignature size={14} className="text-gray-400" />
+                {agreement.sent ? "Send agreement again" : "Send agreement"}
+              </button>
+            )}
             {status !== "ARCHIVED" && status !== "CONVERTED" && (
               <button
                 onClick={() => setStatus("ARCHIVED")}
@@ -230,6 +300,65 @@ export default function QuoteActions({
           </div>
         )}
       </div>
+
+      {/* Send-agreement modal: pick a template, signing link goes to the
+          client's inbox; the quote unlocks once they sign */}
+      {agreementOpen && agreement && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => !busy && setAgreementOpen(false)}
+          />
+          <div className="relative w-full max-w-md card-ledger bg-white p-6 shadow-xl">
+            <h2 className="text-lg font-bold text-gray-900 mb-1">Send agreement</h2>
+            <p className="text-sm text-gray-600 mb-4">
+              This quote includes services that require a signed agreement before work starts.
+              The signing link is emailed to your client; the quote unlocks when they sign.
+            </p>
+            {agreement.templates.length === 0 ? (
+              <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2 mb-4">
+                No agreement templates yet — create one under Settings → Contract Templates
+                first.
+              </p>
+            ) : (
+              <>
+                <label className="block text-xs text-gray-500 mb-1">Agreement template</label>
+                <select
+                  value={templateId}
+                  onChange={(e) => setTemplateId(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 mb-4"
+                >
+                  {agreement.templates.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                    </option>
+                  ))}
+                </select>
+              </>
+            )}
+            {agreementError && <p className="text-xs text-red-600 mb-3">{agreementError}</p>}
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setAgreementOpen(false)}
+                disabled={busy}
+                className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded"
+              >
+                Cancel
+              </button>
+              {agreement.templates.length > 0 && (
+                <button
+                  onClick={sendAgreement}
+                  disabled={busy || !templateId}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded transition-colors disabled:opacity-50"
+                >
+                  {busy ? <Loader2 size={13} className="animate-spin" /> : <FileSignature size={13} />}
+                  Send Agreement
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

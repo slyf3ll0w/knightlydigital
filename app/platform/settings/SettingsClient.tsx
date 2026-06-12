@@ -17,6 +17,35 @@ type Company = {
   reviewLink: string | null; industry: string | null;
 };
 
+function PortalLinkCard({ slug }: { slug: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <div className="flex items-center justify-between gap-4 card-ledger p-5 mb-6">
+      <div className="min-w-0">
+        <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+          Client Portal Sign-In
+        </h2>
+        <p className="text-xs text-gray-400 mt-0.5">
+          Clients enter their email at this page and get their portal link — put it on your
+          website or in your email signature.
+        </p>
+        <p className="text-xs font-mono text-gray-600 mt-1.5 truncate">/portal/{slug}</p>
+      </div>
+      <button
+        type="button"
+        onClick={async () => {
+          await navigator.clipboard.writeText(`${window.location.origin}/portal/${slug}`);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1500);
+        }}
+        className="text-sm font-medium text-green-600 hover:underline shrink-0"
+      >
+        {copied ? "Copied!" : "Copy link"}
+      </button>
+    </div>
+  );
+}
+
 export default function SettingsClient({ company }: { company: Company }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -175,6 +204,8 @@ export default function SettingsClient({ company }: { company: Company }) {
         </div>
         <span className="text-sm font-medium text-green-600">Manage →</span>
       </Link>
+
+      <PortalLinkCard slug={company.slug} />
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Business info */}

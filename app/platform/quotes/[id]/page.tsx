@@ -24,10 +24,26 @@ export default async function QuoteDetailPage({
       lineItems: { orderBy: { sortOrder: "asc" } },
       job: true,
       request: true,
+      contracts: { orderBy: { createdAt: "desc" }, select: { status: true, signedAt: true } },
     },
   });
 
   if (!quote) notFound();
+
+  // Agreement gate: any price-book item flagged "requires agreement" (that
+  // the client didn't opt out of) means conversion waits on a signature
+  const needsAgreement = quote.lineItems.some(
+    (li) => li.requiresAgreement && !(li.isOptional && li.optedOut)
+  );
+  const agreementSigned = quote.contracts.some((c) => c.status === "SIGNED");
+  const agreementSent = quote.contracts.some((c) => c.status === "SENT");
+  const contractTemplates = needsAgreement
+    ? await prisma.contractTemplate.findMany({
+        where: { companyId, isActive: true },
+        select: { id: true, name: true },
+        orderBy: { name: "asc" },
+      })
+    : [];
 
   const baseUrl = process.env.NEXTAUTH_URL ?? "";
   const publicUrl = `${baseUrl}/quote/${quote.publicToken}`;
@@ -59,6 +75,12 @@ export default async function QuoteDetailPage({
           publicUrl={publicUrl}
           hasJob={!!quote.jobId}
           wasSent={!!quote.sentAt}
+          contactId={quote.contactId}
+          agreement={
+            needsAgreement
+              ? { signed: agreementSigned, sent: agreementSent, templates: contractTemplates }
+              : null
+          }
         />
       </div>
 
@@ -78,6 +100,22 @@ export default async function QuoteDetailPage({
               Required deposit
             </span>
             <span className="text-gray-800 font-semibold">{money(deposit)}</span>
+          </div>
+        )}
+        {needsAgreement && (
+          <div>
+            <span className="text-xs uppercase font-semibold text-gray-400 block">Agreement</span>
+            <span
+              className={`font-medium ${
+                agreementSigned ? "text-green-700" : agreementSent ? "text-amber-700" : "text-red-700"
+              }`}
+            >
+              {agreementSigned
+                ? "Signed"
+                : agreementSent
+                  ? "Awaiting signature"
+                  : "Required — not sent"}
+            </span>
           </div>
         )}
         {quote.request && (

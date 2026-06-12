@@ -277,6 +277,10 @@ model Contract {
   contact       Contact           @relation(fields: [contactId], references: [id])
   templateId    String?
   template      ContractTemplate? @relation(fields: [templateId], references: [id])
+  // Agreement attached to a specific quote — gates quote→job conversion when
+  // the quote contains agreement-requiring services
+  quoteId       String?
+  quote         Quote?            @relation(fields: [quoteId], references: [id])
   title         String
   body          String            @db.Text
   status        ContractStatus    @default(DRAFT)
@@ -523,6 +527,7 @@ model Quote {
   updatedAt     DateTime    @updatedAt
 
   lineItems QuoteLineItem[]
+  contracts Contract[]
 
   @@unique([companyId, quoteNumber])
   @@index([companyId])
@@ -542,6 +547,8 @@ model QuoteLineItem {
   total       Decimal @db.Decimal(10, 2)
   isOptional  Boolean @default(false)
   optedOut    Boolean @default(false) // client unchecked this optional item in the hub
+  // Snapshotted from WorkItem.requiresAgreement when picked from the price book
+  requiresAgreement Boolean @default(false)
   sortOrder   Int     @default(0)
 
   @@index([quoteId])
@@ -670,6 +677,9 @@ model WorkItem {
   type        WorkItemType @default(SERVICE)
   unitCost    Decimal?     @db.Decimal(10, 2)
   unitPrice   Decimal      @default(0) @db.Decimal(10, 2)
+  // Quotes containing this service can't convert to a job until a linked
+  // agreement is signed (flag snapshots onto QuoteLineItem at pick time)
+  requiresAgreement Boolean @default(false)
   isActive    Boolean      @default(true)
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt

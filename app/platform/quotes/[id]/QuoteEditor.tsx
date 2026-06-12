@@ -16,6 +16,7 @@ type LineItem = {
   unitPrice: string;
   unitCost: string; // hidden; filled from the price book for margin tracking
   isOptional: boolean;
+  requiresAgreement: boolean; // hidden; snapshotted from the price book
 };
 
 const emptyLine: LineItem = {
@@ -25,6 +26,7 @@ const emptyLine: LineItem = {
   unitPrice: "",
   unitCost: "",
   isOptional: false,
+  requiresAgreement: false,
 };
 
 export type ExistingQuote = {
@@ -45,6 +47,7 @@ export type ExistingQuote = {
     unitPrice: number;
     unitCost: number | null;
     isOptional: boolean;
+    requiresAgreement: boolean;
   }[];
 };
 
@@ -95,6 +98,7 @@ export default function QuoteEditor({
           unitPrice: String(li.unitPrice),
           unitCost: li.unitCost != null ? String(li.unitCost) : "",
           isOptional: li.isOptional,
+          requiresAgreement: li.requiresAgreement,
         }))
       : [{ ...emptyLine }]
   );
@@ -121,6 +125,7 @@ export default function QuoteEditor({
               description: item.description ?? li.description,
               unitPrice: String(Number(item.unitPrice)),
               unitCost: item.unitCost !== null ? String(Number(item.unitCost)) : "",
+              requiresAgreement: Boolean(item.requiresAgreement),
             }
           : li
       )
@@ -176,6 +181,7 @@ export default function QuoteEditor({
         quantity: parseFloat(li.quantity) || 1,
         unitPrice: parseFloat(li.unitPrice) || 0,
         unitCost: li.unitCost === "" ? null : parseFloat(li.unitCost) || 0,
+        requiresAgreement: li.requiresAgreement,
         isOptional: li.isOptional,
         sortOrder: i,
       })),

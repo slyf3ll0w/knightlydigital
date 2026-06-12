@@ -38,6 +38,7 @@ export async function POST(req: NextRequest) {
       type: type === "PRODUCT" ? "PRODUCT" : "SERVICE",
       unitPrice: Number(unitPrice) || 0,
       unitCost: unitCost !== null && unitCost !== undefined && unitCost !== "" ? Number(unitCost) : null,
+      requiresAgreement: Boolean(body.requiresAgreement),
     },
   });
 

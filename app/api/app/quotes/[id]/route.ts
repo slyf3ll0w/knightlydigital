@@ -55,6 +55,7 @@ export async function PATCH(
       unitPrice: number;
       unitCost?: number | null;
       isOptional?: boolean;
+              requiresAgreement?: boolean;
       sortOrder?: number;
     }[];
     const subtotal = lineItems.reduce((s, li) => s + (li.quantity || 0) * (li.unitPrice || 0), 0);
@@ -100,6 +101,7 @@ export async function PATCH(
               unitCost: li.unitCost ?? null,
               total: li.quantity * li.unitPrice,
               isOptional: li.isOptional ?? false,
+              requiresAgreement: li.requiresAgreement ?? false,
               sortOrder: li.sortOrder ?? i,
             })),
           },

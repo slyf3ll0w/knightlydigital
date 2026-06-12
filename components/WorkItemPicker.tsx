@@ -8,6 +8,7 @@ export type PickerWorkItem = {
   description: string | null;
   unitPrice: number | string;
   unitCost: number | string | null;
+  requiresAgreement?: boolean;
 };
 
 /**
