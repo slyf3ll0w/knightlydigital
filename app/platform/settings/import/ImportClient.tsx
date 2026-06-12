@@ -81,10 +81,23 @@ function splitFullName(full: string): { firstName: string; lastName: string } {
 export default function ImportClient({
   actorId,
   users,
+  fieldDefs = [],
 }: {
   actorId: string;
   users: { id: string; name: string }[];
+  fieldDefs?: { id: string; label: string }[];
 }) {
+  const allTargets = [
+    ...TARGETS,
+    ...fieldDefs.map((d) => ({ key: `cf:${d.id}`, label: `Custom: ${d.label}` })),
+  ];
+  const detectWithCustom = (header: string): string => {
+    const builtIn = detectTarget(header);
+    if (builtIn) return builtIn;
+    const norm = header.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const match = fieldDefs.find((d) => d.label.toLowerCase().replace(/[^a-z0-9]/g, "") === norm);
+    return match ? `cf:${match.id}` : "";
+  };
   const fileRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState<Step>("upload");
   const [fileName, setFileName] = useState("");
@@ -124,17 +137,22 @@ export default function ImportClient({
       setFileName(file.name);
       setHeaders(head);
       setRows(parsed.slice(1));
-      setMapping(head.map(detectTarget));
+      setMapping(head.map(detectWithCustom));
       setStep("map");
     };
     reader.readAsText(file);
   }
 
-  function buildRow(cells: string[]): Record<string, string> {
+  function buildRow(cells: string[]): Record<string, unknown> {
     const out: Record<string, string> = {};
+    const customFields: Record<string, string> = {};
     mapping.forEach((target, i) => {
       const value = (cells[i] ?? "").trim();
       if (!target || !value) return;
+      if (target.startsWith("cf:")) {
+        customFields[target.slice(3)] = value;
+        return;
+      }
       if (target === "fullName") {
         const { firstName, lastName } = splitFullName(value);
         if (!out.firstName) out.firstName = firstName;
@@ -146,7 +164,7 @@ export default function ImportClient({
         out[target] = value;
       }
     });
-    return out;
+    return Object.keys(customFields).length > 0 ? { ...out, customFields } : out;
   }
 
   const mappedTargets = new Set(mapping.filter(Boolean));
@@ -306,7 +324,7 @@ export default function ImportClient({
                       onChange={(e) => setMapping(mapping.map((m, j) => (j === i ? e.target.value : m)))}
                       className={`${inputCls} w-full ${mapping[i] ? "" : "text-gray-400"}`}
                     >
-                      {TARGETS.map((t) => (
+                      {allTargets.map((t) => (
                         <option key={t.key} value={t.key}>
                           {t.label}
                         </option>

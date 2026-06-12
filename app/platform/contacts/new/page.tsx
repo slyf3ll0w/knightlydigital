@@ -1,9 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Loader2, ArrowLeft } from "lucide-react";
+
+type FieldDef = {
+  id: string;
+  label: string;
+  type: string;
+  options: string[];
+  required: boolean;
+};
 
 const US_STATES = [
   "AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA","HI","ID","IL","IN","IA",
@@ -20,6 +28,15 @@ export default function NewContactPage() {
     firstName: "", lastName: "", companyName: "", email: "", phone: "",
     address: "", city: "", state: "", zip: "", notes: "",
   });
+  const [fieldDefs, setFieldDefs] = useState<FieldDef[]>([]);
+  const [customFields, setCustomFields] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    fetch("/api/app/contact-fields")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((d) => Array.isArray(d) && setFieldDefs(d))
+      .catch(() => {});
+  }, []);
 
   function set(field: string, value: string) {
     setForm((f) => ({ ...f, [field]: value }));
@@ -30,10 +47,17 @@ export default function NewContactPage() {
     setError("");
     setLoading(true);
 
+    const missing = fieldDefs.find((d) => d.required && !(customFields[d.id] ?? "").trim());
+    if (missing) {
+      setError(`"${missing.label}" is required.`);
+      setLoading(false);
+      return;
+    }
+
     const res = await fetch("/api/app/contacts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify({ ...form, customFields }),
     });
 
     const data = await res.json();
@@ -168,6 +192,45 @@ export default function NewContactPage() {
             </div>
           </div>
         </div>
+
+        {fieldDefs.length > 0 && (
+          <div className="bg-white border border-gray-200 rounded-lg p-5">
+            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-4">
+              Details
+            </h2>
+            <div className="grid grid-cols-2 gap-4">
+              {fieldDefs.map((d) => (
+                <div key={d.id}>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {d.label}
+                    {d.required && " *"}
+                  </label>
+                  {d.type === "SELECT" ? (
+                    <select
+                      value={customFields[d.id] ?? ""}
+                      onChange={(e) => setCustomFields({ ...customFields, [d.id]: e.target.value })}
+                      className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                    >
+                      <option value="">—</option>
+                      {d.options.map((o) => (
+                        <option key={o} value={o}>
+                          {o}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type={d.type === "NUMBER" ? "number" : d.type === "DATE" ? "date" : "text"}
+                      value={customFields[d.id] ?? ""}
+                      onChange={(e) => setCustomFields({ ...customFields, [d.id]: e.target.value })}
+                      className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="bg-white border border-gray-200 rounded-lg p-5">
           <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-4">Notes</h2>

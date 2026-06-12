@@ -53,6 +53,7 @@ model Company {
   bookingRequests BookingRequest[]
   reviewRequests  ReviewRequest[]
   appointments    Appointment[]
+  contactFieldDefs ContactFieldDef[]
 
   @@index([slug])
 }
@@ -92,6 +93,32 @@ enum Role {
 
 // ─── Contacts (Clients) ──────────────────────────────────────────────────────
 
+enum ContactFieldType {
+  TEXT
+  NUMBER
+  DATE
+  SELECT
+}
+
+// Company-defined custom fields on clients ("Gate code", "Property size").
+// Definitions live here; each contact stores values in customFields Json
+// keyed by definition id. Archiving (isActive=false) hides a field without
+// destroying saved values.
+model ContactFieldDef {
+  id        String           @id @default(cuid())
+  companyId String
+  company   Company          @relation(fields: [companyId], references: [id])
+  label     String
+  type      ContactFieldType @default(TEXT)
+  options   Json? // SELECT: string[] of choices
+  required  Boolean          @default(false)
+  sortOrder Int              @default(0)
+  isActive  Boolean          @default(true)
+  createdAt DateTime         @default(now())
+
+  @@index([companyId, isActive])
+}
+
 enum ContactStatus {
   LEAD
   ACTIVE
@@ -119,6 +146,8 @@ model Contact {
   assignedTo       User?         @relation("AssignedContacts", fields: [assignedToId], references: [id])
   // CSV import provenance — lets "Undo this import" find the batch
   importBatchId    String?
+  // Values for the company's ContactFieldDef custom fields: { [defId]: value }
+  customFields     Json?
   paymentTermsDays Int           @default(30)
   hubToken         String        @unique @default(cuid())
   createdAt        DateTime      @default(now())

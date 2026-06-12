@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, contactScope, isManager } from "@/lib/permissions";
+import { getActiveFieldDefs, sanitizeCustomFields } from "@/lib/contact-fields";
 
 export async function PATCH(
   req: NextRequest,
@@ -28,9 +29,29 @@ export async function PATCH(
     }
   }
 
+  // customFields: merge sanitized values over what's stored (callers send
+  // partial maps; an explicit empty string can't clear — send the full map
+  // from the contact editor to overwrite)
+  let customFieldsPatch: Record<string, string> | undefined;
+  if (body.customFields !== undefined) {
+    const existing = await prisma.contact.findFirst({
+      where: { id, companyId: actor.companyId, ...contactScope(actor) },
+      select: { customFields: true },
+    });
+    if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    const defs = await getActiveFieldDefs(actor.companyId);
+    const sanitized = sanitizeCustomFields(body.customFields, defs);
+    const base =
+      body.replaceCustomFields === true
+        ? {}
+        : ((existing.customFields as Record<string, string>) ?? {});
+    customFieldsPatch = { ...base, ...sanitized };
+  }
+
   const contact = await prisma.contact.updateMany({
     where: { id, companyId: actor.companyId, ...contactScope(actor) },
     data: {
+      ...(customFieldsPatch !== undefined && { customFields: customFieldsPatch }),
       ...(body.firstName !== undefined && {
         firstName: body.firstName,
         lastName: body.lastName,

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
 import { normalizePhone } from "@/lib/csv";
+import { getActiveFieldDefs, sanitizeCustomFields } from "@/lib/contact-fields";
 
 /**
  * CSV client import (manager-only).
@@ -28,6 +29,7 @@ type ImportRow = {
   zip?: string;
   notes?: string;
   leadSource?: string;
+  customFields?: Record<string, string>;
 };
 
 const trim = (v: unknown, max: number) => {
@@ -61,6 +63,8 @@ export async function POST(req: NextRequest) {
     });
     if (target) assignedToId = target.id;
   }
+
+  const fieldDefs = await getActiveFieldDefs(companyId);
 
   // Existing contacts once per chunk — match on normalized email/phone
   const existing = await prisma.contact.findMany({
@@ -107,6 +111,7 @@ export async function POST(req: NextRequest) {
       notes: trim(r.notes, 2000),
       leadSource: trim(r.leadSource, 80) ?? "Imported",
     };
+    const customFields = sanitizeCustomFields(r.customFields, fieldDefs);
 
     const matchId =
       (email && byEmail.get(email)) || (normPhone.length >= 7 && byPhone.get(normPhone)) || null;
@@ -118,12 +123,31 @@ export async function POST(req: NextRequest) {
           continue;
         }
         // update: fill fields, don't blank existing values with empty cells
-        const patch = Object.fromEntries(Object.entries(data).filter(([, v]) => v !== null && v !== ""));
+        const patch: Record<string, unknown> = Object.fromEntries(
+          Object.entries(data).filter(([, v]) => v !== null && v !== "")
+        );
+        if (Object.keys(customFields).length > 0) {
+          const cur = await prisma.contact.findUnique({
+            where: { id: matchId },
+            select: { customFields: true },
+          });
+          patch.customFields = {
+            ...((cur?.customFields as Record<string, string>) ?? {}),
+            ...customFields,
+          };
+        }
         await prisma.contact.update({ where: { id: matchId }, data: patch });
         updated++;
       } else {
         const contact = await prisma.contact.create({
-          data: { companyId, ...data, status: statusForNew, assignedToId, importBatchId: batchId },
+          data: {
+            companyId,
+            ...data,
+            customFields,
+            status: statusForNew,
+            assignedToId,
+            importBatchId: batchId,
+          },
         });
         if (email) byEmail.set(email, contact.id);
         if (normPhone.length >= 7) byPhone.set(normPhone, contact.id);

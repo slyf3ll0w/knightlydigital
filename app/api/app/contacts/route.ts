@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, contactScope, isManager } from "@/lib/permissions";
+import { getActiveFieldDefs, sanitizeCustomFields } from "@/lib/contact-fields";
 
 export async function GET() {
   const actor = await getActor();
@@ -53,6 +54,10 @@ export async function POST(req: NextRequest) {
       notes: notes || null,
       leadSource: leadSource || null,
       assignedToId,
+      customFields:
+        body.customFields !== undefined
+          ? sanitizeCustomFields(body.customFields, await getActiveFieldDefs(actor.companyId))
+          : undefined,
     },
   });
 

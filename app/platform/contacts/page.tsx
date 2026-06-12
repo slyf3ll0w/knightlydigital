@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import Link from "next/link";
-import { Plus, ChevronRight, UserCheck, Upload } from "lucide-react";
+import { Plus, ChevronRight, UserCheck, Upload, ListPlus } from "lucide-react";
 import { shortDate } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
 import EmptyState from "@/components/EmptyState";
@@ -72,13 +72,22 @@ export default async function ContactsPage({
         <h1 className="text-2xl font-bold text-gray-900">Clients</h1>
         <div className="flex items-center gap-2">
           {isManager(actor.role) && (
-            <Link
-              href="/app/settings/import"
-              className="flex items-center gap-1.5 px-4 py-2 border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-sm font-semibold rounded transition-colors"
-            >
-              <Upload size={14} />
-              Import
-            </Link>
+            <>
+              <Link
+                href="/app/settings/client-fields"
+                className="flex items-center gap-1.5 px-4 py-2 border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-sm font-semibold rounded transition-colors"
+              >
+                <ListPlus size={14} />
+                Custom Fields
+              </Link>
+              <Link
+                href="/app/settings/import"
+                className="flex items-center gap-1.5 px-4 py-2 border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-sm font-semibold rounded transition-colors"
+              >
+                <Upload size={14} />
+                Import
+              </Link>
+            </>
           )}
           <Link
             href="/app/contacts/new"

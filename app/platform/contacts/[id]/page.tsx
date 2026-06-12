@@ -8,6 +8,8 @@ import StatusChip from "@/components/StatusChip";
 import ContactCreateMenu from "./ContactCreateMenu";
 import DeleteContactButton from "./DeleteContactButton";
 import AssignLead from "./AssignLead";
+import CustomFieldsCard from "./CustomFieldsCard";
+import { getActiveFieldDefs } from "@/lib/contact-fields";
 
 export default async function ContactDetailPage({
   params,
@@ -44,6 +46,8 @@ export default async function ContactDetailPage({
   ]);
 
   if (!contact) notFound();
+
+  const fieldDefs = await getActiveFieldDefs(companyId);
 
   const lifetimeValue = contact.payments.reduce((s, p) => s + Number(p.amount), 0);
   const currentBalance = contact.invoices
@@ -257,6 +261,12 @@ export default async function ContactDetailPage({
               <p className="text-sm text-gray-800">{contact.assignedTo?.name ?? "Unassigned"}</p>
             )}
           </div>
+
+          <CustomFieldsCard
+            contactId={contact.id}
+            defs={fieldDefs}
+            values={(contact.customFields as Record<string, string>) ?? {}}
+          />
 
           <div className="bg-white border border-gray-200 rounded-lg p-4">
             <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
