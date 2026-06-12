@@ -43,6 +43,11 @@ export default async function RequestDetailPage({
           <h1 className="text-2xl font-bold text-gray-900">{request.title}</h1>
           <p className="text-sm text-gray-500 mt-0.5">
             Request #{request.requestNumber} · Requested {shortDate(request.createdAt)}
+            {request.preferredDate && (
+              <span className="font-medium text-blue-700">
+                {" "}· Client prefers {shortDate(request.preferredDate)}
+              </span>
+            )}
           </p>
         </div>
         <RequestActions
@@ -71,7 +76,11 @@ export default async function RequestDetailPage({
                 Appointments
               </h2>
               <Link
-                href={`/app/appointments/new?requestId=${request.id}`}
+                href={`/app/appointments/new?requestId=${request.id}${
+                  request.preferredDate
+                    ? `&date=${request.preferredDate.toISOString().slice(0, 10)}`
+                    : ""
+                }`}
                 className="text-xs text-green-600 hover:underline font-medium"
               >
                 + Schedule Appointment

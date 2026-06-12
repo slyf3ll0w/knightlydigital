@@ -19,18 +19,46 @@ export type CustomField = {
   required: boolean;
   placeholder?: string;
   options?: FieldOption[]; // select/radio only
+  contactFieldId?: string; // map this answer into a client custom field
+};
+
+export type StdField = { show: boolean; required: boolean; label: string };
+
+/** A sellable service offered on SERVICE_REQUEST forms (price snapshot). */
+export type FormService = {
+  id: string;
+  name: string;
+  price: number;
+  description?: string;
 };
 
 export type BookingFormConfig = {
+  // legacy toggles, superseded by fields.address/date but kept readable so
+  // old saved configs sanitize cleanly
   showAddress: boolean;
   showPreferredDate: boolean;
+  header: {
+    title: string; // empty = company name
+    description: string; // empty = default tagline
+  };
+  fields: {
+    nameFirstLabel: string;
+    nameLastLabel: string;
+    email: StdField;
+    phone: StdField;
+    address: StdField;
+    date: StdField;
+  };
   service: {
+    show: boolean;
+    required: boolean;
     label: string;
     type: "text" | "select" | "radio";
     placeholder?: string;
     options: FieldOption[]; // select/radio only
   };
   message: {
+    show: boolean;
     label: string;
     placeholder?: string;
     required: boolean;
@@ -45,6 +73,12 @@ export type BookingFormConfig = {
     fontSize: "sm" | "md" | "lg";
   };
   customFields: CustomField[];
+  // SERVICE_REQUEST extras
+  services: FormService[];
+  serviceRequest: {
+    allowMultiple: boolean;
+    invoiceMode: "draft" | "send";
+  };
 };
 
 /** Form scale per font size — applied as CSS zoom so everything tracks. */
@@ -59,13 +93,25 @@ export const GOOGLE_FONT_RE = /^[a-zA-Z0-9 ]{2,40}$/;
 export const DEFAULT_BOOKING_FORM: BookingFormConfig = {
   showAddress: true,
   showPreferredDate: true,
+  header: { title: "", description: "" },
+  fields: {
+    nameFirstLabel: "First name",
+    nameLastLabel: "Last name",
+    email: { show: true, required: false, label: "Email" },
+    phone: { show: true, required: true, label: "Phone" },
+    address: { show: true, required: false, label: "Service address" },
+    date: { show: true, required: false, label: "Preferred date" },
+  },
   service: {
+    show: true,
+    required: true,
     label: "Service needed",
     type: "text",
     placeholder: "e.g. AC tune-up, Lawn mowing, Roof inspection",
     options: [],
   },
   message: {
+    show: true,
     label: "Message",
     placeholder: "Any additional details...",
     required: false,
@@ -78,6 +124,8 @@ export const DEFAULT_BOOKING_FORM: BookingFormConfig = {
     fontSize: "md",
   },
   customFields: [],
+  services: [],
+  serviceRequest: { allowMultiple: false, invoiceMode: "draft" },
 };
 
 const MAX_CUSTOM_FIELDS = 10;
@@ -130,21 +178,75 @@ export function sanitizeBookingForm(raw: unknown): BookingFormConfig {
             required: field.required === true,
             placeholder: str(field.placeholder, 120) || undefined,
             options: type === "select" || type === "radio" ? sanitizeOptions(field.options) : undefined,
+            contactFieldId: str(field.contactFieldId, 40) || undefined,
           };
         })
         .filter((f) => f.label && (!["select", "radio"].includes(f.type) || (f.options?.length ?? 0) > 0))
     : [];
 
+  const header = (r.header ?? {}) as Record<string, unknown>;
+  const rawFields = (r.fields ?? {}) as Record<string, unknown>;
+  // legacy configs only carried showAddress/showPreferredDate toggles
+  const legacyAddressShow = r.showAddress !== false;
+  const legacyDateShow = r.showPreferredDate !== false;
+  const stdField = (key: string, dflt: StdField, legacyShow: boolean): StdField => {
+    const f = (rawFields[key] ?? {}) as Record<string, unknown>;
+    const hasNew = rawFields[key] !== undefined;
+    return {
+      show: hasNew ? f.show !== false : legacyShow,
+      required: f.required === true || (!hasNew && dflt.required),
+      label: str(f.label, 60) || dflt.label,
+    };
+  };
+  const fields: BookingFormConfig["fields"] = {
+    nameFirstLabel: str(rawFields.nameFirstLabel, 60) || d.fields.nameFirstLabel,
+    nameLastLabel: str(rawFields.nameLastLabel, 60) || d.fields.nameLastLabel,
+    email: stdField("email", d.fields.email, true),
+    phone: stdField("phone", d.fields.phone, true),
+    address: stdField("address", d.fields.address, legacyAddressShow),
+    date: stdField("date", d.fields.date, legacyDateShow),
+  };
+  // floor: a submission must be able to reach someone — keep at least one
+  // of email/phone on the form
+  if (!fields.email.show && !fields.phone.show) {
+    fields.phone = { ...d.fields.phone, show: true, required: true };
+  }
+
+  const services: FormService[] = Array.isArray(r.services)
+    ? r.services
+        .slice(0, 30)
+        .map((s, i) => {
+          const sv = (s ?? {}) as Record<string, unknown>;
+          const price = Number(sv.price);
+          return {
+            id: str(sv.id, 40) || `svc-${i}`,
+            name: str(sv.name, 100),
+            price: Number.isFinite(price) && price >= 0 ? Math.round(price * 100) / 100 : 0,
+            description: str(sv.description, 200) || undefined,
+          };
+        })
+        .filter((s) => s.name)
+    : [];
+  const serviceRequest = (r.serviceRequest ?? {}) as Record<string, unknown>;
+
   return {
-    showAddress: r.showAddress !== false,
-    showPreferredDate: r.showPreferredDate !== false,
+    showAddress: fields.address.show,
+    showPreferredDate: fields.date.show,
+    header: {
+      title: str(header.title, 100),
+      description: str(header.description, 300),
+    },
+    fields,
     service: {
+      show: service.show !== false,
+      required: service.required !== false,
       label: str(service.label, 60) || d.service.label,
       type: serviceType,
       placeholder: str(service.placeholder, 120) || d.service.placeholder,
       options: sanitizeOptions(service.options),
     },
     message: {
+      show: message.show !== false,
       label: str(message.label, 60) || d.message.label,
       placeholder: str(message.placeholder, 200) || d.message.placeholder,
       required: message.required === true,
@@ -163,6 +265,11 @@ export function sanitizeBookingForm(raw: unknown): BookingFormConfig {
         appearance.fontSize === "sm" || appearance.fontSize === "lg" ? appearance.fontSize : "md",
     },
     customFields,
+    services,
+    serviceRequest: {
+      allowMultiple: serviceRequest.allowMultiple === true,
+      invoiceMode: serviceRequest.invoiceMode === "send" ? "send" : "draft",
+    },
   };
 }
 

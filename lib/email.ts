@@ -116,3 +116,46 @@ export function newRequestEmail({
 
   return { subject: `New request: ${title}`, html };
 }
+
+/** Payment-link email to a client whose service-request form auto-sent an invoice. */
+export function invoiceLinkEmail({
+  companyName,
+  invoiceNumber,
+  total,
+  payUrl,
+  serviceNames,
+}: {
+  companyName: string;
+  invoiceNumber: number;
+  total: number;
+  payUrl: string;
+  serviceNames: string[];
+}): { subject: string; html: string } {
+  const items = serviceNames
+    .map((s) => `<p style="margin:0 0 4px;color:#374151;font-size:14px;">• ${esc(s)}</p>`)
+    .join("");
+  const html = `
+<div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f3f4f6;padding:24px;">
+  <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
+    <div style="background:#0C0F0C;padding:16px 24px;">
+      <p style="margin:0;color:#22C55E;font-size:13px;font-weight:700;letter-spacing:0.5px;">${esc(companyName.toUpperCase())}</p>
+    </div>
+    <div style="padding:24px;">
+      <p style="margin:0 0 16px;color:#111827;font-size:15px;">
+        Thanks for your request — here's your invoice from ${esc(companyName)}.
+      </p>
+      <p style="margin:0 0 4px;color:#6b7280;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Invoice #${invoiceNumber}</p>
+      ${items}
+      <p style="margin:16px 0 0;color:#111827;font-size:20px;font-weight:700;">$${total.toFixed(2)}</p>
+      <a href="${payUrl}"
+         style="display:inline-block;margin-top:20px;background:#22C55E;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:10px 20px;border-radius:6px;">
+        View &amp; Pay Invoice
+      </a>
+    </div>
+    <div style="padding:12px 24px;border-top:1px solid #f3f4f6;">
+      <p style="margin:0;color:#9ca3af;font-size:12px;">Sent by ${esc(companyName)} via Streamflaire Hub</p>
+    </div>
+  </div>
+</div>`;
+  return { subject: `Your invoice from ${companyName} — #${invoiceNumber}`, html };
+}

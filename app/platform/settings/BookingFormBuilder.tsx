@@ -98,11 +98,25 @@ function OptionRows({
 export default function BookingFormBuilder({
   config,
   onChange,
+  formType = "BOOKING",
+  contactFieldDefs = [],
 }: {
   config: BookingFormConfig;
   onChange: (config: BookingFormConfig) => void;
+  formType?: "INQUIRY" | "BOOKING" | "SERVICE_REQUEST";
+  contactFieldDefs?: { id: string; label: string }[];
 }) {
   const set = (patch: Partial<BookingFormConfig>) => onChange({ ...config, ...patch });
+  const setHeader = (patch: Partial<BookingFormConfig["header"]>) =>
+    set({ header: { ...config.header, ...patch } });
+  const setStd = (key: "email" | "phone" | "address" | "date", patch: Partial<BookingFormConfig["fields"]["email"]>) =>
+    set({
+      fields: { ...config.fields, [key]: { ...config.fields[key], ...patch } },
+      ...(key === "address" && patch.show !== undefined ? { showAddress: patch.show } : {}),
+      ...(key === "date" && patch.show !== undefined ? { showPreferredDate: patch.show } : {}),
+    });
+  const setSR = (patch: Partial<BookingFormConfig["serviceRequest"]>) =>
+    set({ serviceRequest: { ...config.serviceRequest, ...patch } });
   const setAppearance = (patch: Partial<BookingFormConfig["appearance"]>) =>
     set({ appearance: { ...config.appearance, ...patch } });
   const setService = (patch: Partial<BookingFormConfig["service"]>) =>
@@ -163,8 +177,70 @@ export default function BookingFormBuilder({
     </button>
   );
 
+  const stdRow = (key: "email" | "phone" | "address" | "date", title: string) => {
+    const f = config.fields[key];
+    return (
+      <div className="flex flex-wrap items-center gap-3 border border-gray-200 rounded-lg p-3 bg-gray-50/50">
+        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide w-16">{title}</span>
+        <input
+          type="text"
+          value={f.label}
+          onChange={(e) => setStd(key, { label: e.target.value })}
+          className={`${inputClass} flex-1 min-w-[140px]`}
+        />
+        <label className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={f.show}
+            onChange={(e) => setStd(key, { show: e.target.checked })}
+            className="accent-green-600"
+          />
+          Show
+        </label>
+        <label className={`flex items-center gap-1.5 text-xs cursor-pointer ${f.show ? "text-gray-600" : "text-gray-300"}`}>
+          <input
+            type="checkbox"
+            checked={f.required}
+            disabled={!f.show}
+            onChange={(e) => setStd(key, { required: e.target.checked })}
+            className="accent-green-600"
+          />
+          Required
+        </label>
+      </div>
+    );
+  };
+
+  function setServiceRow(id: string, patch: Partial<BookingFormConfig["services"][number]>) {
+    set({ services: config.services.map((s) => (s.id === id ? { ...s, ...patch } : s)) });
+  }
+
   return (
     <div className="space-y-4">
+      {/* Header text */}
+      <Card title="Header" hint="the title and description shown at the top of the form">
+        <div>
+          <label className={smallLabel}>Title</label>
+          <input
+            type="text"
+            value={config.header.title}
+            onChange={(e) => setHeader({ title: e.target.value })}
+            placeholder="Defaults to your company name"
+            className={inputClass}
+          />
+        </div>
+        <div>
+          <label className={smallLabel}>Description</label>
+          <input
+            type="text"
+            value={config.header.description}
+            onChange={(e) => setHeader({ description: e.target.value })}
+            placeholder="A short line under the title"
+            className={inputClass}
+          />
+        </div>
+      </Card>
+
       {/* Appearance */}
       <Card title="Appearance" hint="saved with the form — applies everywhere it's shown">
         <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
@@ -201,31 +277,144 @@ export default function BookingFormBuilder({
       </Card>
 
       {/* Built-in fields */}
-      <Card title="Standard fields" hint="name, email, and phone are always asked">
-        <div className="flex flex-wrap gap-x-6 gap-y-2">
-          <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+      <Card title="Standard fields" hint="rename anything; name is the only field that always shows">
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className={smallLabel}>First-name label</label>
             <input
-              type="checkbox"
-              checked={config.showAddress}
-              onChange={(e) => set({ showAddress: e.target.checked })}
-              className="accent-green-600"
+              type="text"
+              value={config.fields.nameFirstLabel}
+              onChange={(e) => set({ fields: { ...config.fields, nameFirstLabel: e.target.value } })}
+              className={inputClass}
             />
-            Ask for service address
-          </label>
-          <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+          </div>
+          <div>
+            <label className={smallLabel}>Last-name label</label>
             <input
-              type="checkbox"
-              checked={config.showPreferredDate}
-              onChange={(e) => set({ showPreferredDate: e.target.checked })}
-              className="accent-green-600"
+              type="text"
+              value={config.fields.nameLastLabel}
+              onChange={(e) => set({ fields: { ...config.fields, nameLastLabel: e.target.value } })}
+              className={inputClass}
             />
-            Ask for preferred date
-          </label>
+          </div>
         </div>
+        <div className="space-y-2">
+          {stdRow("email", "Email")}
+          {stdRow("phone", "Phone")}
+          {stdRow("address", "Address")}
+          {stdRow("date", "Date")}
+        </div>
+        <p className="text-xs text-gray-400">
+          At least one of email or phone stays on the form so you can reach the person.
+        </p>
       </Card>
 
+      {/* Services (service-request forms) */}
+      {formType === "SERVICE_REQUEST" && (
+        <Card title="Services offered" hint="a submission auto-creates an invoice for the chosen services">
+          <div className="space-y-2">
+            {config.services.map((s) => (
+              <div key={s.id} className="border border-gray-200 rounded-lg p-3 bg-gray-50/50 space-y-2">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={s.name}
+                    onChange={(e) => setServiceRow(s.id, { name: e.target.value })}
+                    placeholder="Service name"
+                    className={`${inputClass} flex-1`}
+                  />
+                  <div className="flex items-center gap-1">
+                    <span className="text-sm text-gray-400">$</span>
+                    <input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      value={s.price}
+                      onChange={(e) => setServiceRow(s.id, { price: Number(e.target.value) || 0 })}
+                      className={`${inputClass} w-24`}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => set({ services: config.services.filter((x) => x.id !== s.id) })}
+                    className="text-gray-400 hover:text-red-500"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  value={s.description ?? ""}
+                  onChange={(e) => setServiceRow(s.id, { description: e.target.value || undefined })}
+                  placeholder="Short description (optional)"
+                  className={inputClass}
+                />
+              </div>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() =>
+              set({
+                services: [
+                  ...config.services,
+                  { id: `svc-${Math.random().toString(36).slice(2, 8)}`, name: "", price: 0 },
+                ],
+              })
+            }
+            className="flex items-center gap-1.5 px-3 py-2 border border-dashed border-gray-300 text-sm font-medium text-gray-600 rounded hover:border-gray-400 hover:bg-gray-50 transition-colors"
+          >
+            <Plus size={14} />
+            Add service
+          </button>
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 pt-1">
+            <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={config.serviceRequest.allowMultiple}
+                onChange={(e) => setSR({ allowMultiple: e.target.checked })}
+                className="accent-green-600"
+              />
+              Clients can pick more than one
+            </label>
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-gray-700">Invoice:</label>
+              <select
+                value={config.serviceRequest.invoiceMode}
+                onChange={(e) => setSR({ invoiceMode: e.target.value as "draft" | "send" })}
+                className={`${inputClass} bg-white w-auto`}
+              >
+                <option value="draft">Save as draft for review</option>
+                <option value="send">Auto-send with payment link</option>
+              </select>
+            </div>
+          </div>
+        </Card>
+      )}
+
       {/* Service question */}
+      {formType !== "SERVICE_REQUEST" && (
       <Card title="Service question" hint="becomes the request title">
+        <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={config.service.show}
+            onChange={(e) => set({ service: { ...config.service, show: e.target.checked } })}
+            className="accent-green-600"
+          />
+          Ask what service they need
+        </label>
+        {config.service.show && (
+        <>
+        <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={config.service.required}
+            onChange={(e) => set({ service: { ...config.service, required: e.target.checked } })}
+            className="accent-green-600"
+          />
+          Required
+        </label>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className={smallLabel}>Label</label>
@@ -266,10 +455,13 @@ export default function BookingFormBuilder({
             withDescriptions={config.service.type === "radio"}
           />
         )}
+        </>
+        )}
       </Card>
+      )}
 
       {/* Custom fields */}
-      <Card title="Custom fields" hint="answers are added to the request notes">
+      <Card title="Custom fields" hint="answers go to the request notes — or map them to a client field">
         {config.customFields.length === 0 && (
           <p className="text-xs text-gray-400">
             None yet — add questions specific to your business (budget, city, gate code...).
@@ -324,6 +516,21 @@ export default function BookingFormBuilder({
                   className={inputClass}
                 />
               )}
+              {contactFieldDefs.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-gray-500 shrink-0">Save answer to client field:</label>
+                  <select
+                    value={f.contactFieldId ?? ""}
+                    onChange={(e) => setField(f.id, { contactFieldId: e.target.value || undefined })}
+                    className={`${inputClass} bg-white`}
+                  >
+                    <option value="">Request notes only</option>
+                    {contactFieldDefs.map((d) => (
+                      <option key={d.id} value={d.id}>{d.label}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <div className="flex items-center justify-between">
                 <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
                   <input
@@ -358,6 +565,15 @@ export default function BookingFormBuilder({
 
       {/* Message box */}
       <Card title="Message box">
+        <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={config.message.show}
+            onChange={(e) => setMessage({ show: e.target.checked })}
+            className="accent-green-600"
+          />
+          Show a message box
+        </label>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className={smallLabel}>Label</label>

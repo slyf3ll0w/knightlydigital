@@ -54,6 +54,7 @@ model Company {
   reviewRequests  ReviewRequest[]
   appointments    Appointment[]
   contactFieldDefs ContactFieldDef[]
+  webForms        WebForm[]
 
   @@index([slug])
 }
@@ -187,6 +188,7 @@ model Request {
   title         String
   details       String?
   status        RequestStatus @default(NEW)
+  preferredDate DateTime? // client's requested date from booking-type forms (date-only, noon anchor)
   source        String        @default("internal") // internal | client_hub | booking_form
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
@@ -198,6 +200,36 @@ model Request {
   @@unique([companyId, requestNumber])
   @@index([companyId])
   @@index([companyId, status])
+}
+
+// ─── Web forms (public booking/inquiry/service-request forms) ────────────────
+
+enum WebFormType {
+  INQUIRY // collect info → lead + request
+  BOOKING // + preferred date for an estimate
+  SERVICE_REQUEST // pick services → auto-creates an invoice (draft or sent)
+}
+
+// A company can run any number of public forms, each fully customizable
+// (header, every field label, appearance). The company's pre-multi-form
+// config (Company.bookingForm Json) is lazily migrated into the row marked
+// isDefault, which keeps the original /book/[slug] and /embed/[slug] URLs
+// (and snippets already on customer sites) working unchanged.
+model WebForm {
+  id        String      @id @default(cuid())
+  companyId String
+  company   Company     @relation(fields: [companyId], references: [id])
+  name      String // internal label, also the request title fallback
+  slug      String // URL part: /book/[companySlug]/[slug]
+  type      WebFormType @default(INQUIRY)
+  isDefault Boolean     @default(false)
+  isActive  Boolean     @default(true)
+  config    Json
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@unique([companyId, slug])
+  @@index([companyId])
 }
 
 // ─── Appointments (sales meetings / estimates) ───────────────────────────────

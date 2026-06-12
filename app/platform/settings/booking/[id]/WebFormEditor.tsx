@@ -3,37 +3,54 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Check, Copy, ExternalLink, Loader2 } from "lucide-react";
-import BookingFormBuilder from "../BookingFormBuilder";
+import BookingFormBuilder from "../../BookingFormBuilder";
 import BookingForm from "@/app/book/[slug]/BookingForm";
 import {
   bookingAccent,
   sanitizeBookingForm,
   FONT_SIZE_ZOOM,
   GOOGLE_FONT_RE,
+  type BookingFormConfig,
 } from "@/lib/booking-form";
 
-type Company = { name: string; slug: string; brandColor: string | null; bookingForm: unknown };
+type FormMeta = {
+  id: string;
+  name: string;
+  slug: string;
+  type: "INQUIRY" | "BOOKING" | "SERVICE_REQUEST";
+  isDefault: boolean;
+  config: BookingFormConfig;
+};
+
+const TYPE_LABEL = {
+  INQUIRY: "Inquiry",
+  BOOKING: "Booking",
+  SERVICE_REQUEST: "Service Request",
+} as const;
 
 /**
- * Booking Form page: edit the form on the left, watch the real thing update
- * live on the right, then grab the share link / embed snippet below.
+ * Per-form editor: edit on the left, live preview on the right, share link
+ * and embed snippet below. Saves to the form's own row.
  */
-export default function BookingSettingsClient({
+export default function WebFormEditor({
+  form,
   company,
   baseUrl,
+  contactFieldDefs,
 }: {
-  company: Company;
+  form: FormMeta;
+  company: { name: string; slug: string; brandColor: string | null };
   baseUrl: string;
+  contactFieldDefs: { id: string; label: string }[];
 }) {
-  const [config, setConfig] = useState(() => sanitizeBookingForm(company.bookingForm));
+  const [config, setConfig] = useState(form.config);
+  const [name, setName] = useState(form.name);
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [copied, setCopied] = useState(false);
   const [embedCopied, setEmbedCopied] = useState(false);
 
-  // Trimmed/validated copy for the preview, so half-typed options don't
-  // render as empty choice cards
   const preview = useMemo(() => sanitizeBookingForm(config), [config]);
   const dark = preview.appearance.theme === "dark";
   const transparent = preview.appearance.theme === "transparent";
@@ -43,15 +60,14 @@ export default function BookingSettingsClient({
       ? preview.appearance.font
       : null;
 
-  const bookingUrl = `${baseUrl}/book/${company.slug}`;
-  // Style/font/size ride in the saved config now — the snippet stays clean.
-  // Iframe + listener pair: the embed posts its content height
-  // (jobflow:height) and this script resizes the matching iframe.
+  const pathSuffix = form.isDefault ? company.slug : `${company.slug}/${form.slug}`;
+  const bookingUrl = `${baseUrl}/book/${pathSuffix}`;
+  const embedKey = form.isDefault ? company.slug : `${company.slug}/${form.slug}`;
   const embedOrigin = baseUrl ? new URL(baseUrl).origin : "";
-  const embedSnippet = `<iframe src="${baseUrl}/embed/${company.slug}" data-jobflow="${company.slug}" style="width:100%;max-width:560px;height:760px;border:0;" title="Request a service from ${company.name}"></iframe>
-<script>window.addEventListener("message",function(e){var d=e.data;if(e.origin==="${embedOrigin}"&&d&&d.type==="jobflow:height"&&d.slug==="${company.slug}"){var f=document.querySelector('iframe[data-jobflow="${company.slug}"]');if(f)f.style.height=d.height+"px";}});</script>`;
+  const embedSnippet = `<iframe src="${baseUrl}/embed/${pathSuffix}" data-jobflow="${embedKey}" style="width:100%;max-width:560px;height:760px;border:0;" title="${form.name} — ${company.name}"></iframe>
+<script>window.addEventListener("message",function(e){var d=e.data;if(e.origin==="${embedOrigin}"&&d&&d.type==="jobflow:height"&&d.slug==="${embedKey}"){var f=document.querySelector('iframe[data-jobflow="${embedKey}"]');if(f)f.style.height=d.height+"px";}});</script>`;
 
-  function onChange(next: typeof config) {
+  function onChange(next: BookingFormConfig) {
     setConfig(next);
     setDirty(true);
     setSaved(false);
@@ -59,10 +75,10 @@ export default function BookingSettingsClient({
 
   async function save() {
     setSaving(true);
-    await fetch("/api/app/settings", {
+    await fetch(`/api/app/web-forms/${form.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ bookingForm: config }),
+      body: JSON.stringify({ config, name }),
     });
     setSaving(false);
     setDirty(false);
@@ -81,13 +97,22 @@ export default function BookingSettingsClient({
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>
           <div className="flex items-center gap-3">
-            <Link href="/app/settings" className="text-gray-400 hover:text-gray-600">
+            <Link href="/app/settings/booking" className="text-gray-400 hover:text-gray-600">
               <ArrowLeft size={18} />
             </Link>
-            <h1 className="text-2xl font-bold text-gray-900">Booking Form</h1>
+            <input
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value);
+                setDirty(true);
+                setSaved(false);
+              }}
+              className="text-2xl font-bold text-gray-900 bg-transparent border-b border-transparent hover:border-gray-300 focus:border-green-500 focus:outline-none min-w-0"
+            />
           </div>
           <p className="text-sm text-gray-500 lg:ml-[30px]">
-            What clients fill out on your booking page and embedded form
+            {TYPE_LABEL[form.type]} form
+            {form.type === "SERVICE_REQUEST" && " — submissions create an invoice automatically"}
           </p>
         </div>
         <button
@@ -102,8 +127,12 @@ export default function BookingSettingsClient({
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-        {/* Editor */}
-        <BookingFormBuilder config={config} onChange={onChange} />
+        <BookingFormBuilder
+          config={config}
+          onChange={onChange}
+          formType={form.type}
+          contactFieldDefs={contactFieldDefs}
+        />
 
         {/* Live preview */}
         <div className="lg:sticky lg:top-6">
@@ -146,10 +175,12 @@ export default function BookingSettingsClient({
             >
               <BookingForm
                 companySlug={company.slug}
+                formType={form.type}
                 theme={dark || transparent ? "dark" : "light"}
                 accent={accent}
                 transparent={transparent}
                 config={preview}
+                showHeader
               />
             </div>
           </div>
@@ -159,7 +190,7 @@ export default function BookingSettingsClient({
       {/* Share link + embed */}
       <div className="bg-white border border-gray-200 rounded-lg p-5 mt-6">
         <div className="mb-3">
-          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Share Your Form</h2>
+          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Share This Form</h2>
           <p className="text-xs text-gray-400 mt-0.5">Share this link on your website or Google profile</p>
         </div>
         <div className="flex items-center gap-2 p-3 bg-gray-50 border border-gray-200 rounded">
@@ -194,7 +225,7 @@ export default function BookingSettingsClient({
             {embedSnippet}
           </pre>
           <a
-            href={`${baseUrl}/embed/${company.slug}`}
+            href={`${baseUrl}/embed/${pathSuffix}`}
             target="_blank"
             rel="noreferrer"
             className="inline-flex items-center gap-1 mt-2 text-xs font-medium text-green-600 hover:underline"
