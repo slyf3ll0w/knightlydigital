@@ -280,6 +280,24 @@ request both created.
    placeholders filled → signed on the public page → Signed banner w/
    name/time/IP).
 
+### 3h. Five-feature batch — SHIPPED 2026-06-12, verified live
+
+1. **Expenses + profit** (owner/admin only): Expense model; /app/expenses
+   page (log dated transactions w/ category, delete, CSV export for any
+   date range via /api/app/expenses?format=csv&from&to). Insights shows
+   Revenue / Expenses / Profit cards for the selected range.
+2. **Settings unsaved-changes guard** — shared lib/use-unsaved-warning.ts
+   hook (beforeunload + capture-phase link confirm) on SettingsClient and
+   the form editor.
+3. **Notes on clients/leads** — ContactNote model (job-notes pattern),
+   Notes & Activity feed on the contact page, POST
+   /api/app/contacts/[id]/notes (seller-scoped).
+4. Sidebar label **Booking Form → Forms**.
+5. **Company-branded client portals** — generateMetadata on
+   book/embed/quote/pay/hub(layout)/contract pages via lib/client-meta.ts:
+   tab title = company name (+ context), favicon = their uploaded logo
+   when present. Verified: "Streamflare Demo Co — Book a Service" etc.
+
 ### 4. Email automations via Resend — Phase 1 SHIPPED 2026-06-11 ← NEXT UP (Phase 2)
 
 - DONE: new-request notification to company.email from booking form + client
