@@ -320,15 +320,30 @@ prefills the quote's discount alongside its line items. Verified full
 loop: quote $200 w/ 10% → $180 → approve → convert → New Invoice arrives
 with 10%/-$20 prefilled. Converted-quote delete also re-verified.
 
-### 3k. Onboarding walkthrough — PLANNED (David approved exploring, build pending)
+### 3k. Onboarding walkthrough — SHIPPED 2026-06-12, verified live
 
-Home-built guided tour (no library): TourGuide client component in the
-shell; steps target data-tour attributes, spotlight overlay + card with
-Next/Back/Skip; ~8–10 steps following the lifecycle story (dashboard →
-create → requests → quotes → schedule → invoices → forms → team);
-role-aware steps; User.tourCompletedAt fires it on first dashboard visit,
-replay from profile. (The companion "Getting started" checklist idea is
-parked in `ideas.md`.)
+Home-built guided tour, no library: `components/TourGuide.tsx` rendered in
+AppShell. Steps target `data-tour` attributes (AppShell nav links — both
+desktop sidebar and mobile tab bar carry them, the visible one wins — both
+create buttons, dashboard workflow/today sections); spotlight = positioned
+div with a 9999px box-shadow cutout, animates between steps; card anchors
+under/over the target on desktop, bottom sheet on phones (flips to top when
+the target itself is low, e.g. the tab-bar create button). 11 steps max,
+role-trimmed (`show` per step mirrors nav role rules; techs get ~5): welcome
+→ workflow → today → create → requests → quotes → schedule → invoices →
+forms → team → done. Steps whose target isn't on screen at the current
+breakpoint (sidebar-only items on phones) fall back to a centered card.
+
+`User.tourCompletedAt` (null = fire on next dashboard visit — existing
+users see it once, intended); finish or skip POSTs `/api/app/tour`;
+sessionStorage guard stops same-session re-fires before the layout
+refetches. Replay: "Welcome tour" card on /app/settings/profile links to
+`/app/dashboard?tour=1` (query param forces it, no DB reset). Verified live
+on demo co: auto-fire, spotlight steps desktop + mobile, finish persists
+(reload doesn't re-fire), ?tour=1 replays. NOTE: demo owner's
+tourCompletedAt is now set; use ?tour=1 to demo it.
+
+(The companion "Getting started" checklist idea stays parked in `ideas.md`.)
 
 ### 4. Email automations via Resend — Phase 1 SHIPPED 2026-06-11 ← NEXT UP (Phase 2)
 
