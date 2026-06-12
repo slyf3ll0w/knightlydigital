@@ -298,6 +298,19 @@ request both created.
    tab title = company name (+ context), favicon = their uploaded logo
    when present. Verified: "Streamflare Demo Co — Book a Service" etc.
 
+### 3i. Quote edit + delete — SHIPPED 2026-06-12, verified live
+
+Edit Quote (pencil + ⋯ menu) on DRAFT and AWAITING_RESPONSE quotes: full
+editor prefilled (client select locked; line items/tax/deposit/messages
+editable), PATCH recomputes totals and replaces line items. Locked once
+the client responds (David's rule): CHANGES_REQUESTED / APPROVED /
+CONVERTED / ARCHIVED reject edits with an explanatory message and the
+/edit URL redirects; the lock is enforced at API + page + UI. Delete now
+works on every status incl. CONVERTED (the job stays; confirm says so)
+and failures alert instead of silently doing nothing. Verified live:
+created → edited $150→$175 → forced CHANGES_REQUESTED → edit rejected at
+all layers → deleted.
+
 ### 4. Email automations via Resend — Phase 1 SHIPPED 2026-06-11 ← NEXT UP (Phase 2)
 
 - DONE: new-request notification to company.email from booking form + client
