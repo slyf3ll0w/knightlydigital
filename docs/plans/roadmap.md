@@ -258,6 +258,28 @@ on a client; "Order a Wash" SERVICE_REQUEST form created (Driveway Wash
 $149) → public submission as new lead Olivia Park → Draft invoice $149 +
 request both created.
 
+### 3g. Small-features batch — SHIPPED 2026-06-12, verified live
+
+1. **Google review request** — completing a job (status →
+   REQUIRES_INVOICING) emails the client a review ask when
+   Company.reviewLink is set + contact has email; once per job (recorded
+   in ReviewRequest); env-gated on Resend. Verified the gate: completing a
+   job with no reviewLink set is a clean no-op.
+2. **Invoice discounts** — Invoice.discountType/discountValue/discount
+   (% or fixed off the subtotal, tax computed after); editor control with
+   live totals; green discount row on the invoice detail + public pay page.
+3. **Service contracts + e-sign** — ContractTemplate (Settings → Contract
+   Templates; {{client_name}}/{{company_name}}/{{date}} placeholders) +
+   Contract (body snapshot, DRAFT/SENT/SIGNED/VOID). Issue from the client
+   Create menu → /app/contracts/new → detail page w/ Copy Signing Link.
+   Public /contract/[token]: typed-name signature + consent checkbox →
+   SIGNED w/ timestamp + cf-connecting-ip (same e-sign approach as quote
+   approval). Signed contracts lock against edits; void/reopen; manager
+   delete. Contract rows in the client work table; "contract" StatusChip
+   kind. Verified live end-to-end (template → contract for Marcus Webb,
+   placeholders filled → signed on the public page → Signed banner w/
+   name/time/IP).
+
 ### 4. Email automations via Resend — Phase 1 SHIPPED 2026-06-11 ← NEXT UP (Phase 2)
 
 - DONE: new-request notification to company.email from booking form + client
