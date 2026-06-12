@@ -9,6 +9,7 @@ import ContactCreateMenu from "./ContactCreateMenu";
 import DeleteContactButton from "./DeleteContactButton";
 import AssignLead from "./AssignLead";
 import CustomFieldsCard from "./CustomFieldsCard";
+import ContactNoteForm from "./ContactNoteForm";
 import { getActiveFieldDefs } from "@/lib/contact-fields";
 
 export default async function ContactDetailPage({
@@ -30,6 +31,7 @@ export default async function ContactDetailPage({
         requests: { orderBy: { createdAt: "desc" } },
         appointments: { orderBy: { createdAt: "desc" } },
         contracts: { orderBy: { createdAt: "desc" } },
+        contactNotes: { include: { user: true }, orderBy: { createdAt: "asc" } },
         quotes: { orderBy: { createdAt: "desc" } },
         jobs: { orderBy: { createdAt: "desc" } },
         invoices: { include: { payments: true }, orderBy: { createdAt: "desc" } },
@@ -253,6 +255,39 @@ export default async function ContactDetailPage({
                 </div>
               )}
             </dl>
+          </div>
+
+          {/* Notes & activity (same pattern as job notes) */}
+          <div className="bg-white border border-gray-200 rounded-lg">
+            <div className="px-5 py-4 border-b border-gray-100">
+              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                Notes &amp; Activity
+              </h2>
+            </div>
+            <div className="p-4 space-y-3">
+              {contact.contactNotes.map((note) => (
+                <div key={note.id} className="flex gap-3">
+                  <div className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-600 shrink-0">
+                    {note.user.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="flex-1 bg-gray-50 rounded-lg px-3 py-2">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-xs font-semibold text-gray-700">{note.user.name}</span>
+                      <span className="text-xs text-gray-400">
+                        {note.createdAt.toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          hour: "numeric",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-700 whitespace-pre-wrap">{note.body}</p>
+                  </div>
+                </div>
+              ))}
+              <ContactNoteForm contactId={contact.id} />
+            </div>
           </div>
         </div>
 

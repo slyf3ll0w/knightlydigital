@@ -133,6 +133,15 @@ export default async function InsightsPage({
   }
   const byService = aggregate(serviceRows);
 
+  // Profit = collected revenue − logged business expenses for the same range
+  const expenseAgg = await prisma.expense.aggregate({
+    where: { companyId, ...(since ? { incurredAt: { gte: since } } : {}) },
+    _sum: { amount: true },
+    _count: true,
+  });
+  const totalExpenses = Number(expenseAgg._sum.amount) || 0;
+  const profit = totalRevenue - totalExpenses;
+
   return (
     <div className="p-4 lg:p-8 max-w-6xl mx-auto">
       <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
@@ -159,12 +168,30 @@ export default async function InsightsPage({
         </div>
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-lg p-5 mb-6">
-        <p className="text-xs font-medium text-gray-500 mb-1">Collected revenue</p>
-        <p className="text-3xl font-bold text-gray-900">{money(totalRevenue)}</p>
-        <p className="text-xs text-gray-500 mt-0.5">
-          {payments.length} {payments.length === 1 ? "payment" : "payments"} in this period
-        </p>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        <div className="bg-white border border-gray-200 rounded-lg p-5">
+          <p className="text-xs font-medium text-gray-500 mb-1">Collected revenue</p>
+          <p className="text-3xl font-bold text-gray-900">{money(totalRevenue)}</p>
+          <p className="text-xs text-gray-500 mt-0.5">
+            {payments.length} {payments.length === 1 ? "payment" : "payments"} in this period
+          </p>
+        </div>
+        <div className="bg-white border border-gray-200 rounded-lg p-5">
+          <p className="text-xs font-medium text-gray-500 mb-1">Expenses</p>
+          <p className="text-3xl font-bold text-gray-900">{money(totalExpenses)}</p>
+          <Link href="/app/expenses" className="text-xs text-green-600 hover:underline mt-0.5 inline-block">
+            {expenseAgg._count > 0
+              ? `${expenseAgg._count} logged — manage →`
+              : "Log expenses to track profit →"}
+          </Link>
+        </div>
+        <div className="bg-white border border-gray-200 rounded-lg p-5">
+          <p className="text-xs font-medium text-gray-500 mb-1">Profit</p>
+          <p className={`text-3xl font-bold ${profit >= 0 ? "text-green-700" : "text-red-600"}`}>
+            {money(profit)}
+          </p>
+          <p className="text-xs text-gray-500 mt-0.5">revenue minus expenses</p>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

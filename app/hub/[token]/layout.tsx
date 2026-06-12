@@ -2,6 +2,16 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import Link from "next/link";
 import { brandHeader, textOn } from "@/lib/branding";
+import { companyMeta } from "@/lib/client-meta";
+
+export async function generateMetadata({ params }: { params: Promise<{ token: string }> }) {
+  const { token } = await params;
+  const contact = await prisma.contact.findUnique({
+    where: { hubToken: token },
+    select: { company: { select: { name: true, logoUrl: true } } },
+  });
+  return companyMeta(contact?.company, "Client Hub");
+}
 
 export default async function HubLayout({
   children,

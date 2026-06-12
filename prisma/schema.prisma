@@ -57,6 +57,7 @@ model Company {
   webForms          WebForm[]
   contractTemplates ContractTemplate[]
   contracts         Contract[]
+  expenses          Expense[]
 
   @@index([slug])
 }
@@ -78,6 +79,7 @@ model User {
 
   assignments      JobAssignment[]
   notes            JobNote[]
+  contactNotes     ContactNote[]
   assignedContacts Contact[]       @relation("AssignedContacts")
   appointments     Appointment[]   @relation("AppointmentAssignee")
 
@@ -165,6 +167,7 @@ model Contact {
   bookingRequests BookingRequest[]
   appointments    Appointment[]
   contracts       Contract[]
+  contactNotes    ContactNote[]
 
   @@index([companyId])
   @@index([companyId, status])
@@ -203,6 +206,36 @@ model Request {
   @@unique([companyId, requestNumber])
   @@index([companyId])
   @@index([companyId, status])
+}
+
+// ─── Business expenses (owner/admin: profit tracking + CSV export) ───────────
+
+model Expense {
+  id          String   @id @default(cuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id])
+  description String
+  category    String?
+  amount      Decimal  @db.Decimal(10, 2)
+  incurredAt  DateTime // transaction date (date-only, noon anchor)
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  @@index([companyId, incurredAt])
+}
+
+// ─── Client notes (same shape as job notes) ──────────────────────────────────
+
+model ContactNote {
+  id        String   @id @default(cuid())
+  contactId String
+  contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  body      String
+  createdAt DateTime @default(now())
+
+  @@index([contactId])
 }
 
 // ─── Service contracts (templates + e-sign) ──────────────────────────────────

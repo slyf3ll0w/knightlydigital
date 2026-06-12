@@ -1,6 +1,16 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
+import { companyMeta } from "@/lib/client-meta";
 import ContractSignPage from "./ContractSignPage";
+
+export async function generateMetadata({ params }: { params: Promise<{ token: string }> }) {
+  const { token } = await params;
+  const contract = await prisma.contract.findUnique({
+    where: { publicToken: token },
+    select: { title: true, company: { select: { name: true, logoUrl: true } } },
+  });
+  return companyMeta(contract?.company, contract?.title);
+}
 
 export default async function PublicContractPage({
   params,

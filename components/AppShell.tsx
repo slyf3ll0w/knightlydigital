@@ -239,7 +239,7 @@ export default function AppShell({
 
       {/* Settings + user */}
       <div className="px-3 py-3 border-t border-white/[0.07] space-y-0.5">
-        {manager && navLink("/app/settings/booking", "Booking Form", Globe)}
+        {manager && navLink("/app/settings/booking", "Forms", Globe)}
         {manager && navLink("/app/settings/team", "Team", UserPlus)}
         {manager && navLink("/app/settings", "Settings", Settings)}
         {!manager && navLink("/app/settings/profile", "My Profile", Settings)}

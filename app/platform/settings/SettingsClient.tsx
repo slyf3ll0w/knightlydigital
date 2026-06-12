@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Loader2, Check, Upload, Trash2 } from "lucide-react";
 import { resizeImageFile } from "@/lib/resize-image";
 import { INDUSTRIES } from "@/lib/pricebooks";
+import { useUnsavedWarning } from "@/lib/use-unsaved-warning";
 
 type Company = {
   id: string; name: string; slug: string; phone: string | null;
@@ -23,6 +24,7 @@ export default function SettingsClient({ company }: { company: Company }) {
   const [logoBusy, setLogoBusy] = useState(false);
   const [logoError, setLogoError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [dirty, setDirty] = useState(false);
   const [form, setForm] = useState({
     name: company.name,
     phone: company.phone ?? "",
@@ -42,7 +44,11 @@ export default function SettingsClient({ company }: { company: Company }) {
 
   function set(field: string, value: string | boolean) {
     setForm((f) => ({ ...f, [field]: value }));
+    setDirty(true);
+    setSaved(false);
   }
+
+  useUnsavedWarning(dirty);
 
   async function uploadLogo(file: File) {
     setLogoError("");
@@ -109,6 +115,7 @@ export default function SettingsClient({ company }: { company: Company }) {
     });
 
     setLoading(false);
+    setDirty(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
     router.refresh();
