@@ -169,10 +169,13 @@ export default function TourGuide({ role, needsTour }: { role: string; needsTour
   // on phones, centered when there's no target.
   const isPhone = typeof window !== "undefined" && window.innerWidth < 640;
   let cardStyle: React.CSSProperties = {};
-  if (isPhone || !spotlight) {
-    cardStyle = isPhone
-      ? { left: 16, right: 16, bottom: 16 }
-      : { left: "50%", top: "50%", transform: "translate(-50%, -50%)" };
+  if (isPhone) {
+    // Bottom sheet — unless the target itself sits low (e.g. the tab bar's
+    // create button), where the sheet would cover it; then pin to the top.
+    const targetLow = !!(spotlight && rect && rect.top > window.innerHeight * 0.55);
+    cardStyle = targetLow ? { left: 16, right: 16, top: 16 } : { left: 16, right: 16, bottom: 16 };
+  } else if (!spotlight) {
+    cardStyle = { left: "50%", top: "50%", transform: "translate(-50%, -50%)" };
   } else if (rect) {
     const below = rect.bottom + 12 + 230 < window.innerHeight;
     const left = Math.min(Math.max(rect.left, 16), window.innerWidth - 356);
