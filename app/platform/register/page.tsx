@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { signIn } from "next-auth/react";
-import { Briefcase, Loader2, ArrowLeft, ArrowRight, Check, CreditCard, Banknote, Bell } from "lucide-react";
+import { Loader2, ArrowLeft, ArrowRight, Check, CreditCard, Banknote, Bell } from "lucide-react";
 import Link from "next/link";
 import TurnstileWidget from "@/components/TurnstileWidget";
 import { INDUSTRIES } from "@/lib/pricebooks";
@@ -166,12 +166,8 @@ export default function RegisterPage() {
         {/* Header: logo + progress */}
         <div className="px-6 lg:px-12 pt-6 shrink-0">
           <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-[#0C0F0C] rounded flex items-center justify-center">
-                <Briefcase size={14} className="text-green-400" />
-              </div>
-              <span className="font-bold text-lg tracking-wide uppercase text-gray-900">JobFlow</span>
-            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/streamflaire-hub-logo.png" alt="Streamflaire Hub" className="h-6 w-auto" />
             <span className="text-xs text-gray-400 font-medium">
               Step {step + 1} of {STEPS.length}
             </span>

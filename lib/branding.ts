@@ -1,7 +1,7 @@
 /**
  * Company branding for client-facing pages (quotes, invoices, hub, booking).
  * Companies set logoUrl + brandColor in Settings; everything falls back to
- * JobFlow defaults when unset.
+ * Streamflaire Hub defaults when unset.
  */
 
 export type CompanyBrand = {

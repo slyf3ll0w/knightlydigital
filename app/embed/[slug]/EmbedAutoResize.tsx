@@ -13,6 +13,9 @@ export default function EmbedAutoResize({ slug }: { slug: string }) {
   useEffect(() => {
     const post = () => {
       const height = document.documentElement.scrollHeight;
+      // "jobflow:height" is the wire protocol name from before the
+      // Streamflaire Hub rename — keep it: copied snippets on customer
+      // sites (e.g. Excellent PC Building) listen for exactly this type.
       window.parent?.postMessage({ type: "jobflow:height", slug, height }, "*");
     };
 

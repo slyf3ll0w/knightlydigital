@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { Briefcase, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import Link from "next/link";
 
 export default function AppLoginPage() {
@@ -52,16 +52,14 @@ export default function AppLoginPage() {
     <div className="app-ui min-h-screen bg-gray-50 flex flex-col items-center justify-center px-4">
       <div className="w-full max-w-sm">
         {/* Logo */}
-        <div className="flex items-center gap-2 justify-center mb-8">
-          <div className="w-9 h-9 bg-[#0C0F0C] rounded flex items-center justify-center">
-            <Briefcase size={16} className="text-green-400" />
-          </div>
-          <span className="font-bold text-xl tracking-wide uppercase text-gray-900">JobFlow</span>
+        <div className="flex justify-center mb-8">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/streamflaire-hub-logo.png" alt="Streamflaire Hub" className="h-7 w-auto" />
         </div>
 
         <div className="bg-white rounded-lg border border-gray-200 p-8 shadow-sm">
           <h1 className="text-xl font-bold text-gray-900 mb-1">Sign in</h1>
-          <p className="text-sm text-gray-500 mb-6">Welcome back to JobFlow</p>
+          <p className="text-sm text-gray-500 mb-6">Welcome back to Streamflaire Hub</p>
 
           {staleSession && (
             <div className="mb-4 px-4 py-3 bg-amber-50 border border-amber-200 rounded text-sm text-amber-800">

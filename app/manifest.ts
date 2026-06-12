@@ -1,13 +1,13 @@
 import type { MetadataRoute } from "next";
 
-// JobFlow installs as an app from the browser ("Add to Home Screen" /
-// "Install app"): standalone window, green briefcase icon, opens on the
+// Streamflaire Hub installs as an app from the browser ("Add to Home
+// Screen" / "Install app"): standalone window, leaf-mark icon, opens on the
 // dashboard. Scope is /app so client-facing pages (/hub, /quote, /pay)
 // still open with normal browser chrome.
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "JobFlow by Streamflaire",
-    short_name: "JobFlow",
+    name: "Streamflaire Hub",
+    short_name: "Streamflaire",
     description: "Free field service management — quotes, jobs, invoices, and payments.",
     start_url: "/app/dashboard",
     scope: "/app",

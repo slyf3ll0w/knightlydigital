@@ -6,8 +6,8 @@ import AppShell from "@/components/AppShell";
 
 export const metadata: Metadata = {
   title: {
-    absolute: "JobFlow",
-    template: "%s · JobFlow",
+    absolute: "Streamflaire Hub",
+    template: "%s · Streamflaire Hub",
   },
 };
 

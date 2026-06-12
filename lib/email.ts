@@ -8,7 +8,7 @@
  */
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
-const FROM = process.env.EMAIL_FROM ?? "JobFlow <notifications@streamflaremedia.com>";
+const FROM = process.env.EMAIL_FROM ?? "Streamflaire Hub <notifications@streamflaremedia.com>";
 const APP_URL = process.env.NEXTAUTH_URL ?? "https://streamflaire.com";
 
 export async function sendEmail({
@@ -109,7 +109,7 @@ export function newRequestEmail({
       </a>
     </div>
     <div style="padding:12px 24px;border-top:1px solid #f3f4f6;">
-      <p style="margin:0;color:#9ca3af;font-size:12px;">Sent to ${esc(companyName)} by JobFlow</p>
+      <p style="margin:0;color:#9ca3af;font-size:12px;">Sent to ${esc(companyName)} by Streamflaire Hub</p>
     </div>
   </div>
 </div>`;

@@ -223,7 +223,7 @@ export function Header() {
                 className="text-sm transition-colors hover:text-gray-900"
                 style={{ color: '#9CA3AF', fontFamily: 'Oxanium, system-ui, sans-serif' }}
               >
-                JobFlow Login
+                Hub Login
               </Link>
               <Link
                 href="/contact"
@@ -334,7 +334,7 @@ export function Header() {
               className="py-3 text-sm transition-colors hover:text-gray-900"
               style={{ borderBottom: '1px solid #F3F4F6', color: '#9CA3AF', fontFamily: 'Oxanium, system-ui, sans-serif' }}
             >
-              JobFlow Login
+              Hub Login
             </Link>
             <div className="pt-4 pb-2">
               <Link

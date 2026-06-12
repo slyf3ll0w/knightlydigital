@@ -255,9 +255,10 @@ export default function AppShell({
             <LogOut size={14} />
           </button>
         </div>
-        <p className="px-3 pt-1.5 pb-1 text-[10px] text-white/30 flex items-center gap-1">
-          <Briefcase size={9} className="shrink-0" />
-          Powered by JobFlow
+        <p className="px-3 pt-1.5 pb-1 text-[10px] text-white/30 flex items-center gap-1.5">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/streamflaire-hub-mark.png" alt="" className="h-2.5 w-auto shrink-0 opacity-60" />
+          Powered by Streamflaire Hub
         </p>
       </div>
     </>
@@ -283,7 +284,7 @@ export default function AppShell({
         </div>
       )}
       <span className="font-bold text-[14px] tracking-tight text-white truncate">
-        {companyName ?? "JobFlow"}
+        {companyName ?? "Streamflaire Hub"}
       </span>
     </div>
   );
@@ -329,7 +330,7 @@ export default function AppShell({
           </button>
           {/* Company name lives in the sidebar on desktop; header shows it on mobile */}
           <span className="lg:hidden font-semibold text-[15px] text-gray-900 truncate">
-            {companyName ?? "JobFlow"}
+            {companyName ?? "Streamflaire Hub"}
           </span>
 
           <form
