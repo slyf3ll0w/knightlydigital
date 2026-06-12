@@ -4,6 +4,18 @@ Parked ideas — not scheduled, not promised. Pull into `roadmap.md` when one
 gets picked up. (Deferred items that ARE expected to ship stay in the
 roadmap's per-feature "Deferred" notes.)
 
+## "Getting started" setup checklist (proposed 2026-06-12, parked)
+
+Dashboard card for new companies that checks itself off from real data —
+e.g. *Add your logo ✓ / Add or import clients / Build your first form /
+Send your first quote / Invite your team* — each item deep-linking to the
+right screen, the card disappearing once complete (or dismissible).
+Complements the onboarding tour (roadmap §3k): people skip tours but
+finish checklists. Implementation sketch: derive each item from existing
+data (Company.logoUrl, contact count, WebForm count beyond the default,
+quote count, user count), no new schema needed; optional dismissed flag on
+Company if companies want it gone early.
+
 ## Form editor UX (proposed 2026-06-12, David: good ideas, not now)
 
 Roughly in impact-per-effort order; #1 + #2 are one refactor, then #3.

@@ -327,9 +327,8 @@ shell; steps target data-tour attributes, spotlight overlay + card with
 Next/Back/Skip; ~8–10 steps following the lifecycle story (dashboard →
 create → requests → quotes → schedule → invoices → forms → team);
 role-aware steps; User.tourCompletedAt fires it on first dashboard visit,
-replay from profile. Phase 2: "Getting started" checklist card on the
-dashboard for new companies (logo / clients / first form / first quote)
-checking off from real data — likely higher-converting than the tour.
+replay from profile. (The companion "Getting started" checklist idea is
+parked in `ideas.md`.)
 
 ### 4. Email automations via Resend — Phase 1 SHIPPED 2026-06-11 ← NEXT UP (Phase 2)
 
