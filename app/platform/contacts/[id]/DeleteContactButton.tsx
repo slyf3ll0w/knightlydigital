@@ -46,7 +46,10 @@ export default function DeleteContactButton({
     [counts.payments, "payment record", "payment records"],
   ].filter(([n]) => (n as number) > 0) as [number, string, string][];
 
-  const nameMatches = confirmText.trim().toLowerCase() === contactName.trim().toLowerCase();
+  // Forgiving match: stored names can carry doubled/odd whitespace (imports,
+  // web forms) that's invisible when typing — collapse it on both sides.
+  const norm = (s: string) => s.replace(/\s+/g, " ").trim().toLowerCase();
+  const nameMatches = norm(confirmText) === norm(contactName);
 
   async function doDelete(force: boolean) {
     setBusy(true);
@@ -129,6 +132,11 @@ export default function DeleteContactButton({
               className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-red-500 mb-3"
             />
 
+            {confirmText && !nameMatches && (
+              <p className="text-xs text-amber-600 mb-3">
+                That doesn&apos;t match the client&apos;s name yet.
+              </p>
+            )}
             {error && <p className="text-xs text-red-600 mb-3">{error}</p>}
 
             <div className="flex justify-end gap-2">

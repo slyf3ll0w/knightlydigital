@@ -101,19 +101,62 @@ export async function DELETE(
   }
 
   // FK-safe order: quotes/invoices/appointments reference jobs/requests, so
-  // they go first; line items, payments, assignments etc. cascade.
-  await prisma.$transaction([
-    prisma.payment.deleteMany({ where: { contactId: id, companyId } }),
-    prisma.invoice.deleteMany({ where: { contactId: id, companyId } }),
-    prisma.quote.deleteMany({ where: { contactId: id, companyId } }),
-    prisma.job.deleteMany({ where: { contactId: id, companyId } }),
-    prisma.appointment.deleteMany({ where: { contactId: id, companyId } }),
-    prisma.request.deleteMany({ where: { contactId: id, companyId } }),
-    prisma.bookingRequest.deleteMany({ where: { contactId: id, companyId } }),
-    prisma.servicePlan.deleteMany({ where: { contactId: id, companyId } }),
-    prisma.reviewRequest.deleteMany({ where: { contactId: id, companyId } }),
-    prisma.contact.delete({ where: { id } }),
-  ]);
+  // they go first; line items, payments, assignments etc. cascade. Records
+  // belonging to OTHER clients can reference this client's requests/jobs
+  // (a request converted into someone else's quote/job) — detach those
+  // first or the FK check kills the whole wipe.
+  try {
+    await prisma.$transaction(async (tx) => {
+      const [requests, jobs] = await Promise.all([
+        tx.request.findMany({ where: { contactId: id, companyId }, select: { id: true } }),
+        tx.job.findMany({ where: { contactId: id, companyId }, select: { id: true } }),
+      ]);
+      const reqIds = requests.map((r) => r.id);
+      const jobIds = jobs.map((j) => j.id);
+
+      if (jobIds.length > 0) {
+        await tx.invoice.updateMany({
+          where: { jobId: { in: jobIds }, NOT: { contactId: id } },
+          data: { jobId: null },
+        });
+        await tx.quote.updateMany({
+          where: { jobId: { in: jobIds }, NOT: { contactId: id } },
+          data: { jobId: null },
+        });
+      }
+      if (reqIds.length > 0) {
+        await tx.job.updateMany({
+          where: { requestId: { in: reqIds }, NOT: { contactId: id } },
+          data: { requestId: null },
+        });
+        await tx.quote.updateMany({
+          where: { requestId: { in: reqIds }, NOT: { contactId: id } },
+          data: { requestId: null },
+        });
+        await tx.appointment.updateMany({
+          where: { requestId: { in: reqIds }, NOT: { contactId: id } },
+          data: { requestId: null },
+        });
+      }
+
+      await tx.payment.deleteMany({ where: { contactId: id, companyId } });
+      await tx.invoice.deleteMany({ where: { contactId: id, companyId } });
+      await tx.quote.deleteMany({ where: { contactId: id, companyId } });
+      await tx.job.deleteMany({ where: { contactId: id, companyId } });
+      await tx.appointment.deleteMany({ where: { contactId: id, companyId } });
+      await tx.request.deleteMany({ where: { contactId: id, companyId } });
+      await tx.bookingRequest.deleteMany({ where: { contactId: id, companyId } });
+      await tx.servicePlan.deleteMany({ where: { contactId: id, companyId } });
+      await tx.reviewRequest.deleteMany({ where: { contactId: id, companyId } });
+      await tx.contact.delete({ where: { id } });
+    });
+  } catch (e) {
+    console.error("[contact force-delete] failed", { contactId: id, error: e });
+    return NextResponse.json(
+      { error: "Couldn't delete this client — some of their records are linked in an unexpected way. Please try again or contact support." },
+      { status: 500 }
+    );
+  }
 
   return NextResponse.json({ success: true });
 }
