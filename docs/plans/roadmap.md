@@ -8,9 +8,8 @@ tile via `scripts/generate-pwa-icons.mjs`. The embed postMessage type
 `jobflow:height` and `data-jobflow` attribute are intentionally NOT renamed —
 copied snippets on customer sites listen for those exact strings.)
 
-Living document — agreed priorities and parked work. Last updated 2026-06-11
-(after the design polish batch: StatusChip system, denser lists, illustrated
-empty states, skeletons, settings hydration fix).
+Living document — agreed priorities and parked work. Unscheduled ideas live
+in `ideas.md` (form-editor UX batch etc.).
 
 ## Next up (agreed order)
 
