@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { Plus, Inbox, FileText, Briefcase, Receipt, DollarSign } from "lucide-react";
+import { Plus, Inbox, CalendarClock, FileText, Briefcase, Receipt, DollarSign } from "lucide-react";
 
 /** Per-client scoped Create menu (Jobber's client-page Create button). */
 export default function ContactCreateMenu({ contactId }: { contactId: string }) {
@@ -19,6 +19,7 @@ export default function ContactCreateMenu({ contactId }: { contactId: string }) 
 
   const items = [
     { href: `/app/requests/new?contactId=${contactId}`, label: "Request", icon: Inbox },
+    { href: `/app/appointments/new?contactId=${contactId}`, label: "Appointment", icon: CalendarClock },
     { href: `/app/quotes/new?contactId=${contactId}`, label: "Quote", icon: FileText },
     { href: `/app/jobs/new?contactId=${contactId}`, label: "Job", icon: Briefcase },
     { href: `/app/invoices/new?contactId=${contactId}`, label: "Invoice", icon: Receipt },

@@ -22,6 +22,7 @@ export default async function RequestDetailPage({
       contact: true,
       quotes: { orderBy: { createdAt: "desc" } },
       jobs: { orderBy: { createdAt: "desc" } },
+      appointments: { orderBy: { scheduledAt: "asc" } },
     },
   });
   if (!request) notFound();
@@ -63,22 +64,47 @@ export default async function RequestDetailPage({
             </p>
           </div>
 
-          {/* Assessment */}
+          {/* Appointments (estimates / sales meetings) */}
           <div className="bg-white border border-gray-200 rounded-lg p-5">
-            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3">
-              On-site assessment
-            </h2>
-            <p className="text-sm text-gray-700">
-              {request.assessmentAt
-                ? new Date(request.assessmentAt).toLocaleString("en-US", {
-                    weekday: "short",
-                    month: "short",
-                    day: "numeric",
-                    hour: "numeric",
-                    minute: "2-digit",
-                  })
-                : "No assessment scheduled."}
-            </p>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+                Appointments
+              </h2>
+              <Link
+                href={`/app/appointments/new?requestId=${request.id}`}
+                className="text-xs text-green-600 hover:underline font-medium"
+              >
+                + Schedule Appointment
+              </Link>
+            </div>
+            {request.appointments.length === 0 ? (
+              <p className="text-sm text-gray-500">
+                No appointment booked — schedule an estimate or sales call for this request.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {request.appointments.map((a) => (
+                  <Link
+                    key={a.id}
+                    href={`/app/appointments/${a.id}`}
+                    className="flex items-center justify-between gap-3 text-sm"
+                  >
+                    <span className="text-green-700 hover:underline truncate">
+                      {a.title} ·{" "}
+                      {a.scheduledAnytime
+                        ? `${shortDate(a.scheduledAt)}, anytime`
+                        : new Date(a.scheduledAt).toLocaleString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            hour: "numeric",
+                            minute: "2-digit",
+                          })}
+                    </span>
+                    <StatusChip kind="appointment" status={a.status} />
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Linked work */}

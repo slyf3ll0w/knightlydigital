@@ -4,7 +4,7 @@ import { getActor, canSell, isManager, viaContactScope } from "@/lib/permissions
 
 /**
  * PATCH — update a request's status or details.
- * Body: { status?: "NEW" | "CONVERTED" | "ARCHIVED", title?, details?, assessmentAt? }
+ * Body: { status?: "NEW" | "CONVERTED" | "ARCHIVED", title?, details? }
  */
 export async function PATCH(
   req: NextRequest,
@@ -28,9 +28,6 @@ export async function PATCH(
   }
   if (body.title !== undefined) data.title = body.title;
   if (body.details !== undefined) data.details = body.details || null;
-  if (body.assessmentAt !== undefined) {
-    data.assessmentAt = body.assessmentAt ? new Date(body.assessmentAt) : null;
-  }
 
   const updated = await prisma.request.update({ where: { id }, data });
   return NextResponse.json(updated);

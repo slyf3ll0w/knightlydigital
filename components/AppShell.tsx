@@ -6,6 +6,7 @@ import { signOut } from "next-auth/react";
 import {
   Home,
   Briefcase,
+  CalendarClock,
   CalendarDays,
   Users,
   Inbox,
@@ -67,6 +68,7 @@ const navGroups: NavItem[][] = [
 const createItems: NavItem[] = [
   { href: "/app/contacts/new", label: "Client", icon: Users, show: sellRoles },
   { href: "/app/requests/new", label: "Request", icon: Inbox, show: sellRoles },
+  { href: "/app/appointments/new", label: "Appointment", icon: CalendarClock, show: sellRoles },
   { href: "/app/quotes/new", label: "Quote", icon: FileText, show: sellRoles },
   { href: "/app/jobs/new", label: "Job", icon: Briefcase, show: (r) => isManagerRole(r) || r === "USER" },
   { href: "/app/invoices/new", label: "Invoice", icon: Receipt, show: moneyRoles },

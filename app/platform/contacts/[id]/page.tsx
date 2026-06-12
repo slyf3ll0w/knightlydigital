@@ -26,6 +26,7 @@ export default async function ContactDetailPage({
       where: { id, companyId, ...contactScope(actor) },
       include: {
         requests: { orderBy: { createdAt: "desc" } },
+        appointments: { orderBy: { createdAt: "desc" } },
         quotes: { orderBy: { createdAt: "desc" } },
         jobs: { orderBy: { createdAt: "desc" } },
         invoices: { include: { payments: true }, orderBy: { createdAt: "desc" } },
@@ -65,6 +66,16 @@ export default async function ContactDetailPage({
       date: r.createdAt,
       kind: "request" as StatusKind,
       status: r.status as string,
+      amount: null as number | null,
+    })),
+    ...contact.appointments.map((a) => ({
+      key: `a-${a.id}`,
+      href: `/app/appointments/${a.id}`,
+      type: "Appointment",
+      label: a.title,
+      date: a.createdAt,
+      kind: "appointment" as StatusKind,
+      status: a.status as string,
       amount: null as number | null,
     })),
     ...contact.quotes.map((q) => ({

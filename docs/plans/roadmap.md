@@ -133,6 +133,43 @@ David's spec (approved matrix in session 2026-06-11): Owner / Admin /
 - NOT built (later): invite emails (needs Resend), per-user notification
   prefs, SUPERADMIN impersonation, audit log.
 
+### 3c. Appointments (sales meetings / estimates) — SHIPPED 2026-06-11
+
+David's spec: book sales meetings/estimates as Phone Call, Video Call, or
+In-person (in-person requires an address).
+
+- **Appointment model** — contact + optional request link, assignee
+  (defaults to booker), type, status SCHEDULED/COMPLETED/CANCELLED/NO_SHOW,
+  start/end (default 30 min) or Anytime, address (required for in-person,
+  prefilled from the client), optional pasted meeting link for video,
+  notes. Lifecycle slot: Request → Appointment → Quote (Create Quote CTA
+  on completed appointments). Replaces `Request.assessmentAt` (column
+  dropped, form/API/display removed).
+- **Booking UX** — /app/appointments/new (type radio cards drive the extra
+  field); entry points: global Create menu, contact-page Create menu,
+  request detail "+ Schedule Appointment" (prefills client + request),
+  schedule header "New Appointment".
+- **Detail page** — when/where/join-link/phone, Mark Completed → Create
+  Quote, No-show / Cancel / Reopen, inline reschedule, delete (managers).
+- **Calendar** — appointments render in all three schedule views in the
+  blue family (vs job greens/ambers) with a phone/video/map-pin glyph;
+  drag-to-reschedule works; cancelled ones are hidden; legend updated.
+  StatusChip gained a blue tone + "appointment" kind.
+- **Dashboard** — "Today's appointments" now merges jobs + appointments,
+  sorted by time, blue icon bubble for meetings. Contact work table shows
+  appointment rows.
+- **Permissions** — sellers only (techs never see sales meetings); sales/
+  Sales + Tech see their leads' appointments plus any assigned directly to
+  them; managers see all (`appointmentScope`).
+
+**Deferred (agreed 2026-06-11):**
+- Client-facing self-scheduling — clients pick a time slot from the
+  booking form/hub (needs availability windows + conflict checking).
+- Appointment confirmation + reminder emails to the client (1 hr/1 day
+  before, Jobber-style) — fold into email automations Phase 2 below.
+- ICS calendar attachments / Google Calendar sync.
+- Auto-generated video meeting links (Zoom/Meet integrations).
+
 ### 4. Email automations via Resend — Phase 1 SHIPPED 2026-06-11 ← NEXT UP (Phase 2)
 
 - DONE: new-request notification to company.email from booking form + client

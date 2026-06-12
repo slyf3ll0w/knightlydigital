@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { requirePageActor, isManager, jobScope } from "@/lib/permissions";
+import { requirePageActor, isManager, jobScope, canSell, appointmentScope } from "@/lib/permissions";
 import ScheduleClient, { type ScheduleJobDTO } from "./ScheduleClient";
 
 /**
@@ -37,13 +37,41 @@ type JobWithContact = {
 function toDTO(j: JobWithContact): ScheduleJobDTO {
   return {
     id: j.id,
+    kind: "job",
     jobNumber: j.jobNumber,
     title: j.title,
     status: j.status,
+    apptType: null,
     scheduledAt: j.scheduledAt ? j.scheduledAt.toISOString() : null,
     scheduledEnd: j.scheduledEnd ? j.scheduledEnd.toISOString() : null,
     scheduledAnytime: j.scheduledAnytime,
     contactName: `${j.contact.firstName} ${j.contact.lastName}`.trim(),
+  };
+}
+
+type ApptWithContact = {
+  id: string;
+  title: string;
+  status: string;
+  type: string;
+  scheduledAt: Date;
+  scheduledEnd: Date | null;
+  scheduledAnytime: boolean;
+  contact: { firstName: string; lastName: string };
+};
+
+function apptToDTO(a: ApptWithContact): ScheduleJobDTO {
+  return {
+    id: a.id,
+    kind: "appointment",
+    jobNumber: null,
+    title: a.title,
+    status: a.status,
+    apptType: a.type,
+    scheduledAt: a.scheduledAt.toISOString(),
+    scheduledEnd: a.scheduledEnd ? a.scheduledEnd.toISOString() : null,
+    scheduledAnytime: a.scheduledAnytime,
+    contactName: `${a.contact.firstName} ${a.contact.lastName}`.trim(),
   };
 }
 
@@ -84,13 +112,28 @@ export default async function SchedulePage({
 
   const teamWhere = team ? { assignments: { some: { userId: team } } } : {};
   const scope = jobScope(actor);
+  // Sales meetings live on the calendar too — but not for techs
+  const showAppointments = canSell(actor.role);
 
-  const [jobs, unscheduled, users] = await Promise.all([
+  const [jobs, appointments, unscheduled, users] = await Promise.all([
     prisma.job.findMany({
       where: { companyId, ...scope, scheduledAt: { gte: start, lte: end }, ...teamWhere },
       include: { contact: { select: { firstName: true, lastName: true } } },
       orderBy: { scheduledAt: "asc" },
     }),
+    showAppointments
+      ? prisma.appointment.findMany({
+          where: {
+            companyId,
+            ...appointmentScope(actor),
+            status: { not: "CANCELLED" },
+            scheduledAt: { gte: start, lte: end },
+            ...(team ? { assignedToId: team } : {}),
+          },
+          include: { contact: { select: { firstName: true, lastName: true } } },
+          orderBy: { scheduledAt: "asc" },
+        })
+      : Promise.resolve([]),
     prisma.job.findMany({
       where: { companyId, ...scope, status: "ACTIVE", scheduledAt: null, ...teamWhere },
       include: { contact: { select: { firstName: true, lastName: true } } },
@@ -111,10 +154,11 @@ export default async function SchedulePage({
       view={view}
       date={`${anchor.getFullYear()}-${pad(anchor.getMonth() + 1)}-${pad(anchor.getDate())}`}
       team={team ?? ""}
-      jobs={jobs.map(toDTO)}
+      jobs={[...jobs.map(toDTO), ...appointments.map(apptToDTO)]}
       unscheduled={unscheduled.map(toDTO)}
       users={users}
       canCreateJob={canFilterTeam}
+      canCreateAppointment={showAppointments}
     />
   );
 }

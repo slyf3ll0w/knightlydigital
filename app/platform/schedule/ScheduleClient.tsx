@@ -9,7 +9,10 @@ import {
   ChevronRight,
   GripVertical,
   Loader2,
+  MapPin as MapPinIcon,
+  Phone as PhoneIcon,
   Plus,
+  Video as VideoIcon,
   X,
 } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
@@ -29,9 +32,11 @@ import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 
 export type ScheduleJobDTO = {
   id: string;
-  jobNumber: number;
+  kind: "job" | "appointment";
+  jobNumber: number | null;
   title: string;
   status: string;
+  apptType: string | null; // PHONE_CALL | VIDEO_CALL | IN_PERSON
   scheduledAt: string | null;
   scheduledEnd: string | null;
   scheduledAnytime: boolean;
@@ -48,17 +53,29 @@ const MONTHS = [
 ];
 
 // Tinted blocks reusing the lifecycle tones (green=active, amber=needs
-// invoicing, gray=archived) so the calendar scans like the rest of the app.
+// invoicing, gray=archived); appointments are the blue family so sales
+// meetings scan differently from work.
 const blockTone: Record<string, string> = {
   ACTIVE: "border-green-500 bg-green-100 text-green-900 hover:bg-green-200",
   REQUIRES_INVOICING: "border-amber-500 bg-amber-100 text-amber-900 hover:bg-amber-200",
   ARCHIVED: "border-gray-400 bg-gray-100 text-gray-600 hover:bg-gray-200",
 };
-const dotTone: Record<string, string> = {
-  ACTIVE: "bg-green-500",
-  REQUIRES_INVOICING: "bg-amber-500",
-  ARCHIVED: "bg-gray-400",
-};
+
+function itemTone(it: { kind: string; status: string }): string {
+  if (it.kind === "appointment") {
+    if (it.status === "NO_SHOW") return "border-red-400 bg-red-50 text-red-800 hover:bg-red-100";
+    if (it.status === "COMPLETED") return "border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100";
+    return "border-blue-500 bg-blue-100 text-blue-900 hover:bg-blue-200";
+  }
+  return blockTone[it.status] ?? blockTone.ARCHIVED;
+}
+
+function TypeGlyph({ apptType, size = 10 }: { apptType: string | null; size?: number }) {
+  if (apptType === "PHONE_CALL") return <PhoneIcon size={size} className="inline shrink-0" />;
+  if (apptType === "VIDEO_CALL") return <VideoIcon size={size} className="inline shrink-0" />;
+  if (apptType === "IN_PERSON") return <MapPinIcon size={size} className="inline shrink-0" />;
+  return null;
+}
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const toParam = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -143,6 +160,7 @@ export default function ScheduleClient({
   unscheduled,
   users,
   canCreateJob = true,
+  canCreateAppointment = true,
 }: {
   view: View;
   date: string;
@@ -151,6 +169,7 @@ export default function ScheduleClient({
   unscheduled: ScheduleJobDTO[];
   users: { id: string; name: string }[];
   canCreateJob?: boolean;
+  canCreateAppointment?: boolean;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -238,8 +257,10 @@ export default function ScheduleClient({
 
     setSaving(true);
     setError("");
+    const endpoint =
+      job.kind === "appointment" ? `/api/app/appointments/${jobId}` : `/api/app/jobs/${jobId}`;
     const { ok, data } = await postJson(
-      `/api/app/jobs/${jobId}`,
+      endpoint,
       {
         scheduledAt: startD.toISOString(),
         scheduledEnd: endD ? endD.toISOString() : null,
@@ -288,7 +309,8 @@ export default function ScheduleClient({
     };
   }
 
-  const openJob = (id: string) => router.push(`/app/jobs/${id}`);
+  const openItem = (it: ScheduleJobDTO) =>
+    router.push(it.kind === "appointment" ? `/app/appointments/${it.id}` : `/app/jobs/${it.id}`);
 
   // ── Header label ──────────────────────────────────────────────────────────
   let rangeLabel: string;
@@ -359,10 +381,11 @@ export default function ScheduleClient({
               <div
                 key={job.id}
                 {...dragProps(job)}
-                onClick={() => openJob(job.id)}
-                className={`flex cursor-pointer items-center gap-1 truncate rounded border-l-2 px-1.5 py-0.5 text-xs font-medium ${blockTone[job.status] ?? blockTone.ARCHIVED}`}
+                onClick={() => openItem(job)}
+                className={`flex cursor-pointer items-center gap-1 truncate rounded border-l-2 px-1.5 py-0.5 text-xs font-medium ${itemTone(job)}`}
                 title={`${job.contactName} — ${job.title}`}
               >
+                <TypeGlyph apptType={job.apptType} />
                 <span className="truncate">
                   {job.scheduledAnytime ? "" : `${fmtTime(new Date(job.scheduledAt!))} `}
                   {job.contactName} — {job.title}
@@ -470,11 +493,11 @@ export default function ScheduleClient({
                       <div
                         key={job.id}
                         {...dragProps(job)}
-                        onClick={() => openJob(job.id)}
-                        className={`cursor-pointer truncate rounded border-l-2 px-1.5 py-0.5 text-xs font-medium ${blockTone[job.status] ?? blockTone.ARCHIVED}`}
+                        onClick={() => openItem(job)}
+                        className={`cursor-pointer truncate rounded border-l-2 px-1.5 py-0.5 text-xs font-medium ${itemTone(job)}`}
                         title={`${job.contactName} — ${job.title}`}
                       >
-                        {job.contactName} — {job.title}
+                        <TypeGlyph apptType={job.apptType} /> {job.contactName} — {job.title}
                       </div>
                     ))}
                   </div>
@@ -527,8 +550,8 @@ export default function ScheduleClient({
                         <div
                           key={j.id}
                           {...dragProps(j)}
-                          onClick={() => openJob(j.id)}
-                          className={`absolute cursor-pointer overflow-hidden rounded border-l-2 px-1.5 py-0.5 text-xs font-medium shadow-sm ${blockTone[j.status] ?? blockTone.ARCHIVED}`}
+                          onClick={() => openItem(j)}
+                          className={`absolute cursor-pointer overflow-hidden rounded border-l-2 px-1.5 py-0.5 text-xs font-medium shadow-sm ${itemTone(j)}`}
                           style={{
                             top: (startMin / 60) * HOUR_PX + 1,
                             height: Math.max(22, ((endMin - startMin) / 60) * HOUR_PX - 2),
@@ -537,7 +560,9 @@ export default function ScheduleClient({
                           }}
                           title={`${j.contactName} — ${j.title}`}
                         >
-                          <span className="block truncate font-semibold">{j.contactName}</span>
+                          <span className="block truncate font-semibold">
+                            <TypeGlyph apptType={j.apptType} /> {j.contactName}
+                          </span>
                           <span className="block truncate">
                             {fmtTime(new Date(j.scheduledAt!))} · {j.title}
                           </span>
@@ -577,6 +602,15 @@ export default function ScheduleClient({
               </span>
             )}
           </button>
+          {canCreateAppointment && (
+            <Link
+              href="/app/appointments/new"
+              className="flex items-center gap-1.5 rounded border border-blue-300 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-100"
+            >
+              <Plus size={15} />
+              New Appointment
+            </Link>
+          )}
           {canCreateJob && (
             <Link
               href="/app/jobs/new"
@@ -656,10 +690,15 @@ export default function ScheduleClient({
 
           {/* Legend */}
           <div className="mt-4 flex flex-wrap gap-3">
-            {Object.entries(dotTone).map(([s, c]) => (
-              <div key={s} className="flex items-center gap-1.5 text-xs text-gray-500">
+            {[
+              ["bg-green-500", "Active job"],
+              ["bg-amber-500", "Requires invoicing"],
+              ["bg-blue-500", "Appointment"],
+              ["bg-gray-400", "Archived"],
+            ].map(([c, label]) => (
+              <div key={label} className="flex items-center gap-1.5 text-xs text-gray-500">
                 <div className={`h-2.5 w-2.5 rounded ${c}`} />
-                {s === "ACTIVE" ? "Active" : s === "REQUIRES_INVOICING" ? "Requires Invoicing" : "Archived"}
+                {label}
               </div>
             ))}
           </div>
@@ -690,7 +729,7 @@ export default function ScheduleClient({
                     <li
                       key={job.id}
                       {...dragProps(job)}
-                      onClick={() => openJob(job.id)}
+                      onClick={() => openItem(job)}
                       className={`flex cursor-pointer items-start gap-2 rounded border border-gray-200 bg-white p-2.5 transition-colors hover:border-green-300 hover:bg-green-50/50 ${
                         dragId === job.id ? "opacity-50" : ""
                       }`}

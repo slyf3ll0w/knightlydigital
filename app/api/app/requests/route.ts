@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
   const companyId = actor.companyId;
 
   const body = await req.json();
-  const { contactId, title, details, assessmentAt } = body;
+  const { contactId, title, details } = body;
 
   if (!contactId || !title) {
     return NextResponse.json({ error: "Client and title are required." }, { status: 400 });
@@ -33,7 +33,6 @@ export async function POST(req: NextRequest) {
       requestNumber: (last?.requestNumber ?? 0) + 1,
       title,
       details: details || null,
-      assessmentAt: assessmentAt ? new Date(assessmentAt) : null,
     },
   });
 

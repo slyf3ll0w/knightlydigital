@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Loader2, ArrowLeft } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
-import { localInputToISO } from "@/lib/statuses";
 
 type Contact = { id: string; firstName: string; lastName: string };
 
@@ -21,7 +20,6 @@ function NewRequestForm() {
     contactId: prefilledContactId,
     title: "",
     details: "",
-    assessmentAt: "",
   });
 
   useEffect(() => {
@@ -44,10 +42,7 @@ function NewRequestForm() {
     setError("");
     setLoading(true);
 
-    const { ok, data } = await postJson<{ id: string }>("/api/app/requests", {
-      ...form,
-      assessmentAt: localInputToISO(form.assessmentAt),
-    });
+    const { ok, data } = await postJson<{ id: string }>("/api/app/requests", form);
     setLoading(false);
 
     if (!ok || !data?.id) {
@@ -120,24 +115,6 @@ function NewRequestForm() {
               rows={4}
               className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
               placeholder="Please provide as much information as you can..."
-            />
-          </div>
-        </div>
-
-        <div className="bg-white border border-gray-200 rounded-lg p-5 space-y-4">
-          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
-            On-site assessment
-          </h2>
-          <p className="text-xs text-gray-500 -mt-2">
-            Optionally visit the property to assess the work before you quote it.
-          </p>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Assessment date</label>
-            <input
-              type="datetime-local"
-              value={form.assessmentAt}
-              onChange={(e) => set("assessmentAt", e.target.value)}
-              className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
             />
           </div>
         </div>

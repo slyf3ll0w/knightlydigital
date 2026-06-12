@@ -52,6 +52,7 @@ model Company {
   servicePlans    ServicePlan[]
   bookingRequests BookingRequest[]
   reviewRequests  ReviewRequest[]
+  appointments    Appointment[]
 
   @@index([slug])
 }
@@ -74,6 +75,7 @@ model User {
   assignments      JobAssignment[]
   notes            JobNote[]
   assignedContacts Contact[]       @relation("AssignedContacts")
+  appointments     Appointment[]   @relation("AppointmentAssignee")
 
   @@index([companyId])
   @@index([role])
@@ -126,6 +128,7 @@ model Contact {
   payments        Payment[]
   servicePlans    ServicePlan[]
   bookingRequests BookingRequest[]
+  appointments    Appointment[]
 
   @@index([companyId])
   @@index([companyId, status])
@@ -151,17 +154,64 @@ model Request {
   title         String
   details       String?
   status        RequestStatus @default(NEW)
-  assessmentAt  DateTime?
   source        String        @default("internal") // internal | client_hub | booking_form
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
-  quotes Quote[]
-  jobs   Job[]
+  quotes       Quote[]
+  jobs         Job[]
+  appointments Appointment[]
 
   @@unique([companyId, requestNumber])
   @@index([companyId])
   @@index([companyId, status])
+}
+
+// ─── Appointments (sales meetings / estimates) ───────────────────────────────
+
+enum AppointmentType {
+  PHONE_CALL
+  VIDEO_CALL
+  IN_PERSON
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+// A scheduled conversation with a client — estimate visit, sales call,
+// discovery meeting. Sits between Request and Quote in the lifecycle and
+// shows on the schedule next to jobs. Replaces Request.assessmentAt.
+model Appointment {
+  id           String            @id @default(cuid())
+  companyId    String
+  company      Company           @relation(fields: [companyId], references: [id])
+  contactId    String
+  contact      Contact           @relation(fields: [contactId], references: [id])
+  requestId    String?
+  request      Request?          @relation(fields: [requestId], references: [id])
+  assignedToId String?
+  assignedTo   User?             @relation("AppointmentAssignee", fields: [assignedToId], references: [id])
+  title        String // "Estimate", "Sales call", ...
+  type         AppointmentType
+  status       AppointmentStatus @default(SCHEDULED)
+  scheduledAt  DateTime
+  scheduledEnd DateTime?
+  // Date-only scheduling: anchored at noon, shown in the calendar's "Anytime" row
+  scheduledAnytime Boolean  @default(false)
+  address          String? // required for IN_PERSON (API-enforced)
+  meetingLink      String? // optional pasted URL for VIDEO_CALL
+  notes            String?
+  completedAt      DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([companyId, scheduledAt])
+  @@index([companyId, status])
+  @@index([contactId])
 }
 
 // ─── Jobs ─────────────────────────────────────────────────────────────────────

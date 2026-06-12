@@ -9,8 +9,8 @@
  *   gray  = inert (draft, archived)
  */
 
-export type StatusTone = "green" | "amber" | "red" | "gray";
-export type StatusKind = "request" | "quote" | "job" | "invoice" | "contact";
+export type StatusTone = "green" | "amber" | "red" | "gray" | "blue";
+export type StatusKind = "request" | "quote" | "job" | "invoice" | "contact" | "appointment";
 
 export const requestStatusLabel: Record<string, string> = {
   NEW: "New",
@@ -46,12 +46,26 @@ export const contactStatusLabel: Record<string, string> = {
   ARCHIVED: "Archived",
 };
 
+export const appointmentStatusLabel: Record<string, string> = {
+  SCHEDULED: "Scheduled",
+  COMPLETED: "Completed",
+  CANCELLED: "Cancelled",
+  NO_SHOW: "No-show",
+};
+
+export const appointmentTypeLabel: Record<string, string> = {
+  PHONE_CALL: "Phone call",
+  VIDEO_CALL: "Video call",
+  IN_PERSON: "In-person",
+};
+
 export const statusLabels: Record<StatusKind, Record<string, string>> = {
   request: requestStatusLabel,
   quote: quoteStatusLabel,
   job: jobStatusLabel,
   invoice: invoiceStatusLabel,
   contact: contactStatusLabel,
+  appointment: appointmentStatusLabel,
 };
 
 export const statusTones: Record<StatusKind, Record<string, StatusTone>> = {
@@ -67,6 +81,8 @@ export const statusTones: Record<StatusKind, Record<string, StatusTone>> = {
   job: { ACTIVE: "green", REQUIRES_INVOICING: "amber", ARCHIVED: "gray" },
   invoice: { DRAFT: "gray", AWAITING_PAYMENT: "amber", PAID: "green", PAST_DUE: "red" },
   contact: { LEAD: "amber", ACTIVE: "green", ARCHIVED: "gray" },
+  // blue = upcoming commitment (distinct from job-status greens/ambers)
+  appointment: { SCHEDULED: "blue", COMPLETED: "green", CANCELLED: "gray", NO_SHOW: "red" },
 };
 
 export const paymentMethodLabel: Record<string, string> = {

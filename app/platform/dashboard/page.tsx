@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 import Link from "next/link";
-import { Inbox, FileText, Briefcase, Receipt, ArrowRight } from "lucide-react";
-import { money, type StatusKind } from "@/lib/statuses";
+import { Inbox, FileText, Briefcase, Receipt, ArrowRight, Phone, Video, MapPin } from "lucide-react";
+import { money, appointmentTypeLabel, type StatusKind } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
 import EmptyState from "@/components/EmptyState";
 import {
@@ -12,7 +12,10 @@ import {
   canSeePricing,
   viaContactScope,
   jobScope,
+  appointmentScope,
 } from "@/lib/permissions";
+
+const apptIcons = { PHONE_CALL: Phone, VIDEO_CALL: Video, IN_PERSON: MapPin } as const;
 
 export default async function DashboardPage() {
   const actor = await requirePageActor();
@@ -46,6 +49,7 @@ export default async function DashboardPage() {
     draftInvoices,
     pastDueInvoices,
     todayVisits,
+    todayAppointments,
     receivables,
     upcomingJobsWeek,
     monthPayments,
@@ -66,6 +70,18 @@ export default async function DashboardPage() {
       include: { contact: true, lineItems: true, assignments: { include: { user: true } } },
       orderBy: { scheduledAt: "asc" },
     }),
+    sell
+      ? prisma.appointment.findMany({
+          where: {
+            companyId,
+            ...appointmentScope(actor),
+            status: "SCHEDULED",
+            scheduledAt: { gte: startOfDay, lt: endOfDay },
+          },
+          include: { contact: true, assignedTo: { select: { name: true } } },
+          orderBy: { scheduledAt: "asc" },
+        })
+      : Promise.resolve([]),
     seePerformance
       ? prisma.invoice.findMany({
           where: { companyId, status: { in: ["AWAITING_PAYMENT", "PAST_DUE"] } },
@@ -162,6 +178,41 @@ export default async function DashboardPage() {
     },
   ];
 
+  // One sorted "today" list: jobs + sales appointments
+  const fmtTime = (d: Date) =>
+    d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  const todayItems = [
+    ...todayVisits.map((job) => ({
+      id: `j-${job.id}`,
+      href: `/app/jobs/${job.id}`,
+      apptType: null as string | null,
+      primary: `${job.contact.firstName} ${job.contact.lastName} — ${job.title}`,
+      detail: [
+        job.scheduledAt && !job.scheduledAnytime ? fmtTime(new Date(job.scheduledAt)) : "Anytime",
+        job.assignments.map((a) => a.user.name).join(", ") || null,
+      ]
+        .filter(Boolean)
+        .join(" · "),
+      value: job.lineItems.reduce((s, li) => s + Number(li.total), 0),
+      sort: job.scheduledAnytime ? 0 : new Date(job.scheduledAt!).getTime(),
+    })),
+    ...todayAppointments.map((a) => ({
+      id: `a-${a.id}`,
+      href: `/app/appointments/${a.id}`,
+      apptType: a.type as string | null,
+      primary: `${a.contact.firstName} ${a.contact.lastName} — ${a.title}`,
+      detail: [
+        a.scheduledAnytime ? "Anytime" : fmtTime(new Date(a.scheduledAt)),
+        appointmentTypeLabel[a.type],
+        a.assignedTo?.name ?? null,
+      ]
+        .filter(Boolean)
+        .join(" · "),
+      value: 0,
+      sort: a.scheduledAnytime ? 0 : new Date(a.scheduledAt).getTime(),
+    })),
+  ].sort((x, y) => x.sort - y.sort);
+
   const firstName = actor.name?.split(" ")[0] ?? "there";
   const hour = now.getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
@@ -220,42 +271,38 @@ export default async function DashboardPage() {
               View schedule
             </Link>
           </div>
-          {todayVisits.length === 0 ? (
+          {todayItems.length === 0 ? (
             <EmptyState
               art="schedule"
               title="Nothing scheduled today"
-              body="Appointments you schedule for today will show up here."
+              body="Jobs and appointments you schedule for today will show up here."
               actionHref="/app/jobs/new"
               actionLabel="Schedule a Job"
               showPlusIcon={false}
             />
           ) : (
             <div className="divide-y divide-gray-50">
-              {todayVisits.map((job) => {
-                const value = job.lineItems.reduce((s, li) => s + Number(li.total), 0);
+              {todayItems.map((item) => {
+                const Icon = item.apptType
+                  ? apptIcons[item.apptType as keyof typeof apptIcons]
+                  : null;
                 return (
                   <Link
-                    key={job.id}
-                    href={`/app/jobs/${job.id}`}
+                    key={item.id}
+                    href={item.href}
                     className="flex items-center gap-4 px-5 py-3.5 hover:bg-gray-50 transition-colors"
                   >
+                    {Icon && (
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-50">
+                        <Icon size={13} className="text-blue-600" />
+                      </span>
+                    )}
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">
-                        {job.contact.firstName} {job.contact.lastName} — {job.title}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {job.scheduledAt && !job.scheduledAnytime
-                          ? new Date(job.scheduledAt).toLocaleTimeString("en-US", {
-                              hour: "numeric",
-                              minute: "2-digit",
-                            })
-                          : "Anytime"}
-                        {job.assignments.length > 0 &&
-                          ` · ${job.assignments.map((a) => a.user.name).join(", ")}`}
-                      </p>
+                      <p className="text-sm font-medium text-gray-900 truncate">{item.primary}</p>
+                      <p className="text-xs text-gray-500">{item.detail}</p>
                     </div>
-                    {seePrices && value > 0 && (
-                      <span className="text-sm font-semibold text-gray-900">{money(value)}</span>
+                    {seePrices && item.value > 0 && (
+                      <span className="text-sm font-semibold text-gray-900">{money(item.value)}</span>
                     )}
                   </Link>
                 );
