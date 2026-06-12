@@ -314,6 +314,16 @@ export default function BookingFormBuilder({
       {/* Services (service-request forms) — sourced from the price book */}
       {formType === "SERVICE_REQUEST" && (
         <Card title="Services offered" hint="a submission auto-creates an invoice for the chosen services">
+          <div>
+            <label className={smallLabel}>Section headline</label>
+            <input
+              type="text"
+              value={config.service.label}
+              onChange={(e) => setService({ label: e.target.value })}
+              placeholder="e.g. What can we do for you?"
+              className={inputClass}
+            />
+          </div>
           <div className="space-y-2">
             {config.services.map((s) => (
               <div key={s.id} className="border border-gray-200 rounded-lg p-3 bg-gray-50/50 space-y-2">
