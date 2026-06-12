@@ -199,6 +199,20 @@ invoices/quotes import; QuickBooks customer sync; price-book CSV import
 (small follow-up); "white-glove import" service as an agency onboarding
 pitch (send us your data, we load it — this importer is the tool).
 
+### 3e. Force-delete clients — SHIPPED 2026-06-11, verified live
+
+David's ask: a real way to delete clients with data (test clients,
+no-longer-relevant records) — the spam-delete guard only allowed clean
+contacts. The contact-page Delete button now branches: no work → quick
+confirm (unchanged); has work → danger modal listing exactly what gets
+destroyed (requests/appointments/quotes/jobs/invoices/payment records)
+with type-the-client's-name confirmation → `DELETE ?force=1` wipes
+everything in one FK-safe transaction (payments → invoices → quotes →
+jobs → appointments → requests → bookingRequests → servicePlans →
+reviewRequests → contact). Owner/admin only. Note: deleting payment
+records changes revenue/Insights history — that's the point, but it's
+why the friction is high.
+
 ### 4. Email automations via Resend — Phase 1 SHIPPED 2026-06-11 ← NEXT UP (Phase 2)
 
 - DONE: new-request notification to company.email from booking form + client
