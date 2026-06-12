@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   CalendarDays,
+  Copy,
   ExternalLink,
   Inbox,
   Loader2,
@@ -77,8 +78,20 @@ export default function FormsListClient({
     else router.refresh();
   }
 
+  async function duplicate(f: FormRow) {
+    setBusy(true);
+    setError("");
+    const { ok, data } = await postJson(`/api/app/web-forms/${f.id}/duplicate`, undefined, "POST");
+    setBusy(false);
+    if (!ok) setError(data?.error ?? GENERIC_ERROR);
+    else router.refresh();
+  }
+
   async function remove(f: FormRow) {
-    if (!confirm(`Delete the form "${f.name}"? Links and embeds pointing at it will stop working.`)) return;
+    const warning = f.isDefault
+      ? `Delete "${f.name}"? Everything it collected (clients, requests, invoices) is kept. Another form becomes the default and answers your original links.`
+      : `Delete "${f.name}"? Everything it collected (clients, requests, invoices) is kept, but links and embeds pointing at this form stop working.`;
+    if (!confirm(warning)) return;
     setBusy(true);
     const { ok, data } = await postJson(`/api/app/web-forms/${f.id}`, undefined, "DELETE");
     setBusy(false);
@@ -214,22 +227,28 @@ export default function FormsListClient({
                   {f.isActive ? "Turn off" : "Turn on"}
                 </button>
               )}
+              <button
+                onClick={() => duplicate(f)}
+                disabled={busy}
+                className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded"
+                title="Duplicate form"
+              >
+                <Copy size={14} />
+              </button>
               <Link
                 href={`/app/settings/booking/${f.id}`}
                 className="px-3 py-1.5 rounded text-xs font-semibold text-white bg-gray-900 hover:bg-gray-700"
               >
                 Customize
               </Link>
-              {!f.isDefault && (
-                <button
-                  onClick={() => remove(f)}
-                  disabled={busy}
-                  className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
-                  title="Delete form"
-                >
-                  <Trash2 size={14} />
-                </button>
-              )}
+              <button
+                onClick={() => remove(f)}
+                disabled={busy}
+                className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
+                title="Delete form"
+              >
+                <Trash2 size={14} />
+              </button>
             </div>
           );
         })}

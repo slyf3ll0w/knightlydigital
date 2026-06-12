@@ -48,7 +48,12 @@ export async function PATCH(
   return NextResponse.json({ success: true });
 }
 
-/** DELETE — remove a form (not the default; make another default first). */
+/**
+ * DELETE — remove a form. Submissions it collected (clients, requests,
+ * invoices) are untouched — nothing links back to the form. Deleting the
+ * default promotes the oldest remaining active form so the original
+ * /book and /embed URLs keep answering.
+ */
 export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -60,13 +65,26 @@ export async function DELETE(
   const { id } = await params;
   const form = await prisma.webForm.findFirst({ where: { id, companyId: actor.companyId } });
   if (!form) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  if (form.isDefault) {
-    return NextResponse.json(
-      { error: "This is your default form — make another form the default before deleting it." },
-      { status: 400 }
-    );
-  }
 
-  await prisma.webForm.delete({ where: { id: form.id } });
+  await prisma.$transaction(async (tx) => {
+    await tx.webForm.delete({ where: { id: form.id } });
+    if (form.isDefault) {
+      const next =
+        (await tx.webForm.findFirst({
+          where: { companyId: actor.companyId, isActive: true },
+          orderBy: { createdAt: "asc" },
+        })) ??
+        (await tx.webForm.findFirst({
+          where: { companyId: actor.companyId },
+          orderBy: { createdAt: "asc" },
+        }));
+      if (next) {
+        await tx.webForm.update({
+          where: { id: next.id },
+          data: { isDefault: true, isActive: true },
+        });
+      }
+    }
+  });
   return NextResponse.json({ success: true });
 }

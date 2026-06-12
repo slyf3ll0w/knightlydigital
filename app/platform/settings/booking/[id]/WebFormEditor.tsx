@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Check, Copy, ExternalLink, Loader2 } from "lucide-react";
 import BookingFormBuilder from "../../BookingFormBuilder";
@@ -61,6 +61,33 @@ export default function WebFormEditor({
     preview.appearance.font && GOOGLE_FONT_RE.test(preview.appearance.font)
       ? preview.appearance.font
       : null;
+
+  // Unsaved-changes guard: warn on tab close / hard navigation, and confirm
+  // before any in-app link click leaves the editor (capture phase fires
+  // before Next's Link handler, so preventDefault stops the navigation).
+  useEffect(() => {
+    if (!dirty) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    const onClickCapture = (e: MouseEvent) => {
+      const anchor = (e.target as HTMLElement).closest?.("a[href]") as HTMLAnchorElement | null;
+      if (!anchor) return;
+      const href = anchor.getAttribute("href") ?? "";
+      if (anchor.target === "_blank" || href.startsWith("#")) return;
+      if (!confirm("You have unsaved changes — leave without saving them?")) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    document.addEventListener("click", onClickCapture, true);
+    return () => {
+      window.removeEventListener("beforeunload", onBeforeUnload);
+      document.removeEventListener("click", onClickCapture, true);
+    };
+  }, [dirty]);
 
   const pathSuffix = form.isDefault ? company.slug : `${company.slug}/${form.slug}`;
   const bookingUrl = `${baseUrl}/book/${pathSuffix}`;
