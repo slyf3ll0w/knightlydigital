@@ -74,6 +74,8 @@ model User {
   company      Company? @relation(fields: [companyId], references: [id])
   phone        String?
   isActive     Boolean  @default(true)
+  // First-visit guided tour; null = hasn't seen it (fires on next dashboard visit)
+  tourCompletedAt DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

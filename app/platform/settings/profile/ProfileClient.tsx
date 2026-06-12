@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Check, Loader2 } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 
@@ -124,6 +125,23 @@ export default function ProfileClient({
           {busy ? <Loader2 size={13} className="animate-spin" /> : saved === "password" && <Check size={13} />}
           Update Password
         </button>
+      </div>
+
+      <div className="card-ledger p-5 mt-5 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
+            Welcome tour
+          </h2>
+          <p className="text-sm text-gray-600">
+            Replay the quick walkthrough of how work flows through the app.
+          </p>
+        </div>
+        <Link
+          href="/app/dashboard?tour=1"
+          className="px-4 py-2 border border-gray-300 text-sm font-medium text-gray-700 rounded hover:bg-gray-50 transition-colors shrink-0"
+        >
+          Replay the tour
+        </Link>
       </div>
     </div>
   );

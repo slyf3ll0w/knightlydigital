@@ -276,7 +276,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* ── Workflow ledger ────────────────────────────────────────────────── */}
-      <div className="anim-fade-up anim-delay-1 mb-8">
+      <div className="anim-fade-up anim-delay-1 mb-8" data-tour="workflow">
         <RuledLabel>Workflow</RuledLabel>
         <div className="card-ledger grid grid-cols-2 lg:grid-cols-4 overflow-hidden">
           {workflow.filter((w) => w.show).map((w) => (
@@ -315,7 +315,7 @@ export default async function DashboardPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6">
         {/* ── Today's appointments — timeline with a time rail ─────────────── */}
-        <div className="card-ledger anim-fade-up anim-delay-2 self-start">
+        <div className="card-ledger anim-fade-up anim-delay-2 self-start" data-tour="today">
           <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
             <h2 className="font-semibold text-gray-900">Today&apos;s appointments</h2>
             <Link href="/app/schedule" className="text-sm text-green-600 hover:underline font-medium">

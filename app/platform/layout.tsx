@@ -29,7 +29,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     session.user.id
       ? prisma.user.findUnique({
           where: { id: session.user.id },
-          select: { role: true, name: true },
+          select: { role: true, name: true, tourCompletedAt: true },
         })
       : null,
   ]);
@@ -42,6 +42,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       companyName={company?.name ?? session.user.companyName}
       companyLogoUrl={company?.logoUrl}
       brandColor={company?.brandColor}
+      needsTour={!!user && !user.tourCompletedAt}
     >
       {children}
     </AppShell>

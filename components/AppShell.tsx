@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import Avatar from "@/components/Avatar";
+import TourGuide from "@/components/TourGuide";
 import { textOn } from "@/lib/branding";
 
 const DEFAULT_ACCENT = "#22C55E"; // green-500
@@ -85,6 +86,17 @@ const mobileNav: NavItem[] = [
 const forRole = (items: NavItem[], role: string) =>
   items.filter((i) => !i.show || i.show(role));
 
+// Guided-tour anchors (components/TourGuide.tsx). Keyed by href so the
+// desktop sidebar and mobile tab bar both carry them — the visible one wins.
+const tourKeys: Record<string, string> = {
+  "/app/requests": "nav-requests",
+  "/app/quotes": "nav-quotes",
+  "/app/schedule": "nav-schedule",
+  "/app/invoices": "nav-invoices",
+  "/app/settings/booking": "nav-forms",
+  "/app/settings/team": "nav-team",
+};
+
 /**
  * Global create menu. Self-contained state + ref so each sidebar instance
  * (desktop + mobile drawer) gets its own — a shared ref made the click-outside
@@ -115,6 +127,7 @@ function CreateMenu({ accent, role }: { accent: string; role: string }) {
     <div className="px-3 pt-4 relative" ref={ref}>
       <button
         onClick={() => setOpen((v) => !v)}
+        data-tour="create"
         style={{ backgroundColor: accent, color: textOn(accent) }}
         className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 hover:brightness-110 text-sm font-semibold rounded-md shadow-sm transition-[filter]"
       >
@@ -148,6 +161,7 @@ interface AppShellProps {
   companyName?: string | null;
   companyLogoUrl?: string | null;
   brandColor?: string | null;
+  needsTour?: boolean;
 }
 
 export default function AppShell({
@@ -158,6 +172,7 @@ export default function AppShell({
   companyName,
   companyLogoUrl,
   brandColor,
+  needsTour = false,
 }: AppShellProps) {
   const userRole = role ?? "OWNER";
   const manager = isManagerRole(userRole);
@@ -202,6 +217,7 @@ export default function AppShell({
       <Link
         key={href}
         href={href}
+        data-tour={tourKeys[href]}
         className={`relative flex items-center gap-3 px-3 py-2 rounded-md text-[13px] font-medium transition-colors ${
           active ? "bg-white/[0.07] text-white" : "text-white/55 hover:text-white hover:bg-white/[0.04]"
         }`}
@@ -371,6 +387,8 @@ export default function AppShell({
       </div>
 
       <MobileTabBar accent={accent} role={userRole} isActive={isActive} />
+
+      <TourGuide role={userRole} needsTour={needsTour} />
     </div>
   );
 }
@@ -405,6 +423,7 @@ function MobileTabBar({
       <Link
         key={href}
         href={href}
+        data-tour={tourKeys[href]}
         style={active ? { color: accent } : undefined}
         className={`flex-1 flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium transition-colors ${
           active ? "" : "text-gray-400 hover:text-gray-600"
@@ -467,6 +486,7 @@ function MobileTabBar({
             <button
               onClick={() => setSheetOpen((v) => !v)}
               aria-label="Create"
+              data-tour="create"
               style={{ backgroundColor: accent, color: textOn(accent) }}
               className="absolute left-1/2 -translate-x-1/2 -top-4 flex h-12 w-12 items-center justify-center rounded-full shadow-lg shadow-black/20 active:scale-95 transition-transform"
             >
