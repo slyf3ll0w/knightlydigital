@@ -23,8 +23,18 @@ export async function POST(req: NextRequest) {
     (s: number, li: { quantity: number; unitPrice: number }) => s + li.quantity * li.unitPrice,
     0
   );
-  const tax = taxRate ? subtotal * taxRate : null;
-  const total = subtotal + (tax ?? 0);
+  // Discount comes off the subtotal before tax
+  const discountType = body.discountType === "PERCENT" || body.discountType === "FIXED" ? body.discountType : "NONE";
+  const discountValue = Number(body.discountValue) || 0;
+  const discount =
+    discountType === "PERCENT"
+      ? Math.round(subtotal * Math.min(Math.max(discountValue, 0), 100)) / 100
+      : discountType === "FIXED"
+        ? Math.min(Math.max(discountValue, 0), subtotal)
+        : 0;
+  const taxable = subtotal - discount;
+  const tax = taxRate ? taxable * taxRate : null;
+  const total = taxable + (tax ?? 0);
 
   // Due date from explicit value, else the client's payment terms (Net N).
   // Date-only strings get anchored to midday so they don't shift a day in
@@ -50,6 +60,9 @@ export async function POST(req: NextRequest) {
         invoiceNumber: (last?.invoiceNumber ?? 0) + 1,
         subject: subject || null,
         subtotal,
+        discountType,
+        discountValue: discount > 0 ? discountValue : null,
+        discount: discount > 0 ? discount : null,
         taxRate: taxRate || null,
         tax,
         total,

@@ -53,8 +53,10 @@ model Company {
   bookingRequests BookingRequest[]
   reviewRequests  ReviewRequest[]
   appointments    Appointment[]
-  contactFieldDefs ContactFieldDef[]
-  webForms        WebForm[]
+  contactFieldDefs  ContactFieldDef[]
+  webForms          WebForm[]
+  contractTemplates ContractTemplate[]
+  contracts         Contract[]
 
   @@index([slug])
 }
@@ -162,6 +164,7 @@ model Contact {
   servicePlans    ServicePlan[]
   bookingRequests BookingRequest[]
   appointments    Appointment[]
+  contracts       Contract[]
 
   @@index([companyId])
   @@index([companyId, status])
@@ -200,6 +203,58 @@ model Request {
   @@unique([companyId, requestNumber])
   @@index([companyId])
   @@index([companyId, status])
+}
+
+// ─── Service contracts (templates + e-sign) ──────────────────────────────────
+
+enum ContractStatus {
+  DRAFT
+  SENT
+  SIGNED
+  VOID
+}
+
+// Reusable contract text the company writes once ("Lawn Care Agreement").
+// {{client_name}}, {{company_name}}, {{date}} placeholders fill at creation.
+model ContractTemplate {
+  id        String   @id @default(cuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id])
+  name      String
+  body      String   @db.Text
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  contracts Contract[]
+
+  @@index([companyId, isActive])
+}
+
+// A contract issued to a client — body snapshotted from the template, signed
+// with a typed signature on the public /contract/[token] page (same e-sign
+// approach as quote approval: typed name + timestamp + IP).
+model Contract {
+  id            String            @id @default(cuid())
+  companyId     String
+  company       Company           @relation(fields: [companyId], references: [id])
+  contactId     String
+  contact       Contact           @relation(fields: [contactId], references: [id])
+  templateId    String?
+  template      ContractTemplate? @relation(fields: [templateId], references: [id])
+  title         String
+  body          String            @db.Text
+  status        ContractStatus    @default(DRAFT)
+  publicToken   String            @unique @default(cuid())
+  sentAt        DateTime?
+  signatureName String?
+  signedAt      DateTime?
+  signedFromIp  String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  @@index([companyId, status])
+  @@index([contactId])
 }
 
 // ─── Web forms (public booking/inquiry/service-request forms) ────────────────
@@ -474,6 +529,10 @@ model Invoice {
   subject       String?
   status        InvoiceStatus @default(DRAFT)
   subtotal      Decimal       @db.Decimal(10, 2)
+  // Discount applies to the subtotal before tax
+  discountType  DepositType   @default(NONE)
+  discountValue Decimal?      @db.Decimal(10, 2)
+  discount      Decimal?      @db.Decimal(10, 2) // computed amount
   taxRate       Decimal?      @db.Decimal(5, 4)
   tax           Decimal?      @db.Decimal(10, 2)
   surcharge     Decimal?      @db.Decimal(10, 2)

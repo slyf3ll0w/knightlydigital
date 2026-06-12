@@ -29,6 +29,7 @@ export default async function ContactDetailPage({
       include: {
         requests: { orderBy: { createdAt: "desc" } },
         appointments: { orderBy: { createdAt: "desc" } },
+        contracts: { orderBy: { createdAt: "desc" } },
         quotes: { orderBy: { createdAt: "desc" } },
         jobs: { orderBy: { createdAt: "desc" } },
         invoices: { include: { payments: true }, orderBy: { createdAt: "desc" } },
@@ -80,6 +81,16 @@ export default async function ContactDetailPage({
       date: a.createdAt,
       kind: "appointment" as StatusKind,
       status: a.status as string,
+      amount: null as number | null,
+    })),
+    ...contact.contracts.map((ct) => ({
+      key: `ct-${ct.id}`,
+      href: `/app/contracts/${ct.id}`,
+      type: "Contract",
+      label: ct.title,
+      date: ct.createdAt,
+      kind: "contract" as StatusKind,
+      status: ct.status as string,
       amount: null as number | null,
     })),
     ...contact.quotes.map((q) => ({

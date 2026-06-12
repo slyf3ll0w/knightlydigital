@@ -137,6 +137,22 @@ export default function SettingsClient({ company }: { company: Company }) {
         <span className="text-sm font-medium text-green-600">Manage →</span>
       </Link>
 
+      {/* Contract templates */}
+      <Link
+        href="/app/settings/contracts"
+        className="flex items-center justify-between bg-white border border-gray-200 rounded-lg p-5 mb-6 hover:shadow-sm transition-shadow"
+      >
+        <div>
+          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+            Contract Templates
+          </h2>
+          <p className="text-xs text-gray-400 mt-0.5">
+            Reusable service agreements clients e-sign from a link
+          </p>
+        </div>
+        <span className="text-sm font-medium text-green-600">Manage →</span>
+      </Link>
+
       {/* Booking form */}
       <Link
         href="/app/settings/booking"

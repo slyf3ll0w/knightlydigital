@@ -7,7 +7,7 @@ import { brandHeader, brandAccent, textOn } from "@/lib/branding";
 type LineItem = { id: string; name?: string; description: string; quantity: number; unitPrice: number; total: number };
 type Invoice = {
   id: string; invoiceNumber: number; status: string; publicToken: string;
-  subtotal: number; tax: number | null; surcharge: number | null; total: number;
+  subtotal: number; discount: number | null; tax: number | null; surcharge: number | null; total: number;
   notes: string | null; dueDate: string | null;
   contact: { firstName: string; lastName: string; email: string | null } | null;
   company: {
@@ -139,6 +139,12 @@ export default function PayPage({ invoice }: { invoice: Invoice }) {
               <span className="text-gray-500">Subtotal</span>
               <span>${Number(invoice.subtotal).toFixed(2)}</span>
             </div>
+            {invoice.discount && Number(invoice.discount) > 0 && (
+              <div className="flex justify-between text-sm text-green-700">
+                <span>Discount</span>
+                <span>-${Number(invoice.discount).toFixed(2)}</span>
+              </div>
+            )}
             {invoice.tax && Number(invoice.tax) > 0 && (
               <div className="flex justify-between text-sm">
                 <span className="text-gray-500">Tax</span>

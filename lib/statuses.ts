@@ -10,7 +10,14 @@
  */
 
 export type StatusTone = "green" | "amber" | "red" | "gray" | "blue";
-export type StatusKind = "request" | "quote" | "job" | "invoice" | "contact" | "appointment";
+export type StatusKind =
+  | "request"
+  | "quote"
+  | "job"
+  | "invoice"
+  | "contact"
+  | "appointment"
+  | "contract";
 
 export const requestStatusLabel: Record<string, string> = {
   NEW: "New",
@@ -59,6 +66,13 @@ export const appointmentTypeLabel: Record<string, string> = {
   IN_PERSON: "In-person",
 };
 
+export const contractStatusLabel: Record<string, string> = {
+  DRAFT: "Draft",
+  SENT: "Awaiting Signature",
+  SIGNED: "Signed",
+  VOID: "Void",
+};
+
 export const statusLabels: Record<StatusKind, Record<string, string>> = {
   request: requestStatusLabel,
   quote: quoteStatusLabel,
@@ -66,6 +80,7 @@ export const statusLabels: Record<StatusKind, Record<string, string>> = {
   invoice: invoiceStatusLabel,
   contact: contactStatusLabel,
   appointment: appointmentStatusLabel,
+  contract: contractStatusLabel,
 };
 
 export const statusTones: Record<StatusKind, Record<string, StatusTone>> = {
@@ -83,6 +98,7 @@ export const statusTones: Record<StatusKind, Record<string, StatusTone>> = {
   contact: { LEAD: "amber", ACTIVE: "green", ARCHIVED: "gray" },
   // blue = upcoming commitment (distinct from job-status greens/ambers)
   appointment: { SCHEDULED: "blue", COMPLETED: "green", CANCELLED: "gray", NO_SHOW: "red" },
+  contract: { DRAFT: "gray", SENT: "amber", SIGNED: "green", VOID: "gray" },
 };
 
 export const paymentMethodLabel: Record<string, string> = {
