@@ -345,6 +345,46 @@ tourCompletedAt is now set; use ?tour=1 to demo it.
 
 (The companion "Getting started" checklist idea stays parked in `ideas.md`.)
 
+### 3l. Client portal login + agreement gate + portal upgrades — SHIPPED 2026-06-12, verified live
+
+David's spec: companies can email a portal login; keep direct token links;
+no e-sign documents inside the portal (point at email instead); easy
+agreement-send at quote time; signing required before work starts,
+per-service (price-book flag), not per-company.
+
+- **Portal login (magic link, no passwords)**: `/portal/[companySlug]` —
+  branded sign-in page where the client enters their email and gets their
+  hub link mailed (`POST /api/public/portal-login`; always answers success,
+  never reveals matches; middleware rate-limited). Contact page "Client
+  portal" card: open / copy / **Email portal access**
+  (`POST /api/app/contacts/[id]/portal-invite`). Settings shows the
+  company's portal URL with copy. `lib/email.ts hubAccessEmail`. All email
+  paths env-gated on RESEND_API_KEY (DNS verification still pending).
+- **Agreement gate**: `WorkItem.requiresAgreement` checkbox in the price
+  book ("Agreement" stamp in the list) → snapshotted to
+  `QuoteLineItem.requiresAgreement` when picked (create + edit). 
+  `Contract.quoteId` ties agreements to quotes (contracts POST accepts it).
+  Convert-to-job 400s while a flagged quote (ignoring client-removed
+  optional items) lacks a SIGNED linked contract. Quote detail: Agreement
+  fact (Required — not sent / Awaiting signature / Signed), **Send
+  Agreement** primary button + template-pick modal replaces Convert until
+  sent, amber "Awaiting agreement signature" chip until signed, "Send
+  agreement (again)" menu item. Job delete reverting a quote to APPROVED
+  keeps its signed contract, so it can reconvert cleanly.
+- **Hub (client portal)**: paper canvas; Upcoming visits card (next 5
+  scheduled jobs); Agreements card — pending = "check your email" +
+  Resend button (`POST /api/hub/resend-contract`), signed = ✓ + date; amber
+  pending-signature banner. No inline signing by design.
+- Verified live on demo co end-to-end: flag service → quote picks up flag →
+  convert blocked (server alert) → send agreement (Monthly Wash template) →
+  sign at /contract/[token] → quote unlocks → converts. Portal login page
+  renders branded + anti-enumeration success state. Cleanup done (test
+  job/quote/contract deleted). NOTE: demo "Roof Soft Wash" left flagged
+  requires-agreement to demo the gate.
+- Deferred: gate on direct job creation (agreements are quote-scoped
+  today), portal sessions/cookies (link IS the login), agreement
+  auto-attach at "Mark as Sent", login page link from the hub header.
+
 ### 4. Email automations via Resend — Phase 1 SHIPPED 2026-06-11 ← NEXT UP (Phase 2)
 
 - DONE: new-request notification to company.email from booking form + client
