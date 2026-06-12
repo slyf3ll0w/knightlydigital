@@ -2,6 +2,7 @@ import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
+import { verifyCaptcha } from "@/lib/captcha";
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -10,6 +11,7 @@ export const authOptions: NextAuthOptions = {
       credentials: {
         email: { label: "Email" },
         password: { label: "Password", type: "password" },
+        captchaToken: { label: "Captcha" },
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
@@ -19,6 +21,19 @@ export const authOptions: NextAuthOptions = {
           include: { company: { select: { name: true } } },
         });
         if (!user || !user.isActive) return null;
+
+        // Captcha-gate the login BEFORE the password check, so password
+        // validity is never revealed without a human-verified token
+        // (verifyCaptcha passes when Turnstile isn't configured). Accounts
+        // created moments ago skip it so the register page's auto sign-in
+        // works — its Turnstile token was already consumed by the register
+        // API, and an attacker who just created the account knows its
+        // password anyway.
+        const justRegistered = Date.now() - user.createdAt.getTime() < 2 * 60 * 1000;
+        if (!justRegistered) {
+          const captchaOk = await verifyCaptcha(credentials.captchaToken);
+          if (!captchaOk) throw new Error("captcha");
+        }
 
         const valid = await bcrypt.compare(credentials.password, user.passwordHash);
         if (!valid) return null;

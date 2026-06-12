@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
+import TurnstileWidget, { TurnstileHandle } from "@/components/TurnstileWidget";
 
 export default function AppLoginPage() {
   const router = useRouter();
@@ -13,6 +14,8 @@ export default function AppLoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState("");
+  const captchaRef = useRef<TurnstileHandle>(null);
 
   // Already signed in with a company — go straight to the dashboard.
   // Sessions WITHOUT a company (superadmin, or a deleted test company) must
@@ -34,13 +37,20 @@ export default function AppLoginPage() {
     const res = await signIn("credentials", {
       email,
       password,
+      captchaToken,
       redirect: false,
     });
 
     setLoading(false);
 
     if (res?.error) {
-      setError("Invalid email or password.");
+      setError(
+        res.error === "captcha"
+          ? "Verification failed — please complete the check below and try again."
+          : "Invalid email or password."
+      );
+      // Turnstile tokens are single-use; the failed attempt consumed this one
+      captchaRef.current?.reset();
     } else {
       // Full page load so the app layout re-renders with the new session
       // (client-side navigation would reuse the signed-out layout — no sidebar)
@@ -108,6 +118,7 @@ export default function AppLoginPage() {
                 placeholder="••••••••"
               />
             </div>
+            <TurnstileWidget ref={captchaRef} onToken={setCaptchaToken} />
             <button
               type="submit"
               disabled={loading}
