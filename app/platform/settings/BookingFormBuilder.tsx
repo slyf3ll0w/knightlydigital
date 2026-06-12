@@ -100,11 +100,13 @@ export default function BookingFormBuilder({
   onChange,
   formType = "BOOKING",
   contactFieldDefs = [],
+  priceBookItems = [],
 }: {
   config: BookingFormConfig;
   onChange: (config: BookingFormConfig) => void;
   formType?: "INQUIRY" | "BOOKING" | "SERVICE_REQUEST";
   contactFieldDefs?: { id: string; label: string }[];
+  priceBookItems?: { id: string; name: string; description: string | null; price: number }[];
 }) {
   const set = (patch: Partial<BookingFormConfig>) => onChange({ ...config, ...patch });
   const setHeader = (patch: Partial<BookingFormConfig["header"]>) =>
@@ -309,20 +311,14 @@ export default function BookingFormBuilder({
         </p>
       </Card>
 
-      {/* Services (service-request forms) */}
+      {/* Services (service-request forms) — sourced from the price book */}
       {formType === "SERVICE_REQUEST" && (
         <Card title="Services offered" hint="a submission auto-creates an invoice for the chosen services">
           <div className="space-y-2">
             {config.services.map((s) => (
               <div key={s.id} className="border border-gray-200 rounded-lg p-3 bg-gray-50/50 space-y-2">
                 <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    value={s.name}
-                    onChange={(e) => setServiceRow(s.id, { name: e.target.value })}
-                    placeholder="Service name"
-                    className={`${inputClass} flex-1`}
-                  />
+                  <p className="flex-1 text-sm font-medium text-gray-900 truncate">{s.name}</p>
                   <div className="flex items-center gap-1">
                     <span className="text-sm text-gray-400">$</span>
                     <input
@@ -346,27 +342,82 @@ export default function BookingFormBuilder({
                   type="text"
                   value={s.description ?? ""}
                   onChange={(e) => setServiceRow(s.id, { description: e.target.value || undefined })}
-                  placeholder="Short description (optional)"
+                  placeholder="Short description shown on the form (optional)"
                   className={inputClass}
                 />
               </div>
             ))}
           </div>
-          <button
-            type="button"
-            onClick={() =>
-              set({
-                services: [
-                  ...config.services,
-                  { id: `svc-${Math.random().toString(36).slice(2, 8)}`, name: "", price: 0 },
-                ],
-              })
+          {(() => {
+            const available = priceBookItems.filter(
+              (w) => !config.services.some((s) => s.workItemId === w.id)
+            );
+            if (priceBookItems.length === 0) {
+              return (
+                <div className="rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                  Your price book is empty — add the services you offer there first, then pick
+                  them here.{" "}
+                  <a
+                    href="/app/settings/products"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-semibold underline"
+                  >
+                    Open price book
+                  </a>
+                </div>
+              );
             }
-            className="flex items-center gap-1.5 px-3 py-2 border border-dashed border-gray-300 text-sm font-medium text-gray-600 rounded hover:border-gray-400 hover:bg-gray-50 transition-colors"
-          >
-            <Plus size={14} />
-            Add service
-          </button>
+            return (
+              <div className="space-y-2">
+                {available.length > 0 ? (
+                  <select
+                    value=""
+                    onChange={(e) => {
+                      const item = priceBookItems.find((w) => w.id === e.target.value);
+                      if (!item) return;
+                      set({
+                        services: [
+                          ...config.services,
+                          {
+                            id: `svc-${Math.random().toString(36).slice(2, 8)}`,
+                            workItemId: item.id,
+                            name: item.name,
+                            price: item.price,
+                            description: item.description ?? undefined,
+                          },
+                        ],
+                      });
+                    }}
+                    className={`${inputClass} bg-white`}
+                  >
+                    <option value="">+ Add a service from your price book...</option>
+                    {available.map((w) => (
+                      <option key={w.id} value={w.id}>
+                        {w.name} — ${w.price.toFixed(2)}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <p className="text-xs text-gray-400">
+                    Every price-book service is already on this form.
+                  </p>
+                )}
+                <p className="text-xs text-gray-400">
+                  Don&apos;t see a service?{" "}
+                  <a
+                    href="/app/settings/products"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-green-600 underline"
+                  >
+                    Add it to your price book
+                  </a>{" "}
+                  then reload this page.
+                </p>
+              </div>
+            );
+          })()}
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2 pt-1">
             <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
               <input

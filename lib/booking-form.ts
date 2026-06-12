@@ -24,9 +24,11 @@ export type CustomField = {
 
 export type StdField = { show: boolean; required: boolean; label: string };
 
-/** A sellable service offered on SERVICE_REQUEST forms (price snapshot). */
+/** A sellable service offered on SERVICE_REQUEST forms — picked from the
+ *  company's price book (workItemId) with the price snapshotted at add time. */
 export type FormService = {
   id: string;
+  workItemId?: string;
   name: string;
   price: number;
   description?: string;
@@ -220,6 +222,7 @@ export function sanitizeBookingForm(raw: unknown): BookingFormConfig {
           const price = Number(sv.price);
           return {
             id: str(sv.id, 40) || `svc-${i}`,
+            workItemId: str(sv.workItemId, 40) || undefined,
             name: str(sv.name, 100),
             price: Number.isFinite(price) && price >= 0 ? Math.round(price * 100) / 100 : 0,
             description: str(sv.description, 200) || undefined,

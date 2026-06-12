@@ -14,13 +14,18 @@ export default async function WebFormEditorPage({
   const actor = await requirePageActor((a) => isManager(a.role));
 
   const { id } = await params;
-  const [form, company, fieldDefs] = await Promise.all([
+  const [form, company, fieldDefs, workItems] = await Promise.all([
     prisma.webForm.findFirst({ where: { id, companyId: actor.companyId } }),
     prisma.company.findUnique({
       where: { id: actor.companyId },
       select: { name: true, slug: true, brandColor: true },
     }),
     getActiveFieldDefs(actor.companyId),
+    prisma.workItem.findMany({
+      where: { companyId: actor.companyId, isActive: true },
+      select: { id: true, name: true, description: true, unitPrice: true },
+      orderBy: { name: "asc" },
+    }),
   ]);
   if (!form) notFound();
   if (!company) redirect("/app/register");
@@ -43,6 +48,12 @@ export default async function WebFormEditorPage({
       company={{ name: company.name, slug: company.slug, brandColor: company.brandColor }}
       baseUrl={baseUrl}
       contactFieldDefs={fieldDefs.map((d) => ({ id: d.id, label: d.label }))}
+      priceBookItems={workItems.map((w) => ({
+        id: w.id,
+        name: w.name,
+        description: w.description,
+        price: Number(w.unitPrice),
+      }))}
     />
   );
 }

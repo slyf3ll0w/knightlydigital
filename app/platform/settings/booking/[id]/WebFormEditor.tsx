@@ -37,11 +37,13 @@ export default function WebFormEditor({
   company,
   baseUrl,
   contactFieldDefs,
+  priceBookItems = [],
 }: {
   form: FormMeta;
   company: { name: string; slug: string; brandColor: string | null };
   baseUrl: string;
   contactFieldDefs: { id: string; label: string }[];
+  priceBookItems?: { id: string; name: string; description: string | null; price: number }[];
 }) {
   const [config, setConfig] = useState(form.config);
   const [name, setName] = useState(form.name);
@@ -132,6 +134,7 @@ export default function WebFormEditor({
           onChange={onChange}
           formType={form.type}
           contactFieldDefs={contactFieldDefs}
+          priceBookItems={priceBookItems}
         />
 
         {/* Live preview */}
