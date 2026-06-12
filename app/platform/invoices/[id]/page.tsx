@@ -85,7 +85,7 @@ export default async function InvoiceDetailPage({
       )}
 
       {/* Header facts */}
-      <div className="flex flex-wrap gap-x-8 gap-y-2 px-5 py-4 bg-white border border-gray-200 rounded-lg mb-6 text-sm">
+      <div className="flex flex-wrap gap-x-8 gap-y-2 px-5 py-4 card-ledger mb-6 text-sm">
         <div>
           <span className="text-xs uppercase font-semibold text-gray-400 block">Invoice #</span>
           <span className="text-gray-800">{invoice.invoiceNumber}</span>
@@ -115,7 +115,7 @@ export default async function InvoiceDetailPage({
       </div>
 
       {/* Invoice body */}
-      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden mb-6">
+      <div className="card-ledger overflow-hidden mb-6">
         <div className="px-6 py-4">
           <table className="w-full text-sm">
             <thead>
@@ -210,7 +210,7 @@ export default async function InvoiceDetailPage({
       </div>
 
       {/* Payments */}
-      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+      <div className="card-ledger overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
           <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Payments</h2>
           {balance > 0 && (

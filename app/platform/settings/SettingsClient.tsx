@@ -131,7 +131,7 @@ export default function SettingsClient({ company }: { company: Company }) {
       {/* Price book */}
       <Link
         href="/app/settings/products"
-        className="flex items-center justify-between bg-white border border-gray-200 rounded-lg p-5 mb-6 hover:shadow-sm transition-shadow"
+        className="flex items-center justify-between card-ledger p-5 mb-6 hover:shadow-sm transition-shadow"
       >
         <div>
           <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
@@ -147,7 +147,7 @@ export default function SettingsClient({ company }: { company: Company }) {
       {/* Contract templates */}
       <Link
         href="/app/settings/contracts"
-        className="flex items-center justify-between bg-white border border-gray-200 rounded-lg p-5 mb-6 hover:shadow-sm transition-shadow"
+        className="flex items-center justify-between card-ledger p-5 mb-6 hover:shadow-sm transition-shadow"
       >
         <div>
           <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
@@ -163,7 +163,7 @@ export default function SettingsClient({ company }: { company: Company }) {
       {/* Booking form */}
       <Link
         href="/app/settings/booking"
-        className="flex items-center justify-between bg-white border border-gray-200 rounded-lg p-5 mb-6 hover:shadow-sm transition-shadow"
+        className="flex items-center justify-between card-ledger p-5 mb-6 hover:shadow-sm transition-shadow"
       >
         <div>
           <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
@@ -178,7 +178,7 @@ export default function SettingsClient({ company }: { company: Company }) {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Business info */}
-        <div className="bg-white border border-gray-200 rounded-lg p-5 space-y-4">
+        <div className="card-ledger p-5 space-y-4">
           <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Business Info</h2>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Business name *</label>
@@ -239,7 +239,7 @@ export default function SettingsClient({ company }: { company: Company }) {
         </div>
 
         {/* Branding */}
-        <div className="bg-white border border-gray-200 rounded-lg p-5 space-y-4">
+        <div className="card-ledger p-5 space-y-4">
           <div>
             <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Branding</h2>
             <p className="text-xs text-gray-400 mt-0.5">
@@ -327,7 +327,7 @@ export default function SettingsClient({ company }: { company: Company }) {
         </div>
 
         {/* Surcharging */}
-        <div className="bg-white border border-gray-200 rounded-lg p-5 space-y-4">
+        <div className="card-ledger p-5 space-y-4">
           <div>
             <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Card Surcharging</h2>
             <p className="text-xs text-gray-400 mt-0.5">Pass card processing fees to your customer</p>
@@ -364,7 +364,7 @@ export default function SettingsClient({ company }: { company: Company }) {
         </div>
 
         {/* Review requests */}
-        <div className="bg-white border border-gray-200 rounded-lg p-5 space-y-4">
+        <div className="card-ledger p-5 space-y-4">
           <div>
             <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Review Requests</h2>
             <p className="text-xs text-gray-400 mt-0.5">Automatically ask for a Google review after payment</p>

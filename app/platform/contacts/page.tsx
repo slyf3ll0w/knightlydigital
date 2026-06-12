@@ -142,7 +142,7 @@ export default async function ContactsPage({
         )}
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+      <div className="card-ledger overflow-hidden">
         {contacts.length === 0 ? (
           <EmptyState
             art="contacts"

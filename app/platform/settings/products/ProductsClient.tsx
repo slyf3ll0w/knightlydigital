@@ -213,7 +213,7 @@ export default function ProductsClient({ initialItems }: { initialItems: WorkIte
       <div className="space-y-3">
         {editingId === "new" && editorRow}
 
-        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+        <div className="card-ledger overflow-hidden">
           {items.length === 0 && editingId !== "new" ? (
             <div className="py-16 text-center">
               <Package size={36} className="text-gray-300 mx-auto mb-3" />

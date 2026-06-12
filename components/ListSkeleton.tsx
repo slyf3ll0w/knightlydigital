@@ -24,7 +24,7 @@ export function ListPageSkeleton({
           style={{ gridTemplateColumns: `repeat(${Math.min(kpis, 4)}, minmax(0, 1fr))` }}
         >
           {[...Array(kpis)].map((_, i) => (
-            <div key={i} className="h-[88px] bg-white border border-gray-200 rounded-lg p-4">
+            <div key={i} className="h-[88px] card-ledger p-4">
               <div className="h-3 w-20 bg-gray-100 rounded mb-3" />
               <div className="h-6 w-16 bg-gray-200 rounded" />
             </div>
@@ -38,7 +38,7 @@ export function ListPageSkeleton({
           ))}
         </div>
       )}
-      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+      <div className="card-ledger overflow-hidden">
         <div className="h-9 bg-gray-50 border-b border-gray-200" />
         <div className="divide-y divide-gray-100">
           {[...Array(rows)].map((_, i) => (

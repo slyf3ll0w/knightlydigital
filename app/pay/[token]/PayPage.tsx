@@ -37,7 +37,7 @@ export default function PayPage({ invoice }: { invoice: Invoice }) {
   if (invoice.status === "PAID" || done) {
     return (
       <div className="app-ui min-h-screen bg-gray-50 flex items-center justify-center px-4">
-        <div className="max-w-sm w-full bg-white rounded-lg border border-gray-200 p-8 text-center shadow-sm">
+        <div className="max-w-sm w-full card-ledger p-8 text-center shadow-sm">
           <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <CheckCircle size={28} className="text-green-600" />
           </div>
@@ -84,7 +84,7 @@ export default function PayPage({ invoice }: { invoice: Invoice }) {
     <div className="app-ui min-h-screen bg-gray-50 py-10 px-4">
       <div className="max-w-lg mx-auto space-y-4">
         {/* Company + invoice header */}
-        <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+        <div className="card-ledger shadow-sm overflow-hidden">
           <div
             className="px-5 py-4 flex items-center gap-3"
             style={{ backgroundColor: brandHeader(invoice.company) }}
@@ -166,7 +166,7 @@ export default function PayPage({ invoice }: { invoice: Invoice }) {
         </div>
 
         {/* Payment method */}
-        <div className="bg-white rounded-lg border border-gray-200 p-5 shadow-sm">
+        <div className="card-ledger p-5 shadow-sm">
           <h2 className="text-sm font-semibold text-gray-700 mb-3">Payment method</h2>
           <div className="grid grid-cols-2 gap-3 mb-4">
             <button

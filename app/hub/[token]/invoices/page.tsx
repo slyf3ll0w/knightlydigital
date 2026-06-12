@@ -40,7 +40,7 @@ export default async function HubInvoicesPage({
               <Link
                 key={inv.id}
                 href={`/pay/${inv.publicToken}`}
-                className="flex items-center gap-4 bg-white border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow"
+                className="flex items-center gap-4 card-ledger p-4 hover:shadow-sm transition-shadow"
               >
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-gray-900 truncate">
@@ -70,7 +70,7 @@ export default async function HubInvoicesPage({
     <div>
       <h2 className="text-xl font-bold text-gray-900 mb-4">Your invoices</h2>
       {contact.invoices.length === 0 ? (
-        <div className="bg-white border border-gray-200 rounded-lg py-14 text-center">
+        <div className="card-ledger py-14 text-center">
           <Receipt size={32} className="text-gray-300 mx-auto mb-3" />
           <p className="text-sm text-gray-500">No invoices yet.</p>
         </div>

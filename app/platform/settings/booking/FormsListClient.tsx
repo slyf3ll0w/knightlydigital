@@ -125,7 +125,7 @@ export default function FormsListClient({
       )}
 
       {creating && (
-        <div className="bg-white border border-gray-200 rounded-lg p-5 mb-6 space-y-4">
+        <div className="card-ledger p-5 mb-6 space-y-4">
           <div>
             <label className="block text-xs text-gray-500 mb-1">Form name *</label>
             <input
@@ -177,7 +177,7 @@ export default function FormsListClient({
           return (
             <div
               key={f.id}
-              className={`bg-white border border-gray-200 rounded-lg px-4 py-3.5 flex flex-wrap items-center gap-3 ${
+              className={`card-ledger px-4 py-3.5 flex flex-wrap items-center gap-3 ${
                 f.isActive ? "" : "opacity-60"
               }`}
             >

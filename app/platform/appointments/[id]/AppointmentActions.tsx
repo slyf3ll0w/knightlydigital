@@ -175,7 +175,7 @@ export default function AppointmentActions({
       </div>
 
       {rescheduling && (
-        <div className="flex flex-wrap items-end justify-end gap-2 bg-white border border-gray-200 rounded-lg p-3">
+        <div className="flex flex-wrap items-end justify-end gap-2 card-ledger p-3">
           {anytime ? (
             <div>
               <label className="block text-xs text-gray-500 mb-0.5">Date</label>

@@ -86,7 +86,7 @@ export default async function JobDetailPage({
       </div>
 
       {/* Header facts with backlinks */}
-      <div className="flex flex-wrap gap-x-8 gap-y-2 px-5 py-4 bg-white border border-gray-200 rounded-lg mb-6 text-sm">
+      <div className="flex flex-wrap gap-x-8 gap-y-2 px-5 py-4 card-ledger mb-6 text-sm">
         <div>
           <span className="text-xs uppercase font-semibold text-gray-400 block">Job #</span>
           <span className="text-gray-800">{job.jobNumber}</span>
@@ -128,7 +128,7 @@ export default async function JobDetailPage({
         {/* Main column */}
         <div className="lg:col-span-2 space-y-4">
           {/* Schedule + details */}
-          <div className="bg-white border border-gray-200 rounded-lg p-5">
+          <div className="card-ledger p-5">
             <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-4">
               Details
             </h2>
@@ -176,7 +176,7 @@ export default async function JobDetailPage({
 
           {/* Line items */}
           {job.lineItems.length > 0 && (
-            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+            <div className="card-ledger overflow-hidden">
               <div className="px-5 py-4 border-b border-gray-100">
                 <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
                   Product / Service
@@ -247,7 +247,7 @@ export default async function JobDetailPage({
           )}
 
           {/* Notes */}
-          <div className="bg-white border border-gray-200 rounded-lg">
+          <div className="card-ledger">
             <div className="px-5 py-4 border-b border-gray-100">
               <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
                 Notes &amp; Activity
@@ -280,7 +280,7 @@ export default async function JobDetailPage({
           </div>
 
           {/* Photos */}
-          <div className="bg-white border border-gray-200 rounded-lg">
+          <div className="card-ledger">
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
               <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Photos</h2>
             </div>
@@ -325,7 +325,7 @@ export default async function JobDetailPage({
 
           {/* Billing */}
           {showMoney && (
-          <div className="bg-white border border-gray-200 rounded-lg p-4">
+          <div className="card-ledger p-4">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Billing</h2>
               {!job.invoice && (
@@ -357,7 +357,7 @@ export default async function JobDetailPage({
 
           {/* Profit (when costs are tracked) */}
           {showMoney && lineCost > 0 && (
-            <div className="bg-white border border-gray-200 rounded-lg p-4">
+            <div className="card-ledger p-4">
               <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
                 Profit margin
               </h2>
@@ -383,7 +383,7 @@ export default async function JobDetailPage({
           )}
 
           {/* Client */}
-          <div className="bg-white border border-gray-200 rounded-lg p-4">
+          <div className="card-ledger p-4">
             <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
               Client
             </h2>

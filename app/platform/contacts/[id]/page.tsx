@@ -194,7 +194,7 @@ export default async function ContactDetailPage({
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Main: work overview */}
         <div className="lg:col-span-2 space-y-4">
-          <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+          <div className="card-ledger overflow-hidden">
             <div className="px-4 py-3 border-b border-gray-100">
               <h2 className="font-semibold text-gray-900 text-sm">Work overview</h2>
             </div>
@@ -235,7 +235,7 @@ export default async function ContactDetailPage({
           </div>
 
           {/* Contact info */}
-          <div className="bg-white border border-gray-200 rounded-lg p-4">
+          <div className="card-ledger p-4">
             <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
               Details
             </h2>
@@ -258,7 +258,7 @@ export default async function ContactDetailPage({
           </div>
 
           {/* Notes & activity (same pattern as job notes) */}
-          <div className="bg-white border border-gray-200 rounded-lg">
+          <div className="card-ledger">
             <div className="px-5 py-4 border-b border-gray-100">
               <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
                 Notes &amp; Activity
@@ -293,7 +293,7 @@ export default async function ContactDetailPage({
 
         {/* Rail: overview + hub link */}
         <div className="space-y-4">
-          <div className="bg-white border border-gray-200 rounded-lg p-4">
+          <div className="card-ledger p-4">
             <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
               Assigned to
             </h2>
@@ -314,7 +314,7 @@ export default async function ContactDetailPage({
             values={(contact.customFields as Record<string, string>) ?? {}}
           />
 
-          <div className="bg-white border border-gray-200 rounded-lg p-4">
+          <div className="card-ledger p-4">
             <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
               Overview
             </h2>
@@ -330,7 +330,7 @@ export default async function ContactDetailPage({
             </div>
           </div>
 
-          <div className="bg-white border border-gray-200 rounded-lg p-4">
+          <div className="card-ledger p-4">
             <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
               Client hub
             </h2>

@@ -63,7 +63,7 @@ export default function NewContractForm({
         <h1 className="text-2xl font-bold text-gray-900">New Contract</h1>
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-lg p-5 space-y-4">
+      <div className="card-ledger p-5 space-y-4">
         <div className="grid sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-xs text-gray-500 mb-1">Client *</label>

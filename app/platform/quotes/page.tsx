@@ -87,7 +87,7 @@ export default async function QuotesPage({
           <Link
             key={k.label}
             href={k.href}
-            className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow"
+            className="card-ledger p-4 hover:shadow-sm transition-shadow"
           >
             <p className="text-xs font-medium text-gray-500 mb-1">{k.label}</p>
             <p className="text-2xl font-bold text-gray-900">{k.value}</p>
@@ -113,7 +113,7 @@ export default async function QuotesPage({
         ))}
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+      <div className="card-ledger overflow-hidden">
         {quotes.length === 0 ? (
           <EmptyState
             art="quotes"

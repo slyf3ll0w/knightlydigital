@@ -2,6 +2,37 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer components {
+  /* ── Paper Ledger card — THE container of the product UI ──
+     White sheet on the paper-grain canvas: warm hairline border + one crisp
+     shadow, like a card laid on a desk. Replaces the old white-card/gray-200
+     border/rounded-lg utility recipe everywhere. */
+  .card-ledger {
+    @apply bg-white border border-gray-200 rounded-[10px];
+    box-shadow:
+      0 1px 2px rgba(28, 25, 23, 0.05),
+      0 2px 6px rgba(28, 25, 23, 0.03);
+  }
+
+  /* Status stamp — bordered, uppercase, letterspaced; reads like a rubber
+     stamp pressed on a ledger line instead of a tinted SaaS pill. */
+  .stamp {
+    @apply inline-flex w-fit items-center whitespace-nowrap rounded-[4px] border px-1.5 py-[1px] text-[10px] font-bold uppercase tracking-[0.08em];
+  }
+
+  /* Big ledger numerals (Fraunces) — dashboard counts and money figures.
+     The .app-ui scope forces Inter on headings, so double up specificity to
+     let this win on h1/h2 inside the app. */
+  .numeral-ledger,
+  .app-ui .numeral-ledger {
+    font-family: "Fraunces", Georgia, serif;
+    font-variation-settings: "opsz" 40;
+    font-feature-settings: normal;
+    font-variant-numeric: lining-nums tabular-nums;
+    letter-spacing: -0.01em;
+  }
+}
+
 :root {
   /* Typography: Inter for UI text, Oxanium for marketing display headings.
      (These vars were previously referenced but never defined, so the site

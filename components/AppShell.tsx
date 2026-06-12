@@ -292,7 +292,7 @@ export default function AppShell({
   );
 
   return (
-    <div className="app-ui flex h-screen bg-gray-50 overflow-hidden">
+    <div className="app-ui flex h-screen bg-paper overflow-hidden">
       {/* ── Desktop sidebar ──────────────────────────────────────────────── */}
       <aside className="hidden lg:flex flex-col w-[232px] bg-[#0C0F0C] shrink-0">
         {logo}
@@ -323,7 +323,7 @@ export default function AppShell({
       {/* ── Main content area ─────────────────────────────────────────────── */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top bar */}
-        <header className="flex items-center gap-4 px-4 lg:px-6 h-[57px] border-b border-gray-200 bg-white shrink-0">
+        <header className="flex items-center gap-4 px-4 lg:px-6 h-[57px] border-b border-gray-200 bg-paper shrink-0">
           <button
             onClick={() => setMobileOpen(true)}
             className="lg:hidden text-gray-600 hover:text-gray-900"
@@ -367,28 +367,115 @@ export default function AppShell({
         </header>
 
         {/* Scrollable content */}
-        <main className="flex-1 overflow-y-auto pb-16 lg:pb-0">{children}</main>
+        <main className="flex-1 overflow-y-auto pb-20 lg:pb-0">{children}</main>
       </div>
 
-      {/* ── Mobile bottom tab bar ─────────────────────────────────────────── */}
-      <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-white border-t border-gray-200 flex">
-        {forRole(mobileNav, userRole).map(({ href, label, icon: Icon }) => {
-          const active = isActive(href);
-          return (
-            <Link
-              key={href}
-              href={href}
-              style={active ? { color: accent } : undefined}
-              className={`flex-1 flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium transition-colors ${
-                active ? "" : "text-gray-400 hover:text-gray-600"
-              }`}
-            >
-              <Icon size={18} />
-              {label}
-            </Link>
-          );
-        })}
-      </nav>
+      <MobileTabBar accent={accent} role={userRole} isActive={isActive} />
     </div>
+  );
+}
+
+/**
+ * Mobile bottom tab bar with a raised center create button. The button opens
+ * a bottom sheet listing the same create actions as the sidebar menu — on
+ * phones the sidebar is buried behind the hamburger, so creating anything
+ * used to take three taps.
+ */
+function MobileTabBar({
+  accent,
+  role,
+  isActive,
+}: {
+  accent: string;
+  role: string;
+  isActive: (href: string) => boolean;
+}) {
+  const pathname = usePathname();
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const tabs = forRole(mobileNav, role);
+  const creates = forRole(createItems, role);
+
+  useEffect(() => {
+    setSheetOpen(false);
+  }, [pathname]);
+
+  const tabLink = ({ href, label, icon: Icon }: NavItem) => {
+    const active = isActive(href);
+    return (
+      <Link
+        key={href}
+        href={href}
+        style={active ? { color: accent } : undefined}
+        className={`flex-1 flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium transition-colors ${
+          active ? "" : "text-gray-400 hover:text-gray-600"
+        }`}
+      >
+        <Icon size={18} />
+        {label}
+      </Link>
+    );
+  };
+
+  // Techs can't create anything — plain 4-tab bar, no center button
+  const mid = Math.ceil(tabs.length / 2);
+
+  return (
+    <>
+      {/* Create sheet */}
+      {sheetOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          onClick={() => setSheetOpen(false)}
+        />
+      )}
+      {creates.length > 0 && (
+        <div
+          className={`fixed inset-x-0 bottom-0 z-50 lg:hidden rounded-t-2xl bg-white shadow-[0_-8px_30px_rgba(28,25,23,0.18)] transition-transform duration-200 ${
+            sheetOpen ? "translate-y-0" : "translate-y-full pointer-events-none"
+          }`}
+        >
+          <div className="mx-auto mt-2.5 h-1 w-9 rounded-full bg-gray-200" />
+          <p className="px-5 pt-3 pb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">
+            Create new
+          </p>
+          <div className="grid grid-cols-2 gap-1.5 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+            {creates.map(({ href, label, icon: Icon }) => (
+              <Link
+                key={href}
+                href={href}
+                onClick={() => setSheetOpen(false)}
+                className="flex items-center gap-3 rounded-xl border border-gray-200 px-3.5 py-3 text-sm font-medium text-gray-800 active:bg-gray-50"
+              >
+                <span
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
+                  style={{ backgroundColor: `${accent}1A`, color: accent }}
+                >
+                  <Icon size={15} />
+                </span>
+                {label}
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Mobile bottom tab bar ─────────────────────────────────────────── */}
+      <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-white border-t border-gray-200 flex items-stretch pb-[env(safe-area-inset-bottom)]">
+        {tabs.slice(0, mid).map(tabLink)}
+        {creates.length > 0 && (
+          <div className="relative w-16 shrink-0">
+            <button
+              onClick={() => setSheetOpen((v) => !v)}
+              aria-label="Create"
+              style={{ backgroundColor: accent, color: textOn(accent) }}
+              className="absolute left-1/2 -translate-x-1/2 -top-4 flex h-12 w-12 items-center justify-center rounded-full shadow-lg shadow-black/20 active:scale-95 transition-transform"
+            >
+              <Plus size={22} strokeWidth={2.5} />
+            </button>
+          </div>
+        )}
+        {tabs.slice(mid).map(tabLink)}
+      </nav>
+    </>
   );
 }

@@ -105,7 +105,7 @@ export default function ExpensesClient({ expenses }: { expenses: Expense[] }) {
       )}
 
       {showAdd && (
-        <div className="bg-white border border-gray-200 rounded-lg p-5 mb-5 space-y-3">
+        <div className="card-ledger p-5 mb-5 space-y-3">
           <div className="grid sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs text-gray-500 mb-1">Description *</label>
@@ -163,7 +163,7 @@ export default function ExpensesClient({ expenses }: { expenses: Expense[] }) {
       )}
 
       {/* Export */}
-      <div className="bg-white border border-gray-200 rounded-lg p-4 mb-5 flex flex-wrap items-end gap-3">
+      <div className="card-ledger p-4 mb-5 flex flex-wrap items-end gap-3">
         <div>
           <label className="block text-xs text-gray-500 mb-1">From</label>
           <input type="date" value={exportFrom} onChange={(e) => setExportFrom(e.target.value)} className={inputCls} />
@@ -182,7 +182,7 @@ export default function ExpensesClient({ expenses }: { expenses: Expense[] }) {
         <p className="text-xs text-gray-400">Leave dates empty to export everything.</p>
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-lg divide-y divide-gray-100">
+      <div className="card-ledger divide-y divide-gray-100">
         {expenses.length === 0 ? (
           <p className="px-4 py-10 text-center text-sm text-gray-500">
             No expenses logged yet — track fuel, materials, and equipment to see real profit on

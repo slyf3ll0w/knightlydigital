@@ -69,7 +69,7 @@ export default async function AppointmentDetailPage({
         />
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-lg p-5 mb-5 space-y-3">
+      <div className="card-ledger p-5 mb-5 space-y-3">
         <div className="flex items-start gap-3">
           <CalendarDays size={15} className="text-gray-400 mt-0.5 shrink-0" />
           <p className="text-sm text-gray-800">{when}</p>
@@ -124,7 +124,7 @@ export default async function AppointmentDetailPage({
       </div>
 
       {appt.notes && (
-        <div className="bg-white border border-gray-200 rounded-lg p-5">
+        <div className="card-ledger p-5">
           <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Notes</h2>
           <p className="text-sm text-gray-700 whitespace-pre-wrap">{appt.notes}</p>
         </div>

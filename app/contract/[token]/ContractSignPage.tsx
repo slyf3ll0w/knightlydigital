@@ -71,7 +71,7 @@ export default function ContractSignPage({
           <p className="text-sm text-gray-500 mt-1">Service agreement for {contactName}</p>
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+        <div className="card-ledger shadow-sm overflow-hidden">
           <div className="px-6 py-5 border-b border-gray-100">
             <h2 className="text-lg font-bold text-gray-900">{title}</h2>
           </div>

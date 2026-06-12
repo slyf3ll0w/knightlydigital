@@ -219,7 +219,7 @@ export default function QuoteEditor({
           </div>
         )}
 
-        <div className="bg-white border border-gray-200 rounded-lg p-5 space-y-4">
+        <div className="card-ledger p-5 space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Client *</label>
             <select
@@ -250,7 +250,7 @@ export default function QuoteEditor({
         </div>
 
         {/* Line items */}
-        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+        <div className="card-ledger overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-100">
             <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
               Product / Service
@@ -435,7 +435,7 @@ export default function QuoteEditor({
           </div>
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-lg p-5">
+        <div className="card-ledger p-5">
           <label className="block text-sm font-medium text-gray-700 mb-1">Client message</label>
           <textarea
             value={clientMessage}
@@ -446,7 +446,7 @@ export default function QuoteEditor({
           />
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-lg p-5">
+        <div className="card-ledger p-5">
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Contract / disclaimer
           </label>

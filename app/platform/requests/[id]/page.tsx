@@ -60,7 +60,7 @@ export default async function RequestDetailPage({
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6">
         <div className="space-y-5">
           {/* Service details */}
-          <div className="bg-white border border-gray-200 rounded-lg p-5">
+          <div className="card-ledger p-5">
             <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3">
               Service details
             </h2>
@@ -70,7 +70,7 @@ export default async function RequestDetailPage({
           </div>
 
           {/* Appointments (estimates / sales meetings) */}
-          <div className="bg-white border border-gray-200 rounded-lg p-5">
+          <div className="card-ledger p-5">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
                 Appointments
@@ -118,7 +118,7 @@ export default async function RequestDetailPage({
 
           {/* Linked work */}
           {(request.quotes.length > 0 || request.jobs.length > 0) && (
-            <div className="bg-white border border-gray-200 rounded-lg p-5">
+            <div className="card-ledger p-5">
               <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3">
                 Used for
               </h2>
@@ -150,7 +150,7 @@ export default async function RequestDetailPage({
 
         {/* Client card */}
         <div className="space-y-4">
-          <div className="bg-white border border-gray-200 rounded-lg p-5">
+          <div className="card-ledger p-5">
             <Link
               href={`/app/contacts/${c.id}`}
               className="text-base font-semibold text-green-700 hover:underline"

@@ -62,7 +62,7 @@ export default async function QuoteDetailPage({
       </div>
 
       {/* Header facts (Jobber-style definition list with backlinks) */}
-      <div className="flex flex-wrap gap-x-8 gap-y-2 px-5 py-4 bg-white border border-gray-200 rounded-lg mb-6 text-sm">
+      <div className="flex flex-wrap gap-x-8 gap-y-2 px-5 py-4 card-ledger mb-6 text-sm">
         <div>
           <span className="text-xs uppercase font-semibold text-gray-400 block">Quote #</span>
           <span className="text-gray-800">{quote.quoteNumber}</span>
@@ -117,7 +117,7 @@ export default async function QuoteDetailPage({
       )}
 
       {/* Quote body */}
-      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+      <div className="card-ledger overflow-hidden">
         {quote.clientMessage && (
           <div className="px-6 py-4 border-b border-gray-100">
             <p className="text-sm text-gray-700 whitespace-pre-wrap">{quote.clientMessage}</p>

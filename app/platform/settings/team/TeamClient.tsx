@@ -140,7 +140,7 @@ export default function TeamClient({
 
       {/* Add member */}
       {showAdd && (
-        <div className="bg-white border border-gray-200 rounded-lg p-5 mb-6">
+        <div className="card-ledger p-5 mb-6">
           <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-4 flex items-center gap-1.5">
             <UserPlus size={13} />
             New team member
@@ -217,7 +217,7 @@ export default function TeamClient({
       )}
 
       {/* Member list */}
-      <div className="bg-white border border-gray-200 rounded-lg divide-y divide-gray-100 mb-6">
+      <div className="card-ledger divide-y divide-gray-100 mb-6">
         {users.map((m) => (
           <div key={m.id} className={`px-4 py-3 ${m.isActive ? "" : "opacity-60"}`}>
             <div className="flex flex-wrap items-center gap-3">
@@ -314,7 +314,7 @@ export default function TeamClient({
       </div>
 
       {/* Policies */}
-      <div className="bg-white border border-gray-200 rounded-lg p-5 space-y-5">
+      <div className="card-ledger p-5 space-y-5">
         <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
           Lead routing &amp; permissions
         </h2>

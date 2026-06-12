@@ -16,7 +16,7 @@ function Art({ name }: { name: EmptyArt }) {
     strokeLinecap: "round" as const,
     strokeLinejoin: "round" as const,
   };
-  const gray = { ...base, stroke: "#D1D5DB" };
+  const gray = { ...base, stroke: "#D6D3D1" }; // warm stone-300 to sit on the paper canvas
   const green = { ...base, stroke: "#22C55E" };
 
   switch (name) {

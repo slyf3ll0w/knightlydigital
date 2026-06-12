@@ -54,7 +54,7 @@ export default async function HubHomePage({
       )}
 
       {/* Get work done */}
-      <div className="bg-white border border-gray-200 rounded-lg p-8 text-center">
+      <div className="card-ledger p-8 text-center">
         <Inbox size={32} className="text-gray-300 mx-auto mb-3" />
         <h2 className="text-lg font-bold text-gray-900 mb-1">Get work done</h2>
         <p className="text-sm text-gray-500 mb-5">
@@ -72,14 +72,14 @@ export default async function HubHomePage({
       <div className="grid grid-cols-2 gap-3">
         <Link
           href={`${base}/quotes`}
-          className="flex items-center gap-3 bg-white border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow"
+          className="flex items-center gap-3 card-ledger p-4 hover:shadow-sm transition-shadow"
         >
           <FileText size={18} className="text-gray-400" />
           <span className="text-sm font-medium text-gray-800">Your quotes</span>
         </Link>
         <Link
           href={`${base}/invoices`}
-          className="flex items-center gap-3 bg-white border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow"
+          className="flex items-center gap-3 card-ledger p-4 hover:shadow-sm transition-shadow"
         >
           <Receipt size={18} className="text-gray-400" />
           <span className="text-sm font-medium text-gray-800">Your invoices</span>

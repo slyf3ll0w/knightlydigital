@@ -99,7 +99,7 @@ export default function ContractTemplatesClient({ templates }: { templates: Temp
       )}
 
       {editing !== null && (
-        <div className="bg-white border border-gray-200 rounded-lg p-5 mb-5 space-y-3">
+        <div className="card-ledger p-5 mb-5 space-y-3">
           <div>
             <label className="block text-xs text-gray-500 mb-1">Template name *</label>
             <input
@@ -134,7 +134,7 @@ export default function ContractTemplatesClient({ templates }: { templates: Temp
         </div>
       )}
 
-      <div className="bg-white border border-gray-200 rounded-lg divide-y divide-gray-100 mb-6">
+      <div className="card-ledger divide-y divide-gray-100 mb-6">
         {active.length === 0 && editing === null && (
           <p className="px-4 py-8 text-center text-sm text-gray-500">
             No templates yet — write your first service agreement to reuse on every client.
@@ -167,7 +167,7 @@ export default function ContractTemplatesClient({ templates }: { templates: Temp
       {archived.length > 0 && (
         <div>
           <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Archived</h2>
-          <div className="bg-white border border-gray-200 rounded-lg divide-y divide-gray-100">
+          <div className="card-ledger divide-y divide-gray-100">
             {archived.map((t) => (
               <div key={t.id} className="flex items-center justify-between px-4 py-2.5 opacity-70">
                 <p className="text-sm text-gray-700">{t.name}</p>

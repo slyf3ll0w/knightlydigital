@@ -1,24 +1,18 @@
 import { statusLabels, statusTones, type StatusKind, type StatusTone } from "@/lib/statuses";
 
 /**
- * The one status chip used everywhere — list rows, detail headers, dashboard
- * cards. Colored dot + tinted pill so statuses scan the same on every page.
+ * The one status indicator used everywhere — list rows, detail headers,
+ * dashboard cards. Styled as a ledger "stamp": bordered, uppercase,
+ * letterspaced, lightly inked. Same tones on every page so statuses scan
+ * identically app-wide.
  */
 
 const toneClasses: Record<StatusTone, string> = {
-  green: "bg-green-50 text-green-700 ring-green-600/20",
-  amber: "bg-amber-50 text-amber-700 ring-amber-500/30",
-  red: "bg-red-50 text-red-700 ring-red-600/20",
-  gray: "bg-gray-100 text-gray-600 ring-gray-500/20",
-  blue: "bg-blue-50 text-blue-700 ring-blue-600/20",
-};
-
-const dotClasses: Record<StatusTone, string> = {
-  green: "bg-green-500",
-  amber: "bg-amber-500",
-  red: "bg-red-500",
-  gray: "bg-gray-400",
-  blue: "bg-blue-500",
+  green: "border-green-600/30 bg-green-600/[0.06] text-green-700",
+  amber: "border-amber-600/35 bg-amber-500/[0.07] text-amber-700",
+  red: "border-red-600/30 bg-red-600/[0.06] text-red-700",
+  gray: "border-gray-400/40 bg-gray-500/[0.06] text-gray-600",
+  blue: "border-blue-600/30 bg-blue-600/[0.06] text-blue-700",
 };
 
 export default function StatusChip({
@@ -32,12 +26,5 @@ export default function StatusChip({
 }) {
   const tone = statusTones[kind][status] ?? "gray";
   const label = statusLabels[kind][status] ?? status;
-  return (
-    <span
-      className={`inline-flex w-fit items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${toneClasses[tone]} ${className}`}
-    >
-      <span aria-hidden className={`h-1.5 w-1.5 shrink-0 rounded-full ${dotClasses[tone]}`} />
-      {label}
-    </span>
-  );
+  return <span className={`stamp ${toneClasses[tone]} ${className}`}>{label}</span>;
 }

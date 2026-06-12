@@ -69,7 +69,7 @@ export default async function RequestsPage({
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
         <Link
           href="/app/requests?status=NEW"
-          className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow"
+          className="card-ledger p-4 hover:shadow-sm transition-shadow"
         >
           <p className="text-xs font-medium text-gray-500 mb-1">New requests</p>
           <p className="text-2xl font-bold text-gray-900">{newCount}</p>
@@ -107,7 +107,7 @@ export default async function RequestsPage({
         )}
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+      <div className="card-ledger overflow-hidden">
         {requests.length === 0 ? (
           <EmptyState
             art="requests"

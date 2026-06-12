@@ -194,7 +194,7 @@ export default function WebFormEditor({
       </div>
 
       {/* Share link + embed */}
-      <div className="bg-white border border-gray-200 rounded-lg p-5 mt-6">
+      <div className="card-ledger p-5 mt-6">
         <div className="mb-3">
           <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Share This Form</h2>
           <p className="text-xs text-gray-400 mt-0.5">Share this link on your website or Google profile</p>

@@ -68,7 +68,7 @@ export default async function ContractDetailPage({
         </div>
       )}
 
-      <div className="bg-white border border-gray-200 rounded-lg px-6 py-5">
+      <div className="card-ledger px-6 py-5">
         <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{contract.body}</p>
       </div>
     </div>

@@ -34,7 +34,7 @@ export default async function HubQuotesPage({
     <div>
       <h2 className="text-xl font-bold text-gray-900 mb-4">Your quotes</h2>
       {contact.quotes.length === 0 ? (
-        <div className="bg-white border border-gray-200 rounded-lg py-14 text-center">
+        <div className="card-ledger py-14 text-center">
           <FileText size={32} className="text-gray-300 mx-auto mb-3" />
           <p className="text-sm text-gray-500">No quotes yet.</p>
         </div>
@@ -44,7 +44,7 @@ export default async function HubQuotesPage({
             <Link
               key={q.id}
               href={`/quote/${q.publicToken}`}
-              className="flex items-center gap-4 bg-white border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow"
+              className="flex items-center gap-4 card-ledger p-4 hover:shadow-sm transition-shadow"
             >
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-gray-900 truncate">

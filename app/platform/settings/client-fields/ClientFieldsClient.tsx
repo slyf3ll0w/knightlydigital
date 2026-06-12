@@ -118,7 +118,7 @@ export default function ClientFieldsClient({ defs }: { defs: Def[] }) {
       )}
 
       {showAdd && (
-        <div className="bg-white border border-gray-200 rounded-lg p-5 mb-5 space-y-3">
+        <div className="card-ledger p-5 mb-5 space-y-3">
           <div className="grid sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs text-gray-500 mb-1">Field name *</label>
@@ -176,7 +176,7 @@ export default function ClientFieldsClient({ defs }: { defs: Def[] }) {
         </div>
       )}
 
-      <div className="bg-white border border-gray-200 rounded-lg divide-y divide-gray-100 mb-6">
+      <div className="card-ledger divide-y divide-gray-100 mb-6">
         {active.length === 0 && (
           <p className="px-4 py-8 text-center text-sm text-gray-500">
             No custom fields yet — add one to start tailoring client records to your business.
@@ -233,7 +233,7 @@ export default function ClientFieldsClient({ defs }: { defs: Def[] }) {
           <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
             Archived (values are kept)
           </h2>
-          <div className="bg-white border border-gray-200 rounded-lg divide-y divide-gray-100">
+          <div className="card-ledger divide-y divide-gray-100">
             {archived.map((d) => (
               <div key={d.id} className="flex items-center justify-between px-4 py-2.5 opacity-70">
                 <p className="text-sm text-gray-700">{d.label}</p>

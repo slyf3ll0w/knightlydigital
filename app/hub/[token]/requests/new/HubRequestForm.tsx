@@ -36,7 +36,7 @@ export default function HubRequestForm({ token }: { token: string }) {
 
   if (done) {
     return (
-      <div className="bg-white border border-gray-200 rounded-lg p-10 text-center">
+      <div className="card-ledger p-10 text-center">
         <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
           <CheckCircle size={28} className="text-green-600" />
         </div>
@@ -63,7 +63,7 @@ export default function HubRequestForm({ token }: { token: string }) {
         <h2 className="text-xl font-bold text-gray-900">New request</h2>
       </div>
 
-      <form onSubmit={handleSubmit} className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
+      <form onSubmit={handleSubmit} className="card-ledger p-6 space-y-4">
         {error && (
           <div className="px-4 py-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
             {error}

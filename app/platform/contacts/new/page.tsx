@@ -87,7 +87,7 @@ export default function NewContactPage() {
           </div>
         )}
 
-        <div className="bg-white border border-gray-200 rounded-lg p-5">
+        <div className="card-ledger p-5">
           <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-4">
             Contact Info
           </h2>
@@ -143,7 +143,7 @@ export default function NewContactPage() {
           </div>
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-lg p-5">
+        <div className="card-ledger p-5">
           <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-4">
             Address
           </h2>
@@ -194,7 +194,7 @@ export default function NewContactPage() {
         </div>
 
         {fieldDefs.length > 0 && (
-          <div className="bg-white border border-gray-200 rounded-lg p-5">
+          <div className="card-ledger p-5">
             <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-4">
               Details
             </h2>
@@ -232,7 +232,7 @@ export default function NewContactPage() {
           </div>
         )}
 
-        <div className="bg-white border border-gray-200 rounded-lg p-5">
+        <div className="card-ledger p-5">
           <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-4">Notes</h2>
           <textarea
             value={form.notes}

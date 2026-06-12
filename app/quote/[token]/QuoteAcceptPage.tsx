@@ -139,7 +139,7 @@ export default function QuoteAcceptPage({
   if (quote.status === "APPROVED" || quote.status === "CONVERTED" || done === "approved") {
     return (
       <div className="app-ui min-h-screen bg-gray-50 flex items-center justify-center px-4">
-        <div className="max-w-sm w-full bg-white rounded-lg border border-gray-200 p-8 text-center shadow-sm">
+        <div className="max-w-sm w-full card-ledger p-8 text-center shadow-sm">
           <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <CheckCircle size={28} className="text-green-600" />
           </div>
@@ -156,7 +156,7 @@ export default function QuoteAcceptPage({
   if (done === "changes") {
     return (
       <div className="app-ui min-h-screen bg-gray-50 flex items-center justify-center px-4">
-        <div className="max-w-sm w-full bg-white rounded-lg border border-gray-200 p-8 text-center shadow-sm">
+        <div className="max-w-sm w-full card-ledger p-8 text-center shadow-sm">
           <h1 className="text-xl font-bold text-gray-900 mb-2">Changes requested</h1>
           <p className="text-gray-500 text-sm">
             {quote.company.name} will review your request and send an updated quote.
@@ -175,7 +175,7 @@ export default function QuoteAcceptPage({
           </div>
         )}
 
-        <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+        <div className="card-ledger shadow-sm overflow-hidden">
           {/* Branded header */}
           <div
             className="px-6 py-5 flex items-center gap-4"

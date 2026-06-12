@@ -17,6 +17,43 @@ import {
 
 const apptIcons = { PHONE_CALL: Phone, VIDEO_CALL: Video, IN_PERSON: MapPin } as const;
 
+/** Tiny daily-revenue bar chart — pure SVG, renders on the server. */
+function Sparkline({ values }: { values: number[] }) {
+  const max = Math.max(...values, 1);
+  const w = 100;
+  const gap = 1.5;
+  const bw = (w - gap * (values.length - 1)) / values.length;
+  return (
+    <svg viewBox={`0 0 ${w} 24`} className="mt-2 h-6 w-full" preserveAspectRatio="none" aria-hidden>
+      {values.map((v, i) => {
+        const h = v > 0 ? Math.max((v / max) * 22, 2) : 1;
+        return (
+          <rect
+            key={i}
+            x={i * (bw + gap)}
+            y={24 - h}
+            width={bw}
+            height={h}
+            rx={0.75}
+            fill={v > 0 ? "#22C55E" : "#E7E5E4"}
+            opacity={v > 0 ? 0.85 : 1}
+          />
+        );
+      })}
+    </svg>
+  );
+}
+
+/** Section label with a ledger hairline running out to the right edge. */
+function RuledLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="mb-2.5 flex items-center gap-3">
+      <p className="text-xs font-semibold uppercase tracking-[0.1em] text-gray-500">{children}</p>
+      <div className="h-px flex-1 bg-gray-300/60" />
+    </div>
+  );
+}
+
 export default async function DashboardPage() {
   const actor = await requirePageActor();
   const companyId = actor.companyId;
@@ -94,12 +131,12 @@ export default async function DashboardPage() {
           include: { lineItems: true },
         })
       : Promise.resolve([]),
-    prisma.payment.aggregate({
-      where: seePerformance
-        ? { companyId, paidAt: { gte: startOfMonth } }
-        : { companyId, id: "none" }, // skipped for non-managers
-      _sum: { amount: true },
-    }),
+    seePerformance
+      ? prisma.payment.findMany({
+          where: { companyId, paidAt: { gte: startOfMonth } },
+          select: { amount: true, paidAt: true },
+        })
+      : Promise.resolve([]),
   ]);
 
   const receivableTotal = receivables.reduce((s, inv) => {
@@ -111,8 +148,15 @@ export default async function DashboardPage() {
     (s, j) => s + j.lineItems.reduce((t, li) => t + Number(li.total), 0),
     0
   );
+  // Daily revenue buckets for the sparkline (1st of month → today)
+  const monthRevenue = monthPayments.reduce((s, p) => s + Number(p.amount), 0);
+  const dailyRevenue = Array.from({ length: now.getDate() }, () => 0);
+  for (const p of monthPayments) {
+    const day = new Date(p.paidAt).getDate() - 1;
+    if (day >= 0 && day < dailyRevenue.length) dailyRevenue[day] += Number(p.amount);
+  }
 
-  // Workflow strip: one card per lifecycle entity, headline status + 2 secondary
+  // Workflow ledger: one column per lifecycle entity, headline status + 2 secondary
   const workflow: {
     label: string;
     icon: typeof Inbox;
@@ -186,13 +230,10 @@ export default async function DashboardPage() {
       id: `j-${job.id}`,
       href: `/app/jobs/${job.id}`,
       apptType: null as string | null,
-      primary: `${job.contact.firstName} ${job.contact.lastName} — ${job.title}`,
-      detail: [
+      time:
         job.scheduledAt && !job.scheduledAnytime ? fmtTime(new Date(job.scheduledAt)) : "Anytime",
-        job.assignments.map((a) => a.user.name).join(", ") || null,
-      ]
-        .filter(Boolean)
-        .join(" · "),
+      primary: `${job.contact.firstName} ${job.contact.lastName} — ${job.title}`,
+      detail: job.assignments.map((a) => a.user.name).join(", ") || null,
       value: job.lineItems.reduce((s, li) => s + Number(li.total), 0),
       sort: job.scheduledAnytime ? 0 : new Date(job.scheduledAt!).getTime(),
     })),
@@ -200,12 +241,9 @@ export default async function DashboardPage() {
       id: `a-${a.id}`,
       href: `/app/appointments/${a.id}`,
       apptType: a.type as string | null,
+      time: a.scheduledAnytime ? "Anytime" : fmtTime(new Date(a.scheduledAt)),
       primary: `${a.contact.firstName} ${a.contact.lastName} — ${a.title}`,
-      detail: [
-        a.scheduledAnytime ? "Anytime" : fmtTime(new Date(a.scheduledAt)),
-        appointmentTypeLabel[a.type],
-        a.assignedTo?.name ?? null,
-      ]
+      detail: [appointmentTypeLabel[a.type], a.assignedTo?.name ?? null]
         .filter(Boolean)
         .join(" · "),
       value: 0,
@@ -217,54 +255,63 @@ export default async function DashboardPage() {
   const hour = now.getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
+  // Workflow column dividers: hairlines between cells in both grid layouts
+  // (2-col on mobile, 4-col on lg) without double borders at the edges.
+  const cellRules =
+    "border-gray-200/80 max-lg:odd:border-r max-lg:[&:nth-child(n+3)]:border-t lg:border-l lg:first:border-l-0";
+
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto">
-      <div className="mb-6">
-        <p className="text-sm text-gray-500">
+      <div className="mb-7 anim-fade-up">
+        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">
           {now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
         </p>
-        <h1 className="text-2xl font-bold text-gray-900">
+        <h1 className="numeral-ledger mt-0.5 text-[27px] font-semibold text-gray-900">
           {greeting}, {firstName}
         </h1>
       </div>
 
-      {/* ── Workflow strip ─────────────────────────────────────────────────── */}
-      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Workflow</p>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
-        {workflow.filter((w) => w.show).map((w) => (
-          <div key={w.label} className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-            <Link
-              href={w.headline.href}
-              className="block p-4 hover:bg-gray-50 active:bg-gray-100 transition-colors"
-            >
-              <div className="flex items-center gap-2 mb-3">
-                <w.icon size={15} className="text-gray-400" />
-                <span className="text-sm font-semibold text-gray-700">{w.label}</span>
+      {/* ── Workflow ledger ────────────────────────────────────────────────── */}
+      <div className="anim-fade-up anim-delay-1 mb-8">
+        <RuledLabel>Workflow</RuledLabel>
+        <div className="card-ledger grid grid-cols-2 lg:grid-cols-4 overflow-hidden">
+          {workflow.filter((w) => w.show).map((w) => (
+            <div key={w.label} className={`flex flex-col ${cellRules}`}>
+              <Link
+                href={w.headline.href}
+                className="block flex-1 p-4 hover:bg-gray-50 active:bg-gray-100 transition-colors"
+              >
+                <div className="flex items-center gap-2 mb-3">
+                  <w.icon size={15} className="text-gray-400" />
+                  <span className="text-sm font-semibold text-gray-700">{w.label}</span>
+                </div>
+                <p className="numeral-ledger text-[34px] leading-none font-semibold text-gray-900">
+                  {w.headline.count}
+                </p>
+                <StatusChip kind={w.kind} status={w.headline.status} className="mt-2.5" />
+              </Link>
+              <div className="border-t border-gray-100 divide-y divide-gray-100">
+                {w.secondary.map((s) => (
+                  <Link
+                    key={s.label}
+                    href={s.href}
+                    className="flex items-center justify-between px-4 py-2 text-xs text-gray-600 hover:bg-gray-50 transition-colors"
+                  >
+                    <span className="truncate">
+                      {s.label} ({s.count})
+                    </span>
+                    <ArrowRight size={11} className="text-gray-300 shrink-0" />
+                  </Link>
+                ))}
               </div>
-              <p className="text-3xl font-bold text-gray-900">{w.headline.count}</p>
-              <StatusChip kind={w.kind} status={w.headline.status} className="mt-1.5" />
-            </Link>
-            <div className="border-t border-gray-100 divide-y divide-gray-100">
-              {w.secondary.map((s) => (
-                <Link
-                  key={s.label}
-                  href={s.href}
-                  className="flex items-center justify-between px-4 py-2 text-xs text-gray-600 hover:bg-gray-50 transition-colors"
-                >
-                  <span>
-                    {s.label} ({s.count})
-                  </span>
-                  <ArrowRight size={11} className="text-gray-300" />
-                </Link>
-              ))}
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6">
-        {/* ── Today's appointments ─────────────────────────────────────────── */}
-        <div className="bg-white border border-gray-200 rounded-lg">
+        {/* ── Today's appointments — timeline with a time rail ─────────────── */}
+        <div className="card-ledger anim-fade-up anim-delay-2 self-start">
           <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
             <h2 className="font-semibold text-gray-900">Today&apos;s appointments</h2>
             <Link href="/app/schedule" className="text-sm text-green-600 hover:underline font-medium">
@@ -281,7 +328,9 @@ export default async function DashboardPage() {
               showPlusIcon={false}
             />
           ) : (
-            <div className="divide-y divide-gray-50">
+            <div className="relative px-5 py-2">
+              {/* the rail: vertical hairline running behind the row markers */}
+              <div className="absolute left-[6.15rem] top-4 bottom-4 w-px bg-gray-200" aria-hidden />
               {todayItems.map((item) => {
                 const Icon = item.apptType
                   ? apptIcons[item.apptType as keyof typeof apptIcons]
@@ -290,16 +339,27 @@ export default async function DashboardPage() {
                   <Link
                     key={item.id}
                     href={item.href}
-                    className="flex items-center gap-4 px-5 py-3.5 hover:bg-gray-50 transition-colors"
+                    className="flex items-center gap-4 py-3 -mx-2 px-2 rounded-md hover:bg-gray-50 transition-colors"
                   >
-                    {Icon && (
-                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-50">
+                    <span className="w-12 shrink-0 text-right text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                      {item.time}
+                    </span>
+                    <span
+                      className={`relative z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border bg-white ${
+                        Icon ? "border-blue-200" : "border-gray-200"
+                      }`}
+                    >
+                      {Icon ? (
                         <Icon size={13} className="text-blue-600" />
-                      </span>
-                    )}
+                      ) : (
+                        <span className="h-2 w-2 rounded-full bg-green-500" />
+                      )}
+                    </span>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-900 truncate">{item.primary}</p>
-                      <p className="text-xs text-gray-500">{item.detail}</p>
+                      {item.detail && (
+                        <p className="text-xs text-gray-500 truncate">{item.detail}</p>
+                      )}
                     </div>
                     {seePrices && item.value > 0 && (
                       <span className="text-sm font-semibold text-gray-900">{money(item.value)}</span>
@@ -313,40 +373,45 @@ export default async function DashboardPage() {
 
         {/* ── Business performance rail ────────────────────────────────────── */}
         {seePerformance && (
-        <div className="space-y-3">
-          <h2 className="font-semibold text-gray-900 text-sm px-1">Business performance</h2>
-          <Link
-            href="/app/invoices?status=AWAITING_PAYMENT"
-            className="block bg-white border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow"
-          >
-            <p className="text-xs font-medium text-gray-500 mb-1">Receivables</p>
-            <p className="text-xl font-bold text-gray-900">
-              {receivableTotal > 0 ? money(receivableTotal) : "—"}
-            </p>
-            <p className="text-xs text-gray-500 mt-0.5">
-              {receivableClients} {receivableClients === 1 ? "client owes" : "clients owe"} you
-            </p>
-          </Link>
-          <Link
-            href="/app/jobs"
-            className="block bg-white border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow"
-          >
-            <p className="text-xs font-medium text-gray-500 mb-1">Upcoming jobs</p>
-            <p className="text-xl font-bold text-gray-900">
-              {weekRevenue > 0 ? money(weekRevenue) : "—"}
-            </p>
-            <p className="text-xs text-gray-500 mt-0.5">This week ({upcomingJobsWeek.length} jobs)</p>
-          </Link>
-          <Link
-            href="/app/invoices"
-            className="block bg-white border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow"
-          >
-            <p className="text-xs font-medium text-gray-500 mb-1">Revenue</p>
-            <p className="text-xl font-bold text-gray-900">
-              {money(Number(monthPayments._sum.amount) || 0)}
-            </p>
-            <p className="text-xs text-gray-500 mt-0.5">This month so far</p>
-          </Link>
+        <div className="anim-fade-up anim-delay-3">
+          <RuledLabel>Performance</RuledLabel>
+          <div className="space-y-3">
+            <Link
+              href="/app/invoices?status=AWAITING_PAYMENT"
+              className="block card-ledger p-4 hover:shadow-md transition-shadow"
+            >
+              <p className="text-xs font-medium text-gray-500 mb-1">Receivables</p>
+              <p className="numeral-ledger text-[22px] font-semibold text-gray-900">
+                {receivableTotal > 0 ? money(receivableTotal) : "—"}
+              </p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                {receivableClients} {receivableClients === 1 ? "client owes" : "clients owe"} you
+              </p>
+            </Link>
+            <Link
+              href="/app/jobs"
+              className="block card-ledger p-4 hover:shadow-md transition-shadow"
+            >
+              <p className="text-xs font-medium text-gray-500 mb-1">Upcoming jobs</p>
+              <p className="numeral-ledger text-[22px] font-semibold text-gray-900">
+                {weekRevenue > 0 ? money(weekRevenue) : "—"}
+              </p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                This week ({upcomingJobsWeek.length} jobs)
+              </p>
+            </Link>
+            <Link
+              href="/app/invoices"
+              className="block card-ledger p-4 hover:shadow-md transition-shadow"
+            >
+              <p className="text-xs font-medium text-gray-500 mb-1">Revenue</p>
+              <p className="numeral-ledger text-[22px] font-semibold text-gray-900">
+                {money(monthRevenue)}
+              </p>
+              <p className="text-xs text-gray-500 mt-0.5">This month so far</p>
+              {dailyRevenue.length > 1 && monthRevenue > 0 && <Sparkline values={dailyRevenue} />}
+            </Link>
+          </div>
         </div>
         )}
       </div>

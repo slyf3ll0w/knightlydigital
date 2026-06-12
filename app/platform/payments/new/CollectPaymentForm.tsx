@@ -121,7 +121,7 @@ export default function CollectPaymentForm({
         )}
 
         {/* Payment details */}
-        <div className="bg-white border border-gray-200 rounded-lg p-5 space-y-4">
+        <div className="card-ledger p-5 space-y-4">
           <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
             Payment details
           </h2>
@@ -194,7 +194,7 @@ export default function CollectPaymentForm({
         </div>
 
         {/* Outstanding invoices */}
-        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+        <div className="card-ledger overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-100">
             <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
               Outstanding invoices

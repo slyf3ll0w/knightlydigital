@@ -37,7 +37,7 @@ function BreakdownCard({
   total: number;
 }) {
   return (
-    <div className="bg-white border border-gray-200 rounded-lg">
+    <div className="card-ledger">
       <div className="px-5 py-4 border-b border-gray-100">
         <h2 className="font-semibold text-gray-900 text-sm">{title}</h2>
         <p className="text-xs text-gray-500">{subtitle}</p>
@@ -169,14 +169,14 @@ export default async function InsightsPage({
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <div className="bg-white border border-gray-200 rounded-lg p-5">
+        <div className="card-ledger p-5">
           <p className="text-xs font-medium text-gray-500 mb-1">Collected revenue</p>
           <p className="text-3xl font-bold text-gray-900">{money(totalRevenue)}</p>
           <p className="text-xs text-gray-500 mt-0.5">
             {payments.length} {payments.length === 1 ? "payment" : "payments"} in this period
           </p>
         </div>
-        <div className="bg-white border border-gray-200 rounded-lg p-5">
+        <div className="card-ledger p-5">
           <p className="text-xs font-medium text-gray-500 mb-1">Expenses</p>
           <p className="text-3xl font-bold text-gray-900">{money(totalExpenses)}</p>
           <Link href="/app/expenses" className="text-xs text-green-600 hover:underline mt-0.5 inline-block">
@@ -185,7 +185,7 @@ export default async function InsightsPage({
               : "Log expenses to track profit →"}
           </Link>
         </div>
-        <div className="bg-white border border-gray-200 rounded-lg p-5">
+        <div className="card-ledger p-5">
           <p className="text-xs font-medium text-gray-500 mb-1">Profit</p>
           <p className={`text-3xl font-bold ${profit >= 0 ? "text-green-700" : "text-red-600"}`}>
             {money(profit)}

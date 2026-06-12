@@ -128,7 +128,7 @@ export default function AppointmentForm({
       </div>
 
       <form onSubmit={submit} className="space-y-5">
-        <div className="bg-white border border-gray-200 rounded-lg p-5 space-y-4">
+        <div className="card-ledger p-5 space-y-4">
           <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Who &amp; what</h2>
           <div>
             <label className="block text-xs text-gray-500 mb-1">Client *</label>
@@ -160,7 +160,7 @@ export default function AppointmentForm({
           )}
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-lg p-5 space-y-4">
+        <div className="card-ledger p-5 space-y-4">
           <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">How</h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             {TYPES.map((t) => {
@@ -211,7 +211,7 @@ export default function AppointmentForm({
           )}
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-lg p-5 space-y-4">
+        <div className="card-ledger p-5 space-y-4">
           <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">When</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
@@ -241,7 +241,7 @@ export default function AppointmentForm({
           </label>
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-lg p-5 space-y-4">
+        <div className="card-ledger p-5 space-y-4">
           <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Details</h2>
           {users.length > 1 && (
             <div>

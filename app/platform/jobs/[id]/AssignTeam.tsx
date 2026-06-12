@@ -43,7 +43,7 @@ export default function AssignTeam({
   }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4">
+    <div className="card-ledger p-4">
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1.5">
           <Users size={12} />

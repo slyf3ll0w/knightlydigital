@@ -69,7 +69,7 @@ function NewRequestForm() {
           </div>
         )}
 
-        <div className="bg-white border border-gray-200 rounded-lg p-5 space-y-4">
+        <div className="card-ledger p-5 space-y-4">
           <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Overview</h2>
 
           <div>

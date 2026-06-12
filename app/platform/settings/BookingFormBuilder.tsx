@@ -28,7 +28,7 @@ const sectionTitle = "text-xs font-semibold text-gray-500 uppercase tracking-wid
 
 function Card({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-3">
+    <div className="card-ledger p-4 space-y-3">
       <p className={sectionTitle}>
         {title}
         {hint && <span className="font-normal normal-case text-gray-400"> — {hint}</span>}

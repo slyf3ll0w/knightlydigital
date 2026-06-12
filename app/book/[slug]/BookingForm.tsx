@@ -55,7 +55,7 @@ export default function BookingForm({
     ? "bg-transparent"
     : dark
       ? "bg-[#101410] border border-white/10 rounded-lg p-6 shadow-sm"
-      : "bg-white border border-gray-200 rounded-lg p-6 shadow-sm";
+      : "card-ledger p-6 shadow-sm";
   const label = dark
     ? "block text-sm font-medium text-gray-300 mb-1"
     : "block text-sm font-medium text-gray-700 mb-1";

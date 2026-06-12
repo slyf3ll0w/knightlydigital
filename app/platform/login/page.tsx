@@ -67,7 +67,7 @@ export default function AppLoginPage() {
           <img src="/streamflaire-hub-logo.png" alt="Streamflaire Hub" className="h-7 w-auto" />
         </div>
 
-        <div className="bg-white rounded-lg border border-gray-200 p-8 shadow-sm">
+        <div className="card-ledger p-8 shadow-sm">
           <h1 className="text-xl font-bold text-gray-900 mb-1">Sign in</h1>
           <p className="text-sm text-gray-500 mb-6">Welcome back to Streamflaire Hub</p>
 

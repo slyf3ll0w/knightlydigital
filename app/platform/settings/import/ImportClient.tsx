@@ -273,7 +273,7 @@ export default function ImportClient({
             className="hidden"
             onChange={(e) => onFile(e.target.files?.[0])}
           />
-          <div className="bg-white border border-gray-200 rounded-lg p-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="card-ledger p-4 flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-sm font-medium text-gray-900">Starting from paper?</p>
               <p className="text-xs text-gray-500">
@@ -306,7 +306,7 @@ export default function ImportClient({
             </button>
           </div>
 
-          <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+          <div className="card-ledger overflow-hidden">
             <div className="grid grid-cols-[1fr_1fr_1fr] gap-3 px-4 py-2 bg-gray-50 text-[11px] font-semibold uppercase tracking-wider text-gray-600">
               <span>Your column</span>
               <span>Example</span>
@@ -336,7 +336,7 @@ export default function ImportClient({
             </div>
           </div>
 
-          <div className="bg-white border border-gray-200 rounded-lg p-4 grid sm:grid-cols-3 gap-3">
+          <div className="card-ledger p-4 grid sm:grid-cols-3 gap-3">
             <div>
               <label className="block text-xs text-gray-500 mb-1">Import as</label>
               <select value={status} onChange={(e) => setStatus(e.target.value as "LEAD" | "ACTIVE")} className={`${inputCls} w-full`}>
@@ -382,7 +382,7 @@ export default function ImportClient({
 
       {/* ── Step 3: importing ── */}
       {step === "importing" && (
-        <div className="bg-white border border-gray-200 rounded-lg p-10 text-center">
+        <div className="card-ledger p-10 text-center">
           <Loader2 size={28} className="mx-auto animate-spin text-green-500 mb-4" />
           <p className="text-sm font-semibold text-gray-900 mb-3">Importing clients…</p>
           <div className="h-2 max-w-sm mx-auto bg-gray-100 rounded-full overflow-hidden">
@@ -394,7 +394,7 @@ export default function ImportClient({
       {/* ── Step 4: summary ── */}
       {step === "done" && summary && (
         <div className="space-y-4">
-          <div className="bg-white border border-gray-200 rounded-lg p-6">
+          <div className="card-ledger p-6">
             <div className="flex items-center gap-2 mb-4">
               <span className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100">
                 <Check size={16} className="text-green-600" />
