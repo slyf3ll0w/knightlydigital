@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { sendEmail, contractSignedCopyEmail } from "@/lib/email";
 
 /**
  * POST — client signs a contract with a typed signature (same e-sign
@@ -31,10 +32,50 @@ export async function POST(
     req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
     null;
 
+  const signedAt = new Date();
   await prisma.contract.update({
     where: { id: contract.id },
-    data: { status: "SIGNED", signatureName, signedAt: new Date(), signedFromIp: ip },
+    data: { status: "SIGNED", signatureName, signedAt, signedFromIp: ip },
   });
+
+  // Copy to the signer (their record of the agreement) + heads-up to the company
+  const [contact, company] = await Promise.all([
+    prisma.contact.findUnique({
+      where: { id: contract.contactId },
+      select: { firstName: true, lastName: true, email: true },
+    }),
+    prisma.company.findUnique({
+      where: { id: contract.companyId },
+      select: { name: true, email: true },
+    }),
+  ]);
+  const baseUrl = process.env.NEXTAUTH_URL ?? "https://streamflaire.com";
+  const signUrl = `${baseUrl}/contract/${contract.publicToken}`;
+  if (contact?.email && company) {
+    const { subject, html } = contractSignedCopyEmail({
+      companyName: company.name,
+      contactFirstName: contact.firstName,
+      title: contract.title,
+      body: contract.body,
+      signatureName,
+      signedAt,
+      signUrl,
+    });
+    await sendEmail({ to: contact.email, subject, html });
+  }
+  if (company?.email) {
+    await sendEmail({
+      to: company.email,
+      subject: `Contract signed: ${contract.title}`,
+      html: `<p style="font-family:sans-serif;font-size:14px;color:#374151;">
+        <strong>${contact ? `${contact.firstName} ${contact.lastName}` : "Your client"}</strong>
+        signed "<strong>${contract.title.replace(/</g, "&lt;")}</strong>"
+        on ${signedAt.toLocaleString("en-US", { month: "long", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })}.
+        <a href="${baseUrl}/app/contracts/${contract.id}">View it in Streamflaire Hub</a>.
+      </p>`,
+      replyTo: contact?.email ?? undefined,
+    });
+  }
 
   return NextResponse.json({ success: true });
 }

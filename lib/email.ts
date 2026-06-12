@@ -157,6 +157,94 @@ export function reviewRequestEmail({
   return { subject: `How did we do? — ${companyName}`, html };
 }
 
+/** Signing-link email to a client when a contract is issued. */
+export function contractSignEmail({
+  companyName,
+  contactFirstName,
+  title,
+  signUrl,
+}: {
+  companyName: string;
+  contactFirstName: string;
+  title: string;
+  signUrl: string;
+}): { subject: string; html: string } {
+  const html = `
+<div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f3f4f6;padding:24px;">
+  <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
+    <div style="background:#0C0F0C;padding:16px 24px;">
+      <p style="margin:0;color:#22C55E;font-size:13px;font-weight:700;letter-spacing:0.5px;">${esc(companyName.toUpperCase())}</p>
+    </div>
+    <div style="padding:24px;">
+      <p style="margin:0 0 12px;color:#111827;font-size:15px;">Hi ${esc(contactFirstName)},</p>
+      <p style="margin:0 0 16px;color:#374151;font-size:14px;">
+        ${esc(companyName)} sent you an agreement to review and sign:
+        <strong>${esc(title)}</strong>.
+      </p>
+      <a href="${esc(signUrl)}"
+         style="display:inline-block;background:#22C55E;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:10px 20px;border-radius:6px;">
+        Review &amp; Sign
+      </a>
+    </div>
+    <div style="padding:12px 24px;border-top:1px solid #f3f4f6;">
+      <p style="margin:0;color:#9ca3af;font-size:12px;">Sent by ${esc(companyName)} via Streamflaire Hub</p>
+    </div>
+  </div>
+</div>`;
+  return { subject: `${companyName} sent you an agreement to sign: ${title}`, html };
+}
+
+/** Signed copy back to the client (their record of the agreement). */
+export function contractSignedCopyEmail({
+  companyName,
+  contactFirstName,
+  title,
+  body,
+  signatureName,
+  signedAt,
+  signUrl,
+}: {
+  companyName: string;
+  contactFirstName: string;
+  title: string;
+  body: string;
+  signatureName: string;
+  signedAt: Date;
+  signUrl: string;
+}): { subject: string; html: string } {
+  const bodyHtml = body
+    .split("\n")
+    .map((line) => `<p style="margin:0 0 8px;color:#374151;font-size:13px;">${esc(line) || "&nbsp;"}</p>`)
+    .join("");
+  const html = `
+<div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f3f4f6;padding:24px;">
+  <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
+    <div style="background:#0C0F0C;padding:16px 24px;">
+      <p style="margin:0;color:#22C55E;font-size:13px;font-weight:700;letter-spacing:0.5px;">${esc(companyName.toUpperCase())}</p>
+    </div>
+    <div style="padding:24px;">
+      <p style="margin:0 0 12px;color:#111827;font-size:15px;">Hi ${esc(contactFirstName)},</p>
+      <p style="margin:0 0 16px;color:#374151;font-size:14px;">
+        Here's your copy of <strong>${esc(title)}</strong>, signed by
+        <strong>${esc(signatureName)}</strong> on
+        ${signedAt.toLocaleString("en-US", { month: "long", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })}.
+      </p>
+      <div style="border:1px solid #e5e7eb;border-radius:6px;padding:16px;background:#f9fafb;">
+        ${bodyHtml}
+      </div>
+      <a href="${esc(signUrl)}"
+         style="display:inline-block;margin-top:16px;color:#16a34a;text-decoration:underline;font-size:13px;">
+        View online
+      </a>
+    </div>
+    <div style="padding:12px 24px;border-top:1px solid #f3f4f6;">
+      <p style="margin:0;color:#9ca3af;font-size:12px;">Sent by ${esc(companyName)} via Streamflaire Hub</p>
+    </div>
+  </div>
+</div>`;
+  return { subject: `Your signed copy: ${title} — ${companyName}`, html };
+}
+
 /** Payment-link email to a client whose service-request form auto-sent an invoice. */
 export function invoiceLinkEmail({
   companyName,

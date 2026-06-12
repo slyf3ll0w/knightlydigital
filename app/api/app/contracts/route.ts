@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, contactScope } from "@/lib/permissions";
+import { sendEmail, contractSignEmail } from "@/lib/email";
 
 /**
  * POST — issue a contract to a client. Body text comes from a saved
@@ -63,5 +64,20 @@ export async function POST(req: NextRequest) {
       sentAt: new Date(),
     },
   });
+
+  // Deliver the signing link to the client's inbox — ties the eventual
+  // signature to their email address (and they don't need anyone to text
+  // them a link)
+  if (contact.email) {
+    const baseUrl = process.env.NEXTAUTH_URL ?? "https://streamflaire.com";
+    const { subject, html } = contractSignEmail({
+      companyName: company?.name ?? "",
+      contactFirstName: contact.firstName,
+      title,
+      signUrl: `${baseUrl}/contract/${contract.publicToken}`,
+    });
+    await sendEmail({ to: contact.email, subject, html });
+  }
+
   return NextResponse.json(contract, { status: 201 });
 }
