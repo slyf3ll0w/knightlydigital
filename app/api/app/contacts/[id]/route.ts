@@ -53,12 +53,18 @@ export async function PATCH(
 }
 
 /**
- * DELETE — permanently remove a contact (spam/marketer cleanup). Refused when
- * the contact has any real work (quotes, jobs, invoices, payments, plans);
- * their requests and booking submissions are spam artifacts and go with them.
+ * DELETE — permanently remove a contact.
+ *
+ * Default: spam/marketer cleanup — refused when the contact has any real
+ * work; their requests and booking submissions go with them.
+ *
+ * ?force=1: full wipe (test clients, irrelevant records) — destroys the
+ * client AND all their quotes, jobs, invoices, payment records,
+ * appointments, requests, and plans. The UI requires typing the client's
+ * name before sending this.
  */
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const actor = await getActor();
@@ -67,28 +73,45 @@ export async function DELETE(
 
   const { id } = await params;
   const companyId = actor.companyId;
+  const force = req.nextUrl.searchParams.get("force") === "1";
 
   const contact = await prisma.contact.findFirst({
     where: { id, companyId },
     include: {
       _count: {
-        select: { quotes: true, jobs: true, invoices: true, payments: true, servicePlans: true },
+        select: {
+          quotes: true, jobs: true, invoices: true, payments: true,
+          servicePlans: true, appointments: true,
+        },
       },
     },
   });
   if (!contact) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const c = contact._count;
-  if (c.quotes > 0 || c.jobs > 0 || c.invoices > 0 || c.payments > 0 || c.servicePlans > 0) {
+  const hasWork =
+    c.quotes > 0 || c.jobs > 0 || c.invoices > 0 || c.payments > 0 ||
+    c.servicePlans > 0 || c.appointments > 0;
+
+  if (hasWork && !force) {
     return NextResponse.json(
       { error: "This client has quotes, jobs, or billing history — archive them instead." },
       { status: 400 }
     );
   }
 
+  // FK-safe order: quotes/invoices/appointments reference jobs/requests, so
+  // they go first; line items, payments, assignments etc. cascade.
   await prisma.$transaction([
+    prisma.payment.deleteMany({ where: { contactId: id, companyId } }),
+    prisma.invoice.deleteMany({ where: { contactId: id, companyId } }),
+    prisma.quote.deleteMany({ where: { contactId: id, companyId } }),
+    prisma.job.deleteMany({ where: { contactId: id, companyId } }),
+    prisma.appointment.deleteMany({ where: { contactId: id, companyId } }),
     prisma.request.deleteMany({ where: { contactId: id, companyId } }),
     prisma.bookingRequest.deleteMany({ where: { contactId: id, companyId } }),
+    prisma.servicePlan.deleteMany({ where: { contactId: id, companyId } }),
+    prisma.reviewRequest.deleteMany({ where: { contactId: id, companyId } }),
     prisma.contact.delete({ where: { id } }),
   ]);
 

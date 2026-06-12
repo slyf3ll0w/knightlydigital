@@ -158,7 +158,18 @@ export default async function ContactDetailPage({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <DeleteContactButton contactId={contact.id} />
+          <DeleteContactButton
+            contactId={contact.id}
+            contactName={`${contact.firstName} ${contact.lastName}`.trim()}
+            counts={{
+              requests: contact.requests.length,
+              appointments: contact.appointments.length,
+              quotes: contact.quotes.length,
+              jobs: contact.jobs.length,
+              invoices: contact.invoices.length,
+              payments: contact.payments.length,
+            }}
+          />
           <ContactCreateMenu contactId={contact.id} />
         </div>
       </div>
