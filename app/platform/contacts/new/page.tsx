@@ -17,7 +17,7 @@ export default function NewContactPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [form, setForm] = useState({
-    firstName: "", lastName: "", email: "", phone: "",
+    firstName: "", lastName: "", companyName: "", email: "", phone: "",
     address: "", city: "", state: "", zip: "", notes: "",
   });
 
@@ -85,6 +85,16 @@ export default function NewContactPage() {
                 value={form.lastName}
                 onChange={(e) => set("lastName", e.target.value)}
                 required
+                className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              />
+            </div>
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Company (optional)</label>
+              <input
+                type="text"
+                value={form.companyName}
+                onChange={(e) => set("companyName", e.target.value)}
+                placeholder="If this client is a business"
                 className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>

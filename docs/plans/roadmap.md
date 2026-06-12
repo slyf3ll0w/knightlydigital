@@ -170,6 +170,35 @@ In-person (in-person requires an address).
 - ICS calendar attachments / Google Calendar sync.
 - Auto-generated video meeting links (Zoom/Meet integrations).
 
+### 3d. Client CSV importer — SHIPPED 2026-06-11
+
+Onboarding path for switchers (paper / spreadsheets / other CRMs). All
+sources funnel through one CSV importer — no AI, no paid services.
+
+- Wizard at **/app/settings/import** (owner/admin; Import button on
+  Clients page): upload CSV → map columns → import (chunked, 200/req,
+  progress bar) → summary with per-row errors.
+- Header auto-detection: synonym dictionary covers our downloadable
+  template + Jobber and Housecall Pro client exports (street/province/
+  postal code/tags etc.). "Full name" columns split into first/last; two
+  columns can map to one target (Tags+Notes → Notes).
+- Options: import as Leads or Active, assign-to member (lead routing),
+  duplicate handling (match by normalized email/phone): skip or update —
+  updates never blank existing fields with empty cells.
+- **Undo**: contacts carry importBatchId; "Undo this import" deletes the
+  batch except anyone who has since gotten work (spam-delete guard).
+- Paper story: downloadable CSV template on the upload screen.
+- New `Contact.companyName` (CRM exports always have one): on the new-
+  client form, contact header, list secondary line, importable.
+- lib/csv.ts: dependency-free RFC-4180-ish parser (quotes, embedded
+  commas/newlines, BOM).
+
+**Deferred:** AI-assisted import (photos of paper records / messy files →
+Claude extraction — real differentiator, own project); historical jobs/
+invoices/quotes import; QuickBooks customer sync; price-book CSV import
+(small follow-up); "white-glove import" service as an agency onboarding
+pitch (send us your data, we load it — this importer is the tool).
+
 ### 4. Email automations via Resend — Phase 1 SHIPPED 2026-06-11 ← NEXT UP (Phase 2)
 
 - DONE: new-request notification to company.email from booking form + client

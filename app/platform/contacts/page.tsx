@@ -1,10 +1,10 @@
 import { prisma } from "@/lib/db";
 import Link from "next/link";
-import { Plus, ChevronRight, UserCheck } from "lucide-react";
+import { Plus, ChevronRight, UserCheck, Upload } from "lucide-react";
 import { shortDate } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
 import EmptyState from "@/components/EmptyState";
-import { requirePageActor, canSell, contactScope, seesAllLeads } from "@/lib/permissions";
+import { requirePageActor, canSell, contactScope, seesAllLeads, isManager } from "@/lib/permissions";
 
 const statusFilters = [
   { value: "", label: "Leads and Active" },
@@ -70,13 +70,24 @@ export default async function ContactsPage({
     <div className="p-4 lg:p-8 max-w-6xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Clients</h1>
-        <Link
-          href="/app/contacts/new"
-          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors"
-        >
-          <Plus size={15} />
-          New Client
-        </Link>
+        <div className="flex items-center gap-2">
+          {isManager(actor.role) && (
+            <Link
+              href="/app/settings/import"
+              className="flex items-center gap-1.5 px-4 py-2 border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-sm font-semibold rounded transition-colors"
+            >
+              <Upload size={14} />
+              Import
+            </Link>
+          )}
+          <Link
+            href="/app/contacts/new"
+            className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors"
+          >
+            <Plus size={15} />
+            New Client
+          </Link>
+        </div>
       </div>
 
       {/* Search */}
@@ -155,8 +166,10 @@ export default async function ContactsPage({
                   <p className="text-sm font-medium text-gray-900 truncate">
                     {c.firstName} {c.lastName}
                   </p>
-                  {(c.phone || c.email) && (
-                    <p className="text-xs text-gray-500 truncate">{c.phone || c.email}</p>
+                  {(c.companyName || c.phone || c.email) && (
+                    <p className="text-xs text-gray-500 truncate">
+                      {[c.companyName, c.phone || c.email].filter(Boolean).join(" · ")}
+                    </p>
                   )}
                 </div>
                 <span className="hidden lg:block text-sm text-gray-500 truncate">

@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
   if (!canSell(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const body = await req.json();
-  const { firstName, lastName, email, phone, address, city, state, zip, notes, leadSource } = body;
+  const { firstName, lastName, companyName, email, phone, address, city, state, zip, notes, leadSource } = body;
 
   if (!firstName || !lastName) {
     return NextResponse.json({ error: "First and last name are required." }, { status: 400 });
@@ -43,6 +43,7 @@ export async function POST(req: NextRequest) {
       companyId: actor.companyId,
       firstName,
       lastName,
+      companyName: companyName || null,
       email: email || null,
       phone: phone || null,
       address: address || null,

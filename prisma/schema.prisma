@@ -104,6 +104,7 @@ model Contact {
   company          Company       @relation(fields: [companyId], references: [id])
   firstName        String
   lastName         String
+  companyName      String? // the client's business name (CRM imports usually have one)
   email            String?
   phone            String?
   address          String?
@@ -116,6 +117,8 @@ model Contact {
   // Lead ownership: SALES/USER roles only see contacts assigned to them
   assignedToId     String?
   assignedTo       User?         @relation("AssignedContacts", fields: [assignedToId], references: [id])
+  // CSV import provenance — lets "Undo this import" find the batch
+  importBatchId    String?
   paymentTermsDays Int           @default(30)
   hubToken         String        @unique @default(cuid())
   createdAt        DateTime      @default(now())
@@ -134,6 +137,7 @@ model Contact {
   @@index([companyId, status])
   @@index([companyId, lastName])
   @@index([companyId, assignedToId])
+  @@index([companyId, importBatchId])
 }
 
 // ─── Requests ────────────────────────────────────────────────────────────────

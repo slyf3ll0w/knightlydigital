@@ -125,6 +125,9 @@ export default async function ContactDetailPage({
           <h1 className="text-2xl font-bold text-gray-900">
             {contact.firstName} {contact.lastName}
           </h1>
+          {contact.companyName && (
+            <p className="text-sm text-gray-500 mt-0.5">{contact.companyName}</p>
+          )}
           <div className="flex flex-wrap items-center gap-3 mt-1">
             {contact.phone && (
               <a

@@ -34,6 +34,7 @@ export async function PATCH(
       ...(body.firstName !== undefined && {
         firstName: body.firstName,
         lastName: body.lastName,
+        companyName: body.companyName || null,
         email: body.email || null,
         phone: body.phone || null,
         address: body.address || null,
