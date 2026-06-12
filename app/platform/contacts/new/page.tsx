@@ -77,7 +77,7 @@ export default function NewContactPage() {
         <Link href="/app/contacts" className="text-gray-400 hover:text-gray-600">
           <ArrowLeft size={18} />
         </Link>
-        <h1 className="text-2xl font-bold text-gray-900">New Contact</h1>
+        <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">New Contact</h1>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">

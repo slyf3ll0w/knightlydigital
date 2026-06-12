@@ -57,7 +57,7 @@ export default function ProfileClient({
 
   return (
     <div className="p-4 lg:p-8 max-w-2xl mx-auto">
-      <h1 className="text-2xl font-bold text-gray-900 mb-1">My Profile</h1>
+      <h1 className="numeral-ledger text-2xl font-semibold text-gray-900 mb-1">My Profile</h1>
       <p className="text-sm text-gray-500 mb-6">
         Signed in as {email} · {roleLabel}
       </p>

@@ -40,7 +40,7 @@ export default async function RequestDetailPage({
 
       <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">{request.title}</h1>
+          <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">{request.title}</h1>
           <p className="text-sm text-gray-500 mt-0.5">
             Request #{request.requestNumber} · Requested {shortDate(request.createdAt)}
             {request.preferredDate && (

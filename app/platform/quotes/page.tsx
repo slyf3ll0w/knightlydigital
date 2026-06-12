@@ -70,8 +70,8 @@ export default async function QuotesPage({
 
   return (
     <div className="p-4 lg:p-8 max-w-6xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Quotes</h1>
+      <div className="flex flex-wrap items-center justify-between gap-y-3 mb-6">
+        <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">Quotes</h1>
         <Link
           href="/app/quotes/new"
           className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors"
@@ -90,7 +90,7 @@ export default async function QuotesPage({
             className="card-ledger p-4 hover:shadow-sm transition-shadow"
           >
             <p className="text-xs font-medium text-gray-500 mb-1">{k.label}</p>
-            <p className="text-2xl font-bold text-gray-900">{k.value}</p>
+            <p className="numeral-ledger text-2xl font-semibold text-gray-900">{k.value}</p>
             {k.sub && <p className="text-xs text-gray-500 mt-0.5">{k.sub}</p>}
           </Link>
         ))}

@@ -81,8 +81,8 @@ export default async function InvoicesPage({
 
   return (
     <div className="p-4 lg:p-8 max-w-6xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Invoices</h1>
+      <div className="flex flex-wrap items-center justify-between gap-y-3 mb-6">
+        <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">Invoices</h1>
         <div className="flex items-center gap-2">
           <Link
             href="/app/payments/new"
@@ -112,7 +112,7 @@ export default async function InvoicesPage({
             <p className="text-xs font-medium text-gray-500 mb-1">
               {k.label} ({k.count})
             </p>
-            <p className="text-2xl font-bold text-gray-900">{k.value}</p>
+            <p className="numeral-ledger text-2xl font-semibold text-gray-900">{k.value}</p>
           </Link>
         ))}
       </div>

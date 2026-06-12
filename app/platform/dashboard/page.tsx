@@ -223,8 +223,12 @@ export default async function DashboardPage() {
   ];
 
   // One sorted "today" list: jobs + sales appointments
+  // Compact ledger time ("10:00a") — fits the rail column without wrapping
   const fmtTime = (d: Date) =>
-    d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+    d
+      .toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+      .replace(" AM", "a")
+      .replace(" PM", "p");
   const todayItems = [
     ...todayVisits.map((job) => ({
       id: `j-${job.id}`,

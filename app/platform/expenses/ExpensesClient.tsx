@@ -81,7 +81,7 @@ export default function ExpensesClient({ expenses }: { expenses: Expense[] }) {
           <Link href="/app/insights" className="text-gray-400 hover:text-gray-600">
             <ArrowLeft size={18} />
           </Link>
-          <h1 className="text-2xl font-bold text-gray-900">Expenses</h1>
+          <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">Expenses</h1>
         </div>
         <button
           onClick={() => setShowAdd((v) => !v)}

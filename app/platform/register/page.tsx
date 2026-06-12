@@ -206,7 +206,7 @@ export default function RegisterPage() {
                   next();
                 }}
               >
-                <h1 className="text-2xl font-bold text-gray-900 mb-1">Let&apos;s get you set up</h1>
+                <h1 className="numeral-ledger text-2xl font-semibold text-gray-900 mb-1">Let&apos;s get you set up</h1>
                 <p className="text-sm text-gray-500 mb-6">
                   Free forever — we make money when you get paid, not before.
                 </p>
@@ -268,7 +268,7 @@ export default function RegisterPage() {
                   next();
                 }}
               >
-                <h1 className="text-2xl font-bold text-gray-900 mb-1">Create your login</h1>
+                <h1 className="numeral-ledger text-2xl font-semibold text-gray-900 mb-1">Create your login</h1>
                 <p className="text-sm text-gray-500 mb-6">
                   You&apos;ll use this to sign in to {form.companyName || "your account"}.
                 </p>
@@ -308,7 +308,7 @@ export default function RegisterPage() {
 
             {current.id === "industry" && (
               <div>
-                <h1 className="text-2xl font-bold text-gray-900 mb-1">What kind of work do you do?</h1>
+                <h1 className="numeral-ledger text-2xl font-semibold text-gray-900 mb-1">What kind of work do you do?</h1>
                 <p className="text-sm text-gray-500 mb-6">
                   We&apos;ll pre-load your price book with services for your industry — you can edit
                   everything later.
@@ -364,7 +364,7 @@ export default function RegisterPage() {
 
             {current.id === "teamSize" && (
               <div>
-                <h1 className="text-2xl font-bold text-gray-900 mb-1">How big is your team?</h1>
+                <h1 className="numeral-ledger text-2xl font-semibold text-gray-900 mb-1">How big is your team?</h1>
                 <p className="text-sm text-gray-500 mb-6">
                   Unlimited users either way — this just helps us set things up for you.
                 </p>
@@ -388,7 +388,7 @@ export default function RegisterPage() {
 
             {current.id === "software" && (
               <div>
-                <h1 className="text-2xl font-bold text-gray-900 mb-1">
+                <h1 className="numeral-ledger text-2xl font-semibold text-gray-900 mb-1">
                   How do you run things today?
                 </h1>
                 <p className="text-sm text-gray-500 mb-6">
@@ -414,7 +414,7 @@ export default function RegisterPage() {
 
             {current.id === "priority" && (
               <div>
-                <h1 className="text-2xl font-bold text-gray-900 mb-1">
+                <h1 className="numeral-ledger text-2xl font-semibold text-gray-900 mb-1">
                   What matters most to you right now?
                 </h1>
                 <p className="text-sm text-gray-500 mb-6">
@@ -440,7 +440,7 @@ export default function RegisterPage() {
 
             {current.id === "referral" && (
               <div>
-                <h1 className="text-2xl font-bold text-gray-900 mb-1">How did you hear about us?</h1>
+                <h1 className="numeral-ledger text-2xl font-semibold text-gray-900 mb-1">How did you hear about us?</h1>
                 <p className="text-sm text-gray-500 mb-6">Last quick question, promise.</p>
                 <div className="space-y-2">
                   {REFERRAL_SOURCES.map((src) => (
@@ -462,7 +462,7 @@ export default function RegisterPage() {
 
             {current.id === "payments" && (
               <div>
-                <h1 className="text-2xl font-bold text-gray-900 mb-1">Getting paid</h1>
+                <h1 className="numeral-ledger text-2xl font-semibold text-gray-900 mb-1">Getting paid</h1>
                 <p className="text-sm text-gray-500 mb-6">
                   Record cash, check, Venmo, Zelle, and Cash App payments from day one. Online card
                   payments are on the way.
@@ -518,7 +518,7 @@ export default function RegisterPage() {
 
             {current.id === "finish" && (
               <div>
-                <h1 className="text-2xl font-bold text-gray-900 mb-1">
+                <h1 className="numeral-ledger text-2xl font-semibold text-gray-900 mb-1">
                   You&apos;re all set{form.yourName ? `, ${form.yourName.split(" ")[0]}` : ""}!
                 </h1>
                 <p className="text-sm text-gray-500 mb-6">

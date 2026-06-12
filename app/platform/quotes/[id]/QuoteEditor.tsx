@@ -204,7 +204,7 @@ export default function QuoteEditor({
         >
           <ArrowLeft size={18} />
         </Link>
-        <h1 className="text-2xl font-bold text-gray-900">{editing ? "Edit Quote" : "New Quote"}</h1>
+        <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">{editing ? "Edit Quote" : "New Quote"}</h1>
         {requestId && (
           <span className="text-xs font-medium px-2 py-0.5 rounded bg-blue-100 text-blue-700">
             From request

@@ -139,7 +139,7 @@ export default async function ContactDetailPage({
 
       <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">
             {contact.firstName} {contact.lastName}
           </h1>
           {contact.companyName && (

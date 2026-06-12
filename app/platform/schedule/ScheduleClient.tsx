@@ -584,7 +584,7 @@ export default function ScheduleClient({
     <div className="mx-auto max-w-7xl p-4 lg:p-8">
       {/* Header */}
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold text-gray-900">Schedule</h1>
+        <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">Schedule</h1>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setDrawerOpen((o) => !o)}

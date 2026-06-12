@@ -112,7 +112,7 @@ export default function WebFormEditor({
                 setDirty(true);
                 setSaved(false);
               }}
-              className="text-2xl font-bold text-gray-900 bg-transparent border-b border-transparent hover:border-gray-300 focus:border-green-500 focus:outline-none min-w-0"
+              className="numeral-ledger text-2xl font-semibold text-gray-900 bg-transparent border-b border-transparent hover:border-gray-300 focus:border-green-500 focus:outline-none min-w-0"
             />
           </div>
           <p className="text-sm text-gray-500 lg:ml-[30px]">

@@ -237,7 +237,7 @@ export default function ImportClient({
         <Link href="/app/contacts" className="text-gray-400 hover:text-gray-600">
           <ArrowLeft size={18} />
         </Link>
-        <h1 className="text-2xl font-bold text-gray-900">Import Clients</h1>
+        <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">Import Clients</h1>
       </div>
       <p className="text-sm text-gray-500 mb-6 ml-8">
         Bring your client list over from a spreadsheet or another CRM — Jobber and Housecall Pro
