@@ -11,6 +11,7 @@ import {
   CheckCircle2,
   Mail,
 } from "lucide-react";
+import { money } from "@/lib/statuses";
 import ResendContractButton from "./ResendContractButton";
 
 export default async function HubHomePage({
@@ -53,21 +54,39 @@ export default async function HubHomePage({
     return s + Math.max(0, Number(inv.total) - paid);
   }, 0);
   const pendingContracts = contact.contracts.filter((c) => c.status === "SENT");
+  const nextVisit = contact.jobs[0];
   const base = `/hub/${token}`;
 
-  const fmtVisit = (d: Date, anytime: boolean) => {
-    const day = d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
-    if (anytime) return day;
-    return `${day} · ${d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`;
-  };
+  const visitTime = (d: Date, anytime: boolean) =>
+    anytime
+      ? "Anytime"
+      : d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+
+  /** Small ledger "appointment ticket" date tile — month over day numeral. */
+  const dateTile = (d: Date | null) => (
+    <div className="flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-md border border-gray-200 bg-white">
+      {d ? (
+        <>
+          <span className="text-[9px] font-bold uppercase tracking-wide leading-none text-red-600/80">
+            {d.toLocaleDateString("en-US", { month: "short" })}
+          </span>
+          <span className="numeral-ledger text-lg font-semibold leading-tight text-gray-900">
+            {d.getDate()}
+          </span>
+        </>
+      ) : (
+        <CalendarDays size={16} className="text-gray-300" />
+      )}
+    </div>
+  );
 
   return (
     <div className="space-y-4">
-      {/* Action items */}
+      {/* Action items — the money path stays at the very top */}
       {openQuotes > 0 && (
         <Link
           href={`${base}/quotes`}
-          className="flex items-center justify-between px-4 py-3 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
+          className="anim-portal flex items-center justify-between px-4 py-3 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
         >
           <p className="text-sm font-medium text-blue-800">
             {openQuotes} {openQuotes === 1 ? "quote is" : "quotes are"} waiting for your approval
@@ -76,7 +95,7 @@ export default async function HubHomePage({
         </Link>
       )}
       {pendingContracts.length > 0 && (
-        <div className="flex items-center justify-between px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg">
+        <div className="anim-portal flex items-center justify-between px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg">
           <p className="text-sm font-medium text-amber-800">
             {pendingContracts.length === 1
               ? "An agreement is waiting for your signature — check your email"
@@ -88,7 +107,7 @@ export default async function HubHomePage({
       {openBalance > 0 && (
         <Link
           href={`${base}/invoices`}
-          className="flex items-center justify-between px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors"
+          className="anim-portal flex items-center justify-between px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors"
         >
           <p className="text-sm font-medium text-amber-800">
             You have an outstanding balance of $
@@ -98,31 +117,70 @@ export default async function HubHomePage({
         </Link>
       )}
 
-      {/* Upcoming visits */}
+      {/* At-a-glance ledger strip */}
+      <div className="anim-portal anim-delay-1 card-ledger grid grid-cols-3 divide-x divide-gray-100">
+        <div className="px-4 py-4">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+            Open balance
+          </p>
+          <p className="numeral-ledger mt-1 text-lg sm:text-2xl font-semibold text-gray-900">
+            {money(openBalance)}
+          </p>
+        </div>
+        <div className="px-4 py-4">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+            Next visit
+          </p>
+          <p className="numeral-ledger mt-1 text-lg sm:text-2xl font-semibold text-gray-900">
+            {nextVisit?.scheduledAt
+              ? new Date(nextVisit.scheduledAt).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                })
+              : "—"}
+          </p>
+        </div>
+        <div className="px-4 py-4">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+            Quotes to review
+          </p>
+          <p className="numeral-ledger mt-1 text-lg sm:text-2xl font-semibold text-gray-900">
+            {openQuotes}
+          </p>
+        </div>
+      </div>
+
+      {/* Upcoming visits — appointment-ticket date tiles */}
       {contact.jobs.length > 0 && (
-        <div className="card-ledger overflow-hidden">
+        <div className="anim-portal anim-delay-2 card-ledger overflow-hidden">
           <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100">
             <CalendarDays size={15} className="text-gray-400" />
             <h2 className="font-semibold text-gray-900 text-sm">Upcoming visits</h2>
           </div>
           <div className="divide-y divide-gray-50">
-            {contact.jobs.map((job) => (
-              <div key={job.id} className="flex items-center justify-between px-4 py-3">
-                <p className="text-sm font-medium text-gray-900 truncate">{job.title}</p>
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide shrink-0 ml-3">
-                  {job.scheduledAt
-                    ? fmtVisit(new Date(job.scheduledAt), job.scheduledAnytime)
-                    : "To be scheduled"}
-                </p>
-              </div>
-            ))}
+            {contact.jobs.map((job) => {
+              const d = job.scheduledAt ? new Date(job.scheduledAt) : null;
+              return (
+                <div key={job.id} className="flex items-center gap-3 px-4 py-3">
+                  {dateTile(d)}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-gray-900 truncate">{job.title}</p>
+                    <p className="text-xs text-gray-500">
+                      {d
+                        ? `${d.toLocaleDateString("en-US", { weekday: "long" })} · ${visitTime(d, job.scheduledAnytime)}`
+                        : "To be scheduled"}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
 
       {/* Agreements — signing happens via the emailed link, never inline here */}
       {contact.contracts.length > 0 && (
-        <div className="card-ledger overflow-hidden">
+        <div className="anim-portal anim-delay-2 card-ledger overflow-hidden">
           <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100">
             <FileSignature size={15} className="text-gray-400" />
             <h2 className="font-semibold text-gray-900 text-sm">Agreements</h2>
@@ -131,9 +189,20 @@ export default async function HubHomePage({
             {contact.contracts.map((c) => (
               <div key={c.id} className="flex items-center justify-between gap-3 px-4 py-3">
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">{c.title}</p>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">{c.title}</p>
+                    {c.status === "SIGNED" ? (
+                      <span className="stamp border-green-600/30 bg-green-600/[0.06] text-green-700">
+                        Signed
+                      </span>
+                    ) : (
+                      <span className="stamp border-amber-600/35 bg-amber-500/[0.07] text-amber-700">
+                        Awaiting signature
+                      </span>
+                    )}
+                  </div>
                   {c.status === "SIGNED" ? (
-                    <p className="flex items-center gap-1 text-xs text-green-700">
+                    <p className="mt-0.5 flex items-center gap-1 text-xs text-green-700">
                       <CheckCircle2 size={12} />
                       Signed{" "}
                       {c.signedAt
@@ -145,8 +214,8 @@ export default async function HubHomePage({
                         : ""}
                     </p>
                   ) : (
-                    <p className="text-xs text-amber-700">
-                      Awaiting your signature — we emailed you the signing link
+                    <p className="mt-0.5 text-xs text-amber-700">
+                      We emailed you the signing link
                     </p>
                   )}
                 </div>
@@ -160,7 +229,7 @@ export default async function HubHomePage({
       )}
 
       {/* Get work done */}
-      <div className="card-ledger p-8 text-center">
+      <div className="anim-portal anim-delay-3 card-ledger p-8 text-center">
         <Inbox size={32} className="text-gray-300 mx-auto mb-3" />
         <h2 className="text-lg font-bold text-gray-900 mb-1">Get work done</h2>
         <p className="text-sm text-gray-500 mb-5">
@@ -175,7 +244,7 @@ export default async function HubHomePage({
       </div>
 
       {/* Quick links */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="anim-portal anim-delay-4 grid grid-cols-2 gap-3">
         <Link
           href={`${base}/quotes`}
           className="flex items-center gap-3 card-ledger p-4 hover:shadow-sm transition-shadow"

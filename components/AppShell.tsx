@@ -22,6 +22,10 @@ import {
   Search,
   Globe,
   UserPlus,
+  Tag,
+  FileSignature,
+  ChevronsUpDown,
+  CircleUserRound,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import Avatar from "@/components/Avatar";
@@ -50,20 +54,33 @@ const isManagerRole = (r: string) => r === "OWNER" || r === "ADMIN";
 const sellRoles = (r: string) => isManagerRole(r) || r === "USER" || r === "SALES";
 const moneyRoles = (r: string) => isManagerRole(r) || r === "USER" || r === "SALES";
 
-// Jobber-style grouping: Home + Schedule, then the work lifecycle in order.
-const navGroups: NavItem[][] = [
-  [
-    { href: "/app/dashboard", label: "Home", icon: Home },
-    { href: "/app/schedule", label: "Schedule", icon: CalendarDays },
-  ],
-  [
-    { href: "/app/contacts", label: "Clients", icon: Users, show: sellRoles },
-    { href: "/app/requests", label: "Requests", icon: Inbox, show: sellRoles },
-    { href: "/app/quotes", label: "Quotes", icon: FileText, show: sellRoles },
-    { href: "/app/jobs", label: "Jobs", icon: Briefcase },
-    { href: "/app/invoices", label: "Invoices", icon: Receipt, show: moneyRoles },
-  ],
-  [{ href: "/app/insights", label: "Insights", icon: BarChart3, show: isManagerRole }],
+// Jobber-style grouping: Home + Schedule, then the work lifecycle in order,
+// then business tools. Labeled sections read like mainstream SaaS nav.
+const navGroups: { label?: string; items: NavItem[] }[] = [
+  {
+    items: [
+      { href: "/app/dashboard", label: "Home", icon: Home },
+      { href: "/app/schedule", label: "Schedule", icon: CalendarDays },
+    ],
+  },
+  {
+    label: "Work",
+    items: [
+      { href: "/app/contacts", label: "Clients", icon: Users, show: sellRoles },
+      { href: "/app/requests", label: "Requests", icon: Inbox, show: sellRoles },
+      { href: "/app/quotes", label: "Quotes", icon: FileText, show: sellRoles },
+      { href: "/app/jobs", label: "Jobs", icon: Briefcase },
+      { href: "/app/invoices", label: "Invoices", icon: Receipt, show: moneyRoles },
+    ],
+  },
+  {
+    label: "Business",
+    items: [
+      { href: "/app/insights", label: "Insights", icon: BarChart3, show: isManagerRole },
+      { href: "/app/settings/products", label: "Services", icon: Tag, show: isManagerRole },
+      { href: "/app/settings/contracts", label: "Contracts", icon: FileSignature, show: isManagerRole },
+    ],
+  },
 ];
 
 const createItems: NavItem[] = [
@@ -153,6 +170,71 @@ function CreateMenu({ accent, role }: { accent: string; role: string }) {
   );
 }
 
+/**
+ * Bottom-of-sidebar user card → upward popover (profile, sign out). Same
+ * per-instance state pattern as CreateMenu since the sidebar renders twice
+ * (desktop + mobile drawer).
+ */
+function UserMenu({
+  userName,
+  userEmail,
+}: {
+  userName?: string | null;
+  userEmail?: string | null;
+}) {
+  const pathname = usePathname();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function onClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, []);
+
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
+
+  return (
+    <div className="relative" ref={ref}>
+      {open && (
+        <div className="absolute bottom-full left-0 right-0 mb-1.5 z-50 bg-white rounded-lg shadow-xl ring-1 ring-black/5 py-1.5 overflow-hidden">
+          <Link
+            href="/app/settings/profile"
+            onClick={() => setOpen(false)}
+            className="flex items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            <CircleUserRound size={14} className="text-gray-400" />
+            My Profile
+          </Link>
+          <div className="my-1 border-t border-gray-100" />
+          <button
+            onClick={() => signOut({ callbackUrl: "/app/login" })}
+            className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            <LogOut size={14} className="text-gray-400" />
+            Sign out
+          </button>
+        </div>
+      )}
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-full px-3 py-2.5 flex items-center gap-3 rounded-md hover:bg-white/[0.04] transition-colors text-left"
+      >
+        <Avatar name={userName} size={28} />
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-medium text-white truncate">{userName}</p>
+          <p className="text-[11px] text-white/40 truncate">{userEmail}</p>
+        </div>
+        <ChevronsUpDown size={13} className="text-white/30 shrink-0" />
+      </button>
+    </div>
+  );
+}
+
 interface AppShellProps {
   children: React.ReactNode;
   userName?: string | null;
@@ -181,6 +263,7 @@ export default function AppShell({
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [counts, setCounts] = useState({ requests: 0, pastDue: 0 });
 
   // Auth pages render standalone even when a session cookie exists
   const isAuthPage = pathname.startsWith("/app/login") || pathname.startsWith("/app/register");
@@ -189,15 +272,33 @@ export default function AppShell({
     setMobileOpen(false);
   }, [pathname]);
 
+  // Nav badges (new requests, past-due invoices) — refreshed on every
+  // navigation so the counts stay honest without polling.
+  useEffect(() => {
+    if (isAuthPage) return;
+    let cancelled = false;
+    fetch("/api/app/nav-counts")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d && !cancelled) setCounts({ requests: d.requests ?? 0, pastDue: d.pastDue ?? 0 });
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [pathname, isAuthPage]);
+
   function isActive(href: string) {
     if (href === "/app/dashboard") return pathname === href;
-    // Booking Form / Team / My Profile live under /app/settings/ but have
-    // their own nav items
+    // Booking Form / Team / Services / Contracts / My Profile live under
+    // /app/settings/ but have their own nav items
     if (href === "/app/settings") {
       return (
         pathname.startsWith(href) &&
         !pathname.startsWith("/app/settings/booking") &&
         !pathname.startsWith("/app/settings/team") &&
+        !pathname.startsWith("/app/settings/products") &&
+        !pathname.startsWith("/app/settings/contracts") &&
         !pathname.startsWith("/app/settings/profile")
       );
     }
@@ -213,23 +314,30 @@ export default function AppShell({
 
   const navLink = (href: string, label: string, Icon: typeof Home) => {
     const active = isActive(href);
+    // Live badges: new requests (neutral), past-due invoices (red — urgent)
+    const badge =
+      href === "/app/requests" ? counts.requests : href === "/app/invoices" ? counts.pastDue : 0;
     return (
       <Link
         key={href}
         href={href}
         data-tour={tourKeys[href]}
-        className={`relative flex items-center gap-3 px-3 py-2 rounded-md text-[13px] font-medium transition-colors ${
-          active ? "bg-white/[0.07] text-white" : "text-white/55 hover:text-white hover:bg-white/[0.04]"
+        className={`flex items-center gap-3 px-3 py-2 rounded-md text-[13px] font-medium transition-colors ${
+          active ? "text-white" : "text-white/55 hover:text-white hover:bg-white/[0.04]"
         }`}
+        style={active ? { backgroundColor: `${accent}24` } : undefined}
       >
-        {active && (
-          <span
-            className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full"
-            style={{ backgroundColor: accent }}
-          />
-        )}
         <Icon size={16} style={active ? { color: accent } : undefined} />
         {label}
+        {badge > 0 && (
+          <span
+            className={`ml-auto min-w-[18px] rounded-full px-1.5 py-px text-center text-[10px] font-bold tabular-nums ${
+              href === "/app/invoices" ? "bg-red-500/90 text-white" : "bg-white/10 text-white/80"
+            }`}
+          >
+            {badge > 99 ? "99+" : badge}
+          </span>
+        )}
       </Link>
     );
   };
@@ -238,16 +346,20 @@ export default function AppShell({
     <>
       <CreateMenu accent={accent} role={userRole} />
 
-      {/* Nav groups */}
+      {/* Nav groups — labeled sections instead of bare dividers */}
       <nav className="flex-1 px-3 py-4 overflow-y-auto">
         {navGroups
-          .map((group) => forRole(group, userRole))
-          .filter((group) => group.length > 0)
+          .map((group) => ({ ...group, items: forRole(group.items, userRole) }))
+          .filter((group) => group.items.length > 0)
           .map((group, i) => (
-            <div key={i}>
-              {i > 0 && <div className="my-3 border-t border-white/[0.07]" />}
+            <div key={i} className={i > 0 ? "mt-4" : undefined}>
+              {group.label && (
+                <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/30">
+                  {group.label}
+                </p>
+              )}
               <div className="space-y-0.5">
-                {group.map(({ href, label, icon: Icon }) => navLink(href, label, Icon))}
+                {group.items.map(({ href, label, icon: Icon }) => navLink(href, label, Icon))}
               </div>
             </div>
           ))}
@@ -258,21 +370,7 @@ export default function AppShell({
         {manager && navLink("/app/settings/booking", "Forms", Globe)}
         {manager && navLink("/app/settings/team", "Team", UserPlus)}
         {manager && navLink("/app/settings", "Settings", Settings)}
-        {!manager && navLink("/app/settings/profile", "My Profile", Settings)}
-        <div className="px-3 py-2.5 flex items-center gap-3">
-          <Avatar name={userName} size={28} />
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-medium text-white truncate">{userName}</p>
-            <p className="text-[11px] text-white/40 truncate">{userEmail}</p>
-          </div>
-          <button
-            onClick={() => signOut({ callbackUrl: "/app/login" })}
-            className="text-white/40 hover:text-white/80 transition-colors"
-            title="Sign out"
-          >
-            <LogOut size={14} />
-          </button>
-        </div>
+        <UserMenu userName={userName} userEmail={userEmail} />
         <p className="px-3 pt-1.5 pb-1 text-[10px] text-white/30 flex items-center gap-1.5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/streamflaire-hub-mark.png" alt="" className="h-2.5 w-auto shrink-0 opacity-60" />
@@ -386,7 +484,7 @@ export default function AppShell({
         <main className="flex-1 overflow-y-auto pb-20 lg:pb-0">{children}</main>
       </div>
 
-      <MobileTabBar accent={accent} role={userRole} isActive={isActive} />
+      <MobileTabBar accent={accent} role={userRole} isActive={isActive} pastDue={counts.pastDue} />
 
       <TourGuide role={userRole} needsTour={needsTour} />
     </div>
@@ -403,10 +501,12 @@ function MobileTabBar({
   accent,
   role,
   isActive,
+  pastDue,
 }: {
   accent: string;
   role: string;
   isActive: (href: string) => boolean;
+  pastDue: number;
 }) {
   const pathname = usePathname();
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -429,7 +529,12 @@ function MobileTabBar({
           active ? "" : "text-gray-400 hover:text-gray-600"
         }`}
       >
-        <Icon size={18} />
+        <span className="relative">
+          <Icon size={18} />
+          {href === "/app/invoices" && pastDue > 0 && (
+            <span className="absolute -top-1 -right-1.5 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />
+          )}
+        </span>
         {label}
       </Link>
     );

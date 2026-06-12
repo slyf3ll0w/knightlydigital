@@ -26,6 +26,16 @@ export default async function HubInvoicesPage({
   const open = contact.invoices.filter((i) => i.status !== "PAID");
   const paid = contact.invoices.filter((i) => i.status === "PAID");
 
+  // Client-facing stamps — friendlier labels than the internal ones
+  const clientInvoiceStamp: Record<string, { label: string; tone: string }> = {
+    AWAITING_PAYMENT: {
+      label: "Due",
+      tone: "border-amber-600/35 bg-amber-500/[0.07] text-amber-700",
+    },
+    PAST_DUE: { label: "Past due", tone: "border-red-600/30 bg-red-600/[0.06] text-red-700" },
+    PAID: { label: "Paid", tone: "border-green-600/30 bg-green-600/[0.06] text-green-700" },
+  };
+
   const section = (title: string, list: typeof contact.invoices) =>
     list.length > 0 && (
       <div className="mb-6">
@@ -36,6 +46,7 @@ export default async function HubInvoicesPage({
           {list.map((inv) => {
             const paidAmt = inv.payments.reduce((s, p) => s + Number(p.amount), 0);
             const balance = Math.max(0, Number(inv.total) - paidAmt);
+            const stamp = clientInvoiceStamp[inv.status];
             return (
               <Link
                 key={inv.id}
@@ -43,17 +54,22 @@ export default async function HubInvoicesPage({
                 className="flex items-center gap-4 card-ledger p-4 hover:shadow-sm transition-shadow"
               >
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-gray-900 truncate">
-                    {inv.subject || `Invoice #${inv.invoiceNumber}`}
-                  </p>
-                  <p className="text-xs text-gray-500">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <p className="text-sm font-semibold text-gray-900 truncate">
+                      {inv.subject || `Invoice #${inv.invoiceNumber}`}
+                    </p>
+                    {stamp && <span className={`stamp ${stamp.tone}`}>{stamp.label}</span>}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-0.5">
                     #{inv.invoiceNumber}
                     {inv.issuedAt && ` · Sent ${shortDate(inv.issuedAt)}`}
                     {inv.dueDate && ` · Due ${shortDate(inv.dueDate)}`}
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-bold text-gray-900">{money(inv.total)}</p>
+                  <p className="numeral-ledger text-base font-semibold text-gray-900">
+                    {money(inv.total)}
+                  </p>
                   {balance > 0 && balance < Number(inv.total) && (
                     <p className="text-xs text-amber-600">Balance {money(balance)}</p>
                   )}
