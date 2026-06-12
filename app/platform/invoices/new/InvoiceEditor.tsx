@@ -24,10 +24,12 @@ export default function InvoiceEditor({
   contacts,
   workItems = [],
   prefillJob,
+  prefilledContactId = "",
 }: {
   contacts: Contact[];
   workItems?: PickerWorkItem[];
   prefillJob: PrefillJob | null;
+  prefilledContactId?: string;
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -47,7 +49,7 @@ export default function InvoiceEditor({
     unitPrice: String(li.unitPrice),
   })) ?? [{ name: "", description: "", quantity: "1", unitPrice: "" }];
 
-  const [contactId, setContactId] = useState(prefillJob?.contactId ?? "");
+  const [contactId, setContactId] = useState(prefillJob?.contactId ?? prefilledContactId);
   const [jobId] = useState(prefillJob?.id ?? "");
   const [subject, setSubject] = useState(prefillJob?.title ?? "");
   const [notes, setNotes] = useState("");

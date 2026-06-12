@@ -5,12 +5,12 @@ import InvoiceEditor from "./InvoiceEditor";
 export default async function NewInvoicePage({
   searchParams,
 }: {
-  searchParams: Promise<{ jobId?: string }>;
+  searchParams: Promise<{ jobId?: string; contactId?: string }>;
 }) {
   const actor = await requirePageActor(canSeeMoney);
   const companyId = actor.companyId;
 
-  const { jobId } = await searchParams;
+  const { jobId, contactId } = await searchParams;
 
   const [contacts, workItems, job] = await Promise.all([
     prisma.contact.findMany({
@@ -38,6 +38,7 @@ export default async function NewInvoicePage({
       contacts={contacts}
       workItems={JSON.parse(JSON.stringify(workItems))}
       prefillJob={job ? JSON.parse(JSON.stringify(job)) : null}
+      prefilledContactId={contactId ?? ""}
     />
   );
 }
