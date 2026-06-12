@@ -226,6 +226,38 @@ reviewRequests → contact). Owner/admin only. Note: deleting payment
 records changes revenue/Insights history — that's the point, but it's
 why the friction is high.
 
+### 3f. Client custom fields + multi-form rework — SHIPPED 2026-06-12, verified live
+
+**Client custom fields** (David's ask #1): ContactFieldDef model
+(text/number/date/dropdown, required, ordering, archive keeps values) +
+Contact.customFields Json. Manage at /app/settings/client-fields ("Custom
+Fields" button on Clients page). Fields render on the new-client form,
+edit-in-place "Details" card on client pages, and as CSV-import mapping
+targets (auto-detected by header name). lib/contact-fields.ts sanitizer.
+
+**Multi-form rework** (David's ask #2): WebForm table — any number of
+public forms per company, three types:
+- INQUIRY: collect info → lead + request in the inbox.
+- BOOKING: + preferred date (required by default) → Request.preferredDate,
+  shown on the request and prefilled into Schedule Appointment.
+- SERVICE_REQUEST: company-defined services w/ prices on the form (single
+  or multi-pick) → submission auto-creates an invoice as Draft or
+  auto-sent (AWAITING_PAYMENT + payment-link email via invoiceLinkEmail,
+  env-gated on Resend).
+Fully customizable: header title/description, every standard field's
+label/show/required (floor: name + one of email/phone), service question
+and message optional. Form custom fields can map to client custom fields.
+Forms list at Settings → Booking Form (create/type picker/default/on-off/
+delete); per-form editor keeps the live preview + per-form share link and
+embed snippet (compound resize key `companySlug/formSlug`).
+⚠️ Back-compat verified live: legacy Company.bookingForm lazily migrates
+into the default WebForm row; original /book/[slug] + /embed/[slug] URLs
+(Excellent PC Building's embed) render unchanged.
+Verified live end-to-end on demo co: Gate code field created + value saved
+on a client; "Order a Wash" SERVICE_REQUEST form created (Driveway Wash
+$149) → public submission as new lead Olivia Park → Draft invoice $149 +
+request both created.
+
 ### 4. Email automations via Resend — Phase 1 SHIPPED 2026-06-11 ← NEXT UP (Phase 2)
 
 - DONE: new-request notification to company.email from booking form + client
