@@ -199,7 +199,20 @@ invoices/quotes import; QuickBooks customer sync; price-book CSV import
 (small follow-up); "white-glove import" service as an agency onboarding
 pitch (send us your data, we load it — this importer is the tool).
 
-### 3e. Force-delete clients — SHIPPED 2026-06-11, verified live
+### 3e. Destructive deletes (clients + invoices) — SHIPPED 2026-06-11, verified live
+
+**Invoice deletion** (added same day, David's ask): "Delete Invoice" in the
+invoice ⋯ menu, owner/admin only. No payments → quick confirm; has
+payments → danger modal stating count + dollar total destroyed, type
+DELETE to confirm (`DELETE /api/app/invoices/[id]?force=1`).
+⚠️ Payment.invoiceId has NO DB cascade (deliberate — money records never
+vanish implicitly): any code deleting invoices must delete payments
+explicitly in the same transaction. First deploy 500'd on exactly this;
+fixed + re-verified live. Fix-confirmation flow also live-tested: name
+match for client delete is whitespace-collapsed (Hannah Crittendon case)
+and cross-client request/job links are detached before a client wipe.
+
+#### Force-delete clients — original notes
 
 David's ask: a real way to delete clients with data (test clients,
 no-longer-relevant records) — the spam-delete guard only allowed clean
