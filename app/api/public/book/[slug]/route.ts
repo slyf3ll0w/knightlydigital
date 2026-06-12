@@ -194,7 +194,7 @@ export async function POST(
           companyId: company.id,
           contactId: contact.id,
           invoiceNumber: (lastInv?.invoiceNumber ?? 0) + 1,
-          subject: requestTitle,
+          subject: form.name,
           status: send ? "AWAITING_PAYMENT" : "DRAFT",
           subtotal,
           total: subtotal,
