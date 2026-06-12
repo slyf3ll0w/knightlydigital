@@ -311,6 +311,26 @@ and failures alert instead of silently doing nothing. Verified live:
 created → edited $150→$175 → forced CHANGES_REQUESTED → edit rejected at
 all layers → deleted.
 
+### 3j. Quote discounts — SHIPPED 2026-06-12, verified live
+
+Same %/fixed pre-tax control as invoices, on quote create + edit; shown on
+the quote detail and the client approval page (percent tracks the live
+subtotal as optional items toggle). Carries over: invoicing a quoted job
+prefills the quote's discount alongside its line items. Verified full
+loop: quote $200 w/ 10% → $180 → approve → convert → New Invoice arrives
+with 10%/-$20 prefilled. Converted-quote delete also re-verified.
+
+### 3k. Onboarding walkthrough — PLANNED (David approved exploring, build pending)
+
+Home-built guided tour (no library): TourGuide client component in the
+shell; steps target data-tour attributes, spotlight overlay + card with
+Next/Back/Skip; ~8–10 steps following the lifecycle story (dashboard →
+create → requests → quotes → schedule → invoices → forms → team);
+role-aware steps; User.tourCompletedAt fires it on first dashboard visit,
+replay from profile. Phase 2: "Getting started" checklist card on the
+dashboard for new companies (logo / clients / first form / first quote)
+checking off from real data — likely higher-converting than the tour.
+
 ### 4. Email automations via Resend — Phase 1 SHIPPED 2026-06-11 ← NEXT UP (Phase 2)
 
 - DONE: new-request notification to company.email from booking form + client
