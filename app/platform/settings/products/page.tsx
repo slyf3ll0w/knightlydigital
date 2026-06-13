@@ -9,10 +9,22 @@ export default async function ProductsPage() {
   const actor = await requirePageActor((a) => isManager(a.role));
   const companyId = actor.companyId;
 
-  const items = await prisma.workItem.findMany({
-    where: { companyId, isActive: true },
-    orderBy: { name: "asc" },
-  });
+  const [items, templates] = await Promise.all([
+    prisma.workItem.findMany({
+      where: { companyId, isActive: true },
+      orderBy: { name: "asc" },
+    }),
+    prisma.contractTemplate.findMany({
+      where: { companyId, isActive: true },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
+  ]);
 
-  return <ProductsClient initialItems={JSON.parse(JSON.stringify(items))} />;
+  return (
+    <ProductsClient
+      initialItems={JSON.parse(JSON.stringify(items))}
+      templates={templates}
+    />
+  );
 }

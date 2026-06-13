@@ -5,6 +5,7 @@ import { sendEmail, newRequestEmail, invoiceLinkEmail } from "@/lib/email";
 import { defaultLeadAssignee } from "@/lib/permissions";
 import { resolveWebForm } from "@/lib/web-forms";
 import { getActiveFieldDefs, sanitizeCustomFields } from "@/lib/contact-fields";
+import { ensureSubscriptionsForContact } from "@/lib/subscriptions";
 
 // Generous backstop so one runaway account or bot can't flood a company
 const MAX_REQUESTS_PER_COMPANY_PER_DAY = 200;
@@ -79,7 +80,7 @@ export async function POST(
   }
 
   // Selected services (service-request forms): ids must exist on the form
-  let pickedServices: { id: string; name: string; price: number }[] = [];
+  let pickedServices: { id: string; name: string; price: number; workItemId?: string }[] = [];
   if (form.type === "SERVICE_REQUEST") {
     const ids: string[] = Array.isArray(body.selectedServices)
       ? body.selectedServices.filter((s: unknown): s is string => typeof s === "string").slice(0, 30)
@@ -183,6 +184,19 @@ export async function POST(
     // Service-request forms auto-create the invoice
     let invoice: { id: string; invoiceNumber: number; publicToken: string; total: number } | null = null;
     if (form.type === "SERVICE_REQUEST") {
+      // Pull recurring config for any picked services that map to the price book
+      const pickedWorkItemIds = pickedServices
+        .map((s) => s.workItemId)
+        .filter((id): id is string => !!id);
+      const recurringById = new Map<string, "MONTHLY" | "QUARTERLY" | "SEMIANNUAL" | "ANNUAL">();
+      if (pickedWorkItemIds.length > 0) {
+        const wi = await tx.workItem.findMany({
+          where: { id: { in: pickedWorkItemIds }, companyId: company.id, recurringInterval: { not: null } },
+          select: { id: true, recurringInterval: true },
+        });
+        for (const w of wi) if (w.recurringInterval) recurringById.set(w.id, w.recurringInterval);
+      }
+
       const lastInv = await tx.invoice.findFirst({
         where: { companyId: company.id },
         orderBy: { invoiceNumber: "desc" },
@@ -207,6 +221,8 @@ export async function POST(
               quantity: 1,
               unitPrice: s.price,
               total: s.price,
+              workItemId: s.workItemId ?? null,
+              recurringInterval: (s.workItemId && recurringById.get(s.workItemId)) || null,
               sortOrder: i,
             })),
           },
@@ -218,6 +234,14 @@ export async function POST(
         publicToken: created.publicToken,
         total: subtotal,
       };
+
+      // Recurring picks start a subscription on the client
+      await ensureSubscriptionsForContact(
+        tx,
+        company.id,
+        contact.id,
+        pickedServices.map((s) => ({ workItemId: s.workItemId, quantity: 1 }))
+      );
     }
 
     const last = await tx.request.findFirst({

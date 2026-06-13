@@ -17,6 +17,8 @@ type LineItem = {
   unitCost: string; // hidden; filled from the price book for margin tracking
   isOptional: boolean;
   requiresAgreement: boolean; // hidden; snapshotted from the price book
+  workItemId: string; // hidden; source price-book item (drives recurring/agreement)
+  recurringInterval: string | null; // hidden; snapshotted from the price book
 };
 
 const emptyLine: LineItem = {
@@ -27,6 +29,8 @@ const emptyLine: LineItem = {
   unitCost: "",
   isOptional: false,
   requiresAgreement: false,
+  workItemId: "",
+  recurringInterval: null,
 };
 
 export type ExistingQuote = {
@@ -48,6 +52,8 @@ export type ExistingQuote = {
     unitCost: number | null;
     isOptional: boolean;
     requiresAgreement: boolean;
+    workItemId?: string | null;
+    recurringInterval?: string | null;
   }[];
 };
 
@@ -99,6 +105,8 @@ export default function QuoteEditor({
           unitCost: li.unitCost != null ? String(li.unitCost) : "",
           isOptional: li.isOptional,
           requiresAgreement: li.requiresAgreement,
+          workItemId: li.workItemId ?? "",
+          recurringInterval: li.recurringInterval ?? null,
         }))
       : [{ ...emptyLine }]
   );
@@ -126,6 +134,8 @@ export default function QuoteEditor({
               unitPrice: String(Number(item.unitPrice)),
               unitCost: item.unitCost !== null ? String(Number(item.unitCost)) : "",
               requiresAgreement: Boolean(item.requiresAgreement),
+              workItemId: item.id,
+              recurringInterval: item.recurringInterval ?? null,
             }
           : li
       )
@@ -183,6 +193,8 @@ export default function QuoteEditor({
         unitCost: li.unitCost === "" ? null : parseFloat(li.unitCost) || 0,
         requiresAgreement: li.requiresAgreement,
         isOptional: li.isOptional,
+        workItemId: li.workItemId || null,
+        recurringInterval: li.recurringInterval,
         sortOrder: i,
       })),
     };

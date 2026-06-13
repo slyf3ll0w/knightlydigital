@@ -9,6 +9,14 @@ export type PickerWorkItem = {
   unitPrice: number | string;
   unitCost: number | string | null;
   requiresAgreement?: boolean;
+  recurringInterval?: "MONTHLY" | "QUARTERLY" | "SEMIANNUAL" | "ANNUAL" | null;
+};
+
+const INTERVAL_SHORT: Record<string, string> = {
+  MONTHLY: "/mo",
+  QUARTERLY: "/qtr",
+  SEMIANNUAL: "/6mo",
+  ANNUAL: "/yr",
 };
 
 /**
@@ -103,13 +111,25 @@ export default function WorkItemPicker({
               }`}
             >
               <span className="min-w-0">
-                <span className="block font-medium text-gray-900 truncate">{item.name}</span>
+                <span className="flex items-center gap-1.5 font-medium text-gray-900">
+                  <span className="truncate">{item.name}</span>
+                  {item.recurringInterval && (
+                    <span className="shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-green-100 text-green-700">
+                      Recurring
+                    </span>
+                  )}
+                </span>
                 {item.description && (
                   <span className="block text-xs text-gray-500 truncate">{item.description}</span>
                 )}
               </span>
               <span className="shrink-0 text-sm font-semibold text-gray-700">
                 ${Number(item.unitPrice).toFixed(2)}
+                {item.recurringInterval && (
+                  <span className="text-xs font-normal text-gray-400">
+                    {INTERVAL_SHORT[item.recurringInterval]}
+                  </span>
+                )}
               </span>
             </button>
           ))}

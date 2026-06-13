@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
+import { sanitizeRecurringAndAgreement } from "@/lib/work-items";
 
 // Price-book edits are settings territory: managers only
 async function getCompanyId() {
@@ -21,6 +22,14 @@ export async function PATCH(
   if (!item) return NextResponse.json({ error: "Item not found." }, { status: 404 });
 
   const body = await req.json();
+
+  // Recurring + agreement settings are revalidated together (the gate flag is
+  // derived from the attached template, so it can't be patched independently).
+  const recurring = await sanitizeRecurringAndAgreement(body, companyId);
+  if ("error" in recurring) {
+    return NextResponse.json({ error: recurring.error }, { status: 400 });
+  }
+
   const updated = await prisma.workItem.update({
     where: { id },
     data: {
@@ -31,9 +40,7 @@ export async function PATCH(
       ...(body.unitCost !== undefined && {
         unitCost: body.unitCost === null || body.unitCost === "" ? null : Number(body.unitCost),
       }),
-      ...(body.requiresAgreement !== undefined && {
-        requiresAgreement: Boolean(body.requiresAgreement),
-      }),
+      ...recurring.data,
     },
   });
 

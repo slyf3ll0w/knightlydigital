@@ -138,7 +138,14 @@ export default async function InvoiceDetailPage({
               {invoice.lineItems.map((item) => (
                 <tr key={item.id}>
                   <td className="py-3">
-                    <p className="text-gray-900 font-medium">{item.name || item.description}</p>
+                    <p className="text-gray-900 font-medium">
+                      {item.name || item.description}
+                      {item.recurringInterval && (
+                        <span className="ml-2 text-xs font-medium px-1.5 py-0.5 rounded bg-green-100 text-green-700">
+                          Recurring
+                        </span>
+                      )}
+                    </p>
                     {item.name && item.description && (
                       <p className="text-gray-500 text-xs mt-0.5">{item.description}</p>
                     )}

@@ -193,6 +193,11 @@ export default async function QuoteDetailPage({
                           Optional{item.optedOut ? " — removed by client" : ""}
                         </span>
                       )}
+                      {item.recurringInterval && (
+                        <span className="ml-2 text-xs font-medium px-1.5 py-0.5 rounded bg-green-100 text-green-700">
+                          Recurring
+                        </span>
+                      )}
                     </p>
                     {item.name && item.description && (
                       <p className="text-gray-500 text-xs mt-0.5">{item.description}</p>

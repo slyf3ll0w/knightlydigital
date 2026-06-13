@@ -5,6 +5,8 @@ import Link from "next/link";
 import { ArrowLeft, Plus, Pencil, Trash2, Loader2, Package } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 
+type RecurringInterval = "MONTHLY" | "QUARTERLY" | "SEMIANNUAL" | "ANNUAL";
+
 type WorkItem = {
   id: string;
   name: string;
@@ -13,7 +15,14 @@ type WorkItem = {
   unitPrice: number | string;
   unitCost: number | string | null;
   requiresAgreement: boolean;
+  recurringInterval: RecurringInterval | null;
+  recurringCreatesJob: boolean;
+  recurringInvoiceMode: "SEND" | "DRAFT";
+  agreementTemplateId: string | null;
+  agreementTiming: "WITH_QUOTE" | "ON_APPROVAL";
 };
+
+type Template = { id: string; name: string };
 
 type FormState = {
   name: string;
@@ -21,7 +30,11 @@ type FormState = {
   type: "SERVICE" | "PRODUCT";
   unitPrice: string;
   unitCost: string;
-  requiresAgreement: boolean;
+  recurringInterval: "" | RecurringInterval;
+  recurringCreatesJob: boolean;
+  recurringInvoiceMode: "SEND" | "DRAFT";
+  agreementTemplateId: string;
+  agreementTiming: "WITH_QUOTE" | "ON_APPROVAL";
 };
 
 const emptyForm: FormState = {
@@ -30,14 +43,31 @@ const emptyForm: FormState = {
   type: "SERVICE",
   unitPrice: "",
   unitCost: "",
-  requiresAgreement: false,
+  recurringInterval: "",
+  recurringCreatesJob: false,
+  recurringInvoiceMode: "SEND",
+  agreementTemplateId: "",
+  agreementTiming: "ON_APPROVAL",
+};
+
+const INTERVAL_LABEL: Record<RecurringInterval, string> = {
+  MONTHLY: "month",
+  QUARTERLY: "quarter",
+  SEMIANNUAL: "6 months",
+  ANNUAL: "year",
 };
 
 function money(n: number | string | null) {
   return `$${Number(n ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-export default function ProductsClient({ initialItems }: { initialItems: WorkItem[] }) {
+export default function ProductsClient({
+  initialItems,
+  templates,
+}: {
+  initialItems: WorkItem[];
+  templates: Template[];
+}) {
   const [items, setItems] = useState<WorkItem[]>(initialItems);
   const [editingId, setEditingId] = useState<string | "new" | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
@@ -57,7 +87,11 @@ export default function ProductsClient({ initialItems }: { initialItems: WorkIte
       type: item.type,
       unitPrice: String(Number(item.unitPrice)),
       unitCost: item.unitCost !== null ? String(Number(item.unitCost)) : "",
-      requiresAgreement: item.requiresAgreement,
+      recurringInterval: item.recurringInterval ?? "",
+      recurringCreatesJob: item.recurringCreatesJob,
+      recurringInvoiceMode: item.recurringInvoiceMode,
+      agreementTemplateId: item.agreementTemplateId ?? "",
+      agreementTiming: item.agreementTiming,
     });
     setEditingId(item.id);
     setError("");
@@ -81,7 +115,11 @@ export default function ProductsClient({ initialItems }: { initialItems: WorkIte
       type: form.type,
       unitPrice: parseFloat(form.unitPrice) || 0,
       unitCost: form.unitCost === "" ? null : parseFloat(form.unitCost) || 0,
-      requiresAgreement: form.requiresAgreement,
+      recurringInterval: form.recurringInterval || null,
+      recurringCreatesJob: form.recurringCreatesJob,
+      recurringInvoiceMode: form.recurringInvoiceMode,
+      agreementTemplateId: form.agreementTemplateId || null,
+      agreementTiming: form.agreementTiming,
     };
 
     const { ok, data } =
@@ -172,21 +210,103 @@ export default function ProductsClient({ initialItems }: { initialItems: WorkIte
           className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
         />
       </div>
-      <label className="flex items-start gap-2.5 cursor-pointer">
-        <input
-          type="checkbox"
-          checked={form.requiresAgreement}
-          onChange={(e) => setForm((f) => ({ ...f, requiresAgreement: e.target.checked }))}
-          className="mt-0.5 h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
-        />
-        <span className="text-sm text-gray-700">
-          Requires a signed agreement
-          <span className="block text-xs text-gray-500">
-            Quotes containing this item can&apos;t be converted to a job until the client signs
-            an agreement.
-          </span>
-        </span>
-      </label>
+      {/* Recurring / subscription settings */}
+      <div className="border-t border-green-200/60 pt-3 space-y-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Billing</label>
+            <select
+              value={form.recurringInterval}
+              onChange={(e) => set("recurringInterval", e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+            >
+              <option value="">One-time</option>
+              <option value="MONTHLY">Recurring — monthly</option>
+              <option value="QUARTERLY">Recurring — quarterly</option>
+              <option value="SEMIANNUAL">Recurring — every 6 months</option>
+              <option value="ANNUAL">Recurring — annually</option>
+            </select>
+          </div>
+          {form.recurringInterval && (
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Each cycle</label>
+              <select
+                value={form.recurringInvoiceMode}
+                onChange={(e) => set("recurringInvoiceMode", e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+              >
+                <option value="SEND">Auto-send the invoice</option>
+                <option value="DRAFT">Create a draft to review</option>
+              </select>
+            </div>
+          )}
+        </div>
+        {form.recurringInterval && (
+          <>
+            <label className="flex items-start gap-2.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={form.recurringCreatesJob}
+                onChange={(e) => setForm((f) => ({ ...f, recurringCreatesJob: e.target.checked }))}
+                className="mt-0.5 h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+              />
+              <span className="text-sm text-gray-700">
+                Also create a job each cycle
+                <span className="block text-xs text-gray-500">
+                  For visit-based work (lawn, pool, pest) — schedules a job alongside the invoice.
+                </span>
+              </span>
+            </label>
+            <p className="text-xs text-gray-500">
+              {form.recurringInvoiceMode === "SEND"
+                ? "When a card is on file (once online payments are live) the client is auto-charged each cycle; until then they get a pay-by-link email."
+                : "A draft invoice is created each cycle for you to review and send."}
+            </p>
+          </>
+        )}
+      </div>
+
+      {/* Agreement */}
+      <div className="border-t border-green-200/60 pt-3 space-y-3">
+        <div>
+          <label className="block text-xs font-medium text-gray-500 mb-1">
+            Attach an agreement
+          </label>
+          <select
+            value={form.agreementTemplateId}
+            onChange={(e) => set("agreementTemplateId", e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+          >
+            <option value="">No agreement required</option>
+            {templates.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+              </option>
+            ))}
+          </select>
+          {templates.length === 0 && (
+            <p className="mt-1 text-xs text-gray-400">
+              Create reusable agreements in Settings → Agreements first.
+            </p>
+          )}
+        </div>
+        {form.agreementTemplateId && (
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Send the agreement</label>
+            <select
+              value={form.agreementTiming}
+              onChange={(e) => set("agreementTiming", e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+            >
+              <option value="ON_APPROVAL">When the quote is approved</option>
+              <option value="WITH_QUOTE">As soon as the quote is sent</option>
+            </select>
+            <p className="mt-1 text-xs text-gray-500">
+              Quotes with this service can&apos;t convert to a job until the client signs.
+            </p>
+          </div>
+        )}
+      </div>
       <div className="flex items-center gap-2">
         <button
           onClick={save}
@@ -268,6 +388,11 @@ export default function ProductsClient({ initialItems }: { initialItems: WorkIte
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-gray-900">
                         {item.name}
+                        {item.recurringInterval && (
+                          <span className="ml-2 stamp border-green-600/30 bg-green-600/[0.06] text-green-700">
+                            Recurring · {INTERVAL_LABEL[item.recurringInterval]}
+                          </span>
+                        )}
                         {item.requiresAgreement && (
                           <span className="ml-2 stamp border-blue-600/30 bg-blue-600/[0.06] text-blue-700">
                             Agreement

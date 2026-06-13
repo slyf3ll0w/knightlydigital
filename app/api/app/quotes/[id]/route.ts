@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { RecurringInterval } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, isManager, viaContactScope } from "@/lib/permissions";
+import { autoSendQuoteAgreements } from "@/lib/agreements";
 
 const allowedStatuses = [
   "DRAFT",
@@ -55,7 +57,9 @@ export async function PATCH(
       unitPrice: number;
       unitCost?: number | null;
       isOptional?: boolean;
-              requiresAgreement?: boolean;
+      requiresAgreement?: boolean;
+      workItemId?: string | null;
+      recurringInterval?: RecurringInterval | null;
       sortOrder?: number;
     }[];
     const subtotal = lineItems.reduce((s, li) => s + (li.quantity || 0) * (li.unitPrice || 0), 0);
@@ -102,6 +106,8 @@ export async function PATCH(
               total: li.quantity * li.unitPrice,
               isOptional: li.isOptional ?? false,
               requiresAgreement: li.requiresAgreement ?? false,
+              workItemId: li.workItemId ?? null,
+              recurringInterval: li.recurringInterval ?? null,
               sortOrder: li.sortOrder ?? i,
             })),
           },
@@ -111,15 +117,22 @@ export async function PATCH(
     return NextResponse.json(updated);
   }
 
+  const justSent = body.status === "AWAITING_RESPONSE" && !quote.sentAt;
+
   const updated = await prisma.quote.update({
     where: { id },
     data: {
       ...(body.status && { status: body.status }),
-      ...(body.status === "AWAITING_RESPONSE" && !quote.sentAt && { sentAt: new Date() }),
+      ...(justSent && { sentAt: new Date() }),
       ...(body.status === "APPROVED" && { approvedAt: new Date() }),
       ...(body.notes !== undefined && { notes: body.notes }),
     },
   });
+
+  // Sending the quote auto-issues any attached agreements set to "with quote"
+  if (justSent) {
+    await autoSendQuoteAgreements(quote.id, "WITH_QUOTE");
+  }
 
   return NextResponse.json(updated);
 }

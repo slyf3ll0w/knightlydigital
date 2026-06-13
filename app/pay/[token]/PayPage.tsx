@@ -4,7 +4,14 @@ import { useState } from "react";
 import { CreditCard, Building2, Loader2, CheckCircle, Lock } from "lucide-react";
 import { brandHeader, brandAccent, textOn } from "@/lib/branding";
 
-type LineItem = { id: string; name?: string; description: string; quantity: number; unitPrice: number; total: number };
+type LineItem = { id: string; name?: string; description: string; quantity: number; unitPrice: number; total: number; recurringInterval?: "MONTHLY" | "QUARTERLY" | "SEMIANNUAL" | "ANNUAL" | null };
+
+const RECURRING_LABEL: Record<string, string> = {
+  MONTHLY: "Billed monthly",
+  QUARTERLY: "Billed quarterly",
+  SEMIANNUAL: "Billed every 6 months",
+  ANNUAL: "Billed annually",
+};
 type Invoice = {
   id: string; invoiceNumber: number; status: string; publicToken: string;
   subtotal: number; discount: number | null; tax: number | null; surcharge: number | null; total: number;
@@ -127,7 +134,14 @@ export default function PayPage({ invoice }: { invoice: Invoice }) {
           <div className="mt-4 border-t border-gray-100 pt-4 space-y-2">
             {invoice.lineItems.map((li) => (
               <div key={li.id} className="flex justify-between text-sm">
-                <span className="text-gray-700">{li.name || li.description}</span>
+                <span className="text-gray-700">
+                  {li.name || li.description}
+                  {li.recurringInterval && (
+                    <span className="ml-2 text-[11px] font-medium px-1.5 py-0.5 rounded bg-green-100 text-green-700 align-middle">
+                      {RECURRING_LABEL[li.recurringInterval]}
+                    </span>
+                  )}
+                </span>
                 <span className="font-medium text-gray-900">${Number(li.total).toFixed(2)}</span>
               </div>
             ))}

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { RecurringInterval } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, contactScope } from "@/lib/permissions";
 
@@ -95,6 +96,8 @@ export async function POST(req: NextRequest) {
               unitCost?: number | null;
               isOptional?: boolean;
               requiresAgreement?: boolean;
+              workItemId?: string | null;
+              recurringInterval?: RecurringInterval | null;
               sortOrder?: number;
             }) => ({
               name: li.name ?? "",
@@ -105,6 +108,8 @@ export async function POST(req: NextRequest) {
               total: li.quantity * li.unitPrice,
               isOptional: li.isOptional ?? false,
               requiresAgreement: li.requiresAgreement ?? false,
+              workItemId: li.workItemId ?? null,
+              recurringInterval: li.recurringInterval ?? null,
               sortOrder: li.sortOrder ?? 0,
             })
           ),

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { autoSendQuoteAgreements } from "@/lib/agreements";
 
 /**
  * Public quote response endpoint (client-facing, no auth — the [id] segment
@@ -79,6 +80,9 @@ export async function POST(
       },
     });
   });
+
+  // Approval issues any attached agreements set to "on approval"
+  await autoSendQuoteAgreements(quote.id, "ON_APPROVAL");
 
   return NextResponse.json({ success: true });
 }

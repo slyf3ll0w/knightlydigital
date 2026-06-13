@@ -8,7 +8,14 @@ import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import WorkItemPicker, { type PickerWorkItem } from "@/components/WorkItemPicker";
 
 type Contact = { id: string; firstName: string; lastName: string };
-type LineItem = { name: string; description: string; quantity: string; unitPrice: string };
+type LineItem = {
+  name: string;
+  description: string;
+  quantity: string;
+  unitPrice: string;
+  workItemId?: string;
+  recurringInterval?: string | null;
+};
 type PrefillJob = {
   id: string;
   title: string;
@@ -90,6 +97,8 @@ export default function InvoiceEditor({
               name: item.name,
               description: item.description ?? li.description,
               unitPrice: String(Number(item.unitPrice)),
+              workItemId: item.id,
+              recurringInterval: item.recurringInterval ?? null,
             }
           : li
       )
@@ -128,6 +137,8 @@ export default function InvoiceEditor({
         description: li.description,
         quantity: parseFloat(li.quantity) || 1,
         unitPrice: parseFloat(li.unitPrice) || 0,
+        workItemId: li.workItemId || null,
+        recurringInterval: li.recurringInterval ?? null,
         sortOrder: i,
       })),
     });

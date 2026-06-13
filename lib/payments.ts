@@ -43,12 +43,29 @@ export interface CheckoutParams {
   description?: string;
 }
 
+export interface ChargeStoredParams {
+  /** The processor's stored customer/vault token (Contact.processorCustomerRef). */
+  customerRef: string;
+  amount: number; // dollars
+  currency?: string;
+  surcharge?: number;
+  description?: string;
+  metadata?: Record<string, string>;
+}
+
 export interface PaymentProcessor {
   readonly name: string;
   /** True once this processor can actually move money. */
   readonly live: boolean;
   /** Charge a card / bank account directly (card-on-file, admin-initiated). */
   charge(params: ChargeParams): Promise<ChargeResult>;
+  /**
+   * Charge a previously-vaulted payment method by its stored token. This is
+   * the seam recurring billing uses for true auto-charge — the engine only
+   * calls it when `live` is true and the contact has a processorCustomerRef,
+   * so nothing fires until a real processor is registered and a card is saved.
+   */
+  chargeStored(params: ChargeStoredParams): Promise<ChargeResult>;
   /** Create a hosted checkout the client can open from an invoice or quote deposit. */
   createCheckout(params: CheckoutParams): Promise<CheckoutSession>;
 }
@@ -63,6 +80,13 @@ class ManualProcessor implements PaymentProcessor {
   readonly live = false;
 
   async charge(_params: ChargeParams): Promise<ChargeResult> {
+    return {
+      success: false,
+      error: "Online payments are not enabled yet. Record this payment manually.",
+    };
+  }
+
+  async chargeStored(_params: ChargeStoredParams): Promise<ChargeResult> {
     return {
       success: false,
       error: "Online payments are not enabled yet. Record this payment manually.",

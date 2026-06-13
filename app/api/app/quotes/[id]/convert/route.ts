@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, viaContactScope } from "@/lib/permissions";
+import { ensureSubscriptionsForContact } from "@/lib/subscriptions";
 
 /**
  * POST — convert an approved quote into a job (Jobber's "Convert to Job").
@@ -84,6 +85,16 @@ export async function POST(
       where: { id: quote.id },
       data: { jobId: created.id, status: "CONVERTED" },
     });
+
+    // Recurring services on the quote become live subscriptions on the client
+    await ensureSubscriptionsForContact(
+      tx,
+      companyId,
+      quote.contactId,
+      quote.lineItems
+        .filter((li) => !(li.isOptional && li.optedOut))
+        .map((li) => ({ workItemId: li.workItemId, quantity: Number(li.quantity) }))
+    );
 
     // First real work for a lead makes them an active client (Jobber behavior)
     if (quote.contact.status === "LEAD") {

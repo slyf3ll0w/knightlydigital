@@ -129,13 +129,48 @@ NextAuth v4 with Credentials provider. JWT sessions.
 AUTH_SECRET=     # generate: openssl rand -base64 32
 DATABASE_URL=    # PostgreSQL connection string from Railway
 NEXTAUTH_URL=    # deployed URL (e.g. https://jobflow.streamflaremedia.com or https://streamflaremedia.com)
+CRON_SECRET=     # shared secret for the recurring-billing cron (generate: openssl rand -base64 32)
+PAYMENT_PROCESSOR=manual  # swap to "finix"/"stripe" once a real processor is registered in lib/payments.ts
 ```
+
+## Recurring subscriptions
+
+Services in the price book (Settings → Products & Services) can be marked recurring
+(monthly / quarterly / every 6 months / annually). Selling a recurring service —
+through a quote→job conversion, a direct invoice, or a web-form service request —
+creates a `Subscription` on the client. The engine in `lib/subscriptions.ts` then
+generates the next invoice (and optionally a job) each cycle. See the
+Subscriptions page (`/app/subscriptions`) to pause/cancel or bill a cycle now.
+
+**The engine needs a daily trigger.** `POST /api/cron/recurring` runs two sweeps —
+(1) generate due subscription cycles, and (2) send escalating payment reminders for
+unpaid/overdue invoices (on the due date, then 3/7/14 days overdue; one email per
+stage via `PaymentReminder`, stops when paid; reminders are Resend-gated and cover
+both subscription and one-off invoices — see `lib/reminders.ts`). It's authed by
+`Authorization: Bearer ${CRON_SECRET}`. Wire it up one of two ways:
+
+- **Railway cron service (recommended):** add a new service in the Railway project
+  with a cron schedule (e.g. `0 8 * * *`) whose command is:
+  `curl -fsS -X POST "$NEXTAUTH_URL/api/cron/recurring" -H "Authorization: Bearer $CRON_SECRET"`
+- **External pinger:** point cron-job.org (or a GitHub Action) at the same URL/header daily.
+
+Until a trigger is set up, owners can use the **Run due now** button on the
+Subscriptions page. The endpoint is idempotent — running twice a day won't double-bill.
+
+**Auto-charge:** billing is built against the `PaymentProcessor` seam in
+`lib/payments.ts`. When a processor is `live` AND the client has a saved card
+(`Contact.processorCustomerRef`), the engine auto-charges via `chargeStored()` and
+records the payment; otherwise it emails a pay-by-link. Implementing a real
+`FinixProcessor.chargeStored()` + saving cards is the only work needed to turn on
+true silent auto-charge — no recurring code changes.
 
 ## Database setup (Railway)
 
 1. Create PostgreSQL database in Railway
 2. Set `DATABASE_URL` in Railway environment variables
-3. Run `npm run db:push` to push the schema
+3. Run `npm run db:push` to push the schema (required after the recurring-services
+   schema change — adds Subscription, WorkItem recurring/agreement fields,
+   subscriptionId on Invoice/Job, etc.)
 4. Run `npm run db:seed` to create the initial superadmin user (admin@streamflaremedia.com / ChangeMe123!)
 5. **Change the admin password immediately after first login**
 

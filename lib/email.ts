@@ -330,3 +330,68 @@ export function invoiceLinkEmail({
 </div>`;
   return { subject: `Your invoice from ${companyName} — #${invoiceNumber}`, html };
 }
+
+/**
+ * Payment reminder / dunning email. Tone escalates by stage: a friendly nudge
+ * on the due date through a firmer final notice at two weeks overdue.
+ */
+export function paymentReminderEmail({
+  companyName,
+  companyEmail,
+  invoiceNumber,
+  balance,
+  payUrl,
+  dueDate,
+  stage,
+}: {
+  companyName: string;
+  companyEmail?: string | null;
+  invoiceNumber: number;
+  balance: number;
+  payUrl: string;
+  dueDate: Date;
+  stage: "due" | "overdue_3" | "overdue_7" | "overdue_14";
+}): { subject: string; html: string } {
+  const due = dueDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+  const copy = {
+    due: {
+      subject: `Payment reminder — invoice #${invoiceNumber} from ${companyName}`,
+      lead: `This is a friendly reminder that invoice #${invoiceNumber} is due today (${due}).`,
+    },
+    overdue_3: {
+      subject: `Past due — invoice #${invoiceNumber} from ${companyName}`,
+      lead: `Invoice #${invoiceNumber} was due on ${due} and is now a few days past due.`,
+    },
+    overdue_7: {
+      subject: `Second notice — invoice #${invoiceNumber} from ${companyName}`,
+      lead: `Invoice #${invoiceNumber} has been past due since ${due}. Please arrange payment when you can.`,
+    },
+    overdue_14: {
+      subject: `Final notice — invoice #${invoiceNumber} from ${companyName}`,
+      lead: `Invoice #${invoiceNumber} has been past due since ${due}. This is a final reminder before follow-up.`,
+    },
+  }[stage];
+
+  const html = `
+<div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f3f4f6;padding:24px;">
+  <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
+    <div style="background:#0C0F0C;padding:16px 24px;">
+      <p style="margin:0;color:#22C55E;font-size:13px;font-weight:700;letter-spacing:0.5px;">${esc(companyName.toUpperCase())}</p>
+    </div>
+    <div style="padding:24px;">
+      <p style="margin:0 0 16px;color:#111827;font-size:15px;">${esc(copy.lead)}</p>
+      <p style="margin:0 0 4px;color:#6b7280;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Balance due</p>
+      <p style="margin:0;color:#111827;font-size:20px;font-weight:700;">$${balance.toFixed(2)}</p>
+      <a href="${payUrl}"
+         style="display:inline-block;margin-top:20px;background:#22C55E;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:10px 20px;border-radius:6px;">
+        View &amp; Pay Invoice
+      </a>
+      ${companyEmail ? `<p style="margin:20px 0 0;color:#6b7280;font-size:13px;">Already paid or have a question? Reply to this email or reach ${esc(companyName)} at ${esc(companyEmail)}.</p>` : ""}
+    </div>
+    <div style="padding:12px 24px;border-top:1px solid #f3f4f6;">
+      <p style="margin:0;color:#9ca3af;font-size:12px;">Sent by ${esc(companyName)} via Streamflaire Hub</p>
+    </div>
+  </div>
+</div>`;
+  return { subject: copy.subject, html };
+}

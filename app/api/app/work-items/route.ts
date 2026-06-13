@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, isManager } from "@/lib/permissions";
+import { sanitizeRecurringAndAgreement } from "@/lib/work-items";
 
 export async function GET() {
   // Read access for anyone who builds quotes (price-book autocomplete)
@@ -30,6 +31,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Name is required." }, { status: 400 });
   }
 
+  const recurring = await sanitizeRecurringAndAgreement(body, companyId);
+  if ("error" in recurring) {
+    return NextResponse.json({ error: recurring.error }, { status: 400 });
+  }
+
   const item = await prisma.workItem.create({
     data: {
       companyId,
@@ -38,7 +44,7 @@ export async function POST(req: NextRequest) {
       type: type === "PRODUCT" ? "PRODUCT" : "SERVICE",
       unitPrice: Number(unitPrice) || 0,
       unitCost: unitCost !== null && unitCost !== undefined && unitCost !== "" ? Number(unitCost) : null,
-      requiresAgreement: Boolean(body.requiresAgreement),
+      ...recurring.data,
     },
   });
 

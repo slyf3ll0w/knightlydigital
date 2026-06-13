@@ -24,6 +24,7 @@ import {
   UserPlus,
   Tag,
   FileSignature,
+  Repeat,
   ChevronsUpDown,
   CircleUserRound,
 } from "lucide-react";
@@ -71,6 +72,7 @@ const navGroups: { label?: string; items: NavItem[] }[] = [
       { href: "/app/quotes", label: "Quotes", icon: FileText, show: sellRoles },
       { href: "/app/jobs", label: "Jobs", icon: Briefcase },
       { href: "/app/invoices", label: "Invoices", icon: Receipt, show: moneyRoles },
+      { href: "/app/subscriptions", label: "Subscriptions", icon: Repeat, show: moneyRoles },
     ],
   },
   {

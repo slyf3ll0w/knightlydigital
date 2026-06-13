@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { RecurringInterval } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getActor, canSeeMoney, contactScope } from "@/lib/permissions";
+import { ensureSubscriptionsForContact } from "@/lib/subscriptions";
 
 export async function POST(req: NextRequest) {
   const actor = await getActor();
@@ -77,6 +79,8 @@ export async function POST(req: NextRequest) {
               quantity: number;
               unitPrice: number;
               serviceDate?: string;
+              workItemId?: string | null;
+              recurringInterval?: RecurringInterval | null;
               sortOrder?: number;
             }) => ({
               name: li.name ?? "",
@@ -85,6 +89,8 @@ export async function POST(req: NextRequest) {
               unitPrice: li.unitPrice,
               total: li.quantity * li.unitPrice,
               serviceDate: li.serviceDate ? new Date(li.serviceDate) : null,
+              workItemId: li.workItemId ?? null,
+              recurringInterval: li.recurringInterval ?? null,
               sortOrder: li.sortOrder ?? 0,
             })
           ),
@@ -105,6 +111,19 @@ export async function POST(req: NextRequest) {
 
     if (contact?.status === "LEAD") {
       await tx.contact.update({ where: { id: contact.id }, data: { status: "ACTIVE" } });
+    }
+
+    // Recurring services billed directly also start a subscription
+    if (contact) {
+      await ensureSubscriptionsForContact(
+        tx,
+        companyId,
+        contact.id,
+        (lineItems as { workItemId?: string | null; quantity?: number }[]).map((li) => ({
+          workItemId: li.workItemId,
+          quantity: Number(li.quantity) || 1,
+        }))
+      );
     }
 
     return created;
