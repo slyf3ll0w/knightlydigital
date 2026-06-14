@@ -1,8 +1,18 @@
 import { prisma } from "@/lib/db";
 import Link from "next/link";
-import { Inbox, FileText, Briefcase, Receipt, ArrowRight, Phone, Video, MapPin } from "lucide-react";
-import { money, appointmentTypeLabel, type StatusKind } from "@/lib/statuses";
-import StatusChip from "@/components/StatusChip";
+import {
+  Inbox,
+  FileText,
+  Briefcase,
+  Receipt,
+  ArrowRight,
+  Phone,
+  Video,
+  MapPin,
+  CheckCircle2,
+  CalendarPlus,
+} from "lucide-react";
+import { money, appointmentTypeLabel } from "@/lib/statuses";
 import EmptyState from "@/components/EmptyState";
 import {
   requirePageActor,
@@ -75,14 +85,11 @@ export default async function DashboardPage() {
 
   const [
     newRequests,
-    archivedRequests,
     approvedQuotes,
     draftQuotes,
     changesRequestedQuotes,
     requiresInvoicingJobs,
-    activeJobs,
     unscheduledJobs,
-    awaitingInvoices,
     draftInvoices,
     pastDueInvoices,
     todayVisits,
@@ -92,14 +99,11 @@ export default async function DashboardPage() {
     monthPayments,
   ] = await Promise.all([
     prisma.request.count({ where: { companyId, ...leadScope, status: "NEW" } }),
-    prisma.request.count({ where: { companyId, ...leadScope, status: "ARCHIVED" } }),
     prisma.quote.count({ where: { companyId, ...leadScope, status: "APPROVED" } }),
     prisma.quote.count({ where: { companyId, ...leadScope, status: "DRAFT" } }),
     prisma.quote.count({ where: { companyId, ...leadScope, status: "CHANGES_REQUESTED" } }),
     prisma.job.count({ where: { companyId, ...jScope, status: "REQUIRES_INVOICING" } }),
-    prisma.job.count({ where: { companyId, ...jScope, status: "ACTIVE" } }),
     prisma.job.count({ where: { companyId, ...jScope, status: "ACTIVE", scheduledAt: null } }),
-    prisma.invoice.count({ where: { companyId, ...leadScope, status: "AWAITING_PAYMENT" } }),
     prisma.invoice.count({ where: { companyId, ...leadScope, status: "DRAFT" } }),
     prisma.invoice.count({ where: { companyId, ...leadScope, status: "PAST_DUE" } }),
     prisma.job.findMany({
@@ -156,71 +160,85 @@ export default async function DashboardPage() {
     if (day >= 0 && day < dailyRevenue.length) dailyRevenue[day] += Number(p.amount);
   }
 
-  // Workflow ledger: one column per lifecycle entity, headline status + 2 secondary
-  const workflow: {
-    label: string;
-    icon: typeof Inbox;
-    kind: StatusKind;
-    show: boolean;
-    headline: { count: number; status: string; href: string };
-    secondary: { count: number; label: string; href: string }[];
-  }[] = [
+  // "Needs you" — the same lifecycle counts, but reframed as a prioritized
+  // to-do list with an action verb. Only items with something waiting render,
+  // so a quiet day reads calm instead of showing a wall of zeros. Urgent
+  // (money overdue) sorts first.
+  const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
+  const needs = [
+    {
+      show: seeMoney,
+      count: pastDueInvoices,
+      icon: Receipt,
+      title: plural(pastDueInvoices, "Past-due invoice", "Past-due invoices"),
+      action: "Send a reminder",
+      href: "/app/invoices?status=PAST_DUE",
+      urgent: true,
+    },
     {
       show: sell,
-      label: "Requests",
+      count: newRequests,
       icon: Inbox,
-      kind: "request",
-      headline: { count: newRequests, status: "NEW", href: "/app/requests?status=NEW" },
-      secondary: [
-        { count: archivedRequests, label: "Archived", href: "/app/requests?status=ARCHIVED" },
-      ],
+      title: plural(newRequests, "New request", "New requests"),
+      action: "Review & send a quote",
+      href: "/app/requests?status=NEW",
+      urgent: false,
     },
     {
       show: sell,
-      label: "Quotes",
+      count: changesRequestedQuotes,
       icon: FileText,
-      kind: "quote",
-      headline: { count: approvedQuotes, status: "APPROVED", href: "/app/quotes?status=APPROVED" },
-      secondary: [
-        { count: draftQuotes, label: "Draft", href: "/app/quotes?status=DRAFT" },
-        {
-          count: changesRequestedQuotes,
-          label: "Changes requested",
-          href: "/app/quotes?status=CHANGES_REQUESTED",
-        },
-      ],
+      title: "Changes requested",
+      action: "Update the quote",
+      href: "/app/quotes?status=CHANGES_REQUESTED",
+      urgent: false,
     },
     {
-      show: true,
-      label: "Jobs",
-      icon: Briefcase,
-      kind: "job",
-      headline: {
-        count: requiresInvoicingJobs,
-        status: "REQUIRES_INVOICING",
-        href: "/app/jobs?status=REQUIRES_INVOICING",
-      },
-      secondary: [
-        { count: activeJobs, label: "Active", href: "/app/jobs?status=ACTIVE" },
-        { count: unscheduledJobs, label: "Unscheduled", href: "/app/jobs?status=ACTIVE&unscheduled=1" },
-      ],
+      show: sell,
+      count: approvedQuotes,
+      icon: FileText,
+      title: plural(approvedQuotes, "Approved quote", "Approved quotes"),
+      action: "Convert to a job",
+      href: "/app/quotes?status=APPROVED",
+      urgent: false,
     },
     {
       show: seeMoney,
-      label: "Invoices",
-      icon: Receipt,
-      kind: "invoice",
-      headline: {
-        count: awaitingInvoices,
-        status: "AWAITING_PAYMENT",
-        href: "/app/invoices?status=AWAITING_PAYMENT",
-      },
-      secondary: [
-        { count: draftInvoices, label: "Draft", href: "/app/invoices?status=DRAFT" },
-        { count: pastDueInvoices, label: "Past due", href: "/app/invoices?status=PAST_DUE" },
-      ],
+      count: requiresInvoicingJobs,
+      icon: Briefcase,
+      title: plural(requiresInvoicingJobs, "Job ready to invoice", "Jobs ready to invoice"),
+      action: "Send the invoice",
+      href: "/app/jobs?status=REQUIRES_INVOICING",
+      urgent: false,
     },
-  ];
+    {
+      show: true,
+      count: unscheduledJobs,
+      icon: CalendarPlus,
+      title: plural(unscheduledJobs, "Unscheduled job", "Unscheduled jobs"),
+      action: "Put it on the calendar",
+      href: "/app/jobs?status=ACTIVE&unscheduled=1",
+      urgent: false,
+    },
+    {
+      show: sell,
+      count: draftQuotes,
+      icon: FileText,
+      title: plural(draftQuotes, "Draft quote", "Draft quotes"),
+      action: "Finish & send",
+      href: "/app/quotes?status=DRAFT",
+      urgent: false,
+    },
+    {
+      show: seeMoney,
+      count: draftInvoices,
+      icon: Receipt,
+      title: plural(draftInvoices, "Draft invoice", "Draft invoices"),
+      action: "Finish & send",
+      href: "/app/invoices?status=DRAFT",
+      urgent: false,
+    },
+  ].filter((n) => n.show && n.count > 0);
 
   // One sorted "today" list: jobs + sales appointments
   // Compact ledger time ("10:00a") — fits the rail column without wrapping
@@ -259,11 +277,6 @@ export default async function DashboardPage() {
   const hour = now.getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
-  // Workflow column dividers: hairlines between cells in both grid layouts
-  // (2-col on mobile, 4-col on lg) without double borders at the edges.
-  const cellRules =
-    "border-gray-200/80 max-lg:odd:border-r max-lg:[&:nth-child(n+3)]:border-t lg:border-l lg:first:border-l-0";
-
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto">
       <div className="mb-7 anim-fade-up">
@@ -275,42 +288,48 @@ export default async function DashboardPage() {
         </h1>
       </div>
 
-      {/* ── Workflow ledger ────────────────────────────────────────────────── */}
+      {/* ── Needs you ──────────────────────────────────────────────────────── */}
       <div className="anim-fade-up anim-delay-1 mb-8" data-tour="workflow">
-        <RuledLabel>Workflow</RuledLabel>
-        <div className="card-ledger grid grid-cols-2 lg:grid-cols-4 overflow-hidden">
-          {workflow.filter((w) => w.show).map((w) => (
-            <div key={w.label} className={`flex flex-col ${cellRules}`}>
+        <RuledLabel>Needs you</RuledLabel>
+        {needs.length === 0 ? (
+          <div className="card-ledger flex items-center gap-3 px-5 py-4">
+            <CheckCircle2 size={20} className="text-green-600 shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-gray-900">You&apos;re all caught up</p>
+              <p className="text-xs text-gray-500">Nothing needs your attention right now.</p>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {needs.map((n) => (
               <Link
-                href={w.headline.href}
-                className="block flex-1 p-4 hover:bg-gray-50 active:bg-gray-100 transition-colors"
+                key={n.href}
+                href={n.href}
+                className={`card-ledger group p-4 transition-shadow hover:shadow-md ${
+                  n.urgent ? "border-red-200" : ""
+                }`}
               >
-                <div className="flex items-center gap-2 mb-3">
-                  <w.icon size={15} className="text-gray-400" />
-                  <span className="text-sm font-semibold text-gray-700">{w.label}</span>
+                <div className="mb-3 flex items-center justify-between">
+                  <n.icon size={15} className={n.urgent ? "text-red-500" : "text-gray-400"} />
+                  {n.urgent && (
+                    <span className="stamp border-red-300 bg-red-50 text-red-600">Overdue</span>
+                  )}
                 </div>
                 <p className="numeral-ledger text-[34px] leading-none font-semibold text-gray-900">
-                  {w.headline.count}
+                  {n.count}
                 </p>
-                <StatusChip kind={w.kind} status={w.headline.status} className="mt-2.5" />
+                <p className="mt-2 text-sm font-semibold text-gray-800">{n.title}</p>
+                <p className="mt-0.5 flex items-center gap-1 text-xs font-medium text-green-700">
+                  {n.action}
+                  <ArrowRight
+                    size={11}
+                    className="transition-transform group-hover:translate-x-0.5"
+                  />
+                </p>
               </Link>
-              <div className="border-t border-gray-100 divide-y divide-gray-100">
-                {w.secondary.map((s) => (
-                  <Link
-                    key={s.label}
-                    href={s.href}
-                    className="flex items-center justify-between px-4 py-2 text-xs text-gray-600 hover:bg-gray-50 transition-colors"
-                  >
-                    <span className="truncate">
-                      {s.label} ({s.count})
-                    </span>
-                    <ArrowRight size={11} className="text-gray-300 shrink-0" />
-                  </Link>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6">
