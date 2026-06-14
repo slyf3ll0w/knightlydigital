@@ -56,6 +56,11 @@ export default async function JobsPage({
     { label: "Unscheduled", value: unscheduledCount, href: "/app/jobs?status=ACTIVE&unscheduled=1" },
   ];
 
+  const pageTotal = jobs.reduce(
+    (s, j) => s + j.lineItems.reduce((t, li) => t + Number(li.total), 0),
+    0
+  );
+
   return (
     <div className="p-4 lg:p-8 max-w-6xl mx-auto">
       <div className="flex flex-wrap items-center justify-between gap-y-3 mb-6">
@@ -116,42 +121,57 @@ export default async function JobsPage({
             actionLabel="Create a Job"
           />
         ) : (
-          <div className="divide-y divide-gray-100">
-            <div className="hidden lg:grid grid-cols-[1fr_70px_150px_160px_100px_40px] gap-4 px-4 py-2 text-[11px] font-semibold text-gray-600 uppercase tracking-wider bg-gray-50">
-              <span>Client</span>
-              <span>#</span>
-              <span>Schedule</span>
-              <span>Status</span>
-              <span className="text-right">Total</span>
-              <span></span>
+          <>
+            <div className="divide-y divide-gray-100">
+              <div className="hidden lg:grid grid-cols-[1fr_70px_150px_160px_100px_40px] gap-4 px-4 py-2 text-[11px] font-semibold text-gray-600 uppercase tracking-wider bg-gray-50">
+                <span>Client</span>
+                <span>#</span>
+                <span>Schedule</span>
+                <span>Status</span>
+                <span className="text-right">Total</span>
+                <span></span>
+              </div>
+              {jobs.map((j) => {
+                const total = j.lineItems.reduce((s, li) => s + Number(li.total), 0);
+                return (
+                  <Link
+                    key={j.id}
+                    href={`/app/jobs/${j.id}`}
+                    className="flex lg:grid lg:grid-cols-[1fr_70px_150px_160px_100px_40px] gap-4 items-center px-4 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">
+                        {j.contact.firstName} {j.contact.lastName}
+                      </p>
+                      <p className="text-xs text-gray-500 truncate">{j.title}</p>
+                    </div>
+                    <span className="text-sm text-gray-500">#{j.jobNumber}</span>
+                    <span className="hidden lg:block text-sm text-gray-500">
+                      {j.scheduledAt ? shortDate(j.scheduledAt) : "Unscheduled"}
+                    </span>
+                    <StatusChip kind="job" status={j.status} />
+                    <span className="numeral-ledger text-sm font-semibold text-gray-900 lg:text-right">
+                      {showMoney && total > 0 ? money(total) : "—"}
+                    </span>
+                    <ChevronRight size={14} className="text-gray-400 shrink-0 hidden lg:block" />
+                  </Link>
+                );
+              })}
             </div>
-            {jobs.map((j) => {
-              const total = j.lineItems.reduce((s, li) => s + Number(li.total), 0);
-              return (
-                <Link
-                  key={j.id}
-                  href={`/app/jobs/${j.id}`}
-                  className="flex lg:grid lg:grid-cols-[1fr_70px_150px_160px_100px_40px] gap-4 items-center px-4 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
-                >
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">
-                      {j.contact.firstName} {j.contact.lastName}
-                    </p>
-                    <p className="text-xs text-gray-500 truncate">{j.title}</p>
-                  </div>
-                  <span className="text-sm text-gray-500">#{j.jobNumber}</span>
-                  <span className="hidden lg:block text-sm text-gray-500">
-                    {j.scheduledAt ? shortDate(j.scheduledAt) : "Unscheduled"}
-                  </span>
-                  <StatusChip kind="job" status={j.status} />
-                  <span className="text-sm font-semibold text-gray-900 lg:text-right">
-                    {showMoney && total > 0 ? money(total) : "—"}
-                  </span>
-                  <ChevronRight size={14} className="text-gray-400 shrink-0 hidden lg:block" />
-                </Link>
-              );
-            })}
-          </div>
+            {/* Ledger foot */}
+            <div className="flex items-center justify-between gap-4 border-t-2 border-double border-gray-300 bg-gray-50/60 px-4 py-2.5 lg:grid lg:grid-cols-[1fr_70px_150px_160px_100px_40px]">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">
+                {jobs.length} {jobs.length === 1 ? "job" : "jobs"}
+              </span>
+              <span className="hidden lg:block" />
+              <span className="hidden lg:block" />
+              <span className="hidden lg:block" />
+              <span className="numeral-ledger text-sm font-bold text-gray-900 lg:text-right">
+                {showMoney && pageTotal > 0 ? money(pageTotal) : ""}
+              </span>
+              <span className="hidden lg:block" />
+            </div>
+          </>
         )}
       </div>
     </div>

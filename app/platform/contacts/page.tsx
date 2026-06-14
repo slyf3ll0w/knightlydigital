@@ -156,45 +156,53 @@ export default async function ContactsPage({
             actionLabel="Add Your First Client"
           />
         ) : (
-          <div className="divide-y divide-gray-100">
-            <div className="hidden lg:grid grid-cols-[1fr_1fr_110px_120px_120px_40px] gap-4 px-4 py-2 text-[11px] font-semibold text-gray-600 uppercase tracking-wider bg-gray-50">
-              <span>Name</span>
-              <span>Address</span>
-              <span>Status</span>
-              <span>Assigned To</span>
-              <span>Last Activity</span>
-              <span></span>
-            </div>
-            {contacts.map((c) => (
-              <Link
-                key={c.id}
-                href={`/app/contacts/${c.id}`}
-                className="flex lg:grid lg:grid-cols-[1fr_1fr_110px_120px_120px_40px] gap-4 items-center px-4 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
-              >
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">
-                    {c.firstName} {c.lastName}
-                  </p>
-                  {(c.companyName || c.phone || c.email) && (
-                    <p className="text-xs text-gray-500 truncate">
-                      {[c.companyName, c.phone || c.email].filter(Boolean).join(" · ")}
+          <>
+            <div className="divide-y divide-gray-100">
+              <div className="hidden lg:grid grid-cols-[1fr_1fr_110px_120px_120px_40px] gap-4 px-4 py-2 text-[11px] font-semibold text-gray-600 uppercase tracking-wider bg-gray-50">
+                <span>Name</span>
+                <span>Address</span>
+                <span>Status</span>
+                <span>Assigned To</span>
+                <span>Last Activity</span>
+                <span></span>
+              </div>
+              {contacts.map((c) => (
+                <Link
+                  key={c.id}
+                  href={`/app/contacts/${c.id}`}
+                  className="flex lg:grid lg:grid-cols-[1fr_1fr_110px_120px_120px_40px] gap-4 items-center px-4 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">
+                      {c.firstName} {c.lastName}
                     </p>
-                  )}
-                </div>
-                <span className="hidden lg:block text-sm text-gray-500 truncate">
-                  {[c.address, c.city, c.state].filter(Boolean).join(", ") || "—"}
-                </span>
-                <StatusChip kind="contact" status={c.status} />
-                <span className="hidden lg:block text-sm text-gray-500 truncate">
-                  {c.assignedTo?.name ?? "—"}
-                </span>
-                <span className="hidden lg:block text-sm text-gray-500">
-                  {shortDate(c.updatedAt)}
-                </span>
-                <ChevronRight size={14} className="text-gray-400 shrink-0 hidden lg:block" />
-              </Link>
-            ))}
-          </div>
+                    {(c.companyName || c.phone || c.email) && (
+                      <p className="text-xs text-gray-500 truncate">
+                        {[c.companyName, c.phone || c.email].filter(Boolean).join(" · ")}
+                      </p>
+                    )}
+                  </div>
+                  <span className="hidden lg:block text-sm text-gray-500 truncate">
+                    {[c.address, c.city, c.state].filter(Boolean).join(", ") || "—"}
+                  </span>
+                  <StatusChip kind="contact" status={c.status} />
+                  <span className="hidden lg:block text-sm text-gray-500 truncate">
+                    {c.assignedTo?.name ?? "—"}
+                  </span>
+                  <span className="hidden lg:block text-sm text-gray-500">
+                    {shortDate(c.updatedAt)}
+                  </span>
+                  <ChevronRight size={14} className="text-gray-400 shrink-0 hidden lg:block" />
+                </Link>
+              ))}
+            </div>
+            {/* Ledger foot — entry count */}
+            <div className="border-t-2 border-double border-gray-300 bg-gray-50/60 px-4 py-2.5">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">
+                {contacts.length} {contacts.length === 1 ? "client" : "clients"}
+              </span>
+            </div>
+          </>
         )}
       </div>
     </div>

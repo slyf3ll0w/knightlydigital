@@ -68,6 +68,8 @@ export default async function QuotesPage({
     },
   ];
 
+  const pageTotal = quotes.reduce((s, q) => s + Number(q.total), 0);
+
   return (
     <div className="p-4 lg:p-8 max-w-6xl mx-auto">
       <div className="flex flex-wrap items-center justify-between gap-y-3 mb-6">
@@ -127,37 +129,52 @@ export default async function QuotesPage({
             actionLabel="Create a Quote"
           />
         ) : (
-          <div className="divide-y divide-gray-100">
-            <div className="hidden lg:grid grid-cols-[1fr_70px_140px_150px_100px_40px] gap-4 px-4 py-2 text-[11px] font-semibold text-gray-600 uppercase tracking-wider bg-gray-50">
-              <span>Client</span>
-              <span>#</span>
-              <span>Created</span>
-              <span>Status</span>
-              <span className="text-right">Total</span>
-              <span></span>
+          <>
+            <div className="divide-y divide-gray-100">
+              <div className="hidden lg:grid grid-cols-[1fr_70px_140px_150px_100px_40px] gap-4 px-4 py-2 text-[11px] font-semibold text-gray-600 uppercase tracking-wider bg-gray-50">
+                <span>Client</span>
+                <span>#</span>
+                <span>Created</span>
+                <span>Status</span>
+                <span className="text-right">Total</span>
+                <span></span>
+              </div>
+              {quotes.map((q) => (
+                <Link
+                  key={q.id}
+                  href={`/app/quotes/${q.id}`}
+                  className="flex lg:grid lg:grid-cols-[1fr_70px_140px_150px_100px_40px] gap-4 items-center px-4 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">
+                      {q.contact.firstName} {q.contact.lastName}
+                    </p>
+                    {q.title && <p className="text-xs text-gray-500 truncate">{q.title}</p>}
+                  </div>
+                  <span className="text-sm text-gray-500">#{q.quoteNumber}</span>
+                  <span className="hidden lg:block text-sm text-gray-500">{shortDate(q.createdAt)}</span>
+                  <StatusChip kind="quote" status={q.status} />
+                  <span className="numeral-ledger text-sm font-semibold text-gray-900 lg:text-right">
+                    {money(q.total)}
+                  </span>
+                  <ChevronRight size={14} className="text-gray-400 shrink-0 hidden lg:block" />
+                </Link>
+              ))}
             </div>
-            {quotes.map((q) => (
-              <Link
-                key={q.id}
-                href={`/app/quotes/${q.id}`}
-                className="flex lg:grid lg:grid-cols-[1fr_70px_140px_150px_100px_40px] gap-4 items-center px-4 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
-              >
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">
-                    {q.contact.firstName} {q.contact.lastName}
-                  </p>
-                  {q.title && <p className="text-xs text-gray-500 truncate">{q.title}</p>}
-                </div>
-                <span className="text-sm text-gray-500">#{q.quoteNumber}</span>
-                <span className="hidden lg:block text-sm text-gray-500">{shortDate(q.createdAt)}</span>
-                <StatusChip kind="quote" status={q.status} />
-                <span className="text-sm font-semibold text-gray-900 lg:text-right">
-                  {money(q.total)}
-                </span>
-                <ChevronRight size={14} className="text-gray-400 shrink-0 hidden lg:block" />
-              </Link>
-            ))}
-          </div>
+            {/* Ledger foot — total quoted value */}
+            <div className="flex items-center justify-between gap-4 border-t-2 border-double border-gray-300 bg-gray-50/60 px-4 py-2.5 lg:grid lg:grid-cols-[1fr_70px_140px_150px_100px_40px]">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">
+                {quotes.length} {quotes.length === 1 ? "quote" : "quotes"}
+              </span>
+              <span className="hidden lg:block" />
+              <span className="hidden lg:block" />
+              <span className="hidden lg:block" />
+              <span className="numeral-ledger text-sm font-bold text-gray-900 lg:text-right">
+                {money(pageTotal)}
+              </span>
+              <span className="hidden lg:block" />
+            </div>
+          </>
         )}
       </div>
     </div>

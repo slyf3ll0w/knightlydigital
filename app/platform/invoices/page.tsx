@@ -79,6 +79,14 @@ export default async function InvoicesPage({
     },
   ];
 
+  // Ledger foot: totals for the rows currently shown
+  const pageTotal = invoices.reduce((s, i) => s + Number(i.total), 0);
+  const pageBalance = invoices.reduce(
+    (s, i) =>
+      s + Math.max(0, Number(i.total) - i.payments.reduce((p, x) => p + Number(x.amount), 0)),
+    0
+  );
+
   return (
     <div className="p-4 lg:p-8 max-w-6xl mx-auto">
       <div className="flex flex-wrap items-center justify-between gap-y-3 mb-6">
@@ -148,45 +156,65 @@ export default async function InvoicesPage({
             actionLabel="Create an Invoice"
           />
         ) : (
-          <div className="divide-y divide-gray-100">
-            <div className="hidden lg:grid grid-cols-[1fr_70px_130px_150px_100px_100px_40px] gap-4 px-4 py-2 text-[11px] font-semibold text-gray-600 uppercase tracking-wider bg-gray-50">
-              <span>Client</span>
-              <span>#</span>
-              <span>Due date</span>
-              <span>Status</span>
-              <span className="text-right">Total</span>
-              <span className="text-right">Balance</span>
-              <span></span>
+          <>
+            <div className="divide-y divide-gray-100">
+              <div className="hidden lg:grid grid-cols-[1fr_70px_130px_150px_100px_100px_40px] gap-4 px-4 py-2 text-[11px] font-semibold text-gray-600 uppercase tracking-wider bg-gray-50">
+                <span>Client</span>
+                <span>#</span>
+                <span>Due date</span>
+                <span>Status</span>
+                <span className="text-right">Total</span>
+                <span className="text-right">Balance</span>
+                <span></span>
+              </div>
+              {invoices.map((inv) => {
+                const paid = inv.payments.reduce((s, p) => s + Number(p.amount), 0);
+                const balance = Math.max(0, Number(inv.total) - paid);
+                return (
+                  <Link
+                    key={inv.id}
+                    href={`/app/invoices/${inv.id}`}
+                    className="flex lg:grid lg:grid-cols-[1fr_70px_130px_150px_100px_100px_40px] gap-4 items-center px-4 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">
+                        {inv.contact ? `${inv.contact.firstName} ${inv.contact.lastName}` : "—"}
+                      </p>
+                      {inv.subject && <p className="text-xs text-gray-500 truncate">{inv.subject}</p>}
+                    </div>
+                    <span className="text-sm text-gray-500">#{inv.invoiceNumber}</span>
+                    <span className="hidden lg:block text-sm text-gray-500">
+                      {shortDate(inv.dueDate)}
+                    </span>
+                    <StatusChip kind="invoice" status={inv.status} />
+                    <span className="numeral-ledger text-sm text-gray-600 lg:text-right">
+                      {money(inv.total)}
+                    </span>
+                    <span className="numeral-ledger text-sm font-semibold text-gray-900 lg:text-right">
+                      {money(balance)}
+                    </span>
+                    <ChevronRight size={14} className="text-gray-400 shrink-0 hidden lg:block" />
+                  </Link>
+                );
+              })}
             </div>
-            {invoices.map((inv) => {
-              const paid = inv.payments.reduce((s, p) => s + Number(p.amount), 0);
-              const balance = Math.max(0, Number(inv.total) - paid);
-              return (
-                <Link
-                  key={inv.id}
-                  href={`/app/invoices/${inv.id}`}
-                  className="flex lg:grid lg:grid-cols-[1fr_70px_130px_150px_100px_100px_40px] gap-4 items-center px-4 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
-                >
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">
-                      {inv.contact ? `${inv.contact.firstName} ${inv.contact.lastName}` : "—"}
-                    </p>
-                    {inv.subject && <p className="text-xs text-gray-500 truncate">{inv.subject}</p>}
-                  </div>
-                  <span className="text-sm text-gray-500">#{inv.invoiceNumber}</span>
-                  <span className="hidden lg:block text-sm text-gray-500">
-                    {shortDate(inv.dueDate)}
-                  </span>
-                  <StatusChip kind="invoice" status={inv.status} />
-                  <span className="text-sm text-gray-700 lg:text-right">{money(inv.total)}</span>
-                  <span className="text-sm font-semibold text-gray-900 lg:text-right">
-                    {money(balance)}
-                  </span>
-                  <ChevronRight size={14} className="text-gray-400 shrink-0 hidden lg:block" />
-                </Link>
-              );
-            })}
-          </div>
+            {/* Ledger foot — running totals, double-ruled like a register */}
+            <div className="flex items-center justify-between gap-4 border-t-2 border-double border-gray-300 bg-gray-50/60 px-4 py-2.5 lg:grid lg:grid-cols-[1fr_70px_130px_150px_100px_100px_40px]">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">
+                {invoices.length} {invoices.length === 1 ? "invoice" : "invoices"}
+              </span>
+              <span className="hidden lg:block" />
+              <span className="hidden lg:block" />
+              <span className="hidden lg:block" />
+              <span className="numeral-ledger hidden text-sm font-semibold text-gray-600 lg:block lg:text-right">
+                {money(pageTotal)}
+              </span>
+              <span className="numeral-ledger text-sm font-bold text-gray-900 lg:text-right">
+                {money(pageBalance)}
+              </span>
+              <span className="hidden lg:block" />
+            </div>
+          </>
         )}
       </div>
     </div>
