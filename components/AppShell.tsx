@@ -35,14 +35,14 @@ import { textOn } from "@/lib/branding";
 
 const DEFAULT_ACCENT = "#22C55E"; // green-500
 
-/** Brand accent, guarded: too-dark colors are invisible on the dark sidebar. */
+/** Brand accent, guarded: too-light colors are invisible on the manila rail. */
 function sidebarAccent(hex: string): string {
   const m = /^#?([0-9a-f]{6})$/i.exec(hex);
   if (!m) return DEFAULT_ACCENT;
   const n = parseInt(m[1], 16);
   const luminance =
     0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255);
-  return luminance < 60 ? "#ffffff" : hex;
+  return luminance > 215 ? DEFAULT_ACCENT : hex;
 }
 
 // Per-role visibility, mirroring lib/permissions.ts (server still enforces):
@@ -224,14 +224,14 @@ function UserMenu({
       )}
       <button
         onClick={() => setOpen((v) => !v)}
-        className="w-full px-3 py-2.5 flex items-center gap-3 rounded-md hover:bg-white/[0.04] transition-colors text-left"
+        className="w-full px-3 py-2.5 flex items-center gap-3 rounded-md hover:bg-black/[0.04] transition-colors text-left"
       >
         <Avatar name={userName} size={28} />
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-medium text-white truncate">{userName}</p>
-          <p className="text-[11px] text-white/40 truncate">{userEmail}</p>
+          <p className="text-xs font-medium text-gray-900 truncate">{userName}</p>
+          <p className="text-[11px] text-stone-500 truncate">{userEmail}</p>
         </div>
-        <ChevronsUpDown size={13} className="text-white/30 shrink-0" />
+        <ChevronsUpDown size={13} className="text-stone-400 shrink-0" />
       </button>
     </div>
   );
@@ -324,17 +324,26 @@ export default function AppShell({
         key={href}
         href={href}
         data-tour={tourKeys[href]}
-        className={`flex items-center gap-3 px-3 py-2 rounded-md text-[13px] font-medium transition-colors ${
-          active ? "text-white" : "text-white/55 hover:text-white hover:bg-white/[0.04]"
+        className={`relative flex items-center gap-3 rounded-md px-3 py-2 text-[13px] transition-colors ${
+          active
+            ? "font-semibold text-gray-900"
+            : "font-medium text-stone-600 hover:bg-black/[0.04] hover:text-gray-900"
         }`}
-        style={active ? { backgroundColor: `${accent}24` } : undefined}
+        style={active ? { backgroundColor: `${accent}1f` } : undefined}
       >
+        {active && (
+          <span
+            className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full"
+            style={{ backgroundColor: accent }}
+            aria-hidden
+          />
+        )}
         <Icon size={16} style={active ? { color: accent } : undefined} />
         {label}
         {badge > 0 && (
           <span
             className={`ml-auto min-w-[18px] rounded-full px-1.5 py-px text-center text-[10px] font-bold tabular-nums ${
-              href === "/app/invoices" ? "bg-red-500/90 text-white" : "bg-white/10 text-white/80"
+              href === "/app/invoices" ? "bg-red-500 text-white" : "bg-black/10 text-gray-600"
             }`}
           >
             {badge > 99 ? "99+" : badge}
@@ -356,9 +365,12 @@ export default function AppShell({
           .map((group, i) => (
             <div key={i} className={i > 0 ? "mt-4" : undefined}>
               {group.label && (
-                <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/30">
-                  {group.label}
-                </p>
+                <div className="flex items-center gap-2 px-3 pb-1.5">
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-stone-400">
+                    {group.label}
+                  </span>
+                  <span className="h-px flex-1 bg-stone-300/70" aria-hidden />
+                </div>
               )}
               <div className="space-y-0.5">
                 {group.items.map(({ href, label, icon: Icon }) => navLink(href, label, Icon))}
@@ -368,14 +380,14 @@ export default function AppShell({
       </nav>
 
       {/* Settings + user */}
-      <div className="px-3 py-3 border-t border-white/[0.07] space-y-0.5">
+      <div className="px-3 py-3 border-t border-stone-300/70 space-y-0.5">
         {manager && navLink("/app/settings/booking", "Forms", Globe)}
         {manager && navLink("/app/settings/team", "Team", UserPlus)}
         {manager && navLink("/app/settings", "Settings", Settings)}
         <UserMenu userName={userName} userEmail={userEmail} />
-        <p className="px-3 pt-1.5 pb-1 text-[10px] text-white/30 flex items-center gap-1.5">
+        <p className="px-3 pt-1.5 pb-1 text-[10px] text-stone-400 flex items-center gap-1.5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/streamflaire-hub-mark.png" alt="" className="h-2.5 w-auto shrink-0 opacity-60" />
+          <img src="/streamflaire-hub-mark.png" alt="" className="h-2.5 w-auto shrink-0 opacity-70" />
           Powered by Streamflaire Hub
         </p>
       </div>
@@ -385,13 +397,13 @@ export default function AppShell({
   // Sidebar header is the company's identity, not ours (their logo when
   // uploaded, otherwise a brand-colored initial tile).
   const logo = (
-    <div className="flex items-center gap-2.5 px-5 py-[15px] border-b border-white/[0.07] min-w-0">
+    <div className="flex items-center gap-2.5 px-5 py-[15px] border-b border-stone-300/70 min-w-0">
       {companyLogoUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={companyLogoUrl}
           alt=""
-          className="h-8 w-8 rounded-md object-contain bg-white p-0.5 shrink-0"
+          className="h-8 w-8 rounded-md object-contain bg-white p-0.5 shrink-0 ring-1 ring-stone-300/60"
         />
       ) : (
         <div
@@ -401,7 +413,7 @@ export default function AppShell({
           {companyName?.charAt(0).toUpperCase() ?? "J"}
         </div>
       )}
-      <span className="font-bold text-[14px] tracking-tight text-white truncate">
+      <span className="font-bold text-[14px] tracking-tight text-gray-900 truncate">
         {companyName ?? "Streamflaire Hub"}
       </span>
     </div>
@@ -410,7 +422,7 @@ export default function AppShell({
   return (
     <div className="app-ui flex h-screen bg-paper overflow-hidden">
       {/* ── Desktop sidebar ──────────────────────────────────────────────── */}
-      <aside className="hidden lg:flex flex-col w-[232px] bg-[#0C0F0C] shrink-0">
+      <aside className="hidden lg:flex flex-col w-[232px] bg-manila border-r border-stone-300/70 shrink-0">
         {logo}
         {sidebarInner}
       </aside>
@@ -423,13 +435,16 @@ export default function AppShell({
         />
       )}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-[260px] bg-[#0C0F0C] flex flex-col transition-transform duration-200 lg:hidden ${
+        className={`fixed inset-y-0 left-0 z-50 w-[260px] bg-manila flex flex-col transition-transform duration-200 lg:hidden ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="flex items-center justify-between pr-4 border-b border-white/[0.07]">
+        <div className="flex items-center justify-between pr-4 border-b border-stone-300/70">
           <div className="border-b-0">{logo}</div>
-          <button onClick={() => setMobileOpen(false)} className="text-white/40 hover:text-white">
+          <button
+            onClick={() => setMobileOpen(false)}
+            className="text-stone-500 hover:text-gray-900"
+          >
             <X size={18} />
           </button>
         </div>
