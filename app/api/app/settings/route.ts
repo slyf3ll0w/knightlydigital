@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { sanitizeBookingForm } from "@/lib/booking-form";
+import { sanitizeDeposit } from "@/lib/deposits";
 import { getActor, isManager } from "@/lib/permissions";
 
 export async function PATCH(req: NextRequest) {
@@ -32,6 +33,14 @@ export async function PATCH(req: NextRequest) {
           : undefined,
       surchargeEnabled: body.surchargeEnabled ?? undefined,
       surchargeRate: body.surchargeRate ?? undefined,
+      ...(body.defaultDepositType !== undefined &&
+        (() => {
+          const d = sanitizeDeposit({
+            depositType: body.defaultDepositType,
+            depositValue: body.defaultDepositValue,
+          });
+          return { defaultDepositType: d.depositType, defaultDepositValue: d.depositValue };
+        })()),
       reviewLink: body.reviewLink || null,
       bookingForm: body.bookingForm !== undefined ? sanitizeBookingForm(body.bookingForm) : undefined,
     },

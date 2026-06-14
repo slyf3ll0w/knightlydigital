@@ -90,10 +90,13 @@ export async function PATCH(
           tax,
           total,
           depositType:
-            body.depositType === "PERCENT" || body.depositType === "FIXED"
+            body.depositType === "PERCENT" || body.depositType === "FIXED" || body.depositType === "FULL"
               ? body.depositType
               : "NONE",
-          depositValue: body.depositValue ?? null,
+          depositValue:
+            body.depositType === "PERCENT" || body.depositType === "FIXED"
+              ? body.depositValue ?? null
+              : null,
           clientMessage: body.clientMessage || null,
           disclaimer: body.disclaimer || null,
           lineItems: {

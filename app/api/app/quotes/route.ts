@@ -80,8 +80,11 @@ export async function POST(req: NextRequest) {
         taxRate: taxRate || null,
         tax,
         total,
-        depositType: depositType === "PERCENT" || depositType === "FIXED" ? depositType : "NONE",
-        depositValue: depositValue ?? null,
+        depositType:
+          depositType === "PERCENT" || depositType === "FIXED" || depositType === "FULL"
+            ? depositType
+            : "NONE",
+        depositValue: depositType === "PERCENT" || depositType === "FIXED" ? depositValue ?? null : null,
         clientMessage: clientMessage || null,
         disclaimer: disclaimer || null,
         notes: notes || null,

@@ -189,6 +189,12 @@ export default async function InvoiceDetailPage({
                 <span className="text-gray-800">{money(invoice.tax)}</span>
               </div>
             )}
+            {invoice.depositApplied && Number(invoice.depositApplied) > 0 && (
+              <div className="flex justify-between text-green-700">
+                <span>Deposit applied</span>
+                <span>-{money(invoice.depositApplied)}</span>
+              </div>
+            )}
             <div className="flex justify-between font-bold text-base pt-1.5 border-t border-gray-200">
               <span className="text-gray-900">Total</span>
               <span className="text-gray-900">{money(invoice.total)}</span>

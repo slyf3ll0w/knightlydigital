@@ -313,7 +313,7 @@ export default function BookingFormBuilder({
 
       {/* Services (service-request forms) — sourced from the price book */}
       {formType === "SERVICE_REQUEST" && (
-        <Card title="Services offered" hint="a submission auto-creates an invoice for the chosen services">
+        <Card title="Services offered" hint="a submission auto-creates a quote for the chosen services">
           <div>
             <label className={smallLabel}>Section headline</label>
             <input
@@ -439,14 +439,14 @@ export default function BookingFormBuilder({
               Clients can pick more than one
             </label>
             <div className="flex items-center gap-2">
-              <label className="text-sm text-gray-700">Invoice:</label>
+              <label className="text-sm text-gray-700">Quote:</label>
               <select
-                value={config.serviceRequest.invoiceMode}
-                onChange={(e) => setSR({ invoiceMode: e.target.value as "draft" | "send" })}
+                value={config.serviceRequest.quoteMode}
+                onChange={(e) => setSR({ quoteMode: e.target.value as "draft" | "send" })}
                 className={`${inputClass} bg-white w-auto`}
               >
                 <option value="draft">Save as draft for review</option>
-                <option value="send">Auto-send with payment link</option>
+                <option value="send">Auto-send to client for approval</option>
               </select>
             </div>
           </div>

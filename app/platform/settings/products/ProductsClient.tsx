@@ -6,6 +6,7 @@ import { ArrowLeft, Plus, Pencil, Trash2, Loader2, Package } from "lucide-react"
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 
 type RecurringInterval = "MONTHLY" | "QUARTERLY" | "SEMIANNUAL" | "ANNUAL";
+type DepositType = "NONE" | "PERCENT" | "FIXED" | "FULL";
 
 type WorkItem = {
   id: string;
@@ -20,6 +21,8 @@ type WorkItem = {
   recurringInvoiceMode: "SEND" | "DRAFT";
   agreementTemplateId: string | null;
   agreementTiming: "WITH_QUOTE" | "ON_APPROVAL";
+  depositType: DepositType;
+  depositValue: number | string | null;
 };
 
 type Template = { id: string; name: string };
@@ -35,6 +38,8 @@ type FormState = {
   recurringInvoiceMode: "SEND" | "DRAFT";
   agreementTemplateId: string;
   agreementTiming: "WITH_QUOTE" | "ON_APPROVAL";
+  depositType: DepositType;
+  depositValue: string;
 };
 
 const emptyForm: FormState = {
@@ -48,6 +53,8 @@ const emptyForm: FormState = {
   recurringInvoiceMode: "SEND",
   agreementTemplateId: "",
   agreementTiming: "ON_APPROVAL",
+  depositType: "NONE",
+  depositValue: "",
 };
 
 const INTERVAL_LABEL: Record<RecurringInterval, string> = {
@@ -92,6 +99,8 @@ export default function ProductsClient({
       recurringInvoiceMode: item.recurringInvoiceMode,
       agreementTemplateId: item.agreementTemplateId ?? "",
       agreementTiming: item.agreementTiming,
+      depositType: item.depositType ?? "NONE",
+      depositValue: item.depositValue != null ? String(Number(item.depositValue)) : "",
     });
     setEditingId(item.id);
     setError("");
@@ -120,6 +129,8 @@ export default function ProductsClient({
       recurringInvoiceMode: form.recurringInvoiceMode,
       agreementTemplateId: form.agreementTemplateId || null,
       agreementTiming: form.agreementTiming,
+      depositType: form.depositType,
+      depositValue: form.depositValue === "" ? null : parseFloat(form.depositValue) || 0,
     };
 
     const { ok, data } =
@@ -307,6 +318,49 @@ export default function ProductsClient({
           </div>
         )}
       </div>
+      {/* Deposit */}
+      <div className="border-t border-green-200/60 pt-3 space-y-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Deposit</label>
+            <select
+              value={form.depositType}
+              onChange={(e) => set("depositType", e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+            >
+              <option value="NONE">Use company default</option>
+              <option value="PERCENT">Percentage of price</option>
+              <option value="FIXED">Fixed amount</option>
+              <option value="FULL">Full payment upfront</option>
+            </select>
+          </div>
+          {(form.depositType === "PERCENT" || form.depositType === "FIXED") && (
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">
+                {form.depositType === "PERCENT" ? "Percent (0–100)" : "Amount ($)"}
+              </label>
+              <input
+                type="number"
+                min="0"
+                step={form.depositType === "PERCENT" ? "1" : "0.01"}
+                max={form.depositType === "PERCENT" ? "100" : undefined}
+                value={form.depositValue}
+                onChange={(e) => set("depositValue", e.target.value)}
+                placeholder={form.depositType === "PERCENT" ? "25" : "100.00"}
+                className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+              />
+            </div>
+          )}
+        </div>
+        <p className="text-xs text-gray-500">
+          {form.depositType === "NONE"
+            ? "Falls back to your company-wide default deposit (Settings → Company)."
+            : form.depositType === "FULL"
+              ? "The whole price is collected up front when the client approves the quote."
+              : "Collected as a deposit invoice when the client approves a quote containing this service."}
+        </p>
+      </div>
+
       <div className="flex items-center gap-2">
         <button
           onClick={save}
@@ -396,6 +450,15 @@ export default function ProductsClient({
                         {item.requiresAgreement && (
                           <span className="ml-2 stamp border-blue-600/30 bg-blue-600/[0.06] text-blue-700">
                             Agreement
+                          </span>
+                        )}
+                        {item.depositType && item.depositType !== "NONE" && (
+                          <span className="ml-2 stamp border-amber-600/30 bg-amber-600/[0.06] text-amber-700">
+                            {item.depositType === "FULL"
+                              ? "Paid upfront"
+                              : item.depositType === "PERCENT"
+                                ? `Deposit ${Number(item.depositValue ?? 0)}%`
+                                : `Deposit ${money(item.depositValue)}`}
                           </span>
                         )}
                       </p>

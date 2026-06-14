@@ -79,7 +79,9 @@ export default function QuoteAcceptPage({
       ? Math.round(total * (Number(quote.depositValue ?? 0) / 100) * 100) / 100
       : quote.depositType === "FIXED"
         ? Math.min(Number(quote.depositValue ?? 0), total)
-        : 0;
+        : quote.depositType === "FULL"
+          ? total
+          : 0;
 
   function toggleItem(id: string) {
     if (!reviewable) return;

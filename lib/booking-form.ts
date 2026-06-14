@@ -79,7 +79,10 @@ export type BookingFormConfig = {
   services: FormService[];
   serviceRequest: {
     allowMultiple: boolean;
-    invoiceMode: "draft" | "send";
+    // What a submission produces: a draft quote for the business to review, or a
+    // quote sent straight to the client for online approval. (Was invoiceMode —
+    // service requests now create quotes, not invoices.)
+    quoteMode: "draft" | "send";
   };
 };
 
@@ -127,7 +130,7 @@ export const DEFAULT_BOOKING_FORM: BookingFormConfig = {
   },
   customFields: [],
   services: [],
-  serviceRequest: { allowMultiple: false, invoiceMode: "draft" },
+  serviceRequest: { allowMultiple: false, quoteMode: "draft" },
 };
 
 const MAX_CUSTOM_FIELDS = 10;
@@ -271,7 +274,9 @@ export function sanitizeBookingForm(raw: unknown): BookingFormConfig {
     services,
     serviceRequest: {
       allowMultiple: serviceRequest.allowMultiple === true,
-      invoiceMode: serviceRequest.invoiceMode === "send" ? "send" : "draft",
+      // Read legacy `invoiceMode` from forms saved before the quote rename
+      quoteMode:
+        (serviceRequest.quoteMode ?? serviceRequest.invoiceMode) === "send" ? "send" : "draft",
     },
   };
 }

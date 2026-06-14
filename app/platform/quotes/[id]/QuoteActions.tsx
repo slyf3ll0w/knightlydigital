@@ -17,6 +17,7 @@ import {
   RotateCcw,
   FileSignature,
   Clock,
+  DollarSign,
 } from "lucide-react";
 
 type AgreementState = {
@@ -33,6 +34,8 @@ export default function QuoteActions({
   wasSent = false,
   contactId = "",
   agreement = null,
+  hasDeposit = false,
+  depositInvoiced = false,
 }: {
   quoteId: string;
   status: string;
@@ -41,6 +44,8 @@ export default function QuoteActions({
   wasSent?: boolean;
   contactId?: string;
   agreement?: AgreementState;
+  hasDeposit?: boolean;
+  depositInvoiced?: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -107,6 +112,26 @@ export default function QuoteActions({
         return;
       }
       setAgreementOpen(false);
+      router.refresh();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function collectDeposit() {
+    setOpen(false);
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/app/quotes/${quoteId}/collect-deposit`, { method: "POST" });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        alert(data?.error ?? "Couldn't create the deposit invoice.");
+        return;
+      }
+      if (data?.invoiceId) {
+        router.push(`/app/invoices/${data.invoiceId}`);
+        return;
+      }
       router.refresh();
     } finally {
       setBusy(false);
@@ -258,6 +283,15 @@ export default function QuoteActions({
               >
                 <Briefcase size={14} className="text-gray-400" />
                 Convert to Job
+              </button>
+            )}
+            {hasDeposit && status !== "ARCHIVED" && (
+              <button
+                onClick={collectDeposit}
+                className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
+              >
+                <DollarSign size={14} className="text-gray-400" />
+                {depositInvoiced ? "Resend deposit invoice" : "Collect deposit"}
               </button>
             )}
             {agreement && !agreement.signed && status !== "ARCHIVED" && status !== "CONVERTED" && (

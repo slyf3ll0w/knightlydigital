@@ -142,5 +142,60 @@ export function quoteDepositAmount(q: {
   const value = Number(q.depositValue ?? 0);
   if (q.depositType === "PERCENT") return Math.round(total * (value / 100) * 100) / 100;
   if (q.depositType === "FIXED") return Math.min(value, total);
+  if (q.depositType === "FULL") return total;
   return 0;
+}
+
+// ─── Per-service deposit derivation ──────────────────────────────────────────
+
+export type DepositRule = {
+  depositType: string;
+  depositValue: number | { toString(): string } | null;
+};
+
+/** Is a deposit rule actually set (not NONE/empty)? */
+export function hasDeposit(rule: DepositRule | null | undefined): boolean {
+  return !!rule && rule.depositType !== "NONE" && !!rule.depositType;
+}
+
+/**
+ * Deposit owed on a single line, given its rule and an optional fallback
+ * (the company default). A preset service with no rule of its own inherits the
+ * fallback; PERCENT/FIXED are of the line total, FULL is the whole line.
+ */
+export function lineDepositAmount(
+  lineTotal: number,
+  rule: DepositRule | null | undefined,
+  fallback?: DepositRule | null
+): number {
+  let type = rule?.depositType ?? "NONE";
+  let value = Number(rule?.depositValue ?? 0);
+  if ((type === "NONE" || !type) && hasDeposit(fallback)) {
+    type = fallback!.depositType;
+    value = Number(fallback!.depositValue ?? 0);
+  }
+  if (type === "PERCENT") return Math.round(lineTotal * (value / 100) * 100) / 100;
+  if (type === "FIXED") return Math.min(value, lineTotal);
+  if (type === "FULL") return lineTotal;
+  return 0;
+}
+
+/**
+ * Sum per-service deposits across a quote's preset lines, capped at the total.
+ * Each entry passes its own deposit rule (null for custom/free-typed lines,
+ * which contribute nothing automatically); preset lines fall back to the
+ * company default. Returns a single dollar amount snapshotted onto the quote
+ * as a FIXED deposit.
+ */
+export function derivedQuoteDeposit(
+  lines: { total: number; deposit: DepositRule | null }[],
+  total: number,
+  companyDefault?: DepositRule | null
+): number {
+  let sum = 0;
+  for (const li of lines) {
+    if (li.deposit === null) continue; // custom line — no automatic deposit
+    sum += lineDepositAmount(Number(li.total), li.deposit, companyDefault);
+  }
+  return Math.min(Math.round(sum * 100) / 100, Math.round(total * 100) / 100);
 }

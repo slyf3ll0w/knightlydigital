@@ -25,6 +25,10 @@ export default async function QuoteDetailPage({
       job: true,
       request: true,
       contracts: { orderBy: { createdAt: "desc" }, select: { status: true, signedAt: true } },
+      invoices: {
+        where: { kind: "DEPOSIT" },
+        select: { id: true, invoiceNumber: true, status: true, total: true },
+      },
     },
   });
 
@@ -48,6 +52,7 @@ export default async function QuoteDetailPage({
   const baseUrl = process.env.NEXTAUTH_URL ?? "";
   const publicUrl = `${baseUrl}/quote/${quote.publicToken}`;
   const deposit = quoteDepositAmount(quote);
+  const depositInvoice = quote.invoices[0] ?? null;
 
   return (
     <div className="p-4 lg:p-8 max-w-4xl mx-auto">
@@ -81,6 +86,8 @@ export default async function QuoteDetailPage({
               ? { signed: agreementSigned, sent: agreementSent, templates: contractTemplates }
               : null
           }
+          hasDeposit={deposit > 0}
+          depositInvoiced={!!depositInvoice}
         />
       </div>
 
@@ -97,9 +104,22 @@ export default async function QuoteDetailPage({
         {deposit > 0 && (
           <div>
             <span className="text-xs uppercase font-semibold text-gray-400 block">
-              Required deposit
+              {depositInvoice ? "Deposit" : "Required deposit"}
             </span>
-            <span className="text-gray-800 font-semibold">{money(deposit)}</span>
+            {depositInvoice ? (
+              <Link
+                href={`/app/invoices/${depositInvoice.id}`}
+                className={`font-medium hover:underline ${
+                  depositInvoice.status === "PAID" ? "text-green-700" : "text-amber-700"
+                }`}
+              >
+                {money(depositInvoice.total)} ·{" "}
+                {depositInvoice.status === "PAID" ? "Paid" : "Invoiced"} (#
+                {depositInvoice.invoiceNumber})
+              </Link>
+            ) : (
+              <span className="text-gray-800 font-semibold">{money(deposit)}</span>
+            )}
           </div>
         )}
         {needsAgreement && (

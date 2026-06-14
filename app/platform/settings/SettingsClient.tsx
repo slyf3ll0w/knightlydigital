@@ -14,6 +14,8 @@ type Company = {
   state: string | null; zip: string | null; website: string | null;
   logoUrl: string | null; brandColor: string | null;
   surchargeEnabled: boolean; surchargeRate: string | number | null;
+  defaultDepositType: "NONE" | "PERCENT" | "FIXED" | "FULL";
+  defaultDepositValue: string | number | null;
   reviewLink: string | null; industry: string | null;
 };
 
@@ -68,6 +70,8 @@ export default function SettingsClient({ company }: { company: Company }) {
     brandColor: company.brandColor ?? "",
     surchargeEnabled: company.surchargeEnabled,
     surchargeRate: company.surchargeRate ? (Number(company.surchargeRate) * 100).toFixed(2) : "3.00",
+    defaultDepositType: company.defaultDepositType ?? "NONE",
+    defaultDepositValue: company.defaultDepositValue != null ? String(Number(company.defaultDepositValue)) : "",
     reviewLink: company.reviewLink ?? "",
   });
 
@@ -392,6 +396,53 @@ export default function SettingsClient({ company }: { company: Company }) {
               </p>
             </div>
           )}
+        </div>
+
+        {/* Default deposit */}
+        <div className="card-ledger p-5 space-y-4">
+          <div>
+            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Default Deposit</h2>
+            <p className="text-xs text-gray-400 mt-0.5">
+              Applied to quotes when a service has no deposit of its own. Set per-service deposits in
+              Products &amp; Services.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-end gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Deposit</label>
+              <select
+                value={form.defaultDepositType}
+                onChange={(e) => set("defaultDepositType", e.target.value)}
+                className="px-3 py-2.5 border border-gray-300 rounded text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
+              >
+                <option value="NONE">No default deposit</option>
+                <option value="PERCENT">Percentage of total</option>
+                <option value="FIXED">Fixed amount</option>
+                <option value="FULL">Full payment upfront</option>
+              </select>
+            </div>
+            {(form.defaultDepositType === "PERCENT" || form.defaultDepositType === "FIXED") && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {form.defaultDepositType === "PERCENT" ? "Percent (0–100)" : "Amount ($)"}
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step={form.defaultDepositType === "PERCENT" ? "1" : "0.01"}
+                  max={form.defaultDepositType === "PERCENT" ? "100" : undefined}
+                  value={form.defaultDepositValue}
+                  onChange={(e) => set("defaultDepositValue", e.target.value)}
+                  placeholder={form.defaultDepositType === "PERCENT" ? "25" : "100.00"}
+                  className="w-28 px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                />
+              </div>
+            )}
+          </div>
+          <p className="text-xs text-gray-400">
+            On approval, the deposit is billed to the client as its own invoice; the final invoice
+            then subtracts what they&apos;ve already paid.
+          </p>
         </div>
 
         {/* Review requests */}

@@ -40,7 +40,7 @@ export type ExistingQuote = {
   taxRate: number | null; // fraction (0.0825)
   discountType: "NONE" | "PERCENT" | "FIXED";
   discountValue: number | null;
-  depositType: "NONE" | "PERCENT" | "FIXED";
+  depositType: "NONE" | "PERCENT" | "FIXED" | "FULL";
   depositValue: number | null;
   clientMessage: string;
   disclaimer: string;
@@ -87,7 +87,7 @@ export default function QuoteEditor({
   const [discountValue, setDiscountValue] = useState(
     existingQuote?.discountValue != null ? String(existingQuote.discountValue) : ""
   );
-  const [depositType, setDepositType] = useState<"NONE" | "PERCENT" | "FIXED">(
+  const [depositType, setDepositType] = useState<"NONE" | "PERCENT" | "FIXED" | "FULL">(
     existingQuote?.depositType ?? "NONE"
   );
   const [depositValue, setDepositValue] = useState(
@@ -163,7 +163,9 @@ export default function QuoteEditor({
       ? total * ((parseFloat(depositValue) || 0) / 100)
       : depositType === "FIXED"
         ? Math.min(parseFloat(depositValue) || 0, total)
-        : 0;
+        : depositType === "FULL"
+          ? total
+          : 0;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -426,14 +428,15 @@ export default function QuoteEditor({
               <div className="flex items-center gap-2">
                 <select
                   value={depositType}
-                  onChange={(e) => setDepositType(e.target.value as "NONE" | "PERCENT" | "FIXED")}
+                  onChange={(e) => setDepositType(e.target.value as "NONE" | "PERCENT" | "FIXED" | "FULL")}
                   className="px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                 >
                   <option value="NONE">No deposit</option>
                   <option value="PERCENT">Percent of total</option>
                   <option value="FIXED">Fixed amount</option>
+                  <option value="FULL">Full payment upfront</option>
                 </select>
-                {depositType !== "NONE" && (
+                {(depositType === "PERCENT" || depositType === "FIXED") && (
                   <div className="flex items-center gap-1.5">
                     {depositType === "FIXED" && <span className="text-sm text-gray-500">$</span>}
                     <input

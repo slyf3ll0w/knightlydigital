@@ -14,7 +14,7 @@ const RECURRING_LABEL: Record<string, string> = {
 };
 type Invoice = {
   id: string; invoiceNumber: number; status: string; publicToken: string;
-  subtotal: number; discount: number | null; tax: number | null; surcharge: number | null; total: number;
+  subtotal: number; discount: number | null; tax: number | null; surcharge: number | null; depositApplied: number | null; total: number;
   notes: string | null; dueDate: string | null;
   contact: { firstName: string; lastName: string; email: string | null } | null;
   company: {
@@ -163,6 +163,12 @@ export default function PayPage({ invoice }: { invoice: Invoice }) {
               <div className="flex justify-between text-sm">
                 <span className="text-gray-500">Tax</span>
                 <span>${Number(invoice.tax).toFixed(2)}</span>
+              </div>
+            )}
+            {invoice.depositApplied && Number(invoice.depositApplied) > 0 && (
+              <div className="flex justify-between text-sm text-green-700">
+                <span>Deposit applied</span>
+                <span>-${Number(invoice.depositApplied).toFixed(2)}</span>
               </div>
             )}
             {surcharge > 0 && (

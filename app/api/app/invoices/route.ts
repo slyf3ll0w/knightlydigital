@@ -3,6 +3,7 @@ import type { RecurringInterval } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getActor, canSeeMoney, contactScope } from "@/lib/permissions";
 import { ensureSubscriptionsForContact } from "@/lib/subscriptions";
+import { paidDepositTotal } from "@/lib/deposits";
 
 export async function POST(req: NextRequest) {
   const actor = await getActor();
@@ -54,6 +55,18 @@ export async function POST(req: NextRequest) {
       orderBy: { invoiceNumber: "desc" },
     });
 
+    // A final invoice for a job nets any deposit already paid on the job's quote,
+    // so the client isn't billed twice. `total` is stored net; depositApplied
+    // drives the "Deposit applied" credit line on the invoice.
+    let depositApplied = 0;
+    if (jobId) {
+      const quote = await tx.quote.findFirst({ where: { jobId, companyId }, select: { id: true } });
+      if (quote) {
+        depositApplied = Math.min(await paidDepositTotal(tx, quote.id), total);
+      }
+    }
+    const netTotal = Math.round((total - depositApplied) * 100) / 100;
+
     const created = await tx.invoice.create({
       data: {
         companyId,
@@ -67,7 +80,8 @@ export async function POST(req: NextRequest) {
         discount: discount > 0 ? discount : null,
         taxRate: taxRate || null,
         tax,
-        total,
+        depositApplied: depositApplied > 0 ? depositApplied : null,
+        total: netTotal,
         notes: notes || null,
         issuedAt,
         dueDate: due,

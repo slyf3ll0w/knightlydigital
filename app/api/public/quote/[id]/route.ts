@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { autoSendQuoteAgreements } from "@/lib/agreements";
+import { createDepositInvoice, type DepositInvoiceResult } from "@/lib/deposits";
+import { sendEmail, invoiceLinkEmail } from "@/lib/email";
 
 /**
  * Public quote response endpoint (client-facing, no auth — the [id] segment
@@ -30,7 +32,7 @@ export async function POST(
 
   const quote = await prisma.quote.findUnique({
     where: { publicToken: token },
-    include: { lineItems: true, contact: true },
+    include: { lineItems: true, contact: true, company: true },
   });
   if (!quote) return NextResponse.json({ error: "Quote not found." }, { status: 404 });
 
@@ -61,7 +63,7 @@ export async function POST(
   const tax = quote.taxRate ? Math.round(subtotal * Number(quote.taxRate) * 100) / 100 : null;
   const total = subtotal + (tax ?? 0);
 
-  await prisma.$transaction(async (tx) => {
+  const deposit: DepositInvoiceResult | null = await prisma.$transaction(async (tx) => {
     if (validOptOuts.length > 0) {
       await tx.quoteLineItem.updateMany({
         where: { id: { in: validOptOuts } },
@@ -79,10 +81,34 @@ export async function POST(
         total,
       },
     });
+
+    // Auto-issue the deposit invoice on approval (idempotent; no-op if no deposit)
+    return createDepositInvoice(tx, {
+      id: quote.id,
+      companyId: quote.companyId,
+      contactId: quote.contactId,
+      quoteNumber: quote.quoteNumber,
+      total,
+      depositType: quote.depositType,
+      depositValue: quote.depositValue == null ? null : Number(quote.depositValue),
+    });
   });
 
   // Approval issues any attached agreements set to "on approval"
   await autoSendQuoteAgreements(quote.id, "ON_APPROVAL");
+
+  // Email the client the deposit pay link when a deposit invoice was just created
+  if (deposit?.created && quote.contact.email) {
+    const baseUrl = process.env.NEXTAUTH_URL ?? "https://streamflaire.com";
+    const { subject, html } = invoiceLinkEmail({
+      companyName: quote.company.name,
+      invoiceNumber: deposit.invoice.invoiceNumber,
+      total: deposit.amount,
+      payUrl: `${baseUrl}/pay/${deposit.invoice.publicToken}`,
+      serviceNames: [`Deposit for Quote #${quote.quoteNumber}`],
+    });
+    await sendEmail({ to: quote.contact.email, subject, html, replyTo: quote.company.email || undefined });
+  }
 
   return NextResponse.json({ success: true });
 }

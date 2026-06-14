@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { verifyCaptcha } from "@/lib/captcha";
-import { sendEmail, newRequestEmail, invoiceLinkEmail } from "@/lib/email";
+import { sendEmail, newRequestEmail, quoteLinkEmail } from "@/lib/email";
 import { defaultLeadAssignee } from "@/lib/permissions";
 import { resolveWebForm } from "@/lib/web-forms";
 import { getActiveFieldDefs, sanitizeCustomFields } from "@/lib/contact-fields";
-import { ensureSubscriptionsForContact } from "@/lib/subscriptions";
+import { derivedQuoteDeposit } from "@/lib/statuses";
 
 // Generous backstop so one runaway account or bot can't flood a company
 const MAX_REQUESTS_PER_COMPANY_PER_DAY = 200;
@@ -13,8 +13,10 @@ const MAX_REQUESTS_PER_COMPANY_PER_DAY = 200;
 /**
  * Public web-form submission (inquiry / booking / service request).
  * Creates (or matches) a contact, files a Request, maps answers into client
- * custom fields, and — for service-request forms — auto-creates an invoice
- * (draft, or sent with a payment-link email).
+ * custom fields, and — for service-request forms — auto-creates a quote (draft,
+ * or sent to the client for online approval). Deposits derive from the picked
+ * preset services and are collected via a deposit invoice once the quote is
+ * approved (see lib/deposits.ts).
  */
 export async function POST(
   req: NextRequest,
@@ -181,39 +183,67 @@ export async function POST(
       });
     }
 
-    // Service-request forms auto-create the invoice
-    let invoice: { id: string; invoiceNumber: number; publicToken: string; total: number } | null = null;
+    // Service-request forms auto-create a quote (draft, or sent for approval).
+    // Recurring services start a subscription only on quote→job conversion.
+    let quote:
+      | { id: string; quoteNumber: number; publicToken: string; total: number; deposit: number }
+      | null = null;
     if (form.type === "SERVICE_REQUEST") {
-      // Pull recurring config for any picked services that map to the price book
+      // Pull price-book config (recurring, deposit, agreement) for picked services
       const pickedWorkItemIds = pickedServices
         .map((s) => s.workItemId)
         .filter((id): id is string => !!id);
-      const recurringById = new Map<string, "MONTHLY" | "QUARTERLY" | "SEMIANNUAL" | "ANNUAL">();
-      if (pickedWorkItemIds.length > 0) {
-        const wi = await tx.workItem.findMany({
-          where: { id: { in: pickedWorkItemIds }, companyId: company.id, recurringInterval: { not: null } },
-          select: { id: true, recurringInterval: true },
-        });
-        for (const w of wi) if (w.recurringInterval) recurringById.set(w.id, w.recurringInterval);
-      }
+      const wi =
+        pickedWorkItemIds.length > 0
+          ? await tx.workItem.findMany({
+              where: { id: { in: pickedWorkItemIds }, companyId: company.id },
+              select: {
+                id: true,
+                recurringInterval: true,
+                depositType: true,
+                depositValue: true,
+                requiresAgreement: true,
+              },
+            })
+          : [];
+      const wiById = new Map(wi.map((w) => [w.id, w] as const));
 
-      const lastInv = await tx.invoice.findFirst({
+      const subtotal = Math.round(pickedServices.reduce((s, p) => s + p.price, 0) * 100) / 100;
+      // Deposit = sum of each preset service's rule, falling back to the company
+      // default; custom (non-price-book) picks contribute nothing automatically.
+      const deposit = derivedQuoteDeposit(
+        pickedServices.map((s) => ({
+          total: s.price,
+          deposit: s.workItemId
+            ? {
+                depositType: wiById.get(s.workItemId)?.depositType ?? "NONE",
+                depositValue: wiById.get(s.workItemId)?.depositValue ?? null,
+              }
+            : null,
+        })),
+        subtotal,
+        { depositType: company.defaultDepositType, depositValue: company.defaultDepositValue }
+      );
+
+      const lastQuote = await tx.quote.findFirst({
         where: { companyId: company.id },
-        orderBy: { invoiceNumber: "desc" },
+        orderBy: { quoteNumber: "desc" },
       });
-      const subtotal = pickedServices.reduce((s, p) => s + p.price, 0);
-      const send = config.serviceRequest.invoiceMode === "send";
-      const created = await tx.invoice.create({
+      const send = config.serviceRequest.quoteMode === "send";
+      const created = await tx.quote.create({
         data: {
           companyId: company.id,
           contactId: contact.id,
-          invoiceNumber: (lastInv?.invoiceNumber ?? 0) + 1,
-          subject: form.name,
-          status: send ? "AWAITING_PAYMENT" : "DRAFT",
+          quoteNumber: (lastQuote?.quoteNumber ?? 0) + 1,
+          title: requestTitle,
+          status: send ? "AWAITING_RESPONSE" : "DRAFT",
           subtotal,
           total: subtotal,
-          issuedAt: send ? new Date() : null,
-          dueDate: send ? new Date(Date.now() + contact.paymentTermsDays * 86400000) : null,
+          depositType: deposit > 0 ? "FIXED" : "NONE",
+          depositValue: deposit > 0 ? deposit : null,
+          clientMessage:
+            typeof message === "string" && message.trim() ? message.trim().slice(0, 5000) : null,
+          sentAt: send ? new Date() : null,
           lineItems: {
             create: pickedServices.map((s, i) => ({
               name: s.name,
@@ -222,26 +252,20 @@ export async function POST(
               unitPrice: s.price,
               total: s.price,
               workItemId: s.workItemId ?? null,
-              recurringInterval: (s.workItemId && recurringById.get(s.workItemId)) || null,
+              recurringInterval: (s.workItemId && wiById.get(s.workItemId)?.recurringInterval) || null,
+              requiresAgreement: (s.workItemId && wiById.get(s.workItemId)?.requiresAgreement) || false,
               sortOrder: i,
             })),
           },
         },
       });
-      invoice = {
+      quote = {
         id: created.id,
-        invoiceNumber: created.invoiceNumber,
+        quoteNumber: created.quoteNumber,
         publicToken: created.publicToken,
         total: subtotal,
+        deposit,
       };
-
-      // Recurring picks start a subscription on the client
-      await ensureSubscriptionsForContact(
-        tx,
-        company.id,
-        contact.id,
-        pickedServices.map((s) => ({ workItemId: s.workItemId, quantity: 1 }))
-      );
     }
 
     const last = await tx.request.findFirst({
@@ -262,8 +286,8 @@ export async function POST(
           form.type === "SERVICE_REQUEST"
             ? `Services: ${pickedServices.map((s) => `${s.name} ($${s.price.toFixed(2)})`).join(", ")}`
             : null,
-          invoice
-            ? `Invoice #${invoice.invoiceNumber} created automatically (${config.serviceRequest.invoiceMode === "send" ? "sent" : "draft"}).`
+          quote
+            ? `Quote #${quote.quoteNumber} created automatically (${config.serviceRequest.quoteMode === "send" ? "sent for approval" : "draft"})${quote.deposit > 0 ? ` — deposit $${quote.deposit.toFixed(2)}` : ""}.`
             : null,
           preferred ? `Preferred date: ${preferredDate}` : null,
           address ? `Address: ${address}` : null,
@@ -275,7 +299,12 @@ export async function POST(
       },
     });
 
-    return { contact, request, invoice };
+    // Link the auto-created quote back to its request
+    if (quote) {
+      await tx.quote.update({ where: { id: quote.id }, data: { requestId: request.id } });
+    }
+
+    return { contact, request, quote };
   });
 
   // Notify the company inbox; reply goes straight to the customer
@@ -294,15 +323,19 @@ export async function POST(
     await sendEmail({ to: company.email, subject, html, replyTo: email || undefined });
   }
 
-  // Auto-send mode: the client gets the payment link
-  if (result.invoice && form.config.serviceRequest.invoiceMode === "send" && email) {
+  // Auto-send mode: the client gets the quote approval link
+  if (result.quote && form.config.serviceRequest.quoteMode === "send" && email) {
     const baseUrl = process.env.NEXTAUTH_URL ?? "https://streamflaire.com";
-    const { subject, html } = invoiceLinkEmail({
+    const { subject, html } = quoteLinkEmail({
       companyName: company.name,
-      invoiceNumber: result.invoice.invoiceNumber,
-      total: result.invoice.total,
-      payUrl: `${baseUrl}/pay/${result.invoice.publicToken}`,
+      quoteNumber: result.quote.quoteNumber,
+      total: result.quote.total,
+      viewUrl: `${baseUrl}/quote/${result.quote.publicToken}`,
       serviceNames: pickedServices.map((s) => s.name),
+      depositNote:
+        result.quote.deposit > 0
+          ? `A deposit of $${result.quote.deposit.toFixed(2)} will be due on approval.`
+          : undefined,
     });
     await sendEmail({ to: email, subject, html, replyTo: company.email || undefined });
   }

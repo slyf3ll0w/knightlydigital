@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, isManager } from "@/lib/permissions";
 import { sanitizeRecurringAndAgreement } from "@/lib/work-items";
+import { sanitizeDeposit } from "@/lib/deposits";
 
 export async function GET() {
   // Read access for anyone who builds quotes (price-book autocomplete)
@@ -45,6 +46,7 @@ export async function POST(req: NextRequest) {
       unitPrice: Number(unitPrice) || 0,
       unitCost: unitCost !== null && unitCost !== undefined && unitCost !== "" ? Number(unitCost) : null,
       ...recurring.data,
+      ...sanitizeDeposit(body),
     },
   });
 
