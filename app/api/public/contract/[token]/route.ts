@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { sendEmail, contractSignedCopyEmail } from "@/lib/email";
+import { isContractLinkExpired } from "@/lib/agreements";
 
 /**
  * POST — client signs a contract with a typed signature (same e-sign
@@ -24,6 +25,12 @@ export async function POST(
   }
   if (contract.status === "SIGNED") {
     return NextResponse.json({ error: "This contract has already been signed." }, { status: 400 });
+  }
+  if (isContractLinkExpired(contract)) {
+    return NextResponse.json(
+      { error: "This signing link has expired. Please ask for a new one to be sent." },
+      { status: 410 }
+    );
   }
 
   // Cloudflare sits in front — cf-connecting-ip is the real client

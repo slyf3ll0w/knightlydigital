@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle, Loader2, PenLine } from "lucide-react";
+import { CheckCircle, Clock, Loader2, PenLine } from "lucide-react";
 import { textOn } from "@/lib/branding";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 
@@ -14,6 +14,7 @@ export default function ContractSignPage({
   title,
   body,
   status,
+  expired,
   signatureName,
   signedAt,
   contactName,
@@ -25,6 +26,7 @@ export default function ContractSignPage({
   title: string;
   body: string;
   status: string;
+  expired: boolean;
   signatureName: string | null;
   signedAt: string | null;
   contactName: string;
@@ -104,6 +106,19 @@ export default function ContractSignPage({
                             minute: "2-digit",
                           })
                         : ""}
+                  </p>
+                </div>
+              </div>
+            ) : expired ? (
+              <div className="flex items-start gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-200">
+                  <Clock size={20} className="text-gray-500" />
+                </span>
+                <div>
+                  <p className="text-sm font-semibold text-gray-900">This signing link has expired</p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    For your security, agreement links are only valid for a limited time. Please
+                    contact {companyName} to have a new link sent to your email.
                   </p>
                 </div>
               </div>

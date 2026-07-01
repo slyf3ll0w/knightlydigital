@@ -25,9 +25,15 @@ export async function POST(req: NextRequest) {
 
   const contract = await prisma.contract.findFirst({
     where: { id: contractId, contactId: contact.id, status: "SENT" },
-    select: { title: true, publicToken: true },
+    select: { id: true, title: true, publicToken: true },
   });
   if (!contract) return NextResponse.json({ error: "Agreement not found." }, { status: 404 });
+
+  // Refresh the link's expiry window — resending renews an aged or expired link
+  await prisma.contract.update({
+    where: { id: contract.id },
+    data: { sentAt: new Date() },
+  });
 
   const baseUrl = process.env.NEXTAUTH_URL ?? "https://streamflaire.com";
   const { subject, html } = contractSignEmail({

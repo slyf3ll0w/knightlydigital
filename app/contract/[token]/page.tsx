@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { companyMeta } from "@/lib/client-meta";
+import { isContractLinkExpired } from "@/lib/agreements";
 import ContractSignPage from "./ContractSignPage";
 
 export async function generateMetadata({ params }: { params: Promise<{ token: string }> }) {
@@ -31,6 +32,7 @@ export default async function PublicContractPage({
       title={contract.title}
       body={contract.body}
       status={contract.status}
+      expired={isContractLinkExpired(contract)}
       signatureName={contract.signatureName}
       signedAt={contract.signedAt?.toISOString() ?? null}
       contactName={`${contract.contact.firstName} ${contract.contact.lastName}`.trim()}

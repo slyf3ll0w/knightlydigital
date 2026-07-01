@@ -14,6 +14,31 @@ import { prisma } from "@/lib/db";
 import { sendEmail, contractSignEmail } from "@/lib/email";
 
 /**
+ * How long a contract signing link stays valid after it's sent. Links are
+ * unguessable tokens, but expiring them limits the window in which a stale or
+ * forwarded link can be used. Resending from the hub refreshes the clock by
+ * bumping `sentAt`.
+ */
+export const CONTRACT_LINK_TTL_DAYS = 30;
+
+/**
+ * True when an unsigned contract's signing link has passed its TTL. Already
+ * SIGNED contracts never expire — the signer keeps a permanent record. Window
+ * is measured from `sentAt`, falling back to `createdAt` for links that predate
+ * a send timestamp.
+ */
+export function isContractLinkExpired(contract: {
+  status: string;
+  sentAt: Date | null;
+  createdAt: Date;
+}): boolean {
+  if (contract.status === "SIGNED") return false;
+  const start = contract.sentAt ?? contract.createdAt;
+  const expiresAt = start.getTime() + CONTRACT_LINK_TTL_DAYS * 24 * 60 * 60 * 1000;
+  return Date.now() > expiresAt;
+}
+
+/**
  * Create + send any attached agreements for a quote whose timing matches.
  * Idempotent: skips a template that already has a contract on this quote.
  * Best-effort — never throws into the caller's request path.
