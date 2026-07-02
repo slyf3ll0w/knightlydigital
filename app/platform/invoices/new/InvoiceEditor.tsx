@@ -15,6 +15,28 @@ type LineItem = {
   unitPrice: string;
   workItemId?: string;
   recurringInterval?: string | null;
+  serviceDate?: string | null; // preserved through edits, not editable here
+};
+// Present when editing an existing invoice — switches submit to PATCH
+type EditInvoice = {
+  id: string;
+  subject: string;
+  notes: string;
+  taxRatePercent: string; // "8.25", not 0.0825
+  discountType: "NONE" | "PERCENT" | "FIXED";
+  discountValue: string;
+  dueDate: string; // yyyy-mm-dd or ""
+  depositApplied: number;
+  contactName: string;
+  lineItems: {
+    name: string;
+    description: string;
+    quantity: number;
+    unitPrice: number;
+    workItemId?: string | null;
+    recurringInterval?: string | null;
+    serviceDate?: string | null;
+  }[];
 };
 type PrefillJob = {
   id: string;
@@ -34,11 +56,13 @@ export default function InvoiceEditor({
   workItems = [],
   prefillJob,
   prefilledContactId = "",
+  editInvoice = null,
 }: {
   contacts: Contact[];
   workItems?: PickerWorkItem[];
   prefillJob: PrefillJob | null;
   prefilledContactId?: string;
+  editInvoice?: EditInvoice | null;
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -51,32 +75,48 @@ export default function InvoiceEditor({
       : prefillJob?.quote?.lineItems?.length
         ? prefillJob.quote.lineItems
         : null;
-  const initLines: LineItem[] = sourceLines?.map((li) => ({
-    name: li.name ?? "",
-    description: li.description ?? "",
-    quantity: String(li.quantity),
-    unitPrice: String(li.unitPrice),
-  })) ?? [{ name: "", description: "", quantity: "1", unitPrice: "" }];
+  const initLines: LineItem[] = editInvoice
+    ? editInvoice.lineItems.map((li) => ({
+        name: li.name ?? "",
+        description: li.description ?? "",
+        quantity: String(li.quantity),
+        unitPrice: String(li.unitPrice),
+        workItemId: li.workItemId ?? undefined,
+        recurringInterval: li.recurringInterval ?? null,
+        serviceDate: li.serviceDate ?? null,
+      }))
+    : sourceLines?.map((li) => ({
+        name: li.name ?? "",
+        description: li.description ?? "",
+        quantity: String(li.quantity),
+        unitPrice: String(li.unitPrice),
+      })) ?? [{ name: "", description: "", quantity: "1", unitPrice: "" }];
 
   const [contactId, setContactId] = useState(prefillJob?.contactId ?? prefilledContactId);
   const [jobId] = useState(prefillJob?.id ?? "");
-  const [subject, setSubject] = useState(prefillJob?.title ?? "");
-  const [notes, setNotes] = useState("");
-  const [taxRate, setTaxRate] = useState("");
+  const [subject, setSubject] = useState(editInvoice?.subject ?? prefillJob?.title ?? "");
+  const [notes, setNotes] = useState(editInvoice?.notes ?? "");
+  const [taxRate, setTaxRate] = useState(editInvoice?.taxRatePercent ?? "");
   // Quote discounts carry over when invoicing a quoted job
   const quoteDiscount = prefillJob?.quote;
   const [discountType, setDiscountType] = useState<"NONE" | "PERCENT" | "FIXED">(
-    quoteDiscount?.discountType === "PERCENT" || quoteDiscount?.discountType === "FIXED"
-      ? quoteDiscount.discountType
-      : "NONE"
+    editInvoice
+      ? editInvoice.discountType
+      : quoteDiscount?.discountType === "PERCENT" || quoteDiscount?.discountType === "FIXED"
+        ? quoteDiscount.discountType
+        : "NONE"
   );
   const [discountValue, setDiscountValue] = useState(
-    quoteDiscount?.discountValue != null && quoteDiscount.discountValue > 0
-      ? String(Number(quoteDiscount.discountValue))
-      : ""
+    editInvoice
+      ? editInvoice.discountValue
+      : quoteDiscount?.discountValue != null && quoteDiscount.discountValue > 0
+        ? String(Number(quoteDiscount.discountValue))
+        : ""
   );
-  const [dueDate, setDueDate] = useState("");
+  const [dueDate, setDueDate] = useState(editInvoice?.dueDate ?? "");
   const [lineItems, setLineItems] = useState<LineItem[]>(initLines);
+  const depositApplied = editInvoice?.depositApplied ?? 0;
+  const backHref = editInvoice ? `/app/invoices/${editInvoice.id}` : "/app/invoices";
 
   function addLine() {
     setLineItems((l) => [...l, { name: "", description: "", quantity: "1", unitPrice: "" }]);
@@ -116,16 +156,15 @@ export default function InvoiceEditor({
         ? Math.min(Math.max(discountNum, 0), subtotal)
         : 0;
   const tax = taxRate ? (subtotal - discount) * (parseFloat(taxRate) / 100) : 0;
-  const total = subtotal - discount + tax;
+  const grossTotal = subtotal - discount + tax;
+  const total = Math.max(0, grossTotal - Math.min(depositApplied, grossTotal));
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!contactId) { setError("Please select a customer."); return; }
+    if (!editInvoice && !contactId) { setError("Please select a customer."); return; }
     setError(""); setLoading(true);
 
-    const { ok, data } = await postJson<{ id: string }>("/api/app/invoices", {
-      contactId,
-      jobId: jobId || null,
+    const payload = {
       subject: subject || null,
       notes,
       taxRate: taxRate ? parseFloat(taxRate) / 100 : null,
@@ -139,8 +178,24 @@ export default function InvoiceEditor({
         unitPrice: parseFloat(li.unitPrice) || 0,
         workItemId: li.workItemId || null,
         recurringInterval: li.recurringInterval ?? null,
+        serviceDate: li.serviceDate ?? undefined,
         sortOrder: i,
       })),
+    };
+
+    if (editInvoice) {
+      const { ok, data } = await postJson(`/api/app/invoices/${editInvoice.id}`, payload, "PATCH");
+      setLoading(false);
+      if (!ok) { setError(data?.error ?? GENERIC_ERROR); return; }
+      router.push(`/app/invoices/${editInvoice.id}`);
+      router.refresh();
+      return;
+    }
+
+    const { ok, data } = await postJson<{ id: string }>("/api/app/invoices", {
+      contactId,
+      jobId: jobId || null,
+      ...payload,
     });
 
     setLoading(false);
@@ -151,10 +206,12 @@ export default function InvoiceEditor({
   return (
     <div className="p-4 lg:p-8 max-w-3xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
-        <Link href="/app/invoices" className="text-gray-400 hover:text-gray-600">
+        <Link href={backHref} className="text-gray-400 hover:text-gray-600">
           <ArrowLeft size={18} />
         </Link>
-        <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">New Invoice</h1>
+        <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">
+          {editInvoice ? "Edit Invoice" : "New Invoice"}
+        </h1>
       </div>
 
       {prefillJob && (
@@ -184,17 +241,23 @@ export default function InvoiceEditor({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Customer *</label>
-              <select
-                value={contactId}
-                onChange={(e) => setContactId(e.target.value)}
-                required
-                className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-              >
-                <option value="">Select...</option>
-                {contacts.map((c) => (
-                  <option key={c.id} value={c.id}>{c.firstName} {c.lastName}</option>
-                ))}
-              </select>
+              {editInvoice ? (
+                <p className="px-3 py-2.5 border border-gray-200 bg-gray-50 rounded text-sm text-gray-700">
+                  {editInvoice.contactName || "—"}
+                </p>
+              ) : (
+                <select
+                  value={contactId}
+                  onChange={(e) => setContactId(e.target.value)}
+                  required
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                >
+                  <option value="">Select...</option>
+                  {contacts.map((c) => (
+                    <option key={c.id} value={c.id}>{c.firstName} {c.lastName}</option>
+                  ))}
+                </select>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Due date</label>
@@ -316,6 +379,14 @@ export default function InvoiceEditor({
                     <span className="font-medium">${tax.toFixed(2)}</span>
                   </div>
                 )}
+                {depositApplied > 0 && (
+                  <div className="flex justify-between gap-8 text-green-700">
+                    <span>Deposit applied</span>
+                    <span className="font-medium">
+                      -${Math.min(depositApplied, grossTotal).toFixed(2)}
+                    </span>
+                  </div>
+                )}
                 <div className="flex justify-between gap-8 font-bold text-base border-t border-gray-200 pt-1">
                   <span>Total</span>
                   <span>${total.toFixed(2)}</span>
@@ -336,9 +407,9 @@ export default function InvoiceEditor({
           <button type="submit" disabled={loading}
             className="flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors disabled:opacity-50">
             {loading && <Loader2 size={14} className="animate-spin" />}
-            Save Invoice
+            {editInvoice ? "Save Changes" : "Save Invoice"}
           </button>
-          <Link href="/app/invoices"
+          <Link href={backHref}
             className="px-5 py-2.5 border border-gray-300 text-sm font-medium text-gray-600 rounded hover:bg-gray-50">
             Cancel
           </Link>

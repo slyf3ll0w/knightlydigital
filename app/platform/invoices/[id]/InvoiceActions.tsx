@@ -9,6 +9,7 @@ import {
   Copy,
   MoreHorizontal,
   Eye,
+  Pencil,
   RotateCcw,
   Trash2,
   AlertTriangle,
@@ -139,6 +140,15 @@ export default function InvoiceActions({
         </button>
         {open && (
           <div className="absolute right-0 top-full mt-1 z-30 w-56 bg-white rounded-lg shadow-xl border border-gray-200 py-1.5">
+            {status !== "PAID" && (
+              <button
+                onClick={() => router.push(`/app/invoices/${invoiceId}/edit`)}
+                className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
+              >
+                <Pencil size={14} className="text-gray-400" />
+                Edit Invoice
+              </button>
+            )}
             <a
               href={publicUrl}
               target="_blank"

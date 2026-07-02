@@ -40,7 +40,7 @@ Audit verified against code (paths cited inline). Companion research: `docs/plan
 - Archive/Reactivate actions (sets ContactStatus.ARCHIVED; default list hides archived; filter now real; delete keeps guard).
 - Contact actions overflow menu (Edit / Archive / Delete); ContactNote edit+delete.
 
-**Batch 2 — Money integrity**
+**Batch 2 — Money integrity [SHIPPED 2026-07-02]**
 - Invoice PATCH + edit page (line items, due date, discount, subject, notes). Rules: DRAFT/AWAITING_PAYMENT/PAST_DUE editable; PAID locked behind reopen; cannot reduce total below amount already paid (guard); recompute status after edit.
 - `payments/[id]` PATCH/DELETE (amount, method, transaction date, reference; manager delete w/ confirm; invoice status recomputes). 
 - Quote status-transition guard (no APPROVED→DRAFT via status PATCH).

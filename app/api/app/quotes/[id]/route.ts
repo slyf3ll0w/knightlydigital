@@ -33,6 +33,24 @@ export async function PATCH(
     return NextResponse.json({ error: "Invalid status." }, { status: 400 });
   }
 
+  // Transition guard: client sign-off can't be quietly rewound. Approved
+  // quotes only move to ARCHIVED (or CONVERTED via the convert route);
+  // converted quotes never change status here.
+  if (body.status && body.status !== quote.status) {
+    if (quote.status === "CONVERTED") {
+      return NextResponse.json(
+        { error: "This quote was converted to a job — its status is locked." },
+        { status: 400 }
+      );
+    }
+    if (quote.status === "APPROVED" && body.status !== "ARCHIVED") {
+      return NextResponse.json(
+        { error: "The client approved this quote — it can only be archived, not reverted." },
+        { status: 400 }
+      );
+    }
+  }
+
   // Full edit (line items present): drafts and sent quotes only. Once the
   // client responds — requested changes or approved — the document they saw
   // is locked; issue a new quote instead.

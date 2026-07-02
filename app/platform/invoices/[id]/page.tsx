@@ -3,9 +3,10 @@ import { prisma } from "@/lib/db";
 import { requirePageActor, canSeeMoney, viaContactScope, isManager } from "@/lib/permissions";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight } from "lucide-react";
-import { paymentMethodLabel, money, shortDate } from "@/lib/statuses";
+import { money, shortDate } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
 import InvoiceActions from "./InvoiceActions";
+import PaymentRow from "./PaymentRow";
 
 export default async function InvoiceDetailPage({
   params,
@@ -240,17 +241,19 @@ export default async function InvoiceDetailPage({
         ) : (
           <div className="divide-y divide-gray-50">
             {invoice.payments.map((p) => (
-              <div key={p.id} className="flex items-center gap-4 px-5 py-3 text-sm">
-                <div className="flex-1">
-                  <p className="font-medium text-gray-900">{paymentMethodLabel[p.method]}</p>
-                  <p className="text-xs text-gray-500">
-                    {shortDate(p.paidAt)}
-                    {p.referenceNumber && ` · Ref: ${p.referenceNumber}`}
-                    {p.details && ` · ${p.details}`}
-                  </p>
-                </div>
-                <span className="font-semibold text-gray-900">{money(p.amount)}</span>
-              </div>
+              <PaymentRow
+                key={p.id}
+                payment={{
+                  id: p.id,
+                  amount: Number(p.amount),
+                  method: p.method,
+                  paidAtDate: p.paidAt.toISOString().slice(0, 10),
+                  paidAtLabel: shortDate(p.paidAt),
+                  referenceNumber: p.referenceNumber ?? "",
+                  details: p.details ?? "",
+                }}
+                canDelete={isManager(actor.role)}
+              />
             ))}
           </div>
         )}
