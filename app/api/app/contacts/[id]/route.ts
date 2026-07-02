@@ -198,8 +198,12 @@ export async function DELETE(
       // were recorded without a contact link
       await tx.payment.deleteMany({ where: { invoice: { contactId: id, companyId } } });
       await tx.invoice.deleteMany({ where: { contactId: id, companyId } });
+      // contracts reference quotes (agreement gate), so they go before quotes
+      await tx.contract.deleteMany({ where: { contactId: id, companyId } });
       await tx.quote.deleteMany({ where: { contactId: id, companyId } });
       await tx.job.deleteMany({ where: { contactId: id, companyId } });
+      // jobs/invoices reference subscriptions, so those went first
+      await tx.subscription.deleteMany({ where: { contactId: id, companyId } });
       await tx.appointment.deleteMany({ where: { contactId: id, companyId } });
       await tx.request.deleteMany({ where: { contactId: id, companyId } });
       await tx.bookingRequest.deleteMany({ where: { contactId: id, companyId } });
