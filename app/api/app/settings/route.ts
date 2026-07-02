@@ -4,6 +4,16 @@ import { sanitizeBookingForm } from "@/lib/booking-form";
 import { sanitizeDeposit } from "@/lib/deposits";
 import { getActor, isManager } from "@/lib/permissions";
 
+function isValidTimezone(tz: unknown): tz is string {
+  if (typeof tz !== "string" || !tz) return false;
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: tz });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function PATCH(req: NextRequest) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -42,6 +52,7 @@ export async function PATCH(req: NextRequest) {
           return { defaultDepositType: d.depositType, defaultDepositValue: d.depositValue };
         })()),
       reviewLink: body.reviewLink || null,
+      timezone: isValidTimezone(body.timezone) ? body.timezone : undefined,
       bookingForm: body.bookingForm !== undefined ? sanitizeBookingForm(body.bookingForm) : undefined,
     },
   });

@@ -24,11 +24,16 @@ export default async function InvoiceDetailPage({
       contact: true,
       lineItems: { orderBy: { sortOrder: "asc" } },
       payments: { orderBy: { paidAt: "desc" } },
-      job: true,
+      job: { include: { quote: { select: { id: true, quoteNumber: true } } } },
+      // Deposit invoices link straight to the quote they collect against
+      quote: { select: { id: true, quoteNumber: true } },
     },
   });
 
   if (!invoice) notFound();
+
+  // Originating quote: direct link (deposit invoices) or via the converted job
+  const sourceQuote = invoice.quote ?? invoice.job?.quote ?? null;
 
   const baseUrl = process.env.NEXTAUTH_URL ?? "";
   const publicUrl = `${baseUrl}/pay/${invoice.publicToken}`;
@@ -96,6 +101,14 @@ export default async function InvoiceDetailPage({
             <span className="text-xs uppercase font-semibold text-gray-400 block">Invoice for</span>
             <Link href={`/app/jobs/${invoice.job.id}`} className="text-green-700 hover:underline">
               Job #{invoice.job.jobNumber}
+            </Link>
+          </div>
+        )}
+        {sourceQuote && (
+          <div>
+            <span className="text-xs uppercase font-semibold text-gray-400 block">From quote</span>
+            <Link href={`/app/quotes/${sourceQuote.id}`} className="text-green-700 hover:underline">
+              Quote #{sourceQuote.quoteNumber}
             </Link>
           </div>
         )}

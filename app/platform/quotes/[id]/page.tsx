@@ -6,6 +6,7 @@ import { ArrowLeft } from "lucide-react";
 import { money, shortDate, quoteDepositAmount } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
 import QuoteActions from "./QuoteActions";
+import CollectDepositNudge from "./CollectDepositNudge";
 
 export default async function QuoteDetailPage({
   params,
@@ -90,6 +91,13 @@ export default async function QuoteDetailPage({
           depositInvoiced={!!depositInvoice}
         />
       </div>
+
+      {/* Approved with an uncollected deposit → make collecting it the obvious next step */}
+      {deposit > 0 &&
+        !depositInvoice &&
+        (quote.status === "APPROVED" || quote.status === "CONVERTED") && (
+          <CollectDepositNudge quoteId={quote.id} amount={deposit} />
+        )}
 
       {/* Header facts (Jobber-style definition list with backlinks) */}
       <div className="flex flex-wrap gap-x-8 gap-y-2 px-5 py-4 card-ledger mb-6 text-sm">

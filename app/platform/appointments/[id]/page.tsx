@@ -22,7 +22,17 @@ export default async function AppointmentDetailPage({
       where: { id, companyId: actor.companyId, ...appointmentScope(actor) },
       include: {
         contact: true,
-        request: { select: { id: true, title: true } },
+        request: {
+          select: {
+            id: true,
+            title: true,
+            // Quotes produced from this request — the appointment's outcome
+            quotes: {
+              select: { id: true, quoteNumber: true, status: true },
+              orderBy: { createdAt: "desc" },
+            },
+          },
+        },
         assignedTo: { select: { name: true } },
       },
     }),
@@ -138,6 +148,26 @@ export default async function AppointmentDetailPage({
             <Link href={`/app/requests/${appt.request.id}`} className="text-green-700 hover:underline">
               {appt.request.title}
             </Link>
+            {appt.request.quotes.length > 0 && (
+              <div className="mt-2">
+                <span className="text-xs uppercase font-semibold text-gray-400 block mb-0.5">
+                  Quoted as
+                </span>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                  {appt.request.quotes.map((q) => (
+                    <span key={q.id} className="flex items-center gap-1.5">
+                      <Link
+                        href={`/app/quotes/${q.id}`}
+                        className="text-green-700 hover:underline"
+                      >
+                        Quote #{q.quoteNumber}
+                      </Link>
+                      <StatusChip kind="quote" status={q.status} />
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

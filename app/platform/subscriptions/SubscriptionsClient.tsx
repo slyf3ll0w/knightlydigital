@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Repeat, Loader2, Play, Pause, X, RotateCw } from "lucide-react";
+import { Check, Repeat, Loader2, Pencil, Play, Pause, X, RotateCw } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 
 type Sub = {
@@ -44,6 +44,57 @@ export default function SubscriptionsClient({
   const [runningAll, setRunningAll] = useState(false);
   const [error, setError] = useState("");
   const [flash, setFlash] = useState("");
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({
+    name: "",
+    unitPrice: "",
+    quantity: "",
+    interval: "MONTHLY" as Sub["interval"],
+    nextRunDate: "",
+  });
+
+  function openEdit(s: Sub) {
+    setEditForm({
+      name: s.name,
+      unitPrice: String(Number(s.unitPrice)),
+      quantity: String(Number(s.quantity)),
+      interval: s.interval,
+      nextRunDate: s.nextRunDate.slice(0, 10),
+    });
+    setError("");
+    setEditId(s.id);
+  }
+
+  async function saveEdit(id: string) {
+    if (!editForm.name.trim()) {
+      setError("The subscription needs a name.");
+      return;
+    }
+    const data = await patch(id, {
+      name: editForm.name,
+      unitPrice: parseFloat(editForm.unitPrice) || 0,
+      quantity: parseFloat(editForm.quantity) || 1,
+      interval: editForm.interval,
+      nextRunDate: editForm.nextRunDate,
+    });
+    if (data) {
+      setSubs((list) =>
+        list.map((s) =>
+          s.id === id
+            ? {
+                ...s,
+                name: editForm.name.trim(),
+                unitPrice: parseFloat(editForm.unitPrice) || 0,
+                quantity: parseFloat(editForm.quantity) || 1,
+                interval: editForm.interval,
+                nextRunDate: `${editForm.nextRunDate}T12:00:00`,
+              }
+            : s
+        )
+      );
+      setEditId(null);
+    }
+  }
 
   async function patch(id: string, body: Record<string, unknown>) {
     setBusyId(id);
@@ -129,7 +180,95 @@ export default function SubscriptionsClient({
         <div className="space-y-6">
           <div className="card-ledger overflow-hidden">
             <div className="divide-y divide-gray-100">
-              {active.map((s) => (
+              {active.map((s) =>
+                editId === s.id ? (
+                  <div key={s.id} className="px-5 py-4 bg-gray-50/70 space-y-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                      <div className="col-span-2 sm:col-span-2">
+                        <label className="block text-xs text-gray-500 mb-0.5">Name</label>
+                        <input
+                          type="text"
+                          value={editForm.name}
+                          onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
+                          className="w-full px-2.5 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-0.5">Unit price</label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={editForm.unitPrice}
+                          onChange={(e) => setEditForm((f) => ({ ...f, unitPrice: e.target.value }))}
+                          className="w-full px-2.5 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-0.5">Qty</label>
+                        <input
+                          type="number"
+                          min="0.001"
+                          step="0.001"
+                          value={editForm.quantity}
+                          onChange={(e) => setEditForm((f) => ({ ...f, quantity: e.target.value }))}
+                          className="w-full px-2.5 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-0.5">Interval</label>
+                        <select
+                          value={editForm.interval}
+                          onChange={(e) =>
+                            setEditForm((f) => ({ ...f, interval: e.target.value as Sub["interval"] }))
+                          }
+                          className="w-full px-2.5 py-1.5 border border-gray-300 rounded text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                        >
+                          {(Object.keys(INTERVAL_LABEL) as Sub["interval"][]).map((iv) => (
+                            <option key={iv} value={iv}>
+                              {INTERVAL_LABEL[iv]}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-0.5">Next billing</label>
+                        <input
+                          type="date"
+                          value={editForm.nextRunDate}
+                          onChange={(e) => setEditForm((f) => ({ ...f, nextRunDate: e.target.value }))}
+                          className="w-full px-2.5 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                        />
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-400">
+                      Changes apply from the next billing run — invoices already generated keep their
+                      amounts.
+                    </p>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => saveEdit(s.id)}
+                        disabled={busyId === s.id}
+                        className="flex items-center gap-1 px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-semibold rounded transition-colors disabled:opacity-40"
+                      >
+                        {busyId === s.id ? (
+                          <Loader2 size={11} className="animate-spin" />
+                        ) : (
+                          <Check size={11} />
+                        )}
+                        Save
+                      </button>
+                      <button
+                        onClick={() => setEditId(null)}
+                        disabled={busyId === s.id}
+                        className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-gray-500 hover:bg-gray-100 rounded"
+                      >
+                        <X size={11} />
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
                 <div key={s.id} className="px-5 py-4 flex flex-wrap items-center gap-x-4 gap-y-2">
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-gray-900 flex items-center gap-2">
@@ -153,6 +292,14 @@ export default function SubscriptionsClient({
                   </div>
                   {canManage && (
                     <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => openEdit(s)}
+                        disabled={busyId === s.id}
+                        className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                        title="Edit subscription"
+                      >
+                        <Pencil size={14} />
+                      </button>
                       <button
                         onClick={() => billNow(s.id)}
                         disabled={busyId === s.id || s.status !== "ACTIVE"}
@@ -193,7 +340,8 @@ export default function SubscriptionsClient({
                     </div>
                   )}
                 </div>
-              ))}
+                )
+              )}
             </div>
           </div>
 

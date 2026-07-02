@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Download, Loader2, Plus, Trash2, X } from "lucide-react";
+import { ArrowLeft, Check, Download, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
 import { money } from "@/lib/statuses";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 
@@ -32,6 +32,46 @@ export default function ExpensesClient({ expenses }: { expenses: Expense[] }) {
   const [error, setError] = useState("");
   const [exportFrom, setExportFrom] = useState("");
   const [exportTo, setExportTo] = useState("");
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({
+    description: "",
+    category: "",
+    amount: "",
+    incurredAt: "",
+  });
+
+  function openEdit(e: Expense) {
+    setEditForm({
+      description: e.description,
+      category: e.category ?? "",
+      amount: String(e.amount),
+      incurredAt: e.incurredAt,
+    });
+    setError("");
+    setEditId(e.id);
+  }
+
+  async function saveEdit(id: string) {
+    setBusy(true);
+    setError("");
+    const { ok, data } = await postJson(
+      `/api/app/expenses/${id}`,
+      {
+        description: editForm.description,
+        category: editForm.category,
+        amount: parseFloat(editForm.amount),
+        incurredAt: editForm.incurredAt,
+      },
+      "PATCH"
+    );
+    setBusy(false);
+    if (!ok) {
+      setError((data as { error?: string })?.error ?? GENERIC_ERROR);
+      return;
+    }
+    setEditId(null);
+    router.refresh();
+  }
 
   const total30 = expenses
     .filter((e) => new Date(e.incurredAt) >= new Date(Date.now() - 30 * 86400000))
@@ -189,8 +229,68 @@ export default function ExpensesClient({ expenses }: { expenses: Expense[] }) {
             Insights.
           </p>
         ) : (
-          expenses.map((e) => (
-            <div key={e.id} className="flex items-center gap-3 px-4 py-2.5">
+          expenses.map((e) =>
+            editId === e.id ? (
+              <div key={e.id} className="px-4 py-3 bg-gray-50/70 space-y-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-0.5">Description</label>
+                    <input
+                      value={editForm.description}
+                      onChange={(ev) => setEditForm((f) => ({ ...f, description: ev.target.value }))}
+                      className={`${inputCls} w-full`}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-0.5">Category</label>
+                    <input
+                      value={editForm.category}
+                      onChange={(ev) => setEditForm((f) => ({ ...f, category: ev.target.value }))}
+                      className={`${inputCls} w-full`}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-0.5">Amount</label>
+                    <input
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      value={editForm.amount}
+                      onChange={(ev) => setEditForm((f) => ({ ...f, amount: ev.target.value }))}
+                      className={`${inputCls} w-full`}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-0.5">Date</label>
+                    <input
+                      type="date"
+                      value={editForm.incurredAt}
+                      onChange={(ev) => setEditForm((f) => ({ ...f, incurredAt: ev.target.value }))}
+                      className={`${inputCls} w-full`}
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => saveEdit(e.id)}
+                    disabled={busy || !editForm.description.trim() || !editForm.amount || !editForm.incurredAt}
+                    className="flex items-center gap-1 px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-semibold rounded disabled:opacity-40"
+                  >
+                    {busy ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />}
+                    Save
+                  </button>
+                  <button
+                    onClick={() => setEditId(null)}
+                    disabled={busy}
+                    className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-gray-500 hover:bg-gray-100 rounded"
+                  >
+                    <X size={11} />
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+            <div key={e.id} className="flex items-center gap-3 px-4 py-2.5 group">
               <span className="w-24 shrink-0 text-sm text-gray-500">
                 {new Date(`${e.incurredAt}T12:00:00`).toLocaleDateString("en-US", {
                   month: "short",
@@ -203,16 +303,27 @@ export default function ExpensesClient({ expenses }: { expenses: Expense[] }) {
                 {e.category && <p className="text-xs text-gray-500">{e.category}</p>}
               </div>
               <span className="text-sm font-semibold text-gray-900">{money(e.amount)}</span>
-              <button
-                onClick={() => remove(e.id)}
-                disabled={busy}
-                className="p-1.5 text-gray-300 hover:text-red-600 rounded"
-                title="Delete expense"
-              >
-                <Trash2 size={13} />
-              </button>
+              <span className="flex items-center gap-0.5">
+                <button
+                  onClick={() => openEdit(e)}
+                  disabled={busy}
+                  className="p-1.5 text-gray-300 hover:text-gray-600 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                  title="Edit expense"
+                >
+                  <Pencil size={13} />
+                </button>
+                <button
+                  onClick={() => remove(e.id)}
+                  disabled={busy}
+                  className="p-1.5 text-gray-300 hover:text-red-600 rounded"
+                  title="Delete expense"
+                >
+                  <Trash2 size={13} />
+                </button>
+              </span>
             </div>
-          ))
+            )
+          )
         )}
       </div>
     </div>

@@ -17,7 +17,18 @@ type Company = {
   defaultDepositType: "NONE" | "PERCENT" | "FIXED" | "FULL";
   defaultDepositValue: string | number | null;
   reviewLink: string | null; industry: string | null;
+  timezone: string;
 };
+
+const TIMEZONES = [
+  { value: "America/New_York", label: "Eastern (New York)" },
+  { value: "America/Chicago", label: "Central (Chicago)" },
+  { value: "America/Denver", label: "Mountain (Denver)" },
+  { value: "America/Phoenix", label: "Arizona (Phoenix, no DST)" },
+  { value: "America/Los_Angeles", label: "Pacific (Los Angeles)" },
+  { value: "America/Anchorage", label: "Alaska (Anchorage)" },
+  { value: "Pacific/Honolulu", label: "Hawaii (Honolulu)" },
+];
 
 function PortalLinkCard({ slug }: { slug: string }) {
   const [copied, setCopied] = useState(false);
@@ -73,6 +84,7 @@ export default function SettingsClient({ company }: { company: Company }) {
     defaultDepositType: company.defaultDepositType ?? "NONE",
     defaultDepositValue: company.defaultDepositValue != null ? String(Number(company.defaultDepositValue)) : "",
     reviewLink: company.reviewLink ?? "",
+    timezone: company.timezone ?? "America/Chicago",
   });
 
   function set(field: string, value: string | boolean) {
@@ -269,6 +281,21 @@ export default function SettingsClient({ company }: { company: Company }) {
             </select>
             <p className="text-xs text-gray-400 mt-1">
               Changing this doesn&apos;t touch your price book — edit that in Products &amp; Services.
+            </p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Timezone</label>
+            <select value={form.timezone} onChange={(e) => set("timezone", e.target.value)}
+              className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white">
+              {!TIMEZONES.some((tz) => tz.value === form.timezone) && (
+                <option value={form.timezone}>{form.timezone}</option>
+              )}
+              {TIMEZONES.map((tz) => (
+                <option key={tz.value} value={tz.value}>{tz.label}</option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-400 mt-1">
+              Used for scheduling and recurring billing dates.
             </p>
           </div>
         </div>

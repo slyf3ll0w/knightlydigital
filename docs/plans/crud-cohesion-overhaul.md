@@ -45,10 +45,10 @@ Audit verified against code (paths cited inline). Companion research: `docs/plan
 - `payments/[id]` PATCH/DELETE (amount, method, transaction date, reference; manager delete w/ confirm; invoice status recomputes). 
 - Quote status-transition guard (no APPROVED→DRAFT via status PATCH).
 
-**Batch 3 — Ops entities (APIs mostly exist, build the UI)**
-- Job: edit title/description/address (+ line-item editor with new API support, quote-editor pattern).
-- Appointment: full edit dialog (type, assignee, title, address, meetingLink, notes).
-- Request: edit title/details. Contract: edit title/body while unsigned.
+**Batch 3 — Ops entities (APIs mostly exist, build the UI) [SHIPPED 2026-07-02]**
+- Job: edit title/description/address/leadSource (+ line-item editor with new API support, quote-editor pattern). New `/app/jobs/[id]/edit`; archived jobs locked (reopen first); empty line-item list valid.
+- Appointment: full edit dialog (type, assignee for managers, title, address, meetingLink, notes) via ⋯ → Edit Details.
+- Request: edit title/details (modal via ⋯ → Edit Request; API now rejects empty titles). Contract: edit title/body while unsigned (pencil button, modal).
 
 **Batch 4 — Long tail + cohesion polish**
 - Subscription PATCH (price/interval/name/nextRunDate; effective next run) + UI.
