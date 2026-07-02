@@ -1,23 +1,32 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Loader2, Trash2, X } from "lucide-react";
+import Link from "next/link";
+import {
+  AlertTriangle, Archive, ArchiveRestore, Loader2, MoreHorizontal, Pencil, Trash2, X,
+} from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 
 /**
- * Permanently delete a client. No work attached → quick confirm (spam
- * cleanup). Has work → danger modal that lists exactly what gets destroyed
- * and requires typing the client's name (force delete for test clients and
- * no-longer-relevant records).
+ * The client page's ⋯ menu: Edit / Archive ⇄ Reactivate / Delete.
+ *
+ * Archive is the safe way off the books — the client disappears from the
+ * default list but every quote, job, and invoice stays. Delete stays for
+ * spam cleanup (quick confirm) and test-data wipes (type-the-name danger
+ * modal, managers only).
  */
-export default function DeleteContactButton({
+export default function ContactActionsMenu({
   contactId,
   contactName,
+  status,
+  canDelete,
   counts,
 }: {
   contactId: string;
   contactName: string;
+  status: string;
+  canDelete: boolean;
   counts: {
     requests: number;
     appointments: number;
@@ -29,10 +38,21 @@ export default function DeleteContactButton({
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [confirmText, setConfirmText] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const ref = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    function onClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, []);
+
+  const archived = status === "ARCHIVED";
   const hasWork =
     counts.quotes > 0 || counts.jobs > 0 || counts.invoices > 0 || counts.payments > 0 ||
     counts.appointments > 0;
@@ -51,6 +71,24 @@ export default function DeleteContactButton({
   const norm = (s: string) => s.replace(/\s+/g, " ").trim().toLowerCase();
   const nameMatches = norm(confirmText) === norm(contactName);
 
+  async function setStatus(next: "ACTIVE" | "ARCHIVED") {
+    setOpen(false);
+    if (
+      next === "ARCHIVED" &&
+      !confirm("Archive this client? They'll be hidden from your client list, but all their quotes, jobs, and invoices stay.")
+    ) {
+      return;
+    }
+    setBusy(true);
+    const { ok, data } = await postJson(`/api/app/contacts/${contactId}`, { status: next }, "PATCH");
+    setBusy(false);
+    if (!ok) {
+      alert(data?.error ?? GENERIC_ERROR);
+      return;
+    }
+    router.refresh();
+  }
+
   async function doDelete(force: boolean) {
     setBusy(true);
     setError("");
@@ -68,7 +106,8 @@ export default function DeleteContactButton({
     router.refresh();
   }
 
-  function onClick() {
+  function onDeleteClick() {
+    setOpen(false);
     setError("");
     if (!hasWork) {
       if (confirm("Permanently delete this client and their requests? This can't be undone.")) {
@@ -77,29 +116,71 @@ export default function DeleteContactButton({
       return;
     }
     setConfirmText("");
-    setOpen(true);
+    setDeleteOpen(true);
   }
 
   return (
     <>
-      <button
-        onClick={onClick}
-        title="Delete client"
-        className="p-2 border border-gray-300 rounded text-gray-400 hover:text-red-600 hover:border-red-300 hover:bg-red-50 transition-colors"
-      >
-        <Trash2 size={16} />
-      </button>
+      <div className="relative" ref={ref}>
+        <button
+          onClick={() => setOpen((v) => !v)}
+          title="Client actions"
+          className="p-2 border border-gray-300 rounded text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-colors"
+        >
+          {busy ? <Loader2 size={16} className="animate-spin" /> : <MoreHorizontal size={16} />}
+        </button>
+        {open && (
+          <div className="absolute right-0 top-full mt-1 z-30 w-44 bg-white rounded-lg shadow-xl border border-gray-200 py-1.5">
+            <Link
+              href={`/app/contacts/${contactId}/edit`}
+              className="flex items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              <Pencil size={14} className="text-gray-400" />
+              Edit
+            </Link>
+            {archived ? (
+              <button
+                onClick={() => setStatus("ACTIVE")}
+                className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                <ArchiveRestore size={14} className="text-gray-400" />
+                Reactivate
+              </button>
+            ) : (
+              <button
+                onClick={() => setStatus("ARCHIVED")}
+                className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                <Archive size={14} className="text-gray-400" />
+                Archive
+              </button>
+            )}
+            {canDelete && (
+              <>
+                <div className="my-1 h-px bg-gray-100" />
+                <button
+                  onClick={onDeleteClick}
+                  className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
+                >
+                  <Trash2 size={14} />
+                  Delete
+                </button>
+              </>
+            )}
+          </div>
+        )}
+      </div>
 
-      {open && (
+      {deleteOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40" onClick={() => !busy && setOpen(false)} />
+          <div className="absolute inset-0 bg-black/40" onClick={() => !busy && setDeleteOpen(false)} />
           <div className="relative w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
             <div className="flex items-start justify-between mb-3">
               <span className="flex h-9 w-9 items-center justify-center rounded-full bg-red-100">
                 <AlertTriangle size={17} className="text-red-600" />
               </span>
               <button
-                onClick={() => setOpen(false)}
+                onClick={() => setDeleteOpen(false)}
                 disabled={busy}
                 className="p-1 text-gray-400 hover:text-gray-600"
               >
@@ -111,7 +192,8 @@ export default function DeleteContactButton({
               Delete {contactName} — and everything attached?
             </h2>
             <p className="text-sm text-gray-600 mb-3">
-              This permanently destroys their entire history. There is no undo.
+              This permanently destroys their entire history. There is no undo. If you just want
+              them off your list, archive them instead.
             </p>
 
             <ul className="mb-4 rounded border border-red-100 bg-red-50 p-3 text-sm text-red-800 space-y-0.5">
@@ -141,7 +223,7 @@ export default function DeleteContactButton({
 
             <div className="flex justify-end gap-2">
               <button
-                onClick={() => setOpen(false)}
+                onClick={() => setDeleteOpen(false)}
                 disabled={busy}
                 className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded"
               >

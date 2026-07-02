@@ -8,8 +8,13 @@ export async function GET() {
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!canSell(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
+  // Picker feed (new job/request forms) — archived clients stay out
   const contacts = await prisma.contact.findMany({
-    where: { companyId: actor.companyId, ...contactScope(actor) },
+    where: {
+      companyId: actor.companyId,
+      ...contactScope(actor),
+      status: { in: ["LEAD", "ACTIVE"] },
+    },
     orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
   });
 
@@ -26,6 +31,18 @@ export async function POST(req: NextRequest) {
 
   if (!firstName || !lastName) {
     return NextResponse.json({ error: "First and last name are required." }, { status: 400 });
+  }
+
+  let paymentTermsDays: number | undefined;
+  if (body.paymentTermsDays !== undefined) {
+    const n = Number(body.paymentTermsDays);
+    if (!Number.isInteger(n) || n < 0 || n > 365) {
+      return NextResponse.json(
+        { error: "Payment terms must be between 0 and 365 days." },
+        { status: 400 }
+      );
+    }
+    paymentTermsDays = n;
   }
 
   // Managers may assign to anyone in the company; sales/user always own
@@ -53,6 +70,7 @@ export async function POST(req: NextRequest) {
       zip: zip || null,
       notes: notes || null,
       leadSource: leadSource || null,
+      ...(paymentTermsDays !== undefined && { paymentTermsDays }),
       assignedToId,
       customFields:
         body.customFields !== undefined

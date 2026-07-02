@@ -1,15 +1,16 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { requirePageActor, canSell, contactScope, seesAllLeads } from "@/lib/permissions";
+import { requirePageActor, canSell, contactScope, seesAllLeads, isManager } from "@/lib/permissions";
 import Link from "next/link";
-import { ArrowLeft, Phone, Mail, MapPin, ChevronRight } from "lucide-react";
+import { ArrowLeft, Phone, Mail, MapPin, ChevronRight, Pencil } from "lucide-react";
 import { money, shortDate, type StatusKind } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
 import ContactCreateMenu from "./ContactCreateMenu";
-import DeleteContactButton from "./DeleteContactButton";
+import ContactActionsMenu from "./ContactActionsMenu";
 import AssignLead from "./AssignLead";
 import CustomFieldsCard from "./CustomFieldsCard";
 import ContactNoteForm from "./ContactNoteForm";
+import ContactNoteItem from "./ContactNoteItem";
 import PortalAccessCard from "./PortalAccessCard";
 import { getActiveFieldDefs } from "@/lib/contact-fields";
 
@@ -176,9 +177,18 @@ export default async function ContactDetailPage({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <DeleteContactButton
+          <Link
+            href={`/app/contacts/${contact.id}/edit`}
+            className="flex items-center gap-1.5 px-4 py-2 border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-sm font-semibold rounded transition-colors"
+          >
+            <Pencil size={14} />
+            Edit
+          </Link>
+          <ContactActionsMenu
             contactId={contact.id}
             contactName={`${contact.firstName} ${contact.lastName}`.trim()}
+            status={contact.status}
+            canDelete={isManager(actor.role)}
             counts={{
               requests: contact.requests.length,
               appointments: contact.appointments.length,
@@ -267,25 +277,23 @@ export default async function ContactDetailPage({
             </div>
             <div className="p-4 space-y-3">
               {contact.contactNotes.map((note) => (
-                <div key={note.id} className="flex gap-3">
-                  <div className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-600 shrink-0">
-                    {note.user.name.charAt(0).toUpperCase()}
-                  </div>
-                  <div className="flex-1 bg-gray-50 rounded-lg px-3 py-2">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs font-semibold text-gray-700">{note.user.name}</span>
-                      <span className="text-xs text-gray-400">
-                        {note.createdAt.toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                          hour: "numeric",
-                          minute: "2-digit",
-                        })}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-700 whitespace-pre-wrap">{note.body}</p>
-                  </div>
-                </div>
+                <ContactNoteItem
+                  key={note.id}
+                  contactId={contact.id}
+                  note={{
+                    id: note.id,
+                    body: note.body,
+                    userName: note.user.name,
+                    createdAtLabel: note.createdAt.toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      hour: "numeric",
+                      minute: "2-digit",
+                    }),
+                  }}
+                  canEdit={note.userId === actor.id}
+                  canDelete={note.userId === actor.id || isManager(actor.role)}
+                />
               ))}
               <ContactNoteForm contactId={contact.id} />
             </div>

@@ -14,7 +14,7 @@ export default async function NewInvoicePage({
 
   const [contacts, workItems, job] = await Promise.all([
     prisma.contact.findMany({
-      where: { companyId, ...contactScope(actor) },
+      where: { companyId, ...contactScope(actor), status: { in: ["LEAD", "ACTIVE"] } },
       orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
     }),
     prisma.workItem.findMany({

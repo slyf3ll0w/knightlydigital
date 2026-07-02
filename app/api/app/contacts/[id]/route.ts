@@ -48,22 +48,55 @@ export async function PATCH(
     customFieldsPatch = { ...base, ...sanitized };
   }
 
+  // Each field updates independently — callers send only what they change
+  // (AssignLead sends assignedToId alone, CustomFieldsCard sends customFields
+  // alone, the edit form sends everything).
+  if (body.firstName !== undefined && !String(body.firstName).trim()) {
+    return NextResponse.json({ error: "First name is required." }, { status: 400 });
+  }
+  if (body.lastName !== undefined && !String(body.lastName).trim()) {
+    return NextResponse.json({ error: "Last name is required." }, { status: 400 });
+  }
+
+  let status: "LEAD" | "ACTIVE" | "ARCHIVED" | undefined;
+  if (body.status !== undefined) {
+    if (!["LEAD", "ACTIVE", "ARCHIVED"].includes(body.status)) {
+      return NextResponse.json({ error: "Invalid status." }, { status: 400 });
+    }
+    status = body.status;
+  }
+
+  let paymentTermsDays: number | undefined;
+  if (body.paymentTermsDays !== undefined) {
+    const n = Number(body.paymentTermsDays);
+    if (!Number.isInteger(n) || n < 0 || n > 365) {
+      return NextResponse.json(
+        { error: "Payment terms must be between 0 and 365 days." },
+        { status: 400 }
+      );
+    }
+    paymentTermsDays = n;
+  }
+
+  const opt = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
+
   const contact = await prisma.contact.updateMany({
     where: { id, companyId: actor.companyId, ...contactScope(actor) },
     data: {
       ...(customFieldsPatch !== undefined && { customFields: customFieldsPatch }),
-      ...(body.firstName !== undefined && {
-        firstName: body.firstName,
-        lastName: body.lastName,
-        companyName: body.companyName || null,
-        email: body.email || null,
-        phone: body.phone || null,
-        address: body.address || null,
-        city: body.city || null,
-        state: body.state || null,
-        zip: body.zip || null,
-        notes: body.notes || null,
-      }),
+      ...(body.firstName !== undefined && { firstName: String(body.firstName).trim() }),
+      ...(body.lastName !== undefined && { lastName: String(body.lastName).trim() }),
+      ...(body.companyName !== undefined && { companyName: opt(body.companyName) }),
+      ...(body.email !== undefined && { email: opt(body.email) }),
+      ...(body.phone !== undefined && { phone: opt(body.phone) }),
+      ...(body.address !== undefined && { address: opt(body.address) }),
+      ...(body.city !== undefined && { city: opt(body.city) }),
+      ...(body.state !== undefined && { state: opt(body.state) }),
+      ...(body.zip !== undefined && { zip: opt(body.zip) }),
+      ...(body.notes !== undefined && { notes: opt(body.notes) }),
+      ...(body.leadSource !== undefined && { leadSource: opt(body.leadSource) }),
+      ...(status !== undefined && { status }),
+      ...(paymentTermsDays !== undefined && { paymentTermsDays }),
       ...assignment,
     },
   });
