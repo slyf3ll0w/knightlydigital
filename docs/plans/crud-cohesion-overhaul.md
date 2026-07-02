@@ -50,10 +50,10 @@ Audit verified against code (paths cited inline). Companion research: `docs/plan
 - Appointment: full edit dialog (type, assignee for managers, title, address, meetingLink, notes) via ⋯ → Edit Details.
 - Request: edit title/details (modal via ⋯ → Edit Request; API now rejects empty titles). Contract: edit title/body while unsigned (pencil button, modal).
 
-**Batch 4 — Long tail + cohesion polish**
-- Subscription PATCH (price/interval/name/nextRunDate; effective next run) + UI.
-- Expense PATCH + edit UI. Company timezone editable.
-- Backlinks: invoice→quote, appointment→produced-quote.
-- Nudge: quote-approved surfaces "Collect deposit" prominently (not buried in overflow).
+**Batch 4 — Long tail + cohesion polish [SHIPPED 2026-07-02]**
+- Subscription PATCH (name/price/qty/interval/nextRunDate; effective next run) + inline edit row (pencil per row).
+- Expense PATCH + inline edit row. Company timezone select in Settings → Business Info (API validates via Intl).
+- Backlinks: invoice→quote ("From quote" header fact — direct for deposit invoices, via job for converted quotes); appointment→produced quotes ("Quoted as" via the shared request, with status chips).
+- Nudge: approved/converted quote with an uncollected deposit shows a green Collect Deposit banner (CollectDepositNudge).
 
 Non-goals here: entity numbering stays server-assigned; Team email stays locked (login identity); WorkItem/WebForm/ContractTemplate already have full CRUD.
