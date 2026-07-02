@@ -4,6 +4,14 @@ Parked ideas — not scheduled, not promised. Pull into `roadmap.md` when one
 gets picked up. (Deferred items that ARE expected to ship stay in the
 roadmap's per-feature "Deferred" notes.)
 
+## Embeddable ecommerce module (proposed 2026-07-02, parked)
+
+"Add a store to any existing website with one script tag" — free,
+monetized on a payment cut (Finix payfac rail, not Stripe), reusing the
+booking-embed iframe/postMessage plumbing. Leaning module-of-Streamflaire
+(gift cards, maintenance plans, parts) over standalone product. Full
+write-up: `ecommerce-embed-idea.md`.
+
 ## Paper Ledger design — pass 2 (proposed 2026-06-12, after pass 1 shipped)
 
 Pass 1 (commits 91f2083 + follow-up) covered tokens, cards, stamps, serif
