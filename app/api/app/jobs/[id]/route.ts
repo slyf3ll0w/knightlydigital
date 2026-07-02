@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { RecurringInterval } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getActor, isManager, jobScope } from "@/lib/permissions";
 
@@ -39,6 +40,37 @@ export async function PATCH(
   // request only changes assignments
   if (Object.keys(data).length > 0) {
     await prisma.job.update({ where: { id: job.id }, data });
+  }
+
+  // Full-replace line items (quote-editor pattern). Unlike invoices, an empty
+  // list is valid — jobs created directly often have no line items at all.
+  if (fullEdit && Array.isArray(body.lineItems)) {
+    const lineItems = (body.lineItems as {
+      name?: string;
+      description?: string;
+      quantity: number;
+      unitPrice: number;
+      unitCost?: number | null;
+      recurringInterval?: RecurringInterval | null;
+      sortOrder?: number;
+    }[]).filter((li) => (li.name ?? "").trim());
+
+    await prisma.$transaction([
+      prisma.jobLineItem.deleteMany({ where: { jobId: job.id } }),
+      prisma.jobLineItem.createMany({
+        data: lineItems.map((li, i) => ({
+          jobId: job.id,
+          name: li.name!.trim(),
+          description: li.description || null,
+          quantity: li.quantity || 1,
+          unitPrice: li.unitPrice || 0,
+          unitCost: li.unitCost ?? null,
+          total: (li.quantity || 1) * (li.unitPrice || 0),
+          recurringInterval: li.recurringInterval ?? null,
+          sortOrder: li.sortOrder ?? i,
+        })),
+      }),
+    ]);
   }
 
   // Replace team assignments (managers + Sales/Tech combo only)

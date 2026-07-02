@@ -17,14 +17,24 @@ export default async function AppointmentDetailPage({
   const actor = await requirePageActor((a) => canSell(a.role));
 
   const { id } = await params;
-  const appt = await prisma.appointment.findFirst({
-    where: { id, companyId: actor.companyId, ...appointmentScope(actor) },
-    include: {
-      contact: true,
-      request: { select: { id: true, title: true } },
-      assignedTo: { select: { name: true } },
-    },
-  });
+  const [appt, teamUsers] = await Promise.all([
+    prisma.appointment.findFirst({
+      where: { id, companyId: actor.companyId, ...appointmentScope(actor) },
+      include: {
+        contact: true,
+        request: { select: { id: true, title: true } },
+        assignedTo: { select: { name: true } },
+      },
+    }),
+    // Only managers may reassign, so only they need the roster
+    isManager(actor.role)
+      ? prisma.user.findMany({
+          where: { companyId: actor.companyId, isActive: true },
+          select: { id: true, name: true },
+          orderBy: { name: "asc" },
+        })
+      : Promise.resolve([]),
+  ]);
   if (!appt) notFound();
 
   const TypeIcon = typeIcons[appt.type];
@@ -66,6 +76,15 @@ export default async function AppointmentDetailPage({
           scheduledAt={appt.scheduledAt.toISOString()}
           scheduledEnd={appt.scheduledEnd?.toISOString() ?? null}
           scheduledAnytime={appt.scheduledAnytime}
+          details={{
+            title: appt.title,
+            type: appt.type,
+            address: appt.address ?? "",
+            meetingLink: appt.meetingLink ?? "",
+            notes: appt.notes ?? "",
+            assignedToId: appt.assignedToId ?? "",
+          }}
+          users={teamUsers}
         />
       </div>
 

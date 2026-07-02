@@ -87,6 +87,7 @@ export default async function JobDetailPage({
             hasInvoice={!!job.invoice}
             hasQuote={!!job.quote}
             canDelete={isManager(actor.role)}
+            canEdit={canEdit}
           />
         )}
       </div>

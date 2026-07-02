@@ -50,6 +50,8 @@ export default async function ContractDetailPage({
           status={contract.status}
           signUrl={signUrl}
           canDelete={isManager(actor.role)}
+          title={contract.title}
+          body={contract.body}
         />
       </div>
 

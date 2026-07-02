@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { MoreHorizontal, CheckCircle, Receipt, Archive, RotateCcw, Trash2, Loader2 } from "lucide-react";
+import { MoreHorizontal, CheckCircle, Receipt, Archive, RotateCcw, Trash2, Loader2, Pencil } from "lucide-react";
 
 export default function JobActions({
   jobId,
@@ -10,12 +10,14 @@ export default function JobActions({
   hasInvoice,
   hasQuote = false,
   canDelete = false,
+  canEdit = false,
 }: {
   jobId: string;
   status: string;
   hasInvoice: boolean;
   hasQuote?: boolean;
   canDelete?: boolean;
+  canEdit?: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -122,6 +124,15 @@ export default function JobActions({
           </button>
           {open && (
             <div className="absolute right-0 top-full mt-1 z-30 w-56 bg-white rounded-lg shadow-xl border border-gray-200 py-1.5">
+              {canEdit && status !== "ARCHIVED" && (
+                <button
+                  onClick={() => router.push(`/app/jobs/${jobId}/edit`)}
+                  className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                >
+                  <Pencil size={14} className="text-gray-400" />
+                  Edit Job
+                </button>
+              )}
               {status !== "ARCHIVED" && !hasInvoice && (
                 <button
                   onClick={() => router.push(`/app/invoices/new?jobId=${jobId}`)}

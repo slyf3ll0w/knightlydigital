@@ -3,14 +3,26 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { CalendarDays, Check, FileText, Loader2, MoreHorizontal, Trash2, X } from "lucide-react";
+import { CalendarDays, Check, FileText, Loader2, MoreHorizontal, Pencil, Trash2, X } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
-import { localInputToISO } from "@/lib/statuses";
+import { localInputToISO, appointmentTypeLabel } from "@/lib/statuses";
 
 /**
  * Appointment lifecycle controls: Complete (→ Create Quote CTA), No-show,
- * Cancel, Reopen, inline reschedule, and delete (managers).
+ * Cancel, Reopen, inline reschedule, full edit dialog (type, title, address,
+ * meeting link, notes, assignee for managers), and delete (managers).
  */
+
+const APPT_TYPES = ["PHONE_CALL", "VIDEO_CALL", "IN_PERSON"] as const;
+
+type Details = {
+  title: string;
+  type: string;
+  address: string;
+  meetingLink: string;
+  notes: string;
+  assignedToId: string;
+};
 
 function toLocalInput(d: string | null): string {
   if (!d) return "";
@@ -28,6 +40,8 @@ export default function AppointmentActions({
   scheduledAt,
   scheduledEnd,
   scheduledAnytime,
+  details,
+  users = [],
 }: {
   appointmentId: string;
   status: string;
@@ -37,6 +51,8 @@ export default function AppointmentActions({
   scheduledAt: string;
   scheduledEnd: string | null;
   scheduledAnytime: boolean;
+  details: Details;
+  users?: { id: string; name: string }[];
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -46,6 +62,35 @@ export default function AppointmentActions({
   const [anytime, setAnytime] = useState(scheduledAnytime);
   const [start, setStart] = useState(toLocalInput(scheduledAt));
   const [end, setEnd] = useState(toLocalInput(scheduledEnd));
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState<Details>(details);
+
+  function openEdit() {
+    setForm(details);
+    setError("");
+    setMenuOpen(false);
+    setEditing(true);
+  }
+
+  async function saveEdit() {
+    if (!form.title.trim()) {
+      setError("The appointment needs a title.");
+      return;
+    }
+    if (form.type === "IN_PERSON" && !form.address.trim()) {
+      setError("In-person appointments need an address.");
+      return;
+    }
+    const ok = await patch({
+      title: form.title,
+      type: form.type,
+      address: form.address,
+      meetingLink: form.meetingLink,
+      notes: form.notes,
+      ...(users.length > 0 && { assignedToId: form.assignedToId || null }),
+    });
+    if (ok) setEditing(false);
+  }
 
   async function patch(body: Record<string, unknown>) {
     setBusy(true);
@@ -123,6 +168,13 @@ export default function AppointmentActions({
           </button>
           {menuOpen && (
             <div className="absolute right-0 top-full mt-1 z-20 w-44 bg-white rounded-lg shadow-xl ring-1 ring-black/5 py-1.5">
+              <button
+                onClick={openEdit}
+                className="flex w-full items-center gap-2 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
+              >
+                <Pencil size={13} className="text-gray-400" />
+                Edit Details
+              </button>
               <button
                 onClick={() => {
                   setMenuOpen(false);
@@ -231,6 +283,123 @@ export default function AppointmentActions({
       )}
 
       {error && <p className="text-xs text-red-600">{error}</p>}
+
+      {editing && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4"
+          onClick={() => !busy && setEditing(false)}
+        >
+          <div
+            className="w-full max-w-md bg-white rounded-lg shadow-xl p-5 space-y-3 text-left"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-base font-semibold text-gray-900">Edit Appointment</h2>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-0.5">Title</label>
+              <input
+                type="text"
+                value={form.title}
+                onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-0.5">Type</label>
+                <select
+                  value={form.type}
+                  onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                >
+                  {APPT_TYPES.map((t) => (
+                    <option key={t} value={t}>
+                      {appointmentTypeLabel[t]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {users.length > 0 && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-0.5">
+                    Assigned to
+                  </label>
+                  <select
+                    value={form.assignedToId}
+                    onChange={(e) => setForm((f) => ({ ...f, assignedToId: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                  >
+                    <option value="">Unassigned</option>
+                    {users.map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+
+            {form.type === "IN_PERSON" && (
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-0.5">Address</label>
+                <input
+                  type="text"
+                  value={form.address}
+                  onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  placeholder="Where you'll meet the client"
+                />
+              </div>
+            )}
+            {form.type === "VIDEO_CALL" && (
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-0.5">
+                  Meeting link
+                </label>
+                <input
+                  type="url"
+                  value={form.meetingLink}
+                  onChange={(e) => setForm((f) => ({ ...f, meetingLink: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  placeholder="https://meet.google.com/..."
+                />
+              </div>
+            )}
+
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-0.5">Notes</label>
+              <textarea
+                value={form.notes}
+                onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
+              />
+            </div>
+
+            {error && <p className="text-xs text-red-600">{error}</p>}
+
+            <div className="flex items-center justify-end gap-2 pt-1">
+              <button
+                onClick={() => setEditing(false)}
+                disabled={busy}
+                className="px-4 py-2 text-sm font-medium text-gray-600 rounded hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveEdit}
+                disabled={busy}
+                className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded transition-colors disabled:opacity-50"
+              >
+                {busy && <Loader2 size={13} className="animate-spin" />}
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

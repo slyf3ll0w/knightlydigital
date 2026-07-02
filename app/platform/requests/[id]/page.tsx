@@ -54,6 +54,8 @@ export default async function RequestDetailPage({
           requestId={request.id}
           status={request.status}
           contactId={request.contactId}
+          title={request.title}
+          details={request.details ?? ""}
         />
       </div>
 

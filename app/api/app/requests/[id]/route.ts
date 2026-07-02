@@ -26,8 +26,12 @@ export async function PATCH(
   if (body.status && ["NEW", "CONVERTED", "ARCHIVED"].includes(body.status)) {
     data.status = body.status;
   }
-  if (body.title !== undefined) data.title = body.title;
-  if (body.details !== undefined) data.details = body.details || null;
+  if (body.title !== undefined) {
+    const title = String(body.title).trim().slice(0, 150);
+    if (!title) return NextResponse.json({ error: "The request needs a title." }, { status: 400 });
+    data.title = title;
+  }
+  if (body.details !== undefined) data.details = String(body.details).trim() || null;
 
   const updated = await prisma.request.update({ where: { id }, data });
   return NextResponse.json(updated);
