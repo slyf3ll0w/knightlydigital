@@ -27,10 +27,12 @@ import {
   Repeat,
   ChevronsUpDown,
   CircleUserRound,
+  Sparkles,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import Avatar from "@/components/Avatar";
 import TourGuide from "@/components/TourGuide";
+import AssistantDrawer from "@/components/AssistantDrawer";
 import { textOn } from "@/lib/branding";
 
 const DEFAULT_ACCENT = "#22C55E"; // green-500
@@ -246,6 +248,7 @@ interface AppShellProps {
   companyLogoUrl?: string | null;
   brandColor?: string | null;
   needsTour?: boolean;
+  aiEnabled?: boolean;
 }
 
 export default function AppShell({
@@ -257,6 +260,7 @@ export default function AppShell({
   companyLogoUrl,
   brandColor,
   needsTour = false,
+  aiEnabled = false,
 }: AppShellProps) {
   const userRole = role ?? "OWNER";
   const manager = isManagerRole(userRole);
@@ -264,6 +268,7 @@ export default function AppShell({
   const pathname = usePathname();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [assistantOpen, setAssistantOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [counts, setCounts] = useState({ requests: 0, pastDue: 0 });
 
@@ -485,10 +490,22 @@ export default function AppShell({
             </div>
           </form>
 
+          {aiEnabled && (
+            <button
+              type="button"
+              onClick={() => setAssistantOpen(true)}
+              className={`flex p-2 text-gray-400 hover:text-green-700 hover:bg-green-50 rounded-md transition-colors ${
+                sellRoles(userRole) ? "" : "ml-auto"
+              }`}
+              title="Assistant"
+            >
+              <Sparkles size={17} />
+            </button>
+          )}
           <Link
             href={manager ? "/app/settings" : "/app/settings/profile"}
             className={`hidden sm:flex p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors ${
-              sellRoles(userRole) ? "" : "ml-auto"
+              !aiEnabled && sellRoles(userRole) ? "" : !aiEnabled ? "ml-auto" : ""
             }`}
             title={manager ? "Settings" : "My Profile"}
           >
@@ -502,6 +519,8 @@ export default function AppShell({
       </div>
 
       <MobileTabBar accent={accent} role={userRole} isActive={isActive} pastDue={counts.pastDue} />
+
+      {aiEnabled && <AssistantDrawer open={assistantOpen} onClose={() => setAssistantOpen(false)} />}
 
       <TourGuide role={userRole} needsTour={needsTour} />
     </div>

@@ -43,6 +43,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       companyLogoUrl={company?.logoUrl}
       brandColor={company?.brandColor}
       needsTour={!!user && !user.tourCompletedAt}
+      aiEnabled={Boolean(process.env.GEMINI_API_KEY)}
     >
       {children}
     </AppShell>
