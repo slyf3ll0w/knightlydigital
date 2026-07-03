@@ -40,6 +40,9 @@ model Company {
   serviceZips          String[] @default([])
   arrivalWindowMinutes Int      @default(120)
   industry         String? // onboarding answer; drives starter price book + future industry defaults
+  // AI setup wizard: stamped when the owner applies OR dismisses it — hides
+  // the dashboard card either way (the Settings entry stays available)
+  setupWizardAt    DateTime?
   // Team settings: who gets website/booking leads (null = company owner),
   // and whether SALES users can see invoices & payments for their leads.
   defaultLeadUserId String?
