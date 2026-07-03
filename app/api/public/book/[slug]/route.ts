@@ -81,7 +81,10 @@ export async function POST(
   if (config.fields.date.show && config.fields.date.required && !preferredDate) {
     return NextResponse.json({ error: `"${config.fields.date.label}" is required.` }, { status: 400 });
   }
-  const serviceAsked = form.type !== "SERVICE_REQUEST" && config.service.show;
+  // Self-scheduling forms replace the free-text service question with the
+  // service picker, so its "required" rule doesn't apply to them
+  const selfScheduling = form.type === "BOOKING" && config.selfSchedule.enabled;
+  const serviceAsked = form.type !== "SERVICE_REQUEST" && config.service.show && !selfScheduling;
   if (serviceAsked && config.service.required && !service) {
     return NextResponse.json({ error: `"${config.service.label}" is required.` }, { status: 400 });
   }
