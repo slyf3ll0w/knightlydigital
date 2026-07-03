@@ -6,6 +6,20 @@ import { defaultLeadAssignee } from "@/lib/permissions";
 import { resolveWebForm } from "@/lib/web-forms";
 import { getActiveFieldDefs, sanitizeCustomFields } from "@/lib/contact-fields";
 import { derivedQuoteDeposit } from "@/lib/statuses";
+import { zipFromAddress } from "@/lib/business-hours";
+import { generateSlots, pickUserForSlot } from "@/lib/booking-slots";
+import {
+  engineInputFor,
+  getBookableUsersWithBusy,
+  resolveBookableService,
+  slotLabel,
+} from "@/lib/booking-availability";
+import { Prisma } from "@prisma/client";
+
+// Submit-time double-booking race: thrown inside the transaction when the
+// picked slot is no longer free, mapped to a 409 the form handles by
+// refreshing its slot list.
+class SlotTakenError extends Error {}
 
 // Generous backstop so one runaway account or bot can't flood a company
 const MAX_REQUESTS_PER_COMPANY_PER_DAY = 200;
@@ -122,6 +136,49 @@ export async function POST(
     if (field.contactFieldId) mappedContactFields[field.contactFieldId] = value;
   }
 
+  // Self-scheduling (BOOKING forms with the toggle on): validate the picked
+  // service + slot against live data. Forms without the toggle never send
+  // slotStart, so the classic flow below is untouched.
+  let booking:
+    | {
+        service: { formServiceId: string; name: string; price: number; durationMinutes: number };
+        start: Date;
+        end: Date;
+        windowEnd: Date;
+      }
+    | null = null;
+  if (form.type === "BOOKING" && config.selfSchedule.enabled && body.slotStart !== undefined) {
+    const service = await resolveBookableService(company.id, config, body.serviceId);
+    if (!service) {
+      return NextResponse.json({ error: "Pick a service to book." }, { status: 400 });
+    }
+    if (company.serviceZips.length > 0) {
+      const zip = zipFromAddress(String(address ?? ""));
+      if (!zip || !company.serviceZips.includes(zip)) {
+        return NextResponse.json(
+          { error: "That address looks outside our service area — send us a message instead and we'll see what we can do." },
+          { status: 400 }
+        );
+      }
+    }
+    const start = new Date(String(body.slotStart));
+    if (isNaN(start.getTime())) {
+      return NextResponse.json({ error: "Pick a time." }, { status: 400 });
+    }
+    const now = new Date();
+    const horizonEnd = new Date(now.getTime() + (config.selfSchedule.horizonDays + 1) * 86400000);
+    const users = await getBookableUsersWithBusy(company.id, now, horizonEnd);
+    const slots = generateSlots(engineInputFor(company, config, service.durationMinutes, users, now));
+    const slot = slots.find((s) => s.start.getTime() === start.getTime());
+    if (!slot) {
+      return NextResponse.json(
+        { error: "That time was just taken — please pick another.", slotTaken: true },
+        { status: 409 }
+      );
+    }
+    booking = { service, start: slot.start, end: slot.end, windowEnd: slot.windowEnd };
+  }
+
   const since = new Date(Date.now() - 86400000);
   const recent = await prisma.request.count({
     where: { companyId: company.id, createdAt: { gte: since } },
@@ -142,7 +199,13 @@ export async function POST(
   const requestTitle =
     form.type === "SERVICE_REQUEST"
       ? pickedServices.map((s) => s.name).join(", ")
-      : (serviceAsked && service) || form.name;
+      : booking
+        ? booking.service.name
+        : (serviceAsked && service) || form.name;
+
+  const bookingWindow = booking
+    ? slotLabel(company.timezone, booking.start, booking.windowEnd)
+    : null;
 
   const preferred =
     config.fields.date.show && typeof preferredDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(preferredDate)
@@ -279,12 +342,16 @@ export async function POST(
         contactId: contact.id,
         requestNumber: (last?.requestNumber ?? 0) + 1,
         title: requestTitle,
-        preferredDate: preferred,
+        status: booking ? "NEEDS_APPROVAL" : undefined,
+        preferredDate: booking ? booking.start : preferred,
         details: [
           message,
           ...customLines,
           form.type === "SERVICE_REQUEST"
             ? `Services: ${pickedServices.map((s) => `${s.name} ($${s.price.toFixed(2)})`).join(", ")}`
+            : null,
+          booking
+            ? `Self-scheduled online: ${booking.service.name} ($${booking.service.price.toFixed(2)}) — requested arrival ${bookingWindow}`
             : null,
           quote
             ? `Quote #${quote.quoteNumber} created automatically (${config.serviceRequest.quoteMode === "send" ? "sent for approval" : "draft"})${quote.deposit > 0 ? ` — deposit $${quote.deposit.toFixed(2)}` : ""}.`
@@ -304,8 +371,56 @@ export async function POST(
       await tx.quote.update({ where: { id: quote.id }, data: { requestId: request.id } });
     }
 
+    // Self-scheduled slot → tentative appointment. Availability re-checked
+    // inside the transaction (serializable, see below) so two clients
+    // grabbing the same window can't both win.
+    if (booking) {
+      const usersNow = await getBookableUsersWithBusy(
+        company.id,
+        booking.start,
+        booking.end,
+        tx
+      );
+      const userId = pickUserForSlot(booking.start, booking.end, usersNow);
+      if (!userId) throw new SlotTakenError();
+      await tx.appointment.create({
+        data: {
+          companyId: company.id,
+          contactId: contact.id,
+          requestId: request.id,
+          assignedToId: userId,
+          title: booking.service.name,
+          type: "IN_PERSON",
+          scheduledAt: booking.start,
+          scheduledEnd: booking.end,
+          address: address || null,
+          tentative: true,
+          notes: `Booked online — promised arrival window ${bookingWindow}.`,
+        },
+      });
+    }
+
     return { contact, request, quote };
+  },
+  booking ? { isolationLevel: Prisma.TransactionIsolationLevel.Serializable } : undefined
+  ).catch((e) => {
+    // Slot races: our explicit re-check, or Postgres aborting one of two
+    // serializable transactions that raced. The form refreshes its slots.
+    if (
+      e instanceof SlotTakenError ||
+      (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2034")
+    ) {
+      return null;
+    }
+    throw e;
   });
+
+  if (result === null) {
+    return NextResponse.json(
+      { error: "That time was just taken — please pick another.", slotTaken: true },
+      { status: 409 }
+    );
+  }
 
   // Notify the company inbox; reply goes straight to the customer
   if (company.email) {
@@ -340,5 +455,18 @@ export async function POST(
     await sendEmail({ to: email, subject, html, replyTo: company.email || undefined });
   }
 
-  return NextResponse.json({ success: true }, { status: 201 });
+  return NextResponse.json(
+    {
+      success: true,
+      ...(booking && {
+        booking: {
+          start: booking.start.toISOString(),
+          windowEnd: booking.windowEnd.toISOString(),
+          label: bookingWindow,
+          service: booking.service.name,
+        },
+      }),
+    },
+    { status: 201 }
+  );
 }

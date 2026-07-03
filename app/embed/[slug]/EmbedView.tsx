@@ -88,6 +88,7 @@ export default async function EmbedView({
         config={config}
         initialService={typeof service === "string" ? service.slice(0, 120) : ""}
         showHeader
+        companyName={company.name}
       />
     </div>
   );

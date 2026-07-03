@@ -70,6 +70,7 @@ export default async function BookPageView({
           theme={dark ? "dark" : "light"}
           accent={bookingAccent(config, brandAccent(company))}
           config={config}
+          companyName={company.name}
         />
       </div>
     </div>
