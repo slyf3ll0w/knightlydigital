@@ -33,12 +33,16 @@ Chat drawer available on every /app page (header button). Per-role, per-company.
   default by live tool-calling reliability test (flash-lite vs flash).
 - History is client-side (sessionStorage) — nothing persisted server-side.
 
-**Stage B — actions with confirmation (LATER, after living with Stage A):**
+**Stage B — actions with confirmation [SHIPPED 2026-07-03, commit c1dbbf4
+alongside David's feedback round: floating bubble UI, linkified /app paths,
+per-word client search + recent-roster fallback, list_agreements /
+list_subscriptions / whats_needing_attention tools, model → gemini-2.5-flash]:**
 - The AI proposes; the UI renders a confirmation card ("Create this quote?
   [preview] Confirm / Cancel"); Confirm submits through the SAME existing API
   routes the buttons use. The AI has no write path of its own.
-- Start with three proposals: create client, draft quote, schedule
-  appointment. Grow by demand.
+- Shipped five: create client, update client, draft quote, schedule
+  appointment, record payment. Grow by demand (candidates: send quote/invoice,
+  convert quote to job, add client note, create job).
 
 ## 2. AI receptionist (DAVID BUILDS LATER — likely behind a paywall)
 
