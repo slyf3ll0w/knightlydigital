@@ -86,3 +86,71 @@ export async function askAIJson<T>(opts: Omit<AskAIOptions, "json">): Promise<T 
   }
   return null;
 }
+
+// ── Multi-turn chat with function calling (owner assistant) ─────────────────
+
+export type AIPart =
+  | { text: string }
+  | { functionCall: { name: string; args: Record<string, unknown> } }
+  | { functionResponse: { name: string; response: Record<string, unknown> } };
+
+export type AIContent = { role: "user" | "model"; parts: AIPart[] };
+
+/** Gemini function declaration — parameters is an OpenAPI-style schema. */
+export type AIFunctionDecl = {
+  name: string;
+  description: string;
+  parameters?: Record<string, unknown>;
+};
+
+export type AIChatOptions = {
+  system?: string;
+  contents: AIContent[];
+  tools?: AIFunctionDecl[];
+  model?: string; // overrides AI_MODEL for this call
+  maxOutputTokens?: number;
+  temperature?: number;
+};
+
+/**
+ * One model turn of a chat. Returns the candidate's parts — the caller
+ * inspects them for functionCall parts, executes tools, appends
+ * functionResponse contents, and calls again. Null on unconfigured/failure.
+ */
+export async function aiChat(opts: AIChatOptions): Promise<AIPart[] | null> {
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) return null;
+  const model = opts.model || process.env.AI_MODEL || DEFAULT_MODEL;
+
+  const body = {
+    contents: opts.contents,
+    ...(opts.system ? { systemInstruction: { parts: [{ text: opts.system }] } } : {}),
+    ...(opts.tools && opts.tools.length > 0
+      ? { tools: [{ functionDeclarations: opts.tools }] }
+      : {}),
+    generationConfig: {
+      temperature: opts.temperature ?? 0.3,
+      maxOutputTokens: opts.maxOutputTokens ?? 1024,
+    },
+  };
+
+  try {
+    const res = await fetch(`${GEMINI_BASE}/${model}:generateContent?key=${key}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(60_000),
+    });
+    if (!res.ok) {
+      console.error("aiChat: Gemini error", res.status, (await res.text()).slice(0, 500));
+      return null;
+    }
+    const data = (await res.json()) as {
+      candidates?: { content?: { parts?: AIPart[] } }[];
+    };
+    return data.candidates?.[0]?.content?.parts ?? null;
+  } catch (err) {
+    console.error("aiChat: request failed", err);
+    return null;
+  }
+}
