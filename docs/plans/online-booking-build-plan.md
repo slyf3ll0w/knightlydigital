@@ -1,5 +1,26 @@
 # Online Booking — build plan (written 2026-07-02, for a future session)
 
+> **[SHIPPED 2026-07-03]** Phase 1 built and deployed in five chunks
+> (commits 82335cc / b2c27c4 / 6f47692 / c06f7ff / dc3a0f7 + fix 3c14701).
+> Deviations from the plan below, all deliberate:
+> - `Appointment.tentative Boolean @default(false)` instead of `confirmedAt` —
+>   existing appointments and internal create paths stay "confirmed" with zero
+>   backfill.
+> - No multi-step wizard: the slot picker slots INLINE into the existing
+>   BookingForm when `config.selfSchedule.enabled` (service radio cards replace
+>   the service question; day/time chips replace the preferred-date field, with
+>   graceful fallback to the classic flow when out-of-area or no slots).
+> - Lead-time/horizon live in WebForm config (`selfSchedule`); hours/ZIPs/
+>   arrival window on Company (editor card on Settings→Forms).
+> - Appointment reminders track via `reminderDaySentAt`/`reminderHourSentAt`
+>   columns (not a rows table) and are scoped to online-booked appointments
+>   only — extending to all appointments is a Phase 2 automations toggle.
+> - Double-booking race: submit re-validates against a live slot regeneration,
+>   then re-checks inside a Serializable transaction; losers get a 409 and the
+>   form refreshes its times.
+> Remaining from this phase: switch the cron to hourly if 1-hour reminders are
+> wanted (daily runs only land the day-before stage).
+
 The #1 gap vs Jobber per the 2026-07 trial research (`docs/jobber-research/jobber-research-2026-07-02.md`).
 Jobber ships self-scheduling even on its $29 Core plan; Streamflaire's BOOKING forms only collect a
 request and make the client wait for a callback. This plan turns them into true self-scheduling with
