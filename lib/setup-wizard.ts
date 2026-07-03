@@ -127,8 +127,8 @@ function buildPrompt(
   "existingDurations": array of { "index": number, "durationMinutes": number } for the numbered services above — minutes on site, multiples of 15, between 30 and 480; omit services that don't fit a scheduled visit (e.g. per-sq-ft or per-unit pricing),
   "newServices": array (max 8, empty if their list already covers the trade) of { "name", "description" (one sentence, client-facing), "price" (typical regional price, number), "cost" (rough direct cost, number), "durationMinutes" (as above, or null) },
   "contract": { "name": short template name like "Lawn Care Service Agreement", "body": 300-500 word plain-text service agreement for this trade with placeholders {{client_name}}, {{company_name}}, {{date}} — plain paragraphs and simple numbered sections, professional but readable, covering scope, scheduling/access, payment, weather/rescheduling if relevant, liability basics },
-  "intakeQuestions": array (max 4) of { "label", "type": "text"|"select", "options": string[] (2-6, select only, else []) } — the questions a pro in this trade asks BEFORE quoting (property details, access, condition),
-  "clientFields": array (max 4) of { "label", "type": "text"|"select", "options": same rules } — facts worth keeping on every client record for this trade (gate code, pets, preferred crew day, equipment on file),
+  "intakeQuestions": array (max 4) of { "label" (a question, UNDER 55 characters), "type": "text"|"select", "options": string[] (2-6, select only, else []) } — the questions a pro in this trade asks BEFORE quoting (property details, access, condition),
+  "clientFields": array (max 4) of { "label" (UNDER 55 characters), "type": "text"|"select", "options": same rules } — facts worth keeping on every client record for this trade (gate code, pets, preferred crew day, equipment on file),
   "recurringPlanIdeas": array (max 3) of short strings suggesting recurring service plans for this trade with a realistic price, e.g. "Weekly mowing — around $180/mo"; empty array if the trade is one-off work
 }`);
   return lines.join("\n");
@@ -144,6 +144,18 @@ function cleanPrice(v: unknown, max = 100_000): number | null {
 
 function cleanStr(v: unknown, max: number): string {
   return typeof v === "string" ? v.trim().slice(0, max) : "";
+}
+
+/** The review screen offers fixed duration choices — snap AI values onto
+ *  them so the select always displays what will actually be saved. */
+const DURATION_CHOICES = [30, 45, 60, 90, 120, 180, 240, 360, 480];
+function snapDuration(v: number | null): number | null {
+  if (v === null) return null;
+  let best = DURATION_CHOICES[0];
+  for (const c of DURATION_CHOICES) {
+    if (Math.abs(c - v) < Math.abs(best - v)) best = c;
+  }
+  return best;
 }
 
 function isValidTimezone(tz: unknown): tz is string {
@@ -201,7 +213,7 @@ export function sanitizeAIDraft(
     for (const d of raw.existingDurations) {
       const r = (d ?? {}) as Record<string, unknown>;
       const idx = Number(r.index);
-      const dur = sanitizeDuration(r.durationMinutes);
+      const dur = snapDuration(sanitizeDuration(r.durationMinutes));
       if (Number.isInteger(idx) && idx >= 0 && idx < existing.length && dur !== null) {
         durationByIndex.set(idx, dur);
       }
@@ -225,7 +237,7 @@ export function sanitizeAIDraft(
             description: cleanStr(r.description, 300),
             price: cleanPrice(r.price) ?? 0,
             cost: cleanPrice(r.cost),
-            durationMinutes: sanitizeDuration(r.durationMinutes),
+            durationMinutes: snapDuration(sanitizeDuration(r.durationMinutes)),
           };
         })
         .filter(

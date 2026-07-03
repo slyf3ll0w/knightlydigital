@@ -69,12 +69,12 @@ const intake = sanitizeIntake({
       arrivalWindowMinutes: 120,
       serviceZips: ["75002", "75013", "75002", "nope", "750130"],
       existingDurations: [
-        { index: 0, durationMinutes: 150 },
+        { index: 0, durationMinutes: 150 }, // snaps to the 120 review choice
         { index: 1, durationMinutes: 60 }, // ignored — wi2 already has 45
         { index: 9, durationMinutes: 60 }, // out of range — dropped
       ],
       newServices: [
-        { name: "Fence Cleaning", description: "Both sides.", price: 130, cost: 35, durationMinutes: 90 },
+        { name: "Fence Cleaning", description: "Both sides.", price: 130, cost: 35, durationMinutes: 75 },
         { name: "house washing", description: "dupe of existing", price: 999, cost: 1, durationMinutes: 60 },
         { name: "", description: "no name", price: 10, cost: 1, durationMinutes: 30 },
       ],
@@ -91,11 +91,12 @@ const intake = sanitizeIntake({
   );
   assert.equal(d.source, "ai");
   assert.equal(d.timezone, "America/Chicago");
-  assert.equal(d.existingServices[0].durationMinutes, 150);
+  assert.equal(d.existingServices[0].durationMinutes, 120, "150 snaps to the 120 choice");
   assert.equal(d.existingServices[1].durationMinutes, 45, "AI can't override a set duration");
   assert.deepEqual(d.serviceZips, ["75002", "75013"]);
   assert.equal(d.newServices.length, 1, "dupe-of-existing and nameless dropped");
   assert.equal(d.newServices[0].name, "Fence Cleaning");
+  assert.equal(d.newServices[0].durationMinutes, 60, "75 snaps to a review choice");
   assert.equal(d.intakeQuestions.length, 1, "select with <2 options dropped");
   assert.equal(d.businessHours.sat.length, 1, "Saturday hours kept");
   assert.equal(d.recurringPlanIdeas.length, 1);

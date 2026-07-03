@@ -1,5 +1,17 @@
 # AI Setup Wizard — build plan (2026-07-03)
 
+**[SHIPPED + LIVE-VERIFIED 2026-07-03]** — commits 0bbf0a3 (chunk 1: ai.ts /
+setup-wizard.ts / generate endpoint / schema), bce2cac (chunk 2: wizard UI),
+5085d7d (chunk 3: apply/dismiss + dashboard card + Settings entry), plus a
+polish fix (AI durations snapped to review choices; ≤55-char label prompt
+rule). Verified end-to-end on production with a fresh throwaway signup
+("Pecan Ridge Pressure Washing", deleted after): dashboard card → intake
+(prefilled from signup) → live Gemini draft (durations on all 8 seeded
+services, 2 new services, Sat hours, 12 correct Collin-County ZIPs,
+trade-specific contract + questions) → edits honored (price change, unchecked
+items excluded) → apply → checklist → public booking page offered real slots.
+Fallback + hostile-payload behavior covered by scripts/test-setup-wizard.ts.
+
 Goal: a "Set up your business in 2 minutes" assistant that turns the thin
 signup answers (industry, team size) into a fully personalized, booking-ready
 account — drafted by AI, reviewed and edited by the owner, applied through the
