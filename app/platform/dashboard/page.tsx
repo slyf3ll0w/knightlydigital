@@ -11,6 +11,7 @@ import {
   MapPin,
   CheckCircle2,
   CalendarPlus,
+  CalendarCheck,
 } from "lucide-react";
 import { money, appointmentTypeLabel } from "@/lib/statuses";
 import EmptyState from "@/components/EmptyState";
@@ -85,6 +86,7 @@ export default async function DashboardPage() {
 
   const [
     newRequests,
+    needsApprovalRequests,
     approvedQuotes,
     draftQuotes,
     changesRequestedQuotes,
@@ -99,6 +101,7 @@ export default async function DashboardPage() {
     monthPayments,
   ] = await Promise.all([
     prisma.request.count({ where: { companyId, ...leadScope, status: "NEW" } }),
+    prisma.request.count({ where: { companyId, ...leadScope, status: "NEEDS_APPROVAL" } }),
     prisma.quote.count({ where: { companyId, ...leadScope, status: "APPROVED" } }),
     prisma.quote.count({ where: { companyId, ...leadScope, status: "DRAFT" } }),
     prisma.quote.count({ where: { companyId, ...leadScope, status: "CHANGES_REQUESTED" } }),
@@ -166,6 +169,15 @@ export default async function DashboardPage() {
   // (money overdue) sorts first.
   const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
   const needs = [
+    {
+      show: sell,
+      count: needsApprovalRequests,
+      icon: CalendarCheck,
+      title: plural(needsApprovalRequests, "Booking to approve", "Bookings to approve"),
+      action: "Accept or decline",
+      href: "/app/requests?status=NEEDS_APPROVAL",
+      urgent: true,
+    },
     {
       show: seeMoney,
       count: pastDueInvoices,

@@ -9,6 +9,7 @@ import type { RequestStatus } from "@prisma/client";
 
 const statusFilters: { value: string; label: string }[] = [
   { value: "", label: "All" },
+  { value: "NEEDS_APPROVAL", label: "Needs approval" },
   { value: "NEW", label: "New" },
   { value: "CONVERTED", label: "Converted" },
   { value: "ARCHIVED", label: "Archived" },
@@ -23,7 +24,7 @@ export default async function RequestsPage({
   const companyId = actor.companyId;
 
   const { status, assignee } = await searchParams;
-  const validStatus = ["NEW", "CONVERTED", "ARCHIVED"].includes(status ?? "")
+  const validStatus = ["NEW", "NEEDS_APPROVAL", "CONVERTED", "ARCHIVED"].includes(status ?? "")
     ? (status as RequestStatus)
     : undefined;
 
@@ -34,13 +35,14 @@ export default async function RequestsPage({
     ...(mineOnly ? { contact: { assignedToId: actor.id } } : {}),
   };
 
-  const [requests, newCount] = await Promise.all([
+  const [requests, newCount, needsApprovalCount] = await Promise.all([
     prisma.request.findMany({
       where: { companyId, ...scope, ...(validStatus ? { status: validStatus } : {}) },
       include: { contact: true },
       orderBy: { createdAt: "desc" },
     }),
     prisma.request.count({ where: { companyId, ...scope, status: "NEW" } }),
+    prisma.request.count({ where: { companyId, ...scope, status: "NEEDS_APPROVAL" } }),
   ]);
 
   const qs = (opts: { status?: string; mine?: boolean }) => {
@@ -74,6 +76,17 @@ export default async function RequestsPage({
           <p className="text-xs font-medium text-gray-500 mb-1">New requests</p>
           <p className="numeral-ledger text-2xl font-semibold text-gray-900">{newCount}</p>
         </Link>
+        {needsApprovalCount > 0 && (
+          <Link
+            href="/app/requests?status=NEEDS_APPROVAL"
+            className="card-ledger p-4 hover:shadow-sm transition-shadow border-red-200"
+          >
+            <p className="text-xs font-medium text-red-600 mb-1">Bookings to approve</p>
+            <p className="numeral-ledger text-2xl font-semibold text-red-700">
+              {needsApprovalCount}
+            </p>
+          </Link>
+        )}
       </div>
 
       {/* Filter tabs */}

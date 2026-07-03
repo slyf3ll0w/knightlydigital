@@ -21,6 +21,7 @@ export type StatusKind =
 
 export const requestStatusLabel: Record<string, string> = {
   NEW: "New",
+  NEEDS_APPROVAL: "Needs approval",
   CONVERTED: "Converted",
   ARCHIVED: "Archived",
 };
@@ -84,7 +85,7 @@ export const statusLabels: Record<StatusKind, Record<string, string>> = {
 };
 
 export const statusTones: Record<StatusKind, Record<string, StatusTone>> = {
-  request: { NEW: "amber", CONVERTED: "green", ARCHIVED: "gray" },
+  request: { NEW: "amber", NEEDS_APPROVAL: "red", CONVERTED: "green", ARCHIVED: "gray" },
   quote: {
     DRAFT: "gray",
     AWAITING_RESPONSE: "amber",

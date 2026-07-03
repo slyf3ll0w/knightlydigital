@@ -63,7 +63,22 @@ export default async function AppointmentDetailPage({
           <ArrowLeft size={18} />
         </Link>
         <StatusChip kind="appointment" status={appt.status} />
+        {appt.tentative && appt.status === "SCHEDULED" && (
+          <span className="stamp border-red-600/30 bg-red-600/[0.06] text-red-700">
+            Tentative — awaiting approval
+          </span>
+        )}
       </div>
+
+      {appt.tentative && appt.status === "SCHEDULED" && appt.request && (
+        <div className="mb-6 rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-900">
+          This time was self-scheduled online and isn&apos;t confirmed yet —{" "}
+          <Link href={`/app/requests/${appt.request.id}`} className="font-semibold underline">
+            accept or decline the booking on the request
+          </Link>
+          .
+        </div>
+      )}
 
       <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
         <div className="min-w-0">

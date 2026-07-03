@@ -6,6 +6,8 @@ import { ArrowLeft, Mail, Phone, MapPin } from "lucide-react";
 import { shortDate, money } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
 import RequestActions from "./RequestActions";
+import BookingApprovalBanner from "./BookingApprovalBanner";
+import { slotLabel } from "@/lib/booking-availability";
 
 export default async function RequestDetailPage({
   params,
@@ -29,6 +31,19 @@ export default async function RequestDetailPage({
 
   const c = request.contact;
 
+  // Self-scheduled booking awaiting a decision: the tentative appointment
+  // holds the promised slot until Accept/Decline
+  const tentativeAppt =
+    request.status === "NEEDS_APPROVAL"
+      ? (request.appointments.find((a) => a.tentative && a.status === "SCHEDULED") ?? null)
+      : null;
+  const company = tentativeAppt
+    ? await prisma.company.findUnique({
+        where: { id: companyId },
+        select: { timezone: true, arrivalWindowMinutes: true },
+      })
+    : null;
+
   return (
     <div className="p-4 lg:p-8 max-w-5xl mx-auto">
       <div className="flex items-center gap-3 mb-4">
@@ -37,6 +52,24 @@ export default async function RequestDetailPage({
         </Link>
         <StatusChip kind="request" status={request.status} />
       </div>
+
+      {request.status === "NEEDS_APPROVAL" && (
+        <BookingApprovalBanner
+          requestId={request.id}
+          clientName={`${c.firstName} ${c.lastName}`}
+          windowLabel={
+            tentativeAppt && company
+              ? slotLabel(
+                  company.timezone,
+                  tentativeAppt.scheduledAt,
+                  new Date(
+                    tentativeAppt.scheduledAt.getTime() + company.arrivalWindowMinutes * 60000
+                  )
+                )
+              : null
+          }
+        />
+      )}
 
       <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
         <div>
@@ -111,7 +144,14 @@ export default async function RequestDetailPage({
                             minute: "2-digit",
                           })}
                     </span>
-                    <StatusChip kind="appointment" status={a.status} />
+                    <span className="flex items-center gap-1.5 shrink-0">
+                      {a.tentative && a.status === "SCHEDULED" && (
+                        <span className="stamp border-red-600/30 bg-red-600/[0.06] text-red-700">
+                          Tentative
+                        </span>
+                      )}
+                      <StatusChip kind="appointment" status={a.status} />
+                    </span>
                   </Link>
                 ))}
               </div>

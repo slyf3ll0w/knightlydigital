@@ -41,6 +41,7 @@ export type ScheduleJobDTO = {
   scheduledEnd: string | null;
   scheduledAnytime: boolean;
   contactName: string;
+  tentative?: boolean; // self-scheduled booking awaiting approval → dashed
 };
 
 type View = "month" | "week" | "day";
@@ -61,10 +62,13 @@ const blockTone: Record<string, string> = {
   ARCHIVED: "border-gray-400 bg-gray-100 text-gray-600 hover:bg-gray-200",
 };
 
-function itemTone(it: { kind: string; status: string }): string {
+function itemTone(it: { kind: string; status: string; tentative?: boolean }): string {
   if (it.kind === "appointment") {
     if (it.status === "NO_SHOW") return "border-red-400 bg-red-50 text-red-800 hover:bg-red-100";
     if (it.status === "COMPLETED") return "border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100";
+    // Self-scheduled bookings awaiting approval render hollow/dashed — the
+    // slot is held but not confirmed until Accept and Schedule
+    if (it.tentative) return "border-dashed border-blue-500 bg-blue-50/60 text-blue-800 hover:bg-blue-100";
     return "border-blue-500 bg-blue-100 text-blue-900 hover:bg-blue-200";
   }
   return blockTone[it.status] ?? blockTone.ARCHIVED;

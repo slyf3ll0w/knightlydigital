@@ -57,6 +57,7 @@ type ApptWithContact = {
   scheduledAt: Date;
   scheduledEnd: Date | null;
   scheduledAnytime: boolean;
+  tentative: boolean;
   contact: { firstName: string; lastName: string };
 };
 
@@ -72,6 +73,7 @@ function apptToDTO(a: ApptWithContact): ScheduleJobDTO {
     scheduledEnd: a.scheduledEnd ? a.scheduledEnd.toISOString() : null,
     scheduledAnytime: a.scheduledAnytime,
     contactName: `${a.contact.firstName} ${a.contact.lastName}`.trim(),
+    tentative: a.tentative,
   };
 }
 
