@@ -91,8 +91,14 @@ export async function askAIJson<T>(opts: Omit<AskAIOptions, "json">): Promise<T 
 
 export type AIPart =
   | { text: string }
-  | { functionCall: { name: string; args: Record<string, unknown> } }
+  // thoughtSignature: Gemini 3.x models require one on functionCall parts in
+  // history; models pass their own through, and callers replaying calls made
+  // by a DIFFERENT model must supply the documented sentinel value.
+  | { functionCall: { name: string; args: Record<string, unknown> }; thoughtSignature?: string }
   | { functionResponse: { name: string; response: Record<string, unknown> } };
+
+/** Sentinel accepted by Gemini 3.x for manually-constructed function calls. */
+export const AI_THOUGHT_SIGNATURE_SENTINEL = "context_engineering_is_the_way_to_go";
 
 export type AIContent = { role: "user" | "model"; parts: AIPart[] };
 

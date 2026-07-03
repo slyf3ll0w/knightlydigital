@@ -12,7 +12,13 @@ import {
   roleLabel,
 } from "./permissions";
 import { wallTimeToUtc } from "./booking-slots";
-import { aiChat, type AIContent, type AIFunctionDecl, type AIPart } from "./ai";
+import {
+  aiChat,
+  AI_THOUGHT_SIGNATURE_SENTINEL,
+  type AIContent,
+  type AIFunctionDecl,
+  type AIPart,
+} from "./ai";
 
 /**
  * Owner assistant (docs/plans/ai-assistant-plan.md).
@@ -1730,8 +1736,14 @@ export async function runAssistant(
         : null;
     }
 
-    // execute this round's calls in parallel, then feed the results back
-    contents.push({ role: "model", parts: calls });
+    // execute this round's calls in parallel, then feed the results back.
+    // Every functionCall replayed into history needs a thoughtSignature for
+    // 3.x models — critical when a quota fallback switches models mid-turn
+    // (the new model rejects the old model's unsigned calls with a 400).
+    contents.push({
+      role: "model",
+      parts: calls.map((c) => ({ thoughtSignature: AI_THOUGHT_SIGNATURE_SENTINEL, ...c })),
+    });
     const responses: AIPart[] = await Promise.all(
       calls.slice(0, 4).map(async (call): Promise<AIPart> => {
         const tool = active.find((t) => t.decl.name === call.functionCall.name);
