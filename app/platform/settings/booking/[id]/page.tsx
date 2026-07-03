@@ -23,7 +23,7 @@ export default async function WebFormEditorPage({
     getActiveFieldDefs(actor.companyId),
     prisma.workItem.findMany({
       where: { companyId: actor.companyId, isActive: true },
-      select: { id: true, name: true, description: true, unitPrice: true },
+      select: { id: true, name: true, description: true, unitPrice: true, durationMinutes: true },
       orderBy: { name: "asc" },
     }),
   ]);
@@ -53,6 +53,7 @@ export default async function WebFormEditorPage({
         name: w.name,
         description: w.description,
         price: Number(w.unitPrice),
+        durationMinutes: w.durationMinutes,
       }))}
     />
   );

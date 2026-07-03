@@ -44,7 +44,13 @@ export default function WebFormEditor({
   company: { name: string; slug: string; brandColor: string | null };
   baseUrl: string;
   contactFieldDefs: { id: string; label: string }[];
-  priceBookItems?: { id: string; name: string; description: string | null; price: number }[];
+  priceBookItems?: {
+    id: string;
+    name: string;
+    description: string | null;
+    price: number;
+    durationMinutes?: number | null;
+  }[];
 }) {
   const [config, setConfig] = useState(form.config);
   const [name, setName] = useState(form.name);

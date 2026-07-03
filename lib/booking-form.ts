@@ -75,7 +75,16 @@ export type BookingFormConfig = {
     fontSize: "sm" | "md" | "lg";
   };
   customFields: CustomField[];
-  // SERVICE_REQUEST extras
+  // BOOKING extras — online self-scheduling (an add-on: disabled forms keep
+  // the plain preferred-date flow unchanged). Offered services come from
+  // config.services; each needs a price-book durationMinutes to appear in
+  // the slot picker.
+  selfSchedule: {
+    enabled: boolean;
+    leadHours: number; // earliest offered slot = now + leadHours
+    horizonDays: number; // how far out clients can book
+  };
+  // SERVICE_REQUEST extras (also the offered services for self-scheduling)
   services: FormService[];
   serviceRequest: {
     allowMultiple: boolean;
@@ -129,6 +138,7 @@ export const DEFAULT_BOOKING_FORM: BookingFormConfig = {
     fontSize: "md",
   },
   customFields: [],
+  selfSchedule: { enabled: false, leadHours: 4, horizonDays: 30 },
   services: [],
   serviceRequest: { allowMultiple: false, quoteMode: "draft" },
 };
@@ -235,6 +245,10 @@ export function sanitizeBookingForm(raw: unknown): BookingFormConfig {
     : [];
   const serviceRequest = (r.serviceRequest ?? {}) as Record<string, unknown>;
 
+  const selfSchedule = (r.selfSchedule ?? {}) as Record<string, unknown>;
+  const leadHours = Number(selfSchedule.leadHours);
+  const horizonDays = Number(selfSchedule.horizonDays);
+
   return {
     showAddress: fields.address.show,
     showPreferredDate: fields.date.show,
@@ -271,6 +285,15 @@ export function sanitizeBookingForm(raw: unknown): BookingFormConfig {
         appearance.fontSize === "sm" || appearance.fontSize === "lg" ? appearance.fontSize : "md",
     },
     customFields,
+    selfSchedule: {
+      enabled: selfSchedule.enabled === true,
+      leadHours:
+        Number.isFinite(leadHours) && leadHours >= 0 && leadHours <= 336 ? Math.round(leadHours) : 4,
+      horizonDays:
+        Number.isFinite(horizonDays) && horizonDays >= 1 && horizonDays <= 90
+          ? Math.round(horizonDays)
+          : 30,
+    },
     services,
     serviceRequest: {
       allowMultiple: serviceRequest.allowMultiple === true,

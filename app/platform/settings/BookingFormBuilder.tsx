@@ -106,7 +106,13 @@ export default function BookingFormBuilder({
   onChange: (config: BookingFormConfig) => void;
   formType?: "INQUIRY" | "BOOKING" | "SERVICE_REQUEST";
   contactFieldDefs?: { id: string; label: string }[];
-  priceBookItems?: { id: string; name: string; description: string | null; price: number }[];
+  priceBookItems?: {
+    id: string;
+    name: string;
+    description: string | null;
+    price: number;
+    durationMinutes?: number | null;
+  }[];
 }) {
   const set = (patch: Partial<BookingFormConfig>) => onChange({ ...config, ...patch });
   const setHeader = (patch: Partial<BookingFormConfig["header"]>) =>
@@ -119,6 +125,8 @@ export default function BookingFormBuilder({
     });
   const setSR = (patch: Partial<BookingFormConfig["serviceRequest"]>) =>
     set({ serviceRequest: { ...config.serviceRequest, ...patch } });
+  const setSelfSchedule = (patch: Partial<BookingFormConfig["selfSchedule"]>) =>
+    set({ selfSchedule: { ...config.selfSchedule, ...patch } });
   const setAppearance = (patch: Partial<BookingFormConfig["appearance"]>) =>
     set({ appearance: { ...config.appearance, ...patch } });
   const setService = (patch: Partial<BookingFormConfig["service"]>) =>
@@ -310,6 +318,169 @@ export default function BookingFormBuilder({
           At least one of email or phone stays on the form so you can reach the person.
         </p>
       </Card>
+
+      {/* Online scheduling (booking forms) — clients pick a real time slot */}
+      {formType === "BOOKING" && (
+        <Card
+          title="Online scheduling"
+          hint="clients pick a real time instead of just a preferred date"
+        >
+          <label className="flex items-start gap-2.5 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={config.selfSchedule.enabled}
+              onChange={(e) => setSelfSchedule({ enabled: e.target.checked })}
+              className="mt-0.5 h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500 accent-green-600"
+            />
+            <span className="text-sm text-gray-700">
+              Let clients pick an arrival window
+              <span className="block text-xs text-gray-500">
+                They choose a service and an open time; you get a booking to approve or
+                decline. Off = the form keeps asking for a preferred date like before.
+              </span>
+            </span>
+          </label>
+
+          {config.selfSchedule.enabled && (
+            <>
+              <div className="space-y-2 pt-1">
+                <label className={smallLabel}>Services clients can book</label>
+                {config.services.map((s) => {
+                  const wi = priceBookItems.find((w) => w.id === s.workItemId);
+                  const noDuration = !wi || wi.durationMinutes == null;
+                  return (
+                    <div key={s.id} className="border border-gray-200 rounded-lg p-3 bg-gray-50/50">
+                      <div className="flex items-center gap-2">
+                        <p className="flex-1 text-sm font-medium text-gray-900 truncate">{s.name}</p>
+                        <div className="flex items-center gap-1">
+                          <span className="text-sm text-gray-400">$</span>
+                          <input
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            value={s.price}
+                            onChange={(e) => setServiceRow(s.id, { price: Number(e.target.value) || 0 })}
+                            className={`${inputClass} w-24`}
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => set({ services: config.services.filter((x) => x.id !== s.id) })}
+                          className="text-gray-400 hover:text-red-500"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                      {noDuration ? (
+                        <p className="mt-1.5 text-xs text-amber-700">
+                          No time-on-site set — this service won&apos;t show in the slot picker.{" "}
+                          <a href="/app/settings/products" target="_blank" rel="noreferrer" className="underline">
+                            Set it in your price book
+                          </a>
+                          , then reload.
+                        </p>
+                      ) : (
+                        <p className="mt-1.5 text-xs text-gray-400">
+                          Takes {wi!.durationMinutes! % 60 === 0 ? `${wi!.durationMinutes! / 60}h` : `${wi!.durationMinutes}m`} on site
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+                {(() => {
+                  const available = priceBookItems.filter(
+                    (w) => !config.services.some((s) => s.workItemId === w.id)
+                  );
+                  if (priceBookItems.length === 0) {
+                    return (
+                      <div className="rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                        Your price book is empty — add the services you offer there first.{" "}
+                        <a href="/app/settings/products" target="_blank" rel="noreferrer" className="font-semibold underline">
+                          Open price book
+                        </a>
+                      </div>
+                    );
+                  }
+                  if (available.length === 0) {
+                    return (
+                      <p className="text-xs text-gray-400">Every price-book service is already on this form.</p>
+                    );
+                  }
+                  return (
+                    <select
+                      value=""
+                      onChange={(e) => {
+                        const item = priceBookItems.find((w) => w.id === e.target.value);
+                        if (!item) return;
+                        set({
+                          services: [
+                            ...config.services,
+                            {
+                              id: `svc-${Math.random().toString(36).slice(2, 8)}`,
+                              workItemId: item.id,
+                              name: item.name,
+                              price: item.price,
+                              description: item.description ?? undefined,
+                            },
+                          ],
+                        });
+                      }}
+                      className={`${inputClass} bg-white`}
+                    >
+                      <option value="">+ Add a service from your price book...</option>
+                      {available.map((w) => (
+                        <option key={w.id} value={w.id}>
+                          {w.name} — ${w.price.toFixed(2)}
+                          {w.durationMinutes == null ? " (no duration set)" : ""}
+                        </option>
+                      ))}
+                    </select>
+                  );
+                })()}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className={smallLabel}>Earliest booking</label>
+                  <select
+                    value={config.selfSchedule.leadHours}
+                    onChange={(e) => setSelfSchedule({ leadHours: Number(e.target.value) })}
+                    className={`${inputClass} bg-white`}
+                  >
+                    <option value={2}>2 hours from now</option>
+                    <option value={4}>4 hours from now</option>
+                    <option value={8}>8 hours from now</option>
+                    <option value={24}>1 day from now</option>
+                    <option value={48}>2 days from now</option>
+                  </select>
+                </div>
+                <div>
+                  <label className={smallLabel}>How far out</label>
+                  <select
+                    value={config.selfSchedule.horizonDays}
+                    onChange={(e) => setSelfSchedule({ horizonDays: Number(e.target.value) })}
+                    className={`${inputClass} bg-white`}
+                  >
+                    <option value={7}>1 week</option>
+                    <option value={14}>2 weeks</option>
+                    <option value={30}>30 days</option>
+                    <option value={60}>60 days</option>
+                  </select>
+                </div>
+              </div>
+              <p className="text-xs text-gray-400">
+                Open times come from your business hours, service area, and bookable team
+                members — set those under{" "}
+                <a href="/app/settings/booking" target="_blank" rel="noreferrer" className="underline">
+                  Online scheduling settings
+                </a>{" "}
+                and on the Team page. The preferred-date field is replaced by the time picker
+                while this is on.
+              </p>
+            </>
+          )}
+        </Card>
+      )}
 
       {/* Services (service-request forms) — sourced from the price book */}
       {formType === "SERVICE_REQUEST" && (

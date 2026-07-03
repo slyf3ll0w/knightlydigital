@@ -19,6 +19,7 @@ type Member = {
   phone: string | null;
   role: string;
   isActive: boolean;
+  bookable: boolean;
   createdAt: string;
 };
 
@@ -233,6 +234,22 @@ export default function TeamClient({
                   {m.phone ? ` · ${m.phone}` : ""}
                 </p>
               </div>
+
+              {m.isActive && (canManage(m) || m.id === actorId) && (
+                <label
+                  className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer"
+                  title="This person's open time shows in the online booking slot picker"
+                >
+                  <input
+                    type="checkbox"
+                    checked={m.bookable}
+                    disabled={busy}
+                    onChange={(e) => patchMember(m.id, { bookable: e.target.checked })}
+                    className="accent-green-600"
+                  />
+                  Bookable online
+                </label>
+              )}
 
               {canManage(m) ? (
                 <select

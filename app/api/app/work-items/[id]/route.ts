@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
-import { sanitizeRecurringAndAgreement } from "@/lib/work-items";
+import { sanitizeRecurringAndAgreement, sanitizeDuration } from "@/lib/work-items";
 import { sanitizeDeposit } from "@/lib/deposits";
 
 // Price-book edits are settings territory: managers only
@@ -40,6 +40,9 @@ export async function PATCH(
       ...(body.unitPrice !== undefined && { unitPrice: Number(body.unitPrice) || 0 }),
       ...(body.unitCost !== undefined && {
         unitCost: body.unitCost === null || body.unitCost === "" ? null : Number(body.unitCost),
+      }),
+      ...(body.durationMinutes !== undefined && {
+        durationMinutes: sanitizeDuration(body.durationMinutes),
       }),
       ...recurring.data,
       ...(body.depositType !== undefined && sanitizeDeposit(body)),

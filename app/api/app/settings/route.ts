@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { sanitizeBookingForm } from "@/lib/booking-form";
+import { sanitizeBusinessHours, sanitizeServiceZips } from "@/lib/business-hours";
 import { sanitizeDeposit } from "@/lib/deposits";
 import { getActor, isManager } from "@/lib/permissions";
 
@@ -53,6 +54,19 @@ export async function PATCH(req: NextRequest) {
         })()),
       reviewLink: body.reviewLink || null,
       timezone: isValidTimezone(body.timezone) ? body.timezone : undefined,
+      // Online-booking scheduling settings
+      businessHours:
+        body.businessHours !== undefined
+          ? (sanitizeBusinessHours(body.businessHours) as object)
+          : undefined,
+      serviceZips: body.serviceZips !== undefined ? sanitizeServiceZips(body.serviceZips) : undefined,
+      arrivalWindowMinutes:
+        body.arrivalWindowMinutes !== undefined &&
+        Number.isInteger(Number(body.arrivalWindowMinutes)) &&
+        Number(body.arrivalWindowMinutes) >= 30 &&
+        Number(body.arrivalWindowMinutes) <= 480
+          ? Number(body.arrivalWindowMinutes)
+          : undefined,
       bookingForm: body.bookingForm !== undefined ? sanitizeBookingForm(body.bookingForm) : undefined,
     },
   });

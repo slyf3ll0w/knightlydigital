@@ -18,6 +18,7 @@ export default async function TeamPage() {
         phone: true,
         role: true,
         isActive: true,
+        bookable: true,
         createdAt: true,
       },
       orderBy: [{ isActive: "desc" }, { createdAt: "asc" }],

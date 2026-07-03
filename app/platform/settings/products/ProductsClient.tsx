@@ -16,6 +16,7 @@ type WorkItem = {
   unitPrice: number | string;
   unitCost: number | string | null;
   requiresAgreement: boolean;
+  durationMinutes: number | null;
   recurringInterval: RecurringInterval | null;
   recurringCreatesJob: boolean;
   recurringInvoiceMode: "SEND" | "DRAFT";
@@ -33,6 +34,7 @@ type FormState = {
   type: "SERVICE" | "PRODUCT";
   unitPrice: string;
   unitCost: string;
+  durationMinutes: string;
   recurringInterval: "" | RecurringInterval;
   recurringCreatesJob: boolean;
   recurringInvoiceMode: "SEND" | "DRAFT";
@@ -48,6 +50,7 @@ const emptyForm: FormState = {
   type: "SERVICE",
   unitPrice: "",
   unitCost: "",
+  durationMinutes: "",
   recurringInterval: "",
   recurringCreatesJob: false,
   recurringInvoiceMode: "SEND",
@@ -94,6 +97,7 @@ export default function ProductsClient({
       type: item.type,
       unitPrice: String(Number(item.unitPrice)),
       unitCost: item.unitCost !== null ? String(Number(item.unitCost)) : "",
+      durationMinutes: item.durationMinutes !== null ? String(item.durationMinutes) : "",
       recurringInterval: item.recurringInterval ?? "",
       recurringCreatesJob: item.recurringCreatesJob,
       recurringInvoiceMode: item.recurringInvoiceMode,
@@ -124,6 +128,7 @@ export default function ProductsClient({
       type: form.type,
       unitPrice: parseFloat(form.unitPrice) || 0,
       unitCost: form.unitCost === "" ? null : parseFloat(form.unitCost) || 0,
+      durationMinutes: form.durationMinutes === "" ? null : parseInt(form.durationMinutes, 10) || null,
       recurringInterval: form.recurringInterval || null,
       recurringCreatesJob: form.recurringCreatesJob,
       recurringInvoiceMode: form.recurringInvoiceMode,
@@ -221,6 +226,37 @@ export default function ProductsClient({
           className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
         />
       </div>
+      {/* Online booking duration */}
+      {form.type === "SERVICE" && (
+        <div className="border-t border-green-200/60 pt-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">
+                Time on site (online booking)
+              </label>
+              <select
+                value={form.durationMinutes}
+                onChange={(e) => set("durationMinutes", e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+              >
+                <option value="">Not bookable online</option>
+                <option value="30">30 minutes</option>
+                <option value="45">45 minutes</option>
+                <option value="60">1 hour</option>
+                <option value="90">1.5 hours</option>
+                <option value="120">2 hours</option>
+                <option value="180">3 hours</option>
+                <option value="240">4 hours</option>
+                <option value="360">6 hours</option>
+                <option value="480">8 hours</option>
+              </select>
+            </div>
+          </div>
+          <p className="mt-1 text-xs text-gray-500">
+            How long this service takes — the online slot picker uses it to find open times.
+          </p>
+        </div>
+      )}
       {/* Recurring / subscription settings */}
       <div className="border-t border-green-200/60 pt-3 space-y-3">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -450,6 +486,14 @@ export default function ProductsClient({
                         {item.requiresAgreement && (
                           <span className="ml-2 stamp border-blue-600/30 bg-blue-600/[0.06] text-blue-700">
                             Agreement
+                          </span>
+                        )}
+                        {item.durationMinutes !== null && (
+                          <span className="ml-2 stamp border-purple-600/30 bg-purple-600/[0.06] text-purple-700">
+                            Bookable ·{" "}
+                            {item.durationMinutes % 60 === 0
+                              ? `${item.durationMinutes / 60}h`
+                              : `${item.durationMinutes}m`}
                           </span>
                         )}
                         {item.depositType && item.depositType !== "NONE" && (

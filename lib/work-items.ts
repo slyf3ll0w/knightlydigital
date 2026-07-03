@@ -10,6 +10,12 @@ import type { RecurringInterval, RecurringInvoiceMode, AgreementTiming } from "@
 
 const INTERVALS: RecurringInterval[] = ["MONTHLY", "QUARTERLY", "SEMIANNUAL", "ANNUAL"];
 
+/** On-site duration for online booking: 15 min – 8 h, else "not bookable" (null). */
+export function sanitizeDuration(v: unknown): number | null {
+  const n = Number(v);
+  return Number.isInteger(n) && n >= 15 && n <= 480 ? n : null;
+}
+
 export interface RecurringAgreementData {
   recurringInterval: RecurringInterval | null;
   recurringCreatesJob: boolean;

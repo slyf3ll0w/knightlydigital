@@ -42,10 +42,12 @@ export default function FormsListClient({
   companySlug,
   baseUrl,
   forms,
+  schedulingCard,
 }: {
   companySlug: string;
   baseUrl: string;
   forms: FormRow[];
+  schedulingCard?: React.ReactNode;
 }) {
   const router = useRouter();
   const [creating, setCreating] = useState(false);
@@ -114,6 +116,8 @@ export default function FormsListClient({
       <p className="text-sm text-gray-500 mb-6">
         Public forms for your website — each has its own link and embed code.
       </p>
+
+      {schedulingCard}
 
       {error && (
         <div className="mb-4 flex items-center justify-between rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">

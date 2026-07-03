@@ -41,6 +41,8 @@ export async function PATCH(
     data.role = body.role;
   }
 
+  if (body.bookable !== undefined) data.bookable = Boolean(body.bookable);
+
   if (body.isActive !== undefined) {
     if (target.id === actor.id && body.isActive === false) {
       return NextResponse.json({ error: "You can't deactivate your own account." }, { status: 400 });
@@ -71,7 +73,7 @@ export async function PATCH(
   const updated = await prisma.user.update({
     where: { id: target.id },
     data,
-    select: { id: true, name: true, email: true, phone: true, role: true, isActive: true },
+    select: { id: true, name: true, email: true, phone: true, role: true, isActive: true, bookable: true },
   });
 
   return NextResponse.json(updated);
