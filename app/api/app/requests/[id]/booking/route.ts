@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, viaContactScope } from "@/lib/permissions";
+import { sendEmail, bookingConfirmedEmail, bookingDeclinedEmail } from "@/lib/email";
+import { slotLabel } from "@/lib/booking-availability";
 
 /**
  * Approve or decline a self-scheduled online booking.
@@ -34,7 +36,7 @@ export async function POST(
         where: { tentative: true, status: "SCHEDULED" },
         orderBy: { scheduledAt: "asc" },
       },
-      company: { select: { name: true, email: true, timezone: true } },
+      company: { select: { name: true, email: true, timezone: true, arrivalWindowMinutes: true } },
     },
   });
   if (!request) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -71,6 +73,46 @@ export async function POST(
           ]
         : []),
     ]);
+  }
+
+  // Tell the client what was decided (no-op until Resend is configured)
+  if (request.contact.email) {
+    const windowLabel = tentative
+      ? slotLabel(
+          request.company.timezone,
+          tentative.scheduledAt,
+          new Date(
+            tentative.scheduledAt.getTime() + request.company.arrivalWindowMinutes * 60000
+          )
+        )
+      : null;
+    const { subject, html } =
+      action === "accept" && windowLabel
+        ? bookingConfirmedEmail({
+            companyName: request.company.name,
+            companyEmail: request.company.email,
+            contactFirstName: request.contact.firstName,
+            serviceName: request.title,
+            windowLabel,
+            address: tentative?.address,
+          })
+        : bookingDeclinedEmail({
+            companyName: request.company.name,
+            companyEmail: request.company.email,
+            contactFirstName: request.contact.firstName,
+            serviceName: request.title,
+            windowLabel,
+          });
+    // Accepting without a tentative appointment (edge: it was deleted) sends
+    // nothing rather than a wrong "confirmed" email
+    if (action === "decline" || windowLabel) {
+      await sendEmail({
+        to: request.contact.email,
+        subject,
+        html,
+        replyTo: request.company.email || undefined,
+      });
+    }
   }
 
   return NextResponse.json({ success: true, action });

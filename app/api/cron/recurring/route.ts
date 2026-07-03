@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runDueSubscriptions } from "@/lib/subscriptions";
-import { runDueReminders } from "@/lib/reminders";
+import { runDueReminders, runAppointmentReminders } from "@/lib/reminders";
 
 /**
  * Daily billing cron. A scheduler (Railway cron service, or an external pinger
@@ -31,5 +31,9 @@ export async function POST(req: NextRequest) {
   const now = new Date();
   const subscriptions = await runDueSubscriptions(now);
   const reminders = await runDueReminders(now);
-  return NextResponse.json({ ok: true, subscriptions, reminders });
+  // Online-booking appointment reminders (1 day / 1 hour before). The 1-hour
+  // stage only lands if this cron runs hourly — daily runs still cover the
+  // day-before stage.
+  const appointmentReminders = await runAppointmentReminders(now);
+  return NextResponse.json({ ok: true, subscriptions, reminders, appointmentReminders });
 }

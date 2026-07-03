@@ -390,6 +390,10 @@ model Appointment {
   meetingLink      String? // optional pasted URL for VIDEO_CALL
   notes            String?
   completedAt      DateTime?
+  // Client reminder emails (online-booked appointments): each stage fires
+  // once, tracked here like PaymentReminder rows track dunning stages.
+  reminderDaySentAt  DateTime?
+  reminderHourSentAt DateTime?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 

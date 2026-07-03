@@ -15,7 +15,8 @@
  */
 
 import { prisma } from "@/lib/db";
-import { sendEmail, paymentReminderEmail } from "@/lib/email";
+import { sendEmail, paymentReminderEmail, appointmentReminderEmail } from "@/lib/email";
+import { slotLabel } from "@/lib/booking-availability";
 
 const DAY = 86400000;
 
@@ -103,6 +104,94 @@ export async function runDueReminders(now: Date = new Date()): Promise<ReminderS
     } catch (err) {
       summary.errors++;
       console.error("[reminders] failed for invoice", inv.id, err);
+    }
+  }
+
+  return summary;
+}
+
+/**
+ * Client reminders for ONLINE-BOOKED appointments: the day before (fires in
+ * the 2–26h window) and again about an hour out (needs the cron to run
+ * hourly to actually catch it; on a daily cron only the day reminder lands).
+ * Scoped to confirmed appointments whose request came from a booking form —
+ * manually created appointments never email clients unprompted. Each stage
+ * fires once (reminderDaySentAt / reminderHourSentAt) and only records after
+ * a real send, so an unconfigured Resend doesn't burn the stage.
+ */
+export interface AppointmentReminderSummary {
+  checked: number;
+  sent: number;
+  errors: number;
+}
+
+export async function runAppointmentReminders(
+  now: Date = new Date()
+): Promise<AppointmentReminderSummary> {
+  const HOUR = 3600000;
+  const appointments = await prisma.appointment.findMany({
+    where: {
+      status: "SCHEDULED",
+      tentative: false,
+      scheduledAnytime: false,
+      scheduledAt: { gt: now, lte: new Date(now.getTime() + 26 * HOUR) },
+      contact: { is: { email: { not: null } } },
+      request: { is: { source: "booking_form" } },
+      OR: [{ reminderDaySentAt: null }, { reminderHourSentAt: null }],
+    },
+    include: {
+      contact: { select: { firstName: true, email: true } },
+      company: { select: { name: true, email: true, timezone: true, arrivalWindowMinutes: true } },
+    },
+    take: 1000,
+  });
+
+  const summary: AppointmentReminderSummary = { checked: appointments.length, sent: 0, errors: 0 };
+
+  for (const appt of appointments) {
+    try {
+      const msUntil = appt.scheduledAt.getTime() - now.getTime();
+      const stage: "day" | "hour" | null =
+        msUntil <= 75 * 60000 && !appt.reminderHourSentAt
+          ? "hour"
+          : msUntil > 2 * HOUR && !appt.reminderDaySentAt
+            ? "day"
+            : null;
+      if (!stage || !appt.contact.email) continue;
+
+      const windowEnd = new Date(
+        appt.scheduledAt.getTime() + appt.company.arrivalWindowMinutes * 60000
+      );
+      const { subject, html } = appointmentReminderEmail({
+        companyName: appt.company.name,
+        companyEmail: appt.company.email,
+        contactFirstName: appt.contact.firstName,
+        serviceName: appt.title,
+        windowLabel: slotLabel(appt.company.timezone, appt.scheduledAt, windowEnd),
+        address: appt.address,
+        stage,
+      });
+      const ok = await sendEmail({
+        to: appt.contact.email,
+        subject,
+        html,
+        replyTo: appt.company.email || undefined,
+      });
+      if (ok) {
+        await prisma.appointment.update({
+          where: { id: appt.id },
+          data:
+            stage === "hour"
+              ? // an hour-stage send also closes the day stage so a late
+                // booking doesn't get the "day before" email after the visit
+                { reminderHourSentAt: now, reminderDaySentAt: appt.reminderDaySentAt ?? now }
+              : { reminderDaySentAt: now },
+        });
+        summary.sent++;
+      }
+    } catch (err) {
+      summary.errors++;
+      console.error("[reminders] failed for appointment", appt.id, err);
     }
   }
 

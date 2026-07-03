@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { verifyCaptcha } from "@/lib/captcha";
-import { sendEmail, newRequestEmail, quoteLinkEmail } from "@/lib/email";
+import { sendEmail, newRequestEmail, quoteLinkEmail, bookingReceivedEmail } from "@/lib/email";
 import { defaultLeadAssignee } from "@/lib/permissions";
 import { resolveWebForm } from "@/lib/web-forms";
 import { getActiveFieldDefs, sanitizeCustomFields } from "@/lib/contact-fields";
@@ -451,6 +451,20 @@ export async function POST(
         result.quote.deposit > 0
           ? `A deposit of $${result.quote.deposit.toFixed(2)} will be due on approval.`
           : undefined,
+    });
+    await sendEmail({ to: email, subject, html, replyTo: company.email || undefined });
+  }
+
+  // Self-scheduled booking: the client gets a "received, awaiting
+  // confirmation" email right away (confirm/decline emails follow the
+  // owner's decision).
+  if (booking && email && bookingWindow) {
+    const { subject, html } = bookingReceivedEmail({
+      companyName: company.name,
+      contactFirstName: firstName,
+      serviceName: booking.service.name,
+      windowLabel: bookingWindow,
+      address: address || null,
     });
     await sendEmail({ to: email, subject, html, replyTo: company.email || undefined });
   }
