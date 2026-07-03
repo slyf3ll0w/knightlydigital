@@ -110,6 +110,9 @@ export type AIChatOptions = {
   model?: string; // overrides AI_MODEL for this call
   maxOutputTokens?: number;
   temperature?: number;
+  /** Gemini 2.5 models "think" by default, adding seconds per call — pass 0
+   *  for latency-sensitive chat. Ignored on models that don't support it. */
+  thinkingBudget?: number;
 };
 
 /**
@@ -131,11 +134,16 @@ export async function aiChat(opts: AIChatOptions): Promise<AIPart[] | null> {
     generationConfig: {
       temperature: opts.temperature ?? 0.3,
       maxOutputTokens: opts.maxOutputTokens ?? 1024,
+      // thinkingConfig is only valid on 2.5-generation models
+      ...(opts.thinkingBudget !== undefined && /^gemini-2\.5/.test(model)
+        ? { thinkingConfig: { thinkingBudget: opts.thinkingBudget } }
+        : {}),
     },
   };
 
-  // one retry on quota/overload (429/503) — free-tier per-minute limits are
-  // easy to graze mid-conversation and a short wait usually clears them
+  // 429 (per-model quota) returns null IMMEDIATELY — callers fall back to a
+  // different model, whose quota bucket is separate. Waiting here just
+  // stalls the user. 503 (overload) gets one quick retry.
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const res = await fetch(`${GEMINI_BASE}/${model}:generateContent?key=${key}`, {
@@ -144,16 +152,13 @@ export async function aiChat(opts: AIChatOptions): Promise<AIPart[] | null> {
         body: JSON.stringify(body),
         signal: AbortSignal.timeout(60_000),
       });
-      if (res.status === 429 || res.status === 503) {
-        console.error("aiChat: Gemini", res.status, "— retrying once");
-        if (attempt === 0) {
-          await new Promise((r) => setTimeout(r, 12_000));
-          continue;
-        }
-        return null;
+      if (res.status === 503 && attempt === 0) {
+        console.error("aiChat: Gemini 503 — quick retry");
+        await new Promise((r) => setTimeout(r, 2_000));
+        continue;
       }
       if (!res.ok) {
-        console.error("aiChat: Gemini error", res.status, (await res.text()).slice(0, 500));
+        console.error("aiChat: Gemini error", model, res.status, (await res.text()).slice(0, 300));
         return null;
       }
       const data = (await res.json()) as {

@@ -37,6 +37,9 @@ const MAX_TOOL_ROUNDS = 6;
 // requests/min, too few for multi-tool turns; once the key moves to the paid
 // tier, set AI_MODEL_ASSISTANT=gemini-3.5-flash in Railway (no deploy).
 const ASSISTANT_MODEL_DEFAULT = "gemini-2.5-flash";
+// Per-model free-tier quotas are separate buckets — when the primary 429s,
+// finishing the turn on lite beats erroring at the user.
+const ASSISTANT_MODEL_FALLBACK = "gemini-flash-lite-latest";
 
 /** A staged write, rendered as a confirmation card in the drawer. Confirm
  *  POSTs `payload` to `endpoint` — an existing, self-validating API route. */
@@ -112,6 +115,38 @@ async function findContact(actor: Actor, clientId: string) {
     where: { id: str(clientId, 40), companyId: actor.companyId, ...contactScope(actor) },
     select: { id: true, firstName: true, lastName: true, companyName: true, address: true },
   });
+}
+
+/** date (+optional time/duration) → schedule payload fields + display label,
+ *  wall-time-correct in the company's timezone. */
+async function schedulePayload(
+  companyId: string,
+  dateArg: unknown,
+  timeArg: unknown,
+  durationArg: unknown
+): Promise<{ error: string } | { fields: Record<string, unknown>; label: string }> {
+  const d = day(dateArg);
+  if (!d) return { error: "date must be YYYY-MM-DD" };
+  const tz = await companyTz(companyId);
+  const [y, m, dd] = str(dateArg, 10).split("-").map(Number);
+  const time = str(timeArg, 5);
+  const anytime = !/^\d{2}:\d{2}$/.test(time);
+  const minutes = anytime ? 12 * 60 : Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5));
+  const start = wallTimeToUtc(tz, y, m, dd, minutes);
+  const dur = num(durationArg);
+  const durationMin = dur && dur >= 15 && dur <= 600 ? dur : 60;
+  return {
+    label: fmtWhen(tz, start, anytime),
+    fields: {
+      scheduledAt: start.toISOString(),
+      ...(anytime
+        ? { scheduledAnytime: true, scheduledEnd: null }
+        : {
+            scheduledAnytime: false,
+            scheduledEnd: new Date(start.getTime() + durationMin * 60000).toISOString(),
+          }),
+    },
+  };
 }
 
 function stage(ctx: ToolCtx, p: Omit<Proposal, "id">): Record<string, unknown> {
@@ -215,7 +250,7 @@ const tools: Tool[] = [
           },
           appointments: {
             where: { status: "SCHEDULED" }, take: 3, orderBy: { scheduledAt: "asc" },
-            select: { title: true, scheduledAt: true, type: true, tentative: true },
+            select: { id: true, title: true, scheduledAt: true, type: true, tentative: true },
           },
           contracts: {
             take: 5, orderBy: { updatedAt: "desc" },
@@ -269,7 +304,7 @@ const tools: Tool[] = [
           signed: k.signedAt?.toISOString().slice(0, 10) ?? null,
         })),
         upcomingAppointments: c.appointments.map((a) => ({
-          title: a.title, type: a.type, at: a.scheduledAt.toISOString(),
+          id: a.id, title: a.title, type: a.type, at: a.scheduledAt.toISOString(),
           ...(a.tentative ? { tentative: true } : {}),
         })),
         recentNotes: c.contactNotes.map((n) => ({
@@ -440,7 +475,7 @@ const tools: Tool[] = [
           },
           take: 40, orderBy: { scheduledAt: "asc" },
           select: {
-            title: true, type: true, scheduledAt: true, scheduledAnytime: true, tentative: true,
+            id: true, title: true, type: true, scheduledAt: true, scheduledAnytime: true, tentative: true,
             contact: { select: { firstName: true, lastName: true, companyName: true } },
             assignedTo: { select: { name: true } },
           },
@@ -453,7 +488,7 @@ const tools: Tool[] = [
           crew: j.assignments.map((x) => x.user.name),
         })),
         appointments: appts.map((a) => ({
-          title: a.title, type: a.type, client: clientName(a.contact),
+          id: a.id, title: a.title, type: a.type, client: clientName(a.contact),
           when: fmtWhen(tz, a.scheduledAt, a.scheduledAnytime),
           with: a.assignedTo?.name, ...(a.tentative ? { tentative: true } : {}),
         })),
@@ -985,6 +1020,344 @@ const tools: Tool[] = [
       });
     },
   },
+  {
+    decl: {
+      name: "add_client_note",
+      description: "Stage adding a note to a client's record. Confirmation card required.",
+      parameters: {
+        type: "object",
+        properties: { clientId: { type: "string" }, note: { type: "string" } },
+        required: ["clientId", "note"],
+      },
+    },
+    allowed: (a) => canSell(a.role),
+    run: async (actor, args, ctx) => {
+      const contact = await findContact(actor, str(args.clientId, 40));
+      if (!contact) return { error: "No client with that id (or not visible to this user)." };
+      const note = str(args.note, 2000);
+      if (!note) return { error: "note is required" };
+      return stage(ctx, {
+        kind: "add_client_note",
+        title: `Add note to ${clientName(contact)}`,
+        lines: [note.slice(0, 200)],
+        endpoint: `/api/app/contacts/${contact.id}/notes`,
+        method: "POST",
+        payload: { body: note },
+      });
+    },
+  },
+  {
+    decl: {
+      name: "create_request",
+      description:
+        "Stage a new work request (lead) for a client — the top of the pipeline, before a quote exists. Confirmation card required.",
+      parameters: {
+        type: "object",
+        properties: {
+          clientId: { type: "string" },
+          title: { type: "string", description: "What they want, e.g. 'Gutter cleaning'" },
+          details: { type: "string" },
+        },
+        required: ["clientId", "title"],
+      },
+    },
+    allowed: (a) => canSell(a.role),
+    run: async (actor, args, ctx) => {
+      const contact = await findContact(actor, str(args.clientId, 40));
+      if (!contact) return { error: "No client with that id (or not visible to this user)." };
+      const title = str(args.title, 120);
+      if (!title) return { error: "title is required" };
+      const details = str(args.details, 2000);
+      return stage(ctx, {
+        kind: "create_request",
+        title: `New request: ${title}`,
+        lines: [`Client: ${clientName(contact)}`, details && `Details: ${details.slice(0, 150)}`].filter(
+          Boolean
+        ) as string[],
+        endpoint: "/api/app/requests",
+        method: "POST",
+        payload: { contactId: contact.id, title, details: details || undefined },
+      });
+    },
+  },
+  {
+    decl: {
+      name: "create_job",
+      description:
+        "Stage a new job for a client, optionally scheduled (omit date to leave it unscheduled, omit time for 'anytime that day'). Confirmation card required.",
+      parameters: {
+        type: "object",
+        properties: {
+          clientId: { type: "string" },
+          title: { type: "string" },
+          description: { type: "string" },
+          date: { type: "string", description: "YYYY-MM-DD (optional)" },
+          time: { type: "string", description: "HH:MM 24h company-local (optional)" },
+          durationMinutes: { type: "number" },
+          address: { type: "string", description: "defaults to the client's address" },
+        },
+        required: ["clientId", "title"],
+      },
+    },
+    allowed: (a) => isManager(a.role) || a.role === "USER", // matches the jobs POST route
+    run: async (actor, args, ctx) => {
+      const contact = await findContact(actor, str(args.clientId, 40));
+      if (!contact) return { error: "No client with that id (or not visible to this user)." };
+      const title = str(args.title, 120);
+      if (!title) return { error: "title is required" };
+      let scheduleFields: Record<string, unknown> = {};
+      let whenLabel = "unscheduled";
+      if (str(args.date, 10)) {
+        const sched = await schedulePayload(actor.companyId, args.date, args.time, args.durationMinutes);
+        if ("error" in sched) return sched;
+        scheduleFields = sched.fields;
+        whenLabel = sched.label;
+      }
+      const address = str(args.address, 200) || contact.address || undefined;
+      return stage(ctx, {
+        kind: "create_job",
+        title: `New job: ${title} — ${whenLabel}`,
+        lines: [
+          `Client: ${clientName(contact)}`,
+          address && `Address: ${address}`,
+          str(args.description, 300) && `Notes: ${str(args.description, 150)}`,
+        ].filter(Boolean) as string[],
+        endpoint: "/api/app/jobs",
+        method: "POST",
+        payload: {
+          contactId: contact.id,
+          title,
+          description: str(args.description, 2000) || undefined,
+          address,
+          ...scheduleFields,
+        },
+      });
+    },
+  },
+  {
+    decl: {
+      name: "reschedule_job",
+      description:
+        "Stage moving a job (by job number) to a new date/time, or omit time for 'anytime that day'. Confirmation card required.",
+      parameters: {
+        type: "object",
+        properties: {
+          jobNumber: { type: "number" },
+          date: { type: "string", description: "YYYY-MM-DD" },
+          time: { type: "string", description: "HH:MM 24h company-local (optional)" },
+          durationMinutes: { type: "number" },
+        },
+        required: ["jobNumber", "date"],
+      },
+    },
+    allowed: (a) => a.role !== "SALES",
+    run: async (actor, args, ctx) => {
+      const n = num(args.jobNumber);
+      const job = await prisma.job.findFirst({
+        where: { companyId: actor.companyId, jobNumber: n ?? -1, ...jobScope(actor) },
+        select: {
+          id: true, title: true,
+          contact: { select: { firstName: true, lastName: true, companyName: true } },
+        },
+      });
+      if (!job) return { error: `No job #${n} (or not visible to this user).` };
+      const sched = await schedulePayload(actor.companyId, args.date, args.time, args.durationMinutes);
+      if ("error" in sched) return sched;
+      return stage(ctx, {
+        kind: "reschedule_job",
+        title: `Move job #${n} (${job.title}) to ${sched.label}`,
+        lines: [`Client: ${clientName(job.contact)}`],
+        endpoint: `/api/app/jobs/${job.id}`,
+        method: "PATCH",
+        payload: sched.fields,
+      });
+    },
+  },
+  {
+    decl: {
+      name: "update_job_status",
+      description:
+        "Stage a job status change (by job number). REQUIRES_INVOICING = work finished, ready to bill. ARCHIVED = closed. ACTIVE = reopen. Confirmation card required.",
+      parameters: {
+        type: "object",
+        properties: {
+          jobNumber: { type: "number" },
+          status: { type: "string", enum: ["ACTIVE", "REQUIRES_INVOICING", "ARCHIVED"] },
+        },
+        required: ["jobNumber", "status"],
+      },
+    },
+    allowed: (a) => a.role !== "SALES", // matches the status route
+    run: async (actor, args, ctx) => {
+      const n = num(args.jobNumber);
+      const status = str(args.status, 24);
+      if (!["ACTIVE", "REQUIRES_INVOICING", "ARCHIVED"].includes(status)) {
+        return { error: "status must be ACTIVE, REQUIRES_INVOICING, or ARCHIVED" };
+      }
+      const job = await prisma.job.findFirst({
+        where: { companyId: actor.companyId, jobNumber: n ?? -1, ...jobScope(actor) },
+        select: {
+          id: true, title: true, status: true,
+          contact: { select: { firstName: true, lastName: true, companyName: true } },
+        },
+      });
+      if (!job) return { error: `No job #${n} (or not visible to this user).` };
+      const labels: Record<string, string> = {
+        ACTIVE: "Reopen",
+        REQUIRES_INVOICING: "Mark complete (ready to invoice)",
+        ARCHIVED: "Close",
+      };
+      return stage(ctx, {
+        kind: "update_job_status",
+        title: `${labels[status]}: job #${n} (${job.title})`,
+        lines: [`Client: ${clientName(job.contact)}`, `Currently: ${job.status}`],
+        endpoint: `/api/app/jobs/${job.id}/status`,
+        method: "PATCH",
+        payload: { status },
+      });
+    },
+  },
+  {
+    decl: {
+      name: "reschedule_appointment",
+      description:
+        "Stage moving an appointment (by the id from get_schedule or get_client_activity) to a new date/time. Confirmation card required.",
+      parameters: {
+        type: "object",
+        properties: {
+          appointmentId: { type: "string" },
+          date: { type: "string", description: "YYYY-MM-DD" },
+          time: { type: "string", description: "HH:MM 24h company-local (optional)" },
+          durationMinutes: { type: "number" },
+        },
+        required: ["appointmentId", "date"],
+      },
+    },
+    allowed: (a) => canSell(a.role),
+    run: async (actor, args, ctx) => {
+      const appt = await prisma.appointment.findFirst({
+        where: {
+          id: str(args.appointmentId, 40), companyId: actor.companyId,
+          ...appointmentScope(actor), status: "SCHEDULED",
+        },
+        select: {
+          id: true, title: true,
+          contact: { select: { firstName: true, lastName: true, companyName: true } },
+        },
+      });
+      if (!appt) return { error: "No scheduled appointment with that id (or not visible to this user)." };
+      const sched = await schedulePayload(actor.companyId, args.date, args.time, args.durationMinutes);
+      if ("error" in sched) return sched;
+      return stage(ctx, {
+        kind: "reschedule_appointment",
+        title: `Move "${appt.title}" to ${sched.label}`,
+        lines: [`Client: ${clientName(appt.contact)}`],
+        endpoint: `/api/app/appointments/${appt.id}`,
+        method: "PATCH",
+        payload: sched.fields,
+      });
+    },
+  },
+  {
+    decl: {
+      name: "cancel_appointment",
+      description:
+        "Stage cancelling an appointment (by the id from get_schedule or get_client_activity). Confirmation card required.",
+      parameters: {
+        type: "object",
+        properties: { appointmentId: { type: "string" } },
+        required: ["appointmentId"],
+      },
+    },
+    allowed: (a) => canSell(a.role),
+    run: async (actor, args, ctx) => {
+      const appt = await prisma.appointment.findFirst({
+        where: {
+          id: str(args.appointmentId, 40), companyId: actor.companyId,
+          ...appointmentScope(actor), status: "SCHEDULED",
+        },
+        select: {
+          id: true, title: true, scheduledAt: true, scheduledAnytime: true,
+          contact: { select: { firstName: true, lastName: true, companyName: true } },
+        },
+      });
+      if (!appt) return { error: "No scheduled appointment with that id (or not visible to this user)." };
+      const tz = await companyTz(actor.companyId);
+      return stage(ctx, {
+        kind: "cancel_appointment",
+        title: `Cancel "${appt.title}" — ${fmtWhen(tz, appt.scheduledAt, appt.scheduledAnytime)}`,
+        lines: [`Client: ${clientName(appt.contact)}`],
+        endpoint: `/api/app/appointments/${appt.id}`,
+        method: "PATCH",
+        payload: { status: "CANCELLED" },
+      });
+    },
+  },
+  {
+    decl: {
+      name: "create_invoice",
+      description:
+        "Stage a draft invoice for a client (not tied to a job). The user reviews and sends it from /app/invoices. Confirmation card required.",
+      parameters: {
+        type: "object",
+        properties: {
+          clientId: { type: "string" },
+          subject: { type: "string" },
+          dueDate: { type: "string", description: "YYYY-MM-DD (optional)" },
+          lineItems: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                description: { type: "string" },
+                quantity: { type: "number" },
+                unitPrice: { type: "number" },
+              },
+              required: ["description", "quantity", "unitPrice"],
+            },
+          },
+        },
+        required: ["clientId", "lineItems"],
+      },
+    },
+    allowed: (a) => canSeeMoney(a) && canSell(a.role),
+    run: async (actor, args, ctx) => {
+      const contact = await findContact(actor, str(args.clientId, 40));
+      if (!contact) return { error: "No client with that id (or not visible to this user)." };
+      const rawItems = Array.isArray(args.lineItems) ? args.lineItems.slice(0, 10) : [];
+      const lineItems = rawItems
+        .map((li) => {
+          const r = (li ?? {}) as Record<string, unknown>;
+          const quantity = num(r.quantity);
+          const unitPrice = num(r.unitPrice);
+          return {
+            description: str(r.description, 200),
+            quantity: quantity && quantity > 0 && quantity <= 999 ? quantity : 1,
+            unitPrice: unitPrice !== null && unitPrice >= 0 && unitPrice <= 100000 ? unitPrice : 0,
+          };
+        })
+        .filter((li) => li.description);
+      if (lineItems.length === 0) return { error: "At least one line item with a description is required." };
+      const total = lineItems.reduce((s, li) => s + li.quantity * li.unitPrice, 0);
+      const dueDate = day(args.dueDate) ? str(args.dueDate, 10) : undefined;
+      return stage(ctx, {
+        kind: "create_invoice",
+        title: `Draft invoice for ${clientName(contact)} — ${money(total)}`,
+        lines: [
+          ...lineItems.map((li) => `${li.description} × ${li.quantity} @ ${money(li.unitPrice)}`),
+          dueDate ? `Due: ${dueDate}` : null,
+        ].filter(Boolean) as string[],
+        endpoint: "/api/app/invoices",
+        method: "POST",
+        payload: {
+          contactId: contact.id,
+          subject: str(args.subject, 120) || undefined,
+          lineItems,
+          ...(dueDate ? { dueDate } : {}),
+        },
+      });
+    },
+  },
 ];
 
 export function toolsForActor(actor: Actor): Tool[] {
@@ -1023,8 +1396,9 @@ Data rules:
 - Be proactive: when results show something actionable (past-due invoices, week-old unanswered quotes, unsigned agreements, unscheduled jobs), mention it briefly even if not asked.
 
 Actions:
-- You CAN do things, with the user's confirmation: add or update a client, draft a quote, schedule an appointment, record a payment. When asked, gather what you need (use tools — e.g. price book before quoting, invoice number before payments), then call the action tool ONCE. It shows the user a confirmation card; tell them to review and press Confirm. Never claim something was done — the card does it only after they confirm.
-- For anything you can't stage (sending things, converting quotes, editing jobs), point them to the right page path from the list below.
+- You CAN do things, with the user's confirmation: add/update clients, add client notes, create requests, draft quotes and invoices, create/reschedule/complete/close jobs, schedule/reschedule/cancel appointments, record payments. When asked, gather what you need first (search for the client, check the price book before quoting, find the invoice or job number, get the appointment id from get_schedule or get_client_activity), then call the action tool ONCE. It shows the user a confirmation card; tell them to review and press Confirm. Never claim something was done — the card does it only after they confirm.
+- Chain lookups yourself — if the user says "cancel Tuesday's appointment with Ben", find it (get_schedule or search + activity) and stage the cancellation; don't ask them for ids.
+- For anything you can't stage (sending quotes/invoices to clients, converting quotes to jobs, refunds, team changes, settings), point them to the right page path from the list below.
 
 Style:
 - Concise and concrete. Plain text only — no markdown symbols like ** or #. Use "-" for lists.
@@ -1057,7 +1431,7 @@ export async function runAssistant(
   if (!company) return null;
 
   const active = toolsForActor(actor);
-  const model = process.env.AI_MODEL_ASSISTANT || ASSISTANT_MODEL_DEFAULT;
+  let model = process.env.AI_MODEL_ASSISTANT || ASSISTANT_MODEL_DEFAULT;
   const ctx: ToolCtx = { proposals: [] };
 
   const contents: AIContent[] = messages.slice(-20).map((m) => ({
@@ -1066,15 +1440,22 @@ export async function runAssistant(
   }));
 
   for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
-    const parts = await aiChat({
+    const opts = {
       system: systemPrompt(actor, company.name, company.timezone),
       contents,
       tools: active.map((t) => t.decl),
-      model,
       maxOutputTokens: 1200,
+      thinkingBudget: 0, // chat latency beats marginal quality here
       // last round: no tools, force it to answer with what it has
       ...(round === MAX_TOOL_ROUNDS ? { tools: [] } : {}),
-    });
+    };
+    // primary model, then the fallback's separate free-tier quota bucket —
+    // and once the primary fails, stay on the fallback for the whole turn
+    let parts = await aiChat({ ...opts, model });
+    if (!parts && model !== ASSISTANT_MODEL_FALLBACK) {
+      model = ASSISTANT_MODEL_FALLBACK;
+      parts = await aiChat({ ...opts, model });
+    }
     if (!parts) return null;
 
     const calls = parts.filter(
@@ -1092,24 +1473,25 @@ export async function runAssistant(
         : null;
     }
 
-    // execute this round's calls, then feed the results back
+    // execute this round's calls in parallel, then feed the results back
     contents.push({ role: "model", parts: calls });
-    const responses: AIPart[] = [];
-    for (const call of calls.slice(0, 4)) {
-      const tool = active.find((t) => t.decl.name === call.functionCall.name);
-      let response: Record<string, unknown>;
-      if (!tool) {
-        response = { error: `Unknown tool ${call.functionCall.name}` };
-      } else {
-        try {
-          response = await tool.run(actor, call.functionCall.args ?? {}, ctx);
-        } catch (err) {
-          console.error(`assistant tool ${call.functionCall.name} failed`, err);
-          response = { error: "The lookup failed — suggest the user check the page directly." };
+    const responses: AIPart[] = await Promise.all(
+      calls.slice(0, 4).map(async (call): Promise<AIPart> => {
+        const tool = active.find((t) => t.decl.name === call.functionCall.name);
+        let response: Record<string, unknown>;
+        if (!tool) {
+          response = { error: `Unknown tool ${call.functionCall.name}` };
+        } else {
+          try {
+            response = await tool.run(actor, call.functionCall.args ?? {}, ctx);
+          } catch (err) {
+            console.error(`assistant tool ${call.functionCall.name} failed`, err);
+            response = { error: "The lookup failed — suggest the user check the page directly." };
+          }
         }
-      }
-      responses.push({ functionResponse: { name: call.functionCall.name, response } });
-    }
+        return { functionResponse: { name: call.functionCall.name, response } };
+      })
+    );
     contents.push({ role: "user", parts: responses });
   }
   return null;

@@ -218,8 +218,8 @@ export default function AssistantDrawer({
               </p>
               <p className="mb-4 text-xs text-gray-500">
                 I can dig through your schedule, money, clients, and agreements, draft messages,
-                and — with your confirmation — add clients, draft quotes, book appointments, and
-                record payments.
+                and — with your confirmation — manage clients, quotes, invoices, jobs,
+                appointments, and payments for you.
               </p>
               <div className="space-y-2">
                 {STARTERS.map((s) => (
