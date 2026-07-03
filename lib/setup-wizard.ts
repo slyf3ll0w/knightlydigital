@@ -156,7 +156,7 @@ function isValidTimezone(tz: unknown): tz is string {
   }
 }
 
-function cleanQuestions(raw: unknown, labelMax: number): DraftQuestion[] {
+export function cleanQuestions(raw: unknown, labelMax: number): DraftQuestion[] {
   if (!Array.isArray(raw)) return [];
   return raw
     .slice(0, 4)

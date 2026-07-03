@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { money, appointmentTypeLabel } from "@/lib/statuses";
 import EmptyState from "@/components/EmptyState";
+import DashboardSetupCard from "./DashboardSetupCard";
 import {
   requirePageActor,
   isManager,
@@ -99,6 +100,7 @@ export default async function DashboardPage() {
     receivables,
     upcomingJobsWeek,
     monthPayments,
+    setupCompany,
   ] = await Promise.all([
     prisma.request.count({ where: { companyId, ...leadScope, status: "NEW" } }),
     prisma.request.count({ where: { companyId, ...leadScope, status: "NEEDS_APPROVAL" } }),
@@ -144,7 +146,11 @@ export default async function DashboardPage() {
           select: { amount: true, paidAt: true },
         })
       : Promise.resolve([]),
+    isManager(actor.role)
+      ? prisma.company.findUnique({ where: { id: companyId }, select: { setupWizardAt: true } })
+      : Promise.resolve(null),
   ]);
+  const showSetupCard = isManager(actor.role) && setupCompany?.setupWizardAt == null;
 
   const receivableTotal = receivables.reduce((s, inv) => {
     const paid = inv.payments.reduce((p, x) => p + Number(x.amount), 0);
@@ -299,6 +305,8 @@ export default async function DashboardPage() {
           {greeting}, {firstName}
         </h1>
       </div>
+
+      {showSetupCard && <DashboardSetupCard />}
 
       {/* ── Needs you ──────────────────────────────────────────────────────── */}
       <div className="anim-fade-up anim-delay-1 mb-8" data-tour="workflow">

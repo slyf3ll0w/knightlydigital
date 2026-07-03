@@ -173,6 +173,23 @@ export default function SettingsClient({ company }: { company: Company }) {
         <p className="text-sm text-gray-500">Manage your business profile and configuration</p>
       </div>
 
+      {/* AI setup assistant */}
+      <Link
+        href="/app/setup"
+        className="flex items-center justify-between card-ledger p-5 mb-6 hover:shadow-sm transition-shadow"
+      >
+        <div>
+          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+            Setup Assistant
+          </h2>
+          <p className="text-xs text-gray-400 mt-0.5">
+            Draft your prices, hours, service area, and booking form from a few questions — run
+            it anytime
+          </p>
+        </div>
+        <span className="text-sm font-medium text-green-600">Run →</span>
+      </Link>
+
       {/* Price book */}
       <Link
         href="/app/settings/products"
