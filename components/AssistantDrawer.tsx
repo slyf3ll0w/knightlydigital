@@ -58,6 +58,94 @@ function Linkified({ text }: { text: string }) {
   );
 }
 
+function ProposalCard({
+  proposal: p,
+  onConfirm,
+  onCancel,
+}: {
+  proposal: Proposal & { state: CardState; resultNote?: string };
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  const [typed, setTyped] = useState("");
+  const needsTyping = Boolean(p.confirmText);
+  const armed = !needsTyping || typed.trim().toLowerCase() === p.confirmText!.trim().toLowerCase();
+
+  return (
+    <div
+      className={`rounded-lg border px-3 py-2.5 ${
+        p.state === "done"
+          ? "border-green-300 bg-green-50"
+          : p.state === "failed"
+            ? "border-red-200 bg-red-50"
+            : p.danger
+              ? "border-red-300 bg-red-50"
+              : "border-amber-300 bg-amber-50"
+      }`}
+    >
+      <p className={`text-sm font-semibold ${p.danger && p.state === "pending" ? "text-red-800" : "text-gray-900"}`}>
+        {p.title}
+      </p>
+      {p.lines.length > 0 && (
+        <div className="mt-1 space-y-0.5">
+          {p.lines.map((l, j) => (
+            <p key={j} className="text-xs text-gray-600">
+              {l}
+            </p>
+          ))}
+        </div>
+      )}
+      {p.state === "pending" || p.state === "confirming" ? (
+        <div className="mt-2 space-y-2">
+          {needsTyping && (
+            <div>
+              <p className="mb-1 text-xs font-medium text-red-800">
+                Type <span className="font-semibold">{p.confirmText}</span> to allow this:
+              </p>
+              <input
+                type="text"
+                value={typed}
+                onChange={(e) => setTyped(e.target.value)}
+                placeholder={p.confirmText}
+                className="w-full rounded border border-red-300 bg-white px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-red-400"
+              />
+            </div>
+          )}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              disabled={p.state === "confirming" || !armed}
+              onClick={onConfirm}
+              className={`flex items-center gap-1.5 rounded px-3 py-1.5 text-xs font-semibold text-white transition-colors disabled:opacity-50 ${
+                p.danger ? "bg-red-600 hover:bg-red-700" : "bg-green-500 hover:bg-green-600"
+              }`}
+            >
+              {p.state === "confirming" ? (
+                <Loader2 size={12} className="animate-spin" />
+              ) : (
+                <Check size={12} />
+              )}
+              {p.danger ? "Delete" : "Confirm"}
+            </button>
+            <button
+              type="button"
+              disabled={p.state === "confirming"}
+              onClick={onCancel}
+              className="rounded border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-600 transition-colors hover:bg-gray-100 disabled:opacity-50"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <p className={`mt-1.5 text-xs font-semibold ${p.state === "done" ? "text-green-700" : "text-red-700"}`}>
+          {p.resultNote}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export default function AssistantDrawer({
   open,
   onClose,
@@ -147,10 +235,12 @@ export default function AssistantDrawer({
   async function confirm(msgIdx: number, prop: Proposal) {
     setCard(msgIdx, prop.id, { state: "confirming" });
     try {
+      const hasBody = prop.method !== "DELETE" && Object.keys(prop.payload).length > 0;
       const res = await fetch(prop.endpoint, {
         method: prop.method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(prop.payload),
+        ...(hasBody
+          ? { headers: { "Content-Type": "application/json" }, body: JSON.stringify(prop.payload) }
+          : {}),
       });
       const data = (await res.json().catch(() => null)) as { error?: string } | null;
       if (!res.ok) {
@@ -249,60 +339,12 @@ export default function AssistantDrawer({
                 </div>
                 {m.proposals?.map((p) =>
                   p.state === "dismissed" ? null : (
-                    <div
+                    <ProposalCard
                       key={p.id}
-                      className={`rounded-lg border px-3 py-2.5 ${
-                        p.state === "done"
-                          ? "border-green-300 bg-green-50"
-                          : p.state === "failed"
-                            ? "border-red-200 bg-red-50"
-                            : "border-amber-300 bg-amber-50"
-                      }`}
-                    >
-                      <p className="text-sm font-semibold text-gray-900">{p.title}</p>
-                      {p.lines.length > 0 && (
-                        <div className="mt-1 space-y-0.5">
-                          {p.lines.map((l, j) => (
-                            <p key={j} className="text-xs text-gray-600">
-                              {l}
-                            </p>
-                          ))}
-                        </div>
-                      )}
-                      {p.state === "pending" || p.state === "confirming" ? (
-                        <div className="mt-2 flex items-center gap-2">
-                          <button
-                            type="button"
-                            disabled={p.state === "confirming"}
-                            onClick={() => confirm(i, p)}
-                            className="flex items-center gap-1.5 rounded bg-green-500 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-green-600 disabled:opacity-50"
-                          >
-                            {p.state === "confirming" ? (
-                              <Loader2 size={12} className="animate-spin" />
-                            ) : (
-                              <Check size={12} />
-                            )}
-                            Confirm
-                          </button>
-                          <button
-                            type="button"
-                            disabled={p.state === "confirming"}
-                            onClick={() => setCard(i, p.id, { state: "dismissed" })}
-                            className="rounded border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-600 transition-colors hover:bg-gray-100 disabled:opacity-50"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      ) : (
-                        <p
-                          className={`mt-1.5 text-xs font-semibold ${
-                            p.state === "done" ? "text-green-700" : "text-red-700"
-                          }`}
-                        >
-                          {p.resultNote}
-                        </p>
-                      )}
-                    </div>
+                      proposal={p}
+                      onConfirm={() => confirm(i, p)}
+                      onCancel={() => setCard(i, p.id, { state: "dismissed" })}
+                    />
                   )
                 )}
               </div>

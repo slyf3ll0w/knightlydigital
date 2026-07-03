@@ -49,8 +49,13 @@ export type Proposal = {
   title: string;
   lines: string[];
   endpoint: string;
-  method: "POST" | "PATCH";
+  method: "POST" | "PATCH" | "DELETE";
   payload: Record<string, unknown>;
+  /** Destructive action — card renders red. */
+  danger?: boolean;
+  /** Extra authentication for destructive cards: the user must type this
+   *  exact text before Confirm arms (matches the force-delete page UX). */
+  confirmText?: string;
 };
 
 type ToolCtx = { proposals: Proposal[] };
@@ -1358,6 +1363,257 @@ const tools: Tool[] = [
       });
     },
   },
+  {
+    decl: {
+      name: "set_client_status",
+      description:
+        "Stage changing a client's status: LEAD, ACTIVE, or ARCHIVED. Archiving hides a client without destroying anything — ALWAYS suggest this instead of deletion for clients with real history. Confirmation card required.",
+      parameters: {
+        type: "object",
+        properties: {
+          clientId: { type: "string" },
+          status: { type: "string", enum: ["LEAD", "ACTIVE", "ARCHIVED"] },
+        },
+        required: ["clientId", "status"],
+      },
+    },
+    allowed: (a) => canSell(a.role),
+    run: async (actor, args, ctx) => {
+      const contact = await findContact(actor, str(args.clientId, 40));
+      if (!contact) return { error: "No client with that id (or not visible to this user)." };
+      const status = str(args.status, 12);
+      if (!["LEAD", "ACTIVE", "ARCHIVED"].includes(status)) {
+        return { error: "status must be LEAD, ACTIVE, or ARCHIVED" };
+      }
+      const verbs: Record<string, string> = { ARCHIVED: "Archive", ACTIVE: "Mark active", LEAD: "Mark as lead" };
+      return stage(ctx, {
+        kind: "set_client_status",
+        title: `${verbs[status]}: ${clientName(contact)}`,
+        lines: status === "ARCHIVED" ? ["Hidden from pickers and lists — reversible anytime."] : [],
+        endpoint: `/api/app/contacts/${contact.id}`,
+        method: "PATCH",
+        payload: { status },
+      });
+    },
+  },
+  {
+    decl: {
+      name: "delete_client",
+      description:
+        "Stage PERMANENTLY deleting a client (managers only). If they have any quotes/jobs/invoices/payments, this destroys ALL of it — suggest set_client_status ARCHIVED for real clients first; deletion is for spam and test records. The card makes the user type the client's name to confirm when history would be destroyed.",
+      parameters: {
+        type: "object",
+        properties: { clientId: { type: "string" } },
+        required: ["clientId"],
+      },
+    },
+    allowed: (a) => isManager(a.role),
+    run: async (actor, args, ctx) => {
+      const contact = await prisma.contact.findFirst({
+        where: { id: str(args.clientId, 40), companyId: actor.companyId },
+        select: {
+          id: true, firstName: true, lastName: true, companyName: true,
+          _count: {
+            select: {
+              quotes: true, jobs: true, invoices: true, payments: true,
+              appointments: true, subscriptions: true, contracts: true, requests: true,
+            },
+          },
+        },
+      });
+      if (!contact) return { error: "No client with that id." };
+      const c = contact._count;
+      const hasWork =
+        c.quotes + c.jobs + c.invoices + c.payments + c.appointments + c.subscriptions + c.contracts > 0;
+      const name = `${contact.firstName} ${contact.lastName}`.trim();
+      const destroyed = [
+        c.quotes && `${c.quotes} quote(s)`,
+        c.jobs && `${c.jobs} job(s)`,
+        c.invoices && `${c.invoices} invoice(s)`,
+        c.payments && `${c.payments} payment record(s)`,
+        c.appointments && `${c.appointments} appointment(s)`,
+        c.subscriptions && `${c.subscriptions} subscription(s)`,
+        c.contracts && `${c.contracts} agreement(s)`,
+        c.requests && `${c.requests} request(s)`,
+      ].filter(Boolean) as string[];
+      return stage(ctx, {
+        kind: "delete_client",
+        title: `Permanently delete ${clientName(contact)}`,
+        lines: hasWork
+          ? [`This DESTROYS: ${destroyed.join(", ")}.`, "This cannot be undone."]
+          : ["No work history — just the contact record is removed.", "This cannot be undone."],
+        endpoint: `/api/app/contacts/${contact.id}${hasWork ? "?force=1" : ""}`,
+        method: "DELETE",
+        payload: {},
+        danger: true,
+        ...(hasWork ? { confirmText: name } : {}),
+      });
+    },
+  },
+  {
+    decl: {
+      name: "send_portal_invite",
+      description:
+        "Stage emailing a client their private portal link (magic sign-in to see their quotes, invoices, visits). Client must have an email on file. Confirmation card required — this SENDS a real email once confirmed.",
+      parameters: {
+        type: "object",
+        properties: { clientId: { type: "string" } },
+        required: ["clientId"],
+      },
+    },
+    allowed: (a) => canSell(a.role),
+    run: async (actor, args, ctx) => {
+      const contact = await prisma.contact.findFirst({
+        where: { id: str(args.clientId, 40), companyId: actor.companyId, ...contactScope(actor) },
+        select: { id: true, firstName: true, lastName: true, companyName: true, email: true },
+      });
+      if (!contact) return { error: "No client with that id (or not visible to this user)." };
+      if (!contact.email) return { error: "This client has no email on file — add one first (update_client)." };
+      return stage(ctx, {
+        kind: "send_portal_invite",
+        title: `Email portal link to ${clientName(contact)}`,
+        lines: [`Sends to: ${contact.email}`],
+        endpoint: `/api/app/contacts/${contact.id}/portal-invite`,
+        method: "POST",
+        payload: {},
+      });
+    },
+  },
+  {
+    decl: {
+      name: "log_expense",
+      description:
+        "Stage recording a business expense (managers): description, amount, optional category and date. Confirmation card required.",
+      parameters: {
+        type: "object",
+        properties: {
+          description: { type: "string" },
+          amount: { type: "number" },
+          category: { type: "string", description: "e.g. Fuel, Materials, Equipment" },
+          date: { type: "string", description: "YYYY-MM-DD (optional, defaults today)" },
+        },
+        required: ["description", "amount"],
+      },
+    },
+    allowed: (a) => isManager(a.role),
+    run: async (actor, args, ctx) => {
+      const description = str(args.description, 200);
+      const amount = num(args.amount);
+      if (!description) return { error: "description is required" };
+      if (!amount || amount <= 0 || amount > 1_000_000) return { error: "amount must be a positive number" };
+      const tz = await companyTz(actor.companyId);
+      const dateStr = day(args.date)
+        ? str(args.date, 10)
+        : new Date().toLocaleDateString("en-CA", { timeZone: tz });
+      const category = str(args.category, 60);
+      return stage(ctx, {
+        kind: "log_expense",
+        title: `Log expense: ${description} — ${money(amount)}`,
+        lines: [category && `Category: ${category}`, `Date: ${dateStr}`].filter(Boolean) as string[],
+        endpoint: "/api/app/expenses",
+        method: "POST",
+        payload: { description, amount, category: category || undefined, incurredAt: dateStr },
+      });
+    },
+  },
+  {
+    decl: {
+      name: "update_service_price",
+      description:
+        "Stage updating a price-book service/product (managers): new price, cost, and/or time-on-site duration. Identify the item by (partial) name.",
+      parameters: {
+        type: "object",
+        properties: {
+          serviceName: { type: "string" },
+          price: { type: "number" },
+          cost: { type: "number" },
+          durationMinutes: { type: "number" },
+        },
+        required: ["serviceName"],
+      },
+    },
+    allowed: (a) => isManager(a.role),
+    run: async (actor, args, ctx) => {
+      const q = str(args.serviceName, 100);
+      if (!q) return { error: "serviceName is required" };
+      const matches = await prisma.workItem.findMany({
+        where: { companyId: actor.companyId, isActive: true, name: { contains: q, mode: "insensitive" } },
+        take: 5,
+        select: { id: true, name: true, unitPrice: true, durationMinutes: true },
+      });
+      if (matches.length === 0) return { error: `No price-book item matching "${q}" — check get_price_book.` };
+      if (matches.length > 1) {
+        return {
+          error: "Multiple items match — ask the user which one, then call again with the exact name.",
+          matches: matches.map((m) => m.name),
+        };
+      }
+      const item = matches[0];
+      const price = num(args.price);
+      const cost = num(args.cost);
+      const dur = num(args.durationMinutes);
+      const payload: Record<string, unknown> = {};
+      const lines: string[] = [];
+      if (price !== null && price >= 0 && price <= 100000) {
+        payload.unitPrice = price;
+        lines.push(`Price: ${money(item.unitPrice)} → ${money(price)}`);
+      }
+      if (cost !== null && cost >= 0 && cost <= 100000) {
+        payload.unitCost = cost;
+        lines.push(`Cost: ${money(cost)}`);
+      }
+      if (dur !== null) {
+        payload.durationMinutes = dur;
+        lines.push(`Time on site: ${dur} min`);
+      }
+      if (lines.length === 0) return { error: "Provide at least one of price, cost, durationMinutes." };
+      return stage(ctx, {
+        kind: "update_service_price",
+        title: `Update ${item.name}`,
+        lines,
+        endpoint: `/api/app/work-items/${item.id}`,
+        method: "PATCH",
+        payload,
+      });
+    },
+  },
+  {
+    decl: {
+      name: "convert_quote",
+      description:
+        "Stage converting an APPROVED quote (by quote number) into a job. Only approved quotes convert. Confirmation card required.",
+      parameters: {
+        type: "object",
+        properties: { quoteNumber: { type: "number" } },
+        required: ["quoteNumber"],
+      },
+    },
+    allowed: (a) => canSell(a.role),
+    run: async (actor, args, ctx) => {
+      const n = num(args.quoteNumber);
+      const quote = await prisma.quote.findFirst({
+        where: { companyId: actor.companyId, quoteNumber: n ?? -1, ...viaContactScope(actor) },
+        select: {
+          id: true, status: true, total: true, title: true,
+          contact: { select: { firstName: true, lastName: true, companyName: true } },
+        },
+      });
+      if (!quote) return { error: `No quote #${n} (or not visible to this user).` };
+      if (quote.status !== "APPROVED") {
+        return { error: `Quote #${n} is ${quote.status} — only APPROVED quotes convert to jobs.` };
+      }
+      return stage(ctx, {
+        kind: "convert_quote",
+        title: `Convert quote #${n} to a job — ${money(quote.total)}`,
+        lines: [`Client: ${clientName(quote.contact)}`, quote.title && `"${quote.title}"`].filter(
+          Boolean
+        ) as string[],
+        endpoint: `/api/app/quotes/${quote.id}/convert`,
+        method: "POST",
+        payload: {},
+      });
+    },
+  },
 ];
 
 export function toolsForActor(actor: Actor): Tool[] {
@@ -1396,9 +1652,10 @@ Data rules:
 - Be proactive: when results show something actionable (past-due invoices, week-old unanswered quotes, unsigned agreements, unscheduled jobs), mention it briefly even if not asked.
 
 Actions:
-- You CAN do things, with the user's confirmation: add/update clients, add client notes, create requests, draft quotes and invoices, create/reschedule/complete/close jobs, schedule/reschedule/cancel appointments, record payments. When asked, gather what you need first (search for the client, check the price book before quoting, find the invoice or job number, get the appointment id from get_schedule or get_client_activity), then call the action tool ONCE. It shows the user a confirmation card; tell them to review and press Confirm. Never claim something was done — the card does it only after they confirm.
+- You CAN do things, with the user's confirmation: add/update/archive clients, add client notes, create requests, draft quotes and invoices, convert approved quotes to jobs, create/reschedule/complete/close jobs, schedule/reschedule/cancel appointments, record payments, log expenses, update price-book prices/durations, email a client their portal link, and permanently delete clients. When asked, gather what you need first (search for the client, check the price book before quoting, find the invoice or job number, get the appointment id from get_schedule or get_client_activity), then call the action tool ONCE. It shows the user a confirmation card; tell them to review and press Confirm. Never claim something was done — the card does it only after they confirm.
 - Chain lookups yourself — if the user says "cancel Tuesday's appointment with Ben", find it (get_schedule or search + activity) and stage the cancellation; don't ask them for ids.
-- For anything you can't stage (sending quotes/invoices to clients, converting quotes to jobs, refunds, team changes, settings), point them to the right page path from the list below.
+- Deletion destroys a client AND all their quotes/jobs/invoices/payments permanently. For anyone with real history, recommend archiving (set_client_status ARCHIVED) and only stage deletion if the user insists or it's clearly spam/test data. The card makes them type the client's name as a final check.
+- For anything you can't stage (sending quotes/invoices to clients, refunds, team changes, settings), point them to the right page path from the list below.
 
 Style:
 - Concise and concrete. Plain text only — no markdown symbols like ** or #. Use "-" for lists.
