@@ -33,6 +33,12 @@ model Company {
   defaultDepositValue Decimal?    @db.Decimal(10, 2) // percent (0-100) or fixed dollars
   reviewLink       String?
   bookingForm      Json? // booking/embed form config (custom fields etc.) — see lib/booking-form.ts
+  // Online booking (self-scheduling). businessHours: { mon: [{start:"08:00",end:"17:00"}], ... }
+  // per lib/business-hours.ts; null = default weekday hours. serviceZips empty = no
+  // service-area restriction. arrivalWindowMinutes = width of the promised window.
+  businessHours        Json?
+  serviceZips          String[] @default([])
+  arrivalWindowMinutes Int      @default(120)
   industry         String? // onboarding answer; drives starter price book + future industry defaults
   // Team settings: who gets website/booking leads (null = company owner),
   // and whether SALES users can see invoices & payments for their leads.
@@ -79,6 +85,10 @@ model User {
   company      Company? @relation(fields: [companyId], references: [id])
   phone        String?
   isActive     Boolean  @default(true)
+  // Accepts online-booking slots: this user's free time feeds the public slot
+  // picker and tentative appointments land on them. Off by default — owners
+  // opt team members in from the Team page.
+  bookable     Boolean  @default(false)
   // First-visit guided tour; null = hasn't seen it (fires on next dashboard visit)
   tourCompletedAt DateTime?
   createdAt    DateTime @default(now())
@@ -191,6 +201,7 @@ model Contact {
 
 enum RequestStatus {
   NEW
+  NEEDS_APPROVAL // self-scheduled booking awaiting Accept and Schedule / Decline
   CONVERTED
   ARCHIVED
 }
@@ -371,6 +382,10 @@ model Appointment {
   scheduledEnd DateTime?
   // Date-only scheduling: anchored at noon, shown in the calendar's "Anytime" row
   scheduledAnytime Boolean  @default(false)
+  // Self-scheduled online booking awaiting owner approval. Renders dashed on
+  // the schedule; blocks the slot until accepted (clears this) or declined
+  // (cancels the appointment). Internal creates are never tentative.
+  tentative        Boolean  @default(false)
   address          String? // required for IN_PERSON (API-enforced)
   meetingLink      String? // optional pasted URL for VIDEO_CALL
   notes            String?
@@ -747,6 +762,9 @@ model WorkItem {
   // NONE = fall back to the company default. FULL = whole line due upfront.
   depositType  DepositType @default(NONE)
   depositValue Decimal?    @db.Decimal(10, 2) // percent (0-100) or fixed dollars
+  // How long this service takes on site — feeds the online-booking slot
+  // engine. null = not offerable for self-scheduling.
+  durationMinutes Int?
   // Recurring/subscription settings. null interval = one-time service.
   recurringInterval    RecurringInterval?
   recurringCreatesJob  Boolean              @default(false) // also spin up a job each cycle (visit-based work)
