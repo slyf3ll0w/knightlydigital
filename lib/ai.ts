@@ -134,23 +134,36 @@ export async function aiChat(opts: AIChatOptions): Promise<AIPart[] | null> {
     },
   };
 
-  try {
-    const res = await fetch(`${GEMINI_BASE}/${model}:generateContent?key=${key}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(60_000),
-    });
-    if (!res.ok) {
-      console.error("aiChat: Gemini error", res.status, (await res.text()).slice(0, 500));
+  // one retry on quota/overload (429/503) — free-tier per-minute limits are
+  // easy to graze mid-conversation and a short wait usually clears them
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const res = await fetch(`${GEMINI_BASE}/${model}:generateContent?key=${key}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(60_000),
+      });
+      if (res.status === 429 || res.status === 503) {
+        console.error("aiChat: Gemini", res.status, "— retrying once");
+        if (attempt === 0) {
+          await new Promise((r) => setTimeout(r, 12_000));
+          continue;
+        }
+        return null;
+      }
+      if (!res.ok) {
+        console.error("aiChat: Gemini error", res.status, (await res.text()).slice(0, 500));
+        return null;
+      }
+      const data = (await res.json()) as {
+        candidates?: { content?: { parts?: AIPart[] } }[];
+      };
+      return data.candidates?.[0]?.content?.parts ?? null;
+    } catch (err) {
+      console.error("aiChat: request failed", err);
       return null;
     }
-    const data = (await res.json()) as {
-      candidates?: { content?: { parts?: AIPart[] } }[];
-    };
-    return data.candidates?.[0]?.content?.parts ?? null;
-  } catch (err) {
-    console.error("aiChat: request failed", err);
-    return null;
   }
+  return null;
 }

@@ -1,22 +1,32 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { Loader2, RotateCcw, Send, Sparkles, X } from "lucide-react";
+import { Fragment, useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Check, Loader2, RotateCcw, Send, Sparkles, X } from "lucide-react";
+import type { Proposal } from "@/lib/assistant";
 
 /**
- * Owner assistant chat drawer (docs/plans/ai-assistant-plan.md, Stage A:
- * read + draft only). History lives in sessionStorage — closing the tab
- * forgets the conversation; nothing is stored server-side.
+ * Owner assistant chat drawer (docs/plans/ai-assistant-plan.md). Reads are
+ * answered directly; writes arrive as Proposal cards — nothing happens until
+ * the user presses Confirm, which submits to the same existing API route the
+ * equivalent button uses. History lives in sessionStorage only.
  */
 
-type Msg = { role: "user" | "assistant"; content: string };
+type CardState = "pending" | "confirming" | "done" | "failed" | "dismissed";
+
+type Msg = {
+  role: "user" | "assistant";
+  content: string;
+  proposals?: (Proposal & { state: CardState; resultNote?: string })[];
+};
 
 const STORAGE_KEY = "sf-assistant-chat";
 
 const STARTERS = [
-  "What's on the schedule today?",
-  "Do we have any overdue invoices?",
   "What needs my attention right now?",
+  "What's on the schedule today?",
+  "Do we have any overdue invoices or unsigned agreements?",
   "Draft a friendly follow-up message for a quote I sent last week.",
 ];
 
@@ -30,6 +40,24 @@ function loadHistory(): Msg[] {
   }
 }
 
+/** Render /app/... paths in assistant text as real links. */
+function Linkified({ text }: { text: string }) {
+  const parts = text.split(/(\/app\/[a-z0-9\-/]*)/g);
+  return (
+    <>
+      {parts.map((part, i) =>
+        part.startsWith("/app/") ? (
+          <Link key={i} href={part} className="font-medium text-green-700 underline underline-offset-2">
+            {part}
+          </Link>
+        ) : (
+          <Fragment key={i}>{part}</Fragment>
+        )
+      )}
+    </>
+  );
+}
+
 export default function AssistantDrawer({
   open,
   onClose,
@@ -37,6 +65,7 @@ export default function AssistantDrawer({
   open: boolean;
   onClose: () => void;
 }) {
+  const router = useRouter();
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -80,18 +109,61 @@ export default function AssistantDrawer({
       const res = await fetch("/api/app/assistant", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: next }),
+        // strip proposals from what we send — the model only needs the text
+        body: JSON.stringify({ messages: next.map((m) => ({ role: m.role, content: m.content })) }),
       });
-      const data = (await res.json().catch(() => null)) as { reply?: string; error?: string } | null;
+      const data = (await res.json().catch(() => null)) as
+        | { reply?: string; proposals?: Proposal[]; error?: string }
+        | null;
       if (!res.ok || !data?.reply) {
         setError(data?.error ?? "Something went wrong — please try again.");
       } else {
-        persist([...next, { role: "assistant", content: data.reply }]);
+        persist([
+          ...next,
+          {
+            role: "assistant",
+            content: data.reply,
+            proposals: (data.proposals ?? []).map((p) => ({ ...p, state: "pending" as const })),
+          },
+        ]);
       }
     } catch {
       setError("Couldn't reach the assistant — check your connection and try again.");
     } finally {
       setLoading(false);
+    }
+  }
+
+  function setCard(msgIdx: number, propId: string, patch: Partial<{ state: CardState; resultNote: string }>) {
+    persist(
+      messages.map((m, i) =>
+        i === msgIdx
+          ? { ...m, proposals: m.proposals?.map((p) => (p.id === propId ? { ...p, ...patch } : p)) }
+          : m
+      )
+    );
+  }
+
+  async function confirm(msgIdx: number, prop: Proposal) {
+    setCard(msgIdx, prop.id, { state: "confirming" });
+    try {
+      const res = await fetch(prop.endpoint, {
+        method: prop.method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(prop.payload),
+      });
+      const data = (await res.json().catch(() => null)) as { error?: string } | null;
+      if (!res.ok) {
+        setCard(msgIdx, prop.id, {
+          state: "failed",
+          resultNote: data?.error ?? "That didn't go through — try it from the page instead.",
+        });
+      } else {
+        setCard(msgIdx, prop.id, { state: "done", resultNote: "Done!" });
+        router.refresh();
+      }
+    } catch {
+      setCard(msgIdx, prop.id, { state: "failed", resultNote: "Network error — nothing was saved." });
     }
   }
 
@@ -145,9 +217,9 @@ export default function AssistantDrawer({
                 Ask me anything about your business.
               </p>
               <p className="mb-4 text-xs text-gray-500">
-                I can look through your schedule, invoices, quotes, clients, and settings, and
-                draft messages for you. I can&apos;t change anything — I&apos;ll point you to the
-                right page for that.
+                I can dig through your schedule, money, clients, and agreements, draft messages,
+                and — with your confirmation — add clients, draft quotes, book appointments, and
+                record payments.
               </p>
               <div className="space-y-2">
                 {STARTERS.map((s) => (
@@ -169,8 +241,70 @@ export default function AssistantDrawer({
                 <p className="whitespace-pre-wrap text-sm text-gray-900">{m.content}</p>
               </div>
             ) : (
-              <div key={i} className="mr-4 rounded-lg border border-gray-200 bg-white px-3 py-2">
-                <p className="whitespace-pre-wrap text-sm text-gray-800">{m.content}</p>
+              <div key={i} className="mr-4 space-y-2">
+                <div className="rounded-lg border border-gray-200 bg-white px-3 py-2">
+                  <p className="whitespace-pre-wrap text-sm text-gray-800">
+                    <Linkified text={m.content} />
+                  </p>
+                </div>
+                {m.proposals?.map((p) =>
+                  p.state === "dismissed" ? null : (
+                    <div
+                      key={p.id}
+                      className={`rounded-lg border px-3 py-2.5 ${
+                        p.state === "done"
+                          ? "border-green-300 bg-green-50"
+                          : p.state === "failed"
+                            ? "border-red-200 bg-red-50"
+                            : "border-amber-300 bg-amber-50"
+                      }`}
+                    >
+                      <p className="text-sm font-semibold text-gray-900">{p.title}</p>
+                      {p.lines.length > 0 && (
+                        <div className="mt-1 space-y-0.5">
+                          {p.lines.map((l, j) => (
+                            <p key={j} className="text-xs text-gray-600">
+                              {l}
+                            </p>
+                          ))}
+                        </div>
+                      )}
+                      {p.state === "pending" || p.state === "confirming" ? (
+                        <div className="mt-2 flex items-center gap-2">
+                          <button
+                            type="button"
+                            disabled={p.state === "confirming"}
+                            onClick={() => confirm(i, p)}
+                            className="flex items-center gap-1.5 rounded bg-green-500 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-green-600 disabled:opacity-50"
+                          >
+                            {p.state === "confirming" ? (
+                              <Loader2 size={12} className="animate-spin" />
+                            ) : (
+                              <Check size={12} />
+                            )}
+                            Confirm
+                          </button>
+                          <button
+                            type="button"
+                            disabled={p.state === "confirming"}
+                            onClick={() => setCard(i, p.id, { state: "dismissed" })}
+                            className="rounded border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-600 transition-colors hover:bg-gray-100 disabled:opacity-50"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <p
+                          className={`mt-1.5 text-xs font-semibold ${
+                            p.state === "done" ? "text-green-700" : "text-red-700"
+                          }`}
+                        >
+                          {p.resultNote}
+                        </p>
+                      )}
+                    </div>
+                  )
+                )}
               </div>
             )
           )}
@@ -203,7 +337,7 @@ export default function AssistantDrawer({
               }}
               rows={2}
               maxLength={4000}
-              placeholder="Ask about your schedule, money, clients..."
+              placeholder="Ask, or tell me what to do..."
               className="max-h-32 flex-1 resize-none rounded border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
             />
             <button

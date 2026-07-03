@@ -41,12 +41,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Send at least one user message." }, { status: 400 });
   }
 
-  const reply = await runAssistant(actor, messages);
-  if (!reply) {
+  const result = await runAssistant(actor, messages);
+  if (!result) {
     return NextResponse.json(
       { error: "The assistant couldn't answer that just now — please try again." },
       { status: 502 }
     );
   }
-  return NextResponse.json({ reply });
+  return NextResponse.json({ reply: result.reply, proposals: result.proposals });
 }

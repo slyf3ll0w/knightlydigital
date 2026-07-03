@@ -21,31 +21,39 @@ const names = (a: Actor) => toolsForActor(a).map((t) => t.decl.name).sort();
 assert.deepEqual(
   names(owner),
   [
-    "business_summary", "get_client_activity", "get_company_settings",
-    "get_price_book", "get_schedule", "list_money", "list_pipeline", "search_clients",
+    "business_summary", "create_client", "create_quote", "get_client_activity",
+    "get_company_settings", "get_price_book", "get_schedule", "list_agreements",
+    "list_money", "list_pipeline", "list_subscriptions", "record_payment",
+    "schedule_appointment", "search_clients", "update_client", "whats_needing_attention",
   ],
   "owner gets all tools"
 );
-console.log("ok 1: owner sees all 8 tools");
+console.log("ok 1: owner sees all 16 tools");
 
-// 2. tech: schedule + pipeline(jobs) only — no clients, money, pricing, settings
-assert.deepEqual(names(tech), ["get_schedule", "list_pipeline"], "tech tools");
-console.log("ok 2: tech limited to schedule + jobs");
+// 2. tech: schedule + jobs + attention only — no clients, money, pricing, actions
+assert.deepEqual(
+  names(tech),
+  ["get_schedule", "list_pipeline", "whats_needing_attention"],
+  "tech tools"
+);
+console.log("ok 2: tech limited to schedule + jobs + attention");
 
-// 3. sales: sell tools + money (toggle on) but no settings
+// 3. sales: sell + money tools (toggle on) incl. actions, but no settings
 {
   const n = names(sales);
-  assert.ok(n.includes("search_clients") && n.includes("list_money") && n.includes("business_summary"));
+  assert.ok(n.includes("search_clients") && n.includes("list_money") && n.includes("record_payment"));
+  assert.ok(n.includes("create_client") && n.includes("schedule_appointment"));
   assert.ok(!n.includes("get_company_settings"), "sales can't read settings");
-  console.log("ok 3: sales sees sell + money tools, no settings");
+  console.log("ok 3: sales sees sell + money + action tools, no settings");
 }
 
-// 4. salesSeePayments=false strips the money tools
+// 4. salesSeePayments=false strips the money tools (reads AND writes)
 {
   const n = names(salesNoMoney);
-  assert.ok(!n.includes("list_money") && !n.includes("business_summary"));
-  assert.ok(n.includes("search_clients"));
-  console.log("ok 4: salesSeePayments=false removes money tools");
+  assert.ok(!n.includes("list_money") && !n.includes("business_summary") && !n.includes("record_payment"));
+  assert.ok(!n.includes("list_subscriptions"));
+  assert.ok(n.includes("search_clients") && n.includes("create_quote"));
+  console.log("ok 4: salesSeePayments=false removes money reads and writes");
 }
 
 // 5. optional live round-trip
@@ -73,13 +81,16 @@ console.log("ok 2: tech limited to schedule + jobs");
     companyId: co.id, salesSeePayments: true,
   };
   for (const q of [
-    "What's on the schedule in the next 7 days?",
-    "Do we have any overdue invoices?",
-    "What services do we offer online booking for, and how is booking configured?",
+    "Has Laura signed her agreement yet?", // the exact failure David hit — partial name + agreements
+    "What needs my attention right now?",
+    "Add a new client named Test Wizard, phone 555-0100, then tell me what you did.",
   ]) {
-    const reply = await runAssistant(actor, [{ role: "user", content: q }]);
-    console.log(`\nQ: ${q}\nA: ${reply ?? "(null — FAILED)"}`);
-    assert.ok(reply, "live reply expected");
+    const r = await runAssistant(actor, [{ role: "user", content: q }]);
+    console.log(`\nQ: ${q}\nA: ${r?.reply ?? "(null — FAILED)"}`);
+    if (r && r.proposals.length > 0) {
+      console.log(`PROPOSALS: ${r.proposals.map((p) => `${p.kind}: ${p.title} -> ${p.method} ${p.endpoint}`).join(" | ")}`);
+    }
+    assert.ok(r?.reply, "live reply expected");
   }
   await prisma.$disconnect();
   console.log("\nAll assistant tests passed (incl. live round-trip).");
