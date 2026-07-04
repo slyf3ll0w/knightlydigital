@@ -44,6 +44,20 @@ list_subscriptions / whats_needing_attention tools, model → gemini-2.5-flash]:
   appointment, record payment. Grow by demand (candidates: send quote/invoice,
   convert quote to job, add client note, create job).
 
+**Stage C — full coverage + identity [SHIPPED 2026-07-03, commit fa9e712]:**
+- 40 tools total. v4 (7cd1042) added delete_client (typed-name danger card),
+  archive/reactivate, portal invite, expenses, price updates, quote convert.
+- v5 opened the formerly-held-back areas at David's direction: mark quotes
+  sent/approved + invoices sent (honest wording — no email goes out; the
+  prompt reminds users to share the link), refunds as bookkeeping
+  (edit_payment / delete_payment, manager-only so Sales can't refund), team
+  management (list/add/update members + policies; canManageRole hierarchy
+  enforced in-tool AND by the routes), company settings + business hours +
+  service-area ZIPs.
+- Identity: the assistant is "Atlas" by default; Company.assistantName
+  (Settings → AI Assistant, or ask Atlas to rename itself) customizes it
+  per business. Settings PATCH is now partial-safe.
+
 ## 2. AI receptionist (DAVID BUILDS LATER — likely behind a paywall)
 
 Chat bubble on the public /book/[slug] page + embed. Answers pre-booking
