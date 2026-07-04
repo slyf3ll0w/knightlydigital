@@ -47,7 +47,10 @@ import {
  * model's context, so a chatty tool is a token bill and a distraction.
  */
 
-const MAX_TOOL_ROUNDS = 6;
+const MAX_TOOL_ROUNDS = 8;
+// Tool calls executed per round. Bulk staging (one update card per record)
+// leans on this — 8 × 8 rounds bounds a turn at 64 actions.
+const MAX_CALLS_PER_ROUND = 8;
 /** Default display name for the assistant; companies can rename it in Settings. */
 export const DEFAULT_ASSISTANT_NAME = "Atlas";
 // Reasoning quality matters more here than in one-shot drafting — default to
@@ -1641,6 +1644,159 @@ const tools: Tool[] = [
   },
   {
     decl: {
+      name: "list_clients",
+      description:
+        "The client roster (up to 60, most recently updated first) with id, name, phone, email, status. Use this for bulk work ('update every client's ...') or any question about clients in general. For finding one specific person, prefer search_clients.",
+      parameters: {
+        type: "object",
+        properties: { status: { type: "string", enum: ["LEAD", "ACTIVE", "ARCHIVED"] } },
+      },
+    },
+    allowed: (a) => canSell(a.role),
+    run: async (actor, args) => {
+      const valid = ["LEAD", "ACTIVE", "ARCHIVED"];
+      const status = valid.includes(str(args.status, 12)) ? (str(args.status, 12) as never) : undefined;
+      const where = { companyId: actor.companyId, ...contactScope(actor), status };
+      const [rows, total] = await Promise.all([
+        prisma.contact.findMany({
+          where, take: 60, orderBy: { updatedAt: "desc" },
+          select: {
+            id: true, firstName: true, lastName: true, companyName: true,
+            email: true, phone: true, status: true,
+          },
+        }),
+        prisma.contact.count({ where }),
+      ]);
+      return {
+        total,
+        showing: rows.length,
+        ...(total > rows.length
+          ? { note: "More clients exist than shown — tell the user you handled the first 60 and to ask again to continue." }
+          : {}),
+        clients: rows.map((c) => ({
+          id: c.id, name: clientName(c), phone: c.phone, email: c.email, status: c.status,
+        })),
+      };
+    },
+  },
+  {
+    decl: {
+      name: "list_expenses",
+      description:
+        "Business expenses (managers) with the id needed for update_expense/delete_expense: description, category, amount, date. Optional from/to YYYY-MM-DD; default is the last 90 days.",
+      parameters: {
+        type: "object",
+        properties: {
+          from: { type: "string", description: "YYYY-MM-DD" },
+          to: { type: "string", description: "YYYY-MM-DD" },
+        },
+      },
+    },
+    allowed: (a) => isManager(a.role),
+    run: async (actor, args) => {
+      const from = day(args.from) ?? new Date(Date.now() - 90 * 86400000);
+      const to = day(args.to);
+      const end = to ? new Date(to.getTime() + 86400000) : new Date(Date.now() + 86400000);
+      const rows = await prisma.expense.findMany({
+        where: { companyId: actor.companyId, incurredAt: { gte: from, lt: end } },
+        take: 20, orderBy: { incurredAt: "desc" },
+        select: { id: true, description: true, category: true, amount: true, incurredAt: true },
+      });
+      return {
+        expenses: rows.map((e) => ({
+          id: e.id, description: e.description, category: e.category,
+          amount: money(e.amount), on: e.incurredAt.toISOString().slice(0, 10),
+        })),
+      };
+    },
+  },
+  {
+    decl: {
+      name: "update_expense",
+      description:
+        "Stage correcting an expense (managers): description, amount, category, or date. Get the id from list_expenses. Confirmation card required.",
+      parameters: {
+        type: "object",
+        properties: {
+          expenseId: { type: "string" },
+          description: { type: "string" },
+          amount: { type: "number" },
+          category: { type: "string" },
+          date: { type: "string", description: "YYYY-MM-DD" },
+        },
+        required: ["expenseId"],
+      },
+    },
+    allowed: (a) => isManager(a.role),
+    run: async (actor, args, ctx) => {
+      const expense = await prisma.expense.findFirst({
+        where: { id: str(args.expenseId, 40), companyId: actor.companyId },
+        select: { id: true, description: true, amount: true },
+      });
+      if (!expense) return { error: "No expense with that id — check list_expenses." };
+      const payload: Record<string, unknown> = {};
+      const lines: string[] = [];
+      const description = str(args.description, 300);
+      if (description) {
+        payload.description = description;
+        lines.push(`Description: ${description}`);
+      }
+      const amount = num(args.amount);
+      if (amount !== null && amount > 0 && amount <= 1_000_000) {
+        payload.amount = amount;
+        lines.push(`Amount: ${money(expense.amount)} → ${money(amount)}`);
+      }
+      const category = str(args.category, 100);
+      if (category) {
+        payload.category = category;
+        lines.push(`Category: ${category}`);
+      }
+      if (day(args.date)) {
+        payload.incurredAt = str(args.date, 10);
+        lines.push(`Date: ${str(args.date, 10)}`);
+      }
+      if (lines.length === 0) return { error: "Provide at least one of description, amount, category, date." };
+      return stage(ctx, {
+        kind: "update_expense",
+        title: `Correct expense: ${expense.description}`,
+        lines,
+        endpoint: `/api/app/expenses/${expense.id}`,
+        method: "PATCH",
+        payload,
+      });
+    },
+  },
+  {
+    decl: {
+      name: "delete_expense",
+      description:
+        "Stage deleting an expense record (managers). Get the id from list_expenses. Confirmation card required.",
+      parameters: {
+        type: "object",
+        properties: { expenseId: { type: "string" } },
+        required: ["expenseId"],
+      },
+    },
+    allowed: (a) => isManager(a.role),
+    run: async (actor, args, ctx) => {
+      const expense = await prisma.expense.findFirst({
+        where: { id: str(args.expenseId, 40), companyId: actor.companyId },
+        select: { id: true, description: true, amount: true, incurredAt: true },
+      });
+      if (!expense) return { error: "No expense with that id — check list_expenses." };
+      return stage(ctx, {
+        kind: "delete_expense",
+        title: `Delete expense: ${expense.description} — ${money(expense.amount)}`,
+        lines: [`Recorded: ${expense.incurredAt.toISOString().slice(0, 10)}`, "This cannot be undone."],
+        endpoint: `/api/app/expenses/${expense.id}`,
+        method: "DELETE",
+        payload: {},
+        danger: true,
+      });
+    },
+  },
+  {
+    decl: {
       name: "update_quote_status",
       description:
         "Stage a quote status change (by quote number). AWAITING_RESPONSE = mark sent (starts the sent clock and auto-issues any agreements attached 'with quote' — remind the user to share the quote's link from its page, no email goes out). APPROVED = client said yes. CHANGES_REQUESTED = client wants changes. ARCHIVED = close it. Confirmation card required.",
@@ -2207,8 +2363,9 @@ Data rules:
 - Be proactive: when results show something actionable (past-due invoices, week-old unanswered quotes, unsigned agreements, unscheduled jobs), mention it briefly even if not asked.
 
 Actions:
-- You CAN do things, with the user's confirmation: add/update/archive clients, add client notes, create requests, draft quotes and invoices, mark quotes sent/approved and invoices sent, convert approved quotes to jobs, create/reschedule/complete/close jobs, schedule/reschedule/cancel appointments, record/correct/remove payments, log expenses, update price-book prices/durations, email a client their portal link, manage the team (add members, change roles, deactivate, bookable), change company settings and business hours, and permanently delete clients. When asked, gather what you need first (search for the client, check the price book before quoting, find the invoice or job number, get the appointment id from get_schedule or get_client_activity, get member ids from list_team), then call the action tool ONCE. It shows the user a confirmation card; tell them to review and press Confirm. Never claim something was done — the card does it only after they confirm.
+- You CAN do things, with the user's confirmation: add/update/archive clients, add client notes, create requests, draft quotes and invoices, mark quotes sent/approved and invoices sent, convert approved quotes to jobs, create/reschedule/complete/close jobs, schedule/reschedule/cancel appointments, record/correct/remove payments, log/correct/delete expenses, update price-book prices/durations, email a client their portal link, manage the team (add members, change roles, deactivate, bookable), change company settings and business hours, and permanently delete clients. When asked, gather what you need first (search for the client, check the price book before quoting, find the invoice or job number, get the appointment id from get_schedule or get_client_activity, get member ids from list_team), then call the action tool ONCE. It shows the user a confirmation card; tell them to review and press Confirm. Never claim something was done — the card does it only after they confirm.
 - Chain lookups yourself — if the user says "cancel Tuesday's appointment with Ben", find it (get_schedule or search + activity) and stage the cancellation; don't ask them for ids.
+- BULK WORK is supported and expected. "Reformat every client's phone number", "archive all my leads from last year": fetch the full list (list_clients etc.), compute each change yourself (you are good at reformatting, renaming, recalculating), then stage one update card per affected record — call the action tool many times, several per round is fine. Skip records that already match. The user gets a "Confirm all" button, so many cards are not a burden. NEVER refuse doable work or tell the user to do it by hand on a page — that is a last resort for things you truly have no tool for.
 - "Sending" a quote or invoice marks it sent in the system — no email goes out. After they confirm, remind them to share it with the client from the quote/invoice page (Copy link) or the client portal.
 - Refunds are bookkeeping here (no card processor yet): the money goes back to the client outside the app, then you correct the books — edit_payment for a partial refund, delete_payment when fully refunded or logged by mistake. Owners/admins only.
 - Team rules: owners manage everyone; admins only Sales + Tech, Sales, and Tech members. The system blocks deactivating yourself or removing the last owner.
@@ -2276,7 +2433,7 @@ export async function runAssistant(
 
     const calls = parts
       .filter((p): p is Extract<AIPart, { functionCall: unknown }> => "functionCall" in p)
-      .slice(0, 4); // history and responses must stay 1:1 — cap both together
+      .slice(0, MAX_CALLS_PER_ROUND); // history and responses must stay 1:1 — cap both together
     if (calls.length === 0) {
       const text = parts
         .map((p) => ("text" in p ? p.text : ""))

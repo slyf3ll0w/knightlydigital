@@ -21,8 +21,6 @@ type Msg = {
   proposals?: (Proposal & { state: CardState; resultNote?: string })[];
 };
 
-const STORAGE_KEY = "sf-assistant-chat";
-
 const STARTERS = [
   "What needs my attention right now?",
   "What's on the schedule today?",
@@ -30,9 +28,9 @@ const STARTERS = [
   "Draft a friendly follow-up message for a quote I sent last week.",
 ];
 
-function loadHistory(): Msg[] {
+function loadHistory(key: string): Msg[] {
   try {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
+    const raw = sessionStorage.getItem(key);
     const parsed = raw ? (JSON.parse(raw) as Msg[]) : [];
     return Array.isArray(parsed) ? parsed.slice(-30) : [];
   } catch {
@@ -150,13 +148,18 @@ export default function AssistantDrawer({
   open,
   onClose,
   name = "Atlas",
+  storageScope = "",
 }: {
   open: boolean;
   onClose: () => void;
   /** Display name — company-customizable in Settings; defaults to Atlas. */
   name?: string;
+  /** User id — history is keyed per user so switching accounts in the same
+   *  tab never shows someone else's conversation. */
+  storageScope?: string;
 }) {
   const router = useRouter();
+  const storageKey = `sf-assistant-chat:${storageScope || "shared"}`;
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -165,8 +168,13 @@ export default function AssistantDrawer({
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    setMessages(loadHistory());
-  }, []);
+    try {
+      sessionStorage.removeItem("sf-assistant-chat"); // pre-scoping key — held cross-account history
+    } catch {
+      // ignore
+    }
+    setMessages(loadHistory(storageKey));
+  }, [storageKey]);
 
   useEffect(() => {
     if (open) {
@@ -179,13 +187,16 @@ export default function AssistantDrawer({
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
-  function persist(next: Msg[]) {
-    setMessages(next);
-    try {
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(next.slice(-30)));
-    } catch {
-      // storage full/blocked — chat still works for the session
-    }
+  function persist(updater: Msg[] | ((prev: Msg[]) => Msg[])) {
+    setMessages((prev) => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      try {
+        sessionStorage.setItem(storageKey, JSON.stringify(next.slice(-30)));
+      } catch {
+        // storage full/blocked — chat still works for the session
+      }
+      return next;
+    });
   }
 
   async function send(text: string) {
@@ -226,8 +237,8 @@ export default function AssistantDrawer({
   }
 
   function setCard(msgIdx: number, propId: string, patch: Partial<{ state: CardState; resultNote: string }>) {
-    persist(
-      messages.map((m, i) =>
+    persist((prev) =>
+      prev.map((m, i) =>
         i === msgIdx
           ? { ...m, proposals: m.proposals?.map((p) => (p.id === propId ? { ...p, ...patch } : p)) }
           : m
@@ -235,7 +246,7 @@ export default function AssistantDrawer({
     );
   }
 
-  async function confirm(msgIdx: number, prop: Proposal) {
+  async function confirm(msgIdx: number, prop: Proposal, opts?: { skipRefresh?: boolean }) {
     setCard(msgIdx, prop.id, { state: "confirming" });
     try {
       const hasBody = prop.method !== "DELETE" && Object.keys(prop.payload).length > 0;
@@ -253,11 +264,21 @@ export default function AssistantDrawer({
         });
       } else {
         setCard(msgIdx, prop.id, { state: "done", resultNote: "Done!" });
-        router.refresh();
+        if (!opts?.skipRefresh) router.refresh();
       }
     } catch {
       setCard(msgIdx, prop.id, { state: "failed", resultNote: "Network error — nothing was saved." });
     }
+  }
+
+  /** Confirm every pending non-destructive card in one message, in order.
+   *  Danger cards (deletes) stay individual — each needs its own decision. */
+  async function confirmAll(msgIdx: number, props: (Proposal & { state: CardState })[]) {
+    for (const p of props) {
+      if (p.state !== "pending" || p.danger) continue;
+      await confirm(msgIdx, p, { skipRefresh: true });
+    }
+    router.refresh();
   }
 
   function reset() {
@@ -340,6 +361,16 @@ export default function AssistantDrawer({
                     <Linkified text={m.content} />
                   </p>
                 </div>
+                {(m.proposals?.filter((p) => p.state === "pending" && !p.danger).length ?? 0) >= 2 && (
+                  <button
+                    type="button"
+                    onClick={() => confirmAll(i, m.proposals ?? [])}
+                    className="flex items-center gap-1.5 rounded bg-green-500 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-green-600"
+                  >
+                    <Check size={12} />
+                    Confirm all ({m.proposals!.filter((p) => p.state === "pending" && !p.danger).length})
+                  </button>
+                )}
                 {m.proposals?.map((p) =>
                   p.state === "dismissed" ? null : (
                     <ProposalCard

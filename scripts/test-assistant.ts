@@ -23,19 +23,19 @@ assert.deepEqual(
   [
     "add_client_note", "add_team_member", "business_summary", "cancel_appointment",
     "convert_quote", "create_client", "create_invoice", "create_job", "create_quote",
-    "create_request", "delete_client", "delete_payment", "edit_payment",
+    "create_request", "delete_client", "delete_expense", "delete_payment", "edit_payment",
     "get_client_activity", "get_company_settings", "get_price_book", "get_schedule",
-    "list_agreements", "list_money", "list_pipeline", "list_subscriptions", "list_team",
-    "log_expense", "record_payment", "reschedule_appointment", "reschedule_job",
-    "schedule_appointment", "search_clients", "send_portal_invite",
-    "set_business_hours", "set_client_status", "update_client",
-    "update_company_settings", "update_invoice_status", "update_job_status",
-    "update_quote_status", "update_service_price", "update_team_member",
-    "update_team_policy", "whats_needing_attention",
+    "list_agreements", "list_clients", "list_expenses", "list_money", "list_pipeline",
+    "list_subscriptions", "list_team", "log_expense", "record_payment",
+    "reschedule_appointment", "reschedule_job", "schedule_appointment", "search_clients",
+    "send_portal_invite", "set_business_hours", "set_client_status", "update_client",
+    "update_company_settings", "update_expense", "update_invoice_status",
+    "update_job_status", "update_quote_status", "update_service_price",
+    "update_team_member", "update_team_policy", "whats_needing_attention",
   ],
   "owner gets all tools"
 );
-console.log("ok 1: owner sees all 40 tools");
+console.log("ok 1: owner sees all 44 tools");
 
 // 2. tech: schedule/jobs reads + the job actions techs can do, nothing else
 assert.deepEqual(
@@ -56,6 +56,9 @@ console.log("ok 2: tech limited to schedule + job tools");
     "manager-only actions hidden from sales");
   assert.ok(!n.includes("edit_payment") && !n.includes("delete_payment"),
     "sales can't refund (edit/remove payments)");
+  assert.ok(!n.includes("list_expenses") && !n.includes("update_expense") && !n.includes("delete_expense"),
+    "expense tools are manager-only");
+  assert.ok(n.includes("list_clients"), "sales can list clients (scoped to their leads)");
   assert.ok(
     !n.includes("list_team") && !n.includes("add_team_member") && !n.includes("update_team_member") &&
     !n.includes("update_team_policy") && !n.includes("update_company_settings") && !n.includes("set_business_hours"),

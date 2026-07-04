@@ -250,6 +250,7 @@ interface AppShellProps {
   needsTour?: boolean;
   aiEnabled?: boolean;
   assistantName?: string | null;
+  userId?: string | null;
 }
 
 export default function AppShell({
@@ -263,6 +264,7 @@ export default function AppShell({
   needsTour = false,
   aiEnabled = false,
   assistantName,
+  userId,
 }: AppShellProps) {
   const userRole = role ?? "OWNER";
   const manager = isManagerRole(userRole);
@@ -527,6 +529,7 @@ export default function AppShell({
           open={assistantOpen}
           onClose={() => setAssistantOpen(false)}
           name={assistantName || "Atlas"}
+          storageScope={userId ?? ""}
         />
       )}
 

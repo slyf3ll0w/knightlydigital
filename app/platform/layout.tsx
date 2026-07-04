@@ -45,6 +45,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       needsTour={!!user && !user.tourCompletedAt}
       aiEnabled={Boolean(process.env.GEMINI_API_KEY)}
       assistantName={company?.assistantName}
+      userId={session.user.id}
     >
       {children}
     </AppShell>
