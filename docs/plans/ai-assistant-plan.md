@@ -82,3 +82,30 @@ Design notes (from the 2026-07-03 discussion):
   existing public submit flow.
 - Paywall shape when ready: Company.plan or a feature-flag Json column;
   settings toggle greys out with an upgrade nudge when unpaid.
+
+## 3. LATER CONCERN — API cost as assistant usage grows (noted 2026-07-03)
+
+Not a problem during the testing stage; revisit before/at real-user scale.
+
+Atlas is convenient enough that users may lean on it heavily, and the app is
+free — so AI spend has no matching revenue. Where things stand:
+
+- **Free tier (today): $0 risk, availability risk instead.** The key cannot
+  bill; Google 429s when quota runs out (~250 req/day on 2.5-flash, shared
+  across ALL companies; one chat turn = up to 8 requests via tool rounds).
+  A few heavy users could make Atlas go quiet platform-wide by afternoon.
+- **Paid tier: bounded, small.** Existing guards cap the worst case:
+  20 msgs/10min + 200 msgs/day per company (app/api/app/assistant/route.ts),
+  history capped at 30 msgs × 4000 chars, 8 tool rounds max. At 2.5-flash
+  paid pricing a turn costs ~$0.005–0.015 → hard ceiling ~$2–3/day/company,
+  realistic heavy use ~$0.15–0.30/day/company. Only a line item at hundreds
+  of active companies.
+
+When flipping to paid (do these, no code needed):
+1. Set a budget alert AND a hard spending cap on the key in the Google Cloud
+   console — a hard cap turns runaway spend into 429s the app already handles.
+2. Check the usage dashboard after the first week for real per-company burn.
+
+If it ever matters, code-side knobs: lower the 200/day limit, make the cap a
+per-plan setting, or move Atlas behind the paid tier (already a paywall
+candidate alongside the receptionist).
