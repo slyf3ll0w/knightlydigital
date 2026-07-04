@@ -168,9 +168,15 @@ export async function aiChat(opts: AIChatOptions): Promise<AIPart[] | null> {
         return null;
       }
       const data = (await res.json()) as {
-        candidates?: { content?: { parts?: AIPart[] } }[];
+        candidates?: { content?: { parts?: AIPart[] }; finishReason?: string }[];
       };
-      return data.candidates?.[0]?.content?.parts ?? null;
+      const candidate = data.candidates?.[0];
+      // Truncation eats trailing functionCalls — the visible symptom is bulk
+      // work silently missing records, so make it loud in the logs.
+      if (candidate?.finishReason && candidate.finishReason !== "STOP") {
+        console.error("aiChat: non-STOP finishReason", model, candidate.finishReason);
+      }
+      return candidate?.content?.parts ?? null;
     } catch (err) {
       console.error("aiChat: request failed", err);
       return null;

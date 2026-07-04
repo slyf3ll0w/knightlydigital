@@ -49,8 +49,9 @@ import {
 
 const MAX_TOOL_ROUNDS = 8;
 // Tool calls executed per round. Bulk staging (one update card per record)
-// leans on this — 8 × 8 rounds bounds a turn at 64 actions.
-const MAX_CALLS_PER_ROUND = 8;
+// leans on this. Overflow calls are NOT silently dropped — they get an
+// error response telling the model to re-issue them next round.
+const MAX_CALLS_PER_ROUND = 16;
 /** Default display name for the assistant; companies can rename it in Settings. */
 export const DEFAULT_ASSISTANT_NAME = "Atlas";
 // Reasoning quality matters more here than in one-shot drafting — default to
@@ -2375,7 +2376,7 @@ Data rules:
 Actions:
 - You CAN do things, with the user's confirmation: add/update/archive clients, add client notes, create requests, draft quotes and invoices, mark quotes sent/approved and invoices sent, convert approved quotes to jobs, create/reschedule/complete/close jobs, schedule/reschedule/cancel appointments, record/correct/remove payments, log/correct/delete expenses, update price-book prices/durations, email a client their portal link, manage the team (add members, change roles, deactivate, bookable), change company settings and business hours, and permanently delete clients. When asked, gather what you need first (search for the client, check the price book before quoting, find the invoice or job number, get the appointment id from get_schedule or get_client_activity, get member ids from list_team), then call the action tool ONCE. It shows the user a confirmation card; tell them to review and press Confirm. Never claim something was done — the card does it only after they confirm.
 - Chain lookups yourself — if the user says "cancel Tuesday's appointment with Ben", find it (get_schedule or search + activity) and stage the cancellation; don't ask them for ids.
-- BULK WORK is supported and expected. "Reformat every client's phone number", "archive all my leads from last year": fetch the full list (list_clients etc.), compute each change yourself (you are good at reformatting, renaming, recalculating), then stage one update per affected record — call the action tool once per record, several per round is fine. Skip records that already match. Similar changes are automatically combined into ONE confirmation card, so a big batch is still a single Confirm for the user. NEVER refuse doable work or tell the user to do it by hand on a page — that is a last resort for things you truly have no tool for.
+- BULK WORK is supported and expected. "Reformat every client's phone number", "archive all my leads from last year": fetch the full list (list_clients etc.), compute each change yourself (you are good at reformatting, renaming, recalculating), then stage one update per affected record — call the action tool once per record, several per round is fine. Skip records that already match. Similar changes are automatically combined into ONE confirmation card, so a big batch is still a single Confirm for the user. Before answering, COUNT: if the user asked for N records and you staged fewer, stage the missing ones first (a tool result saying NOT EXECUTED means exactly that — re-issue the call). In your reply, state how many you staged and how many you skipped and why. NEVER refuse doable work or tell the user to do it by hand on a page — that is a last resort for things you truly have no tool for.
 - "Sending" a quote or invoice marks it sent in the system — no email goes out. After they confirm, remind them to share it with the client from the quote/invoice page (Copy link) or the client portal.
 - Refunds are bookkeeping here (no card processor yet): the money goes back to the client outside the app, then you correct the books — edit_payment for a partial refund, delete_payment when fully refunded or logged by mistake. Owners/admins only.
 - Team rules: owners manage everyone; admins only Sales + Tech, Sales, and Tech members. The system blocks deactivating yourself or removing the last owner.
@@ -2470,7 +2471,10 @@ export async function runAssistant(
       system: systemPrompt(actor, company.name, company.timezone, assistantName),
       contents,
       tools: active.map((t) => t.decl),
-      maxOutputTokens: 1200,
+      // Bulk staging emits one functionCall per record — a 20-client batch
+      // needs far more than a chat reply's worth of output. A tight cap here
+      // truncates the batch mid-emission and records silently drop.
+      maxOutputTokens: 8192,
       thinkingBudget: 0, // chat latency beats marginal quality here
       // last round: no tools, force it to answer with what it has
       ...(round === MAX_TOOL_ROUNDS ? { tools: [] } : {}),
@@ -2484,10 +2488,15 @@ export async function runAssistant(
     }
     if (!parts) return null;
 
-    const calls = parts
-      .filter((p): p is Extract<AIPart, { functionCall: unknown }> => "functionCall" in p)
-      .slice(0, MAX_CALLS_PER_ROUND); // history and responses must stay 1:1 — cap both together
-    if (calls.length === 0) {
+    const allCalls = parts.filter(
+      (p): p is Extract<AIPart, { functionCall: unknown }> => "functionCall" in p
+    );
+    const calls = allCalls.slice(0, MAX_CALLS_PER_ROUND);
+    // over-cap calls stay in history (1:1 with responses) but get an explicit
+    // "not executed" answer so the model re-issues them instead of assuming
+    // they ran — silent drops here surfaced as bulk updates missing records
+    const overflow = allCalls.slice(MAX_CALLS_PER_ROUND);
+    if (allCalls.length === 0) {
       const text = parts
         .map((p) => ("text" in p ? p.text : ""))
         .join("")
@@ -2508,9 +2517,9 @@ export async function runAssistant(
     // (the new model rejects the old model's unsigned calls with a 400).
     contents.push({
       role: "model",
-      parts: calls.map((c) => ({ thoughtSignature: AI_THOUGHT_SIGNATURE_SENTINEL, ...c })),
+      parts: allCalls.map((c) => ({ thoughtSignature: AI_THOUGHT_SIGNATURE_SENTINEL, ...c })),
     });
-    const responses: AIPart[] = await Promise.all(
+    const executed: AIPart[] = await Promise.all(
       calls.map(async (call): Promise<AIPart> => {
         const tool = active.find((t) => t.decl.name === call.functionCall.name);
         let response: Record<string, unknown>;
@@ -2527,7 +2536,15 @@ export async function runAssistant(
         return { functionResponse: { name: call.functionCall.name, response } };
       })
     );
-    contents.push({ role: "user", parts: responses });
+    const notExecuted: AIPart[] = overflow.map((call) => ({
+      functionResponse: {
+        name: call.functionCall.name,
+        response: {
+          error: `NOT EXECUTED — more than ${MAX_CALLS_PER_ROUND} calls in one round. Call this tool again with the same arguments to finish the work.`,
+        },
+      },
+    }));
+    contents.push({ role: "user", parts: [...executed, ...notExecuted] });
   }
   return null;
 }
