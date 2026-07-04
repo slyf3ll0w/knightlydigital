@@ -66,7 +66,7 @@ export default function ContractSignPage({
             <img
               src={companyLogoUrl}
               alt={`${companyName} logo`}
-              className="h-14 w-auto max-w-[220px] object-contain mx-auto mb-3"
+              className="h-16 w-auto max-w-[260px] object-contain mx-auto mb-3"
             />
           )}
           <h1 className="text-xl font-bold text-gray-900">{companyName}</h1>

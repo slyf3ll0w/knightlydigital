@@ -399,7 +399,7 @@ export default function SettingsClient({ company }: { company: Company }) {
               >
                 {form.logoUrl && (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={form.logoUrl} alt="Logo preview" className="h-9 w-auto max-w-[120px] object-contain" />
+                  <img src={form.logoUrl} alt="Logo preview" className="h-12 w-auto max-w-[170px] object-contain" />
                 )}
                 <span className="font-bold text-white drop-shadow-sm">{form.name}</span>
               </div>

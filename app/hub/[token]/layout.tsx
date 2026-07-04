@@ -56,7 +56,7 @@ export default async function HubLayout({
               <img
                 src={contact.company.logoUrl}
                 alt={`${contact.company.name} logo`}
-                className="h-11 w-auto max-w-[150px] rounded-md bg-white object-contain p-1 shrink-0"
+                className="h-14 w-auto max-w-[200px] rounded-md bg-white object-contain p-1 shrink-0"
               />
             ) : null}
             <p className="text-sm font-semibold" style={{ color: headerText, opacity: 0.85 }}>

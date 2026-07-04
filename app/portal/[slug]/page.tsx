@@ -58,7 +58,7 @@ export default async function PortalLoginPage({
               <img
                 src={company.logoUrl}
                 alt={`${company.name} logo`}
-                className="h-11 w-auto max-w-[150px] rounded-md bg-white object-contain p-1 shrink-0"
+                className="h-14 w-auto max-w-[200px] rounded-md bg-white object-contain p-1 shrink-0"
               />
             )}
             <div>

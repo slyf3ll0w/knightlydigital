@@ -53,7 +53,7 @@ export default async function BookPageView({
             <img
               src={company.logoUrl}
               alt={`${company.name} logo`}
-              className="h-12 w-auto max-w-[180px] object-contain mx-auto mb-3"
+              className="h-16 w-auto max-w-[240px] object-contain mx-auto mb-3"
             />
           )}
           <h1 className={`text-2xl font-bold ${dark ? "text-white" : "text-gray-900"}`}>

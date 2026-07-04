@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { requirePageActor, isManager } from "@/lib/permissions";
+import { aiEnabled } from "@/lib/ai";
 import SetupWizardClient from "./SetupWizardClient";
 
 /**
@@ -21,6 +22,7 @@ export default async function SetupPage() {
         state: true,
         teamSize: true,
         timezone: true,
+        reviewLink: true,
       },
     }),
     prisma.user.count({ where: { companyId: actor.companyId, isActive: true, bookable: true } }),
@@ -38,6 +40,8 @@ export default async function SetupPage() {
       currentTimezone={company.timezone}
       serviceCount={serviceCount}
       bookableCount={bookableCount}
+      hasReviewLink={Boolean(company.reviewLink)}
+      aiAvailable={aiEnabled()}
       prefill={{
         industry: company.industry ?? "",
         city: company.city ?? "",

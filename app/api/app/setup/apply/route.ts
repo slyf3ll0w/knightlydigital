@@ -5,6 +5,7 @@ import { sanitizeBusinessHours, sanitizeServiceZips } from "@/lib/business-hours
 import { sanitizeDuration, sanitizePriceDisplay } from "@/lib/work-items";
 import { sanitizeBookingForm, type BookingFormConfig, type FormService } from "@/lib/booking-form";
 import { cleanQuestions } from "@/lib/setup-wizard";
+import { fetchLogoImage, normalizeWebsiteUrl } from "@/lib/website-info";
 
 /**
  * POST — apply the reviewed setup draft. The client payload is the user's
@@ -94,6 +95,30 @@ export async function POST(req: NextRequest) {
   const clientFields = cleanQuestions(body.clientFields, 80);
   const enableSelfSchedule = body.enableSelfSchedule === true;
 
+  // Company profile from the confirmed business lookup (all owner-reviewed,
+  // all optional — empty strings leave the existing values alone)
+  const profileRaw = (body.profile ?? null) as Record<string, unknown> | null;
+  const profile =
+    profileRaw && typeof profileRaw === "object"
+      ? {
+          phone: cleanStr(profileRaw.phone, 40),
+          address: cleanStr(profileRaw.address, 160),
+          zip: /^\d{5}(-\d{4})?$/.test(cleanStr(profileRaw.zip, 10))
+            ? cleanStr(profileRaw.zip, 10)
+            : "",
+          website: normalizeWebsiteUrl(profileRaw.website) ?? "",
+        }
+      : null;
+
+  // Branding: logo is re-downloaded server-side (never trusted bytes from the
+  // client), color must be clean hex. Network work happens BEFORE the
+  // transaction; a dead image URL just means no logo, never a failed apply.
+  const brandingRaw = (body.branding ?? null) as Record<string, unknown> | null;
+  const brandColorRaw = brandingRaw ? cleanStr(brandingRaw.brandColor, 10) : "";
+  const brandColor = /^#[0-9a-fA-F]{6}$/.test(brandColorRaw) ? brandColorRaw.toUpperCase() : "";
+  const logoSrcUrl = brandingRaw ? cleanStr(brandingRaw.logoUrl, 500) : "";
+  const logo = logoSrcUrl ? await fetchLogoImage(logoSrcUrl) : null;
+
   // ── one transaction: all or nothing ──
   await prisma.$transaction(async (tx) => {
     await tx.company.update({
@@ -107,6 +132,22 @@ export async function POST(req: NextRequest) {
         businessHours: businessHours as object,
         serviceZips,
         arrivalWindowMinutes,
+        ...(profile
+          ? {
+              phone: profile.phone || undefined,
+              address: profile.address || undefined,
+              zip: profile.zip || undefined,
+              website: profile.website || undefined,
+            }
+          : {}),
+        ...(brandColor ? { brandColor } : {}),
+        ...(logo
+          ? {
+              logoData: logo.bytes,
+              logoMime: logo.mime,
+              logoUrl: `/api/logo/${companyId}?v=${Date.now()}`,
+            }
+          : {}),
         setupWizardAt: new Date(),
       },
     });

@@ -275,6 +275,9 @@ export default function AppShell({
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [counts, setCounts] = useState({ requests: 0, pastDue: 0 });
+  // Wide wordmark logos render large and alone; squarish marks get a tile
+  // next to the company name (detected from the image's natural size).
+  const [logoIsWide, setLogoIsWide] = useState(false);
 
   // Auth pages render standalone even when a session cookie exists
   const isAuthPage = pathname.startsWith("/app/login") || pathname.startsWith("/app/register");
@@ -404,27 +407,49 @@ export default function AppShell({
   );
 
   // Sidebar header is the company's identity, not ours (their logo when
-  // uploaded, otherwise a brand-colored initial tile).
+  // uploaded, otherwise a brand-colored initial tile). Wide wordmark logos
+  // already carry the name — show them big and alone; squarish marks sit
+  // next to the company name.
   const logo = (
-    <div className="flex items-center gap-2.5 px-5 py-[15px] border-b border-stone-300/70 min-w-0">
+    <div className="flex items-center gap-2.5 px-5 py-2.5 min-h-[57px] border-b border-stone-300/70 min-w-0">
       {companyLogoUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={companyLogoUrl}
-          alt=""
-          className="h-8 w-8 rounded-md object-contain bg-white p-0.5 shrink-0 ring-1 ring-stone-300/60"
-        />
+        logoIsWide ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={companyLogoUrl}
+            alt={companyName ?? ""}
+            className="h-10 w-auto max-w-[176px] rounded-md object-contain bg-white px-1.5 py-1 ring-1 ring-stone-300/60"
+          />
+        ) : (
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={companyLogoUrl}
+              alt=""
+              onLoad={(e) => {
+                const img = e.currentTarget;
+                if (img.naturalWidth > img.naturalHeight * 1.5) setLogoIsWide(true);
+              }}
+              className="h-10 w-10 rounded-md object-contain bg-white p-0.5 shrink-0 ring-1 ring-stone-300/60"
+            />
+            <span className="font-bold text-[14px] tracking-tight text-gray-900 truncate">
+              {companyName ?? "Streamflaire Hub"}
+            </span>
+          </>
+        )
       ) : (
-        <div
-          className="w-8 h-8 rounded-md flex items-center justify-center shrink-0 font-bold text-sm"
-          style={{ backgroundColor: accent, color: textOn(accent) }}
-        >
-          {companyName?.charAt(0).toUpperCase() ?? "J"}
-        </div>
+        <>
+          <div
+            className="w-9 h-9 rounded-md flex items-center justify-center shrink-0 font-bold text-sm"
+            style={{ backgroundColor: accent, color: textOn(accent) }}
+          >
+            {companyName?.charAt(0).toUpperCase() ?? "J"}
+          </div>
+          <span className="font-bold text-[14px] tracking-tight text-gray-900 truncate">
+            {companyName ?? "Streamflaire Hub"}
+          </span>
+        </>
       )}
-      <span className="font-bold text-[14px] tracking-tight text-gray-900 truncate">
-        {companyName ?? "Streamflaire Hub"}
-      </span>
     </div>
   );
 

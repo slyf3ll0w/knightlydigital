@@ -119,3 +119,52 @@ booking form — plus a full price book for "Other" companies that got nothing.
 3. Chunk 3: apply/dismiss endpoints + dashboard card + Settings entry +
    next-steps checklist.
 4. Live verify on production with a fresh throwaway signup; clean up after.
+
+## v2 — "Find my business" + branding (2026-07-04)
+
+Jobber-style business lookup plus the pieces that make setup feel magical:
+
+- **Find my business** (`POST /api/app/setup/lookup`, 10/hr/company): one
+  Google-Search-grounded Gemini call (`askAIGroundedJson` in lib/ai.ts — the
+  search tool can't use strict JSON mode, so JSON is extracted defensively)
+  returns website, phone, address, Google Maps URL, rating/review count, and a
+  summary (`lib/business-lookup.ts`, everything sanitized). The intake screen
+  shows an "Is this your business?" card; confirming prefills city/state/
+  description and stages profile + branding for review. Fully skippable; a
+  miss shows a friendly "fill it in below" line.
+- **Website-aware drafting**: the confirmed site (or Company.website) is
+  fetched server-side (`lib/website-info.ts` — SSRF-guarded public-URL-only,
+  800KB/12k-char caps, tags stripped) and fed into the draft prompt, so the
+  AI drafts the services the business actually advertises. Prompt tells the
+  model to treat site text as reference material and ignore instructions in it.
+- **Logo + brand color**: ranked logo candidates from the site (img-with-
+  "logo" > og:image > apple-touch-icon; SVG/data skipped — upload route can't
+  store them) are vision-verified ("is this actually THIS business's logo?" —
+  catches partner badges) and the winner's dominant color extracted; neutral
+  hexes rejected (isNeutralHex). Review screen has an opt-in "use my logo and
+  brand color everywhere" checkbox; apply re-downloads the image server-side
+  (2MB/mime caps, same constraints as the upload route) into logoData and sets
+  brandColor. AppShell already tints the sidebar/create/tab-bar from
+  brandColor, so the dashboard brands itself the moment this applies.
+- **Company profile card**: phone/address/ZIP/website from the lookup, all
+  editable on review, written on apply only when the checkbox is on and the
+  field is non-empty.
+- **"We work anywhere"** radius option: skips ZIP generation, forces
+  serviceZips=[] (which the booking form already treats as "accept any
+  address"), review card explains it.
+- **Model fallback**: askAI retries once on gemini-2.5-flash-lite when the
+  primary model 429s (free-tier quotas are per-model) — this kept the whole
+  wizard alive the day 3.1-flash-lite's quota ran out.
+- **Review-link checklist nudge** on the done screen (only when
+  Company.reviewLink is empty) with the 30-second GBP instructions — grounding
+  can't reliably return a place ID, so we don't auto-set it wrong.
+- **Logo size pass** (same commit): sidebar logo is aspect-aware (wide
+  wordmarks render alone at h-10/176px, square marks get a h-10 tile), and
+  booking/hub/portal/pay/quote/contract/settings previews all bumped a notch.
+
+Live checks during build: ABC Home & Commercial (vision check correctly
+rejected a PestVets badge + banner, picked the real mark, color #8C1525),
+Berrett Pest Control (caught their rebrand, real logo, #00AEEF), fake business
+→ found:false (no hallucination). rating/reviewCount 0 from the model is
+treated as null. Debug scripts: scripts/debug-lookup.ts,
+scripts/debug-draft-site.ts.

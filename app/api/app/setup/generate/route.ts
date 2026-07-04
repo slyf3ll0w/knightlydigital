@@ -7,6 +7,7 @@ import {
   sanitizeIntake,
   type ExistingServiceInput,
 } from "@/lib/setup-wizard";
+import { fetchWebsiteInfo } from "@/lib/website-info";
 
 /**
  * POST — draft a personalized account setup (AI with deterministic fallback).
@@ -30,7 +31,7 @@ export async function POST(req: NextRequest) {
 
   const company = await prisma.company.findUnique({
     where: { id: companyId },
-    select: { name: true },
+    select: { name: true, website: true },
   });
   if (!company) return NextResponse.json({ error: "Company not found" }, { status: 404 });
 
@@ -47,7 +48,14 @@ export async function POST(req: NextRequest) {
   }));
 
   const intake = sanitizeIntake(await req.json().catch(() => ({})));
-  const draft = await generateSetupDraft(company.name, intake, existing);
+
+  // Their real website (confirmed in the lookup step, or already on file)
+  // makes the draft match what they actually sell — fetched server-side,
+  // soft-fails to a website-less draft.
+  const websiteUrl = intake.website || company.website || "";
+  const site = websiteUrl ? await fetchWebsiteInfo(websiteUrl) : null;
+
+  const draft = await generateSetupDraft(company.name, intake, existing, site);
 
   return NextResponse.json({ draft });
 }

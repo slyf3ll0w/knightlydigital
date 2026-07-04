@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ArrowRight,
+  Building2,
   Check,
   CalendarClock,
   ExternalLink,
@@ -14,7 +15,9 @@ import {
   Loader2,
   MapPin,
   RefreshCcw,
+  Search,
   Sparkles,
+  Star,
   Upload,
   Users,
   Wand2,
@@ -37,7 +40,26 @@ const RADIUS_OPTIONS = [
   { value: "15mi", label: "About 15 miles out" },
   { value: "30mi", label: "About 30 miles out" },
   { value: "50mi", label: "50+ miles out" },
+  { value: "anywhere", label: "Anywhere — we travel to the work" },
 ];
+
+/** Mirror of lib/business-lookup.ts BusinessLookupResult (client copy). */
+type LookupBusiness = {
+  found: boolean;
+  name: string;
+  website: string | null;
+  phone: string;
+  streetAddress: string;
+  city: string;
+  state: string;
+  zip: string;
+  mapsUrl: string | null;
+  rating: number | null;
+  reviewCount: number | null;
+  summary: string;
+  logoUrl: string | null;
+  brandColor: string | null;
+};
 
 const DURATION_OPTIONS = [
   { value: "", label: "Not bookable" },
@@ -152,6 +174,8 @@ export default function SetupWizardClient({
   currentTimezone,
   serviceCount,
   bookableCount,
+  hasReviewLink,
+  aiAvailable,
   prefill,
 }: {
   companyName: string;
@@ -159,6 +183,8 @@ export default function SetupWizardClient({
   currentTimezone: string;
   serviceCount: number;
   bookableCount: number;
+  hasReviewLink: boolean;
+  aiAvailable: boolean;
   prefill: { industry: string; city: string; state: string; teamSize: string };
 }) {
   const router = useRouter();
@@ -174,6 +200,45 @@ export default function SetupWizardClient({
   const [radius, setRadius] = useState("15mi");
   const [teamSize, setTeamSize] = useState(prefill.teamSize);
   const [description, setDescription] = useState("");
+
+  // ── business lookup ("Find my business") ──
+  const [lookupName, setLookupName] = useState(companyName);
+  const [lookupBusy, setLookupBusy] = useState(false);
+  const [lookupMiss, setLookupMiss] = useState(false);
+  const [candidate, setCandidate] = useState<LookupBusiness | null>(null); // awaiting "is this you?"
+  const [biz, setBiz] = useState<LookupBusiness | null>(null); // confirmed
+
+  async function findBusiness() {
+    if (!lookupName.trim() || lookupBusy) return;
+    setLookupBusy(true);
+    setLookupMiss(false);
+    setCandidate(null);
+    const { ok, data } = await postJson<{ business: LookupBusiness | null }>(
+      "/api/app/setup/lookup",
+      { name: lookupName.trim(), city: city.trim(), state: stateCode.trim() }
+    );
+    setLookupBusy(false);
+    if (!ok || !data?.business?.found) {
+      setLookupMiss(true);
+      return;
+    }
+    setCandidate(data.business);
+  }
+
+  function confirmBusiness() {
+    if (!candidate) return;
+    setBiz(candidate);
+    if (candidate.city) setCity(candidate.city);
+    if (candidate.state) setStateCode(candidate.state);
+    if (candidate.summary && !description.trim()) setDescription(candidate.summary);
+    setProfilePhone(candidate.phone);
+    setProfileAddress(candidate.streetAddress);
+    setProfileZip(candidate.zip);
+    setProfileWebsite(candidate.website ?? "");
+    setBrandingInclude(Boolean(candidate.logoUrl || candidate.brandColor));
+    setLogoBroken(false);
+    setCandidate(null);
+  }
 
   // ── generating ──
   const [lineIdx, setLineIdx] = useState(0);
@@ -201,6 +266,15 @@ export default function SetupWizardClient({
   const [recurringIdeas, setRecurringIdeas] = useState<string[]>([]);
   const [applying, setApplying] = useState(false);
 
+  // ── company profile & branding (from the confirmed lookup, all editable) ──
+  const [profileInclude, setProfileInclude] = useState(true);
+  const [profilePhone, setProfilePhone] = useState("");
+  const [profileAddress, setProfileAddress] = useState("");
+  const [profileZip, setProfileZip] = useState("");
+  const [profileWebsite, setProfileWebsite] = useState("");
+  const [brandingInclude, setBrandingInclude] = useState(true);
+  const [logoBroken, setLogoBroken] = useState(false);
+
   const effectiveIndustry = industry === "Other" ? industryOther.trim() : industry;
 
   async function generate() {
@@ -213,6 +287,7 @@ export default function SetupWizardClient({
       radius,
       teamSize,
       description: description.trim(),
+      website: biz?.website ?? "",
     });
     if (!ok || !data?.draft) {
       setStep("intake");
@@ -290,6 +365,22 @@ export default function SetupWizardClient({
       intakeQuestions: intakeQs.filter((q) => q.include && q.label.trim()),
       clientFields: clientFs.filter((q) => q.include && q.label.trim()),
       enableSelfSchedule,
+      profile:
+        biz && profileInclude
+          ? {
+              phone: profilePhone.trim(),
+              address: profileAddress.trim(),
+              zip: profileZip.trim(),
+              website: profileWebsite.trim(),
+            }
+          : null,
+      branding:
+        biz && brandingInclude
+          ? {
+              logoUrl: logoBroken ? null : biz.logoUrl,
+              brandColor: biz.brandColor,
+            }
+          : null,
     });
     setApplying(false);
     if (!ok) {
@@ -320,6 +411,133 @@ export default function SetupWizardClient({
         {error && (
           <div className="mb-4 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
             {error}
+          </div>
+        )}
+
+        {aiAvailable && (
+          <div className="card-ledger mb-4 p-5">
+            {!biz && !candidate && (
+              <>
+                <div className="mb-1 flex items-center gap-2">
+                  <Search size={15} className="text-green-600" />
+                  <p className="text-sm font-semibold text-gray-900">Find your business</p>
+                </div>
+                <p className="mb-3 text-xs text-gray-500">
+                  We&apos;ll look up your website and Google Business Profile to pull in your
+                  contact info, logo, and services automatically.
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={lookupName}
+                    onChange={(e) => setLookupName(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && findBusiness()}
+                    placeholder="Your business name"
+                    className={`${inputCls} min-w-0 flex-1`}
+                  />
+                  <button
+                    type="button"
+                    onClick={findBusiness}
+                    disabled={!lookupName.trim() || lookupBusy}
+                    className="flex shrink-0 items-center gap-1.5 rounded bg-green-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-600 disabled:opacity-50"
+                  >
+                    {lookupBusy ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
+                    {lookupBusy ? "Searching..." : "Search"}
+                  </button>
+                </div>
+                {lookupMiss && (
+                  <p className="mt-2 text-xs text-gray-500">
+                    We couldn&apos;t find a confident match — no problem, just fill in the details
+                    below and you&apos;ll get the same great setup.
+                  </p>
+                )}
+              </>
+            )}
+
+            {candidate && (
+              <div>
+                <p className="mb-3 text-sm font-semibold text-gray-900">Is this your business?</p>
+                <div className="flex items-start gap-3 rounded border border-gray-200 bg-gray-50 p-3">
+                  {candidate.logoUrl && !logoBroken && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={candidate.logoUrl}
+                      alt=""
+                      onError={() => setLogoBroken(true)}
+                      className="h-12 w-12 shrink-0 rounded-md bg-white object-contain p-1 ring-1 ring-gray-200"
+                    />
+                  )}
+                  <div className="min-w-0 flex-1 text-sm">
+                    <p className="font-semibold text-gray-900">{candidate.name}</p>
+                    {candidate.rating !== null && (
+                      <p className="mt-0.5 flex items-center gap-1 text-xs text-gray-600">
+                        <Star size={12} className="fill-amber-400 text-amber-400" />
+                        {candidate.rating.toFixed(1)}
+                        {candidate.reviewCount !== null && ` · ${candidate.reviewCount} Google reviews`}
+                      </p>
+                    )}
+                    {candidate.summary && <p className="mt-1 text-xs text-gray-600">{candidate.summary}</p>}
+                    <p className="mt-1 truncate text-xs text-gray-500">
+                      {[candidate.streetAddress, candidate.city, candidate.state]
+                        .filter(Boolean)
+                        .join(", ")}
+                      {candidate.phone && ` · ${candidate.phone}`}
+                    </p>
+                    {candidate.website && (
+                      <p className="truncate text-xs text-green-700">{candidate.website}</p>
+                    )}
+                  </div>
+                </div>
+                <div className="mt-3 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={confirmBusiness}
+                    className="flex items-center gap-1.5 rounded bg-green-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-600"
+                  >
+                    <Check size={14} /> Yes, that&apos;s us
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCandidate(null)}
+                    className="rounded border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:border-gray-400"
+                  >
+                    Not us
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {biz && (
+              <div className="flex items-center gap-3">
+                {biz.logoUrl && !logoBroken ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={biz.logoUrl}
+                    alt=""
+                    onError={() => setLogoBroken(true)}
+                    className="h-10 w-10 shrink-0 rounded-md bg-white object-contain p-1 ring-1 ring-gray-200"
+                  />
+                ) : (
+                  <Building2 size={20} className="shrink-0 text-green-600" />
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="flex items-center gap-1.5 text-sm font-semibold text-gray-900">
+                    <Check size={14} className="text-green-600" /> {biz.name}
+                  </p>
+                  <p className="truncate text-xs text-gray-500">
+                    {biz.website ?? "Found your Google Business Profile"} — we&apos;ll use it to
+                    draft your real services.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setBiz(null)}
+                  className="shrink-0 text-xs text-gray-400 hover:text-gray-600"
+                >
+                  Undo
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -465,6 +683,17 @@ export default function SetupWizardClient({
         href: "/app/contacts",
         linkLabel: "Go to Clients",
       },
+      ...(!hasReviewLink
+        ? [
+            {
+              icon: Star,
+              title: "Collect Google reviews automatically",
+              body: "Google your business name, open your Business Profile, click \"Ask for reviews\", copy the link, and paste it into Settings — finished jobs can then request a review for you.",
+              href: "/app/settings",
+              linkLabel: "Open Settings",
+            },
+          ]
+        : []),
       ...(recurringIdeas.length > 0
         ? [
             {
@@ -539,6 +768,83 @@ export default function SetupWizardClient({
       )}
 
       <div className="space-y-4">
+        {/* Business profile & branding (from the confirmed lookup) */}
+        {biz && (
+          <SectionCard
+            icon={Building2}
+            title="Your business info & branding"
+            subtitle="Pulled from your website and Google listing — shown on your booking page, quotes, and invoices."
+          >
+            <label className="mb-3 flex cursor-pointer items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={profileInclude}
+                onChange={(e) => setProfileInclude(e.target.checked)}
+                className="accent-green-600"
+              />
+              Save this contact info to my company profile
+            </label>
+            {profileInclude && (
+              <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-500">Business phone</label>
+                  <input type="text" value={profilePhone} onChange={(e) => setProfilePhone(e.target.value)} className={`${smallInputCls} w-full`} />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-500">Website</label>
+                  <input type="text" value={profileWebsite} onChange={(e) => setProfileWebsite(e.target.value)} className={`${smallInputCls} w-full`} />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-500">Street address</label>
+                  <input type="text" value={profileAddress} onChange={(e) => setProfileAddress(e.target.value)} className={`${smallInputCls} w-full`} />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-500">ZIP</label>
+                  <input type="text" value={profileZip} onChange={(e) => setProfileZip(e.target.value)} className={`${smallInputCls} w-28`} />
+                </div>
+              </div>
+            )}
+            {(biz.logoUrl || biz.brandColor) && (
+              <div className="border-t border-gray-100 pt-3">
+                <label className="flex cursor-pointer items-start gap-2 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={brandingInclude}
+                    onChange={(e) => setBrandingInclude(e.target.checked)}
+                    className="mt-0.5 accent-green-600"
+                  />
+                  <span>
+                    Use my {biz.logoUrl && !logoBroken ? "logo" : ""}
+                    {biz.logoUrl && !logoBroken && biz.brandColor ? " and " : ""}
+                    {biz.brandColor ? "brand color" : ""} everywhere — dashboard, booking page,
+                    quotes, and invoices
+                  </span>
+                </label>
+                <div className={`mt-2 flex items-center gap-3 pl-6 ${brandingInclude ? "" : "opacity-40"}`}>
+                  {biz.logoUrl && !logoBroken && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={biz.logoUrl}
+                      alt="Logo preview"
+                      onError={() => setLogoBroken(true)}
+                      className="h-14 w-auto max-w-[180px] rounded-md bg-white object-contain p-1 ring-1 ring-gray-200"
+                    />
+                  )}
+                  {biz.brandColor && (
+                    <span className="flex items-center gap-1.5 text-xs text-gray-500">
+                      <span
+                        className="inline-block h-6 w-6 rounded-full ring-1 ring-gray-300"
+                        style={{ backgroundColor: biz.brandColor }}
+                      />
+                      {biz.brandColor}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+          </SectionCard>
+        )}
+
         {/* Services */}
         <SectionCard
           icon={ListChecks}
@@ -688,19 +994,32 @@ export default function SetupWizardClient({
         </SectionCard>
 
         {/* Service area */}
-        <SectionCard
-          icon={MapPin}
-          title="Service area"
-          subtitle="Bookings outside these ZIP codes are politely turned away. Double-check the list — leave it empty to accept any address."
-        >
-          <textarea
-            value={zipsText}
-            onChange={(e) => setZipsText(e.target.value)}
-            rows={2}
-            placeholder="75002, 75013, 75025..."
-            className="w-full rounded border border-gray-300 px-3 py-2 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-          />
-        </SectionCard>
+        {radius === "anywhere" ? (
+          <SectionCard
+            icon={MapPin}
+            title="Service area"
+            subtitle="You told us you travel anywhere."
+          >
+            <p className="text-sm text-gray-700">
+              Your booking form will accept any address — no ZIP-code limit. If that ever
+              changes, you can add a ZIP list in Settings → Online booking.
+            </p>
+          </SectionCard>
+        ) : (
+          <SectionCard
+            icon={MapPin}
+            title="Service area"
+            subtitle="Bookings outside these ZIP codes are politely turned away. Double-check the list — leave it empty to accept any address."
+          >
+            <textarea
+              value={zipsText}
+              onChange={(e) => setZipsText(e.target.value)}
+              rows={2}
+              placeholder="75002, 75013, 75025..."
+              className="w-full rounded border border-gray-300 px-3 py-2 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+            />
+          </SectionCard>
+        )}
 
         {/* Contract */}
         <SectionCard

@@ -101,7 +101,7 @@ export default function PayPage({ invoice }: { invoice: Invoice }) {
               <img
                 src={invoice.company.logoUrl}
                 alt={`${invoice.company.name} logo`}
-                className="h-16 w-auto max-w-[260px] object-contain shrink-0"
+                className="h-20 w-auto max-w-[300px] object-contain shrink-0"
               />
             )}
             <p

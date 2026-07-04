@@ -132,6 +132,126 @@ const intake = sanitizeIntake({
   console.log("ok 5: hostile AI payload degrades safely");
 }
 
+// 7. website URL guards: SSRF-y and garbage inputs rejected, real sites normalized
+{
+  const { normalizeWebsiteUrl, isSafePublicUrl } = require("../lib/website-info") as typeof import("../lib/website-info");
+  assert.equal(normalizeWebsiteUrl("acme-washing.com"), "https://acme-washing.com/");
+  assert.equal(normalizeWebsiteUrl("http://www.acme.com/services"), "http://www.acme.com/services");
+  assert.equal(normalizeWebsiteUrl("javascript:alert(1)"), null);
+  assert.equal(normalizeWebsiteUrl("ftp://acme.com"), null);
+  assert.equal(normalizeWebsiteUrl("http://localhost:3000"), null);
+  assert.equal(normalizeWebsiteUrl("http://192.168.1.1/admin"), null);
+  assert.equal(normalizeWebsiteUrl("http://railway.internal"), null);
+  assert.equal(normalizeWebsiteUrl(42), null);
+  assert.equal(isSafePublicUrl("https://10.0.0.5/x"), false);
+  assert.equal(isSafePublicUrl("https://[::1]/x"), false);
+  console.log("ok 7: website URL guards");
+}
+
+// 8. parseWebsiteHtml pulls title/description/logo/theme-color/text
+{
+  const { parseWebsiteHtml } = require("../lib/website-info") as typeof import("../lib/website-info");
+  const html = `<!doctype html><html><head>
+    <title>Acme Pressure Washing &amp; More</title>
+    <meta name="description" content="Soft washing in Allen, TX">
+    <meta name="theme-color" content="#1a73e8">
+    <meta property="og:image" content="/img/logo.png">
+    <link rel="icon" sizes="192x192" href="/icon-192.png">
+    <style>body{color:red}</style>
+    <script>evil("<h1>injected</h1>")</script>
+  </head><body>
+    <h1>Acme Pressure Washing</h1>
+    <p>House washing from $250. We never use high pressure on siding.</p>
+    <svg><path d="M0 0"/></svg>
+  </body></html>`;
+  const info = parseWebsiteHtml(html, "https://acme.com/");
+  assert.equal(info.title, "Acme Pressure Washing & More");
+  assert.equal(info.description, "Soft washing in Allen, TX");
+  assert.equal(info.themeColor, "#1A73E8");
+  assert.equal(info.logoUrl, "https://acme.com/img/logo.png", "og:image wins");
+  assert.ok(info.text.includes("House washing from $250"));
+  assert.ok(!info.text.includes("evil"), "script content stripped");
+  assert.ok(!info.text.includes("color:red"), "style content stripped");
+  // no og:image → sized icon wins; tiny/unsized icons don't
+  const html2 = `<link rel="icon" sizes="192x192" href="/icon-192.png"><link rel="icon" href="/favicon.ico">`;
+  assert.equal(parseWebsiteHtml(html2, "https://acme.com/").logoUrl, "https://acme.com/icon-192.png");
+  assert.equal(parseWebsiteHtml(`<link rel="icon" href="/favicon.ico">`, "https://acme.com/").logoUrl, null);
+  // an <img> that self-identifies as the logo beats og:image (usually a banner)
+  const html3 = `<meta property="og:image" content="/banner.jpg">
+    <img src="/assets/header-logo.png" alt="Acme logo" class="site-logo">
+    <img src="/assets/photo.jpg" alt="crew at work">`;
+  assert.equal(parseWebsiteHtml(html3, "https://acme.com/").logoUrl, "https://acme.com/assets/header-logo.png");
+  // svg/data logos skipped (upload route can't store them) → og:image wins
+  const html4 = `<meta property="og:image" content="/banner.jpg"><img src="/logo.svg" alt="logo">`;
+  assert.equal(parseWebsiteHtml(html4, "https://acme.com/").logoUrl, "https://acme.com/banner.jpg");
+  console.log("ok 8: parseWebsiteHtml extraction");
+}
+
+// 8b. isNeutralHex: chrome colors rejected, brand colors kept
+{
+  const { isNeutralHex } = require("../lib/business-lookup") as typeof import("../lib/business-lookup");
+  assert.equal(isNeutralHex("#FFFFFF"), true);
+  assert.equal(isNeutralHex("#000000"), true);
+  assert.equal(isNeutralHex("#F5F5F5"), true);
+  assert.equal(isNeutralHex("#808080"), true);
+  assert.equal(isNeutralHex("#A52A2A"), false, "brick red is a brand color");
+  assert.equal(isNeutralHex("#1A73E8"), false, "blue is a brand color");
+  assert.equal(isNeutralHex("#16A34A"), false, "green is a brand color");
+  console.log("ok 8b: isNeutralHex");
+}
+
+// 9. sanitizeLookup: hostile lookup payload degrades safely
+{
+  const { sanitizeLookup } = require("../lib/business-lookup") as typeof import("../lib/business-lookup");
+  const d = sanitizeLookup({
+    found: true,
+    name: "Acme <b>Washing</b>".repeat(20),
+    website: "javascript:alert(1)",
+    phone: "972-555-0100",
+    streetAddress: "123 Main St",
+    city: "Allen",
+    state: "TX",
+    zip: "75002-1234",
+    mapsUrl: "https://evil.com/phish",
+    rating: 47,
+    reviewCount: -3,
+    summary: 42,
+  });
+  assert.ok(d && d.found);
+  assert.equal(d!.name.length, 120);
+  assert.equal(d!.website, null, "javascript: URL rejected");
+  assert.equal(d!.zip, "75002");
+  assert.equal(d!.mapsUrl, null, "non-Google maps URL rejected");
+  assert.equal(d!.rating, null, "out-of-range rating dropped");
+  assert.equal(d!.reviewCount, null);
+  assert.equal(d!.summary, "");
+  const good = sanitizeLookup({
+    found: true, name: "Acme", website: "acme.com", mapsUrl: "https://maps.app.goo.gl/abc123",
+    rating: 4.83, reviewCount: 127, phone: "", streetAddress: "", city: "", state: "", zip: "", summary: "s",
+  });
+  assert.equal(good!.website, "https://acme.com/");
+  assert.equal(good!.mapsUrl, "https://maps.app.goo.gl/abc123");
+  assert.equal(good!.rating, 4.8);
+  assert.equal(good!.reviewCount, 127);
+  const zeroed = sanitizeLookup({ found: true, name: "X", rating: 0, reviewCount: 0 });
+  assert.equal(zeroed!.rating, null, "0 rating = model didn't find one");
+  assert.equal(zeroed!.reviewCount, null);
+  assert.equal(sanitizeLookup(null), null);
+  console.log("ok 9: sanitizeLookup clamps hostile payloads");
+}
+
+// 10. "anywhere" radius: accepted by sanitizeIntake, forces empty ZIPs on the draft
+{
+  const anywhere = sanitizeIntake({ industry: "Pressure Washing", city: "Allen", state: "TX", radius: "anywhere", website: "acme.com" });
+  assert.equal(anywhere.radius, "anywhere");
+  assert.equal(anywhere.website, "https://acme.com/");
+  delete process.env.GEMINI_API_KEY;
+  generateSetupDraft("Test Co", anywhere, []).then((d) => {
+    assert.deepEqual(d.serviceZips, [], "anywhere → no ZIP restriction");
+    console.log("ok 10: anywhere radius → empty serviceZips");
+  });
+}
+
 // 6. generateSetupDraft without a key returns the fallback (no throw)
 {
   delete process.env.GEMINI_API_KEY;

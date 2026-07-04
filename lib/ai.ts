@@ -24,27 +24,46 @@ export type AskAIOptions = {
   system?: string;
   /** Ask for a JSON object back (responseMimeType: application/json). */
   json?: boolean;
+  /**
+   * Turn on Google Search grounding (business lookup). Incompatible with
+   * strict JSON mode — ask for JSON in the prompt and parse defensively
+   * (askAIGroundedJson does both).
+   */
+  useSearch?: boolean;
+  /** Optional inline image (base64, no data: prefix) — logo color detection. */
+  imageBase64?: string;
+  imageMime?: string;
   maxOutputTokens?: number;
   temperature?: number;
 };
+
+/** Free-tier quotas are per-model — when the primary is exhausted (429), one
+ *  retry on a different model keeps setup/lookup features alive. */
+const FALLBACK_MODEL = "gemini-2.5-flash-lite";
 
 /**
  * One completion. Returns the model's text, or null when AI is unconfigured
  * or the call fails (callers fall back to deterministic behavior — same
  * contract as sendEmail(): failure is soft, never a thrown 500).
  */
-export async function askAI(opts: AskAIOptions): Promise<string | null> {
+export async function askAI(opts: AskAIOptions & { model?: string }): Promise<string | null> {
   const key = process.env.GEMINI_API_KEY;
   if (!key) return null;
-  const model = process.env.AI_MODEL || DEFAULT_MODEL;
+  const model = opts.model || process.env.AI_MODEL || DEFAULT_MODEL;
 
+  const parts: Record<string, unknown>[] = [{ text: opts.prompt }];
+  if (opts.imageBase64 && opts.imageMime) {
+    parts.push({ inlineData: { mimeType: opts.imageMime, data: opts.imageBase64 } });
+  }
   const body = {
-    contents: [{ parts: [{ text: opts.prompt }] }],
+    contents: [{ parts }],
     ...(opts.system ? { systemInstruction: { parts: [{ text: opts.system }] } } : {}),
+    ...(opts.useSearch ? { tools: [{ google_search: {} }] } : {}),
     generationConfig: {
       temperature: opts.temperature ?? 0.4,
       maxOutputTokens: opts.maxOutputTokens ?? 8192,
-      ...(opts.json ? { responseMimeType: "application/json" } : {}),
+      // strict JSON mode and the search tool are mutually exclusive
+      ...(opts.json && !opts.useSearch ? { responseMimeType: "application/json" } : {}),
     },
   };
 
@@ -57,6 +76,10 @@ export async function askAI(opts: AskAIOptions): Promise<string | null> {
     });
     if (!res.ok) {
       console.error("askAI: Gemini error", res.status, (await res.text()).slice(0, 500));
+      // out of quota on this model → one shot on the fallback model
+      if (res.status === 429 && model !== FALLBACK_MODEL && !opts.model) {
+        return askAI({ ...opts, model: FALLBACK_MODEL });
+      }
       return null;
     }
     const data = (await res.json()) as {
@@ -83,6 +106,39 @@ export async function askAIJson<T>(opts: Omit<AskAIOptions, "json">): Promise<T 
     } catch {
       console.error("askAIJson: unparseable response", text.slice(0, 300));
     }
+  }
+  return null;
+}
+
+/**
+ * Pull the first JSON object out of free-form model text (grounded responses
+ * can't use strict JSON mode, so they arrive wrapped in prose or ```json
+ * fences). Null when nothing parseable is found.
+ */
+export function extractJsonObject<T>(text: string): T | null {
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  if (start === -1 || end <= start) return null;
+  try {
+    return JSON.parse(text.slice(start, end + 1)) as T;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Google-Search-grounded completion parsed into an object (business lookup).
+ * One retry on unparseable output, then null.
+ */
+export async function askAIGroundedJson<T>(
+  opts: Omit<AskAIOptions, "json" | "useSearch">
+): Promise<T | null> {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const text = await askAI({ ...opts, useSearch: true });
+    if (text === null) return null;
+    const parsed = extractJsonObject<T>(text);
+    if (parsed !== null) return parsed;
+    console.error("askAIGroundedJson: unparseable response", text.slice(0, 300));
   }
   return null;
 }
