@@ -6,7 +6,7 @@
  * round-trip works end to end).
  */
 import assert from "node:assert";
-import { toolsForActor } from "../lib/assistant";
+import { mergeBulkProposals, toolsForActor, type Proposal } from "../lib/assistant";
 import type { Actor } from "../lib/permissions";
 
 const base = { id: "u1", name: "Test", companyId: "c1", salesSeePayments: true };
@@ -78,7 +78,31 @@ console.log("ok 2: tech limited to schedule + job tools");
   console.log("ok 4: salesSeePayments=false removes money reads and writes");
 }
 
-// 5. optional live round-trip
+// 5. bulk proposals of the same kind merge into ONE batch card; danger never merges
+{
+  const mk = (id: string, kind: string, extra?: Partial<Proposal>): Proposal => ({
+    id, kind, title: `t-${id}`, lines: [`l-${id}`],
+    endpoint: `/api/x/${id}`, method: "PATCH", payload: { id }, ...extra,
+  });
+  const merged = mergeBulkProposals([
+    mk("a", "update_client"),
+    mk("b", "create_quote"),
+    mk("c", "update_client"),
+    mk("d", "update_client"),
+    mk("e", "delete_client", { danger: true, confirmText: "X" }),
+    mk("f", "delete_client", { danger: true, confirmText: "Y" }),
+  ]);
+  assert.equal(merged.length, 4, "3 update_client → 1 batch; quote + 2 danger stay solo");
+  const batch = merged.find((p) => p.batch);
+  assert.ok(batch && batch.batch!.length === 3 && batch.title.startsWith("3 changes"));
+  assert.deepEqual(batch!.batch!.map((b) => b.payload.id), ["a", "c", "d"], "order preserved");
+  assert.equal(merged.filter((p) => p.danger).length, 2, "danger cards untouched");
+  const single = mergeBulkProposals([mk("a", "update_client")]);
+  assert.ok(single.length === 1 && !single[0].batch, "singles pass through unchanged");
+  console.log("ok 5: same-kind proposals merge into one batch card");
+}
+
+// 6. optional live round-trip
 (async () => {
   const liveKey = process.env.LIVE_GEMINI_KEY;
   if (!liveKey || !process.env.DATABASE_URL) {

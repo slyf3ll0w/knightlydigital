@@ -123,7 +123,7 @@ function ProposalCard({
               ) : (
                 <Check size={12} />
               )}
-              {p.danger ? "Delete" : "Confirm"}
+              {p.danger ? "Delete" : p.batch && p.batch.length > 0 ? `Confirm all ${p.batch.length}` : "Confirm"}
             </button>
             <button
               type="button"
@@ -246,28 +246,52 @@ export default function AssistantDrawer({
     );
   }
 
-  async function confirm(msgIdx: number, prop: Proposal, opts?: { skipRefresh?: boolean }) {
-    setCard(msgIdx, prop.id, { state: "confirming" });
+  /** Run one staged request; returns null on success, an error message on failure. */
+  async function submitOne(item: { endpoint: string; method: string; payload: Record<string, unknown> }) {
     try {
-      const hasBody = prop.method !== "DELETE" && Object.keys(prop.payload).length > 0;
-      const res = await fetch(prop.endpoint, {
-        method: prop.method,
+      const hasBody = item.method !== "DELETE" && Object.keys(item.payload).length > 0;
+      const res = await fetch(item.endpoint, {
+        method: item.method,
         ...(hasBody
-          ? { headers: { "Content-Type": "application/json" }, body: JSON.stringify(prop.payload) }
+          ? { headers: { "Content-Type": "application/json" }, body: JSON.stringify(item.payload) }
           : {}),
       });
+      if (res.ok) return null;
       const data = (await res.json().catch(() => null)) as { error?: string } | null;
-      if (!res.ok) {
-        setCard(msgIdx, prop.id, {
-          state: "failed",
-          resultNote: data?.error ?? "That didn't go through — try it from the page instead.",
-        });
-      } else {
-        setCard(msgIdx, prop.id, { state: "done", resultNote: "Done!" });
-        if (!opts?.skipRefresh) router.refresh();
-      }
+      return data?.error ?? "That didn't go through — try it from the page instead.";
     } catch {
-      setCard(msgIdx, prop.id, { state: "failed", resultNote: "Network error — nothing was saved." });
+      return "Network error — nothing was saved.";
+    }
+  }
+
+  async function confirm(msgIdx: number, prop: Proposal, opts?: { skipRefresh?: boolean }) {
+    setCard(msgIdx, prop.id, { state: "confirming" });
+    // batch card: one Confirm, many requests, run in order
+    if (prop.batch && prop.batch.length > 0) {
+      let ok = 0;
+      let firstError = "";
+      for (const item of prop.batch) {
+        const err = await submitOne(item);
+        if (err === null) ok++;
+        else if (!firstError) firstError = err;
+      }
+      const failed = prop.batch.length - ok;
+      setCard(msgIdx, prop.id, {
+        state: failed === 0 ? "done" : "failed",
+        resultNote:
+          failed === 0
+            ? `All ${ok} applied!`
+            : `${ok} of ${prop.batch.length} applied — ${failed} failed (${firstError})`,
+      });
+      if (!opts?.skipRefresh) router.refresh();
+      return;
+    }
+    const err = await submitOne(prop);
+    if (err !== null) {
+      setCard(msgIdx, prop.id, { state: "failed", resultNote: err });
+    } else {
+      setCard(msgIdx, prop.id, { state: "done", resultNote: "Done!" });
+      if (!opts?.skipRefresh) router.refresh();
     }
   }
 

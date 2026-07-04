@@ -62,6 +62,13 @@ const ASSISTANT_MODEL_DEFAULT = "gemini-2.5-flash";
 // finishing the turn on lite beats erroring at the user.
 const ASSISTANT_MODEL_FALLBACK = "gemini-flash-lite-latest";
 
+/** One request of a batch proposal. */
+export type BatchItem = {
+  endpoint: string;
+  method: "POST" | "PATCH" | "DELETE";
+  payload: Record<string, unknown>;
+};
+
 /** A staged write, rendered as a confirmation card in the drawer. Confirm
  *  POSTs `payload` to `endpoint` — an existing, self-validating API route. */
 export type Proposal = {
@@ -77,6 +84,9 @@ export type Proposal = {
   /** Extra authentication for destructive cards: the user must type this
    *  exact text before Confirm arms (matches the force-delete page UX). */
   confirmText?: string;
+  /** Bulk work: one card, one Confirm, many requests run in order.
+   *  When present, endpoint/method/payload above are ignored. */
+  batch?: BatchItem[];
 };
 
 type ToolCtx = { proposals: Proposal[] };
@@ -2365,7 +2375,7 @@ Data rules:
 Actions:
 - You CAN do things, with the user's confirmation: add/update/archive clients, add client notes, create requests, draft quotes and invoices, mark quotes sent/approved and invoices sent, convert approved quotes to jobs, create/reschedule/complete/close jobs, schedule/reschedule/cancel appointments, record/correct/remove payments, log/correct/delete expenses, update price-book prices/durations, email a client their portal link, manage the team (add members, change roles, deactivate, bookable), change company settings and business hours, and permanently delete clients. When asked, gather what you need first (search for the client, check the price book before quoting, find the invoice or job number, get the appointment id from get_schedule or get_client_activity, get member ids from list_team), then call the action tool ONCE. It shows the user a confirmation card; tell them to review and press Confirm. Never claim something was done — the card does it only after they confirm.
 - Chain lookups yourself — if the user says "cancel Tuesday's appointment with Ben", find it (get_schedule or search + activity) and stage the cancellation; don't ask them for ids.
-- BULK WORK is supported and expected. "Reformat every client's phone number", "archive all my leads from last year": fetch the full list (list_clients etc.), compute each change yourself (you are good at reformatting, renaming, recalculating), then stage one update card per affected record — call the action tool many times, several per round is fine. Skip records that already match. The user gets a "Confirm all" button, so many cards are not a burden. NEVER refuse doable work or tell the user to do it by hand on a page — that is a last resort for things you truly have no tool for.
+- BULK WORK is supported and expected. "Reformat every client's phone number", "archive all my leads from last year": fetch the full list (list_clients etc.), compute each change yourself (you are good at reformatting, renaming, recalculating), then stage one update per affected record — call the action tool once per record, several per round is fine. Skip records that already match. Similar changes are automatically combined into ONE confirmation card, so a big batch is still a single Confirm for the user. NEVER refuse doable work or tell the user to do it by hand on a page — that is a last resort for things you truly have no tool for.
 - "Sending" a quote or invoice marks it sent in the system — no email goes out. After they confirm, remind them to share it with the client from the quote/invoice page (Copy link) or the client portal.
 - Refunds are bookkeeping here (no card processor yet): the money goes back to the client outside the app, then you correct the books — edit_payment for a partial refund, delete_payment when fully refunded or logged by mistake. Owners/admins only.
 - Team rules: owners manage everyone; admins only Sales + Tech, Sales, and Tech members. The system blocks deactivating yourself or removing the last owner.
@@ -2379,6 +2389,49 @@ Style:
 - If asked about anything unrelated to this business or app, politely decline in one sentence.
 
 ${APP_CHEATSHEET}`;
+}
+
+/**
+ * Same-kind, non-destructive proposals staged in one turn collapse into a
+ * single batch card — "reformat every phone number" is one Confirm, not 20.
+ * Danger/typed-confirm cards never merge: each destructive act is its own
+ * decision. Order of first appearance is preserved.
+ */
+export function mergeBulkProposals(proposals: Proposal[]): Proposal[] {
+  const groups = new Map<string, Proposal[]>();
+  for (const p of proposals) {
+    if (p.danger || p.confirmText) continue;
+    const g = groups.get(p.kind) ?? [];
+    g.push(p);
+    groups.set(p.kind, g);
+  }
+  const out: Proposal[] = [];
+  const consumed = new Set<string>();
+  for (const p of proposals) {
+    if (consumed.has(p.id)) continue;
+    const g = groups.get(p.kind);
+    if (p.danger || p.confirmText || !g || g.length < 2) {
+      out.push(p);
+      continue;
+    }
+    g.forEach((x) => consumed.add(x.id));
+    out.push({
+      id: `batch-${p.kind}`,
+      kind: p.kind,
+      title: `${g.length} changes — ${p.kind.replace(/_/g, " ")}`,
+      lines: [
+        ...g
+          .slice(0, 20)
+          .map((x) => (x.lines.length ? `${x.title}: ${x.lines.join("; ")}` : x.title).slice(0, 140)),
+        ...(g.length > 20 ? [`…and ${g.length - 20} more`] : []),
+      ],
+      endpoint: g[0].endpoint,
+      method: g[0].method,
+      payload: g[0].payload,
+      batch: g.map((x) => ({ endpoint: x.endpoint, method: x.method, payload: x.payload })),
+    });
+  }
+  return out;
 }
 
 // ── the loop ─────────────────────────────────────────────────────────────────
@@ -2439,10 +2492,13 @@ export async function runAssistant(
         .map((p) => ("text" in p ? p.text : ""))
         .join("")
         .trim();
-      if (text) return { reply: text, proposals: ctx.proposals };
+      if (text) return { reply: text, proposals: mergeBulkProposals(ctx.proposals) };
       // model went silent (rare) — if it staged something, still surface it
       return ctx.proposals.length > 0
-        ? { reply: "I've set that up — review the card below and confirm.", proposals: ctx.proposals }
+        ? {
+            reply: "I've set that up — review the card below and confirm.",
+            proposals: mergeBulkProposals(ctx.proposals),
+          }
         : null;
     }
 
