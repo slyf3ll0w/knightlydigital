@@ -249,6 +249,7 @@ interface AppShellProps {
   brandColor?: string | null;
   needsTour?: boolean;
   aiEnabled?: boolean;
+  assistantName?: string | null;
 }
 
 export default function AppShell({
@@ -261,6 +262,7 @@ export default function AppShell({
   brandColor,
   needsTour = false,
   aiEnabled = false,
+  assistantName,
 }: AppShellProps) {
   const userRole = role ?? "OWNER";
   const manager = isManagerRole(userRole);
@@ -514,13 +516,19 @@ export default function AppShell({
           type="button"
           onClick={() => setAssistantOpen(true)}
           aria-label="Open assistant"
-          title="Assistant"
+          title={assistantName || "Atlas"}
           className="fixed bottom-20 right-4 z-40 flex h-13 w-13 items-center justify-center rounded-full bg-green-500 p-3.5 text-white shadow-lg shadow-green-900/20 transition-all hover:scale-105 hover:bg-green-600 lg:bottom-6 lg:right-6"
         >
           <Sparkles size={22} />
         </button>
       )}
-      {aiEnabled && <AssistantDrawer open={assistantOpen} onClose={() => setAssistantOpen(false)} />}
+      {aiEnabled && (
+        <AssistantDrawer
+          open={assistantOpen}
+          onClose={() => setAssistantOpen(false)}
+          name={assistantName || "Atlas"}
+        />
+      )}
 
       <TourGuide role={userRole} needsTour={needsTour} />
     </div>

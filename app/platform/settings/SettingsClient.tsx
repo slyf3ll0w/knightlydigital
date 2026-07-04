@@ -18,6 +18,7 @@ type Company = {
   defaultDepositValue: string | number | null;
   reviewLink: string | null; industry: string | null;
   timezone: string;
+  assistantName: string | null;
 };
 
 const TIMEZONES = [
@@ -85,6 +86,7 @@ export default function SettingsClient({ company }: { company: Company }) {
     defaultDepositValue: company.defaultDepositValue != null ? String(Number(company.defaultDepositValue)) : "",
     reviewLink: company.reviewLink ?? "",
     timezone: company.timezone ?? "America/Chicago",
+    assistantName: company.assistantName ?? "",
   });
 
   function set(field: string, value: string | boolean) {
@@ -487,6 +489,21 @@ export default function SettingsClient({ company }: { company: Company }) {
             On approval, the deposit is billed to the client as its own invoice; the final invoice
             then subtracts what they&apos;ve already paid.
           </p>
+        </div>
+
+        {/* AI assistant */}
+        <div className="card-ledger p-5 space-y-4">
+          <div>
+            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">AI Assistant</h2>
+            <p className="text-xs text-gray-400 mt-0.5">The chat helper in the corner of every page</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Assistant name</label>
+            <input type="text" value={form.assistantName} onChange={(e) => set("assistantName", e.target.value)}
+              placeholder="Atlas" maxLength={40}
+              className="w-full max-w-xs px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+            <p className="text-xs text-gray-400 mt-1">Give it a name that fits your business — leave blank for Atlas</p>
+          </div>
         </div>
 
         {/* Review requests */}

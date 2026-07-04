@@ -23,7 +23,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     session.user.companyId
       ? prisma.company.findUnique({
           where: { id: session.user.companyId },
-          select: { name: true, logoUrl: true, brandColor: true },
+          select: { name: true, logoUrl: true, brandColor: true, assistantName: true },
         })
       : null,
     session.user.id
@@ -44,6 +44,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       brandColor={company?.brandColor}
       needsTour={!!user && !user.tourCompletedAt}
       aiEnabled={Boolean(process.env.GEMINI_API_KEY)}
+      assistantName={company?.assistantName}
     >
       {children}
     </AppShell>

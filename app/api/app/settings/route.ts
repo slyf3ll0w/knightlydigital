@@ -23,17 +23,26 @@ export async function PATCH(req: NextRequest) {
 
   const body = await req.json();
 
+  // Partial-safe: only fields present in the body change (the settings form
+  // sends everything; the AI assistant sends just what the user asked for).
+  const opt = (v: unknown): string | null | undefined =>
+    v === undefined ? undefined : v ? String(v) : null;
+
   await prisma.company.update({
     where: { id: companyId },
     data: {
       name: body.name || undefined,
-      phone: body.phone || null,
-      email: body.email || null,
-      address: body.address || null,
-      city: body.city || null,
-      state: body.state || null,
-      zip: body.zip || null,
-      website: body.website || null,
+      phone: opt(body.phone),
+      email: opt(body.email),
+      address: opt(body.address),
+      city: opt(body.city),
+      state: opt(body.state),
+      zip: opt(body.zip),
+      website: opt(body.website),
+      assistantName:
+        body.assistantName !== undefined
+          ? String(body.assistantName).trim().slice(0, 40) || null
+          : undefined,
       industry: body.industry !== undefined ? body.industry || null : undefined,
       logoUrl: body.logoUrl !== undefined ? body.logoUrl || null : undefined,
       brandColor:
@@ -52,7 +61,7 @@ export async function PATCH(req: NextRequest) {
           });
           return { defaultDepositType: d.depositType, defaultDepositValue: d.depositValue };
         })()),
-      reviewLink: body.reviewLink || null,
+      reviewLink: opt(body.reviewLink),
       timezone: isValidTimezone(body.timezone) ? body.timezone : undefined,
       // Online-booking scheduling settings
       businessHours:

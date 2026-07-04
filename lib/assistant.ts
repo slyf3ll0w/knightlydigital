@@ -1,9 +1,12 @@
+import { randomBytes } from "crypto";
 import { prisma } from "./db";
 import {
   type Actor,
+  type Role,
   canSell,
   canSeeMoney,
   canSeePricing,
+  canManageRole,
   isManager,
   contactScope,
   viaContactScope,
@@ -11,6 +14,13 @@ import {
   appointmentScope,
   roleLabel,
 } from "./permissions";
+import {
+  DAY_KEYS,
+  DAY_LABELS,
+  type DayKey,
+  sanitizeBusinessHours,
+  timeToMinutes,
+} from "./business-hours";
 import { wallTimeToUtc } from "./booking-slots";
 import {
   aiChat,
@@ -38,6 +48,8 @@ import {
  */
 
 const MAX_TOOL_ROUNDS = 6;
+/** Default display name for the assistant; companies can rename it in Settings. */
+export const DEFAULT_ASSISTANT_NAME = "Atlas";
 // Reasoning quality matters more here than in one-shot drafting — default to
 // full Flash. 2.5-flash: the newer 3.x flash tiers allow only ~5 free
 // requests/min, too few for multi-tool turns; once the key moves to the paid
@@ -527,13 +539,15 @@ const tools: Tool[] = [
           where: { companyId: actor.companyId, ...viaContactScope(actor) },
           take: 15, orderBy: { paidAt: "desc" },
           select: {
-            amount: true, method: true, paidAt: true,
+            id: true, amount: true, method: true, paidAt: true,
+            invoice: { select: { invoiceNumber: true } },
             contact: { select: { firstName: true, lastName: true, companyName: true } },
           },
         });
         return {
           payments: rows.map((p) => ({
-            amount: money(p.amount), method: p.method,
+            id: p.id, amount: money(p.amount), method: p.method,
+            invoiceN: p.invoice.invoiceNumber,
             client: p.contact ? clientName(p.contact) : null,
             on: p.paidAt.toISOString().slice(0, 10),
           })),
@@ -736,6 +750,7 @@ const tools: Tool[] = [
           select: {
             timezone: true, businessHours: true, serviceZips: true,
             arrivalWindowMinutes: true, reviewLink: true, industry: true,
+            assistantName: true, phone: true, email: true, website: true,
           },
         }),
         prisma.user.findMany({
@@ -760,6 +775,10 @@ const tools: Tool[] = [
       return {
         servicesBookableOnline: selfScheduleOn ? bookableServices : [],
         industry: company.industry,
+        assistantName: company.assistantName ?? "Atlas (default)",
+        businessPhone: company.phone,
+        businessEmail: company.email,
+        website: company.website,
         timezone: company.timezone,
         businessHours: company.businessHours,
         serviceZipCount: company.serviceZips.length,
@@ -1620,6 +1639,536 @@ const tools: Tool[] = [
       });
     },
   },
+  {
+    decl: {
+      name: "update_quote_status",
+      description:
+        "Stage a quote status change (by quote number). AWAITING_RESPONSE = mark sent (starts the sent clock and auto-issues any agreements attached 'with quote' — remind the user to share the quote's link from its page, no email goes out). APPROVED = client said yes. CHANGES_REQUESTED = client wants changes. ARCHIVED = close it. Confirmation card required.",
+      parameters: {
+        type: "object",
+        properties: {
+          quoteNumber: { type: "number" },
+          status: {
+            type: "string",
+            enum: ["DRAFT", "AWAITING_RESPONSE", "APPROVED", "CHANGES_REQUESTED", "ARCHIVED"],
+          },
+        },
+        required: ["quoteNumber", "status"],
+      },
+    },
+    allowed: (a) => canSell(a.role),
+    run: async (actor, args, ctx) => {
+      const n = num(args.quoteNumber);
+      const status = str(args.status, 24);
+      if (!["DRAFT", "AWAITING_RESPONSE", "APPROVED", "CHANGES_REQUESTED", "ARCHIVED"].includes(status)) {
+        return { error: "Invalid status." };
+      }
+      const quote = await prisma.quote.findFirst({
+        where: { companyId: actor.companyId, quoteNumber: n ?? -1, ...viaContactScope(actor) },
+        select: {
+          id: true, status: true, total: true, title: true,
+          contact: { select: { firstName: true, lastName: true, companyName: true } },
+        },
+      });
+      if (!quote) return { error: `No quote #${n} (or not visible to this user).` };
+      // mirror the route's transition guards so the card can't fail on confirm
+      if (quote.status === "CONVERTED") {
+        return { error: `Quote #${n} was converted to a job — its status is locked.` };
+      }
+      if (quote.status === "APPROVED" && status !== "ARCHIVED") {
+        return { error: `Quote #${n} is client-approved — it can only be archived (or converted to a job).` };
+      }
+      const labels: Record<string, string> = {
+        DRAFT: "Move back to draft",
+        AWAITING_RESPONSE: "Mark as sent",
+        APPROVED: "Mark approved",
+        CHANGES_REQUESTED: "Mark changes requested",
+        ARCHIVED: "Archive",
+      };
+      return stage(ctx, {
+        kind: "update_quote_status",
+        title: `${labels[status]}: quote #${n} — ${money(quote.total)}`,
+        lines: [`Client: ${clientName(quote.contact)}`, `Currently: ${quote.status}`],
+        endpoint: `/api/app/quotes/${quote.id}`,
+        method: "PATCH",
+        payload: { status },
+      });
+    },
+  },
+  {
+    decl: {
+      name: "update_invoice_status",
+      description:
+        "Stage an invoice status change (by invoice number). AWAITING_PAYMENT = issue/mark sent (remind the user to share the invoice from its page — no email goes out). PAST_DUE = flag overdue. DRAFT = back to draft. To mark PAID, prefer record_payment so the money is on the books. Confirmation card required.",
+      parameters: {
+        type: "object",
+        properties: {
+          invoiceNumber: { type: "number" },
+          status: { type: "string", enum: ["DRAFT", "AWAITING_PAYMENT", "PAST_DUE", "PAID"] },
+        },
+        required: ["invoiceNumber", "status"],
+      },
+    },
+    allowed: (a) => canSeeMoney(a),
+    run: async (actor, args, ctx) => {
+      const n = num(args.invoiceNumber);
+      const status = str(args.status, 24);
+      if (!["DRAFT", "AWAITING_PAYMENT", "PAST_DUE", "PAID"].includes(status)) {
+        return { error: "Invalid status." };
+      }
+      const invoice = await prisma.invoice.findFirst({
+        where: { companyId: actor.companyId, invoiceNumber: n ?? -1, ...viaContactScope(actor) },
+        select: {
+          id: true, status: true, total: true,
+          contact: { select: { firstName: true, lastName: true, companyName: true } },
+        },
+      });
+      if (!invoice) return { error: `No invoice #${n} (or not visible to this user).` };
+      const labels: Record<string, string> = {
+        DRAFT: "Move back to draft",
+        AWAITING_PAYMENT: "Mark as sent (awaiting payment)",
+        PAST_DUE: "Flag past due",
+        PAID: "Mark paid (no payment record)",
+      };
+      return stage(ctx, {
+        kind: "update_invoice_status",
+        title: `${labels[status]}: invoice #${n} — ${money(invoice.total)}`,
+        lines: [
+          invoice.contact ? `Client: ${clientName(invoice.contact)}` : null,
+          `Currently: ${invoice.status}`,
+        ].filter(Boolean) as string[],
+        endpoint: `/api/app/invoices/${invoice.id}/status`,
+        method: "PATCH",
+        payload: { status },
+      });
+    },
+  },
+  {
+    decl: {
+      name: "edit_payment",
+      description:
+        "Stage correcting a recorded payment — amount (e.g. a partial refund), method, or date. Get the payment id from list_money (kind: payments). Owners/admins only. Confirmation card required.",
+      parameters: {
+        type: "object",
+        properties: {
+          paymentId: { type: "string" },
+          amount: { type: "number", description: "corrected amount" },
+          method: { type: "string" },
+          date: { type: "string", description: "YYYY-MM-DD" },
+        },
+        required: ["paymentId"],
+      },
+    },
+    allowed: (a) => isManager(a.role),
+    run: async (actor, args, ctx) => {
+      const payment = await prisma.payment.findFirst({
+        where: { id: str(args.paymentId, 40), companyId: actor.companyId },
+        select: {
+          id: true, amount: true, method: true,
+          invoice: { select: { invoiceNumber: true } },
+          contact: { select: { firstName: true, lastName: true, companyName: true } },
+        },
+      });
+      if (!payment) return { error: "No payment with that id — check list_money (kind: payments)." };
+      const payload: Record<string, unknown> = {};
+      const lines: string[] = [];
+      const amount = num(args.amount);
+      if (amount !== null && amount > 0 && amount <= 1_000_000) {
+        payload.amount = amount;
+        lines.push(`Amount: ${money(payment.amount)} → ${money(amount)}`);
+      }
+      const method = str(args.method, 12).toUpperCase();
+      if (["CARD", "ACH", "CASH", "CHECK", "CASH_APP", "PAYPAL", "VENMO", "ZELLE", "OTHER"].includes(method)) {
+        payload.method = method;
+        lines.push(`Method: ${payment.method} → ${method}`);
+      }
+      if (day(args.date)) {
+        payload.paidAt = str(args.date, 10);
+        lines.push(`Date: ${str(args.date, 10)}`);
+      }
+      if (lines.length === 0) return { error: "Provide at least one of amount, method, date." };
+      return stage(ctx, {
+        kind: "edit_payment",
+        title: `Correct payment on invoice #${payment.invoice.invoiceNumber}`,
+        lines: [
+          payment.contact ? `Client: ${clientName(payment.contact)}` : null,
+          ...lines,
+          "The invoice's paid/unpaid status recalculates automatically.",
+        ].filter(Boolean) as string[],
+        endpoint: `/api/app/payments/${payment.id}`,
+        method: "PATCH",
+        payload,
+      });
+    },
+  },
+  {
+    decl: {
+      name: "delete_payment",
+      description:
+        "Stage removing a payment record entirely — use when a client was refunded in full (the money went back outside the app) or a payment was logged by mistake. Get the payment id from list_money (kind: payments). Owners/admins only. Confirmation card required.",
+      parameters: {
+        type: "object",
+        properties: { paymentId: { type: "string" } },
+        required: ["paymentId"],
+      },
+    },
+    allowed: (a) => isManager(a.role),
+    run: async (actor, args, ctx) => {
+      const payment = await prisma.payment.findFirst({
+        where: { id: str(args.paymentId, 40), companyId: actor.companyId },
+        select: {
+          id: true, amount: true, method: true, paidAt: true,
+          invoice: { select: { invoiceNumber: true } },
+          contact: { select: { firstName: true, lastName: true, companyName: true } },
+        },
+      });
+      if (!payment) return { error: "No payment with that id — check list_money (kind: payments)." };
+      return stage(ctx, {
+        kind: "delete_payment",
+        title: `Remove ${money(payment.amount)} ${payment.method.replace("_", " ")} payment from invoice #${payment.invoice.invoiceNumber}`,
+        lines: [
+          payment.contact ? `Client: ${clientName(payment.contact)}` : null,
+          `Recorded: ${payment.paidAt.toISOString().slice(0, 10)}`,
+          "The invoice goes back to unpaid/awaiting for this amount. This changes revenue history.",
+        ].filter(Boolean) as string[],
+        endpoint: `/api/app/payments/${payment.id}`,
+        method: "DELETE",
+        payload: {},
+        danger: true,
+      });
+    },
+  },
+  {
+    decl: {
+      name: "list_team",
+      description:
+        "Team members with their id, role, active status, and whether they're bookable for online scheduling. Use before staging any team change.",
+      parameters: { type: "object", properties: {} },
+    },
+    allowed: (a) => isManager(a.role),
+    run: async (actor) => {
+      const rows = await prisma.user.findMany({
+        where: { companyId: actor.companyId },
+        take: 50,
+        orderBy: [{ isActive: "desc" }, { createdAt: "asc" }],
+        select: { id: true, name: true, email: true, role: true, isActive: true, bookable: true },
+      });
+      return {
+        team: rows.map((u) => ({
+          id: u.id, name: u.name, email: u.email,
+          role: u.role, roleLabel: roleLabel[u.role] ?? u.role,
+          active: u.isActive, bookableOnline: u.bookable,
+        })),
+      };
+    },
+  },
+  {
+    decl: {
+      name: "add_team_member",
+      description:
+        "Stage adding a team member. Roles: OWNER, ADMIN, USER ('Sales + Tech'), SALES, TECH. Admins can only add USER/SALES/TECH. A starting password is generated and shown on the card for the user to pass along. Confirmation card required.",
+      parameters: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          email: { type: "string" },
+          role: { type: "string", enum: ["OWNER", "ADMIN", "USER", "SALES", "TECH"] },
+          phone: { type: "string" },
+        },
+        required: ["name", "email", "role"],
+      },
+    },
+    allowed: (a) => isManager(a.role),
+    run: async (actor, args, ctx) => {
+      const name = str(args.name, 100);
+      const email = str(args.email, 254).toLowerCase();
+      const role = str(args.role, 12) as Role;
+      if (!name) return { error: "name is required" };
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: "A valid email is required." };
+      if (!["OWNER", "ADMIN", "USER", "SALES", "TECH"].includes(role)) return { error: "Invalid role." };
+      if (!canManageRole(actor.role, role)) {
+        return { error: "Admins can only add Sales + Tech, Sales, or Tech members — an owner must add owners/admins." };
+      }
+      const password = `Hub-${randomBytes(4).toString("hex")}`;
+      return stage(ctx, {
+        kind: "add_team_member",
+        title: `Add team member ${name} (${roleLabel[role]})`,
+        lines: [
+          `Email: ${email}`,
+          str(args.phone, 30) && `Phone: ${str(args.phone, 30)}`,
+          `Starting password: ${password} — share it with them; they can change it after signing in.`,
+        ].filter(Boolean) as string[],
+        endpoint: "/api/app/team",
+        method: "POST",
+        payload: { name, email, role, password, phone: str(args.phone, 30) || undefined },
+      });
+    },
+  },
+  {
+    decl: {
+      name: "update_team_member",
+      description:
+        "Stage changing a team member (by id from list_team): role, deactivate/reactivate (active), bookable for online scheduling, name, or phone. Owners manage everyone; admins only USER/SALES/TECH. Confirmation card required.",
+      parameters: {
+        type: "object",
+        properties: {
+          memberId: { type: "string" },
+          role: { type: "string", enum: ["OWNER", "ADMIN", "USER", "SALES", "TECH"] },
+          active: { type: "boolean" },
+          bookable: { type: "boolean" },
+          name: { type: "string" },
+          phone: { type: "string" },
+        },
+        required: ["memberId"],
+      },
+    },
+    allowed: (a) => isManager(a.role),
+    run: async (actor, args, ctx) => {
+      const target = await prisma.user.findFirst({
+        where: { id: str(args.memberId, 40), companyId: actor.companyId },
+        select: { id: true, name: true, role: true, isActive: true, bookable: true },
+      });
+      if (!target) return { error: "No team member with that id — check list_team." };
+      if (!canManageRole(actor.role, target.role as Role) && target.id !== actor.id) {
+        return { error: "Admins can't change owners or other admins — an owner must do that." };
+      }
+      const payload: Record<string, unknown> = {};
+      const lines: string[] = [];
+      const role = str(args.role, 12);
+      if (role && role !== target.role) {
+        if (!["OWNER", "ADMIN", "USER", "SALES", "TECH"].includes(role)) return { error: "Invalid role." };
+        if (!canManageRole(actor.role, role as Role)) {
+          return { error: "Admins can only assign Sales + Tech, Sales, or Tech roles." };
+        }
+        payload.role = role;
+        lines.push(`Role: ${roleLabel[target.role]} → ${roleLabel[role]}`);
+      }
+      if (typeof args.active === "boolean" && args.active !== target.isActive) {
+        if (target.id === actor.id && !args.active) return { error: "You can't deactivate your own account." };
+        payload.isActive = args.active;
+        lines.push(args.active ? "Reactivate their sign-in" : "Deactivate — they can no longer sign in (reversible)");
+      }
+      if (typeof args.bookable === "boolean" && args.bookable !== target.bookable) {
+        payload.bookable = args.bookable;
+        lines.push(args.bookable ? "Bookable for online scheduling" : "Removed from online scheduling");
+      }
+      if (str(args.name, 100) && str(args.name, 100) !== target.name) {
+        payload.name = str(args.name, 100);
+        lines.push(`Name: ${target.name} → ${payload.name}`);
+      }
+      if (str(args.phone, 30)) {
+        payload.phone = str(args.phone, 30);
+        lines.push(`Phone: ${payload.phone}`);
+      }
+      if (lines.length === 0) return { error: "Nothing to change — provide role, active, bookable, name, or phone." };
+      return stage(ctx, {
+        kind: "update_team_member",
+        title: `Update team member ${target.name}`,
+        lines,
+        endpoint: `/api/app/team/${target.id}`,
+        method: "PATCH",
+        payload,
+      });
+    },
+  },
+  {
+    decl: {
+      name: "update_team_policy",
+      description:
+        "Stage company team policies: whether Sales members can see invoices & payments (salesSeePayments), and who receives new website/booking leads (defaultLeadMemberId from list_team, or 'owner' to reset to the company owner). Confirmation card required.",
+      parameters: {
+        type: "object",
+        properties: {
+          salesSeePayments: { type: "boolean" },
+          defaultLeadMemberId: { type: "string" },
+        },
+      },
+    },
+    allowed: (a) => isManager(a.role),
+    run: async (actor, args, ctx) => {
+      const payload: Record<string, unknown> = {};
+      const lines: string[] = [];
+      if (typeof args.salesSeePayments === "boolean") {
+        payload.salesSeePayments = args.salesSeePayments;
+        lines.push(
+          args.salesSeePayments
+            ? "Sales members CAN see invoices & payments for their leads"
+            : "Sales members can NO LONGER see invoices or payments"
+        );
+      }
+      const leadId = str(args.defaultLeadMemberId, 40);
+      if (leadId) {
+        if (leadId === "owner") {
+          payload.defaultLeadUserId = null;
+          lines.push("New website leads go to: the company owner (default)");
+        } else {
+          const user = await prisma.user.findFirst({
+            where: { id: leadId, companyId: actor.companyId, isActive: true },
+            select: { id: true, name: true },
+          });
+          if (!user) return { error: "No active team member with that id — check list_team." };
+          payload.defaultLeadUserId = user.id;
+          lines.push(`New website leads go to: ${user.name}`);
+        }
+      }
+      if (lines.length === 0) return { error: "Provide salesSeePayments and/or defaultLeadMemberId." };
+      return stage(ctx, {
+        kind: "update_team_policy",
+        title: "Update team policies",
+        lines,
+        endpoint: "/api/app/team/settings",
+        method: "PATCH",
+        payload,
+      });
+    },
+  },
+  {
+    decl: {
+      name: "update_company_settings",
+      description:
+        "Stage changes to company settings: business name, phone, email, address/city/state/zip, website, review link, timezone (IANA, e.g. America/Chicago), arrival window minutes, the assistant's display name (assistantName), and the online-booking service area (addServiceZips / removeServiceZips — 5-digit ZIPs). Only include what should change. Confirmation card required.",
+      parameters: {
+        type: "object",
+        properties: {
+          companyName: { type: "string" },
+          phone: { type: "string" },
+          email: { type: "string" },
+          address: { type: "string" },
+          city: { type: "string" },
+          state: { type: "string" },
+          zip: { type: "string" },
+          website: { type: "string" },
+          reviewLink: { type: "string" },
+          timezone: { type: "string" },
+          arrivalWindowMinutes: { type: "number" },
+          assistantName: { type: "string" },
+          addServiceZips: { type: "array", items: { type: "string" } },
+          removeServiceZips: { type: "array", items: { type: "string" } },
+        },
+      },
+    },
+    allowed: (a) => isManager(a.role),
+    run: async (actor, args, ctx) => {
+      const payload: Record<string, unknown> = {};
+      const lines: string[] = [];
+      const simple: [key: string, arg: unknown, label: string, max: number][] = [
+        ["name", args.companyName, "Business name", 100],
+        ["phone", args.phone, "Phone", 30],
+        ["email", args.email, "Email", 200],
+        ["address", args.address, "Address", 200],
+        ["city", args.city, "City", 100],
+        ["state", args.state, "State", 40],
+        ["zip", args.zip, "ZIP", 10],
+        ["website", args.website, "Website", 200],
+        ["reviewLink", args.reviewLink, "Review link", 300],
+        ["assistantName", args.assistantName, "Assistant name", 40],
+      ];
+      for (const [key, arg, label, max] of simple) {
+        const v = str(arg, max);
+        if (v) {
+          payload[key] = v;
+          lines.push(`${label}: ${v}`);
+        }
+      }
+      const tz = str(args.timezone, 60);
+      if (tz) {
+        try {
+          new Intl.DateTimeFormat("en-US", { timeZone: tz });
+          payload.timezone = tz;
+          lines.push(`Timezone: ${tz}`);
+        } catch {
+          return { error: `"${tz}" isn't a valid timezone — use an IANA name like America/Chicago.` };
+        }
+      }
+      const win = num(args.arrivalWindowMinutes);
+      if (win !== null) {
+        if (win < 30 || win > 480) return { error: "arrivalWindowMinutes must be 30–480." };
+        payload.arrivalWindowMinutes = win;
+        lines.push(`Arrival window: ${win} minutes`);
+      }
+      const addZips = (Array.isArray(args.addServiceZips) ? args.addServiceZips : [])
+        .map((z) => str(z, 5)).filter((z) => /^\d{5}$/.test(z));
+      const removeZips = (Array.isArray(args.removeServiceZips) ? args.removeServiceZips : [])
+        .map((z) => str(z, 5)).filter((z) => /^\d{5}$/.test(z));
+      if (addZips.length > 0 || removeZips.length > 0) {
+        const company = await prisma.company.findUnique({
+          where: { id: actor.companyId },
+          select: { serviceZips: true },
+        });
+        const zips = new Set(company?.serviceZips ?? []);
+        addZips.forEach((z) => zips.add(z));
+        removeZips.forEach((z) => zips.delete(z));
+        payload.serviceZips = [...zips];
+        if (addZips.length) lines.push(`Add ZIPs: ${addZips.join(", ")}`);
+        if (removeZips.length) lines.push(`Remove ZIPs: ${removeZips.join(", ")}`);
+        lines.push(`Service area after change: ${zips.size} ZIP(s)`);
+      }
+      if (lines.length === 0) return { error: "Nothing to change — provide at least one setting." };
+      return stage(ctx, {
+        kind: "update_company_settings",
+        title: "Update company settings",
+        lines,
+        endpoint: "/api/app/settings",
+        method: "PATCH",
+        payload,
+      });
+    },
+  },
+  {
+    decl: {
+      name: "set_business_hours",
+      description:
+        "Stage new business hours for one or more days (used by online booking). days: e.g. ['sat'] or ['mon','tue','wed','thu','fri']. Give open+close (24h HH:MM, company-local) or closed: true. Other days keep their current hours. Confirmation card required.",
+      parameters: {
+        type: "object",
+        properties: {
+          days: {
+            type: "array",
+            items: { type: "string", enum: ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] },
+          },
+          open: { type: "string", description: "HH:MM 24h" },
+          close: { type: "string", description: "HH:MM 24h" },
+          closed: { type: "boolean", description: "true = closed that day" },
+        },
+        required: ["days"],
+      },
+    },
+    allowed: (a) => isManager(a.role),
+    run: async (actor, args, ctx) => {
+      const days = (Array.isArray(args.days) ? args.days : [])
+        .map((d) => str(d, 3).toLowerCase())
+        .filter((d): d is DayKey => (DAY_KEYS as readonly string[]).includes(d));
+      if (days.length === 0) return { error: "days must contain at least one of sun..sat." };
+      const closed = args.closed === true;
+      const open = str(args.open, 5);
+      const close = str(args.close, 5);
+      if (!closed) {
+        const s = timeToMinutes(open);
+        const e = timeToMinutes(close);
+        if (s === null || e === null || s >= e) {
+          return { error: "Provide open and close as HH:MM with open before close, or closed: true." };
+        }
+      }
+      const company = await prisma.company.findUnique({
+        where: { id: actor.companyId },
+        select: { businessHours: true },
+      });
+      const hours = sanitizeBusinessHours(company?.businessHours ?? null);
+      for (const d of days) hours[d] = closed ? [] : [{ start: open, end: close }];
+      return stage(ctx, {
+        kind: "set_business_hours",
+        title: closed
+          ? `Close on ${days.map((d) => DAY_LABELS[d]).join(", ")}`
+          : `Set hours ${open}–${close} on ${days.map((d) => DAY_LABELS[d]).join(", ")}`,
+        lines: DAY_KEYS.map((d) =>
+          `${DAY_LABELS[d]}: ${hours[d].length === 0 ? "closed" : hours[d].map((r) => `${r.start}–${r.end}`).join(", ")}`
+        ),
+        endpoint: "/api/app/settings",
+        method: "PATCH",
+        payload: { businessHours: hours },
+      });
+    },
+  },
 ];
 
 export function toolsForActor(actor: Actor): Tool[] {
@@ -1644,10 +2193,10 @@ const APP_CHEATSHEET = `Where things live in the app (always give these as paths
 - Business info, timezone, branding, deposits: /app/settings
 - AI setup assistant (re-runnable): /app/setup`;
 
-function systemPrompt(actor: Actor, companyName: string, tz: string): string {
+function systemPrompt(actor: Actor, companyName: string, tz: string, assistantName: string): string {
   const today = new Date().toLocaleDateString("en-CA", { timeZone: tz }); // YYYY-MM-DD
   const weekday = new Date().toLocaleDateString("en-US", { timeZone: tz, weekday: "long" });
-  return `You are the built-in assistant for ${companyName}'s Streamflaire Hub account — field-service business software (clients, quotes, jobs, invoices, scheduling, agreements, online booking). Your job is to make running this business easier: answer from real data, do the busywork, and surface what matters.
+  return `You are ${assistantName}, the built-in AI assistant for ${companyName}'s Streamflaire Hub account — field-service business software (clients, quotes, jobs, invoices, scheduling, agreements, online booking). Your job is to make running this business easier: answer from real data, do the busywork, and surface what matters. If asked, your name is ${assistantName}; owners can rename you in /app/settings (or just ask you to do it — update_company_settings assistantName).
 
 Today is ${weekday}, ${today} (${tz}). The user is ${actor.name}, role: ${roleLabel[actor.role]}.
 
@@ -1658,10 +2207,13 @@ Data rules:
 - Be proactive: when results show something actionable (past-due invoices, week-old unanswered quotes, unsigned agreements, unscheduled jobs), mention it briefly even if not asked.
 
 Actions:
-- You CAN do things, with the user's confirmation: add/update/archive clients, add client notes, create requests, draft quotes and invoices, convert approved quotes to jobs, create/reschedule/complete/close jobs, schedule/reschedule/cancel appointments, record payments, log expenses, update price-book prices/durations, email a client their portal link, and permanently delete clients. When asked, gather what you need first (search for the client, check the price book before quoting, find the invoice or job number, get the appointment id from get_schedule or get_client_activity), then call the action tool ONCE. It shows the user a confirmation card; tell them to review and press Confirm. Never claim something was done — the card does it only after they confirm.
+- You CAN do things, with the user's confirmation: add/update/archive clients, add client notes, create requests, draft quotes and invoices, mark quotes sent/approved and invoices sent, convert approved quotes to jobs, create/reschedule/complete/close jobs, schedule/reschedule/cancel appointments, record/correct/remove payments, log expenses, update price-book prices/durations, email a client their portal link, manage the team (add members, change roles, deactivate, bookable), change company settings and business hours, and permanently delete clients. When asked, gather what you need first (search for the client, check the price book before quoting, find the invoice or job number, get the appointment id from get_schedule or get_client_activity, get member ids from list_team), then call the action tool ONCE. It shows the user a confirmation card; tell them to review and press Confirm. Never claim something was done — the card does it only after they confirm.
 - Chain lookups yourself — if the user says "cancel Tuesday's appointment with Ben", find it (get_schedule or search + activity) and stage the cancellation; don't ask them for ids.
+- "Sending" a quote or invoice marks it sent in the system — no email goes out. After they confirm, remind them to share it with the client from the quote/invoice page (Copy link) or the client portal.
+- Refunds are bookkeeping here (no card processor yet): the money goes back to the client outside the app, then you correct the books — edit_payment for a partial refund, delete_payment when fully refunded or logged by mistake. Owners/admins only.
+- Team rules: owners manage everyone; admins only Sales + Tech, Sales, and Tech members. The system blocks deactivating yourself or removing the last owner.
 - Deletion destroys a client AND all their quotes/jobs/invoices/payments permanently. For anyone with real history, recommend archiving (set_client_status ARCHIVED) and only stage deletion if the user insists or it's clearly spam/test data. The card makes them type the client's name as a final check.
-- For anything you can't stage (sending quotes/invoices to clients, refunds, team changes, settings), point them to the right page path from the list below.
+- For the few things you can't stage (designing booking forms, contract templates, creating new price-book services, uploading a logo), point them to the right page path from the list below.
 
 Style:
 - Concise and concrete. Plain text only — no markdown symbols like ** or #. Use "-" for lists.
@@ -1689,9 +2241,10 @@ export async function runAssistant(
 ): Promise<AssistantResult | null> {
   const company = await prisma.company.findUnique({
     where: { id: actor.companyId },
-    select: { name: true, timezone: true },
+    select: { name: true, timezone: true, assistantName: true },
   });
   if (!company) return null;
+  const assistantName = company.assistantName || DEFAULT_ASSISTANT_NAME;
 
   const active = toolsForActor(actor);
   let model = process.env.AI_MODEL_ASSISTANT || ASSISTANT_MODEL_DEFAULT;
@@ -1704,7 +2257,7 @@ export async function runAssistant(
 
   for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
     const opts = {
-      system: systemPrompt(actor, company.name, company.timezone),
+      system: systemPrompt(actor, company.name, company.timezone, assistantName),
       contents,
       tools: active.map((t) => t.decl),
       maxOutputTokens: 1200,
@@ -1721,9 +2274,9 @@ export async function runAssistant(
     }
     if (!parts) return null;
 
-    const calls = parts.filter(
-      (p): p is Extract<AIPart, { functionCall: unknown }> => "functionCall" in p
-    );
+    const calls = parts
+      .filter((p): p is Extract<AIPart, { functionCall: unknown }> => "functionCall" in p)
+      .slice(0, 4); // history and responses must stay 1:1 — cap both together
     if (calls.length === 0) {
       const text = parts
         .map((p) => ("text" in p ? p.text : ""))
@@ -1745,7 +2298,7 @@ export async function runAssistant(
       parts: calls.map((c) => ({ thoughtSignature: AI_THOUGHT_SIGNATURE_SENTINEL, ...c })),
     });
     const responses: AIPart[] = await Promise.all(
-      calls.slice(0, 4).map(async (call): Promise<AIPart> => {
+      calls.map(async (call): Promise<AIPart> => {
         const tool = active.find((t) => t.decl.name === call.functionCall.name);
         let response: Record<string, unknown>;
         if (!tool) {

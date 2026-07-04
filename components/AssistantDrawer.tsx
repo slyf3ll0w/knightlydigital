@@ -149,9 +149,12 @@ function ProposalCard({
 export default function AssistantDrawer({
   open,
   onClose,
+  name = "Atlas",
 }: {
   open: boolean;
   onClose: () => void;
+  /** Display name — company-customizable in Settings; defaults to Atlas. */
+  name?: string;
 }) {
   const router = useRouter();
   const [messages, setMessages] = useState<Msg[]>([]);
@@ -273,7 +276,7 @@ export default function AssistantDrawer({
         {/* header */}
         <div className="flex h-[57px] shrink-0 items-center gap-2.5 border-b border-gray-200 px-4">
           <Sparkles size={17} className="text-green-600" />
-          <p className="text-sm font-semibold text-gray-900">Assistant</p>
+          <p className="text-sm font-semibold text-gray-900">{name}</p>
           <span className="stamp border-green-600/30 bg-green-600/[0.06] text-[10px] text-green-700">
             Beta
           </span>
@@ -304,12 +307,12 @@ export default function AssistantDrawer({
           {messages.length === 0 && (
             <div className="pt-6">
               <p className="mb-1 text-sm font-semibold text-gray-900">
-                Ask me anything about your business.
+                Hi, I&apos;m {name}. Ask me anything about your business.
               </p>
               <p className="mb-4 text-xs text-gray-500">
                 I can dig through your schedule, money, clients, and agreements, draft messages,
                 and — with your confirmation — manage clients, quotes, invoices, jobs,
-                appointments, and payments for you.
+                appointments, payments, your team, and your settings for you.
               </p>
               <div className="space-y-2">
                 {STARTERS.map((s) => (
@@ -379,7 +382,7 @@ export default function AssistantDrawer({
               }}
               rows={2}
               maxLength={4000}
-              placeholder="Ask, or tell me what to do..."
+              placeholder={`Ask ${name}, or tell it what to do...`}
               className="max-h-32 flex-1 resize-none rounded border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
             />
             <button
