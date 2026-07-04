@@ -49,6 +49,7 @@ export type DraftNewService = {
   price: number;
   cost: number | null;
   durationMinutes: number | null;
+  priceDisplay: "FIXED" | "STARTING_AT" | "HOURLY" | "QUOTE";
 };
 
 export type DraftQuestion = {
@@ -125,10 +126,10 @@ function buildPrompt(
   "arrivalWindowMinutes": 60|120|180|240 — how wide an arrival window this trade usually promises,
   "serviceZips": array of 5-digit US ZIP code strings actually covering the stated service area around ${intake.city || "the city"}, ${intake.state || ""} (max 60; be accurate — wrong ZIPs block real customers),
   "existingDurations": array of { "index": number, "durationMinutes": number } for the numbered services above — minutes on site, multiples of 15, between 30 and 480; omit services that don't fit a scheduled visit (e.g. per-sq-ft or per-unit pricing),
-  "newServices": array (max 8, empty if their list already covers the trade) of { "name", "description" (one sentence, client-facing), "price" (typical regional price, number), "cost" (rough direct cost, number), "durationMinutes" (as above, or null) },
+  "newServices": array (max 8, empty if their list already covers the trade) of { "name", "description" (one sentence, client-facing), "price" (typical regional price, number), "cost" (rough direct cost, number), "durationMinutes" (as above, or null), "priceDisplay": "FIXED"|"STARTING_AT"|"HOURLY"|"QUOTE" — how the price reads to homeowners: FIXED for true flat-rate jobs, STARTING_AT when scope varies (most repairs), HOURLY for time & materials, QUOTE for big jobs this trade never prices sight-unseen },
   "contract": { "name": short template name like "Lawn Care Service Agreement", "body": 300-500 word plain-text service agreement for this trade with placeholders {{client_name}}, {{company_name}}, {{date}} — plain paragraphs and simple numbered sections, professional but readable, covering scope, scheduling/access, payment, weather/rescheduling if relevant, liability basics },
-  "intakeQuestions": array (max 4) of { "label" (a question, UNDER 55 characters), "type": "text"|"select", "options": string[] (2-6, select only, else []) } — the questions a pro in this trade asks BEFORE quoting (property details, access, condition),
-  "clientFields": array (max 4) of { "label" (UNDER 55 characters), "type": "text"|"select", "options": same rules } — facts worth keeping on every client record for this trade (gate code, pets, preferred crew day, equipment on file),
+  "intakeQuestions": array (0-3, and 0 or 1 is often the RIGHT answer) of { "label" (a question, UNDER 55 characters), "type": "text"|"select", "options": string[] (2-6, select only, else []) } — ONLY questions whose answer changes the quote, the crew/equipment sent, or whether the job is accepted at all. The bar: would a seasoned dispatcher in this trade refuse to quote without it? Every extra field costs form conversions, so do NOT pad the list or include nice-to-know questions (the form already collects name, contact info, address, service, preferred time, and a free-text message — never duplicate those),
+  "clientFields": array (0-3, same "fewer is better" rule) of { "label" (UNDER 55 characters), "type": "text"|"select", "options": same rules } — ONLY facts a crew needs on EVERY repeat visit that aren't already on the client record (e.g. gate code for gated properties, loose-dog warning). Skip anything that's really a per-job detail or that most clients of this trade wouldn't have an answer for; empty array beats a filler field,
   "recurringPlanIdeas": array (max 3) of short strings suggesting recurring service plans for this trade with a realistic price, e.g. "Weekly mowing — around $180/mo"; empty array if the trade is one-off work
 }`);
   return lines.join("\n");
@@ -144,6 +145,13 @@ function cleanPrice(v: unknown, max = 100_000): number | null {
 
 function cleanStr(v: unknown, max: number): string {
   return typeof v === "string" ? v.trim().slice(0, max) : "";
+}
+
+const PRICE_DISPLAY_CHOICES = ["FIXED", "STARTING_AT", "HOURLY", "QUOTE"] as const;
+function cleanPriceDisplay(v: unknown): DraftNewService["priceDisplay"] {
+  return PRICE_DISPLAY_CHOICES.includes(v as DraftNewService["priceDisplay"])
+    ? (v as DraftNewService["priceDisplay"])
+    : "FIXED";
 }
 
 /** The review screen offers fixed duration choices — snap AI values onto
@@ -171,7 +179,9 @@ function isValidTimezone(tz: unknown): tz is string {
 export function cleanQuestions(raw: unknown, labelMax: number): DraftQuestion[] {
   if (!Array.isArray(raw)) return [];
   return raw
-    .slice(0, 4)
+    // The prompt asks for 0-3 must-have questions (padding costs form
+    // conversions) — enforce the cap even if the model over-delivers
+    .slice(0, 3)
     .map((q) => {
       const r = (q ?? {}) as Record<string, unknown>;
       const type = r.type === "select" ? "select" : "text";
@@ -238,6 +248,7 @@ export function sanitizeAIDraft(
             price: cleanPrice(r.price) ?? 0,
             cost: cleanPrice(r.cost),
             durationMinutes: snapDuration(sanitizeDuration(r.durationMinutes)),
+            priceDisplay: cleanPriceDisplay(r.priceDisplay),
           };
         })
         .filter(
@@ -353,6 +364,7 @@ export function fallbackDraft(
       price: s.unitPrice,
       cost: s.unitCost ?? null,
       durationMinutes: guessDuration(s.unitPrice),
+      priceDisplay: s.priceDisplay ?? "FIXED",
     })),
     contract: {
       name: intake.industry && intake.industry !== "Other"

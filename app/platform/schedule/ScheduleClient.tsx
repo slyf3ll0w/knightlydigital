@@ -698,7 +698,7 @@ export default function ScheduleClient({
               ["bg-green-500", "Active job"],
               ["bg-amber-500", "Requires invoicing"],
               ["bg-blue-500", "Appointment"],
-              ["bg-gray-400", "Archived"],
+              ["bg-gray-400", "Closed"],
             ].map(([c, label]) => (
               <div key={label} className="flex items-center gap-1.5 text-xs text-gray-500">
                 <div className={`h-2.5 w-2.5 rounded ${c}`} />

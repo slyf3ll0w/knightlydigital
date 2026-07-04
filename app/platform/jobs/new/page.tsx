@@ -9,6 +9,7 @@ import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { localInputToISO } from "@/lib/statuses";
 
 type Contact = { id: string; firstName: string; lastName: string; address: string | null };
+type TeamUser = { id: string; name: string; isActive: boolean };
 
 function NewJobForm() {
   const router = useRouter();
@@ -19,6 +20,8 @@ function NewJobForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [contacts, setContacts] = useState<Contact[]>([]);
+  const [team, setTeam] = useState<TeamUser[]>([]);
+  const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
   const [form, setForm] = useState({
     contactId: prefilledContactId,
     requestId,
@@ -34,6 +37,13 @@ function NewJobForm() {
     fetch("/api/app/contacts")
       .then((r) => r.json())
       .then(setContacts)
+      .catch(() => {});
+    // Team list is manager-only; non-managers just don't see the assign section
+    fetch("/api/app/team")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((users: TeamUser[]) =>
+        setTeam(Array.isArray(users) ? users.filter((u) => u.isActive) : [])
+      )
       .catch(() => {});
   }, []);
 
@@ -62,6 +72,7 @@ function NewJobForm() {
       ...form,
       scheduledAt: localInputToISO(form.scheduledAt),
       scheduledEnd: localInputToISO(form.scheduledEnd),
+      assigneeIds,
     });
     setLoading(false);
 
@@ -184,6 +195,36 @@ function NewJobForm() {
               />
             </div>
           </div>
+
+          {team.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Assign to</label>
+              <div className="space-y-1.5">
+                {team.map((u) => (
+                  <label
+                    key={u.id}
+                    className="flex items-center gap-2 text-sm text-gray-700 select-none w-fit"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={assigneeIds.includes(u.id)}
+                      onChange={() =>
+                        setAssigneeIds((ids) =>
+                          ids.includes(u.id) ? ids.filter((x) => x !== u.id) : [...ids, u.id]
+                        )
+                      }
+                      className="h-3.5 w-3.5 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                    />
+                    {u.name}
+                  </label>
+                ))}
+              </div>
+              <p className="text-xs text-gray-400 mt-1">
+                Assigned techs see this job on their schedule, and their online-booking
+                availability blocks off this time.
+              </p>
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Job site address</label>

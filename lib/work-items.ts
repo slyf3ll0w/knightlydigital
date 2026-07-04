@@ -6,9 +6,20 @@
  */
 
 import { prisma } from "@/lib/db";
-import type { RecurringInterval, RecurringInvoiceMode, AgreementTiming } from "@prisma/client";
+import type {
+  RecurringInterval,
+  RecurringInvoiceMode,
+  AgreementTiming,
+  PriceDisplay,
+} from "@prisma/client";
 
 const INTERVALS: RecurringInterval[] = ["MONTHLY", "QUARTERLY", "SEMIANNUAL", "ANNUAL"];
+const PRICE_DISPLAYS: PriceDisplay[] = ["FIXED", "STARTING_AT", "HOURLY", "QUOTE"];
+
+/** How the price reads to homeowners; anything unrecognized falls back to a flat rate. */
+export function sanitizePriceDisplay(v: unknown): PriceDisplay {
+  return PRICE_DISPLAYS.includes(v as PriceDisplay) ? (v as PriceDisplay) : "FIXED";
+}
 
 /** On-site duration for online booking: 15 min – 8 h, else "not bookable" (null). */
 export function sanitizeDuration(v: unknown): number | null {
@@ -23,6 +34,35 @@ export interface RecurringAgreementData {
   agreementTemplateId: string | null;
   agreementTiming: AgreementTiming;
   requiresAgreement: boolean;
+}
+
+/**
+ * Backfill unitCost on quote line items whose name exactly matches a
+ * price-book item (case-insensitive). Users often type a service name instead
+ * of clicking the autocomplete suggestion — without this, the line carries no
+ * cost and the job's profit margin overstates. Only the cost is inherited:
+ * linking workItemId (and its recurring/agreement side effects) stays an
+ * explicit picker action.
+ */
+export async function backfillLineItemCosts<
+  T extends { name?: string; workItemId?: string | null; unitCost?: number | null }
+>(companyId: string, lineItems: T[]): Promise<T[]> {
+  const unmatched = lineItems.filter(
+    (li) => !li.workItemId && (li.unitCost === null || li.unitCost === undefined) && li.name?.trim()
+  );
+  if (unmatched.length === 0) return lineItems;
+
+  const items = await prisma.workItem.findMany({
+    where: { companyId, isActive: true, unitCost: { not: null } },
+    select: { name: true, unitCost: true },
+  });
+  const costByName = new Map(items.map((i) => [i.name.trim().toLowerCase(), Number(i.unitCost)]));
+
+  return lineItems.map((li) => {
+    if (li.workItemId || li.unitCost !== null && li.unitCost !== undefined) return li;
+    const cost = costByName.get(li.name?.trim().toLowerCase() ?? "");
+    return cost !== undefined ? { ...li, unitCost: cost } : li;
+  });
 }
 
 export async function sanitizeRecurringAndAgreement(

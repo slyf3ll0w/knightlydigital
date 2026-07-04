@@ -11,7 +11,7 @@ const statusFilters = [
   { value: "", label: "All" },
   { value: "ACTIVE", label: "Active" },
   { value: "REQUIRES_INVOICING", label: "Requires Invoicing" },
-  { value: "ARCHIVED", label: "Archived" },
+  { value: "ARCHIVED", label: "Closed" },
 ];
 
 export default async function JobsPage({

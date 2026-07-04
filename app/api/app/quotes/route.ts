@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { RecurringInterval } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, contactScope } from "@/lib/permissions";
+import { backfillLineItemCosts } from "@/lib/work-items";
 
 export async function POST(req: NextRequest) {
   const actor = await getActor();
@@ -47,6 +48,22 @@ export async function POST(req: NextRequest) {
   });
   const quoteNumber = (last?.quoteNumber ?? 0) + 1;
 
+  // Hand-typed line items matching a price-book name inherit its cost so
+  // profit margins stay honest (picker-selected items already carry it)
+  type QuoteLineInput = {
+    name?: string;
+    description: string;
+    quantity: number;
+    unitPrice: number;
+    unitCost?: number | null;
+    isOptional?: boolean;
+    requiresAgreement?: boolean;
+    workItemId?: string | null;
+    recurringInterval?: RecurringInterval | null;
+    sortOrder?: number;
+  };
+  const costedLineItems = await backfillLineItemCosts(companyId, lineItems as QuoteLineInput[]);
+
   const subtotal = lineItems.reduce(
     (s: number, li: { quantity: number; unitPrice: number }) => s + li.quantity * li.unitPrice,
     0
@@ -90,19 +107,8 @@ export async function POST(req: NextRequest) {
         notes: notes || null,
         validUntil: validUntil ? new Date(validUntil) : null,
         lineItems: {
-          create: lineItems.map(
-            (li: {
-              name?: string;
-              description: string;
-              quantity: number;
-              unitPrice: number;
-              unitCost?: number | null;
-              isOptional?: boolean;
-              requiresAgreement?: boolean;
-              workItemId?: string | null;
-              recurringInterval?: RecurringInterval | null;
-              sortOrder?: number;
-            }) => ({
+          create: costedLineItems.map(
+            (li) => ({
               name: li.name ?? "",
               description: li.description ?? "",
               quantity: li.quantity,

@@ -7,6 +7,7 @@ import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 
 type RecurringInterval = "MONTHLY" | "QUARTERLY" | "SEMIANNUAL" | "ANNUAL";
 type DepositType = "NONE" | "PERCENT" | "FIXED" | "FULL";
+type PriceDisplay = "FIXED" | "STARTING_AT" | "HOURLY" | "QUOTE";
 
 type WorkItem = {
   id: string;
@@ -15,6 +16,7 @@ type WorkItem = {
   type: "SERVICE" | "PRODUCT";
   unitPrice: number | string;
   unitCost: number | string | null;
+  priceDisplay: PriceDisplay;
   requiresAgreement: boolean;
   durationMinutes: number | null;
   recurringInterval: RecurringInterval | null;
@@ -34,6 +36,7 @@ type FormState = {
   type: "SERVICE" | "PRODUCT";
   unitPrice: string;
   unitCost: string;
+  priceDisplay: PriceDisplay;
   durationMinutes: string;
   recurringInterval: "" | RecurringInterval;
   recurringCreatesJob: boolean;
@@ -50,6 +53,7 @@ const emptyForm: FormState = {
   type: "SERVICE",
   unitPrice: "",
   unitCost: "",
+  priceDisplay: "FIXED",
   durationMinutes: "",
   recurringInterval: "",
   recurringCreatesJob: false,
@@ -97,6 +101,7 @@ export default function ProductsClient({
       type: item.type,
       unitPrice: String(Number(item.unitPrice)),
       unitCost: item.unitCost !== null ? String(Number(item.unitCost)) : "",
+      priceDisplay: item.priceDisplay ?? "FIXED",
       durationMinutes: item.durationMinutes !== null ? String(item.durationMinutes) : "",
       recurringInterval: item.recurringInterval ?? "",
       recurringCreatesJob: item.recurringCreatesJob,
@@ -128,6 +133,7 @@ export default function ProductsClient({
       type: form.type,
       unitPrice: parseFloat(form.unitPrice) || 0,
       unitCost: form.unitCost === "" ? null : parseFloat(form.unitCost) || 0,
+      priceDisplay: form.priceDisplay,
       durationMinutes: form.durationMinutes === "" ? null : parseInt(form.durationMinutes, 10) || null,
       recurringInterval: form.recurringInterval || null,
       recurringCreatesJob: form.recurringCreatesJob,
@@ -215,6 +221,24 @@ export default function ProductsClient({
             className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
           />
         </div>
+      </div>
+      <div>
+        <label className="block text-xs font-medium text-gray-500 mb-1">
+          How the price shows to clients
+        </label>
+        <select
+          value={form.priceDisplay}
+          onChange={(e) => set("priceDisplay", e.target.value)}
+          className="w-full sm:max-w-xs px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+        >
+          <option value="FIXED">Flat rate — “$150.00”</option>
+          <option value="STARTING_AT">Starting at — “From $150.00”</option>
+          <option value="HOURLY">Hourly — “$150.00/hr”</option>
+          <option value="QUOTE">Hide price — “Get a quote”</option>
+        </select>
+        <p className="text-xs text-gray-400 mt-1">
+          Shown on your booking form. Quotes and invoices always use the exact unit price.
+        </p>
       </div>
       <div>
         <label className="block text-xs font-medium text-gray-500 mb-1">Description</label>
@@ -515,6 +539,15 @@ export default function ProductsClient({
                     </span>
                     <span className="text-sm font-semibold text-gray-900 sm:text-right">
                       {money(item.unitPrice)}
+                      {item.priceDisplay === "STARTING_AT" && (
+                        <span className="block text-[10px] font-normal text-gray-400">starting at</span>
+                      )}
+                      {item.priceDisplay === "HOURLY" && (
+                        <span className="block text-[10px] font-normal text-gray-400">per hour</span>
+                      )}
+                      {item.priceDisplay === "QUOTE" && (
+                        <span className="block text-[10px] font-normal text-gray-400">hidden — quote</span>
+                      )}
                     </span>
                     <span className="text-sm text-gray-500 sm:text-right">
                       {item.unitCost !== null ? money(item.unitCost) : "—"}

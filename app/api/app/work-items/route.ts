@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, isManager } from "@/lib/permissions";
-import { sanitizeRecurringAndAgreement, sanitizeDuration } from "@/lib/work-items";
+import { sanitizeRecurringAndAgreement, sanitizeDuration, sanitizePriceDisplay } from "@/lib/work-items";
 import { sanitizeDeposit } from "@/lib/deposits";
 
 export async function GET() {
@@ -45,6 +45,7 @@ export async function POST(req: NextRequest) {
       type: type === "PRODUCT" ? "PRODUCT" : "SERVICE",
       unitPrice: Number(unitPrice) || 0,
       unitCost: unitCost !== null && unitCost !== undefined && unitCost !== "" ? Number(unitCost) : null,
+      priceDisplay: sanitizePriceDisplay(body.priceDisplay),
       durationMinutes: sanitizeDuration(body.durationMinutes),
       ...recurring.data,
       ...sanitizeDeposit(body),

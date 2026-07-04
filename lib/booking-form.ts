@@ -24,6 +24,11 @@ export type CustomField = {
 
 export type StdField = { show: boolean; required: boolean; label: string };
 
+/** How a service's price reads to homeowners (mirrors WorkItem.priceDisplay). */
+export type ServicePriceDisplay = "FIXED" | "STARTING_AT" | "HOURLY" | "QUOTE";
+
+const SERVICE_PRICE_DISPLAYS: ServicePriceDisplay[] = ["FIXED", "STARTING_AT", "HOURLY", "QUOTE"];
+
 /** A sellable service offered on SERVICE_REQUEST forms — picked from the
  *  company's price book (workItemId) with the price snapshotted at add time. */
 export type FormService = {
@@ -31,8 +36,28 @@ export type FormService = {
   workItemId?: string;
   name: string;
   price: number;
+  priceDisplay?: ServicePriceDisplay; // absent = FIXED (legacy configs)
   description?: string;
 };
+
+/**
+ * Client-facing price label: "$150.00", "From $150", "$95/hr", or
+ * "Get a quote". Trades rarely flat-rate everything — this is how the
+ * industry presents variable-scope and T&M work.
+ */
+export function servicePriceLabel(s: Pick<FormService, "price" | "priceDisplay">): string {
+  const amount = `$${s.price.toFixed(2)}`;
+  switch (s.priceDisplay) {
+    case "STARTING_AT":
+      return `From ${amount}`;
+    case "HOURLY":
+      return `${amount}/hr`;
+    case "QUOTE":
+      return "Get a quote";
+    default:
+      return amount;
+  }
+}
 
 export type BookingFormConfig = {
   // legacy toggles, superseded by fields.address/date but kept readable so
@@ -238,6 +263,9 @@ export function sanitizeBookingForm(raw: unknown): BookingFormConfig {
             workItemId: str(sv.workItemId, 40) || undefined,
             name: str(sv.name, 100),
             price: Number.isFinite(price) && price >= 0 ? Math.round(price * 100) / 100 : 0,
+            priceDisplay: SERVICE_PRICE_DISPLAYS.includes(sv.priceDisplay as ServicePriceDisplay)
+              ? (sv.priceDisplay as ServicePriceDisplay)
+              : undefined,
             description: str(sv.description, 200) || undefined,
           };
         })

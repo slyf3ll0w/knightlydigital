@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
 import { sanitizeBusinessHours, sanitizeServiceZips } from "@/lib/business-hours";
-import { sanitizeDuration } from "@/lib/work-items";
+import { sanitizeDuration, sanitizePriceDisplay } from "@/lib/work-items";
 import { sanitizeBookingForm, type BookingFormConfig, type FormService } from "@/lib/booking-form";
 import { cleanQuestions } from "@/lib/setup-wizard";
 
@@ -76,6 +76,7 @@ export async function POST(req: NextRequest) {
         price: cleanPrice(r.price) ?? 0,
         cost: cleanPrice(r.cost),
         durationMinutes: sanitizeDuration(r.durationMinutes),
+        priceDisplay: sanitizePriceDisplay(r.priceDisplay),
       };
     })
     .filter((s) => s.name);
@@ -133,6 +134,7 @@ export async function POST(req: NextRequest) {
             unitPrice: s.price,
             unitCost: s.cost,
             durationMinutes: s.durationMinutes,
+            priceDisplay: s.priceDisplay,
           },
         })
       );
@@ -201,7 +203,7 @@ export async function POST(req: NextRequest) {
       if (u.durationMinutes === null) continue;
       const item = await tx.workItem.findFirst({
         where: { id: u.workItemId, companyId },
-        select: { id: true, name: true, unitPrice: true, description: true },
+        select: { id: true, name: true, unitPrice: true, priceDisplay: true, description: true },
       });
       if (item) {
         bookable.push({
@@ -209,6 +211,7 @@ export async function POST(req: NextRequest) {
           workItemId: item.id,
           name: item.name,
           price: Number(item.unitPrice),
+          priceDisplay: item.priceDisplay,
           description: item.description ?? undefined,
         });
       }
@@ -220,6 +223,7 @@ export async function POST(req: NextRequest) {
         workItemId: item.id,
         name: item.name,
         price: Number(item.unitPrice),
+        priceDisplay: item.priceDisplay,
         description: item.description ?? undefined,
       });
     }

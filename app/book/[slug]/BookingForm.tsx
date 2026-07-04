@@ -4,7 +4,12 @@ import { useEffect, useState } from "react";
 import { CalendarPlus, CheckCircle, Loader2 } from "lucide-react";
 import TurnstileWidget from "@/components/TurnstileWidget";
 import { textOn } from "@/lib/branding";
-import { DEFAULT_BOOKING_FORM, type BookingFormConfig, type CustomField } from "@/lib/booking-form";
+import {
+  DEFAULT_BOOKING_FORM,
+  servicePriceLabel,
+  type BookingFormConfig,
+  type CustomField,
+} from "@/lib/booking-form";
 import { zipFromAddress } from "@/lib/business-hours";
 
 type SlotDay = { date: string; label: string; slots: { start: string; label: string }[] };
@@ -476,7 +481,7 @@ export default function BookingForm({
                   <span className="min-w-0 flex-1">
                     <span className={`flex items-baseline justify-between gap-2 text-sm font-semibold ${dark ? "text-white" : "text-gray-900"}`}>
                       <span className="truncate">{s.name}</span>
-                      <span style={{ color: accent }}>${s.price.toFixed(2)}</span>
+                      <span className="shrink-0" style={{ color: accent }}>{servicePriceLabel(s)}</span>
                     </span>
                     {s.description && (
                       <span className={`block text-xs mt-0.5 ${dark ? "text-gray-400" : "text-gray-500"}`}>
@@ -517,7 +522,7 @@ export default function BookingForm({
                   <span className="min-w-0 flex-1">
                     <span className={`flex items-baseline justify-between gap-2 text-sm font-semibold ${dark ? "text-white" : "text-gray-900"}`}>
                       <span className="truncate">{s.name}</span>
-                      <span style={{ color: accent }}>${s.price.toFixed(2)}</span>
+                      <span className="shrink-0" style={{ color: accent }}>{servicePriceLabel(s)}</span>
                     </span>
                     {s.description && (
                       <span className={`block text-xs mt-0.5 ${dark ? "text-gray-400" : "text-gray-500"}`}>

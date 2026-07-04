@@ -38,7 +38,9 @@ export const quoteStatusLabel: Record<string, string> = {
 export const jobStatusLabel: Record<string, string> = {
   ACTIVE: "Active",
   REQUIRES_INVOICING: "Requires Invoicing",
-  ARCHIVED: "Archived",
+  // "Closed", not "Archived" — to an owner, a paid job that says ARCHIVED
+  // reads like it was deleted or filed away by mistake.
+  ARCHIVED: "Closed",
 };
 
 export const invoiceStatusLabel: Record<string, string> = {

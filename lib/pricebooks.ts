@@ -13,6 +13,11 @@ export type StarterWorkItem = {
   description: string;
   unitPrice: number;
   unitCost?: number;
+  // How the price reads to homeowners on the booking form. Omitted = FIXED
+  // (flat rate). Variable-scope repairs seed as STARTING_AT, time & materials
+  // as HOURLY, and big scope-dependent installs as QUOTE — matching how these
+  // trades actually present pricing.
+  priceDisplay?: "FIXED" | "STARTING_AT" | "HOURLY" | "QUOTE";
 };
 
 export const INDUSTRIES = [
@@ -46,7 +51,7 @@ export const INDUSTRY_PRICEBOOKS: Record<Industry, StarterWorkItem[]> = {
     { name: "Fence Cleaning", description: "Both sides of fence included. Removes dirt, algae, and mildew.", unitPrice: 130, unitCost: 35 },
     { name: "Gutter Cleaning", description: "Removal of debris from gutters and downspouts.", unitPrice: 120, unitCost: 25 },
     { name: "Roof Soft Wash", description: "Low-pressure roof treatment to remove black streaks and algae.", unitPrice: 350, unitCost: 90 },
-    { name: "Commercial Flatwork (per sq ft)", description: "Sidewalks, storefronts, and parking surfaces.", unitPrice: 0.25, unitCost: 0.08 },
+    { name: "Commercial Flatwork (per sq ft)", description: "Sidewalks, storefronts, and parking surfaces.", unitPrice: 0.25, unitCost: 0.08, priceDisplay: "STARTING_AT" },
   ],
   "Lawn Care & Landscaping": [
     { name: "Lawn Mowing (Standard Lot)", description: "Mow, edge, trim, and blow clippings from hard surfaces.", unitPrice: 55, unitCost: 18 },
@@ -54,9 +59,9 @@ export const INDUSTRY_PRICEBOOKS: Record<Industry, StarterWorkItem[]> = {
     { name: "Fertilization Treatment", description: "Seasonal fertilizer application for turf health.", unitPrice: 75, unitCost: 30 },
     { name: "Weed Control Application", description: "Pre- and post-emergent weed treatment.", unitPrice: 65, unitCost: 25 },
     { name: "Shrub & Hedge Trimming", description: "Shaping and trimming of shrubs and hedges, debris hauled away.", unitPrice: 120, unitCost: 35 },
-    { name: "Mulch Installation (per cu yd)", description: "Mulch delivered and installed in beds, edges redefined.", unitPrice: 110, unitCost: 45 },
-    { name: "Leaf Cleanup", description: "Full-property leaf removal and haul-away.", unitPrice: 180, unitCost: 55 },
-    { name: "Sod Installation (per pallet)", description: "Remove old turf, grade, and lay new sod.", unitPrice: 350, unitCost: 200 },
+    { name: "Mulch Installation (per cu yd)", description: "Mulch delivered and installed in beds, edges redefined.", unitPrice: 110, unitCost: 45, priceDisplay: "STARTING_AT" },
+    { name: "Leaf Cleanup", description: "Full-property leaf removal and haul-away.", unitPrice: 180, unitCost: 55, priceDisplay: "STARTING_AT" },
+    { name: "Sod Installation (per pallet)", description: "Remove old turf, grade, and lay new sod.", unitPrice: 350, unitCost: 200, priceDisplay: "STARTING_AT" },
     { name: "Sprinkler System Check", description: "Inspect zones, adjust heads, and report needed repairs.", unitPrice: 85, unitCost: 25 },
   ],
   "Cleaning Services": [
@@ -67,28 +72,28 @@ export const INDUSTRY_PRICEBOOKS: Record<Industry, StarterWorkItem[]> = {
     { name: "Carpet Cleaning (per room)", description: "Hot water extraction carpet cleaning.", unitPrice: 50, unitCost: 15 },
     { name: "Window Cleaning (Interior)", description: "Interior glass, sills, and tracks.", unitPrice: 90, unitCost: 25 },
     { name: "Office Cleaning", description: "Commercial space cleaning — trash, floors, restrooms, common areas.", unitPrice: 160, unitCost: 65 },
-    { name: "Post-Construction Cleanup", description: "Dust removal, debris, and detail clean after construction work.", unitPrice: 400, unitCost: 160 },
+    { name: "Post-Construction Cleanup", description: "Dust removal, debris, and detail clean after construction work.", unitPrice: 400, unitCost: 160, priceDisplay: "STARTING_AT" },
   ],
   HVAC: [
     { name: "Diagnostic / Service Call", description: "On-site system diagnosis. Fee applied toward repair if approved.", unitPrice: 95, unitCost: 30 },
     { name: "AC Tune-Up", description: "Seasonal inspection, coil cleaning, refrigerant check, and filter change.", unitPrice: 129, unitCost: 40 },
     { name: "Furnace Tune-Up", description: "Heating inspection, burner cleaning, and safety check.", unitPrice: 129, unitCost: 40 },
     { name: "Capacitor Replacement", description: "Replace failed run/start capacitor, test amperage draw.", unitPrice: 240, unitCost: 45 },
-    { name: "Refrigerant Recharge (per lb)", description: "Leak check plus refrigerant top-off.", unitPrice: 90, unitCost: 35 },
+    { name: "Refrigerant Recharge (per lb)", description: "Leak check plus refrigerant top-off.", unitPrice: 90, unitCost: 35, priceDisplay: "STARTING_AT" },
     { name: "Blower Motor Replacement", description: "Replace failed blower motor and verify airflow.", unitPrice: 550, unitCost: 220 },
-    { name: "Ductwork Repair", description: "Seal or replace damaged duct sections.", unitPrice: 350, unitCost: 120 },
+    { name: "Ductwork Repair", description: "Seal or replace damaged duct sections.", unitPrice: 350, unitCost: 120, priceDisplay: "STARTING_AT" },
     { name: "Thermostat Installation", description: "Install and configure customer-supplied or standard thermostat.", unitPrice: 180, unitCost: 60 },
-    { name: "Full System Replacement (3-ton)", description: "Remove old equipment and install new condenser, coil, and furnace.", unitPrice: 7500, unitCost: 4200 },
+    { name: "Full System Replacement (3-ton)", description: "Remove old equipment and install new condenser, coil, and furnace.", unitPrice: 7500, unitCost: 4200, priceDisplay: "QUOTE" },
   ],
   Plumbing: [
     { name: "Diagnostic / Service Call", description: "On-site diagnosis. Fee applied toward repair if approved.", unitPrice: 89, unitCost: 28 },
-    { name: "Drain Clearing (Main Line)", description: "Cable machine clearing of main sewer line, up to 100 ft.", unitPrice: 280, unitCost: 70 },
+    { name: "Drain Clearing (Main Line)", description: "Cable machine clearing of main sewer line, up to 100 ft.", unitPrice: 280, unitCost: 70, priceDisplay: "STARTING_AT" },
     { name: "Drain Clearing (Sink/Tub)", description: "Clear slow or clogged fixture drain.", unitPrice: 150, unitCost: 40 },
     { name: "Faucet Replacement", description: "Remove old faucet and install new, includes supply lines.", unitPrice: 220, unitCost: 80 },
     { name: "Toilet Replacement", description: "Haul away old toilet and install new with wax ring and supply line.", unitPrice: 350, unitCost: 160 },
     { name: "Garbage Disposal Replacement", description: "Replace disposal unit, standard 1/2 HP.", unitPrice: 280, unitCost: 120 },
     { name: "Water Heater Replacement (40-gal)", description: "Remove old tank and install new 40-gallon water heater to code.", unitPrice: 1450, unitCost: 750 },
-    { name: "Leak Repair", description: "Locate and repair supply or drain line leak.", unitPrice: 300, unitCost: 80 },
+    { name: "Leak Repair", description: "Locate and repair supply or drain line leak.", unitPrice: 300, unitCost: 80, priceDisplay: "STARTING_AT" },
     { name: "Hose Bib Replacement", description: "Replace exterior faucet/spigot.", unitPrice: 165, unitCost: 45 },
   ],
   Electrical: [
@@ -99,15 +104,15 @@ export const INDUSTRY_PRICEBOOKS: Record<Industry, StarterWorkItem[]> = {
     { name: "Light Fixture Installation", description: "Replace or install interior light fixture.", unitPrice: 140, unitCost: 35 },
     { name: "Breaker Replacement", description: "Replace failed breaker in panel.", unitPrice: 175, unitCost: 50 },
     { name: "EV Charger Installation (Level 2)", description: "Install 240V circuit and customer-supplied charger.", unitPrice: 750, unitCost: 280 },
-    { name: "Panel Upgrade (200A)", description: "Replace existing panel with 200A service, permit included.", unitPrice: 2800, unitCost: 1300 },
+    { name: "Panel Upgrade (200A)", description: "Replace existing panel with 200A service, permit included.", unitPrice: 2800, unitCost: 1300, priceDisplay: "QUOTE" },
     { name: "Whole-Home Surge Protector", description: "Install panel-mounted surge protection device.", unitPrice: 350, unitCost: 140 },
   ],
   Handyman: [
-    { name: "Handyman Hourly Rate", description: "General repairs and installations, one-hour minimum.", unitPrice: 75, unitCost: 25 },
+    { name: "Handyman Hourly Rate", description: "General repairs and installations, one-hour minimum.", unitPrice: 75, unitCost: 25, priceDisplay: "HOURLY" },
     { name: "Half-Day Rate (4 hrs)", description: "Discounted block for project lists.", unitPrice: 260, unitCost: 95 },
     { name: "TV Mounting", description: "Mount TV on drywall or brick, conceal cords where possible.", unitPrice: 130, unitCost: 35 },
-    { name: "Drywall Patch & Repair", description: "Patch holes, tape, float, and texture to match.", unitPrice: 180, unitCost: 50 },
-    { name: "Door Repair / Adjustment", description: "Fix sticking, sagging, or misaligned doors and hardware.", unitPrice: 120, unitCost: 30 },
+    { name: "Drywall Patch & Repair", description: "Patch holes, tape, float, and texture to match.", unitPrice: 180, unitCost: 50, priceDisplay: "STARTING_AT" },
+    { name: "Door Repair / Adjustment", description: "Fix sticking, sagging, or misaligned doors and hardware.", unitPrice: 120, unitCost: 30, priceDisplay: "STARTING_AT" },
     { name: "Furniture Assembly", description: "Assembly of flat-pack furniture, per item.", unitPrice: 90, unitCost: 25 },
     { name: "Caulking & Sealing", description: "Re-caulk tubs, showers, windows, or trim.", unitPrice: 110, unitCost: 25 },
     { name: "Fixture Swap", description: "Replace faucets, fans, lights, or hardware (customer-supplied).", unitPrice: 100, unitCost: 25 },
@@ -116,18 +121,18 @@ export const INDUSTRY_PRICEBOOKS: Record<Industry, StarterWorkItem[]> = {
     { name: "Interior Painting (per room)", description: "Walls, two coats, standard 12x12 room. Paint included.", unitPrice: 450, unitCost: 180 },
     { name: "Ceiling Painting (per room)", description: "Two coats on ceiling, standard room.", unitPrice: 200, unitCost: 75 },
     { name: "Trim & Baseboard Painting (per room)", description: "Sand, caulk, and paint trim package.", unitPrice: 180, unitCost: 60 },
-    { name: "Cabinet Painting (Kitchen)", description: "Degrease, sand, prime, and spray kitchen cabinets.", unitPrice: 2800, unitCost: 950 },
-    { name: "Exterior House Painting", description: "Pressure wash, scrape, prime, and two finish coats.", unitPrice: 4500, unitCost: 1800 },
-    { name: "Fence / Deck Staining", description: "Clean and apply stain or sealer.", unitPrice: 750, unitCost: 280 },
+    { name: "Cabinet Painting (Kitchen)", description: "Degrease, sand, prime, and spray kitchen cabinets.", unitPrice: 2800, unitCost: 950, priceDisplay: "STARTING_AT" },
+    { name: "Exterior House Painting", description: "Pressure wash, scrape, prime, and two finish coats.", unitPrice: 4500, unitCost: 1800, priceDisplay: "QUOTE" },
+    { name: "Fence / Deck Staining", description: "Clean and apply stain or sealer.", unitPrice: 750, unitCost: 280, priceDisplay: "STARTING_AT" },
     { name: "Accent Wall", description: "Single wall, two coats, color of choice.", unitPrice: 180, unitCost: 60 },
-    { name: "Drywall Texture & Paint Repair", description: "Patch, texture-match, and repaint damaged areas.", unitPrice: 250, unitCost: 80 },
+    { name: "Drywall Texture & Paint Repair", description: "Patch, texture-match, and repaint damaged areas.", unitPrice: 250, unitCost: 80, priceDisplay: "STARTING_AT" },
   ],
   "Pest Control": [
     { name: "Initial Pest Treatment", description: "Full interior and exterior treatment with web sweep.", unitPrice: 150, unitCost: 40 },
     { name: "Quarterly Pest Service", description: "Recurring exterior barrier treatment, interior on request.", unitPrice: 110, unitCost: 30 },
     { name: "Ant Treatment", description: "Targeted gel and barrier treatment for ant activity.", unitPrice: 135, unitCost: 35 },
     { name: "Wasp / Hornet Nest Removal", description: "Treat and remove nests up to two stories.", unitPrice: 125, unitCost: 30 },
-    { name: "Rodent Control Setup", description: "Inspection, exclusion recommendations, and bait/trap placement.", unitPrice: 225, unitCost: 65 },
+    { name: "Rodent Control Setup", description: "Inspection, exclusion recommendations, and bait/trap placement.", unitPrice: 225, unitCost: 65, priceDisplay: "STARTING_AT" },
     { name: "Termite Inspection", description: "Full-structure termite inspection with written report.", unitPrice: 95, unitCost: 25 },
     { name: "Mosquito Treatment (Monthly)", description: "Yard fogging and larvicide treatment.", unitPrice: 85, unitCost: 25 },
     { name: "Flea Treatment (Interior)", description: "Interior treatment, follow-up included.", unitPrice: 195, unitCost: 55 },

@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import Link from "next/link";
-import { ArrowLeft, MapPin, CalendarDays, User, Camera } from "lucide-react";
+import { ArrowLeft, MapPin, CalendarDays, User } from "lucide-react";
 import { quoteStatusLabel, money, shortDate } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
 import { requirePageActor, jobScope, canSeePricing, canSell, isManager } from "@/lib/permissions";
@@ -9,6 +9,7 @@ import JobActions from "./JobActions";
 import NoteForm from "./NoteForm";
 import ScheduleJob from "./ScheduleJob";
 import AssignTeam from "./AssignTeam";
+import PhotoUpload from "./PhotoUpload";
 
 export default async function JobDetailPage({
   params,
@@ -88,6 +89,7 @@ export default async function JobDetailPage({
             hasQuote={!!job.quote}
             canDelete={isManager(actor.role)}
             canEdit={canEdit}
+            scheduledAt={job.scheduledAt?.toISOString() ?? null}
           />
         )}
       </div>
@@ -291,38 +293,24 @@ export default async function JobDetailPage({
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
               <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Photos</h2>
             </div>
-            {job.photos.length === 0 ? (
-              <div className="px-5 py-8 text-center">
-                <Camera size={28} className="text-gray-200 mx-auto mb-2" />
-                <p className="text-xs text-gray-400">No photos attached yet</p>
-              </div>
-            ) : (
-              <div className="p-4 grid grid-cols-3 gap-2">
-                {job.photos.map((photo) => (
-                  <a
-                    key={photo.id}
-                    href={photo.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="aspect-square rounded overflow-hidden bg-gray-100"
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={photo.url}
-                      alt={photo.caption ?? "Job photo"}
-                      className="w-full h-full object-cover"
-                    />
-                  </a>
-                ))}
-              </div>
-            )}
+            <PhotoUpload
+              jobId={job.id}
+              photos={job.photos.map((p) => ({
+                id: p.id,
+                url: p.url,
+                caption: p.caption,
+                type: p.type,
+              }))}
+            />
           </div>
         </div>
 
         {/* Sidebar */}
         <div className="space-y-4">
-          {/* Team assignment */}
-          {canEdit && teamUsers.length > 1 && (
+          {/* Team assignment — shown even for a team of one: assignments drive
+              tech visibility, the schedule filter, AND booking availability
+              (an unassigned job doesn't block anyone's slots individually) */}
+          {canEdit && teamUsers.length >= 1 && (
             <AssignTeam
               jobId={job.id}
               users={teamUsers}

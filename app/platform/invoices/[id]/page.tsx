@@ -74,6 +74,7 @@ export default async function InvoiceDetailPage({
           canDelete={isManager(actor.role)}
           paymentCount={invoice.payments.length}
           paymentTotal={totalPaid}
+          contactEmail={invoice.contact?.email ?? ""}
         />
       </div>
 
@@ -154,6 +155,7 @@ export default async function InvoiceDetailPage({
                   <td className="py-3">
                     <p className="text-gray-900 font-medium">
                       {item.name || item.description}
+                      {item.recurringInterval && " "}
                       {item.recurringInterval && (
                         <span className="ml-2 text-xs font-medium px-1.5 py-0.5 rounded bg-green-100 text-green-700">
                           Recurring
@@ -198,7 +200,7 @@ export default async function InvoiceDetailPage({
             {invoice.tax && (
               <div className="flex justify-between">
                 <span className="text-gray-500">
-                  Tax ({(Number(invoice.taxRate) * 100).toFixed(1)}%)
+                  Tax ({parseFloat((Number(invoice.taxRate) * 100).toFixed(3))}%)
                 </span>
                 <span className="text-gray-800">{money(invoice.tax)}</span>
               </div>

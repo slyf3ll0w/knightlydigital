@@ -3,6 +3,7 @@ import type { RecurringInterval } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, isManager, viaContactScope } from "@/lib/permissions";
 import { autoSendQuoteAgreements } from "@/lib/agreements";
+import { backfillLineItemCosts } from "@/lib/work-items";
 
 const allowedStatuses = [
   "DRAFT",
@@ -68,7 +69,7 @@ export async function PATCH(
       return NextResponse.json({ error: "At least one line item is required." }, { status: 400 });
     }
 
-    const lineItems = body.lineItems as {
+    const rawLineItems = body.lineItems as {
       name?: string;
       description?: string;
       quantity: number;
@@ -80,6 +81,8 @@ export async function PATCH(
       recurringInterval?: RecurringInterval | null;
       sortOrder?: number;
     }[];
+    // Hand-typed items matching a price-book name inherit its cost (margins)
+    const lineItems = await backfillLineItemCosts(companyId, rawLineItems);
     const subtotal = lineItems.reduce((s, li) => s + (li.quantity || 0) * (li.unitPrice || 0), 0);
     const discountType =
       body.discountType === "PERCENT" || body.discountType === "FIXED" ? body.discountType : "NONE";

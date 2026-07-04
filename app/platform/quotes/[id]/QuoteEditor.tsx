@@ -173,6 +173,19 @@ export default function QuoteEditor({
       setError("Please select a client.");
       return;
     }
+    // A deposit type without an amount silently computes to $0 and the client
+    // is never asked for it — catch the misconfiguration at save time.
+    if (
+      (depositType === "PERCENT" || depositType === "FIXED") &&
+      !(parseFloat(depositValue) > 0)
+    ) {
+      setError(
+        depositType === "PERCENT"
+          ? "Enter the deposit percentage (or set the deposit back to “No deposit”)."
+          : "Enter the deposit amount (or set the deposit back to “No deposit”)."
+      );
+      return;
+    }
     setError("");
     setLoading(true);
 
@@ -232,7 +245,15 @@ export default function QuoteEditor({
         )}
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-5">
+      <form
+        onSubmit={handleSubmit}
+        // Native validation blocks submit with only a browser tooltip — mirror
+        // it in the visible error banner so a failed save is never silent.
+        onInvalidCapture={() =>
+          setError("Some fields need attention — check the highlighted inputs and try again.")
+        }
+        className="space-y-5"
+      >
         {error && (
           <div className="px-4 py-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
             {error}
@@ -359,7 +380,7 @@ export default function QuoteEditor({
                     onChange={(e) => setTaxRate(e.target.value)}
                     min="0"
                     max="100"
-                    step="0.1"
+                    step="0.001"
                     placeholder="0"
                     className="w-20 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                   />

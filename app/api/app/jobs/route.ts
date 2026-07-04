@@ -27,6 +27,10 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json();
   const { contactId, requestId, title, description, scheduledAt, scheduledEnd, scheduledAnytime, address, leadSource } = body;
+  // Optional up-front crew assignment — only users in this company count
+  const assigneeIds: string[] = Array.isArray(body.assigneeIds)
+    ? body.assigneeIds.filter((v: unknown): v is string => typeof v === "string")
+    : [];
 
   if (!contactId || !title) {
     return NextResponse.json({ error: "Client and title are required." }, { status: 400 });
@@ -41,6 +45,14 @@ export async function POST(req: NextRequest) {
     const request = await prisma.request.findFirst({ where: { id: requestId, companyId } });
     if (!request) return NextResponse.json({ error: "Request not found." }, { status: 404 });
   }
+
+  const validAssignees =
+    assigneeIds.length > 0
+      ? await prisma.user.findMany({
+          where: { id: { in: assigneeIds }, companyId, isActive: true },
+          select: { id: true },
+        })
+      : [];
 
   const job = await prisma.$transaction(async (tx) => {
     const last = await tx.job.findFirst({
@@ -61,6 +73,9 @@ export async function POST(req: NextRequest) {
         scheduledEnd: scheduledEnd ? new Date(scheduledEnd) : null,
         scheduledAnytime: Boolean(scheduledAnytime),
         address: address || contact.address || null,
+        ...(validAssignees.length > 0 && {
+          assignments: { create: validAssignees.map((u) => ({ userId: u.id })) },
+        }),
       },
     });
 

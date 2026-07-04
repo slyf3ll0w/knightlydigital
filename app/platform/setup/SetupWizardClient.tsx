@@ -284,6 +284,7 @@ export default function SetupWizardClient({
           price: Number(s.priceText),
           cost: s.cost,
           durationMinutes: s.durationMinutes,
+          priceDisplay: s.priceDisplay,
         })),
       contract: contractInclude && contractBody.trim() ? { name: contractName, body: contractBody } : null,
       intakeQuestions: intakeQs.filter((q) => q.include && q.label.trim()),

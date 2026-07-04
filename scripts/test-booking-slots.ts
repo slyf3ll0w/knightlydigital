@@ -59,6 +59,22 @@ test("maxPerDay caps each day and windowEnd = start + arrival window", () => {
   for (const n of byDay.values()) assert.ok(n <= 3);
 });
 
+test("capped slots spread across the whole day, not just the morning", () => {
+  // 8:00–21:00 hours with a 6-slot cap must still offer afternoon/evening
+  // times — taking the first six sequentially only ever showed mornings.
+  const hours = sanitizeBusinessHours({
+    mon: [{ start: "08:00", end: "21:00" }],
+  });
+  const slots = generateSlots({ ...base, hours, horizonDays: 0, maxPerDay: 6 });
+  assert.equal(slots.length, 6);
+  const hourOf = (s: Slot) =>
+    Number(
+      new Intl.DateTimeFormat("en-US", { timeZone: TZ, hour: "numeric", hour12: false }).format(s.start)
+    );
+  assert.ok(hourOf(slots[0]) <= 11, `first slot should be morning, got ${fmt(slots[0])}`);
+  assert.ok(hourOf(slots[slots.length - 1]) >= 18, `last slot should be evening, got ${fmt(slots[slots.length - 1])}`);
+});
+
 test("closed days (sat/sun) offer nothing", () => {
   const slots = generateSlots({ ...base, horizonDays: 13 });
   for (const s of slots) {

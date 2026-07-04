@@ -78,7 +78,10 @@ All job manager API routes are scoped to `session.user.companyId` for multi-tena
 - `/api/app/jobs[/[id]]` — CRUD jobs
 - `/api/app/jobs/[id]/status` — PATCH job status
 - `/api/app/jobs/[id]/notes` — POST note to job
+- `/api/app/jobs/[id]/photos[/[photoId]]` — POST photo (multipart, bytes stored on JobPhoto), DELETE photo; served authed via `/api/job-photos/[photoId]`
 - `/api/app/quotes[/[id]]` — CRUD quotes
+- `/api/app/quotes/[id]/send` — POST: email the client their quote link + mark sent
+- `/api/app/invoices/[id]/send` — POST: email the client their pay link + mark sent
 - `/api/app/invoices[/[id]]` — CRUD invoices
 - `/api/app/invoices/[id]/status` — PATCH invoice status
 - `/api/app/invoices/[id]/pay` — Record payment (calls payment processor)

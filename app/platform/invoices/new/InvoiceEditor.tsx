@@ -7,7 +7,7 @@ import { Loader2, Plus, Trash2, ArrowLeft } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import WorkItemPicker, { type PickerWorkItem } from "@/components/WorkItemPicker";
 
-type Contact = { id: string; firstName: string; lastName: string };
+type Contact = { id: string; firstName: string; lastName: string; paymentTermsDays?: number };
 type LineItem = {
   name: string;
   description: string;
@@ -48,6 +48,7 @@ type PrefillJob = {
     lineItems: { name: string; description: string; quantity: number; unitPrice: number }[];
     discountType?: string;
     discountValue?: number | null;
+    taxRate?: number | string | null; // fraction (0.0825) — Decimal serializes as string
   } | null;
 };
 
@@ -96,7 +97,12 @@ export default function InvoiceEditor({
   const [jobId] = useState(prefillJob?.id ?? "");
   const [subject, setSubject] = useState(editInvoice?.subject ?? prefillJob?.title ?? "");
   const [notes, setNotes] = useState(editInvoice?.notes ?? "");
-  const [taxRate, setTaxRate] = useState(editInvoice?.taxRatePercent ?? "");
+  // Tax carries over from the job's quote — otherwise a quoted 8.25% job
+  // silently invoices at 0% and the business under-bills.
+  const quoteTaxPercent = prefillJob?.quote?.taxRate
+    ? String(Math.round(Number(prefillJob.quote.taxRate) * 100000) / 1000)
+    : "";
+  const [taxRate, setTaxRate] = useState(editInvoice?.taxRatePercent ?? quoteTaxPercent);
   // Quote discounts carry over when invoicing a quoted job
   const quoteDiscount = prefillJob?.quote;
   const [discountType, setDiscountType] = useState<"NONE" | "PERCENT" | "FIXED">(
@@ -113,7 +119,17 @@ export default function InvoiceEditor({
         ? String(Number(quoteDiscount.discountValue))
         : ""
   );
-  const [dueDate, setDueDate] = useState(editInvoice?.dueDate ?? "");
+  // Show the Net-terms default up front (the server would apply it anyway on a
+  // blank date — but the owner should see what they're agreeing to).
+  const defaultDueFor = (id: string) => {
+    if (!id) return "";
+    const days = contacts.find((c) => c.id === id)?.paymentTermsDays ?? 30;
+    return new Date(Date.now() + days * 86400000).toLocaleDateString("en-CA");
+  };
+  const [dueDate, setDueDate] = useState(
+    editInvoice?.dueDate ?? defaultDueFor(prefillJob?.contactId ?? prefilledContactId)
+  );
+  const [dueDateTouched, setDueDateTouched] = useState(Boolean(editInvoice?.dueDate));
   const [lineItems, setLineItems] = useState<LineItem[]>(initLines);
   const depositApplied = editInvoice?.depositApplied ?? 0;
   const backHref = editInvoice ? `/app/invoices/${editInvoice.id}` : "/app/invoices";
@@ -220,7 +236,15 @@ export default function InvoiceEditor({
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-5">
+      <form
+        onSubmit={handleSubmit}
+        // Surface native validation failures in the visible banner — a browser
+        // tooltip alone reads as "the Save button does nothing".
+        onInvalidCapture={() =>
+          setError("Some fields need attention — check the highlighted inputs and try again.")
+        }
+        className="space-y-5"
+      >
         {error && (
           <div className="px-4 py-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
             {error}
@@ -248,7 +272,10 @@ export default function InvoiceEditor({
               ) : (
                 <select
                   value={contactId}
-                  onChange={(e) => setContactId(e.target.value)}
+                  onChange={(e) => {
+                    setContactId(e.target.value);
+                    if (!dueDateTouched) setDueDate(defaultDueFor(e.target.value));
+                  }}
                   required
                   className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                 >
@@ -264,7 +291,10 @@ export default function InvoiceEditor({
               <input
                 type="date"
                 value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
+                onChange={(e) => {
+                  setDueDate(e.target.value);
+                  setDueDateTouched(true);
+                }}
                 className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
@@ -337,7 +367,7 @@ export default function InvoiceEditor({
                 <div className="flex items-center gap-2">
                   <label className="text-sm text-gray-600">Tax</label>
                   <input type="number" value={taxRate} onChange={(e) => setTaxRate(e.target.value)}
-                    min="0" max="100" step="0.1" placeholder="0"
+                    min="0" max="100" step="0.001" placeholder="0"
                     className="w-20 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                   />
                   <span className="text-sm text-gray-500">%</span>

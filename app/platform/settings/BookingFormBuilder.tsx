@@ -1,11 +1,12 @@
 "use client";
 
 import { ChevronDown, ChevronUp, Plus, Trash2 } from "lucide-react";
-import type {
-  BookingFormConfig,
-  CustomField,
-  CustomFieldType,
-  FieldOption,
+import {
+  servicePriceLabel,
+  type BookingFormConfig,
+  type CustomField,
+  type CustomFieldType,
+  type FieldOption,
 } from "@/lib/booking-form";
 
 /**
@@ -111,6 +112,7 @@ export default function BookingFormBuilder({
     name: string;
     description: string | null;
     price: number;
+    priceDisplay?: "FIXED" | "STARTING_AT" | "HOURLY" | "QUOTE";
     durationMinutes?: number | null;
   }[];
 }) {
@@ -420,6 +422,7 @@ export default function BookingFormBuilder({
                               workItemId: item.id,
                               name: item.name,
                               price: item.price,
+                              priceDisplay: item.priceDisplay,
                               description: item.description ?? undefined,
                             },
                           ],
@@ -430,7 +433,7 @@ export default function BookingFormBuilder({
                       <option value="">+ Add a service from your price book...</option>
                       {available.map((w) => (
                         <option key={w.id} value={w.id}>
-                          {w.name} — ${w.price.toFixed(2)}
+                          {w.name} — {servicePriceLabel({ price: w.price, priceDisplay: w.priceDisplay })}
                           {w.durationMinutes == null ? " (no duration set)" : ""}
                         </option>
                       ))}
@@ -565,6 +568,7 @@ export default function BookingFormBuilder({
                             workItemId: item.id,
                             name: item.name,
                             price: item.price,
+                            priceDisplay: item.priceDisplay,
                             description: item.description ?? undefined,
                           },
                         ],
@@ -575,7 +579,7 @@ export default function BookingFormBuilder({
                     <option value="">+ Add a service from your price book...</option>
                     {available.map((w) => (
                       <option key={w.id} value={w.id}>
-                        {w.name} — ${w.price.toFixed(2)}
+                        {w.name} — {servicePriceLabel({ price: w.price, priceDisplay: w.priceDisplay })}
                       </option>
                     ))}
                   </select>

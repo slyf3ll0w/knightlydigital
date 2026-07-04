@@ -507,6 +507,10 @@ model JobPhoto {
   url       String
   caption   String?
   type      PhotoType @default(GENERAL)
+  // Uploaded photo bytes served via /api/job-photos/[id] (client-side resized
+  // JPEG, same pattern as Company.logoData; move both to R2 when volume grows)
+  data      Bytes?
+  mimeType  String?
   createdAt DateTime  @default(now())
 
   @@index([jobId])
@@ -754,7 +758,18 @@ enum RecurringInvoiceMode {
 // When an attached agreement is auto-sent to the client.
 enum AgreementTiming {
   WITH_QUOTE // send as soon as the quote goes out
-  ON_APPROVAL // send only once the client approves the quote
+  ON_APPROVAL // send only once the quote is approved
+}
+
+// How a service's price is presented to homeowners (booking form + client
+// pages). Trades rarely flat-rate everything: variable-scope work is quoted
+// "starting at", T&M work is hourly, and big-ticket jobs hide the number
+// behind a free estimate. unitPrice stays the numeric anchor either way.
+enum PriceDisplay {
+  FIXED // "$150.00" — flat rate per job
+  STARTING_AT // "From $150" — final price depends on scope
+  HOURLY // "$95/hr" — time & materials
+  QUOTE // no number — "Free estimate / we'll quote it"
 }
 
 model WorkItem {
@@ -766,6 +781,8 @@ model WorkItem {
   type        WorkItemType @default(SERVICE)
   unitCost    Decimal?     @db.Decimal(10, 2)
   unitPrice   Decimal      @default(0) @db.Decimal(10, 2)
+  // How the price reads on client-facing surfaces (booking form)
+  priceDisplay PriceDisplay @default(FIXED)
   // Preset deposit for this service. Snapshots onto quotes built from the price
   // book (summed across services) and drives the deposit invoice on approval.
   // NONE = fall back to the company default. FULL = whole line due upfront.

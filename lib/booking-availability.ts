@@ -11,7 +11,7 @@ import type { BookingFormConfig } from "./booking-form";
  * and re-run inside the submit transaction to close the double-booking race.
  */
 
-type Db = Pick<typeof prisma, "user" | "appointment" | "jobAssignment">;
+type Db = Pick<typeof prisma, "user" | "appointment" | "jobAssignment" | "job">;
 
 export async function getBookableUsersWithBusy(
   companyId: string,
@@ -29,7 +29,7 @@ export async function getBookableUsersWithBusy(
   // still blocks; "anytime" (date-only) items don't hold a clock position.
   const buffer = new Date(from.getTime() - 86400000);
 
-  const [appointments, assignments] = await Promise.all([
+  const [appointments, assignments, unassignedJobs] = await Promise.all([
     db.appointment.findMany({
       where: {
         companyId,
@@ -52,6 +52,19 @@ export async function getBookableUsersWithBusy(
       },
       select: { userId: true, job: { select: { scheduledAt: true, scheduledEnd: true } } },
     }),
+    // A scheduled job nobody is assigned to still consumes capacity — someone
+    // on the team will be doing it. Block the window for EVERY bookable user,
+    // otherwise a solo owner who never formally assigns jobs gets double-booked.
+    db.job.findMany({
+      where: {
+        companyId,
+        status: { not: "ARCHIVED" },
+        scheduledAnytime: false,
+        scheduledAt: { gte: buffer, lt: to },
+        assignments: { none: {} },
+      },
+      select: { scheduledAt: true, scheduledEnd: true },
+    }),
   ]);
 
   const busyByUser = new Map<string, { start: Date; end: Date }[]>(ids.map((id) => [id, []]));
@@ -68,6 +81,14 @@ export async function getBookableUsersWithBusy(
       start: j.job.scheduledAt,
       end: j.job.scheduledEnd ?? new Date(j.job.scheduledAt.getTime() + HOUR),
     });
+  }
+  for (const j of unassignedJobs) {
+    if (!j.scheduledAt) continue;
+    const interval = {
+      start: j.scheduledAt,
+      end: j.scheduledEnd ?? new Date(j.scheduledAt.getTime() + HOUR),
+    };
+    for (const id of ids) busyByUser.get(id)?.push(interval);
   }
   return ids.map((id) => ({ id, busy: busyByUser.get(id) ?? [] }));
 }

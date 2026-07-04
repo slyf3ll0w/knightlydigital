@@ -264,6 +264,9 @@ export default function QuoteAcceptPage({
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-gray-900">
                         {li.name || li.description}
+                        {/* explicit space — JSX drops line-break whitespace, and
+                            without it screen readers hear "ReplacementOptional" */}
+                        {li.isOptional && " "}
                         {li.isOptional && (
                           <span className="ml-2 text-xs font-medium px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">
                             Optional

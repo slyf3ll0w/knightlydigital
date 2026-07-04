@@ -125,30 +125,36 @@ export function generateSlots(input: SlotEngineInput): Slot[] {
     const probe = new Date(now.getTime() + dayOffset * 86400000);
     const { y, m, d, day } = localDayParts(timezone, probe);
     const ranges = hours[DAY_KEYS[day]] ?? [];
-    let taken = 0;
+    const daySlots: Slot[] = [];
 
     for (const range of ranges) {
       const startMin = timeToMinutes(range.start);
       const endMin = timeToMinutes(range.end);
       if (startMin === null || endMin === null) continue;
 
-      for (
-        let t = startMin;
-        t + durationMinutes <= endMin && taken < maxPerDay;
-        t += STEP_MINUTES
-      ) {
+      for (let t = startMin; t + durationMinutes <= endMin; t += STEP_MINUTES) {
         const start = wallTimeToUtc(timezone, y, m, d, t);
         if (start < earliest) continue;
         const end = new Date(start.getTime() + durationMinutes * 60000);
         const free = users.filter((u) => !u.busy.some((b) => overlaps(start, end, b)));
         if (free.length === 0) continue;
-        slots.push({
+        daySlots.push({
           start,
           end,
           windowEnd: new Date(start.getTime() + arrivalWindowMinutes * 60000),
           userIds: free.map((u) => u.id),
         });
-        taken++;
+      }
+    }
+
+    // Cap what we show per day by sampling EVENLY across the open slots —
+    // taking the first N would only ever offer mornings on a 8am–9pm day.
+    if (daySlots.length <= maxPerDay) {
+      slots.push(...daySlots);
+    } else {
+      for (let i = 0; i < maxPerDay; i++) {
+        const idx = Math.round((i * (daySlots.length - 1)) / (maxPerDay - 1));
+        slots.push(daySlots[idx]);
       }
     }
   }

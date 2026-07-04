@@ -82,6 +82,7 @@ export default async function QuoteDetailPage({
           hasJob={!!quote.jobId}
           wasSent={!!quote.sentAt}
           contactId={quote.contactId}
+          contactEmail={quote.contact.email ?? ""}
           agreement={
             needsAgreement
               ? { signed: agreementSigned, sent: agreementSent, templates: contractTemplates }
@@ -216,11 +217,15 @@ export default async function QuoteDetailPage({
                   <td className="py-3">
                     <p className="text-gray-900 font-medium">
                       {item.name || item.description}
+                      {/* explicit spaces — JSX drops line-break whitespace, and
+                          without them screen readers hear "ReplacementOptional" */}
+                      {item.isOptional && " "}
                       {item.isOptional && (
                         <span className="ml-2 text-xs font-medium px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">
                           Optional{item.optedOut ? " — removed by client" : ""}
                         </span>
                       )}
+                      {item.recurringInterval && " "}
                       {item.recurringInterval && (
                         <span className="ml-2 text-xs font-medium px-1.5 py-0.5 rounded bg-green-100 text-green-700">
                           Recurring
@@ -261,7 +266,7 @@ export default async function QuoteDetailPage({
             {quote.tax && (
               <div className="flex justify-between">
                 <span className="text-gray-500">
-                  Tax ({(Number(quote.taxRate) * 100).toFixed(1)}%)
+                  Tax ({parseFloat((Number(quote.taxRate) * 100).toFixed(3))}%)
                 </span>
                 <span className="text-gray-800">{money(quote.tax)}</span>
               </div>

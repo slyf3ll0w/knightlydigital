@@ -11,6 +11,7 @@ export default function JobActions({
   hasQuote = false,
   canDelete = false,
   canEdit = false,
+  scheduledAt = null,
 }: {
   jobId: string;
   status: string;
@@ -18,6 +19,7 @@ export default function JobActions({
   hasQuote?: boolean;
   canDelete?: boolean;
   canEdit?: boolean;
+  scheduledAt?: string | null;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -50,6 +52,16 @@ export default function JobActions({
   // Closing the job: with an invoice it archives; without one it moves to
   // Requires Invoicing so billing isn't forgotten (Jobber behavior).
   async function closeJob() {
+    // One click is right for the driveway case — but completing a job whose
+    // visit hasn't happened yet is usually a misclick, so double-check.
+    if (scheduledAt && new Date(scheduledAt).getTime() > Date.now()) {
+      const when = new Date(scheduledAt).toLocaleDateString("en-US", {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+      });
+      if (!confirm(`This job is scheduled for ${when} — complete it anyway?`)) return;
+    }
     if (hasInvoice) {
       await setStatus("ARCHIVED");
     } else {

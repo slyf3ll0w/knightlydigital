@@ -25,6 +25,7 @@ export default function InvoiceActions({
   canDelete = false,
   paymentCount = 0,
   paymentTotal = 0,
+  contactEmail = "",
 }: {
   invoiceId: string;
   status: string;
@@ -32,11 +33,13 @@ export default function InvoiceActions({
   canDelete?: boolean;
   paymentCount?: number;
   paymentTotal?: number;
+  contactEmail?: string;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [sentTo, setSentTo] = useState("");
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [confirmText, setConfirmText] = useState("");
   const [deleteError, setDeleteError] = useState("");
@@ -71,6 +74,24 @@ export default function InvoiceActions({
     setTimeout(() => setCopied(false), 1500);
   }
 
+  // Email the client their pay link (DRAFT invoices move to Awaiting Payment)
+  async function emailToClient() {
+    setOpen(false);
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/app/invoices/${invoiceId}/send`, { method: "POST" });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        alert(data?.error ?? "Couldn't send the invoice.");
+        return;
+      }
+      setSentTo(data?.to ?? contactEmail);
+    } finally {
+      setBusy(false);
+      router.refresh();
+    }
+  }
+
   async function doDelete(force: boolean) {
     setBusy(true);
     setDeleteError("");
@@ -103,15 +124,29 @@ export default function InvoiceActions({
     <div className="flex items-center gap-2 shrink-0" ref={ref}>
       {busy && <Loader2 size={16} className="animate-spin text-gray-400" />}
 
-      {status === "DRAFT" && (
-        <button
-          onClick={() => setStatus("AWAITING_PAYMENT")}
-          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors"
-        >
-          <Send size={13} />
-          Mark as Sent
-        </button>
+      {sentTo && (
+        <span className="text-xs text-green-700 font-medium">Emailed to {sentTo}</span>
       )}
+
+      {status === "DRAFT" &&
+        (contactEmail ? (
+          <button
+            onClick={emailToClient}
+            className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors"
+          >
+            <Send size={13} />
+            Email to Client
+          </button>
+        ) : (
+          <button
+            onClick={() => setStatus("AWAITING_PAYMENT")}
+            title="No client email on file — this only marks the invoice as sent"
+            className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors"
+          >
+            <Send size={13} />
+            Mark as Sent
+          </button>
+        ))}
       {(status === "AWAITING_PAYMENT" || status === "PAST_DUE") && (
         <button
           onClick={() => router.push(`/app/payments/new?invoiceId=${invoiceId}`)}
@@ -165,6 +200,24 @@ export default function InvoiceActions({
               <Copy size={14} className="text-gray-400" />
               {copied ? "Copied!" : "Copy payment link"}
             </button>
+            {contactEmail && status === "DRAFT" && (
+              <button
+                onClick={() => setStatus("AWAITING_PAYMENT")}
+                className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
+              >
+                <Send size={14} className="text-gray-400" />
+                Mark as Sent (no email)
+              </button>
+            )}
+            {contactEmail && (status === "AWAITING_PAYMENT" || status === "PAST_DUE") && (
+              <button
+                onClick={emailToClient}
+                className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
+              >
+                <Send size={14} className="text-gray-400" />
+                Email to client again
+              </button>
+            )}
             {status !== "PAID" && (
               <>
                 <div className="my-1 border-t border-gray-100" />

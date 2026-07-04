@@ -50,7 +50,8 @@ export default function CollectPaymentForm({
 
   const [amount, setAmount] = useState(initial ? String(initial.balance.toFixed(2)) : "");
   const [method, setMethod] = useState("CASH");
-  const [paidAt, setPaidAt] = useState(new Date().toISOString().slice(0, 10));
+  // Local date, not toISOString() — UTC rolls to tomorrow for evening entries
+  const [paidAt, setPaidAt] = useState(new Date().toLocaleDateString("en-CA"));
   const [referenceNumber, setReferenceNumber] = useState("");
   const [details, setDetails] = useState("");
 
