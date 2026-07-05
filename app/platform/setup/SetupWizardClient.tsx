@@ -203,19 +203,26 @@ export default function SetupWizardClient({
 
   // ── business lookup ("Find my business") ──
   const [lookupName, setLookupName] = useState(companyName);
+  const [lookupWebsite, setLookupWebsite] = useState("");
   const [lookupBusy, setLookupBusy] = useState(false);
   const [lookupMiss, setLookupMiss] = useState(false);
   const [candidate, setCandidate] = useState<LookupBusiness | null>(null); // awaiting "is this you?"
   const [biz, setBiz] = useState<LookupBusiness | null>(null); // confirmed
 
   async function findBusiness() {
-    if (!lookupName.trim() || lookupBusy) return;
+    if ((!lookupName.trim() && !lookupWebsite.trim()) || lookupBusy) return;
     setLookupBusy(true);
     setLookupMiss(false);
     setCandidate(null);
     const { ok, data } = await postJson<{ business: LookupBusiness | null }>(
       "/api/app/setup/lookup",
-      { name: lookupName.trim(), city: city.trim(), state: stateCode.trim() }
+      {
+        name: lookupName.trim(),
+        city: city.trim(),
+        state: stateCode.trim(),
+        industry: effectiveIndustry,
+        website: lookupWebsite.trim(),
+      }
     );
     setLookupBusy(false);
     if (!ok || !data?.business?.found) {
@@ -426,29 +433,40 @@ export default function SetupWizardClient({
                   We&apos;ll look up your website and Google Business Profile to pull in your
                   contact info, logo, and services automatically.
                 </p>
-                <div className="flex gap-2">
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={lookupName}
+                      onChange={(e) => setLookupName(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && findBusiness()}
+                      placeholder="Your business name"
+                      className={`${inputCls} min-w-0 flex-1`}
+                    />
+                    <button
+                      type="button"
+                      onClick={findBusiness}
+                      disabled={(!lookupName.trim() && !lookupWebsite.trim()) || lookupBusy}
+                      className="flex shrink-0 items-center gap-1.5 rounded bg-green-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-600 disabled:opacity-50"
+                    >
+                      {lookupBusy ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
+                      {lookupBusy ? "Searching..." : "Search"}
+                    </button>
+                  </div>
                   <input
                     type="text"
-                    value={lookupName}
-                    onChange={(e) => setLookupName(e.target.value)}
+                    value={lookupWebsite}
+                    onChange={(e) => setLookupWebsite(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && findBusiness()}
-                    placeholder="Your business name"
-                    className={`${inputCls} min-w-0 flex-1`}
+                    placeholder="yourwebsite.com — optional, helps us find your logo & colors"
+                    className={`${inputCls} w-full`}
                   />
-                  <button
-                    type="button"
-                    onClick={findBusiness}
-                    disabled={!lookupName.trim() || lookupBusy}
-                    className="flex shrink-0 items-center gap-1.5 rounded bg-green-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-600 disabled:opacity-50"
-                  >
-                    {lookupBusy ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
-                    {lookupBusy ? "Searching..." : "Search"}
-                  </button>
                 </div>
                 {lookupMiss && (
                   <p className="mt-2 text-xs text-gray-500">
-                    We couldn&apos;t find a confident match — no problem, just fill in the details
-                    below and you&apos;ll get the same great setup.
+                    {lookupWebsite.trim()
+                      ? "We couldn't pull anything from that — double-check the website address, or just fill in the details below."
+                      : "We couldn't find your listing. If you have a website, paste it above and we'll grab your info and branding from there — or just fill in the details below."}
                   </p>
                 )}
               </>

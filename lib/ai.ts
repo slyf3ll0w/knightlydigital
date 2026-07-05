@@ -74,7 +74,8 @@ export async function askAI(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(60_000),
+      // grounded calls run real web searches — give them longer
+      signal: AbortSignal.timeout(opts.useSearch ? 100_000 : 60_000),
     });
     if (!res.ok) {
       console.error("askAI: Gemini error", res.status, (await res.text()).slice(0, 500));
