@@ -168,3 +168,25 @@ Berrett Pest Control (caught their rebrand, real logo, #00AEEF), fake business
 → found:false (no hallucination). rating/reviewCount 0 from the model is
 treated as null. Debug scripts: scripts/debug-lookup.ts,
 scripts/debug-draft-site.ts.
+
+### v2.1 — website fallback + lookup fixes (2026-07-04, commit d85b23f)
+
+David's report: "Excellent PC Building" lookup returned nothing despite a real
+Google profile. Root causes found: (a) the lookup prompt hardcoded "a
+home-service company", making the model reject non-home-service matches;
+(b) generic business names with thin web presence don't surface in search
+without location context; (c) grounded search has its own tight free-tier
+quota bucket that exhausts before plain calls do. Fixes:
+
+- Lookup prompt now includes the company's actual industry and tells the
+  model to try multiple queries; system prompt says a GBP-only or
+  website-only presence still counts as found.
+- **Website input on the Find card** (the durable answer): when the search
+  misses or the business has no Google profile, `lookupFromWebsite()` fetches
+  the site, AI-extracts contact facts from the page text (non-grounded, cheap,
+  soft-fails to title/meta), and runs the same logo/brand-color pipeline.
+  A user-typed website also overrides whatever URL a successful grounded
+  lookup cites. Grounded calls get a 100s fetch timeout (real searches run long).
+- Verified on prod (demo co, card declined, nothing applied): name + website
+  → full card with logo, Springfield MO, phone, summary — works even while
+  grounded quota is exhausted.
