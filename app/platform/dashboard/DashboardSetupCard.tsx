@@ -3,7 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Wand2, X } from "lucide-react";
+import { ArrowRight, X } from "lucide-react";
+import AtlasIcon from "@/components/AtlasIcon";
 import { postJson } from "@/lib/safe-fetch";
 
 /**
@@ -33,7 +34,7 @@ export default function DashboardSetupCard() {
         <X size={15} />
       </button>
       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green-100">
-        <Wand2 size={19} className="text-green-700" />
+        <AtlasIcon size={19} className="text-green-700" />
       </div>
       <div className="min-w-0 flex-1">
         <p className="text-sm font-semibold text-gray-900">Set up your business in 2 minutes</p>
