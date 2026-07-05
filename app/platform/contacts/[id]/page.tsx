@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, Phone, Mail, MapPin, ChevronRight, Pencil } from "lucide-react";
 import { money, shortDate, type StatusKind } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
+import ContactStatus from "@/components/ContactStatus";
 import ContactCreateMenu from "./ContactCreateMenu";
 import ContactActionsMenu from "./ContactActionsMenu";
 import AssignLead from "./AssignLead";
@@ -136,7 +137,7 @@ export default async function ContactDetailPage({
         <Link href="/app/contacts" className="text-gray-400 hover:text-gray-600">
           <ArrowLeft size={18} />
         </Link>
-        <StatusChip kind="contact" status={contact.status} />
+        <ContactStatus status={contact.status} />
       </div>
 
       <div className="flex flex-wrap items-start justify-between gap-4 mb-6">

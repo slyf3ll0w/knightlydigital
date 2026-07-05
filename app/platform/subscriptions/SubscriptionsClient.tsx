@@ -249,7 +249,7 @@ export default function SubscriptionsClient({
                       <button
                         onClick={() => saveEdit(s.id)}
                         disabled={busyId === s.id}
-                        className="flex items-center gap-1 px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-semibold rounded transition-colors disabled:opacity-40"
+                        className="flex items-center gap-1 px-3 py-1.5 chamfer bg-green-500 hover:bg-green-600 text-white text-xs font-semibold rounded transition-colors disabled:opacity-40"
                       >
                         {busyId === s.id ? (
                           <Loader2 size={11} className="animate-spin" />

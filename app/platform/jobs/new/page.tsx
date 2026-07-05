@@ -242,7 +242,7 @@ function NewJobForm() {
           <button
             type="submit"
             disabled={loading}
-            className="flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 px-5 py-2.5 chamfer bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors disabled:opacity-50"
           >
             {loading && <Loader2 size={14} className="animate-spin" />}
             Create Job

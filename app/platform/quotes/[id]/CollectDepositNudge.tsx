@@ -52,7 +52,7 @@ export default function CollectDepositNudge({
         <button
           onClick={collect}
           disabled={busy}
-          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors disabled:opacity-50"
+          className="flex items-center gap-1.5 px-4 py-2 chamfer bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors disabled:opacity-50"
         >
           {busy ? <Loader2 size={13} className="animate-spin" /> : <DollarSign size={13} />}
           Collect Deposit

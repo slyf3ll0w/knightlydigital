@@ -3,33 +3,39 @@
 @tailwind utilities;
 
 @layer components {
-  /* ── Paper Ledger card — THE container of the product UI ──
-     White sheet on the paper-grain canvas: warm hairline border + one crisp
-     shadow, like a card laid on a desk. Replaces the old white-card/gray-200
-     border/rounded-lg utility recipe everywhere. */
+  /* ── Console card — THE container of the product UI ──
+     White sheet on the graph-paper canvas: hairline border + one crisp
+     shadow. Replaces the old white-card/gray-200 border/rounded-lg utility
+     recipe everywhere. */
   .card-ledger {
-    @apply bg-white border border-gray-200 rounded-[10px];
+    @apply bg-white border border-gray-200 rounded-[8px];
     box-shadow:
-      0 1px 2px rgba(28, 25, 23, 0.05),
-      0 2px 6px rgba(28, 25, 23, 0.03);
+      0 1px 2px rgba(15, 23, 42, 0.05),
+      0 2px 6px rgba(15, 23, 42, 0.03);
   }
 
-  /* Status stamp — bordered, uppercase, letterspaced; reads like a rubber
-     stamp pressed on a ledger line instead of a tinted SaaS pill. */
+  /* Status stamp — bordered, uppercase, letterspaced; reads like a stamp
+     pressed on a work order instead of a tinted SaaS pill. */
   .stamp {
     @apply inline-flex w-fit items-center whitespace-nowrap rounded-[4px] border px-1.5 py-[1px] text-[10px] font-bold uppercase tracking-[0.08em];
   }
 
-  /* Big ledger numerals (Fraunces) — dashboard counts and money figures.
-     The .app-ui scope forces Inter on headings, so double up specificity to
-     let this win on h1/h2 inside the app. */
+  /* Big numerals (Oxanium) — dashboard counts and money figures. The squared
+     digits are the same face as the marketing site's display type. Doubled
+     .app-ui specificity so this wins on h1/h2 inside the app. */
   .numeral-ledger,
   .app-ui .numeral-ledger {
-    font-family: "Fraunces", Georgia, serif;
-    font-variation-settings: "opsz" 40;
-    font-feature-settings: normal;
+    font-family: "Oxanium", var(--font-body);
     font-variant-numeric: lining-nums tabular-nums;
-    letter-spacing: -0.01em;
+    letter-spacing: 0;
+  }
+
+  /* ── Signature cut corner — one 45° chamfer on the top-right of solid
+     surfaces (primary buttons, the Create button, logo tile, Atlas tile).
+     Echoes Oxanium's angular letterforms. Solid backgrounds only: clip-path
+     also clips borders and shadows, so bordered/tinted elements look broken. */
+  .chamfer {
+    clip-path: polygon(0 0, calc(100% - 7px) 0, 100% 7px, 100% 100%, 0 100%);
   }
 }
 
@@ -74,10 +80,11 @@ h1, h2, h3, h4, h5, h6, .font-display {
   font-family: var(--font-sans);
 }
 
-/* The product UI (app, client hub, public client pages) uses the clean UI
-   font throughout — display headings are a marketing-site thing. */
-.app-ui,
-.app-ui h1, .app-ui h2, .app-ui h3, .app-ui h4, .app-ui h5, .app-ui h6 {
+/* The product UI (app, client hub, public client pages): Oxanium display
+   headings (inherited from the global h1–h6 rule, same as the marketing
+   site), Inter for body and table text — Oxanium at paragraph size is a
+   readability problem. */
+.app-ui {
   font-family: var(--font-body);
 }
 .app-ui {
@@ -132,44 +139,32 @@ body {
   }
 }
 
-/* ── Paper texture — organic, non-symmetrical dot pattern (not a grid) ── */
-/* 6 dots at irregular positions/sizes per 20px tile — mimics paper grain */
+/* ── Graph paper — fine hairline grid: work orders, site plans, job tickets.
+   The canvas of the product UI and the light marketing sections. ── */
 .bg-paper {
-  background-color: #FAFAF8;
+  background-color: #FBFBFB;
   background-image:
-    radial-gradient(circle at 1px 2px,  rgba(0,0,0,0.07)  1.2px, transparent 0),
-    radial-gradient(circle at 8px 8px,  rgba(0,0,0,0.05)  1.0px, transparent 0),
-    radial-gradient(circle at 15px 4px, rgba(0,0,0,0.06)  1.3px, transparent 0),
-    radial-gradient(circle at 4px 14px, rgba(0,0,0,0.045) 0.9px, transparent 0),
-    radial-gradient(circle at 13px 17px,rgba(0,0,0,0.055) 1.1px, transparent 0),
-    radial-gradient(circle at 18px 11px,rgba(0,0,0,0.04)  0.8px, transparent 0);
-  background-size: 20px 20px;
+    linear-gradient(to right,  rgba(15, 23, 42, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(15, 23, 42, 0.04) 1px, transparent 1px);
+  background-size: 24px 24px;
 }
 
 .bg-paper-warm {
-  background-color: #F4F3EF;
+  background-color: #F4F6F4;
   background-image:
-    radial-gradient(circle at 2px 3px,  rgba(0,0,0,0.065) 1.2px, transparent 0),
-    radial-gradient(circle at 9px 9px,  rgba(0,0,0,0.045) 1.0px, transparent 0),
-    radial-gradient(circle at 16px 5px, rgba(0,0,0,0.055) 1.3px, transparent 0),
-    radial-gradient(circle at 5px 15px, rgba(0,0,0,0.04)  0.9px, transparent 0),
-    radial-gradient(circle at 14px 18px,rgba(0,0,0,0.05)  1.1px, transparent 0),
-    radial-gradient(circle at 19px 12px,rgba(0,0,0,0.035) 0.8px, transparent 0);
-  background-size: 20px 20px;
+    linear-gradient(to right,  rgba(15, 23, 42, 0.045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(15, 23, 42, 0.045) 1px, transparent 1px);
+  background-size: 24px 24px;
 }
 
-/* ── Manila rail — the nav sits on warmer, deeper paper than the content
-   sheet, with the same organic grain, so the whole app reads as one desk. ── */
-.bg-manila {
-  background-color: #ECE4D1;
+/* ── Console rail — the nav sits on the marketing site's near-black, with a
+   whisper of the same grid, so app and brand read as one product. ── */
+.bg-rail {
+  background-color: #0C0F0C;
   background-image:
-    radial-gradient(circle at 2px 3px,  rgba(60,45,15,0.06) 1.2px, transparent 0),
-    radial-gradient(circle at 9px 9px,  rgba(60,45,15,0.045) 1.0px, transparent 0),
-    radial-gradient(circle at 16px 5px, rgba(60,45,15,0.05) 1.3px, transparent 0),
-    radial-gradient(circle at 5px 15px, rgba(60,45,15,0.04) 0.9px, transparent 0),
-    radial-gradient(circle at 14px 18px,rgba(60,45,15,0.05) 1.1px, transparent 0),
-    radial-gradient(circle at 19px 12px,rgba(60,45,15,0.035) 0.8px, transparent 0);
-  background-size: 20px 20px;
+    linear-gradient(to right,  rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 24px 24px;
 }
 
 /* ── Dark section dot pattern (green tint) ── */

@@ -618,7 +618,7 @@ export default function ScheduleClient({
           {canCreateJob && (
             <Link
               href="/app/jobs/new"
-              className="flex items-center gap-1.5 rounded bg-green-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-600 active:bg-green-700"
+              className="flex items-center gap-1.5 chamfer rounded bg-green-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-600 active:bg-green-700"
             >
               <Plus size={15} />
               New Job

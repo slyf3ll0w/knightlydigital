@@ -101,7 +101,7 @@ export default async function InvoicesPage({
           </Link>
           <Link
             href="/app/invoices/new"
-            className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors"
+            className="flex items-center gap-1.5 px-4 py-2 chamfer bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors"
           >
             <Plus size={15} />
             New Invoice

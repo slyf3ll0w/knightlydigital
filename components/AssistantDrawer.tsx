@@ -3,7 +3,8 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Check, Loader2, RotateCcw, Send, Sparkles, X } from "lucide-react";
+import { Check, Loader2, RotateCcw, Send, X } from "lucide-react";
+import AtlasIcon from "@/components/AtlasIcon";
 import type { Proposal } from "@/lib/assistant";
 
 /**
@@ -115,7 +116,7 @@ function ProposalCard({
               disabled={p.state === "confirming" || !armed}
               onClick={onConfirm}
               className={`flex items-center gap-1.5 rounded px-3 py-1.5 text-xs font-semibold text-white transition-colors disabled:opacity-50 ${
-                p.danger ? "bg-red-600 hover:bg-red-700" : "bg-green-500 hover:bg-green-600"
+                p.danger ? "bg-red-600 hover:bg-red-700" : "chamfer bg-green-500 hover:bg-green-600"
               }`}
             >
               {p.state === "confirming" ? (
@@ -280,7 +281,7 @@ export default function AssistantDrawer({
         state: failed === 0 ? "done" : "failed",
         resultNote:
           failed === 0
-            ? `All ${ok} applied!`
+            ? `All ${ok} applied`
             : `${ok} of ${prop.batch.length} applied — ${failed} failed (${firstError})`,
       });
       if (!opts?.skipRefresh) router.refresh();
@@ -290,7 +291,7 @@ export default function AssistantDrawer({
     if (err !== null) {
       setCard(msgIdx, prop.id, { state: "failed", resultNote: err });
     } else {
-      setCard(msgIdx, prop.id, { state: "done", resultNote: "Done!" });
+      setCard(msgIdx, prop.id, { state: "done", resultNote: "Done" });
       if (!opts?.skipRefresh) router.refresh();
     }
   }
@@ -320,11 +321,8 @@ export default function AssistantDrawer({
       <div className="fixed inset-y-0 right-0 z-50 flex w-full max-w-full flex-col border-l border-gray-200 bg-paper shadow-2xl sm:w-[400px]">
         {/* header */}
         <div className="flex h-[57px] shrink-0 items-center gap-2.5 border-b border-gray-200 px-4">
-          <Sparkles size={17} className="text-green-600" />
-          <p className="text-sm font-semibold text-gray-900">{name}</p>
-          <span className="stamp border-green-600/30 bg-green-600/[0.06] text-[10px] text-green-700">
-            Beta
-          </span>
+          <AtlasIcon size={17} className="text-green-600" />
+          <p className="font-display text-sm font-semibold text-gray-900">{name}</p>
           <div className="ml-auto flex items-center gap-1">
             {messages.length > 0 && (
               <button
@@ -389,7 +387,7 @@ export default function AssistantDrawer({
                   <button
                     type="button"
                     onClick={() => confirmAll(i, m.proposals ?? [])}
-                    className="flex items-center gap-1.5 rounded bg-green-500 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-green-600"
+                    className="flex items-center gap-1.5 chamfer rounded bg-green-500 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-green-600"
                   >
                     <Check size={12} />
                     Confirm all ({m.proposals!.filter((p) => p.state === "pending" && !p.danger).length})
@@ -445,7 +443,7 @@ export default function AssistantDrawer({
               onClick={() => send(input)}
               disabled={loading || !input.trim()}
               aria-label="Send"
-              className="rounded bg-green-500 p-2.5 text-white transition-colors hover:bg-green-600 disabled:opacity-40"
+              className="chamfer rounded bg-green-500 p-2.5 text-white transition-colors hover:bg-green-600 disabled:opacity-40"
             >
               <Send size={15} />
             </button>

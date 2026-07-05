@@ -68,7 +68,7 @@ export default async function HubLayout({
               className="numeral-ledger text-2xl sm:text-3xl font-semibold"
               style={{ color: headerText }}
             >
-              Hi {contact.firstName} 👋
+              Hi {contact.firstName}
             </h1>
             <p className="mt-1 text-sm" style={{ color: headerText, opacity: 0.6 }}>
               Welcome to your client hub

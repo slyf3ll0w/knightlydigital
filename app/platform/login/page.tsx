@@ -122,7 +122,7 @@ export default function AppLoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2.5 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white font-semibold text-sm rounded transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+              className="w-full py-2.5 chamfer bg-green-500 hover:bg-green-600 active:bg-green-700 text-white font-semibold text-sm rounded transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {loading && <Loader2 size={14} className="animate-spin" />}
               Sign in

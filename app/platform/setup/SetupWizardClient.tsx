@@ -16,12 +16,11 @@ import {
   MapPin,
   RefreshCcw,
   Search,
-  Sparkles,
   Star,
   Upload,
   Users,
-  Wand2,
 } from "lucide-react";
+import AtlasIcon from "@/components/AtlasIcon";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { INDUSTRIES } from "@/lib/pricebooks";
 import { DAY_KEYS, DAY_LABELS, type BusinessHours, type DayKey } from "@/lib/business-hours";
@@ -404,7 +403,7 @@ export default function SetupWizardClient({
       <div className="mx-auto max-w-xl">
         <div className="mb-6">
           <div className="mb-2 flex items-center gap-2">
-            <Wand2 size={20} className="text-green-600" />
+            <AtlasIcon size={20} className="text-green-600" />
             <h1 className="text-xl font-semibold text-gray-900">Set up your business</h1>
           </div>
           <p className="text-sm text-gray-600">
@@ -447,7 +446,7 @@ export default function SetupWizardClient({
                       type="button"
                       onClick={findBusiness}
                       disabled={(!lookupName.trim() && !lookupWebsite.trim()) || lookupBusy}
-                      className="flex shrink-0 items-center gap-1.5 rounded bg-green-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-600 disabled:opacity-50"
+                      className="flex shrink-0 items-center gap-1.5 chamfer rounded bg-green-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-600 disabled:opacity-50"
                     >
                       {lookupBusy ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
                       {lookupBusy ? "Searching..." : "Search"}
@@ -510,7 +509,7 @@ export default function SetupWizardClient({
                   <button
                     type="button"
                     onClick={confirmBusiness}
-                    className="flex items-center gap-1.5 rounded bg-green-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-600"
+                    className="flex items-center gap-1.5 chamfer rounded bg-green-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-600"
                   >
                     <Check size={14} /> Yes, that&apos;s us
                   </button>
@@ -633,9 +632,9 @@ export default function SetupWizardClient({
             type="button"
             onClick={generate}
             disabled={!effectiveIndustry || !city.trim()}
-            className="flex w-full items-center justify-center gap-2 rounded bg-green-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-green-600 active:bg-green-700 disabled:opacity-50"
+            className="flex w-full items-center justify-center gap-2 chamfer rounded bg-green-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-green-600 active:bg-green-700 disabled:opacity-50"
           >
-            <Sparkles size={15} />
+            <AtlasIcon size={15} />
             Draft my setup
           </button>
           <p className="text-center text-xs text-gray-400">
@@ -730,7 +729,7 @@ export default function SetupWizardClient({
           <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
             <Check size={24} className="text-green-600" />
           </div>
-          <h1 className="text-xl font-semibold text-gray-900">Your account is set up!</h1>
+          <h1 className="text-xl font-semibold text-gray-900">Your account is set up</h1>
           <p className="mt-1 text-sm text-gray-600">
             Everything you approved is live. A few things worth doing next:
           </p>
@@ -768,7 +767,7 @@ export default function SetupWizardClient({
     <div className="mx-auto max-w-3xl">
       <div className="mb-6">
         <div className="mb-2 flex items-center gap-2">
-          <Wand2 size={20} className="text-green-600" />
+          <AtlasIcon size={20} className="text-green-600" />
           <h1 className="text-xl font-semibold text-gray-900">Review your setup</h1>
         </div>
         <p className="text-sm text-gray-600">
@@ -1117,7 +1116,7 @@ export default function SetupWizardClient({
             type="button"
             onClick={apply}
             disabled={applying}
-            className="mt-4 flex w-full items-center justify-center gap-2 rounded bg-green-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-green-600 active:bg-green-700 disabled:opacity-50"
+            className="mt-4 flex w-full items-center justify-center gap-2 chamfer rounded bg-green-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-green-600 active:bg-green-700 disabled:opacity-50"
           >
             {applying ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />}
             Apply this setup

@@ -76,7 +76,7 @@ export default function ContractTemplatesClient({ templates }: { templates: Temp
         </div>
         <button
           onClick={startNew}
-          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors"
+          className="flex items-center gap-1.5 px-4 py-2 chamfer bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors"
         >
           <Plus size={15} />
           New Template
@@ -122,7 +122,7 @@ export default function ContractTemplatesClient({ templates }: { templates: Temp
             <button
               onClick={save}
               disabled={busy || !name.trim() || !body.trim()}
-              className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded disabled:opacity-50"
+              className="flex items-center gap-1.5 px-4 py-2 chamfer bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded disabled:opacity-50"
             >
               {busy && <Loader2 size={13} className="animate-spin" />}
               Save Template

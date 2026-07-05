@@ -109,7 +109,7 @@ export default function ContactNoteItem({
               <button
                 onClick={save}
                 disabled={busy || !text.trim()}
-                className="flex items-center gap-1 px-2.5 py-1 bg-green-500 hover:bg-green-600 text-white text-xs font-semibold rounded transition-colors disabled:opacity-40"
+                className="flex items-center gap-1 px-2.5 py-1 chamfer bg-green-500 hover:bg-green-600 text-white text-xs font-semibold rounded transition-colors disabled:opacity-40"
               >
                 {busy ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />}
                 Save

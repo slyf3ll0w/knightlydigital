@@ -2,14 +2,14 @@ import { prisma } from "@/lib/db";
 import Link from "next/link";
 import { Plus, ChevronRight, UserCheck, Upload, ListPlus } from "lucide-react";
 import { shortDate } from "@/lib/statuses";
-import StatusChip from "@/components/StatusChip";
+import ContactStatus from "@/components/ContactStatus";
 import EmptyState from "@/components/EmptyState";
 import { requirePageActor, canSell, contactScope, seesAllLeads, isManager } from "@/lib/permissions";
 
 const statusFilters = [
-  { value: "", label: "Leads and Active" },
+  { value: "", label: "Leads & clients" },
   { value: "LEAD", label: "Leads" },
-  { value: "ACTIVE", label: "Active" },
+  { value: "ACTIVE", label: "Clients" },
   { value: "ARCHIVED", label: "Archived" },
 ];
 
@@ -91,7 +91,7 @@ export default async function ContactsPage({
           )}
           <Link
             href="/app/contacts/new"
-            className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors"
+            className="flex items-center gap-1.5 px-4 py-2 chamfer bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors"
           >
             <Plus size={15} />
             New Client
@@ -185,7 +185,7 @@ export default async function ContactsPage({
                   <span className="hidden lg:block text-sm text-gray-500 truncate">
                     {[c.address, c.city, c.state].filter(Boolean).join(", ") || "—"}
                   </span>
-                  <StatusChip kind="contact" status={c.status} />
+                  <ContactStatus status={c.status} />
                   <span className="hidden lg:block text-sm text-gray-500 truncate">
                     {c.assignedTo?.name ?? "—"}
                   </span>

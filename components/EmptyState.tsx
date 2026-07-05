@@ -16,7 +16,7 @@ function Art({ name }: { name: EmptyArt }) {
     strokeLinecap: "round" as const,
     strokeLinejoin: "round" as const,
   };
-  const gray = { ...base, stroke: "#D6D3D1" }; // warm stone-300 to sit on the paper canvas
+  const gray = { ...base, stroke: "#D1D5DB" }; // gray-300 to sit on the graph-paper canvas
   const green = { ...base, stroke: "#22C55E" };
 
   switch (name) {
@@ -114,7 +114,7 @@ export default function EmptyState({
       {actionHref && actionLabel && (
         <Link
           href={actionHref}
-          className="mt-5 inline-flex items-center gap-1.5 rounded bg-green-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-600 active:bg-green-700"
+          className="mt-5 inline-flex items-center gap-1.5 chamfer rounded bg-green-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-600 active:bg-green-700"
         >
           {showPlusIcon && <Plus size={15} />}
           {actionLabel}

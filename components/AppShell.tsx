@@ -27,24 +27,24 @@ import {
   Repeat,
   ChevronsUpDown,
   CircleUserRound,
-  Sparkles,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import Avatar from "@/components/Avatar";
+import AtlasIcon from "@/components/AtlasIcon";
 import TourGuide from "@/components/TourGuide";
 import AssistantDrawer from "@/components/AssistantDrawer";
 import { textOn } from "@/lib/branding";
 
 const DEFAULT_ACCENT = "#22C55E"; // green-500
 
-/** Brand accent, guarded: too-light colors are invisible on the manila rail. */
+/** Brand accent, guarded: too-dark colors are invisible on the console rail. */
 function sidebarAccent(hex: string): string {
   const m = /^#?([0-9a-f]{6})$/i.exec(hex);
   if (!m) return DEFAULT_ACCENT;
   const n = parseInt(m[1], 16);
   const luminance =
     0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255);
-  return luminance > 215 ? DEFAULT_ACCENT : hex;
+  return luminance < 70 ? DEFAULT_ACCENT : hex;
 }
 
 // Per-role visibility, mirroring lib/permissions.ts (server still enforces):
@@ -150,7 +150,7 @@ function CreateMenu({ accent, role }: { accent: string; role: string }) {
         onClick={() => setOpen((v) => !v)}
         data-tour="create"
         style={{ backgroundColor: accent, color: textOn(accent) }}
-        className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 hover:brightness-110 text-sm font-semibold rounded-md shadow-sm transition-[filter]"
+        className="chamfer w-full flex items-center justify-center gap-1.5 px-3 py-2.5 hover:brightness-110 text-sm font-semibold rounded-md transition-[filter]"
       >
         <Plus size={15} />
         Create
@@ -226,14 +226,14 @@ function UserMenu({
       )}
       <button
         onClick={() => setOpen((v) => !v)}
-        className="w-full px-3 py-2.5 flex items-center gap-3 rounded-md hover:bg-black/[0.04] transition-colors text-left"
+        className="w-full px-3 py-2.5 flex items-center gap-3 rounded-md hover:bg-white/[0.06] transition-colors text-left"
       >
         <Avatar name={userName} size={28} />
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-medium text-gray-900 truncate">{userName}</p>
-          <p className="text-[11px] text-stone-500 truncate">{userEmail}</p>
+          <p className="text-xs font-medium text-white truncate">{userName}</p>
+          <p className="text-[11px] text-white/45 truncate">{userEmail}</p>
         </div>
-        <ChevronsUpDown size={13} className="text-stone-400 shrink-0" />
+        <ChevronsUpDown size={13} className="text-white/40 shrink-0" />
       </button>
     </div>
   );
@@ -336,12 +336,12 @@ export default function AppShell({
         key={href}
         href={href}
         data-tour={tourKeys[href]}
-        className={`relative flex items-center gap-3 rounded-md px-3 py-2 text-[13px] transition-colors ${
+        className={`font-display relative flex items-center gap-3 rounded-md px-3 py-2 text-[13px] transition-colors ${
           active
-            ? "font-semibold text-gray-900"
-            : "font-medium text-stone-600 hover:bg-black/[0.04] hover:text-gray-900"
+            ? "font-semibold text-white"
+            : "font-medium text-gray-400 hover:bg-white/[0.06] hover:text-white"
         }`}
-        style={active ? { backgroundColor: `${accent}1f` } : undefined}
+        style={active ? { backgroundColor: `${accent}26` } : undefined}
       >
         {active && (
           <span
@@ -355,7 +355,7 @@ export default function AppShell({
         {badge > 0 && (
           <span
             className={`ml-auto min-w-[18px] rounded-full px-1.5 py-px text-center text-[10px] font-bold tabular-nums ${
-              href === "/app/invoices" ? "bg-red-500 text-white" : "bg-black/10 text-gray-600"
+              href === "/app/invoices" ? "bg-red-500 text-white" : "bg-white/10 text-gray-300"
             }`}
           >
             {badge > 99 ? "99+" : badge}
@@ -378,10 +378,10 @@ export default function AppShell({
             <div key={i} className={i > 0 ? "mt-4" : undefined}>
               {group.label && (
                 <div className="flex items-center gap-2 px-3 pb-1.5">
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-stone-400">
+                  <span className="font-display text-[10px] font-semibold uppercase tracking-[0.12em] text-white/35">
                     {group.label}
                   </span>
-                  <span className="h-px flex-1 bg-stone-300/70" aria-hidden />
+                  <span className="h-px flex-1 bg-white/10" aria-hidden />
                 </div>
               )}
               <div className="space-y-0.5">
@@ -392,14 +392,18 @@ export default function AppShell({
       </nav>
 
       {/* Settings + user */}
-      <div className="px-3 py-3 border-t border-stone-300/70 space-y-0.5">
+      <div className="px-3 py-3 border-t border-white/10 space-y-0.5">
         {manager && navLink("/app/settings/booking", "Forms", Globe)}
         {manager && navLink("/app/settings/team", "Team", UserPlus)}
         {manager && navLink("/app/settings", "Settings", Settings)}
         <UserMenu userName={userName} userEmail={userEmail} />
-        <p className="px-3 pt-1.5 pb-1 text-[10px] text-stone-400 flex items-center gap-1.5">
+        <p className="px-3 pt-1.5 pb-1 text-[10px] text-white/35 flex items-center gap-1.5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/streamflaire-hub-mark.png" alt="" className="h-2.5 w-auto shrink-0 opacity-70" />
+          <img
+            src="/streamflaire-hub-mark.png"
+            alt=""
+            className="h-2.5 w-auto shrink-0 opacity-60 brightness-0 invert"
+          />
           Powered by Streamflaire Hub
         </p>
       </div>
@@ -411,14 +415,14 @@ export default function AppShell({
   // already carry the name — show them big and alone; squarish marks sit
   // next to the company name.
   const logo = (
-    <div className="flex items-center gap-2.5 px-5 py-2.5 min-h-[57px] border-b border-stone-300/70 min-w-0">
+    <div className="flex items-center gap-2.5 px-5 py-2.5 min-h-[57px] border-b border-white/10 min-w-0">
       {companyLogoUrl ? (
         logoIsWide ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={companyLogoUrl}
             alt={companyName ?? ""}
-            className="h-10 w-auto max-w-[176px] rounded-md object-contain bg-white px-1.5 py-1 ring-1 ring-stone-300/60"
+            className="h-10 w-auto max-w-[176px] rounded-md object-contain bg-white px-1.5 py-1 ring-1 ring-white/20"
           />
         ) : (
           <>
@@ -430,9 +434,9 @@ export default function AppShell({
                 const img = e.currentTarget;
                 if (img.naturalWidth > img.naturalHeight * 1.5) setLogoIsWide(true);
               }}
-              className="h-10 w-10 rounded-md object-contain bg-white p-0.5 shrink-0 ring-1 ring-stone-300/60"
+              className="h-10 w-10 rounded-md object-contain bg-white p-0.5 shrink-0 ring-1 ring-white/20"
             />
-            <span className="font-bold text-[14px] tracking-tight text-gray-900 truncate">
+            <span className="font-display font-bold text-[14px] tracking-tight text-white truncate">
               {companyName ?? "Streamflaire Hub"}
             </span>
           </>
@@ -440,12 +444,12 @@ export default function AppShell({
       ) : (
         <>
           <div
-            className="w-9 h-9 rounded-md flex items-center justify-center shrink-0 font-bold text-sm"
+            className="chamfer w-9 h-9 rounded-md flex items-center justify-center shrink-0 font-display font-bold text-sm"
             style={{ backgroundColor: accent, color: textOn(accent) }}
           >
             {companyName?.charAt(0).toUpperCase() ?? "J"}
           </div>
-          <span className="font-bold text-[14px] tracking-tight text-gray-900 truncate">
+          <span className="font-display font-bold text-[14px] tracking-tight text-white truncate">
             {companyName ?? "Streamflaire Hub"}
           </span>
         </>
@@ -456,7 +460,7 @@ export default function AppShell({
   return (
     <div className="app-ui flex h-screen bg-paper overflow-hidden">
       {/* ── Desktop sidebar ──────────────────────────────────────────────── */}
-      <aside className="hidden lg:flex flex-col w-[232px] bg-manila border-r border-stone-300/70 shrink-0">
+      <aside className="hidden lg:flex flex-col w-[232px] bg-rail shrink-0">
         {logo}
         {sidebarInner}
       </aside>
@@ -469,15 +473,15 @@ export default function AppShell({
         />
       )}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-[260px] bg-manila flex flex-col transition-transform duration-200 lg:hidden ${
+        className={`fixed inset-y-0 left-0 z-50 w-[260px] bg-rail flex flex-col transition-transform duration-200 lg:hidden ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="flex items-center justify-between pr-4 border-b border-stone-300/70">
+        <div className="flex items-center justify-between pr-4 border-b border-white/10">
           <div className="border-b-0">{logo}</div>
           <button
             onClick={() => setMobileOpen(false)}
-            className="text-stone-500 hover:text-gray-900"
+            className="text-white/60 hover:text-white"
           >
             <X size={18} />
           </button>
@@ -488,7 +492,7 @@ export default function AppShell({
       {/* ── Main content area ─────────────────────────────────────────────── */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top bar */}
-        <header className="flex items-center gap-4 px-4 lg:px-6 h-[57px] border-b border-gray-200 bg-paper shrink-0">
+        <header className="flex items-center gap-4 px-4 lg:px-6 h-[57px] border-b border-gray-200 bg-white shrink-0">
           <button
             onClick={() => setMobileOpen(true)}
             className="lg:hidden text-gray-600 hover:text-gray-900"
@@ -544,9 +548,9 @@ export default function AppShell({
           onClick={() => setAssistantOpen(true)}
           aria-label="Open assistant"
           title={assistantName || "Atlas"}
-          className="fixed bottom-20 right-4 z-40 flex h-13 w-13 items-center justify-center rounded-full bg-green-500 p-3.5 text-white shadow-lg shadow-green-900/20 transition-all hover:scale-105 hover:bg-green-600 lg:bottom-6 lg:right-6"
+          className="chamfer fixed bottom-20 right-4 z-40 flex h-[52px] w-[52px] items-center justify-center rounded-lg bg-[#0C0F0C] text-green-400 transition-all hover:scale-105 hover:bg-[#181D18] hover:text-green-300 lg:bottom-6 lg:right-6"
         >
-          <Sparkles size={22} />
+          <AtlasIcon size={24} />
         </button>
       )}
       {aiEnabled && (

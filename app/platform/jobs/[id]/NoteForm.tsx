@@ -37,7 +37,7 @@ export default function NoteForm({ jobId }: { jobId: string }) {
       <button
         type="submit"
         disabled={loading || !body.trim()}
-        className="px-3 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white rounded transition-colors disabled:opacity-40 shrink-0"
+        className="px-3 py-2 chamfer bg-green-500 hover:bg-green-600 active:bg-green-700 text-white rounded transition-colors disabled:opacity-40 shrink-0"
       >
         {loading ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
       </button>
