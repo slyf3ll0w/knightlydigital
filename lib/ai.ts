@@ -46,7 +46,9 @@ const FALLBACK_MODEL = "gemini-2.5-flash-lite";
  * or the call fails (callers fall back to deterministic behavior — same
  * contract as sendEmail(): failure is soft, never a thrown 500).
  */
-export async function askAI(opts: AskAIOptions & { model?: string }): Promise<string | null> {
+export async function askAI(
+  opts: AskAIOptions & { model?: string; _no503Retry?: boolean }
+): Promise<string | null> {
   const key = process.env.GEMINI_API_KEY;
   if (!key) return null;
   const model = opts.model || process.env.AI_MODEL || DEFAULT_MODEL;
@@ -79,6 +81,11 @@ export async function askAI(opts: AskAIOptions & { model?: string }): Promise<st
       // out of quota on this model → one shot on the fallback model
       if (res.status === 429 && model !== FALLBACK_MODEL && !opts.model) {
         return askAI({ ...opts, model: FALLBACK_MODEL });
+      }
+      // model transiently overloaded → one retry after a beat (same as aiChat)
+      if (res.status === 503 && !opts._no503Retry) {
+        await new Promise((r) => setTimeout(r, 1500));
+        return askAI({ ...opts, model, _no503Retry: true });
       }
       return null;
     }
