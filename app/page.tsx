@@ -50,7 +50,7 @@ export default function HomePage() {
             className="anim-fade-up anim-delay-2 font-bold tracking-tight mb-4"
             style={{
               fontFamily: 'Oxanium, system-ui, sans-serif',
-              fontSize: 'clamp(2.4rem, 5vw, 3.8rem)',
+              fontSize: 'clamp(2rem, 5vw, 3.8rem)',
               color: '#0A0A0F',
               lineHeight: 1.12,
             }}
