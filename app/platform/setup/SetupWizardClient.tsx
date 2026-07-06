@@ -53,6 +53,7 @@ type LookupBusiness = {
   state: string;
   zip: string;
   mapsUrl: string | null;
+  reviewLink: string | null;
   rating: number | null;
   reviewCount: number | null;
   summary: string;
@@ -241,6 +242,7 @@ export default function SetupWizardClient({
     setProfileAddress(candidate.streetAddress);
     setProfileZip(candidate.zip);
     setProfileWebsite(candidate.website ?? "");
+    setProfileReviewLink(candidate.reviewLink ?? "");
     setBrandingInclude(Boolean(candidate.logoUrl || candidate.brandColor));
     setLogoBroken(false);
     setCandidate(null);
@@ -278,6 +280,7 @@ export default function SetupWizardClient({
   const [profileAddress, setProfileAddress] = useState("");
   const [profileZip, setProfileZip] = useState("");
   const [profileWebsite, setProfileWebsite] = useState("");
+  const [profileReviewLink, setProfileReviewLink] = useState("");
   const [brandingInclude, setBrandingInclude] = useState(true);
   const [logoBroken, setLogoBroken] = useState(false);
 
@@ -378,6 +381,7 @@ export default function SetupWizardClient({
               address: profileAddress.trim(),
               zip: profileZip.trim(),
               website: profileWebsite.trim(),
+              reviewLink: profileReviewLink.trim(),
             }
           : null,
       branding:
@@ -818,6 +822,21 @@ export default function SetupWizardClient({
                 <div>
                   <label className="mb-1 block text-xs font-medium text-gray-500">ZIP</label>
                   <input type="text" value={profileZip} onChange={(e) => setProfileZip(e.target.value)} className={`${smallInputCls} w-28`} />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="mb-1 block text-xs font-medium text-gray-500">
+                    Google reviews link
+                  </label>
+                  <input
+                    type="text"
+                    value={profileReviewLink}
+                    onChange={(e) => setProfileReviewLink(e.target.value)}
+                    placeholder="https://g.page/r/... — where customers leave you a Google review"
+                    className={`${smallInputCls} w-full`}
+                  />
+                  <p className="mt-1 text-xs text-gray-400">
+                    Used for automatic review requests when a job is completed.
+                  </p>
                 </div>
               </div>
             )}

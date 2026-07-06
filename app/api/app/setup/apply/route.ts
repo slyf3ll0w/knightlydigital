@@ -107,6 +107,7 @@ export async function POST(req: NextRequest) {
             ? cleanStr(profileRaw.zip, 10)
             : "",
           website: normalizeWebsiteUrl(profileRaw.website) ?? "",
+          reviewLink: normalizeWebsiteUrl(profileRaw.reviewLink) ?? "",
         }
       : null;
 
@@ -138,6 +139,7 @@ export async function POST(req: NextRequest) {
               address: profile.address || undefined,
               zip: profile.zip || undefined,
               website: profile.website || undefined,
+              reviewLink: profile.reviewLink || undefined,
             }
           : {}),
         ...(brandColor ? { brandColor } : {}),

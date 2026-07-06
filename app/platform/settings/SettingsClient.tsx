@@ -3,7 +3,8 @@
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Loader2, Check, Upload, Trash2 } from "lucide-react";
+import { signOut } from "next-auth/react";
+import { Loader2, Check, Upload, Trash2, AlertTriangle } from "lucide-react";
 import { resizeImageFile } from "@/lib/resize-image";
 import { INDUSTRIES } from "@/lib/pricebooks";
 import { useUnsavedWarning } from "@/lib/use-unsaved-warning";
@@ -60,7 +61,127 @@ function PortalLinkCard({ slug }: { slug: string }) {
   );
 }
 
-export default function SettingsClient({ company }: { company: Company }) {
+/**
+ * Owner-only, deliberately slow path to account deletion: expand the card,
+ * retype the exact company name, re-enter the password, then confirm. The
+ * server re-checks all three — this UI is friction, not the security.
+ */
+function DangerZone({ companyName }: { companyName: string }) {
+  const [open, setOpen] = useState(false);
+  const [confirmName, setConfirmName] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const nameMatches = confirmName === companyName;
+
+  async function deleteAccount() {
+    if (!nameMatches || !password || busy) return;
+    setBusy(true);
+    setError("");
+    const res = await fetch("/api/app/company/delete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ confirmName, password }),
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      setBusy(false);
+      setError(data?.error ?? "Something went wrong. Nothing was deleted.");
+      return;
+    }
+    await signOut({ callbackUrl: "/" });
+  }
+
+  return (
+    <div className="mt-10 rounded-lg border border-red-200 bg-red-50/40 p-5">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-red-700">
+            <AlertTriangle size={14} />
+            Danger Zone
+          </h2>
+          <p className="mt-0.5 text-xs text-gray-500">
+            Permanently delete this account — every client, job, quote, invoice, payment record,
+            and team member. There is no undo and no recovery.
+          </p>
+        </div>
+        {!open && (
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="shrink-0 rounded border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50"
+          >
+            Delete account…
+          </button>
+        )}
+      </div>
+
+      {open && (
+        <div className="mt-4 space-y-3 border-t border-red-200 pt-4">
+          <p className="text-sm text-gray-700">
+            To confirm, type the company name exactly —{" "}
+            <span className="font-semibold">{companyName}</span> — and enter your password.
+          </p>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-500">Company name</label>
+            <input
+              type="text"
+              value={confirmName}
+              onChange={(e) => setConfirmName(e.target.value)}
+              placeholder={companyName}
+              className="w-full max-w-sm rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
+            />
+            {confirmName && !nameMatches && (
+              <p className="mt-1 text-xs text-red-600">Doesn&apos;t match yet — it&apos;s case-sensitive.</p>
+            )}
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-500">Your password</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
+              className="w-full max-w-sm rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
+            />
+          </div>
+          {error && <p className="text-sm text-red-600">{error}</p>}
+          <div className="flex items-center gap-3 pt-1">
+            <button
+              type="button"
+              onClick={deleteAccount}
+              disabled={!nameMatches || !password || busy}
+              className="flex items-center gap-2 rounded bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {busy ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+              Permanently delete everything
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                setConfirmName("");
+                setPassword("");
+                setError("");
+              }}
+              className="text-sm text-gray-500 hover:text-gray-700"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function SettingsClient({
+  company,
+  isOwner = false,
+}: {
+  company: Company;
+  isOwner?: boolean;
+}) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -529,6 +650,8 @@ export default function SettingsClient({ company }: { company: Company }) {
           </button>
         </div>
       </form>
+
+      {isOwner && <DangerZone companyName={company.name} />}
     </div>
   );
 }

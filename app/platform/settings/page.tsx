@@ -10,5 +10,10 @@ export default async function SettingsPage() {
   const company = await prisma.company.findUnique({ where: { id: companyId } });
   if (!company) redirect("/app/register");
 
-  return <SettingsClient company={JSON.parse(JSON.stringify(company))} />;
+  return (
+    <SettingsClient
+      company={JSON.parse(JSON.stringify(company))}
+      isOwner={actor.role === "OWNER"}
+    />
+  );
 }

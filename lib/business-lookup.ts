@@ -28,6 +28,9 @@ export type BusinessLookupResult = {
   zip: string;
   /** Google Maps link for the listing, when the model can cite one. */
   mapsUrl: string | null;
+  /** Best "leave us a Google review" link: the write-review deep link when a
+   *  place ID was found, else the Maps listing. Seeds Company.reviewLink. */
+  reviewLink: string | null;
   /** Google Business Profile rating facts, when found. */
   rating: number | null;
   reviewCount: number | null;
@@ -57,6 +60,7 @@ Respond with ONLY a JSON object (no markdown) with exactly these keys:
   "state": 2-letter state code or "",
   "zip": 5-digit ZIP or "",
   "mapsUrl": the business's Google Maps URL or null,
+  "placeId": the business's Google Maps place ID (a string starting with "ChIJ") if one appears in the search results or the maps URL, else null — NEVER invent or guess one,
   "rating": Google review rating as a number or null,
   "reviewCount": Google review count as a number or null,
   "summary": one sentence (under 200 chars) describing what the business does and where, or ""
@@ -83,6 +87,12 @@ export function sanitizeLookup(raw: RawLookup | null): BusinessLookupResult | nu
   const rating = Number(raw.rating);
   const reviewCount = Number(raw.reviewCount);
   const zipRaw = cleanStr(raw.zip, 10);
+  // Place ID → the canonical "write a review" deep link; a Maps listing link
+  // (review button one tap away) is the fallback. Strict format check keeps
+  // hallucinated IDs out — a broken review link burns real customers.
+  const placeId = /^ChIJ[A-Za-z0-9_-]{8,60}$/.test(cleanStr(raw.placeId, 80))
+    ? cleanStr(raw.placeId, 80)
+    : null;
   return {
     found: raw.found === true,
     name: cleanStr(raw.name, 120),
@@ -93,6 +103,9 @@ export function sanitizeLookup(raw: RawLookup | null): BusinessLookupResult | nu
     state: cleanStr(raw.state, 40),
     zip: /^\d{5}/.test(zipRaw) ? zipRaw.slice(0, 5) : "",
     mapsUrl,
+    reviewLink: placeId
+      ? `https://search.google.com/local/writereview?placeid=${placeId}`
+      : mapsUrl,
     // 0 is the model's "didn't find it", not a real listing value
     rating: Number.isFinite(rating) && rating >= 1 && rating <= 5 ? Math.round(rating * 10) / 10 : null,
     reviewCount:
@@ -167,6 +180,22 @@ async function attachBranding(result: BusinessLookupResult, site: WebsiteInfo): 
     }
   }
   if (!result.logoUrl) result.logoUrl = unverifiedGuess;
+  // Last resort: Google's cached favicon for the domain — only when the
+  // vision check confirms it's actually the business's mark (favicons are
+  // low-res; a wrong OR ugly one hurts more than none).
+  if (!result.logoUrl) {
+    try {
+      const host = new URL(site.url).hostname;
+      const favicon = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=128`;
+      const check = await analyzeLogoCandidate(favicon, result.name);
+      if (check?.isLogo) {
+        result.logoUrl = favicon;
+        result.brandColor = result.brandColor ?? check.color;
+      }
+    } catch {
+      // favicon fallback is best-effort only
+    }
+  }
   if (!result.brandColor && site.themeColor && !isNeutralHex(site.themeColor)) {
     result.brandColor = site.themeColor;
   }
@@ -242,6 +271,7 @@ export async function lookupFromWebsite(
     state: cleanStr(extracted?.state, 40),
     zip: /^\d{5}/.test(zipRaw) ? zipRaw.slice(0, 5) : "",
     mapsUrl: null,
+    reviewLink: null,
     rating: null,
     reviewCount: null,
     summary: cleanStr(extracted?.summary, 240) || site.description.slice(0, 240),
