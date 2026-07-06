@@ -35,16 +35,26 @@ import TourGuide from "@/components/TourGuide";
 import AssistantDrawer from "@/components/AssistantDrawer";
 import { textOn } from "@/lib/branding";
 
-const DEFAULT_ACCENT = "#22C55E"; // green-500
+const DEFAULT_ACCENT = "#FFFFFF"; // console default: white on the dark rail
+
+function luminanceOf(hex: string): number | null {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex);
+  if (!m) return null;
+  const n = parseInt(m[1], 16);
+  return 0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255);
+}
 
 /** Brand accent, guarded: too-dark colors are invisible on the console rail. */
 function sidebarAccent(hex: string): string {
-  const m = /^#?([0-9a-f]{6})$/i.exec(hex);
-  if (!m) return DEFAULT_ACCENT;
-  const n = parseInt(m[1], 16);
-  const luminance =
-    0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255);
-  return luminance < 70 ? DEFAULT_ACCENT : hex;
+  const luminance = luminanceOf(hex);
+  return luminance === null || luminance < 70 ? DEFAULT_ACCENT : hex;
+}
+
+/** Same accent for light surfaces (mobile tab bar / FAB / create sheet),
+ *  where too-LIGHT colors disappear — those flip to console near-black. */
+function surfaceAccent(hex: string): string {
+  const luminance = luminanceOf(hex);
+  return luminance === null || luminance > 200 ? "#0C0F0C" : hex;
 }
 
 // Per-role visibility, mirroring lib/permissions.ts (server still enforces):
@@ -539,7 +549,12 @@ export default function AppShell({
         <main className="flex-1 overflow-y-auto pb-20 lg:pb-0">{children}</main>
       </div>
 
-      <MobileTabBar accent={accent} role={userRole} isActive={isActive} pastDue={counts.pastDue} />
+      <MobileTabBar
+        accent={surfaceAccent(brandColor || DEFAULT_ACCENT)}
+        role={userRole}
+        isActive={isActive}
+        pastDue={counts.pastDue}
+      />
 
       {/* Assistant bubble — floats above the mobile tab bar, hides while open */}
       {aiEnabled && !assistantOpen && (
