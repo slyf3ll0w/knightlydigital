@@ -15,39 +15,39 @@ const featureGroups: { label: string; items: string[] }[] = [
   {
     label: 'Run the Work',
     items: [
-      'Client database with full job, quote & payment history',
-      'Custom client fields & notes',
-      'Client CSV import — auto-maps Jobber & Housecall Pro exports',
-      'Online booking forms — embeddable on any website',
-      'Online self-scheduling with your approval',
-      'Appointments & estimates — phone, video, or in-person',
-      'Scheduling calendar — drag-to-schedule, crew assignment',
-      'Job pipeline with photos, notes & team assignments',
+      'Client database & history',
+      'Custom client fields',
+      'CSV import from Jobber & HCP',
+      'Online booking forms',
+      'Self-scheduling with approval',
+      'Appointments & estimates',
+      'Drag-to-schedule calendar',
+      'Job pipeline with photos',
     ],
   },
   {
     label: 'Get Paid',
     items: [
-      'Quotes with optional items, discounts & online e-signature',
-      'Deposits — per-service or company default, netted on the final bill',
-      'One-click invoicing from completed jobs',
-      'Online payments — card & ACH with pay-by-link',
-      'Card surcharging — pass processing fees to the customer',
-      'Payment tracking for cash, check, Venmo, Zelle & more',
-      'Automatic overdue-invoice reminders',
-      'Recurring services — auto-invoice every cycle',
+      'Quotes with e-signature',
+      'Optional items & discounts',
+      'Deposits',
+      'One-click invoicing',
+      'Card & ACH payments',
+      'Card surcharging',
+      'Automatic payment reminders',
+      'Recurring billing',
     ],
   },
   {
     label: 'Grow & Manage',
     items: [
-      'Automatic review requests when a job wraps',
-      'Contracts & agreements with e-signature',
-      'Branded client portal — magic-link login, no passwords',
-      'Price book with fixed, starting-at, hourly & quote pricing',
-      'Expense tracking + profit insights',
-      'Team roles & permissions — unlimited users',
-      'Atlas, your AI assistant + 2-minute AI setup',
+      'Automatic review requests',
+      'Contracts & e-signatures',
+      'Branded client portal',
+      'Price book',
+      'Expense & profit insights',
+      'Unlimited users & team roles',
+      'Atlas AI assistant + AI setup',
     ],
   },
 ];
@@ -155,7 +155,7 @@ export function HubPricing() {
               >
                 {group.label}
               </p>
-              <ul className="flex flex-col gap-3">
+              <ul className="flex flex-col gap-2.5">
                 {group.items.map((item) => (
                   <li key={item} className="flex items-start gap-2.5 text-sm" style={{ color: '#374151' }}>
                     <Check />

@@ -11,6 +11,8 @@ export const metadata: Metadata = {
     'Clients, scheduling, quotes with e-signature, invoicing, card & ACH payments, recurring services, client portal, and an AI assistant — every feature free forever. No plans, no upsell, no catch.',
 };
 
+const OXANIUM = { fontFamily: 'Oxanium, system-ui, sans-serif' } as const;
+
 function CheckIcon() {
   return (
     <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="#22C55E" strokeWidth="2.5">
@@ -51,7 +53,7 @@ export default function CRMPage() {
           {/* Headline */}
           <h1
             className="text-5xl sm:text-6xl lg:text-7xl font-bold text-white leading-tight mb-6"
-            style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
+            style={OXANIUM}
           >
             The Free Job Manager
             <br />
@@ -65,9 +67,8 @@ export default function CRMPage() {
             className="text-lg lg:text-xl leading-relaxed mb-10 max-w-2xl"
             style={{ color: 'rgba(255,255,255,0.68)' }}
           >
-            Clients, scheduling, quotes, invoicing, payments, recurring services, and an AI
-            assistant — built for trades and home service businesses.
-            Every feature included. Free for everyone.
+            Clients, scheduling, quotes, invoicing, payments, and an AI assistant — built for
+            trades and home service businesses. Every feature included. Free for everyone.
           </p>
 
           {/* CTAs */}
@@ -75,7 +76,7 @@ export default function CRMPage() {
             <Link
               href="/contact"
               className="text-sm font-bold uppercase tracking-wider px-8 py-4 text-white transition-opacity hover:opacity-90"
-              style={{ backgroundColor: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+              style={{ backgroundColor: '#22C55E', ...OXANIUM }}
             >
               Get Started Free →
             </Link>
@@ -85,7 +86,7 @@ export default function CRMPage() {
               style={{
                 border: '1.5px solid rgba(255,255,255,0.3)',
                 color: 'rgba(255,255,255,0.85)',
-                fontFamily: 'Oxanium, system-ui, sans-serif',
+                ...OXANIUM,
               }}
             >
               Pricing & Features
@@ -104,7 +105,7 @@ export default function CRMPage() {
                 )}
                 <span
                   className="text-xs uppercase tracking-widest font-medium"
-                  style={{ color: 'rgba(255,255,255,0.45)', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                  style={{ color: 'rgba(255,255,255,0.45)', ...OXANIUM }}
                 >
                   {stat}
                 </span>
@@ -115,19 +116,19 @@ export default function CRMPage() {
         </div>
       </section>
 
-      {/* ── PRICING + ALL FEATURES ── */}
+      {/* ── PRICING ── */}
       <section id="pricing" className="py-20 bg-paper">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <AnimateIn className="mb-10">
             <p
               className="text-xs font-bold uppercase tracking-widest mb-4"
-              style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+              style={{ color: '#22C55E', ...OXANIUM }}
             >
               Pricing & Features
             </p>
             <h2
               className="text-3xl lg:text-4xl font-bold"
-              style={{ color: '#0A0A0F', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+              style={{ color: '#0A0A0F', ...OXANIUM }}
             >
               One Plan. <SketchUnderline>Everything In It.</SketchUnderline>
             </h2>
@@ -155,13 +156,13 @@ export default function CRMPage() {
           <div className="max-w-7xl mx-auto px-6 lg:px-8">
             <p
               className="text-xs font-bold uppercase tracking-widest mb-4"
-              style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+              style={{ color: '#22C55E', ...OXANIUM }}
             >
               Built for Your Trade
             </p>
             <h2
               className="text-3xl lg:text-4xl font-bold text-white max-w-xl leading-tight"
-              style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
+              style={OXANIUM}
             >
               The tool your crew needs — from the office to the job site.
             </h2>
@@ -176,107 +177,69 @@ export default function CRMPage() {
           <AnimateIn className="mb-14">
             <span
               className="text-6xl font-bold block mb-4"
-              style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif', lineHeight: 1 }}
+              style={{ color: '#22C55E', ...OXANIUM, lineHeight: 1 }}
             >
               01
             </span>
             <h2
               className="text-3xl lg:text-4xl font-bold text-white mb-5"
-              style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
+              style={OXANIUM}
             >
               The Core Operation
             </h2>
             <p className="text-base max-w-2xl leading-relaxed" style={{ color: 'rgba(255,255,255,0.55)' }}>
-              The foundation every service business needs — clients, incoming work, a schedule
-              that actually tells you what&apos;s happening, and a pipeline that shows where every
-              job stands.
+              Clients, incoming work, the schedule, and the pipeline — the four things every
+              service business runs on, in one place.
             </p>
           </AnimateIn>
 
           <div className="grid md:grid-cols-2 gap-5">
-
-            <AnimateIn delay={0}>
-              <div
-                className="card-lift p-8 flex flex-col h-full"
-                style={{ border: '1px solid rgba(255,255,255,0.09)', backgroundColor: '#111511', borderLeft: '3px solid #22C55E' }}
-              >
-                <p
-                  className="text-xs font-bold uppercase tracking-widest mb-4"
-                  style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+            {[
+              {
+                kicker: 'Client Database',
+                hook: 'Every customer. One record.',
+                copy: 'The full history of every quote, job, invoice, and payment under one name — with custom fields for whatever your trade tracks. Switching over? The CSV importer reads Jobber and Housecall Pro exports as-is.',
+                delay: 0,
+              },
+              {
+                kicker: 'Online Booking & Requests',
+                hook: 'New leads while you sleep.',
+                copy: 'Booking forms you can embed on your website or share anywhere. Customers can even pick a real time slot from your live availability — and you approve it before it touches the calendar.',
+                delay: 120,
+              },
+              {
+                kicker: 'Scheduling & Appointments',
+                hook: 'Drag it onto the calendar. Done.',
+                copy: 'Month, week, and day views with crew assignment. Estimate appointments — phone, video, or in-person — live on the same calendar, so sales visits and job visits never collide.',
+                delay: 60,
+              },
+              {
+                kicker: 'Job Pipeline',
+                hook: 'Know where every job stands.',
+                copy: 'Active, invoiced, paid — every job in a clear pipeline, with before-and-after photos, notes, and assignments on the record instead of a text thread.',
+                delay: 180,
+              },
+            ].map((f) => (
+              <AnimateIn key={f.kicker} delay={f.delay}>
+                <div
+                  className="card-lift p-8 flex flex-col h-full"
+                  style={{ border: '1px solid rgba(255,255,255,0.09)', backgroundColor: '#111511', borderLeft: '3px solid #22C55E' }}
                 >
-                  Client Database
-                </p>
-                <p className="text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.55)' }}>
-                  Every customer in one place — contact info, notes, and the full history of every
-                  quote, job, invoice, and payment. Add your own custom fields (gate codes, pet
-                  names, referral source — whatever your business tracks). Switching from Jobber or
-                  Housecall Pro? The CSV importer auto-maps their exports and brings your whole
-                  client list over in minutes.
-                </p>
-              </div>
-            </AnimateIn>
-
-            <AnimateIn delay={120}>
-              <div
-                className="card-lift p-8 flex flex-col h-full"
-                style={{ border: '1px solid rgba(255,255,255,0.09)', backgroundColor: '#111511', borderLeft: '3px solid #22C55E' }}
-              >
-                <p
-                  className="text-xs font-bold uppercase tracking-widest mb-4"
-                  style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
-                >
-                  Online Booking & Requests
-                </p>
-                <p className="text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.55)' }}>
-                  Build booking forms and embed them on your website or share the link anywhere.
-                  Customers can even pick a real time slot from your live availability — you approve
-                  it before it lands on the calendar, so nothing gets double-booked. Every
-                  submission drops into your Requests inbox as a new lead. No phone tag, no missed
-                  messages at 10pm.
-                </p>
-              </div>
-            </AnimateIn>
-
-            <AnimateIn delay={60}>
-              <div
-                className="card-lift p-8 flex flex-col h-full"
-                style={{ border: '1px solid rgba(255,255,255,0.09)', backgroundColor: '#111511', borderLeft: '3px solid #22C55E' }}
-              >
-                <p
-                  className="text-xs font-bold uppercase tracking-widest mb-4"
-                  style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
-                >
-                  Scheduling & Appointments
-                </p>
-                <p className="text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.55)' }}>
-                  Month, week, and day views with drag-to-schedule — pull an unscheduled job onto a
-                  day, assign a tech, done. Estimate appointments (phone, video, or in-person) share
-                  the same calendar, so sales visits and job visits never collide. Your crew sees
-                  their day; your office sees everyone&apos;s.
-                </p>
-              </div>
-            </AnimateIn>
-
-            <AnimateIn delay={180}>
-              <div
-                className="card-lift p-8 flex flex-col h-full"
-                style={{ border: '1px solid rgba(255,255,255,0.09)', backgroundColor: '#111511', borderLeft: '3px solid #22C55E' }}
-              >
-                <p
-                  className="text-xs font-bold uppercase tracking-widest mb-4"
-                  style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
-                >
-                  Job Pipeline, Photos & Notes
-                </p>
-                <p className="text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.55)' }}>
-                  Every job moves through a clear pipeline from active work to invoiced and paid.
-                  Before-and-after photos, job notes, and crew assignments live on the job record —
-                  not buried in a camera roll or a text thread. You always know exactly where every
-                  piece of work stands and what needs attention today.
-                </p>
-              </div>
-            </AnimateIn>
-
+                  <p
+                    className="text-xs font-bold uppercase tracking-widest mb-3"
+                    style={{ color: '#22C55E', ...OXANIUM }}
+                  >
+                    {f.kicker}
+                  </p>
+                  <p className="text-xl font-bold text-white mb-3" style={OXANIUM}>
+                    {f.hook}
+                  </p>
+                  <p className="text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.55)' }}>
+                    {f.copy}
+                  </p>
+                </div>
+              </AnimateIn>
+            ))}
           </div>
         </div>
       </section>
@@ -288,150 +251,96 @@ export default function CRMPage() {
           <AnimateIn className="mb-14">
             <span
               className="text-6xl font-bold block mb-4"
-              style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif', lineHeight: 1 }}
+              style={{ color: '#22C55E', ...OXANIUM, lineHeight: 1 }}
             >
               02
             </span>
             <h2
               className="text-3xl lg:text-4xl font-bold mb-5"
-              style={{ color: '#0A0A0F', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+              style={{ color: '#0A0A0F', ...OXANIUM }}
             >
               The Money Flow
             </h2>
             <p className="text-base max-w-2xl leading-relaxed" style={{ color: '#6B7280' }}>
-              From the first quote to the final payment, every dollar moves through one tool — no
-              disconnected apps, no re-entering data, no chasing checks manually.
+              Five steps from handshake to paid — no disconnected apps, nothing re-entered,
+              nobody chasing checks.
             </p>
           </AnimateIn>
 
-          {/* Quote + invoice cards row */}
-          <div className="grid lg:grid-cols-2 gap-6 mb-6">
-
-            <AnimateIn delay={0}>
-              <div
-                className="card-lift h-full bg-white"
-                style={{ border: '1px solid #E5E7EB' }}
-              >
-                <div style={{ height: '4px', backgroundColor: '#22C55E' }} />
-                <div className="p-8">
-                  <p
-                    className="text-xs font-bold uppercase tracking-widest mb-4"
-                    style={{ color: '#6B7280', fontFamily: 'Oxanium, system-ui, sans-serif' }}
-                  >
-                    Quotes, E-Signatures & Deposits
-                  </p>
-                  <p className="text-sm leading-relaxed mb-4" style={{ color: '#374151' }}>
-                    Build a quote from your price book, add optional upgrade items the customer can
-                    take or leave, and send it. They approve it online with a typed e-signature —
-                    no PDFs emailed back and forth, no confusion over what was agreed.
-                  </p>
-                  <p className="text-sm leading-relaxed" style={{ color: '#6B7280' }}>
-                    Need money down? Set a deposit per service or company-wide — percent, fixed, or
-                    full amount. Collecting it issues a deposit invoice, and the final bill nets it
-                    out automatically.
-                  </p>
+          {/* The five steps */}
+          <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+            {[
+              {
+                step: '1',
+                title: 'Quote',
+                copy: 'Built from your price book, with optional add-ons and discounts. The customer approves online with an e-signature.',
+              },
+              {
+                step: '2',
+                title: 'Deposit',
+                copy: 'Take money down — percent, fixed, or the full amount — collected before the work starts.',
+              },
+              {
+                step: '3',
+                title: 'Invoice',
+                copy: 'One click turns the finished job into an invoice. The deposit nets out automatically.',
+              },
+              {
+                step: '4',
+                title: 'Payment',
+                copy: 'Card & ACH on a branded pay page — surcharge option built in. Cash, check, Venmo, Zelle? Recorded in the same ledger.',
+              },
+              {
+                step: '5',
+                title: 'Reminders',
+                copy: 'Overdue? It follows up at the due date, then 3, 7, and 14 days — and stops the moment they pay.',
+              },
+            ].map((s, i) => (
+              <AnimateIn key={s.step} delay={i * 80}>
+                <div className="card-lift h-full bg-white" style={{ border: '1px solid #E5E7EB' }}>
+                  <div style={{ height: '4px', backgroundColor: '#22C55E' }} />
+                  <div className="p-6">
+                    <p className="mb-3" style={{ ...OXANIUM, color: '#22C55E', fontSize: '2rem', fontWeight: 700, lineHeight: 1 }}>
+                      {s.step}
+                    </p>
+                    <p
+                      className="text-sm font-bold uppercase tracking-widest mb-2.5"
+                      style={{ color: '#0A0A0F', ...OXANIUM }}
+                    >
+                      {s.title}
+                    </p>
+                    <p className="text-sm leading-relaxed" style={{ color: '#6B7280' }}>
+                      {s.copy}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            </AnimateIn>
-
-            <AnimateIn delay={120}>
-              <div
-                className="card-lift h-full bg-white"
-                style={{ border: '1px solid #E5E7EB' }}
-              >
-                <div style={{ height: '4px', backgroundColor: '#22C55E' }} />
-                <div className="p-8">
-                  <p
-                    className="text-xs font-bold uppercase tracking-widest mb-4"
-                    style={{ color: '#6B7280', fontFamily: 'Oxanium, system-ui, sans-serif' }}
-                  >
-                    One-Click Invoicing
-                  </p>
-                  <p className="text-sm leading-relaxed mb-4" style={{ color: '#374151' }}>
-                    When a job is marked complete, flip it to an invoice in one click. Customer
-                    info, line items, and job notes carry over — nothing to re-enter. Send it
-                    immediately from the same screen.
-                  </p>
-                  <p className="text-sm leading-relaxed" style={{ color: '#6B7280' }}>
-                    Most service businesses leave money on the table because invoicing is a pain.
-                    We made it impossible to avoid.
-                  </p>
-                </div>
-              </div>
-            </AnimateIn>
-
+              </AnimateIn>
+            ))}
           </div>
 
-          <div className="grid md:grid-cols-3 gap-5 mb-10">
-
-            <AnimateIn delay={0}>
-              <div
-                className="card-lift h-full bg-white"
-                style={{ border: '1px solid #E5E7EB' }}
-              >
-                <div style={{ height: '4px', backgroundColor: '#22C55E' }} />
-                <div className="p-7">
-                  <p
-                    className="text-xs font-bold uppercase tracking-widest mb-3"
-                    style={{ color: '#6B7280', fontFamily: 'Oxanium, system-ui, sans-serif' }}
-                  >
-                    Card & ACH Payments
-                  </p>
-                  <p className="text-sm leading-relaxed" style={{ color: '#374151' }}>
-                    Every invoice gets a branded payment page — send the link by email or text and
-                    the customer pays by card or bank transfer. Card surcharging is built in, so you
-                    can pass processing fees to the customer instead of eating them. Cash, check,
-                    Venmo, Zelle? Record those too — every payment lands in one ledger.
-                  </p>
-                </div>
+          {/* Insights bar */}
+          <AnimateIn className="mb-10">
+            <div
+              className="flex flex-wrap items-center justify-between gap-4 p-7"
+              style={{ backgroundColor: '#0C0F0C', border: '1px solid rgba(255,255,255,0.08)' }}
+            >
+              <div>
+                <p
+                  className="text-xs font-bold uppercase tracking-widest mb-1.5"
+                  style={{ color: '#22C55E', ...OXANIUM }}
+                >
+                  Expenses & Profit Insights
+                </p>
+                <p className="text-lg font-bold text-white" style={OXANIUM}>
+                  Know what you made — not just what you billed.
+                </p>
               </div>
-            </AnimateIn>
-
-            <AnimateIn delay={100}>
-              <div
-                className="card-lift h-full bg-white"
-                style={{ border: '1px solid #E5E7EB' }}
-              >
-                <div style={{ height: '4px', backgroundColor: '#22C55E' }} />
-                <div className="p-7">
-                  <p
-                    className="text-xs font-bold uppercase tracking-widest mb-3"
-                    style={{ color: '#6B7280', fontFamily: 'Oxanium, system-ui, sans-serif' }}
-                  >
-                    Automatic Payment Reminders
-                  </p>
-                  <p className="text-sm leading-relaxed" style={{ color: '#374151' }}>
-                    Unpaid invoice? The system follows up for you — at the due date, then 3, 7, and
-                    14 days past due — and stops the moment it&apos;s paid. You stop chasing, the
-                    relationship stays clean, and you get paid faster.
-                  </p>
-                </div>
-              </div>
-            </AnimateIn>
-
-            <AnimateIn delay={200}>
-              <div
-                className="card-lift h-full bg-white"
-                style={{ border: '1px solid #E5E7EB' }}
-              >
-                <div style={{ height: '4px', backgroundColor: '#22C55E' }} />
-                <div className="p-7">
-                  <p
-                    className="text-xs font-bold uppercase tracking-widest mb-3"
-                    style={{ color: '#6B7280', fontFamily: 'Oxanium, system-ui, sans-serif' }}
-                  >
-                    Expenses & Profit Insights
-                  </p>
-                  <p className="text-sm leading-relaxed" style={{ color: '#374151' }}>
-                    Log expenses by category and see what you actually made — not just what you
-                    billed. The insights dashboard shows revenue, outstanding balances, and where
-                    the money went, so you run the business on numbers instead of gut feel.
-                  </p>
-                </div>
-              </div>
-            </AnimateIn>
-
-          </div>
+              <p className="text-sm max-w-md leading-relaxed" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                Log expenses by category and the insights dashboard shows revenue, outstanding
+                balances, and where the money went.
+              </p>
+            </div>
+          </AnimateIn>
 
           {/* Inline payment photo */}
           <AnimateIn>
@@ -449,10 +358,7 @@ export default function CRMPage() {
               >
                 <div className="max-w-7xl mx-auto px-6 lg:px-8 w-full flex justify-end">
                   <div className="max-w-sm text-right">
-                    <p
-                      className="text-xl font-bold text-white mb-2"
-                      style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
-                    >
+                    <p className="text-xl font-bold text-white mb-2" style={OXANIUM}>
                       &ldquo;Send a link. They pay. Done.&rdquo;
                     </p>
                     <p className="text-sm" style={{ color: 'rgba(255,255,255,0.5)' }}>
@@ -474,19 +380,19 @@ export default function CRMPage() {
           <AnimateIn className="mb-12">
             <span
               className="text-6xl font-bold block mb-4"
-              style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif', lineHeight: 1 }}
+              style={{ color: '#22C55E', ...OXANIUM, lineHeight: 1 }}
             >
               03
             </span>
             <h2
               className="text-3xl lg:text-4xl font-bold mb-5"
-              style={{ color: '#0A0A0F', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+              style={{ color: '#0A0A0F', ...OXANIUM }}
             >
               Built for the Field
             </h2>
             <p className="text-base max-w-2xl leading-relaxed" style={{ color: '#6B7280' }}>
-              Your techs aren&apos;t at a desk. The tool needs to work where the work happens — on
-              the roof, in the crawlspace, in the driveway when the job is done.
+              Your techs aren&apos;t at a desk. The tool works where the work happens — on the
+              roof, in the crawlspace, in the driveway when the job is done.
             </p>
           </AnimateIn>
 
@@ -518,18 +424,14 @@ export default function CRMPage() {
                 >
                   <p
                     className="text-xs font-bold uppercase tracking-widest mb-4"
-                    style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                    style={{ color: '#22C55E', ...OXANIUM }}
                   >
                     Mobile-Friendly Field Access
                   </p>
-                  <p className="text-sm leading-relaxed mb-4" style={{ color: 'rgba(255,255,255,0.6)' }}>
-                    The full tool works on any phone browser — no app to download, no version to
-                    update. A tech can mark a job complete, upload before-and-after photos, add job
-                    notes, and send the invoice before they back out of the driveway.
-                  </p>
                   <p className="text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.6)' }}>
-                    Techs get their own logins with tech-level permissions — they see their
-                    schedule and their jobs, not your books.
+                    The full tool works in any phone browser — no app to download, no version to
+                    update. And techs get their own logins with tech-level permissions: they see
+                    their schedule and their jobs, not your books.
                   </p>
                 </div>
                 <div className="flex flex-col gap-3">
@@ -540,16 +442,13 @@ export default function CRMPage() {
                   ].map((item) => (
                     <div
                       key={item.label}
-                      className="flex items-start gap-4 px-5 py-4 bg-white"
-                      style={{ border: '1px solid #E5E7EB' }}
+                      className="px-5 py-4 bg-white"
+                      style={{ border: '1px solid #E5E7EB', borderLeft: '3px solid #22C55E' }}
                     >
-                      <CheckIcon />
-                      <div>
-                        <p className="text-sm font-bold mb-0.5" style={{ color: '#0A0A0F', fontFamily: 'Oxanium, system-ui, sans-serif' }}>
-                          {item.label}
-                        </p>
-                        <p className="text-xs" style={{ color: '#6B7280' }}>{item.sub}</p>
-                      </div>
+                      <p className="text-sm font-bold mb-0.5" style={{ color: '#0A0A0F', ...OXANIUM }}>
+                        {item.label}
+                      </p>
+                      <p className="text-xs" style={{ color: '#6B7280' }}>{item.sub}</p>
                     </div>
                   ))}
                 </div>
@@ -576,13 +475,13 @@ export default function CRMPage() {
           <div className="max-w-7xl mx-auto px-6 lg:px-8">
             <p
               className="text-xs font-bold uppercase tracking-widest mb-3"
-              style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+              style={{ color: '#22C55E', ...OXANIUM }}
             >
               Built for Every Vertical
             </p>
             <h2
               className="text-2xl lg:text-3xl font-bold text-white max-w-lg leading-tight"
-              style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
+              style={OXANIUM}
             >
               Lawn care, roofing, HVAC, plumbing, pest, pool — if you run jobs, this runs your business.
             </h2>
@@ -597,19 +496,18 @@ export default function CRMPage() {
           <AnimateIn className="mb-14">
             <span
               className="text-6xl font-bold block mb-4"
-              style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif', lineHeight: 1 }}
+              style={{ color: '#22C55E', ...OXANIUM, lineHeight: 1 }}
             >
               04
             </span>
             <h2
               className="text-3xl lg:text-4xl font-bold text-white mb-5"
-              style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
+              style={OXANIUM}
             >
               Grow & Manage
             </h2>
             <p className="text-base max-w-2xl leading-relaxed" style={{ color: 'rgba(255,255,255,0.55)' }}>
-              The features that usually live behind a &ldquo;Pro plan&rdquo; paywall — automation,
-              e-signatures, a client portal, team management, and an AI assistant. Included here.
+              The features that usually live behind a &ldquo;Pro plan&rdquo; paywall. Included here.
             </p>
           </AnimateIn>
 
@@ -620,27 +518,27 @@ export default function CRMPage() {
             {[
               {
                 title: 'Recurring Services & Subscriptions',
-                desc: 'Sell a service on repeat — monthly, quarterly, semiannual, or annual — and the system invoices it every cycle automatically, and can put the job on the schedule too. Lawn care, pool service, pest control, maintenance plans: the revenue becomes predictable and you stop manually rebooking.',
+                desc: 'Sell monthly, quarterly, or annual plans — the invoice (and the job) creates itself every cycle.',
               },
               {
                 title: 'Automatic Review Requests',
-                desc: 'The moment a job wraps up, the system emails the customer a link to your review page. Hit them while they\'re happy and the experience is still fresh — not three weeks later when they\'ve moved on. More Google reviews, zero manual follow-up.',
+                desc: 'The moment a job wraps, the customer gets a link to your review page — while they\'re still happy.',
               },
               {
                 title: 'Branded Client Portal',
-                desc: 'Your clients get their own portal — they log in with a magic link (no passwords to forget), see their quotes, invoices, and job history, and can request new work. Fewer "can you resend that invoice?" calls, and a more professional front door for your business.',
+                desc: 'Clients log in with a magic link and see their quotes, invoices, and history. No passwords, no "can you resend that?" calls.',
               },
               {
                 title: 'Contracts & E-Signatures',
-                desc: 'Build contract templates once, send them with any quote, and collect a legally-timestamped typed signature online. You can even require a signed agreement before a quote can become a job — no more starting work on a handshake.',
+                desc: 'Send agreements with any quote and collect a timestamped signature online — you can even block work until it\'s signed.',
               },
               {
                 title: 'Team Roles & Lead Routing',
-                desc: 'Owner, admin, sales, and tech roles — each person sees what their job needs and nothing more. Route new leads to the right salesperson automatically, control who sees payment info, and add as many users as you want. No per-seat pricing, ever.',
+                desc: 'Owner, admin, sales, and tech roles — leads route to the right person automatically. Unlimited users, never per-seat.',
               },
               {
                 title: 'Atlas, Your AI Assistant',
-                desc: 'Ask Atlas anything about your business — "who owes me money?", "what\'s on the schedule Friday?" — and it answers from your real data. It can draft quotes, send invoices, and update settings, always showing you a confirmation before anything happens. Plus an AI setup wizard that builds your price book and booking form in about two minutes.',
+                desc: 'Ask "who owes me money?" and get a real answer from your data. Atlas drafts quotes, sends invoices, and sets your account up in about two minutes.',
               },
             ].map((item, i) => (
               <div
@@ -652,11 +550,11 @@ export default function CRMPage() {
                   backgroundColor: '#111511',
                 }}
               >
-                <div className="flex items-start gap-3 mb-4">
+                <div className="flex items-start gap-3 mb-3">
                   <div style={{ width: '22px', height: '2px', backgroundColor: '#22C55E', marginTop: '10px', flexShrink: 0 }} />
                   <h3
                     className="text-base font-bold text-white leading-snug"
-                    style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                    style={OXANIUM}
                   >
                     {item.title}
                   </h3>
@@ -678,13 +576,13 @@ export default function CRMPage() {
             <AnimateIn>
               <p
                 className="text-xs font-bold uppercase tracking-widest mb-4"
-                style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                style={{ color: '#22C55E', ...OXANIUM }}
               >
                 Why It&apos;s Free
               </p>
               <h2
                 className="text-3xl lg:text-4xl font-bold mb-6 leading-tight"
-                style={{ color: '#0A0A0F', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                style={{ color: '#0A0A0F', ...OXANIUM }}
               >
                 No Trial. No Tiers. No{' '}
                 <SketchUnderline>&ldquo;Upgrade to Unlock.&rdquo;</SketchUnderline>
@@ -715,7 +613,7 @@ export default function CRMPage() {
               >
                 <p
                   className="text-xl font-bold mb-6 tracking-wide"
-                  style={{ color: '#ffffff', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                  style={{ color: '#ffffff', ...OXANIUM }}
                 >
                   WHAT &ldquo;FREE FOREVER&rdquo; ACTUALLY MEANS:
                 </p>
@@ -759,7 +657,7 @@ export default function CRMPage() {
           <AnimateIn>
             <h2
               className="text-3xl lg:text-4xl font-bold text-white mb-4"
-              style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
+              style={OXANIUM}
             >
               Ready to Run a Tighter Operation?
             </h2>
@@ -770,7 +668,7 @@ export default function CRMPage() {
             <Link
               href="/contact"
               className="inline-block bg-white font-bold text-sm uppercase tracking-wider px-10 py-4 transition-all hover:shadow-lg hover:-translate-y-0.5"
-              style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+              style={{ color: '#22C55E', ...OXANIUM }}
             >
               Get Started Free →
             </Link>
