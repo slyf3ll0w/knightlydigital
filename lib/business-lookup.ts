@@ -87,12 +87,6 @@ export function sanitizeLookup(raw: RawLookup | null): BusinessLookupResult | nu
   const rating = Number(raw.rating);
   const reviewCount = Number(raw.reviewCount);
   const zipRaw = cleanStr(raw.zip, 10);
-  // Place ID → the canonical "write a review" deep link; a Maps listing link
-  // (review button one tap away) is the fallback. Strict format check keeps
-  // hallucinated IDs out — a broken review link burns real customers.
-  const placeId = /^ChIJ[A-Za-z0-9_-]{8,60}$/.test(cleanStr(raw.placeId, 80))
-    ? cleanStr(raw.placeId, 80)
-    : null;
   return {
     found: raw.found === true,
     name: cleanStr(raw.name, 120),
@@ -103,9 +97,7 @@ export function sanitizeLookup(raw: RawLookup | null): BusinessLookupResult | nu
     state: cleanStr(raw.state, 40),
     zip: /^\d{5}/.test(zipRaw) ? zipRaw.slice(0, 5) : "",
     mapsUrl,
-    reviewLink: placeId
-      ? `https://search.google.com/local/writereview?placeid=${placeId}`
-      : mapsUrl,
+    reviewLink: null, // resolved (and verified) async in lookupBusiness
     // 0 is the model's "didn't find it", not a real listing value
     rating: Number.isFinite(rating) && rating >= 1 && rating <= 5 ? Math.round(rating * 10) / 10 : null,
     reviewCount:
@@ -202,6 +194,42 @@ async function attachBranding(result: BusinessLookupResult, site: WebsiteInfo): 
   if (!result.summary && site.description) result.summary = site.description.slice(0, 240);
 }
 
+/**
+ * Best "leave us a review" link, hallucination-proofed. Grounded models
+ * mangle opaque IDs (a wrong review link burns real customers), so the
+ * write-review deep link is only used after Google confirms the place ID
+ * exists (invalid IDs 404). Fallbacks: the cited Maps listing, then a Maps
+ * search URL built purely from the listing facts the owner confirms on
+ * screen — deterministic, can't 404.
+ */
+async function resolveReviewLink(
+  rawPlaceId: unknown,
+  result: BusinessLookupResult
+): Promise<string | null> {
+  const placeId = typeof rawPlaceId === "string" ? rawPlaceId.trim() : "";
+  if (/^ChIJ[A-Za-z0-9_-]{8,60}$/.test(placeId)) {
+    const url = `https://search.google.com/local/writereview?placeid=${placeId}`;
+    try {
+      const res = await fetch(url, {
+        redirect: "follow",
+        signal: AbortSignal.timeout(8_000),
+        headers: { "User-Agent": "Mozilla/5.0 (compatible; StreamflaireHub-Setup/1.0)" },
+      });
+      if (res.status < 400) return url;
+    } catch {
+      // can't verify → don't trust it
+    }
+  }
+  if (result.mapsUrl) return result.mapsUrl;
+  const where = [result.name, result.streetAddress, result.city, result.state]
+    .filter(Boolean)
+    .join(" ");
+  if (result.name && (result.streetAddress || result.city)) {
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(where)}`;
+  }
+  return null;
+}
+
 /** Full lookup: grounded search, then branding candidates from the website.
  *  A user-supplied website beats whatever the model cites — owners know
  *  their own site, and it protects against directory/Facebook links. */
@@ -224,6 +252,23 @@ export async function lookupBusiness(
   const override = normalizeWebsiteUrl(websiteOverride);
   if (override) result.website = override;
   if (!result.name) result.name = name;
+
+  // The listing search often confirms a business without citing its site —
+  // and no website means no branding and nothing saved to settings. One
+  // dedicated follow-up query fills that hole.
+  if (!result.website) {
+    const raw2 = await askAIGroundedJson<{ website?: unknown }>({
+      system: LOOKUP_SYSTEM,
+      prompt: `What is the official website of the business "${result.name}"${
+        result.city ? ` in ${result.city}, ${result.state}` : ""
+      }? Search for it. Respond with ONLY a JSON object: {"website": the official website URL, or null if it genuinely has none — never a Facebook/Yelp/directory page}`,
+      temperature: 0.1,
+      maxOutputTokens: 500,
+    });
+    result.website = normalizeWebsiteUrl(raw2?.website);
+  }
+
+  result.reviewLink = await resolveReviewLink(raw?.placeId, result);
 
   if (result.website) {
     const site = await fetchWebsiteInfo(result.website);
