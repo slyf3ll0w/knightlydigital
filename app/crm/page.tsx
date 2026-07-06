@@ -3,11 +3,12 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { AnimateIn } from '@/components/AnimateIn';
 import { SketchUnderline } from '@/components/SketchUnderline';
+import { HubPricing } from '@/components/HubPricing';
 
 export const metadata: Metadata = {
-  title: 'Free CRM for Service Businesses',
+  title: 'Free Job Manager for Service Businesses',
   description:
-    'Job pipeline, scheduling, quoting, invoicing, online payments, and review automation — all 14 features, free forever. No plans, no upsell, no catch.',
+    'Clients, scheduling, quotes with e-signature, invoicing, card & ACH payments, recurring services, client portal, and an AI assistant — every feature free forever. No plans, no upsell, no catch.',
 };
 
 function CheckIcon() {
@@ -17,23 +18,6 @@ function CheckIcon() {
     </svg>
   );
 }
-
-const allFeatures = [
-  'Customer & Contact Database',
-  'Job & Work-Order Pipeline',
-  'Scheduling Calendar with Tech Assignment',
-  'Quotes & Estimates (online acceptance)',
-  'One-Step Invoicing from Completed Jobs',
-  'Photo & Note Attachments per Job',
-  'Mobile-Friendly Field Access',
-  'Online Payments — Card + ACH + Pay-by-Link',
-  'Surcharging (pass card fees to homeowner)',
-  'Automated Payment Reminders',
-  'Recurring Jobs & Service Plans',
-  'Online Booking / Request Service Form',
-  'Automatic Review Request After Payment',
-  'Neighbor & Radius Mail (add-on)',
-];
 
 export default function CRMPage() {
   return (
@@ -81,9 +65,9 @@ export default function CRMPage() {
             className="text-lg lg:text-xl leading-relaxed mb-10 max-w-2xl"
             style={{ color: 'rgba(255,255,255,0.68)' }}
           >
-            Job pipeline, scheduling, invoicing, online payments, and review automation —
-            built for trades and home service businesses.
-            All 14 features included. Free for everyone.
+            Clients, scheduling, quotes, invoicing, payments, recurring services, and an AI
+            assistant — built for trades and home service businesses.
+            Every feature included. Free for everyone.
           </p>
 
           {/* CTAs */}
@@ -96,7 +80,7 @@ export default function CRMPage() {
               Get Started Free →
             </Link>
             <a
-              href="#features"
+              href="#pricing"
               className="text-sm font-bold uppercase tracking-wider px-8 py-4 transition-all hover:bg-white hover:text-black"
               style={{
                 border: '1.5px solid rgba(255,255,255,0.3)',
@@ -104,7 +88,7 @@ export default function CRMPage() {
                 fontFamily: 'Oxanium, system-ui, sans-serif',
               }}
             >
-              See All Features
+              Pricing & Features
             </a>
           </div>
 
@@ -113,7 +97,7 @@ export default function CRMPage() {
             className="flex items-center justify-center pt-8"
             style={{ borderTop: '1px solid rgba(255,255,255,0.12)' }}
           >
-            {['14 Features Included', 'Free Forever', 'No Credit Card Required'].map((stat, i) => (
+            {['Free Forever', 'Unlimited Users', 'No Credit Card Required'].map((stat, i) => (
               <div key={stat} className="flex items-center">
                 {i > 0 && (
                   <span className="mx-5" style={{ color: '#22C55E', fontSize: '1rem', lineHeight: 1 }}>·</span>
@@ -131,39 +115,26 @@ export default function CRMPage() {
         </div>
       </section>
 
-      {/* ── ALL FEATURES AT A GLANCE ── */}
-      <section id="features" className="py-20 bg-paper">
+      {/* ── PRICING + ALL FEATURES ── */}
+      <section id="pricing" className="py-20 bg-paper">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <AnimateIn className="mb-10">
             <p
               className="text-xs font-bold uppercase tracking-widest mb-4"
               style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
             >
-              Everything Included
+              Pricing & Features
             </p>
             <h2
               className="text-3xl lg:text-4xl font-bold"
               style={{ color: '#0A0A0F', fontFamily: 'Oxanium, system-ui, sans-serif' }}
             >
-              14 Features. <SketchUnderline>One Price: Free.</SketchUnderline>
+              One Plan. <SketchUnderline>Everything In It.</SketchUnderline>
             </h2>
           </AnimateIn>
 
           <AnimateIn>
-            <div className="grid sm:grid-cols-2 gap-3">
-              {allFeatures.map((feature) => (
-                <div
-                  key={feature}
-                  className="flex items-center gap-3 px-5 py-4 bg-white"
-                  style={{ border: '1px solid #E5E7EB' }}
-                >
-                  <CheckIcon />
-                  <span className="text-sm font-medium" style={{ color: '#0A0A0F', fontFamily: 'Oxanium, system-ui, sans-serif' }}>
-                    {feature}
-                  </span>
-                </div>
-              ))}
-            </div>
+            <HubPricing />
           </AnimateIn>
         </div>
       </section>
@@ -216,7 +187,9 @@ export default function CRMPage() {
               The Core Operation
             </h2>
             <p className="text-base max-w-2xl leading-relaxed" style={{ color: 'rgba(255,255,255,0.55)' }}>
-              The foundation every service business needs — contacts, jobs, and a schedule that actually tells you what&apos;s happening and who&apos;s doing it.
+              The foundation every service business needs — clients, incoming work, a schedule
+              that actually tells you what&apos;s happening, and a pipeline that shows where every
+              job stands.
             </p>
           </AnimateIn>
 
@@ -231,10 +204,14 @@ export default function CRMPage() {
                   className="text-xs font-bold uppercase tracking-widest mb-4"
                   style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
                 >
-                  Customer & Contact Database
+                  Client Database
                 </p>
                 <p className="text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.55)' }}>
-                  Every customer in one place — name, address, phone, and a full history of every job, quote, invoice, and payment. No more digging through texts or spreadsheets to find what you quoted someone last April. Search any customer, pull up the full picture in seconds.
+                  Every customer in one place — contact info, notes, and the full history of every
+                  quote, job, invoice, and payment. Add your own custom fields (gate codes, pet
+                  names, referral source — whatever your business tracks). Switching from Jobber or
+                  Housecall Pro? The CSV importer auto-maps their exports and brings your whole
+                  client list over in minutes.
                 </p>
               </div>
             </AnimateIn>
@@ -248,10 +225,14 @@ export default function CRMPage() {
                   className="text-xs font-bold uppercase tracking-widest mb-4"
                   style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
                 >
-                  Job & Work-Order Pipeline
+                  Online Booking & Requests
                 </p>
                 <p className="text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.55)' }}>
-                  Every job moves through a clear pipeline: Lead → Scheduled → In Progress → Complete → Invoiced → Paid. View it as a drag-and-drop board or a sortable list. One click moves a job forward. You always know exactly where every piece of work stands — and what needs attention today.
+                  Build booking forms and embed them on your website or share the link anywhere.
+                  Customers can even pick a real time slot from your live availability — you approve
+                  it before it lands on the calendar, so nothing gets double-booked. Every
+                  submission drops into your Requests inbox as a new lead. No phone tag, no missed
+                  messages at 10pm.
                 </p>
               </div>
             </AnimateIn>
@@ -265,10 +246,13 @@ export default function CRMPage() {
                   className="text-xs font-bold uppercase tracking-widest mb-4"
                   style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
                 >
-                  Scheduling Calendar with Tech Assignment
+                  Scheduling & Appointments
                 </p>
                 <p className="text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.55)' }}>
-                  Drag a job onto a day in the calendar, assign a tech, and it&apos;s on the schedule. Your crew sees what&apos;s on their day. Your office sees where everyone is. No double-bookings, no missed appointments, no &ldquo;I thought you were handling that.&rdquo; Built for businesses running more than one truck.
+                  Month, week, and day views with drag-to-schedule — pull an unscheduled job onto a
+                  day, assign a tech, done. Estimate appointments (phone, video, or in-person) share
+                  the same calendar, so sales visits and job visits never collide. Your crew sees
+                  their day; your office sees everyone&apos;s.
                 </p>
               </div>
             </AnimateIn>
@@ -282,10 +266,13 @@ export default function CRMPage() {
                   className="text-xs font-bold uppercase tracking-widest mb-4"
                   style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
                 >
-                  Photo & Note Attachments per Job
+                  Job Pipeline, Photos & Notes
                 </p>
                 <p className="text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.55)' }}>
-                  Before-and-after photos, job notes, and any relevant documentation stored directly on the job record — not buried in a camera roll or a text thread. Protects you in disputes, builds trust with homeowners, and the before/after content feeds your neighbor marketing later.
+                  Every job moves through a clear pipeline from active work to invoiced and paid.
+                  Before-and-after photos, job notes, and crew assignments live on the job record —
+                  not buried in a camera roll or a text thread. You always know exactly where every
+                  piece of work stands and what needs attention today.
                 </p>
               </div>
             </AnimateIn>
@@ -312,11 +299,12 @@ export default function CRMPage() {
               The Money Flow
             </h2>
             <p className="text-base max-w-2xl leading-relaxed" style={{ color: '#6B7280' }}>
-              From the first quote to the final payment, every dollar moves through one tool — no disconnected apps, no re-entering data, no chasing checks manually.
+              From the first quote to the final payment, every dollar moves through one tool — no
+              disconnected apps, no re-entering data, no chasing checks manually.
             </p>
           </AnimateIn>
 
-          {/* Payment image + quote cards row */}
+          {/* Quote + invoice cards row */}
           <div className="grid lg:grid-cols-2 gap-6 mb-6">
 
             <AnimateIn delay={0}>
@@ -330,13 +318,17 @@ export default function CRMPage() {
                     className="text-xs font-bold uppercase tracking-widest mb-4"
                     style={{ color: '#6B7280', fontFamily: 'Oxanium, system-ui, sans-serif' }}
                   >
-                    Quotes & Estimates
+                    Quotes, E-Signatures & Deposits
                   </p>
                   <p className="text-sm leading-relaxed mb-4" style={{ color: '#374151' }}>
-                    Build a quote in the tool, send it to the customer by email or text, and they accept it online with a single click. No PDFs emailed back and forth. No confusion over what was agreed. The approved quote becomes the job record automatically.
+                    Build a quote from your price book, add optional upgrade items the customer can
+                    take or leave, and send it. They approve it online with a typed e-signature —
+                    no PDFs emailed back and forth, no confusion over what was agreed.
                   </p>
                   <p className="text-sm leading-relaxed" style={{ color: '#6B7280' }}>
-                    This is the front of the money flow — when the customer accepts, everything downstream (scheduling, invoicing, payment) is already connected.
+                    Need money down? Set a deposit per service or company-wide — percent, fixed, or
+                    full amount. Collecting it issues a deposit invoice, and the final bill nets it
+                    out automatically.
                   </p>
                 </div>
               </div>
@@ -353,13 +345,16 @@ export default function CRMPage() {
                     className="text-xs font-bold uppercase tracking-widest mb-4"
                     style={{ color: '#6B7280', fontFamily: 'Oxanium, system-ui, sans-serif' }}
                   >
-                    One-Step Invoicing
+                    One-Click Invoicing
                   </p>
                   <p className="text-sm leading-relaxed mb-4" style={{ color: '#374151' }}>
-                    When a job is marked complete, flip it to an invoice in one click. All the details carry over — customer info, job notes, line items. Nothing to re-enter. Send it immediately from the same screen.
+                    When a job is marked complete, flip it to an invoice in one click. Customer
+                    info, line items, and job notes carry over — nothing to re-enter. Send it
+                    immediately from the same screen.
                   </p>
                   <p className="text-sm leading-relaxed" style={{ color: '#6B7280' }}>
-                    Most service businesses leave money on the table because invoicing is a pain. We made it impossible to avoid.
+                    Most service businesses leave money on the table because invoicing is a pain.
+                    We made it impossible to avoid.
                   </p>
                 </div>
               </div>
@@ -380,10 +375,13 @@ export default function CRMPage() {
                     className="text-xs font-bold uppercase tracking-widest mb-3"
                     style={{ color: '#6B7280', fontFamily: 'Oxanium, system-ui, sans-serif' }}
                   >
-                    Online Payments
+                    Card & ACH Payments
                   </p>
                   <p className="text-sm leading-relaxed" style={{ color: '#374151' }}>
-                    Card, ACH, and pay-by-link — all processed through your own payment processor so funds go directly to your account. Send a payment link in a text message. The customer pays in 30 seconds. No more waiting on checks.
+                    Every invoice gets a branded payment page — send the link by email or text and
+                    the customer pays by card or bank transfer. Card surcharging is built in, so you
+                    can pass processing fees to the customer instead of eating them. Cash, check,
+                    Venmo, Zelle? Record those too — every payment lands in one ledger.
                   </p>
                 </div>
               </div>
@@ -400,10 +398,12 @@ export default function CRMPage() {
                     className="text-xs font-bold uppercase tracking-widest mb-3"
                     style={{ color: '#6B7280', fontFamily: 'Oxanium, system-ui, sans-serif' }}
                   >
-                    Surcharging
+                    Automatic Payment Reminders
                   </p>
                   <p className="text-sm leading-relaxed" style={{ color: '#374151' }}>
-                    Pass card processing fees to the homeowner instead of absorbing them yourself. Fully disclosed at checkout. Handled automatically — you don&apos;t configure anything per job. On a $1,500 invoice, that&apos;s roughly $45 back in your pocket.
+                    Unpaid invoice? The system follows up for you — at the due date, then 3, 7, and
+                    14 days past due — and stops the moment it&apos;s paid. You stop chasing, the
+                    relationship stays clean, and you get paid faster.
                   </p>
                 </div>
               </div>
@@ -420,10 +420,12 @@ export default function CRMPage() {
                     className="text-xs font-bold uppercase tracking-widest mb-3"
                     style={{ color: '#6B7280', fontFamily: 'Oxanium, system-ui, sans-serif' }}
                   >
-                    Payment Reminders
+                    Expenses & Profit Insights
                   </p>
                   <p className="text-sm leading-relaxed" style={{ color: '#374151' }}>
-                    Unpaid invoice? The system sends follow-up reminders automatically on a schedule you set — 3 days, 7 days, 14 days. You stop chasing, the relationship stays clean, and you get paid faster.
+                    Log expenses by category and see what you actually made — not just what you
+                    billed. The insights dashboard shows revenue, outstanding balances, and where
+                    the money went, so you run the business on numbers instead of gut feel.
                   </p>
                 </div>
               </div>
@@ -454,7 +456,7 @@ export default function CRMPage() {
                       &ldquo;Send a link. They pay. Done.&rdquo;
                     </p>
                     <p className="text-sm" style={{ color: 'rgba(255,255,255,0.5)' }}>
-                      Card, ACH, or pay-by-link — no separate payment app required.
+                      Card or ACH on a branded payment page — no separate payment app required.
                     </p>
                   </div>
                 </div>
@@ -483,7 +485,8 @@ export default function CRMPage() {
               Built for the Field
             </h2>
             <p className="text-base max-w-2xl leading-relaxed" style={{ color: '#6B7280' }}>
-              Your techs aren&apos;t at a desk. The tool needs to work where the work happens — on the roof, in the crawlspace, in the driveway when the job is done.
+              Your techs aren&apos;t at a desk. The tool needs to work where the work happens — on
+              the roof, in the crawlspace, in the driveway when the job is done.
             </p>
           </AnimateIn>
 
@@ -520,10 +523,13 @@ export default function CRMPage() {
                     Mobile-Friendly Field Access
                   </p>
                   <p className="text-sm leading-relaxed mb-4" style={{ color: 'rgba(255,255,255,0.6)' }}>
-                    The full tool works on any phone browser — no app to download, no version to update. A tech can mark a job complete, upload before-and-after photos, add job notes, and send the invoice before they back out of the driveway.
+                    The full tool works on any phone browser — no app to download, no version to
+                    update. A tech can mark a job complete, upload before-and-after photos, add job
+                    notes, and send the invoice before they back out of the driveway.
                   </p>
                   <p className="text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.6)' }}>
-                    Responsive web is the right call here. Everyone has a browser. Not everyone has the right app installed. We don&apos;t make your field guys jump through hoops.
+                    Techs get their own logins with tech-level permissions — they see their
+                    schedule and their jobs, not your books.
                   </p>
                 </div>
                 <div className="flex flex-col gap-3">
@@ -584,7 +590,7 @@ export default function CRMPage() {
         </div>
       </section>
 
-      {/* ── SECTION 04: GROWTH ── dark ── */}
+      {/* ── SECTION 04: GROW & MANAGE ── dark ── */}
       <section className="py-24 bg-dot-pattern" style={{ backgroundColor: '#0C0F0C' }}>
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
 
@@ -599,10 +605,11 @@ export default function CRMPage() {
               className="text-3xl lg:text-4xl font-bold text-white mb-5"
               style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
             >
-              Growing After Every Job
+              Grow & Manage
             </h2>
             <p className="text-base max-w-2xl leading-relaxed" style={{ color: 'rgba(255,255,255,0.55)' }}>
-              A finished job isn&apos;t just revenue — it&apos;s a review, a repeat customer, a booking, and a neighborhood introduction. These features turn every completed job into three more.
+              The features that usually live behind a &ldquo;Pro plan&rdquo; paywall — automation,
+              e-signatures, a client portal, team management, and an AI assistant. Included here.
             </p>
           </AnimateIn>
 
@@ -612,24 +619,28 @@ export default function CRMPage() {
           >
             {[
               {
-                title: 'Recurring Jobs & Service Plans',
-                desc: 'Set up maintenance contracts and recurring visits — weekly, monthly, or seasonal. Lawn care, pool service, pest control, HVAC tune-ups, any business that runs on repeat visits. The job creates itself on the schedule. You stop manually rebooking. The revenue becomes predictable.',
-                addon: false,
+                title: 'Recurring Services & Subscriptions',
+                desc: 'Sell a service on repeat — monthly, quarterly, semiannual, or annual — and the system invoices it every cycle automatically, and can put the job on the schedule too. Lawn care, pool service, pest control, maintenance plans: the revenue becomes predictable and you stop manually rebooking.',
               },
               {
-                title: 'Online Booking & Request Service Form',
-                desc: 'An embeddable "Request Service" form you can put on your website, your Google Business Profile, or anywhere a homeowner might find you. They fill it out, and it drops straight into your job pipeline as a new lead. No phone tag. No missed messages at 10pm. New leads show up while you sleep.',
-                addon: false,
+                title: 'Automatic Review Requests',
+                desc: 'The moment a job wraps up, the system emails the customer a link to your review page. Hit them while they\'re happy and the experience is still fresh — not three weeks later when they\'ve moved on. More Google reviews, zero manual follow-up.',
               },
               {
-                title: 'Automatic Review Request After Payment',
-                desc: 'The moment a job is paid, the system sends a review request to the customer. Hit them while they\'re happy and the experience is still fresh — not three weeks later when they\'ve already moved on. More Google reviews, less manual follow-up.',
-                addon: false,
+                title: 'Branded Client Portal',
+                desc: 'Your clients get their own portal — they log in with a magic link (no passwords to forget), see their quotes, invoices, and job history, and can request new work. Fewer "can you resend that invoice?" calls, and a more professional front door for your business.',
               },
               {
-                title: 'Neighbor & Radius Mail',
-                desc: 'You just finished a job at 142 Maple Street. The tool can trigger a direct mail drop to the surrounding block — "We were just next door. Here\'s what we did." This is how you turn one job into three. Works because you were literally just there. That\'s the whole pitch.',
-                addon: true,
+                title: 'Contracts & E-Signatures',
+                desc: 'Build contract templates once, send them with any quote, and collect a legally-timestamped typed signature online. You can even require a signed agreement before a quote can become a job — no more starting work on a handshake.',
+              },
+              {
+                title: 'Team Roles & Lead Routing',
+                desc: 'Owner, admin, sales, and tech roles — each person sees what their job needs and nothing more. Route new leads to the right salesperson automatically, control who sees payment info, and add as many users as you want. No per-seat pricing, ever.',
+              },
+              {
+                title: 'Atlas, Your AI Assistant',
+                desc: 'Ask Atlas anything about your business — "who owes me money?", "what\'s on the schedule Friday?" — and it answers from your real data. It can draft quotes, send invoices, and update settings, always showing you a confirmation before anything happens. Plus an AI setup wizard that builds your price book and booking form in about two minutes.',
               },
             ].map((item, i) => (
               <div
@@ -637,7 +648,7 @@ export default function CRMPage() {
                 className="p-8"
                 style={{
                   borderRight: i % 2 === 0 ? '1px solid rgba(255,255,255,0.09)' : 'none',
-                  borderBottom: i < 2 ? '1px solid rgba(255,255,255,0.09)' : 'none',
+                  borderBottom: i < 4 ? '1px solid rgba(255,255,255,0.09)' : 'none',
                   backgroundColor: '#111511',
                 }}
               >
@@ -648,14 +659,6 @@ export default function CRMPage() {
                     style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
                   >
                     {item.title}
-                    {item.addon && (
-                      <span
-                        className="ml-2 text-xs font-normal px-2 py-0.5"
-                        style={{ color: '#22C55E', border: '1px solid rgba(34,197,94,0.4)', fontFamily: 'Oxanium, system-ui, sans-serif' }}
-                      >
-                        add-on
-                      </span>
-                    )}
                   </h3>
                 </div>
                 <p className="text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.45)' }}>
@@ -687,13 +690,21 @@ export default function CRMPage() {
                 <SketchUnderline>&ldquo;Upgrade to Unlock.&rdquo;</SketchUnderline>
               </h2>
               <p className="text-base leading-relaxed mb-5" style={{ color: '#6B7280' }}>
-                Most CRM tools give you 90 days free, let you build your whole operation inside them, then hit you with a $49–$149/month bill right when you depend on them. They call it a free trial. We call it a sales tactic.
+                Most CRM tools give you 90 days free, let you build your whole operation inside
+                them, then hit you with a $49–$149/month bill right when you depend on them. They
+                call it a free trial. We call it a sales tactic.
               </p>
               <p className="text-base leading-relaxed mb-5" style={{ color: '#6B7280' }}>
-                There is no paid version of this tool. There is no higher plan. Every feature listed on this page — the job pipeline, the scheduling calendar, the payment processing, the review automation, all of it — is included. Free. For every service business.
+                There is no paid version of this tool. There is no higher plan. Every feature
+                listed on this page — the job pipeline, the scheduling calendar, the payments, the
+                automation, the AI assistant, all of it — is included. Free. For every service
+                business.
               </p>
               <p className="text-base leading-relaxed" style={{ color: '#6B7280' }}>
-                The tool exists because we believe the businesses we work with deserve software that actually helps them run. The goal isn&apos;t to hook you on a subscription — it&apos;s to run your operation well enough that when you&apos;re ready to build something custom, we&apos;re the ones you call.
+                The tool exists because we believe the businesses we work with deserve software
+                that actually helps them run. The goal isn&apos;t to hook you on a subscription —
+                it&apos;s to run your operation well enough that when you&apos;re ready to build
+                something custom, we&apos;re the ones you call.
               </p>
             </AnimateIn>
 
@@ -710,7 +721,7 @@ export default function CRMPage() {
                 </p>
                 <ul className="flex flex-col gap-4 mb-8">
                   {[
-                    'All 14 features — included from day one',
+                    'Every feature — included from day one',
                     'No feature gates behind a paid tier',
                     'No 30-day or 90-day trial that expires',
                     'No per-seat pricing as your team grows',
@@ -753,7 +764,8 @@ export default function CRMPage() {
               Ready to Run a Tighter Operation?
             </h2>
             <p className="text-base mb-10 max-w-xl mx-auto" style={{ color: 'rgba(255,255,255,0.85)' }}>
-              Get started with Streamflaire and the job manager is yours — no trial, no card required. Let&apos;s talk about what your business needs.
+              Get started with Streamflaire and the job manager is yours — no trial, no card
+              required. Let&apos;s talk about what your business needs.
             </p>
             <Link
               href="/contact"

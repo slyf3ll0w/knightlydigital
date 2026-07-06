@@ -4,6 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { AnimateIn } from '@/components/AnimateIn';
 import { SketchUnderline } from '@/components/SketchUnderline';
+import { HubPricing } from '@/components/HubPricing';
 
 function CheckIcon() {
   return (
@@ -111,128 +112,43 @@ export default function HomePage() {
       </section>
       </div>
 
-      {/* ── INTRODUCING FREE JOB MANAGER ── light gray ── */}
+      {/* ── FREE JOB MANAGER — pricing + features ── light gray ── */}
       <section className="py-24" style={{ backgroundColor: '#F3F4F6' }}>
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="grid lg:grid-cols-2 gap-16 items-center">
 
-            {/* Image left */}
-            <AnimateIn>
-              <div className="relative overflow-hidden" style={{ height: '480px' }}>
-                <Image
-                  src="https://plus.unsplash.com/premium_photo-1661964300839-f02563414f19?w=800&q=85"
-                  alt="Service technician using smartphone on the job"
-                  fill
-                  className="object-cover"
-                  sizes="(max-width: 1024px) 100vw, 50vw"
-                />
-                <div
-                  className="absolute inset-0"
-                  style={{ background: 'linear-gradient(135deg, rgba(12,15,12,0.2) 0%, transparent 55%)' }}
-                />
-                <div
-                  className="absolute bottom-0 left-0 right-0 p-6"
-                  style={{ background: 'linear-gradient(to top, rgba(12,15,12,0.75) 0%, transparent 100%)' }}
-                >
-                  <p
-                    className="text-sm font-bold text-white mb-1"
-                    style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
-                  >
-                    Built for the Field.
-                  </p>
-                  <p className="text-xs" style={{ color: 'rgba(255,255,255,0.6)' }}>
-                    Full access from any phone — no app download, no laptop required.
-                  </p>
-                </div>
-              </div>
-            </AnimateIn>
+          <AnimateIn className="mb-12 text-center">
+            <p
+              className="text-xs font-bold uppercase tracking-widest mb-4"
+              style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+            >
+              The Free Job Manager
+            </p>
+            <h2
+              className="text-3xl lg:text-4xl font-bold mb-5 leading-tight"
+              style={{ color: '#0A0A0F', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+            >
+              Every Feature. <SketchUnderline>One Price: Free.</SketchUnderline>
+            </h2>
+            <p className="text-base leading-relaxed mx-auto" style={{ color: '#6B7280', maxWidth: '620px' }}>
+              Full job management software for service businesses — clients, scheduling, quotes,
+              invoicing, payments, and an AI assistant. No trial period, no paid tier, no catch.
+            </p>
+          </AnimateIn>
 
-            {/* Content right */}
-            <AnimateIn delay={150}>
-              <p
-                className="text-xs font-bold uppercase tracking-widest mb-4"
-                style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
-              >
-                Free for Everyone
-              </p>
-              <h2
-                className="text-3xl lg:text-4xl font-bold mb-6 leading-tight"
-                style={{ color: '#0A0A0F', fontFamily: 'Oxanium, system-ui, sans-serif' }}
-              >
-                Introducing the{' '}
-                <SketchUnderline>Free Job Manager</SketchUnderline>
-                {' '}for Service Businesses
-              </h2>
-              <p className="text-base leading-relaxed mb-8" style={{ color: '#6B7280' }}>
-                The whole software — job pipeline, scheduling calendar, invoicing, online payments, and more — completely free. Every feature. No trial period. No plans to upgrade into. Free forever.
-              </p>
+          <AnimateIn delay={120}>
+            <HubPricing />
+          </AnimateIn>
 
-              <div className="grid sm:grid-cols-2 gap-4 mb-8">
-                <div className="p-5 bg-white" style={{ border: '1px solid #E5E7EB' }}>
-                  <p
-                    className="text-xs font-bold uppercase tracking-widest mb-3"
-                    style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
-                  >
-                    Run Your Jobs
-                  </p>
-                  <ul className="flex flex-col gap-2">
-                    {['Job Pipeline', 'Scheduling Calendar', 'Customer Database'].map((item) => (
-                      <li key={item} className="flex items-center gap-2 text-sm" style={{ color: '#374151' }}>
-                        <CheckIcon />
-                        {item}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <div className="p-5 bg-white" style={{ border: '1px solid #E5E7EB' }}>
-                  <p
-                    className="text-xs font-bold uppercase tracking-widest mb-3"
-                    style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
-                  >
-                    Get Paid
-                  </p>
-                  <ul className="flex flex-col gap-2">
-                    {['Quotes & Invoicing', 'Online Payments', 'Auto Reminders'].map((item) => (
-                      <li key={item} className="flex items-center gap-2 text-sm" style={{ color: '#374151' }}>
-                        <CheckIcon />
-                        {item}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
+          <AnimateIn delay={200} className="mt-8 text-center">
+            <Link
+              href="/crm"
+              className="inline-block text-sm font-bold uppercase tracking-wider px-7 py-3 transition-all hover:bg-black hover:text-white"
+              style={{ border: '1.5px solid #0A0A0F', color: '#0A0A0F', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+            >
+              See the Job Manager in Detail →
+            </Link>
+          </AnimateIn>
 
-              <div
-                className="mb-8 p-4"
-                style={{ borderLeft: '3px solid #22C55E', backgroundColor: '#ffffff' }}
-              >
-                <p className="text-sm" style={{ color: '#374151' }}>
-                  <span className="font-bold" style={{ color: '#0A0A0F', fontFamily: 'Oxanium, system-ui, sans-serif' }}>
-                    14 features total — all free.
-                  </span>{' '}
-                  No trial, no tiers, no catch. Review automation, recurring jobs, mobile field access, online booking, and more.
-                </p>
-              </div>
-
-              <div className="flex flex-wrap gap-4">
-                <Link
-                  href="/crm"
-                  className="inline-block text-sm font-bold uppercase tracking-wider px-7 py-3 text-white transition-opacity hover:opacity-90"
-                  style={{ backgroundColor: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
-                >
-                  Explore All Features →
-                </Link>
-                <Link
-                  href="/crm"
-                  className="inline-block text-sm font-bold uppercase tracking-wider px-7 py-3 transition-all hover:bg-black hover:text-white"
-                  style={{ border: '1.5px solid #0A0A0F', color: '#0A0A0F', fontFamily: 'Oxanium, system-ui, sans-serif' }}
-                >
-                  Learn More
-                </Link>
-              </div>
-            </AnimateIn>
-
-          </div>
         </div>
       </section>
 
