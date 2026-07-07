@@ -60,7 +60,6 @@ Respond with ONLY a JSON object (no markdown) with exactly these keys:
   "state": 2-letter state code or "",
   "zip": 5-digit ZIP or "",
   "mapsUrl": the business's Google Maps URL or null,
-  "placeId": the business's Google Maps place ID (a string starting with "ChIJ") if one appears in the search results or the maps URL, else null — NEVER invent or guess one,
   "rating": Google review rating as a number or null,
   "reviewCount": Google review count as a number or null,
   "summary": one sentence (under 200 chars) describing what the business does and where, or ""
@@ -195,39 +194,23 @@ async function attachBranding(result: BusinessLookupResult, site: WebsiteInfo): 
 }
 
 /**
- * Best "leave us a review" link, hallucination-proofed. Grounded models
- * mangle opaque IDs (a wrong review link burns real customers), so the
- * write-review deep link is only used after Google confirms the place ID
- * exists (invalid IDs 404). Fallbacks: the cited Maps listing, then a Maps
- * search URL built purely from the listing facts the owner confirms on
- * screen — deterministic, can't 404.
+ * "Leave us a review" link the customer can actually open. Grounded models
+ * reliably MANGLE opaque place IDs (live tests: two different hallucinated
+ * IDs, both 404 in a real browser while fetch-verification passes — Google
+ * serves bots differently), so no model-provided ID or deep link is ever
+ * trusted. Instead: a deterministic Maps search URL built from the listing
+ * facts the owner confirms on screen — verified to land directly on the
+ * business profile with the Reviews tab one tap away. Model-cited Maps URL
+ * only as a last resort when there's no address to build from.
  */
-async function resolveReviewLink(
-  rawPlaceId: unknown,
-  result: BusinessLookupResult
-): Promise<string | null> {
-  const placeId = typeof rawPlaceId === "string" ? rawPlaceId.trim() : "";
-  if (/^ChIJ[A-Za-z0-9_-]{8,60}$/.test(placeId)) {
-    const url = `https://search.google.com/local/writereview?placeid=${placeId}`;
-    try {
-      const res = await fetch(url, {
-        redirect: "follow",
-        signal: AbortSignal.timeout(8_000),
-        headers: { "User-Agent": "Mozilla/5.0 (compatible; StreamflaireHub-Setup/1.0)" },
-      });
-      if (res.status < 400) return url;
-    } catch {
-      // can't verify → don't trust it
-    }
-  }
-  if (result.mapsUrl) return result.mapsUrl;
-  const where = [result.name, result.streetAddress, result.city, result.state]
-    .filter(Boolean)
-    .join(" ");
+function resolveReviewLink(result: BusinessLookupResult): string | null {
   if (result.name && (result.streetAddress || result.city)) {
+    const where = [result.name, result.streetAddress, result.city, result.state]
+      .filter(Boolean)
+      .join(" ");
     return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(where)}`;
   }
-  return null;
+  return result.mapsUrl;
 }
 
 /** Full lookup: grounded search, then branding candidates from the website.
@@ -268,7 +251,7 @@ export async function lookupBusiness(
     result.website = normalizeWebsiteUrl(raw2?.website);
   }
 
-  result.reviewLink = await resolveReviewLink(raw?.placeId, result);
+  result.reviewLink = resolveReviewLink(result);
 
   if (result.website) {
     const site = await fetchWebsiteInfo(result.website);
