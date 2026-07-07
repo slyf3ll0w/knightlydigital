@@ -20,10 +20,15 @@ async function main() {
   console.log(`\n${Date.now() - t0}ms →`, JSON.stringify(biz, null, 2));
   if (biz?.website) {
     const site = await fetchWebsiteInfo(biz.website);
+    if (!site || site === "parked") {
+      console.log(`\nwebsite fetch: ${site === "parked" ? "PARKED shell" : "failed"}`);
+      return;
+    }
     console.log(
-      `\nwebsite fetch: title="${site?.title}" logo=${site?.logoUrl} theme=${site?.themeColor} textChars=${site?.text.length}`
+      `\nwebsite fetch: title="${site.title}" logo=${site.logoUrl} theme=${site.themeColor} textChars=${site.text.length}`
     );
-    console.log(`text preview: ${site?.text.slice(0, 300)}`);
+    console.log(`logo candidates:\n  ${site.logoCandidates.join("\n  ")}`);
+    console.log(`text preview: ${site.text.slice(0, 300)}`);
   }
 }
 

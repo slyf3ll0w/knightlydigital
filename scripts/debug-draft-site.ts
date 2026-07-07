@@ -12,8 +12,9 @@ const [url = "https://berretthomeservices.com/", industry = "Pest Control", city
 
 async function main() {
   if (!process.env.GEMINI_API_KEY) throw new Error("Set GEMINI_API_KEY");
-  const site = await fetchWebsiteInfo(url);
-  console.log(`site: title="${site?.title}" textChars=${site?.text.length}`);
+  const fetched = await fetchWebsiteInfo(url);
+  const site = fetched === "parked" ? null : fetched;
+  console.log(`site: title="${site?.title}" textChars=${site?.text.length}${fetched === "parked" ? " (PARKED)" : ""}`);
   const intake = sanitizeIntake({ industry, city, state, radius: "30mi", teamSize: "6-10", website: url });
   const draft = await generateSetupDraft("Debug Co", intake, [], site);
   console.log(`\nsource=${draft.source} tz=${draft.timezone} zips=${draft.serviceZips.length}`);

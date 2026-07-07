@@ -222,6 +222,31 @@ function resolveReviewLink(result: BusinessLookupResult): string | null {
   return result.mapsUrl;
 }
 
+/** Dedicated grounded query for the official website — used when the listing
+ *  search doesn't cite one, and again when the cited domain turns out to be a
+ *  parked shell (exact-name decoy domains are common; the real site is often
+ *  a variant like allsourceTXplumbing.com). */
+async function queryOfficialWebsite(
+  name: string,
+  city: string,
+  state: string,
+  notThisDomain = ""
+): Promise<string | null> {
+  const raw = await askAIGroundedJson<{ website?: unknown }>({
+    system: LOOKUP_SYSTEM,
+    prompt: `What is the official website of the business "${name}"${
+      city ? ` in ${city}, ${state}` : ""
+    }? Search for it — its Google Business Profile listing usually links it.${
+      notThisDomain
+        ? ` It is NOT ${notThisDomain} — that domain is parked/abandoned. Look for the URL its Google Business Profile or social pages actually link to.`
+        : ""
+    } Respond with ONLY a JSON object: {"website": the official website URL, or null if it genuinely has none — never a Facebook/Yelp/directory page}`,
+    temperature: 0.1,
+    maxOutputTokens: 500,
+  });
+  return normalizeWebsiteUrl(raw?.website);
+}
+
 /** Full lookup: grounded search, then branding candidates from the website.
  *  A user-supplied website beats whatever the model cites — owners know
  *  their own site, and it protects against directory/Facebook links. */
@@ -249,27 +274,40 @@ export async function lookupBusiness(
   // and no website means no branding and nothing saved to settings. One
   // dedicated follow-up query fills that hole.
   if (!result.website) {
-    const raw2 = await askAIGroundedJson<{ website?: unknown }>({
-      system: LOOKUP_SYSTEM,
-      prompt: `What is the official website of the business "${result.name}"${
-        result.city ? ` in ${result.city}, ${result.state}` : ""
-      }? Search for it. Respond with ONLY a JSON object: {"website": the official website URL, or null if it genuinely has none — never a Facebook/Yelp/directory page}`,
-      temperature: 0.1,
-      maxOutputTokens: 500,
-    });
-    result.website = normalizeWebsiteUrl(raw2?.website);
+    result.website = await queryOfficialWebsite(result.name, result.city, result.state);
   }
 
   result.reviewLink = resolveReviewLink(result);
 
   if (result.website) {
-    const site = await fetchWebsiteInfo(result.website);
-    if (site) {
+    const citedUrl = result.website;
+    let site = await fetchWebsiteInfo(citedUrl);
+    if (site === "parked" && !override) {
+      // the model cited an exact-name decoy domain — one retry naming it
+      console.warn(`lookupBusiness: ${citedUrl} is a parked shell — re-searching`);
+      let parkedHost = citedUrl;
+      try {
+        parkedHost = new URL(citedUrl).hostname;
+      } catch {
+        // keep the full URL as the hint
+      }
+      const alt = await queryOfficialWebsite(result.name, result.city, result.state, parkedHost);
+      if (alt && alt !== citedUrl) {
+        result.website = alt;
+        site = await fetchWebsiteInfo(alt);
+      }
+    }
+    if (site === "parked") {
+      // a parked lander is not their website: no branding on it, and saving
+      // its URL puts a dead link on every invoice. Owner-typed URLs stay.
+      console.warn(`lookupBusiness: dropping parked website ${result.website}`);
+      if (!override) result.website = null;
+    } else if (site) {
       // save the URL that actually resolved — models cite the www./apex
       // variant from memory and the wrong one is a dead link on invoices
       result.website = normalizeWebsiteUrl(site.url) ?? result.website;
       await attachBranding(result, site);
-    } else {
+    } else if (result.website) {
       console.warn(`lookupBusiness: website fetch failed for ${result.website} — favicon fallback`);
       await faviconFallback(result, result.website);
     }
@@ -292,7 +330,7 @@ export async function lookupFromWebsite(
   const url = normalizeWebsiteUrl(rawUrl);
   if (!url) return null;
   const site = await fetchWebsiteInfo(url);
-  if (!site) return null;
+  if (!site || site === "parked") return null;
 
   type Extracted = {
     name?: unknown; phone?: unknown; streetAddress?: unknown;

@@ -53,7 +53,8 @@ export async function POST(req: NextRequest) {
   // makes the draft match what they actually sell — fetched server-side,
   // soft-fails to a website-less draft.
   const websiteUrl = intake.website || company.website || "";
-  const site = websiteUrl ? await fetchWebsiteInfo(websiteUrl) : null;
+  const fetched = websiteUrl ? await fetchWebsiteInfo(websiteUrl) : null;
+  const site = fetched === "parked" ? null : fetched;
 
   const draft = await generateSetupDraft(company.name, intake, existing, site);
 

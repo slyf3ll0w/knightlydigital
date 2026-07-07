@@ -21,7 +21,9 @@ export type WebsiteInfo = {
   themeColor: string | null;
 };
 
-const MAX_HTML_BYTES = 800_000;
+// Page-builder sites front-load megabytes of inline CSS — an 800KB cap cut a
+// real customer's page before its FIRST <img> tag (header logo at byte 1.77M).
+const MAX_HTML_BYTES = 4_000_000;
 const MAX_TEXT_CHARS = 12_000;
 export const MAX_LOGO_BYTES = 2 * 1024 * 1024;
 export const LOGO_MIMES = ["image/png", "image/jpeg", "image/webp", "image/gif"];
@@ -126,8 +128,17 @@ export function parseWebsiteHtml(html: string, baseUrl: string): WebsiteInfo {
   {
     const imgs = html.match(/<img\b[^>]*>/gi) ?? [];
     const scored: { href: string; score: number; order: number }[] = [];
-    imgs.slice(0, 200).forEach((tag, order) => {
-      const src = attr(tag, "src");
+    imgs.slice(0, 300).forEach((tag, order) => {
+      // lazy-loaded imgs (WordPress etc.) put a placeholder in src and the
+      // real URL in data-src/data-lazy-src or a srcset
+      let src = attr(tag, "src");
+      if (!src || src.startsWith("data:")) {
+        src = attr(tag, "data-src") ?? attr(tag, "data-lazy-src") ?? src;
+      }
+      if (!src || src.startsWith("data:")) {
+        const srcset = attr(tag, "srcset") ?? attr(tag, "data-srcset");
+        src = srcset?.split(",")[0]?.trim().split(/\s+/)[0] ?? src;
+      }
       if (!src) return;
       const alt = (attr(tag, "alt") ?? "").toLowerCase();
       const cls = (attr(tag, "class") ?? "") + " " + (attr(tag, "id") ?? "");
@@ -166,6 +177,9 @@ export function parseWebsiteHtml(html: string, baseUrl: string): WebsiteInfo {
       .replace(/<noscript[\s\S]*?<\/noscript>/gi, " ")
       .replace(/<svg[\s\S]*?<\/svg>/gi, " ")
       .replace(/<!--[\s\S]*?-->/g, " ")
+      // a block cut open by the byte cap has no closing tag — drop the tail
+      // so raw CSS/JS can't leak into the AI drafting text
+      .replace(/<(script|style)[\s\S]*$/i, " ")
       .replace(/<[^>]+>/g, " ")
   )
     .replace(/\s+/g, " ")
@@ -176,29 +190,48 @@ export function parseWebsiteHtml(html: string, baseUrl: string): WebsiteInfo {
 }
 
 /**
- * Fetch + parse a public website's homepage. Null on any failure.
+ * A 200 response that's an empty shell — no title, no description, no images,
+ * essentially no text. Domain-parking landers look exactly like this (live
+ * case: allsourceplumbing.com is 114 bytes of JS redirecting to an ad page,
+ * while the real business lives at allsourcetxplumbing.com). A parked page
+ * must never be branded from or saved as the company's website.
+ */
+export function looksParked(info: WebsiteInfo): boolean {
+  return (
+    !info.title && !info.description && info.logoCandidates.length === 0 && info.text.length < 80
+  );
+}
+
+/**
+ * Fetch + parse a public website's homepage. Null on any failure; the string
+ * "parked" when the domain serves only an empty parking shell (a distinct
+ * signal — callers should drop the URL rather than treat it as bot-blocked).
  * Retries with the www./apex variant toggled — AI lookups and owners cite
  * whichever spelling they remember, and plenty of small-business domains
  * only resolve one of them (live case: www.excellentpcbuilding.com is
  * ENOTFOUND while the apex serves the real site).
  */
-export async function fetchWebsiteInfo(rawUrl: string): Promise<WebsiteInfo | null> {
+export async function fetchWebsiteInfo(rawUrl: string): Promise<WebsiteInfo | "parked" | null> {
   const url = normalizeWebsiteUrl(rawUrl);
   if (!url) return null;
   const first = await fetchWebsiteInfoOnce(url);
-  if (first) return first;
+  if (first && first !== "parked") return first;
   try {
     const u = new URL(url);
     u.hostname = u.hostname.startsWith("www.") ? u.hostname.slice(4) : `www.${u.hostname}`;
     const alt = u.toString();
-    if (isSafePublicUrl(alt)) return await fetchWebsiteInfoOnce(alt);
+    if (isSafePublicUrl(alt)) {
+      const second = await fetchWebsiteInfoOnce(alt);
+      if (second && second !== "parked") return second;
+      return second ?? first;
+    }
   } catch {
     // toggle is best-effort
   }
-  return null;
+  return first;
 }
 
-async function fetchWebsiteInfoOnce(url: string): Promise<WebsiteInfo | null> {
+async function fetchWebsiteInfoOnce(url: string): Promise<WebsiteInfo | "parked" | null> {
   try {
     const res = await fetch(url, {
       redirect: "follow",
@@ -213,7 +246,8 @@ async function fetchWebsiteInfoOnce(url: string): Promise<WebsiteInfo | null> {
     const finalUrl = isSafePublicUrl(res.url) ? res.url : url;
     const buf = await res.arrayBuffer();
     const html = Buffer.from(buf.slice(0, MAX_HTML_BYTES)).toString("utf8");
-    return parseWebsiteHtml(html, finalUrl);
+    const info = parseWebsiteHtml(html, finalUrl);
+    return looksParked(info) ? "parked" : info;
   } catch {
     return null;
   }
