@@ -590,11 +590,11 @@ export const companyTools: Tool[] = [
     decl: {
       name: "manage_web_form",
       description:
-        "The company's website/booking forms (managers). action 'list' shows all forms with ids and settings. 'create' adds a form (name + formType INQUIRY/BOOKING/SERVICE_REQUEST) with sensible defaults — customize it with a follow-up 'update' after it exists. 'update' edits a form (formId from list): headline/intro, button label, theme, standard field visibility, online self-scheduling (BOOKING forms), the service list shown on the form (setServices REPLACES it; names matching the price book link automatically), custom questions (addCustomFields/removeCustomFieldLabels), isActive, or isDefault. 'duplicate' copies a form. Create/update/duplicate show a confirmation card.",
+        "The company's website/booking forms (managers). action 'list' shows all forms with ids, share links, and settings. 'embed' returns a form's ready-to-paste website embed code — output it verbatim. 'create' adds a form (name + formType INQUIRY/BOOKING/SERVICE_REQUEST) with sensible defaults — customize it with a follow-up 'update' after it exists. 'update' edits a form (formId from list): headline/intro, button label, theme, standard field visibility, online self-scheduling (BOOKING forms), the service list shown on the form (setServices REPLACES it; names matching the price book link automatically), custom questions (addCustomFields/removeCustomFieldLabels), isActive, or isDefault. 'duplicate' copies a form. Create/update/duplicate show a confirmation card; list/embed answer directly.",
       parameters: {
         type: "object",
         properties: {
-          action: { type: "string", enum: ["list", "create", "update", "duplicate"] },
+          action: { type: "string", enum: ["list", "create", "update", "duplicate", "embed"] },
           formId: { type: "string" },
           name: { type: "string" },
           formType: { type: "string", enum: ["INQUIRY", "BOOKING", "SERVICE_REQUEST"] },
@@ -661,17 +661,27 @@ export const companyTools: Tool[] = [
         customFields?: Record<string, unknown>[];
       };
 
+      // Prod sets NEXTAUTH_URL; without it links come back relative and the
+      // model is told to prefix them with the site the user is on.
+      const baseUrl = (process.env.NEXTAUTH_URL ?? "").replace(/\/$/, "");
+      const formPath = (companySlug: string, f: { slug: string; isDefault: boolean }) =>
+        f.isDefault ? companySlug : `${companySlug}/${f.slug}`;
+
       if (action === "list") {
-        const rows = await prisma.webForm.findMany({
-          where: { companyId: actor.companyId },
-          take: 15, orderBy: { createdAt: "asc" },
-          select: { id: true, name: true, type: true, slug: true, isDefault: true, isActive: true, config: true },
-        });
+        const [rows, company] = await Promise.all([
+          prisma.webForm.findMany({
+            where: { companyId: actor.companyId },
+            take: 15, orderBy: { createdAt: "asc" },
+            select: { id: true, name: true, type: true, slug: true, isDefault: true, isActive: true, config: true },
+          }),
+          prisma.company.findUnique({ where: { id: actor.companyId }, select: { slug: true } }),
+        ]);
         return {
           forms: rows.map((f) => {
             const c = (f.config ?? {}) as Cfg;
             return {
-              id: f.id, name: f.name, type: f.type, slug: f.slug,
+              id: f.id, name: f.name, type: f.type,
+              link: `${baseUrl}/book/${formPath(company?.slug ?? "", f)}`,
               isDefault: f.isDefault, isActive: f.isActive,
               headline: c.header?.title,
               selfSchedule: c.selfSchedule?.enabled === true,
@@ -682,23 +692,69 @@ export const companyTools: Tool[] = [
         };
       }
 
+      if (action === "embed") {
+        const [rows, company] = await Promise.all([
+          prisma.webForm.findMany({
+            where: { companyId: actor.companyId, isActive: true },
+            take: 15, orderBy: { createdAt: "asc" },
+            select: { id: true, name: true, slug: true, isDefault: true },
+          }),
+          prisma.company.findUnique({ where: { id: actor.companyId }, select: { slug: true, name: true } }),
+        ]);
+        if (rows.length === 0) return { error: "No forms exist yet — create one first." };
+        const wanted = str(args.formId, 40) || str(args.name, 80);
+        const form = wanted
+          ? rows.find((f) => f.id === wanted) ??
+            rows.find((f) => f.name.toLowerCase() === wanted.toLowerCase())
+          : rows.length === 1
+            ? rows[0]
+            : rows.find((f) => f.isDefault);
+        if (!form) {
+          return {
+            error: "Say which form — pass its formId or exact name.",
+            forms: rows.map((f) => ({ id: f.id, name: f.name })),
+          };
+        }
+        const suffix = formPath(company?.slug ?? "", form);
+        const origin = baseUrl;
+        const embedCode = `<iframe src="${baseUrl}/embed/${suffix}" data-jobflow="${suffix}" style="width:100%;max-width:560px;height:760px;border:0;" title="${form.name} — ${company?.name ?? ""}"></iframe>\n<script>window.addEventListener("message",function(e){var d=e.data;if(e.origin==="${origin}"&&d&&d.type==="jobflow:height"&&d.slug==="${suffix}"){var f=document.querySelector('iframe[data-jobflow="${suffix}"]');if(f)f.style.height=d.height+"px";}});</script>`;
+        return {
+          form: form.name,
+          directLink: `${baseUrl}/book/${suffix}`,
+          embedCode,
+          note: "Give the user the embedCode VERBATIM (both tags, unmodified) to paste into their site's HTML, plus the directLink as a no-embed alternative.",
+        };
+      }
+
       if (action === "create") {
         const name = str(args.name, 80);
         if (!name) return { error: "name is required" };
+        const existing = await prisma.webForm.findFirst({
+          where: { companyId: actor.companyId, name: { equals: name, mode: "insensitive" } },
+          select: { id: true, name: true },
+        });
+        if (existing) {
+          return {
+            error: `A form named "${existing.name}" already exists (id ${existing.id}) — don't create it again. Use action 'update' to change it or 'embed' for its website code.`,
+          };
+        }
         const formType = ["INQUIRY", "BOOKING", "SERVICE_REQUEST"].includes(str(args.formType, 20))
           ? str(args.formType, 20)
           : "INQUIRY";
-        return stage(ctx, {
-          kind: "manage_web_form",
-          title: `Create ${formType.toLowerCase().replace("_", " ")} form "${name}"`,
-          lines: [
-            "Created with sensible defaults for its type.",
-            "After the user confirms, call manage_web_form (action list, then update) to customize it.",
-          ],
-          endpoint: "/api/app/web-forms",
-          method: "POST",
-          payload: { name, type: formType },
-        });
+        return {
+          ...stage(ctx, {
+            kind: "manage_web_form",
+            title: `Create ${formType.toLowerCase().replace("_", " ")} form "${name}"`,
+            lines: [
+              "Starts with sensible defaults for its type.",
+              "Once confirmed, ask me for the embed code or any customization.",
+            ],
+            endpoint: "/api/app/web-forms",
+            method: "POST",
+            payload: { name, type: formType },
+          }),
+          note: "After the user confirms this card, the form exists — use action 'list' to get its id, 'update' to customize, 'embed' for its website code. Never stage this create again.",
+        };
       }
 
       const form = await prisma.webForm.findFirst({
