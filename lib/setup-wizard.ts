@@ -153,7 +153,7 @@ function buildPrompt(
   "newServices": array (max 8, empty if their list already covers the trade) of { "name", "description" (one sentence, client-facing), "price" (typical regional price, number), "cost" (rough direct cost, number), "durationMinutes" (as above, or null), "priceDisplay": "FIXED"|"STARTING_AT"|"HOURLY"|"QUOTE" — how the price reads to homeowners: FIXED for true flat-rate jobs, STARTING_AT when scope varies (most repairs), HOURLY for time & materials, QUOTE for big jobs this trade never prices sight-unseen },
   "contract": { "name": short template name like "Lawn Care Service Agreement", "body": 300-500 word plain-text service agreement for this trade with placeholders {{client_name}}, {{company_name}}, {{date}} — plain paragraphs and simple numbered sections, professional but readable, covering scope, scheduling/access, payment, weather/rescheduling if relevant, liability basics },
   "intakeQuestions": array (0-3, and 0 or 1 is often the RIGHT answer) of { "label" (a question, UNDER 55 characters), "type": "text"|"select", "options": string[] (2-6, select only, else []) } — ONLY questions whose answer changes the quote, the crew/equipment sent, or whether the job is accepted at all. The bar: would a seasoned dispatcher in this trade refuse to quote without it? Every extra field costs form conversions, so do NOT pad the list or include nice-to-know questions (the form already collects name, contact info, address, service, preferred time, and a free-text message — never duplicate those),
-  "clientFields": array (0-3, same "fewer is better" rule) of { "label" (UNDER 55 characters), "type": "text"|"select", "options": same rules } — ONLY facts a crew needs on EVERY repeat visit that aren't already on the client record (e.g. gate code for gated properties, loose-dog warning). Skip anything that's really a per-job detail or that most clients of this trade wouldn't have an answer for; empty array beats a filler field,
+  "clientFields": array (0-2, and an EMPTY array is the right answer for most trades) of { "label" (UNDER 55 characters), "type": "text"|"select", "options": same rules } — ONLY a fact the crew is blocked without on EVERY visit to that property (e.g. "Gate / access code" for pool service, where every backyard is fenced). The bar: would this trade's dispatcher refuse to send a truck without it on file? Do NOT suggest pets-on-property, preferred contact method, referral source, or other nice-to-know fields — real companies don't track those per client, and filler fields make the software feel like homework,
   "recurringPlanIdeas": array (max 3) of short strings suggesting recurring service plans for this trade with a realistic price, e.g. "Weekly mowing — around $180/mo"; empty array if the trade is one-off work
 }`);
   return lines.join("\n");
@@ -404,10 +404,10 @@ export function fallbackDraft(
         options: ["As soon as possible", "Within a couple of weeks", "Just planning ahead"],
       },
     ],
-    clientFields: [
-      { label: "Gate / access code", type: "text", options: [] },
-      { label: "Pets on the property", type: "text", options: [] },
-    ],
+    // No canned client fields: without knowing the trade, any guess ("pets on
+    // property") reads as filler. The AI path suggests one only when the
+    // trade genuinely needs it; owners can always add their own.
+    clientFields: [],
     recurringPlanIdeas: RECURRING_TRADES[intake.industry] ?? [],
   };
 }

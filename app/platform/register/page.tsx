@@ -8,63 +8,28 @@ import TurnstileWidget from "@/components/TurnstileWidget";
 import { INDUSTRIES } from "@/lib/pricebooks";
 
 /**
- * One-question-per-screen onboarding wizard (Typeform style):
- * question panel on the left, stock photo on the right. All answers are held
- * client-side and submitted in a single POST at the end (register API is
- * rate-limited to 3/hr, so no per-step writes).
+ * One-question-per-screen signup (Typeform style): question panel left,
+ * stock photo right. Deliberately short — just enough to create the account
+ * and seed a price book. Everything else (hours, service area, branding,
+ * booking form) belongs to the AI setup assistant this flow lands on, so
+ * nothing is asked twice. Answers are held client-side and submitted in one
+ * POST at the end (register API is rate-limited to 3/hr).
  */
 
 const STOCK = {
   basics: "https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&w=1600&q=80",
   account: "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?auto=format&fit=crop&w=1600&q=80",
   industry: "https://images.unsplash.com/photo-1426927308491-6380b6a9936f?auto=format&fit=crop&w=1600&q=80",
-  teamSize: "https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=1600&q=80",
-  software: "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=1600&q=80",
-  priority: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1600&q=80",
-  referral: "https://images.unsplash.com/photo-1600880292203-757bb62b4baf?auto=format&fit=crop&w=1600&q=80",
   payments: "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=1600&q=80",
   finish: "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=1600&q=80",
 } as const;
 
-const TEAM_SIZES = ["Just me", "2–5 people", "6–10 people", "11+ people"];
-
-const SOFTWARE_OPTIONS = [
-  "Pen & paper",
-  "Spreadsheets",
-  "Jobber",
-  "Housecall Pro",
-  "Another software",
-  "Nothing yet",
-];
-
-const PRIORITIES = [
-  "Win more jobs",
-  "Get paid faster",
-  "Stay organized & on schedule",
-  "Look more professional",
-];
-
-const REFERRAL_SOURCES = ["Google search", "Social media", "Friend or colleague", "Other"];
-
-type StepId =
-  | "basics"
-  | "account"
-  | "industry"
-  | "teamSize"
-  | "software"
-  | "priority"
-  | "referral"
-  | "payments"
-  | "finish";
+type StepId = "basics" | "account" | "industry" | "payments" | "finish";
 
 const STEPS: { id: StepId; image: string }[] = [
   { id: "basics", image: STOCK.basics },
   { id: "account", image: STOCK.account },
   { id: "industry", image: STOCK.industry },
-  { id: "teamSize", image: STOCK.teamSize },
-  { id: "software", image: STOCK.software },
-  { id: "priority", image: STOCK.priority },
-  { id: "referral", image: STOCK.referral },
   { id: "payments", image: STOCK.payments },
   { id: "finish", image: STOCK.finish },
 ];
@@ -135,14 +100,16 @@ export default function RegisterPage() {
     }
 
     // Auto sign in after registration, then do a full page load so the app
-    // layout re-renders with the new session (sidebar included)
+    // layout re-renders with the new session (sidebar included). Land in the
+    // setup assistant — it owns everything signup doesn't ask (hours, service
+    // area, branding, booking form), so the two flows never repeat a question.
     await signIn("credentials", {
       email: form.email,
       password: form.password,
       redirect: false,
     });
 
-    window.location.href = "/app/dashboard";
+    window.location.href = "/app/setup";
   }
 
   const inputClass =
@@ -362,104 +329,6 @@ export default function RegisterPage() {
               </div>
             )}
 
-            {current.id === "teamSize" && (
-              <div>
-                <h1 className="numeral-ledger text-2xl font-semibold text-gray-900 mb-1">How big is your team?</h1>
-                <p className="text-sm text-gray-500 mb-6">
-                  Unlimited users either way — this just helps us set things up for you.
-                </p>
-                <div className="space-y-2">
-                  {TEAM_SIZES.map((size) => (
-                    <button
-                      key={size}
-                      type="button"
-                      onClick={() => pick("teamSize", size)}
-                      className={selectedClass(form.teamSize === size)}
-                    >
-                      {size}
-                    </button>
-                  ))}
-                </div>
-                <button type="button" onClick={next} className="mt-4 text-sm text-gray-400 hover:text-gray-600">
-                  Skip this question
-                </button>
-              </div>
-            )}
-
-            {current.id === "software" && (
-              <div>
-                <h1 className="numeral-ledger text-2xl font-semibold text-gray-900 mb-1">
-                  How do you run things today?
-                </h1>
-                <p className="text-sm text-gray-500 mb-6">
-                  Switching from another tool? We&apos;ve made it easy to feel at home.
-                </p>
-                <div className="space-y-2">
-                  {SOFTWARE_OPTIONS.map((opt) => (
-                    <button
-                      key={opt}
-                      type="button"
-                      onClick={() => pick("currentSoftware", opt)}
-                      className={selectedClass(form.currentSoftware === opt)}
-                    >
-                      {opt}
-                    </button>
-                  ))}
-                </div>
-                <button type="button" onClick={next} className="mt-4 text-sm text-gray-400 hover:text-gray-600">
-                  Skip this question
-                </button>
-              </div>
-            )}
-
-            {current.id === "priority" && (
-              <div>
-                <h1 className="numeral-ledger text-2xl font-semibold text-gray-900 mb-1">
-                  What matters most to you right now?
-                </h1>
-                <p className="text-sm text-gray-500 mb-6">
-                  We&apos;ll point you at the right features first.
-                </p>
-                <div className="space-y-2">
-                  {PRIORITIES.map((p) => (
-                    <button
-                      key={p}
-                      type="button"
-                      onClick={() => pick("topPriority", p)}
-                      className={selectedClass(form.topPriority === p)}
-                    >
-                      {p}
-                    </button>
-                  ))}
-                </div>
-                <button type="button" onClick={next} className="mt-4 text-sm text-gray-400 hover:text-gray-600">
-                  Skip this question
-                </button>
-              </div>
-            )}
-
-            {current.id === "referral" && (
-              <div>
-                <h1 className="numeral-ledger text-2xl font-semibold text-gray-900 mb-1">How did you hear about us?</h1>
-                <p className="text-sm text-gray-500 mb-6">Last quick question, promise.</p>
-                <div className="space-y-2">
-                  {REFERRAL_SOURCES.map((src) => (
-                    <button
-                      key={src}
-                      type="button"
-                      onClick={() => pick("referralSource", src)}
-                      className={selectedClass(form.referralSource === src)}
-                    >
-                      {src}
-                    </button>
-                  ))}
-                </div>
-                <button type="button" onClick={next} className="mt-4 text-sm text-gray-400 hover:text-gray-600">
-                  Skip this question
-                </button>
-              </div>
-            )}
-
             {current.id === "payments" && (
               <div>
                 <h1 className="numeral-ledger text-2xl font-semibold text-gray-900 mb-1">Getting paid</h1>
@@ -531,7 +400,7 @@ export default function RegisterPage() {
                       : "An empty price book ready for your services",
                     "Quotes, jobs, invoices & scheduling",
                     "Your client hub and online booking form",
-                    "Manual payment tracking (card payments coming soon)",
+                    "A 2-minute assistant to finish setup — it finds your business online and pulls in your info, logo & colors",
                   ].map((item) => (
                     <li key={item} className="flex items-center gap-3 text-sm text-gray-700">
                       <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center shrink-0">
