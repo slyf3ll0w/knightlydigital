@@ -2339,6 +2339,274 @@ const tools: Tool[] = [
       });
     },
   },
+  {
+    decl: {
+      name: "assign_client",
+      description:
+        "Stage assigning a client to a team member (their lead owner — Sales/Tech roles only see clients assigned to them). Get the member's id from list_team first. Pass an empty memberId to unassign. Confirmation card required.",
+      parameters: {
+        type: "object",
+        properties: {
+          clientId: { type: "string" },
+          memberId: { type: "string", description: "User id from list_team; empty string unassigns" },
+        },
+        required: ["clientId"],
+      },
+    },
+    allowed: (a) => isManager(a.role),
+    run: async (actor, args, ctx) => {
+      const contact = await findContact(actor, str(args.clientId, 40));
+      if (!contact) return { error: "No client with that id (or not visible to this user)." };
+      const memberId = str(args.memberId, 40);
+      if (!memberId) {
+        return stage(ctx, {
+          kind: "assign_client",
+          title: `Unassign ${clientName(contact)}`,
+          lines: ["Removes the assigned team member — managers still see the client."],
+          endpoint: `/api/app/contacts/${contact.id}`,
+          method: "PATCH",
+          payload: { assignedToId: null },
+        });
+      }
+      const member = await prisma.user.findFirst({
+        where: { id: memberId, companyId: actor.companyId, isActive: true },
+        select: { id: true, name: true, role: true },
+      });
+      if (!member) return { error: "No active team member with that id — check list_team." };
+      return stage(ctx, {
+        kind: "assign_client",
+        title: `Assign ${clientName(contact)} to ${member.name}`,
+        lines: [`${member.name} (${roleLabel[member.role] ?? member.role}) becomes this client's lead.`],
+        endpoint: `/api/app/contacts/${contact.id}`,
+        method: "PATCH",
+        payload: { assignedToId: member.id },
+      });
+    },
+  },
+  {
+    decl: {
+      name: "list_agreement_templates",
+      description:
+        "The company's reusable agreement/contract templates (id, name, size). These are the templates send_agreement can send; create_agreement_template adds new ones.",
+      parameters: { type: "object", properties: {} },
+    },
+    allowed: (a) => canSell(a.role),
+    run: async (actor) => {
+      const rows = await prisma.contractTemplate.findMany({
+        where: { companyId: actor.companyId, isActive: true },
+        take: 25,
+        orderBy: { name: "asc" },
+        select: { id: true, name: true, body: true },
+      });
+      return {
+        templates: rows.map((t) => ({
+          id: t.id,
+          name: t.name,
+          preview: t.body.replace(/\s+/g, " ").slice(0, 120),
+          characters: t.body.length,
+        })),
+      };
+    },
+  },
+  {
+    decl: {
+      name: "create_agreement_template",
+      description:
+        "Stage saving a reusable agreement/contract template. YOU write the full agreement text: complete, professional, plain text with numbered sections (services, payment, ownership/IP if relevant, term & cancellation, liability). Use the placeholders {{client_name}}, {{company_name}} and {{date}} — they fill in automatically when the agreement is sent. Don't ask permission to draft — write a solid draft; the user reviews it on the card and can edit later at /app/settings/contracts. Confirmation card required.",
+      parameters: {
+        type: "object",
+        properties: {
+          name: { type: "string", description: "Template name, e.g. 'Custom Web Design Agreement'" },
+          body: { type: "string", description: "The complete agreement text" },
+        },
+        required: ["name", "body"],
+      },
+    },
+    allowed: (a) => isManager(a.role),
+    run: async (_actor, args, ctx) => {
+      const name = str(args.name, 100);
+      const body = str(args.body, 50000);
+      if (!name || body.length < 100) {
+        return { error: "name and a complete agreement body (write the full text) are required" };
+      }
+      const preview = body
+        .split("\n")
+        .map((l) => l.trim())
+        .filter(Boolean)
+        .slice(0, 3)
+        .map((l) => l.slice(0, 110));
+      return stage(ctx, {
+        kind: "create_agreement_template",
+        title: `Create agreement template "${name}"`,
+        lines: [...preview, `…${body.length.toLocaleString()} characters — editable at /app/settings/contracts`],
+        endpoint: "/api/app/contract-templates",
+        method: "POST",
+        payload: { name, body },
+      });
+    },
+  },
+  {
+    decl: {
+      name: "update_agreement_template",
+      description:
+        "Stage renaming, rewriting, or archiving an agreement template. Get the id from list_agreement_templates. Only include fields that should change; archive:true retires it. Confirmation card required.",
+      parameters: {
+        type: "object",
+        properties: {
+          templateId: { type: "string" },
+          name: { type: "string" },
+          body: { type: "string", description: "Full replacement text (not a diff)" },
+          archive: { type: "boolean" },
+        },
+        required: ["templateId"],
+      },
+    },
+    allowed: (a) => isManager(a.role),
+    run: async (actor, args, ctx) => {
+      const template = await prisma.contractTemplate.findFirst({
+        where: { id: str(args.templateId, 40), companyId: actor.companyId },
+        select: { id: true, name: true },
+      });
+      if (!template) return { error: "No template with that id — check list_agreement_templates." };
+      const payload: Record<string, unknown> = {};
+      const lines: string[] = [];
+      const name = str(args.name, 100);
+      if (name && name !== template.name) {
+        payload.name = name;
+        lines.push(`Rename to: ${name}`);
+      }
+      const body = str(args.body, 50000);
+      if (body) {
+        payload.body = body;
+        lines.push(`New text: ${body.replace(/\s+/g, " ").slice(0, 90)}… (${body.length.toLocaleString()} characters)`);
+      }
+      if (args.archive === true) {
+        payload.isActive = false;
+        lines.push("Archive — it disappears from the template list");
+      }
+      if (lines.length === 0) return { error: "Nothing to change — provide name, body, or archive." };
+      return stage(ctx, {
+        kind: "update_agreement_template",
+        title: `Update template "${template.name}"`,
+        lines,
+        endpoint: `/api/app/contract-templates/${template.id}`,
+        method: "PATCH",
+        payload,
+      });
+    },
+  },
+  {
+    decl: {
+      name: "send_agreement",
+      description:
+        "Stage sending an agreement to a client for e-signature. UNLIKE quote/invoice sending, confirming this card really EMAILS the client a signing link (if they have an email on file). Use a saved template (id from list_agreement_templates) or provide a custom title + body. Optional quoteId ties the signature to that quote's convert-to-job gate. Confirmation card required.",
+      parameters: {
+        type: "object",
+        properties: {
+          clientId: { type: "string" },
+          templateId: { type: "string", description: "Saved template to send" },
+          title: { type: "string", description: "Custom agreement title (when not using a template)" },
+          body: { type: "string", description: "Custom agreement text (when not using a template)" },
+          quoteId: { type: "string" },
+        },
+        required: ["clientId"],
+      },
+    },
+    allowed: (a) => canSell(a.role),
+    run: async (actor, args, ctx) => {
+      const contact = await prisma.contact.findFirst({
+        where: { id: str(args.clientId, 40), companyId: actor.companyId, ...contactScope(actor) },
+        select: { id: true, firstName: true, lastName: true, companyName: true, email: true },
+      });
+      if (!contact) return { error: "No client with that id (or not visible to this user)." };
+      const templateId = str(args.templateId, 40);
+      const title = str(args.title, 120);
+      const body = str(args.body, 50000);
+      let displayTitle = title;
+      if (templateId) {
+        const template = await prisma.contractTemplate.findFirst({
+          where: { id: templateId, companyId: actor.companyId, isActive: true },
+          select: { name: true },
+        });
+        if (!template) return { error: "No active template with that id — check list_agreement_templates." };
+        displayTitle = title || template.name;
+      } else if (!title || body.length < 100) {
+        return { error: "Provide a templateId, or a title plus the full agreement body." };
+      }
+      return stage(ctx, {
+        kind: "send_agreement",
+        title: `Send "${displayTitle}" to ${clientName(contact)}`,
+        lines: [
+          contact.email
+            ? `Emails a signing link to ${contact.email} immediately on confirm.`
+            : "No email on file — the signing link will be on the agreement page to share manually.",
+        ],
+        endpoint: "/api/app/contracts",
+        method: "POST",
+        payload: {
+          contactId: contact.id,
+          ...(templateId ? { templateId } : {}),
+          ...(title ? { title } : {}),
+          ...(body ? { body } : {}),
+          ...(str(args.quoteId, 40) ? { quoteId: str(args.quoteId, 40) } : {}),
+        },
+      });
+    },
+  },
+  {
+    decl: {
+      name: "create_service",
+      description:
+        "Stage adding a new service or product to the price book. Check get_price_book first to avoid duplicates. priceDisplay: FIXED, STARTING_AT, HOURLY, or QUOTE. durationMinutes makes it schedulable/bookable. Confirmation card required.",
+      parameters: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          description: { type: "string" },
+          type: { type: "string", enum: ["SERVICE", "PRODUCT"] },
+          price: { type: "number" },
+          cost: { type: "number", description: "Internal cost (optional)" },
+          durationMinutes: { type: "number" },
+          priceDisplay: { type: "string", enum: ["FIXED", "STARTING_AT", "HOURLY", "QUOTE"] },
+        },
+        required: ["name", "price"],
+      },
+    },
+    allowed: (a) => isManager(a.role),
+    run: async (_actor, args, ctx) => {
+      const name = str(args.name, 100);
+      const price = num(args.price);
+      if (!name || price === null || price < 0 || price > 100000) {
+        return { error: "name and a price between 0 and 100000 are required" };
+      }
+      const cost = num(args.cost);
+      const duration = num(args.durationMinutes);
+      const priceDisplay = ["FIXED", "STARTING_AT", "HOURLY", "QUOTE"].includes(str(args.priceDisplay, 20))
+        ? str(args.priceDisplay, 20)
+        : "FIXED";
+      const type = str(args.type, 10) === "PRODUCT" ? "PRODUCT" : "SERVICE";
+      return stage(ctx, {
+        kind: "create_service",
+        title: `Add ${type === "PRODUCT" ? "product" : "service"} "${name}" — ${money(price)}`,
+        lines: [
+          str(args.description, 300) && `Description: ${str(args.description, 300)}`,
+          `Pricing: ${priceDisplay === "FIXED" ? "fixed price" : priceDisplay === "STARTING_AT" ? "starting at" : priceDisplay.toLowerCase()} ${money(price)}${cost !== null ? ` (cost ${money(cost)})` : ""}`,
+          duration ? `Duration: ${duration} min (schedulable)` : "No duration — quote-only for now",
+        ].filter(Boolean) as string[],
+        endpoint: "/api/app/work-items",
+        method: "POST",
+        payload: {
+          name,
+          description: str(args.description, 300) || null,
+          type,
+          unitPrice: price,
+          unitCost: cost,
+          durationMinutes: duration && duration >= 5 && duration <= 600 ? duration : null,
+          priceDisplay,
+        },
+      });
+    },
+  },
 ];
 
 export function toolsForActor(actor: Actor): Tool[] {
@@ -2377,14 +2645,15 @@ Data rules:
 - Be proactive: when results show something actionable (past-due invoices, week-old unanswered quotes, unsigned agreements, unscheduled jobs), mention it briefly even if not asked.
 
 Actions:
-- You CAN do things, with the user's confirmation: add/update/archive clients, add client notes, create requests, draft quotes and invoices, mark quotes sent/approved and invoices sent, convert approved quotes to jobs, create/reschedule/complete/close jobs, schedule/reschedule/cancel appointments, record/correct/remove payments, log/correct/delete expenses, update price-book prices/durations, email a client their portal link, manage the team (add members, change roles, deactivate, bookable), change company settings and business hours, and permanently delete clients. When asked, gather what you need first (search for the client, check the price book before quoting, find the invoice or job number, get the appointment id from get_schedule or get_client_activity, get member ids from list_team), then call the action tool ONCE. It shows the user a confirmation card; tell them to review and press Confirm. Never claim something was done — the card does it only after they confirm.
+- You CAN do things, with the user's confirmation: add/update/archive clients, assign clients to team members, add client notes, create requests, draft quotes and invoices, mark quotes sent/approved and invoices sent, convert approved quotes to jobs, create/reschedule/complete/close jobs, schedule/reschedule/cancel appointments, record/correct/remove payments, log/correct/delete expenses, add price-book services/products and update prices/durations, write and save agreement templates, send agreements for e-signature, email a client their portal link, manage the team (add members, change roles, deactivate, bookable), change company settings and business hours, and permanently delete clients. When asked, gather what you need first (search for the client, check the price book before quoting, find the invoice or job number, get the appointment id from get_schedule or get_client_activity, get member ids from list_team), then call the action tool ONCE. It shows the user a confirmation card; tell them to review and press Confirm. Never claim something was done — the card does it only after they confirm.
 - Chain lookups yourself — if the user says "cancel Tuesday's appointment with Ben", find it (get_schedule or search + activity) and stage the cancellation; don't ask them for ids.
 - BULK WORK is supported and expected. "Reformat every client's phone number", "archive all my leads from last year": fetch the full list (list_clients etc.), compute each change yourself (you are good at reformatting, renaming, recalculating), then stage one update per affected record — call the action tool once per record, several per round is fine. Skip records that already match. Similar changes are automatically combined into ONE confirmation card, so a big batch is still a single Confirm for the user. Before answering, COUNT: if the user asked for N records and you staged fewer, stage the missing ones first (a tool result saying NOT EXECUTED means exactly that — re-issue the call). In your reply, state how many you staged and how many you skipped and why. NEVER refuse doable work or tell the user to do it by hand on a page — that is a last resort for things you truly have no tool for.
-- "Sending" a quote or invoice through YOUR tools only marks it sent in the system — no email goes out from the assistant. After they confirm, remind them the quote/invoice page has an "Email to Client" button that actually emails the link (or they can Copy link / use the client portal).
+- "Sending" a quote or invoice through YOUR tools only marks it sent in the system — no email goes out from the assistant. After they confirm, remind them the quote/invoice page has an "Email to Client" button that actually emails the link (or they can Copy link / use the client portal). EXCEPTION: send_agreement really emails the client a signing link when confirmed — say so.
+- Agreements: when asked for a contract/agreement, WRITE it — a complete, professional plain-text agreement with numbered sections tailored to what they described (services, payment, ownership/IP transfer if relevant, term & cancellation, liability), using {{client_name}}, {{company_name}} and {{date}} placeholders. Stage it with create_agreement_template; don't ask for details you can reasonably default, and never just point at the settings page.
 - Refunds are bookkeeping here (no card processor yet): the money goes back to the client outside the app, then you correct the books — edit_payment for a partial refund, delete_payment when fully refunded or logged by mistake. Owners/admins only.
 - Team rules: owners manage everyone; admins only Sales + Tech, Sales, and Tech members. The system blocks deactivating yourself or removing the last owner.
 - Deletion destroys a client AND all their quotes/jobs/invoices/payments permanently. For anyone with real history, recommend archiving (set_client_status ARCHIVED) and only stage deletion if the user insists or it's clearly spam/test data. The card makes them type the client's name as a final check.
-- For the few things you can't stage (designing booking forms, contract templates, creating new price-book services, uploading a logo), point them to the right page path from the list below.
+- For the few things you can't stage (designing booking forms, uploading a logo), point them to the right page path from the list below.
 
 Style:
 - Concise and concrete. Plain text only — no markdown symbols like ** or #. Use "-" for lists.
