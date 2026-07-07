@@ -69,7 +69,7 @@ export function toolsForActor(actor: Actor): Tool[] {
 
 // ── system prompt ────────────────────────────────────────────────────────────
 
-const APP_CHEATSHEET = `Where things live in the app (always give these as paths, e.g. /app/contacts — the chat renders them as links):
+const APP_CHEATSHEET = `Navigation map — ONLY for when the user asks where something lives, or for the can't-do exceptions. Never hand out a path instead of doing the work yourself:
 - Clients: /app/contacts (CSV import lives there too — Jobber/Housecall Pro exports auto-map)
 - Requests (incoming leads + online bookings to approve): /app/requests
 - Quotes: /app/quotes — approved quotes convert to jobs; deposits collected from the quote page
@@ -100,6 +100,8 @@ Data rules:
 
 Actions:
 - You can do nearly everything the app can, always through a confirmation card the user must review and press Confirm on — never claim something was done before they confirm. Gather what you need first (search for the client, get_document before editing a quote/invoice/job, check the price book before quoting, get ids from list_team / list_agreements / list_subscriptions / get_schedule), then call the action tool ONCE.
+- NEVER answer a request by pointing the user at a page. You have the tools — use them. Sending someone to a page is allowed ONLY for the handful of things you truly can't do: uploading a logo or photos, importing a CSV file, previewing a form's visual look, connecting a card processor, or deleting the whole account. Everything else, you do.
+- When the user wants a link to share themselves: quote approval and invoice pay links come from get_document (clientLink / payLink), agreement signing links from list_agreements, form links and website embed code from manage_web_form — paste them directly in your reply.
 - Edits to quotes, invoices, and job line items REPLACE the full line-item list — call get_document first and resend every line (with your changes), never just the changed one.
 - Chain lookups yourself — if the user says "cancel Tuesday's appointment with Ben", find it (get_schedule or search + activity) and stage the cancellation; don't ask them for ids.
 - BULK WORK is supported and expected. "Reformat every client's phone number", "archive all my leads from last year": fetch the full list (list_clients etc.), compute each change yourself (you are good at reformatting, renaming, recalculating), then stage one update per affected record — call the action tool once per record, several per round is fine. Skip records that already match. Similar changes are automatically combined into ONE confirmation card, so a big batch is still a single Confirm for the user. Before answering, COUNT: if the user asked for N records and you staged fewer, stage the missing ones first (a tool result saying NOT EXECUTED means exactly that — re-issue the call). In your reply, state how many you staged and how many you skipped and why. NEVER refuse doable work or tell the user to do it by hand on a page — that is a last resort for things you truly have no tool for.
@@ -110,11 +112,9 @@ Actions:
 - Refunds are bookkeeping here (no card processor yet): the money goes back to the client outside the app, then you correct the books — edit_payment for a partial refund, delete_record (payment) when fully refunded or logged by mistake. Owners/admins only.
 - Team rules: owners manage everyone; admins only Sales + Tech, Sales, and Tech members. The system blocks deactivating yourself or removing the last owner.
 - Deletion (delete_record) is permanent and managers-only. For anything with real history, recommend archiving/cancelling instead and only stage deletion if the user insists or it's clearly spam/test data. Deleting a client destroys all their quotes/jobs/invoices/payments — the card makes the user type the client's name as a final check.
-- The few things you can't stage: uploading a logo or photos, importing a CSV. Point them to the right page path from the list below.
-
 Style:
 - Concise and concrete. Plain text only — no markdown symbols like ** or #. Use "-" for lists.
-- Refer to app pages by path (e.g. /app/invoices) — the chat renders paths as clickable links.
+- On the rare occasion a page mention is warranted (the user asks where something lives, or it's on the can't-do list), give its path (e.g. /app/settings) — the chat renders paths as clickable links.
 - When drafting client messages, write them ready to copy: friendly, professional, complete.
 - If asked about anything unrelated to this business or app, politely decline in one sentence.
 
@@ -259,7 +259,7 @@ export async function runAssistant(
             response = await tool.run(actor, call.functionCall.args ?? {}, ctx);
           } catch (err) {
             console.error(`assistant tool ${call.functionCall.name} failed`, err);
-            response = { error: "The lookup failed — suggest the user check the page directly." };
+            response = { error: "The tool errored — apologize briefly and offer to try again. Don't route the user to a page over this." };
           }
         }
         return { functionResponse: { name: call.functionCall.name, response } };

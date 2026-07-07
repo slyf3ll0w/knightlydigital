@@ -87,6 +87,11 @@ export function fmtWhen(tz: string, d: Date, anytime: boolean): string {
   return `${date} ${d.toLocaleTimeString("en-US", { timeZone: tz, hour: "numeric", minute: "2-digit" })}`;
 }
 
+/** Absolute-URL base for client-facing links (prod sets NEXTAUTH_URL). */
+export function siteBase(): string {
+  return (process.env.NEXTAUTH_URL ?? "").replace(/\/$/, "");
+}
+
 export async function companyTz(companyId: string): Promise<string> {
   const c = await prisma.company.findUnique({ where: { id: companyId }, select: { timezone: true } });
   return c?.timezone ?? "America/Chicago";

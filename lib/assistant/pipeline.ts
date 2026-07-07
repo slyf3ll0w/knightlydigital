@@ -15,6 +15,7 @@ import {
   findContact,
   stage,
   parseLineItems,
+  siteBase,
   LINE_ITEMS_PARAM,
 } from "./core";
 
@@ -118,7 +119,7 @@ export const pipelineTools: Tool[] = [
     decl: {
       name: "get_document",
       description:
-        "One quote, invoice, or job in full detail by its number — including every line item. ALWAYS call this before update_quote/update_invoice/update_job edits: edits replace ALL line items, so start from the current ones.",
+        "One quote, invoice, or job in full detail by its number — including every line item and (quote/invoice) the client-facing link to approve/pay, for when the user wants a link to text or paste somewhere. ALWAYS call this before update_quote/update_invoice/update_job edits: edits replace ALL line items, so start from the current ones.",
       parameters: {
         type: "object",
         properties: {
@@ -142,7 +143,7 @@ export const pipelineTools: Tool[] = [
           select: {
             quoteNumber: true, title: true, status: true, total: true, notes: true,
             clientMessage: true, discountType: true, discountValue: true, taxRate: true,
-            depositType: true, depositValue: true, sentAt: true,
+            depositType: true, depositValue: true, sentAt: true, publicToken: true,
             contact: { select: { firstName: true, lastName: true, companyName: true } },
             lineItems: {
               orderBy: { sortOrder: "asc" },
@@ -154,6 +155,7 @@ export const pipelineTools: Tool[] = [
         return {
           n: q.quoteNumber, title: q.title, status: q.status, client: clientName(q.contact),
           sent: q.sentAt?.toISOString().slice(0, 10),
+          clientLink: `${siteBase()}/quote/${q.publicToken}`,
           clientMessage: q.clientMessage, notes: q.notes,
           ...(seePrices
             ? {
@@ -175,7 +177,7 @@ export const pipelineTools: Tool[] = [
           where: { companyId: actor.companyId, invoiceNumber: n, ...viaContactScope(actor) },
           select: {
             invoiceNumber: true, subject: true, status: true, total: true, notes: true,
-            discountType: true, discountValue: true, taxRate: true, dueDate: true,
+            discountType: true, discountValue: true, taxRate: true, dueDate: true, publicToken: true,
             contact: { select: { firstName: true, lastName: true, companyName: true } },
             payments: { select: { amount: true } },
             lineItems: {
@@ -190,6 +192,7 @@ export const pipelineTools: Tool[] = [
           n: i.invoiceNumber, subject: i.subject, status: i.status,
           client: i.contact ? clientName(i.contact) : null,
           total: money(i.total), paid: money(paid),
+          payLink: `${siteBase()}/pay/${i.publicToken}`,
           due: i.dueDate?.toISOString().slice(0, 10), notes: i.notes,
           discount: i.discountType !== "NONE" ? `${i.discountType} ${i.discountValue}` : null,
           taxRate: i.taxRate ? Number(i.taxRate) : null,
@@ -613,7 +616,7 @@ export const pipelineTools: Tool[] = [
           `Deposit: ${quote.depositType === "FULL" ? "full amount" : `${quote.depositType} ${quote.depositValue ?? ""}`.trim()} of ${money(quote.total)}`,
           quote.contact.email
             ? `Emails the pay link to ${quote.contact.email}.`
-            : "Client has no email — the pay link will be on the invoice page to share manually.",
+            : "Client has no email — ask me for the deposit invoice's pay link afterward to share it yourself.",
         ],
         endpoint: `/api/app/quotes/${quote.id}/collect-deposit`,
         method: "POST",

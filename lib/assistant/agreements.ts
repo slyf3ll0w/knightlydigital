@@ -1,6 +1,6 @@
 import { prisma } from "../db";
 import { canSell, isManager, contactScope, viaContactScope } from "../permissions";
-import { type Tool, str, clientName, stage } from "./core";
+import { type Tool, str, clientName, stage, siteBase } from "./core";
 
 /** Agreements/contracts: templates, sending for e-signature, void/edit. */
 export const agreementTools: Tool[] = [
@@ -8,7 +8,7 @@ export const agreementTools: Tool[] = [
     decl: {
       name: "list_agreements",
       description:
-        "Contracts/service agreements across all clients with id (needed for update_agreement/delete_record) and signature status. filter: 'outstanding' (sent or drafted, not yet signed), 'signed', or 'all'.",
+        "Contracts/service agreements across all clients with id (needed for update_agreement/delete_record), signature status, and each unsigned agreement's client signing link (for when the user wants to share it themselves). filter: 'outstanding' (sent or drafted, not yet signed), 'signed', or 'all'.",
       parameters: {
         type: "object",
         properties: { filter: { type: "string", enum: ["outstanding", "signed", "all"] } },
@@ -27,7 +27,7 @@ export const agreementTools: Tool[] = [
         where: { companyId: actor.companyId, ...viaContactScope(actor), ...status },
         take: 15, orderBy: { updatedAt: "desc" },
         select: {
-          id: true, title: true, status: true, sentAt: true, signedAt: true,
+          id: true, title: true, status: true, sentAt: true, signedAt: true, publicToken: true,
           contact: { select: { firstName: true, lastName: true, companyName: true } },
           quote: { select: { quoteNumber: true } },
         },
@@ -37,6 +37,9 @@ export const agreementTools: Tool[] = [
           id: k.id, title: k.title, client: clientName(k.contact), status: k.status,
           sent: k.sentAt?.toISOString().slice(0, 10),
           signed: k.signedAt?.toISOString().slice(0, 10) ?? null,
+          ...(k.status === "DRAFT" || k.status === "SENT"
+            ? { signingLink: `${siteBase()}/contract/${k.publicToken}` }
+            : {}),
           ...(k.quote ? { quoteN: k.quote.quoteNumber } : {}),
         })),
       };
@@ -71,7 +74,7 @@ export const agreementTools: Tool[] = [
     decl: {
       name: "create_agreement_template",
       description:
-        "Stage saving a reusable agreement/contract template. YOU write the full agreement text: complete, professional, plain text with numbered sections (services, payment, ownership/IP if relevant, term & cancellation, liability). Use the placeholders {{client_name}}, {{company_name}} and {{date}} — they fill in automatically when the agreement is sent. Don't ask permission to draft — write a solid draft; the user reviews it on the card and can edit later at /app/settings/contracts. Confirmation card required.",
+        "Stage saving a reusable agreement/contract template. YOU write the full agreement text: complete, professional, plain text with numbered sections (services, payment, ownership/IP if relevant, term & cancellation, liability). Use the placeholders {{client_name}}, {{company_name}} and {{date}} — they fill in automatically when the agreement is sent. Don't ask permission to draft — write a solid draft; the user reviews it on the card and you can revise it later with update_agreement_template. Confirmation card required.",
       parameters: {
         type: "object",
         properties: {
@@ -97,7 +100,7 @@ export const agreementTools: Tool[] = [
       return stage(ctx, {
         kind: "create_agreement_template",
         title: `Create agreement template "${name}"`,
-        lines: [...preview, `…${body.length.toLocaleString()} characters — editable at /app/settings/contracts`],
+        lines: [...preview, `…${body.length.toLocaleString()} characters — ask me anytime to revise it`],
         endpoint: "/api/app/contract-templates",
         method: "POST",
         payload: { name, body },
@@ -198,7 +201,7 @@ export const agreementTools: Tool[] = [
         lines: [
           contact.email
             ? `Emails a signing link to ${contact.email} immediately on confirm.`
-            : "No email on file — the signing link will be on the agreement page to share manually.",
+            : "No email on file — ask me for the signing link afterward to share it yourself.",
         ],
         endpoint: "/api/app/contracts",
         method: "POST",
@@ -240,16 +243,20 @@ export const agreementTools: Tool[] = [
       });
       if (!contract) return { error: "No agreement with that id — check list_agreements." };
       if (args.void === true) {
-        if (contract.status === "SIGNED") {
-          return { error: "This agreement is already signed — voiding it won't un-sign it. Are they sure? It can still be voided from /app/contracts if so." };
-        }
+        const signed = contract.status === "SIGNED";
         return stage(ctx, {
           kind: "update_agreement",
           title: `Void "${contract.title}"`,
-          lines: [`Client: ${clientName(contract.contact)}`, "The signing link stops working. Reversible (unvoid)."],
+          lines: [
+            `Client: ${clientName(contract.contact)}`,
+            signed
+              ? "This agreement is SIGNED — voiding retires it but does not erase the signature record."
+              : "The signing link stops working. Reversible (unvoid).",
+          ],
           endpoint: `/api/app/contracts/${contract.id}`,
           method: "PATCH",
           payload: { status: "VOID" },
+          ...(signed ? { danger: true } : {}),
         });
       }
       if (args.unvoid === true) {

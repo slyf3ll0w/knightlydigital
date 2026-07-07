@@ -18,7 +18,7 @@ import {
   sanitizeBusinessHours,
   timeToMinutes,
 } from "../business-hours";
-import { type Tool, str, num, money, stage } from "./core";
+import { type Tool, str, num, money, stage, siteBase } from "./core";
 
 /** kebab-case a label into a stable config key/id. */
 function slugId(label: string): string {
@@ -167,7 +167,7 @@ export const companyTools: Tool[] = [
     decl: {
       name: "update_company_settings",
       description:
-        "Stage changes to company settings: business name, phone, email, address/city/state/zip, website, review link, timezone (IANA, e.g. America/Chicago), arrival window minutes, the assistant's display name (assistantName), and the online-booking service area (addServiceZips / removeServiceZips — 5-digit ZIPs). Only include what should change. Confirmation card required.",
+        "Stage changes to company settings: business name, phone, email, address/city/state/zip, website, review link, brand color (#rrggbb), timezone (IANA, e.g. America/Chicago), arrival window minutes, the assistant's display name (assistantName), card surcharge (surchargeEnabled + surchargePercent, e.g. 3 for 3%), the company-default deposit on new quotes (defaultDepositType PERCENT/FIXED/FULL/NONE + defaultDepositValue), and the online-booking service area (addServiceZips / removeServiceZips — 5-digit ZIPs). Only include what should change. Confirmation card required.",
       parameters: {
         type: "object",
         properties: {
@@ -180,9 +180,14 @@ export const companyTools: Tool[] = [
           zip: { type: "string" },
           website: { type: "string" },
           reviewLink: { type: "string" },
+          brandColor: { type: "string", description: "#rrggbb" },
           timezone: { type: "string" },
           arrivalWindowMinutes: { type: "number" },
           assistantName: { type: "string" },
+          surchargeEnabled: { type: "boolean" },
+          surchargePercent: { type: "number", description: "e.g. 3 for a 3% card fee" },
+          defaultDepositType: { type: "string", enum: ["PERCENT", "FIXED", "FULL", "NONE"] },
+          defaultDepositValue: { type: "number" },
           addServiceZips: { type: "array", items: { type: "string" } },
           removeServiceZips: { type: "array", items: { type: "string" } },
         },
@@ -210,6 +215,34 @@ export const companyTools: Tool[] = [
           payload[key] = v;
           lines.push(`${label}: ${v}`);
         }
+      }
+      const brandColor = str(args.brandColor, 7);
+      if (brandColor) {
+        if (!/^#[0-9a-fA-F]{6}$/.test(brandColor)) {
+          return { error: `brandColor must be a 6-digit hex like #16A34A (got "${brandColor}").` };
+        }
+        payload.brandColor = brandColor;
+        lines.push(`Brand color: ${brandColor}`);
+      }
+      if (typeof args.surchargeEnabled === "boolean") {
+        payload.surchargeEnabled = args.surchargeEnabled;
+        lines.push(args.surchargeEnabled ? "Card surcharge: ON" : "Card surcharge: OFF");
+      }
+      const surcharge = num(args.surchargePercent);
+      if (surcharge !== null) {
+        if (surcharge < 0 || surcharge > 10) return { error: "surchargePercent must be 0–10." };
+        payload.surchargeRate = surcharge / 100; // stored as a fraction
+        lines.push(`Card surcharge rate: ${surcharge}%`);
+      }
+      const depositType = str(args.defaultDepositType, 10);
+      if (["PERCENT", "FIXED", "FULL", "NONE"].includes(depositType)) {
+        payload.defaultDepositType = depositType;
+        payload.defaultDepositValue = num(args.defaultDepositValue) ?? 0;
+        lines.push(
+          depositType === "NONE"
+            ? "Default deposit on new quotes: none"
+            : `Default deposit on new quotes: ${depositType === "FULL" ? "full amount" : `${depositType} ${num(args.defaultDepositValue) ?? 0}`}`
+        );
       }
       const tz = str(args.timezone, 60);
       if (tz) {
@@ -455,20 +488,26 @@ export const companyTools: Tool[] = [
         : item.recurringInterval;
       const nextRequiresAgreement =
         typeof args.requiresAgreement === "boolean" ? args.requiresAgreement : item.requiresAgreement;
+      // turning the requirement off with a template attached means detaching
+      // the template too (an attached template forces the gate back on)
+      const detachTemplate = args.requiresAgreement === false && item.agreementTemplateId !== null;
       payload.recurringInterval = nextInterval;
       payload.recurringCreatesJob = item.recurringCreatesJob;
       payload.recurringInvoiceMode = item.recurringInvoiceMode;
-      payload.agreementTemplateId = item.agreementTemplateId;
+      payload.agreementTemplateId = detachTemplate ? null : item.agreementTemplateId;
       payload.agreementTiming = item.agreementTiming;
       payload.requiresAgreement = nextRequiresAgreement;
       if (interval && nextInterval !== item.recurringInterval) {
         lines.push(nextInterval ? `Recurring billing: ${nextInterval}` : "Recurring billing: off");
       }
       if (typeof args.requiresAgreement === "boolean" && args.requiresAgreement !== item.requiresAgreement) {
-        if (!args.requiresAgreement && item.agreementTemplateId) {
-          return { error: "This item has an agreement template attached, which forces the agreement requirement — detach the template at /app/settings/products first." };
-        }
-        lines.push(args.requiresAgreement ? "Now requires a signed agreement before job conversion" : "Agreement requirement removed");
+        lines.push(
+          args.requiresAgreement
+            ? "Now requires a signed agreement before job conversion"
+            : detachTemplate
+              ? "Agreement requirement removed (attached template detached)"
+              : "Agreement requirement removed"
+        );
       }
       if (lines.length === 0) return { error: "Nothing to change — provide at least one field." };
       return stage(ctx, {
@@ -601,7 +640,9 @@ export const companyTools: Tool[] = [
           headline: { type: "string" },
           intro: { type: "string" },
           buttonLabel: { type: "string" },
+          buttonColor: { type: "string", description: "#rrggbb (overrides the brand color)" },
           theme: { type: "string", enum: ["light", "dark", "transparent"] },
+          fontSize: { type: "string", enum: ["sm", "md", "lg"] },
           fields: {
             type: "object",
             description: "standard field visibility, e.g. {\"address\":{\"show\":true,\"required\":false}}",
@@ -661,9 +702,7 @@ export const companyTools: Tool[] = [
         customFields?: Record<string, unknown>[];
       };
 
-      // Prod sets NEXTAUTH_URL; without it links come back relative and the
-      // model is told to prefix them with the site the user is on.
-      const baseUrl = (process.env.NEXTAUTH_URL ?? "").replace(/\/$/, "");
+      const baseUrl = siteBase();
       const formPath = (companySlug: string, f: { slug: string; isDefault: boolean }) =>
         f.isDefault ? companySlug : `${companySlug}/${f.slug}`;
 
@@ -813,10 +852,25 @@ export const companyTools: Tool[] = [
         lines.push(`Button: ${buttonLabel}`);
         cfgChanged = true;
       }
+      const buttonColor = str(args.buttonColor, 7);
+      if (buttonColor) {
+        if (!/^#[0-9a-fA-F]{6}$/.test(buttonColor)) {
+          return { error: `buttonColor must be a 6-digit hex like #16A34A (got "${buttonColor}").` };
+        }
+        cfg.button = { ...(cfg.button ?? {}), color: buttonColor };
+        lines.push(`Button color: ${buttonColor}`);
+        cfgChanged = true;
+      }
       const theme = str(args.theme, 12);
       if (["light", "dark", "transparent"].includes(theme)) {
         cfg.appearance = { ...(cfg.appearance ?? {}), theme };
         lines.push(`Theme: ${theme}`);
+        cfgChanged = true;
+      }
+      const fontSize = str(args.fontSize, 3);
+      if (["sm", "md", "lg"].includes(fontSize)) {
+        cfg.appearance = { ...(cfg.appearance ?? {}), fontSize };
+        lines.push(`Font size: ${fontSize}`);
         cfgChanged = true;
       }
       if (args.fields && typeof args.fields === "object") {
