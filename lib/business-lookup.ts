@@ -171,26 +171,35 @@ async function attachBranding(result: BusinessLookupResult, site: WebsiteInfo): 
     }
   }
   if (!result.logoUrl) result.logoUrl = unverifiedGuess;
-  // Last resort: Google's cached favicon for the domain — only when the
-  // vision check confirms it's actually the business's mark (favicons are
-  // low-res; a wrong OR ugly one hurts more than none).
-  if (!result.logoUrl) {
-    try {
-      const host = new URL(site.url).hostname;
-      const favicon = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=128`;
-      const check = await analyzeLogoCandidate(favicon, result.name);
-      if (check?.isLogo) {
-        result.logoUrl = favicon;
-        result.brandColor = result.brandColor ?? check.color;
-      }
-    } catch {
-      // favicon fallback is best-effort only
-    }
-  }
+  if (!result.logoUrl) await faviconFallback(result, site.url);
   if (!result.brandColor && site.themeColor && !isNeutralHex(site.themeColor)) {
     result.brandColor = site.themeColor;
   }
   if (!result.summary && site.description) result.summary = site.description.slice(0, 240);
+}
+
+/**
+ * Last-resort logo: Google's cached favicon for the domain — works even when
+ * the site itself blocks or fails our fetch. Used when the vision check
+ * confirms it's the business's mark, or unverified when the vision model is
+ * unavailable (the owner previews branding and can untick it — a candidate
+ * beats nothing).
+ */
+async function faviconFallback(result: BusinessLookupResult, siteUrl: string): Promise<void> {
+  try {
+    const host = new URL(siteUrl).hostname;
+    const favicon = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=128`;
+    // image must actually exist before it can be a candidate; vision-null
+    // after that means "couldn't check", not "not a logo"
+    if (!(await fetchLogoImage(favicon))) return;
+    const check = await analyzeLogoCandidate(favicon, result.name);
+    if (check === null || check.isLogo) {
+      result.logoUrl = favicon;
+      result.brandColor = result.brandColor ?? check?.color ?? null;
+    }
+  } catch {
+    // best-effort only
+  }
 }
 
 /**
@@ -255,7 +264,15 @@ export async function lookupBusiness(
 
   if (result.website) {
     const site = await fetchWebsiteInfo(result.website);
-    if (site) await attachBranding(result, site);
+    if (site) {
+      // save the URL that actually resolved — models cite the www./apex
+      // variant from memory and the wrong one is a dead link on invoices
+      result.website = normalizeWebsiteUrl(site.url) ?? result.website;
+      await attachBranding(result, site);
+    } else {
+      console.warn(`lookupBusiness: website fetch failed for ${result.website} — favicon fallback`);
+      await faviconFallback(result, result.website);
+    }
   }
   return result;
 }
@@ -292,7 +309,7 @@ export async function lookupFromWebsite(
   const result: BusinessLookupResult = {
     found: true,
     name: cleanStr(extracted?.name, 120) || site.title.slice(0, 120) || fallbackName.slice(0, 120),
-    website: url,
+    website: normalizeWebsiteUrl(site.url) ?? url,
     phone: cleanStr(extracted?.phone, 40),
     streetAddress: cleanStr(extracted?.streetAddress, 160),
     city: cleanStr(extracted?.city, 80),
@@ -306,6 +323,7 @@ export async function lookupFromWebsite(
     logoUrl: null,
     brandColor: null,
   };
+  result.reviewLink = resolveReviewLink(result);
   await attachBranding(result, site);
   return result;
 }

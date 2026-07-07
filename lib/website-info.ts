@@ -175,10 +175,30 @@ export function parseWebsiteHtml(html: string, baseUrl: string): WebsiteInfo {
   return { url: baseUrl, title, description, text, logoUrl, logoCandidates, themeColor };
 }
 
-/** Fetch + parse a public website's homepage. Null on any failure. */
+/**
+ * Fetch + parse a public website's homepage. Null on any failure.
+ * Retries with the www./apex variant toggled — AI lookups and owners cite
+ * whichever spelling they remember, and plenty of small-business domains
+ * only resolve one of them (live case: www.excellentpcbuilding.com is
+ * ENOTFOUND while the apex serves the real site).
+ */
 export async function fetchWebsiteInfo(rawUrl: string): Promise<WebsiteInfo | null> {
   const url = normalizeWebsiteUrl(rawUrl);
   if (!url) return null;
+  const first = await fetchWebsiteInfoOnce(url);
+  if (first) return first;
+  try {
+    const u = new URL(url);
+    u.hostname = u.hostname.startsWith("www.") ? u.hostname.slice(4) : `www.${u.hostname}`;
+    const alt = u.toString();
+    if (isSafePublicUrl(alt)) return await fetchWebsiteInfoOnce(alt);
+  } catch {
+    // toggle is best-effort
+  }
+  return null;
+}
+
+async function fetchWebsiteInfoOnce(url: string): Promise<WebsiteInfo | null> {
   try {
     const res = await fetch(url, {
       redirect: "follow",
