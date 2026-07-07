@@ -58,6 +58,41 @@ list_subscriptions / whats_needing_attention tools, model → gemini-2.5-flash]:
   (Settings → AI Assistant, or ask Atlas to rename itself) customizes it
   per business. Settings PATCH is now partial-safe.
 
+**Stage D — "anything a user can do" parity, v7 [BUILT 2026-07-07]:**
+- 60 tools. Registry split into per-domain modules: lib/assistant/{core,
+  clients, pipeline, schedule, money, agreements, company, deletes,
+  index}.ts — lib/assistant.ts is gone; "@/lib/assistant" imports resolve
+  to the directory index unchanged.
+- Growth came with CONSOLIDATION so the per-turn declaration list stays
+  lean: update_quote absorbs update_quote_status (edit + status),
+  update_invoice absorbs update_invoice_status, update_job absorbs
+  reschedule_job (+ crew via assigneeIds + line items), update_appointment
+  absorbs reschedule_appointment (+ reassign), update_service absorbs
+  update_service_price, and ONE delete_record tool (10 entities, always
+  danger-carded) replaces delete_client/delete_payment/delete_expense.
+- New coverage: email_document (REAL quote/invoice emails via the /send
+  routes — the old "no email goes out" caveat now only applies to status
+  marking), respond_to_booking (approve/decline online bookings + client
+  email), update_request, collect_deposit, manage_subscription
+  (pause/resume/cancel/billNow/reprice), add_job_note, update_client_note
+  (author/manager rules mirrored), update_agreement (void/unvoid/edit
+  unsigned), manage_client_fields, manage_web_form (list/create/update/
+  duplicate — flat args, config built/merged in code, price-book
+  name-matching for form services), undo_import (lists batches, stages the
+  batch DELETE), team resetPassword, get_document (full line items for
+  quote/invoice/job — required before any edit since edits full-replace
+  the item list).
+- BUG FIXED IN PASSING: the work-items PATCH route re-derives the
+  recurring/agreement block from every request body, so the old
+  update_service_price silently wiped recurring settings on price changes;
+  update_service now echoes the item's current recurring/agreement fields
+  into every payload.
+- Still deliberately excluded: company deletion, logo/photo upload, CSV
+  import (file uploads), web-form deletion.
+- Gating tests updated (scripts/test-assistant.ts, 60-tool owner list);
+  tsc + next build clean. NOT yet live-verified against Gemini — free-tier
+  quota is the blocker; verify after the paid-tier flip.
+
 ## 2. AI receptionist (DAVID BUILDS LATER — likely behind a paywall)
 
 Chat bubble on the public /book/[slug] page + embed. Answers pre-booking

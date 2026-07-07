@@ -21,26 +21,35 @@ const names = (a: Actor) => toolsForActor(a).map((t) => t.decl.name).sort();
 assert.deepEqual(
   names(owner),
   [
-    "add_client_note", "add_team_member", "business_summary", "cancel_appointment",
-    "convert_quote", "create_client", "create_invoice", "create_job", "create_quote",
-    "create_request", "delete_client", "delete_expense", "delete_payment", "edit_payment",
-    "get_client_activity", "get_company_settings", "get_price_book", "get_schedule",
-    "list_agreements", "list_clients", "list_expenses", "list_money", "list_pipeline",
-    "list_subscriptions", "list_team", "log_expense", "record_payment",
-    "reschedule_appointment", "reschedule_job", "schedule_appointment", "search_clients",
-    "send_portal_invite", "set_business_hours", "set_client_status", "update_client",
-    "update_company_settings", "update_expense", "update_invoice_status",
-    "update_job_status", "update_quote_status", "update_service_price",
-    "update_team_member", "update_team_policy", "whats_needing_attention",
+    "add_client_note", "add_job_note", "add_team_member", "assign_client",
+    "business_summary", "cancel_appointment", "collect_deposit", "convert_quote",
+    "create_agreement_template", "create_client", "create_invoice", "create_job",
+    "create_quote", "create_request", "create_service", "delete_record",
+    "edit_payment", "email_document", "get_client_activity", "get_company_settings",
+    "get_document", "get_price_book", "get_schedule", "list_agreement_templates",
+    "list_agreements", "list_clients", "list_expenses", "list_money",
+    "list_pipeline", "list_subscriptions", "list_team", "log_expense",
+    "manage_client_fields", "manage_subscription", "manage_web_form",
+    "record_payment", "respond_to_booking", "schedule_appointment",
+    "search_clients", "send_agreement", "send_portal_invite",
+    "set_business_hours", "set_client_status", "undo_import",
+    "update_agreement", "update_agreement_template", "update_appointment",
+    "update_client", "update_client_note", "update_company_settings",
+    "update_expense", "update_invoice", "update_job", "update_job_status",
+    "update_quote", "update_request", "update_service", "update_team_member",
+    "update_team_policy", "whats_needing_attention",
   ],
   "owner gets all tools"
 );
-console.log("ok 1: owner sees all 44 tools");
+console.log(`ok 1: owner sees all ${names(owner).length} tools`);
 
 // 2. tech: schedule/jobs reads + the job actions techs can do, nothing else
 assert.deepEqual(
   names(tech),
-  ["get_schedule", "list_pipeline", "reschedule_job", "update_job_status", "whats_needing_attention"],
+  [
+    "add_job_note", "get_document", "get_schedule", "list_pipeline",
+    "update_job", "update_job_status", "whats_needing_attention",
+  ],
   "tech tools"
 );
 console.log("ok 2: tech limited to schedule + job tools");
@@ -50,21 +59,26 @@ console.log("ok 2: tech limited to schedule + job tools");
   const n = names(sales);
   assert.ok(n.includes("search_clients") && n.includes("list_money") && n.includes("record_payment"));
   assert.ok(n.includes("create_client") && n.includes("schedule_appointment") && n.includes("cancel_appointment"));
+  assert.ok(n.includes("update_appointment") && n.includes("update_client_note"), "sales get consolidated update tools");
+  assert.ok(n.includes("respond_to_booking") && n.includes("collect_deposit"), "sales handle bookings + deposits");
+  assert.ok(n.includes("email_document"), "sales can email quotes (invoice path re-checked inside)");
   assert.ok(!n.includes("get_company_settings"), "sales can't read settings");
-  assert.ok(!n.includes("create_job") && !n.includes("update_job_status"), "sales can't run job actions");
-  assert.ok(!n.includes("delete_client") && !n.includes("log_expense") && !n.includes("update_service_price"),
+  assert.ok(!n.includes("create_job") && !n.includes("update_job") && !n.includes("update_job_status"),
+    "sales can't run job actions");
+  assert.ok(!n.includes("delete_record") && !n.includes("log_expense") && !n.includes("update_service"),
     "manager-only actions hidden from sales");
-  assert.ok(!n.includes("edit_payment") && !n.includes("delete_payment"),
-    "sales can't refund (edit/remove payments)");
-  assert.ok(!n.includes("list_expenses") && !n.includes("update_expense") && !n.includes("delete_expense"),
-    "expense tools are manager-only");
+  assert.ok(!n.includes("edit_payment") && !n.includes("manage_subscription"),
+    "sales can't refund or manage subscriptions");
+  assert.ok(!n.includes("list_expenses") && !n.includes("update_expense"), "expense tools are manager-only");
+  assert.ok(!n.includes("undo_import") && !n.includes("manage_web_form") && !n.includes("manage_client_fields"),
+    "import/forms/fields are manager-only");
   assert.ok(n.includes("list_clients"), "sales can list clients (scoped to their leads)");
   assert.ok(
     !n.includes("list_team") && !n.includes("add_team_member") && !n.includes("update_team_member") &&
     !n.includes("update_team_policy") && !n.includes("update_company_settings") && !n.includes("set_business_hours"),
     "team + settings tools hidden from sales");
-  assert.ok(n.includes("update_quote_status"), "sales can mark quotes sent/approved");
-  assert.ok(n.includes("update_invoice_status"), "sales w/ payments toggle can mark invoices sent");
+  assert.ok(n.includes("update_quote"), "sales can mark quotes sent/approved");
+  assert.ok(n.includes("update_invoice"), "sales w/ payments toggle can mark invoices sent");
   console.log("ok 3: sales sees sell + money + action tools, no settings/job/manager/team actions");
 }
 
@@ -73,7 +87,8 @@ console.log("ok 2: tech limited to schedule + job tools");
   const n = names(salesNoMoney);
   assert.ok(!n.includes("list_money") && !n.includes("business_summary") && !n.includes("record_payment"));
   assert.ok(!n.includes("list_subscriptions"));
-  assert.ok(!n.includes("update_invoice_status"), "no invoice status without money access");
+  assert.ok(!n.includes("update_invoice") && !n.includes("create_invoice"), "no invoice tools without money access");
+  assert.ok(n.includes("email_document"), "still visible via canSell — invoice path re-checks inside");
   assert.ok(n.includes("search_clients") && n.includes("create_quote"));
   console.log("ok 4: salesSeePayments=false removes money reads and writes");
 }
@@ -130,6 +145,7 @@ console.log("ok 2: tech limited to schedule + job tools");
     "Has Laura signed her agreement yet?", // the exact failure David hit — partial name + agreements
     "What needs my attention right now?",
     "Add a new client named Test Wizard, phone 555-0100, then tell me what you did.",
+    "Email the most recent draft invoice to its client.", // exercises get/list + email_document staging
   ]) {
     const r = await runAssistant(actor, [{ role: "user", content: q }]);
     console.log(`\nQ: ${q}\nA: ${r?.reply ?? "(null — FAILED)"}`);
