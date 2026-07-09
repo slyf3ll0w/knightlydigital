@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { sendEmail, newRequestEmail } from "@/lib/email";
+import { companyNotifyAddress } from "@/lib/notify";
 
 /** Public: a client submits a work request from their hub. */
 export async function POST(req: NextRequest) {
@@ -45,7 +46,8 @@ export async function POST(req: NextRequest) {
   });
 
   // Notify the company inbox; reply goes straight to the customer
-  if (contact.company.email) {
+  const notifyTo = await companyNotifyAddress(contact.companyId, contact.company.email);
+  if (notifyTo) {
     const { subject, html } = newRequestEmail({
       companyName: contact.company.name,
       requestId: request.id,
@@ -58,7 +60,7 @@ export async function POST(req: NextRequest) {
       source: "client_hub",
     });
     await sendEmail({
-      to: contact.company.email,
+      to: notifyTo,
       subject,
       html,
       replyTo: contact.email ?? undefined,

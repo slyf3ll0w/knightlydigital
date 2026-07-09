@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { pricebookForIndustry } from "@/lib/pricebooks";
 import { verifyCaptcha } from "@/lib/captcha";
@@ -61,14 +62,55 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "An account with that email already exists." }, { status: 409 });
   }
 
-  const slug = await uniqueSlug(slugify(companyName));
   const hash = await bcrypt.hash(password, 12);
 
-  const company = await prisma.company.create({
+  // uniqueSlug's check-then-create can race if two same-name companies
+  // register in the same instant; the DB @unique constraint catches the
+  // loser (P2002), so retry with a fresh suffix before giving up.
+  let company;
+  for (let attempt = 0; ; attempt++) {
+    const slug = await uniqueSlug(
+      attempt === 0 ? slugify(companyName) : `${slugify(companyName)}-${attempt}`
+    );
+    try {
+      company = await createCompany(companyName, slug, hash, body);
+      break;
+    } catch (e) {
+      const slugClash =
+        e instanceof Prisma.PrismaClientKnownRequestError &&
+        e.code === "P2002" &&
+        (e.meta?.target as string[] | undefined)?.includes("slug");
+      if (!slugClash || attempt >= 2) throw e;
+    }
+  }
+
+  return NextResponse.json({ success: true, companyId: company.id });
+}
+
+function createCompany(
+  companyName: string,
+  slug: string,
+  hash: string,
+  body: {
+    yourName: string;
+    email: string;
+    phone?: string;
+    industry?: string;
+    teamSize?: string;
+    currentSoftware?: string;
+    topPriority?: string;
+    referralSource?: string;
+  }
+) {
+  const { yourName, email, phone, industry, teamSize, currentSoftware, topPriority, referralSource } =
+    body;
+  return prisma.company.create({
     data: {
       name: companyName,
       slug,
       phone: phone || null,
+      // Default notification inbox: the owner's email, editable in Settings.
+      email,
       industry: industry || null,
       teamSize: teamSize || null,
       currentSoftware: currentSoftware || null,
@@ -87,6 +129,4 @@ export async function POST(req: NextRequest) {
       workItems: { create: pricebookForIndustry(industry) },
     },
   });
-
-  return NextResponse.json({ success: true, companyId: company.id });
 }

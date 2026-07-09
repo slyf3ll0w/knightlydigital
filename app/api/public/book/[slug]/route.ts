@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { verifyCaptcha } from "@/lib/captcha";
 import { sendEmail, newRequestEmail, quoteLinkEmail, bookingReceivedEmail } from "@/lib/email";
+import { companyNotifyAddress } from "@/lib/notify";
 import { defaultLeadAssignee } from "@/lib/permissions";
 import { resolveWebForm } from "@/lib/web-forms";
 import { getActiveFieldDefs, sanitizeCustomFields } from "@/lib/contact-fields";
@@ -426,7 +427,8 @@ export async function POST(
   }
 
   // Notify the company inbox; reply goes straight to the customer
-  if (company.email) {
+  const notifyTo = await companyNotifyAddress(company.id, company.email);
+  if (notifyTo) {
     const { subject, html } = newRequestEmail({
       companyName: company.name,
       requestId: result.request.id,
@@ -438,7 +440,7 @@ export async function POST(
       contactEmail: email || null,
       source: "booking_form",
     });
-    await sendEmail({ to: company.email, subject, html, replyTo: email || undefined });
+    await sendEmail({ to: notifyTo, subject, html, replyTo: email || undefined });
   }
 
   // Auto-send mode: the client gets the quote approval link
