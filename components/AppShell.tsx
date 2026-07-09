@@ -27,6 +27,7 @@ import {
   Repeat,
   ChevronsUpDown,
   CircleUserRound,
+  MessagesSquare,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import Avatar from "@/components/Avatar";
@@ -257,6 +258,8 @@ interface AppShellProps {
   companyName?: string | null;
   companyLogoUrl?: string | null;
   brandColor?: string | null;
+  brandColorSecondary?: string | null;
+  teamCount?: number;
   needsTour?: boolean;
   aiEnabled?: boolean;
   assistantName?: string | null;
@@ -271,6 +274,8 @@ export default function AppShell({
   companyName,
   companyLogoUrl,
   brandColor,
+  brandColorSecondary,
+  teamCount = 1,
   needsTour = false,
   aiEnabled = false,
   assistantName,
@@ -278,13 +283,14 @@ export default function AppShell({
 }: AppShellProps) {
   const userRole = role ?? "OWNER";
   const manager = isManagerRole(userRole);
-  const accent = sidebarAccent(brandColor || DEFAULT_ACCENT);
+  // Secondary brand color is the accent; primary fills in when it's unset
+  const accent = sidebarAccent(brandColorSecondary || brandColor || DEFAULT_ACCENT);
   const pathname = usePathname();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const [counts, setCounts] = useState({ requests: 0, pastDue: 0 });
+  const [counts, setCounts] = useState({ requests: 0, pastDue: 0, chat: 0 });
   // Wide wordmark logos render large and alone; squarish marks get a tile
   // next to the company name (detected from the image's natural size).
   const [logoIsWide, setLogoIsWide] = useState(false);
@@ -304,7 +310,8 @@ export default function AppShell({
     fetch("/api/app/nav-counts")
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
-        if (d && !cancelled) setCounts({ requests: d.requests ?? 0, pastDue: d.pastDue ?? 0 });
+        if (d && !cancelled)
+          setCounts({ requests: d.requests ?? 0, pastDue: d.pastDue ?? 0, chat: d.chat ?? 0 });
       })
       .catch(() => {});
     return () => {
@@ -340,7 +347,13 @@ export default function AppShell({
     const active = isActive(href);
     // Live badges: new requests (neutral), past-due invoices (red — urgent)
     const badge =
-      href === "/app/requests" ? counts.requests : href === "/app/invoices" ? counts.pastDue : 0;
+      href === "/app/requests"
+        ? counts.requests
+        : href === "/app/invoices"
+          ? counts.pastDue
+          : href === "/app/chat"
+            ? counts.chat
+            : 0;
     return (
       <Link
         key={href}
@@ -399,6 +412,19 @@ export default function AppShell({
               </div>
             </div>
           ))}
+
+        {/* Team chat: only when there's a teammate to talk to */}
+        {teamCount > 1 && (
+          <div className="mt-4">
+            <div className="flex items-center gap-2 px-3 pb-1.5">
+              <span className="font-display text-[10px] font-semibold uppercase tracking-[0.12em] text-white/35">
+                Team
+              </span>
+              <span className="h-px flex-1 bg-white/10" aria-hidden />
+            </div>
+            <div className="space-y-0.5">{navLink("/app/chat", "Chat", MessagesSquare)}</div>
+          </div>
+        )}
       </nav>
 
       {/* Settings + user */}
@@ -550,7 +576,7 @@ export default function AppShell({
       </div>
 
       <MobileTabBar
-        accent={surfaceAccent(brandColor || DEFAULT_ACCENT)}
+        accent={surfaceAccent(brandColorSecondary || brandColor || DEFAULT_ACCENT)}
         role={userRole}
         isActive={isActive}
         pastDue={counts.pastDue}

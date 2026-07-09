@@ -19,11 +19,17 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!session) return <>{children}</>;
 
   // Fresh from DB (not JWT) so logo/brand and role changes apply without re-login
-  const [company, user] = await Promise.all([
+  const [company, user, teamCount] = await Promise.all([
     session.user.companyId
       ? prisma.company.findUnique({
           where: { id: session.user.companyId },
-          select: { name: true, logoUrl: true, brandColor: true, assistantName: true },
+          select: {
+            name: true,
+            logoUrl: true,
+            brandColor: true,
+            brandColorSecondary: true,
+            assistantName: true,
+          },
         })
       : null,
     session.user.id
@@ -32,6 +38,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           select: { role: true, name: true, tourCompletedAt: true },
         })
       : null,
+    // Team chat only makes sense with someone to talk to (>1 active member)
+    session.user.companyId
+      ? prisma.user.count({ where: { companyId: session.user.companyId, isActive: true } })
+      : 0,
   ]);
 
   return (
@@ -42,6 +52,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       companyName={company?.name ?? session.user.companyName}
       companyLogoUrl={company?.logoUrl}
       brandColor={company?.brandColor}
+      brandColorSecondary={company?.brandColorSecondary}
+      teamCount={teamCount}
       needsTour={!!user && !user.tourCompletedAt}
       aiEnabled={Boolean(process.env.GEMINI_API_KEY)}
       assistantName={company?.assistantName}

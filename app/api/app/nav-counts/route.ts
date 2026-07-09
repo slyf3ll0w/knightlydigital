@@ -12,7 +12,7 @@ export async function GET() {
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const scope = viaContactScope(actor);
-  const [requests, pastDue] = await Promise.all([
+  const [requests, pastDue, chat] = await Promise.all([
     canSell(actor.role)
       ? prisma.request.count({
           where: { companyId: actor.companyId, status: "NEW", ...scope },
@@ -30,7 +30,19 @@ export async function GET() {
           },
         })
       : Promise.resolve(0),
+    // Team chat unread: teammates' messages since the actor last opened chat
+    prisma.user
+      .findUnique({ where: { id: actor.id }, select: { chatLastSeenAt: true } })
+      .then((u) =>
+        prisma.teamMessage.count({
+          where: {
+            companyId: actor.companyId,
+            userId: { not: actor.id },
+            ...(u?.chatLastSeenAt ? { createdAt: { gt: u.chatLastSeenAt } } : {}),
+          },
+        })
+      ),
   ]);
 
-  return NextResponse.json({ requests, pastDue });
+  return NextResponse.json({ requests, pastDue, chat });
 }

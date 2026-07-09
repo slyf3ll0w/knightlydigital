@@ -170,6 +170,7 @@ export default function TeamClient({
                 value={form.phone}
                 onChange={(e) => setForm({ ...form, phone: e.target.value })}
                 className={inputCls}
+                placeholder="Enables the call button in Team Chat"
               />
             </div>
             <div>

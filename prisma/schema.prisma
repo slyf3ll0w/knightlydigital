@@ -23,7 +23,8 @@ model Company {
   logoUrl          String? // display URL; points at /api/logo/[id] for uploaded logos
   logoData         Bytes? // uploaded logo bytes (small files only; move to R2 with job photos)
   logoMime         String?
-  brandColor       String? // hex accent used on client-facing pages (quotes, invoices, hub, booking)
+  brandColor       String? // primary brand hex: headers/surfaces on client-facing pages + app accent
+  brandColorSecondary String? // secondary brand hex: buttons/accents; falls back to brandColor
   timezone         String   @default("America/Chicago")
   surchargeEnabled Boolean  @default(false)
   surchargeRate    Decimal  @default(0.0300) @db.Decimal(5, 4)
@@ -74,6 +75,7 @@ model Company {
   contractTemplates ContractTemplate[]
   contracts         Contract[]
   expenses          Expense[]
+  teamMessages      TeamMessage[]
 
   @@index([slug])
 }
@@ -96,6 +98,8 @@ model User {
   bookable     Boolean  @default(false)
   // First-visit guided tour; null = hasn't seen it (fires on next dashboard visit)
   tourCompletedAt DateTime?
+  // Team chat: last time this user opened the chat (drives the unread badge)
+  chatLastSeenAt  DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -104,9 +108,26 @@ model User {
   contactNotes     ContactNote[]
   assignedContacts Contact[]       @relation("AssignedContacts")
   appointments     Appointment[]   @relation("AppointmentAssignee")
+  teamMessages     TeamMessage[]
 
   @@index([companyId])
   @@index([role])
+}
+
+// ─── Team chat ───────────────────────────────────────────────────────────────
+
+// One company-wide channel (like a tiny Slack #general). Shown only when the
+// company has more than one active member.
+model TeamMessage {
+  id        String   @id @default(cuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  body      String
+  createdAt DateTime @default(now())
+
+  @@index([companyId, createdAt])
 }
 
 enum Role {
