@@ -131,6 +131,8 @@ model TeamMessage {
   recipient   User?     @relation("ReceivedTeamMessages", fields: [recipientId], references: [id], onDelete: Cascade)
   body        String
   editedAt    DateTime?
+  // Soft delete: body is wiped, a "message deleted" tombstone stays in the thread
+  deletedAt   DateTime?
   createdAt   DateTime  @default(now())
 
   reactions TeamMessageReaction[]

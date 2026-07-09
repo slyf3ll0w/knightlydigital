@@ -33,6 +33,7 @@ type Message = {
   body: string;
   createdAt: string;
   editedAt: string | null;
+  deletedAt: string | null;
   userId: string;
   userName: string;
   reactions: Reaction[];
@@ -279,8 +280,14 @@ export default function ChatClient({
   }
 
   async function deleteMessage(messageId: string) {
-    if (!confirm("Delete this message for everyone?")) return;
-    setMessages((prev) => prev.filter((m) => m.id !== messageId));
+    if (!confirm("Delete this message? Everyone will see it was deleted.")) return;
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === messageId
+          ? { ...m, body: "", deletedAt: new Date().toISOString(), reactions: [] }
+          : m
+      )
+    );
     await fetch(`/api/app/chat/${messageId}`, { method: "DELETE" }).catch(() => {});
   }
 
@@ -502,7 +509,15 @@ export default function ChatClient({
                           </p>
                         )}
 
-                        {editingId === m.id ? (
+                        {m.deletedAt ? (
+                          <div
+                            className={`rounded-lg border border-dashed border-gray-300 px-3 py-2 text-sm italic text-gray-400 ${
+                              mine ? "text-right" : ""
+                            }`}
+                          >
+                            {mine ? "You deleted this message" : "This message was deleted"}
+                          </div>
+                        ) : editingId === m.id ? (
                           <div className="w-64">
                             <textarea
                               value={editDraft}
@@ -573,7 +588,7 @@ export default function ChatClient({
                         )}
 
                         {/* Hover actions */}
-                        {editingId !== m.id && (
+                        {editingId !== m.id && !m.deletedAt && (
                           <div
                             className={`absolute -top-3 z-10 items-center gap-0.5 rounded-full border border-gray-200 bg-white px-1 py-0.5 shadow-sm ${
                               focusedId === m.id ? "flex" : "hidden group-hover:flex"
@@ -615,7 +630,7 @@ export default function ChatClient({
                         )}
 
                         {/* Tapback picker */}
-                        {pickerFor === m.id && (
+                        {pickerFor === m.id && !m.deletedAt && (
                           <div
                             className={`absolute -top-11 z-20 flex items-center gap-0.5 rounded-full border border-gray-200 bg-white px-1.5 py-1 shadow-lg ${
                               mine ? "right-0" : "left-0"

@@ -15,6 +15,7 @@ export const MESSAGE_SELECT = {
   body: true,
   createdAt: true,
   editedAt: true,
+  deletedAt: true,
   userId: true,
   user: { select: { name: true } },
   reactions: { select: { emoji: true, userId: true } },
@@ -25,6 +26,7 @@ type MessageRow = {
   body: string;
   createdAt: Date;
   editedAt: Date | null;
+  deletedAt: Date | null;
   userId: string;
   user: { name: string };
   reactions: { emoji: string; userId: string }[];
@@ -33,12 +35,15 @@ type MessageRow = {
 export function serializeMessage(m: MessageRow) {
   return {
     id: m.id,
-    body: m.body,
+    // Defense in depth: never ship a deleted message's text even if a write
+    // path forgot to blank it
+    body: m.deletedAt ? "" : m.body,
     createdAt: m.createdAt.toISOString(),
     editedAt: m.editedAt ? m.editedAt.toISOString() : null,
+    deletedAt: m.deletedAt ? m.deletedAt.toISOString() : null,
     userId: m.userId,
     userName: m.user.name,
-    reactions: m.reactions,
+    reactions: m.deletedAt ? [] : m.reactions,
   };
 }
 
@@ -149,6 +154,7 @@ export async function unreadByThread(
         companyId: actor.companyId,
         recipientId: null,
         userId: { not: actor.id },
+        deletedAt: null,
         ...(me?.chatLastSeenAt ? { createdAt: { gt: me.chatLastSeenAt } } : {}),
       },
     }),
@@ -157,6 +163,7 @@ export async function unreadByThread(
       _count: { _all: true },
       where: {
         recipientId: actor.id,
+        deletedAt: null,
         // per-sender cutoff: only messages newer than that thread's marker
         OR: [
           ...[...seen.entries()].map(([peer, at]) => ({

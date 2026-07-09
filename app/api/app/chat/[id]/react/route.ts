@@ -19,6 +19,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const message = await prisma.teamMessage.findFirst({
     where: {
       id,
+      deletedAt: null,
       OR: [
         threadWhere(actor, null),
         { companyId: actor.companyId, userId: actor.id, recipientId: { not: null } },

@@ -18,7 +18,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   const message = await prisma.teamMessage.findFirst({
-    where: { id, companyId: actor.companyId, userId: actor.id },
+    where: { id, companyId: actor.companyId, userId: actor.id, deletedAt: null },
     select: { id: true, body: true },
   });
   if (!message) return NextResponse.json({ error: "Message not found." }, { status: 404 });
@@ -37,11 +37,18 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   const { id } = await params;
 
   const message = await prisma.teamMessage.findFirst({
-    where: { id, companyId: actor.companyId, userId: actor.id },
+    where: { id, companyId: actor.companyId, userId: actor.id, deletedAt: null },
     select: { id: true },
   });
   if (!message) return NextResponse.json({ error: "Message not found." }, { status: 404 });
 
-  await prisma.teamMessage.delete({ where: { id: message.id } });
+  // Soft delete: wipe the text, drop reactions, leave a tombstone in the thread
+  await prisma.$transaction([
+    prisma.teamMessage.update({
+      where: { id: message.id },
+      data: { deletedAt: new Date(), body: "" },
+    }),
+    prisma.teamMessageReaction.deleteMany({ where: { messageId: message.id } }),
+  ]);
   return NextResponse.json({ success: true });
 }
