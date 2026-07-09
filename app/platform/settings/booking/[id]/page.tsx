@@ -18,7 +18,7 @@ export default async function WebFormEditorPage({
     prisma.webForm.findFirst({ where: { id, companyId: actor.companyId } }),
     prisma.company.findUnique({
       where: { id: actor.companyId },
-      select: { name: true, slug: true, brandColor: true },
+      select: { name: true, slug: true, brandColor: true, brandColorSecondary: true },
     }),
     getActiveFieldDefs(actor.companyId),
     prisma.workItem.findMany({
@@ -45,7 +45,11 @@ export default async function WebFormEditorPage({
         isDefault: form.isDefault,
         config: sanitizeBookingForm(form.config),
       }}
-      company={{ name: company.name, slug: company.slug, brandColor: company.brandColor }}
+      company={{
+        name: company.name,
+        slug: company.slug,
+        brandColor: company.brandColorSecondary ?? company.brandColor,
+      }}
       baseUrl={baseUrl}
       contactFieldDefs={fieldDefs.map((d) => ({ id: d.id, label: d.label }))}
       priceBookItems={workItems.map((w) => ({

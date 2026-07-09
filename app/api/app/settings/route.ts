@@ -51,6 +51,12 @@ export async function PATCH(req: NextRequest) {
             ? body.brandColor
             : null
           : undefined,
+      brandColorSecondary:
+        body.brandColorSecondary !== undefined
+          ? /^#[0-9a-fA-F]{6}$/.test(body.brandColorSecondary ?? "")
+            ? body.brandColorSecondary
+            : null
+          : undefined,
       surchargeEnabled: body.surchargeEnabled ?? undefined,
       surchargeRate: body.surchargeRate ?? undefined,
       ...(body.defaultDepositType !== undefined &&

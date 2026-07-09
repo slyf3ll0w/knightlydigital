@@ -1,6 +1,8 @@
 /**
  * Company branding for client-facing pages (quotes, invoices, hub, booking).
- * Companies set logoUrl + brandColor in Settings; everything falls back to
+ * Companies set logoUrl + two brand colors in Settings: primary (brandColor)
+ * drives headers/surfaces, secondary (brandColorSecondary) drives buttons and
+ * accents. Secondary falls back to primary; everything falls back to
  * Streamflaire Hub defaults when unset.
  */
 
@@ -8,19 +10,20 @@ export type CompanyBrand = {
   name: string;
   logoUrl?: string | null;
   brandColor?: string | null;
+  brandColorSecondary?: string | null;
 };
 
 const DEFAULT_HEADER = "#0C0F0C";
 const DEFAULT_ACCENT = "#16A34A"; // green-600
 
-/** Header background for branded page tops. */
+/** Header background for branded page tops (primary color). */
 export function brandHeader(company: CompanyBrand): string {
   return company.brandColor || DEFAULT_HEADER;
 }
 
-/** Accent for primary buttons / highlights. */
+/** Accent for primary buttons / highlights (secondary color, falls back to primary). */
 export function brandAccent(company: CompanyBrand): string {
-  return company.brandColor || DEFAULT_ACCENT;
+  return company.brandColorSecondary || company.brandColor || DEFAULT_ACCENT;
 }
 
 /** Darken a hex color by 0–1 (gradient depth on branded portal headers). */

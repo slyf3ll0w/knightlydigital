@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
@@ -8,12 +8,13 @@ import { Loader2, Check, Upload, Trash2, AlertTriangle } from "lucide-react";
 import { resizeImageFile } from "@/lib/resize-image";
 import { INDUSTRIES } from "@/lib/pricebooks";
 import { useUnsavedWarning } from "@/lib/use-unsaved-warning";
+import { textOn } from "@/lib/branding";
 
 type Company = {
   id: string; name: string; slug: string; phone: string | null;
   email: string | null; address: string | null; city: string | null;
   state: string | null; zip: string | null; website: string | null;
-  logoUrl: string | null; brandColor: string | null;
+  logoUrl: string | null; brandColor: string | null; brandColorSecondary: string | null;
   surchargeEnabled: boolean; surchargeRate: string | number | null;
   defaultDepositType: "NONE" | "PERCENT" | "FIXED" | "FULL";
   defaultDepositValue: string | number | null;
@@ -21,6 +22,72 @@ type Company = {
   timezone: string;
   assistantName: string | null;
 };
+
+const HEX_RE = /^#[0-9a-fA-F]{6}$/;
+
+/** Color picker + typed hex code, kept in sync. Empty = default. */
+function ColorField({
+  label,
+  hint,
+  value,
+  fallback,
+  onChange,
+}: {
+  label: string;
+  hint: string;
+  value: string;
+  fallback: string;
+  onChange: (v: string) => void;
+}) {
+  const [text, setText] = useState(value);
+  useEffect(() => setText(value), [value]);
+  const invalid = text !== "" && !HEX_RE.test(text);
+
+  function commitText(raw: string) {
+    let v = raw.trim();
+    if (v && !v.startsWith("#")) v = `#${v}`;
+    setText(v);
+    if (v === "") onChange("");
+    else if (HEX_RE.test(v)) onChange(v.toUpperCase());
+  }
+
+  return (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+      <div className="flex items-center gap-2">
+        <input
+          type="color"
+          value={value || fallback}
+          onChange={(e) => onChange(e.target.value.toUpperCase())}
+          className="h-10 w-12 shrink-0 rounded border border-gray-300 cursor-pointer p-1"
+        />
+        <input
+          type="text"
+          value={text}
+          onChange={(e) => commitText(e.target.value)}
+          placeholder={fallback}
+          maxLength={7}
+          spellCheck={false}
+          className={`w-28 px-3 py-2 border rounded text-sm font-mono focus:outline-none focus:ring-2 focus:ring-green-500 ${
+            invalid ? "border-red-400" : "border-gray-300"
+          }`}
+        />
+        {value && (
+          <button
+            type="button"
+            onClick={() => onChange("")}
+            className="text-xs text-gray-400 hover:text-gray-600 underline"
+          >
+            Reset
+          </button>
+        )}
+      </div>
+      <p className={`text-xs mt-1 ${invalid ? "text-red-600" : "text-gray-400"}`}>
+        {invalid ? "Use a 6-digit hex code like #16A34A" : hint}
+      </p>
+    </div>
+  );
+}
 
 const TIMEZONES = [
   { value: "America/New_York", label: "Eastern (New York)" },
@@ -201,6 +268,7 @@ export default function SettingsClient({
     industry: company.industry ?? "",
     logoUrl: company.logoUrl ?? "",
     brandColor: company.brandColor ?? "",
+    brandColorSecondary: company.brandColorSecondary ?? "",
     surchargeEnabled: company.surchargeEnabled,
     surchargeRate: company.surchargeRate ? (Number(company.surchargeRate) * 100).toFixed(2) : "3.00",
     defaultDepositType: company.defaultDepositType ?? "NONE",
@@ -488,30 +556,23 @@ export default function SettingsClient({
               Transparent-background PNG looks best.
             </p>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Brand color</label>
-            <div className="flex items-center gap-3">
-              <input
-                type="color"
-                value={form.brandColor || "#16A34A"}
-                onChange={(e) => set("brandColor", e.target.value)}
-                className="h-10 w-14 rounded border border-gray-300 cursor-pointer p-1"
-              />
-              <span className="text-sm font-mono text-gray-600">
-                {form.brandColor || "Default"}
-              </span>
-              {form.brandColor && (
-                <button
-                  type="button"
-                  onClick={() => set("brandColor", "")}
-                  className="text-xs text-gray-400 hover:text-gray-600 underline"
-                >
-                  Reset to default
-                </button>
-              )}
-            </div>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <ColorField
+              label="Primary color"
+              hint="Headers on your client-facing pages (quotes, invoices, portal)"
+              value={form.brandColor}
+              fallback="#0C0F0C"
+              onChange={(v) => set("brandColor", v)}
+            />
+            <ColorField
+              label="Secondary color"
+              hint="Buttons and accents — defaults to your primary color"
+              value={form.brandColorSecondary}
+              fallback={form.brandColor || "#16A34A"}
+              onChange={(v) => set("brandColorSecondary", v)}
+            />
           </div>
-          {(form.logoUrl || form.brandColor) && (
+          {(form.logoUrl || form.brandColor || form.brandColorSecondary) && (
             <div>
               <p className="text-xs font-medium text-gray-500 mb-2">Preview</p>
               <div
@@ -523,6 +584,15 @@ export default function SettingsClient({
                   <img src={form.logoUrl} alt="Logo preview" className="h-12 w-auto max-w-[170px] object-contain" />
                 )}
                 <span className="font-bold text-white drop-shadow-sm">{form.name}</span>
+                <span
+                  className="ml-auto rounded px-3 py-1.5 text-xs font-semibold"
+                  style={{
+                    backgroundColor: form.brandColorSecondary || form.brandColor || "#16A34A",
+                    color: textOn(form.brandColorSecondary || form.brandColor || "#16A34A"),
+                  }}
+                >
+                  Approve Quote
+                </span>
               </div>
             </div>
           )}

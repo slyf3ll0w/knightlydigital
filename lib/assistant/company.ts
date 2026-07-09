@@ -167,7 +167,7 @@ export const companyTools: Tool[] = [
     decl: {
       name: "update_company_settings",
       description:
-        "Stage changes to company settings: business name, phone, email, address/city/state/zip, website, review link, brand color (#rrggbb), timezone (IANA, e.g. America/Chicago), arrival window minutes, the assistant's display name (assistantName), card surcharge (surchargeEnabled + surchargePercent, e.g. 3 for 3%), the company-default deposit on new quotes (defaultDepositType PERCENT/FIXED/FULL/NONE + defaultDepositValue), and the online-booking service area (addServiceZips / removeServiceZips — 5-digit ZIPs). Only include what should change. Confirmation card required.",
+        "Stage changes to company settings: business name, phone, email, address/city/state/zip, website, review link, brand colors (brandColor = primary for headers, brandColorSecondary = accent for buttons; #rrggbb), timezone (IANA, e.g. America/Chicago), arrival window minutes, the assistant's display name (assistantName), card surcharge (surchargeEnabled + surchargePercent, e.g. 3 for 3%), the company-default deposit on new quotes (defaultDepositType PERCENT/FIXED/FULL/NONE + defaultDepositValue), and the online-booking service area (addServiceZips / removeServiceZips — 5-digit ZIPs). Only include what should change. Confirmation card required.",
       parameters: {
         type: "object",
         properties: {
@@ -180,7 +180,11 @@ export const companyTools: Tool[] = [
           zip: { type: "string" },
           website: { type: "string" },
           reviewLink: { type: "string" },
-          brandColor: { type: "string", description: "#rrggbb" },
+          brandColor: { type: "string", description: "primary brand color, #rrggbb" },
+          brandColorSecondary: {
+            type: "string",
+            description: "secondary/accent brand color, #rrggbb",
+          },
           timezone: { type: "string" },
           arrivalWindowMinutes: { type: "number" },
           assistantName: { type: "string" },
@@ -222,7 +226,17 @@ export const companyTools: Tool[] = [
           return { error: `brandColor must be a 6-digit hex like #16A34A (got "${brandColor}").` };
         }
         payload.brandColor = brandColor;
-        lines.push(`Brand color: ${brandColor}`);
+        lines.push(`Primary brand color: ${brandColor}`);
+      }
+      const brandColorSecondary = str(args.brandColorSecondary, 7);
+      if (brandColorSecondary) {
+        if (!/^#[0-9a-fA-F]{6}$/.test(brandColorSecondary)) {
+          return {
+            error: `brandColorSecondary must be a 6-digit hex like #16A34A (got "${brandColorSecondary}").`,
+          };
+        }
+        payload.brandColorSecondary = brandColorSecondary;
+        lines.push(`Secondary brand color: ${brandColorSecondary}`);
       }
       if (typeof args.surchargeEnabled === "boolean") {
         payload.surchargeEnabled = args.surchargeEnabled;

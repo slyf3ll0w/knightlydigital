@@ -19,7 +19,7 @@ type Invoice = {
   contact: { firstName: string; lastName: string; email: string | null } | null;
   company: {
     name: string; phone: string | null; email: string | null;
-    logoUrl: string | null; brandColor: string | null;
+    logoUrl: string | null; brandColor: string | null; brandColorSecondary: string | null;
     surchargeEnabled: boolean; surchargeRate: number | null;
   };
   lineItems: LineItem[];

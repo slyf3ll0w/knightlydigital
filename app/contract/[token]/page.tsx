@@ -38,7 +38,7 @@ export default async function PublicContractPage({
       contactName={`${contract.contact.firstName} ${contract.contact.lastName}`.trim()}
       companyName={contract.company.name}
       companyLogoUrl={contract.company.logoUrl}
-      brandColor={contract.company.brandColor}
+      brandColor={contract.company.brandColorSecondary ?? contract.company.brandColor}
     />
   );
 }

@@ -27,7 +27,7 @@ export default async function PortalLoginPage({
   const { slug } = await params;
   const company = await prisma.company.findUnique({
     where: { slug },
-    select: { name: true, logoUrl: true, brandColor: true },
+    select: { name: true, logoUrl: true, brandColor: true, brandColorSecondary: true },
   });
   if (!company) notFound();
 

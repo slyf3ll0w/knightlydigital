@@ -22,7 +22,12 @@ type Quote = {
   disclaimer: string | null;
   validUntil: string | null;
   contact: { firstName: string; lastName: string } | null;
-  company: { name: string; logoUrl: string | null; brandColor: string | null };
+  company: {
+    name: string;
+    logoUrl: string | null;
+    brandColor: string | null;
+    brandColorSecondary: string | null;
+  };
   lineItems: {
     id: string;
     name: string;
