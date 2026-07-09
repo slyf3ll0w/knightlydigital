@@ -573,7 +573,7 @@ export const moneyTools: Tool[] = [
         payload.unitPrice = unitPrice;
         lines.push(`Price: ${money(sub.unitPrice)} → ${money(unitPrice)}`);
       }
-      const quantity = num(args.quantity);
+      const quantity = args.quantity === null || args.quantity === undefined ? null : Math.round(num(args.quantity) ?? 0);
       if (quantity !== null && quantity > 0 && quantity <= 999) {
         payload.quantity = quantity;
         lines.push(`Quantity: ${quantity}`);

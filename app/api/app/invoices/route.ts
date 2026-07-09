@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { getActor, canSeeMoney, contactScope } from "@/lib/permissions";
 import { ensureSubscriptionsForContact } from "@/lib/subscriptions";
 import { paidDepositTotal } from "@/lib/deposits";
+import { intQuantity } from "@/lib/work-items";
 
 export async function POST(req: NextRequest) {
   const actor = await getActor();
@@ -17,6 +18,7 @@ export async function POST(req: NextRequest) {
   if (!lineItems?.length) {
     return NextResponse.json({ error: "At least one line item is required." }, { status: 400 });
   }
+  for (const li of lineItems) li.quantity = intQuantity(li.quantity);
 
   const contact = contactId
     ? await prisma.contact.findFirst({ where: { id: contactId, companyId, ...contactScope(actor) } })

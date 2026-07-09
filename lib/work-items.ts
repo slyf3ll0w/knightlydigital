@@ -21,6 +21,15 @@ export function sanitizePriceDisplay(v: unknown): PriceDisplay {
   return PRICE_DISPLAYS.includes(v as PriceDisplay) ? (v as PriceDisplay) : "FIXED";
 }
 
+/**
+ * Line-item quantities are whole units. The column is Decimal(10,3) for
+ * historical data, but every write path rounds to a positive integer.
+ */
+export function intQuantity(v: unknown): number {
+  const n = Math.round(Number(v));
+  return Number.isFinite(n) && n > 0 ? Math.min(n, 999999) : 1;
+}
+
 /** On-site duration for online booking: 15 min – 8 h, else "not bookable" (null). */
 export function sanitizeDuration(v: unknown): number | null {
   const n = Number(v);

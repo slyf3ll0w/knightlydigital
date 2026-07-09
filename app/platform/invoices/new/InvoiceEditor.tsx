@@ -162,7 +162,7 @@ export default function InvoiceEditor({
   }
 
   const subtotal = lineItems.reduce((sum, li) => {
-    return sum + (parseFloat(li.quantity) || 0) * (parseFloat(li.unitPrice) || 0);
+    return sum + (parseInt(li.quantity, 10) || 0) * (parseFloat(li.unitPrice) || 0);
   }, 0);
   const discountNum = parseFloat(discountValue) || 0;
   const discount =
@@ -190,7 +190,7 @@ export default function InvoiceEditor({
       lineItems: lineItems.map((li, i) => ({
         name: li.name,
         description: li.description,
-        quantity: parseFloat(li.quantity) || 1,
+        quantity: parseInt(li.quantity, 10) || 1,
         unitPrice: parseFloat(li.unitPrice) || 0,
         workItemId: li.workItemId || null,
         recurringInterval: li.recurringInterval ?? null,
@@ -331,10 +331,11 @@ export default function InvoiceEditor({
                     </button>
                     <input
                       type="number"
+                      inputMode="numeric"
                       placeholder="Qty"
                       value={li.quantity}
-                      onChange={(e) => updateLine(i, "quantity", e.target.value)}
-                      min="0" step="0.001"
+                      onChange={(e) => updateLine(i, "quantity", e.target.value.replace(/[^0-9]/g, ""))}
+                      min="1" step="1"
                       className="px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 sm:order-2"
                     />
                     <input

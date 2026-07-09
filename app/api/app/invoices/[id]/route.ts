@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { InvoiceStatus, RecurringInterval } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getActor, isManager, canSeeMoney, viaContactScope } from "@/lib/permissions";
+import { intQuantity } from "@/lib/work-items";
 
 /**
  * PATCH — full-document invoice edit (subject, line items, discount, tax,
@@ -52,6 +53,7 @@ export async function PATCH(
     recurringInterval?: RecurringInterval | null;
     sortOrder?: number;
   }[];
+  for (const li of lineItems) li.quantity = intQuantity(li.quantity);
 
   const subtotal = lineItems.reduce((s, li) => s + (li.quantity || 0) * (li.unitPrice || 0), 0);
   const discountType =

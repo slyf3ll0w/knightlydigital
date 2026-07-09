@@ -152,10 +152,11 @@ export function parseLineItems(raw: unknown): { description: string; quantity: n
   return items
     .map((li) => {
       const r = (li ?? {}) as Record<string, unknown>;
-      const quantity = num(r.quantity);
+      const quantity = r.quantity === null || r.quantity === undefined ? null : Math.round(num(r.quantity) ?? 0);
       const unitPrice = num(r.unitPrice);
       return {
         description: str(r.description, 200),
+        // Quantities are whole units
         quantity: quantity && quantity > 0 && quantity <= 999 ? quantity : 1,
         unitPrice: unitPrice !== null && unitPrice >= 0 && unitPrice <= 100000 ? unitPrice : 0,
       };
@@ -170,7 +171,7 @@ export const LINE_ITEMS_PARAM = {
     type: "object",
     properties: {
       description: { type: "string" },
-      quantity: { type: "number" },
+      quantity: { type: "integer" },
       unitPrice: { type: "number" },
     },
     required: ["description", "quantity", "unitPrice"],

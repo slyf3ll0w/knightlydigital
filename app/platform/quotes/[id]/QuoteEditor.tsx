@@ -144,7 +144,7 @@ export default function QuoteEditor({
 
   // Optional items count toward the total by default (client can opt out in the hub)
   const subtotal = lineItems.reduce((sum, li) => {
-    const qty = parseFloat(li.quantity) || 0;
+    const qty = parseInt(li.quantity, 10) || 0;
     const price = parseFloat(li.unitPrice) || 0;
     return sum + qty * price;
   }, 0);
@@ -203,7 +203,7 @@ export default function QuoteEditor({
       lineItems: lineItems.map((li, i) => ({
         name: li.name,
         description: li.description,
-        quantity: parseFloat(li.quantity) || 1,
+        quantity: parseInt(li.quantity, 10) || 1,
         unitPrice: parseFloat(li.unitPrice) || 0,
         unitCost: li.unitCost === "" ? null : parseFloat(li.unitCost) || 0,
         requiresAgreement: li.requiresAgreement,
@@ -322,11 +322,12 @@ export default function QuoteEditor({
                     </button>
                     <input
                       type="number"
+                      inputMode="numeric"
                       placeholder="Qty"
                       value={li.quantity}
-                      onChange={(e) => updateLine(i, "quantity", e.target.value)}
-                      min="0"
-                      step="0.001"
+                      onChange={(e) => updateLine(i, "quantity", e.target.value.replace(/[^0-9]/g, ""))}
+                      min="1"
+                      step="1"
                       className="px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 sm:order-2"
                     />
                     <input

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { RecurringInterval } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, contactScope } from "@/lib/permissions";
-import { backfillLineItemCosts } from "@/lib/work-items";
+import { backfillLineItemCosts, intQuantity } from "@/lib/work-items";
 
 export async function POST(req: NextRequest) {
   const actor = await getActor();
@@ -31,6 +31,7 @@ export async function POST(req: NextRequest) {
       { status: 400 }
     );
   }
+  for (const li of lineItems) li.quantity = intQuantity(li.quantity);
 
   const contact = await prisma.contact.findFirst({
     where: { id: contactId, companyId, ...contactScope(actor) },
