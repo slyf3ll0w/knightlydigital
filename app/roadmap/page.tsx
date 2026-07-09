@@ -13,21 +13,16 @@ export const dynamic = "force-dynamic";
 
 export default async function RoadmapPage() {
   const canEdit = await isRoadmapEditor();
-  const [items, notes] = await Promise.all([
-    prisma.roadmapItem.findMany({
-      orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
-    }),
-    // Private notes never leave the server for non-editors
-    prisma.roadmapNote.findMany({
-      where: canEdit ? {} : { isPublic: true },
-      orderBy: { createdAt: "desc" },
-    }),
-  ]);
+  const items = await prisma.roadmapItem.findMany({
+    orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
+  });
 
   return (
     <RoadmapClient
-      initialItems={JSON.parse(JSON.stringify(items))}
-      initialNotes={JSON.parse(JSON.stringify(notes))}
+      initialItems={JSON.parse(
+        // Private notes never leave the server for non-editors
+        JSON.stringify(canEdit ? items : items.map(({ privateNotes: _, ...rest }) => rest))
+      )}
       canEdit={canEdit}
     />
   );

@@ -20,6 +20,9 @@ export async function PATCH(
   if (typeof body?.details === "string") {
     data.details = body.details.trim() ? body.details.trim().slice(0, 2000) : null;
   }
+  if (typeof body?.privateNotes === "string") {
+    data.privateNotes = body.privateNotes.trim() ? body.privateNotes.trim().slice(0, 5000) : null;
+  }
   if (ROADMAP_CATEGORIES.includes(body?.category)) data.category = body.category;
   // The checkbox: shipped=true stamps shippedAt, false puts it back in Upcoming
   if (typeof body?.shipped === "boolean") data.shippedAt = body.shipped ? new Date() : null;
