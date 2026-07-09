@@ -1,17 +1,18 @@
 import type { Metadata } from "next";
 import { prisma } from "@/lib/db";
+import { requirePageActor } from "@/lib/permissions";
 import { isRoadmapEditor } from "@/lib/roadmap";
-import RoadmapClient from "./RoadmapClient";
+import RoadmapClient from "@/app/roadmap/RoadmapClient";
 
-export const metadata: Metadata = {
-  title: "Upcoming Features — Streamflaire Hub",
-  description:
-    "What we're building next for Streamflaire Hub — upcoming features, bug fixes, and quality-of-life improvements, and everything that already shipped.",
-};
+export const metadata: Metadata = { title: "Upcoming Features" };
 
-export const dynamic = "force-dynamic";
-
-export default async function RoadmapPage() {
+/**
+ * In-app view of the public roadmap (/app/roadmap) — same board, rendered
+ * inside the app shell instead of the marketing chrome. Reached from the
+ * dashboard footer link; deliberately absent from the sidebar.
+ */
+export default async function AppRoadmapPage() {
+  await requirePageActor();
   const canEdit = await isRoadmapEditor();
   const [items, notes] = await Promise.all([
     prisma.roadmapItem.findMany({
@@ -29,6 +30,7 @@ export default async function RoadmapPage() {
       initialItems={JSON.parse(JSON.stringify(items))}
       initialNotes={JSON.parse(JSON.stringify(notes))}
       canEdit={canEdit}
+      app
     />
   );
 }

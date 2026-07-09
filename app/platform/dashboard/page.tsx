@@ -12,6 +12,7 @@ import {
   CheckCircle2,
   CalendarPlus,
   CalendarCheck,
+  Megaphone,
 } from "lucide-react";
 import { money, appointmentTypeLabel } from "@/lib/statuses";
 import EmptyState from "@/components/EmptyState";
@@ -459,6 +460,18 @@ export default async function DashboardPage() {
           </div>
         </div>
         )}
+      </div>
+
+      {/* Quiet pointer to the roadmap — deliberately not in the sidebar */}
+      <div className="mt-10 pt-5 border-t border-gray-200 text-center">
+        <Link
+          href="/app/roadmap"
+          className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-400 hover:text-green-700 transition-colors"
+        >
+          <Megaphone size={12} />
+          See what&apos;s coming next — Upcoming Features
+          <ArrowRight size={11} />
+        </Link>
       </div>
     </div>
   );

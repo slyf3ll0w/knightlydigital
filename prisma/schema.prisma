@@ -219,6 +219,18 @@ model RoadmapItem {
   @@index([category, shippedAt])
 }
 
+// Free-form notes on the roadmap board. isPublic=true shows to everyone on
+// /roadmap; false = editors-only (never sent to non-editor pages/APIs).
+model RoadmapNote {
+  id        String   @id @default(cuid())
+  body      String
+  isPublic  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isPublic])
+}
+
 // ─── Contacts (Clients) ──────────────────────────────────────────────────────
 
 enum ContactFieldType {
