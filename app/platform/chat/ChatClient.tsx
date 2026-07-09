@@ -138,6 +138,8 @@ export default function ChatClient({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState("");
   const [pickerFor, setPickerFor] = useState<string | null>(null);
+  // Touch screens have no hover — tapping a bubble pins its action pill open
+  const [focusedId, setFocusedId] = useState<string | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const stickToBottomRef = useRef(true);
@@ -531,6 +533,10 @@ export default function ChatClient({
                           </div>
                         ) : (
                           <div
+                            onClick={() => {
+                              setFocusedId(focusedId === m.id ? null : m.id);
+                              if (pickerFor && pickerFor !== m.id) setPickerFor(null);
+                            }}
                             className={`whitespace-pre-wrap break-words rounded-lg px-3 py-2 text-sm ${
                               mine
                                 ? "bg-[#0C0F0C] text-white"
@@ -569,9 +575,9 @@ export default function ChatClient({
                         {/* Hover actions */}
                         {editingId !== m.id && (
                           <div
-                            className={`absolute -top-3 z-10 hidden items-center gap-0.5 rounded-full border border-gray-200 bg-white px-1 py-0.5 shadow-sm group-hover:flex ${
-                              mine ? "left-0 -translate-x-1" : "right-0 translate-x-1"
-                            }`}
+                            className={`absolute -top-3 z-10 items-center gap-0.5 rounded-full border border-gray-200 bg-white px-1 py-0.5 shadow-sm ${
+                              focusedId === m.id ? "flex" : "hidden group-hover:flex"
+                            } ${mine ? "left-0 -translate-x-1" : "right-0 translate-x-1"}`}
                           >
                             <button
                               type="button"
