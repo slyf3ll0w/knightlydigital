@@ -109,6 +109,8 @@ model User {
   assignedContacts Contact[]       @relation("AssignedContacts")
   appointments     Appointment[]   @relation("AppointmentAssignee")
   teamMessages     TeamMessage[]
+  receivedTeamMessages TeamMessage[] @relation("ReceivedTeamMessages")
+  chatThreadStates ChatThreadState[]
 
   @@index([companyId])
   @@index([role])
@@ -116,18 +118,51 @@ model User {
 
 // ─── Team chat ───────────────────────────────────────────────────────────────
 
-// One company-wide channel (like a tiny Slack #general). Shown only when the
-// company has more than one active member.
+// Company-wide channel + direct messages (recipientId null = the "Everyone"
+// channel, set = a DM to that teammate). Shown only when the company has more
+// than one active member; DM threads appear at 3+ members.
 model TeamMessage {
-  id        String   @id @default(cuid())
-  companyId String
-  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  body      String
-  createdAt DateTime @default(now())
+  id          String    @id @default(cuid())
+  companyId   String
+  company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recipientId String?
+  recipient   User?     @relation("ReceivedTeamMessages", fields: [recipientId], references: [id], onDelete: Cascade)
+  body        String
+  editedAt    DateTime?
+  createdAt   DateTime  @default(now())
 
-  @@index([companyId, createdAt])
+  reactions TeamMessageReaction[]
+
+  @@index([companyId, recipientId, createdAt])
+  @@index([recipientId, userId])
+}
+
+// iMessage-style tapbacks: one row per user+emoji per message, toggled off by
+// deleting the row — storage stays tiny.
+model TeamMessageReaction {
+  id        String      @id @default(cuid())
+  messageId String
+  message   TeamMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userId    String
+  emoji     String
+  createdAt DateTime    @default(now())
+
+  @@unique([messageId, userId, emoji])
+  @@index([messageId])
+}
+
+// Per-DM-thread read markers (the company channel reuses User.chatLastSeenAt).
+// threadKey = the DM peer's user id. One row per opened thread per user.
+model ChatThreadState {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  threadKey  String
+  lastSeenAt DateTime @default(now())
+
+  @@unique([userId, threadKey])
 }
 
 enum Role {

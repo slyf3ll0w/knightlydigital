@@ -1,57 +1,54 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor } from "@/lib/permissions";
+import {
+  resolveThread,
+  threadWhere,
+  markThreadSeen,
+  unreadByThread,
+  activeTypers,
+  MESSAGE_SELECT,
+  serializeMessage,
+} from "@/lib/chat";
 
 /**
- * Team chat: one company-wide channel. GET returns new messages (for the
- * page's poll loop) and stamps chatLastSeenAt — the chat page is the only
- * caller, so fetching IS seeing. POST sends a message.
+ * Team chat. GET returns a full snapshot of the requested thread (last 100
+ * messages with reactions), the roster with per-thread unread counts, and
+ * who's typing — the page polls this every few seconds, so edits, deletes,
+ * and reactions propagate without any extra bookkeeping. Fetching a thread
+ * marks it read. POST sends a message to a thread.
  */
-
-const MESSAGE_SELECT = {
-  id: true,
-  body: true,
-  createdAt: true,
-  userId: true,
-  user: { select: { name: true } },
-} as const;
 
 export async function GET(req: NextRequest) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const after = req.nextUrl.searchParams.get("after");
-  const afterDate = after ? new Date(after) : null;
+  const resolved = await resolveThread(actor, req.nextUrl.searchParams.get("thread"));
+  if ("error" in resolved) return NextResponse.json({ error: resolved.error }, { status: 404 });
+  const { peerId } = resolved;
 
-  const messages = afterDate && !isNaN(afterDate.getTime())
-    ? await prisma.teamMessage.findMany({
-        where: { companyId: actor.companyId, createdAt: { gt: afterDate } },
-        orderBy: { createdAt: "asc" },
-        take: 200,
-        select: MESSAGE_SELECT,
-      })
-    : (
-        await prisma.teamMessage.findMany({
-          where: { companyId: actor.companyId },
-          orderBy: { createdAt: "desc" },
-          take: 100,
-          select: MESSAGE_SELECT,
-        })
-      ).reverse();
+  const [messages, team] = await Promise.all([
+    prisma.teamMessage.findMany({
+      where: threadWhere(actor, peerId),
+      orderBy: { createdAt: "desc" },
+      take: 100,
+      select: MESSAGE_SELECT,
+    }),
+    prisma.user.findMany({
+      where: { companyId: actor.companyId, isActive: true },
+      select: { id: true, name: true, role: true, phone: true },
+      orderBy: { createdAt: "asc" },
+    }),
+  ]);
 
-  await prisma.user.update({
-    where: { id: actor.id },
-    data: { chatLastSeenAt: new Date() },
-  });
+  await markThreadSeen(actor.id, peerId);
+  const unread = await unreadByThread(actor);
 
   return NextResponse.json({
-    messages: messages.map((m) => ({
-      id: m.id,
-      body: m.body,
-      createdAt: m.createdAt.toISOString(),
-      userId: m.userId,
-      userName: m.user.name,
-    })),
+    messages: messages.reverse().map(serializeMessage),
+    team,
+    unread,
+    typers: activeTypers(actor.companyId, actor.id, peerId),
   });
 }
 
@@ -66,25 +63,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Message is too long (4000 characters max)." }, { status: 400 });
   }
 
+  const resolved = await resolveThread(actor, typeof body?.thread === "string" ? body.thread : null);
+  if ("error" in resolved) return NextResponse.json({ error: resolved.error }, { status: 404 });
+  const { peerId } = resolved;
+
   const message = await prisma.teamMessage.create({
-    data: { companyId: actor.companyId, userId: actor.id, body: text },
+    data: {
+      companyId: actor.companyId,
+      userId: actor.id,
+      recipientId: peerId,
+      body: text,
+    },
     select: MESSAGE_SELECT,
   });
 
-  // Sending also means you're caught up
-  await prisma.user.update({
-    where: { id: actor.id },
-    data: { chatLastSeenAt: new Date() },
-  });
+  await markThreadSeen(actor.id, peerId); // sending means you're caught up
 
-  return NextResponse.json(
-    {
-      id: message.id,
-      body: message.body,
-      createdAt: message.createdAt.toISOString(),
-      userId: message.userId,
-      userName: message.user.name,
-    },
-    { status: 201 }
-  );
+  return NextResponse.json(serializeMessage(message), { status: 201 });
 }

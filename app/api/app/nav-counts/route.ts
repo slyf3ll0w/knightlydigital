@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, canSeeMoney, viaContactScope } from "@/lib/permissions";
+import { unreadByThread } from "@/lib/chat";
 
 /**
  * Sidebar badge counts: new requests + past-due invoices, role-scoped the
@@ -30,18 +31,10 @@ export async function GET() {
           },
         })
       : Promise.resolve(0),
-    // Team chat unread: teammates' messages since the actor last opened chat
-    prisma.user
-      .findUnique({ where: { id: actor.id }, select: { chatLastSeenAt: true } })
-      .then((u) =>
-        prisma.teamMessage.count({
-          where: {
-            companyId: actor.companyId,
-            userId: { not: actor.id },
-            ...(u?.chatLastSeenAt ? { createdAt: { gt: u.chatLastSeenAt } } : {}),
-          },
-        })
-      ),
+    // Team chat unread: channel + DMs, each against its own read marker
+    unreadByThread(actor).then(
+      (u) => u.company + Object.values(u.dms).reduce((s, n) => s + n, 0)
+    ),
   ]);
 
   return NextResponse.json({ requests, pastDue, chat });
