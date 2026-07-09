@@ -195,6 +195,30 @@ enum Role {
   TECH // performs: assigned jobs + schedule, no pricing
 }
 
+// ─── Public roadmap (Upcoming Features board) ────────────────────────────────
+
+enum RoadmapCategory {
+  FEATURE
+  BUG
+  QOL // quality of life
+}
+
+// Product-wide (not company-scoped): the public "what's coming / what shipped"
+// board at /roadmap. Anyone can view; only the allowlisted editor accounts in
+// lib/roadmap.ts can write.
+model RoadmapItem {
+  id        String          @id @default(cuid())
+  category  RoadmapCategory
+  title     String
+  details   String?
+  shippedAt DateTime? // null = upcoming; set = shipped (the checkbox)
+  sortOrder Int             @default(0)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  @@index([category, shippedAt])
+}
+
 // ─── Contacts (Clients) ──────────────────────────────────────────────────────
 
 enum ContactFieldType {

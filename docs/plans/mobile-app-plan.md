@@ -1,7 +1,8 @@
 # Mobile App Plan — App Store / Play Store via Capacitor
 
-*Drafted 2026-07-08. Status: NOT STARTED — parked until David green-lights it.
-Prereq that blocks real strangers using the app either way: Gemini paid-tier flip.*
+*Drafted 2026-07-08. Status: PHASE 1 (web push) SHIPPED 2026-07-09 — see below.
+Phases 2–3 parked until David green-lights them. Prereq that blocks real
+strangers using the app either way: Gemini paid-tier flip.*
 
 ## Goal
 
@@ -38,7 +39,24 @@ with native plugins layered on top.
   services (guideline 3.1.5(a) exemption). If we ever sell the SOFTWARE via
   in-app subscription, that changes.
 
-## Phase 1 — Web Push (do this first; no accounts, no Capacitor needed)
+## Phase 1 — Web Push — ✅ SHIPPED 2026-07-09 (commit 03debd2)
+
+Built as planned, all items below. Implementation notes for Phase 2:
+- `lib/push.ts` — `notifyUser`/`notifyUsers` + audience helpers
+  (`companyManagerIds`, `requestNotifyUserIds`); env-gated on
+  VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY (both set on Railway).
+- `PushSubscription` model (endpoint unique, pruned on 404/410) — Phase 2
+  adds the `platform` column + FCM/APNs tokens here.
+- Subscribe UI: per-user toggle on My Profile (`PushToggleCard`) +
+  dismissible dashboard nudge (`PushNudge`), both in
+  `components/PushNotifications.tsx`; `public/sw.js` handles show + click.
+- Send points live: new requests → owners/lead assignee (+ client's
+  salesperson from the hub), self-scheduled bookings → managers, team chat →
+  thread recipients (tag-collapsed per thread), payments → owners minus
+  whoever recorded it, hour-before appointment reminder → assigned member.
+- Notification prefs: all-on to start (per open question) — revisit if noisy.
+
+## Phase 1 — original build list (kept for reference)
 
 Push is the single biggest win and it works TODAY for the existing home-screen
 install. It also builds the exact server plumbing the native app reuses.
