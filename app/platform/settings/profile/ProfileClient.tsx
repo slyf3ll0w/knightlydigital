@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Check, Loader2 } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
+import { PushToggleCard } from "@/components/PushNotifications";
 
 const inputCls =
   "w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500";
@@ -126,6 +127,8 @@ export default function ProfileClient({
           Update Password
         </button>
       </div>
+
+      <PushToggleCard />
 
       <div className="card-ledger p-5 mt-5 flex flex-wrap items-center justify-between gap-3">
         <div>

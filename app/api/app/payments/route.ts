@@ -53,6 +53,7 @@ export async function POST(req: NextRequest) {
       paidAt: paidAt
         ? new Date(paidAt.length === 10 ? `${paidAt}T12:00:00` : paidAt)
         : undefined,
+      recordedById: actor.id,
     });
     return NextResponse.json({ payment, fullyPaid }, { status: 201 });
   } catch (e) {

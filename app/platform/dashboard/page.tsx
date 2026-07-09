@@ -16,6 +16,7 @@ import {
 import { money, appointmentTypeLabel } from "@/lib/statuses";
 import EmptyState from "@/components/EmptyState";
 import DashboardSetupCard from "./DashboardSetupCard";
+import { PushNudge } from "@/components/PushNotifications";
 import {
   requirePageActor,
   isManager,
@@ -307,6 +308,7 @@ export default async function DashboardPage() {
       </div>
 
       {showSetupCard && <DashboardSetupCard />}
+      <PushNudge />
 
       {/* ── Needs you ──────────────────────────────────────────────────────── */}
       <div className="anim-fade-up anim-delay-1 mb-8" data-tour="workflow">

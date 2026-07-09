@@ -16,6 +16,7 @@
 
 import { prisma } from "@/lib/db";
 import { sendEmail, paymentReminderEmail, appointmentReminderEmail } from "@/lib/email";
+import { notifyUser } from "@/lib/push";
 import { slotLabel } from "@/lib/booking-availability";
 
 const DAY = 86400000;
@@ -188,6 +189,15 @@ export async function runAppointmentReminders(
               : { reminderDaySentAt: now },
         });
         summary.sent++;
+        // The email reminds the client; the push reminds whoever's going
+        if (stage === "hour" && appt.assignedToId) {
+          await notifyUser(appt.assignedToId, {
+            title: "Upcoming appointment",
+            body: `${appt.title} — arrival window ${slotLabel(appt.company.timezone, appt.scheduledAt, windowEnd)}`,
+            url: "/app/schedule",
+            tag: `appt-${appt.id}`,
+          });
+        }
       }
     } catch (err) {
       summary.errors++;

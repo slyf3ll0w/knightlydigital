@@ -14,6 +14,7 @@
  */
 
 import { prisma } from "@/lib/db";
+import { notifyUsers } from "@/lib/push";
 import type { PaymentMethod } from "@prisma/client";
 
 // ─── Processor interface ─────────────────────────────────────────────────────
@@ -127,6 +128,9 @@ export interface RecordPaymentParams {
   processorRef?: string | null;
   surchargeAmount?: number | null;
   paidAt?: Date;
+  /** Team member who recorded it — skipped in the owner push so people
+   *  don't get notified about their own keystrokes. */
+  recordedById?: string | null;
 }
 
 /**
@@ -134,7 +138,7 @@ export interface RecordPaymentParams {
  * Marks the invoice PAID when total payments cover the total.
  */
 export async function recordPayment(params: RecordPaymentParams) {
-  return prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const invoice = await tx.invoice.findFirst({
       where: { id: params.invoiceId, companyId: params.companyId },
       include: { payments: true },
@@ -169,8 +173,28 @@ export async function recordPayment(params: RecordPaymentParams) {
           : {},
     });
 
-    return { payment, fullyPaid };
+    return { payment, fullyPaid, invoiceNumber: invoice.invoiceNumber };
   });
+
+  // Push the good news to the owner(s) — covers online /pay payments,
+  // subscription auto-charges, and payments a teammate recorded.
+  const owners = await prisma.user.findMany({
+    where: { companyId: params.companyId, role: "OWNER", isActive: true },
+    select: { id: true },
+  });
+  await notifyUsers(
+    owners.map((o) => o.id).filter((id) => id !== params.recordedById),
+    {
+      title: result.fullyPaid
+        ? `Invoice #${result.invoiceNumber} paid`
+        : `Payment received — invoice #${result.invoiceNumber}`,
+      body: `$${params.amount.toFixed(2)} · ${params.method.toLowerCase().replace(/_/g, " ")}`,
+      url: `/app/invoices/${params.invoiceId}`,
+      tag: `payment-${params.invoiceId}`,
+    }
+  );
+
+  return { payment: result.payment, fullyPaid: result.fullyPaid };
 }
 
 /** Outstanding balance on an invoice (total minus recorded payments). */

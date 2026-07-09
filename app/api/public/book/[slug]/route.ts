@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { verifyCaptcha } from "@/lib/captcha";
 import { sendEmail, newRequestEmail, quoteLinkEmail, bookingReceivedEmail } from "@/lib/email";
 import { companyNotifyAddress } from "@/lib/notify";
+import { companyManagerIds, notifyUsers, requestNotifyUserIds } from "@/lib/push";
 import { defaultLeadAssignee } from "@/lib/permissions";
 import { resolveWebForm } from "@/lib/web-forms";
 import { getActiveFieldDefs, sanitizeCustomFields } from "@/lib/contact-fields";
@@ -425,6 +426,25 @@ export async function POST(
       { status: 409 }
     );
   }
+
+  // Push: self-scheduled bookings need a manager's Accept/Decline; everything
+  // else goes to the owner(s) + preset lead assignee like the email does
+  await notifyUsers(
+    booking ? await companyManagerIds(company.id) : await requestNotifyUserIds(company.id),
+    booking
+      ? {
+          title: "Booking to approve",
+          body: `${firstName} ${lastName} — ${booking.service.name}, ${bookingWindow}`,
+          url: `/app/requests/${result.request.id}`,
+          tag: `request-${result.request.id}`,
+        }
+      : {
+          title: `New request from ${firstName} ${lastName}`,
+          body: result.request.title,
+          url: `/app/requests/${result.request.id}`,
+          tag: `request-${result.request.id}`,
+        }
+  );
 
   // Notify the company inbox; reply goes straight to the customer
   const notifyTo = await companyNotifyAddress(company.id, company.email);

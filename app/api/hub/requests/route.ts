@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { sendEmail, newRequestEmail } from "@/lib/email";
 import { companyNotifyAddress } from "@/lib/notify";
+import { notifyUsers, requestNotifyUserIds } from "@/lib/push";
 
 /** Public: a client submits a work request from their hub. */
 export async function POST(req: NextRequest) {
@@ -43,6 +44,14 @@ export async function POST(req: NextRequest) {
       details: details ? String(details).slice(0, 5000) : null,
       source: "client_hub",
     },
+  });
+
+  // Push to the owner(s), lead assignee, and this client's salesperson
+  await notifyUsers(await requestNotifyUserIds(contact.companyId, contact.assignedToId), {
+    title: `New request from ${contact.firstName} ${contact.lastName}`,
+    body: request.title,
+    url: `/app/requests/${request.id}`,
+    tag: `request-${request.id}`,
   });
 
   // Notify the company inbox; reply goes straight to the customer

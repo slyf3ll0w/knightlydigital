@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor } from "@/lib/permissions";
+import { notifyUsers } from "@/lib/push";
 import {
   resolveThread,
   threadWhere,
@@ -78,6 +79,23 @@ export async function POST(req: NextRequest) {
   });
 
   await markThreadSeen(actor.id, peerId); // sending means you're caught up
+
+  // Push to the DM peer, or everyone else in the company channel. One tag per
+  // thread so a burst of messages collapses into the latest notification.
+  const recipients = peerId
+    ? [peerId]
+    : (
+        await prisma.user.findMany({
+          where: { companyId: actor.companyId, isActive: true, id: { not: actor.id } },
+          select: { id: true },
+        })
+      ).map((u) => u.id);
+  await notifyUsers(recipients, {
+    title: peerId ? actor.name : `${actor.name} · Team chat`,
+    body: text.length > 140 ? `${text.slice(0, 139)}…` : text,
+    url: "/app/chat",
+    tag: peerId ? `chat-dm-${actor.id}` : `chat-co-${actor.companyId}`,
+  });
 
   return NextResponse.json(serializeMessage(message), { status: 201 });
 }
