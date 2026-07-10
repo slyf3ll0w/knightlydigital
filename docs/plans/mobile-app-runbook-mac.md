@@ -52,9 +52,8 @@ https://streamflaire.com; nothing is bundled).*
 ### A. First boot (no accounts needed)
 
 1. `npm install` (repo root), then `npx cap sync`.
-2. iOS deps: Capacitor 8 — check `ios/App/Podfile`; if present:
-   `cd ios/App && pod install` (install CocoaPods via `brew install cocoapods`
-   if missing). If the project is SPM-based there's nothing to do.
+2. iOS deps: the generated project is **SPM-based** (`ios/App/CapApp-SPM/`,
+   no Podfile) — `npx cap sync ios` resolves packages; no CocoaPods needed.
 3. `npx cap open ios` → set the signing team (David's free personal team works
    for device installs; 7-day provisioning) → run on David's iPhone.
 4. `npx cap open android` → run in an emulator (David has no Android phone).
@@ -75,10 +74,11 @@ https://streamflaire.com; nothing is bundled).*
 ### B. Native push (needs Firebase files from above)
 
 1. iOS: in Xcode add capabilities **Push Notifications** + **Background Modes
-   → Remote notifications**. Add Firebase SDK — the plugin's iOS token is APNs
-   by default; FCM needs the FirebaseMessaging pod and the AppDelegate
-   exchange (see Capacitor push-notifications guide, "Firebase" section) so
-   the `registration` event yields an **FCM** token our server can send to.
+   → Remote notifications**. Add the `firebase-ios-sdk` package via SPM
+   (FirebaseMessaging product) — the plugin's iOS token is APNs by default;
+   the AppDelegate must exchange it for FCM (see Capacitor push-notifications
+   guide, "Firebase" section) so the `registration` event yields an **FCM**
+   token our server can send to.
 2. Android: `google-services.json` in place is all it takes (template
    auto-applies the plugin). Android 13+ runtime permission is handled by the
    plugin's `requestPermissions()`.
