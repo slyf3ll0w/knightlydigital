@@ -49,16 +49,21 @@ export default function NativeShell() {
 
     const { StatusBar, App: CapApp, Browser, PushNotifications } = cap.Plugins;
 
-    // iOS overlays the status bar on the webview, and the app's top surface
-    // there is the white mobile header — so status icons must be dark
-    // (style LIGHT = dark content on light background). Android keeps a
-    // solid dark bar matching the rail (style DARK = light content).
-    if (cap.getPlatform?.() === "ios") {
-      StatusBar?.setStyle?.({ style: "LIGHT" }).catch(() => {});
-    } else {
-      StatusBar?.setStyle?.({ style: "DARK" }).catch(() => {});
-      StatusBar?.setBackgroundColor?.({ color: "#0C0F0C" }).catch(() => {});
-    }
+    // iOS overlays the status bar on the webview; icons must match the
+    // app's theme — dark icons over the light header (style LIGHT), light
+    // icons over the dark theme (style DARK). Follows the system setting
+    // live. Android keeps a solid dark bar matching the rail.
+    const darkQuery = window.matchMedia?.("(prefers-color-scheme: dark)");
+    const applyStatusBar = () => {
+      if (cap.getPlatform?.() === "ios") {
+        StatusBar?.setStyle?.({ style: darkQuery?.matches ? "DARK" : "LIGHT" }).catch(() => {});
+      } else {
+        StatusBar?.setStyle?.({ style: "DARK" }).catch(() => {});
+        StatusBar?.setBackgroundColor?.({ color: "#0C0F0C" }).catch(() => {});
+      }
+    };
+    applyStatusBar();
+    darkQuery?.addEventListener?.("change", applyStatusBar);
 
     // addListener on the raw bridge returns the handle synchronously on iOS
     // but a Promise on Android/web — normalize both.
@@ -126,6 +131,7 @@ export default function NativeShell() {
     return () => {
       backHandle?.remove();
       tapHandle?.remove();
+      darkQuery?.removeEventListener?.("change", applyStatusBar);
       document.removeEventListener("click", onClick, true);
     };
   }, []);

@@ -461,7 +461,7 @@ export default function AppShell({
           <img
             src={companyLogoUrl}
             alt={companyName ?? ""}
-            className="h-10 w-auto max-w-[176px] rounded-md object-contain bg-white px-1.5 py-1 ring-1 ring-white/20"
+            className="theme-fixed h-10 w-auto max-w-[176px] rounded-md object-contain bg-white px-1.5 py-1 ring-1 ring-white/20"
           />
         ) : (
           <>
@@ -473,7 +473,7 @@ export default function AppShell({
                 const img = e.currentTarget;
                 if (img.naturalWidth > img.naturalHeight * 1.5) setLogoIsWide(true);
               }}
-              className="h-10 w-10 rounded-md object-contain bg-white p-0.5 shrink-0 ring-1 ring-white/20"
+              className="theme-fixed h-10 w-10 rounded-md object-contain bg-white p-0.5 shrink-0 ring-1 ring-white/20"
             />
             <span className="font-display font-bold text-[14px] tracking-tight text-white truncate">
               {companyName ?? "Streamflaire Hub"}
