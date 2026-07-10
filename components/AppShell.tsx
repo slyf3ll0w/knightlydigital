@@ -109,12 +109,14 @@ const createItems: NavItem[] = [
   { href: "/app/payments/new", label: "Payment", icon: DollarSign, show: moneyRoles },
 ];
 
+// Tab bar: Home · Schedule · [create] · Atlas · More. Everything else lives
+// in the More drawer — the hamburger pattern is retired on mobile.
 const mobileNav: NavItem[] = [
   { href: "/app/dashboard", label: "Home", icon: Home },
   { href: "/app/schedule", label: "Schedule", icon: CalendarDays },
-  { href: "/app/jobs", label: "Jobs", icon: Briefcase },
-  { href: "/app/invoices", label: "Invoices", icon: Receipt, show: moneyRoles },
 ];
+// Companies with the assistant disabled get Jobs in the Atlas slot.
+const jobsTab: NavItem = { href: "/app/jobs", label: "Jobs", icon: Briefcase };
 
 const forRole = (items: NavItem[], role: string) =>
   items.filter((i) => !i.show || i.show(role));
@@ -530,14 +532,9 @@ export default function AppShell({
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top bar */}
         <header className="flex items-center gap-4 px-4 lg:px-6 min-h-[57px] pt-[env(safe-area-inset-top)] border-b border-gray-200 bg-white shrink-0">
-          <button
-            onClick={() => setMobileOpen(true)}
-            className="lg:hidden text-gray-600 hover:text-gray-900"
-          >
-            <Menu size={20} />
-          </button>
-          {/* Company name lives in the sidebar on desktop; header shows it on mobile */}
-          <span className="lg:hidden font-semibold text-[15px] text-gray-900 truncate">
+          {/* Company name lives in the sidebar on desktop; header shows it on
+              mobile. The hamburger is retired — the More tab opens the drawer. */}
+          <span className="lg:hidden font-display font-bold text-[15px] text-gray-900 truncate">
             {companyName ?? "Streamflaire Hub"}
           </span>
 
@@ -581,6 +578,11 @@ export default function AppShell({
         role={userRole}
         isActive={isActive}
         pastDue={counts.pastDue}
+        aiEnabled={aiEnabled}
+        assistantName={assistantName || "Atlas"}
+        assistantOpen={assistantOpen}
+        openAssistant={() => setAssistantOpen(true)}
+        openMore={() => setMobileOpen(true)}
       />
 
       {/* Assistant bubble — floats above the mobile tab bar, hides while open */}
@@ -593,7 +595,7 @@ export default function AppShell({
           }}
           aria-label="Open assistant"
           title={assistantName || "Atlas"}
-          className="chamfer fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] right-4 z-40 flex h-[52px] w-[52px] items-center justify-center rounded-lg bg-[#0C0F0C] text-green-400 transition-all hover:scale-105 hover:bg-[#181D18] hover:text-green-300 lg:bottom-6 lg:right-6"
+          className="chamfer fixed z-40 hidden lg:flex h-[52px] w-[52px] items-center justify-center rounded-lg bg-[#0C0F0C] text-green-400 transition-all hover:scale-105 hover:bg-[#181D18] hover:text-green-300 lg:bottom-6 lg:right-6"
         >
           <AtlasIcon size={24} />
         </button>
@@ -624,11 +626,21 @@ function MobileTabBar({
   role,
   isActive,
   pastDue,
+  aiEnabled,
+  assistantName,
+  assistantOpen,
+  openAssistant,
+  openMore,
 }: {
   accent: string;
   role: string;
   isActive: (href: string) => boolean;
   pastDue: number;
+  aiEnabled: boolean;
+  assistantName: string;
+  assistantOpen: boolean;
+  openAssistant: () => void;
+  openMore: () => void;
 }) {
   const pathname = usePathname();
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -652,19 +664,39 @@ function MobileTabBar({
           active ? "" : "text-gray-400 hover:text-gray-600"
         }`}
       >
-        <span className="relative">
-          <Icon size={18} />
-          {href === "/app/invoices" && pastDue > 0 && (
-            <span className="absolute -top-1 -right-1.5 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />
-          )}
-        </span>
+        <Icon size={18} />
         {label}
       </Link>
     );
   };
 
-  // Techs can't create anything — plain 4-tab bar, no center button
-  const mid = Math.ceil(tabs.length / 2);
+  const tabButton = (
+    label: string,
+    Icon: React.ComponentType<{ size?: number }>,
+    onPress: () => void,
+    active: boolean,
+    badge = false
+  ) => (
+    <button
+      type="button"
+      onClick={() => {
+        hapticImpact("LIGHT");
+        onPress();
+      }}
+      style={active ? { color: accent } : undefined}
+      className={`font-display flex-1 flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium transition-colors ${
+        active ? "" : "text-gray-400 hover:text-gray-600"
+      }`}
+    >
+      <span className="relative">
+        <Icon size={18} />
+        {badge && (
+          <span className="absolute -top-1 -right-1.5 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />
+        )}
+      </span>
+      {label}
+    </button>
+  );
 
   return (
     <>
@@ -710,7 +742,7 @@ function MobileTabBar({
 
       {/* ── Mobile bottom tab bar ─────────────────────────────────────────── */}
       <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-white border-t border-gray-200 flex items-stretch pb-[env(safe-area-inset-bottom)]">
-        {tabs.slice(0, mid).map(tabLink)}
+        {tabs.map(tabLink)}
         {creates.length > 0 && (
           <div className="relative w-16 shrink-0">
             <button
@@ -729,7 +761,10 @@ function MobileTabBar({
             </button>
           </div>
         )}
-        {tabs.slice(mid).map(tabLink)}
+        {aiEnabled
+          ? tabButton(assistantName, AtlasIcon, openAssistant, assistantOpen)
+          : tabLink(jobsTab)}
+        {tabButton("More", Menu, openMore, false, pastDue > 0)}
       </nav>
     </>
   );
