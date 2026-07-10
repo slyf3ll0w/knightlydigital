@@ -11,7 +11,9 @@ const config: CapacitorConfig = {
   appName: 'Streamflaire Hub',
   webDir: 'native-shell',
   server: {
-    url: 'https://streamflaire.com',
+    // /app/dashboard so the shell opens into the product, not the marketing
+    // home; middleware redirects to /app/login when unauthenticated
+    url: 'https://streamflaire.com/app/dashboard',
     // Shown instead of the default webview error page when the site is unreachable
     errorPath: 'error.html',
   },

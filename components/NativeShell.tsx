@@ -29,14 +29,17 @@ export function nativePlatform(): "ios" | "android" | null {
   return p === "ios" || p === "android" ? p : null;
 }
 
-// Client-facing pages must open in the system browser: they're for the
-// business's CUSTOMERS, and trapping them inside the owner's app shell would
-// let a client wander into the wrong context (and violates store UX rules).
-const EXTERNAL_PATHS = ["/hub/", "/quote/", "/pay/", "/book/", "/contract/", "/portal"];
+// The shell is ONLY the job-manager app. Everything else — the marketing
+// site, client-facing pages (/hub /quote /pay /book /contract /portal), and
+// external domains — opens in the system browser so users can never wander
+// into the wrong context inside the app (also a store UX rule).
+const SHELL_PATH_PREFIXES = ["/app", "/superadmin"];
 
 function shouldOpenExternally(url: URL): boolean {
   if (url.origin !== window.location.origin) return true;
-  return EXTERNAL_PATHS.some((p) => url.pathname === p.replace(/\/$/, "") || url.pathname.startsWith(p));
+  return !SHELL_PATH_PREFIXES.some(
+    (p) => url.pathname === p || url.pathname.startsWith(p + "/")
+  );
 }
 
 export default function NativeShell() {
@@ -69,7 +72,7 @@ export default function NativeShell() {
       "pushNotificationActionPerformed",
       (action: { notification?: { data?: { url?: string } } }) => {
         const url = action?.notification?.data?.url;
-        if (url && url.startsWith("/")) window.location.assign(url);
+        if (url && (url === "/app" || url.startsWith("/app/"))) window.location.assign(url);
       }
     ).then((h: { remove: () => void }) => {
       tapHandle = h;
