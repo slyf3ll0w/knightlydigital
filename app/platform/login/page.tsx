@@ -16,13 +16,19 @@ export default function AppLoginPage() {
   const [loading, setLoading] = useState(false);
   const [captchaToken, setCaptchaToken] = useState("");
   const captchaRef = useRef<TurnstileHandle>(null);
+  // Guards the double redirect after sign-in: signIn() updates the session,
+  // so the effect below would race router.replace against the submit
+  // handler's full-page navigation — the loser cancels the winner, which the
+  // native shell surfaces as a load failure (NSURLError -999).
+  const redirected = useRef(false);
 
   // Already signed in with a company — go straight to the dashboard.
   // Sessions WITHOUT a company (superadmin, or a deleted test company) must
   // stay here, or login → dashboard → register becomes a bounce loop and the
   // register page's "Sign in" link appears dead.
   useEffect(() => {
-    if (status === "authenticated" && session?.user?.companyId) {
+    if (status === "authenticated" && session?.user?.companyId && !redirected.current) {
+      redirected.current = true;
       router.replace("/app/dashboard");
     }
   }, [status, session, router]);
@@ -54,6 +60,7 @@ export default function AppLoginPage() {
     } else {
       // Full page load so the app layout re-renders with the new session
       // (client-side navigation would reuse the signed-out layout — no sidebar)
+      redirected.current = true;
       window.location.href = "/app/dashboard";
     }
   }
