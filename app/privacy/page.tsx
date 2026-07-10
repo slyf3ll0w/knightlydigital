@@ -92,11 +92,11 @@ const sections: { heading: string; paragraphs: (string | React.ReactNode)[] }[] 
       <span key="contact">
         Questions about this policy or your data? Email{' '}
         <a
-          href="mailto:info@streamflaremedia.com"
+          href="mailto:info@streamflaire.com"
           className="font-medium underline underline-offset-2"
           style={{ color: '#16A34A' }}
         >
-          info@streamflaremedia.com
+          info@streamflaire.com
         </a>{' '}
         or reach out through our{' '}
         <Link

@@ -90,8 +90,8 @@ export function Header() {
               (214) 555-0100
             </a>
             <span style={{ color: 'rgba(255,255,255,0.18)' }}>|</span>
-            <a href="mailto:info@streamflaremedia.com" className="hover:text-white transition-colors">
-              info@streamflaremedia.com
+            <a href="mailto:info@streamflaire.com" className="hover:text-white transition-colors">
+              info@streamflaire.com
             </a>
           </div>
           <Link

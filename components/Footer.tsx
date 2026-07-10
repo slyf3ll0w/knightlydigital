@@ -153,10 +153,10 @@ export function Footer() {
               </li>
               <li>
                 <a
-                  href="mailto:info@streamflaremedia.com"
+                  href="mailto:info@streamflaire.com"
                   className="transition-colors hover:text-white break-all"
                 >
-                  info@streamflaremedia.com
+                  info@streamflaire.com
                 </a>
               </li>
               <li style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.75rem' }}>

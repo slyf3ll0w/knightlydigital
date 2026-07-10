@@ -153,11 +153,11 @@ export default function ContactPage() {
                       Email
                     </p>
                     <a
-                      href="mailto:info@streamflaremedia.com"
+                      href="mailto:info@streamflaire.com"
                       className="text-sm transition-colors hover:text-white"
                       style={{ color: '#6B7280' }}
                     >
-                      info@streamflaremedia.com
+                      info@streamflaire.com
                     </a>
                   </div>
                 </div>

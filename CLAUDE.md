@@ -184,6 +184,6 @@ Railway detects Next.js automatically and runs `next start`. GitHub remote: `htt
 ## Business details to update (marketing site)
 
 - **Phone**: Replace `(214) 555-0100` / `tel:2145550100`
-- **Email**: `info@streamflaremedia.com` (update when domain is live)
+- **Email**: `info@streamflaire.com` (real contact address as of 2026-07-09; Resend still SENDS from streamflaremedia.com)
 - **Contact form**: `components/ContactForm.tsx` currently fakes submission. Wire to Formspree, Resend, or an API route.
 - **Social links**: Header social icons link to `#` — update when accounts are set up.
