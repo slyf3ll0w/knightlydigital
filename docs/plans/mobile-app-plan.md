@@ -1,8 +1,14 @@
 # Mobile App Plan — App Store / Play Store via Capacitor
 
-*Drafted 2026-07-08. Status: PHASE 1 (web push) SHIPPED 2026-07-09 — see below.
-Phases 2–3 parked until David green-lights them. Prereq that blocks real
-strangers using the app either way: Gemini paid-tier flip.*
+*Drafted 2026-07-08. Status: PHASE 1 (web push) SHIPPED 2026-07-09. PHASE 2
+green-lit 2026-07-09 — everything doable without a Mac/device is DONE and
+committed (Capacitor scaffold, icons/splash, NativeShell integration, FCM
+send path env-gated on FIREBASE_SERVICE_ACCOUNT, native register UI —
+UNTESTED on device). Continuation lives in
+docs/plans/mobile-app-runbook-mac.md for Claude Code on David's Mac (he has a
+Mac, no Android phone → iOS on his iPhone first, Android via emulator).
+Prereq that blocks real strangers using the app either way: Gemini paid-tier
+flip.*
 
 ## Goal
 

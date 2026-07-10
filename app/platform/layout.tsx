@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/db";
 import AppShell from "@/components/AppShell";
+import NativeShell from "@/components/NativeShell";
 
 export const metadata: Metadata = {
   title: {
@@ -16,7 +17,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   // No session: render without AppShell (login/register pages render standalone)
   // Middleware + individual pages handle auth redirects for protected routes.
-  if (!session) return <>{children}</>;
+  if (!session)
+    return (
+      <>
+        <NativeShell />
+        {children}
+      </>
+    );
 
   // Fresh from DB (not JWT) so logo/brand and role changes apply without re-login
   const [company, user, teamCount] = await Promise.all([
@@ -45,21 +52,24 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   ]);
 
   return (
-    <AppShell
-      userName={user?.name ?? session.user.name}
-      userEmail={session.user.email}
-      role={user?.role ?? session.user.role}
-      companyName={company?.name ?? session.user.companyName}
-      companyLogoUrl={company?.logoUrl}
-      brandColor={company?.brandColor}
-      brandColorSecondary={company?.brandColorSecondary}
-      teamCount={teamCount}
-      needsTour={!!user && !user.tourCompletedAt}
-      aiEnabled={Boolean(process.env.GEMINI_API_KEY)}
-      assistantName={company?.assistantName}
-      userId={session.user.id}
-    >
-      {children}
-    </AppShell>
+    <>
+      <NativeShell />
+      <AppShell
+        userName={user?.name ?? session.user.name}
+        userEmail={session.user.email}
+        role={user?.role ?? session.user.role}
+        companyName={company?.name ?? session.user.companyName}
+        companyLogoUrl={company?.logoUrl}
+        brandColor={company?.brandColor}
+        brandColorSecondary={company?.brandColorSecondary}
+        teamCount={teamCount}
+        needsTour={!!user && !user.tourCompletedAt}
+        aiEnabled={Boolean(process.env.GEMINI_API_KEY)}
+        assistantName={company?.assistantName}
+        userId={session.user.id}
+      >
+        {children}
+      </AppShell>
+    </>
   );
 }

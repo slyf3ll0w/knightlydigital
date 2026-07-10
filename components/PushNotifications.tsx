@@ -3,12 +3,16 @@
 import { useCallback, useEffect, useState } from "react";
 import { Bell, BellOff, BellRing, Loader2, X } from "lucide-react";
 import { postJson } from "@/lib/safe-fetch";
+import { getCapacitor, nativePlatform } from "@/components/NativeShell";
 
 /**
- * Web push subscribe/unsubscribe. iOS only exposes the Push API inside a
- * home-screen ("Add to Home Screen") install, and every platform requires
- * the permission prompt to come from a user tap — so this is a button, never
- * an automatic prompt.
+ * Push subscribe/unsubscribe. Two paths behind one hook:
+ * - Web: service worker + VAPID. iOS only exposes the Push API inside a
+ *   home-screen ("Add to Home Screen") install.
+ * - Native shell (Capacitor): the PushNotifications plugin registers the
+ *   device with FCM/APNs and we store the device token server-side.
+ * Every platform requires the permission prompt to come from a user tap —
+ * so this is a button, never an automatic prompt.
  */
 
 type PushState =
@@ -33,6 +37,51 @@ const isStandalone = () =>
   (window.matchMedia("(display-mode: standalone)").matches ||
     (navigator as { standalone?: boolean }).standalone === true);
 
+const NATIVE_TOKEN_KEY = "sfh-native-push-token";
+
+/**
+ * Register this native device and sync its token to the server. Resolves true
+ * on success. The token arrives via an event, hence the promise wrapper.
+ */
+function registerNative(push: any, platform: "ios" | "android"): Promise<boolean> {
+  return new Promise((resolve) => {
+    let settled = false;
+    const handles: { remove: () => void }[] = [];
+    const finish = (ok: boolean) => {
+      if (settled) return;
+      settled = true;
+      for (const h of handles) h.remove();
+      resolve(ok);
+    };
+    const timer = setTimeout(() => finish(false), 15_000);
+
+    Promise.all([
+      push.addListener("registration", async (t: { value: string }) => {
+        clearTimeout(timer);
+        const { ok } = await postJson("/api/app/push", { platform, token: t.value });
+        if (ok) {
+          try {
+            localStorage.setItem(NATIVE_TOKEN_KEY, t.value);
+          } catch {}
+        }
+        finish(ok);
+      }),
+      push.addListener("registrationError", () => {
+        clearTimeout(timer);
+        finish(false);
+      }),
+    ])
+      .then((hs) => {
+        handles.push(...hs);
+        return push.register();
+      })
+      .catch(() => {
+        clearTimeout(timer);
+        finish(false);
+      });
+  });
+}
+
 export function usePush() {
   const [state, setState] = useState<PushState>("loading");
   const [busy, setBusy] = useState(false);
@@ -40,6 +89,28 @@ export function usePush() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      // Native shell: the Capacitor plugin owns registration, not the SW path
+      const platform = nativePlatform();
+      if (platform) {
+        const push = getCapacitor()?.Plugins?.PushNotifications;
+        if (!push) return setState("unsupported");
+        try {
+          const perm = await push.checkPermissions();
+          if (cancelled) return;
+          if (perm.receive === "denied") return setState("denied");
+          if (perm.receive === "granted") {
+            // Re-register on every launch: FCM tokens rotate
+            await registerNative(push, platform);
+            if (!cancelled) setState("on");
+          } else {
+            setState("off");
+          }
+        } catch {
+          if (!cancelled) setState("unsupported");
+        }
+        return;
+      }
+
       if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
         setState("unsupported");
         return;
@@ -74,6 +145,19 @@ export function usePush() {
   const enable = useCallback(async () => {
     setBusy(true);
     try {
+      const platform = nativePlatform();
+      if (platform) {
+        const push = getCapacitor()?.Plugins?.PushNotifications;
+        if (!push) return setState("unsupported");
+        const perm = await push.requestPermissions();
+        if (perm.receive !== "granted") {
+          setState(perm.receive === "denied" ? "denied" : "off");
+          return;
+        }
+        setState((await registerNative(push, platform)) ? "on" : "off");
+        return;
+      }
+
       const keyRes = await fetch("/api/app/push");
       const key: string | null = keyRes.ok ? (await keyRes.json()).publicKey : null;
       if (!key) return setState("unconfigured");
@@ -101,6 +185,23 @@ export function usePush() {
   const disable = useCallback(async () => {
     setBusy(true);
     try {
+      if (nativePlatform()) {
+        const push = getCapacitor()?.Plugins?.PushNotifications;
+        let token: string | null = null;
+        try {
+          token = localStorage.getItem(NATIVE_TOKEN_KEY);
+        } catch {}
+        if (token) {
+          await postJson("/api/app/push", { endpoint: token }, "DELETE");
+          try {
+            localStorage.removeItem(NATIVE_TOKEN_KEY);
+          } catch {}
+        }
+        await push?.unregister?.().catch(() => {});
+        setState("off");
+        return;
+      }
+
       const reg = await navigator.serviceWorker.ready;
       const sub = await reg.pushManager.getSubscription();
       if (sub) {

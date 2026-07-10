@@ -20,6 +20,29 @@ export async function POST(req: NextRequest) {
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json().catch(() => null);
+  const userAgent = req.headers.get("user-agent")?.slice(0, 255) ?? null;
+
+  // Native app (Capacitor shell): body = { platform: "ios"|"android", token }
+  // where token is the FCM device token, stored in the endpoint column.
+  if (body?.platform === "ios" || body?.platform === "android") {
+    const token = typeof body?.token === "string" ? body.token.trim() : "";
+    if (!token || token.length > 4096 || token.includes(" ")) {
+      return NextResponse.json({ error: "Invalid device token." }, { status: 400 });
+    }
+    await prisma.pushSubscription.upsert({
+      where: { endpoint: token },
+      create: {
+        userId: actor.id,
+        endpoint: token,
+        platform: body.platform,
+        userAgent,
+      },
+      update: { userId: actor.id, platform: body.platform },
+    });
+    return NextResponse.json({ ok: true }, { status: 201 });
+  }
+
+  // Web: standard PushSubscription JSON
   const endpoint = typeof body?.endpoint === "string" ? body.endpoint : "";
   const p256dh = typeof body?.keys?.p256dh === "string" ? body.keys.p256dh : "";
   const auth = typeof body?.keys?.auth === "string" ? body.keys.auth : "";
@@ -36,7 +59,7 @@ export async function POST(req: NextRequest) {
       endpoint,
       p256dh,
       auth,
-      userAgent: req.headers.get("user-agent")?.slice(0, 255) ?? null,
+      userAgent,
     },
     update: { userId: actor.id, p256dh, auth },
   });

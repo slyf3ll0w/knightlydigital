@@ -117,18 +117,21 @@ model User {
   @@index([role])
 }
 
-// ─── Web push ────────────────────────────────────────────────────────────────
+// ─── Push notifications ──────────────────────────────────────────────────────
 
 // One row per browser/device a user turned notifications on for (a user can
-// have several: phone home-screen app + desktop). Dead endpoints are pruned
-// when the push service answers 404/410 on send.
+// have several: phone app + desktop browser). Dead endpoints are pruned when
+// the push service answers 404/410 on send.
 model PushSubscription {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  endpoint  String   @unique
-  p256dh    String
-  auth      String
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Web: the push-service endpoint URL. Native (ios/android): the FCM device token.
+  endpoint String @unique
+  platform String @default("web") // "web" | "ios" | "android"
+  // Web-push encryption keys — null for native subscriptions
+  p256dh    String?
+  auth      String?
   userAgent String?
   createdAt DateTime @default(now())
 
