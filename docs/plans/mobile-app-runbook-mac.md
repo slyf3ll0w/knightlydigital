@@ -40,10 +40,11 @@ Project exists: **streamflaire-hub**.
 1. ✅ Firebase project created by David.
 2. ✅ Android app registered; `google-services.json` committed at
    `android/app/google-services.json`.
-3. ⬜ iOS app is registered in the console but `GoogleService-Info.plist` was
-   NOT downloaded yet — grab it on the Mac (Firebase console → project
-   settings → the iOS app → download plist) and add to `ios/App/App/` via
-   Xcode "Add Files" so it joins the target.
+3. 🔶 `GoogleService-Info.plist` is committed at `ios/App/App/` (bundle id
+   verified com.streamflaire.hub), but the pbxproj uses classic PBXGroups —
+   the file is NOT in the Xcode target yet. In Xcode: right-click the App
+   group → "Add Files to 'App'…" → select the plist (or just tick its App
+   target membership in the File inspector).
 4. ✅ `FIREBASE_SERVICE_ACCOUNT` set on the Railway web service
    (base64-encoded JSON; verified it decodes to project streamflaire-hub).
    The server FCM send path is therefore ARMED — first native token that
