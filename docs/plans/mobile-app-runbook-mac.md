@@ -33,19 +33,24 @@ https://streamflaire.com; nothing is bundled).*
   - `usePush()` in `components/PushNotifications.tsx` auto-detects the shell:
     same toggle UI drives the Capacitor PushNotifications plugin.
 
-## Firebase pieces (David may have done some — check before doing)
+## Firebase pieces — status 2026-07-09
 
-1. Firebase console → project (any name). No Analytics needed.
-2. Add ANDROID app, package `com.streamflaire.hub` → download
-   `google-services.json` → put at `android/app/google-services.json` (safe to
-   commit — it's client config, not a secret).
-3. Add IOS app, bundle `com.streamflaire.hub` → `GoogleService-Info.plist` →
-   add to `ios/App/App/` (via Xcode "Add Files" so it joins the target).
-4. Project settings → Service accounts → Generate new private key → set the
-   JSON as `FIREBASE_SERVICE_ACCOUNT` on Railway (web service). Base64 it if
-   multiline env gives trouble: `base64 -i key.json | tr -d '\n'`.
-5. iOS ONLY, needs Apple Developer ($99): create an APNs auth key (.p8) in the
-   Apple dev portal → upload to Firebase → Cloud Messaging → Apple app config.
+Project exists: **streamflaire-hub**.
+
+1. ✅ Firebase project created by David.
+2. ✅ Android app registered; `google-services.json` committed at
+   `android/app/google-services.json`.
+3. ⬜ iOS app is registered in the console but `GoogleService-Info.plist` was
+   NOT downloaded yet — grab it on the Mac (Firebase console → project
+   settings → the iOS app → download plist) and add to `ios/App/App/` via
+   Xcode "Add Files" so it joins the target.
+4. ✅ `FIREBASE_SERVICE_ACCOUNT` set on the Railway web service
+   (base64-encoded JSON; verified it decodes to project streamflaire-hub).
+   The server FCM send path is therefore ARMED — first native token that
+   registers can be sent to.
+5. ⬜ iOS ONLY, needs Apple Developer ($99): create an APNs auth key (.p8) in
+   the Apple dev portal → upload to Firebase → Cloud Messaging → Apple app
+   config. Until then iOS push will not deliver (Android is unaffected).
 
 ## Mac work list
 
