@@ -142,29 +142,37 @@ export function usePush() {
     };
   }, []);
 
-  const enable = useCallback(async () => {
+  /** Returns true when notifications ended up enabled. */
+  const enable = useCallback(async (): Promise<boolean> => {
     setBusy(true);
     try {
       const platform = nativePlatform();
       if (platform) {
         const push = getCapacitor()?.Plugins?.PushNotifications;
-        if (!push) return setState("unsupported");
+        if (!push) {
+          setState("unsupported");
+          return false;
+        }
         const perm = await push.requestPermissions();
         if (perm.receive !== "granted") {
           setState(perm.receive === "denied" ? "denied" : "off");
-          return;
+          return false;
         }
-        setState((await registerNative(push, platform)) ? "on" : "off");
-        return;
+        const ok = await registerNative(push, platform);
+        setState(ok ? "on" : "off");
+        return ok;
       }
 
       const keyRes = await fetch("/api/app/push");
       const key: string | null = keyRes.ok ? (await keyRes.json()).publicKey : null;
-      if (!key) return setState("unconfigured");
+      if (!key) {
+        setState("unconfigured");
+        return false;
+      }
       const permission = await Notification.requestPermission();
       if (permission !== "granted") {
         setState(permission === "denied" ? "denied" : "off");
-        return;
+        return false;
       }
       const reg = await navigator.serviceWorker.ready;
       const sub =
@@ -175,8 +183,10 @@ export function usePush() {
         }));
       const { ok } = await postJson("/api/app/push", sub.toJSON());
       setState(ok ? "on" : "off");
+      return ok;
     } catch {
       setState("off");
+      return false;
     } finally {
       setBusy(false);
     }
@@ -302,7 +312,17 @@ export function PushNudge() {
       </p>
       <div className="flex items-center gap-2 shrink-0">
         <button
-          onClick={enable}
+          onClick={async () => {
+            // A failed attempt (e.g. native push not provisioned yet) should
+            // not leave the nudge nagging — the profile toggle remains for
+            // retries.
+            if (!(await enable())) {
+              try {
+                localStorage.setItem(NUDGE_KEY, "1");
+              } catch {}
+              setDismissed(true);
+            }
+          }}
           disabled={busy}
           className="flex items-center gap-1.5 px-3.5 py-1.5 chamfer bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors disabled:opacity-50"
         >
