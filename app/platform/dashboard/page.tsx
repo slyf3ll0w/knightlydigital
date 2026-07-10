@@ -335,7 +335,7 @@ export default async function DashboardPage() {
                 <div className="mb-3 flex items-center justify-between">
                   <n.icon size={15} className={n.urgent ? "text-red-500" : "text-gray-400"} />
                   {n.urgent && (
-                    <span className="stamp border-red-300 bg-red-50 text-red-600">Overdue</span>
+                    <span className="stamp text-red-600">Overdue</span>
                   )}
                 </div>
                 <p className="numeral-ledger text-[34px] leading-none font-semibold text-gray-900">

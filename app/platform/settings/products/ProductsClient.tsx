@@ -503,17 +503,17 @@ export default function ProductsClient({
                       <p className="text-sm font-medium text-gray-900">
                         {item.name}
                         {item.recurringInterval && (
-                          <span className="ml-2 stamp border-green-600/30 bg-green-600/[0.06] text-green-700">
+                          <span className="ml-2 stamp text-green-700">
                             Recurring · {INTERVAL_LABEL[item.recurringInterval]}
                           </span>
                         )}
                         {item.requiresAgreement && (
-                          <span className="ml-2 stamp border-blue-600/30 bg-blue-600/[0.06] text-blue-700">
+                          <span className="ml-2 stamp text-blue-700">
                             Agreement
                           </span>
                         )}
                         {item.durationMinutes !== null && (
-                          <span className="ml-2 stamp border-purple-600/30 bg-purple-600/[0.06] text-purple-700">
+                          <span className="ml-2 stamp text-purple-700">
                             Bookable ·{" "}
                             {item.durationMinutes % 60 === 0
                               ? `${item.durationMinutes / 60}h`
@@ -521,7 +521,7 @@ export default function ProductsClient({
                           </span>
                         )}
                         {item.depositType && item.depositType !== "NONE" && (
-                          <span className="ml-2 stamp border-amber-600/30 bg-amber-600/[0.06] text-amber-700">
+                          <span className="ml-2 stamp text-amber-700">
                             {item.depositType === "FULL"
                               ? "Paid upfront"
                               : item.depositType === "PERCENT"

@@ -2,17 +2,17 @@ import { statusLabels, statusTones, type StatusKind, type StatusTone } from "@/l
 
 /**
  * The one status indicator used everywhere — list rows, detail headers,
- * dashboard cards. Styled as a ledger "stamp": bordered, uppercase,
- * letterspaced, lightly inked. Same tones on every page so statuses scan
- * identically app-wide.
+ * dashboard cards. A colored dot + uppercase Oxanium text (see .stamp in
+ * globals.css) — no box; the dot carries the tone. Same tones on every
+ * page so statuses scan identically app-wide.
  */
 
 const toneClasses: Record<StatusTone, string> = {
-  green: "border-green-600/30 bg-green-600/[0.06] text-green-700",
-  amber: "border-amber-600/35 bg-amber-500/[0.07] text-amber-700",
-  red: "border-red-600/30 bg-red-600/[0.06] text-red-700",
-  gray: "border-gray-400/40 bg-gray-500/[0.06] text-gray-600",
-  blue: "border-blue-600/30 bg-blue-600/[0.06] text-blue-700",
+  green: "text-green-700",
+  amber: "text-amber-700",
+  red: "text-red-700",
+  gray: "text-gray-500",
+  blue: "text-blue-700",
 };
 
 export default function StatusChip({

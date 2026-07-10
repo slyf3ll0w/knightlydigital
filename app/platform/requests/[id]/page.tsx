@@ -146,7 +146,7 @@ export default async function RequestDetailPage({
                     </span>
                     <span className="flex items-center gap-1.5 shrink-0">
                       {a.tentative && a.status === "SCHEDULED" && (
-                        <span className="stamp border-red-600/30 bg-red-600/[0.06] text-red-700">
+                        <span className="stamp text-red-700">
                           Tentative
                         </span>
                       )}

@@ -4,7 +4,8 @@ import { Fragment, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Check, Loader2, RotateCcw, Send, X } from "lucide-react";
-import AtlasIcon from "@/components/AtlasIcon";
+import { AtlasMark } from "@/components/AtlasIcon";
+import { hapticImpact } from "@/lib/haptics";
 import type { Proposal } from "@/lib/assistant";
 
 /**
@@ -150,6 +151,7 @@ export default function AssistantDrawer({
   onClose,
   name = "Atlas",
   storageScope = "",
+  accent,
 }: {
   open: boolean;
   onClose: () => void;
@@ -158,6 +160,8 @@ export default function AssistantDrawer({
   /** User id — history is keyed per user so switching accounts in the same
    *  tab never shows someone else's conversation. */
   storageScope?: string;
+  /** Company brand accent for the Atlas mark; defaults to Streamflaire green. */
+  accent?: string;
 }) {
   const router = useRouter();
   const storageKey = `sf-assistant-chat:${storageScope || "shared"}`;
@@ -318,10 +322,10 @@ export default function AssistantDrawer({
     <>
       {/* backdrop (mobile emphasis; click closes everywhere) */}
       <div className="fixed inset-0 z-40 bg-black/20 sm:bg-black/10" onClick={onClose} />
-      <div className="fixed inset-y-0 right-0 z-50 flex w-full max-w-full flex-col border-l border-gray-200 bg-paper shadow-2xl sm:w-[400px]">
+      <div className="fixed inset-y-0 right-0 z-50 flex w-full max-w-full flex-col border-l border-gray-200 bg-paper pt-[env(safe-area-inset-top)] shadow-2xl sm:w-[400px]">
         {/* header */}
         <div className="flex h-[57px] shrink-0 items-center gap-2.5 border-b border-gray-200 px-4">
-          <AtlasIcon size={17} className="text-green-600" />
+          <AtlasMark size={26} accent={accent} className="shrink-0" />
           <p className="font-display text-sm font-semibold text-gray-900">{name}</p>
           <div className="ml-auto flex items-center gap-1">
             {messages.length > 0 && (
@@ -421,7 +425,7 @@ export default function AssistantDrawer({
         </div>
 
         {/* input */}
-        <div className="shrink-0 border-t border-gray-200 p-3">
+        <div className="shrink-0 border-t border-gray-200 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           <div className="flex items-end gap-2">
             <textarea
               ref={inputRef}
@@ -440,7 +444,10 @@ export default function AssistantDrawer({
             />
             <button
               type="button"
-              onClick={() => send(input)}
+              onClick={() => {
+                hapticImpact("LIGHT");
+                send(input);
+              }}
               disabled={loading || !input.trim()}
               aria-label="Send"
               className="chamfer rounded bg-green-500 p-2.5 text-white transition-colors hover:bg-green-600 disabled:opacity-40"

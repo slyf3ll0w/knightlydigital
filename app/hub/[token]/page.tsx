@@ -192,11 +192,11 @@ export default async function HubHomePage({
                   <div className="flex items-center gap-2 min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">{c.title}</p>
                     {c.status === "SIGNED" ? (
-                      <span className="stamp border-green-600/30 bg-green-600/[0.06] text-green-700">
+                      <span className="stamp text-green-700">
                         Signed
                       </span>
                     ) : (
-                      <span className="stamp border-amber-600/35 bg-amber-500/[0.07] text-amber-700">
+                      <span className="stamp text-amber-700">
                         Awaiting signature
                       </span>
                     )}

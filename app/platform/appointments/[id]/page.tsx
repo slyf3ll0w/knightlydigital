@@ -64,7 +64,7 @@ export default async function AppointmentDetailPage({
         </Link>
         <StatusChip kind="appointment" status={appt.status} />
         {appt.tentative && appt.status === "SCHEDULED" && (
-          <span className="stamp border-red-600/30 bg-red-600/[0.06] text-red-700">
+          <span className="stamp text-red-700">
             Tentative — awaiting approval
           </span>
         )}

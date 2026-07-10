@@ -934,7 +934,7 @@ export default function SetupWizardClient({
                   <span className={`truncate text-sm text-gray-800 ${s.include ? "" : "opacity-50"}`} title={s.description}>
                     {s.name}
                   </span>
-                  <span className="stamp shrink-0 border-green-600/30 bg-green-600/[0.06] text-[10px] text-green-700">New</span>
+                  <span className="stamp shrink-0 text-[10px] text-green-700">New</span>
                 </label>
                 <span className={`flex items-center gap-1 text-sm text-gray-500 ${s.include ? "" : "opacity-50"}`}>
                   $

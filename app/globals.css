@@ -14,10 +14,22 @@
       0 2px 6px rgba(15, 23, 42, 0.03);
   }
 
-  /* Status stamp — bordered, uppercase, letterspaced; reads like a stamp
-     pressed on a work order instead of a tinted SaaS pill. */
+  /* Status stamp — a dot + uppercase Oxanium text, no box. Boxed tinted
+     pills crowd list rows and read as stock SaaS chrome; the dot carries
+     the color, the text carries the label (Amex/Outlook list pattern).
+     Callers pass only a text-* tone class; the dot inherits currentColor. */
   .stamp {
-    @apply inline-flex w-fit items-center whitespace-nowrap rounded-[4px] border px-1.5 py-[1px] text-[10px] font-bold uppercase tracking-[0.08em];
+    @apply inline-flex w-fit items-center gap-1.5 whitespace-nowrap text-[10px] font-bold uppercase tracking-[0.08em];
+    font-family: "Oxanium", var(--font-body);
+  }
+  .stamp::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 9999px;
+    background: currentColor;
+    opacity: 0.85;
+    flex: none;
   }
 
   /* Big numerals (Oxanium) — dashboard counts and money figures. The squared
@@ -36,6 +48,23 @@
      also clips borders and shadows, so bordered/tinted elements look broken. */
   .chamfer {
     clip-path: polygon(0 0, calc(100% - 7px) 0, 100% 7px, 100% 100%, 0 100%);
+  }
+}
+
+@layer utilities {
+  /* iOS WebView (viewport-fit=cover): 100vh overshoots the visible viewport,
+     hiding bottom-anchored UI. dvh tracks what's actually visible. This
+     upgrades Tailwind's vh classes app-wide where the browser supports it. */
+  @supports (height: 100dvh) {
+    .h-screen {
+      height: 100dvh;
+    }
+    .min-h-screen {
+      min-height: 100dvh;
+    }
+    .max-h-screen {
+      max-height: 100dvh;
+    }
   }
 }
 

@@ -35,6 +35,7 @@ import AtlasIcon from "@/components/AtlasIcon";
 import TourGuide from "@/components/TourGuide";
 import AssistantDrawer from "@/components/AssistantDrawer";
 import { textOn } from "@/lib/branding";
+import { hapticImpact } from "@/lib/haptics";
 
 const DEFAULT_ACCENT = "#FFFFFF"; // console default: white on the dark rail
 
@@ -509,7 +510,7 @@ export default function AppShell({
         />
       )}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-[260px] bg-rail flex flex-col transition-transform duration-200 lg:hidden ${
+        className={`fixed inset-y-0 left-0 z-50 w-[260px] bg-rail flex flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] transition-transform duration-200 lg:hidden ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -528,7 +529,7 @@ export default function AppShell({
       {/* ── Main content area ─────────────────────────────────────────────── */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top bar */}
-        <header className="flex items-center gap-4 px-4 lg:px-6 h-[57px] border-b border-gray-200 bg-white shrink-0">
+        <header className="flex items-center gap-4 px-4 lg:px-6 min-h-[57px] pt-[env(safe-area-inset-top)] border-b border-gray-200 bg-white shrink-0">
           <button
             onClick={() => setMobileOpen(true)}
             className="lg:hidden text-gray-600 hover:text-gray-900"
@@ -572,7 +573,7 @@ export default function AppShell({
         </header>
 
         {/* Scrollable content */}
-        <main className="flex-1 overflow-y-auto pb-20 lg:pb-0">{children}</main>
+        <main className="flex-1 overflow-y-auto pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-0">{children}</main>
       </div>
 
       <MobileTabBar
@@ -586,10 +587,13 @@ export default function AppShell({
       {aiEnabled && !assistantOpen && (
         <button
           type="button"
-          onClick={() => setAssistantOpen(true)}
+          onClick={() => {
+            hapticImpact("LIGHT");
+            setAssistantOpen(true);
+          }}
           aria-label="Open assistant"
           title={assistantName || "Atlas"}
-          className="chamfer fixed bottom-20 right-4 z-40 flex h-[52px] w-[52px] items-center justify-center rounded-lg bg-[#0C0F0C] text-green-400 transition-all hover:scale-105 hover:bg-[#181D18] hover:text-green-300 lg:bottom-6 lg:right-6"
+          className="chamfer fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] right-4 z-40 flex h-[52px] w-[52px] items-center justify-center rounded-lg bg-[#0C0F0C] text-green-400 transition-all hover:scale-105 hover:bg-[#181D18] hover:text-green-300 lg:bottom-6 lg:right-6"
         >
           <AtlasIcon size={24} />
         </button>
@@ -600,6 +604,7 @@ export default function AppShell({
           onClose={() => setAssistantOpen(false)}
           name={assistantName || "Atlas"}
           storageScope={userId ?? ""}
+          accent={brandColorSecondary || brandColor || undefined}
         />
       )}
 
@@ -641,8 +646,9 @@ function MobileTabBar({
         key={href}
         href={href}
         data-tour={tourKeys[href]}
+        onClick={() => hapticImpact("LIGHT")}
         style={active ? { color: accent } : undefined}
-        className={`flex-1 flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium transition-colors ${
+        className={`font-display flex-1 flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium transition-colors ${
           active ? "" : "text-gray-400 hover:text-gray-600"
         }`}
       >
@@ -676,24 +682,26 @@ function MobileTabBar({
           }`}
         >
           <div className="mx-auto mt-2.5 h-1 w-9 rounded-full bg-gray-200" />
-          <p className="px-5 pt-3 pb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">
-            Create new
+          <p className="font-display px-5 pt-3.5 pb-2.5 text-[16px] font-bold text-gray-900">
+            Create
           </p>
-          <div className="grid grid-cols-2 gap-1.5 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          <div className="grid grid-cols-3 gap-2.5 px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
             {creates.map(({ href, label, icon: Icon }) => (
               <Link
                 key={href}
                 href={href}
                 onClick={() => setSheetOpen(false)}
-                className="flex items-center gap-3 rounded-xl border border-gray-200 px-3.5 py-3 text-sm font-medium text-gray-800 active:bg-gray-50"
+                className="flex flex-col items-center gap-2 rounded-2xl border border-gray-200 px-1 py-4 active:bg-gray-50"
               >
                 <span
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
-                  style={{ backgroundColor: `${accent}1A`, color: accent }}
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
+                  style={{ backgroundColor: `${accent}14`, color: accent }}
                 >
-                  <Icon size={15} />
+                  <Icon size={18} />
                 </span>
-                {label}
+                <span className="font-display text-[11px] font-semibold text-gray-800">
+                  {label}
+                </span>
               </Link>
             ))}
           </div>
@@ -706,11 +714,16 @@ function MobileTabBar({
         {creates.length > 0 && (
           <div className="relative w-16 shrink-0">
             <button
-              onClick={() => setSheetOpen((v) => !v)}
+              onClick={() => {
+                setSheetOpen((v) => {
+                  if (!v) hapticImpact("MEDIUM");
+                  return !v;
+                });
+              }}
               aria-label="Create"
               data-tour="create"
               style={{ backgroundColor: accent, color: textOn(accent) }}
-              className="absolute left-1/2 -translate-x-1/2 -top-4 flex h-12 w-12 items-center justify-center rounded-full shadow-lg shadow-black/20 active:scale-95 transition-transform"
+              className="chamfer absolute left-1/2 -translate-x-1/2 -top-4 flex h-12 w-12 items-center justify-center active:scale-95 transition-transform"
             >
               <Plus size={22} strokeWidth={2.5} />
             </button>

@@ -49,9 +49,14 @@ export default function NativeShell() {
 
     const { StatusBar, App: CapApp, Browser, PushNotifications } = cap.Plugins;
 
-    // Match the dark rail. Style DARK = light text on dark background.
-    StatusBar?.setStyle?.({ style: "DARK" }).catch(() => {});
-    if (cap.getPlatform?.() === "android") {
+    // iOS overlays the status bar on the webview, and the app's top surface
+    // there is the white mobile header — so status icons must be dark
+    // (style LIGHT = dark content on light background). Android keeps a
+    // solid dark bar matching the rail (style DARK = light content).
+    if (cap.getPlatform?.() === "ios") {
+      StatusBar?.setStyle?.({ style: "LIGHT" }).catch(() => {});
+    } else {
+      StatusBar?.setStyle?.({ style: "DARK" }).catch(() => {});
       StatusBar?.setBackgroundColor?.({ color: "#0C0F0C" }).catch(() => {});
     }
 

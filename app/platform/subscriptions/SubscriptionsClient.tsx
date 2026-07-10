@@ -274,7 +274,7 @@ export default function SubscriptionsClient({
                     <p className="text-sm font-medium text-gray-900 flex items-center gap-2">
                       {s.name}
                       {s.status === "PAUSED" && (
-                        <span className="stamp border-amber-600/30 bg-amber-600/[0.06] text-amber-700">Paused</span>
+                        <span className="stamp text-amber-700">Paused</span>
                       )}
                     </p>
                     <p className="text-xs text-gray-500">

@@ -55,6 +55,28 @@ Project exists: **streamflaire-hub**.
 
 ## Mac work list
 
+### A0. 2026-07-10 — Haptics plugin (do this on the next rebuild)
+
+`@capacitor/haptics` was added on Windows (`package.json` + `cap sync` done —
+`ios/App/CapApp-SPM/Package.swift` and the Android gradle files already
+reference it; all committed). Web code calls it through the runtime plugin
+registry (`lib/haptics.ts`) so nothing breaks in shells built before the
+plugin — haptics just no-op until the app is rebuilt. To activate:
+
+1. `git pull`, then `npm install` (pulls the plugin package), then
+   `npx cap sync` (should list **7** plugins incl. `@capacitor/haptics@8.x`
+   for both platforms; on iOS it rewrites Package.swift — expect no diff,
+   Windows already committed it).
+2. Rebuild + run on David's iPhone (`npx cap open ios` → Run, same signing
+   as before). No new capabilities/entitlements needed for haptics.
+3. Verify on device: light tick when switching bottom tabs / opening Atlas /
+   sending Atlas a message; firmer tap when opening the center Create sheet.
+4. While in there, verify the 2026-07-10 web fixes (already live once Railway
+   deploys main): status-bar clock/battery icons are DARK on the white
+   header, hamburger tappable, Atlas drawer header fully visible below the
+   notch, create sheet is a 3-column tile grid, statuses render as dot+text
+   (no boxed pills).
+
 ### A. First boot (no accounts needed)
 
 1. `npm install` (repo root), then `npx cap sync`.
@@ -69,10 +91,12 @@ Project exists: **streamflaire-hub**.
    - Android hardware back walks history; minimizes at the root.
    - A `/hub/...` client link opens in the system browser, not the shell.
    - Airplane mode + relaunch → the branded offline screen, Retry works.
-   - **Safe areas (deferred from Windows — needs eyes on a device):** check
-     the mobile tab bar and Atlas bubble against the home indicator / notch.
-     If clipped: `viewport-fit=cover` on the viewport meta +
-     `env(safe-area-inset-*)` padding in AppShell. Also check the login page.
+   - ✅ **Safe areas — DONE on Windows 2026-07-10** (David hit both bugs on
+     device: hamburger under the status bar, Atlas header under the notch).
+     Fixed web-side: safe-area insets on the mobile header / drawer /
+     AssistantDrawer / tab-bar clearances, global dvh override for vh classes
+     in globals.css, iOS status bar style flipped to LIGHT (dark icons on the
+     white header) in NativeShell. Verify on device, don't redo.
    - **Turnstile inside the webview** (login page). If it blocks the native
      UA, options: allow the `StreamflaireHubShell` UA suffix in Cloudflare, or
      relax the widget for the app host. Do NOT weaken web protection.
