@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "550912391949",
+    "project_id": "streamflaire-hub",
+    "storage_bucket": "streamflaire-hub.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:550912391949:android:6946c499878728cae44e44",
+        "android_client_info": {
+          "package_name": "com.streamflaire.hub"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDqXSXHA5RYEav2hgwXTBfMjUQDKWna034"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
