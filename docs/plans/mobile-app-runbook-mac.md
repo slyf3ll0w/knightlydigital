@@ -133,6 +133,11 @@ plugin — haptics just no-op until the app is rebuilt. To activate:
 ## Gotchas learned on the Windows side
 
 - `npx cap add ios` ran fine on Windows; only dependency install remains for Mac.
+- **`npx cap sync ios` on Windows writes BACKSLASH paths into
+  `ios/App/CapApp-SPM/Package.swift`** (`..\..\..\node_modules\...`) — invalid
+  Swift, breaks SPM resolution on the Mac. Fixed by hand 2026-07-10 (forward
+  slashes committed). If sync ever runs on Windows again, check that file
+  before committing; safest is to re-run `npx cap sync ios` on the Mac.
 - The repo's Next dev/build is unrelated to the shell — the app loads the
   LIVE site. To test web changes in the shell, deploy them (Railway auto-deploys
   main) or point `server.url` at a dev tunnel temporarily (never commit that).
