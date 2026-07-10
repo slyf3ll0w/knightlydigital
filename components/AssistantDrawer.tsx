@@ -3,7 +3,7 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Check, Loader2, RotateCcw, Send, X } from "lucide-react";
+import { ArrowUp, Check, Loader2, RotateCcw, X } from "lucide-react";
 import { AtlasMark } from "@/components/AtlasIcon";
 import { hapticImpact } from "@/lib/haptics";
 import type { Proposal } from "@/lib/assistant";
@@ -325,8 +325,11 @@ export default function AssistantDrawer({
       <div className="fixed inset-y-0 right-0 z-50 flex w-full max-w-full flex-col border-l border-gray-200 bg-paper pt-[env(safe-area-inset-top)] shadow-2xl sm:w-[400px]">
         {/* header */}
         <div className="flex h-[57px] shrink-0 items-center gap-2.5 border-b border-gray-200 px-4">
-          <AtlasMark size={26} accent={accent} className="shrink-0" />
-          <p className="font-display text-sm font-semibold text-gray-900">{name}</p>
+          <AtlasMark size={30} accent={accent} className="shrink-0" />
+          <div className="min-w-0">
+            <p className="font-display text-sm font-bold leading-tight text-gray-900">{name}</p>
+            <p className="text-[11px] leading-tight text-green-700">Knows your whole business</p>
+          </div>
           <div className="ml-auto flex items-center gap-1">
             {messages.length > 0 && (
               <button
@@ -367,7 +370,7 @@ export default function AssistantDrawer({
                     key={s}
                     type="button"
                     onClick={() => send(s)}
-                    className="block w-full rounded border border-gray-200 bg-white px-3 py-2 text-left text-xs text-gray-700 transition-colors hover:border-green-500 hover:text-green-700"
+                    className="block w-full rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-left text-xs text-gray-700 transition-colors hover:border-green-500 hover:text-green-700"
                   >
                     {s}
                   </button>
@@ -377,13 +380,18 @@ export default function AssistantDrawer({
           )}
           {messages.map((m, i) =>
             m.role === "user" ? (
-              <div key={i} className="ml-8 rounded-lg bg-green-600/[0.08] px-3 py-2">
-                <p className="whitespace-pre-wrap text-sm text-gray-900">{m.content}</p>
+              <div
+                key={i}
+                className="ml-auto w-fit max-w-[85%] rounded-2xl rounded-br-md bg-green-600 px-3.5 py-2"
+              >
+                <p className="whitespace-pre-wrap text-sm font-medium text-white">{m.content}</p>
               </div>
             ) : (
               <div key={i} className="mr-4 space-y-2">
-                <div className="rounded-lg border border-gray-200 bg-white px-3 py-2">
-                  <p className="whitespace-pre-wrap text-sm text-gray-800">
+                {/* Atlas speaks in plain text, not a boxed bubble (Claude-app
+                    pattern) — only his action cards get containers. */}
+                <div className="px-0.5 py-1">
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed text-gray-800">
                     <Linkified text={m.content} />
                   </p>
                 </div>
@@ -411,7 +419,7 @@ export default function AssistantDrawer({
             )
           )}
           {loading && (
-            <div className="mr-4 flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2.5">
+            <div className="mr-4 flex items-center gap-2 px-1 py-2">
               <Loader2 size={13} className="animate-spin text-green-600" />
               <span className="text-xs text-gray-500">Looking that up...</span>
             </div>
@@ -437,10 +445,10 @@ export default function AssistantDrawer({
                   send(input);
                 }
               }}
-              rows={2}
+              rows={1}
               maxLength={4000}
               placeholder={`Ask ${name}, or tell it what to do...`}
-              className="max-h-32 flex-1 resize-none rounded border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="max-h-32 min-h-[42px] flex-1 resize-none rounded-2xl border border-gray-300 bg-white px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
             />
             <button
               type="button"
@@ -450,9 +458,9 @@ export default function AssistantDrawer({
               }}
               disabled={loading || !input.trim()}
               aria-label="Send"
-              className="chamfer rounded bg-green-500 p-2.5 text-white transition-colors hover:bg-green-600 disabled:opacity-40"
+              className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-full bg-green-600 text-white transition-colors hover:bg-green-500 disabled:opacity-40"
             >
-              <Send size={15} />
+              <ArrowUp size={17} strokeWidth={2.4} />
             </button>
           </div>
           <p className="mt-1.5 text-center text-[10px] text-gray-400">

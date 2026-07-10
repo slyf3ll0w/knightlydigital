@@ -303,13 +303,62 @@ export default async function DashboardPage() {
         <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">
           {now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
         </p>
-        <h1 className="numeral-ledger mt-0.5 text-[27px] font-semibold text-gray-900">
+        <h1 className="font-display mt-0.5 text-[27px] font-bold tracking-tight text-gray-900">
           {greeting}, {firstName}
         </h1>
       </div>
 
       {showSetupCard && <DashboardSetupCard />}
       <PushNudge />
+
+      {/* ── Money first (Amex pattern): collected in green, owed in red ────── */}
+      {seePerformance && (
+        <div className="anim-fade-up anim-delay-1 mb-8 grid grid-cols-2 gap-3 lg:grid-cols-3">
+          <Link
+            href="/app/invoices"
+            className="card-ledger block p-4 transition-shadow hover:shadow-md"
+          >
+            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-gray-500">
+              Collected
+            </p>
+            <p className="numeral-ledger mt-1 text-[24px] leading-none font-semibold text-green-700">
+              {money(monthRevenue)}
+            </p>
+            <p className="mt-1.5 text-xs text-gray-500">this month</p>
+            {dailyRevenue.length > 1 && monthRevenue > 0 && <Sparkline values={dailyRevenue} />}
+          </Link>
+          <Link
+            href="/app/invoices?status=AWAITING_PAYMENT"
+            className="card-ledger block p-4 transition-shadow hover:shadow-md"
+          >
+            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-gray-500">
+              Outstanding
+            </p>
+            <p
+              className={`numeral-ledger mt-1 text-[24px] leading-none font-semibold ${
+                receivableTotal > 0 ? "text-red-600" : "text-gray-900"
+              }`}
+            >
+              {receivableTotal > 0 ? money(receivableTotal) : "—"}
+            </p>
+            <p className="mt-1.5 text-xs text-gray-500">
+              {receivableClients} {receivableClients === 1 ? "client owes" : "clients owe"} you
+            </p>
+          </Link>
+          <Link
+            href="/app/jobs"
+            className="card-ledger col-span-2 block p-4 transition-shadow hover:shadow-md lg:col-span-1"
+          >
+            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-gray-500">
+              Booked this week
+            </p>
+            <p className="numeral-ledger mt-1 text-[24px] leading-none font-semibold text-gray-900">
+              {weekRevenue > 0 ? money(weekRevenue) : "—"}
+            </p>
+            <p className="mt-1.5 text-xs text-gray-500">{upcomingJobsWeek.length} jobs scheduled</p>
+          </Link>
+        </div>
+      )}
 
       {/* ── Needs you ──────────────────────────────────────────────────────── */}
       <div className="anim-fade-up anim-delay-1 mb-8" data-tour="workflow">
@@ -355,15 +404,14 @@ export default async function DashboardPage() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6">
-        {/* ── Today's appointments — timeline with a time rail ─────────────── */}
-        <div className="card-ledger anim-fade-up anim-delay-2 self-start" data-tour="today">
-          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-            <h2 className="font-semibold text-gray-900">Today&apos;s appointments</h2>
-            <Link href="/app/schedule" className="text-sm text-green-600 hover:underline font-medium">
-              View schedule
-            </Link>
-          </div>
+      {/* ── Today's appointments — timeline with a time rail ───────────────── */}
+      <div className="card-ledger anim-fade-up anim-delay-2 self-start" data-tour="today">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <h2 className="font-display font-bold text-gray-900">Today</h2>
+          <Link href="/app/schedule" className="font-display text-sm text-green-600 hover:underline font-semibold">
+            Schedule →
+          </Link>
+        </div>
           {todayItems.length === 0 ? (
             <EmptyState
               art="schedule"
@@ -387,7 +435,7 @@ export default async function DashboardPage() {
                     href={item.href}
                     className="flex items-center gap-4 py-3 -mx-2 px-2 rounded-md hover:bg-gray-50 transition-colors"
                   >
-                    <span className="w-12 shrink-0 text-right text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                    <span className="font-display w-12 shrink-0 text-right text-[11px] font-semibold uppercase tracking-wide text-gray-500">
                       {item.time}
                     </span>
                     <span
@@ -415,51 +463,6 @@ export default async function DashboardPage() {
               })}
             </div>
           )}
-        </div>
-
-        {/* ── Business performance rail ────────────────────────────────────── */}
-        {seePerformance && (
-        <div className="anim-fade-up anim-delay-3">
-          <RuledLabel>Performance</RuledLabel>
-          <div className="space-y-3">
-            <Link
-              href="/app/invoices?status=AWAITING_PAYMENT"
-              className="block card-ledger p-4 hover:shadow-md transition-shadow"
-            >
-              <p className="text-xs font-medium text-gray-500 mb-1">Receivables</p>
-              <p className="numeral-ledger text-[22px] font-semibold text-gray-900">
-                {receivableTotal > 0 ? money(receivableTotal) : "—"}
-              </p>
-              <p className="text-xs text-gray-500 mt-0.5">
-                {receivableClients} {receivableClients === 1 ? "client owes" : "clients owe"} you
-              </p>
-            </Link>
-            <Link
-              href="/app/jobs"
-              className="block card-ledger p-4 hover:shadow-md transition-shadow"
-            >
-              <p className="text-xs font-medium text-gray-500 mb-1">Upcoming jobs</p>
-              <p className="numeral-ledger text-[22px] font-semibold text-gray-900">
-                {weekRevenue > 0 ? money(weekRevenue) : "—"}
-              </p>
-              <p className="text-xs text-gray-500 mt-0.5">
-                This week ({upcomingJobsWeek.length} jobs)
-              </p>
-            </Link>
-            <Link
-              href="/app/invoices"
-              className="block card-ledger p-4 hover:shadow-md transition-shadow"
-            >
-              <p className="text-xs font-medium text-gray-500 mb-1">Revenue</p>
-              <p className="numeral-ledger text-[22px] font-semibold text-gray-900">
-                {money(monthRevenue)}
-              </p>
-              <p className="text-xs text-gray-500 mt-0.5">This month so far</p>
-              {dailyRevenue.length > 1 && monthRevenue > 0 && <Sparkline values={dailyRevenue} />}
-            </Link>
-          </div>
-        </div>
-        )}
       </div>
 
       {/* Quiet pointer to the roadmap — deliberately not in the sidebar */}
