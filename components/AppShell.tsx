@@ -59,6 +59,13 @@ function surfaceAccent(hex: string): string {
   return luminance === null || luminance > 200 ? "#0C0F0C" : hex;
 }
 
+/** And for DARK surfaces (dark-theme tab bar), where too-dark colors blend
+ *  into the bar — those flip to white. */
+function darkSurfaceAccent(hex: string): string {
+  const luminance = luminanceOf(hex);
+  return luminance === null || luminance < 70 ? "#FFFFFF" : hex;
+}
+
 // Per-role visibility, mirroring lib/permissions.ts (server still enforces):
 // sell = managers/USER/SALES, money = managers/USER/SALES-with-toggle (the
 // toggle isn't known client-side, so SALES keeps the nav item and the page
@@ -496,8 +503,23 @@ export default function AppShell({
     </div>
   );
 
+  // Tenant brand color → per-theme mobile accent tokens (globals.css holds
+  // the Streamflaire-green defaults; CSS resolves light vs dark, so the
+  // active tab / create button read on BOTH bars).
+  const rawBrand = brandColorSecondary || brandColor || null;
+  const mobileAccentVars = rawBrand
+    ? ({
+        "--mobile-accent-light": surfaceAccent(rawBrand),
+        "--mobile-on-accent-light": textOn(surfaceAccent(rawBrand)),
+        "--mobile-accent-soft-light": `${surfaceAccent(rawBrand)}1A`,
+        "--mobile-accent-dark": darkSurfaceAccent(rawBrand),
+        "--mobile-on-accent-dark": textOn(darkSurfaceAccent(rawBrand)),
+        "--mobile-accent-soft-dark": `${darkSurfaceAccent(rawBrand)}24`,
+      } as React.CSSProperties)
+    : undefined;
+
   return (
-    <div className="app-ui flex h-screen bg-paper overflow-hidden">
+    <div className="app-ui flex h-screen bg-paper overflow-hidden" style={mobileAccentVars}>
       {/* ── Desktop sidebar ──────────────────────────────────────────────── */}
       <aside className="hidden lg:flex flex-col w-[232px] bg-rail shrink-0">
         {logo}
@@ -574,7 +596,6 @@ export default function AppShell({
       </div>
 
       <MobileTabBar
-        accent={surfaceAccent(brandColorSecondary || brandColor || DEFAULT_ACCENT)}
         role={userRole}
         isActive={isActive}
         pastDue={counts.pastDue}
@@ -622,7 +643,6 @@ export default function AppShell({
  * used to take three taps.
  */
 function MobileTabBar({
-  accent,
   role,
   isActive,
   pastDue,
@@ -632,7 +652,6 @@ function MobileTabBar({
   openAssistant,
   openMore,
 }: {
-  accent: string;
   role: string;
   isActive: (href: string) => boolean;
   pastDue: number;
@@ -659,9 +678,10 @@ function MobileTabBar({
         href={href}
         data-tour={tourKeys[href]}
         onClick={() => hapticImpact("LIGHT")}
-        style={active ? { color: accent } : undefined}
         className={`font-display flex-1 flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium transition-colors ${
-          active ? "" : "text-gray-400 hover:text-gray-600"
+          active
+            ? "text-[color:var(--mobile-accent)] font-semibold"
+            : "text-gray-400 hover:text-gray-600"
         }`}
       >
         <Icon size={18} />
@@ -683,9 +703,10 @@ function MobileTabBar({
         hapticImpact("LIGHT");
         onPress();
       }}
-      style={active ? { color: accent } : undefined}
       className={`font-display flex-1 flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium transition-colors ${
-        active ? "" : "text-gray-400 hover:text-gray-600"
+        active
+          ? "text-[color:var(--mobile-accent)] font-semibold"
+          : "text-gray-400 hover:text-gray-600"
       }`}
     >
       <span className="relative">
@@ -725,10 +746,7 @@ function MobileTabBar({
                 onClick={() => setSheetOpen(false)}
                 className="flex flex-col items-center gap-2 rounded-2xl border border-gray-200 px-1 py-4 active:bg-gray-50"
               >
-                <span
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
-                  style={{ backgroundColor: `${accent}14`, color: accent }}
-                >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[color:var(--mobile-accent-soft)] text-[color:var(--mobile-accent)]">
                   <Icon size={18} />
                 </span>
                 <span className="font-display text-[11px] font-semibold text-gray-800">
@@ -754,8 +772,7 @@ function MobileTabBar({
               }}
               aria-label="Create"
               data-tour="create"
-              style={{ backgroundColor: accent, color: textOn(accent) }}
-              className="chamfer absolute left-1/2 -translate-x-1/2 -top-4 flex h-12 w-12 items-center justify-center active:scale-95 transition-transform"
+              className="chamfer absolute left-1/2 -translate-x-1/2 -top-4 flex h-12 w-12 items-center justify-center bg-[color:var(--mobile-accent)] text-[color:var(--mobile-on-accent)] active:scale-95 transition-transform"
             >
               <Plus size={22} strokeWidth={2.5} />
             </button>

@@ -24,6 +24,12 @@ const config: CapacitorConfig = {
   appendUserAgent: 'StreamflaireHubShell',
   backgroundColor: '#0C0F0C',
   plugins: {
+    // App-like keyboard: the webview resizes with the keyboard instead of
+    // scrolling the page like a browser (fixed bars ride above it).
+    Keyboard: {
+      resize: 'native',
+      resizeOnFullScreen: true,
+    },
     SplashScreen: {
       backgroundColor: '#0C0F0C',
       launchShowDuration: 900,

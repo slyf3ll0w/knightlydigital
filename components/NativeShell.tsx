@@ -47,7 +47,12 @@ export default function NativeShell() {
     const cap = getCapacitor();
     if (!cap?.Plugins) return;
 
-    const { StatusBar, App: CapApp, Browser, PushNotifications } = cap.Plugins;
+    const { StatusBar, App: CapApp, Browser, PushNotifications, Keyboard } = cap.Plugins;
+
+    // Kill the "< > Done" browser accessory bar above the iOS keyboard —
+    // the loudest "this is a website" tell. No-ops in shells built before
+    // the Keyboard plugin was added.
+    Keyboard?.setAccessoryBarVisible?.({ isVisible: false })?.catch?.(() => {});
 
     // iOS overlays the status bar on the webview; icons must match the
     // app's theme — dark icons over the light header (style LIGHT), light

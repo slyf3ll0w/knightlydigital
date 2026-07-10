@@ -123,6 +123,40 @@ h1, h2, h3, h4, h5, h6, .font-display {
   font-variant-numeric: tabular-nums;
 }
 
+/* ── Mobile accent — resolves per theme so the active tab / create button
+   never blend into the bar. Defaults are Streamflaire green (deep on the
+   white bar, bright on the dark bar); tenant brand colors override via the
+   --mobile-accent-light/dark custom properties AppShell injects, each
+   already luminance-guarded for its surface. ── */
+.app-ui {
+  --mobile-accent: var(--mobile-accent-light, #16a34a);
+  --mobile-on-accent: var(--mobile-on-accent-light, #ffffff);
+  --mobile-accent-soft: var(--mobile-accent-soft-light, rgba(22, 163, 74, 0.1));
+}
+@media (prefers-color-scheme: dark) {
+  .app-ui {
+    --mobile-accent: var(--mobile-accent-dark, #22c55e);
+    --mobile-on-accent: var(--mobile-on-accent-dark, #06130a);
+    --mobile-accent-soft: var(--mobile-accent-soft-dark, rgba(34, 197, 94, 0.14));
+  }
+}
+
+/* ── Native feel: app chrome never selects like a web page, and taps on
+   controls fire immediately (no double-tap-zoom delay). ── */
+.app-ui header,
+.app-ui nav {
+  -webkit-user-select: none;
+  user-select: none;
+}
+.app-ui a,
+.app-ui button,
+.app-ui input,
+.app-ui textarea,
+.app-ui select,
+.app-ui label {
+  touch-action: manipulation;
+}
+
 /* Slim, quiet scrollbars inside the product UI */
 .app-ui ::-webkit-scrollbar {
   width: 10px;
@@ -420,6 +454,14 @@ body {
   .app-ui .text-purple-700 { color: #D8B4FE; }
 
   /* ── Chrome details ── */
+  /* Inputs with no explicit text utility fall back to WebKit's default
+     BLACK even under color-scheme:dark — typed text was invisible. */
+  .app-ui input,
+  .app-ui textarea,
+  .app-ui select {
+    color: var(--t-ink);
+    caret-color: var(--t-ink);
+  }
   .app-ui ::-webkit-scrollbar-thumb {
     background: #2E372E;
     border: 2px solid transparent;

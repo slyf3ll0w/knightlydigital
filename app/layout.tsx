@@ -5,6 +5,8 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  // Keyboard shrinks the layout instead of scrolling over it (Android/Chrome)
+  interactiveWidget: "resizes-content",
 };
 import { MarketingWrapper } from "@/components/MarketingWrapper";
 import { SessionProviderWrapper } from "@/components/SessionProviderWrapper";

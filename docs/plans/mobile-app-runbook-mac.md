@@ -55,6 +55,17 @@ Project exists: **streamflaire-hub**.
 
 ## Mac work list
 
+### A0b. 2026-07-10 (later) — Keyboard plugin too
+
+`@capacitor/keyboard` was added after haptics (same runtime-registry
+pattern; config in capacitor.config.ts sets `resize: 'native'`, and
+NativeShell hides the iOS keyboard accessory bar). Same drill as A0:
+`git pull` → `npm install` → `npx cap sync` (**8** plugins now) → rebuild.
+One rebuild activates both haptics AND keyboard if you haven't done A0 yet.
+Device check: focus the Atlas input — the "< > Done" bar above the keyboard
+is GONE, the layout resizes smoothly instead of scrolling like a web page,
+and typed text is visible in dark mode.
+
 ### A0. 2026-07-10 — Haptics plugin (do this on the next rebuild)
 
 `@capacitor/haptics` was added on Windows (`package.json` + `cap sync` done —
