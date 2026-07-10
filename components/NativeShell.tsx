@@ -55,28 +55,45 @@ export default function NativeShell() {
       StatusBar?.setBackgroundColor?.({ color: "#0C0F0C" }).catch(() => {});
     }
 
+    // addListener on the raw bridge returns the handle synchronously on iOS
+    // but a Promise on Android/web — normalize both.
+    type Handle = { remove: () => void };
+    const listen = (
+      plugin: any,
+      event: string,
+      cb: (data: any) => void,
+      set: (h: Handle) => void
+    ) => {
+      const res = plugin?.addListener?.(event, cb);
+      if (res && typeof res.then === "function") res.then(set).catch(() => {});
+      else if (res) set(res);
+    };
+
     // Android hardware back: walk history, minimize at the root instead of
     // killing the webview.
-    let backHandle: { remove: () => void } | undefined;
-    CapApp?.addListener?.("backButton", ({ canGoBack }: { canGoBack: boolean }) => {
-      if (canGoBack) window.history.back();
-      else CapApp?.minimizeApp?.();
-    }).then((h: { remove: () => void }) => {
-      backHandle = h;
-    });
+    let backHandle: Handle | undefined;
+    listen(
+      CapApp,
+      "backButton",
+      ({ canGoBack }: { canGoBack: boolean }) => {
+        if (canGoBack) window.history.back();
+        else CapApp?.minimizeApp?.();
+      },
+      (h) => (backHandle = h)
+    );
 
     // Tapping a notification opens the path the server put in data.url
     // (mirrors sw.js notificationclick on the web).
-    let tapHandle: { remove: () => void } | undefined;
-    PushNotifications?.addListener?.(
+    let tapHandle: Handle | undefined;
+    listen(
+      PushNotifications,
       "pushNotificationActionPerformed",
       (action: { notification?: { data?: { url?: string } } }) => {
         const url = action?.notification?.data?.url;
         if (url && (url === "/app" || url.startsWith("/app/"))) window.location.assign(url);
-      }
-    ).then((h: { remove: () => void }) => {
-      tapHandle = h;
-    });
+      },
+      (h) => (tapHandle = h)
+    );
 
     // Intercept clicks on links that must leave the shell.
     const onClick = (e: MouseEvent) => {
