@@ -62,8 +62,8 @@ export function Footer() {
               <Image
                 src="/logo.png"
                 alt="Streamflaire"
-                width={240}
-                height={48}
+                width={224}
+                height={24}
                 style={{ filter: 'brightness(0) invert(1)' }}
               />
             </div>

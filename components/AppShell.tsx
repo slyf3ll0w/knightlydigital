@@ -131,6 +131,26 @@ const createTints: Record<string, string> = {
   "/app/payments/new": "#14B8A6", // Payment — teal
 };
 
+// The same color language on navigation: More-sheet icon tiles and the
+// desktop sidebar's hover/active states. Home + Settings stay neutral (and
+// keep the tenant's brand accent) — everything with an entity gets its hue.
+const sectionTints: Record<string, string> = {
+  "/app/schedule": "#8B5CF6", // appointments live here
+  "/app/contacts": "#3B82F6",
+  "/app/requests": "#F59E0B",
+  "/app/leads": "#84CC16", // lime — between request amber and quote green
+  "/app/quotes": "#22C55E",
+  "/app/jobs": "#F97316",
+  "/app/invoices": "#0EA5E9",
+  "/app/subscriptions": "#14B8A6",
+  "/app/insights": "#6366F1",
+  "/app/settings/products": "#EC4899",
+  "/app/settings/contracts": "#A855F7",
+  "/app/chat": "#F43F5E",
+  "/app/settings/booking": "#06B6D4",
+  "/app/settings/team": "#10B981",
+};
+
 // Tab bar: Home · Schedule · [create] · Atlas · More. Everything else lives
 // in the More drawer — the hamburger pattern is retired on mobile.
 const mobileNav: NavItem[] = [
@@ -373,6 +393,8 @@ export default function AppShell({
 
   const navLink = (href: string, label: string, Icon: typeof Home) => {
     const active = isActive(href);
+    // Section hue for active/hover; unmapped items keep the tenant accent
+    const tint = sectionTints[href] ?? accent;
     // Live badges: new requests (neutral), past-due invoices (red — urgent)
     const badge =
       href === "/app/requests"
@@ -389,21 +411,25 @@ export default function AppShell({
         key={href}
         href={href}
         data-tour={tourKeys[href]}
-        className={`font-display relative flex items-center gap-3 rounded-md px-3 py-2 text-[13px] transition-colors ${
+        className={`group font-display relative flex items-center gap-3 rounded-md px-3 py-2 text-[13px] transition-colors ${
           active
             ? "font-semibold text-white"
             : "font-medium text-gray-400 hover:bg-white/[0.06] hover:text-white"
         }`}
-        style={active ? { backgroundColor: `${accent}26` } : undefined}
+        style={{ "--st": tint, ...(active ? { backgroundColor: `${tint}26` } : {}) } as React.CSSProperties}
       >
         {active && (
           <span
             className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full"
-            style={{ backgroundColor: accent }}
+            style={{ backgroundColor: tint }}
             aria-hidden
           />
         )}
-        <Icon size={16} style={active ? { color: accent } : undefined} />
+        <Icon
+          size={16}
+          className={active ? undefined : "transition-colors group-hover:text-[color:var(--st)]"}
+          style={active ? { color: tint } : undefined}
+        />
         {label}
         {badge > 0 && (
           <span
@@ -443,18 +469,8 @@ export default function AppShell({
             </div>
           ))}
 
-        {/* Team chat: only when there's a teammate to talk to */}
-        {teamCount > 1 && (
-          <div className="mt-4">
-            <div className="flex items-center gap-2 px-3 pb-1.5">
-              <span className="font-display text-[10px] font-semibold uppercase tracking-[0.12em] text-white/35">
-                Team
-              </span>
-              <span className="h-px flex-1 bg-white/10" aria-hidden />
-            </div>
-            <div className="space-y-0.5">{navLink("/app/chat", "Chat", MessagesSquare)}</div>
-          </div>
-        )}
+        {/* Team chat lives in the top bar on desktop (and the More sheet on
+            mobile) — it's a companion to every page, not a destination */}
       </nav>
 
       {/* Settings + user */}
@@ -603,10 +619,31 @@ export default function AppShell({
             </div>
           </form>
 
+          {/* Team chat — always one click away without spending sidebar space */}
+          {teamCount > 1 && (
+            <Link
+              href="/app/chat"
+              className={`hidden lg:flex relative items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
+                isActive("/app/chat")
+                  ? "border-gray-900 bg-gray-900 text-white"
+                  : "border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+              } ${sellRoles(userRole) ? "" : "ml-auto"}`}
+              title="Team chat"
+            >
+              <MessagesSquare size={15} />
+              Chat
+              {counts.chat > 0 && (
+                <span className="min-w-[18px] rounded-full bg-red-500 px-1.5 py-px text-center text-[10px] font-bold text-white tabular-nums">
+                  {counts.chat > 99 ? "99+" : counts.chat}
+                </span>
+              )}
+            </Link>
+          )}
+
           <Link
             href={manager ? "/app/settings" : "/app/settings/profile"}
             className={`hidden sm:flex p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors ${
-              sellRoles(userRole) ? "" : "ml-auto"
+              sellRoles(userRole) || teamCount > 1 ? "" : "ml-auto"
             }`}
             title={manager ? "Settings" : "My Profile"}
           >
@@ -879,6 +916,9 @@ function MoreSheet({
   const row = ({ href, label, icon: Icon }: NavItem, i: number, total: number) => {
     const badge = badgeFor(href);
     const active = isActive(href);
+    // Section hue on the icon tile — the list scans by color, like the
+    // create sheet. Unmapped rows keep the tenant accent.
+    const tint = sectionTints[href];
     return (
       <Link
         key={href}
@@ -890,10 +930,19 @@ function MoreSheet({
       >
         <span
           className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] ${
-            active
-              ? "bg-[color:var(--mobile-accent)] text-[color:var(--mobile-on-accent)]"
-              : "bg-[color:var(--mobile-accent-soft)] text-[color:var(--mobile-accent)]"
+            tint
+              ? ""
+              : active
+                ? "bg-[color:var(--mobile-accent)] text-[color:var(--mobile-on-accent)]"
+                : "bg-[color:var(--mobile-accent-soft)] text-[color:var(--mobile-accent)]"
           }`}
+          style={
+            tint
+              ? active
+                ? { backgroundColor: tint, color: "#ffffff" }
+                : { backgroundColor: `${tint}1c`, color: tint }
+              : undefined
+          }
         >
           <Icon size={16} strokeWidth={2} />
         </span>
