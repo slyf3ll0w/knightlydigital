@@ -68,7 +68,10 @@ export default async function LeadsPage() {
       isConverted: s.isConverted,
     }));
 
-  const cards: BoardCard[] = [...contacts, ...convertedContacts].map(toCard);
+  const cards: BoardCard[] = [
+    ...contacts.map((c) => toCard(c, false)),
+    ...convertedContacts.map((c) => toCard(c, true)),
+  ];
 
   return (
     <LeadsBoardClient
@@ -93,6 +96,7 @@ const contactCardSelect = {
   pipelineStageId: true,
   stageChangedAt: true,
   wonAt: true,
+  timesWon: true,
   createdAt: true,
   assignedTo: { select: { id: true, name: true } },
   quotes: {
@@ -126,6 +130,7 @@ type CardRow = {
   pipelineStageId: string | null;
   stageChangedAt: Date | null;
   wonAt: Date | null;
+  timesWon: number;
   createdAt: Date;
   assignedTo: { id: string; name: string } | null;
   quotes: { total: unknown }[];
@@ -133,7 +138,7 @@ type CardRow = {
   _count: { requests: number; quotes: number; appointments: number };
 };
 
-function toCard(c: CardRow): BoardCard {
+function toCard(c: CardRow, inConverted: boolean): BoardCard {
   return {
     id: c.id,
     name: `${c.firstName} ${c.lastName}`.trim(),
@@ -143,9 +148,10 @@ function toCard(c: CardRow): BoardCard {
     leadSource: c.leadSource,
     stageId: c.pipelineStageId!,
     stageChangedAt: (c.stageChangedAt ?? c.createdAt).toISOString(),
-    // A card that already won before (or is an ACTIVE client back for more
-    // work) shows the Repeat badge — David's "worked with us before" signal
-    repeat: c.status === "ACTIVE" || !!c.wonAt,
+    // Repeat = they'd worked with the company BEFORE this pipeline run: an
+    // existing client back on the working board, or a second+ conversion.
+    // A first-time win sitting in Converted is NOT a repeat.
+    repeat: inConverted ? c.timesWon > 1 : c.status === "ACTIVE" || c.timesWon > 0,
     value: c.quotes.reduce((s, q) => s + Number(q.total), 0),
     assignedTo: c.assignedTo,
     openRequestId: c.requests[0]?.id ?? null,

@@ -202,7 +202,7 @@ export default function PipelineSettingsClient({
             <button
               type="submit"
               disabled={saving || !newName.trim()}
-              className="chamfer px-4 py-2 bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white text-sm font-semibold"
+              className="rounded-full px-4 py-2 bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white text-sm font-semibold"
             >
               Add
             </button>
@@ -401,7 +401,7 @@ export default function PipelineSettingsClient({
           <button
             onClick={() => setWebhook(true)}
             disabled={saving}
-            className="chamfer px-4 py-2 bg-gray-900 hover:bg-black text-white text-sm font-semibold"
+            className="rounded-full px-4 py-2 bg-gray-900 hover:bg-black text-white text-sm font-semibold"
           >
             Generate webhook URL
           </button>

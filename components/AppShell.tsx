@@ -118,6 +118,19 @@ const createItems: NavItem[] = [
   { href: "/app/payments/new", label: "Payment", icon: DollarSign, show: moneyRoles },
 ];
 
+// One hue per entity so the create grid scans at a glance (identical ink
+// tiles made the sheet a guessing game). Echoes the status-color language:
+// requests amber, quotes green, money teal.
+const createTints: Record<string, string> = {
+  "/app/contacts/new": "#3B82F6", // Client — blue
+  "/app/requests/new": "#F59E0B", // Request — amber
+  "/app/appointments/new": "#8B5CF6", // Appointment — violet
+  "/app/quotes/new": "#22C55E", // Quote — green
+  "/app/jobs/new": "#F97316", // Job — orange
+  "/app/invoices/new": "#0EA5E9", // Invoice — sky
+  "/app/payments/new": "#14B8A6", // Payment — teal
+};
+
 // Tab bar: Home · Schedule · [create] · Atlas · More. Everything else lives
 // in the More drawer — the hamburger pattern is retired on mobile.
 const mobileNav: NavItem[] = [
@@ -186,7 +199,7 @@ function CreateMenu({ accent, role }: { accent: string; role: string }) {
               onClick={() => setOpen(false)}
               className="flex items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
             >
-              <Icon size={14} className="text-gray-400" />
+              <Icon size={14} style={{ color: createTints[href] ?? "#9CA3AF" }} />
               {label}
             </Link>
           ))}
@@ -774,8 +787,15 @@ function MobileTabBar({
                   }
                   className={`col-span-2 ${placement} flex flex-col items-center gap-2 rounded-2xl px-1 py-3.5 transition-transform active:scale-95`}
                 >
-                  <span className="chamfer theme-fixed flex h-12 w-12 shrink-0 items-center justify-center bg-[#0C0F0C] text-[color:var(--mobile-accent-ink)]">
-                    <Icon size={19} strokeWidth={1.9} />
+                  <span
+                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl"
+                    style={{
+                      backgroundColor: `${createTints[href] ?? "#0C0F0C"}1c`,
+                      color: createTints[href] ?? "#0C0F0C",
+                      boxShadow: `inset 0 0 0 1.5px ${createTints[href] ?? "#0C0F0C"}30`,
+                    }}
+                  >
+                    <Icon size={19} strokeWidth={2} />
                   </span>
                   <span className="font-display text-[11px] font-semibold text-gray-800">
                     {label}

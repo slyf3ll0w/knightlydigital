@@ -50,6 +50,7 @@ type UndoPayload = {
   wonAt: string | null;
   lostAt: string | null;
   lostReason: string | null;
+  timesWon: number;
 };
 
 type Toast = {
@@ -318,7 +319,7 @@ export default function LeadsBoardClient({
           )}
           <button
             onClick={() => setAddingTo(stages[0]?.id ?? null)}
-            className="chamfer flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold transition-colors"
+            className="rounded-full flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold transition-colors"
           >
             <Plus size={15} />
             New Lead
@@ -363,14 +364,17 @@ export default function LeadsBoardClient({
           </p>
           <button
             onClick={() => setAddingTo(stages[0]?.id ?? null)}
-            className="chamfer inline-flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold"
+            className="rounded-full inline-flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold"
           >
             <Plus size={15} />
             Add a Lead
           </button>
         </div>
       ) : (
-        <div className="flex-1 flex gap-3 overflow-x-auto pb-24 lg:pb-4 items-start snap-x snap-mandatory lg:snap-none no-scrollbar -mx-4 px-4 lg:mx-0 lg:px-0">
+        // Horizontal scroller — the scrollbar stays VISIBLE (app-ui slim
+        // style): with it hidden, desktop mouse users had no way to reach
+        // off-screen stages. Touch swipes; desktop gets the bar + shift-wheel.
+        <div className="flex-1 flex gap-3 overflow-x-auto pb-24 lg:pb-4 items-start snap-x snap-mandatory lg:snap-none -mx-4 px-4 lg:mx-0 lg:px-0">
           {stages.map((stage) => {
             const columnCards = byStage.get(stage.id) ?? [];
             const columnValue = columnCards.reduce((s, c) => s + c.value, 0);
@@ -533,7 +537,7 @@ export default function LeadsBoardClient({
         <div className="hidden lg:flex fixed bottom-6 left-1/2 -translate-x-1/2 z-40 gap-3">
           <div
             {...zoneProps("won")}
-            className={`chamfer flex items-center gap-2 px-8 py-4 text-sm font-bold text-white transition-transform ${
+            className={`rounded-full flex items-center gap-2 px-8 py-4 text-sm font-bold text-white transition-transform ${
               hoverZone === "won" ? "bg-green-600 scale-110" : "bg-green-500"
             }`}
           >
@@ -542,7 +546,7 @@ export default function LeadsBoardClient({
           </div>
           <div
             {...zoneProps("lost")}
-            className={`chamfer flex items-center gap-2 px-8 py-4 text-sm font-bold text-white transition-transform ${
+            className={`rounded-full flex items-center gap-2 px-8 py-4 text-sm font-bold text-white transition-transform ${
               hoverZone === "lost" ? "bg-gray-800 scale-110" : "bg-gray-600"
             }`}
           >
@@ -607,7 +611,7 @@ export default function LeadsBoardClient({
                   setLostCard(null);
                   closeCard(c, "lost", lostReason);
                 }}
-                className="chamfer px-4 py-2 bg-gray-800 hover:bg-gray-900 text-white text-sm font-semibold"
+                className="rounded-full px-4 py-2 bg-gray-800 hover:bg-gray-900 text-white text-sm font-semibold"
               >
                 Mark Lost
               </button>
@@ -713,7 +717,7 @@ function QuickAdd({
         <button
           type="submit"
           disabled={saving || !name.trim()}
-          className="chamfer flex-1 px-3 py-1.5 bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white text-xs font-semibold"
+          className="rounded-full flex-1 px-3 py-1.5 bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white text-xs font-semibold"
         >
           {saving ? "Adding…" : "Add lead"}
         </button>
@@ -845,14 +849,14 @@ function ActionSheet({
         <div className="grid grid-cols-2 gap-2 mt-5">
           <button
             onClick={onWon}
-            className="chamfer flex items-center justify-center gap-1.5 px-3 py-3 bg-green-500 hover:bg-green-600 text-white text-sm font-bold"
+            className="rounded-full flex items-center justify-center gap-1.5 px-3 py-3 bg-green-500 hover:bg-green-600 text-white text-sm font-bold"
           >
             <Trophy size={15} />
             Won
           </button>
           <button
             onClick={onLost}
-            className="chamfer flex items-center justify-center gap-1.5 px-3 py-3 bg-gray-700 hover:bg-gray-800 text-white text-sm font-bold"
+            className="rounded-full flex items-center justify-center gap-1.5 px-3 py-3 bg-gray-700 hover:bg-gray-800 text-white text-sm font-bold"
           >
             <XCircle size={15} />
             Lost

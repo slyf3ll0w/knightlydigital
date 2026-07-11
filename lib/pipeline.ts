@@ -231,6 +231,7 @@ export async function recordLeadWin(
       pipelineOrder: await topOrder(db, companyId, converted.id),
       stageChangedAt: new Date(),
       wonAt: new Date(),
+      timesWon: { increment: 1 },
       lostAt: null,
       lostReason: null,
     },

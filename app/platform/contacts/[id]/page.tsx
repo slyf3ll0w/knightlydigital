@@ -41,6 +41,7 @@ export default async function ContactDetailPage({
         invoices: { include: { payments: true }, orderBy: { createdAt: "desc" } },
         payments: true,
         assignedTo: { select: { id: true, name: true } },
+        pipelineStage: { select: { isConverted: true } },
       },
     }),
     canReassign
@@ -64,7 +65,11 @@ export default async function ContactDetailPage({
         select: { id: true, name: true },
       })
     : [];
-  const isRepeat = contact.status === "ACTIVE" || !!contact.wonAt;
+  // Repeat = worked with the company before THIS pipeline run — a first-time
+  // conversion sitting in Converted isn't a repeat
+  const isRepeat = contact.pipelineStage?.isConverted
+    ? contact.timesWon > 1
+    : contact.status === "ACTIVE" || contact.timesWon > 0;
 
   const lifetimeValue = contact.payments.reduce((s, p) => s + Number(p.amount), 0);
   const currentBalance = contact.invoices

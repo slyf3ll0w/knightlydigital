@@ -46,7 +46,7 @@ export const leadTools: Tool[] = [
         take: 80,
         select: {
           id: true, firstName: true, lastName: true, companyName: true,
-          leadSource: true, status: true, wonAt: true,
+          leadSource: true, status: true, timesWon: true,
           pipelineStageId: true, stageChangedAt: true, createdAt: true,
           assignedTo: { select: { name: true } },
           quotes: {
@@ -69,7 +69,9 @@ export const leadTools: Tool[] = [
             daysInStage: Math.floor(
               (Date.now() - (l.stageChangedAt ?? l.createdAt).getTime()) / 86400000
             ),
-            ...(l.status === "ACTIVE" || l.wonAt ? { repeatClient: true } : {}),
+            ...((s.isConverted ? l.timesWon > 1 : l.status === "ACTIVE" || l.timesWon > 0)
+              ? { repeatClient: true }
+              : {}),
             ...(l.assignedTo ? { assignedTo: l.assignedTo.name } : {}),
             ...(seePrices && l.quotes.length > 0
               ? { quotedValue: money(l.quotes.reduce((sum, q) => sum + Number(q.total), 0)) }

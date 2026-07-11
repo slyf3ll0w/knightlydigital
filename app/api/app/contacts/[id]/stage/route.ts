@@ -28,7 +28,7 @@ export async function PATCH(
     where: { id, companyId, ...contactScope(actor) },
     select: {
       id: true, status: true, pipelineStageId: true,
-      wonAt: true, lostAt: true, lostReason: true,
+      wonAt: true, lostAt: true, lostReason: true, timesWon: true,
     },
   });
   if (!contact) return NextResponse.json({ error: "Lead not found." }, { status: 404 });
@@ -43,6 +43,7 @@ export async function PATCH(
     wonAt: contact.wonAt?.toISOString() ?? null,
     lostAt: contact.lostAt?.toISOString() ?? null,
     lostReason: contact.lostReason,
+    timesWon: contact.timesWon,
   };
 
   if (action === "won") {
@@ -84,6 +85,11 @@ export async function PATCH(
           typeof body.lostReason === "string" && body.lostReason.trim()
             ? body.lostReason.trim().slice(0, 300)
             : null,
+        // Undoing an accidental Won also rolls the win counter back —
+        // otherwise the undone win reads as a Repeat forever after
+        ...(Number.isInteger(body.timesWon) && body.timesWon >= 0
+          ? { timesWon: body.timesWon }
+          : {}),
       },
     });
     return NextResponse.json({ success: true });

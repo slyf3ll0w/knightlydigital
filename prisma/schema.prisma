@@ -321,7 +321,8 @@ model Contact {
   pipelineStage   PipelineStage? @relation(fields: [pipelineStageId], references: [id])
   pipelineOrder   Int            @default(0) // manual sort within the column
   stageChangedAt  DateTime? // drives the card's "Nd in stage" aging
-  wonAt           DateTime? // last win — repeat indicator + insights funnel
+  wonAt           DateTime? // last win — insights funnel
+  timesWon        Int       @default(0) // Repeat badge = won before the current run
   lostAt          DateTime?
   lostReason      String?
   // Lead ownership: SALES/USER roles only see contacts assigned to them
