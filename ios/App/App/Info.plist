@@ -24,6 +24,12 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Streamflaire Hub uses the camera so you can take photos of job sites and attach them to jobs.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Streamflaire Hub accesses your photo library so you can attach existing photos to jobs.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Streamflaire Hub can save job photos to your photo library.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
