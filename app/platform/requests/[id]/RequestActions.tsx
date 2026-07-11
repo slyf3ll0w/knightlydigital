@@ -77,7 +77,12 @@ export default function RequestActions({
 
   async function deleteRequest() {
     setOpen(false);
-    if (!confirm("Permanently delete this request? This can't be undone.")) return;
+    if (
+      !confirm(
+        "Permanently delete this request? If it's the only thing on a lead's record (spam), the lead is deleted with it. This can't be undone."
+      )
+    )
+      return;
     const res = await fetch(`/api/app/requests/${requestId}`, { method: "DELETE" });
     if (!res.ok) {
       const data = await res.json().catch(() => null);

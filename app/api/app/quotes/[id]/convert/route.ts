@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, viaContactScope } from "@/lib/permissions";
 import { ensureSubscriptionsForContact } from "@/lib/subscriptions";
+import { recordLeadWin } from "@/lib/pipeline";
 
 /**
  * POST — convert an approved quote into a job (Jobber's "Convert to Job").
@@ -96,10 +97,8 @@ export async function POST(
         .map((li) => ({ workItemId: li.workItemId, quantity: Number(li.quantity) }))
     );
 
-    // First real work for a lead makes them an active client (Jobber behavior)
-    if (quote.contact.status === "LEAD") {
-      await tx.contact.update({ where: { id: quote.contactId }, data: { status: "ACTIVE" } });
-    }
+    // First real work closes the lead: active client, off the pipeline board
+    await recordLeadWin(tx, quote.contact);
 
     return created;
   });

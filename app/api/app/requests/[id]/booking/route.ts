@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getActor, canSell, viaContactScope } from "@/lib/permissions";
 import { sendEmail, bookingConfirmedEmail, bookingDeclinedEmail } from "@/lib/email";
 import { slotLabel } from "@/lib/booking-availability";
+import { autoAdvance } from "@/lib/pipeline";
 
 /**
  * Approve or decline a self-scheduled online booking.
@@ -61,6 +62,10 @@ export async function POST(
           ]
         : []),
     ]);
+    // Pipeline board: a confirmed estimate advances the lead's card
+    if (tentative) {
+      await autoAdvance(prisma, actor.companyId, request.contact.id, "APPOINTMENT_SCHEDULED");
+    }
   } else {
     await prisma.$transaction([
       prisma.request.update({ where: { id: request.id }, data: { status: "ARCHIVED" } }),

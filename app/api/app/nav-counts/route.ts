@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getActor, canSell, canSeeMoney, viaContactScope } from "@/lib/permissions";
+import { getActor, canSell, canSeeMoney, contactScope, viaContactScope } from "@/lib/permissions";
 import { unreadByThread } from "@/lib/chat";
 
 /**
@@ -13,7 +13,7 @@ export async function GET() {
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const scope = viaContactScope(actor);
-  const [requests, pastDue, chat] = await Promise.all([
+  const [requests, pastDue, chat, leads] = await Promise.all([
     canSell(actor.role)
       ? prisma.request.count({
           where: { companyId: actor.companyId, status: "NEW", ...scope },
@@ -35,7 +35,28 @@ export async function GET() {
     unreadByThread(actor).then(
       (u) => u.company + Object.values(u.dms).reduce((s, n) => s + n, 0)
     ),
+    // Leads badge: cards sitting in the board's entry (first) stage. Before
+    // the board is first opened (no stages yet), unstaged leads count.
+    canSell(actor.role)
+      ? prisma.pipelineStage
+          .findFirst({
+            where: { companyId: actor.companyId },
+            orderBy: { sortOrder: "asc" },
+            select: { id: true },
+          })
+          .then((first) =>
+            prisma.contact.count({
+              where: {
+                companyId: actor.companyId,
+                ...contactScope(actor),
+                ...(first
+                  ? { pipelineStageId: first.id }
+                  : { status: "LEAD", pipelineStageId: null }),
+              },
+            })
+          )
+      : Promise.resolve(0),
   ]);
 
-  return NextResponse.json({ requests, pastDue, chat });
+  return NextResponse.json({ requests, pastDue, chat, leads });
 }

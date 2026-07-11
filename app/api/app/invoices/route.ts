@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { RecurringInterval } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getActor, canSeeMoney, contactScope } from "@/lib/permissions";
+import { recordLeadWin } from "@/lib/pipeline";
 import { ensureSubscriptionsForContact } from "@/lib/subscriptions";
 import { paidDepositTotal } from "@/lib/deposits";
 import { intQuantity } from "@/lib/work-items";
@@ -125,8 +126,9 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    if (contact?.status === "LEAD") {
-      await tx.contact.update({ where: { id: contact.id }, data: { status: "ACTIVE" } });
+    // Billing a lead closes them: active client, off the pipeline board
+    if (contact) {
+      await recordLeadWin(tx, contact);
     }
 
     // Recurring services billed directly also start a subscription

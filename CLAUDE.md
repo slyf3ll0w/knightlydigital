@@ -53,7 +53,8 @@ app/app/
   contacts/               → Customer database
   contacts/[id]/          → Contact detail + job history
   contacts/new/           → New contact form
-  jobs/                   → Kanban pipeline board (LEAD → PAID)
+  leads/                  → Lead pipeline kanban board (customizable stages, Won/Lost)
+  jobs/                   → Jobs list with tab filters
   jobs/[id]/              → Job detail (notes, photos, status, quote/invoice)
   jobs/new/               → New job form
   schedule/               → Monthly calendar view
@@ -109,6 +110,26 @@ Key multi-tenant models, all scoped by `companyId`:
 - `ServicePlan` — recurring jobs
 - `BookingRequest` — from the /book widget
 - `ReviewRequest` — post-payment review requests
+
+## Lead pipeline (Leads board)
+
+`/app/leads` is a kanban over contacts: `Contact.pipelineStageId` set = a card.
+Stages are per-company (`PipelineStage`, seeded on first visit, customizable at
+`/app/settings/pipeline`). All lifecycle rules live in `lib/pipeline.ts`:
+
+- LEAD contacts always sit on the board (`ensureStages` sweeps strays).
+- Stage `autoAdvanceOn` triggers (request created / appointment scheduled /
+  quote sent / quote approved) move cards FORWARD only — hooks live in the
+  request/appointment/quote/booking routes.
+- Winning (first job/invoice/quote-conversion via `recordLeadWin`, or the
+  board's Won zone) clears the stage, stamps `wonAt`, makes them ACTIVE.
+- ACTIVE clients re-enter on a new request as repeat business (Repeat badge);
+  losing them just leaves the board. Lost LEADs archive with `lostReason`.
+- Deleting a spam request also deletes its lead when that request was the
+  lead's only footprint (see requests/[id] DELETE).
+- External intake: `POST /api/public/leads/[Company.leadWebhookToken]` —
+  generic JSON webhook for Zapier/Make/ad connectors (Meta, Google lead
+  forms). Managed in Settings → Lead Pipeline.
 
 ## Authentication
 

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { getActor, canSell, isManager, viaContactScope } from "@/lib/permissions";
 import { autoSendQuoteAgreements } from "@/lib/agreements";
 import { backfillLineItemCosts, intQuantity } from "@/lib/work-items";
+import { autoAdvance } from "@/lib/pipeline";
 
 const allowedStatuses = [
   "DRAFT",
@@ -157,6 +158,13 @@ export async function PATCH(
   // Sending the quote auto-issues any attached agreements set to "with quote"
   if (justSent) {
     await autoSendQuoteAgreements(quote.id, "WITH_QUOTE");
+  }
+
+  // Pipeline board: sent/approved quotes advance the lead's card
+  if (body.status === "AWAITING_RESPONSE") {
+    await autoAdvance(prisma, companyId, quote.contactId, "QUOTE_SENT");
+  } else if (body.status === "APPROVED") {
+    await autoAdvance(prisma, companyId, quote.contactId, "QUOTE_APPROVED");
   }
 
   return NextResponse.json(updated);

@@ -13,6 +13,7 @@ import CustomFieldsCard from "./CustomFieldsCard";
 import ContactNoteForm from "./ContactNoteForm";
 import ContactNoteItem from "./ContactNoteItem";
 import PortalAccessCard from "./PortalAccessCard";
+import PipelineCard from "./PipelineCard";
 import { getActiveFieldDefs } from "@/lib/contact-fields";
 
 export default async function ContactDetailPage({
@@ -54,6 +55,16 @@ export default async function ContactDetailPage({
   if (!contact) notFound();
 
   const fieldDefs = await getActiveFieldDefs(companyId);
+
+  // Pipeline card data — only when this contact has a card on the Leads board
+  const pipelineStages = contact.pipelineStageId
+    ? await prisma.pipelineStage.findMany({
+        where: { companyId },
+        orderBy: { sortOrder: "asc" },
+        select: { id: true, name: true },
+      })
+    : [];
+  const isRepeat = contact.status === "ACTIVE" || !!contact.wonAt;
 
   const lifetimeValue = contact.payments.reduce((s, p) => s + Number(p.amount), 0);
   const currentBalance = contact.invoices
@@ -138,6 +149,11 @@ export default async function ContactDetailPage({
           <ArrowLeft size={18} />
         </Link>
         <ContactStatus status={contact.status} />
+        {isRepeat && contact.pipelineStageId && (
+          <span className="stamp text-blue-600" title="Has worked with you before">
+            Repeat
+          </span>
+        )}
       </div>
 
       <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
@@ -303,6 +319,18 @@ export default async function ContactDetailPage({
 
         {/* Rail: overview + hub link */}
         <div className="space-y-4">
+          {contact.pipelineStageId && pipelineStages.length > 0 && (
+            <PipelineCard
+              contactId={contact.id}
+              contactName={`${contact.firstName} ${contact.lastName}`.trim()}
+              stages={pipelineStages}
+              currentStageId={contact.pipelineStageId}
+              daysInStage={Math.floor(
+                (Date.now() - (contact.stageChangedAt ?? contact.createdAt).getTime()) / 86400000
+              )}
+              isLead={contact.status === "LEAD"}
+            />
+          )}
           <div className="card-ledger p-4">
             <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
               Assigned to

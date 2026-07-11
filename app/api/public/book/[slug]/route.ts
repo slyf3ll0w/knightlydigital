@@ -17,6 +17,7 @@ import {
   slotLabel,
 } from "@/lib/booking-availability";
 import { Prisma } from "@prisma/client";
+import { enterPipeline, autoAdvance } from "@/lib/pipeline";
 
 // Submit-time double-booking race: thrown inside the transaction when the
 // picked slot is no longer free, mapped to a 409 the form handles by
@@ -374,6 +375,14 @@ export async function POST(
     // Link the auto-created quote back to its request
     if (quote) {
       await tx.quote.update({ where: { id: quote.id }, data: { requestId: request.id } });
+    }
+
+    // Pipeline board: new leads enter, existing clients re-enter as repeat
+    // business, and stage triggers advance the card
+    await enterPipeline(tx, company.id, contact.id);
+    await autoAdvance(tx, company.id, contact.id, "REQUEST_CREATED");
+    if (quote && config.serviceRequest.quoteMode === "send") {
+      await autoAdvance(tx, company.id, contact.id, "QUOTE_SENT");
     }
 
     // Self-scheduled slot → tentative appointment. Availability re-checked

@@ -28,6 +28,7 @@ import {
   ChevronsUpDown,
   CircleUserRound,
   MessagesSquare,
+  SquareKanban,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import Avatar from "@/components/Avatar";
@@ -90,6 +91,7 @@ const navGroups: { label?: string; items: NavItem[] }[] = [
     items: [
       { href: "/app/contacts", label: "Clients", icon: Users, show: sellRoles },
       { href: "/app/requests", label: "Requests", icon: Inbox, show: sellRoles },
+      { href: "/app/leads", label: "Leads", icon: SquareKanban, show: sellRoles },
       { href: "/app/quotes", label: "Quotes", icon: FileText, show: sellRoles },
       { href: "/app/jobs", label: "Jobs", icon: Briefcase },
       { href: "/app/invoices", label: "Invoices", icon: Receipt, show: moneyRoles },
@@ -298,7 +300,7 @@ export default function AppShell({
   const [moreOpen, setMoreOpen] = useState(false);
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const [counts, setCounts] = useState({ requests: 0, pastDue: 0, chat: 0 });
+  const [counts, setCounts] = useState({ requests: 0, pastDue: 0, chat: 0, leads: 0 });
   // Wide wordmark logos render large and alone; squarish marks get a tile
   // next to the company name (detected from the image's natural size).
   const [logoIsWide, setLogoIsWide] = useState(false);
@@ -319,7 +321,12 @@ export default function AppShell({
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (d && !cancelled)
-          setCounts({ requests: d.requests ?? 0, pastDue: d.pastDue ?? 0, chat: d.chat ?? 0 });
+          setCounts({
+            requests: d.requests ?? 0,
+            pastDue: d.pastDue ?? 0,
+            chat: d.chat ?? 0,
+            leads: d.leads ?? 0,
+          });
       })
       .catch(() => {});
     return () => {
@@ -361,7 +368,9 @@ export default function AppShell({
           ? counts.pastDue
           : href === "/app/chat"
             ? counts.chat
-            : 0;
+            : href === "/app/leads"
+              ? counts.leads
+              : 0;
     return (
       <Link
         key={href}

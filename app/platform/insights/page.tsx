@@ -142,6 +142,30 @@ export default async function InsightsPage({
   const totalExpenses = Number(expenseAgg._sum.amount) || 0;
   const profit = totalRevenue - totalExpenses;
 
+  // Lead pipeline funnel: what's on the board now + wins/losses in the range
+  const [stages, boardCounts, wonCount, lostCount] = await Promise.all([
+    prisma.pipelineStage.findMany({
+      where: { companyId },
+      orderBy: { sortOrder: "asc" },
+      select: { id: true, name: true },
+    }),
+    prisma.contact.groupBy({
+      by: ["pipelineStageId"],
+      where: { companyId, pipelineStageId: { not: null } },
+      _count: true,
+    }),
+    prisma.contact.count({
+      where: { companyId, ...(since ? { wonAt: { gte: since } } : { wonAt: { not: null } }) },
+    }),
+    prisma.contact.count({
+      where: { companyId, ...(since ? { lostAt: { gte: since } } : { lostAt: { not: null } }) },
+    }),
+  ]);
+  const countByStage = new Map(boardCounts.map((b) => [b.pipelineStageId, b._count]));
+  const onBoard = boardCounts.reduce((s, b) => s + b._count, 0);
+  const winRate =
+    wonCount + lostCount > 0 ? Math.round((wonCount / (wonCount + lostCount)) * 100) : null;
+
   return (
     <div className="p-4 lg:p-8 max-w-6xl mx-auto">
       <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
@@ -191,6 +215,45 @@ export default async function InsightsPage({
             {money(profit)}
           </p>
           <p className="text-xs text-gray-500 mt-0.5">revenue minus expenses</p>
+        </div>
+      </div>
+
+      {/* Lead pipeline funnel */}
+      <div className="card-ledger mb-6">
+        <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+          <div>
+            <h2 className="font-semibold text-gray-900 text-sm">Lead pipeline</h2>
+            <p className="text-xs text-gray-500">
+              {onBoard} on the board now · won/lost counted for this period
+            </p>
+          </div>
+          <Link href="/app/leads" className="text-xs font-medium text-green-600 hover:underline">
+            Open the board →
+          </Link>
+        </div>
+        <div className="p-5 flex flex-wrap items-stretch gap-3">
+          {stages.map((s) => (
+            <div key={s.id} className="flex-1 min-w-[110px]">
+              <p className="numeral-ledger text-2xl font-semibold text-gray-900">
+                {countByStage.get(s.id) ?? 0}
+              </p>
+              <p className="text-xs text-gray-500 truncate">{s.name}</p>
+            </div>
+          ))}
+          <div className="flex-1 min-w-[110px] border-l border-gray-100 pl-4">
+            <p className="numeral-ledger text-2xl font-semibold text-green-700">{wonCount}</p>
+            <p className="text-xs text-gray-500">Won</p>
+          </div>
+          <div className="flex-1 min-w-[110px]">
+            <p className="numeral-ledger text-2xl font-semibold text-gray-500">{lostCount}</p>
+            <p className="text-xs text-gray-500">Lost</p>
+          </div>
+          <div className="flex-1 min-w-[110px]">
+            <p className="numeral-ledger text-2xl font-semibold text-gray-900">
+              {winRate === null ? "—" : `${winRate}%`}
+            </p>
+            <p className="text-xs text-gray-500">Win rate</p>
+          </div>
         </div>
       </div>
 

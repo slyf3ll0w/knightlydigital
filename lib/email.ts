@@ -77,9 +77,14 @@ export function newRequestEmail({
   contactName: string;
   contactPhone: string | null;
   contactEmail: string | null;
-  source: "booking_form" | "client_hub";
+  source: "booking_form" | "client_hub" | "webhook";
 }): { subject: string; html: string } {
-  const sourceLabel = source === "client_hub" ? "your client hub" : "your booking form";
+  const sourceLabel =
+    source === "client_hub"
+      ? "your client hub"
+      : source === "webhook"
+        ? "your lead integration"
+        : "your booking form";
   const detailRows = (details ?? "")
     .split("\n")
     .filter(Boolean)

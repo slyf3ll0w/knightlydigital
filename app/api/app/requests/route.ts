@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, contactScope } from "@/lib/permissions";
+import { enterPipeline, autoAdvance } from "@/lib/pipeline";
 
 export async function POST(req: NextRequest) {
   const actor = await getActor();
@@ -35,6 +36,11 @@ export async function POST(req: NextRequest) {
       details: details || null,
     },
   });
+
+  // Pipeline board: a fresh request puts the contact on the board (repeat
+  // clients re-enter with a Repeat badge) and advances any stage claiming it
+  await enterPipeline(prisma, companyId, contact.id);
+  await autoAdvance(prisma, companyId, contact.id, "REQUEST_CREATED");
 
   return NextResponse.json(request, { status: 201 });
 }

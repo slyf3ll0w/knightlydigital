@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, isManager, jobScope, contactScope } from "@/lib/permissions";
+import { recordLeadWin } from "@/lib/pipeline";
 
 export async function GET() {
   const actor = await getActor();
@@ -83,10 +84,9 @@ export async function POST(req: NextRequest) {
       await tx.request.update({ where: { id: requestId }, data: { status: "CONVERTED" } });
     }
 
-    // First real work for a lead makes them an active client (Jobber behavior)
-    if (contact.status === "LEAD") {
-      await tx.contact.update({ where: { id: contactId }, data: { status: "ACTIVE" } });
-    }
+    // First real work closes the lead: active client, off the pipeline board
+    // (repeat clients on the board leave it the same way)
+    await recordLeadWin(tx, contact);
 
     return created;
   });

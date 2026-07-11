@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, contactScope, isManager } from "@/lib/permissions";
 import { getActiveFieldDefs, sanitizeCustomFields } from "@/lib/contact-fields";
+import { enterPipeline } from "@/lib/pipeline";
 
 export async function GET() {
   const actor = await getActor();
@@ -78,6 +79,9 @@ export async function POST(req: NextRequest) {
           : undefined,
     },
   });
+
+  // New contacts start as leads — straight onto the pipeline board
+  await enterPipeline(prisma, actor.companyId, contact.id);
 
   return NextResponse.json(contact, { status: 201 });
 }

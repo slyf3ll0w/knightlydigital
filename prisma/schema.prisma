@@ -50,6 +50,9 @@ model Company {
   // and whether SALES users can see invoices & payments for their leads.
   defaultLeadUserId String?
   salesSeePayments  Boolean @default(true)
+  // Lead intake webhook (Zapier/Make/ad connectors): POST /api/public/leads/[token].
+  // null = intake off; rotating the token kills old integrations instantly.
+  leadWebhookToken String? @unique
   teamSize         String? // onboarding answers below — analytics/marketing
   currentSoftware  String?
   topPriority      String?
@@ -76,6 +79,7 @@ model Company {
   contracts         Contract[]
   expenses          Expense[]
   teamMessages      TeamMessage[]
+  pipelineStages    PipelineStage[]
 
   @@index([slug])
 }
@@ -257,6 +261,36 @@ enum ContactStatus {
   ARCHIVED
 }
 
+// ─── Lead pipeline (kanban board) ────────────────────────────────────────────
+
+// App events that can auto-advance a lead's card to a stage claiming them.
+// Cards only move FORWARD on triggers — a quote re-send never demotes a lead.
+enum PipelineTrigger {
+  REQUEST_CREATED
+  APPOINTMENT_SCHEDULED
+  QUOTE_SENT
+  QUOTE_APPROVED
+}
+
+// One column on the company's Leads board. Fully customizable: rename,
+// recolor, reorder, add, delete (delete moves its cards to the first stage).
+// Defaults seed on first board visit — see lib/pipeline.ts.
+model PipelineStage {
+  id            String           @id @default(cuid())
+  companyId     String
+  company       Company          @relation(fields: [companyId], references: [id])
+  name          String
+  color         String? // hex accent for the column header; null = console ink
+  sortOrder     Int              @default(0)
+  autoAdvanceOn PipelineTrigger?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  contacts Contact[]
+
+  @@index([companyId, sortOrder])
+}
+
 model Contact {
   id               String        @id @default(cuid())
   companyId        String
@@ -273,6 +307,17 @@ model Contact {
   notes            String?
   status           ContactStatus @default(LEAD)
   leadSource       String?
+  // Lead pipeline (kanban): a set stage = a card on the Leads board. LEAD
+  // contacts always carry a stage; ACTIVE clients re-enter when they submit
+  // a new request (their card shows a Repeat badge). Won clears the stage and
+  // stamps wonAt; Lost clears it with a reason (leads also archive).
+  pipelineStageId String?
+  pipelineStage   PipelineStage? @relation(fields: [pipelineStageId], references: [id])
+  pipelineOrder   Int            @default(0) // manual sort within the column
+  stageChangedAt  DateTime? // drives the card's "Nd in stage" aging
+  wonAt           DateTime? // last win — repeat indicator + insights funnel
+  lostAt          DateTime?
+  lostReason      String?
   // Lead ownership: SALES/USER roles only see contacts assigned to them
   assignedToId     String?
   assignedTo       User?         @relation("AssignedContacts", fields: [assignedToId], references: [id])
@@ -305,6 +350,7 @@ model Contact {
   @@index([companyId, lastName])
   @@index([companyId, assignedToId])
   @@index([companyId, importBatchId])
+  @@index([companyId, pipelineStageId])
 }
 
 // ─── Requests ────────────────────────────────────────────────────────────────

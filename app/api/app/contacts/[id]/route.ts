@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, contactScope, isManager } from "@/lib/permissions";
 import { getActiveFieldDefs, sanitizeCustomFields } from "@/lib/contact-fields";
+import { enterPipeline } from "@/lib/pipeline";
 
 export async function PATCH(
   req: NextRequest,
@@ -80,6 +81,19 @@ export async function PATCH(
 
   const opt = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
 
+  // Status CHANGES keep the pipeline board consistent; an unchanged status
+  // (edit forms send it either way) must not move the card — a repeat client
+  // on the board stays put when their profile is edited.
+  let statusChange: "LEAD" | "ACTIVE" | "ARCHIVED" | undefined;
+  if (status !== undefined) {
+    const current = await prisma.contact.findFirst({
+      where: { id, companyId: actor.companyId, ...contactScope(actor) },
+      select: { status: true },
+    });
+    if (!current) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    if (current.status !== status) statusChange = status;
+  }
+
   const contact = await prisma.contact.updateMany({
     where: { id, companyId: actor.companyId, ...contactScope(actor) },
     data: {
@@ -97,11 +111,19 @@ export async function PATCH(
       ...(body.leadSource !== undefined && { leadSource: opt(body.leadSource) }),
       ...(status !== undefined && { status }),
       ...(paymentTermsDays !== undefined && { paymentTermsDays }),
+      // Leaving LEAD takes the card off the board (becoming LEAD re-enters below)
+      ...(statusChange === "ACTIVE" || statusChange === "ARCHIVED"
+        ? { pipelineStageId: null, stageChangedAt: null }
+        : {}),
       ...assignment,
     },
   });
 
   if (contact.count === 0) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  if (statusChange === "LEAD") {
+    await enterPipeline(prisma, actor.companyId, id);
+  }
 
   return NextResponse.json({ success: true });
 }

@@ -413,6 +413,22 @@ export default function SettingsClient({
         <span className="text-sm font-medium text-green-600">Manage →</span>
       </Link>
 
+      {/* Lead pipeline */}
+      <Link
+        href="/app/settings/pipeline"
+        className="flex items-center justify-between card-ledger p-5 mb-6 hover:shadow-sm transition-shadow"
+      >
+        <div>
+          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+            Lead Pipeline
+          </h2>
+          <p className="text-xs text-gray-400 mt-0.5">
+            Customize your Leads board stages and connect ad platforms via the lead webhook
+          </p>
+        </div>
+        <span className="text-sm font-medium text-green-600">Manage →</span>
+      </Link>
+
       {/* Booking form */}
       <Link
         href="/app/settings/booking"

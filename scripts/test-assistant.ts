@@ -22,15 +22,17 @@ assert.deepEqual(
   names(owner),
   [
     "add_client_note", "add_job_note", "add_team_member", "assign_client",
-    "business_summary", "cancel_appointment", "collect_deposit", "convert_quote",
-    "create_agreement_template", "create_client", "create_invoice", "create_job",
-    "create_quote", "create_request", "create_service", "delete_record",
-    "edit_payment", "email_document", "get_client_activity", "get_company_settings",
-    "get_document", "get_price_book", "get_schedule", "list_agreement_templates",
-    "list_agreements", "list_clients", "list_expenses", "list_money",
-    "list_pipeline", "list_subscriptions", "list_team", "log_expense",
-    "manage_client_fields", "manage_subscription", "manage_web_form",
-    "record_payment", "respond_to_booking", "schedule_appointment",
+    "business_summary", "cancel_appointment", "close_lead", "collect_deposit",
+    "convert_quote", "create_agreement_template", "create_client",
+    "create_invoice", "create_job", "create_quote", "create_request",
+    "create_service", "delete_record", "edit_payment", "email_document",
+    "get_client_activity", "get_company_settings", "get_document",
+    "get_lead_board", "get_price_book", "get_schedule",
+    "list_agreement_templates", "list_agreements", "list_clients",
+    "list_expenses", "list_money", "list_pipeline", "list_subscriptions",
+    "list_team", "log_expense", "manage_client_fields", "manage_lead_webhook",
+    "manage_pipeline_stage", "manage_subscription", "manage_web_form",
+    "move_lead", "record_payment", "respond_to_booking", "schedule_appointment",
     "search_clients", "send_agreement", "send_portal_invite",
     "set_business_hours", "set_client_status", "undo_import",
     "update_agreement", "update_agreement_template", "update_appointment",
@@ -79,6 +81,10 @@ console.log("ok 2: tech limited to schedule + job tools");
     "team + settings tools hidden from sales");
   assert.ok(n.includes("update_quote"), "sales can mark quotes sent/approved");
   assert.ok(n.includes("update_invoice"), "sales w/ payments toggle can mark invoices sent");
+  assert.ok(n.includes("get_lead_board") && n.includes("move_lead") && n.includes("close_lead"),
+    "sales work the lead board (scoped to their leads)");
+  assert.ok(!n.includes("manage_pipeline_stage") && !n.includes("manage_lead_webhook"),
+    "board structure + webhook are manager-only");
   console.log("ok 3: sales sees sell + money + action tools, no settings/job/manager/team actions");
 }
 

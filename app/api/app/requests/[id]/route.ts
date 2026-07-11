@@ -40,6 +40,11 @@ export async function PATCH(
 /**
  * DELETE — permanently remove a request (spam/marketer cleanup). Refused when
  * quotes or jobs link to it; real work should be archived, not deleted.
+ *
+ * Spam cascade: when the request's contact is a LEAD whose only footprint was
+ * this request (no other requests, no quotes/jobs/invoices/payments/
+ * subscriptions/contracts, no live appointments), the lead was created BY the
+ * spam — it's deleted too, so no junk card lingers on the pipeline board.
  */
 export async function DELETE(
   _req: NextRequest,
@@ -64,6 +69,42 @@ export async function DELETE(
     );
   }
 
-  await prisma.request.delete({ where: { id } });
-  return NextResponse.json({ success: true });
+  const leadDeleted = await prisma.$transaction(async (tx) => {
+    // A tentative (unapproved) self-booking is meaningless without its
+    // request — delete it with the spam so it stops blocking the slot
+    await tx.appointment.deleteMany({ where: { requestId: id, companyId, tentative: true } });
+    await tx.request.delete({ where: { id } });
+
+    const contact = await tx.contact.findFirst({
+      where: { id: request.contactId, companyId, status: "LEAD" },
+      include: {
+        _count: {
+          select: {
+            requests: true, quotes: true, jobs: true, invoices: true,
+            payments: true, subscriptions: true, contracts: true, servicePlans: true,
+          },
+        },
+      },
+    });
+    if (!contact) return false;
+    const c = contact._count;
+    const hasFootprint =
+      c.requests > 0 || c.quotes > 0 || c.jobs > 0 || c.invoices > 0 ||
+      c.payments > 0 || c.subscriptions > 0 || c.contracts > 0 || c.servicePlans > 0;
+    if (hasFootprint) return false;
+    // A declined spam self-booking leaves only a cancelled appointment behind;
+    // anything scheduled/completed is real history and keeps the lead.
+    const liveAppointments = await tx.appointment.count({
+      where: { contactId: contact.id, status: { not: "CANCELLED" } },
+    });
+    if (liveAppointments > 0) return false;
+
+    await tx.appointment.deleteMany({ where: { contactId: contact.id, companyId } });
+    await tx.bookingRequest.deleteMany({ where: { contactId: contact.id, companyId } });
+    await tx.reviewRequest.deleteMany({ where: { contactId: contact.id, companyId } });
+    await tx.contact.delete({ where: { id: contact.id } }); // notes cascade
+    return true;
+  });
+
+  return NextResponse.json({ success: true, leadDeleted });
 }

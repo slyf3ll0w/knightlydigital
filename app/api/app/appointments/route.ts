@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, contactScope, isManager } from "@/lib/permissions";
+import { autoAdvance } from "@/lib/pipeline";
 
 const validTypes = ["PHONE_CALL", "VIDEO_CALL", "IN_PERSON"];
 
@@ -72,6 +73,9 @@ export async function POST(req: NextRequest) {
       notes: notes?.trim() ? notes.trim().slice(0, 2000) : null,
     },
   });
+
+  // Pipeline board: booking an estimate/sales call advances the lead's card
+  await autoAdvance(prisma, companyId, contactId, "APPOINTMENT_SCHEDULED");
 
   return NextResponse.json(appointment, { status: 201 });
 }

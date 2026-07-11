@@ -4,6 +4,7 @@ import { getActor, canSell, viaContactScope } from "@/lib/permissions";
 import { sendEmail, quoteLinkEmail } from "@/lib/email";
 import { quoteDepositAmount, money } from "@/lib/statuses";
 import { autoSendQuoteAgreements } from "@/lib/agreements";
+import { autoAdvance } from "@/lib/pipeline";
 
 /**
  * POST — email the client their quote link and mark the quote sent.
@@ -87,6 +88,9 @@ export async function POST(
   if (justSent) {
     await autoSendQuoteAgreements(quote.id, "WITH_QUOTE");
   }
+
+  // Pipeline board: a sent quote advances the lead's card
+  await autoAdvance(prisma, companyId, quote.contactId, "QUOTE_SENT");
 
   return NextResponse.json({ emailed: true, to: quote.contact.email });
 }
