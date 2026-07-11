@@ -103,6 +103,11 @@ model User {
   // picker and tentative appointments land on them. Off by default — owners
   // opt team members in from the Team page.
   bookable     Boolean  @default(false)
+  // Profile picture (small client-resized square; same bytes-in-DB pattern
+  // as Company.logoData — move to R2 with job photos when volume grows)
+  avatarData      Bytes?
+  avatarMime      String?
+  avatarUpdatedAt DateTime?
   // First-visit guided tour; null = hasn't seen it (fires on next dashboard visit)
   tourCompletedAt DateTime?
   // Team chat: last time this user opened the chat (drives the unread badge)

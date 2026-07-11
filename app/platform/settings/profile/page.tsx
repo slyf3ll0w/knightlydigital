@@ -10,11 +10,13 @@ export default async function ProfilePage() {
 
   const user = await prisma.user.findUnique({
     where: { id: actor.id },
-    select: { name: true, email: true, phone: true, role: true },
+    select: { name: true, email: true, phone: true, role: true, avatarMime: true },
   });
 
   return (
     <ProfileClient
+      userId={actor.id}
+      hasAvatar={!!user?.avatarMime}
       name={user?.name ?? ""}
       email={user?.email ?? ""}
       phone={user?.phone ?? ""}

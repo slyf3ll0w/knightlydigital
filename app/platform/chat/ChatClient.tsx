@@ -108,7 +108,7 @@ function Linkified({ text }: { text: string }) {
   );
 }
 
-function ChannelIcon({ channel, size = 40 }: { channel: Channel; size?: number }) {
+function ChannelIcon({ channel, size = 40, meId }: { channel: Channel; size?: number; meId?: string }) {
   if (channel.kind === "everyone") {
     return (
       <span
@@ -129,7 +129,13 @@ function ChannelIcon({ channel, size = 40 }: { channel: Channel; size?: number }
       </span>
     );
   }
-  return <Avatar name={channel.name} size={size} />;
+  return (
+    <Avatar
+      name={channel.name}
+      userId={meId ? channel.memberIds.find((id) => id !== meId) : undefined}
+      size={size}
+    />
+  );
 }
 
 export default function ChatClient({
@@ -166,6 +172,10 @@ export default function ChatClient({
   const [picked, setPicked] = useState<string[]>([]);
   const [groupName, setGroupName] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
+  // iOS keyboard: the layout viewport doesn't shrink, only the visual one —
+  // size the conversation overlay to the visual viewport so the composer AND
+  // the latest messages stay above the keyboard.
+  const [vvBox, setVvBox] = useState<{ top: number; height: number } | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -233,6 +243,39 @@ export default function ChatClient({
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages, typers, mobileOpen]);
+
+  const pinToBottom = useCallback(() => {
+    if (stickToBottomRef.current) {
+      requestAnimationFrame(() => {
+        const el = scrollRef.current;
+        if (el) el.scrollTop = el.scrollHeight;
+      });
+    }
+  }, []);
+
+  // Track the visual viewport while a conversation is open: when the keyboard
+  // takes space, shrink the overlay to what's actually visible and re-pin the
+  // scroll — otherwise the newest messages hide behind the keyboard. When the
+  // layout viewport already resizes (Android resizes-content, the native
+  // shell), the delta is ~0 and the overlay keeps its natural height.
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const update = () => {
+      const keyboardUp = window.innerHeight - vv.height > 80;
+      setVvBox(keyboardUp ? { top: vv.offsetTop, height: vv.height } : null);
+      pinToBottom();
+    };
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    update();
+    return () => {
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+      setVvBox(null);
+    };
+  }, [mobileOpen, pinToBottom]);
 
   function onScroll() {
     const el = scrollRef.current;
@@ -455,7 +498,7 @@ export default function ChatClient({
               i < channels.length - 1 ? "border-b border-gray-50" : ""
             } ${c.id === activeId ? "lg:bg-green-50/60" : "hover:bg-gray-50"}`}
           >
-            <ChannelIcon channel={c} />
+            <ChannelIcon channel={c} meId={meId} />
             <span className="min-w-0 flex-1">
               <span className="flex items-baseline justify-between gap-2">
                 <span className={`truncate text-[15px] ${c.unread ? "font-bold text-gray-900" : "font-medium text-gray-800"}`}>
@@ -502,7 +545,7 @@ export default function ChatClient({
         >
           <ArrowLeft size={20} />
         </button>
-        {active && <ChannelIcon channel={active} size={34} />}
+        {active && <ChannelIcon channel={active} size={34} meId={meId} />}
         <div className="min-w-0 flex-1">
           <p className="truncate text-[15px] font-semibold text-gray-900">{active?.name}</p>
           <p className="truncate text-[11px] text-gray-400">
@@ -606,7 +649,7 @@ export default function ChatClient({
                 <div className={`flex max-w-[82%] items-end gap-1.5 lg:max-w-[70%] ${mine ? "flex-row-reverse" : ""}`}>
                   {showMeta && (
                     <span className="w-[26px] shrink-0 self-end pb-0.5">
-                      {lastOfRun && <Avatar name={m.userName} size={26} />}
+                      {lastOfRun && <Avatar name={m.userName} userId={m.userId} size={26} />}
                     </span>
                   )}
                   <div className="relative">
@@ -769,6 +812,10 @@ export default function ChatClient({
                 send();
               }
             }}
+            onFocus={() => {
+              // the keyboard animates in — pin again once it has settled
+              setTimeout(pinToBottom, 350);
+            }}
             rows={1}
             maxLength={4000}
             placeholder={active?.kind === "dm" ? `Message ${active.name.split(" ")[0]}…` : `Message ${active?.name ?? "your team"}…`}
@@ -801,7 +848,12 @@ export default function ChatClient({
           anchors to the bottom of the visual viewport so the keyboard never
           covers it, and the overlay sits above the tab bar. */}
       {mobileOpen && (
-        <div className="fixed inset-0 z-[60] flex flex-col bg-white pt-[env(safe-area-inset-top)] lg:hidden">
+        <div
+          className={`fixed inset-x-0 z-[60] flex flex-col bg-white lg:hidden ${
+            vvBox ? "" : "top-0 h-[100dvh] pt-[env(safe-area-inset-top)]"
+          }`}
+          style={vvBox ? { top: vvBox.top, height: vvBox.height } : undefined}
+        >
           {conversation}
         </div>
       )}
@@ -915,7 +967,7 @@ export default function ChatClient({
                         on ? "bg-green-50 ring-1 ring-green-300" : "hover:bg-gray-50 active:bg-gray-100"
                       }`}
                     >
-                      <Avatar name={m.name} size={32} />
+                      <Avatar name={m.name} userId={m.id} size={32} />
                       <span className="flex-1 truncate text-[15px] font-medium text-gray-800">{m.name}</span>
                       <span
                         className={`flex h-5 w-5 items-center justify-center rounded-full border ${

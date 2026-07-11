@@ -1,6 +1,12 @@
+"use client";
+
+import { useState } from "react";
+
 /**
- * Deterministic gradient avatar: hue derived from the name so every user
- * gets a stable, distinct color without uploads. Two-letter initials.
+ * User avatar: the uploaded profile picture when one exists, else a
+ * deterministic gradient with two-letter initials (hue derived from the
+ * name so every user gets a stable, distinct color). Pass `userId` to try
+ * the photo — a missing one falls back to initials silently.
  */
 
 function hashHue(seed: string): number {
@@ -18,18 +24,25 @@ function initials(name: string): string {
 
 export default function Avatar({
   name,
+  userId,
+  version,
   size = 32,
   className = "",
 }: {
   name?: string | null;
+  userId?: string | null;
+  /** Bump after an upload to bust the browser cache. */
+  version?: number | string;
   size?: number;
   className?: string;
 }) {
+  const [failed, setFailed] = useState(false);
   const seed = name?.trim() || "?";
   const hue = hashHue(seed);
+  const showPhoto = !!userId && !failed;
   return (
     <div
-      className={`rounded-full flex items-center justify-center font-semibold text-white select-none shrink-0 ring-1 ring-white/20 ${className}`}
+      className={`rounded-full flex items-center justify-center font-semibold text-white select-none shrink-0 overflow-hidden ring-1 ring-white/20 ${className}`}
       style={{
         width: size,
         height: size,
@@ -39,7 +52,19 @@ export default function Avatar({
       }}
       title={name ?? undefined}
     >
-      {initials(seed)}
+      {showPhoto ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={`/api/avatars/${userId}${version ? `?v=${version}` : ""}`}
+          alt=""
+          width={size}
+          height={size}
+          className="h-full w-full object-cover"
+          onError={() => setFailed(true)}
+        />
+      ) : (
+        initials(seed)
+      )}
     </div>
   );
 }

@@ -223,7 +223,7 @@ export default function TeamClient({
         {users.map((m) => (
           <div key={m.id} className={`px-4 py-3 ${m.isActive ? "" : "opacity-60"}`}>
             <div className="flex flex-wrap items-center gap-3">
-              <Avatar name={m.name} size={32} />
+              <Avatar name={m.name} userId={m.id} size={32} />
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-gray-900 truncate">
                   {m.name}

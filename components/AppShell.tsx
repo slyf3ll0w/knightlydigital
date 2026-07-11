@@ -236,9 +236,11 @@ function CreateMenu({ accent, role }: { accent: string; role: string }) {
 function UserMenu({
   userName,
   userEmail,
+  userId,
 }: {
   userName?: string | null;
   userEmail?: string | null;
+  userId?: string | null;
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -282,7 +284,7 @@ function UserMenu({
         onClick={() => setOpen((v) => !v)}
         className="w-full px-3 py-2.5 flex items-center gap-3 rounded-md hover:bg-white/[0.06] transition-colors text-left"
       >
-        <Avatar name={userName} size={28} />
+        <Avatar name={userName} userId={userId} size={28} />
         <div className="flex-1 min-w-0">
           <p className="text-xs font-medium text-white truncate">{userName}</p>
           <p className="text-[11px] text-white/45 truncate">{userEmail}</p>
@@ -478,7 +480,7 @@ export default function AppShell({
         {manager && navLink("/app/settings/booking", "Forms", Globe)}
         {manager && navLink("/app/settings/team", "Team", UserPlus)}
         {manager && navLink("/app/settings", "Settings", Settings)}
-        <UserMenu userName={userName} userEmail={userEmail} />
+        <UserMenu userName={userName} userEmail={userEmail} userId={userId} />
         <p className="px-3 pt-1.5 pb-1 text-[10px] text-white/35 flex items-center gap-1.5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -572,6 +574,7 @@ export default function AppShell({
         teamCount={teamCount}
         userName={userName}
         userEmail={userEmail}
+        userId={userId}
         isActive={isActive}
       />
 
@@ -645,7 +648,7 @@ export default function AppShell({
           >
             <Settings size={17} />
           </Link>
-          <Avatar name={userName} size={32} className="hidden sm:flex ring-gray-200" />
+          <Avatar name={userName} userId={userId} size={32} className="hidden sm:flex ring-gray-200" />
         </header>
 
         {/* Scrollable content */}
@@ -887,6 +890,7 @@ function MoreSheet({
   teamCount,
   userName,
   userEmail,
+  userId,
   isActive,
 }: {
   open: boolean;
@@ -896,6 +900,7 @@ function MoreSheet({
   teamCount: number;
   userName?: string | null;
   userEmail?: string | null;
+  userId?: string | null;
   isActive: (href: string) => boolean;
 }) {
   const manager = isManagerRole(role);
@@ -1006,7 +1011,7 @@ function MoreSheet({
             onClick={() => hapticImpact("LIGHT")}
             className="flex items-center gap-3 rounded-2xl bg-white px-4 py-3.5 ring-1 ring-black/5 active:bg-gray-50 transition-colors"
           >
-            <Avatar name={userName} size={40} />
+            <Avatar name={userName} userId={userId} size={40} />
             <div className="min-w-0 flex-1">
               <p className="truncate text-[15px] font-semibold text-gray-900">{userName}</p>
               <p className="truncate text-xs text-gray-500">{userEmail}</p>

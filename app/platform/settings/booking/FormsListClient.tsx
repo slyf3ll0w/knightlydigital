@@ -181,78 +181,86 @@ export default function FormsListClient({
           return (
             <div
               key={f.id}
-              className={`card-ledger px-4 py-3.5 flex flex-wrap items-center gap-3 ${
+              className={`card-ledger px-4 py-3.5 sm:flex sm:flex-wrap sm:items-center sm:gap-3 ${
                 f.isActive ? "" : "opacity-60"
               }`}
             >
-              <meta.icon size={18} className="text-gray-400 shrink-0" />
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                  {f.name}
-                  {f.isDefault && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 ring-1 ring-inset ring-amber-500/30">
-                      <Star size={9} /> Default
-                    </span>
-                  )}
-                  {!f.isActive && <span className="text-xs text-red-500">off</span>}
-                </p>
-                <p className="text-xs text-gray-500 truncate">
-                  {meta.label} ·{" "}
-                  <a href={formUrl(f)} target="_blank" rel="noopener noreferrer" className="hover:underline">
-                    {formUrl(f).replace(/^https?:\/\//, "")}
-                  </a>
-                </p>
+              {/* Identity — full-width on phones so the name never squeezes */}
+              <div className="flex min-w-0 items-center gap-3 sm:flex-1">
+                <meta.icon size={18} className="text-gray-400 shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm font-semibold text-gray-900">
+                    {f.name}
+                    {f.isDefault && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 ring-1 ring-inset ring-amber-500/30">
+                        <Star size={9} /> Default
+                      </span>
+                    )}
+                    {!f.isActive && <span className="text-xs text-red-500">off</span>}
+                  </p>
+                  <p className="text-xs text-gray-500 truncate">
+                    {meta.label} ·{" "}
+                    <a href={formUrl(f)} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                      {formUrl(f).replace(/^https?:\/\//, "")}
+                    </a>
+                  </p>
+                </div>
               </div>
-              <a
-                href={formUrl(f)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-full"
-                title="Open form"
-              >
-                <ExternalLink size={14} />
-              </a>
-              {!f.isDefault && (
-                <button
-                  onClick={() => patch(f.id, { isDefault: true })}
-                  disabled={busy}
-                  className="px-2.5 py-1.5 rounded-full text-xs font-medium text-gray-600 hover:bg-gray-100"
-                  title="The default form answers your original /book and /embed links"
+
+              {/* Actions — their own row on phones, inline on desktop */}
+              <div className="mt-3 flex flex-wrap items-center gap-1.5 sm:mt-0 sm:gap-2">
+                <a
+                  href={formUrl(f)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-full"
+                  title="Open form"
                 >
-                  Make default
-                </button>
-              )}
-              {!f.isDefault && (
+                  <ExternalLink size={14} />
+                </a>
+                {!f.isDefault && (
+                  <button
+                    onClick={() => patch(f.id, { isDefault: true })}
+                    disabled={busy}
+                    className="px-2.5 py-1.5 rounded-full text-xs font-medium text-gray-600 hover:bg-gray-100"
+                    title="The default form answers your original /book and /embed links"
+                  >
+                    Make default
+                  </button>
+                )}
+                {!f.isDefault && (
+                  <button
+                    onClick={() => patch(f.id, { isActive: !f.isActive })}
+                    disabled={busy}
+                    className="px-2.5 py-1.5 rounded-full text-xs font-medium text-gray-600 hover:bg-gray-100"
+                  >
+                    {f.isActive ? "Turn off" : "Turn on"}
+                  </button>
+                )}
                 <button
-                  onClick={() => patch(f.id, { isActive: !f.isActive })}
+                  onClick={() => duplicate(f)}
                   disabled={busy}
-                  className="px-2.5 py-1.5 rounded-full text-xs font-medium text-gray-600 hover:bg-gray-100"
+                  className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-full"
+                  title="Duplicate form"
                 >
-                  {f.isActive ? "Turn off" : "Turn on"}
+                  <Copy size={14} />
                 </button>
-              )}
-              <button
-                onClick={() => duplicate(f)}
-                disabled={busy}
-                className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-full"
-                title="Duplicate form"
-              >
-                <Copy size={14} />
-              </button>
-              <Link
-                href={`/app/settings/booking/${f.id}`}
-                className="px-3 py-1.5 rounded-full text-xs font-semibold text-white bg-gray-900 hover:bg-gray-700"
-              >
-                Customize
-              </Link>
-              <button
-                onClick={() => remove(f)}
-                disabled={busy}
-                className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full"
-                title="Delete form"
-              >
-                <Trash2 size={14} />
-              </button>
+                <span className="flex-1 sm:hidden" aria-hidden />
+                <Link
+                  href={`/app/settings/booking/${f.id}`}
+                  className="px-3 py-1.5 rounded-full text-xs font-semibold text-white bg-gray-900 hover:bg-gray-700"
+                >
+                  Customize
+                </Link>
+                <button
+                  onClick={() => remove(f)}
+                  disabled={busy}
+                  className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full"
+                  title="Delete form"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
             </div>
           );
         })}
