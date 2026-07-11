@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Camera, Check, ImagePlus, Loader2, Trash2 } from "lucide-react";
@@ -58,6 +58,17 @@ export default function ProfileClient({
   const [avatarBusy, setAvatarBusy] = useState(false);
   const pickRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
+  // iOS: the capture attribute's direct-camera path crashes installed
+  // PWAs/webviews — its regular photo picker already offers "Take Photo",
+  // so route the camera button through that instead.
+  const [isIOS, setIsIOS] = useState(false);
+  useEffect(() => {
+    const ua = navigator.userAgent;
+    setIsIOS(
+      /iPad|iPhone|iPod/.test(ua) ||
+        (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+    );
+  }, []);
 
   async function uploadAvatar(file: File | null | undefined) {
     if (!file) return;
@@ -160,7 +171,7 @@ export default function ProfileClient({
             {/* Camera capture — phones only; desktop has no camera flow */}
             <button
               type="button"
-              onClick={() => cameraRef.current?.click()}
+              onClick={() => (isIOS ? pickRef : cameraRef).current?.click()}
               disabled={avatarBusy}
               className="flex items-center gap-1.5 rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50 lg:hidden"
             >
