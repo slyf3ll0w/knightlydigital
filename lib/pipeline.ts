@@ -26,11 +26,16 @@ type Db = Prisma.TransactionClient | typeof prisma;
 
 export const MAX_STAGES = 12;
 
+// Converted is pinned after every orderable stage
+const CONVERTED_SORT = 9999;
+
+// QUOTE_APPROVED is no longer offered: an approved quote always converts the
+// lead (recordLeadWin) rather than advancing to a custom stage. The enum
+// value stays in the schema for any stage that still carries it.
 export const PIPELINE_TRIGGERS = [
   "REQUEST_CREATED",
   "APPOINTMENT_SCHEDULED",
   "QUOTE_SENT",
-  "QUOTE_APPROVED",
 ] as const;
 
 export const triggerLabel: Record<string, string> = {
@@ -53,9 +58,11 @@ export function isValidHex(v: unknown): v is string {
 }
 
 /**
- * The company's stages, seeding the defaults on first use. Also sweeps any
- * stray LEAD contacts onto the first stage so the board never misses a lead
- * (imports, older records, paths that predate the pipeline).
+ * The company's stages, seeding the defaults on first use. Guarantees the
+ * terminal Converted section exists (backfilled for boards created before
+ * it), and sweeps any stray LEAD contacts onto the first stage so the board
+ * never misses a lead (imports, older records, paths that predate the
+ * pipeline).
  */
 export async function ensureStages(companyId: string) {
   let stages = await prisma.pipelineStage.findMany({
@@ -72,7 +79,23 @@ export async function ensureStages(companyId: string) {
           data: { companyId, sortOrder: i, ...DEFAULT_STAGES[i] },
         });
       }
+      await tx.pipelineStage.create({
+        data: {
+          companyId,
+          name: "Converted",
+          color: "#22C55E",
+          sortOrder: CONVERTED_SORT,
+          isConverted: true,
+        },
+      });
     });
+    stages = await prisma.pipelineStage.findMany({
+      where: { companyId },
+      orderBy: { sortOrder: "asc" },
+    });
+  } else if (!stages.some((s) => s.isConverted)) {
+    // Board predates the Converted section — add it
+    await convertedStageFor(prisma, companyId);
     stages = await prisma.pipelineStage.findMany({
       where: { companyId },
       orderBy: { sortOrder: "asc" },
@@ -83,6 +106,23 @@ export async function ensureStages(companyId: string) {
     data: { pipelineStageId: stages[0].id, stageChangedAt: new Date() },
   });
   return stages;
+}
+
+/** The company's Converted section, created if it doesn't exist yet. */
+export async function convertedStageFor(db: Db, companyId: string) {
+  const existing = await db.pipelineStage.findFirst({
+    where: { companyId, isConverted: true },
+  });
+  if (existing) return existing;
+  return db.pipelineStage.create({
+    data: {
+      companyId,
+      name: "Converted",
+      color: "#22C55E",
+      sortOrder: CONVERTED_SORT,
+      isConverted: true,
+    },
+  });
 }
 
 /** Top-of-column pipelineOrder for a stage (cards sort pipelineOrder asc). */
@@ -96,10 +136,11 @@ async function topOrder(db: Db, companyId: string, stageId: string): Promise<num
 }
 
 /**
- * Put a contact on the board (no-op if already there). New leads land on the
- * first stage unless a specific one is passed. ARCHIVED contacts (including
- * lost leads) are resurrected to LEAD; ACTIVE clients keep their status and
- * re-enter as repeat business.
+ * Put a contact on the board (no-op if already in a working stage). New leads
+ * land on the first stage unless a specific one is passed. Contacts sitting
+ * in the Converted section re-enter the working board — that's a client back
+ * for more work. ARCHIVED contacts (including lost leads) are resurrected to
+ * LEAD; ACTIVE clients keep their status and re-enter as repeat business.
  */
 export async function enterPipeline(
   db: Db,
@@ -109,16 +150,18 @@ export async function enterPipeline(
 ): Promise<void> {
   const contact = await db.contact.findFirst({
     where: { id: contactId, companyId },
-    select: { id: true, status: true, pipelineStageId: true },
+    select: { id: true, status: true, pipelineStage: { select: { id: true, isConverted: true } } },
   });
-  if (!contact || contact.pipelineStageId) return;
+  if (!contact || (contact.pipelineStage && !contact.pipelineStage.isConverted)) return;
 
   let stage = opts?.stageId
-    ? await db.pipelineStage.findFirst({ where: { id: opts.stageId, companyId } })
+    ? await db.pipelineStage.findFirst({
+        where: { id: opts.stageId, companyId, isConverted: false },
+      })
     : null;
   if (!stage) {
     stage = await db.pipelineStage.findFirst({
-      where: { companyId },
+      where: { companyId, isConverted: false },
       orderBy: { sortOrder: "asc" },
     });
   }
@@ -167,21 +210,26 @@ export async function autoAdvance(
 }
 
 /**
- * The lead closed — first job, first invoice, quote conversion, or the Won
- * drop zone. Leaves the board, becomes (or stays) an ACTIVE client.
+ * The lead closed — quote approved, first job/invoice, quote conversion, or
+ * the board's Won zone. The card lands in the Converted section and the
+ * contact becomes (or stays) an ACTIVE client.
  * No-op for contacts that are neither leads nor on the board.
  */
 export async function recordLeadWin(
   db: Db,
+  companyId: string,
   contact: { id: string; status: string; pipelineStageId: string | null }
 ): Promise<void> {
   if (contact.status !== "LEAD" && !contact.pipelineStageId) return;
+  const converted = await convertedStageFor(db, companyId);
+  if (contact.pipelineStageId === converted.id) return; // already there
   await db.contact.update({
     where: { id: contact.id },
     data: {
       status: "ACTIVE",
-      pipelineStageId: null,
-      stageChangedAt: null,
+      pipelineStageId: converted.id,
+      pipelineOrder: await topOrder(db, companyId, converted.id),
+      stageChangedAt: new Date(),
       wonAt: new Date(),
       lostAt: null,
       lostReason: null,

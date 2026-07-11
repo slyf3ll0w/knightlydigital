@@ -49,7 +49,7 @@ export async function PATCH(
     if (!contact.pipelineStageId && contact.status !== "LEAD") {
       return NextResponse.json({ error: "This contact isn't on the board." }, { status: 400 });
     }
-    await recordLeadWin(prisma, contact);
+    await recordLeadWin(prisma, companyId, contact);
     return NextResponse.json({ success: true, undo });
   }
 
@@ -95,6 +95,12 @@ export async function PATCH(
   });
   if (!stage) return NextResponse.json({ error: "Stage not found." }, { status: 404 });
   if (stage.id === contact.pipelineStageId) return NextResponse.json({ success: true, undo });
+
+  // Dragging into the Converted section IS winning the lead
+  if (stage.isConverted) {
+    await recordLeadWin(prisma, companyId, contact);
+    return NextResponse.json({ success: true, undo });
+  }
 
   const top = await prisma.contact.findFirst({
     where: { companyId, pipelineStageId: stage.id },

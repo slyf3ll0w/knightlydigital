@@ -40,7 +40,7 @@ export async function GET() {
     canSell(actor.role)
       ? prisma.pipelineStage
           .findFirst({
-            where: { companyId: actor.companyId },
+            where: { companyId: actor.companyId, isConverted: false },
             orderBy: { sortOrder: "asc" },
             select: { id: true },
           })

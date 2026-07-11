@@ -41,6 +41,12 @@ export async function PATCH(
 
   let trigger: string | null | undefined;
   if (body.autoAdvanceOn !== undefined) {
+    if (stage.isConverted && body.autoAdvanceOn !== null) {
+      return NextResponse.json(
+        { error: "The Converted section fills itself — approvals and first jobs land leads there." },
+        { status: 400 }
+      );
+    }
     if (body.autoAdvanceOn !== null && !(PIPELINE_TRIGGERS as readonly string[]).includes(body.autoAdvanceOn)) {
       return NextResponse.json({ error: "Invalid trigger." }, { status: 400 });
     }
@@ -78,9 +84,15 @@ export async function DELETE(
   const { id } = await params;
   const stage = await prisma.pipelineStage.findFirst({ where: { id, companyId } });
   if (!stage) return NextResponse.json({ error: "Stage not found." }, { status: 404 });
+  if (stage.isConverted) {
+    return NextResponse.json(
+      { error: "The Converted section can't be deleted — hide it in settings instead." },
+      { status: 400 }
+    );
+  }
 
   const fallback = await prisma.pipelineStage.findFirst({
-    where: { companyId, NOT: { id } },
+    where: { companyId, NOT: { id }, isConverted: false },
     orderBy: { sortOrder: "asc" },
   });
   if (!fallback) {

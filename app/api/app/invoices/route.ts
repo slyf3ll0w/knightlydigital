@@ -128,7 +128,7 @@ export async function POST(req: NextRequest) {
 
     // Billing a lead closes them: active client, off the pipeline board
     if (contact) {
-      await recordLeadWin(tx, contact);
+      await recordLeadWin(tx, companyId, contact);
     }
 
     // Recurring services billed directly also start a subscription

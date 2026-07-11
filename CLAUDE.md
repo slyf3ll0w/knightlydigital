@@ -119,10 +119,13 @@ Stages are per-company (`PipelineStage`, seeded on first visit, customizable at
 
 - LEAD contacts always sit on the board (`ensureStages` sweeps strays).
 - Stage `autoAdvanceOn` triggers (request created / appointment scheduled /
-  quote sent / quote approved) move cards FORWARD only — hooks live in the
+  quote sent) move cards FORWARD only — hooks live in the
   request/appointment/quote/booking routes.
-- Winning (first job/invoice/quote-conversion via `recordLeadWin`, or the
-  board's Won zone) clears the stage, stamps `wonAt`, makes them ACTIVE.
+- Winning (quote approval, first job/invoice/quote-conversion via
+  `recordLeadWin`, the Won zone, or dragging into Converted) moves the card
+  to the built-in Converted section (`PipelineStage.isConverted`, pinned
+  last, undeletable, hideable via `Company.hideConvertedLeads`), stamps
+  `wonAt`, makes them ACTIVE.
 - ACTIVE clients re-enter on a new request as repeat business (Repeat badge);
   losing them just leaves the board. Lost LEADs archive with `lostReason`.
 - Deleting a spam request also deletes its lead when that request was the

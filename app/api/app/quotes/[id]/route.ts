@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 import { getActor, canSell, isManager, viaContactScope } from "@/lib/permissions";
 import { autoSendQuoteAgreements } from "@/lib/agreements";
 import { backfillLineItemCosts, intQuantity } from "@/lib/work-items";
-import { autoAdvance } from "@/lib/pipeline";
+import { autoAdvance, recordLeadWin } from "@/lib/pipeline";
 
 const allowedStatuses = [
   "DRAFT",
@@ -160,11 +160,18 @@ export async function PATCH(
     await autoSendQuoteAgreements(quote.id, "WITH_QUOTE");
   }
 
-  // Pipeline board: sent/approved quotes advance the lead's card
+  // Pipeline board: a sent quote advances the lead's card; an approved quote
+  // converts them — card to the Converted section, contact becomes a client
   if (body.status === "AWAITING_RESPONSE") {
     await autoAdvance(prisma, companyId, quote.contactId, "QUOTE_SENT");
   } else if (body.status === "APPROVED") {
-    await autoAdvance(prisma, companyId, quote.contactId, "QUOTE_APPROVED");
+    const boardContact = await prisma.contact.findUnique({
+      where: { id: quote.contactId },
+      select: { id: true, status: true, pipelineStageId: true },
+    });
+    if (boardContact) {
+      await recordLeadWin(prisma, companyId, boardContact);
+    }
   }
 
   return NextResponse.json(updated);

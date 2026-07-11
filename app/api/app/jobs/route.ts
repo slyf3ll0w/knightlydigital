@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
 
     // First real work closes the lead: active client, off the pipeline board
     // (repeat clients on the board leave it the same way)
-    await recordLeadWin(tx, contact);
+    await recordLeadWin(tx, companyId, contact);
 
     return created;
   });

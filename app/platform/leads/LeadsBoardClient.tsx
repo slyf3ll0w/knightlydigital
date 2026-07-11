@@ -25,6 +25,7 @@ export type BoardStage = {
   name: string;
   color: string | null;
   autoAdvanceOn: string | null;
+  isConverted: boolean;
 };
 
 export type BoardCard = {
@@ -67,6 +68,13 @@ function stageInk(hex: string | null): string {
   return luminance > 200 ? "#0C0F0C" : `#${m[1]}`;
 }
 
+/** The stage color at low alpha — column section backgrounds/borders. */
+function stageTint(hex: string | null, alpha: number): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex ?? "");
+  const n = m ? parseInt(m[1], 16) : 0x0c0f0c;
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
+}
+
 function daysIn(iso: string): string {
   const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
   if (days <= 0) return "today";
@@ -83,11 +91,13 @@ export default function LeadsBoardClient({
   cards,
   team,
   manager,
+  convertedOverflow = 0,
 }: {
   stages: BoardStage[];
   cards: BoardCard[];
   team: { id: string; name: string }[];
   manager: boolean;
+  convertedOverflow?: number;
 }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -272,7 +282,10 @@ export default function LeadsBoardClient({
     }
   }
 
-  const totalValue = visible.reduce((s, c) => s + c.value, 0);
+  // Header stats count the working pipeline, not the Converted archive
+  const convertedStageId = stages.find((s) => s.isConverted)?.id;
+  const working = visible.filter((c) => c.stageId !== convertedStageId);
+  const totalValue = working.reduce((s, c) => s + c.value, 0);
 
   return (
     <div className="p-4 lg:p-8 h-full flex flex-col">
@@ -281,7 +294,7 @@ export default function LeadsBoardClient({
         <div className="flex items-baseline gap-3">
           <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">Leads</h1>
           <span className="text-sm text-gray-500">
-            {visible.length} on the board
+            {working.length} on the board
             {totalValue > 0 && (
               <>
                 {" · "}
@@ -365,36 +378,43 @@ export default function LeadsBoardClient({
             return (
               <div
                 key={stage.id}
-                className="w-[82vw] sm:w-80 lg:w-72 shrink-0 snap-center lg:snap-align-none"
+                className="w-[82vw] sm:w-80 lg:w-72 shrink-0 snap-center lg:snap-align-none rounded-xl border p-2"
+                style={{
+                  backgroundColor: stageTint(stage.color, stage.isConverted ? 0.05 : 0.06),
+                  borderColor: stageTint(stage.color, 0.28),
+                }}
               >
                 {/* Column header */}
-                <div className="flex items-center justify-between px-1 pb-2">
+                <div className="flex items-center justify-between px-1 pb-2 pt-0.5">
                   <span className="stamp" style={{ color: ink }}>
+                    {stage.isConverted && <Trophy size={11} className="shrink-0" aria-hidden />}
                     {stage.name}
                     <span className="text-gray-400 normal-case tracking-normal font-semibold">
-                      {columnCards.length}
+                      {columnCards.length + (stage.isConverted ? convertedOverflow : 0)}
                     </span>
                   </span>
                   <div className="flex items-center gap-1.5">
-                    {columnValue > 0 && (
+                    {columnValue > 0 && !stage.isConverted && (
                       <span className="numeral-ledger text-[11px] font-semibold text-gray-500">
                         {money(columnValue)}
                       </span>
                     )}
-                    <button
-                      onClick={() => setAddingTo(stage.id)}
-                      className="p-1 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors"
-                      aria-label={`Add lead to ${stage.name}`}
-                    >
-                      <Plus size={14} />
-                    </button>
+                    {!stage.isConverted && (
+                      <button
+                        onClick={() => setAddingTo(stage.id)}
+                        className="p-1 text-gray-400 hover:text-gray-700 hover:bg-black/5 rounded transition-colors"
+                        aria-label={`Add lead to ${stage.name}`}
+                      >
+                        <Plus size={14} />
+                      </button>
+                    )}
                   </div>
                 </div>
 
                 {/* Column body (drop target) */}
                 <div
                   {...dropProps(stage.id)}
-                  className={`flex flex-col gap-2 min-h-[140px] rounded-lg p-1.5 -m-1.5 transition-colors ${
+                  className={`flex flex-col gap-2 min-h-[140px] rounded-lg p-1 -m-1 transition-colors ${
                     hoverStage === stage.id && dragId
                       ? "bg-green-500/10 ring-2 ring-green-500/40 ring-dashed"
                       : ""
@@ -489,9 +509,17 @@ export default function LeadsBoardClient({
                     </div>
                   ))}
                   {columnCards.length === 0 && addingTo !== stage.id && (
-                    <div className="rounded-lg border border-dashed border-gray-200 py-6 text-center text-xs text-gray-400">
-                      No leads here
+                    <div className="rounded-lg border border-dashed border-gray-300/60 py-6 text-center text-xs text-gray-400">
+                      {stage.isConverted ? "Wins land here — they become clients" : "No leads here"}
                     </div>
+                  )}
+                  {stage.isConverted && convertedOverflow > 0 && (
+                    <Link
+                      href="/app/contacts"
+                      className="block text-center text-[11px] text-gray-500 hover:text-gray-700 py-1.5"
+                    >
+                      +{convertedOverflow} more — see Clients
+                    </Link>
                   )}
                 </div>
               </div>
@@ -528,7 +556,7 @@ export default function LeadsBoardClient({
       {sheetCard && (
         <ActionSheet
           card={sheetCard}
-          stages={stages}
+          stages={stages.filter((s) => !s.isConverted)}
           onClose={() => setSheetCard(null)}
           onMove={(stageId) => {
             setSheetCard(null);

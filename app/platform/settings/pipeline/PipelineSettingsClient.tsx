@@ -23,12 +23,12 @@ type Stage = {
   autoAdvanceOn: string | null;
 };
 
+// Quote approval isn't offered: an approved quote always converts the lead
 const TRIGGERS: { value: string; label: string }[] = [
   { value: "", label: "No automation" },
   { value: "REQUEST_CREATED", label: "Request comes in" },
   { value: "APPOINTMENT_SCHEDULED", label: "Appointment scheduled" },
   { value: "QUOTE_SENT", label: "Quote sent" },
-  { value: "QUOTE_APPROVED", label: "Quote approved" },
 ];
 
 const SAMPLE_PAYLOAD = `{
@@ -43,9 +43,13 @@ const SAMPLE_PAYLOAD = `{
 
 export default function PipelineSettingsClient({
   initialStages,
+  convertedStage,
+  hideConverted,
   webhookUrl,
 }: {
   initialStages: Stage[];
+  convertedStage: { id: string; name: string; color: string | null } | null;
+  hideConverted: boolean;
   webhookUrl: string | null;
 }) {
   const router = useRouter();
@@ -57,6 +61,7 @@ export default function PipelineSettingsClient({
   const [newName, setNewName] = useState("");
   const [hook, setHook] = useState<string | null>(webhookUrl);
   const [copied, setCopied] = useState(false);
+  const [hidden, setHidden] = useState(hideConverted);
 
   const refresh = () => startTransition(() => router.refresh());
 
@@ -278,9 +283,51 @@ export default function PipelineSettingsClient({
           ))}
         </div>
 
+        {/* Converted — the built-in terminal section */}
+        {convertedStage && (
+          <div className="mt-3 rounded-lg border border-green-200 bg-green-50/50 px-3 py-2.5">
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                type="color"
+                value={convertedStage.color ?? "#22C55E"}
+                onChange={(e) => patchStage(convertedStage.id, { color: e.target.value })}
+                className="w-8 h-8 rounded cursor-pointer border border-gray-200 bg-white p-0.5"
+                title="Section color"
+              />
+              <input
+                defaultValue={convertedStage.name}
+                maxLength={40}
+                onBlur={(e) => {
+                  const v = e.target.value.trim();
+                  if (v && v !== convertedStage.name) patchStage(convertedStage.id, { name: v });
+                  else e.target.value = convertedStage.name;
+                }}
+                className="flex-1 min-w-[120px] px-2.5 py-1.5 text-sm font-medium border border-transparent hover:border-gray-200 focus:border-gray-300 rounded-lg focus:outline-none bg-transparent"
+              />
+              <span className="text-[11px] text-gray-500">
+                Always last — approved quotes and first jobs land leads here as clients
+              </span>
+            </div>
+            <label className="flex items-center gap-2 mt-2.5 text-sm text-gray-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={hidden}
+                onChange={async (e) => {
+                  const v = e.target.checked;
+                  setHidden(v);
+                  await run(() => postJson("/api/app/settings", { hideConvertedLeads: v }, "PATCH"));
+                }}
+                className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+              />
+              Hide the Converted section on the board (leads still convert — you just won&apos;t
+              see the pile)
+            </label>
+          </div>
+        )}
+
         <p className="text-xs text-gray-400 mt-3">
-          The first stage is where new leads land. Won and Lost aren&apos;t stages — close leads
-          out by dragging cards onto the Won/Lost zones on the board.
+          The first stage is where new leads land. Close leads out by dragging cards into
+          Converted (or the Won zone) — Lost archives them with a reason.
         </p>
       </div>
 

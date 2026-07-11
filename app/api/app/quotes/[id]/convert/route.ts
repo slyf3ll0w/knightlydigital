@@ -98,7 +98,7 @@ export async function POST(
     );
 
     // First real work closes the lead: active client, off the pipeline board
-    await recordLeadWin(tx, quote.contact);
+    await recordLeadWin(tx, companyId, quote.contact);
 
     return created;
   });

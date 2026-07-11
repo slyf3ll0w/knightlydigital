@@ -145,13 +145,13 @@ export default async function InsightsPage({
   // Lead pipeline funnel: what's on the board now + wins/losses in the range
   const [stages, boardCounts, wonCount, lostCount] = await Promise.all([
     prisma.pipelineStage.findMany({
-      where: { companyId },
+      where: { companyId, isConverted: false },
       orderBy: { sortOrder: "asc" },
       select: { id: true, name: true },
     }),
     prisma.contact.groupBy({
       by: ["pipelineStageId"],
-      where: { companyId, pipelineStageId: { not: null } },
+      where: { companyId, pipelineStage: { isConverted: false } },
       _count: true,
     }),
     prisma.contact.count({

@@ -53,6 +53,8 @@ model Company {
   // Lead intake webhook (Zapier/Make/ad connectors): POST /api/public/leads/[token].
   // null = intake off; rotating the token kills old integrations instantly.
   leadWebhookToken String? @unique
+  // Hide the board's Converted section (recently-won cards) to save screen space
+  hideConvertedLeads Boolean @default(false)
   teamSize         String? // onboarding answers below — analytics/marketing
   currentSoftware  String?
   topPriority      String?
@@ -282,6 +284,10 @@ model PipelineStage {
   name          String
   color         String? // hex accent for the column header; null = console ink
   sortOrder     Int              @default(0)
+  // The built-in terminal "Converted" section (one per company, always last,
+  // undeletable): quote approvals and other wins land cards here while the
+  // contact becomes an ACTIVE client. Hidden via Company.hideConvertedLeads.
+  isConverted   Boolean          @default(false)
   autoAdvanceOn PipelineTrigger?
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt

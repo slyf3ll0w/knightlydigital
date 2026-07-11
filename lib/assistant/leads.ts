@@ -9,8 +9,13 @@ import { type Tool, str, money, clientName, findContact, stage } from "./core";
  * the same /api/app/pipeline and /contacts/[id]/stage routes the board uses.
  */
 
-async function resolveStage(companyId: string, nameOrId: string) {
-  const stages = await ensureStages(companyId);
+async function resolveStage(
+  companyId: string,
+  nameOrId: string,
+  opts?: { includeConverted?: boolean }
+) {
+  const all = await ensureStages(companyId);
+  const stages = opts?.includeConverted ? all : all.filter((s) => !s.isConverted);
   const q = nameOrId.trim().toLowerCase();
   return (
     stages.find((s) => s.id === nameOrId) ??
@@ -53,6 +58,7 @@ export const leadTools: Tool[] = [
       const seePrices = canSeePricing(actor.role);
       const board = stages.map((s) => ({
         stage: s.name,
+        ...(s.isConverted ? { converted: true } : {}),
         ...(s.autoAdvanceOn ? { autoAdvancesOn: triggerLabel[s.autoAdvanceOn] } : {}),
         leads: leads
           .filter((l) => l.pipelineStageId === s.id)
@@ -70,7 +76,10 @@ export const leadTools: Tool[] = [
               : {}),
           })),
       }));
-      return { board, note: "Stages are customizable (manage_pipeline_stage). Won/Lost close a lead out via close_lead." };
+      return {
+        board,
+        note: "Stages are customizable (manage_pipeline_stage). close_lead settles a lead: won lands the card in the built-in Converted section (they become an active client); lost archives it.",
+      };
     },
   },
   {
@@ -167,7 +176,7 @@ export const leadTools: Tool[] = [
           color: { type: "string", description: "recolor/create: hex like #22C55E" },
           trigger: {
             type: "string",
-            enum: ["REQUEST_CREATED", "APPOINTMENT_SCHEDULED", "QUOTE_SENT", "QUOTE_APPROVED", "none"],
+            enum: ["REQUEST_CREATED", "APPOINTMENT_SCHEDULED", "QUOTE_SENT", "none"],
           },
           orderedNames: {
             type: "array",
@@ -207,7 +216,8 @@ export const leadTools: Tool[] = [
         const names = Array.isArray(args.orderedNames)
           ? args.orderedNames.filter((v): v is string => typeof v === "string")
           : [];
-        const stages = await ensureStages(actor.companyId);
+        // Converted is pinned last and never reordered
+        const stages = (await ensureStages(actor.companyId)).filter((s) => !s.isConverted);
         const ids: string[] = [];
         for (const n of names) {
           const m = stages.find((s) => s.name.toLowerCase() === n.trim().toLowerCase());
@@ -266,7 +276,7 @@ export const leadTools: Tool[] = [
         const trigger = str(args.trigger, 30);
         const clearing = trigger === "none";
         if (!clearing && !(PIPELINE_TRIGGERS as readonly string[]).includes(trigger)) {
-          return { error: "trigger must be REQUEST_CREATED, APPOINTMENT_SCHEDULED, QUOTE_SENT, QUOTE_APPROVED, or none" };
+          return { error: "trigger must be REQUEST_CREATED, APPOINTMENT_SCHEDULED, QUOTE_SENT, or none (quote approval always converts the lead — that's built in)" };
         }
         return stage(ctx, {
           kind: "manage_pipeline_stage",

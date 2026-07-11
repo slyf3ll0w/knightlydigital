@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { autoSendQuoteAgreements } from "@/lib/agreements";
 import { createDepositInvoice, type DepositInvoiceResult } from "@/lib/deposits";
 import { sendEmail, invoiceLinkEmail } from "@/lib/email";
-import { autoAdvance } from "@/lib/pipeline";
+import { recordLeadWin } from "@/lib/pipeline";
 
 /**
  * Public quote response endpoint (client-facing, no auth — the [id] segment
@@ -98,8 +98,15 @@ export async function POST(
   // Approval issues any attached agreements set to "on approval"
   await autoSendQuoteAgreements(quote.id, "ON_APPROVAL");
 
-  // Pipeline board: client approval advances the lead's card
-  await autoAdvance(prisma, quote.companyId, quote.contactId, "QUOTE_APPROVED");
+  // Pipeline board: an approved quote converts the lead — their card lands in
+  // the Converted section and they become an active client
+  const boardContact = await prisma.contact.findUnique({
+    where: { id: quote.contactId },
+    select: { id: true, status: true, pipelineStageId: true },
+  });
+  if (boardContact) {
+    await recordLeadWin(prisma, quote.companyId, boardContact);
+  }
 
   // Email the client the deposit pay link when a deposit invoice was just created
   if (deposit?.created && quote.contact.email) {

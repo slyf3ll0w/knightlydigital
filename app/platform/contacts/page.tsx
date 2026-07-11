@@ -6,10 +6,10 @@ import ContactStatus from "@/components/ContactStatus";
 import EmptyState from "@/components/EmptyState";
 import { requirePageActor, canSell, contactScope, seesAllLeads, isManager } from "@/lib/permissions";
 
+// Leads live on the Leads board now — this page is clients (searching still
+// finds leads so the header search never dead-ends).
 const statusFilters = [
-  { value: "", label: "Leads & clients" },
-  { value: "LEAD", label: "Leads" },
-  { value: "ACTIVE", label: "Clients" },
+  { value: "", label: "Clients" },
   { value: "ARCHIVED", label: "Archived" },
 ];
 
@@ -22,11 +22,11 @@ export default async function ContactsPage({
   const companyId = actor.companyId;
 
   const { q, status, assignee } = await searchParams;
-  const validStatus = ["LEAD", "ACTIVE", "ARCHIVED"].includes(status ?? "")
-    ? (status as "LEAD" | "ACTIVE" | "ARCHIVED")
+  const validStatus = ["ARCHIVED"].includes(status ?? "")
+    ? (status as "ARCHIVED")
     : undefined;
 
-  // Managers can flip to "My leads"; sales/user are always scoped to theirs
+  // Managers can flip to "Mine"; sales/user are always scoped to theirs
   const showAll = seesAllLeads(actor.role);
   const mineOnly = showAll && assignee === "me";
 
@@ -35,7 +35,9 @@ export default async function ContactsPage({
       companyId,
       ...contactScope(actor),
       ...(mineOnly ? { assignedToId: actor.id } : {}),
-      status: validStatus ? validStatus : { in: ["LEAD", "ACTIVE"] },
+      // A search sweeps every status (so leads are still findable here);
+      // otherwise the list is active clients, or the Archived tab
+      status: validStatus ? validStatus : q ? undefined : "ACTIVE",
       ...(q
         ? {
             OR: [
@@ -144,10 +146,17 @@ export default async function ContactsPage({
               }`}
             >
               <UserCheck size={13} />
-              My leads
+              Mine
             </Link>
           </>
         )}
+        <span className="mx-1 h-5 w-px shrink-0 bg-gray-200" />
+        <Link
+          href="/app/leads"
+          className="shrink-0 whitespace-nowrap rounded-full border border-gray-200 bg-white px-3.5 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+        >
+          Leads board →
+        </Link>
       </div>
 
       <div className="card-ledger overflow-hidden">

@@ -27,14 +27,14 @@ export async function POST(req: NextRequest) {
   const name = typeof body.name === "string" ? body.name.trim().slice(0, 40) : "";
   if (!name) return NextResponse.json({ error: "The stage needs a name." }, { status: 400 });
 
-  const existing = await ensureStages(companyId);
+  const existing = (await ensureStages(companyId)).filter((s) => !s.isConverted);
   if (existing.length >= MAX_STAGES) {
     return NextResponse.json(
       { error: `A board holds up to ${MAX_STAGES} stages — remove one first.` },
       { status: 400 }
     );
   }
-  if (existing.some((s) => s.name.toLowerCase() === name.toLowerCase())) {
+  if (existing.some((s) => s.name.toLowerCase() === name.toLowerCase()) || name.toLowerCase() === "converted") {
     return NextResponse.json({ error: "A stage with that name already exists." }, { status: 400 });
   }
 

@@ -13,20 +13,27 @@ export default async function PipelineSettingsPage() {
     ensureStages(actor.companyId),
     prisma.company.findUnique({
       where: { id: actor.companyId },
-      select: { leadWebhookToken: true },
+      select: { leadWebhookToken: true, hideConvertedLeads: true },
     }),
   ]);
 
   const base = (process.env.NEXTAUTH_URL ?? "https://streamflaire.com").replace(/\/$/, "");
+  const converted = stages.find((s) => s.isConverted);
 
   return (
     <PipelineSettingsClient
-      initialStages={stages.map((s) => ({
-        id: s.id,
-        name: s.name,
-        color: s.color,
-        autoAdvanceOn: s.autoAdvanceOn,
-      }))}
+      initialStages={stages
+        .filter((s) => !s.isConverted)
+        .map((s) => ({
+          id: s.id,
+          name: s.name,
+          color: s.color,
+          autoAdvanceOn: s.autoAdvanceOn,
+        }))}
+      convertedStage={
+        converted ? { id: converted.id, name: converted.name, color: converted.color } : null
+      }
+      hideConverted={company?.hideConvertedLeads ?? false}
       webhookUrl={
         company?.leadWebhookToken ? `${base}/api/public/leads/${company.leadWebhookToken}` : null
       }

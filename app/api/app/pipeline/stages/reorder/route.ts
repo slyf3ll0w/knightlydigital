@@ -17,8 +17,9 @@ export async function POST(req: NextRequest) {
     ? body.orderedIds.filter((v: unknown): v is string => typeof v === "string")
     : [];
 
+  // Converted is pinned last and never part of a reorder
   const stages = await prisma.pipelineStage.findMany({
-    where: { companyId },
+    where: { companyId, isConverted: false },
     select: { id: true },
   });
   const known = new Set(stages.map((s) => s.id));

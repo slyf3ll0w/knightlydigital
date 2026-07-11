@@ -59,6 +59,8 @@ export async function PATCH(req: NextRequest) {
           : undefined,
       surchargeEnabled: body.surchargeEnabled ?? undefined,
       surchargeRate: body.surchargeRate ?? undefined,
+      hideConvertedLeads:
+        typeof body.hideConvertedLeads === "boolean" ? body.hideConvertedLeads : undefined,
       ...(body.defaultDepositType !== undefined &&
         (() => {
           const d = sanitizeDeposit({
