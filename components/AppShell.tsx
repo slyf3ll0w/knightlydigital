@@ -592,7 +592,7 @@ export default function AppShell({
         </header>
 
         {/* Scrollable content */}
-        <main className="flex-1 overflow-y-auto pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-0">{children}</main>
+        <main className="app-main flex-1 overflow-y-auto pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-0">{children}</main>
       </div>
 
       <MobileTabBar
@@ -759,7 +759,7 @@ function MobileTabBar({
       )}
 
       {/* ── Mobile bottom tab bar ─────────────────────────────────────────── */}
-      <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-white border-t border-gray-200 flex items-stretch pb-[env(safe-area-inset-bottom)]">
+      <nav className="mobile-tab-bar lg:hidden fixed bottom-0 inset-x-0 z-30 bg-white border-t border-gray-200 flex items-stretch pb-[env(safe-area-inset-bottom)]">
         {tabs.map(tabLink)}
         {creates.length > 0 && (
           <div className="relative w-16 shrink-0">

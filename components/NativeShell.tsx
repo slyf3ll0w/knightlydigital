@@ -84,6 +84,26 @@ export default function NativeShell() {
       else if (res) set(res);
     };
 
+    // While typing, the tab bar shouldn't ride up above the keyboard —
+    // globals.css hides it (and drops the content padding reserved for it)
+    // whenever <html> carries kb-open. Fired via the Keyboard plugin so it
+    // only ever applies inside the shell.
+    const kbHandles: Handle[] = [];
+    const pushKb = (h: Handle) => kbHandles.push(h);
+    listen(Keyboard, "keyboardWillShow", () => {
+      document.documentElement.classList.add("kb-open");
+    }, pushKb);
+    listen(Keyboard, "keyboardDidShow", () => {
+      // WebKit sometimes scrolls the whole webview to "reveal" the input even
+      // though the native resize already did — undo it, then make sure the
+      // focused field is visible inside its own scroll container.
+      window.scrollTo(0, 0);
+      (document.activeElement as HTMLElement | null)?.scrollIntoView?.({ block: "nearest" });
+    }, pushKb);
+    listen(Keyboard, "keyboardWillHide", () => {
+      document.documentElement.classList.remove("kb-open");
+    }, pushKb);
+
     // Android hardware back: walk history, minimize at the root instead of
     // killing the webview.
     let backHandle: Handle | undefined;
@@ -136,6 +156,8 @@ export default function NativeShell() {
     return () => {
       backHandle?.remove();
       tapHandle?.remove();
+      kbHandles.forEach((h) => h.remove());
+      document.documentElement.classList.remove("kb-open");
       darkQuery?.removeEventListener?.("change", applyStatusBar);
       document.removeEventListener("click", onClick, true);
     };

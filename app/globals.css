@@ -68,6 +68,17 @@
   }
 }
 
+/* Native shell, keyboard open (NativeShell.tsx toggles kb-open): the webview
+   resizes with the keyboard, so without this the tab bar rides up above it.
+   Hide the bar and drop the padding that reserves space for it — bottom-
+   anchored inputs (chat, Atlas) then sit directly on the keyboard. */
+.kb-open .mobile-tab-bar {
+  display: none;
+}
+.kb-open .app-main {
+  padding-bottom: 0 !important;
+}
+
 :root {
   /* Typography: Inter for UI text, Oxanium for marketing display headings.
      (These vars were previously referenced but never defined, so the site
