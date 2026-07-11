@@ -206,7 +206,12 @@ export default function ChatClient({
   }, [refresh]);
 
   async function openChannel(id: string) {
-    setMobileOpen(true);
+    // The fixed conversation overlay is a phone thing — on desktop the
+    // conversation pane is already visible (and double-mounting it would
+    // duplicate the composer in the DOM)
+    if (typeof window !== "undefined" && !window.matchMedia("(min-width: 1024px)").matches) {
+      setMobileOpen(true);
+    }
     if (id === activeId) return;
     setActiveId(id);
     activeRef.current = id;
