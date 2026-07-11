@@ -92,7 +92,7 @@ export default function WorkItemPicker({
         onFocus={() => items.length > 0 && setOpen(true)}
         onKeyDown={onKeyDown}
         autoComplete="off"
-        className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
       />
       {open && matches.length > 0 && (
         <div className="absolute left-0 right-0 top-full mt-1 z-40 bg-white rounded-lg shadow-xl ring-1 ring-black/5 py-1 overflow-hidden">
@@ -114,7 +114,7 @@ export default function WorkItemPicker({
                 <span className="flex items-center gap-1.5 font-medium text-gray-900">
                   <span className="truncate">{item.name}</span>
                   {item.recurringInterval && (
-                    <span className="shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-green-100 text-green-700">
+                    <span className="shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-lg bg-green-100 text-green-700">
                       Recurring
                     </span>
                   )}

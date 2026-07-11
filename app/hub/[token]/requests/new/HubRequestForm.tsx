@@ -65,7 +65,7 @@ export default function HubRequestForm({ token }: { token: string }) {
 
       <form onSubmit={handleSubmit} className="card-ledger p-6 space-y-4">
         {error && (
-          <div className="px-4 py-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+          <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
             {error}
           </div>
         )}
@@ -79,7 +79,7 @@ export default function HubRequestForm({ token }: { token: string }) {
             onChange={(e) => setTitle(e.target.value)}
             required
             placeholder="e.g. Driveway and patio pressure wash"
-            className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+            className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
           />
         </div>
         <div>
@@ -89,13 +89,13 @@ export default function HubRequestForm({ token }: { token: string }) {
             onChange={(e) => setDetails(e.target.value)}
             rows={5}
             placeholder="Please provide as much information as you can..."
-            className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
+            className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
           />
         </div>
         <button
           type="submit"
           disabled={loading}
-          className="flex items-center gap-2 px-5 py-2.5 chamfer bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded transition-colors disabled:opacity-50"
+          className="flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded-full transition-colors disabled:opacity-50"
         >
           {loading && <Loader2 size={14} className="animate-spin" />}
           Send Request

@@ -257,7 +257,7 @@ export function PushToggleCard() {
           <button
             onClick={state === "on" ? disable : enable}
             disabled={busy || state === "loading"}
-            className={`flex items-center gap-1.5 px-4 py-2 chamfer text-sm font-semibold rounded transition-colors disabled:opacity-50 shrink-0 ${
+            className={`flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-full transition-colors disabled:opacity-50 shrink-0 ${
               state === "on"
                 ? "border border-gray-300 text-gray-700 hover:bg-gray-50"
                 : "bg-green-500 hover:bg-green-600 active:bg-green-700 text-white"
@@ -324,7 +324,7 @@ export function PushNudge() {
             }
           }}
           disabled={busy}
-          className="flex items-center gap-1.5 px-3.5 py-1.5 chamfer bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors disabled:opacity-50"
+          className="flex items-center gap-1.5 px-3.5 py-1.5 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-full transition-colors disabled:opacity-50"
         >
           {busy ? <Loader2 size={13} className="animate-spin" /> : <Bell size={13} />}
           Turn on
@@ -337,7 +337,7 @@ export function PushNudge() {
             setDismissed(true);
           }}
           aria-label="Dismiss"
-          className="p-1.5 text-gray-400 hover:text-gray-600 rounded transition-colors"
+          className="p-1.5 text-gray-400 hover:text-gray-600 rounded-full transition-colors"
         >
           <X size={15} />
         </button>

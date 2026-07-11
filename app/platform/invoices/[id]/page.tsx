@@ -157,7 +157,7 @@ export default async function InvoiceDetailPage({
                       {item.name || item.description}
                       {item.recurringInterval && " "}
                       {item.recurringInterval && (
-                        <span className="ml-2 text-xs font-medium px-1.5 py-0.5 rounded bg-green-100 text-green-700">
+                        <span className="ml-2 text-xs font-medium px-1.5 py-0.5 rounded-lg bg-green-100 text-green-700">
                           Recurring
                         </span>
                       )}

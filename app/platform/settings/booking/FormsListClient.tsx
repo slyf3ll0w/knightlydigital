@@ -107,7 +107,7 @@ export default function FormsListClient({
         <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">Forms</h1>
         <button
           onClick={() => setCreating((v) => !v)}
-          className="flex items-center gap-1.5 px-4 py-2 chamfer bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors"
+          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-full transition-colors"
         >
           <Plus size={15} />
           New Form
@@ -120,7 +120,7 @@ export default function FormsListClient({
       {schedulingCard}
 
       {error && (
-        <div className="mb-4 flex items-center justify-between rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <div className="mb-4 flex items-center justify-between rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
           {error}
           <button onClick={() => setError("")} className="p-0.5 text-red-400 hover:text-red-600">
             <X size={14} />
@@ -136,7 +136,7 @@ export default function FormsListClient({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Spring Special, Contact Us, Order a Mow"
-              className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
             />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -163,12 +163,12 @@ export default function FormsListClient({
             <button
               onClick={createForm}
               disabled={busy || !name.trim()}
-              className="flex items-center gap-1.5 px-4 py-2 chamfer bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded disabled:opacity-50"
+              className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded-full disabled:opacity-50"
             >
               {busy && <Loader2 size={13} className="animate-spin" />}
               Create & Customize
             </button>
-            <button onClick={() => setCreating(false)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded">
+            <button onClick={() => setCreating(false)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">
               Cancel
             </button>
           </div>
@@ -207,7 +207,7 @@ export default function FormsListClient({
                 href={formUrl(f)}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded"
+                className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-full"
                 title="Open form"
               >
                 <ExternalLink size={14} />
@@ -216,7 +216,7 @@ export default function FormsListClient({
                 <button
                   onClick={() => patch(f.id, { isDefault: true })}
                   disabled={busy}
-                  className="px-2.5 py-1.5 rounded text-xs font-medium text-gray-600 hover:bg-gray-100"
+                  className="px-2.5 py-1.5 rounded-full text-xs font-medium text-gray-600 hover:bg-gray-100"
                   title="The default form answers your original /book and /embed links"
                 >
                   Make default
@@ -226,7 +226,7 @@ export default function FormsListClient({
                 <button
                   onClick={() => patch(f.id, { isActive: !f.isActive })}
                   disabled={busy}
-                  className="px-2.5 py-1.5 rounded text-xs font-medium text-gray-600 hover:bg-gray-100"
+                  className="px-2.5 py-1.5 rounded-full text-xs font-medium text-gray-600 hover:bg-gray-100"
                 >
                   {f.isActive ? "Turn off" : "Turn on"}
                 </button>
@@ -234,21 +234,21 @@ export default function FormsListClient({
               <button
                 onClick={() => duplicate(f)}
                 disabled={busy}
-                className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded"
+                className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-full"
                 title="Duplicate form"
               >
                 <Copy size={14} />
               </button>
               <Link
                 href={`/app/settings/booking/${f.id}`}
-                className="px-3 py-1.5 rounded text-xs font-semibold text-white bg-gray-900 hover:bg-gray-700"
+                className="px-3 py-1.5 rounded-full text-xs font-semibold text-white bg-gray-900 hover:bg-gray-700"
               >
                 Customize
               </Link>
               <button
                 onClick={() => remove(f)}
                 disabled={busy}
-                className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
+                className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full"
                 title="Delete form"
               >
                 <Trash2 size={14} />

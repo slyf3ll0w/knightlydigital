@@ -113,12 +113,12 @@ export default function RegisterPage() {
   }
 
   const inputClass =
-    "w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent";
+    "w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent";
   const labelClass = "block text-sm font-medium text-gray-700 mb-1";
   const optionClass =
     "w-full text-left px-4 py-2.5 border rounded-lg text-sm font-medium transition-colors hover:border-green-500 hover:bg-green-50";
   const continueClass =
-    "px-6 py-2.5 chamfer bg-green-500 hover:bg-green-600 active:bg-green-700 text-white font-semibold text-sm rounded transition-colors flex items-center gap-2 disabled:opacity-50";
+    "px-6 py-2.5 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white font-semibold text-sm rounded-full transition-colors flex items-center gap-2 disabled:opacity-50";
 
   function selectedClass(selected: boolean) {
     return selected
@@ -161,7 +161,7 @@ export default function RegisterPage() {
             )}
 
             {error && (
-              <div className="mb-4 px-4 py-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+              <div className="mb-4 px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
                 {error}
               </div>
             )}
@@ -357,7 +357,7 @@ export default function RegisterPage() {
                     <div>
                       <p className="text-sm font-semibold text-gray-900 flex items-center gap-2">
                         Online card payments
-                        <span className="text-[10px] font-bold uppercase tracking-wide bg-green-100 text-green-700 px-1.5 py-0.5 rounded">
+                        <span className="text-[10px] font-bold uppercase tracking-wide bg-green-100 text-green-700 px-1.5 py-0.5 rounded-lg">
                           Coming soon
                         </span>
                       </p>

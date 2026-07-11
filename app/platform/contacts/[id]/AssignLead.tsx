@@ -45,7 +45,7 @@ export default function AssignLead({
           value={value}
           disabled={saving}
           onChange={(e) => save(e.target.value)}
-          className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-green-500"
+          className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-green-500"
         >
           <option value="">Unassigned</option>
           {users.map((u) => (

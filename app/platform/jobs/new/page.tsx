@@ -95,7 +95,7 @@ function NewJobForm() {
 
       <form onSubmit={handleSubmit} className="space-y-5">
         {error && (
-          <div className="px-4 py-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+          <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
             {error}
           </div>
         )}
@@ -109,7 +109,7 @@ function NewJobForm() {
               value={form.contactId}
               onChange={(e) => set("contactId", e.target.value)}
               required
-              className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
             >
               <option value="">Select a customer...</option>
               {contacts.map((c) => (
@@ -130,7 +130,7 @@ function NewJobForm() {
               value={form.title}
               onChange={(e) => set("title", e.target.value)}
               required
-              className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               placeholder="e.g. AC tune-up, Lawn maintenance, Roof inspection"
             />
           </div>
@@ -141,7 +141,7 @@ function NewJobForm() {
               value={form.description}
               onChange={(e) => set("description", e.target.value)}
               rows={3}
-              className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
               placeholder="Details about the job, scope, special instructions..."
             />
           </div>
@@ -153,7 +153,7 @@ function NewJobForm() {
               list="lead-sources"
               value={form.leadSource}
               onChange={(e) => set("leadSource", e.target.value)}
-              className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               placeholder="Where did this job come from?"
             />
             <datalist id="lead-sources">
@@ -182,7 +182,7 @@ function NewJobForm() {
                 type="datetime-local"
                 value={form.scheduledAt}
                 onChange={(e) => set("scheduledAt", e.target.value)}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
             <div>
@@ -191,7 +191,7 @@ function NewJobForm() {
                 type="datetime-local"
                 value={form.scheduledEnd}
                 onChange={(e) => set("scheduledEnd", e.target.value)}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
           </div>
@@ -232,7 +232,7 @@ function NewJobForm() {
               type="text"
               value={form.address}
               onChange={(e) => set("address", e.target.value)}
-              className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               placeholder="Defaults to customer address"
             />
           </div>
@@ -242,14 +242,14 @@ function NewJobForm() {
           <button
             type="submit"
             disabled={loading}
-            className="flex items-center gap-2 px-5 py-2.5 chamfer bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-full transition-colors disabled:opacity-50"
           >
             {loading && <Loader2 size={14} className="animate-spin" />}
             Create Job
           </button>
           <Link
             href="/app/jobs"
-            className="px-5 py-2.5 border border-gray-300 text-sm font-medium text-gray-600 rounded hover:bg-gray-50 transition-colors"
+            className="px-5 py-2.5 border border-gray-300 text-sm font-medium text-gray-600 rounded-full hover:bg-gray-50 transition-colors"
           >
             Cancel
           </Link>

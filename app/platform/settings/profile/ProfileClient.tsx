@@ -8,7 +8,7 @@ import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { PushToggleCard } from "@/components/PushNotifications";
 
 const inputCls =
-  "w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500";
+  "w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500";
 
 export default function ProfileClient({
   name: initialName,
@@ -65,7 +65,7 @@ export default function ProfileClient({
       </p>
 
       {error && (
-        <div className="mb-4 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
           {error}
         </div>
       )}
@@ -87,7 +87,7 @@ export default function ProfileClient({
         <button
           onClick={saveProfile}
           disabled={busy || !name.trim()}
-          className="flex items-center gap-1.5 px-4 py-2 chamfer bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors disabled:opacity-50"
+          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-full transition-colors disabled:opacity-50"
         >
           {busy ? <Loader2 size={13} className="animate-spin" /> : saved === "profile" && <Check size={13} />}
           Save
@@ -121,7 +121,7 @@ export default function ProfileClient({
         <button
           onClick={changePassword}
           disabled={busy || newPassword.length < 8 || !currentPassword}
-          className="flex items-center gap-1.5 px-4 py-2 chamfer bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors disabled:opacity-50"
+          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-full transition-colors disabled:opacity-50"
         >
           {busy ? <Loader2 size={13} className="animate-spin" /> : saved === "password" && <Check size={13} />}
           Update Password
@@ -141,7 +141,7 @@ export default function ProfileClient({
         </div>
         <Link
           href="/app/dashboard?tour=1"
-          className="px-4 py-2 border border-gray-300 text-sm font-medium text-gray-700 rounded hover:bg-gray-50 transition-colors shrink-0"
+          className="px-4 py-2 border border-gray-300 text-sm font-medium text-gray-700 rounded-full hover:bg-gray-50 transition-colors shrink-0"
         >
           Replay the tour
         </Link>

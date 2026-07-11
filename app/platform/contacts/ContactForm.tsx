@@ -163,7 +163,7 @@ export default function ContactForm({
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {error && (
-          <div className="px-4 py-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+          <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
             {error}
           </div>
         )}
@@ -180,7 +180,7 @@ export default function ContactForm({
                 value={form.firstName}
                 onChange={(e) => set("firstName", e.target.value)}
                 required
-                className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
             <div>
@@ -190,7 +190,7 @@ export default function ContactForm({
                 value={form.lastName}
                 onChange={(e) => set("lastName", e.target.value)}
                 required
-                className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
             <div className="col-span-2">
@@ -200,7 +200,7 @@ export default function ContactForm({
                 value={form.companyName}
                 onChange={(e) => set("companyName", e.target.value)}
                 placeholder="If this client is a business"
-                className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
             <div>
@@ -209,7 +209,7 @@ export default function ContactForm({
                 type="email"
                 value={form.email}
                 onChange={(e) => set("email", e.target.value)}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
             <div>
@@ -218,7 +218,7 @@ export default function ContactForm({
                 type="tel"
                 value={form.phone}
                 onChange={(e) => set("phone", e.target.value)}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
           </div>
@@ -235,7 +235,7 @@ export default function ContactForm({
                 type="text"
                 value={form.address}
                 onChange={(e) => set("address", e.target.value)}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                 placeholder="123 Main St"
               />
             </div>
@@ -246,7 +246,7 @@ export default function ContactForm({
                   type="text"
                   value={form.city}
                   onChange={(e) => set("city", e.target.value)}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                 />
               </div>
               <div>
@@ -254,7 +254,7 @@ export default function ContactForm({
                 <select
                   value={form.state}
                   onChange={(e) => set("state", e.target.value)}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                 >
                   <option value="">—</option>
                   {US_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
@@ -268,7 +268,7 @@ export default function ContactForm({
                 value={form.zip}
                 onChange={(e) => set("zip", e.target.value)}
                 maxLength={10}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
           </div>
@@ -286,7 +286,7 @@ export default function ContactForm({
                 value={form.leadSource}
                 onChange={(e) => set("leadSource", e.target.value)}
                 placeholder="Referral, Google, yard sign..."
-                className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
             <div>
@@ -297,7 +297,7 @@ export default function ContactForm({
                 max={365}
                 value={form.paymentTermsDays}
                 onChange={(e) => set("paymentTermsDays", e.target.value)}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               />
               <p className="text-xs text-gray-400 mt-1">Invoices due Net {form.paymentTermsDays || "30"}</p>
             </div>
@@ -307,7 +307,7 @@ export default function ContactForm({
                 <select
                   value={form.status}
                   onChange={(e) => set("status", e.target.value)}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                 >
                   <option value="LEAD">Lead</option>
                   <option value="ACTIVE">Active client</option>
@@ -321,7 +321,7 @@ export default function ContactForm({
                 <select
                   value={form.assignedToId}
                   onChange={(e) => set("assignedToId", e.target.value)}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                 >
                   <option value="">Me</option>
                   {users.map((u) => (
@@ -349,7 +349,7 @@ export default function ContactForm({
                     <select
                       value={customFields[d.id] ?? ""}
                       onChange={(e) => setCustomFields({ ...customFields, [d.id]: e.target.value })}
-                      className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                     >
                       <option value="">—</option>
                       {d.options.map((o) => (
@@ -363,7 +363,7 @@ export default function ContactForm({
                       type={d.type === "NUMBER" ? "number" : d.type === "DATE" ? "date" : "text"}
                       value={customFields[d.id] ?? ""}
                       onChange={(e) => setCustomFields({ ...customFields, [d.id]: e.target.value })}
-                      className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                     />
                   )}
                 </div>
@@ -378,7 +378,7 @@ export default function ContactForm({
             value={form.notes}
             onChange={(e) => set("notes", e.target.value)}
             rows={3}
-            className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
+            className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
             placeholder="Any notes about this customer..."
           />
         </div>
@@ -387,14 +387,14 @@ export default function ContactForm({
           <button
             type="submit"
             disabled={loading}
-            className="flex items-center gap-2 px-5 py-2.5 chamfer bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-full transition-colors disabled:opacity-50"
           >
             {loading && <Loader2 size={14} className="animate-spin" />}
             {mode === "create" ? "Save Client" : "Save Changes"}
           </button>
           <Link
             href={backHref}
-            className="px-5 py-2.5 border border-gray-300 text-sm font-medium text-gray-600 rounded hover:bg-gray-50 transition-colors"
+            className="px-5 py-2.5 border border-gray-300 text-sm font-medium text-gray-600 rounded-full hover:bg-gray-50 transition-colors"
           >
             Cancel
           </Link>

@@ -145,7 +145,7 @@ export default function SubscriptionsClient({
           <button
             onClick={runAll}
             disabled={runningAll}
-            className="flex items-center gap-1.5 px-3 py-2 border border-gray-300 text-sm font-medium text-gray-700 rounded hover:bg-gray-50 transition-colors disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3 py-2 border border-gray-300 text-sm font-medium text-gray-700 rounded-full hover:bg-gray-50 transition-colors disabled:opacity-50"
             title="Generate invoices for any subscriptions that are due now"
           >
             {runningAll ? <Loader2 size={14} className="animate-spin" /> : <RotateCw size={14} />}
@@ -158,10 +158,10 @@ export default function SubscriptionsClient({
       </p>
 
       {error && (
-        <div className="mb-4 px-4 py-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">{error}</div>
+        <div className="mb-4 px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>
       )}
       {flash && (
-        <div className="mb-4 px-4 py-3 bg-green-50 border border-green-200 rounded text-sm text-green-700">{flash}</div>
+        <div className="mb-4 px-4 py-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">{flash}</div>
       )}
 
       {subs.length === 0 ? (
@@ -190,7 +190,7 @@ export default function SubscriptionsClient({
                           type="text"
                           value={editForm.name}
                           onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
-                          className="w-full px-2.5 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                          className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                         />
                       </div>
                       <div>
@@ -201,7 +201,7 @@ export default function SubscriptionsClient({
                           step="0.01"
                           value={editForm.unitPrice}
                           onChange={(e) => setEditForm((f) => ({ ...f, unitPrice: e.target.value }))}
-                          className="w-full px-2.5 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                          className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                         />
                       </div>
                       <div>
@@ -212,7 +212,7 @@ export default function SubscriptionsClient({
                           step="0.001"
                           value={editForm.quantity}
                           onChange={(e) => setEditForm((f) => ({ ...f, quantity: e.target.value }))}
-                          className="w-full px-2.5 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                          className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                         />
                       </div>
                       <div>
@@ -222,7 +222,7 @@ export default function SubscriptionsClient({
                           onChange={(e) =>
                             setEditForm((f) => ({ ...f, interval: e.target.value as Sub["interval"] }))
                           }
-                          className="w-full px-2.5 py-1.5 border border-gray-300 rounded text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                          className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
                         >
                           {(Object.keys(INTERVAL_LABEL) as Sub["interval"][]).map((iv) => (
                             <option key={iv} value={iv}>
@@ -237,7 +237,7 @@ export default function SubscriptionsClient({
                           type="date"
                           value={editForm.nextRunDate}
                           onChange={(e) => setEditForm((f) => ({ ...f, nextRunDate: e.target.value }))}
-                          className="w-full px-2.5 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                          className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                         />
                       </div>
                     </div>
@@ -249,7 +249,7 @@ export default function SubscriptionsClient({
                       <button
                         onClick={() => saveEdit(s.id)}
                         disabled={busyId === s.id}
-                        className="flex items-center gap-1 px-3 py-1.5 chamfer bg-green-500 hover:bg-green-600 text-white text-xs font-semibold rounded transition-colors disabled:opacity-40"
+                        className="flex items-center gap-1 px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-semibold rounded-full transition-colors disabled:opacity-40"
                       >
                         {busyId === s.id ? (
                           <Loader2 size={11} className="animate-spin" />
@@ -261,7 +261,7 @@ export default function SubscriptionsClient({
                       <button
                         onClick={() => setEditId(null)}
                         disabled={busyId === s.id}
-                        className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-gray-500 hover:bg-gray-100 rounded"
+                        className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-gray-500 hover:bg-gray-100 rounded-full"
                       >
                         <X size={11} />
                         Cancel
@@ -295,7 +295,7 @@ export default function SubscriptionsClient({
                       <button
                         onClick={() => openEdit(s)}
                         disabled={busyId === s.id}
-                        className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                        className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
                         title="Edit subscription"
                       >
                         <Pencil size={14} />
@@ -303,7 +303,7 @@ export default function SubscriptionsClient({
                       <button
                         onClick={() => billNow(s.id)}
                         disabled={busyId === s.id || s.status !== "ACTIVE"}
-                        className="px-2.5 py-1.5 text-xs font-medium text-green-700 bg-green-50 hover:bg-green-100 rounded transition-colors disabled:opacity-40"
+                        className="px-2.5 py-1.5 text-xs font-medium text-green-700 bg-green-50 hover:bg-green-100 rounded-lg transition-colors disabled:opacity-40"
                         title="Generate this subscription's next invoice now"
                       >
                         {busyId === s.id ? <Loader2 size={13} className="animate-spin" /> : "Bill now"}
@@ -312,7 +312,7 @@ export default function SubscriptionsClient({
                         <button
                           onClick={() => setStatus(s.id, "PAUSED")}
                           disabled={busyId === s.id}
-                          className="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded transition-colors"
+                          className="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-full transition-colors"
                           title="Pause"
                         >
                           <Pause size={14} />
@@ -321,7 +321,7 @@ export default function SubscriptionsClient({
                         <button
                           onClick={() => setStatus(s.id, "ACTIVE")}
                           disabled={busyId === s.id}
-                          className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
+                          className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-full transition-colors"
                           title="Resume"
                         >
                           <Play size={14} />
@@ -332,7 +332,7 @@ export default function SubscriptionsClient({
                           if (confirm("Cancel this subscription? It will stop billing.")) setStatus(s.id, "CANCELLED");
                         }}
                         disabled={busyId === s.id}
-                        className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                        className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
                         title="Cancel"
                       >
                         <X size={14} />

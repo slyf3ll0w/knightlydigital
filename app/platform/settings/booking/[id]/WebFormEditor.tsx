@@ -130,7 +130,7 @@ export default function WebFormEditor({
           type="button"
           onClick={save}
           disabled={saving || !dirty}
-          className="flex items-center gap-2 px-5 py-2.5 chamfer bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors disabled:opacity-50"
+          className="flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-full transition-colors disabled:opacity-50"
         >
           {saving ? <Loader2 size={14} className="animate-spin" /> : saved ? <Check size={14} /> : null}
           {saved ? "Saved!" : dirty ? "Save Changes" : "Saved"}
@@ -205,7 +205,7 @@ export default function WebFormEditor({
           <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Share This Form</h2>
           <p className="text-xs text-gray-400 mt-0.5">Share this link on your website or Google profile</p>
         </div>
-        <div className="flex items-center gap-2 p-3 bg-gray-50 border border-gray-200 rounded">
+        <div className="flex items-center gap-2 p-3 bg-gray-50 border border-gray-200 rounded-lg">
           <span className="text-sm font-mono text-gray-600 truncate flex-1">{bookingUrl}</span>
           <button type="button" onClick={() => copyText(bookingUrl, setCopied)}
             className="shrink-0 flex items-center gap-1 text-xs font-medium text-green-600 hover:underline">
@@ -233,7 +233,7 @@ export default function WebFormEditor({
               {embedCopied ? "Copied" : "Copy code"}
             </button>
           </div>
-          <pre className="p-3 bg-gray-50 border border-gray-200 rounded text-xs font-mono text-gray-600 whitespace-pre-wrap break-all">
+          <pre className="p-3 bg-gray-50 border border-gray-200 rounded-lg text-xs font-mono text-gray-600 whitespace-pre-wrap break-all">
             {embedSnippet}
           </pre>
           <a

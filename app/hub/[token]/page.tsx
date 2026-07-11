@@ -237,7 +237,7 @@ export default async function HubHomePage({
         </p>
         <Link
           href={`${base}/requests/new`}
-          className="inline-flex items-center gap-2 px-5 py-2.5 chamfer bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded transition-colors"
+          className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded-full transition-colors"
         >
           New Request
         </Link>

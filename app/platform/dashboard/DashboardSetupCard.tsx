@@ -45,7 +45,7 @@ export default function DashboardSetupCard() {
       </div>
       <Link
         href="/app/setup"
-        className="flex shrink-0 items-center gap-1.5 chamfer rounded bg-green-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-600"
+        className="flex shrink-0 items-center gap-1.5 rounded-full bg-green-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-600"
       >
         Start setup <ArrowRight size={14} />
       </Link>

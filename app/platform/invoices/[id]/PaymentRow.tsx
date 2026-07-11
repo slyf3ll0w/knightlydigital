@@ -113,7 +113,7 @@ export default function PaymentRow({
               step="0.01"
               value={form.amount}
               onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
-              className="w-full px-2.5 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
             />
           </div>
           <div>
@@ -121,7 +121,7 @@ export default function PaymentRow({
             <select
               value={form.method}
               onChange={(e) => setForm((f) => ({ ...f, method: e.target.value }))}
-              className="w-full px-2.5 py-1.5 border border-gray-300 rounded text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
             >
               {METHODS.map((m) => (
                 <option key={m} value={m}>
@@ -136,7 +136,7 @@ export default function PaymentRow({
               type="date"
               value={form.paidAt}
               onChange={(e) => setForm((f) => ({ ...f, paidAt: e.target.value }))}
-              className="w-full px-2.5 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
             />
           </div>
           <div>
@@ -146,7 +146,7 @@ export default function PaymentRow({
               value={form.referenceNumber}
               onChange={(e) => setForm((f) => ({ ...f, referenceNumber: e.target.value }))}
               placeholder="Check #, confirmation..."
-              className="w-full px-2.5 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
             />
           </div>
         </div>
@@ -155,7 +155,7 @@ export default function PaymentRow({
           <button
             onClick={save}
             disabled={busy}
-            className="flex items-center gap-1 px-3 py-1.5 chamfer bg-green-500 hover:bg-green-600 text-white text-xs font-semibold rounded transition-colors disabled:opacity-40"
+            className="flex items-center gap-1 px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-semibold rounded-full transition-colors disabled:opacity-40"
           >
             {busy ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />}
             Save
@@ -163,7 +163,7 @@ export default function PaymentRow({
           <button
             onClick={() => setEditing(false)}
             disabled={busy}
-            className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-gray-500 hover:bg-gray-100 rounded"
+            className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-gray-500 hover:bg-gray-100 rounded-full"
           >
             <X size={11} />
             Cancel
@@ -188,7 +188,7 @@ export default function PaymentRow({
         <button
           onClick={openEdit}
           title="Edit payment"
-          className="p-1.5 text-gray-400 hover:text-gray-600 rounded"
+          className="p-1.5 text-gray-400 hover:text-gray-600 rounded-full"
         >
           <Pencil size={13} />
         </button>
@@ -197,7 +197,7 @@ export default function PaymentRow({
             onClick={remove}
             disabled={busy}
             title="Delete payment"
-            className="p-1.5 text-gray-400 hover:text-red-600 rounded"
+            className="p-1.5 text-gray-400 hover:text-red-600 rounded-full"
           >
             {busy ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
           </button>

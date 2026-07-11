@@ -94,14 +94,14 @@ export default async function InvoicesPage({
         <div className="flex items-center gap-2">
           <Link
             href="/app/payments/new"
-            className="flex items-center gap-1.5 px-4 py-2 border border-gray-300 text-sm font-medium text-gray-700 rounded hover:bg-gray-50 active:bg-gray-100 transition-colors"
+            className="flex items-center gap-1.5 px-4 py-2 border border-gray-300 text-sm font-medium text-gray-700 rounded-full hover:bg-gray-50 active:bg-gray-100 transition-colors"
           >
             <DollarSign size={14} />
             Collect Payment
           </Link>
           <Link
             href="/app/invoices/new"
-            className="flex items-center gap-1.5 px-4 py-2 chamfer bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors"
+            className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-full transition-colors"
           >
             <Plus size={15} />
             New Invoice
@@ -131,7 +131,7 @@ export default async function InvoicesPage({
           <Link
             key={f.value}
             href={f.value ? `/app/invoices?status=${f.value}` : "/app/invoices"}
-            className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
               (validStatus ?? "") === f.value
                 ? "bg-gray-900 text-white"
                 : "text-gray-600 hover:bg-gray-100"

@@ -29,7 +29,7 @@ const TYPES = [
 ] as const;
 
 const inputCls =
-  "w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500";
+  "w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500";
 
 function contactAddress(c: ContactOption | undefined): string {
   if (!c) return "";
@@ -273,14 +273,14 @@ export default function AppointmentForm({
           <button
             type="submit"
             disabled={loading}
-            className="flex items-center gap-1.5 px-5 py-2.5 chamfer bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors disabled:opacity-50"
+            className="flex items-center gap-1.5 px-5 py-2.5 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-full transition-colors disabled:opacity-50"
           >
             {loading && <Loader2 size={14} className="animate-spin" />}
             Book Appointment
           </button>
           <Link
             href="/app/schedule"
-            className="px-5 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded"
+            className="px-5 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-full"
           >
             Cancel
           </Link>

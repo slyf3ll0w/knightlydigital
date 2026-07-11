@@ -171,7 +171,7 @@ export default function ProductsClient({
   const editorRow = (
     <div className="border border-green-200 bg-green-50/40 rounded-lg p-4 space-y-3">
       {error && (
-        <div className="px-3 py-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+        <div className="px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
           {error}
         </div>
       )}
@@ -183,7 +183,7 @@ export default function ProductsClient({
             value={form.name}
             onChange={(e) => set("name", e.target.value)}
             placeholder="e.g. House Washing"
-            className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
           />
         </div>
         <div>
@@ -191,7 +191,7 @@ export default function ProductsClient({
           <select
             value={form.type}
             onChange={(e) => set("type", e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
           >
             <option value="SERVICE">Service</option>
             <option value="PRODUCT">Product</option>
@@ -206,7 +206,7 @@ export default function ProductsClient({
             value={form.unitPrice}
             onChange={(e) => set("unitPrice", e.target.value)}
             placeholder="0.00"
-            className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
           />
         </div>
         <div>
@@ -218,7 +218,7 @@ export default function ProductsClient({
             value={form.unitCost}
             onChange={(e) => set("unitCost", e.target.value)}
             placeholder="Optional"
-            className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
           />
         </div>
       </div>
@@ -229,7 +229,7 @@ export default function ProductsClient({
         <select
           value={form.priceDisplay}
           onChange={(e) => set("priceDisplay", e.target.value)}
-          className="w-full sm:max-w-xs px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+          className="w-full sm:max-w-xs px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
         >
           <option value="FIXED">Flat rate — “$150.00”</option>
           <option value="STARTING_AT">Starting at — “From $150.00”</option>
@@ -247,7 +247,7 @@ export default function ProductsClient({
           value={form.description}
           onChange={(e) => set("description", e.target.value)}
           placeholder="Shown on quotes and invoices"
-          className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
         />
       </div>
       {/* Online booking duration */}
@@ -261,7 +261,7 @@ export default function ProductsClient({
               <select
                 value={form.durationMinutes}
                 onChange={(e) => set("durationMinutes", e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
               >
                 <option value="">Not bookable online</option>
                 <option value="30">30 minutes</option>
@@ -289,7 +289,7 @@ export default function ProductsClient({
             <select
               value={form.recurringInterval}
               onChange={(e) => set("recurringInterval", e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
             >
               <option value="">One-time</option>
               <option value="MONTHLY">Recurring — monthly</option>
@@ -304,7 +304,7 @@ export default function ProductsClient({
               <select
                 value={form.recurringInvoiceMode}
                 onChange={(e) => set("recurringInvoiceMode", e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
               >
                 <option value="SEND">Auto-send the invoice</option>
                 <option value="DRAFT">Create a draft to review</option>
@@ -346,7 +346,7 @@ export default function ProductsClient({
           <select
             value={form.agreementTemplateId}
             onChange={(e) => set("agreementTemplateId", e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
           >
             <option value="">No agreement required</option>
             {templates.map((t) => (
@@ -367,7 +367,7 @@ export default function ProductsClient({
             <select
               value={form.agreementTiming}
               onChange={(e) => set("agreementTiming", e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
             >
               <option value="ON_APPROVAL">When the quote is approved</option>
               <option value="WITH_QUOTE">As soon as the quote is sent</option>
@@ -386,7 +386,7 @@ export default function ProductsClient({
             <select
               value={form.depositType}
               onChange={(e) => set("depositType", e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
             >
               <option value="NONE">Use company default</option>
               <option value="PERCENT">Percentage of price</option>
@@ -407,7 +407,7 @@ export default function ProductsClient({
                 value={form.depositValue}
                 onChange={(e) => set("depositValue", e.target.value)}
                 placeholder={form.depositType === "PERCENT" ? "25" : "100.00"}
-                className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
               />
             </div>
           )}
@@ -425,14 +425,14 @@ export default function ProductsClient({
         <button
           onClick={save}
           disabled={loading}
-          className="flex items-center gap-1.5 px-4 py-2 chamfer bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors disabled:opacity-50"
+          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-full transition-colors disabled:opacity-50"
         >
           {loading && <Loader2 size={13} className="animate-spin" />}
           {editingId === "new" ? "Add Item" : "Save Changes"}
         </button>
         <button
           onClick={() => setEditingId(null)}
-          className="px-4 py-2 border border-gray-300 text-sm font-medium text-gray-600 rounded hover:bg-gray-50 transition-colors"
+          className="px-4 py-2 border border-gray-300 text-sm font-medium text-gray-600 rounded-full hover:bg-gray-50 transition-colors"
         >
           Cancel
         </button>
@@ -456,7 +456,7 @@ export default function ProductsClient({
         {editingId !== "new" && (
           <button
             onClick={startNew}
-            className="flex items-center gap-1.5 px-4 py-2 chamfer bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors"
+            className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-full transition-colors"
           >
             <Plus size={15} />
             Add Item
@@ -534,7 +534,7 @@ export default function ProductsClient({
                         <p className="text-xs text-gray-500 truncate">{item.description}</p>
                       )}
                     </div>
-                    <span className="text-xs font-medium px-2 py-0.5 rounded bg-gray-100 text-gray-600 w-fit">
+                    <span className="text-xs font-medium px-2 py-0.5 rounded-lg bg-gray-100 text-gray-600 w-fit">
                       {item.type === "SERVICE" ? "Service" : "Product"}
                     </span>
                     <span className="text-sm font-semibold text-gray-900 sm:text-right">
@@ -555,14 +555,14 @@ export default function ProductsClient({
                     <div className="flex items-center justify-end gap-1">
                       <button
                         onClick={() => startEdit(item)}
-                        className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors"
+                        className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors"
                         title="Edit"
                       >
                         <Pencil size={14} />
                       </button>
                       <button
                         onClick={() => remove(item.id)}
-                        className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                        className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
                         title="Delete"
                       >
                         <Trash2 size={14} />

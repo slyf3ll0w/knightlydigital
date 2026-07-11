@@ -125,7 +125,7 @@ export default function ContactActionsMenu({
         <button
           onClick={() => setOpen((v) => !v)}
           title="Client actions"
-          className="p-2 border border-gray-300 rounded text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-colors"
+          className="p-2 border border-gray-300 rounded-full text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-colors"
         >
           {busy ? <Loader2 size={16} className="animate-spin" /> : <MoreHorizontal size={16} />}
         </button>
@@ -196,7 +196,7 @@ export default function ContactActionsMenu({
               them off your list, archive them instead.
             </p>
 
-            <ul className="mb-4 rounded border border-red-100 bg-red-50 p-3 text-sm text-red-800 space-y-0.5">
+            <ul className="mb-4 rounded-lg border border-red-100 bg-red-50 p-3 text-sm text-red-800 space-y-0.5">
               {lines.map(([n, one, many]) => (
                 <li key={many}>
                   • {n} {n === 1 ? one : many}
@@ -211,7 +211,7 @@ export default function ContactActionsMenu({
               value={confirmText}
               onChange={(e) => setConfirmText(e.target.value)}
               autoFocus
-              className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-red-500 mb-3"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500 mb-3"
             />
 
             {confirmText && !nameMatches && (
@@ -225,14 +225,14 @@ export default function ContactActionsMenu({
               <button
                 onClick={() => setDeleteOpen(false)}
                 disabled={busy}
-                className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded"
+                className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-full"
               >
                 Cancel
               </button>
               <button
                 onClick={() => doDelete(true)}
                 disabled={!nameMatches || busy}
-                className="flex items-center gap-1.5 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded transition-colors disabled:opacity-40"
+                className="flex items-center gap-1.5 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-full transition-colors disabled:opacity-40"
               >
                 {busy ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
                 Delete Everything

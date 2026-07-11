@@ -95,7 +95,7 @@ export default function RequestActions({
           onClick={() =>
             router.push(`/app/quotes/new?contactId=${contactId}&requestId=${requestId}`)
           }
-          className="px-4 py-2 chamfer bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors"
+          className="px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-full transition-colors"
         >
           Convert to Quote
         </button>
@@ -103,7 +103,7 @@ export default function RequestActions({
       <div className="relative">
         <button
           onClick={() => setOpen((v) => !v)}
-          className="p-2 border border-gray-300 rounded text-gray-600 hover:bg-gray-50 transition-colors"
+          className="p-2 border border-gray-300 rounded-full text-gray-600 hover:bg-gray-50 transition-colors"
         >
           <MoreHorizontal size={16} />
         </button>
@@ -181,7 +181,7 @@ export default function RequestActions({
                 type="text"
                 value={form.title}
                 onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
 
@@ -193,7 +193,7 @@ export default function RequestActions({
                 value={form.details}
                 onChange={(e) => setForm((f) => ({ ...f, details: e.target.value }))}
                 rows={6}
-                className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
                 placeholder="What the client is asking for..."
               />
             </div>
@@ -204,14 +204,14 @@ export default function RequestActions({
               <button
                 onClick={() => setEditing(false)}
                 disabled={busy}
-                className="px-4 py-2 text-sm font-medium text-gray-600 rounded hover:bg-gray-50"
+                className="px-4 py-2 text-sm font-medium text-gray-600 rounded-full hover:bg-gray-50"
               >
                 Cancel
               </button>
               <button
                 onClick={saveEdit}
                 disabled={busy}
-                className="flex items-center gap-1.5 px-4 py-2 chamfer bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded transition-colors disabled:opacity-50"
+                className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded-full transition-colors disabled:opacity-50"
               >
                 {busy && <Loader2 size={13} className="animate-spin" />}
                 Save Changes

@@ -156,7 +156,7 @@ export default async function InsightsPage({
             <Link
               key={r.value}
               href={`/app/insights?range=${r.value}`}
-              className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                 (range ?? "90") === r.value
                   ? "bg-gray-900 text-white"
                   : "text-gray-600 hover:bg-gray-100"

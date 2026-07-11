@@ -31,7 +31,7 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 const inputCls =
-  "px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500";
+  "px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500";
 
 export default function ClientFieldsClient({ defs }: { defs: Def[] }) {
   const router = useRouter();
@@ -98,7 +98,7 @@ export default function ClientFieldsClient({ defs }: { defs: Def[] }) {
         </div>
         <button
           onClick={() => setShowAdd((v) => !v)}
-          className="flex items-center gap-1.5 px-4 py-2 chamfer bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors"
+          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-full transition-colors"
         >
           <Plus size={15} />
           Add Field
@@ -109,7 +109,7 @@ export default function ClientFieldsClient({ defs }: { defs: Def[] }) {
       </p>
 
       {error && (
-        <div className="mb-4 flex items-center justify-between rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <div className="mb-4 flex items-center justify-between rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
           {error}
           <button onClick={() => setError("")} className="p-0.5 text-red-400 hover:text-red-600">
             <X size={14} />
@@ -164,12 +164,12 @@ export default function ClientFieldsClient({ defs }: { defs: Def[] }) {
             <button
               onClick={addField}
               disabled={busy || !label.trim()}
-              className="flex items-center gap-1.5 px-4 py-2 chamfer bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded disabled:opacity-50"
+              className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded-full disabled:opacity-50"
             >
               {busy && <Loader2 size={13} className="animate-spin" />}
               Add Field
             </button>
-            <button onClick={() => setShowAdd(false)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded">
+            <button onClick={() => setShowAdd(false)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">
               Cancel
             </button>
           </div>
@@ -213,14 +213,14 @@ export default function ClientFieldsClient({ defs }: { defs: Def[] }) {
             <button
               onClick={() => call(`/api/app/contact-fields/${d.id}`, { required: !d.required }, "PATCH")}
               disabled={busy}
-              className="px-2.5 py-1.5 rounded text-xs font-medium text-gray-600 hover:bg-gray-100"
+              className="px-2.5 py-1.5 rounded-full text-xs font-medium text-gray-600 hover:bg-gray-100"
             >
               {d.required ? "Make optional" : "Make required"}
             </button>
             <button
               onClick={() => call(`/api/app/contact-fields/${d.id}`, { isActive: false }, "PATCH")}
               disabled={busy}
-              className="px-2.5 py-1.5 rounded text-xs font-medium text-red-600 hover:bg-red-50"
+              className="px-2.5 py-1.5 rounded-lg text-xs font-medium text-red-600 hover:bg-red-50"
             >
               Archive
             </button>
@@ -240,7 +240,7 @@ export default function ClientFieldsClient({ defs }: { defs: Def[] }) {
                 <button
                   onClick={() => call(`/api/app/contact-fields/${d.id}`, { isActive: true }, "PATCH")}
                   disabled={busy}
-                  className="px-2.5 py-1.5 rounded text-xs font-medium text-green-700 hover:bg-green-50"
+                  className="px-2.5 py-1.5 rounded-lg text-xs font-medium text-green-700 hover:bg-green-50"
                 >
                   Restore
                 </button>

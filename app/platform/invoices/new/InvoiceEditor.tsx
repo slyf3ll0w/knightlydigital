@@ -231,7 +231,7 @@ export default function InvoiceEditor({
       </div>
 
       {prefillJob && (
-        <div className="mb-4 px-4 py-3 bg-blue-50 border border-blue-200 rounded text-sm text-blue-700">
+        <div className="mb-4 px-4 py-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-700">
           Creating invoice for job: <strong>{prefillJob.title}</strong>
         </div>
       )}
@@ -246,7 +246,7 @@ export default function InvoiceEditor({
         className="space-y-5"
       >
         {error && (
-          <div className="px-4 py-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+          <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
             {error}
           </div>
         )}
@@ -259,14 +259,14 @@ export default function InvoiceEditor({
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
               placeholder="e.g. Pressure Washing Services"
-              className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
             />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Customer *</label>
               {editInvoice ? (
-                <p className="px-3 py-2.5 border border-gray-200 bg-gray-50 rounded text-sm text-gray-700">
+                <p className="px-3 py-2.5 border border-gray-200 bg-gray-50 rounded-lg text-sm text-gray-700">
                   {editInvoice.contactName || "—"}
                 </p>
               ) : (
@@ -277,7 +277,7 @@ export default function InvoiceEditor({
                     if (!dueDateTouched) setDueDate(defaultDueFor(e.target.value));
                   }}
                   required
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                 >
                   <option value="">Select...</option>
                   {contacts.map((c) => (
@@ -295,7 +295,7 @@ export default function InvoiceEditor({
                   setDueDate(e.target.value);
                   setDueDateTouched(true);
                 }}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
           </div>
@@ -336,7 +336,7 @@ export default function InvoiceEditor({
                       value={li.quantity}
                       onChange={(e) => updateLine(i, "quantity", e.target.value.replace(/[^0-9]/g, ""))}
                       min="1" step="1"
-                      className="px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 sm:order-2"
+                      className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 sm:order-2"
                     />
                     <input
                       type="number"
@@ -344,7 +344,7 @@ export default function InvoiceEditor({
                       value={li.unitPrice}
                       onChange={(e) => updateLine(i, "unitPrice", e.target.value)}
                       min="0" step="0.01"
-                      className="px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 sm:order-3"
+                      className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 sm:order-3"
                     />
                   </div>
                   <input
@@ -352,7 +352,7 @@ export default function InvoiceEditor({
                     placeholder="Description"
                     value={li.description}
                     onChange={(e) => updateLine(i, "description", e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                   />
                 </div>
               ))}
@@ -369,7 +369,7 @@ export default function InvoiceEditor({
                   <label className="text-sm text-gray-600">Tax</label>
                   <input type="number" value={taxRate} onChange={(e) => setTaxRate(e.target.value)}
                     min="0" max="100" step="0.001" placeholder="0"
-                    className="w-20 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                    className="w-20 px-2 py-1 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                   />
                   <span className="text-sm text-gray-500">%</span>
                 </div>
@@ -378,7 +378,7 @@ export default function InvoiceEditor({
                   <select
                     value={discountType}
                     onChange={(e) => setDiscountType(e.target.value as "NONE" | "PERCENT" | "FIXED")}
-                    className="px-2 py-1 border border-gray-300 rounded text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                    className="px-2 py-1 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
                   >
                     <option value="NONE">None</option>
                     <option value="PERCENT">%</option>
@@ -388,7 +388,7 @@ export default function InvoiceEditor({
                     <input type="number" value={discountValue}
                       onChange={(e) => setDiscountValue(e.target.value)}
                       min="0" step="0.01" placeholder="0"
-                      className="w-24 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className="w-24 px-2 py-1 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                     />
                   )}
                 </div>
@@ -430,18 +430,18 @@ export default function InvoiceEditor({
         <div className="card-ledger p-5">
           <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
           <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3}
-            className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
+            className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
             placeholder="Payment terms, thank you note, etc." />
         </div>
 
         <div className="flex items-center gap-3">
           <button type="submit" disabled={loading}
-            className="flex items-center gap-2 px-5 py-2.5 chamfer bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors disabled:opacity-50">
+            className="flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-full transition-colors disabled:opacity-50">
             {loading && <Loader2 size={14} className="animate-spin" />}
             {editInvoice ? "Save Changes" : "Save Invoice"}
           </button>
           <Link href={backHref}
-            className="px-5 py-2.5 border border-gray-300 text-sm font-medium text-gray-600 rounded hover:bg-gray-50">
+            className="px-5 py-2.5 border border-gray-300 text-sm font-medium text-gray-600 rounded-full hover:bg-gray-50">
             Cancel
           </Link>
         </div>

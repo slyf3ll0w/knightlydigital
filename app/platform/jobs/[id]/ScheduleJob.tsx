@@ -97,7 +97,7 @@ export default function ScheduleJob({
             type="date"
             value={day}
             onChange={(e) => setDay(e.target.value)}
-            className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+            className="px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
           />
         </div>
       ) : (
@@ -108,7 +108,7 @@ export default function ScheduleJob({
               type="datetime-local"
               value={start}
               onChange={(e) => setStart(e.target.value)}
-              className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
             />
           </div>
           <div>
@@ -117,7 +117,7 @@ export default function ScheduleJob({
               type="datetime-local"
               value={end}
               onChange={(e) => setEnd(e.target.value)}
-              className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
             />
           </div>
         </>
@@ -137,7 +137,7 @@ export default function ScheduleJob({
       <button
         onClick={save}
         disabled={loading}
-        className="flex items-center gap-1.5 px-3 py-1.5 chamfer bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors disabled:opacity-50"
+        className="flex items-center gap-1.5 px-3 py-1.5 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-full transition-colors disabled:opacity-50"
       >
         {loading && <Loader2 size={12} className="animate-spin" />}
         Save

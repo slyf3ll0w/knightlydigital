@@ -154,7 +154,7 @@ export default function JobEditForm({
 
       <form onSubmit={handleSubmit} className="space-y-5">
         {error && (
-          <div className="px-4 py-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+          <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
             {error}
           </div>
         )}
@@ -164,7 +164,7 @@ export default function JobEditForm({
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Customer</label>
-            <div className="w-full max-w-xs px-3 py-2.5 border border-gray-200 rounded text-sm bg-gray-50 text-gray-600">
+            <div className="w-full max-w-xs px-3 py-2.5 border border-gray-200 rounded-lg text-sm bg-gray-50 text-gray-600">
               {job.contactName}
             </div>
           </div>
@@ -176,7 +176,7 @@ export default function JobEditForm({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               required
-              className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
             />
           </div>
 
@@ -186,7 +186,7 @@ export default function JobEditForm({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
-              className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
               placeholder="Details about the job, scope, special instructions..."
             />
           </div>
@@ -197,7 +197,7 @@ export default function JobEditForm({
               type="text"
               value={address}
               onChange={(e) => setAddress(e.target.value)}
-              className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
             />
           </div>
 
@@ -208,7 +208,7 @@ export default function JobEditForm({
               list="lead-sources"
               value={leadSource}
               onChange={(e) => setLeadSource(e.target.value)}
-              className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               placeholder="Where did this job come from?"
             />
             <datalist id="lead-sources">
@@ -262,7 +262,7 @@ export default function JobEditForm({
                           onChange={(e) => updateLine(i, "quantity", e.target.value)}
                           min="0"
                           step="0.001"
-                          className="px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 sm:order-2"
+                          className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 sm:order-2"
                         />
                         <input
                           type="number"
@@ -271,7 +271,7 @@ export default function JobEditForm({
                           onChange={(e) => updateLine(i, "unitPrice", e.target.value)}
                           min="0"
                           step="0.01"
-                          className="px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 sm:order-3"
+                          className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 sm:order-3"
                         />
                       </div>
                       <input
@@ -279,7 +279,7 @@ export default function JobEditForm({
                         placeholder="Description"
                         value={li.description}
                         onChange={(e) => updateLine(i, "description", e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                       />
                     </div>
                   ))}
@@ -306,14 +306,14 @@ export default function JobEditForm({
           <button
             type="submit"
             disabled={loading}
-            className="flex items-center gap-2 px-5 py-2.5 chamfer bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-full transition-colors disabled:opacity-50"
           >
             {loading && <Loader2 size={14} className="animate-spin" />}
             Save Changes
           </button>
           <Link
             href={`/app/jobs/${job.id}`}
-            className="px-5 py-2.5 border border-gray-300 text-sm font-medium text-gray-600 rounded hover:bg-gray-50 transition-colors"
+            className="px-5 py-2.5 border border-gray-300 text-sm font-medium text-gray-600 rounded-full hover:bg-gray-50 transition-colors"
           >
             Cancel
           </Link>

@@ -75,7 +75,7 @@ export default function PhotoUpload({ jobId, photos }: { jobId: string; photos: 
       ) : (
         <div className="p-4 grid grid-cols-3 gap-2">
           {photos.map((photo) => (
-            <div key={photo.id} className="relative group aspect-square rounded overflow-hidden bg-gray-100">
+            <div key={photo.id} className="relative group aspect-square rounded-lg overflow-hidden bg-gray-100">
               <a href={photo.url} target="_blank" rel="noreferrer">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
@@ -85,7 +85,7 @@ export default function PhotoUpload({ jobId, photos }: { jobId: string; photos: 
                 />
               </a>
               {TYPE_LABEL[photo.type] && (
-                <span className="absolute bottom-1 left-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-black/60 text-white">
+                <span className="absolute bottom-1 left-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-lg bg-black/60 text-white">
                   {TYPE_LABEL[photo.type]}
                 </span>
               )}
@@ -93,7 +93,7 @@ export default function PhotoUpload({ jobId, photos }: { jobId: string; photos: 
                 type="button"
                 onClick={() => removePhoto(photo.id)}
                 disabled={busy}
-                className="absolute top-1 right-1 p-1 rounded bg-black/50 text-white opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
+                className="absolute top-1 right-1 p-1 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
                 aria-label="Remove photo"
               >
                 <Trash2 size={12} />
@@ -116,7 +116,7 @@ export default function PhotoUpload({ jobId, photos }: { jobId: string; photos: 
           value={photoType}
           onChange={(e) => setPhotoType(e.target.value as "BEFORE" | "AFTER" | "GENERAL")}
           disabled={busy}
-          className="px-2 py-1.5 border border-gray-300 rounded text-xs bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
+          className="px-2 py-1.5 border border-gray-300 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
         >
           <option value="GENERAL">Photo</option>
           <option value="BEFORE">Before</option>
@@ -126,7 +126,7 @@ export default function PhotoUpload({ jobId, photos }: { jobId: string; photos: 
           type="button"
           onClick={() => inputRef.current?.click()}
           disabled={busy}
-          className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 rounded text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+          className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 rounded-full text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
         >
           {busy ? <Loader2 size={12} className="animate-spin" /> : <Camera size={12} />}
           Add photos

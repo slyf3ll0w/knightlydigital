@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
+  CalendarClock,
   CalendarDays,
   ChevronLeft,
   ChevronRight,
@@ -386,7 +387,7 @@ export default function ScheduleClient({
                 key={job.id}
                 {...dragProps(job)}
                 onClick={() => openItem(job)}
-                className={`flex cursor-pointer items-center gap-1 truncate rounded border-l-2 px-1.5 py-0.5 text-xs font-medium ${itemTone(job)}`}
+                className={`flex cursor-pointer items-center gap-1 truncate rounded-lg border-l-2 px-1.5 py-0.5 text-xs font-medium ${itemTone(job)}`}
                 title={`${job.contactName} — ${job.title}`}
               >
                 <TypeGlyph apptType={job.apptType} />
@@ -498,7 +499,7 @@ export default function ScheduleClient({
                         key={job.id}
                         {...dragProps(job)}
                         onClick={() => openItem(job)}
-                        className={`cursor-pointer truncate rounded border-l-2 px-1.5 py-0.5 text-xs font-medium ${itemTone(job)}`}
+                        className={`cursor-pointer truncate rounded-lg border-l-2 px-1.5 py-0.5 text-xs font-medium ${itemTone(job)}`}
                         title={`${job.contactName} — ${job.title}`}
                       >
                         <TypeGlyph apptType={job.apptType} /> {job.contactName} — {job.title}
@@ -555,7 +556,7 @@ export default function ScheduleClient({
                           key={j.id}
                           {...dragProps(j)}
                           onClick={() => openItem(j)}
-                          className={`absolute cursor-pointer overflow-hidden rounded border-l-2 px-1.5 py-0.5 text-xs font-medium shadow-sm ${itemTone(j)}`}
+                          className={`absolute cursor-pointer overflow-hidden rounded-lg border-l-2 px-1.5 py-0.5 text-xs font-medium shadow-sm ${itemTone(j)}`}
                           style={{
                             top: (startMin / 60) * HOUR_PX + 1,
                             height: Math.max(22, ((endMin - startMin) / 60) * HOUR_PX - 2),
@@ -586,22 +587,25 @@ export default function ScheduleClient({
   // ── Page ──────────────────────────────────────────────────────────────────
   return (
     <div className="mx-auto max-w-7xl p-4 lg:p-8">
-      {/* Header */}
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+      {/* Header — actions are icon circles on phones (labels return at md)
+          so the row breathes instead of cramming three long buttons. */}
+      <div className="mb-5 flex items-center justify-between gap-2">
         <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">Schedule</h1>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setDrawerOpen((o) => !o)}
-            className={`flex items-center gap-1.5 rounded border px-3 py-2 text-sm font-semibold transition-colors ${
+            aria-label="Unscheduled jobs"
+            title="Unscheduled"
+            className={`relative flex h-10 w-10 items-center justify-center gap-1.5 rounded-full border text-sm font-semibold transition-colors md:w-auto md:px-4 ${
               drawerOpen
                 ? "border-green-500 bg-green-50 text-green-700"
                 : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
             }`}
           >
-            <CalendarDays size={15} />
-            Unscheduled
+            <CalendarDays size={16} />
+            <span className="hidden md:inline">Unscheduled</span>
             {unscheduled.length > 0 && (
-              <span className="rounded-full bg-amber-100 px-1.5 text-xs font-bold text-amber-700">
+              <span className="absolute -right-1 -top-1 min-w-[18px] rounded-full bg-amber-400 px-1 py-px text-center text-[11px] font-bold text-amber-950 md:static md:bg-amber-100 md:text-amber-700">
                 {unscheduled.length}
               </span>
             )}
@@ -609,16 +613,18 @@ export default function ScheduleClient({
           {canCreateAppointment && (
             <Link
               href="/app/appointments/new"
-              className="flex items-center gap-1.5 rounded border border-blue-300 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-100"
+              aria-label="New appointment"
+              title="New Appointment"
+              className="flex h-10 w-10 items-center justify-center gap-1.5 rounded-full border border-blue-300 bg-blue-50 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-100 md:w-auto md:px-4"
             >
-              <Plus size={15} />
-              New Appointment
+              <CalendarClock size={16} />
+              <span className="hidden md:inline">New Appointment</span>
             </Link>
           )}
           {canCreateJob && (
             <Link
               href="/app/jobs/new"
-              className="flex items-center gap-1.5 chamfer rounded bg-green-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-600 active:bg-green-700"
+              className="flex h-10 items-center gap-1.5 rounded-full bg-green-500 px-4 text-sm font-semibold text-white transition-colors hover:bg-green-600 active:bg-green-700"
             >
               <Plus size={15} />
               New Job
@@ -630,15 +636,15 @@ export default function ScheduleClient({
       {/* Controls */}
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <div className="flex items-center gap-1">
-          <button onClick={() => step(-1)} className="rounded p-2 transition-colors hover:bg-gray-100" aria-label="Previous">
+          <button onClick={() => step(-1)} className="rounded-full p-2 transition-colors hover:bg-gray-100" aria-label="Previous">
             <ChevronLeft size={18} className="text-gray-600" />
           </button>
-          <button onClick={() => step(1)} className="rounded p-2 transition-colors hover:bg-gray-100" aria-label="Next">
+          <button onClick={() => step(1)} className="rounded-full p-2 transition-colors hover:bg-gray-100" aria-label="Next">
             <ChevronRight size={18} className="text-gray-600" />
           </button>
           <button
             onClick={() => go({ date: new Date() })}
-            className="rounded border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+            className="rounded-full border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
           >
             Today
           </button>
@@ -652,7 +658,7 @@ export default function ScheduleClient({
             <select
               value={team}
               onChange={(e) => go({ team: e.target.value })}
-              className="rounded border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="rounded-full border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500"
             >
               <option value="">All team members</option>
               {users.map((u) => (
@@ -662,13 +668,16 @@ export default function ScheduleClient({
               ))}
             </select>
           )}
-          <div className="flex overflow-hidden rounded border border-gray-300 bg-white">
+          {/* Segmented view switcher — native-style pill track */}
+          <div className="flex rounded-full border border-gray-300 bg-white p-0.5">
             {(["month", "week", "day"] as View[]).map((v) => (
               <button
                 key={v}
                 onClick={() => go({ view: v })}
-                className={`px-3 py-1.5 text-sm font-medium capitalize transition-colors ${
-                  view === v ? "bg-green-500 text-white" : "text-gray-700 hover:bg-gray-50"
+                className={`rounded-full px-3 py-1 text-sm font-medium capitalize transition-colors ${
+                  view === v
+                    ? "bg-[color:var(--mobile-accent)] text-[color:var(--mobile-on-accent)]"
+                    : "text-gray-700 hover:bg-gray-50"
                 }`}
               >
                 {v}
@@ -679,7 +688,7 @@ export default function ScheduleClient({
       </div>
 
       {error && (
-        <div className="mb-3 flex items-center justify-between rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <div className="mb-3 flex items-center justify-between rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
           {error}
           <button onClick={() => setError("")} className="p-0.5 text-red-400 hover:text-red-600">
             <X size={14} />
@@ -701,7 +710,7 @@ export default function ScheduleClient({
               ["bg-gray-400", "Closed"],
             ].map(([c, label]) => (
               <div key={label} className="flex items-center gap-1.5 text-xs text-gray-500">
-                <div className={`h-2.5 w-2.5 rounded ${c}`} />
+                <div className={`h-2.5 w-2.5 rounded-lg ${c}`} />
                 {label}
               </div>
             ))}
@@ -734,7 +743,7 @@ export default function ScheduleClient({
                       key={job.id}
                       {...dragProps(job)}
                       onClick={() => openItem(job)}
-                      className={`flex cursor-pointer items-start gap-2 rounded border border-gray-200 bg-white p-2.5 transition-colors hover:border-green-300 hover:bg-green-50/50 ${
+                      className={`flex cursor-pointer items-start gap-2 rounded-full border border-gray-200 bg-white p-2.5 transition-colors hover:border-green-300 hover:bg-green-50/50 ${
                         dragId === job.id ? "opacity-50" : ""
                       }`}
                     >

@@ -52,6 +52,15 @@
 }
 
 @layer utilities {
+  /* Horizontal pill rows scroll edge-to-edge without a visible scrollbar */
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
   /* iOS WebView (viewport-fit=cover): 100vh overshoots the visible viewport,
      hiding bottom-anchored UI. dvh tracks what's actually visible. This
      upgrades Tailwind's vh classes app-wide where the browser supports it. */
@@ -143,6 +152,10 @@ h1, h2, h3, h4, h5, h6, .font-display {
   --mobile-accent: var(--mobile-accent-light, #16a34a);
   --mobile-on-accent: var(--mobile-on-accent-light, #ffffff);
   --mobile-accent-soft: var(--mobile-accent-soft-light, rgba(22, 163, 74, 0.1));
+  /* Accent as drawn on console-ink tiles (create sheet, Atlas-style marks) —
+     the tile stays #0C0F0C in both themes, so this uses the dark-surface
+     guard regardless of the active theme. */
+  --mobile-accent-ink: var(--mobile-accent-dark, #22c55e);
 }
 @media (prefers-color-scheme: dark) {
   .app-ui {
@@ -281,6 +294,19 @@ body {
 .anim-delay-4 { animation-delay: 0.5s; }
 .anim-delay-5 { animation-delay: 0.64s; }
 
+/* ── Create-sheet tiles — cascade in as the sheet springs up (AppShell
+   applies per-tile animation-delay inline). ── */
+@keyframes tile-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 /* ── App page entrance — quick settle on every navigation (template.tsx).
    Much faster than the marketing hero fade: you navigate the app constantly. */
 @keyframes pageEnter {
@@ -414,6 +440,9 @@ body {
   .app-ui .divide-gray-50 > :not([hidden]) ~ :not([hidden]) { border-color: rgba(255, 255, 255, 0.05); }
   .app-ui .divide-gray-100 > :not([hidden]) ~ :not([hidden]) { border-color: rgba(255, 255, 255, 0.07); }
   .app-ui .ring-gray-200 { --tw-ring-color: var(--t-line); }
+  .app-ui .ring-black\/5 { --tw-ring-color: rgba(255, 255, 255, 0.08); }
+  /* Notification-dot halos cut out of the bar behind them, not white */
+  .app-ui .ring-white { --tw-ring-color: var(--t-surface); }
 
   /* ── Brand green, brightened one step for dark contrast ── */
   .app-ui .text-green-600, .app-ui .hover\:text-green-600:hover { color: #22C55E; }

@@ -61,7 +61,7 @@ export default function BookingApprovalBanner({
           <button
             onClick={() => act("accept")}
             disabled={busy !== null}
-            className="flex items-center gap-1.5 px-4 py-2 chamfer bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors disabled:opacity-50"
+            className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-full transition-colors disabled:opacity-50"
           >
             {busy === "accept" && <Loader2 size={13} className="animate-spin" />}
             Accept and Schedule
@@ -69,7 +69,7 @@ export default function BookingApprovalBanner({
           <button
             onClick={() => act("decline")}
             disabled={busy !== null}
-            className="px-4 py-2 rounded text-sm font-semibold text-red-700 border border-red-300 hover:bg-red-100 transition-colors disabled:opacity-50"
+            className="px-4 py-2 rounded-lg text-sm font-semibold text-red-700 border border-red-300 hover:bg-red-100 transition-colors disabled:opacity-50"
           >
             {busy === "decline" && <Loader2 size={13} className="animate-spin inline mr-1" />}
             Decline

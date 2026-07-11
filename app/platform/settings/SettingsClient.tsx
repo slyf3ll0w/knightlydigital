@@ -59,7 +59,7 @@ function ColorField({
           type="color"
           value={value || fallback}
           onChange={(e) => onChange(e.target.value.toUpperCase())}
-          className="h-10 w-12 shrink-0 rounded border border-gray-300 cursor-pointer p-1"
+          className="h-10 w-12 shrink-0 rounded-lg border border-gray-300 cursor-pointer p-1"
         />
         <input
           type="text"
@@ -68,7 +68,7 @@ function ColorField({
           placeholder={fallback}
           maxLength={7}
           spellCheck={false}
-          className={`w-28 px-3 py-2 border rounded text-sm font-mono focus:outline-none focus:ring-2 focus:ring-green-500 ${
+          className={`w-28 px-3 py-2 border rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-green-500 ${
             invalid ? "border-red-400" : "border-gray-300"
           }`}
         />
@@ -176,7 +176,7 @@ function DangerZone({ companyName }: { companyName: string }) {
           <button
             type="button"
             onClick={() => setOpen(true)}
-            className="shrink-0 rounded border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50"
+            className="shrink-0 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50"
           >
             Delete account…
           </button>
@@ -196,7 +196,7 @@ function DangerZone({ companyName }: { companyName: string }) {
               value={confirmName}
               onChange={(e) => setConfirmName(e.target.value)}
               placeholder={companyName}
-              className="w-full max-w-sm rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
+              className="w-full max-w-sm rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
             />
             {confirmName && !nameMatches && (
               <p className="mt-1 text-xs text-red-600">Doesn&apos;t match yet — it&apos;s case-sensitive.</p>
@@ -209,7 +209,7 @@ function DangerZone({ companyName }: { companyName: string }) {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="current-password"
-              className="w-full max-w-sm rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
+              className="w-full max-w-sm rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
             />
           </div>
           {error && <p className="text-sm text-red-600">{error}</p>}
@@ -218,7 +218,7 @@ function DangerZone({ companyName }: { companyName: string }) {
               type="button"
               onClick={deleteAccount}
               disabled={!nameMatches || !password || busy}
-              className="flex items-center gap-2 rounded bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"
+              className="flex items-center gap-2 rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"
             >
               {busy ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
               Permanently delete everything
@@ -439,49 +439,49 @@ export default function SettingsClient({
             <label className="block text-sm font-medium text-gray-700 mb-1">Business name *</label>
             <input type="text" value={form.name} onChange={(e) => set("name", e.target.value)}
               required
-              className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
               <input type="tel" value={form.phone} onChange={(e) => set("phone", e.target.value)}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
               <input type="email" value={form.email} onChange={(e) => set("email", e.target.value)}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
             </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Street address</label>
             <input type="text" value={form.address} onChange={(e) => set("address", e.target.value)}
-              className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div className="col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
               <input type="text" value={form.city} onChange={(e) => set("city", e.target.value)}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
               <input type="text" value={form.state} onChange={(e) => set("state", e.target.value)}
                 maxLength={2}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 uppercase" />
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 uppercase" />
             </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Website</label>
             <input type="url" value={form.website} onChange={(e) => set("website", e.target.value)}
               placeholder="https://"
-              className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Industry</label>
             <select value={INDUSTRIES.includes(form.industry as (typeof INDUSTRIES)[number]) ? form.industry : form.industry ? "Other" : ""}
               onChange={(e) => set("industry", e.target.value)}
-              className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white">
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white">
               <option value="">Not set</option>
               {INDUSTRIES.map((ind) => (
                 <option key={ind} value={ind}>{ind}</option>
@@ -494,7 +494,7 @@ export default function SettingsClient({
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Timezone</label>
             <select value={form.timezone} onChange={(e) => set("timezone", e.target.value)}
-              className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white">
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white">
               {!TIMEZONES.some((tz) => tz.value === form.timezone) && (
                 <option value={form.timezone}>{form.timezone}</option>
               )}
@@ -533,7 +533,7 @@ export default function SettingsClient({
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={logoBusy}
-                className="flex items-center gap-1.5 px-4 py-2 border border-gray-300 text-sm font-medium text-gray-700 rounded hover:bg-gray-50 active:bg-gray-100 transition-colors disabled:opacity-50"
+                className="flex items-center gap-1.5 px-4 py-2 border border-gray-300 text-sm font-medium text-gray-700 rounded-full hover:bg-gray-50 active:bg-gray-100 transition-colors disabled:opacity-50"
               >
                 {logoBusy ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />}
                 {form.logoUrl ? "Replace Logo" : "Upload Logo"}
@@ -585,7 +585,7 @@ export default function SettingsClient({
                 )}
                 <span className="font-bold text-white drop-shadow-sm">{form.name}</span>
                 <span
-                  className="ml-auto rounded px-3 py-1.5 text-xs font-semibold"
+                  className="ml-auto rounded-lg px-3 py-1.5 text-xs font-semibold"
                   style={{
                     backgroundColor: form.brandColorSecondary || form.brandColor || "#16A34A",
                     color: textOn(form.brandColorSecondary || form.brandColor || "#16A34A"),
@@ -625,7 +625,7 @@ export default function SettingsClient({
               <div className="flex items-center gap-2">
                 <input type="number" value={form.surchargeRate} onChange={(e) => set("surchargeRate", e.target.value)}
                   min="0" max="10" step="0.01"
-                  className="w-24 px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                  className="w-24 px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
                 <span className="text-sm text-gray-500">% added to card payments</span>
               </div>
               <p className="text-xs text-gray-400 mt-1">
@@ -650,7 +650,7 @@ export default function SettingsClient({
               <select
                 value={form.defaultDepositType}
                 onChange={(e) => set("defaultDepositType", e.target.value)}
-                className="px-3 py-2.5 border border-gray-300 rounded text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="px-3 py-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
               >
                 <option value="NONE">No default deposit</option>
                 <option value="PERCENT">Percentage of total</option>
@@ -671,7 +671,7 @@ export default function SettingsClient({
                   value={form.defaultDepositValue}
                   onChange={(e) => set("defaultDepositValue", e.target.value)}
                   placeholder={form.defaultDepositType === "PERCENT" ? "25" : "100.00"}
-                  className="w-28 px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="w-28 px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                 />
               </div>
             )}
@@ -692,7 +692,7 @@ export default function SettingsClient({
             <label className="block text-sm font-medium text-gray-700 mb-1">Assistant name</label>
             <input type="text" value={form.assistantName} onChange={(e) => set("assistantName", e.target.value)}
               placeholder="Atlas" maxLength={40}
-              className="w-full max-w-xs px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+              className="w-full max-w-xs px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
             <p className="text-xs text-gray-400 mt-1">Give it a name that fits your business — leave blank for Atlas</p>
           </div>
         </div>
@@ -707,14 +707,14 @@ export default function SettingsClient({
             <label className="block text-sm font-medium text-gray-700 mb-1">Google review link</label>
             <input type="url" value={form.reviewLink} onChange={(e) => set("reviewLink", e.target.value)}
               placeholder="https://g.page/r/..."
-              className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
             <p className="text-xs text-gray-400 mt-1">Find this in your Google Business Profile → Get more reviews</p>
           </div>
         </div>
 
         <div>
           <button type="submit" disabled={loading}
-            className="flex items-center gap-2 px-5 py-2.5 chamfer bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors disabled:opacity-50">
+            className="flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-full transition-colors disabled:opacity-50">
             {loading ? <Loader2 size={14} className="animate-spin" /> : saved ? <Check size={14} /> : null}
             {saved ? "Saved!" : "Save Settings"}
           </button>

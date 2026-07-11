@@ -14,7 +14,7 @@ import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 type Template = { id: string; name: string; body: string; isActive: boolean };
 
 const inputCls =
-  "w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500";
+  "w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500";
 
 export default function ContractTemplatesClient({ templates }: { templates: Template[] }) {
   const router = useRouter();
@@ -76,7 +76,7 @@ export default function ContractTemplatesClient({ templates }: { templates: Temp
         </div>
         <button
           onClick={startNew}
-          className="flex items-center gap-1.5 px-4 py-2 chamfer bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors"
+          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-full transition-colors"
         >
           <Plus size={15} />
           New Template
@@ -84,13 +84,13 @@ export default function ContractTemplatesClient({ templates }: { templates: Temp
       </div>
       <p className="text-sm text-gray-500 mb-6 ml-8">
         Write your agreements once, send them to any client for an e-signature.
-        {" "}<code className="text-xs bg-gray-100 px-1 rounded">{"{{client_name}}"}</code>,{" "}
-        <code className="text-xs bg-gray-100 px-1 rounded">{"{{company_name}}"}</code> and{" "}
-        <code className="text-xs bg-gray-100 px-1 rounded">{"{{date}}"}</code> fill in automatically.
+        {" "}<code className="text-xs bg-gray-100 px-1 rounded-lg">{"{{client_name}}"}</code>,{" "}
+        <code className="text-xs bg-gray-100 px-1 rounded-lg">{"{{company_name}}"}</code> and{" "}
+        <code className="text-xs bg-gray-100 px-1 rounded-lg">{"{{date}}"}</code> fill in automatically.
       </p>
 
       {error && (
-        <div className="mb-4 flex items-center justify-between rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <div className="mb-4 flex items-center justify-between rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
           {error}
           <button onClick={() => setError("")} className="p-0.5 text-red-400 hover:text-red-600">
             <X size={14} />
@@ -122,12 +122,12 @@ export default function ContractTemplatesClient({ templates }: { templates: Temp
             <button
               onClick={save}
               disabled={busy || !name.trim() || !body.trim()}
-              className="flex items-center gap-1.5 px-4 py-2 chamfer bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded disabled:opacity-50"
+              className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded-full disabled:opacity-50"
             >
               {busy && <Loader2 size={13} className="animate-spin" />}
               Save Template
             </button>
-            <button onClick={() => setEditing(null)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded">
+            <button onClick={() => setEditing(null)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">
               Cancel
             </button>
           </div>
@@ -148,7 +148,7 @@ export default function ContractTemplatesClient({ templates }: { templates: Temp
             </div>
             <button
               onClick={() => startEdit(t)}
-              className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded"
+              className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-full"
               title="Edit template"
             >
               <Pencil size={14} />
@@ -156,7 +156,7 @@ export default function ContractTemplatesClient({ templates }: { templates: Temp
             <button
               onClick={() => setActive(t.id, false)}
               disabled={busy}
-              className="px-2.5 py-1.5 rounded text-xs font-medium text-red-600 hover:bg-red-50"
+              className="px-2.5 py-1.5 rounded-lg text-xs font-medium text-red-600 hover:bg-red-50"
             >
               Archive
             </button>
@@ -174,7 +174,7 @@ export default function ContractTemplatesClient({ templates }: { templates: Temp
                 <button
                   onClick={() => setActive(t.id, true)}
                   disabled={busy}
-                  className="px-2.5 py-1.5 rounded text-xs font-medium text-green-700 hover:bg-green-50"
+                  className="px-2.5 py-1.5 rounded-lg text-xs font-medium text-green-700 hover:bg-green-50"
                 >
                   Restore
                 </button>

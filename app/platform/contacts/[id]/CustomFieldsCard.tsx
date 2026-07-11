@@ -14,7 +14,7 @@ type Def = {
 };
 
 const inputCls =
-  "w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500";
+  "w-full px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500";
 
 /** Company-defined fields on the client page; edit-in-place, full-map save. */
 export default function CustomFieldsCard({
@@ -60,7 +60,7 @@ export default function CustomFieldsCard({
             <button
               onClick={save}
               disabled={busy}
-              className="p-1.5 text-green-600 hover:bg-green-50 rounded"
+              className="p-1.5 text-green-600 hover:bg-green-50 rounded-full"
               title="Save"
             >
               {busy ? <Loader2 size={13} className="animate-spin" /> : <Check size={14} />}

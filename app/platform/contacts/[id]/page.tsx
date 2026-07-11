@@ -180,7 +180,7 @@ export default async function ContactDetailPage({
         <div className="flex items-center gap-2">
           <Link
             href={`/app/contacts/${contact.id}/edit`}
-            className="flex items-center gap-1.5 px-4 py-2 border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-sm font-semibold rounded transition-colors"
+            className="flex items-center gap-1.5 px-4 py-2 border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-sm font-semibold rounded-full transition-colors"
           >
             <Pencil size={14} />
             Edit

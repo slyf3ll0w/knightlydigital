@@ -66,7 +66,7 @@ type Step = "upload" | "map" | "importing" | "done";
 type Summary = { created: number; updated: number; skippedDuplicates: number; errors: { row: number; reason: string }[] };
 
 const inputCls =
-  "px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500";
+  "px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500";
 
 function detectTarget(header: string): string {
   return HEADER_MAP[header.toLowerCase().replace(/[^a-z0-9]/g, "")] ?? "";
@@ -245,7 +245,7 @@ export default function ImportClient({
       </p>
 
       {error && (
-        <div className="mb-4 flex items-center justify-between rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <div className="mb-4 flex items-center justify-between rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
           {error}
           <button onClick={() => setError("")} className="p-0.5 text-red-400 hover:text-red-600">
             <X size={14} />
@@ -282,7 +282,7 @@ export default function ImportClient({
             </div>
             <button
               onClick={downloadTemplate}
-              className="flex items-center gap-1.5 px-3 py-2 border border-gray-300 rounded text-sm font-medium text-gray-700 hover:bg-gray-50"
+              className="flex items-center gap-1.5 px-3 py-2 border border-gray-300 rounded-full text-sm font-medium text-gray-700 hover:bg-gray-50"
             >
               <Download size={14} />
               Download template
@@ -371,7 +371,7 @@ export default function ImportClient({
             <button
               onClick={runImport}
               disabled={readyRows === 0}
-              className="flex items-center gap-1.5 px-5 py-2.5 chamfer bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors disabled:opacity-50"
+              className="flex items-center gap-1.5 px-5 py-2.5 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-full transition-colors disabled:opacity-50"
             >
               Import {readyRows} Clients
               <ArrowRight size={14} />
@@ -416,7 +416,7 @@ export default function ImportClient({
               </div>
             </div>
             {summary.errors.length > 0 && (
-              <div className="mt-4 rounded border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+              <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
                 <p className="font-semibold mb-1">Rows that couldn&apos;t import:</p>
                 {summary.errors.slice(0, 20).map((e, i) => (
                   <p key={i}>
@@ -431,7 +431,7 @@ export default function ImportClient({
           <div className="flex flex-wrap items-center gap-3">
             <Link
               href="/app/contacts"
-              className="px-5 py-2.5 chamfer bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors"
+              className="px-5 py-2.5 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-full transition-colors"
             >
               View Clients
             </Link>
@@ -439,7 +439,7 @@ export default function ImportClient({
               <button
                 onClick={undoImport}
                 disabled={undoing}
-                className="flex items-center gap-1.5 px-4 py-2.5 border border-gray-300 rounded text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                className="flex items-center gap-1.5 px-4 py-2.5 border border-gray-300 rounded-full text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
               >
                 {undoing ? <Loader2 size={13} className="animate-spin" /> : <Undo2 size={13} />}
                 Undo this import

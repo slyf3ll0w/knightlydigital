@@ -19,7 +19,7 @@ type Expense = {
 };
 
 const inputCls =
-  "px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500";
+  "px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500";
 
 export default function ExpensesClient({ expenses }: { expenses: Expense[] }) {
   const router = useRouter();
@@ -125,7 +125,7 @@ export default function ExpensesClient({ expenses }: { expenses: Expense[] }) {
         </div>
         <button
           onClick={() => setShowAdd((v) => !v)}
-          className="flex items-center gap-1.5 px-4 py-2 chamfer bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors"
+          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-full transition-colors"
         >
           <Plus size={15} />
           Log Expense
@@ -136,7 +136,7 @@ export default function ExpensesClient({ expenses }: { expenses: Expense[] }) {
       </p>
 
       {error && (
-        <div className="mb-4 flex items-center justify-between rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <div className="mb-4 flex items-center justify-between rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
           {error}
           <button onClick={() => setError("")} className="p-0.5 text-red-400 hover:text-red-600">
             <X size={14} />
@@ -190,12 +190,12 @@ export default function ExpensesClient({ expenses }: { expenses: Expense[] }) {
             <button
               onClick={add}
               disabled={busy || !description.trim() || !amount || !incurredAt}
-              className="flex items-center gap-1.5 px-4 py-2 chamfer bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded disabled:opacity-50"
+              className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded-full disabled:opacity-50"
             >
               {busy && <Loader2 size={13} className="animate-spin" />}
               Save Expense
             </button>
-            <button onClick={() => setShowAdd(false)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded">
+            <button onClick={() => setShowAdd(false)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">
               Cancel
             </button>
           </div>
@@ -214,7 +214,7 @@ export default function ExpensesClient({ expenses }: { expenses: Expense[] }) {
         </div>
         <button
           onClick={exportCsv}
-          className="flex items-center gap-1.5 px-4 py-2 border border-gray-300 rounded text-sm font-medium text-gray-700 hover:bg-gray-50"
+          className="flex items-center gap-1.5 px-4 py-2 border border-gray-300 rounded-full text-sm font-medium text-gray-700 hover:bg-gray-50"
         >
           <Download size={14} />
           Export CSV
@@ -274,7 +274,7 @@ export default function ExpensesClient({ expenses }: { expenses: Expense[] }) {
                   <button
                     onClick={() => saveEdit(e.id)}
                     disabled={busy || !editForm.description.trim() || !editForm.amount || !editForm.incurredAt}
-                    className="flex items-center gap-1 px-3 py-1.5 chamfer bg-green-500 hover:bg-green-600 text-white text-xs font-semibold rounded disabled:opacity-40"
+                    className="flex items-center gap-1 px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-semibold rounded-full disabled:opacity-40"
                   >
                     {busy ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />}
                     Save
@@ -282,7 +282,7 @@ export default function ExpensesClient({ expenses }: { expenses: Expense[] }) {
                   <button
                     onClick={() => setEditId(null)}
                     disabled={busy}
-                    className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-gray-500 hover:bg-gray-100 rounded"
+                    className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-gray-500 hover:bg-gray-100 rounded-full"
                   >
                     <X size={11} />
                     Cancel
@@ -307,7 +307,7 @@ export default function ExpensesClient({ expenses }: { expenses: Expense[] }) {
                 <button
                   onClick={() => openEdit(e)}
                   disabled={busy}
-                  className="p-1.5 text-gray-300 hover:text-gray-600 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="p-1.5 text-gray-300 hover:text-gray-600 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                   title="Edit expense"
                 >
                   <Pencil size={13} />
@@ -315,7 +315,7 @@ export default function ExpensesClient({ expenses }: { expenses: Expense[] }) {
                 <button
                   onClick={() => remove(e.id)}
                   disabled={busy}
-                  className="p-1.5 text-gray-300 hover:text-red-600 rounded"
+                  className="p-1.5 text-gray-300 hover:text-red-600 rounded-full"
                   title="Delete expense"
                 >
                   <Trash2 size={13} />

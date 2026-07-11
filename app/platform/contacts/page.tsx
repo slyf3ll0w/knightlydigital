@@ -68,30 +68,36 @@ export default async function ContactsPage({
 
   return (
     <div className="p-4 lg:p-8 max-w-6xl mx-auto">
-      <div className="flex flex-wrap items-center justify-between gap-y-3 mb-6">
+      {/* Header — secondary actions collapse to icon circles on phones so the
+          row never crams; labels return at sm. */}
+      <div className="flex items-center justify-between gap-2 mb-6">
         <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">Clients</h1>
         <div className="flex items-center gap-2">
           {isManager(actor.role) && (
             <>
               <Link
                 href="/app/settings/client-fields"
-                className="flex items-center gap-1.5 px-4 py-2 border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-sm font-semibold rounded transition-colors"
+                aria-label="Custom Fields"
+                title="Custom Fields"
+                className="flex h-10 w-10 items-center justify-center gap-1.5 rounded-full border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-sm font-semibold transition-colors sm:w-auto sm:px-4"
               >
-                <ListPlus size={14} />
-                Custom Fields
+                <ListPlus size={15} />
+                <span className="hidden sm:inline">Custom Fields</span>
               </Link>
               <Link
                 href="/app/settings/import"
-                className="flex items-center gap-1.5 px-4 py-2 border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-sm font-semibold rounded transition-colors"
+                aria-label="Import"
+                title="Import"
+                className="flex h-10 w-10 items-center justify-center gap-1.5 rounded-full border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-sm font-semibold transition-colors sm:w-auto sm:px-4"
               >
-                <Upload size={14} />
-                Import
+                <Upload size={15} />
+                <span className="hidden sm:inline">Import</span>
               </Link>
             </>
           )}
           <Link
             href="/app/contacts/new"
-            className="flex items-center gap-1.5 px-4 py-2 chamfer bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors"
+            className="flex h-10 items-center gap-1.5 rounded-full bg-green-500 px-4 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold transition-colors"
           >
             <Plus size={15} />
             New Client
@@ -106,21 +112,21 @@ export default async function ContactsPage({
           name="q"
           defaultValue={q ?? ""}
           placeholder="Search clients..."
-          className="w-full max-w-sm px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+          className="w-full max-w-sm rounded-full border border-gray-300 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
         />
         {validStatus && <input type="hidden" name="status" value={validStatus} />}
       </form>
 
-      {/* Filter tabs */}
-      <div className="flex flex-wrap items-center gap-1 mb-4">
+      {/* Filter pills — scroll horizontally on phones instead of wrapping */}
+      <div className="no-scrollbar -mx-4 mb-4 flex items-center gap-1.5 overflow-x-auto px-4 lg:mx-0 lg:px-0">
         {statusFilters.map((f) => (
           <Link
             key={f.value}
             href={statusQS(f.value)}
-            className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+            className={`shrink-0 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors ${
               (validStatus ?? "") === f.value
-                ? "bg-gray-900 text-white"
-                : "text-gray-600 hover:bg-gray-100"
+                ? "border-gray-900 bg-gray-900 text-white"
+                : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
             }`}
           >
             {f.label}
@@ -128,11 +134,13 @@ export default async function ContactsPage({
         ))}
         {showAll && (
           <>
-            <span className="mx-1 h-5 w-px bg-gray-200" />
+            <span className="mx-1 h-5 w-px shrink-0 bg-gray-200" />
             <Link
               href={assigneeQS(!mineOnly)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium transition-colors ${
-                mineOnly ? "bg-green-500 text-white" : "text-gray-600 hover:bg-gray-100"
+              className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors ${
+                mineOnly
+                  ? "border-green-500 bg-green-500 text-white"
+                  : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
               }`}
             >
               <UserCheck size={13} />

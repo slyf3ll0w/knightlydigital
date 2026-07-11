@@ -27,7 +27,7 @@ const WINDOW_OPTIONS = [
 ];
 
 const inputCls =
-  "px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white";
+  "px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white";
 
 export default function SchedulingSettingsCard({
   hours: initialHours,
@@ -101,13 +101,13 @@ export default function SchedulingSettingsCard({
       {open && (
         <div className="px-5 pb-5 space-y-5 border-t border-gray-100 pt-4">
           {error && (
-            <div className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
               {error}
             </div>
           )}
 
           {bookableCount === 0 && (
-            <div className="rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
               No one on your team accepts online bookings yet — clients won&apos;t see any
               times until someone is marked bookable on the{" "}
               <Link href="/app/settings/team" className="font-semibold underline">
@@ -242,7 +242,7 @@ export default function SchedulingSettingsCard({
               }}
               rows={2}
               placeholder="75002, 75013, 75025..."
-              className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 font-mono"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 font-mono"
             />
           </div>
 
@@ -250,7 +250,7 @@ export default function SchedulingSettingsCard({
             type="button"
             onClick={save}
             disabled={saving}
-            className="flex items-center gap-2 px-4 py-2 chamfer bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-full transition-colors disabled:opacity-50"
           >
             {saving ? <Loader2 size={13} className="animate-spin" /> : saved ? <Check size={13} /> : null}
             {saved ? "Saved!" : "Save Scheduling Settings"}

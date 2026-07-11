@@ -23,7 +23,7 @@ const fieldTypeLabels: Record<CustomFieldType, string> = {
 };
 
 const inputClass =
-  "w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500";
+  "w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500";
 const smallLabel = "block text-xs font-medium text-gray-500 mb-1";
 const sectionTitle = "text-xs font-semibold text-gray-500 uppercase tracking-wide";
 
@@ -165,7 +165,7 @@ export default function BookingFormBuilder({
     <button
       type="button"
       onClick={() => setAppearance({ theme: value })}
-      className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
+      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
         config.appearance.theme === value
           ? "bg-gray-900 text-white"
           : "text-gray-600 hover:bg-gray-100 border border-gray-200"
@@ -179,7 +179,7 @@ export default function BookingFormBuilder({
     <button
       type="button"
       onClick={() => setAppearance({ fontSize: value })}
-      className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
+      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
         config.appearance.fontSize === value
           ? "bg-gray-900 text-white"
           : "text-gray-600 hover:bg-gray-100 border border-gray-200"
@@ -395,7 +395,7 @@ export default function BookingFormBuilder({
                   );
                   if (priceBookItems.length === 0) {
                     return (
-                      <div className="rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                      <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
                         Your price book is empty — add the services you offer there first.{" "}
                         <a href="/app/settings/products" target="_blank" rel="noreferrer" className="font-semibold underline">
                           Open price book
@@ -538,7 +538,7 @@ export default function BookingFormBuilder({
             );
             if (priceBookItems.length === 0) {
               return (
-                <div className="rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
                   Your price book is empty — add the services you offer there first, then pick
                   them here.{" "}
                   <a
@@ -792,7 +792,7 @@ export default function BookingFormBuilder({
         <button
           type="button"
           onClick={addField}
-          className="flex items-center gap-1.5 px-3 py-2 border border-dashed border-gray-300 text-sm font-medium text-gray-600 rounded hover:border-gray-400 hover:bg-gray-50 active:bg-gray-100 transition-colors"
+          className="flex items-center gap-1.5 px-3 py-2 border border-dashed border-gray-300 text-sm font-medium text-gray-600 rounded-full hover:border-gray-400 hover:bg-gray-50 active:bg-gray-100 transition-colors"
         >
           <Plus size={14} />
           Add field
@@ -863,7 +863,7 @@ export default function BookingFormBuilder({
                 type="color"
                 value={config.button.color ?? "#16A34A"}
                 onChange={(e) => setButton({ color: e.target.value })}
-                className="h-9 w-12 rounded border border-gray-300 cursor-pointer p-1"
+                className="h-9 w-12 rounded-lg border border-gray-300 cursor-pointer p-1"
               />
               <span className="text-xs font-mono text-gray-500">
                 {config.button.color ?? "Brand color"}

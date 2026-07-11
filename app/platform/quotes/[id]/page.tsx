@@ -221,13 +221,13 @@ export default async function QuoteDetailPage({
                           without them screen readers hear "ReplacementOptional" */}
                       {item.isOptional && " "}
                       {item.isOptional && (
-                        <span className="ml-2 text-xs font-medium px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">
+                        <span className="ml-2 text-xs font-medium px-1.5 py-0.5 rounded-lg bg-gray-100 text-gray-500">
                           Optional{item.optedOut ? " — removed by client" : ""}
                         </span>
                       )}
                       {item.recurringInterval && " "}
                       {item.recurringInterval && (
-                        <span className="ml-2 text-xs font-medium px-1.5 py-0.5 rounded bg-green-100 text-green-700">
+                        <span className="ml-2 text-xs font-medium px-1.5 py-0.5 rounded-lg bg-green-100 text-green-700">
                           Recurring
                         </span>
                       )}

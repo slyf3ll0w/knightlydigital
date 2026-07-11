@@ -90,9 +90,9 @@ const GENERATING_LINES = [
 ];
 
 const inputCls =
-  "px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white";
+  "px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white";
 const smallInputCls =
-  "px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white";
+  "px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white";
 
 type Step = "intake" | "generating" | "review" | "done";
 
@@ -419,7 +419,7 @@ export default function SetupWizardClient({
         </div>
 
         {error && (
-          <div className="mb-4 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
             {error}
           </div>
         )}
@@ -450,7 +450,7 @@ export default function SetupWizardClient({
                       type="button"
                       onClick={findBusiness}
                       disabled={(!lookupName.trim() && !lookupWebsite.trim()) || lookupBusy}
-                      className="flex shrink-0 items-center gap-1.5 chamfer rounded bg-green-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-600 disabled:opacity-50"
+                      className="flex shrink-0 items-center gap-1.5 rounded-full bg-green-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-600 disabled:opacity-50"
                     >
                       {lookupBusy ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
                       {lookupBusy ? "Searching..." : "Search"}
@@ -478,7 +478,7 @@ export default function SetupWizardClient({
             {candidate && (
               <div>
                 <p className="mb-3 text-sm font-semibold text-gray-900">Is this your business?</p>
-                <div className="flex items-start gap-3 rounded border border-gray-200 bg-gray-50 p-3">
+                <div className="flex items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
                   {candidate.logoUrl && !logoBroken && (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -513,14 +513,14 @@ export default function SetupWizardClient({
                   <button
                     type="button"
                     onClick={confirmBusiness}
-                    className="flex items-center gap-1.5 chamfer rounded bg-green-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-600"
+                    className="flex items-center gap-1.5 rounded-full bg-green-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-600"
                   >
                     <Check size={14} /> Yes, that&apos;s us
                   </button>
                   <button
                     type="button"
                     onClick={() => setCandidate(null)}
-                    className="rounded border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:border-gray-400"
+                    className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:border-gray-400"
                   >
                     Not us
                   </button>
@@ -636,7 +636,7 @@ export default function SetupWizardClient({
             type="button"
             onClick={generate}
             disabled={!effectiveIndustry || !city.trim()}
-            className="flex w-full items-center justify-center gap-2 chamfer rounded bg-green-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-green-600 active:bg-green-700 disabled:opacity-50"
+            className="flex w-full items-center justify-center gap-2 rounded-full bg-green-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-green-600 active:bg-green-700 disabled:opacity-50"
           >
             <AtlasIcon size={15} />
             Draft my setup
@@ -749,7 +749,7 @@ export default function SetupWizardClient({
               <Link
                 href={s.href}
                 target={"external" in s && s.external ? "_blank" : undefined}
-                className="shrink-0 rounded border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 transition-colors hover:border-green-500 hover:text-green-700"
+                className="shrink-0 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 transition-colors hover:border-green-500 hover:text-green-700"
               >
                 {s.linkLabel}
               </Link>
@@ -783,7 +783,7 @@ export default function SetupWizardClient({
       </div>
 
       {error && (
-        <div className="mb-4 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
           {error}
         </div>
       )}
@@ -1052,7 +1052,7 @@ export default function SetupWizardClient({
               onChange={(e) => setZipsText(e.target.value)}
               rows={2}
               placeholder="75002, 75013, 75025..."
-              className="w-full rounded border border-gray-300 px-3 py-2 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
             />
           </SectionCard>
         )}
@@ -1075,10 +1075,10 @@ export default function SetupWizardClient({
                   value={contractBody}
                   onChange={(e) => setContractBody(e.target.value)}
                   rows={14}
-                  className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                 />
               ) : (
-                <div className="rounded border border-gray-200 bg-gray-50 p-3">
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
                   <p className="line-clamp-3 whitespace-pre-line text-xs text-gray-600">{contractBody}</p>
                 </div>
               )}
@@ -1135,7 +1135,7 @@ export default function SetupWizardClient({
             type="button"
             onClick={apply}
             disabled={applying}
-            className="mt-4 flex w-full items-center justify-center gap-2 chamfer rounded bg-green-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-green-600 active:bg-green-700 disabled:opacity-50"
+            className="mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-green-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-green-600 active:bg-green-700 disabled:opacity-50"
           >
             {applying ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />}
             Apply this setup

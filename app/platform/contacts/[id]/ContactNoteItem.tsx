@@ -78,7 +78,7 @@ export default function ContactNoteItem({
                     setEditing(true);
                   }}
                   title="Edit note"
-                  className="p-1 text-gray-400 hover:text-gray-600 rounded"
+                  className="p-1 text-gray-400 hover:text-gray-600 rounded-full"
                 >
                   <Pencil size={12} />
                 </button>
@@ -88,7 +88,7 @@ export default function ContactNoteItem({
                   onClick={remove}
                   disabled={busy}
                   title="Delete note"
-                  className="p-1 text-gray-400 hover:text-red-600 rounded"
+                  className="p-1 text-gray-400 hover:text-red-600 rounded-full"
                 >
                   {busy ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
                 </button>
@@ -103,13 +103,13 @@ export default function ContactNoteItem({
               onChange={(e) => setText(e.target.value)}
               rows={2}
               autoFocus
-              className="w-full px-2.5 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none bg-white"
+              className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none bg-white"
             />
             <div className="flex items-center gap-1.5 mt-1.5">
               <button
                 onClick={save}
                 disabled={busy || !text.trim()}
-                className="flex items-center gap-1 px-2.5 py-1 chamfer bg-green-500 hover:bg-green-600 text-white text-xs font-semibold rounded transition-colors disabled:opacity-40"
+                className="flex items-center gap-1 px-2.5 py-1 bg-green-500 hover:bg-green-600 text-white text-xs font-semibold rounded-full transition-colors disabled:opacity-40"
               >
                 {busy ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />}
                 Save
@@ -117,7 +117,7 @@ export default function ContactNoteItem({
               <button
                 onClick={() => setEditing(false)}
                 disabled={busy}
-                className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-gray-500 hover:bg-gray-100 rounded"
+                className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-gray-500 hover:bg-gray-100 rounded-full"
               >
                 <X size={11} />
                 Cancel

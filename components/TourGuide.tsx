@@ -226,13 +226,13 @@ export default function TourGuide({ role, needsTour }: { role: string; needsTour
           <button
             onClick={() => setIdx((i) => Math.max(0, i - 1))}
             disabled={idx === 0}
-            className="px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded disabled:opacity-0"
+            className="px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-full disabled:opacity-0"
           >
             Back
           </button>
           <button
             onClick={() => (last ? finish() : setIdx((i) => i + 1))}
-            className="px-4 py-2 chamfer bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors"
+            className="px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-full transition-colors"
           >
             {last ? "Finish" : "Next"}
           </button>

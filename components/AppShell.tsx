@@ -14,8 +14,8 @@ import {
   Receipt,
   Settings,
   LogOut,
-  Menu,
-  X,
+  MoreHorizontal,
+  ChevronRight,
   Plus,
   DollarSign,
   BarChart3,
@@ -140,9 +140,8 @@ const tourKeys: Record<string, string> = {
 };
 
 /**
- * Global create menu. Self-contained state + ref so each sidebar instance
- * (desktop + mobile drawer) gets its own — a shared ref made the click-outside
- * handler swallow item clicks.
+ * Global create menu (desktop sidebar). Self-contained state + ref — a shared
+ * ref made the click-outside handler swallow item clicks.
  */
 function CreateMenu({ accent, role }: { accent: string; role: string }) {
   const pathname = usePathname();
@@ -171,7 +170,7 @@ function CreateMenu({ accent, role }: { accent: string; role: string }) {
         onClick={() => setOpen((v) => !v)}
         data-tour="create"
         style={{ backgroundColor: accent, color: textOn(accent) }}
-        className="chamfer w-full flex items-center justify-center gap-1.5 px-3 py-2.5 hover:brightness-110 text-sm font-semibold rounded-md transition-[filter]"
+        className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 hover:brightness-110 text-sm font-semibold rounded-full transition-[filter]"
       >
         <Plus size={15} />
         Create
@@ -196,9 +195,8 @@ function CreateMenu({ accent, role }: { accent: string; role: string }) {
 }
 
 /**
- * Bottom-of-sidebar user card → upward popover (profile, sign out). Same
- * per-instance state pattern as CreateMenu since the sidebar renders twice
- * (desktop + mobile drawer).
+ * Bottom-of-sidebar user card → upward popover (profile, sign out).
+ * Desktop only — phones get the same links in the More sheet.
  */
 function UserMenu({
   userName,
@@ -297,7 +295,7 @@ export default function AppShell({
   const accent = sidebarAccent(brandColorSecondary || brandColor || DEFAULT_ACCENT);
   const pathname = usePathname();
   const router = useRouter();
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [counts, setCounts] = useState({ requests: 0, pastDue: 0, chat: 0 });
@@ -309,7 +307,7 @@ export default function AppShell({
   const isAuthPage = pathname.startsWith("/app/login") || pathname.startsWith("/app/register");
 
   useEffect(() => {
-    setMobileOpen(false);
+    setMoreOpen(false);
   }, [pathname]);
 
   // Nav badges (new requests, past-due invoices) — refreshed on every
@@ -526,29 +524,18 @@ export default function AppShell({
         {sidebarInner}
       </aside>
 
-      {/* ── Mobile drawer ─────────────────────────────────────────────────── */}
-      {mobileOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/60 lg:hidden"
-          onClick={() => setMobileOpen(false)}
-        />
-      )}
-      <aside
-        className={`fixed inset-y-0 left-0 z-50 w-[260px] bg-rail flex flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] transition-transform duration-200 lg:hidden ${
-          mobileOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
-      >
-        <div className="flex items-center justify-between pr-4 border-b border-white/10">
-          <div className="border-b-0">{logo}</div>
-          <button
-            onClick={() => setMobileOpen(false)}
-            className="text-white/60 hover:text-white"
-          >
-            <X size={18} />
-          </button>
-        </div>
-        {sidebarInner}
-      </aside>
+      {/* ── Mobile "More" sheet — grouped native list, replaces the old
+             black sidebar drawer on phones ──────────────────────────────── */}
+      <MoreSheet
+        open={moreOpen}
+        onClose={() => setMoreOpen(false)}
+        role={userRole}
+        counts={counts}
+        teamCount={teamCount}
+        userName={userName}
+        userEmail={userEmail}
+        isActive={isActive}
+      />
 
       {/* ── Main content area ─────────────────────────────────────────────── */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
@@ -559,6 +546,21 @@ export default function AppShell({
           <span className="lg:hidden font-display font-bold text-[15px] text-gray-900 truncate">
             {companyName ?? "Streamflaire Hub"}
           </span>
+
+          {/* Team chat, one tap from anywhere — red dot when messages wait */}
+          {teamCount > 1 && (
+            <Link
+              href="/app/chat"
+              onClick={() => hapticImpact("LIGHT")}
+              aria-label="Team chat"
+              className="lg:hidden ml-auto relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-500 active:bg-gray-100 transition-colors"
+            >
+              <MessagesSquare size={20} />
+              {counts.chat > 0 && (
+                <span className="absolute right-1 top-1 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white" />
+              )}
+            </Link>
+          )}
 
           <form
             onSubmit={onSearch}
@@ -603,7 +605,7 @@ export default function AppShell({
         assistantName={assistantName || "Atlas"}
         assistantOpen={assistantOpen}
         openAssistant={() => setAssistantOpen(true)}
-        openMore={() => setMobileOpen(true)}
+        openMore={() => setMoreOpen(true)}
       />
 
       {/* Assistant bubble — floats above the mobile tab bar, hides while open */}
@@ -616,7 +618,7 @@ export default function AppShell({
           }}
           aria-label="Open assistant"
           title={assistantName || "Atlas"}
-          className="chamfer fixed z-40 hidden lg:flex h-[52px] w-[52px] items-center justify-center rounded-lg bg-[#0C0F0C] text-green-400 transition-all hover:scale-105 hover:bg-[#181D18] hover:text-green-300 lg:bottom-6 lg:right-6"
+          className="fixed z-40 hidden lg:flex h-[52px] w-[52px] items-center justify-center rounded-full bg-[#0C0F0C] text-green-400 transition-all hover:scale-105 hover:bg-[#181D18] hover:text-green-300 lg:bottom-6 lg:right-6"
         >
           <AtlasIcon size={24} />
         </button>
@@ -721,16 +723,18 @@ function MobileTabBar({
 
   return (
     <>
-      {/* Create sheet */}
-      {sheetOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
-          onClick={() => setSheetOpen(false)}
-        />
-      )}
+      {/* Create sheet — backdrop fades, sheet springs up (iOS curve), tiles
+          cascade in. Icons ride console-ink tiles like the Atlas mark. */}
+      <div
+        className={`fixed inset-0 z-40 bg-black/50 lg:hidden transition-opacity duration-300 ${
+          sheetOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+        }`}
+        onClick={() => setSheetOpen(false)}
+        aria-hidden
+      />
       {creates.length > 0 && (
         <div
-          className={`fixed inset-x-0 bottom-0 z-50 lg:hidden rounded-t-2xl bg-white shadow-[0_-8px_30px_rgba(28,25,23,0.18)] transition-transform duration-200 ${
+          className={`fixed inset-x-0 bottom-0 z-50 lg:hidden rounded-t-3xl bg-white shadow-[0_-8px_30px_rgba(28,25,23,0.18)] transition-transform duration-300 [transition-timing-function:cubic-bezier(0.32,0.72,0,1)] ${
             sheetOpen ? "translate-y-0" : "translate-y-full pointer-events-none"
           }`}
         >
@@ -738,22 +742,38 @@ function MobileTabBar({
           <p className="font-display px-5 pt-3.5 pb-2.5 text-[16px] font-bold text-gray-900">
             Create
           </p>
-          <div className="grid grid-cols-3 gap-2.5 px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
-            {creates.map(({ href, label, icon: Icon }) => (
-              <Link
-                key={href}
-                href={href}
-                onClick={() => setSheetOpen(false)}
-                className="flex flex-col items-center gap-2 rounded-2xl border border-gray-200 px-1 py-4 active:bg-gray-50"
-              >
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[color:var(--mobile-accent-soft)] text-[color:var(--mobile-accent)]">
-                  <Icon size={18} />
-                </span>
-                <span className="font-display text-[11px] font-semibold text-gray-800">
-                  {label}
-                </span>
-              </Link>
-            ))}
+          {/* 6-col grid, tiles span 2 — lets a lone tile on the last row sit
+              centered (col 3) and a pair sit symmetric (cols 2+4). */}
+          <div className="grid grid-cols-6 gap-y-1.5 px-3 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+            {creates.map(({ href, label, icon: Icon }, i) => {
+              const rem = creates.length % 3;
+              const placement =
+                rem === 1 && i === creates.length - 1
+                  ? "col-start-3"
+                  : rem === 2 && i === creates.length - 2
+                    ? "col-start-2"
+                    : "";
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  onClick={() => setSheetOpen(false)}
+                  style={
+                    sheetOpen
+                      ? { animation: "tile-in 300ms cubic-bezier(0.22,1,0.36,1) both", animationDelay: `${70 + i * 28}ms` }
+                      : undefined
+                  }
+                  className={`col-span-2 ${placement} flex flex-col items-center gap-2 rounded-2xl px-1 py-3.5 transition-transform active:scale-95`}
+                >
+                  <span className="chamfer theme-fixed flex h-12 w-12 shrink-0 items-center justify-center bg-[#0C0F0C] text-[color:var(--mobile-accent-ink)]">
+                    <Icon size={19} strokeWidth={1.9} />
+                  </span>
+                  <span className="font-display text-[11px] font-semibold text-gray-800">
+                    {label}
+                  </span>
+                </Link>
+              );
+            })}
           </div>
         </div>
       )}
@@ -772,17 +792,177 @@ function MobileTabBar({
               }}
               aria-label="Create"
               data-tour="create"
-              className="chamfer absolute left-1/2 -translate-x-1/2 -top-4 flex h-12 w-12 items-center justify-center bg-[color:var(--mobile-accent)] text-[color:var(--mobile-on-accent)] active:scale-95 transition-transform"
+              className="absolute left-1/2 -translate-x-1/2 -top-4 flex h-12 w-12 items-center justify-center rounded-full bg-[color:var(--mobile-accent)] text-[color:var(--mobile-on-accent)] shadow-[0_4px_14px_rgba(0,0,0,0.18)] active:scale-95 transition-transform"
             >
-              <Plus size={22} strokeWidth={2.5} />
+              <Plus
+                size={22}
+                strokeWidth={2.5}
+                className={`transition-transform duration-300 ${sheetOpen ? "rotate-45" : ""}`}
+              />
             </button>
           </div>
         )}
         {aiEnabled
           ? tabButton(assistantName, AtlasIcon, openAssistant, assistantOpen)
           : tabLink(jobsTab)}
-        {tabButton("More", Menu, openMore, false, pastDue > 0)}
+        {tabButton("More", MoreHorizontal, openMore, false, pastDue > 0)}
       </nav>
+    </>
+  );
+}
+
+/**
+ * Mobile "More" sheet — everything that used to hide in the black sidebar
+ * drawer, laid out as grouped native list rows (the Amex/iOS-settings
+ * pattern): profile card up top, sectioned rows with icon tiles and inline
+ * badges, sign-out at the bottom.
+ */
+function MoreSheet({
+  open,
+  onClose,
+  role,
+  counts,
+  teamCount,
+  userName,
+  userEmail,
+  isActive,
+}: {
+  open: boolean;
+  onClose: () => void;
+  role: string;
+  counts: { requests: number; pastDue: number; chat: number };
+  teamCount: number;
+  userName?: string | null;
+  userEmail?: string | null;
+  isActive: (href: string) => boolean;
+}) {
+  const manager = isManagerRole(role);
+
+  const badgeFor = (href: string): { count: number; urgent: boolean } | null => {
+    if (href === "/app/requests" && counts.requests > 0)
+      return { count: counts.requests, urgent: false };
+    if (href === "/app/invoices" && counts.pastDue > 0)
+      return { count: counts.pastDue, urgent: true };
+    if (href === "/app/chat" && counts.chat > 0) return { count: counts.chat, urgent: true };
+    return null;
+  };
+
+  const row = ({ href, label, icon: Icon }: NavItem, i: number, total: number) => {
+    const badge = badgeFor(href);
+    const active = isActive(href);
+    return (
+      <Link
+        key={href}
+        href={href}
+        onClick={() => hapticImpact("LIGHT")}
+        className={`flex items-center gap-3 px-4 py-3 active:bg-gray-50 transition-colors ${
+          i < total - 1 ? "border-b border-gray-100" : ""
+        }`}
+      >
+        <span
+          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] ${
+            active
+              ? "bg-[color:var(--mobile-accent)] text-[color:var(--mobile-on-accent)]"
+              : "bg-[color:var(--mobile-accent-soft)] text-[color:var(--mobile-accent)]"
+          }`}
+        >
+          <Icon size={16} strokeWidth={2} />
+        </span>
+        <span className="flex-1 text-[15px] font-medium text-gray-900">{label}</span>
+        {badge && (
+          <span
+            className={`min-w-[20px] rounded-full px-1.5 py-0.5 text-center text-[11px] font-bold tabular-nums ${
+              badge.urgent ? "bg-red-500 text-white" : "bg-gray-100 text-gray-600"
+            }`}
+          >
+            {badge.count > 99 ? "99+" : badge.count}
+          </span>
+        )}
+        <ChevronRight size={16} className="text-gray-300 shrink-0" />
+      </Link>
+    );
+  };
+
+  const group = (label: string | null, items: NavItem[]) => {
+    if (items.length === 0) return null;
+    return (
+      <div key={label ?? "top"}>
+        {label && (
+          <p className="font-display px-4 pb-1.5 pt-4 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-400">
+            {label}
+          </p>
+        )}
+        <div className="overflow-hidden rounded-2xl bg-white ring-1 ring-black/5">
+          {items.map((item, i) => row(item, i, items.length))}
+        </div>
+      </div>
+    );
+  };
+
+  const teamItems: NavItem[] = [
+    ...(teamCount > 1 ? [{ href: "/app/chat", label: "Team Chat", icon: MessagesSquare }] : []),
+    ...(manager
+      ? [
+          { href: "/app/settings/booking", label: "Forms", icon: Globe },
+          { href: "/app/settings/team", label: "Team", icon: UserPlus },
+          { href: "/app/settings", label: "Settings", icon: Settings },
+        ]
+      : []),
+  ];
+
+  return (
+    <>
+      <div
+        className={`fixed inset-0 z-40 bg-black/50 lg:hidden transition-opacity duration-300 ${
+          open ? "opacity-100" : "opacity-0 pointer-events-none"
+        }`}
+        onClick={onClose}
+        aria-hidden
+      />
+      <div
+        className={`fixed inset-x-0 bottom-0 z-50 lg:hidden flex max-h-[88dvh] flex-col rounded-t-3xl bg-paper shadow-[0_-8px_30px_rgba(28,25,23,0.18)] transition-transform duration-300 [transition-timing-function:cubic-bezier(0.32,0.72,0,1)] ${
+          open ? "translate-y-0" : "translate-y-full pointer-events-none"
+        }`}
+      >
+        <div className="mx-auto mt-2.5 h-1 w-9 shrink-0 rounded-full bg-gray-300" />
+        <div className="overflow-y-auto px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-3">
+          {/* Profile card */}
+          <Link
+            href="/app/settings/profile"
+            onClick={() => hapticImpact("LIGHT")}
+            className="flex items-center gap-3 rounded-2xl bg-white px-4 py-3.5 ring-1 ring-black/5 active:bg-gray-50 transition-colors"
+          >
+            <Avatar name={userName} size={40} />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[15px] font-semibold text-gray-900">{userName}</p>
+              <p className="truncate text-xs text-gray-500">{userEmail}</p>
+            </div>
+            <ChevronRight size={16} className="text-gray-300 shrink-0" />
+          </Link>
+
+          {navGroups
+            .slice(1) // Home + Schedule already live on the tab bar
+            .map((g) => group(g.label ?? null, forRole(g.items, role)))}
+          {group(teamItems.length > 0 ? "Team" : null, teamItems)}
+
+          {/* Sign out */}
+          <div className="mt-4 overflow-hidden rounded-2xl bg-white ring-1 ring-black/5">
+            <button
+              onClick={() => signOut({ callbackUrl: "/app/login" })}
+              className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-gray-50 transition-colors"
+            >
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-red-50 text-red-600">
+                <LogOut size={16} strokeWidth={2} />
+              </span>
+              <span className="text-[15px] font-medium text-red-600">Sign out</span>
+            </button>
+          </div>
+
+          <p className="pt-4 text-center text-[11px] text-gray-400">
+            Powered by Streamflaire Hub
+          </p>
+        </div>
+      </div>
     </>
   );
 }

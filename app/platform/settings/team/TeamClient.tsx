@@ -47,7 +47,7 @@ function rolesManageableBy(actorRole: string): string[] {
 }
 
 const inputCls =
-  "w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500";
+  "w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500";
 
 export default function TeamClient({
   actorId,
@@ -123,7 +123,7 @@ export default function TeamClient({
         </div>
         <button
           onClick={() => setShowAdd((v) => !v)}
-          className="flex items-center gap-1.5 px-4 py-2 chamfer bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors"
+          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-full transition-colors"
         >
           <Plus size={15} />
           Add Team Member
@@ -131,7 +131,7 @@ export default function TeamClient({
       </div>
 
       {error && (
-        <div className="mb-4 flex items-center justify-between rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <div className="mb-4 flex items-center justify-between rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
           {error}
           <button onClick={() => setError("")} className="p-0.5 text-red-400 hover:text-red-600">
             <X size={14} />
@@ -203,14 +203,14 @@ export default function TeamClient({
             <button
               onClick={addMember}
               disabled={busy}
-              className="flex items-center gap-1.5 px-4 py-2 chamfer bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors disabled:opacity-50"
+              className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-full transition-colors disabled:opacity-50"
             >
               {busy && <Loader2 size={13} className="animate-spin" />}
               Add Member
             </button>
             <button
               onClick={() => setShowAdd(false)}
-              className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded"
+              className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-full"
             >
               Cancel
             </button>
@@ -257,7 +257,7 @@ export default function TeamClient({
                   value={m.role}
                   disabled={busy}
                   onChange={(e) => patchMember(m.id, { role: e.target.value })}
-                  className="px-2 py-1.5 border border-gray-300 rounded text-xs font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="px-2 py-1.5 border border-gray-300 rounded-lg text-xs font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500"
                 >
                   {manageable.map((r) => (
                     <option key={r} value={r}>
@@ -278,7 +278,7 @@ export default function TeamClient({
                       setResetFor(resetFor === m.id ? null : m.id);
                       setResetPassword("");
                     }}
-                    className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded"
+                    className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-full"
                     title="Reset password"
                   >
                     <KeyRound size={14} />
@@ -286,7 +286,7 @@ export default function TeamClient({
                   <button
                     onClick={() => patchMember(m.id, { isActive: !m.isActive })}
                     disabled={busy}
-                    className={`px-2.5 py-1.5 rounded text-xs font-medium transition-colors ${
+                    className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                       m.isActive
                         ? "text-red-600 hover:bg-red-50"
                         : "text-green-700 hover:bg-green-50"
@@ -305,7 +305,7 @@ export default function TeamClient({
                   value={resetPassword}
                   onChange={(e) => setResetPassword(e.target.value)}
                   placeholder="New password (8+ characters)"
-                  className="px-3 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 w-64"
+                  className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 w-64"
                 />
                 <button
                   onClick={async () => {
@@ -315,7 +315,7 @@ export default function TeamClient({
                     }
                   }}
                   disabled={busy || resetPassword.length < 8}
-                  className="px-3 py-1.5 chamfer bg-green-500 hover:bg-green-600 text-white text-xs font-semibold rounded disabled:opacity-50"
+                  className="px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-semibold rounded-full disabled:opacity-50"
                 >
                   Set Password
                 </button>
@@ -348,7 +348,7 @@ export default function TeamClient({
             value={defaultLeadUserId}
             disabled={policyBusy}
             onChange={(e) => patchPolicy({ defaultLeadUserId: e.target.value || null })}
-            className="px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
           >
             <option value="">Company owner (default)</option>
             {activeMembers.map((u) => (

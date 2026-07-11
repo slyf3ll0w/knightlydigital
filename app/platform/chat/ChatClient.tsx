@@ -97,7 +97,7 @@ function CallButton({ member, compact = false }: { member: Member; compact?: boo
       href={telHref(member.phone)}
       title={`Call ${member.name} (${member.phone})`}
       onClick={(e) => e.stopPropagation()}
-      className={`inline-flex items-center gap-1.5 rounded border border-green-200 bg-green-50 font-medium text-green-700 transition-colors hover:bg-green-100 ${
+      className={`inline-flex items-center gap-1.5 rounded-lg border border-green-200 bg-green-50 font-medium text-green-700 transition-colors hover:bg-green-100 ${
         compact ? "p-1.5" : "px-2.5 py-1.5 text-xs"
       }`}
     >
@@ -525,13 +525,13 @@ export default function ChatClient({
                               rows={2}
                               maxLength={4000}
                               autoFocus
-                              className="w-full resize-y rounded border border-gray-300 px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                              className="w-full resize-y rounded-lg border border-gray-300 px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                             />
                             <div className="mt-1 flex justify-end gap-1.5">
                               <button
                                 type="button"
                                 onClick={() => setEditingId(null)}
-                                className="rounded border border-gray-200 p-1.5 text-gray-500 hover:bg-gray-50"
+                                className="rounded-full border border-gray-200 p-1.5 text-gray-500 hover:bg-gray-50"
                                 aria-label="Cancel edit"
                               >
                                 <X size={13} />
@@ -539,7 +539,7 @@ export default function ChatClient({
                               <button
                                 type="button"
                                 onClick={() => saveEdit(m.id)}
-                                className="rounded bg-green-500 p-1.5 text-white hover:bg-green-600"
+                                className="rounded-full bg-green-500 p-1.5 text-white hover:bg-green-600"
                                 aria-label="Save edit"
                               >
                                 <Check size={13} />
@@ -680,13 +680,13 @@ export default function ChatClient({
                 placeholder={
                   activePeer ? `Message ${activePeer.name.split(" ")[0]}...` : "Message your team..."
                 }
-                className="max-h-32 min-h-[42px] flex-1 resize-y rounded border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="max-h-32 min-h-[42px] flex-1 resize-y rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               />
               <button
                 type="submit"
                 disabled={sending || !draft.trim()}
                 aria-label="Send"
-                className="chamfer rounded bg-green-500 p-2.5 text-white transition-colors hover:bg-green-600 active:bg-green-700 disabled:opacity-40"
+                className="rounded-full bg-green-500 p-2.5 text-white transition-colors hover:bg-green-600 active:bg-green-700 disabled:opacity-40"
               >
                 {sending ? (
                   <Loader2 size={18} className="animate-spin" />

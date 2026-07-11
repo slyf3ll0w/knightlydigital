@@ -60,7 +60,7 @@ export default async function RequestsPage({
         <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">Requests</h1>
         <Link
           href="/app/requests/new"
-          className="flex items-center gap-1.5 px-4 py-2 chamfer bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded transition-colors"
+          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-full transition-colors"
         >
           <Plus size={15} />
           New Request
@@ -95,7 +95,7 @@ export default async function RequestsPage({
           <Link
             key={f.value}
             href={qs({ status: f.value })}
-            className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
               (validStatus ?? "") === f.value
                 ? "bg-gray-900 text-white"
                 : "text-gray-600 hover:bg-gray-100"
@@ -109,7 +109,7 @@ export default async function RequestsPage({
             <span className="mx-1 h-5 w-px bg-gray-200" />
             <Link
               href={qs({ mine: !mineOnly })}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                 mineOnly ? "bg-green-500 text-white" : "text-gray-600 hover:bg-gray-100"
               }`}
             >
