@@ -586,19 +586,17 @@ export default function AppShell({
           </span>
 
           {/* Team chat, one tap from anywhere — red dot when messages wait */}
-          {teamCount > 1 && (
-            <Link
-              href="/app/chat"
-              onClick={() => hapticImpact("LIGHT")}
-              aria-label="Team chat"
-              className="lg:hidden ml-auto relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-500 active:bg-gray-100 transition-colors"
-            >
-              <MessagesSquare size={20} />
-              {counts.chat > 0 && (
-                <span className="absolute right-1 top-1 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white" />
-              )}
-            </Link>
-          )}
+          <Link
+            href="/app/chat"
+            onClick={() => hapticImpact("LIGHT")}
+            aria-label="Team chat"
+            className="lg:hidden ml-auto relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-500 active:bg-gray-100 transition-colors"
+          >
+            <MessagesSquare size={20} />
+            {counts.chat > 0 && (
+              <span className="absolute right-1 top-1 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white" />
+            )}
+          </Link>
 
           <form
             onSubmit={onSearch}
@@ -619,32 +617,30 @@ export default function AppShell({
             </div>
           </form>
 
-          {/* Team chat — always one click away without spending sidebar space */}
-          {teamCount > 1 && (
-            <Link
-              href="/app/chat"
-              className={`hidden lg:flex relative items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
-                isActive("/app/chat")
-                  ? "border-gray-900 bg-gray-900 text-white"
-                  : "border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-              } ${sellRoles(userRole) ? "" : "ml-auto"}`}
-              title="Team chat"
-            >
-              <MessagesSquare size={15} />
-              Chat
-              {counts.chat > 0 && (
-                <span className="min-w-[18px] rounded-full bg-red-500 px-1.5 py-px text-center text-[10px] font-bold text-white tabular-nums">
-                  {counts.chat > 99 ? "99+" : counts.chat}
-                </span>
-              )}
-            </Link>
-          )}
+          {/* Team chat — always one click away without spending sidebar space.
+              Shown even for solo companies: the chat page nudges them to add
+              a teammate, and hiding it entirely read as "chat is gone". */}
+          <Link
+            href="/app/chat"
+            className={`hidden lg:flex relative items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
+              isActive("/app/chat")
+                ? "border-gray-900 bg-gray-900 text-white"
+                : "border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+            } ${sellRoles(userRole) ? "" : "ml-auto"}`}
+            title="Team chat"
+          >
+            <MessagesSquare size={15} style={{ color: isActive("/app/chat") ? undefined : "#F43F5E" }} />
+            Chat
+            {counts.chat > 0 && (
+              <span className="min-w-[18px] rounded-full bg-red-500 px-1.5 py-px text-center text-[10px] font-bold text-white tabular-nums">
+                {counts.chat > 99 ? "99+" : counts.chat}
+              </span>
+            )}
+          </Link>
 
           <Link
             href={manager ? "/app/settings" : "/app/settings/profile"}
-            className={`hidden sm:flex p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors ${
-              sellRoles(userRole) || teamCount > 1 ? "" : "ml-auto"
-            }`}
+            className="hidden sm:flex p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
             title={manager ? "Settings" : "My Profile"}
           >
             <Settings size={17} />
