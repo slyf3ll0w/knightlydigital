@@ -3,7 +3,12 @@ import Link from "next/link";
 import { UserPlus, MessagesSquare } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { requirePageActor, isManager } from "@/lib/permissions";
-import { MESSAGE_SELECT, serializeMessage, markThreadSeen, unreadByThread } from "@/lib/chat";
+import {
+  MESSAGE_SELECT,
+  serializeMessage,
+  ensureEveryoneChannel,
+  listChannels,
+} from "@/lib/chat";
 import ChatClient from "./ChatClient";
 
 export const metadata: Metadata = { title: "Team Chat" };
@@ -41,25 +46,27 @@ export default async function ChatPage() {
     );
   }
 
-  // First paint: the company channel, read markers stamped, DM badges intact
-  const messages = (
-    await prisma.teamMessage.findMany({
-      where: { companyId: actor.companyId, recipientId: null },
-      orderBy: { createdAt: "desc" },
-      take: 100,
-      select: MESSAGE_SELECT,
-    })
-  ).reverse();
-
-  await markThreadSeen(actor.id, null);
-  const unread = await unreadByThread(actor);
+  // First paint: the Everyone channel's messages + the thread list
+  const everyone = await ensureEveryoneChannel(actor.companyId);
+  const [messages, channels] = await Promise.all([
+    prisma.teamMessage
+      .findMany({
+        where: { channelId: everyone.id },
+        orderBy: { createdAt: "desc" },
+        take: 100,
+        select: MESSAGE_SELECT,
+      })
+      .then((rows) => rows.reverse().map(serializeMessage)),
+    listChannels(actor),
+  ]);
 
   return (
     <ChatClient
       meId={actor.id}
       team={team}
-      initialMessages={messages.map(serializeMessage)}
-      initialUnread={unread}
+      everyoneId={everyone.id}
+      initialChannels={channels}
+      initialMessages={messages}
     />
   );
 }

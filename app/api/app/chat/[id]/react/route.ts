@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor } from "@/lib/permissions";
-import { TAPBACKS, threadWhere } from "@/lib/chat";
+import { TAPBACKS } from "@/lib/chat";
 
-/** Toggle a tapback reaction on a message in any thread you can see. */
+/** Toggle a tapback reaction on a message in any channel you belong to. */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -15,16 +15,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "Unknown reaction." }, { status: 400 });
   }
 
-  // Must be a message in the company channel or a DM the actor is part of
+  // Must be a message in the Everyone channel or one whose channel the actor
+  // is a member of
   const message = await prisma.teamMessage.findFirst({
     where: {
       id,
+      companyId: actor.companyId,
       deletedAt: null,
-      OR: [
-        threadWhere(actor, null),
-        { companyId: actor.companyId, userId: actor.id, recipientId: { not: null } },
-        { companyId: actor.companyId, recipientId: actor.id },
-      ],
+      channel: {
+        OR: [{ isEveryone: true }, { members: { some: { userId: actor.id } } }],
+      },
     },
     select: { id: true },
   });

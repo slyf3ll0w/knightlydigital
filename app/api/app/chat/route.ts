@@ -3,34 +3,32 @@ import { prisma } from "@/lib/db";
 import { getActor } from "@/lib/permissions";
 import { notifyUsers } from "@/lib/push";
 import {
-  resolveThread,
-  threadWhere,
-  markThreadSeen,
-  unreadByThread,
+  resolveChannel,
+  listChannels,
+  markChannelSeen,
   activeTypers,
   MESSAGE_SELECT,
   serializeMessage,
 } from "@/lib/chat";
 
 /**
- * Team chat. GET returns a full snapshot of the requested thread (last 100
- * messages with reactions), the roster with per-thread unread counts, and
- * who's typing — the page polls this every few seconds, so edits, deletes,
- * and reactions propagate without any extra bookkeeping. Fetching a thread
- * marks it read. POST sends a message to a thread.
+ * Team chat. GET returns a full snapshot of the requested channel (last 100
+ * messages with reactions), the actor's thread list with unread counts, the
+ * company roster, and who's typing — the page polls this every few seconds,
+ * so edits, deletes, and reactions propagate without extra bookkeeping.
+ * Fetching a channel marks it read. POST sends a message to a channel.
  */
 
 export async function GET(req: NextRequest) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const resolved = await resolveThread(actor, req.nextUrl.searchParams.get("thread"));
-  if ("error" in resolved) return NextResponse.json({ error: resolved.error }, { status: 404 });
-  const { peerId } = resolved;
+  const channel = await resolveChannel(actor, req.nextUrl.searchParams.get("channel"));
+  if (!channel) return NextResponse.json({ error: "That chat isn't available." }, { status: 404 });
 
   const [messages, team] = await Promise.all([
     prisma.teamMessage.findMany({
-      where: threadWhere(actor, peerId),
+      where: { channelId: channel.id },
       orderBy: { createdAt: "desc" },
       take: 100,
       select: MESSAGE_SELECT,
@@ -42,14 +40,15 @@ export async function GET(req: NextRequest) {
     }),
   ]);
 
-  await markThreadSeen(actor.id, peerId);
-  const unread = await unreadByThread(actor);
+  await markChannelSeen(actor.id, channel);
+  const channels = await listChannels(actor);
 
   return NextResponse.json({
+    channelId: channel.id,
     messages: messages.reverse().map(serializeMessage),
     team,
-    unread,
-    typers: activeTypers(actor.companyId, actor.id, peerId),
+    channels,
+    typers: activeTypers(channel.id, actor.id),
   });
 }
 
@@ -64,37 +63,39 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Message is too long (4000 characters max)." }, { status: 400 });
   }
 
-  const resolved = await resolveThread(actor, typeof body?.thread === "string" ? body.thread : null);
-  if ("error" in resolved) return NextResponse.json({ error: resolved.error }, { status: 404 });
-  const { peerId } = resolved;
+  const channel = await resolveChannel(
+    actor,
+    typeof body?.channel === "string" ? body.channel : null
+  );
+  if (!channel) return NextResponse.json({ error: "That chat isn't available." }, { status: 404 });
 
   const message = await prisma.teamMessage.create({
     data: {
       companyId: actor.companyId,
+      channelId: channel.id,
       userId: actor.id,
-      recipientId: peerId,
       body: text,
     },
     select: MESSAGE_SELECT,
   });
+  await prisma.chatChannel.update({
+    where: { id: channel.id },
+    data: { lastMessageAt: new Date() },
+  });
+  await markChannelSeen(actor.id, channel); // sending means you're caught up
 
-  await markThreadSeen(actor.id, peerId); // sending means you're caught up
-
-  // Push to the DM peer, or everyone else in the company channel. One tag per
-  // thread so a burst of messages collapses into the latest notification.
-  const recipients = peerId
-    ? [peerId]
-    : (
-        await prisma.user.findMany({
-          where: { companyId: actor.companyId, isActive: true, id: { not: actor.id } },
-          select: { id: true },
-        })
-      ).map((u) => u.id);
+  // Push to the other members. One tag per channel so a burst of messages
+  // collapses into the latest notification.
+  const recipients = channel.memberIds.filter((id) => id !== actor.id);
   await notifyUsers(recipients, {
-    title: peerId ? actor.name : `${actor.name} · Team chat`,
+    title: channel.isEveryone
+      ? `${actor.name} · Everyone`
+      : channel.name
+        ? `${actor.name} · ${channel.name}`
+        : actor.name,
     body: text.length > 140 ? `${text.slice(0, 139)}…` : text,
     url: "/app/chat",
-    tag: peerId ? `chat-dm-${actor.id}` : `chat-co-${actor.companyId}`,
+    tag: `chat-${channel.id}`,
   });
 
   return NextResponse.json(serializeMessage(message), { status: 201 });

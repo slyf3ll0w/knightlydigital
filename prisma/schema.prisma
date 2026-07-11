@@ -81,6 +81,7 @@ model Company {
   contracts         Contract[]
   expenses          Expense[]
   teamMessages      TeamMessage[]
+  chatChannels      ChatChannel[]
   pipelineStages    PipelineStage[]
 
   @@index([slug])
@@ -117,6 +118,7 @@ model User {
   teamMessages     TeamMessage[]
   receivedTeamMessages TeamMessage[] @relation("ReceivedTeamMessages")
   chatThreadStates ChatThreadState[]
+  chatChannelMembers ChatChannelMember[]
   pushSubscriptions PushSubscription[]
 
   @@index([companyId])
@@ -146,13 +148,51 @@ model PushSubscription {
 
 // ─── Team chat ───────────────────────────────────────────────────────────────
 
-// Company-wide channel + direct messages (recipientId null = the "Everyone"
-// channel, set = a DM to that teammate). Shown only when the company has more
-// than one active member; DM threads appear at 3+ members.
+// A conversation: the built-in company-wide "Everyone" channel (one per
+// company, no member rows — visibility is the whole company), or a
+// member-created DM (2 members, name null) / group chat (2+ members, named).
+// No DMs or groups exist until someone creates them.
+model ChatChannel {
+  id            String    @id @default(cuid())
+  companyId     String
+  company       Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  isEveryone    Boolean   @default(false)
+  name          String? // groups only; DMs display the other member's name
+  createdById   String?
+  // Thread-list ordering without joining messages
+  lastMessageAt DateTime?
+  createdAt     DateTime  @default(now())
+
+  members  ChatChannelMember[]
+  messages TeamMessage[]
+
+  @@index([companyId, lastMessageAt])
+}
+
+// Membership + per-channel read marker (the Everyone channel reuses
+// User.chatLastSeenAt instead).
+model ChatChannelMember {
+  id         String      @id @default(cuid())
+  channelId  String
+  channel    ChatChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lastSeenAt DateTime?
+  createdAt  DateTime    @default(now())
+
+  @@unique([channelId, userId])
+  @@index([userId])
+}
+
+// One chat message. channelId is the home of every message written since the
+// channels rework; recipientId is the legacy pre-channels DM pointer, kept
+// only so scripts/migrate-chat-channels.mjs can map old rows.
 model TeamMessage {
   id          String    @id @default(cuid())
   companyId   String
   company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  channelId   String?
+  channel     ChatChannel? @relation(fields: [channelId], references: [id], onDelete: Cascade)
   userId      String
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   recipientId String?
@@ -165,6 +205,7 @@ model TeamMessage {
 
   reactions TeamMessageReaction[]
 
+  @@index([channelId, createdAt])
   @@index([companyId, recipientId, createdAt])
   @@index([recipientId, userId])
 }

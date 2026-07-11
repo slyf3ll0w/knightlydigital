@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, canSeeMoney, contactScope, viaContactScope } from "@/lib/permissions";
-import { unreadByThread } from "@/lib/chat";
+import { totalUnread } from "@/lib/chat";
 
 /**
  * Sidebar badge counts: new requests + past-due invoices, role-scoped the
@@ -31,10 +31,8 @@ export async function GET() {
           },
         })
       : Promise.resolve(0),
-    // Team chat unread: channel + DMs, each against its own read marker
-    unreadByThread(actor).then(
-      (u) => u.company + Object.values(u.dms).reduce((s, n) => s + n, 0)
-    ),
+    // Team chat unread across every channel the actor belongs to
+    totalUnread(actor),
     // Leads badge: cards sitting in the board's entry (first) stage. Before
     // the board is first opened (no stages yet), unstaged leads count.
     canSell(actor.role)
