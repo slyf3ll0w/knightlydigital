@@ -21,6 +21,7 @@ type Company = {
   reviewLink: string | null; industry: string | null;
   timezone: string;
   assistantName: string | null;
+  schedulingIntervalMinutes: number | null;
 };
 
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
@@ -252,6 +253,7 @@ export default function SettingsClient({
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const [logoBusy, setLogoBusy] = useState(false);
   const [logoError, setLogoError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -276,6 +278,7 @@ export default function SettingsClient({
     reviewLink: company.reviewLink ?? "",
     timezone: company.timezone ?? "America/Chicago",
     assistantName: company.assistantName ?? "",
+    schedulingIntervalMinutes: String(company.schedulingIntervalMinutes ?? 30),
   });
 
   function set(field: string, value: string | boolean) {
@@ -340,17 +343,31 @@ export default function SettingsClient({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
+    setSaveError("");
 
-    await fetch("/api/app/settings", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...form,
-        surchargeRate: parseFloat(form.surchargeRate) / 100,
-      }),
-    });
+    let ok = false;
+    try {
+      const res = await fetch("/api/app/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...form,
+          surchargeRate: parseFloat(form.surchargeRate) / 100,
+        }),
+      });
+      ok = res.ok;
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        setSaveError(data?.error ?? "Couldn't save your changes. Please try again.");
+      }
+    } catch {
+      setSaveError("Couldn't reach the server. Check your connection and try again.");
+    }
 
     setLoading(false);
+    // Only clear the dirty flag and flash "Saved!" when the write actually landed —
+    // otherwise the form would falsely report success and silently revert on reload.
+    if (!ok) return;
     setDirty(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
@@ -520,6 +537,23 @@ export default function SettingsClient({
             </select>
             <p className="text-xs text-gray-400 mt-1">
               Used for scheduling and recurring billing dates.
+            </p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Scheduling time slots
+            </label>
+            <select
+              value={form.schedulingIntervalMinutes}
+              onChange={(e) => set("schedulingIntervalMinutes", e.target.value)}
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+            >
+              <option value="15">Every 15 minutes</option>
+              <option value="30">Every 30 minutes</option>
+              <option value="60">Every hour</option>
+            </select>
+            <p className="text-xs text-gray-400 mt-1">
+              Time options offered when you schedule jobs and appointments.
             </p>
           </div>
         </div>
@@ -734,6 +768,7 @@ export default function SettingsClient({
             {loading ? <Loader2 size={14} className="animate-spin" /> : saved ? <Check size={14} /> : null}
             {saved ? "Saved!" : "Save Settings"}
           </button>
+          {saveError && <p className="mt-2 text-sm text-red-600">{saveError}</p>}
         </div>
       </form>
 

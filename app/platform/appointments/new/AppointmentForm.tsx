@@ -6,6 +6,8 @@ import Link from "next/link";
 import { ArrowLeft, Loader2, MapPin, Phone, Video } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { localInputToISO } from "@/lib/statuses";
+import SlotTimePicker from "@/components/SlotTimePicker";
+import { addMinutesToLocalDateTime } from "@/lib/scheduling";
 
 /**
  * Book a sales meeting / estimate. Type drives the extra field:
@@ -44,6 +46,7 @@ export default function AppointmentForm({
   requestId,
   requestTitle,
   prefilledDate,
+  intervalMinutes = 30,
 }: {
   actorId: string;
   contacts: ContactOption[];
@@ -52,6 +55,7 @@ export default function AppointmentForm({
   requestId: string;
   requestTitle: string;
   prefilledDate: string;
+  intervalMinutes?: number;
 }) {
   const router = useRouter();
   const [contactId, setContactId] = useState(prefilledContactId);
@@ -78,12 +82,9 @@ export default function AppointmentForm({
 
   function pickStart(v: string) {
     setStart(v);
-    // keep a 30-minute default window while the end hasn't been customized
-    if (v && !end) {
-      const d = new Date(v);
-      d.setMinutes(d.getMinutes() + 30);
-      const pad = (n: number) => String(n).padStart(2, "0");
-      setEnd(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`);
+    // Default the end one slot-interval later while it hasn't been customized.
+    if (v && v.length >= 16 && !end) {
+      setEnd(addMinutesToLocalDateTime(v, intervalMinutes));
     }
   }
 
@@ -216,17 +217,33 @@ export default function AppointmentForm({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs text-gray-500 mb-1">{anytime ? "Date *" : "Start *"}</label>
-              <input
-                type={anytime ? "date" : "datetime-local"}
-                value={anytime ? start.slice(0, 10) : start}
-                onChange={(e) => (anytime ? setStart(`${e.target.value}T09:00`) : pickStart(e.target.value))}
-                className={inputCls}
-              />
+              {anytime ? (
+                <input
+                  type="date"
+                  value={start.slice(0, 10)}
+                  onChange={(e) => setStart(`${e.target.value}T09:00`)}
+                  className={inputCls}
+                />
+              ) : (
+                <SlotTimePicker
+                  value={start}
+                  intervalMinutes={intervalMinutes}
+                  inputCls={inputCls}
+                  ariaLabel="Start"
+                  onChange={pickStart}
+                />
+              )}
             </div>
             {!anytime && (
               <div>
                 <label className="block text-xs text-gray-500 mb-1">End</label>
-                <input type="datetime-local" value={end} onChange={(e) => setEnd(e.target.value)} className={inputCls} />
+                <SlotTimePicker
+                  value={end}
+                  intervalMinutes={intervalMinutes}
+                  inputCls={inputCls}
+                  ariaLabel="End"
+                  onChange={setEnd}
+                />
               </div>
             )}
           </div>

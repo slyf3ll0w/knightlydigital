@@ -112,6 +112,14 @@ export default async function SchedulePage({
     end.setHours(23, 59, 59, 999);
   }
 
+  // The visible grid buckets items in the BROWSER's timezone, but this range is
+  // built in the server timezone (Railway TZ). For a company outside the server
+  // TZ, an item near a day/week/month boundary can land just outside [start, end]
+  // in server time yet still be visible in browser time — so widen the FETCH by
+  // a day on each side. ScheduleClient discards anything outside the visible range.
+  const fetchStart = new Date(start.getTime() - 86400000);
+  const fetchEnd = new Date(end.getTime() + 86400000);
+
   const teamWhere = team ? { assignments: { some: { userId: team } } } : {};
   const scope = jobScope(actor);
   // Sales meetings live on the calendar too — but not for techs
@@ -119,7 +127,7 @@ export default async function SchedulePage({
 
   const [jobs, appointments, unscheduled, users] = await Promise.all([
     prisma.job.findMany({
-      where: { companyId, ...scope, scheduledAt: { gte: start, lte: end }, ...teamWhere },
+      where: { companyId, ...scope, scheduledAt: { gte: fetchStart, lte: fetchEnd }, ...teamWhere },
       include: { contact: { select: { firstName: true, lastName: true } } },
       orderBy: { scheduledAt: "asc" },
     }),
@@ -129,7 +137,7 @@ export default async function SchedulePage({
             companyId,
             ...appointmentScope(actor),
             status: { not: "CANCELLED" },
-            scheduledAt: { gte: start, lte: end },
+            scheduledAt: { gte: fetchStart, lte: fetchEnd },
             ...(team ? { assignedToId: team } : {}),
           },
           include: { contact: { select: { firstName: true, lastName: true } } },

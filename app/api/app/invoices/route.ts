@@ -66,6 +66,20 @@ export async function POST(req: NextRequest) {
       const quote = await tx.quote.findFirst({ where: { jobId, companyId }, select: { id: true } });
       if (quote) {
         depositApplied = Math.min(await paidDepositTotal(tx, quote.id), total);
+        // Retire any NEVER-PAID deposit invoice for this quote — it's superseded
+        // by this final invoice, which bills the full remaining scope. Leaving it
+        // outstanding would bill AND dun the client twice for the deposit. Only
+        // touch deposit invoices with zero payments; anything with payment
+        // history is left intact (its paid amount is already netted above).
+        const staleDeposits = await tx.invoice.findMany({
+          where: { quoteId: quote.id, kind: "DEPOSIT", status: { not: "PAID" }, payments: { none: {} } },
+          select: { id: true },
+        });
+        if (staleDeposits.length > 0) {
+          const ids = staleDeposits.map((d) => d.id);
+          await tx.invoiceLineItem.deleteMany({ where: { invoiceId: { in: ids } } });
+          await tx.invoice.deleteMany({ where: { id: { in: ids } } });
+        }
       }
     }
     const netTotal = Math.round((total - depositApplied) * 100) / 100;

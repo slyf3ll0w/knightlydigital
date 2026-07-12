@@ -174,7 +174,16 @@ export async function POST(
     const now = new Date();
     const horizonEnd = new Date(now.getTime() + (config.selfSchedule.horizonDays + 1) * 86400000);
     const users = await getBookableUsersWithBusy(company.id, now, horizonEnd);
-    const slots = generateSlots(engineInputFor(company, config, service.durationMinutes, users, now));
+    // Validate the picked time against the FULL candidate set, not the sampled
+    // per-day subset shown on the form: the display cap (maxPerDay=6) samples
+    // different slots as the day's candidate count shifts (lead-time cutoff,
+    // other bookings), so re-checking against the capped list falsely rejects
+    // genuinely-free times. A slot that was actually taken drops out of the full
+    // set too (free.length === 0), so real conflicts still 409.
+    const slots = generateSlots({
+      ...engineInputFor(company, config, service.durationMinutes, users, now),
+      maxPerDay: Number.MAX_SAFE_INTEGER,
+    });
     const slot = slots.find((s) => s.start.getTime() === start.getTime());
     if (!slot) {
       return NextResponse.json(

@@ -52,7 +52,11 @@ export async function middleware(req: NextRequest) {
   }
 
   // Public app routes — no auth needed
-  const isPublic = path.startsWith("/app/login") || path.startsWith("/app/register");
+  const isPublic =
+    path.startsWith("/app/login") ||
+    path.startsWith("/app/register") ||
+    path.startsWith("/app/forgot-password") ||
+    path.startsWith("/app/reset-password");
   if (isPublic) return NextResponse.next();
 
   const token = await getToken({ req, secret: process.env.AUTH_SECRET });

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { sanitizeBookingForm } from "@/lib/booking-form";
 import { sanitizeBusinessHours, sanitizeServiceZips } from "@/lib/business-hours";
 import { sanitizeDeposit } from "@/lib/deposits";
+import { SLOT_INTERVAL_CHOICES } from "@/lib/scheduling";
 import { getActor, isManager } from "@/lib/permissions";
 
 function isValidTimezone(tz: unknown): tz is string {
@@ -83,6 +84,13 @@ export async function PATCH(req: NextRequest) {
         Number(body.arrivalWindowMinutes) >= 30 &&
         Number(body.arrivalWindowMinutes) <= 480
           ? Number(body.arrivalWindowMinutes)
+          : undefined,
+      // Even time-slot granularity for in-app job/appointment scheduling; only
+      // an allowed choice is accepted, anything else leaves the value unchanged.
+      schedulingIntervalMinutes:
+        body.schedulingIntervalMinutes !== undefined &&
+        (SLOT_INTERVAL_CHOICES as readonly number[]).includes(Number(body.schedulingIntervalMinutes))
+          ? Number(body.schedulingIntervalMinutes)
           : undefined,
       bookingForm: body.bookingForm !== undefined ? sanitizeBookingForm(body.bookingForm) : undefined,
     },

@@ -600,3 +600,44 @@ export function paymentReminderEmail({
 </div>`;
   return { subject: copy.subject, html };
 }
+
+/**
+ * Password reset for a Streamflaire Hub account (the business owner/staff login,
+ * not a client). Hub-branded, not company-branded.
+ */
+export function passwordResetEmail({
+  name,
+  resetUrl,
+}: {
+  name: string;
+  resetUrl: string;
+}): { subject: string; html: string } {
+  const html = `
+<div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f3f4f6;padding:24px;">
+  <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
+    <div style="background:#0C0F0C;padding:16px 24px;">
+      <p style="margin:0;color:#22C55E;font-size:13px;font-weight:700;letter-spacing:0.5px;">STREAMFLAIRE HUB</p>
+    </div>
+    <div style="padding:24px;">
+      <p style="margin:0 0 12px;color:#111827;font-size:15px;">Hi ${esc(name)},</p>
+      <p style="margin:0 0 16px;color:#374151;font-size:14px;">
+        We received a request to reset your Streamflaire Hub password. Click the
+        button below to choose a new one. This link expires in 1 hour and can be
+        used once.
+      </p>
+      <a href="${esc(resetUrl)}"
+         style="display:inline-block;background:#22C55E;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:10px 20px;border-radius:6px;">
+        Reset Your Password
+      </a>
+      <p style="margin:16px 0 0;color:#6b7280;font-size:12px;">
+        If you didn't request this, you can safely ignore this email — your
+        password won't change until you open the link and set a new one.
+      </p>
+    </div>
+    <div style="padding:12px 24px;border-top:1px solid #f3f4f6;">
+      <p style="margin:0;color:#9ca3af;font-size:12px;">Streamflaire Hub</p>
+    </div>
+  </div>
+</div>`;
+  return { subject: "Reset your Streamflaire Hub password", html };
+}

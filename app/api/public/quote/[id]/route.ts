@@ -61,8 +61,20 @@ export async function POST(
   const subtotal = quote.lineItems
     .filter((li) => !validOptOuts.includes(li.id))
     .reduce((s, li) => s + Number(li.total), 0);
-  const tax = quote.taxRate ? Math.round(subtotal * Number(quote.taxRate) * 100) / 100 : null;
-  const total = subtotal + (tax ?? 0);
+  // Apply the quote's discount to the (opt-out-adjusted) subtotal BEFORE tax —
+  // this must mirror the internal PATCH route and the client-facing approval
+  // page (QuoteAcceptPage), or the approved total drifts above what the client
+  // signed for and the deposit invoice is minted on the wrong amount.
+  const discountValueRaw = quote.discountValue == null ? 0 : Number(quote.discountValue);
+  const discount =
+    quote.discountType === "PERCENT"
+      ? Math.round(subtotal * Math.min(Math.max(discountValueRaw, 0), 100)) / 100
+      : quote.discountType === "FIXED"
+        ? Math.min(Math.max(discountValueRaw, 0), subtotal)
+        : 0;
+  const taxable = subtotal - discount;
+  const tax = quote.taxRate ? Math.round(taxable * Number(quote.taxRate) * 100) / 100 : null;
+  const total = taxable + (tax ?? 0);
 
   const deposit: DepositInvoiceResult | null = await prisma.$transaction(async (tx) => {
     if (validOptOuts.length > 0) {
@@ -78,6 +90,7 @@ export async function POST(
         approvedAt: new Date(),
         signatureName: body.signatureName || null,
         subtotal,
+        discount: discount > 0 ? discount : null,
         tax,
         total,
       },

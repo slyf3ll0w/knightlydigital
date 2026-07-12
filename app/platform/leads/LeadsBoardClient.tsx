@@ -362,13 +362,32 @@ export default function LeadsBoardClient({
             New website requests and webhook leads land here automatically — or add one yourself
             and drag it through your stages to Won.
           </p>
-          <button
-            onClick={() => setAddingTo(stages[0]?.id ?? null)}
-            className="rounded-full inline-flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold"
-          >
-            <Plus size={15} />
-            Add a Lead
-          </button>
+          {/* The columns (which normally host QuickAdd) aren't rendered while the
+              board is empty, so render the add form here too — otherwise the
+              button below just sets addingTo with nowhere to show the form. */}
+          {addingTo ? (
+            <div className="mx-auto max-w-xs text-left">
+              <QuickAdd
+                stageId={addingTo}
+                firstStageId={stages[0]?.id ?? addingTo}
+                onDone={(err) => {
+                  setAddingTo(null);
+                  if (err) showToast({ message: err, tone: "red" });
+                  else refresh();
+                }}
+                onCancel={() => setAddingTo(null)}
+              />
+            </div>
+          ) : (
+            <button
+              onClick={() => setAddingTo(stages[0]?.id ?? null)}
+              disabled={!stages[0]?.id}
+              className="rounded-full inline-flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white text-sm font-semibold"
+            >
+              <Plus size={15} />
+              Add a Lead
+            </button>
+          )}
         </div>
       ) : (
         // Horizontal scroller — the scrollbar stays VISIBLE (app-ui slim

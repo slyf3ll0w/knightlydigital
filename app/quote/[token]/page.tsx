@@ -22,12 +22,51 @@ export default async function PublicQuotePage({
   const { token } = await params;
   const { preview } = await searchParams;
 
+  // Explicit select — this payload is serialized into the public page HTML, so
+  // it must expose ONLY client-facing fields. Never `include: { contact, company }`
+  // here: that leaks company.leadWebhookToken, contact.hubToken/processorCustomerRef,
+  // line-item unitCost (margins) and internal notes into page source.
   const quote = await prisma.quote.findFirst({
     where: { publicToken: token },
-    include: {
-      contact: true,
-      lineItems: { orderBy: { sortOrder: "asc" } },
-      company: true,
+    select: {
+      id: true,
+      publicToken: true,
+      quoteNumber: true,
+      title: true,
+      status: true,
+      subtotal: true,
+      discountType: true,
+      discountValue: true,
+      taxRate: true,
+      tax: true,
+      total: true,
+      depositType: true,
+      depositValue: true,
+      clientMessage: true,
+      disclaimer: true,
+      validUntil: true,
+      contact: { select: { firstName: true, lastName: true } },
+      company: {
+        select: {
+          name: true,
+          logoUrl: true,
+          brandColor: true,
+          brandColorSecondary: true,
+        },
+      },
+      lineItems: {
+        orderBy: { sortOrder: "asc" },
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          quantity: true,
+          unitPrice: true,
+          total: true,
+          isOptional: true,
+          optedOut: true,
+        },
+      },
     },
   });
 

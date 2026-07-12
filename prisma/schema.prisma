@@ -40,6 +40,10 @@ model Company {
   businessHours        Json?
   serviceZips          String[] @default([])
   arrivalWindowMinutes Int      @default(120)
+  // Granularity of the even time-slot picker when staff schedule jobs/appointments
+  // in-app (minutes). Resolved through lib/scheduling.ts, which is structured so a
+  // future route-management system and per-service-type overrides can refine it.
+  schedulingIntervalMinutes Int  @default(30)
   industry         String? // onboarding answer; drives starter price book + future industry defaults
   // AI setup wizard: stamped when the owner applies OR dismisses it — hides
   // the dashboard card either way (the Settings entry stays available)
@@ -125,9 +129,25 @@ model User {
   chatThreadStates ChatThreadState[]
   chatChannelMembers ChatChannelMember[]
   pushSubscriptions PushSubscription[]
+  passwordResetTokens PasswordResetToken[]
 
   @@index([companyId])
   @@index([role])
+}
+
+// Self-serve password reset. We store only a SHA-256 hash of the emailed token,
+// so a database leak can't be used to reset anyone's password. Single-use
+// (usedAt) and short-lived (expiresAt).
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
 }
 
 // ─── Push notifications ──────────────────────────────────────────────────────

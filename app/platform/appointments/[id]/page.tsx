@@ -4,6 +4,7 @@ import { ArrowLeft, CalendarDays, ExternalLink, Mail, MapPin, Phone, User, Video
 import { prisma } from "@/lib/db";
 import { requirePageActor, canSell, isManager, appointmentScope } from "@/lib/permissions";
 import { appointmentTypeLabel } from "@/lib/statuses";
+import { resolveSlotInterval } from "@/lib/scheduling";
 import StatusChip from "@/components/StatusChip";
 import AppointmentActions from "./AppointmentActions";
 
@@ -17,7 +18,7 @@ export default async function AppointmentDetailPage({
   const actor = await requirePageActor((a) => canSell(a.role));
 
   const { id } = await params;
-  const [appt, teamUsers] = await Promise.all([
+  const [appt, teamUsers, company] = await Promise.all([
     prisma.appointment.findFirst({
       where: { id, companyId: actor.companyId, ...appointmentScope(actor) },
       include: {
@@ -44,6 +45,10 @@ export default async function AppointmentDetailPage({
           orderBy: { name: "asc" },
         })
       : Promise.resolve([]),
+    prisma.company.findUnique({
+      where: { id: actor.companyId },
+      select: { schedulingIntervalMinutes: true },
+    }),
   ]);
   if (!appt) notFound();
 
@@ -110,6 +115,9 @@ export default async function AppointmentDetailPage({
             assignedToId: appt.assignedToId ?? "",
           }}
           users={teamUsers}
+          intervalMinutes={resolveSlotInterval({
+            companyIntervalMinutes: company?.schedulingIntervalMinutes,
+          })}
         />
       </div>
 

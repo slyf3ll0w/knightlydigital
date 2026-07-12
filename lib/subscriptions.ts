@@ -21,24 +21,35 @@ import { sendEmail, invoiceLinkEmail } from "@/lib/email";
 
 type Tx = Prisma.TransactionClient | PrismaClient;
 
+/**
+ * Add N calendar months, clamping the day-of-month to the target month's length
+ * so month-end anchors don't overflow. Plain `setMonth(+1)` on Jan 31 rolls to
+ * "Feb 31" → Mar 3, silently skipping February and drifting the anchor forever;
+ * this keeps Jan 31 → Feb 28/29, Mar 31 → Apr 30, etc. Time-of-day is preserved.
+ */
+function addMonthsClamped(date: Date, months: number): Date {
+  const d = new Date(date);
+  const targetDay = d.getDate();
+  d.setDate(1); // avoid transient overflow while shifting the month
+  d.setMonth(d.getMonth() + months);
+  const lastDayOfTargetMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  d.setDate(Math.min(targetDay, lastDayOfTargetMonth));
+  return d;
+}
+
 /** Add one billing interval to a date. SEMIANNUAL = +6 months ("biannually"). */
 export function addInterval(date: Date, interval: RecurringInterval): Date {
-  const d = new Date(date);
   switch (interval) {
     case "MONTHLY":
-      d.setMonth(d.getMonth() + 1);
-      break;
+      return addMonthsClamped(date, 1);
     case "QUARTERLY":
-      d.setMonth(d.getMonth() + 3);
-      break;
+      return addMonthsClamped(date, 3);
     case "SEMIANNUAL":
-      d.setMonth(d.getMonth() + 6);
-      break;
+      return addMonthsClamped(date, 6);
     case "ANNUAL":
-      d.setFullYear(d.getFullYear() + 1);
-      break;
+      // +12 months (not setFullYear) so Feb 29 clamps to Feb 28 next year
+      return addMonthsClamped(date, 12);
   }
-  return d;
 }
 
 /** Human label for an interval, e.g. for badges and client-facing pages. */

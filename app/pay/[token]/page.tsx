@@ -19,12 +19,49 @@ export default async function PublicPayPage({
 }) {
   const { token } = await params;
 
+  // Explicit select — serialized into public page HTML, so client-facing fields
+  // ONLY. Never `include: { contact, company }`: that leaks company.leadWebhookToken,
+  // contact.hubToken/processorCustomerRef, and line-item unitCost into page source.
   const invoice = await prisma.invoice.findFirst({
     where: { publicToken: token },
-    include: {
-      contact: true,
-      lineItems: { orderBy: { sortOrder: "asc" } },
-      company: true,
+    select: {
+      id: true,
+      invoiceNumber: true,
+      status: true,
+      publicToken: true,
+      subtotal: true,
+      discount: true,
+      tax: true,
+      surcharge: true,
+      depositApplied: true,
+      total: true,
+      notes: true,
+      dueDate: true,
+      contact: { select: { firstName: true, lastName: true, email: true } },
+      company: {
+        select: {
+          name: true,
+          phone: true,
+          email: true,
+          logoUrl: true,
+          brandColor: true,
+          brandColorSecondary: true,
+          surchargeEnabled: true,
+          surchargeRate: true,
+        },
+      },
+      lineItems: {
+        orderBy: { sortOrder: "asc" },
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          quantity: true,
+          unitPrice: true,
+          total: true,
+          recurringInterval: true,
+        },
+      },
     },
   });
 

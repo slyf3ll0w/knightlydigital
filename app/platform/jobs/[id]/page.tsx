@@ -5,6 +5,7 @@ import { ArrowLeft, MapPin, CalendarDays, User } from "lucide-react";
 import { quoteStatusLabel, money, shortDate } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
 import { requirePageActor, jobScope, canSeePricing, canSell, isManager } from "@/lib/permissions";
+import { resolveSlotInterval } from "@/lib/scheduling";
 import JobActions from "./JobActions";
 import NoteForm from "./NoteForm";
 import ScheduleJob from "./ScheduleJob";
@@ -24,7 +25,7 @@ export default async function JobDetailPage({
 
   const { id } = await params;
 
-  const [job, teamUsers] = await Promise.all([
+  const [job, teamUsers, company] = await Promise.all([
     prisma.job.findFirst({
       where: { id, companyId, ...jobScope(actor) },
       include: {
@@ -45,6 +46,10 @@ export default async function JobDetailPage({
           orderBy: { name: "asc" },
         })
       : Promise.resolve([]),
+    prisma.company.findUnique({
+      where: { id: companyId },
+      select: { schedulingIntervalMinutes: true },
+    }),
   ]);
 
   if (!job) notFound();
@@ -107,6 +112,9 @@ export default async function JobDetailPage({
             scheduledAt={job.scheduledAt?.toISOString() ?? null}
             scheduledEnd={job.scheduledEnd?.toISOString() ?? null}
             scheduledAnytime={job.scheduledAnytime}
+            intervalMinutes={resolveSlotInterval({
+              companyIntervalMinutes: company?.schedulingIntervalMinutes,
+            })}
           />
         </div>
         {job.quote && (

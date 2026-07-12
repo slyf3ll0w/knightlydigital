@@ -5,6 +5,11 @@ import { useRouter } from "next/navigation";
 import { CalendarDays, Loader2, X } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { localInputToISO } from "@/lib/statuses";
+import SlotTimePicker from "@/components/SlotTimePicker";
+import { addMinutesToLocalDateTime } from "@/lib/scheduling";
+
+const SLOT_INPUT_CLS =
+  "px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500";
 
 function toLocalInput(d: string | null): string {
   if (!d) return "";
@@ -22,11 +27,13 @@ export default function ScheduleJob({
   scheduledAt,
   scheduledEnd,
   scheduledAnytime,
+  intervalMinutes = 30,
 }: {
   jobId: string;
   scheduledAt: string | null;
   scheduledEnd: string | null;
   scheduledAnytime: boolean;
+  intervalMinutes?: number;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -104,20 +111,27 @@ export default function ScheduleJob({
         <>
           <div>
             <label className="block text-xs text-gray-500 mb-0.5">Start</label>
-            <input
-              type="datetime-local"
+            <SlotTimePicker
               value={start}
-              onChange={(e) => setStart(e.target.value)}
-              className="px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              intervalMinutes={intervalMinutes}
+              inputCls={SLOT_INPUT_CLS}
+              ariaLabel="Start"
+              onChange={(next) => {
+                setStart(next);
+                // Auto-fill the end one interval later when it isn't set yet, so
+                // a single pick produces a valid block; the user can still adjust.
+                if (!end && next) setEnd(addMinutesToLocalDateTime(next, intervalMinutes));
+              }}
             />
           </div>
           <div>
             <label className="block text-xs text-gray-500 mb-0.5">End</label>
-            <input
-              type="datetime-local"
+            <SlotTimePicker
               value={end}
-              onChange={(e) => setEnd(e.target.value)}
-              className="px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              intervalMinutes={intervalMinutes}
+              inputCls={SLOT_INPUT_CLS}
+              ariaLabel="End"
+              onChange={setEnd}
             />
           </div>
         </>

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { prisma } from "@/lib/db";
 import { requirePageActor, canSell, contactScope, isManager } from "@/lib/permissions";
+import { resolveSlotInterval } from "@/lib/scheduling";
 import AppointmentForm from "./AppointmentForm";
 
 export const metadata: Metadata = { title: "New Appointment" };
@@ -15,7 +16,7 @@ export default async function NewAppointmentPage({
 
   const { contactId, requestId, date } = await searchParams;
 
-  const [contacts, users, request] = await Promise.all([
+  const [contacts, users, request, company] = await Promise.all([
     prisma.contact.findMany({
       where: { companyId, ...contactScope(actor), status: { in: ["LEAD", "ACTIVE"] } },
       select: { id: true, firstName: true, lastName: true, address: true, city: true, state: true },
@@ -34,6 +35,10 @@ export default async function NewAppointmentPage({
           select: { id: true, title: true, contactId: true },
         })
       : Promise.resolve(null),
+    prisma.company.findUnique({
+      where: { id: companyId },
+      select: { schedulingIntervalMinutes: true },
+    }),
   ]);
 
   return (
@@ -45,6 +50,9 @@ export default async function NewAppointmentPage({
       requestId={request?.id ?? ""}
       requestTitle={request?.title ?? ""}
       prefilledDate={date ?? ""}
+      intervalMinutes={resolveSlotInterval({
+        companyIntervalMinutes: company?.schedulingIntervalMinutes,
+      })}
     />
   );
 }

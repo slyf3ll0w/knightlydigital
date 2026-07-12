@@ -7,6 +7,8 @@ import { Loader2, ArrowLeft } from "lucide-react";
 import { Suspense } from "react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { localInputToISO } from "@/lib/statuses";
+import SlotTimePicker from "@/components/SlotTimePicker";
+import { addMinutesToLocalDateTime, DEFAULT_SLOT_INTERVAL_MINUTES } from "@/lib/scheduling";
 
 type Contact = { id: string; firstName: string; lastName: string; address: string | null };
 type TeamUser = { id: string; name: string; isActive: boolean };
@@ -22,6 +24,7 @@ function NewJobForm() {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [team, setTeam] = useState<TeamUser[]>([]);
   const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
+  const [interval, setInterval] = useState(DEFAULT_SLOT_INTERVAL_MINUTES);
   const [form, setForm] = useState({
     contactId: prefilledContactId,
     requestId,
@@ -44,6 +47,12 @@ function NewJobForm() {
       .then((users: TeamUser[]) =>
         setTeam(Array.isArray(users) ? users.filter((u) => u.isActive) : [])
       )
+      .catch(() => {});
+    fetch("/api/app/scheduling")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d?.intervalMinutes) setInterval(d.intervalMinutes);
+      })
       .catch(() => {});
   }, []);
 
@@ -178,20 +187,27 @@ function NewJobForm() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Start</label>
-              <input
-                type="datetime-local"
+              <SlotTimePicker
                 value={form.scheduledAt}
-                onChange={(e) => set("scheduledAt", e.target.value)}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                intervalMinutes={interval}
+                inputCls="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                ariaLabel="Start"
+                onChange={(next) => {
+                  set("scheduledAt", next);
+                  if (!form.scheduledEnd && next.length >= 16) {
+                    set("scheduledEnd", addMinutesToLocalDateTime(next, interval));
+                  }
+                }}
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">End</label>
-              <input
-                type="datetime-local"
+              <SlotTimePicker
                 value={form.scheduledEnd}
-                onChange={(e) => set("scheduledEnd", e.target.value)}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                intervalMinutes={interval}
+                inputCls="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                ariaLabel="End"
+                onChange={(next) => set("scheduledEnd", next)}
               />
             </div>
           </div>

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { CalendarDays, Check, FileText, Loader2, MoreHorizontal, Pencil, Trash2, X } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { localInputToISO, appointmentTypeLabel } from "@/lib/statuses";
+import SlotTimePicker from "@/components/SlotTimePicker";
 
 /**
  * Appointment lifecycle controls: Complete (→ Create Quote CTA), No-show,
@@ -42,6 +43,7 @@ export default function AppointmentActions({
   scheduledAnytime,
   details,
   users = [],
+  intervalMinutes = 30,
 }: {
   appointmentId: string;
   status: string;
@@ -53,6 +55,7 @@ export default function AppointmentActions({
   scheduledAnytime: boolean;
   details: Details;
   users?: { id: string; name: string }[];
+  intervalMinutes?: number;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -242,20 +245,22 @@ export default function AppointmentActions({
             <>
               <div>
                 <label className="block text-xs text-gray-500 mb-0.5">Start</label>
-                <input
-                  type="datetime-local"
+                <SlotTimePicker
                   value={start}
-                  onChange={(e) => setStart(e.target.value)}
-                  className="px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  intervalMinutes={intervalMinutes}
+                  inputCls="px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  ariaLabel="Start"
+                  onChange={setStart}
                 />
               </div>
               <div>
                 <label className="block text-xs text-gray-500 mb-0.5">End</label>
-                <input
-                  type="datetime-local"
+                <SlotTimePicker
                   value={end}
-                  onChange={(e) => setEnd(e.target.value)}
-                  className="px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  intervalMinutes={intervalMinutes}
+                  inputCls="px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  ariaLabel="End"
+                  onChange={setEnd}
                 />
               </div>
             </>

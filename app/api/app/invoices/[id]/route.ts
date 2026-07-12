@@ -3,6 +3,7 @@ import type { InvoiceStatus, RecurringInterval } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getActor, isManager, canSeeMoney, viaContactScope } from "@/lib/permissions";
 import { intQuantity } from "@/lib/work-items";
+import { paidDepositTotal } from "@/lib/deposits";
 
 /**
  * PATCH — full-document invoice edit (subject, line items, discount, tax,
@@ -70,8 +71,22 @@ export async function PATCH(
   const tax = taxRate ? taxable * taxRate : null;
   const gross = taxable + (tax ?? 0);
 
-  // Deposit credit carried from the originating quote stays; re-net it
-  const depositApplied = Math.min(Number(invoice.depositApplied ?? 0), gross);
+  // Re-net the deposit from SOURCE — the actual PAID deposit invoices on the
+  // originating quote — not by ratcheting the stored depositApplied down against
+  // the new (possibly smaller) gross. The old min(stored, gross) was a one-way
+  // ratchet: temporarily removing a line item shrank the credit permanently and
+  // over-billed the client when the line was restored. Resolve the quote via the
+  // invoice's own link or its job.
+  let quoteIdForDeposit = invoice.quoteId ?? null;
+  if (!quoteIdForDeposit && invoice.jobId) {
+    const q = await prisma.quote.findFirst({
+      where: { jobId: invoice.jobId, companyId },
+      select: { id: true },
+    });
+    quoteIdForDeposit = q?.id ?? null;
+  }
+  const paidDeposits = quoteIdForDeposit ? await paidDepositTotal(prisma, quoteIdForDeposit) : 0;
+  const depositApplied = Math.min(paidDeposits, gross);
   const netTotal = Math.round((gross - depositApplied) * 100) / 100;
 
   const paid = invoice.payments.reduce((s, p) => s + Number(p.amount), 0);

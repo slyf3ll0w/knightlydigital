@@ -57,6 +57,7 @@ export default function WebFormEditor({
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const [copied, setCopied] = useState(false);
   const [embedCopied, setEmbedCopied] = useState(false);
 
@@ -86,12 +87,26 @@ export default function WebFormEditor({
 
   async function save() {
     setSaving(true);
-    await fetch(`/api/app/web-forms/${form.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ config, name }),
-    });
+    setSaveError("");
+    let ok = false;
+    try {
+      const res = await fetch(`/api/app/web-forms/${form.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ config, name }),
+      });
+      ok = res.ok;
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        setSaveError(data?.error ?? "Couldn't save your form. Please try again.");
+      }
+    } catch {
+      setSaveError("Couldn't reach the server. Check your connection and try again.");
+    }
     setSaving(false);
+    // Keep the form dirty (and don't flash "Saved!") unless the write landed —
+    // otherwise edits silently revert on reload.
+    if (!ok) return;
     setDirty(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
@@ -136,6 +151,7 @@ export default function WebFormEditor({
           {saved ? "Saved!" : dirty ? "Save Changes" : "Saved"}
         </button>
       </div>
+      {saveError && <p className="-mt-2 text-sm text-red-600">{saveError}</p>}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
         <BookingFormBuilder
