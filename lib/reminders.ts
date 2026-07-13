@@ -91,6 +91,7 @@ export async function runDueReminders(now: Date = new Date()): Promise<ReminderS
         subject,
         html,
         replyTo: inv.company.email || undefined,
+        fromName: inv.company.name,
       });
 
       // Only record once the email actually went out, so an unconfigured Resend
@@ -177,6 +178,7 @@ export async function runAppointmentReminders(
         subject,
         html,
         replyTo: appt.company.email || undefined,
+        fromName: appt.company.name,
       });
       if (ok) {
         await prisma.appointment.update({

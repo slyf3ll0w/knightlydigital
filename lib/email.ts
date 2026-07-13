@@ -9,6 +9,9 @@
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const FROM = process.env.EMAIL_FROM ?? "Streamflaire Hub <notifications@streamflaremedia.com>";
+// Bare address from FROM — sends that brand the display name still have to
+// use the Resend-verified domain, only the name in front of it changes.
+const FROM_ADDRESS = FROM.match(/<([^>]+)>/)?.[1] ?? FROM;
 const APP_URL = process.env.NEXTAUTH_URL ?? "https://streamflaire.com";
 
 export async function sendEmail({
@@ -16,13 +19,20 @@ export async function sendEmail({
   subject,
   html,
   replyTo,
+  fromName,
 }: {
   to: string;
   subject: string;
   html: string;
   replyTo?: string;
+  /** Display name shown as the sender (e.g. the tenant company's name). Falls back to EMAIL_FROM. */
+  fromName?: string;
 }): Promise<boolean> {
   if (!RESEND_API_KEY) return false;
+  // Company names are user input headed into an email header — strip anything
+  // that could break out of the quoted display name.
+  const cleanName = fromName?.replace(/[\r\n"<>]/g, "").trim();
+  const from = cleanName ? `"${cleanName}" <${FROM_ADDRESS}>` : FROM;
   try {
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
@@ -31,7 +41,7 @@ export async function sendEmail({
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: FROM,
+        from,
         to: [to],
         subject,
         html,

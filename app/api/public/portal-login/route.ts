@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
     contactFirstName: contact.firstName,
     hubUrl: `${baseUrl}/hub/${contact.hubToken}`,
   });
-  await sendEmail({ to: contact.email, subject, html });
+  await sendEmail({ to: contact.email, subject, html, fromName: company.name });
 
   return ok;
 }

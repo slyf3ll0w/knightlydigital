@@ -117,7 +117,7 @@ export async function autoSendQuoteAgreements(
           title: template.name,
           signUrl: `${baseUrl}/contract/${contract.publicToken}`,
         });
-        await sendEmail({ to: quote.contact.email, subject, html });
+        await sendEmail({ to: quote.contact.email, subject, html, fromName: company?.name });
       }
     }
   } catch (err) {

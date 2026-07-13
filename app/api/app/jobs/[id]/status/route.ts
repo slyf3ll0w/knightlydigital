@@ -55,7 +55,7 @@ export async function PATCH(
         reviewLink: company.reviewLink,
         jobTitle: job.title,
       });
-      await sendEmail({ to: contact.email, subject, html });
+      await sendEmail({ to: contact.email, subject, html, fromName: company.name });
       await prisma.reviewRequest.create({
         data: {
           companyId,

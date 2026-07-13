@@ -68,7 +68,7 @@ export async function POST(
       signedAt,
       signUrl,
     });
-    await sendEmail({ to: contact.email, subject, html });
+    await sendEmail({ to: contact.email, subject, html, replyTo: company.email || undefined, fromName: company.name });
   }
   if (company?.email) {
     await sendEmail({

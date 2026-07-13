@@ -131,7 +131,7 @@ export async function POST(
       payUrl: `${baseUrl}/pay/${deposit.invoice.publicToken}`,
       serviceNames: [`Deposit for Quote #${quote.quoteNumber}`],
     });
-    await sendEmail({ to: quote.contact.email, subject, html, replyTo: quote.company.email || undefined });
+    await sendEmail({ to: quote.contact.email, subject, html, replyTo: quote.company.email || undefined, fromName: quote.company.name });
   }
 
   return NextResponse.json({ success: true });

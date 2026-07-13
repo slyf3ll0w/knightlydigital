@@ -277,7 +277,7 @@ async function generateCycle(sub: DueSub, now: Date): Promise<"billed" | "drafte
           payUrl: `${baseUrl}/pay/${inv.publicToken}`,
           serviceNames: [sub.name],
         });
-        await sendEmail({ to: sub.contact.email, subject, html, replyTo: company.email || undefined });
+        await sendEmail({ to: sub.contact.email, subject, html, replyTo: company.email || undefined, fromName: company.name });
       }
     }
     return outcome;

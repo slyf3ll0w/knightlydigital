@@ -116,6 +116,7 @@ export async function POST(
         subject,
         html,
         replyTo: request.company.email || undefined,
+        fromName: request.company.name,
       });
     }
   }

@@ -31,7 +31,7 @@ export async function POST(
     contactFirstName: contact.firstName,
     hubUrl: `${baseUrl}/hub/${contact.hubToken}`,
   });
-  const sent = await sendEmail({ to: contact.email, subject, html });
+  const sent = await sendEmail({ to: contact.email, subject, html, fromName: contact.company?.name });
   if (!sent) {
     return NextResponse.json(
       { error: "Email isn't configured yet — copy the portal link instead." },

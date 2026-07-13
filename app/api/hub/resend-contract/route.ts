@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
     title: contract.title,
     signUrl: `${baseUrl}/contract/${contract.publicToken}`,
   });
-  const sent = await sendEmail({ to: contact.email, subject, html });
+  const sent = await sendEmail({ to: contact.email, subject, html, fromName: contact.company?.name });
   if (!sent) {
     return NextResponse.json({ error: "Couldn't send the email right now." }, { status: 400 });
   }
