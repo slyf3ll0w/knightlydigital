@@ -354,8 +354,9 @@ body {
   }
 }
 
-/* ── App page entrance — quick settle on every navigation (template.tsx).
-   Much faster than the marketing hero fade: you navigate the app constantly. */
+/* ── App page entrance — quick, per-section flavors on every navigation
+   (template.tsx picks the class from the route). All from-only with no fill
+   mode so nothing lingers, and fast: you navigate the app constantly. */
 @keyframes pageEnter {
   from {
     opacity: 0;
@@ -364,6 +365,34 @@ body {
 }
 .page-enter {
   animation: pageEnter 0.22s ease-out;
+}
+@keyframes pageEnterRise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+.page-enter-rise {
+  animation: pageEnterRise 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes pageEnterSweep {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+}
+.page-enter-sweep {
+  animation: pageEnterSweep 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes pageEnterSettle {
+  from {
+    opacity: 0;
+    transform: scale(0.985) translateY(4px);
+  }
+}
+.page-enter-settle {
+  transform-origin: top center;
+  animation: pageEnterSettle 0.32s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* ── Client portal entrance — magic-link landing gets a fuller staggered
@@ -385,6 +414,9 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .page-enter,
+  .page-enter-rise,
+  .page-enter-sweep,
+  .page-enter-settle,
   .anim-portal,
   .anim-fade-up,
   .anim-create-pop,

@@ -128,6 +128,7 @@ export default function ContactForm({
     };
 
     if (mode === "create") {
+      payload.status = form.status;
       if (canAssign && form.assignedToId) payload.assignedToId = form.assignedToId;
       const { ok, data } = await postJson<{ id: string }>("/api/app/contacts", payload);
       setLoading(false);
@@ -157,7 +158,7 @@ export default function ContactForm({
           <ArrowLeft size={18} />
         </Link>
         <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">
-          {mode === "create" ? "New Client" : "Edit Client"}
+          {mode === "create" ? (form.status === "LEAD" ? "New Lead" : "New Client") : "Edit Client"}
         </h1>
       </div>
 
@@ -165,6 +166,33 @@ export default function ContactForm({
         {error && (
           <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
             {error}
+          </div>
+        )}
+
+        {/* Lead vs. client — a lead works the pipeline board; a client is
+            already-won business and skips it entirely */}
+        {mode === "create" && (
+          <div className="flex gap-2">
+            {(
+              [
+                ["LEAD", "Lead", "Goes on your Leads board to work toward a sale"],
+                ["ACTIVE", "Client", "Existing business — skips the Leads board"],
+              ] as const
+            ).map(([value, label, hint]) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => set("status", value)}
+                title={hint}
+                className={`rounded-full border px-4 py-2 text-sm font-medium transition-colors ${
+                  form.status === value
+                    ? "border-green-500 ring-2 ring-green-500/30 text-gray-900"
+                    : "border-gray-300 text-gray-600 hover:bg-gray-50"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
           </div>
         )}
 
@@ -390,7 +418,7 @@ export default function ContactForm({
             className="flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-full transition-colors disabled:opacity-50"
           >
             {loading && <Loader2 size={14} className="animate-spin" />}
-            {mode === "create" ? "Save Client" : "Save Changes"}
+            {mode === "create" ? (form.status === "LEAD" ? "Save Lead" : "Save Client") : "Save Changes"}
           </button>
           <Link
             href={backHref}

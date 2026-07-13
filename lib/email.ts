@@ -4,11 +4,11 @@
  * the domain is verified.
  *
  * EMAIL_FROM must use the domain verified in Resend
- * (default: notifications@streamflaremedia.com).
+ * (default: notifications@streamflaire.com).
  */
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
-const FROM = process.env.EMAIL_FROM ?? "Streamflaire Hub <notifications@streamflaremedia.com>";
+const FROM = process.env.EMAIL_FROM ?? "Streamflaire Hub <notifications@streamflaire.com>";
 // Bare address from FROM — sends that brand the display name still have to
 // use the Resend-verified domain, only the name in front of it changes.
 const FROM_ADDRESS = FROM.match(/<([^>]+)>/)?.[1] ?? FROM;

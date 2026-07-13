@@ -57,9 +57,14 @@ export async function POST(req: NextRequest) {
     if (target) assignedToId = target.id;
   }
 
+  // Leads land on the pipeline board; clients created directly (status
+  // ACTIVE) skip it — they're already won business, not a lead to work.
+  const status = body.status === "ACTIVE" ? ("ACTIVE" as const) : ("LEAD" as const);
+
   const contact = await prisma.contact.create({
     data: {
       companyId: actor.companyId,
+      status,
       firstName,
       lastName,
       companyName: companyName || null,
@@ -80,8 +85,8 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  // New contacts start as leads — straight onto the pipeline board
-  await enterPipeline(prisma, actor.companyId, contact.id);
+  // New leads go straight onto the pipeline board
+  if (status === "LEAD") await enterPipeline(prisma, actor.companyId, contact.id);
 
   return NextResponse.json(contact, { status: 201 });
 }

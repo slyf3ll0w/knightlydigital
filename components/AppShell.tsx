@@ -110,6 +110,7 @@ const navGroups: { label?: string; items: NavItem[] }[] = [
 
 const createItems: NavItem[] = [
   { href: "/app/contacts/new", label: "Client", icon: Users, show: sellRoles },
+  { href: "/app/contacts/new?type=lead", label: "Lead", icon: SquareKanban, show: sellRoles },
   { href: "/app/requests/new", label: "Request", icon: Inbox, show: sellRoles },
   { href: "/app/appointments/new", label: "Appointment", icon: CalendarClock, show: sellRoles },
   { href: "/app/quotes/new", label: "Quote", icon: FileText, show: sellRoles },
@@ -123,6 +124,7 @@ const createItems: NavItem[] = [
 // requests amber, quotes green, money teal.
 const createTints: Record<string, string> = {
   "/app/contacts/new": "#3B82F6", // Client — blue
+  "/app/contacts/new?type=lead": "#84CC16", // Lead — lime, matches the Leads board
   "/app/requests/new": "#F59E0B", // Request — amber
   "/app/appointments/new": "#8B5CF6", // Appointment — violet
   "/app/quotes/new": "#22C55E", // Quote — green
@@ -514,17 +516,19 @@ export default function AppShell({
 
   // Sidebar header is the company's identity, not ours (their logo when
   // uploaded, otherwise a brand-colored initial tile). The logo panel is a
-  // full-bleed strip across the rail on a tenant-pickable backdrop color.
+  // full-bleed strip across the rail on a tenant-pickable backdrop color,
+  // locked to exactly the top bar's 57px so the two hairlines meet in one
+  // continuous line — a taller panel reads as a misaligned seam.
   const logo = companyLogoUrl ? (
     <div
-      className="theme-fixed flex min-h-[57px] items-center justify-center border-b border-[color:var(--rail-line)] px-2 py-3"
+      className="theme-fixed flex h-[57px] items-center justify-center border-b border-[color:var(--rail-line)] px-3 py-2"
       style={{ backgroundColor: sidebarLogoColor || "#FFFFFF" }}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={companyLogoUrl}
         alt={companyName ?? ""}
-        className="max-h-28 w-full object-contain"
+        className="h-full w-full object-contain"
       />
     </div>
   ) : (
@@ -878,7 +882,9 @@ function MobileTabBar({
               <Plus
                 size={22}
                 strokeWidth={2.5}
-                className={`transition-transform duration-300 ${sheetOpen ? "rotate-45" : ""}`}
+                className={`transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
+                  sheetOpen ? "rotate-[135deg]" : ""
+                }`}
               />
             </button>
           </div>
