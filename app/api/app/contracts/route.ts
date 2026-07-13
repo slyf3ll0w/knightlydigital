@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
 
   const company = await prisma.company.findUnique({
     where: { id: companyId },
-    select: { name: true },
+    select: { name: true, brandColor: true, brandColorSecondary: true, logoUrl: true },
   });
   const today = new Date().toLocaleDateString("en-US", {
     month: "long",
@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
       title,
       signUrl: `${baseUrl}/contract/${contract.publicToken}`,
     });
-    await sendEmail({ to: contact.email, subject, html, fromName: company?.name });
+    await sendEmail({ to: contact.email, subject, html, fromName: company?.name, brand: company });
   }
 
   return NextResponse.json(contract, { status: 201 });

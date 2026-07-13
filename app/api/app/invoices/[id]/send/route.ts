@@ -53,6 +53,7 @@ export async function POST(
     html,
     replyTo: invoice.company.email || undefined,
     fromName: invoice.company.name,
+    brand: invoice.company,
   });
   if (!emailed) {
     return NextResponse.json(

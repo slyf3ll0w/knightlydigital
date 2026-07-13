@@ -266,7 +266,13 @@ async function generateCycle(sub: DueSub, now: Date): Promise<"billed" | "drafte
       });
       const company = await prisma.company.findUnique({
         where: { id: sub.companyId },
-        select: { name: true, email: true },
+        select: {
+          name: true,
+          email: true,
+          brandColor: true,
+          brandColorSecondary: true,
+          logoUrl: true,
+        },
       });
       if (inv && company) {
         const baseUrl = process.env.NEXTAUTH_URL ?? "https://streamflaire.com";
@@ -277,7 +283,14 @@ async function generateCycle(sub: DueSub, now: Date): Promise<"billed" | "drafte
           payUrl: `${baseUrl}/pay/${inv.publicToken}`,
           serviceNames: [sub.name],
         });
-        await sendEmail({ to: sub.contact.email, subject, html, replyTo: company.email || undefined, fromName: company.name });
+        await sendEmail({
+          to: sub.contact.email,
+          subject,
+          html,
+          replyTo: company.email || undefined,
+          fromName: company.name,
+          brand: company,
+        });
       }
     }
     return outcome;

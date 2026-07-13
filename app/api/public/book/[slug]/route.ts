@@ -495,7 +495,14 @@ export async function POST(
           ? `A deposit of $${result.quote.deposit.toFixed(2)} will be due on approval.`
           : undefined,
     });
-    await sendEmail({ to: email, subject, html, replyTo: company.email || undefined, fromName: company.name });
+    await sendEmail({
+      to: email,
+      subject,
+      html,
+      replyTo: company.email || undefined,
+      fromName: company.name,
+      brand: company,
+    });
   }
 
   // Self-scheduled booking: the client gets a "received, awaiting
@@ -509,7 +516,14 @@ export async function POST(
       windowLabel: bookingWindow,
       address: address || null,
     });
-    await sendEmail({ to: email, subject, html, replyTo: company.email || undefined, fromName: company.name });
+    await sendEmail({
+      to: email,
+      subject,
+      html,
+      replyTo: company.email || undefined,
+      fromName: company.name,
+      brand: company,
+    });
   }
 
   return NextResponse.json(

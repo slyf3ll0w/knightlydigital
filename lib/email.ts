@@ -14,12 +14,68 @@ const FROM = process.env.EMAIL_FROM ?? "Streamflaire Hub <notifications@streamfl
 const FROM_ADDRESS = FROM.match(/<([^>]+)>/)?.[1] ?? FROM;
 const APP_URL = process.env.NEXTAUTH_URL ?? "https://streamflaire.com";
 
+/** Tenant branding applied to client-facing emails — the same settings the
+ *  quote/invoice/portal pages use. Pass the company row itself; only these
+ *  fields are read. */
+export type EmailBrand = {
+  brandColor?: string | null;
+  brandColorSecondary?: string | null;
+  logoUrl?: string | null;
+};
+
+const BRAND_HEX = /^#[0-9a-fA-F]{6}$/;
+
+function luminance(hex: string): number {
+  const n = parseInt(hex.slice(1), 16);
+  return 0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255);
+}
+const onColor = (bg: string) => (luminance(bg) > 160 ? "#111827" : "#ffffff");
+const swap = (html: string, find: string, replace: string) => html.split(find).join(replace);
+
+/**
+ * Re-skin a template with the tenant's branding. Every client-facing template
+ * shares the same header / button / footer markup, so this recolors those
+ * exact inline styles and drops the logo into the header — no per-template
+ * work. Colors are luminance-guarded like the app UI; without brand settings
+ * the classic console look stays.
+ */
+function brandEmail(html: string, brand: EmailBrand): string {
+  const color = BRAND_HEX.test(brand.brandColor ?? "") ? brand.brandColor! : null;
+  const accent =
+    (BRAND_HEX.test(brand.brandColorSecondary ?? "") ? brand.brandColorSecondary! : null) ?? color;
+  let out = html;
+  if (brand.logoUrl) {
+    const src = brand.logoUrl.startsWith("http") ? brand.logoUrl : `${APP_URL}${brand.logoUrl}`;
+    out = swap(
+      out,
+      `<div style="background:#0C0F0C;padding:16px 24px;">`,
+      `<div style="background:#0C0F0C;padding:16px 24px;"><img src="${src}" alt="" style="display:block;max-height:44px;max-width:200px;margin:0 0 8px;" />`
+    );
+  }
+  if (color) {
+    out = swap(out, "background:#0C0F0C;padding:16px 24px;", `background:${color};padding:16px 24px;`);
+    out = swap(
+      out,
+      "color:#22C55E;font-size:13px;font-weight:700;letter-spacing:0.5px;",
+      `color:${onColor(color)};font-size:13px;font-weight:700;letter-spacing:0.5px;`
+    );
+  }
+  if (accent) {
+    out = swap(out, "background:#22C55E;color:#ffffff;", `background:${accent};color:${onColor(accent)};`);
+    // Inline text links sit on white — flip too-light accents back to green
+    const link = luminance(accent) > 200 ? "#16a34a" : accent;
+    out = swap(out, "color:#16a34a;text-decoration:underline;", `color:${link};text-decoration:underline;`);
+  }
+  return out;
+}
+
 export async function sendEmail({
   to,
   subject,
   html,
   replyTo,
   fromName,
+  brand,
 }: {
   to: string;
   subject: string;
@@ -27,8 +83,11 @@ export async function sendEmail({
   replyTo?: string;
   /** Display name shown as the sender (e.g. the tenant company's name). Falls back to EMAIL_FROM. */
   fromName?: string;
+  /** Tenant branding for client-facing sends — restyles the template like their quote pages. */
+  brand?: EmailBrand | null;
 }): Promise<boolean> {
   if (!RESEND_API_KEY) return false;
+  if (brand) html = brandEmail(html, brand);
   // Company names are user input headed into an email header — strip anything
   // that could break out of the quoted display name.
   const cleanName = fromName?.replace(/[\r\n"<>]/g, "").trim();

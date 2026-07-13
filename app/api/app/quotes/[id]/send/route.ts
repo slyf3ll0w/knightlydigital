@@ -69,6 +69,7 @@ export async function POST(
     html,
     replyTo: quote.company.email || undefined,
     fromName: quote.company.name,
+    brand: quote.company,
   });
   if (!emailed) {
     return NextResponse.json(

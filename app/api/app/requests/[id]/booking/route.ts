@@ -37,7 +37,17 @@ export async function POST(
         where: { tentative: true, status: "SCHEDULED" },
         orderBy: { scheduledAt: "asc" },
       },
-      company: { select: { name: true, email: true, timezone: true, arrivalWindowMinutes: true } },
+      company: {
+        select: {
+          name: true,
+          email: true,
+          timezone: true,
+          arrivalWindowMinutes: true,
+          brandColor: true,
+          brandColorSecondary: true,
+          logoUrl: true,
+        },
+      },
     },
   });
   if (!request) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -117,6 +127,7 @@ export async function POST(
         html,
         replyTo: request.company.email || undefined,
         fromName: request.company.name,
+        brand: request.company,
       });
     }
   }

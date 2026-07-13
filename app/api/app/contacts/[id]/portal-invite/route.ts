@@ -15,7 +15,14 @@ export async function POST(
   const { id } = await params;
   const contact = await prisma.contact.findFirst({
     where: { id, companyId: actor.companyId, ...contactScope(actor) },
-    select: { email: true, firstName: true, hubToken: true, company: { select: { name: true } } },
+    select: {
+      email: true,
+      firstName: true,
+      hubToken: true,
+      company: {
+        select: { name: true, brandColor: true, brandColorSecondary: true, logoUrl: true },
+      },
+    },
   });
   if (!contact) return NextResponse.json({ error: "Client not found." }, { status: 404 });
   if (!contact.email) {
@@ -31,7 +38,13 @@ export async function POST(
     contactFirstName: contact.firstName,
     hubUrl: `${baseUrl}/hub/${contact.hubToken}`,
   });
-  const sent = await sendEmail({ to: contact.email, subject, html, fromName: contact.company?.name });
+  const sent = await sendEmail({
+    to: contact.email,
+    subject,
+    html,
+    fromName: contact.company?.name,
+    brand: contact.company,
+  });
   if (!sent) {
     return NextResponse.json(
       { error: "Email isn't configured yet — copy the portal link instead." },

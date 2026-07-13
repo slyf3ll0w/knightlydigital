@@ -16,7 +16,14 @@ export async function POST(req: NextRequest) {
 
   const contact = await prisma.contact.findUnique({
     where: { hubToken: token },
-    select: { id: true, email: true, firstName: true, company: { select: { name: true } } },
+    select: {
+      id: true,
+      email: true,
+      firstName: true,
+      company: {
+        select: { name: true, brandColor: true, brandColorSecondary: true, logoUrl: true },
+      },
+    },
   });
   if (!contact) return NextResponse.json({ error: "Hub not found." }, { status: 404 });
   if (!contact.email) {
@@ -42,7 +49,13 @@ export async function POST(req: NextRequest) {
     title: contract.title,
     signUrl: `${baseUrl}/contract/${contract.publicToken}`,
   });
-  const sent = await sendEmail({ to: contact.email, subject, html, fromName: contact.company?.name });
+  const sent = await sendEmail({
+    to: contact.email,
+    subject,
+    html,
+    fromName: contact.company?.name,
+    brand: contact.company,
+  });
   if (!sent) {
     return NextResponse.json({ error: "Couldn't send the email right now." }, { status: 400 });
   }

@@ -57,7 +57,15 @@ export async function runDueReminders(now: Date = new Date()): Promise<ReminderS
       payments: { select: { amount: true } },
       reminders: { select: { type: true } },
       contact: { select: { email: true } },
-      company: { select: { name: true, email: true } },
+      company: {
+        select: {
+          name: true,
+          email: true,
+          brandColor: true,
+          brandColorSecondary: true,
+          logoUrl: true,
+        },
+      },
     },
     take: 1000,
   });
@@ -92,6 +100,7 @@ export async function runDueReminders(now: Date = new Date()): Promise<ReminderS
         html,
         replyTo: inv.company.email || undefined,
         fromName: inv.company.name,
+        brand: inv.company,
       });
 
       // Only record once the email actually went out, so an unconfigured Resend
@@ -143,7 +152,17 @@ export async function runAppointmentReminders(
     },
     include: {
       contact: { select: { firstName: true, email: true } },
-      company: { select: { name: true, email: true, timezone: true, arrivalWindowMinutes: true } },
+      company: {
+        select: {
+          name: true,
+          email: true,
+          timezone: true,
+          arrivalWindowMinutes: true,
+          brandColor: true,
+          brandColorSecondary: true,
+          logoUrl: true,
+        },
+      },
     },
     take: 1000,
   });
@@ -179,6 +198,7 @@ export async function runAppointmentReminders(
         html,
         replyTo: appt.company.email || undefined,
         fromName: appt.company.name,
+        brand: appt.company,
       });
       if (ok) {
         await prisma.appointment.update({

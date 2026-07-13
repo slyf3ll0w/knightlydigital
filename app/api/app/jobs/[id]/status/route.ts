@@ -40,7 +40,13 @@ export async function PATCH(
     const [company, contact, alreadySent] = await Promise.all([
       prisma.company.findUnique({
         where: { id: companyId },
-        select: { name: true, reviewLink: true },
+        select: {
+          name: true,
+          reviewLink: true,
+          brandColor: true,
+          brandColorSecondary: true,
+          logoUrl: true,
+        },
       }),
       prisma.contact.findUnique({
         where: { id: job.contactId },
@@ -55,7 +61,7 @@ export async function PATCH(
         reviewLink: company.reviewLink,
         jobTitle: job.title,
       });
-      await sendEmail({ to: contact.email, subject, html, fromName: company.name });
+      await sendEmail({ to: contact.email, subject, html, fromName: company.name, brand: company });
       await prisma.reviewRequest.create({
         data: {
           companyId,

@@ -53,7 +53,13 @@ export async function POST(
     }),
     prisma.company.findUnique({
       where: { id: contract.companyId },
-      select: { name: true, email: true },
+      select: {
+        name: true,
+        email: true,
+        brandColor: true,
+        brandColorSecondary: true,
+        logoUrl: true,
+      },
     }),
   ]);
   const baseUrl = process.env.NEXTAUTH_URL ?? "https://streamflaire.com";
@@ -68,7 +74,14 @@ export async function POST(
       signedAt,
       signUrl,
     });
-    await sendEmail({ to: contact.email, subject, html, replyTo: company.email || undefined, fromName: company.name });
+    await sendEmail({
+      to: contact.email,
+      subject,
+      html,
+      replyTo: company.email || undefined,
+      fromName: company.name,
+      brand: company,
+    });
   }
   if (company?.email) {
     await sendEmail({

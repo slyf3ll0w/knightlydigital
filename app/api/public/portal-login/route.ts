@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
 
   const company = await prisma.company.findUnique({
     where: { slug },
-    select: { id: true, name: true },
+    select: { id: true, name: true, brandColor: true, brandColorSecondary: true, logoUrl: true },
   });
   if (!company) return ok;
 
@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
     contactFirstName: contact.firstName,
     hubUrl: `${baseUrl}/hub/${contact.hubToken}`,
   });
-  await sendEmail({ to: contact.email, subject, html, fromName: company.name });
+  await sendEmail({ to: contact.email, subject, html, fromName: company.name, brand: company });
 
   return ok;
 }
