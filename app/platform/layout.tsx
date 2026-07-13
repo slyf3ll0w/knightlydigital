@@ -33,6 +33,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           select: {
             name: true,
             logoUrl: true,
+            logoWallpaper: true,
             brandColor: true,
             brandColorSecondary: true,
             assistantName: true,
@@ -60,6 +61,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         role={user?.role ?? session.user.role}
         companyName={company?.name ?? session.user.companyName}
         companyLogoUrl={company?.logoUrl}
+        logoWallpaper={company?.logoWallpaper ?? false}
         brandColor={company?.brandColor}
         brandColorSecondary={company?.brandColorSecondary}
         teamCount={teamCount}

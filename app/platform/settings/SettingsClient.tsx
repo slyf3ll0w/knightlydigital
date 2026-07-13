@@ -15,6 +15,7 @@ type Company = {
   email: string | null; address: string | null; city: string | null;
   state: string | null; zip: string | null; website: string | null;
   logoUrl: string | null; brandColor: string | null; brandColorSecondary: string | null;
+  logoWallpaper: boolean;
   surchargeEnabled: boolean; surchargeRate: string | number | null;
   defaultDepositType: "NONE" | "PERCENT" | "FIXED" | "FULL";
   defaultDepositValue: string | number | null;
@@ -269,6 +270,7 @@ export default function SettingsClient({
     website: company.website ?? "",
     industry: company.industry ?? "",
     logoUrl: company.logoUrl ?? "",
+    logoWallpaper: company.logoWallpaper ?? false,
     brandColor: company.brandColor ?? "",
     brandColorSecondary: company.brandColorSecondary ?? "",
     surchargeEnabled: company.surchargeEnabled,
@@ -606,6 +608,28 @@ export default function SettingsClient({
               Transparent-background PNG looks best.
             </p>
           </div>
+          {form.logoUrl && (
+            <label className="flex items-center gap-3 cursor-pointer">
+              <div
+                onClick={() => set("logoWallpaper", !form.logoWallpaper)}
+                className={`relative w-10 h-6 rounded-full transition-colors cursor-pointer ${
+                  form.logoWallpaper ? "bg-green-500" : "bg-gray-300"
+                }`}
+              >
+                <div
+                  className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform shadow ${
+                    form.logoWallpaper ? "translate-x-5" : "translate-x-1"
+                  }`}
+                />
+              </div>
+              <div>
+                <span className="text-sm font-medium text-gray-700">Logo wallpaper</span>
+                <p className="text-xs text-gray-400">
+                  A large, faint tilt of your logo behind every page of the app
+                </p>
+              </div>
+            </label>
+          )}
           <div className="grid sm:grid-cols-2 gap-4">
             <ColorField
               label="Primary color"

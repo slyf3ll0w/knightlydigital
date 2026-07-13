@@ -25,6 +25,7 @@ model Company {
   logoMime         String?
   brandColor       String? // primary brand hex: headers/surfaces on client-facing pages + app accent
   brandColorSecondary String? // secondary brand hex: buttons/accents; falls back to brandColor
+  logoWallpaper    Boolean  @default(false) // faint oversized logo watermark behind app pages
   timezone         String   @default("America/Chicago")
   surchargeEnabled Boolean  @default(false)
   surchargeRate    Decimal  @default(0.0300) @db.Decimal(5, 4)
