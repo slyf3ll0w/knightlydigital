@@ -33,6 +33,20 @@ export default function RootLayout({
     <html lang="en">
       <head>
         <meta name="theme-color" content="#0C0F0C" />
+        {/* Theme stamp — runs before paint so there's no light/dark flash.
+            data-mode on <html> drives every dark-theme rule in globals.css;
+            "hub-theme" in localStorage ("light" | "dark") overrides the
+            system setting per device (set from Settings → Appearance). */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{
+var m=window.matchMedia("(prefers-color-scheme: dark)");
+function apply(){var t=null;try{t=localStorage.getItem("hub-theme")}catch(e){}
+document.documentElement.dataset.mode=(t?t==="dark":m.matches)?"dark":"light";}
+apply();m.addEventListener("change",apply);window.applyHubTheme=apply;
+}catch(e){}})();`,
+          }}
+        />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link

@@ -311,6 +311,26 @@ export default function SettingsClient({
 
   useUnsavedWarning(dirty);
 
+  // Appearance is a per-DEVICE preference (localStorage, not the database):
+  // field phones want their own light/dark choice, and it must apply with no
+  // network round-trip. The head script in app/layout.tsx owns the stamping;
+  // applyHubTheme() re-reads localStorage + system setting.
+  const [appearance, setAppearance] = useState<"system" | "light" | "dark">("system");
+  useEffect(() => {
+    try {
+      const t = localStorage.getItem("hub-theme");
+      if (t === "light" || t === "dark") setAppearance(t);
+    } catch {}
+  }, []);
+  function pickAppearance(v: "system" | "light" | "dark") {
+    setAppearance(v);
+    try {
+      if (v === "system") localStorage.removeItem("hub-theme");
+      else localStorage.setItem("hub-theme", v);
+    } catch {}
+    (window as unknown as { applyHubTheme?: () => void }).applyHubTheme?.();
+  }
+
   // Debounced auto-save: edits land on the server ~800ms after the last
   // change — there is no Save button. router.refresh() re-renders the shell
   // so sidebar/branding changes apply immediately.
@@ -650,6 +670,41 @@ export default function SettingsClient({
         </div>
         )}
 
+        {/* Appearance — per-device light/dark; the desktop app follows the
+            system, so this only shows on phones */}
+        {show("customization") && (
+        <div className="lg:hidden card-ledger p-5 space-y-4">
+          <div>
+            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Appearance</h2>
+            <p className="text-xs text-gray-400 mt-0.5">
+              Light or dark for this device — Automatic follows your phone&apos;s setting
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {(
+              [
+                ["system", "Automatic"],
+                ["light", "Light"],
+                ["dark", "Dark"],
+              ] as const
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => pickAppearance(value)}
+                className={`rounded-full border px-3.5 py-2 text-sm font-medium transition-colors ${
+                  appearance === value
+                    ? "border-green-500 ring-2 ring-green-500/30 text-gray-900"
+                    : "border-gray-300 text-gray-600 hover:bg-gray-50"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+        )}
+
         {/* Branding */}
         {show("customization") && (
         <div className="card-ledger p-5 space-y-4">
@@ -737,36 +792,12 @@ export default function SettingsClient({
               onChange={(v) => set("brandColorSecondary", v)}
             />
           </div>
-          {(form.logoUrl || form.brandColor || form.brandColorSecondary) && (
-            <div>
-              <p className="text-xs font-medium text-gray-500 mb-2">Preview</p>
-              <div
-                className="rounded-lg px-5 py-4 flex items-center gap-3"
-                style={{ backgroundColor: form.brandColor || "#0C0F0C" }}
-              >
-                {form.logoUrl && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={form.logoUrl} alt="Logo preview" className="h-12 w-auto max-w-[170px] object-contain" />
-                )}
-                <span className="font-bold text-white drop-shadow-sm">{form.name}</span>
-                <span
-                  className="ml-auto rounded-lg px-3 py-1.5 text-xs font-semibold"
-                  style={{
-                    backgroundColor: form.brandColorSecondary || form.brandColor || "#16A34A",
-                    color: textOn(form.brandColorSecondary || form.brandColor || "#16A34A"),
-                  }}
-                >
-                  Approve Quote
-                </span>
-              </div>
-            </div>
-          )}
         </div>
         )}
 
-        {/* Sidebar */}
+        {/* Sidebar — desktop-only chrome, so the card hides on phones */}
         {show("customization") && (
-        <div className="card-ledger p-5 space-y-4">
+        <div className="hidden lg:block card-ledger p-5 space-y-4">
           <div>
             <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Sidebar</h2>
             <p className="text-xs text-gray-400 mt-0.5">
@@ -814,6 +845,82 @@ export default function SettingsClient({
               onChange={(v) => set("sidebarLogoColor", v)}
             />
           )}
+        </div>
+        )}
+
+        {/* What your clients see — live branding preview of the client-facing
+            surfaces. Client pages are always light, so the mock pins its own
+            colors (arbitrary values dodge the dark-theme utility remap). */}
+        {show("customization") && (
+        <div className="hidden lg:block card-ledger p-5 space-y-4">
+          <div>
+            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+              What Your Clients See
+            </h2>
+            <p className="text-xs text-gray-400 mt-0.5">
+              Live preview of your branding on quotes, invoices, the client hub, and emails
+            </p>
+          </div>
+          <div className="theme-fixed overflow-hidden rounded-lg border border-gray-200 bg-white">
+            {/* Client page header */}
+            <div
+              className="flex items-center gap-3 px-5 py-4"
+              style={{ backgroundColor: form.brandColor || "#0C0F0C" }}
+            >
+              {form.logoUrl && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={form.logoUrl}
+                  alt=""
+                  className="h-10 w-auto max-w-[150px] object-contain"
+                />
+              )}
+              <span
+                className="font-display font-bold text-[15px]"
+                style={{ color: textOn(form.brandColor || "#0C0F0C") }}
+              >
+                {form.name}
+              </span>
+            </div>
+            {/* Quote body */}
+            <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-[#9CA3AF]">
+                  Quote #1042
+                </p>
+                <p className="text-lg font-semibold text-[#111827]">$1,250.00</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span
+                  className="rounded-full px-4 py-2 text-xs font-semibold"
+                  style={{
+                    backgroundColor: form.brandColorSecondary || form.brandColor || "#16A34A",
+                    color: textOn(form.brandColorSecondary || form.brandColor || "#16A34A"),
+                  }}
+                >
+                  Approve Quote
+                </span>
+                <span className="rounded-full border border-[#D1D5DB] px-4 py-2 text-xs font-semibold text-[#374151]">
+                  Ask a Question
+                </span>
+              </div>
+            </div>
+            {/* Email sender */}
+            <div className="border-t border-[#F3F4F6] bg-[#FAFAFA] px-5 py-3">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-[#9CA3AF]">
+                Email
+              </p>
+              <p className="text-sm font-medium text-[#111827]">
+                {form.name}{" "}
+                <span className="font-normal text-[#9CA3AF]">
+                  &lt;notifications@streamflaremedia.com&gt;
+                </span>
+              </p>
+              <p className="text-xs text-[#6B7280]">
+                Your quote from {form.name} is ready — Quote #1042
+              </p>
+            </div>
+          </div>
         </div>
         )}
 

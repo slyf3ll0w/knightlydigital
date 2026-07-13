@@ -157,12 +157,10 @@ h1, h2, h3, h4, h5, h6, .font-display {
      guard regardless of the active theme. */
   --mobile-accent-ink: var(--mobile-accent-dark, #22c55e);
 }
-@media (prefers-color-scheme: dark) {
-  .app-ui {
-    --mobile-accent: var(--mobile-accent-dark, #22c55e);
-    --mobile-on-accent: var(--mobile-on-accent-dark, #06130a);
-    --mobile-accent-soft: var(--mobile-accent-soft-dark, rgba(34, 197, 94, 0.14));
-  }
+html[data-mode="dark"] .app-ui {
+  --mobile-accent: var(--mobile-accent-dark, #22c55e);
+  --mobile-on-accent: var(--mobile-on-accent-dark, #06130a);
+  --mobile-accent-soft: var(--mobile-accent-soft-dark, rgba(34, 197, 94, 0.14));
 }
 
 /* ── Native feel: app chrome never selects like a web page, and taps on
@@ -388,10 +386,44 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .page-enter,
   .anim-portal,
-  .anim-fade-up {
+  .anim-fade-up,
+  .anim-create-pop,
+  .anim-create-item {
     animation: none;
     opacity: 1;
   }
+}
+
+/* ── Create menu — quick pop with a hint of overshoot, items cascade in ── */
+@keyframes create-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.96);
+  }
+  65% {
+    transform: translateY(1px) scale(1.004);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.anim-create-pop {
+  transform-origin: top center;
+  animation: create-pop 0.28s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+@keyframes create-item {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+.anim-create-item {
+  animation: create-item 0.22s ease-out both;
 }
 
 /* ── Card hover lift ── */
@@ -405,7 +437,10 @@ body {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
-   DARK THEME — app scope (.app-ui), follows the phone's system setting.
+   DARK THEME — app scope (.app-ui), gated on html[data-mode="dark"]. The
+   head script in app/layout.tsx stamps data-mode before paint from the
+   per-device "hub-theme" localStorage override (Settings → Appearance),
+   falling back to the phone's system setting.
 
    Bridge layer (mobile redesign phase 2): screens are still written in the
    light Tailwind palette, so dark mode remaps those utilities inside
@@ -419,8 +454,7 @@ body {
    Escape hatch: add .theme-fixed to anything that must keep its light
    colors in dark mode (e.g. white logo tiles).
    ═══════════════════════════════════════════════════════════════════════ */
-@media (prefers-color-scheme: dark) {
-  .app-ui {
+  html[data-mode="dark"] .app-ui {
     --t-ground: #0C0F0C;
     --t-surface: #131813;
     --t-raised: #171D17;
@@ -431,36 +465,36 @@ body {
   }
 
   /* ── Surfaces ── */
-  .app-ui .bg-white:not(.theme-fixed) { background-color: var(--t-surface); }
-  .app-ui .focus\:bg-white:focus { background-color: var(--t-surface); }
-  .app-ui .bg-gray-50,
-  .app-ui .bg-gray-50\/50,
-  .app-ui .bg-gray-50\/60,
-  .app-ui .bg-gray-50\/70,
-  .app-ui .disabled\:bg-gray-50:disabled { background-color: var(--t-raised); }
-  .app-ui .hover\:bg-gray-50:hover,
-  .app-ui .active\:bg-gray-50:active { background-color: var(--t-raised); }
-  .app-ui .bg-gray-100,
-  .app-ui .hover\:bg-gray-100:hover,
-  .app-ui .active\:bg-gray-100:active { background-color: var(--t-lifted); }
-  .app-ui .bg-gray-200,
-  .app-ui .hover\:bg-gray-200:hover { background-color: #232B23; }
-  .app-ui .bg-gray-300 { background-color: #2B342B; }
-  .app-ui .bg-gray-800, .app-ui .hover\:bg-gray-700:hover { background-color: #262E26; }
-  .app-ui .bg-gray-900 { background-color: #202820; }
-  .app-ui.bg-paper, .app-ui .bg-paper {
+  html[data-mode="dark"] .app-ui .bg-white:not(.theme-fixed) { background-color: var(--t-surface); }
+  html[data-mode="dark"] .app-ui .focus\:bg-white:focus { background-color: var(--t-surface); }
+  html[data-mode="dark"] .app-ui .bg-gray-50,
+  html[data-mode="dark"] .app-ui .bg-gray-50\/50,
+  html[data-mode="dark"] .app-ui .bg-gray-50\/60,
+  html[data-mode="dark"] .app-ui .bg-gray-50\/70,
+  html[data-mode="dark"] .app-ui .disabled\:bg-gray-50:disabled { background-color: var(--t-raised); }
+  html[data-mode="dark"] .app-ui .hover\:bg-gray-50:hover,
+  html[data-mode="dark"] .app-ui .active\:bg-gray-50:active { background-color: var(--t-raised); }
+  html[data-mode="dark"] .app-ui .bg-gray-100,
+  html[data-mode="dark"] .app-ui .hover\:bg-gray-100:hover,
+  html[data-mode="dark"] .app-ui .active\:bg-gray-100:active { background-color: var(--t-lifted); }
+  html[data-mode="dark"] .app-ui .bg-gray-200,
+  html[data-mode="dark"] .app-ui .hover\:bg-gray-200:hover { background-color: #232B23; }
+  html[data-mode="dark"] .app-ui .bg-gray-300 { background-color: #2B342B; }
+  html[data-mode="dark"] .app-ui .bg-gray-800, html[data-mode="dark"] .app-ui .hover\:bg-gray-700:hover { background-color: #262E26; }
+  html[data-mode="dark"] .app-ui .bg-gray-900 { background-color: #202820; }
+  html[data-mode="dark"] .app-ui.bg-paper, html[data-mode="dark"] .app-ui .bg-paper {
     background-color: var(--t-ground);
     background-image:
       linear-gradient(to right,  rgba(255, 255, 255, 0.03) 1px, transparent 1px),
       linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
   }
-  .app-ui.bg-paper-plain, .app-ui .bg-paper-plain { background-color: var(--t-ground); }
+  html[data-mode="dark"] .app-ui.bg-paper-plain, html[data-mode="dark"] .app-ui .bg-paper-plain { background-color: var(--t-ground); }
   /* Luminance-flip the mark so dark logos still read on the dark ground */
-  .app-ui .logo-wallpaper {
+  html[data-mode="dark"] .app-ui .logo-wallpaper {
     opacity: 0.1;
     filter: grayscale(100%) invert(1);
   }
-  .app-ui .card-ledger {
+  html[data-mode="dark"] .app-ui .card-ledger {
     background-color: var(--t-surface);
     border-color: var(--t-line);
     box-shadow:
@@ -469,102 +503,102 @@ body {
   }
 
   /* ── Ink ── */
-  .app-ui .text-gray-900 { color: var(--t-ink); }
-  .app-ui .text-gray-800 { color: #E2E9E2; }
-  .app-ui .text-gray-700 { color: #C6D0C6; }
-  .app-ui .text-gray-600 { color: #A3AFA3; }
-  .app-ui .text-gray-500 { color: #8FA08F; }
-  .app-ui .text-gray-400, .app-ui .disabled\:text-gray-400:disabled { color: #6B7A6B; }
-  .app-ui .text-gray-300 { color: #5C6B5C; }
-  .app-ui .disabled\:text-gray-500:disabled { color: #6B7A6B; }
-  .app-ui .hover\:text-gray-900:hover { color: #F0F4F0; }
-  .app-ui .hover\:text-gray-700:hover { color: #D5DED5; }
-  .app-ui .hover\:text-gray-600:hover { color: #B9C4B9; }
-  .app-ui .hover\:text-gray-500:hover { color: #9FAC9F; }
-  .app-ui input::placeholder,
-  .app-ui textarea::placeholder { color: #5C6B5C; }
+  html[data-mode="dark"] .app-ui .text-gray-900 { color: var(--t-ink); }
+  html[data-mode="dark"] .app-ui .text-gray-800 { color: #E2E9E2; }
+  html[data-mode="dark"] .app-ui .text-gray-700 { color: #C6D0C6; }
+  html[data-mode="dark"] .app-ui .text-gray-600 { color: #A3AFA3; }
+  html[data-mode="dark"] .app-ui .text-gray-500 { color: #8FA08F; }
+  html[data-mode="dark"] .app-ui .text-gray-400, html[data-mode="dark"] .app-ui .disabled\:text-gray-400:disabled { color: #6B7A6B; }
+  html[data-mode="dark"] .app-ui .text-gray-300 { color: #5C6B5C; }
+  html[data-mode="dark"] .app-ui .disabled\:text-gray-500:disabled { color: #6B7A6B; }
+  html[data-mode="dark"] .app-ui .hover\:text-gray-900:hover { color: #F0F4F0; }
+  html[data-mode="dark"] .app-ui .hover\:text-gray-700:hover { color: #D5DED5; }
+  html[data-mode="dark"] .app-ui .hover\:text-gray-600:hover { color: #B9C4B9; }
+  html[data-mode="dark"] .app-ui .hover\:text-gray-500:hover { color: #9FAC9F; }
+  html[data-mode="dark"] .app-ui input::placeholder,
+  html[data-mode="dark"] .app-ui textarea::placeholder { color: #5C6B5C; }
 
   /* ── Hairlines ── */
-  .app-ui .border-gray-50 { border-color: rgba(255, 255, 255, 0.05); }
-  .app-ui .border-gray-100 { border-color: rgba(255, 255, 255, 0.07); }
-  .app-ui .border-gray-200, .app-ui .border-gray-200\/80 { border-color: var(--t-line); }
-  .app-ui .border-gray-300 { border-color: rgba(255, 255, 255, 0.15); }
-  .app-ui .focus\:border-gray-300:focus { border-color: rgba(255, 255, 255, 0.22); }
-  .app-ui .hover\:border-gray-300:hover { border-color: rgba(255, 255, 255, 0.20); }
-  .app-ui .hover\:border-gray-400:hover { border-color: rgba(255, 255, 255, 0.26); }
-  .app-ui .divide-gray-50 > :not([hidden]) ~ :not([hidden]) { border-color: rgba(255, 255, 255, 0.05); }
-  .app-ui .divide-gray-100 > :not([hidden]) ~ :not([hidden]) { border-color: rgba(255, 255, 255, 0.07); }
-  .app-ui .ring-gray-200 { --tw-ring-color: var(--t-line); }
-  .app-ui .ring-black\/5 { --tw-ring-color: rgba(255, 255, 255, 0.08); }
+  html[data-mode="dark"] .app-ui .border-gray-50 { border-color: rgba(255, 255, 255, 0.05); }
+  html[data-mode="dark"] .app-ui .border-gray-100 { border-color: rgba(255, 255, 255, 0.07); }
+  html[data-mode="dark"] .app-ui .border-gray-200, html[data-mode="dark"] .app-ui .border-gray-200\/80 { border-color: var(--t-line); }
+  html[data-mode="dark"] .app-ui .border-gray-300 { border-color: rgba(255, 255, 255, 0.15); }
+  html[data-mode="dark"] .app-ui .focus\:border-gray-300:focus { border-color: rgba(255, 255, 255, 0.22); }
+  html[data-mode="dark"] .app-ui .hover\:border-gray-300:hover { border-color: rgba(255, 255, 255, 0.20); }
+  html[data-mode="dark"] .app-ui .hover\:border-gray-400:hover { border-color: rgba(255, 255, 255, 0.26); }
+  html[data-mode="dark"] .app-ui .divide-gray-50 > :not([hidden]) ~ :not([hidden]) { border-color: rgba(255, 255, 255, 0.05); }
+  html[data-mode="dark"] .app-ui .divide-gray-100 > :not([hidden]) ~ :not([hidden]) { border-color: rgba(255, 255, 255, 0.07); }
+  html[data-mode="dark"] .app-ui .ring-gray-200 { --tw-ring-color: var(--t-line); }
+  html[data-mode="dark"] .app-ui .ring-black\/5 { --tw-ring-color: rgba(255, 255, 255, 0.08); }
   /* Notification-dot halos cut out of the bar behind them, not white */
-  .app-ui .ring-white { --tw-ring-color: var(--t-surface); }
+  html[data-mode="dark"] .app-ui .ring-white { --tw-ring-color: var(--t-surface); }
 
   /* ── Brand green, brightened one step for dark contrast ── */
-  .app-ui .text-green-600, .app-ui .hover\:text-green-600:hover { color: #22C55E; }
-  .app-ui .text-green-700, .app-ui .hover\:text-green-700:hover { color: #4ADE80; }
-  .app-ui .text-green-800 { color: #86EFAC; }
-  .app-ui .bg-green-50, .app-ui .bg-green-50\/40,
-  .app-ui .hover\:bg-green-50:hover,
-  .app-ui .hover\:bg-green-50\/30:hover,
-  .app-ui .hover\:bg-green-50\/50:hover { background-color: rgba(34, 197, 94, 0.10); }
-  .app-ui .bg-green-100, .app-ui .bg-green-100\/70,
-  .app-ui .hover\:bg-green-100:hover { background-color: rgba(34, 197, 94, 0.16); }
-  .app-ui .hover\:bg-green-200:hover { background-color: rgba(34, 197, 94, 0.22); }
-  .app-ui .border-green-50 { border-color: rgba(34, 197, 94, 0.15); }
-  .app-ui .border-green-200, .app-ui .border-green-200\/60,
-  .app-ui .border-green-600\/25 { border-color: rgba(34, 197, 94, 0.30); }
-  .app-ui .border-green-300, .app-ui .hover\:border-green-300:hover { border-color: rgba(34, 197, 94, 0.40); }
-  .app-ui .hover\:border-green-400:hover { border-color: rgba(34, 197, 94, 0.55); }
+  html[data-mode="dark"] .app-ui .text-green-600, html[data-mode="dark"] .app-ui .hover\:text-green-600:hover { color: #22C55E; }
+  html[data-mode="dark"] .app-ui .text-green-700, html[data-mode="dark"] .app-ui .hover\:text-green-700:hover { color: #4ADE80; }
+  html[data-mode="dark"] .app-ui .text-green-800 { color: #86EFAC; }
+  html[data-mode="dark"] .app-ui .bg-green-50, html[data-mode="dark"] .app-ui .bg-green-50\/40,
+  html[data-mode="dark"] .app-ui .hover\:bg-green-50:hover,
+  html[data-mode="dark"] .app-ui .hover\:bg-green-50\/30:hover,
+  html[data-mode="dark"] .app-ui .hover\:bg-green-50\/50:hover { background-color: rgba(34, 197, 94, 0.10); }
+  html[data-mode="dark"] .app-ui .bg-green-100, html[data-mode="dark"] .app-ui .bg-green-100\/70,
+  html[data-mode="dark"] .app-ui .hover\:bg-green-100:hover { background-color: rgba(34, 197, 94, 0.16); }
+  html[data-mode="dark"] .app-ui .hover\:bg-green-200:hover { background-color: rgba(34, 197, 94, 0.22); }
+  html[data-mode="dark"] .app-ui .border-green-50 { border-color: rgba(34, 197, 94, 0.15); }
+  html[data-mode="dark"] .app-ui .border-green-200, html[data-mode="dark"] .app-ui .border-green-200\/60,
+  html[data-mode="dark"] .app-ui .border-green-600\/25 { border-color: rgba(34, 197, 94, 0.30); }
+  html[data-mode="dark"] .app-ui .border-green-300, html[data-mode="dark"] .app-ui .hover\:border-green-300:hover { border-color: rgba(34, 197, 94, 0.40); }
+  html[data-mode="dark"] .app-ui .hover\:border-green-400:hover { border-color: rgba(34, 197, 94, 0.55); }
 
   /* ── Money red ── */
-  .app-ui .text-red-600, .app-ui .text-red-700,
-  .app-ui .hover\:text-red-600:hover { color: #F87171; }
-  .app-ui .text-red-800, .app-ui .text-red-900,
-  .app-ui .hover\:text-red-500:hover, .app-ui .hover\:text-red-400:hover { color: #FCA5A5; }
-  .app-ui .bg-red-50, .app-ui .hover\:bg-red-50:hover { background-color: rgba(248, 113, 113, 0.10); }
-  .app-ui .bg-red-100, .app-ui .hover\:bg-red-100:hover { background-color: rgba(248, 113, 113, 0.18); }
-  .app-ui .border-red-100 { border-color: rgba(248, 113, 113, 0.20); }
-  .app-ui .border-red-200 { border-color: rgba(248, 113, 113, 0.30); }
-  .app-ui .border-red-300, .app-ui .hover\:border-red-300:hover { border-color: rgba(248, 113, 113, 0.40); }
-  .app-ui .border-red-400 { border-color: rgba(248, 113, 113, 0.50); }
+  html[data-mode="dark"] .app-ui .text-red-600, html[data-mode="dark"] .app-ui .text-red-700,
+  html[data-mode="dark"] .app-ui .hover\:text-red-600:hover { color: #F87171; }
+  html[data-mode="dark"] .app-ui .text-red-800, html[data-mode="dark"] .app-ui .text-red-900,
+  html[data-mode="dark"] .app-ui .hover\:text-red-500:hover, html[data-mode="dark"] .app-ui .hover\:text-red-400:hover { color: #FCA5A5; }
+  html[data-mode="dark"] .app-ui .bg-red-50, html[data-mode="dark"] .app-ui .hover\:bg-red-50:hover { background-color: rgba(248, 113, 113, 0.10); }
+  html[data-mode="dark"] .app-ui .bg-red-100, html[data-mode="dark"] .app-ui .hover\:bg-red-100:hover { background-color: rgba(248, 113, 113, 0.18); }
+  html[data-mode="dark"] .app-ui .border-red-100 { border-color: rgba(248, 113, 113, 0.20); }
+  html[data-mode="dark"] .app-ui .border-red-200 { border-color: rgba(248, 113, 113, 0.30); }
+  html[data-mode="dark"] .app-ui .border-red-300, html[data-mode="dark"] .app-ui .hover\:border-red-300:hover { border-color: rgba(248, 113, 113, 0.40); }
+  html[data-mode="dark"] .app-ui .border-red-400 { border-color: rgba(248, 113, 113, 0.50); }
 
   /* ── Waiting amber ── */
-  .app-ui .text-amber-600, .app-ui .hover\:text-amber-600:hover { color: #FBBF24; }
-  .app-ui .text-amber-700 { color: #FCD34D; }
-  .app-ui .text-amber-800, .app-ui .text-amber-900 { color: #FDE68A; }
-  .app-ui .bg-amber-50, .app-ui .hover\:bg-amber-50:hover { background-color: rgba(251, 191, 36, 0.10); }
-  .app-ui .bg-amber-100 { background-color: rgba(251, 191, 36, 0.16); }
-  .app-ui .hover\:bg-amber-200:hover { background-color: rgba(251, 191, 36, 0.24); }
-  .app-ui .border-amber-200 { border-color: rgba(251, 191, 36, 0.30); }
-  .app-ui .border-amber-300 { border-color: rgba(251, 191, 36, 0.40); }
+  html[data-mode="dark"] .app-ui .text-amber-600, html[data-mode="dark"] .app-ui .hover\:text-amber-600:hover { color: #FBBF24; }
+  html[data-mode="dark"] .app-ui .text-amber-700 { color: #FCD34D; }
+  html[data-mode="dark"] .app-ui .text-amber-800, html[data-mode="dark"] .app-ui .text-amber-900 { color: #FDE68A; }
+  html[data-mode="dark"] .app-ui .bg-amber-50, html[data-mode="dark"] .app-ui .hover\:bg-amber-50:hover { background-color: rgba(251, 191, 36, 0.10); }
+  html[data-mode="dark"] .app-ui .bg-amber-100 { background-color: rgba(251, 191, 36, 0.16); }
+  html[data-mode="dark"] .app-ui .hover\:bg-amber-200:hover { background-color: rgba(251, 191, 36, 0.24); }
+  html[data-mode="dark"] .app-ui .border-amber-200 { border-color: rgba(251, 191, 36, 0.30); }
+  html[data-mode="dark"] .app-ui .border-amber-300 { border-color: rgba(251, 191, 36, 0.40); }
 
   /* ── Info blue / plan purple ── */
-  .app-ui .text-blue-700 { color: #93C5FD; }
-  .app-ui .bg-blue-50 { background-color: rgba(96, 165, 250, 0.10); }
-  .app-ui .bg-blue-100, .app-ui .hover\:bg-blue-100:hover { background-color: rgba(96, 165, 250, 0.16); }
-  .app-ui .hover\:bg-blue-200:hover { background-color: rgba(96, 165, 250, 0.22); }
-  .app-ui .border-blue-50 { border-color: rgba(96, 165, 250, 0.15); }
-  .app-ui .border-blue-200 { border-color: rgba(96, 165, 250, 0.30); }
-  .app-ui .border-blue-300 { border-color: rgba(96, 165, 250, 0.40); }
-  .app-ui .text-purple-700 { color: #D8B4FE; }
+  html[data-mode="dark"] .app-ui .text-blue-700 { color: #93C5FD; }
+  html[data-mode="dark"] .app-ui .bg-blue-50 { background-color: rgba(96, 165, 250, 0.10); }
+  html[data-mode="dark"] .app-ui .bg-blue-100, html[data-mode="dark"] .app-ui .hover\:bg-blue-100:hover { background-color: rgba(96, 165, 250, 0.16); }
+  html[data-mode="dark"] .app-ui .hover\:bg-blue-200:hover { background-color: rgba(96, 165, 250, 0.22); }
+  html[data-mode="dark"] .app-ui .border-blue-50 { border-color: rgba(96, 165, 250, 0.15); }
+  html[data-mode="dark"] .app-ui .border-blue-200 { border-color: rgba(96, 165, 250, 0.30); }
+  html[data-mode="dark"] .app-ui .border-blue-300 { border-color: rgba(96, 165, 250, 0.40); }
+  html[data-mode="dark"] .app-ui .text-purple-700 { color: #D8B4FE; }
 
   /* ── Chrome details ── */
   /* Inputs with no explicit text utility fall back to WebKit's default
      BLACK even under color-scheme:dark — typed text was invisible. */
-  .app-ui input,
-  .app-ui textarea,
-  .app-ui select {
+  html[data-mode="dark"] .app-ui input,
+  html[data-mode="dark"] .app-ui textarea,
+  html[data-mode="dark"] .app-ui select {
     color: var(--t-ink);
     caret-color: var(--t-ink);
   }
-  .app-ui ::-webkit-scrollbar-thumb {
+  html[data-mode="dark"] .app-ui ::-webkit-scrollbar-thumb {
     background: #2E372E;
     border: 2px solid transparent;
     background-clip: padding-box;
   }
-  .app-ui ::-webkit-scrollbar-thumb:hover {
+  html[data-mode="dark"] .app-ui ::-webkit-scrollbar-thumb:hover {
     background: #3A453A;
     border: 2px solid transparent;
     background-clip: padding-box;
   }
-}
+

@@ -205,19 +205,26 @@ function CreateMenu({ accent, role }: { accent: string; role: string }) {
         onClick={() => setOpen((v) => !v)}
         data-tour="create"
         style={{ backgroundColor: accent, color: textOn(accent) }}
-        className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 hover:brightness-110 text-sm font-semibold rounded-full transition-[filter]"
+        className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 hover:brightness-110 text-sm font-semibold rounded-full transition-[filter,transform] duration-150 active:scale-[0.96]"
       >
-        <Plus size={15} />
+        {/* The plus twirls into an × while the menu is open — springy overshoot */}
+        <Plus
+          size={15}
+          className={`transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
+            open ? "rotate-[135deg]" : ""
+          }`}
+        />
         Create
       </button>
       {open && (
-        <div className="absolute left-3 right-3 top-full mt-1.5 z-50 bg-white rounded-lg shadow-xl ring-1 ring-black/5 py-1.5 overflow-hidden">
-          {items.map(({ href, label, icon: Icon }) => (
+        <div className="anim-create-pop absolute left-3 right-3 top-full mt-1.5 z-50 bg-white rounded-lg shadow-xl ring-1 ring-black/5 py-1.5 overflow-hidden">
+          {items.map(({ href, label, icon: Icon }, i) => (
             <Link
               key={href}
               href={href}
               onClick={() => setOpen(false)}
-              className="flex items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              style={{ animationDelay: `${i * 25}ms` }}
+              className="anim-create-item flex items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
             >
               <Icon size={14} style={{ color: createTints[href] ?? "#9CA3AF" }} />
               {label}

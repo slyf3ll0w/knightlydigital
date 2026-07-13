@@ -56,19 +56,29 @@ export default function NativeShell() {
 
     // iOS overlays the status bar on the webview; icons must match the
     // app's theme — dark icons over the light header (style LIGHT), light
-    // icons over the dark theme (style DARK). Follows the system setting
-    // live. Android keeps a solid dark bar matching the rail.
-    const darkQuery = window.matchMedia?.("(prefers-color-scheme: dark)");
+    // icons over the dark theme (style DARK). The active theme is the
+    // data-mode attribute the layout head script maintains (system setting
+    // + the per-device Appearance override), so watch that attribute.
+    // Android keeps a solid dark bar matching the rail.
+    const isDarkTheme = () => {
+      const mode = document.documentElement.dataset.mode;
+      if (mode) return mode === "dark";
+      return window.matchMedia?.("(prefers-color-scheme: dark)")?.matches ?? false;
+    };
     const applyStatusBar = () => {
       if (cap.getPlatform?.() === "ios") {
-        StatusBar?.setStyle?.({ style: darkQuery?.matches ? "DARK" : "LIGHT" }).catch(() => {});
+        StatusBar?.setStyle?.({ style: isDarkTheme() ? "DARK" : "LIGHT" }).catch(() => {});
       } else {
         StatusBar?.setStyle?.({ style: "DARK" }).catch(() => {});
         StatusBar?.setBackgroundColor?.({ color: "#0C0F0C" }).catch(() => {});
       }
     };
     applyStatusBar();
-    darkQuery?.addEventListener?.("change", applyStatusBar);
+    const modeObserver = new MutationObserver(applyStatusBar);
+    modeObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-mode"],
+    });
 
     // addListener on the raw bridge returns the handle synchronously on iOS
     // but a Promise on Android/web — normalize both.
@@ -158,7 +168,7 @@ export default function NativeShell() {
       tapHandle?.remove();
       kbHandles.forEach((h) => h.remove());
       document.documentElement.classList.remove("kb-open");
-      darkQuery?.removeEventListener?.("change", applyStatusBar);
+      modeObserver.disconnect();
       document.removeEventListener("click", onClick, true);
     };
   }, []);
