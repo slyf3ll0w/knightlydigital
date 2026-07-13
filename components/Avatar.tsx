@@ -36,13 +36,17 @@ export default function Avatar({
   size?: number;
   className?: string;
 }) {
+  const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
   const seed = name?.trim() || "?";
   const hue = hashHue(seed);
-  const showPhoto = !!userId && !failed;
+  const tryPhoto = !!userId && !failed;
+  // Initials always paint underneath; the photo sits on top and only becomes
+  // visible once it actually loads. A missing photo (404) therefore never
+  // flashes the browser's broken-image glyph — the initials just stay.
   return (
     <div
-      className={`rounded-full flex items-center justify-center font-semibold text-white select-none shrink-0 overflow-hidden ring-1 ring-white/20 ${className}`}
+      className={`relative rounded-full flex items-center justify-center font-semibold text-white select-none shrink-0 overflow-hidden ring-1 ring-white/20 ${className}`}
       style={{
         width: size,
         height: size,
@@ -52,18 +56,18 @@ export default function Avatar({
       }}
       title={name ?? undefined}
     >
-      {showPhoto ? (
+      {initials(seed)}
+      {tryPhoto && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={`/api/avatars/${userId}${version ? `?v=${version}` : ""}`}
           alt=""
           width={size}
           height={size}
-          className="h-full w-full object-cover"
+          className={`absolute inset-0 h-full w-full object-cover ${loaded ? "" : "opacity-0"}`}
+          onLoad={() => setLoaded(true)}
           onError={() => setFailed(true)}
         />
-      ) : (
-        initials(seed)
       )}
     </div>
   );

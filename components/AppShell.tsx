@@ -510,14 +510,14 @@ export default function AppShell({
   // full-bleed strip across the rail on a tenant-pickable backdrop color.
   const logo = companyLogoUrl ? (
     <div
-      className="theme-fixed flex min-h-[57px] items-center justify-center border-b border-[color:var(--rail-line)] px-3 py-2.5"
+      className="theme-fixed flex min-h-[57px] items-center justify-center border-b border-[color:var(--rail-line)] px-2 py-3"
       style={{ backgroundColor: sidebarLogoColor || "#FFFFFF" }}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={companyLogoUrl}
         alt={companyName ?? ""}
-        className="max-h-20 w-full object-contain"
+        className="max-h-28 w-full object-contain"
       />
     </div>
   ) : (

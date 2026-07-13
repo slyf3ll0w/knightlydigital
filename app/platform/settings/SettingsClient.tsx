@@ -262,7 +262,7 @@ export default function SettingsClient({
   isOwner?: boolean;
 }) {
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [logoBusy, setLogoBusy] = useState(false);
@@ -296,6 +296,12 @@ export default function SettingsClient({
     assistantName: company.assistantName ?? "",
     schedulingIntervalMinutes: String(company.schedulingIntervalMinutes ?? 30),
   });
+  // Auto-save bookkeeping: savedRef is the last snapshot the server confirmed
+  // (diffed against form so only changed fields go over the wire — the PATCH
+  // route is partial-safe); formRef mirrors form for use inside async closures.
+  const savedRef = useRef(form);
+  const formRef = useRef(form);
+  formRef.current = form;
 
   function set(field: string, value: string | boolean) {
     setForm((f) => ({ ...f, [field]: value }));
@@ -304,6 +310,67 @@ export default function SettingsClient({
   }
 
   useUnsavedWarning(dirty);
+
+  // Debounced auto-save: edits land on the server ~800ms after the last
+  // change — there is no Save button. router.refresh() re-renders the shell
+  // so sidebar/branding changes apply immediately.
+  useEffect(() => {
+    const changed: Partial<typeof form> = {};
+    for (const key of Object.keys(form) as (keyof typeof form)[]) {
+      if (form[key] !== savedRef.current[key]) {
+        (changed as Record<string, unknown>)[key] = form[key];
+      }
+    }
+    if (Object.keys(changed).length === 0) return;
+
+    const t = setTimeout(async () => {
+      const payload: Record<string, unknown> = { ...changed };
+      // Same transforms the old Save button applied
+      if ("surchargeRate" in payload || "surchargeEnabled" in payload) {
+        payload.surchargeEnabled = form.surchargeEnabled;
+        payload.surchargeRate = parseFloat(form.surchargeRate) / 100;
+      }
+      if ("defaultDepositType" in payload || "defaultDepositValue" in payload) {
+        payload.defaultDepositType = form.defaultDepositType;
+        payload.defaultDepositValue = form.defaultDepositValue;
+      }
+
+      setSaving(true);
+      setSaveError("");
+      let ok = false;
+      try {
+        const res = await fetch("/api/app/settings", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        ok = res.ok;
+        if (!res.ok) {
+          const data = await res.json().catch(() => null);
+          setSaveError(data?.error ?? "Couldn't save your changes. Please try again.");
+        }
+      } catch {
+        setSaveError("Couldn't reach the server. Check your connection and try again.");
+      }
+      setSaving(false);
+      if (!ok) return;
+
+      savedRef.current = { ...savedRef.current, ...changed };
+      // Edits made while the request was in flight stay dirty and reschedule
+      // themselves; otherwise flash the Saved indicator.
+      const settled = (Object.keys(formRef.current) as (keyof typeof form)[]).every(
+        (k) => formRef.current[k] === savedRef.current[k]
+      );
+      if (settled) {
+        setDirty(false);
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2000);
+      }
+      router.refresh();
+    }, 800);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form, router]);
 
   async function uploadLogo(file: File) {
     setLogoError("");
@@ -356,45 +423,30 @@ export default function SettingsClient({
     }
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setLoading(true);
-    setSaveError("");
-
-    let ok = false;
-    try {
-      const res = await fetch("/api/app/settings", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...form,
-          surchargeRate: parseFloat(form.surchargeRate) / 100,
-        }),
-      });
-      ok = res.ok;
-      if (!res.ok) {
-        const data = await res.json().catch(() => null);
-        setSaveError(data?.error ?? "Couldn't save your changes. Please try again.");
-      }
-    } catch {
-      setSaveError("Couldn't reach the server. Check your connection and try again.");
-    }
-
-    setLoading(false);
-    // Only clear the dirty flag and flash "Saved!" when the write actually landed —
-    // otherwise the form would falsely report success and silently revert on reload.
-    if (!ok) return;
-    setDirty(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
-    router.refresh();
-  }
-
   return (
     <div className="p-4 lg:p-8 max-w-3xl mx-auto">
-      <div className="mb-6">
-        <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">Settings</h1>
-        <p className="text-sm text-gray-500">Manage your business profile and configuration</p>
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">Settings</h1>
+          <p className="text-sm text-gray-500">
+            Manage your business profile — changes save automatically
+          </p>
+          {saveError && <p className="mt-1 text-sm text-red-600">{saveError}</p>}
+        </div>
+        <span
+          className="flex shrink-0 items-center gap-1.5 pt-2 text-xs font-medium text-gray-400"
+          aria-live="polite"
+        >
+          {saving ? (
+            <>
+              <Loader2 size={12} className="animate-spin" /> Saving…
+            </>
+          ) : saved ? (
+            <>
+              <Check size={12} className="text-green-600" /> Saved
+            </>
+          ) : null}
+        </span>
       </div>
 
       {/* Section filter — the page got crowded; pills narrow it down */}
@@ -502,7 +554,7 @@ export default function SettingsClient({
 
       {show("business") && <PortalLinkCard slug={company.slug} />}
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="space-y-6">
         {/* Business info */}
         {show("business") && (
         <div className="card-ledger p-5 space-y-4">
@@ -886,16 +938,7 @@ export default function SettingsClient({
           </div>
         </div>
         )}
-
-        <div>
-          <button type="submit" disabled={loading}
-            className="flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-full transition-colors disabled:opacity-50">
-            {loading ? <Loader2 size={14} className="animate-spin" /> : saved ? <Check size={14} /> : null}
-            {saved ? "Saved!" : "Save Settings"}
-          </button>
-          {saveError && <p className="mt-2 text-sm text-red-600">{saveError}</p>}
-        </div>
-      </form>
+      </div>
 
       {isOwner && show("business") && <DangerZone companyName={company.name} />}
     </div>
