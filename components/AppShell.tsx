@@ -302,6 +302,7 @@ interface AppShellProps {
   role?: string | null;
   companyName?: string | null;
   companyLogoUrl?: string | null;
+  logoWallpaper?: boolean;
   brandColor?: string | null;
   brandColorSecondary?: string | null;
   teamCount?: number;
@@ -318,6 +319,7 @@ export default function AppShell({
   role,
   companyName,
   companyLogoUrl,
+  logoWallpaper = false,
   brandColor,
   brandColorSecondary,
   teamCount = 1,
@@ -336,9 +338,6 @@ export default function AppShell({
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [counts, setCounts] = useState({ requests: 0, pastDue: 0, chat: 0, leads: 0 });
-  // Wide wordmark logos render large and alone; squarish marks get a tile
-  // next to the company name (detected from the image's natural size).
-  const [logoIsWide, setLogoIsWide] = useState(false);
 
   // Auth pages render standalone even when a session cookie exists
   const isAuthPage = pathname.startsWith("/app/login") || pathname.startsWith("/app/register");
@@ -495,36 +494,17 @@ export default function AppShell({
   );
 
   // Sidebar header is the company's identity, not ours (their logo when
-  // uploaded, otherwise a brand-colored initial tile). Wide wordmark logos
-  // already carry the name — show them big and alone; squarish marks sit
-  // next to the company name.
+  // uploaded, otherwise a brand-colored initial tile). The logo stands
+  // alone — no company name beside it — so it can render large.
   const logo = (
-    <div className="flex items-center gap-2.5 px-5 py-2.5 min-h-[57px] border-b border-white/10 min-w-0">
+    <div className="flex items-center gap-2.5 px-4 py-2.5 min-h-[57px] border-b border-white/10 min-w-0">
       {companyLogoUrl ? (
-        logoIsWide ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={companyLogoUrl}
-            alt={companyName ?? ""}
-            className="theme-fixed h-10 w-auto max-w-[176px] rounded-md object-contain bg-white px-1.5 py-1 ring-1 ring-white/20"
-          />
-        ) : (
-          <>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={companyLogoUrl}
-              alt=""
-              onLoad={(e) => {
-                const img = e.currentTarget;
-                if (img.naturalWidth > img.naturalHeight * 1.5) setLogoIsWide(true);
-              }}
-              className="theme-fixed h-10 w-10 rounded-md object-contain bg-white p-0.5 shrink-0 ring-1 ring-white/20"
-            />
-            <span className="font-display font-bold text-[14px] tracking-tight text-white truncate">
-              {companyName ?? "Streamflaire Hub"}
-            </span>
-          </>
-        )
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={companyLogoUrl}
+          alt={companyName ?? ""}
+          className="theme-fixed h-12 w-auto max-w-[200px] rounded-md object-contain bg-white px-2 py-1 ring-1 ring-white/20"
+        />
       ) : (
         <>
           <div
@@ -557,7 +537,12 @@ export default function AppShell({
     : undefined;
 
   return (
-    <div className="app-ui flex h-screen bg-paper overflow-hidden" style={mobileAccentVars}>
+    <div
+      className={`app-ui flex h-screen ${
+        pathname === "/app/dashboard" ? "bg-paper-plain" : "bg-paper"
+      } overflow-hidden`}
+      style={mobileAccentVars}
+    >
       {/* ── Desktop sidebar ──────────────────────────────────────────────── */}
       <aside className="hidden lg:flex flex-col w-[232px] bg-rail shrink-0">
         {logo}
@@ -579,9 +564,25 @@ export default function AppShell({
       />
 
       {/* ── Main content area ─────────────────────────────────────────────── */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <div className="relative flex-1 flex flex-col min-w-0 overflow-hidden">
+        {/* Optional company wallpaper — a huge tilted watermark of the logo
+            pinned behind every page (it doesn't scroll with the content).
+            The header paints over its own strip; <main> is transparent. */}
+        {logoWallpaper && companyLogoUrl && (
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={companyLogoUrl}
+              alt=""
+              className="logo-wallpaper w-[120%] max-w-none shrink-0 -rotate-45 object-contain"
+            />
+          </div>
+        )}
         {/* Top bar */}
-        <header className="flex items-center gap-4 px-4 lg:px-6 min-h-[57px] pt-[env(safe-area-inset-top)] border-b border-gray-200 bg-white shrink-0">
+        <header className="relative flex items-center gap-4 px-4 lg:px-6 min-h-[57px] pt-[env(safe-area-inset-top)] border-b border-gray-200 bg-white shrink-0">
           {/* Company name lives in the sidebar on desktop; header shows it on
               mobile. The hamburger is retired — the More tab opens the drawer. */}
           <span className="lg:hidden font-display font-bold text-[15px] text-gray-900 truncate">
@@ -652,7 +653,7 @@ export default function AppShell({
         </header>
 
         {/* Scrollable content */}
-        <main className="app-main flex-1 overflow-y-auto pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-0">{children}</main>
+        <main className="app-main relative flex-1 overflow-y-auto pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-0">{children}</main>
       </div>
 
       <MobileTabBar

@@ -236,6 +236,18 @@ body {
   background-size: 24px 24px;
 }
 
+/* Same canvas, no grid — the dashboard opts out of the graph paper. */
+.bg-paper-plain {
+  background-color: #FBFBFB;
+}
+
+/* ── Logo wallpaper — faint, oversized brand mark behind app pages (opt-in
+   per company via Settings → Branding). Rotation lives on the element. ── */
+.logo-wallpaper {
+  opacity: 0.05;
+  filter: grayscale(35%);
+}
+
 .bg-paper-warm {
   background-color: #F4F6F4;
   background-image:
@@ -404,6 +416,12 @@ body {
     background-image:
       linear-gradient(to right,  rgba(255, 255, 255, 0.03) 1px, transparent 1px),
       linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  }
+  .app-ui.bg-paper-plain, .app-ui .bg-paper-plain { background-color: var(--t-ground); }
+  /* Luminance-flip the mark so dark logos still read on the dark ground */
+  .app-ui .logo-wallpaper {
+    opacity: 0.06;
+    filter: grayscale(100%) invert(1);
   }
   .app-ui .card-ledger {
     background-color: var(--t-surface);
