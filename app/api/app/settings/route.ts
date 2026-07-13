@@ -47,6 +47,15 @@ export async function PATCH(req: NextRequest) {
       industry: body.industry !== undefined ? body.industry || null : undefined,
       logoUrl: body.logoUrl !== undefined ? body.logoUrl || null : undefined,
       logoWallpaper: typeof body.logoWallpaper === "boolean" ? body.logoWallpaper : undefined,
+      sidebarTheme: ["black", "white", "gray"].includes(body.sidebarTheme)
+        ? body.sidebarTheme
+        : undefined,
+      sidebarLogoColor:
+        body.sidebarLogoColor !== undefined
+          ? /^#[0-9a-fA-F]{6}$/.test(body.sidebarLogoColor ?? "")
+            ? body.sidebarLogoColor
+            : null
+          : undefined,
       brandColor:
         body.brandColor !== undefined
           ? /^#[0-9a-fA-F]{6}$/.test(body.brandColor ?? "")

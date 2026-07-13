@@ -244,8 +244,45 @@ body {
 /* ── Logo wallpaper — faint, oversized brand mark behind app pages (opt-in
    per company via Settings → Branding). Rotation lives on the element. ── */
 .logo-wallpaper {
-  opacity: 0.05;
-  filter: grayscale(35%);
+  opacity: 0.09;
+  filter: grayscale(20%);
+}
+
+/* ── Sidebar rail themes — tenant-selectable (Settings → Branding). Each
+   theme sets the full ink ramp as vars; the rail markup reads only vars,
+   so it's untouched by the dark-mode utility bridge (theme-fixed). ── */
+.rail-black {
+  --rail-bg: #0C0F0C;
+  --rail-ink: #FFFFFF;
+  --rail-muted: #9CA3AF;
+  --rail-faint: rgba(255, 255, 255, 0.4);
+  --rail-line: rgba(255, 255, 255, 0.1);
+  --rail-hover: rgba(255, 255, 255, 0.06);
+  --rail-chip: rgba(255, 255, 255, 0.1);
+  --rail-chip-ink: #D1D5DB;
+}
+.rail-white {
+  --rail-bg: #FFFFFF;
+  --rail-ink: #111827;
+  --rail-muted: #6B7280;
+  --rail-faint: rgba(17, 24, 39, 0.45);
+  --rail-line: rgba(15, 23, 42, 0.1);
+  --rail-hover: rgba(15, 23, 42, 0.05);
+  --rail-chip: rgba(15, 23, 42, 0.08);
+  --rail-chip-ink: #4B5563;
+}
+.rail-gray {
+  --rail-bg: #F1F2F4;
+  --rail-ink: #111827;
+  --rail-muted: #6B7280;
+  --rail-faint: rgba(17, 24, 39, 0.45);
+  --rail-line: rgba(15, 23, 42, 0.12);
+  --rail-hover: rgba(15, 23, 42, 0.06);
+  --rail-chip: rgba(15, 23, 42, 0.08);
+  --rail-chip-ink: #4B5563;
+}
+.rail-black, .rail-white, .rail-gray {
+  background-color: var(--rail-bg);
 }
 
 .bg-paper-warm {
@@ -420,7 +457,7 @@ body {
   .app-ui.bg-paper-plain, .app-ui .bg-paper-plain { background-color: var(--t-ground); }
   /* Luminance-flip the mark so dark logos still read on the dark ground */
   .app-ui .logo-wallpaper {
-    opacity: 0.06;
+    opacity: 0.1;
     filter: grayscale(100%) invert(1);
   }
   .app-ui .card-ledger {

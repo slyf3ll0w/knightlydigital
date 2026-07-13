@@ -15,7 +15,7 @@ type Company = {
   email: string | null; address: string | null; city: string | null;
   state: string | null; zip: string | null; website: string | null;
   logoUrl: string | null; brandColor: string | null; brandColorSecondary: string | null;
-  logoWallpaper: boolean;
+  logoWallpaper: boolean; sidebarTheme: string; sidebarLogoColor: string | null;
   surchargeEnabled: boolean; surchargeRate: string | number | null;
   defaultDepositType: "NONE" | "PERCENT" | "FIXED" | "FULL";
   defaultDepositValue: string | number | null;
@@ -90,6 +90,16 @@ function ColorField({
     </div>
   );
 }
+
+// Section filter for the settings page — every card belongs to one bucket
+const SECTION_TABS = [
+  ["all", "All"],
+  ["business", "Business"],
+  ["customization", "Customization"],
+  ["payments", "Payments"],
+  ["features", "Features"],
+] as const;
+type Section = (typeof SECTION_TABS)[number][0];
 
 const TIMEZONES = [
   { value: "America/New_York", label: "Eastern (New York)" },
@@ -259,6 +269,8 @@ export default function SettingsClient({
   const [logoError, setLogoError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dirty, setDirty] = useState(false);
+  const [section, setSection] = useState<Section>("all");
+  const show = (s: Section) => section === "all" || section === s;
   const [form, setForm] = useState({
     name: company.name,
     phone: company.phone ?? "",
@@ -271,6 +283,8 @@ export default function SettingsClient({
     industry: company.industry ?? "",
     logoUrl: company.logoUrl ?? "",
     logoWallpaper: company.logoWallpaper ?? false,
+    sidebarTheme: company.sidebarTheme ?? "black",
+    sidebarLogoColor: company.sidebarLogoColor ?? "",
     brandColor: company.brandColor ?? "",
     brandColorSecondary: company.brandColorSecondary ?? "",
     surchargeEnabled: company.surchargeEnabled,
@@ -383,6 +397,26 @@ export default function SettingsClient({
         <p className="text-sm text-gray-500">Manage your business profile and configuration</p>
       </div>
 
+      {/* Section filter — the page got crowded; pills narrow it down */}
+      <div className="mb-6 flex gap-2 overflow-x-auto pb-1">
+        {SECTION_TABS.map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setSection(key)}
+            className={`shrink-0 rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+              section === key
+                ? "bg-gray-900 text-white"
+                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {show("features") && (
+      <>
       {/* AI setup assistant */}
       <Link
         href="/app/setup"
@@ -463,11 +497,14 @@ export default function SettingsClient({
         </div>
         <span className="text-sm font-medium text-green-600">Manage →</span>
       </Link>
+      </>
+      )}
 
-      <PortalLinkCard slug={company.slug} />
+      {show("business") && <PortalLinkCard slug={company.slug} />}
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Business info */}
+        {show("business") && (
         <div className="card-ledger p-5 space-y-4">
           <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Business Info</h2>
           <div>
@@ -559,8 +596,10 @@ export default function SettingsClient({
             </p>
           </div>
         </div>
+        )}
 
         {/* Branding */}
+        {show("customization") && (
         <div className="card-ledger p-5 space-y-4">
           <div>
             <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Branding</h2>
@@ -671,8 +710,63 @@ export default function SettingsClient({
             </div>
           )}
         </div>
+        )}
+
+        {/* Sidebar */}
+        {show("customization") && (
+        <div className="card-ledger p-5 space-y-4">
+          <div>
+            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Sidebar</h2>
+            <p className="text-xs text-gray-400 mt-0.5">
+              How the desktop navigation rail looks for your whole team
+            </p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Sidebar color</label>
+            <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  ["black", "Black", "#0C0F0C"],
+                  ["white", "White", "#FFFFFF"],
+                  ["gray", "Gray", "#F1F2F4"],
+                ] as const
+              ).map(([value, label, hex]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => set("sidebarTheme", value)}
+                  className={`flex items-center gap-2 rounded-full border px-3.5 py-2 text-sm font-medium transition-colors ${
+                    form.sidebarTheme === value
+                      ? "border-green-500 ring-2 ring-green-500/30 text-gray-900"
+                      : "border-gray-300 text-gray-600 hover:bg-gray-50"
+                  }`}
+                >
+                  <span
+                    className="h-4 w-4 rounded-full border border-gray-300"
+                    style={{ backgroundColor: hex }}
+                  />
+                  {label}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-gray-400 mt-1">
+              A neutral rail keeps buttons and your brand accents standing out.
+            </p>
+          </div>
+          {form.logoUrl && (
+            <ColorField
+              label="Logo backdrop"
+              hint="Panel color behind your logo at the top of the sidebar"
+              value={form.sidebarLogoColor}
+              fallback="#FFFFFF"
+              onChange={(v) => set("sidebarLogoColor", v)}
+            />
+          )}
+        </div>
+        )}
 
         {/* Surcharging */}
+        {show("payments") && (
         <div className="card-ledger p-5 space-y-4">
           <div>
             <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Card Surcharging</h2>
@@ -708,8 +802,10 @@ export default function SettingsClient({
             </div>
           )}
         </div>
+        )}
 
         {/* Default deposit */}
+        {show("payments") && (
         <div className="card-ledger p-5 space-y-4">
           <div>
             <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Default Deposit</h2>
@@ -755,8 +851,10 @@ export default function SettingsClient({
             then subtracts what they&apos;ve already paid.
           </p>
         </div>
+        )}
 
         {/* AI assistant */}
+        {show("features") && (
         <div className="card-ledger p-5 space-y-4">
           <div>
             <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">AI Assistant</h2>
@@ -770,8 +868,10 @@ export default function SettingsClient({
             <p className="text-xs text-gray-400 mt-1">Give it a name that fits your business — leave blank for Atlas</p>
           </div>
         </div>
+        )}
 
         {/* Review requests */}
+        {show("features") && (
         <div className="card-ledger p-5 space-y-4">
           <div>
             <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Review Requests</h2>
@@ -785,6 +885,7 @@ export default function SettingsClient({
             <p className="text-xs text-gray-400 mt-1">Find this in your Google Business Profile → Get more reviews</p>
           </div>
         </div>
+        )}
 
         <div>
           <button type="submit" disabled={loading}
@@ -796,7 +897,7 @@ export default function SettingsClient({
         </div>
       </form>
 
-      {isOwner && <DangerZone companyName={company.name} />}
+      {isOwner && show("business") && <DangerZone companyName={company.name} />}
     </div>
   );
 }

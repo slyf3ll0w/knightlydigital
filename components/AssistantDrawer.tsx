@@ -322,7 +322,7 @@ export default function AssistantDrawer({
     <>
       {/* backdrop (mobile emphasis; click closes everywhere) */}
       <div className="fixed inset-0 z-40 bg-black/20 sm:bg-black/10" onClick={onClose} />
-      <div className="fixed inset-y-0 right-0 z-50 flex w-full max-w-full flex-col border-l border-gray-200 bg-paper pt-[env(safe-area-inset-top)] shadow-2xl sm:w-[400px]">
+      <div className="fixed inset-y-0 right-0 z-50 flex w-full max-w-full flex-col border-l border-gray-200 bg-paper-plain pt-[env(safe-area-inset-top)] shadow-2xl sm:w-[400px]">
         {/* header */}
         <div className="flex h-[57px] shrink-0 items-center gap-2.5 border-b border-gray-200 px-4">
           <AtlasMark size={30} accent={accent} className="shrink-0" />

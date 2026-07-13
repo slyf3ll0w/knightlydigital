@@ -26,6 +26,8 @@ model Company {
   brandColor       String? // primary brand hex: headers/surfaces on client-facing pages + app accent
   brandColorSecondary String? // secondary brand hex: buttons/accents; falls back to brandColor
   logoWallpaper    Boolean  @default(false) // faint oversized logo watermark behind app pages
+  sidebarTheme     String   @default("black") // desktop sidebar: "black" | "white" | "gray"
+  sidebarLogoColor String? // hex backdrop behind the sidebar logo panel; null = white
   timezone         String   @default("America/Chicago")
   surchargeEnabled Boolean  @default(false)
   surchargeRate    Decimal  @default(0.0300) @db.Decimal(5, 4)

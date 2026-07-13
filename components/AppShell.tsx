@@ -282,14 +282,14 @@ function UserMenu({
       )}
       <button
         onClick={() => setOpen((v) => !v)}
-        className="w-full px-3 py-2.5 flex items-center gap-3 rounded-md hover:bg-white/[0.06] transition-colors text-left"
+        className="w-full px-3 py-2.5 flex items-center gap-3 rounded-md hover:bg-[var(--rail-hover)] transition-colors text-left"
       >
         <Avatar name={userName} userId={userId} size={28} />
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-medium text-white truncate">{userName}</p>
-          <p className="text-[11px] text-white/45 truncate">{userEmail}</p>
+          <p className="text-xs font-medium text-[color:var(--rail-ink)] truncate">{userName}</p>
+          <p className="text-[11px] text-[color:var(--rail-faint)] truncate">{userEmail}</p>
         </div>
-        <ChevronsUpDown size={13} className="text-white/40 shrink-0" />
+        <ChevronsUpDown size={13} className="text-[color:var(--rail-faint)] shrink-0" />
       </button>
     </div>
   );
@@ -303,6 +303,8 @@ interface AppShellProps {
   companyName?: string | null;
   companyLogoUrl?: string | null;
   logoWallpaper?: boolean;
+  sidebarTheme?: string | null;
+  sidebarLogoColor?: string | null;
   brandColor?: string | null;
   brandColorSecondary?: string | null;
   teamCount?: number;
@@ -320,6 +322,8 @@ export default function AppShell({
   companyName,
   companyLogoUrl,
   logoWallpaper = false,
+  sidebarTheme,
+  sidebarLogoColor,
   brandColor,
   brandColorSecondary,
   teamCount = 1,
@@ -330,8 +334,14 @@ export default function AppShell({
 }: AppShellProps) {
   const userRole = role ?? "OWNER";
   const manager = isManagerRole(userRole);
-  // Secondary brand color is the accent; primary fills in when it's unset
-  const accent = sidebarAccent(brandColorSecondary || brandColor || DEFAULT_ACCENT);
+  // Tenant-selectable rail theme; unknown values fall back to black
+  const rail = sidebarTheme === "white" || sidebarTheme === "gray" ? sidebarTheme : "black";
+  const railDark = rail === "black";
+  // Secondary brand color is the accent; primary fills in when it's unset.
+  // Guarded per rail: colors that would vanish flip to the readable default.
+  const accent = railDark
+    ? sidebarAccent(brandColorSecondary || brandColor || DEFAULT_ACCENT)
+    : surfaceAccent(brandColorSecondary || brandColor || "#0C0F0C");
   const pathname = usePathname();
   const router = useRouter();
   const [moreOpen, setMoreOpen] = useState(false);
@@ -414,8 +424,8 @@ export default function AppShell({
         data-tour={tourKeys[href]}
         className={`group font-display relative flex items-center gap-3 rounded-md px-3 py-2 text-[13px] transition-colors ${
           active
-            ? "font-semibold text-white"
-            : "font-medium text-gray-400 hover:bg-white/[0.06] hover:text-white"
+            ? "font-semibold text-[color:var(--rail-ink)]"
+            : "font-medium text-[color:var(--rail-muted)] hover:bg-[var(--rail-hover)] hover:text-[color:var(--rail-ink)]"
         }`}
         style={{ "--st": tint, ...(active ? { backgroundColor: `${tint}26` } : {}) } as React.CSSProperties}
       >
@@ -435,7 +445,9 @@ export default function AppShell({
         {badge > 0 && (
           <span
             className={`ml-auto min-w-[18px] rounded-full px-1.5 py-px text-center text-[10px] font-bold tabular-nums ${
-              href === "/app/invoices" ? "bg-red-500 text-white" : "bg-white/10 text-gray-300"
+              href === "/app/invoices"
+                ? "bg-red-500 text-white"
+                : "bg-[var(--rail-chip)] text-[color:var(--rail-chip-ink)]"
             }`}
           >
             {badge > 99 ? "99+" : badge}
@@ -458,10 +470,10 @@ export default function AppShell({
             <div key={i} className={i > 0 ? "mt-4" : undefined}>
               {group.label && (
                 <div className="flex items-center gap-2 px-3 pb-1.5">
-                  <span className="font-display text-[10px] font-semibold uppercase tracking-[0.12em] text-white/35">
+                  <span className="font-display text-[10px] font-semibold uppercase tracking-[0.12em] text-[color:var(--rail-faint)]">
                     {group.label}
                   </span>
-                  <span className="h-px flex-1 bg-white/10" aria-hidden />
+                  <span className="h-px flex-1 bg-[var(--rail-line)]" aria-hidden />
                 </div>
               )}
               <div className="space-y-0.5">
@@ -475,17 +487,17 @@ export default function AppShell({
       </nav>
 
       {/* Settings + user */}
-      <div className="px-3 py-3 border-t border-white/10 space-y-0.5">
+      <div className="px-3 py-3 border-t border-[color:var(--rail-line)] space-y-0.5">
         {manager && navLink("/app/settings/booking", "Forms", Globe)}
         {manager && navLink("/app/settings/team", "Team", UserPlus)}
         {manager && navLink("/app/settings", "Settings", Settings)}
         <UserMenu userName={userName} userEmail={userEmail} userId={userId} />
-        <p className="px-3 pt-1.5 pb-1 text-[10px] text-white/35 flex items-center gap-1.5">
+        <p className="px-3 pt-1.5 pb-1 text-[10px] text-[color:var(--rail-faint)] flex items-center gap-1.5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/streamflaire-hub-mark.png"
             alt=""
-            className="h-2.5 w-auto shrink-0 opacity-60 brightness-0 invert"
+            className={`h-2.5 w-auto shrink-0 opacity-60 brightness-0 ${railDark ? "invert" : ""}`}
           />
           Powered by Streamflaire Hub
         </p>
@@ -494,30 +506,31 @@ export default function AppShell({
   );
 
   // Sidebar header is the company's identity, not ours (their logo when
-  // uploaded, otherwise a brand-colored initial tile). The logo stands
-  // alone — no company name beside it — so it can render large.
-  const logo = (
-    <div className="flex items-center gap-2.5 px-4 py-2.5 min-h-[57px] border-b border-white/10 min-w-0">
-      {companyLogoUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={companyLogoUrl}
-          alt={companyName ?? ""}
-          className="theme-fixed h-12 w-auto max-w-[200px] rounded-md object-contain bg-white px-2 py-1 ring-1 ring-white/20"
-        />
-      ) : (
-        <>
-          <div
-            className="chamfer w-9 h-9 rounded-md flex items-center justify-center shrink-0 font-display font-bold text-sm"
-            style={{ backgroundColor: accent, color: textOn(accent) }}
-          >
-            {companyName?.charAt(0).toUpperCase() ?? "J"}
-          </div>
-          <span className="font-display font-bold text-[14px] tracking-tight text-white truncate">
-            {companyName ?? "Streamflaire Hub"}
-          </span>
-        </>
-      )}
+  // uploaded, otherwise a brand-colored initial tile). The logo panel is a
+  // full-bleed strip across the rail on a tenant-pickable backdrop color.
+  const logo = companyLogoUrl ? (
+    <div
+      className="theme-fixed flex min-h-[57px] items-center justify-center border-b border-[color:var(--rail-line)] px-3 py-2.5"
+      style={{ backgroundColor: sidebarLogoColor || "#FFFFFF" }}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={companyLogoUrl}
+        alt={companyName ?? ""}
+        className="max-h-20 w-full object-contain"
+      />
+    </div>
+  ) : (
+    <div className="flex items-center gap-2.5 px-4 py-2.5 min-h-[57px] border-b border-[color:var(--rail-line)] min-w-0">
+      <div
+        className="chamfer w-9 h-9 rounded-md flex items-center justify-center shrink-0 font-display font-bold text-sm"
+        style={{ backgroundColor: accent, color: textOn(accent) }}
+      >
+        {companyName?.charAt(0).toUpperCase() ?? "J"}
+      </div>
+      <span className="font-display font-bold text-[14px] tracking-tight text-[color:var(--rail-ink)] truncate">
+        {companyName ?? "Streamflaire Hub"}
+      </span>
     </div>
   );
 
@@ -537,14 +550,9 @@ export default function AppShell({
     : undefined;
 
   return (
-    <div
-      className={`app-ui flex h-screen ${
-        pathname === "/app/dashboard" ? "bg-paper-plain" : "bg-paper"
-      } overflow-hidden`}
-      style={mobileAccentVars}
-    >
+    <div className="app-ui flex h-screen bg-paper-plain overflow-hidden" style={mobileAccentVars}>
       {/* ── Desktop sidebar ──────────────────────────────────────────────── */}
-      <aside className="hidden lg:flex flex-col w-[232px] bg-rail shrink-0">
+      <aside className={`hidden lg:flex flex-col w-[232px] shrink-0 rail-${rail}`}>
         {logo}
         {sidebarInner}
       </aside>
@@ -577,7 +585,7 @@ export default function AppShell({
             <img
               src={companyLogoUrl}
               alt=""
-              className="logo-wallpaper w-[120%] max-w-none shrink-0 -rotate-45 object-contain"
+              className="logo-wallpaper w-[120%] max-w-none shrink-0 rotate-45 object-contain"
             />
           </div>
         )}
@@ -1000,7 +1008,7 @@ function MoreSheet({
         aria-hidden
       />
       <div
-        className={`fixed inset-x-0 bottom-0 z-50 lg:hidden flex max-h-[88dvh] flex-col rounded-t-3xl bg-paper shadow-[0_-8px_30px_rgba(28,25,23,0.18)] transition-transform duration-300 [transition-timing-function:cubic-bezier(0.32,0.72,0,1)] ${
+        className={`fixed inset-x-0 bottom-0 z-50 lg:hidden flex max-h-[88dvh] flex-col rounded-t-3xl bg-paper-plain shadow-[0_-8px_30px_rgba(28,25,23,0.18)] transition-transform duration-300 [transition-timing-function:cubic-bezier(0.32,0.72,0,1)] ${
           open ? "translate-y-0" : "translate-y-full pointer-events-none"
         }`}
       >

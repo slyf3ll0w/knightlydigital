@@ -34,6 +34,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             name: true,
             logoUrl: true,
             logoWallpaper: true,
+            sidebarTheme: true,
+            sidebarLogoColor: true,
             brandColor: true,
             brandColorSecondary: true,
             assistantName: true,
@@ -62,6 +64,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         companyName={company?.name ?? session.user.companyName}
         companyLogoUrl={company?.logoUrl}
         logoWallpaper={company?.logoWallpaper ?? false}
+        sidebarTheme={company?.sidebarTheme}
+        sidebarLogoColor={company?.sidebarLogoColor}
         brandColor={company?.brandColor}
         brandColorSecondary={company?.brandColorSecondary}
         teamCount={teamCount}
