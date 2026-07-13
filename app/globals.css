@@ -420,7 +420,8 @@ body {
   .anim-portal,
   .anim-fade-up,
   .anim-create-pop,
-  .anim-create-item {
+  .anim-create-item,
+  .anim-x-twirl {
     animation: none;
     opacity: 1;
   }
@@ -456,6 +457,20 @@ body {
 }
 .anim-create-item {
   animation: create-item 0.22s ease-out both;
+}
+
+/* Create-sheet close button: the + twirls into an × as the sheet lands,
+   and holds there while it's open. */
+@keyframes x-twirl {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(135deg);
+  }
+}
+.anim-x-twirl {
+  animation: x-twirl 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) 0.12s both;
 }
 
 /* ── Card hover lift ── */

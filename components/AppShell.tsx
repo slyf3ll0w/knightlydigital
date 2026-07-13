@@ -515,21 +515,23 @@ export default function AppShell({
   );
 
   // Sidebar header is the company's identity, not ours (their logo when
-  // uploaded, otherwise a brand-colored initial tile). The logo panel is a
-  // full-bleed strip across the rail on a tenant-pickable backdrop color,
-  // locked to exactly the top bar's 57px so the two hairlines meet in one
-  // continuous line — a taller panel reads as a misaligned seam.
+  // uploaded, otherwise a brand-colored initial tile). The logo rides a
+  // floating rounded card on a tenant-pickable backdrop — margins all
+  // around mean it never has to line up with the top bar's hairline, so
+  // any logo shape or size reads as intentional.
   const logo = companyLogoUrl ? (
-    <div
-      className="theme-fixed flex h-[57px] items-center justify-center border-b border-[color:var(--rail-line)] px-3 py-2"
-      style={{ backgroundColor: sidebarLogoColor || "#FFFFFF" }}
-    >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={companyLogoUrl}
-        alt={companyName ?? ""}
-        className="h-full w-full object-contain"
-      />
+    <div className="px-3 pt-3 pb-1.5">
+      <div
+        className="theme-fixed flex items-center justify-center rounded-xl px-3 py-2.5 ring-1 ring-[color:var(--rail-line)]"
+        style={{ backgroundColor: sidebarLogoColor || "#FFFFFF" }}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={companyLogoUrl}
+          alt={companyName ?? ""}
+          className="max-h-24 w-full object-contain"
+        />
+      </div>
     </div>
   ) : (
     <div className="flex items-center gap-2.5 px-4 py-2.5 min-h-[57px] border-b border-[color:var(--rail-line)] min-w-0">
@@ -602,11 +604,22 @@ export default function AppShell({
         )}
         {/* Top bar */}
         <header className="relative flex items-center gap-4 px-4 lg:px-6 min-h-[57px] pt-[env(safe-area-inset-top)] border-b border-gray-200 bg-white shrink-0">
-          {/* Company name lives in the sidebar on desktop; header shows it on
-              mobile. The hamburger is retired — the More tab opens the drawer. */}
-          <span className="lg:hidden font-display font-bold text-[15px] text-gray-900 truncate">
-            {companyName ?? "Streamflaire Hub"}
-          </span>
+          {/* Company identity lives in the sidebar on desktop; the header
+              carries it on mobile — the logo when one's uploaded (white tile
+              so dark marks survive dark mode), else the name. The hamburger
+              is retired — the More tab opens the drawer. */}
+          {companyLogoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={companyLogoUrl}
+              alt={companyName ?? ""}
+              className="lg:hidden theme-fixed h-8 w-auto max-w-[150px] rounded-md bg-white object-contain px-1 py-0.5"
+            />
+          ) : (
+            <span className="lg:hidden font-display font-bold text-[15px] text-gray-900 truncate">
+              {companyName ?? "Streamflaire Hub"}
+            </span>
+          )}
 
           {/* Team chat, one tap from anywhere — red dot when messages wait */}
           <Link
@@ -822,7 +835,7 @@ function MobileTabBar({
           </p>
           {/* 6-col grid, tiles span 2 — lets a lone tile on the last row sit
               centered (col 3) and a pair sit symmetric (cols 2+4). */}
-          <div className="grid grid-cols-6 gap-y-1.5 px-3 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+          <div className="grid grid-cols-6 gap-y-1.5 px-3 pb-2">
             {creates.map(({ href, label, icon: Icon }, i) => {
               const rem = creates.length % 3;
               const placement =
@@ -859,6 +872,21 @@ function MobileTabBar({
                 </Link>
               );
             })}
+          </div>
+          {/* The FAB's + twirls to an × here, on top of the sheet — the real
+              FAB sits underneath it and can't show the animation itself */}
+          <div className="flex justify-center pt-1 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+            <button
+              type="button"
+              onClick={() => {
+                hapticImpact("LIGHT");
+                setSheetOpen(false);
+              }}
+              aria-label="Close"
+              className="flex h-11 w-11 items-center justify-center rounded-full bg-gray-100 text-gray-600 active:scale-90 transition-transform"
+            >
+              <Plus size={20} strokeWidth={2.5} className={sheetOpen ? "anim-x-twirl" : ""} />
+            </button>
           </div>
         </div>
       )}

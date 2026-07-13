@@ -7,7 +7,6 @@ import { signOut } from "next-auth/react";
 import { Loader2, Check, Upload, Trash2, AlertTriangle } from "lucide-react";
 import { resizeImageFile } from "@/lib/resize-image";
 import { INDUSTRIES } from "@/lib/pricebooks";
-import { useUnsavedWarning } from "@/lib/use-unsaved-warning";
 import { textOn } from "@/lib/branding";
 
 type Company = {
@@ -267,8 +266,8 @@ export default function SettingsClient({
   const [saveError, setSaveError] = useState("");
   const [logoBusy, setLogoBusy] = useState(false);
   const [logoError, setLogoError] = useState("");
+  const [logoDragOver, setLogoDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [dirty, setDirty] = useState(false);
   const [section, setSection] = useState<Section>("all");
   const show = (s: Section) => section === "all" || section === s;
   const [form, setForm] = useState({
@@ -305,11 +304,8 @@ export default function SettingsClient({
 
   function set(field: string, value: string | boolean) {
     setForm((f) => ({ ...f, [field]: value }));
-    setDirty(true);
     setSaved(false);
   }
-
-  useUnsavedWarning(dirty);
 
   // Appearance is a per-DEVICE preference (localStorage, not the database):
   // field phones want their own light/dark choice, and it must apply with no
@@ -376,13 +372,12 @@ export default function SettingsClient({
       if (!ok) return;
 
       savedRef.current = { ...savedRef.current, ...changed };
-      // Edits made while the request was in flight stay dirty and reschedule
-      // themselves; otherwise flash the Saved indicator.
+      // Edits made while the request was in flight reschedule themselves;
+      // otherwise flash the Saved indicator.
       const settled = (Object.keys(formRef.current) as (keyof typeof form)[]).every(
         (k) => formRef.current[k] === savedRef.current[k]
       );
       if (settled) {
-        setDirty(false);
         setSaved(true);
         setTimeout(() => setSaved(false), 2000);
       }
@@ -726,7 +721,27 @@ export default function SettingsClient({
                 if (file) uploadLogo(file);
               }}
             />
-            <div className="flex items-center gap-3">
+            <div
+              onDragOver={(e) => {
+                e.preventDefault();
+                setLogoDragOver(true);
+              }}
+              onDragLeave={() => setLogoDragOver(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setLogoDragOver(false);
+                const file = e.dataTransfer.files?.[0];
+                if (!file) return;
+                if (!file.type.startsWith("image/")) {
+                  setLogoError("That doesn't look like an image — use a PNG, JPG, WebP, or GIF.");
+                  return;
+                }
+                uploadLogo(file);
+              }}
+              className={`flex flex-wrap items-center gap-3 rounded-lg border border-dashed px-4 py-3 transition-colors ${
+                logoDragOver ? "border-green-500 bg-green-50" : "border-gray-300"
+              }`}
+            >
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
@@ -736,6 +751,7 @@ export default function SettingsClient({
                 {logoBusy ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />}
                 {form.logoUrl ? "Replace Logo" : "Upload Logo"}
               </button>
+              <span className="text-xs text-gray-400">…or drag &amp; drop an image here</span>
               {form.logoUrl && (
                 <button
                   type="button"
