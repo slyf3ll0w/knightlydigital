@@ -29,7 +29,7 @@ export default function HomePage() {
       >
         <div className="max-w-3xl mx-auto px-6 lg:px-8 w-full pt-2 pb-4 text-center">
 
-          <div className="anim-fade-up flex justify-center mb-8">
+          <div className="anim-fade-up flex justify-center mb-12">
             <Image
               src="/logo.png"
               alt="Streamflaire Media Group"
@@ -42,7 +42,7 @@ export default function HomePage() {
             />
           </div>
 
-          <div className="anim-fade-up anim-delay-1 flex justify-center mb-6">
+          <div className="anim-fade-up anim-delay-1 flex justify-center mb-10">
             <div style={{ width: '56px', height: '2px', backgroundColor: '#22C55E' }} />
           </div>
 
