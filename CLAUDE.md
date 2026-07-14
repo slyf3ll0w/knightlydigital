@@ -95,7 +95,7 @@ All job manager API routes are scoped to `session.user.companyId` for multi-tena
 **`lib/auth-options.ts`** — NextAuth v4 config. JWT includes `id`, `role`, `companyId`.
 **`lib/payments.ts`** — Payment processor stub. Swap functions here when integrating Stripe/Finix/Square.
 **`lib/cities.ts`** — 21 DFW cities.
-**`lib/services.ts`** — 3 Streamflare services.
+**`lib/services.ts`** — 2 Streamflare services (custom software, custom web design). Marketing services retired 2026-07.
 
 ## Database models
 

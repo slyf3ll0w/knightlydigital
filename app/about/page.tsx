@@ -133,7 +133,7 @@ export default function AboutPage() {
                 {[
                   { value: 'Allen, TX', label: 'Headquarters' },
                   { value: '100%', label: 'Custom-Built' },
-                  { value: 'One Team', label: 'Software, Ads & Social' },
+                  { value: 'One Team', label: 'Software & Web Design' },
                   { value: 'Fixed', label: 'Transparent Pricing' },
                 ].map((stat) => (
                   <div

@@ -29,7 +29,7 @@ export default function HomePage() {
       >
         <div className="max-w-3xl mx-auto px-6 lg:px-8 w-full pt-2 pb-4 text-center">
 
-          <div className="anim-fade-up flex justify-center mb-4">
+          <div className="anim-fade-up flex justify-center mb-8">
             <Image
               src="/logo.png"
               alt="Streamflaire Media Group"
@@ -42,7 +42,7 @@ export default function HomePage() {
             />
           </div>
 
-          <div className="anim-fade-up anim-delay-1 flex justify-center mb-5">
+          <div className="anim-fade-up anim-delay-1 flex justify-center mb-6">
             <div style={{ width: '56px', height: '2px', backgroundColor: '#22C55E' }} />
           </div>
 
@@ -55,7 +55,7 @@ export default function HomePage() {
               lineHeight: 1.12,
             }}
           >
-            Custom Software &amp; Digital Marketing
+            Custom Software &amp; Web Design
             <br />
             <span style={{ color: '#22C55E', display: 'inline-block', marginTop: '4px' }}>
               <SketchUnderline>Built for Your Business.</SketchUnderline>
@@ -66,7 +66,7 @@ export default function HomePage() {
             className="anim-fade-up anim-delay-3 text-lg leading-relaxed mb-7 mx-auto"
             style={{ color: '#4B5563', maxWidth: '560px' }}
           >
-            We design and build custom software, manage your digital marketing, and give every service business a free job management tool — so you can run a tighter operation and grow faster.
+            We design and build custom software and websites, and give every service business a free job management tool — so you can run a tighter operation and grow faster.
           </p>
 
           <div className="anim-fade-up anim-delay-4 flex flex-wrap justify-center gap-4 mb-8">
@@ -268,7 +268,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── ALL-INCLUSIVE DIGITAL MARKETING ── dark ── */}
+      {/* ── CUSTOM WEB DESIGN ── dark ── */}
       <section className="py-24 bg-dot-pattern" style={{ backgroundColor: '#0C0F0C' }}>
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
@@ -276,8 +276,8 @@ export default function HomePage() {
             <AnimateIn>
               <div className="relative overflow-hidden" style={{ height: '480px' }}>
                 <Image
-                  src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&q=85"
-                  alt="Digital marketing analytics and strategy"
+                  src="https://images.unsplash.com/photo-1467232004584-a241de8bcf5d?w=800&q=85"
+                  alt="Web designer working on a website layout"
                   fill
                   className="object-cover"
                   sizes="(max-width: 1024px) 100vw, 50vw"
@@ -294,10 +294,10 @@ export default function HomePage() {
                     className="text-sm font-bold text-white mb-1"
                     style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
                   >
-                    Small Roster. Serious Focus.
+                    Designed by Hand. Built to Perform.
                   </p>
                   <p className="text-xs" style={{ color: 'rgba(255,255,255,0.55)' }}>
-                    We keep our client count intentionally low so every business gets real attention.
+                    Every site is designed and coded from scratch — no page builders, no recycled themes.
                   </p>
                 </div>
               </div>
@@ -308,30 +308,30 @@ export default function HomePage() {
                 className="text-xs font-bold uppercase tracking-widest mb-4"
                 style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
               >
-                All-Inclusive Digital Marketing
+                Custom Web Design
               </p>
               <h2
                 className="text-3xl lg:text-4xl font-bold text-white mb-6 leading-tight"
                 style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
               >
-                Every Channel.{' '}
-                <SketchUnderline color="#22C55E">One Team.</SketchUnderline>
+                No Templates.{' '}
+                <SketchUnderline color="#22C55E">No Compromises.</SketchUnderline>
               </h2>
               <p className="text-base leading-relaxed mb-8" style={{ color: 'rgba(255,255,255,0.55)' }}>
-                SEO, Google LSA Management, Meta Ads, and Social Media — all managed by one team that knows your business. No more juggling vendors with disconnected strategies. When one team runs every channel, your message stays consistent and your budget works harder.
+                Your website is the first impression most customers ever get of your business. We design and build custom sites from scratch — no page builders, no bloated themes — so they load fast, look sharp on every device, and turn visitors into customers.
               </p>
 
               <div
                 className="grid grid-cols-2 gap-3 mb-8"
               >
                 {[
-                  { label: 'SEO', desc: 'Show up when the right people are searching.' },
-                  { label: 'Google LSA', desc: 'Top of search with a Google Guaranteed badge.' },
-                  { label: 'Meta Ads', desc: 'Facebook & Instagram campaigns built for your market.' },
-                  { label: 'Social Media', desc: 'Consistent, on-brand content across your platforms.' },
-                ].map((channel) => (
+                  { label: 'Custom Design', desc: 'Designed from scratch around your brand — never a template.' },
+                  { label: 'Built to Convert', desc: 'Clear structure and calls-to-action that turn visitors into leads.' },
+                  { label: 'Fast & Mobile-First', desc: 'Hand-coded pages that load fast and look sharp on every screen.' },
+                  { label: 'Search-Ready', desc: 'Clean structure and on-page fundamentals so Google can find you.' },
+                ].map((feature) => (
                   <div
-                    key={channel.label}
+                    key={feature.label}
                     className="p-4"
                     style={{ border: '1px solid rgba(255,255,255,0.09)', backgroundColor: '#111511' }}
                   >
@@ -339,29 +339,29 @@ export default function HomePage() {
                       className="text-xs font-bold text-white mb-1"
                       style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
                     >
-                      {channel.label}
+                      {feature.label}
                     </p>
                     <p className="text-xs leading-relaxed" style={{ color: 'rgba(255,255,255,0.4)' }}>
-                      {channel.desc}
+                      {feature.desc}
                     </p>
                   </div>
                 ))}
               </div>
 
               <p className="text-xs mb-6" style={{ color: 'rgba(255,255,255,0.35)', fontFamily: 'Oxanium, system-ui, sans-serif' }}>
-                Custom plans — pricing is tailored to your business and goals.
+                Fixed-price builds — most sites ship in 2–4 weeks.
               </p>
 
               <div className="flex flex-wrap gap-4">
                 <Link
-                  href="/digital-marketing"
+                  href="/custom-web-design"
                   className="inline-block text-sm font-bold uppercase tracking-wider px-7 py-3 text-white transition-opacity hover:opacity-90"
                   style={{ backgroundColor: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
                 >
-                  Contact for Plans →
+                  Get a Free Quote →
                 </Link>
                 <Link
-                  href="/digital-marketing"
+                  href="/custom-web-design"
                   className="inline-block text-sm font-bold uppercase tracking-wider px-7 py-3 transition-all hover:bg-white hover:text-black"
                   style={{ border: '1.5px solid rgba(255,255,255,0.25)', color: 'rgba(255,255,255,0.8)', fontFamily: 'Oxanium, system-ui, sans-serif' }}
                 >

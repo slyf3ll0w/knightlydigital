@@ -4,7 +4,7 @@ import Image from 'next/image';
 const serviceLinks = [
   { label: 'Free Job Manager', href: '/crm' },
   { label: 'Custom Software Design', href: '/custom-software' },
-  { label: 'All-Inclusive Digital Marketing', href: '/digital-marketing' },
+  { label: 'Custom Web Design', href: '/custom-web-design' },
 ];
 
 const companyLinks = [

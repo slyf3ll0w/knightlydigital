@@ -27,38 +27,21 @@ export const services: Service[] = [
       "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=1600&q=80",
   },
   {
-    name: "Meta Ads Management",
-    slug: "meta-ads-management",
-    shortName: "Meta Ads",
-    tagline: "DFW Businesses Found on Facebook and Instagram — Daily",
+    name: "Custom Web Design",
+    slug: "custom-web-design",
+    shortName: "Web Design",
+    tagline: "Hand-Coded Websites Built From Scratch — No Templates",
     description:
-      "We run Facebook and Instagram ad campaigns that put your business in front of the right people at the right time. From creative to targeting to reporting — we handle everything so you can focus on serving your customers.",
+      "Your website is the first impression most customers ever get. We design and hand-code custom sites from scratch — no page builders, no recycled themes — built to load fast, look sharp on every device, and turn visitors into customers.",
     details: [
-      "Audience research and custom targeting strategy",
-      "Ad creative design — copy, images, and video",
-      "Campaign setup, A/B testing, and optimization",
-      "Retargeting sequences to recapture warm leads",
-      "Monthly reporting with plain-English performance breakdowns",
+      "Custom design from a blank canvas — never a template",
+      "Hand-coded with a modern framework for speed and security",
+      "Mobile-first, responsive on every screen size",
+      "On-page SEO fundamentals and clean structure built in",
+      "Full ownership of your code, content, and accounts",
     ],
     heroImage:
-      "https://images.unsplash.com/photo-1611926653458-09294b3142bf?w=1600&q=80",
-  },
-  {
-    name: "Social Media Posting",
-    slug: "social-media-posting",
-    shortName: "Social Media",
-    tagline: "Consistent, On-Brand Content — Without the Headache",
-    description:
-      "Showing up consistently on social media builds trust and keeps your business top of mind. We create and schedule branded content across your platforms so your feed stays active, professional, and working for you — even when you're swamped.",
-    details: [
-      "Content strategy aligned with your brand voice and goals",
-      "Original graphics and copywriting for every post",
-      "Scheduling across Facebook, Instagram, LinkedIn, and more",
-      "Hashtag and SEO optimization for organic reach",
-      "Monthly content calendar reviews and performance reporting",
-    ],
-    heroImage:
-      "https://images.unsplash.com/photo-1562577309-4932fdd64cd1?w=1600&q=80",
+      "https://images.unsplash.com/photo-1467232004584-a241de8bcf5d?w=1600&q=80",
   },
 ];
 

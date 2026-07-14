@@ -335,9 +335,8 @@ export default function ContactPage() {
                         style={{ border: '1px solid #E5E7EB', color: form.service ? '#0A0A0F' : '#6B7280' }}
                       >
                         <option value="">Select a service...</option>
-                        <option value="custom-software">Custom Software &amp; Web Design</option>
-                        <option value="meta-ads">Meta Ads Management</option>
-                        <option value="social-media">Social Media Management</option>
+                        <option value="custom-software">Custom Software</option>
+                        <option value="custom-web-design">Custom Web Design</option>
                         <option value="other">Other</option>
                       </select>
                     </div>

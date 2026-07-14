@@ -23,9 +23,9 @@ const serviceItems = [
     desc: 'Software built for your workflows or your idea.',
   },
   {
-    label: 'All-Inclusive Digital Marketing',
-    href: '/digital-marketing',
-    desc: 'SEO, Google LSA, Meta Ads & Social — one team.',
+    label: 'Custom Web Design',
+    href: '/custom-web-design',
+    desc: 'Hand-coded websites built from scratch — no templates.',
   },
 ];
 

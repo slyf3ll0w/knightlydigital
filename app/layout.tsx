@@ -17,7 +17,7 @@ export const metadata: Metadata = {
     template: "%s | Streamflaire Media Group",
   },
   description:
-    "Streamflaire Media Group delivers precision digital marketing, custom software, and social media management for growth-minded businesses across the DFW Metroplex.",
+    "Streamflaire Media Group delivers custom software and custom web design for growth-minded businesses across the DFW Metroplex.",
   metadataBase: new URL("https://streamflaremedia.com"),
   icons: {
     icon: "/icon.png",
