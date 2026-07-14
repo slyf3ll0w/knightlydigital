@@ -7,11 +7,12 @@
  * Two forms:
  *  - AtlasIcon (default): the bare glyph, inherits currentColor like a
  *    lucide icon. Use inline next to text.
- *  - AtlasMark: the full logo lockup — console-ink chamfered tile with the
- *    needle in the company's accent color. Use wherever Atlas has an
- *    identity (drawer header, chat header, mobile tab). The tile stays
- *    #0C0F0C for every tenant (like the sidebar rail); only the needle
- *    takes the brand accent, so any company color reads on it.
+ *  - AtlasMark: the full logo lockup — a circular badge filled with the
+ *    company's accent color (subtle top-light gradient) and the compass
+ *    glyph knocked out in white (or ink, on very light accents). Use
+ *    wherever Atlas has an identity (drawer header, chat header, mobile
+ *    tab). Replaced the old ink chamfer tile 2026-07-14 — David wanted a
+ *    friendlier avatar for the chat.
  */
 
 const NEEDLE_NE = "M16.8 7.2 13.6 13.6 10.4 10.4Z";
@@ -50,6 +51,21 @@ function luminanceOf(hex: string): number | null {
   return 0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255);
 }
 
+/** Shift a hex color toward white (amount > 0) or black (amount < 0), 0–1. */
+function shade(hex: string, amount: number): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex);
+  if (!m) return hex;
+  const n = parseInt(m[1], 16);
+  const ch = (v: number) => {
+    const t = amount >= 0 ? v + (255 - v) * amount : v * (1 + amount);
+    return Math.max(0, Math.min(255, Math.round(t)));
+  };
+  const r = ch((n >> 16) & 255);
+  const g = ch((n >> 8) & 255);
+  const b = ch(n & 255);
+  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, "0")}`;
+}
+
 export function AtlasMark({
   size = 32,
   accent = "#22C55E",
@@ -60,9 +76,13 @@ export function AtlasMark({
   accent?: string;
   className?: string;
 }) {
-  // Near-black accents vanish on the ink tile — flip the needle to white.
   const lum = luminanceOf(accent);
-  const glyph = lum === null || lum < 70 ? "#FFFFFF" : accent;
+  const base = lum === null ? "#22C55E" : accent;
+  // Very light accents (pale yellows, near-white) need an ink glyph.
+  const glyph = lum !== null && lum > 165 ? "#0C0F0C" : "#FFFFFF";
+  // Gradient id must be unique per accent — two marks with different accents
+  // can share one document, and SVG defs are document-global.
+  const gid = `atlas-badge-${base.replace("#", "")}`;
   return (
     <svg
       width={size}
@@ -72,11 +92,18 @@ export function AtlasMark({
       className={className}
       aria-hidden
     >
-      {/* console-ink tile with the signature top-right chamfer */}
-      <path d="M0 0H37.5L48 10.5V48H0Z" fill="#0C0F0C" />
-      <circle cx="24" cy="24" r="12.3" stroke={glyph} strokeWidth="2.3" />
-      <path d="M33.2 14.8 26.8 26.8 21.2 21.2Z" fill={glyph} />
-      <path d="M14.8 33.2 21.2 21.2 26.8 26.8Z" fill={glyph} opacity="0.45" />
+      <defs>
+        <linearGradient id={gid} x1="10" y1="4" x2="38" y2="46" gradientUnits="userSpaceOnUse">
+          <stop stopColor={shade(base, 0.22)} />
+          <stop offset="1" stopColor={shade(base, -0.18)} />
+        </linearGradient>
+      </defs>
+      <circle cx="24" cy="24" r="24" fill={`url(#${gid})`} />
+      {/* hairline bevel so the badge doesn't melt into same-hue backgrounds */}
+      <circle cx="24" cy="24" r="23.25" stroke={glyph} strokeOpacity="0.25" strokeWidth="1.5" />
+      <circle cx="24" cy="24" r="12" stroke={glyph} strokeWidth="2.2" />
+      <path d="M33 15 26.7 26.7 21.3 21.3Z" fill={glyph} />
+      <path d="M15 33 21.3 21.3 26.7 26.7Z" fill={glyph} opacity="0.45" />
     </svg>
   );
 }

@@ -534,10 +534,12 @@ export default function AppShell({
         style={{ backgroundColor: sidebarLogoColor || "#FFFFFF" }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
+        {/* max-h-14 keeps square-ish logos from stretching the tile into a
+            billboard — wide wordmarks still get the full width. */}
         <img
           src={companyLogoUrl}
           alt={companyName ?? ""}
-          className="max-h-24 w-full object-contain"
+          className="max-h-14 w-full object-contain"
         />
       </div>
     </div>

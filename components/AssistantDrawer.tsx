@@ -323,12 +323,14 @@ export default function AssistantDrawer({
       {/* backdrop (mobile emphasis; click closes everywhere) */}
       <div className="fixed inset-0 z-40 bg-black/20 sm:bg-black/10" onClick={onClose} />
       <div className="fixed inset-y-0 right-0 z-50 flex w-full max-w-full flex-col border-l border-gray-200 bg-paper-plain pt-[env(safe-area-inset-top)] shadow-2xl sm:w-[400px]">
-        {/* header */}
-        <div className="flex h-[57px] shrink-0 items-center gap-2.5 border-b border-gray-200 px-4">
-          <AtlasMark size={30} accent={accent} className="shrink-0" />
+        {/* header — console ink, same material as the sidebar rail, so the
+            drawer reads as part of the product chrome instead of a white
+            popover */}
+        <div className="theme-fixed flex h-[57px] shrink-0 items-center gap-3 bg-[#0C0F0C] px-4">
+          <AtlasMark size={32} accent={accent} className="shrink-0" />
           <div className="min-w-0">
-            <p className="font-display text-sm font-bold leading-tight text-gray-900">{name}</p>
-            <p className="text-[11px] leading-tight text-green-700">Knows your whole business</p>
+            <p className="font-display text-sm font-bold leading-tight text-white">{name}</p>
+            <p className="text-[11px] leading-tight text-green-400">Knows your whole business</p>
           </div>
           <div className="ml-auto flex items-center gap-1">
             {messages.length > 0 && (
@@ -336,7 +338,7 @@ export default function AssistantDrawer({
                 type="button"
                 onClick={reset}
                 title="New chat"
-                className="rounded-md p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
+                className="rounded-md p-2 text-white/50 transition-colors hover:bg-white/10 hover:text-white"
               >
                 <RotateCcw size={15} />
               </button>
@@ -345,7 +347,7 @@ export default function AssistantDrawer({
               type="button"
               onClick={onClose}
               aria-label="Close assistant"
-              className="rounded-md p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
+              className="rounded-md p-2 text-white/50 transition-colors hover:bg-white/10 hover:text-white"
             >
               <X size={17} />
             </button>
@@ -355,14 +357,20 @@ export default function AssistantDrawer({
         {/* messages */}
         <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
           {messages.length === 0 && (
-            <div className="pt-6">
-              <p className="mb-1 text-sm font-semibold text-gray-900">
-                Hi, I&apos;m {name}. Ask me anything about your business.
-              </p>
-              <p className="mb-4 text-xs text-gray-500">
-                I can dig through your schedule, money, clients, and agreements, draft messages,
-                and — with your confirmation — manage clients, quotes, invoices, jobs,
-                appointments, payments, your team, and your settings for you.
+            <div className="pt-8">
+              <div className="mb-6 text-center">
+                <AtlasMark size={52} accent={accent} className="mx-auto mb-3" />
+                <p className="font-display text-base font-bold text-gray-900">
+                  Hi, I&apos;m {name}.
+                </p>
+                <p className="mx-auto mt-1 max-w-[290px] text-xs leading-relaxed text-gray-500">
+                  Ask me anything about your business — your schedule, money, clients, and
+                  agreements. With your confirmation I can also manage clients, quotes,
+                  invoices, jobs, payments, your team, and your settings.
+                </p>
+              </div>
+              <p className="mb-2 px-0.5 text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                Try asking
               </p>
               <div className="space-y-2">
                 {STARTERS.map((s) => (
@@ -370,7 +378,7 @@ export default function AssistantDrawer({
                     key={s}
                     type="button"
                     onClick={() => send(s)}
-                    className="block w-full rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-left text-xs text-gray-700 transition-colors hover:border-green-500 hover:text-green-700"
+                    className="block w-full rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-left text-xs text-gray-700 shadow-sm transition-colors hover:border-green-500 hover:text-green-700"
                   >
                     {s}
                   </button>
