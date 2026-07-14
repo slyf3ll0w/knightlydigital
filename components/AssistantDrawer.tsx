@@ -323,41 +323,37 @@ export default function AssistantDrawer({
       {/* backdrop (mobile emphasis; click closes everywhere) */}
       <div className="fixed inset-0 z-40 bg-black/20 sm:bg-black/10" onClick={onClose} />
       <div className="fixed inset-y-0 right-0 z-50 flex w-full max-w-full flex-col border-l border-gray-200 bg-paper-plain pt-[env(safe-area-inset-top)] shadow-2xl sm:w-[400px]">
-        {/* header — console ink, same material as the sidebar rail, so the
-            drawer reads as part of the product chrome instead of a white
-            popover */}
-        <div className="theme-fixed flex h-[57px] shrink-0 items-center gap-3 bg-[#0C0F0C] px-4">
-          <AtlasMark size={32} accent={accent} className="shrink-0" />
-          <div className="min-w-0">
-            <p className="font-display text-sm font-bold leading-tight text-white">{name}</p>
-            <p className="text-[11px] leading-tight text-green-400">Knows your whole business</p>
-          </div>
-          <div className="ml-auto flex items-center gap-1">
-            {messages.length > 0 && (
-              <button
-                type="button"
-                onClick={reset}
-                title="New chat"
-                className="rounded-md p-2 text-white/50 transition-colors hover:bg-white/10 hover:text-white"
-              >
-                <RotateCcw size={15} />
-              </button>
-            )}
+        {/* No header bar — the empty state introduces Atlas, so the chrome is
+            just two floating controls. White circles with a border so they
+            stay visible over any message content. */}
+        <div
+          className="absolute right-3 z-10 flex items-center gap-2"
+          style={{ top: "calc(env(safe-area-inset-top) + 12px)" }}
+        >
+          {messages.length > 0 && (
             <button
               type="button"
-              onClick={onClose}
-              aria-label="Close assistant"
-              className="rounded-md p-2 text-white/50 transition-colors hover:bg-white/10 hover:text-white"
+              onClick={reset}
+              title="New chat"
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 shadow-sm transition-colors hover:bg-gray-50 hover:text-gray-900"
             >
-              <X size={17} />
+              <RotateCcw size={16} />
             </button>
-          </div>
+          )}
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close assistant"
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-600 shadow-sm transition-colors hover:bg-gray-50 hover:text-gray-900"
+          >
+            <X size={20} strokeWidth={2.2} />
+          </button>
         </div>
 
-        {/* messages */}
-        <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
+        {/* messages — top padding clears the floating controls */}
+        <div className="flex-1 space-y-3 overflow-y-auto px-4 pb-4 pt-14">
           {messages.length === 0 && (
-            <div className="pt-8">
+            <div className="pt-2">
               <div className="mb-6 text-center">
                 <AtlasMark size={52} accent={accent} className="mx-auto mb-3" />
                 <p className="font-display text-base font-bold text-gray-900">
