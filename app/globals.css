@@ -431,6 +431,23 @@ body {
   animation: pageEnterSettle 0.32s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+/* ── Atlas intro teaser — speech bubble popping out of the assistant badge
+   (bottom-right), so it grows from where the compass sits. */
+@keyframes atlasTeaserPop {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.atlas-teaser-pop {
+  transform-origin: bottom right;
+  animation: atlasTeaserPop 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
 /* ── Client portal entrance — magic-link landing gets a fuller staggered
    fade (reuses .anim-delay-*). */
 @keyframes portalEnter {

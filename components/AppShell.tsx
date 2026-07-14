@@ -29,10 +29,11 @@ import {
   CircleUserRound,
   MessagesSquare,
   SquareKanban,
+  X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import Avatar from "@/components/Avatar";
-import AtlasIcon from "@/components/AtlasIcon";
+import AtlasIcon, { AtlasMark } from "@/components/AtlasIcon";
 import TourGuide from "@/components/TourGuide";
 import AssistantDrawer from "@/components/AssistantDrawer";
 import { textOn } from "@/lib/branding";
@@ -355,6 +356,42 @@ export default function AppShell({
   const router = useRouter();
   const [moreOpen, setMoreOpen] = useState(false);
   const [assistantOpen, setAssistantOpen] = useState(false);
+
+  // Intro speech bubble on the assistant button — a compass alone doesn't
+  // say "chat with me", so Atlas introduces himself. Reappears every few
+  // days (per user), never during the welcome tour, and goes quiet for the
+  // interval the moment it's shown, dismissed, or the drawer opens.
+  const TEASER_EVERY_MS = 3 * 24 * 60 * 60 * 1000;
+  const teaserKey = `sf-atlas-teaser:${userId ?? "shared"}`;
+  const [teaserVisible, setTeaserVisible] = useState(false);
+  useEffect(() => {
+    if (!aiEnabled || needsTour) return;
+    let last = 0;
+    try {
+      last = Number(localStorage.getItem(teaserKey)) || 0;
+    } catch {
+      // storage blocked — skip the teaser rather than nag every load
+      return;
+    }
+    if (Date.now() - last < TEASER_EVERY_MS) return;
+    const show = setTimeout(() => {
+      setTeaserVisible(true);
+      try {
+        localStorage.setItem(teaserKey, String(Date.now()));
+      } catch {
+        // ignore
+      }
+    }, 1500);
+    const hide = setTimeout(() => setTeaserVisible(false), 21500);
+    return () => {
+      clearTimeout(show);
+      clearTimeout(hide);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aiEnabled, needsTour, teaserKey]);
+  useEffect(() => {
+    if (assistantOpen) setTeaserVisible(false);
+  }, [assistantOpen]);
   // Set after mount: the server renders in UTC, so an SSR'd date can be
   // tomorrow's (and a hydration mismatch) for evening users.
   const [today, setToday] = useState("");
@@ -702,18 +739,48 @@ export default function AppShell({
 
       {/* Assistant bubble — floats above the mobile tab bar, hides while open */}
       {aiEnabled && !assistantOpen && (
-        <button
-          type="button"
-          onClick={() => {
-            hapticImpact("LIGHT");
-            setAssistantOpen(true);
-          }}
-          aria-label="Open assistant"
-          title={assistantName || "Atlas"}
-          className="fixed z-40 hidden lg:flex h-[52px] w-[52px] items-center justify-center rounded-full bg-[#0C0F0C] text-green-400 transition-all hover:scale-105 hover:bg-[#181D18] hover:text-green-300 lg:bottom-6 lg:right-6"
-        >
-          <AtlasIcon size={24} />
-        </button>
+        <>
+          {teaserVisible && (
+            <div className="atlas-teaser-pop theme-fixed fixed bottom-[92px] right-6 z-40 hidden w-[264px] rounded-2xl rounded-br-md border border-gray-200 bg-white p-3.5 pr-8 shadow-xl lg:block">
+              <button
+                type="button"
+                onClick={() => {
+                  hapticImpact("LIGHT");
+                  setAssistantOpen(true);
+                }}
+                className="block w-full text-left"
+              >
+                <p className="text-sm font-semibold text-gray-900">
+                  Hi, I&apos;m {assistantName || "Atlas"} 👋
+                </p>
+                <p className="mt-0.5 text-xs leading-relaxed text-gray-500">
+                  Ask me anything about your business — or tell me what to do and I&apos;ll
+                  handle it.
+                </p>
+              </button>
+              <button
+                type="button"
+                onClick={() => setTeaserVisible(false)}
+                aria-label="Dismiss"
+                className="absolute right-1.5 top-1.5 rounded-md p-1 text-gray-300 transition-colors hover:bg-gray-100 hover:text-gray-600"
+              >
+                <X size={13} />
+              </button>
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              hapticImpact("LIGHT");
+              setAssistantOpen(true);
+            }}
+            aria-label="Open assistant"
+            title={assistantName || "Atlas"}
+            className="fixed z-40 hidden lg:block rounded-full shadow-lg transition-transform hover:scale-105 lg:bottom-6 lg:right-6"
+          >
+            <AtlasMark size={52} accent={brandColorSecondary || brandColor || undefined} className="block" />
+          </button>
+        </>
       )}
       {aiEnabled && (
         <AssistantDrawer
