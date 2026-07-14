@@ -7,11 +7,12 @@ import type { BookingFormConfig } from "./booking-form";
  * Server side of the online-booking slot engine: fetches the bookable team
  * and their busy intervals (scheduled appointments — tentative ones included,
  * so an unapproved booking still holds its slot — plus assigned clock-time
- * jobs) and feeds lib/booking-slots.ts. Used by the public slots endpoint
- * and re-run inside the submit transaction to close the double-booking race.
+ * jobs and blocked-off time) and feeds lib/booking-slots.ts. Used by the
+ * public slots endpoint and re-run inside the submit transaction to close
+ * the double-booking race.
  */
 
-type Db = Pick<typeof prisma, "user" | "appointment" | "jobAssignment" | "job">;
+type Db = Pick<typeof prisma, "user" | "appointment" | "jobAssignment" | "job" | "timeBlock">;
 
 export async function getBookableUsersWithBusy(
   companyId: string,
@@ -29,7 +30,7 @@ export async function getBookableUsersWithBusy(
   // still blocks; "anytime" (date-only) items don't hold a clock position.
   const buffer = new Date(from.getTime() - 86400000);
 
-  const [appointments, assignments, unassignedJobs] = await Promise.all([
+  const [appointments, assignments, unassignedJobs, blocks] = await Promise.all([
     db.appointment.findMany({
       where: {
         companyId,
@@ -65,6 +66,18 @@ export async function getBookableUsersWithBusy(
       },
       select: { scheduledAt: true, scheduledEnd: true },
     }),
+    // Blocked-off time: personal blocks close that user's slots; company-wide
+    // blocks (userId null) close everyone's. All-day blocks store the full
+    // day span, so a plain overlap query covers them too.
+    db.timeBlock.findMany({
+      where: {
+        companyId,
+        startAt: { lt: to },
+        endAt: { gt: from },
+        OR: [{ userId: null }, { userId: { in: ids } }],
+      },
+      select: { userId: true, startAt: true, endAt: true },
+    }),
   ]);
 
   const busyByUser = new Map<string, { start: Date; end: Date }[]>(ids.map((id) => [id, []]));
@@ -89,6 +102,11 @@ export async function getBookableUsersWithBusy(
       end: j.scheduledEnd ?? new Date(j.scheduledAt.getTime() + HOUR),
     };
     for (const id of ids) busyByUser.get(id)?.push(interval);
+  }
+  for (const b of blocks) {
+    const interval = { start: b.startAt, end: b.endAt };
+    if (b.userId) busyByUser.get(b.userId)?.push(interval);
+    else for (const id of ids) busyByUser.get(id)?.push(interval);
   }
   return ids.map((id) => ({ id, busy: busyByUser.get(id) ?? [] }));
 }

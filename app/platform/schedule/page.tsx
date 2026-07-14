@@ -77,6 +77,62 @@ function apptToDTO(a: ApptWithContact): ScheduleJobDTO {
   };
 }
 
+type BlockRow = {
+  id: string;
+  userId: string | null;
+  title: string;
+  startAt: Date;
+  endAt: Date;
+  allDay: boolean;
+  user: { name: string } | null;
+};
+
+/**
+ * A block can span days (vacation) but the calendar buckets by day, so emit
+ * one clamped segment per visible day. Segment ids are `${blockId}#${n}` for
+ * React keys; the real block travels in `block` for the edit sheet.
+ */
+function blockToDTOs(b: BlockRow, fetchStart: Date, fetchEnd: Date, canEdit: boolean): ScheduleJobDTO[] {
+  const info = {
+    id: b.id,
+    userId: b.userId,
+    userName: b.user?.name ?? null,
+    title: b.title,
+    startAt: b.startAt.toISOString(),
+    endAt: b.endAt.toISOString(),
+    allDay: b.allDay,
+    canEdit,
+  };
+  const segs: ScheduleJobDTO[] = [];
+  const day = new Date(Math.max(b.startAt.getTime(), fetchStart.getTime()));
+  day.setHours(0, 0, 0, 0);
+  const stop = Math.min(b.endAt.getTime(), fetchEnd.getTime());
+  for (let i = 0; day.getTime() < stop && i < 120; i++) {
+    const dayEnd = new Date(day);
+    dayEnd.setDate(dayEnd.getDate() + 1);
+    const segStart = new Date(Math.max(b.startAt.getTime(), day.getTime()));
+    const segEnd = new Date(Math.min(b.endAt.getTime(), dayEnd.getTime()));
+    if (segEnd > segStart) {
+      segs.push({
+        id: `${b.id}#${i}`,
+        kind: "block",
+        jobNumber: null,
+        title: b.title,
+        status: "BLOCK",
+        apptType: null,
+        // all-day segments follow the date-only convention: anchored at noon
+        scheduledAt: (b.allDay ? new Date(day.getTime() + 12 * 3600000) : segStart).toISOString(),
+        scheduledEnd: segEnd.toISOString(),
+        scheduledAnytime: b.allDay,
+        contactName: b.userId ? (b.user?.name ?? "") : "Everyone",
+        block: info,
+      });
+    }
+    day.setDate(day.getDate() + 1);
+  }
+  return segs;
+}
+
 export default async function SchedulePage({
   searchParams,
 }: {
@@ -125,7 +181,15 @@ export default async function SchedulePage({
   // Sales meetings live on the calendar too — but not for techs
   const showAppointments = canSell(actor.role);
 
-  const [jobs, appointments, unscheduled, users] = await Promise.all([
+  // Blocked-off time: managers + USER see everyone's blocks (named), narrowed
+  // by the team filter; sales/tech see their own plus company-wide ones.
+  const blockScope = canFilterTeam
+    ? team
+      ? { OR: [{ userId: null }, { userId: team }] }
+      : {}
+    : { OR: [{ userId: null }, { userId: actor.id }] };
+
+  const [jobs, appointments, unscheduled, users, blocks] = await Promise.all([
     prisma.job.findMany({
       where: { companyId, ...scope, scheduledAt: { gte: fetchStart, lte: fetchEnd }, ...teamWhere },
       include: { contact: { select: { firstName: true, lastName: true } } },
@@ -157,18 +221,29 @@ export default async function SchedulePage({
           orderBy: { name: "asc" },
         })
       : Promise.resolve([]),
+    prisma.timeBlock.findMany({
+      where: { companyId, startAt: { lt: fetchEnd }, endAt: { gt: fetchStart }, ...blockScope },
+      include: { user: { select: { name: true } } },
+      orderBy: { startAt: "asc" },
+    }),
   ]);
+
+  const blockDTOs = blocks.flatMap((b) =>
+    blockToDTOs(b, fetchStart, fetchEnd, isManager(actor.role) || b.userId === actor.id)
+  );
 
   return (
     <ScheduleClient
       view={view}
       date={`${anchor.getFullYear()}-${pad(anchor.getMonth() + 1)}-${pad(anchor.getDate())}`}
       team={team ?? ""}
-      jobs={[...jobs.map(toDTO), ...appointments.map(apptToDTO)]}
+      jobs={[...jobs.map(toDTO), ...appointments.map(apptToDTO), ...blockDTOs]}
       unscheduled={unscheduled.map(toDTO)}
       users={users}
       canCreateJob={canFilterTeam}
       canCreateAppointment={showAppointments}
+      canBlockForOthers={isManager(actor.role)}
+      meId={actor.id}
     />
   );
 }

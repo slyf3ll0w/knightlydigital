@@ -218,9 +218,32 @@ body {
   input[type="tel"],
   input[type="url"],
   input[type="search"],
+  input[type="number"],
+  input[type="date"],
+  input[type="time"],
+  input[type="datetime-local"],
   textarea,
   select {
     font-size: 16px !important;
+  }
+
+  /* Native date/time controls: mobile WebKit gives them an intrinsic size
+     and chrome that ignores width/padding, so they render taller than
+     sibling inputs and overflow 2-col form grids. Flatten to plain fields
+     so the Tailwind classes size them like everything else. */
+  input[type="date"],
+  input[type="time"],
+  input[type="datetime-local"] {
+    -webkit-appearance: none;
+    appearance: none;
+    min-width: 0;
+  }
+  input[type="date"]::-webkit-date-and-time-value,
+  input[type="time"]::-webkit-date-and-time-value,
+  input[type="datetime-local"]::-webkit-date-and-time-value {
+    text-align: left;
+    /* iOS collapses the control when the value is empty */
+    min-height: 1.25em;
   }
 }
 
@@ -237,6 +260,19 @@ body {
 /* Same canvas, no grid — the dashboard opts out of the graph paper. */
 .bg-paper-plain {
   background-color: #FBFBFB;
+}
+
+/* ── Blocked-off time on the schedule — diagonal hatching reads as
+   "unavailable" rather than work. rgba so it holds up in dark mode. ── */
+.bg-blocked {
+  background-color: rgba(148, 163, 184, 0.14);
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(100, 116, 139, 0.18) 0,
+    rgba(100, 116, 139, 0.18) 4px,
+    transparent 4px,
+    transparent 10px
+  );
 }
 
 /* ── Logo wallpaper — faint, oversized brand mark behind app pages (opt-in

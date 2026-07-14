@@ -90,6 +90,7 @@ model Company {
   teamMessages      TeamMessage[]
   chatChannels      ChatChannel[]
   pipelineStages    PipelineStage[]
+  timeBlocks        TimeBlock[]
 
   @@index([slug])
 }
@@ -133,6 +134,7 @@ model User {
   chatChannelMembers ChatChannelMember[]
   pushSubscriptions PushSubscription[]
   passwordResetTokens PasswordResetToken[]
+  timeBlocks       TimeBlock[]     @relation("TimeBlockUser")
 
   @@index([companyId])
   @@index([role])
@@ -632,6 +634,34 @@ model Appointment {
   @@index([companyId, scheduledAt])
   @@index([companyId, status])
   @@index([contactId])
+}
+
+// ─── Time blocks ──────────────────────────────────────────────────────────────
+
+// Blocked-off time on the schedule — personal ("dentist", day off) or, when
+// userId is null, company-wide (holiday, team meeting; owners/admins only).
+// Blocks render striped on the calendar and subtract from online-booking
+// availability like any other busy interval.
+model TimeBlock {
+  id          String   @id @default(cuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id])
+  // null = everyone in the company
+  userId      String?
+  user        User?    @relation("TimeBlockUser", fields: [userId], references: [id], onDelete: Cascade)
+  createdById String
+  title       String   @default("Blocked off")
+  // All-day blocks still store the full day span (00:00 → 23:59:59) so the
+  // booking-availability math needs no special case; the flag only moves
+  // rendering into the calendar's "Anytime" row.
+  startAt     DateTime
+  endAt       DateTime
+  allDay      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([companyId, startAt])
+  @@index([userId])
 }
 
 // ─── Jobs ─────────────────────────────────────────────────────────────────────

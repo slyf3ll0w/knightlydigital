@@ -6,6 +6,7 @@ import Link from "next/link";
 import {
   CalendarClock,
   CalendarDays,
+  CalendarOff,
   ChevronLeft,
   ChevronRight,
   GripVertical,
@@ -13,6 +14,7 @@ import {
   MapPin as MapPinIcon,
   Phone as PhoneIcon,
   Plus,
+  Trash2,
   Video as VideoIcon,
   X,
 } from "lucide-react";
@@ -31,9 +33,22 @@ import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
  *  - drop on a month day cell when the job had a time → keeps that time
  */
 
+// Blocked-off time riding along in the DTO — the calendar shows per-day
+// segments but the sheet edits the underlying block's full range.
+export type BlockInfo = {
+  id: string;
+  userId: string | null; // null = everyone (company-wide)
+  userName: string | null;
+  title: string;
+  startAt: string;
+  endAt: string;
+  allDay: boolean;
+  canEdit: boolean;
+};
+
 export type ScheduleJobDTO = {
   id: string;
-  kind: "job" | "appointment";
+  kind: "job" | "appointment" | "block";
   jobNumber: number | null;
   title: string;
   status: string;
@@ -43,6 +58,7 @@ export type ScheduleJobDTO = {
   scheduledAnytime: boolean;
   contactName: string;
   tentative?: boolean; // self-scheduled booking awaiting approval → dashed
+  block?: BlockInfo;
 };
 
 type View = "month" | "week" | "day";
@@ -64,6 +80,8 @@ const blockTone: Record<string, string> = {
 };
 
 function itemTone(it: { kind: string; status: string; tentative?: boolean }): string {
+  // Blocked-off time: hatched gray so it reads as "unavailable", not work
+  if (it.kind === "block") return "border-gray-400 bg-blocked text-gray-600 hover:bg-gray-200/70";
   if (it.kind === "appointment") {
     if (it.status === "NO_SHOW") return "border-red-400 bg-red-50 text-red-800 hover:bg-red-100";
     if (it.status === "COMPLETED") return "border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100";
@@ -157,6 +175,16 @@ function layoutTimed(jobs: ScheduleJobDTO[], day: Date) {
   return events;
 }
 
+type BlockForm = {
+  title: string;
+  who: string; // user id | "everyone" (managers only)
+  allDay: boolean;
+  startDate: string;
+  endDate: string;
+  startTime: string;
+  endTime: string;
+};
+
 export default function ScheduleClient({
   view,
   date,
@@ -166,6 +194,8 @@ export default function ScheduleClient({
   users,
   canCreateJob = true,
   canCreateAppointment = true,
+  canBlockForOthers = false,
+  meId = "",
 }: {
   view: View;
   date: string;
@@ -175,6 +205,8 @@ export default function ScheduleClient({
   users: { id: string; name: string }[];
   canCreateJob?: boolean;
   canCreateAppointment?: boolean;
+  canBlockForOthers?: boolean;
+  meId?: string;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -185,6 +217,16 @@ export default function ScheduleClient({
   const [error, setError] = useState("");
   const [mounted, setMounted] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Block-off-time sheet: null = closed; id null = creating a new block
+  const [blockSheet, setBlockSheet] = useState<null | {
+    id: string | null;
+    canEdit: boolean;
+    userName: string | null; // read-only display when it isn't yours
+    form: BlockForm;
+  }>(null);
+  const [blockBusy, setBlockBusy] = useState(false);
+  const [blockErr, setBlockErr] = useState("");
 
   const anchor = useMemo(() => parseParam(date), [date]);
   const today = useMemo(() => new Date(), []);
@@ -282,6 +324,8 @@ export default function ScheduleClient({
   }
 
   function dragProps(job: ScheduleJobDTO) {
+    // Blocked-off time is edited through its sheet, not dragged around
+    if (job.kind === "block") return {};
     return {
       draggable: true,
       onDragStart: (e: React.DragEvent) => {
@@ -314,8 +358,116 @@ export default function ScheduleClient({
     };
   }
 
-  const openItem = (it: ScheduleJobDTO) =>
+  const openItem = (it: ScheduleJobDTO) => {
+    if (it.kind === "block") {
+      if (it.block) openBlockEdit(it.block);
+      return;
+    }
     router.push(it.kind === "appointment" ? `/app/appointments/${it.id}` : `/app/jobs/${it.id}`);
+  };
+
+  // ── Blocked-off time ──────────────────────────────────────────────────────
+
+  function openBlockCreate() {
+    const d = toParam(view === "month" ? new Date() : anchor);
+    setBlockErr("");
+    setBlockSheet({
+      id: null,
+      canEdit: true,
+      userName: null,
+      form: {
+        title: "",
+        who: meId,
+        allDay: false,
+        startDate: d,
+        endDate: d,
+        startTime: "09:00",
+        endTime: "17:00",
+      },
+    });
+  }
+
+  function openBlockEdit(b: BlockInfo) {
+    const s = new Date(b.startAt);
+    const e = new Date(b.endAt);
+    setBlockErr("");
+    setBlockSheet({
+      id: b.id,
+      canEdit: b.canEdit,
+      userName: b.userName,
+      form: {
+        title: b.title === "Blocked off" ? "" : b.title,
+        who: b.userId ?? "everyone",
+        allDay: b.allDay,
+        startDate: toParam(s),
+        endDate: toParam(e),
+        startTime: `${pad(s.getHours())}:${pad(s.getMinutes())}`,
+        endTime: `${pad(e.getHours())}:${pad(e.getMinutes())}`,
+      },
+    });
+  }
+
+  async function saveBlock() {
+    if (!blockSheet) return;
+    const f = blockSheet.form;
+    if (!f.startDate) {
+      setBlockErr("Pick a date.");
+      return;
+    }
+    let startAt: Date;
+    let endAt: Date;
+    if (f.allDay) {
+      startAt = parseParam(f.startDate);
+      endAt = parseParam(f.endDate || f.startDate);
+      endAt.setHours(23, 59, 59, 999);
+    } else {
+      const [sh, sm] = f.startTime.split(":").map(Number);
+      const [eh, em] = f.endTime.split(":").map(Number);
+      startAt = parseParam(f.startDate);
+      startAt.setHours(sh || 0, sm || 0, 0, 0);
+      endAt = parseParam(f.startDate);
+      endAt.setHours(eh || 0, em || 0, 0, 0);
+    }
+    if (endAt <= startAt) {
+      setBlockErr(f.allDay ? "The end date can't be before the start date." : "The end time must be after the start time.");
+      return;
+    }
+
+    const body: Record<string, unknown> = {
+      title: f.title,
+      allDay: f.allDay,
+      startAt: startAt.toISOString(),
+      endAt: endAt.toISOString(),
+    };
+    if (canBlockForOthers) body.forUserId = f.who === "everyone" ? null : f.who;
+
+    setBlockBusy(true);
+    setBlockErr("");
+    const { ok, data } = blockSheet.id
+      ? await postJson(`/api/app/time-blocks/${blockSheet.id}`, body, "PATCH")
+      : await postJson("/api/app/time-blocks", body);
+    setBlockBusy(false);
+    if (!ok) {
+      setBlockErr(data?.error ?? GENERIC_ERROR);
+      return;
+    }
+    setBlockSheet(null);
+    startTransition(() => router.refresh());
+  }
+
+  async function deleteBlock() {
+    if (!blockSheet?.id) return;
+    setBlockBusy(true);
+    setBlockErr("");
+    const { ok, data } = await postJson(`/api/app/time-blocks/${blockSheet.id}`, undefined, "DELETE");
+    setBlockBusy(false);
+    if (!ok) {
+      setBlockErr(data?.error ?? GENERIC_ERROR);
+      return;
+    }
+    setBlockSheet(null);
+    startTransition(() => router.refresh());
+  }
 
   // ── Header label ──────────────────────────────────────────────────────────
   let rangeLabel: string;
@@ -610,6 +762,15 @@ export default function ScheduleClient({
               </span>
             )}
           </button>
+          <button
+            onClick={openBlockCreate}
+            aria-label="Block off time"
+            title="Block Time"
+            className="flex h-10 w-10 items-center justify-center gap-1.5 rounded-full border border-gray-300 bg-white text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 md:w-auto md:px-4"
+          >
+            <CalendarOff size={16} />
+            <span className="hidden md:inline">Block Time</span>
+          </button>
           {canCreateAppointment && (
             <Link
               href="/app/appointments/new"
@@ -708,6 +869,7 @@ export default function ScheduleClient({
               ["bg-amber-500", "Requires invoicing"],
               ["bg-blue-500", "Appointment"],
               ["bg-gray-400", "Closed"],
+              ["bg-blocked border border-gray-400", "Blocked off"],
             ].map(([c, label]) => (
               <div key={label} className="flex items-center gap-1.5 text-xs text-gray-500">
                 <div className={`h-2.5 w-2.5 rounded-lg ${c}`} />
@@ -765,6 +927,202 @@ export default function ScheduleClient({
           <div className="fixed inset-0 z-30 bg-black/20 lg:hidden" onClick={() => setDrawerOpen(false)} />
         )}
       </div>
+
+      {/* Block-off-time sheet (create + edit; read-only when not yours) */}
+      {blockSheet && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4"
+          onClick={() => !blockBusy && setBlockSheet(null)}
+        >
+          <div
+            className="w-full max-w-md space-y-3 rounded-lg bg-white p-5 text-left shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-base font-semibold text-gray-900">
+              {blockSheet.id === null
+                ? "Block Off Time"
+                : blockSheet.canEdit
+                  ? "Edit Blocked Time"
+                  : "Blocked Time"}
+            </h2>
+
+            {!blockSheet.canEdit && (
+              <p className="text-sm text-gray-500">
+                {blockSheet.form.who === "everyone"
+                  ? "Blocked off for the whole team by an owner or admin."
+                  : "Only owners and admins can change someone else's blocked time."}
+              </p>
+            )}
+
+            {blockErr && (
+              <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                {blockErr}
+              </div>
+            )}
+
+            <div>
+              <label className="mb-0.5 block text-xs font-medium text-gray-500">Reason</label>
+              <input
+                type="text"
+                value={blockSheet.form.title}
+                disabled={!blockSheet.canEdit}
+                placeholder="Blocked off"
+                onChange={(e) =>
+                  setBlockSheet((s) => s && { ...s, form: { ...s.form, title: e.target.value } })
+                }
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-50 disabled:text-gray-500"
+              />
+            </div>
+
+            {canBlockForOthers ? (
+              <div>
+                <label className="mb-0.5 block text-xs font-medium text-gray-500">Who</label>
+                <select
+                  value={blockSheet.form.who}
+                  onChange={(e) =>
+                    setBlockSheet((s) => s && { ...s, form: { ...s.form, who: e.target.value } })
+                  }
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                >
+                  <option value="everyone">Everyone (whole team)</option>
+                  {users.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.id === meId ? `${u.name} (me)` : u.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              blockSheet.id !== null &&
+              !blockSheet.canEdit && (
+                <p className="text-xs text-gray-500">
+                  Applies to:{" "}
+                  {blockSheet.form.who === "everyone" ? "everyone" : blockSheet.userName ?? "a teammate"}
+                </p>
+              )
+            )}
+
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={blockSheet.form.allDay}
+                disabled={!blockSheet.canEdit}
+                onChange={(e) =>
+                  setBlockSheet((s) => s && { ...s, form: { ...s.form, allDay: e.target.checked } })
+                }
+                className="rounded text-green-600 focus:ring-green-500"
+              />
+              All day
+            </label>
+
+            {blockSheet.form.allDay ? (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-0.5 block text-xs font-medium text-gray-500">From</label>
+                  <input
+                    type="date"
+                    value={blockSheet.form.startDate}
+                    disabled={!blockSheet.canEdit}
+                    onChange={(e) =>
+                      setBlockSheet((s) => {
+                        if (!s) return s;
+                        const startDate = e.target.value;
+                        const endDate = s.form.endDate < startDate ? startDate : s.form.endDate;
+                        return { ...s, form: { ...s.form, startDate, endDate } };
+                      })
+                    }
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-50 disabled:text-gray-500"
+                  />
+                </div>
+                <div>
+                  <label className="mb-0.5 block text-xs font-medium text-gray-500">Through</label>
+                  <input
+                    type="date"
+                    value={blockSheet.form.endDate}
+                    disabled={!blockSheet.canEdit}
+                    onChange={(e) =>
+                      setBlockSheet((s) => s && { ...s, form: { ...s.form, endDate: e.target.value } })
+                    }
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-50 disabled:text-gray-500"
+                  />
+                </div>
+              </div>
+            ) : (
+              <>
+                <div>
+                  <label className="mb-0.5 block text-xs font-medium text-gray-500">Date</label>
+                  <input
+                    type="date"
+                    value={blockSheet.form.startDate}
+                    disabled={!blockSheet.canEdit}
+                    onChange={(e) =>
+                      setBlockSheet((s) => s && { ...s, form: { ...s.form, startDate: e.target.value } })
+                    }
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-50 disabled:text-gray-500"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="mb-0.5 block text-xs font-medium text-gray-500">From</label>
+                    <input
+                      type="time"
+                      value={blockSheet.form.startTime}
+                      disabled={!blockSheet.canEdit}
+                      onChange={(e) =>
+                        setBlockSheet((s) => s && { ...s, form: { ...s.form, startTime: e.target.value } })
+                      }
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-50 disabled:text-gray-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-0.5 block text-xs font-medium text-gray-500">To</label>
+                    <input
+                      type="time"
+                      value={blockSheet.form.endTime}
+                      disabled={!blockSheet.canEdit}
+                      onChange={(e) =>
+                        setBlockSheet((s) => s && { ...s, form: { ...s.form, endTime: e.target.value } })
+                      }
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-50 disabled:text-gray-500"
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+
+            <div className="flex items-center gap-2 pt-1">
+              {blockSheet.canEdit && (
+                <button
+                  onClick={saveBlock}
+                  disabled={blockBusy}
+                  className="flex items-center gap-2 rounded-full bg-green-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-600 active:bg-green-700 disabled:opacity-50"
+                >
+                  {blockBusy && <Loader2 size={14} className="animate-spin" />}
+                  {blockSheet.id === null ? "Block Time" : "Save"}
+                </button>
+              )}
+              <button
+                onClick={() => setBlockSheet(null)}
+                disabled={blockBusy}
+                className="rounded-full border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50"
+              >
+                {blockSheet.canEdit ? "Cancel" : "Close"}
+              </button>
+              {blockSheet.canEdit && blockSheet.id !== null && (
+                <button
+                  onClick={deleteBlock}
+                  disabled={blockBusy}
+                  aria-label="Remove blocked time"
+                  className="ml-auto flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
+                >
+                  <Trash2 size={14} />
+                  Remove
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
