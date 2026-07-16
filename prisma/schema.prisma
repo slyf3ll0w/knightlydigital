@@ -36,6 +36,9 @@ model Company {
   defaultDepositType  DepositType @default(NONE)
   defaultDepositValue Decimal?    @db.Decimal(10, 2) // percent (0-100) or fixed dollars
   reviewLink       String?
+  // "On my way" text template ({{placeholder}} substitution per lib/messaging.ts);
+  // null = the built-in default. Sent from the tech's own phone via an sms: link.
+  onMyWayTemplate  String?
   bookingForm      Json? // booking/embed form config (custom fields etc.) — see lib/booking-form.ts
   // Online booking (self-scheduling). businessHours: { mon: [{start:"08:00",end:"17:00"}], ... }
   // per lib/business-hours.ts; null = default weekday hours. serviceZips empty = no
@@ -422,6 +425,7 @@ model Contact {
   appointments    Appointment[]
   contracts       Contract[]
   contactNotes    ContactNote[]
+  addresses       ContactAddress[]
 
   @@index([companyId])
   @@index([companyId, status])
@@ -429,6 +433,23 @@ model Contact {
   @@index([companyId, assignedToId])
   @@index([companyId, importBatchId])
   @@index([companyId, pipelineStageId])
+}
+
+// Additional service addresses (rental properties, second locations, ...).
+// The contact's flat address/city/state/zip stays the primary; these are
+// extras, offered wherever a job/appointment address gets picked.
+model ContactAddress {
+  id        String   @id @default(cuid())
+  contactId String
+  contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  label     String? // "Rental on 5th St", "Office", ...
+  address   String
+  city      String?
+  state     String?
+  zip       String?
+  createdAt DateTime @default(now())
+
+  @@index([contactId])
 }
 
 // ─── Requests ────────────────────────────────────────────────────────────────
@@ -696,6 +717,8 @@ model Job {
   completedAt  DateTime?
   closedAt     DateTime?
   address      String?
+  // Last time a tech sent the client an "on my way" text (from their own phone)
+  onMyWaySentAt DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 

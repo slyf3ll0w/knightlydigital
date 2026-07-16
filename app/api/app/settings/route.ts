@@ -81,6 +81,11 @@ export async function PATCH(req: NextRequest) {
           return { defaultDepositType: d.depositType, defaultDepositValue: d.depositValue };
         })()),
       reviewLink: opt(body.reviewLink),
+      // "On my way" text template — blank falls back to the built-in default
+      onMyWayTemplate:
+        body.onMyWayTemplate !== undefined
+          ? String(body.onMyWayTemplate).trim().slice(0, 320) || null
+          : undefined,
       timezone: isValidTimezone(body.timezone) ? body.timezone : undefined,
       // Online-booking scheduling settings
       businessHours:

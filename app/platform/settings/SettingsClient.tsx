@@ -7,6 +7,7 @@ import { signOut } from "next-auth/react";
 import { Loader2, Check, Upload, Trash2, AlertTriangle } from "lucide-react";
 import { resizeImageFile } from "@/lib/resize-image";
 import { INDUSTRIES } from "@/lib/pricebooks";
+import { DEFAULT_ON_MY_WAY_TEMPLATE, ON_MY_WAY_PLACEHOLDERS } from "@/lib/messaging";
 import { textOn } from "@/lib/branding";
 
 type Company = {
@@ -19,6 +20,7 @@ type Company = {
   defaultDepositType: "NONE" | "PERCENT" | "FIXED" | "FULL";
   defaultDepositValue: string | number | null;
   reviewLink: string | null; industry: string | null;
+  onMyWayTemplate: string | null;
   timezone: string;
   assistantName: string | null;
   schedulingIntervalMinutes: number | null;
@@ -291,6 +293,7 @@ export default function SettingsClient({
     defaultDepositType: company.defaultDepositType ?? "NONE",
     defaultDepositValue: company.defaultDepositValue != null ? String(Number(company.defaultDepositValue)) : "",
     reviewLink: company.reviewLink ?? "",
+    onMyWayTemplate: company.onMyWayTemplate ?? "",
     timezone: company.timezone ?? "America/Chicago",
     assistantName: company.assistantName ?? "",
     schedulingIntervalMinutes: String(company.schedulingIntervalMinutes ?? 30),
@@ -1041,6 +1044,41 @@ export default function SettingsClient({
               placeholder="Atlas" maxLength={40}
               className="w-full max-w-xs px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
             <p className="text-xs text-gray-400 mt-1">Give it a name that fits your business — leave blank for Atlas</p>
+          </div>
+        </div>
+        )}
+
+        {/* On my way texts */}
+        {show("features") && (
+        <div className="card-ledger p-5 space-y-4">
+          <div>
+            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+              &ldquo;On My Way&rdquo; Texts
+            </h2>
+            <p className="text-xs text-gray-400 mt-0.5">
+              The message behind the On My Way button on a job — it opens in your team
+              member&apos;s own texting app, prefilled and editable, so it&apos;s free to send
+            </p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Message template</label>
+            <textarea
+              value={form.onMyWayTemplate}
+              onChange={(e) => set("onMyWayTemplate", e.target.value)}
+              placeholder={DEFAULT_ON_MY_WAY_TEMPLATE}
+              rows={3}
+              maxLength={320}
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+            />
+            <p className="text-xs text-gray-400 mt-1">
+              Leave blank to use the default. Placeholders fill in automatically:{" "}
+              {ON_MY_WAY_PLACEHOLDERS.map(([tag], i) => (
+                <span key={tag}>
+                  {i > 0 && ", "}
+                  <code className="font-mono text-gray-500">{tag}</code>
+                </span>
+              ))}
+            </p>
           </div>
         </div>
         )}

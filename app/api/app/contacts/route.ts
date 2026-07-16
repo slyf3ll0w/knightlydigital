@@ -17,6 +17,7 @@ export async function GET() {
       status: { in: ["LEAD", "ACTIVE"] },
     },
     orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+    include: { addresses: { orderBy: { createdAt: "asc" } } },
   });
 
   return NextResponse.json(contacts);

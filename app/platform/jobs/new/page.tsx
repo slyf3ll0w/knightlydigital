@@ -10,7 +10,24 @@ import { localInputToISO } from "@/lib/statuses";
 import SlotTimePicker from "@/components/SlotTimePicker";
 import { addMinutesToLocalDateTime, DEFAULT_SLOT_INTERVAL_MINUTES } from "@/lib/scheduling";
 
-type Contact = { id: string; firstName: string; lastName: string; address: string | null };
+type ContactAddress = {
+  id: string;
+  label: string | null;
+  address: string;
+  city: string | null;
+  state: string | null;
+  zip: string | null;
+};
+type Contact = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  zip: string | null;
+  addresses?: ContactAddress[];
+};
 type TeamUser = { id: string; name: string; isActive: boolean };
 
 function NewJobForm() {
@@ -67,6 +84,24 @@ function NewJobForm() {
   function set(field: string, value: string) {
     setForm((f) => ({ ...f, [field]: value }));
   }
+
+  // Saved-address quick pick — shown when the customer has more than one
+  // address on file (primary + extras managed on their contact page)
+  const selectedContact = contacts.find((c) => c.id === form.contactId);
+  const line = (a: { address: string | null; city: string | null; state: string | null; zip: string | null }) =>
+    [a.address, a.city, a.state, a.zip].filter(Boolean).join(", ");
+  const addressChoices = selectedContact
+    ? [
+        ...(selectedContact.address
+          ? [{ key: "primary", label: "Primary", line: line(selectedContact) }]
+          : []),
+        ...(selectedContact.addresses ?? []).map((a) => ({
+          key: a.id,
+          label: a.label || "Additional",
+          line: line(a),
+        })),
+      ]
+    : [];
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -244,6 +279,22 @@ function NewJobForm() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Job site address</label>
+            {addressChoices.length > 1 && (
+              <select
+                value=""
+                onChange={(e) => {
+                  if (e.target.value) set("address", e.target.value);
+                }}
+                className="w-full mb-2 px-3 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-green-500"
+              >
+                <option value="">Pick a saved address...</option>
+                {addressChoices.map((a) => (
+                  <option key={a.key} value={a.line}>
+                    {a.label}: {a.line}
+                  </option>
+                ))}
+              </select>
+            )}
             <input
               type="text"
               value={form.address}

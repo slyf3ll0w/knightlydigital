@@ -6,6 +6,7 @@ import { ArrowLeft, Phone, Mail, MapPin, ChevronRight, Pencil } from "lucide-rea
 import { money, shortDate, type StatusKind } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
 import ContactStatus from "@/components/ContactStatus";
+import CallTextButtons from "@/components/CallTextButtons";
 import ContactCreateMenu from "./ContactCreateMenu";
 import ContactActionsMenu from "./ContactActionsMenu";
 import AssignLead from "./AssignLead";
@@ -13,6 +14,7 @@ import CustomFieldsCard from "./CustomFieldsCard";
 import ContactNoteForm from "./ContactNoteForm";
 import ContactNoteItem from "./ContactNoteItem";
 import PortalAccessCard from "./PortalAccessCard";
+import AddressesCard from "./AddressesCard";
 import PipelineCard from "./PipelineCard";
 import { getActiveFieldDefs } from "@/lib/contact-fields";
 
@@ -42,6 +44,7 @@ export default async function ContactDetailPage({
         payments: true,
         assignedTo: { select: { id: true, name: true } },
         pipelineStage: { select: { isConverted: true } },
+        addresses: { orderBy: { createdAt: "asc" } },
       },
     }),
     canReassign
@@ -199,6 +202,7 @@ export default async function ContactDetailPage({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {contact.phone && <CallTextButtons phone={contact.phone} />}
           <Link
             href={`/app/contacts/${contact.id}/edit`}
             className="flex items-center gap-1.5 px-4 py-2 border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-sm font-semibold rounded-full transition-colors"
@@ -289,6 +293,23 @@ export default async function ContactDetailPage({
               )}
             </dl>
           </div>
+
+          <AddressesCard
+            contactId={contact.id}
+            primary={
+              [contact.address, contact.city, contact.state, contact.zip]
+                .filter(Boolean)
+                .join(", ") || null
+            }
+            addresses={contact.addresses.map((a) => ({
+              id: a.id,
+              label: a.label,
+              address: a.address,
+              city: a.city,
+              state: a.state,
+              zip: a.zip,
+            }))}
+          />
 
           {/* Notes & activity (same pattern as job notes) */}
           <div className="card-ledger">

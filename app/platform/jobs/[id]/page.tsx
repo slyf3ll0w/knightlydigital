@@ -4,9 +4,12 @@ import Link from "next/link";
 import { ArrowLeft, MapPin, CalendarDays, User } from "lucide-react";
 import { quoteStatusLabel, money, shortDate } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
+import CallTextButtons from "@/components/CallTextButtons";
 import { requirePageActor, jobScope, canSeePricing, canSell, isManager } from "@/lib/permissions";
 import { resolveSlotInterval } from "@/lib/scheduling";
+import { renderMessageTemplate, DEFAULT_ON_MY_WAY_TEMPLATE } from "@/lib/messaging";
 import JobActions from "./JobActions";
+import OnMyWay from "./OnMyWay";
 import NoteForm from "./NoteForm";
 import ScheduleJob from "./ScheduleJob";
 import AssignTeam from "./AssignTeam";
@@ -48,11 +51,30 @@ export default async function JobDetailPage({
       : Promise.resolve([]),
     prisma.company.findUnique({
       where: { id: companyId },
-      select: { schedulingIntervalMinutes: true },
+      select: { schedulingIntervalMinutes: true, name: true, timezone: true, onMyWayTemplate: true },
     }),
   ]);
 
   if (!job) notFound();
+
+  const onMyWayMessage = renderMessageTemplate(
+    company?.onMyWayTemplate || DEFAULT_ON_MY_WAY_TEMPLATE,
+    {
+      firstName: job.contact.firstName,
+      lastName: job.contact.lastName,
+      companyName: company?.name,
+      techName: actor.name,
+      jobTitle: job.title,
+      address: job.address,
+      time: job.scheduledAt
+        ? job.scheduledAt.toLocaleTimeString("en-US", {
+            hour: "numeric",
+            minute: "2-digit",
+            timeZone: company?.timezone ?? "America/Chicago",
+          })
+        : "",
+    }
+  );
 
   const lineTotal = job.lineItems.reduce((s, li) => s + Number(li.total), 0);
   const lineCost = job.lineItems.reduce(
@@ -87,15 +109,25 @@ export default async function JobDetailPage({
           )}
         </div>
         {actor.role !== "SALES" && (
-          <JobActions
-            jobId={job.id}
-            status={job.status}
-            hasInvoice={!!job.invoice}
-            hasQuote={!!job.quote}
-            canDelete={isManager(actor.role)}
-            canEdit={canEdit}
-            scheduledAt={job.scheduledAt?.toISOString() ?? null}
-          />
+          <div className="flex items-center gap-2">
+            {job.status === "ACTIVE" && job.contact.phone && (
+              <OnMyWay
+                jobId={job.id}
+                phone={job.contact.phone}
+                message={onMyWayMessage}
+                sentAt={job.onMyWaySentAt?.toISOString() ?? null}
+              />
+            )}
+            <JobActions
+              jobId={job.id}
+              status={job.status}
+              hasInvoice={!!job.invoice}
+              hasQuote={!!job.quote}
+              canDelete={isManager(actor.role)}
+              canEdit={canEdit}
+              scheduledAt={job.scheduledAt?.toISOString() ?? null}
+            />
+          </div>
         )}
       </div>
 
@@ -413,6 +445,11 @@ export default async function JobDetailPage({
                 <div>{card}</div>
               );
             })()}
+            {job.contact.phone && (
+              <div className="flex gap-2 mt-3">
+                <CallTextButtons phone={job.contact.phone} compact />
+              </div>
+            )}
           </div>
         </div>
       </div>

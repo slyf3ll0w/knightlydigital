@@ -22,6 +22,14 @@ type ContactOption = {
   address: string | null;
   city: string | null;
   state: string | null;
+  addresses?: {
+    id: string;
+    label: string | null;
+    address: string;
+    city: string | null;
+    state: string | null;
+    zip: string | null;
+  }[];
 };
 
 const TYPES = [
@@ -188,6 +196,32 @@ export default function AppointmentForm({
           {type === "IN_PERSON" && (
             <div>
               <label className="block text-xs text-gray-500 mb-1">Address *</label>
+              {(selectedContact?.addresses?.length ?? 0) > 0 && (
+                <select
+                  value=""
+                  onChange={(e) => {
+                    if (!e.target.value) return;
+                    setAddressTouched(true);
+                    setAddress(e.target.value);
+                  }}
+                  className={`${inputCls} mb-2 text-gray-600`}
+                >
+                  <option value="">Pick a saved address...</option>
+                  {contactAddress(selectedContact) && (
+                    <option value={contactAddress(selectedContact)}>
+                      Primary: {contactAddress(selectedContact)}
+                    </option>
+                  )}
+                  {selectedContact!.addresses!.map((a) => {
+                    const l = [a.address, a.city, a.state, a.zip].filter(Boolean).join(", ");
+                    return (
+                      <option key={a.id} value={l}>
+                        {a.label || "Additional"}: {l}
+                      </option>
+                    );
+                  })}
+                </select>
+              )}
               <input
                 value={effectiveAddress}
                 onChange={(e) => {
