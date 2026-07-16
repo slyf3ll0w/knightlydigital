@@ -12,6 +12,7 @@ import JobActions from "./JobActions";
 import OnMyWay from "./OnMyWay";
 import AskForReview from "./AskForReview";
 import NoteForm from "./NoteForm";
+import JobNoteItem from "./JobNoteItem";
 import ScheduleJob from "./ScheduleJob";
 import AssignTeam from "./AssignTeam";
 import PhotoUpload from "./PhotoUpload";
@@ -319,25 +320,23 @@ export default async function JobDetailPage({
             </div>
             <div className="p-4 space-y-3">
               {job.notes.map((note) => (
-                <div key={note.id} className="flex gap-3">
-                  <div className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-600 shrink-0">
-                    {note.user.name.charAt(0).toUpperCase()}
-                  </div>
-                  <div className="flex-1 bg-gray-50 rounded-lg px-3 py-2">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs font-semibold text-gray-700">{note.user.name}</span>
-                      <span className="text-xs text-gray-400">
-                        {new Date(note.createdAt).toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                          hour: "numeric",
-                          minute: "2-digit",
-                        })}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-700 whitespace-pre-wrap">{note.body}</p>
-                  </div>
-                </div>
+                <JobNoteItem
+                  key={note.id}
+                  jobId={job.id}
+                  note={{
+                    id: note.id,
+                    body: note.body,
+                    userName: note.user.name,
+                    createdAtLabel: note.createdAt.toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      hour: "numeric",
+                      minute: "2-digit",
+                    }),
+                  }}
+                  canEdit={note.userId === actor.id}
+                  canDelete={note.userId === actor.id || isManager(actor.role)}
+                />
               ))}
               <NoteForm jobId={job.id} />
             </div>
