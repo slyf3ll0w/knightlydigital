@@ -69,7 +69,9 @@ export default function ContactNoteItem({
           <span className="text-xs font-semibold text-gray-700">{note.userName}</span>
           <span className="text-xs text-gray-400">{note.createdAtLabel}</span>
           {!editing && (
-            <span className="ml-auto flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+            // Hover-reveal only where hover exists — touch devices see the
+            // icons always, else edit/delete would be unreachable there
+            <span className="ml-auto flex items-center gap-0.5 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 transition-opacity">
               {canEdit && (
                 <button
                   onClick={() => {
