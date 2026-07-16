@@ -10,6 +10,7 @@ import { resolveSlotInterval } from "@/lib/scheduling";
 import { renderMessageTemplate, DEFAULT_ON_MY_WAY_TEMPLATE } from "@/lib/messaging";
 import JobActions from "./JobActions";
 import OnMyWay from "./OnMyWay";
+import AskForReview from "./AskForReview";
 import NoteForm from "./NoteForm";
 import ScheduleJob from "./ScheduleJob";
 import AssignTeam from "./AssignTeam";
@@ -51,7 +52,13 @@ export default async function JobDetailPage({
       : Promise.resolve([]),
     prisma.company.findUnique({
       where: { id: companyId },
-      select: { schedulingIntervalMinutes: true, name: true, timezone: true, onMyWayTemplate: true },
+      select: {
+        schedulingIntervalMinutes: true,
+        name: true,
+        timezone: true,
+        onMyWayTemplate: true,
+        reviewLink: true,
+      },
     }),
   ]);
 
@@ -116,6 +123,14 @@ export default async function JobDetailPage({
                 phone={job.contact.phone}
                 message={onMyWayMessage}
                 sentAt={job.onMyWaySentAt?.toISOString() ?? null}
+              />
+            )}
+            {job.status !== "ACTIVE" && job.contact.phone && (
+              <AskForReview
+                jobId={job.id}
+                phone={job.contact.phone}
+                message={`Hi ${job.contact.firstName}, thanks for choosing ${company?.name ?? "us"}! If you were happy with our work, we'd really appreciate a quick review: ${company?.reviewLink ?? ""}`}
+                hasReviewLink={!!company?.reviewLink}
               />
             )}
             <JobActions

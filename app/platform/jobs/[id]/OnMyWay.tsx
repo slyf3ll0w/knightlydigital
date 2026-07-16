@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Navigation } from "lucide-react";
-import { smsHref, isApplePlatform } from "@/lib/messaging";
+import { smsHref, isApplePlatform, canSendSms } from "@/lib/messaging";
 
 /**
  * Opens the tech's own Messages app pre-filled with the company's
@@ -23,6 +23,13 @@ export default function OnMyWay({
 }) {
   const router = useRouter();
   const [sent, setSent] = useState<Date | null>(sentAt ? new Date(sentAt) : null);
+
+  // Only render on devices with a texting app (phones, tablets, Macs) —
+  // sms: goes nowhere on a Windows/Linux desktop. Post-mount check so the
+  // server render (which can't sniff the device) matches the first paint.
+  const [supported, setSupported] = useState(false);
+  useEffect(() => setSupported(canSendSms()), []);
+  if (!supported) return null;
 
   function send() {
     // Log first (fire-and-forget), then hand off to Messages. The sms: link

@@ -34,6 +34,17 @@ export function isApplePlatform(): boolean {
   return /iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent);
 }
 
+/**
+ * Whether this device can act on an sms: link — phones and tablets, plus
+ * Macs (the Messages app handles sms:). Windows/Linux desktops have no
+ * texting app, so text buttons should not render there. Client-side only;
+ * false during SSR, so gate rendering behind a mounted check.
+ */
+export function canSendSms(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return /iPhone|iPad|iPod|Android|Macintosh/i.test(navigator.userAgent);
+}
+
 export const ON_MY_WAY_PLACEHOLDERS = [
   ["{{firstName}}", "client's first name"],
   ["{{lastName}}", "client's last name"],
