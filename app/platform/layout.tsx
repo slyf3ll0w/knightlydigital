@@ -6,6 +6,7 @@ import AppShell from "@/components/AppShell";
 import NativeShell from "@/components/NativeShell";
 import OfflineSupport from "@/components/OfflineSupport";
 import TeamLocationReporter from "@/components/TeamLocationReporter";
+import { resolveWallpaper } from "@/lib/wallpapers";
 
 export const metadata: Metadata = {
   title: {
@@ -36,6 +37,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             name: true,
             logoUrl: true,
             logoWallpaper: true,
+            wallpaper: true,
             sidebarTheme: true,
             sidebarLogoColor: true,
             brandColor: true,
@@ -67,7 +69,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         role={user?.role ?? session.user.role}
         companyName={company?.name ?? session.user.companyName}
         companyLogoUrl={company?.logoUrl}
-        logoWallpaper={company?.logoWallpaper ?? false}
+        wallpaper={resolveWallpaper(company?.wallpaper, company?.logoWallpaper ?? false)}
         sidebarTheme={company?.sidebarTheme}
         sidebarLogoColor={company?.sidebarLogoColor}
         brandColor={company?.brandColor}

@@ -5,6 +5,7 @@ import { sanitizeBusinessHours, sanitizeServiceZips } from "@/lib/business-hours
 import { sanitizeDeposit } from "@/lib/deposits";
 import { SLOT_INTERVAL_CHOICES } from "@/lib/scheduling";
 import { getActor, isManager } from "@/lib/permissions";
+import { isWallpaper } from "@/lib/wallpapers";
 
 function isValidTimezone(tz: unknown): tz is string {
   if (typeof tz !== "string" || !tz) return false;
@@ -47,6 +48,7 @@ export async function PATCH(req: NextRequest) {
       industry: body.industry !== undefined ? body.industry || null : undefined,
       logoUrl: body.logoUrl !== undefined ? body.logoUrl || null : undefined,
       logoWallpaper: typeof body.logoWallpaper === "boolean" ? body.logoWallpaper : undefined,
+      wallpaper: isWallpaper(body.wallpaper) ? body.wallpaper : undefined,
       sidebarTheme: ["black", "white", "gray"].includes(body.sidebarTheme)
         ? body.sidebarTheme
         : undefined,

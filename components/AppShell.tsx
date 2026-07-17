@@ -39,6 +39,7 @@ import TourGuide from "@/components/TourGuide";
 import AssistantDrawer from "@/components/AssistantDrawer";
 import { textOn } from "@/lib/branding";
 import { hapticImpact } from "@/lib/haptics";
+import { WALLPAPER_PATTERNS } from "@/lib/wallpapers";
 
 const DEFAULT_ACCENT = "#FFFFFF"; // console default: white on the dark rail
 
@@ -317,7 +318,7 @@ interface AppShellProps {
   role?: string | null;
   companyName?: string | null;
   companyLogoUrl?: string | null;
-  logoWallpaper?: boolean;
+  wallpaper?: string | null;
   sidebarTheme?: string | null;
   sidebarLogoColor?: string | null;
   brandColor?: string | null;
@@ -336,7 +337,7 @@ export default function AppShell({
   role,
   companyName,
   companyLogoUrl,
-  logoWallpaper = false,
+  wallpaper = "none",
   sidebarTheme,
   sidebarLogoColor,
   brandColor,
@@ -638,10 +639,11 @@ export default function AppShell({
 
       {/* ── Main content area ─────────────────────────────────────────────── */}
       <div className="relative flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Optional company wallpaper — a huge tilted watermark of the logo
-            pinned behind every page (it doesn't scroll with the content).
+        {/* Optional company wallpaper — pinned behind every page (it doesn't
+            scroll with the content). Either the huge tilted logo watermark or
+            one of the .wp-* patterns from globals.css (lib/wallpapers.ts).
             The header paints over its own strip; <main> is transparent. */}
-        {logoWallpaper && companyLogoUrl && (
+        {wallpaper === "logo" && companyLogoUrl && (
           <div
             aria-hidden
             className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden"
@@ -653,6 +655,9 @@ export default function AppShell({
               className="logo-wallpaper w-[120%] max-w-none shrink-0 rotate-45 object-contain"
             />
           </div>
+        )}
+        {wallpaper && (WALLPAPER_PATTERNS as readonly string[]).includes(wallpaper) && (
+          <div aria-hidden className={`wp-layer wp-${wallpaper} pointer-events-none absolute inset-0`} />
         )}
         {/* Top bar */}
         <header className="relative flex items-center gap-4 px-4 lg:px-6 min-h-[57px] pt-[env(safe-area-inset-top)] border-b border-gray-200 bg-white shrink-0">

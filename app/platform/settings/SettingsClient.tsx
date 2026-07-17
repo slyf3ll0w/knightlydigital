@@ -9,13 +9,15 @@ import { resizeImageFile } from "@/lib/resize-image";
 import { INDUSTRIES } from "@/lib/pricebooks";
 import { DEFAULT_ON_MY_WAY_TEMPLATE, ON_MY_WAY_PLACEHOLDERS } from "@/lib/messaging";
 import { textOn } from "@/lib/branding";
+import { resolveWallpaper } from "@/lib/wallpapers";
 
 type Company = {
   id: string; name: string; slug: string; phone: string | null;
   email: string | null; address: string | null; city: string | null;
   state: string | null; zip: string | null; website: string | null;
   logoUrl: string | null; brandColor: string | null; brandColorSecondary: string | null;
-  logoWallpaper: boolean; sidebarTheme: string; sidebarLogoColor: string | null;
+  logoWallpaper: boolean; wallpaper: string | null;
+  sidebarTheme: string; sidebarLogoColor: string | null;
   surchargeEnabled: boolean; surchargeRate: string | number | null;
   defaultDepositType: "NONE" | "PERCENT" | "FIXED" | "FULL";
   defaultDepositValue: string | number | null;
@@ -27,6 +29,18 @@ type Company = {
 };
 
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
+
+// Wallpaper picker options (Company.wallpaper — see lib/wallpapers.ts).
+// "logo" only renders when a logo is uploaded.
+const WALLPAPER_CHOICES: [string, string][] = [
+  ["none", "None"],
+  ["logo", "Your logo"],
+  ["grid", "Graph paper"],
+  ["dots", "Dot grid"],
+  ["blueprint", "Blueprint"],
+  ["topo", "Topographic"],
+  ["pinstripe", "Pinstripe"],
+];
 
 /** Color picker + typed hex code, kept in sync. Empty = default. */
 function ColorField({
@@ -283,7 +297,7 @@ export default function SettingsClient({
     website: company.website ?? "",
     industry: company.industry ?? "",
     logoUrl: company.logoUrl ?? "",
-    logoWallpaper: company.logoWallpaper ?? false,
+    wallpaper: resolveWallpaper(company.wallpaper, company.logoWallpaper ?? false),
     sidebarTheme: company.sidebarTheme ?? "black",
     sidebarLogoColor: company.sidebarLogoColor ?? "",
     brandColor: company.brandColor ?? "",
@@ -668,14 +682,14 @@ export default function SettingsClient({
         </div>
         )}
 
-        {/* Appearance — per-device light/dark; the desktop app follows the
-            system, so this only shows on phones */}
+        {/* Appearance — per-device light/dark (phones AND desktop; Automatic
+            follows the OS setting either way) */}
         {show("customization") && (
-        <div className="lg:hidden card-ledger p-5 space-y-4">
+        <div className="card-ledger p-5 space-y-4">
           <div>
             <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Appearance</h2>
             <p className="text-xs text-gray-400 mt-0.5">
-              Light or dark for this device — Automatic follows your phone&apos;s setting
+              Light or dark for this device — Automatic follows your device&apos;s setting
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -773,28 +787,44 @@ export default function SettingsClient({
               Transparent-background PNG looks best.
             </p>
           </div>
-          {form.logoUrl && (
-            <label className="flex items-center gap-3 cursor-pointer">
-              <div
-                onClick={() => set("logoWallpaper", !form.logoWallpaper)}
-                className={`relative w-10 h-6 rounded-full transition-colors cursor-pointer ${
-                  form.logoWallpaper ? "bg-green-500" : "bg-gray-300"
-                }`}
-              >
-                <div
-                  className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform shadow ${
-                    form.logoWallpaper ? "translate-x-5" : "translate-x-1"
-                  }`}
-                />
-              </div>
-              <div>
-                <span className="text-sm font-medium text-gray-700">Logo wallpaper</span>
-                <p className="text-xs text-gray-400">
-                  A large, faint tilt of your logo behind every page of the app
-                </p>
-              </div>
-            </label>
-          )}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Wallpaper</label>
+            <p className="text-xs text-gray-400 mb-2">
+              A subtle backdrop behind every page of the app — your team sees it, clients never do
+            </p>
+            <div className="grid grid-cols-3 sm:grid-cols-4 xl:grid-cols-7 gap-2">
+              {WALLPAPER_CHOICES.map(([value, label]) =>
+                value === "logo" && !form.logoUrl ? null : (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => set("wallpaper", value)}
+                    className={`rounded-lg border p-1.5 transition-colors ${
+                      form.wallpaper === value
+                        ? "border-green-500 ring-2 ring-green-500/30"
+                        : "border-gray-200 hover:border-gray-300"
+                    }`}
+                  >
+                    <div className="relative h-12 overflow-hidden rounded-md border border-gray-100 bg-white">
+                      {value === "logo" ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={form.logoUrl}
+                          alt=""
+                          className="h-full w-full rotate-45 scale-125 object-contain opacity-30"
+                        />
+                      ) : value !== "none" ? (
+                        <div className={`wp-preview wp-${value} absolute inset-0`} />
+                      ) : null}
+                    </div>
+                    <p className="mt-1 truncate text-center text-[11px] font-medium text-gray-600">
+                      {label}
+                    </p>
+                  </button>
+                )
+              )}
+            </div>
+          </div>
           <div className="grid sm:grid-cols-2 gap-4">
             <ColorField
               label="Primary color"

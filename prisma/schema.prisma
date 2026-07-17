@@ -25,7 +25,11 @@ model Company {
   logoMime         String?
   brandColor       String? // primary brand hex: headers/surfaces on client-facing pages + app accent
   brandColorSecondary String? // secondary brand hex: buttons/accents; falls back to brandColor
-  logoWallpaper    Boolean  @default(false) // faint oversized logo watermark behind app pages
+  logoWallpaper    Boolean  @default(false) // legacy wallpaper toggle — superseded by `wallpaper`; null wallpaper + true here still means "logo"
+  // App wallpaper behind every page: "none" | "logo" | "grid" | "dots" |
+  // "blueprint" | "topo" | "pinstripe" (see WALLPAPERS in lib/wallpapers.ts).
+  // Null = not chosen yet → falls back to logoWallpaper for pre-existing tenants.
+  wallpaper        String?
   sidebarTheme     String   @default("black") // desktop sidebar: "black" | "white" | "gray"
   sidebarLogoColor String? // hex backdrop behind the sidebar logo panel; null = white
   timezone         String   @default("America/Chicago")
