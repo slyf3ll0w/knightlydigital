@@ -12,7 +12,10 @@ import { connectCompany, syncCompany, verifyState } from "@/lib/quickbooks";
 export const dynamic = "force-dynamic";
 
 function settingsRedirect(req: NextRequest, params: Record<string, string>) {
-  const url = new URL("/app/settings/quickbooks", req.nextUrl.origin);
+  // Behind Railway's proxy req.nextUrl.origin is the internal host
+  // (localhost:8080) — NEXTAUTH_URL is the real public origin.
+  const base = process.env.NEXTAUTH_URL ?? req.nextUrl.origin;
+  const url = new URL("/app/settings/quickbooks", base);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
   return NextResponse.redirect(url);
 }
