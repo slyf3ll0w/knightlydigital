@@ -9,6 +9,7 @@ import { requirePageActor, jobScope, canSeePricing, canSell, isManager } from "@
 import { resolveSlotInterval } from "@/lib/scheduling";
 import { renderMessageTemplate, DEFAULT_ON_MY_WAY_TEMPLATE } from "@/lib/messaging";
 import { entryMs, formatDuration } from "@/lib/time-entries";
+import { visitFrequencyLabel } from "@/lib/subscriptions";
 import JobActions from "./JobActions";
 import ClockCard from "./ClockCard";
 import OnMyWay from "./OnMyWay";
@@ -46,6 +47,7 @@ export default async function JobDetailPage({
           include: { user: { select: { id: true, name: true, hourlyCost: true } } },
           orderBy: { startedAt: "asc" },
         },
+        subscription: { select: { id: true, name: true, visitFrequency: true } },
         quote: true,
         invoice: { include: { payments: true } },
       },
@@ -202,6 +204,24 @@ export default async function JobDetailPage({
             <Link href={`/app/requests/${job.request.id}`} className="text-green-700 hover:underline">
               {job.request.title}
             </Link>
+          </div>
+        )}
+        {job.subscription && (
+          <div>
+            <span className="text-xs uppercase font-semibold text-gray-400 block">Recurring</span>
+            {showMoney ? (
+              <Link href="/app/subscriptions" className="text-green-700 hover:underline">
+                {job.subscription.visitFrequency
+                  ? `${visitFrequencyLabel[job.subscription.visitFrequency]} visit series`
+                  : "From a subscription"}
+              </Link>
+            ) : (
+              <span className="text-gray-800">
+                {job.subscription.visitFrequency
+                  ? `${visitFrequencyLabel[job.subscription.visitFrequency]} visit series`
+                  : "From a subscription"}
+              </span>
+            )}
           </div>
         )}
         {job.closedAt && (

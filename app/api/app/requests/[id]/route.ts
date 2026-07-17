@@ -81,7 +81,7 @@ export async function DELETE(
         _count: {
           select: {
             requests: true, quotes: true, jobs: true, invoices: true,
-            payments: true, subscriptions: true, contracts: true, servicePlans: true,
+            payments: true, subscriptions: true, contracts: true,
           },
         },
       },
@@ -90,7 +90,7 @@ export async function DELETE(
     const c = contact._count;
     const hasFootprint =
       c.requests > 0 || c.quotes > 0 || c.jobs > 0 || c.invoices > 0 ||
-      c.payments > 0 || c.subscriptions > 0 || c.contracts > 0 || c.servicePlans > 0;
+      c.payments > 0 || c.subscriptions > 0 || c.contracts > 0;
     if (hasFootprint) return false;
     // A declined spam self-booking leaves only a cancelled appointment behind;
     // anything scheduled/completed is real history and keeps the lead.

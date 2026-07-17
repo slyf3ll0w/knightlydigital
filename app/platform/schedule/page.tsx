@@ -31,6 +31,7 @@ type JobWithContact = {
   scheduledAt: Date | null;
   scheduledEnd: Date | null;
   scheduledAnytime: boolean;
+  subscriptionId: string | null;
   contact: { firstName: string; lastName: string };
 };
 
@@ -46,6 +47,7 @@ function toDTO(j: JobWithContact): ScheduleJobDTO {
     scheduledEnd: j.scheduledEnd ? j.scheduledEnd.toISOString() : null,
     scheduledAnytime: j.scheduledAnytime,
     contactName: `${j.contact.firstName} ${j.contact.lastName}`.trim(),
+    recurring: !!j.subscriptionId,
   };
 }
 

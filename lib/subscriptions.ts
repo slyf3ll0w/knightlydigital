@@ -14,7 +14,7 @@
  * go live — only a new processor implementation.
  */
 
-import type { Prisma, PrismaClient, RecurringInterval } from "@prisma/client";
+import type { Frequency, Prisma, PrismaClient, RecurringInterval } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getProcessor, recordPayment } from "@/lib/payments";
 import { sendEmail, invoiceLinkEmail } from "@/lib/email";
@@ -61,6 +61,30 @@ export function intervalLabel(interval: RecurringInterval): string {
     ANNUAL: "year",
   }[interval];
 }
+
+/** Add one visit-cadence step. Weekly/biweekly are exact-day; the rest clamp. */
+export function addVisitInterval(date: Date, frequency: Frequency): Date {
+  switch (frequency) {
+    case "WEEKLY":
+      return new Date(date.getTime() + 7 * 86400000);
+    case "BIWEEKLY":
+      return new Date(date.getTime() + 14 * 86400000);
+    case "MONTHLY":
+      return addMonthsClamped(date, 1);
+    case "QUARTERLY":
+      return addMonthsClamped(date, 3);
+    case "ANNUALLY":
+      return addMonthsClamped(date, 12);
+  }
+}
+
+export const visitFrequencyLabel: Record<Frequency, string> = {
+  WEEKLY: "Every week",
+  BIWEEKLY: "Every 2 weeks",
+  MONTHLY: "Every month",
+  QUARTERLY: "Every 3 months",
+  ANNUALLY: "Every year",
+};
 
 /** noon-anchored "today + interval" so dates never drift across timezones. */
 function firstRunDate(interval: RecurringInterval): Date {
@@ -149,8 +173,10 @@ async function generateCycle(sub: DueSub, now: Date): Promise<"billed" | "drafte
       return "drafted"; // already handled by a concurrent run
     }
 
-    // Optional job for visit-based recurring work
-    if (sub.createsJob) {
+    // Optional job for visit-based recurring work. When the subscription has
+    // its own visit series (visitFrequency), the visit engine owns job
+    // creation — the billing cycle only mints the invoice.
+    if (sub.createsJob && !sub.visitFrequency) {
       const lastJob = await tx.job.findFirst({
         where: { companyId: sub.companyId },
         orderBy: { jobNumber: "desc" },
@@ -318,6 +344,172 @@ export async function billSubscriptionNow(
     sub.nextRunDate = now;
   }
   return generateCycle({ ...sub }, now);
+}
+
+// ─── Visit series (visit cadence decoupled from billing) ─────────────────────
+
+/** How far ahead visit jobs are materialized onto the calendar. */
+const VISIT_HORIZON_DAYS = 28;
+/** Safety cap per subscription per sweep (a daily WEEKLY sub needs ~5). */
+const MAX_VISITS_PER_SWEEP = 30;
+
+export interface VisitRunSummary {
+  subscriptions: number;
+  visitsCreated: number;
+  errors: number;
+}
+
+/**
+ * Materialize upcoming visits for every ACTIVE subscription with a visit
+ * series. Each visit becomes an ordinary Job (subscriptionId set, default
+ * assignees copied), scheduled from nextVisitDate + the series' time window,
+ * so dispatchers see the next ~4 weeks on the calendar and can drag/reschedule
+ * or delete individual visits without touching the series.
+ *
+ * Idempotent: nextVisitDate only ever moves forward inside a transaction that
+ * re-reads it, and a same-day duplicate check makes overlapping runs safe.
+ * Visit jobs intentionally carry NO price line items — money lives on the
+ * subscription's invoices, so per-visit line items would double-count revenue.
+ */
+export async function generateDueVisits(
+  now: Date = new Date(),
+  companyId?: string
+): Promise<VisitRunSummary> {
+  const horizon = new Date(now.getTime() + VISIT_HORIZON_DAYS * 86400000);
+  const due = await prisma.subscription.findMany({
+    where: {
+      status: "ACTIVE",
+      visitFrequency: { not: null },
+      nextVisitDate: { not: null, lte: horizon },
+      ...(companyId ? { companyId } : {}),
+    },
+    include: { contact: true },
+    orderBy: { nextVisitDate: "asc" },
+    take: 500,
+  });
+
+  const summary: VisitRunSummary = { subscriptions: 0, visitsCreated: 0, errors: 0 };
+  for (const sub of due) {
+    try {
+      const created = await prisma.$transaction(async (tx) => {
+        // Re-read inside the transaction so overlapping sweeps can't both
+        // materialize the same dates.
+        const fresh = await tx.subscription.findUnique({
+          where: { id: sub.id },
+          select: { status: true, visitFrequency: true, nextVisitDate: true },
+        });
+        if (
+          !fresh ||
+          fresh.status !== "ACTIVE" ||
+          !fresh.visitFrequency ||
+          !fresh.nextVisitDate ||
+          fresh.nextVisitDate > horizon
+        ) {
+          return 0;
+        }
+
+        // Default assignees, filtered to live team members
+        const assigneeIds =
+          sub.visitAssigneeIds.length > 0
+            ? (
+                await tx.user.findMany({
+                  where: { id: { in: sub.visitAssigneeIds }, companyId: sub.companyId, isActive: true },
+                  select: { id: true },
+                })
+              ).map((u) => u.id)
+            : [];
+
+        let cursor = fresh.nextVisitDate;
+        let count = 0;
+        while (cursor <= horizon && count < MAX_VISITS_PER_SWEEP) {
+          // Build the visit's schedule from the date + series time window
+          const dayStart = new Date(cursor);
+          dayStart.setHours(0, 0, 0, 0);
+          const anytime = sub.visitStartMinutes == null;
+          const scheduledAt = anytime
+            ? new Date(dayStart.getTime() + 12 * 3600_000) // noon anchor, "Anytime" row
+            : new Date(dayStart.getTime() + sub.visitStartMinutes! * 60000);
+          const scheduledEnd = anytime
+            ? null
+            : new Date(scheduledAt.getTime() + (sub.visitDurationMinutes ?? 60) * 60000);
+
+          // Same-day duplicate guard (idempotency across overlapping runs)
+          const dayEnd = new Date(dayStart.getTime() + 86400000);
+          const dupe = await tx.job.findFirst({
+            where: { subscriptionId: sub.id, scheduledAt: { gte: dayStart, lt: dayEnd } },
+            select: { id: true },
+          });
+          if (!dupe) {
+            const lastJob = await tx.job.findFirst({
+              where: { companyId: sub.companyId },
+              orderBy: { jobNumber: "desc" },
+              select: { jobNumber: true },
+            });
+            await tx.job.create({
+              data: {
+                companyId: sub.companyId,
+                contactId: sub.contactId,
+                subscriptionId: sub.id,
+                jobNumber: (lastJob?.jobNumber ?? 0) + 1,
+                title: sub.name,
+                description: sub.description,
+                leadSource: sub.contact.leadSource,
+                address: sub.contact.address,
+                scheduledAt,
+                scheduledEnd,
+                scheduledAnytime: anytime,
+                assignments: { create: assigneeIds.map((userId) => ({ userId })) },
+              },
+            });
+            count++;
+          }
+          cursor = addVisitInterval(cursor, fresh.visitFrequency);
+        }
+
+        await tx.subscription.update({
+          where: { id: sub.id },
+          data: { nextVisitDate: cursor, lastVisitGeneratedAt: now },
+        });
+        return count;
+      });
+      summary.subscriptions++;
+      summary.visitsCreated += created;
+    } catch (err) {
+      summary.errors++;
+      console.error("[subscriptions] visit generation failed for", sub.id, err);
+    }
+  }
+  return summary;
+}
+
+/**
+ * Stop a series' future visits: deletes this subscription's not-yet-worked
+ * jobs from `from` onward (no time entries, notes, photos, or invoice — a job
+ * someone touched is real work and stays). Used on pause/cancel and when the
+ * visit schedule is removed.
+ */
+export async function deleteFutureVisits(
+  subscriptionId: string,
+  companyId: string,
+  from: Date = new Date()
+): Promise<number> {
+  const candidates = await prisma.job.findMany({
+    where: {
+      subscriptionId,
+      companyId,
+      status: "ACTIVE",
+      scheduledAt: { gte: from },
+      invoice: null,
+      timeEntries: { none: {} },
+      notes: { none: {} },
+      photos: { none: {} },
+    },
+    select: { id: true },
+  });
+  if (candidates.length === 0) return 0;
+  const ids = candidates.map((j) => j.id);
+  await prisma.job.deleteMany({ where: { id: { in: ids } } });
+  return ids.length;
 }
 
 export interface RunSummary {

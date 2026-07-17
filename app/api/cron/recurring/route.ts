@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { runDueSubscriptions } from "@/lib/subscriptions";
+import { runDueSubscriptions, generateDueVisits } from "@/lib/subscriptions";
 import { runDueReminders, runAppointmentReminders } from "@/lib/reminders";
 import { runQuickBooksNightlySync } from "@/lib/quickbooks";
 
@@ -31,6 +31,8 @@ export async function POST(req: NextRequest) {
 
   const now = new Date();
   const subscriptions = await runDueSubscriptions(now);
+  // Materialize upcoming visit-series jobs (~4-week rolling horizon)
+  const visits = await generateDueVisits(now);
   const reminders = await runDueReminders(now);
   // Online-booking appointment reminders (1 day / 1 hour before). The 1-hour
   // stage only lands if this cron runs hourly — daily runs still cover the
@@ -39,5 +41,5 @@ export async function POST(req: NextRequest) {
   // QuickBooks sweep: catches invoices issued/edited outside the payment
   // hook. No-op unless QBO env vars are set and companies have connected.
   const quickbooks = await runQuickBooksNightlySync();
-  return NextResponse.json({ ok: true, subscriptions, reminders, appointmentReminders, quickbooks });
+  return NextResponse.json({ ok: true, subscriptions, visits, reminders, appointmentReminders, quickbooks });
 }

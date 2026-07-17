@@ -217,6 +217,20 @@ creates a `Subscription` on the client. The engine in `lib/subscriptions.ts` the
 generates the next invoice (and optionally a job) each cycle. See the
 Subscriptions page (`/app/subscriptions`) to pause/cancel or bill a cycle now.
 
+**Visit series (weekly/biweekly visits, billed on their own cadence).** A
+subscription can carry a visit schedule (`visitFrequency` weekly/biweekly/
+monthly/quarterly/annually + `nextVisitDate`, time window, default assignees)
+set from the Subscriptions page edit form. `generateDueVisits` in
+`lib/subscriptions.ts` materializes the next ~4 weeks of visits as ordinary
+Jobs (subscriptionId set, Repeat glyph on the calendar) so dispatchers can
+drag/reschedule or delete individual visits; deleting one skips it for good.
+Billing stays on `interval`/`nextRunDate` — the classic "weekly mows, monthly
+invoice". Pause/cancel (or clearing the frequency) deletes untouched future
+visit jobs; resume rolls the series forward on-cadence. When a subscription
+has a visit series, the billing cycle's `createsJob` path is skipped — the
+visit engine owns job creation. (The old dormant `ServicePlan` model was
+removed in favor of this.)
+
 **The engine needs a daily trigger.** `POST /api/cron/recurring` runs two sweeps —
 (1) generate due subscription cycles, and (2) send escalating payment reminders for
 unpaid/overdue invoices (on the due date, then 3/7/14 days overdue; one email per

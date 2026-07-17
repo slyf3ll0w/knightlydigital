@@ -71,7 +71,6 @@ export async function POST(req: NextRequest) {
       await tx.bookingRequest.deleteMany({ where });
       await tx.request.deleteMany({ where });
       await tx.subscription.deleteMany({ where }); // references work items — before them
-      await tx.servicePlan.deleteMany({ where });
       await tx.contact.deleteMany({ where }); // cascades contact notes
       await tx.contactFieldDef.deleteMany({ where });
       await tx.workItem.deleteMany({ where }); // references contract templates — before them

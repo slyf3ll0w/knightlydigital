@@ -5,6 +5,8 @@ import Link from "next/link";
 import { Check, Repeat, Loader2, Pencil, Play, Pause, X, RotateCw } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 
+type Frequency = "WEEKLY" | "BIWEEKLY" | "MONTHLY" | "QUARTERLY" | "ANNUALLY";
+
 type Sub = {
   id: string;
   name: string;
@@ -15,6 +17,11 @@ type Sub = {
   invoiceMode: "SEND" | "DRAFT";
   status: "ACTIVE" | "PAUSED" | "CANCELLED";
   nextRunDate: string;
+  visitFrequency: Frequency | null;
+  nextVisitDate: string | null;
+  visitStartMinutes: number | null;
+  visitDurationMinutes: number | null;
+  visitAssigneeIds: string[];
   contact: { id: string; firstName: string; lastName: string };
 };
 
@@ -25,6 +32,33 @@ const INTERVAL_LABEL: Record<Sub["interval"], string> = {
   ANNUAL: "Annually",
 };
 
+const FREQ_LABEL: Record<Frequency, string> = {
+  WEEKLY: "Every week",
+  BIWEEKLY: "Every 2 weeks",
+  MONTHLY: "Every month",
+  QUARTERLY: "Every 3 months",
+  ANNUALLY: "Every year",
+};
+
+// 30-minute time-of-day options for the visit window ("" = Anytime)
+const TIME_OPTIONS = Array.from({ length: 48 }, (_, i) => {
+  const mins = i * 30;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  const label = `${((h + 11) % 12) + 1}:${String(m).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
+  return { value: String(mins), label };
+});
+
+const DURATION_OPTIONS = [
+  { value: "30", label: "30 min" },
+  { value: "60", label: "1 hour" },
+  { value: "90", label: "1.5 hours" },
+  { value: "120", label: "2 hours" },
+  { value: "180", label: "3 hours" },
+  { value: "240", label: "4 hours" },
+  { value: "480", label: "8 hours" },
+];
+
 function money(n: number | string) {
   return `$${Number(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
@@ -34,9 +68,11 @@ function fmtDate(iso: string) {
 
 export default function SubscriptionsClient({
   initialSubs,
+  team,
   canManage,
 }: {
   initialSubs: Sub[];
+  team: { id: string; name: string }[];
   canManage: boolean;
 }) {
   const [subs, setSubs] = useState<Sub[]>(initialSubs);
@@ -51,6 +87,11 @@ export default function SubscriptionsClient({
     quantity: "",
     interval: "MONTHLY" as Sub["interval"],
     nextRunDate: "",
+    visitFrequency: "" as "" | Frequency,
+    nextVisitDate: "",
+    visitTime: "", // "" = Anytime, else minutes from midnight
+    visitDuration: "60",
+    visitAssignees: [] as string[],
   });
 
   function openEdit(s: Sub) {
@@ -60,6 +101,11 @@ export default function SubscriptionsClient({
       quantity: String(Number(s.quantity)),
       interval: s.interval,
       nextRunDate: s.nextRunDate.slice(0, 10),
+      visitFrequency: s.visitFrequency ?? "",
+      nextVisitDate: s.nextVisitDate ? s.nextVisitDate.slice(0, 10) : "",
+      visitTime: s.visitStartMinutes != null ? String(s.visitStartMinutes) : "",
+      visitDuration: String(s.visitDurationMinutes ?? 60),
+      visitAssignees: s.visitAssigneeIds ?? [],
     });
     setError("");
     setEditId(s.id);
@@ -70,12 +116,21 @@ export default function SubscriptionsClient({
       setError("The subscription needs a name.");
       return;
     }
+    if (editForm.visitFrequency && !editForm.nextVisitDate) {
+      setError("Pick the first visit date for the visit schedule.");
+      return;
+    }
     const data = await patch(id, {
       name: editForm.name,
       unitPrice: parseFloat(editForm.unitPrice) || 0,
       quantity: parseFloat(editForm.quantity) || 1,
       interval: editForm.interval,
       nextRunDate: editForm.nextRunDate,
+      visitFrequency: editForm.visitFrequency || null,
+      nextVisitDate: editForm.visitFrequency ? editForm.nextVisitDate : null,
+      visitStartMinutes: editForm.visitTime === "" ? null : Number(editForm.visitTime),
+      visitDurationMinutes: Number(editForm.visitDuration) || 60,
+      visitAssigneeIds: editForm.visitAssignees,
     });
     if (data) {
       setSubs((list) =>
@@ -88,11 +143,23 @@ export default function SubscriptionsClient({
                 quantity: parseFloat(editForm.quantity) || 1,
                 interval: editForm.interval,
                 nextRunDate: `${editForm.nextRunDate}T12:00:00`,
+                visitFrequency: editForm.visitFrequency || null,
+                nextVisitDate: editForm.visitFrequency
+                  ? `${editForm.nextVisitDate}T12:00:00`
+                  : null,
+                visitStartMinutes: editForm.visitTime === "" ? null : Number(editForm.visitTime),
+                visitDurationMinutes: Number(editForm.visitDuration) || 60,
+                visitAssigneeIds: editForm.visitAssignees,
               }
             : s
         )
       );
       setEditId(null);
+      const created = (data as { visitsCreated?: number }).visitsCreated ?? 0;
+      if (created > 0) {
+        setFlash(`${created} upcoming visit${created === 1 ? "" : "s"} added to the schedule.`);
+        setTimeout(() => setFlash(""), 6000);
+      }
     }
   }
 
@@ -241,6 +308,116 @@ export default function SubscriptionsClient({
                         />
                       </div>
                     </div>
+                    {/* Visit schedule — visit cadence decoupled from billing */}
+                    <div className="pt-3 border-t border-gray-200">
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                        Visit schedule
+                      </p>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-0.5">Repeats</label>
+                          <select
+                            value={editForm.visitFrequency}
+                            onChange={(e) =>
+                              setEditForm((f) => ({
+                                ...f,
+                                visitFrequency: e.target.value as "" | Frequency,
+                              }))
+                            }
+                            className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                          >
+                            <option value="">No repeating visits</option>
+                            {(Object.keys(FREQ_LABEL) as Frequency[]).map((fq) => (
+                              <option key={fq} value={fq}>
+                                {FREQ_LABEL[fq]}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        {editForm.visitFrequency && (
+                          <>
+                            <div>
+                              <label className="block text-xs text-gray-500 mb-0.5">Next visit</label>
+                              <input
+                                type="date"
+                                value={editForm.nextVisitDate}
+                                onChange={(e) =>
+                                  setEditForm((f) => ({ ...f, nextVisitDate: e.target.value }))
+                                }
+                                className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs text-gray-500 mb-0.5">Time</label>
+                              <select
+                                value={editForm.visitTime}
+                                onChange={(e) =>
+                                  setEditForm((f) => ({ ...f, visitTime: e.target.value }))
+                                }
+                                className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                              >
+                                <option value="">Anytime</option>
+                                {TIME_OPTIONS.map((t) => (
+                                  <option key={t.value} value={t.value}>
+                                    {t.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            {editForm.visitTime !== "" && (
+                              <div>
+                                <label className="block text-xs text-gray-500 mb-0.5">Length</label>
+                                <select
+                                  value={editForm.visitDuration}
+                                  onChange={(e) =>
+                                    setEditForm((f) => ({ ...f, visitDuration: e.target.value }))
+                                  }
+                                  className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                                >
+                                  {DURATION_OPTIONS.map((d) => (
+                                    <option key={d.value} value={d.value}>
+                                      {d.label}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                      {editForm.visitFrequency && team.length > 0 && (
+                        <div className="mt-2">
+                          <label className="block text-xs text-gray-500 mb-1">Assign visits to</label>
+                          <div className="flex flex-wrap gap-x-4 gap-y-1">
+                            {team.map((u) => (
+                              <label key={u.id} className="flex items-center gap-1.5 text-xs text-gray-700 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={editForm.visitAssignees.includes(u.id)}
+                                  onChange={(e) =>
+                                    setEditForm((f) => ({
+                                      ...f,
+                                      visitAssignees: e.target.checked
+                                        ? [...f.visitAssignees, u.id]
+                                        : f.visitAssignees.filter((id) => id !== u.id),
+                                    }))
+                                  }
+                                  className="accent-green-600"
+                                />
+                                {u.name}
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {editForm.visitFrequency && (
+                        <p className="text-xs text-gray-400 mt-2">
+                          The next ~4 weeks of visits appear on the schedule as regular jobs — drag
+                          one to reschedule it, or delete it to skip that visit. Billing stays on
+                          its own cadence above.
+                        </p>
+                      )}
+                    </div>
                     <p className="text-xs text-gray-400">
                       Changes apply from the next billing run — invoices already generated keep their
                       amounts.
@@ -283,12 +460,25 @@ export default function SubscriptionsClient({
                       </Link>
                       {" · "}
                       {INTERVAL_LABEL[s.interval]} · {money(Number(s.unitPrice) * Number(s.quantity))}
-                      {s.createsJob && " · creates a job"}
+                      {s.visitFrequency && (
+                        <span className="text-green-700">
+                          {" · "}visits {FREQ_LABEL[s.visitFrequency].toLowerCase()}
+                        </span>
+                      )}
+                      {!s.visitFrequency && s.createsJob && " · creates a job"}
                       {s.invoiceMode === "DRAFT" && " · drafts only"}
                     </p>
                   </div>
-                  <div className="text-xs text-gray-500 whitespace-nowrap">
-                    Next: <span className="font-medium text-gray-700">{fmtDate(s.nextRunDate)}</span>
+                  <div className="text-xs text-gray-500 whitespace-nowrap text-right">
+                    <div>
+                      Bills: <span className="font-medium text-gray-700">{fmtDate(s.nextRunDate)}</span>
+                    </div>
+                    {s.visitFrequency && s.nextVisitDate && (
+                      <div>
+                        Next visit:{" "}
+                        <span className="font-medium text-gray-700">{fmtDate(s.nextVisitDate)}</span>
+                      </div>
+                    )}
                   </div>
                   {canManage && (
                     <div className="flex items-center gap-1">

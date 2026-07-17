@@ -174,7 +174,7 @@ export async function DELETE(req: NextRequest) {
     where: { companyId, importBatchId: batchId },
     include: {
       _count: {
-        select: { quotes: true, jobs: true, invoices: true, payments: true, servicePlans: true, appointments: true },
+        select: { quotes: true, jobs: true, invoices: true, payments: true, subscriptions: true, appointments: true },
       },
     },
   });
@@ -183,7 +183,7 @@ export async function DELETE(req: NextRequest) {
     const n = c._count;
     return (
       n.quotes === 0 && n.jobs === 0 && n.invoices === 0 && n.payments === 0 &&
-      n.servicePlans === 0 && n.appointments === 0
+      n.subscriptions === 0 && n.appointments === 0
     );
   });
   const ids = removable.map((c) => c.id);

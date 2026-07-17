@@ -157,7 +157,7 @@ export async function DELETE(
       _count: {
         select: {
           quotes: true, jobs: true, invoices: true, payments: true,
-          servicePlans: true, appointments: true,
+          subscriptions: true, appointments: true,
         },
       },
     },
@@ -167,7 +167,7 @@ export async function DELETE(
   const c = contact._count;
   const hasWork =
     c.quotes > 0 || c.jobs > 0 || c.invoices > 0 || c.payments > 0 ||
-    c.servicePlans > 0 || c.appointments > 0;
+    c.subscriptions > 0 || c.appointments > 0;
 
   if (hasWork && !force) {
     return NextResponse.json(
@@ -229,7 +229,6 @@ export async function DELETE(
       await tx.appointment.deleteMany({ where: { contactId: id, companyId } });
       await tx.request.deleteMany({ where: { contactId: id, companyId } });
       await tx.bookingRequest.deleteMany({ where: { contactId: id, companyId } });
-      await tx.servicePlan.deleteMany({ where: { contactId: id, companyId } });
       await tx.reviewRequest.deleteMany({ where: { contactId: id, companyId } });
       await tx.contact.delete({ where: { id } });
     });

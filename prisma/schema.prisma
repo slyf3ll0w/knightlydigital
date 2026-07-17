@@ -80,7 +80,6 @@ model Company {
   invoices        Invoice[]
   payments        Payment[]
   workItems       WorkItem[]
-  servicePlans    ServicePlan[]
   subscriptions   Subscription[]
   bookingRequests BookingRequest[]
   reviewRequests  ReviewRequest[]
@@ -425,7 +424,6 @@ model Contact {
   quotes          Quote[]
   invoices        Invoice[]
   payments        Payment[]
-  servicePlans    ServicePlan[]
   subscriptions   Subscription[]
   bookingRequests BookingRequest[]
   appointments    Appointment[]
@@ -1176,6 +1174,20 @@ model Subscription {
   status      SubscriptionStatus @default(ACTIVE)
   nextRunDate DateTime // date-only, noon-anchored; the engine bills when this is due
   lastGeneratedAt DateTime? // guards against double-billing on repeated/overlapping runs
+
+  // ── Visit series (visit cadence decoupled from billing) ─────────────────────
+  // "Weekly mows, billed monthly": visitFrequency generates visit jobs on its
+  // own cadence while `interval` keeps billing. The engine materializes visits
+  // on a rolling horizon so dispatchers see them on the calendar; each visit is
+  // an ordinary Job (drag to reschedule / delete to skip — the series doesn't
+  // care). null visitFrequency = no separate series (legacy createsJob applies).
+  visitFrequency       Frequency?
+  nextVisitDate        DateTime? // date-only, noon-anchored; next unmaterialized visit
+  visitStartMinutes    Int? // minutes from midnight, company TZ; null = "Anytime"
+  visitDurationMinutes Int? // visit window length in minutes; null = 60
+  visitAssigneeIds     String[] @default([]) // default team copied onto generated visits
+  lastVisitGeneratedAt DateTime?
+
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt
 
@@ -1184,36 +1196,18 @@ model Subscription {
 
   @@index([companyId])
   @@index([companyId, status, nextRunDate])
+  @@index([status, nextVisitDate])
   @@index([contactId])
 }
 
-// ─── Service Plans ────────────────────────────────────────────────────────────
-
+// Visit cadence for a subscription's visit series (billing cadence lives in
+// RecurringInterval — the two are deliberately separate enums).
 enum Frequency {
   WEEKLY
   BIWEEKLY
   MONTHLY
   QUARTERLY
   ANNUALLY
-}
-
-model ServicePlan {
-  id          String    @id @default(cuid())
-  companyId   String
-  company     Company   @relation(fields: [companyId], references: [id])
-  contactId   String
-  contact     Contact   @relation(fields: [contactId], references: [id])
-  name        String
-  description String?
-  frequency   Frequency
-  price       Decimal   @db.Decimal(10, 2)
-  nextJobDate DateTime
-  isActive    Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  @@index([companyId])
-  @@index([companyId, nextJobDate])
 }
 
 // ─── Booking Requests (legacy public booking form) ───────────────────────────
