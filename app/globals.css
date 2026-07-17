@@ -342,6 +342,11 @@ body {
 .wp-layer.wp-pinstripe { opacity: 0.045; }
 .wp-preview { opacity: 0.45; }
 .wp-preview.wp-blueprint { opacity: 0.35; }
+/* The topo tile is huge; zoom the swatch in so contours actually show */
+.wp-preview.wp-topo {
+  -webkit-mask-size: 180px 180px;
+  mask-size: 180px 180px;
+}
 
 /* ── Sidebar rail themes — tenant-selectable (Settings → Branding). Each
    theme sets the full ink ramp as vars; the rail markup reads only vars,
