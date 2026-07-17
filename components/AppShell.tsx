@@ -30,7 +30,6 @@ import {
   MessagesSquare,
   SquareKanban,
   Timer,
-  Map as MapIcon,
   X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -97,7 +96,9 @@ const navGroups: { label?: string; items: NavItem[] }[] = [
       { href: "/app/leads", label: "Leads", icon: SquareKanban, show: sellRoles },
       { href: "/app/quotes", label: "Quotes", icon: FileText, show: sellRoles },
       { href: "/app/jobs", label: "Jobs", icon: Briefcase },
-      { href: "/app/timesheets", label: "Timesheets", icon: Timer, show: (r) => r !== "SALES" },
+      // Managers reach timesheets through the Business hub; techs/USER need
+      // a direct path to their own hours.
+      { href: "/app/timesheets", label: "Timesheets", icon: Timer, show: (r) => !isManagerRole(r) && r !== "SALES" },
       { href: "/app/invoices", label: "Invoices", icon: Receipt, show: moneyRoles },
       { href: "/app/subscriptions", label: "Subscriptions", icon: Repeat, show: moneyRoles },
     ],
@@ -105,8 +106,8 @@ const navGroups: { label?: string; items: NavItem[] }[] = [
   {
     label: "Business",
     items: [
-      { href: "/app/insights", label: "Insights", icon: BarChart3, show: isManagerRole },
-      { href: "/app/team-map", label: "Team Map", icon: MapIcon, show: isManagerRole },
+      // Hub page: Insights + Team Map + Timesheets live behind one entry
+      { href: "/app/business", label: "Business", icon: BarChart3, show: isManagerRole },
       { href: "/app/settings/products", label: "Services", icon: Tag, show: isManagerRole },
       { href: "/app/settings/contracts", label: "Contracts", icon: FileSignature, show: isManagerRole },
     ],
@@ -150,7 +151,7 @@ const sectionTints: Record<string, string> = {
   "/app/jobs": "#F97316",
   "/app/invoices": "#0EA5E9",
   "/app/subscriptions": "#14B8A6",
-  "/app/insights": "#6366F1",
+  "/app/business": "#6366F1",
   "/app/settings/products": "#EC4899",
   "/app/settings/contracts": "#A855F7",
   "/app/chat": "#F43F5E",
