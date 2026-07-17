@@ -4,6 +4,36 @@ Parked ideas — not scheduled, not promised. Pull into `roadmap.md` when one
 gets picked up. (Deferred items that ARE expected to ship stay in the
 roadmap's per-feature "Deferred" notes.)
 
+## "Streamflaire Books" — accounting-lite paid add-on (proposed 2026-07-16, parked)
+
+A cheaper-than-QuickBooks add-on (~$10–15/mo) for solo operators who only
+need profit visibility and a painless tax season — NOT a QuickBooks clone
+(no double-entry GL, no bank feeds/Plaid, no payroll; the accountant
+network effect makes full accounting unwinnable). Positioning: "your CPA
+does real accounting once a year; Books handles everything until then."
+Grows out of data we already have (paid invoices = revenue, Expense model
+= costs):
+
+1. **Profit & Loss report** — revenue vs expenses for any date range;
+   mostly a report over existing data (Insights already shows the three
+   cards; this adds monthly breakdown + category detail + PDF).
+2. **Schedule C expense categories** — replace `Expense.category` free
+   string with IRS Schedule C-aligned category enum so year-end is a
+   printout (keep free string as a sub-label).
+3. **Receipt capture** — photo attached to an expense (pairs with the
+   native mobile app + camera; needs R2 storage like job photos).
+4. **Mileage log** — trip entries w/ IRS standard rate; very field-service,
+   phone-native.
+5. **Sales tax collected report** — sum of Invoice.tax by period (data
+   already exists).
+6. **Year-end accountant package** — one export (CSV + PDF) of P&L,
+   expense detail w/ receipts, sales tax, mileage.
+
+Complements (does not compete with) the QuickBooks Online sync: small
+clients start on Books; when they outgrow it, the QBO integration is
+waiting. Deliberately excluded forever: bank feeds (Plaid per-connection
+cost + reconciliation UX is the slippery slope to rebuilding QuickBooks).
+
 ## Embeddable ecommerce module (proposed 2026-07-02, parked)
 
 "Add a store to any existing website with one script tag" — free,

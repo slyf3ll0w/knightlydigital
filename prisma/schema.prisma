@@ -94,6 +94,7 @@ model Company {
   chatChannels      ChatChannel[]
   pipelineStages    PipelineStage[]
   timeBlocks        TimeBlock[]
+  quickBooks        QuickBooksConnection?
 
   @@index([slug])
 }
@@ -1210,4 +1211,70 @@ model ReviewRequest {
   createdAt DateTime @default(now())
 
   @@index([companyId])
+}
+
+// ─── QuickBooks Online integration ───────────────────────────────────────────
+
+// One QBO connection per company (Settings → QuickBooks). Tokens are
+// AES-256-GCM encrypted at rest by lib/quickbooks.ts (key derived from
+// AUTH_SECRET); realmId is Intuit's id for the connected company file.
+// The sync is one-way push: Contact → Customer, Invoice → Invoice,
+// Payment → Payment. Refresh tokens roll for ~100 days — a company that
+// goes idle longer than that must reconnect (lastSyncError says so).
+model QuickBooksConnection {
+  id                    String   @id @default(cuid())
+  companyId             String   @unique
+  company               Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  realmId               String
+  accessTokenEnc        String
+  refreshTokenEnc       String
+  accessTokenExpiresAt  DateTime
+  refreshTokenExpiresAt DateTime
+  // Push invoices/payments as they happen + nightly cron sweep. Off = only
+  // the manual "Sync now" button moves data.
+  autoSync              Boolean  @default(true)
+  qboCompanyName        String? // CompanyInfo display name, shown in settings
+  // Lazily resolved on first sync: the generic Service item our invoice lines
+  // bill against ("Streamflaire Services") and the income account behind it.
+  defaultItemId         String?
+  incomeAccountId       String?
+  lastSyncAt            DateTime?
+  lastSyncError         String? // most recent connection-level failure; null = healthy
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  syncRecords QuickBooksSyncRecord[]
+}
+
+enum QuickBooksEntityType {
+  CUSTOMER
+  INVOICE
+  PAYMENT
+}
+
+enum QuickBooksSyncStatus {
+  SYNCED
+  ERROR
+}
+
+// Local row ↔ QBO entity mapping. qboSyncToken is QBO's optimistic-lock
+// version, required on every update; localUpdatedAt is the local row's
+// updatedAt at push time — a newer local updatedAt means re-push.
+model QuickBooksSyncRecord {
+  id             String               @id @default(cuid())
+  connectionId   String
+  connection     QuickBooksConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  companyId      String
+  entityType     QuickBooksEntityType
+  localId        String
+  qboId          String?
+  qboSyncToken   String?
+  status         QuickBooksSyncStatus @default(SYNCED)
+  error          String?
+  localUpdatedAt DateTime?
+  lastSyncedAt   DateTime             @default(now())
+
+  @@unique([companyId, entityType, localId])
+  @@index([connectionId])
+  @@index([companyId, status])
 }

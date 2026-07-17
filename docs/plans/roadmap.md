@@ -429,6 +429,35 @@ Contracts items), entrance fade on every page, client portals "a lot cooler".
 - Parked (ideas.md pass-2): count-up numerals, brand-color stamps,
   per-entity hues, needs-attention feed, schedule/insights ledger pass.
 
+### 3n. QuickBooks Online sync — Phase 1 BUILT 2026-07-16, awaiting Intuit app keys
+
+One-way push into QBO, matching what Jobber/Housecall Pro offer: Contact →
+Customer (name-matched, no dupes), non-draft Invoice → Invoice (line items,
+discount, deposit-applied netting, surcharge line, invoice-level tax),
+Payment → Payment (applied to the linked invoice). Not synced by design:
+jobs, quotes, drafts, anything QBO→Hub.
+
+- **Schema**: `QuickBooksConnection` (per-company; AES-256-GCM-encrypted
+  tokens keyed off AUTH_SECRET, realmId, autoSync, cached default item /
+  income account, lastSyncError) + `QuickBooksSyncRecord` (localId↔qboId
+  map w/ SyncToken, SYNCED/ERROR + message). Needs `db:push` on Railway.
+- **Engine**: `lib/quickbooks.ts` — dependency-free (plain fetch): OAuth2
+  authorize/exchange/refresh/revoke, signed-state CSRF guard, auto token
+  refresh, find-or-create customer/default "Streamflaire Services" item,
+  sparse updates on edit, per-entity error capture, 100-entity batch cap.
+- **Triggers**: fire-and-forget push after `recordPayment()`; nightly sweep
+  in `/api/cron/recurring`; manual Sync Now button.
+- **Routes**: `/api/app/quickbooks/{connect,callback,status,sync,disconnect}`
+  (manager-only). **UI**: Settings → QuickBooks Online (payments section) —
+  connect button, sync health/error list, sandbox badge, reconnect banner.
+- Env-gated on `QBO_CLIENT_ID`/`QBO_CLIENT_SECRET` (+ `QBO_ENVIRONMENT`);
+  page shows "Coming Soon" until set. See David's action items for the
+  Intuit developer-portal setup.
+- **Phase 2 (parked)**: per-WorkItem ↔ QBO Item sync, expense push, QBO
+  webhooks for two-way customer sync, per-line tax codes, Intuit app-store
+  listing (requires their production review). NOT tested against a real
+  QBO sandbox yet — first task once keys exist.
+
 ### 4. Email automations via Resend — Phase 1 SHIPPED 2026-06-11 ← NEXT UP (Phase 2)
 
 - DONE: new-request notification to company.email from booking form + client
@@ -468,6 +497,14 @@ existing companies from the dashboard.
 
 ## David's own action items
 
+- **QuickBooks (to activate §3n)**: create a free Intuit developer account at
+  developer.intuit.com → create an app (QuickBooks Online Accounting scope) →
+  register redirect URIs `http://localhost:3000/api/app/quickbooks/callback`
+  (dev) + `https://<prod-host>/api/app/quickbooks/callback` → set
+  `QBO_CLIENT_ID` + `QBO_CLIENT_SECRET` (sandbox keys first;
+  `QBO_ENVIRONMENT=production` + prod keys after Intuit's questionnaire) →
+  run `npm run db:push` on Railway → test against the free QBO sandbox
+  company that comes with the dev account.
 - Create Cloudflare Turnstile widget; set `NEXT_PUBLIC_TURNSTILE_SITE_KEY` +
   `TURNSTILE_SECRET_KEY` on Railway (captcha code is deployed, inert until
   then). David deferred 2026-06-11 ("a little later"). NOTE: allowed

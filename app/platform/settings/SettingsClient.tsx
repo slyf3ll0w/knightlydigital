@@ -943,6 +943,24 @@ export default function SettingsClient({
         </div>
         )}
 
+        {/* QuickBooks */}
+        {show("payments") && (
+        <Link
+          href="/app/settings/quickbooks"
+          className="flex items-center justify-between card-ledger p-5 hover:shadow-sm transition-shadow"
+        >
+          <div>
+            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+              QuickBooks Online
+            </h2>
+            <p className="text-xs text-gray-400 mt-0.5">
+              Sync clients, invoices, and payments into QuickBooks automatically
+            </p>
+          </div>
+          <span className="text-sm font-medium text-green-600">Manage →</span>
+        </Link>
+        )}
+
         {/* Surcharging */}
         {show("payments") && (
         <div className="card-ledger p-5 space-y-4">

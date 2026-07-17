@@ -158,6 +158,10 @@ DATABASE_URL=    # PostgreSQL connection string from Railway
 NEXTAUTH_URL=    # deployed URL (e.g. https://jobflow.streamflaremedia.com or https://streamflaremedia.com)
 CRON_SECRET=     # shared secret for the recurring-billing cron (generate: openssl rand -base64 32)
 PAYMENT_PROCESSOR=manual  # swap to "finix"/"stripe" once a real processor is registered in lib/payments.ts
+# Optional — QuickBooks Online sync (lib/quickbooks.ts); feature is hidden until set
+QBO_CLIENT_ID=       # Intuit app keys from developer.intuit.com
+QBO_CLIENT_SECRET=
+QBO_ENVIRONMENT=sandbox  # "production" once Intuit grants production keys
 ```
 
 ## Recurring subscriptions

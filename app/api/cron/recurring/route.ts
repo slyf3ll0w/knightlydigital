@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runDueSubscriptions } from "@/lib/subscriptions";
 import { runDueReminders, runAppointmentReminders } from "@/lib/reminders";
+import { runQuickBooksNightlySync } from "@/lib/quickbooks";
 
 /**
  * Daily billing cron. A scheduler (Railway cron service, or an external pinger
@@ -35,5 +36,8 @@ export async function POST(req: NextRequest) {
   // stage only lands if this cron runs hourly — daily runs still cover the
   // day-before stage.
   const appointmentReminders = await runAppointmentReminders(now);
-  return NextResponse.json({ ok: true, subscriptions, reminders, appointmentReminders });
+  // QuickBooks sweep: catches invoices issued/edited outside the payment
+  // hook. No-op unless QBO env vars are set and companies have connected.
+  const quickbooks = await runQuickBooksNightlySync();
+  return NextResponse.json({ ok: true, subscriptions, reminders, appointmentReminders, quickbooks });
 }

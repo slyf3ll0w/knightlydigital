@@ -15,6 +15,7 @@
 
 import { prisma } from "@/lib/db";
 import { notifyUsers } from "@/lib/push";
+import { queueQuickBooksPaymentSync } from "@/lib/quickbooks";
 import type { PaymentMethod } from "@prisma/client";
 
 // ─── Processor interface ─────────────────────────────────────────────────────
@@ -193,6 +194,14 @@ export async function recordPayment(params: RecordPaymentParams) {
       tag: `payment-${params.invoiceId}`,
     }
   );
+
+  // Push the invoice + payment to QuickBooks when the company has a
+  // connection (instant no-op otherwise; never blocks or fails recording).
+  queueQuickBooksPaymentSync({
+    companyId: params.companyId,
+    invoiceId: params.invoiceId,
+    paymentId: result.payment.id,
+  });
 
   return { payment: result.payment, fullyPaid: result.fullyPaid };
 }
