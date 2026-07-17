@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
 import { runDueSubscriptions, generateDueVisits } from "@/lib/subscriptions";
 import { runDueReminders, runAppointmentReminders } from "@/lib/reminders";
 import { runQuickBooksNightlySync } from "@/lib/quickbooks";
@@ -41,5 +42,18 @@ export async function POST(req: NextRequest) {
   // QuickBooks sweep: catches invoices issued/edited outside the payment
   // hook. No-op unless QBO env vars are set and companies have connected.
   const quickbooks = await runQuickBooksNightlySync();
-  return NextResponse.json({ ok: true, subscriptions, visits, reminders, appointmentReminders, quickbooks });
+  // Team-map retention: location history older than 30 days is deleted —
+  // deliberate; keep the window short.
+  const prunedPings = await prisma.locationPing.deleteMany({
+    where: { recordedAt: { lt: new Date(now.getTime() - 30 * 86400000) } },
+  });
+  return NextResponse.json({
+    ok: true,
+    subscriptions,
+    visits,
+    reminders,
+    appointmentReminders,
+    quickbooks,
+    prunedPings: prunedPings.count,
+  });
 }

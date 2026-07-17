@@ -421,14 +421,24 @@ export default async function DashboardPage() {
                 </div>
               </div>
             ))}
-            <Link
-              href="/app/timesheets"
-              className="flex items-center justify-center gap-1.5 px-5 py-2.5 text-xs font-semibold text-green-700 hover:bg-gray-50 transition-colors"
-            >
-              <Timer size={12} />
-              Timesheets
-              <ArrowRight size={11} />
-            </Link>
+            <div className="grid grid-cols-2 divide-x divide-gray-50">
+              <Link
+                href="/app/team-map"
+                className="flex items-center justify-center gap-1.5 px-5 py-2.5 text-xs font-semibold text-green-700 hover:bg-gray-50 transition-colors"
+              >
+                <MapPin size={12} />
+                Team map
+                <ArrowRight size={11} />
+              </Link>
+              <Link
+                href="/app/timesheets"
+                className="flex items-center justify-center gap-1.5 px-5 py-2.5 text-xs font-semibold text-green-700 hover:bg-gray-50 transition-colors"
+              >
+                <Timer size={12} />
+                Timesheets
+                <ArrowRight size={11} />
+              </Link>
+            </div>
           </div>
         </div>
       )}

@@ -30,6 +30,8 @@
 	<string>Streamflaire Hub accesses your photo library so you can attach existing photos to jobs.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Streamflaire Hub can save job photos to your photo library.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Streamflaire Hub records your location only when you clock in or out and while you're on the clock, so your team can see where work is happening. It is never tracked off the clock.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
@@ -61,11 +63,5 @@
 	<array>
 		<string>streamflaire.com</string>
 	</array>
-	<key>NSCameraUsageDescription</key>
-	<string>Take a profile picture or job photos to attach to your work.</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Choose a profile picture or job photos from your library.</string>
-	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>Save photos you take in the app to your library.</string>
 </dict>
 </plist>

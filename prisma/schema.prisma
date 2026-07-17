@@ -94,6 +94,7 @@ model Company {
   pipelineStages    PipelineStage[]
   timeBlocks        TimeBlock[]
   timeEntries       TimeEntry[]
+  locationPings     LocationPing[]
   quickBooks        QuickBooksConnection?
 
   @@index([slug])
@@ -143,6 +144,7 @@ model User {
   passwordResetTokens PasswordResetToken[]
   timeBlocks       TimeBlock[]     @relation("TimeBlockUser")
   timeEntries      TimeEntry[]
+  locationPings    LocationPing[]
 
   @@index([companyId])
   @@index([role])
@@ -806,10 +808,34 @@ model TimeEntry {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
+  locationPings LocationPing[]
+
   @@index([companyId, startedAt])
   @@index([companyId, endedAt])
   @@index([userId, endedAt])
   @@index([jobId])
+}
+
+// Team-map position report, posted by the app every few minutes WHILE (and
+// only while) the user is clocked in with the app in the foreground — the
+// server rejects pings with no open TimeEntry, so location is structurally
+// impossible to collect off the clock. Short retention: the cron prunes pings
+// older than 30 days (location history is a liability, not an asset).
+model LocationPing {
+  id          String     @id @default(cuid())
+  companyId   String
+  company     Company    @relation(fields: [companyId], references: [id])
+  userId      String
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  timeEntryId String?
+  timeEntry   TimeEntry? @relation(fields: [timeEntryId], references: [id], onDelete: SetNull)
+  lat         Float
+  lng         Float
+  accuracy    Float? // meters
+  recordedAt  DateTime   @default(now())
+
+  @@index([companyId, recordedAt])
+  @@index([userId, recordedAt])
 }
 
 model JobNote {

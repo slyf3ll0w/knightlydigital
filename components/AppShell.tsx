@@ -30,6 +30,7 @@ import {
   MessagesSquare,
   SquareKanban,
   Timer,
+  Map as MapIcon,
   X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -105,6 +106,7 @@ const navGroups: { label?: string; items: NavItem[] }[] = [
     label: "Business",
     items: [
       { href: "/app/insights", label: "Insights", icon: BarChart3, show: isManagerRole },
+      { href: "/app/team-map", label: "Team Map", icon: MapIcon, show: isManagerRole },
       { href: "/app/settings/products", label: "Services", icon: Tag, show: isManagerRole },
       { href: "/app/settings/contracts", label: "Contracts", icon: FileSignature, show: isManagerRole },
     ],

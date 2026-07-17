@@ -185,6 +185,15 @@ open entry per user, auto-closed on the next clock-in). Engine bits:
   map-pin links to the clock-in stamp.
 - **Labor costing**: `User.hourlyCost` (set on the Team page, $/hr input) ×
   logged time appears as a Labor line on the job Profit margin card.
+- **Team map** (`/app/team-map`, owners/admins): Leaflet + OSM map of everyone
+  currently clocked in. `TeamLocationReporter` (platform layout) posts a
+  position every ~3 min while clocked in AND foregrounded — it checks
+  `GET /api/app/location` (am I on the clock?) BEFORE reading geolocation, and
+  the server drops pings with no open TimeEntry (`LocationPing` model), so
+  location is structurally never collected off the clock. 30-day retention
+  prune rides the daily cron. iOS shell needs
+  `NSLocationWhenInUseUsageDescription` (already in Info.plist) — ships with
+  the next store build.
 
 ## Payment processor
 
