@@ -429,7 +429,20 @@ Contracts items), entrance fade on every page, client portals "a lot cooler".
 - Parked (ideas.md pass-2): count-up numerals, brand-color stamps,
   per-entity hues, needs-attention feed, schedule/insights ledger pass.
 
-### 3n. QuickBooks Online sync — Phase 1 BUILT 2026-07-16, awaiting Intuit app keys
+### 3n. QuickBooks Online sync — Phase 1 SHIPPED 2026-07-16, verified live (sandbox)
+
+STATUS: deployed to streamflaire.com and verified end-to-end by David against
+the Intuit sandbox company (connect → auto first sync → data visible in QBO).
+Intuit app "Streamflaire Hub" lives in the "Streamflaire" workspace
+(dalan157@outlook.com); sandbox keys are on Railway + .env.local. ⚠️ Until
+production keys replace them, every tenant's Connect button leads to the
+sandbox world — don't announce the feature yet. Callback redirect had to use
+NEXTAUTH_URL (Railway proxy shows internal origin) — commit 16545fe.
+
+TO GO LIVE: complete Intuit's production-keys questionnaire (portal → Get
+production keys), add https://streamflaire.com/api/app/quickbooks/callback
+to the PRODUCTION redirect list (locked until then), swap Railway keys, set
+QBO_ENVIRONMENT=production.
 
 One-way push into QBO, matching what Jobber/Housecall Pro offer: Contact →
 Customer (name-matched, no dupes), non-draft Invoice → Invoice (line items,
