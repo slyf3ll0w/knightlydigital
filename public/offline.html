@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0C0F0C" />
+<title>Offline · Streamflaire Hub</title>
+<!-- Served by the service worker when a page was never visited while online.
+     Fully self-contained: no fonts, images, or scripts fetched — we're offline. -->
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    background: #0C0F0C;
+    color: #e5e7eb;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    padding-top: calc(24px + env(safe-area-inset-top));
+    padding-bottom: calc(24px + env(safe-area-inset-bottom));
+    text-align: center;
+  }
+  .wrap { max-width: 22rem; }
+  .badge {
+    width: 56px; height: 56px; margin: 0 auto 20px;
+    border-radius: 16px;
+    border: 1px solid rgba(34, 197, 94, 0.4);
+    background: rgba(34, 197, 94, 0.08);
+    display: flex; align-items: center; justify-content: center;
+  }
+  h1 { font-size: 1.15rem; font-weight: 700; color: #fff; margin-bottom: 8px; }
+  p { font-size: 0.9rem; line-height: 1.5; color: #9ca3af; margin-bottom: 24px; }
+  button {
+    font: inherit; font-weight: 600; font-size: 0.9rem;
+    color: #0C0F0C; background: #22C55E;
+    border: 0; border-radius: 999px;
+    padding: 12px 28px; cursor: pointer;
+  }
+  button:active { background: #16a34a; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="badge" aria-hidden="true">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#22C55E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="2" x2="22" y1="2" y2="22"/><path d="M8.5 16.5a5 5 0 0 1 7 0"/><path d="M2 8.82a15 15 0 0 1 4.17-2.65"/><path d="M10.66 5c4.01-.36 8.14.9 11.34 3.76"/><path d="M16.85 11.25a10 10 0 0 1 2.22 1.68"/><path d="M5 13a10 10 0 0 1 5.24-2.76"/><line x1="12" x2="12.01" y1="20" y2="20"/>
+      </svg>
+    </div>
+    <h1>You&rsquo;re offline</h1>
+    <p>This page hasn&rsquo;t been saved to this device yet. Pages you open while connected stay available offline &mdash; go back to one of those, or retry once you have signal.</p>
+    <button onclick="location.reload()">Retry</button>
+  </div>
+  <script>
+    // The moment connectivity returns, load the page they actually wanted
+    window.addEventListener("online", function () { location.reload(); });
+  </script>
+</body>
+</html>

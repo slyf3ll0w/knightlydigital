@@ -33,6 +33,12 @@ const nextConfig: NextConfig = {
         source: "/embed/:path*",
         headers: [{ key: "Content-Security-Policy", value: "frame-ancestors *" }],
       },
+      {
+        // The service worker must revalidate on every check so deploys
+        // (cache logic changes, VERSION bumps) roll out immediately
+        source: "/sw.js",
+        headers: [{ key: "Cache-Control", value: "public, max-age=0, must-revalidate" }],
+      },
     ];
   },
 };

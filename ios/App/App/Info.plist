@@ -57,6 +57,10 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>WKAppBoundDomains</key>
+	<array>
+		<string>streamflaire.com</string>
+	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>Take a profile picture or job photos to attach to your work.</string>
 	<key>NSPhotoLibraryUsageDescription</key>

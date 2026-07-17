@@ -23,6 +23,12 @@ const config: CapacitorConfig = {
   // Lets the server/web code recognize the native shell by user agent
   appendUserAgent: 'StreamflaireHubShell',
   backgroundColor: '#0C0F0C',
+  ios: {
+    // WKWebView only enables service workers (offline snapshot cache, sw.js)
+    // under App-Bound Domains: this flag + WKAppBoundDomains in Info.plist.
+    // Both ship together — changing either requires a new store build.
+    limitsNavigationsToAppBoundDomains: true,
+  },
   plugins: {
     // App-like keyboard: the webview resizes with the keyboard instead of
     // scrolling the page like a browser (fixed bars ride above it).

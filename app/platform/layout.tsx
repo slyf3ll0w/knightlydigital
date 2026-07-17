@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/db";
 import AppShell from "@/components/AppShell";
 import NativeShell from "@/components/NativeShell";
+import OfflineSupport from "@/components/OfflineSupport";
 
 export const metadata: Metadata = {
   title: {
@@ -57,6 +58,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <>
       <NativeShell />
+      <OfflineSupport />
       <AppShell
         userName={user?.name ?? session.user.name}
         userEmail={session.user.email}
