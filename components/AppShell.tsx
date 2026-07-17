@@ -29,6 +29,7 @@ import {
   CircleUserRound,
   MessagesSquare,
   SquareKanban,
+  Timer,
   X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -95,6 +96,7 @@ const navGroups: { label?: string; items: NavItem[] }[] = [
       { href: "/app/leads", label: "Leads", icon: SquareKanban, show: sellRoles },
       { href: "/app/quotes", label: "Quotes", icon: FileText, show: sellRoles },
       { href: "/app/jobs", label: "Jobs", icon: Briefcase },
+      { href: "/app/timesheets", label: "Timesheets", icon: Timer, show: (r) => r !== "SALES" },
       { href: "/app/invoices", label: "Invoices", icon: Receipt, show: moneyRoles },
       { href: "/app/subscriptions", label: "Subscriptions", icon: Repeat, show: moneyRoles },
     ],

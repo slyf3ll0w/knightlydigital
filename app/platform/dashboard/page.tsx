@@ -13,8 +13,10 @@ import {
   CalendarPlus,
   CalendarCheck,
   Megaphone,
+  Timer,
 } from "lucide-react";
 import { money, appointmentTypeLabel } from "@/lib/statuses";
+import { formatDuration, mapsHref } from "@/lib/time-entries";
 import EmptyState from "@/components/EmptyState";
 import DashboardSetupCard from "./DashboardSetupCard";
 import { PushNudge } from "@/components/PushNotifications";
@@ -103,6 +105,7 @@ export default async function DashboardPage() {
     upcomingJobsWeek,
     monthPayments,
     setupCompany,
+    onClock,
   ] = await Promise.all([
     prisma.request.count({ where: { companyId, ...leadScope, status: "NEW" } }),
     prisma.request.count({ where: { companyId, ...leadScope, status: "NEEDS_APPROVAL" } }),
@@ -151,6 +154,17 @@ export default async function DashboardPage() {
     isManager(actor.role)
       ? prisma.company.findUnique({ where: { id: companyId }, select: { setupWizardAt: true } })
       : Promise.resolve(null),
+    // Who's clocked in right now (owners/admins) — open time entries
+    isManager(actor.role)
+      ? prisma.timeEntry.findMany({
+          where: { companyId, endedAt: null },
+          include: {
+            user: { select: { name: true } },
+            job: { select: { id: true, title: true, address: true } },
+          },
+          orderBy: { startedAt: "asc" },
+        })
+      : Promise.resolve([]),
   ]);
   const showSetupCard = isManager(actor.role) && setupCompany?.setupWizardAt == null;
 
@@ -358,6 +372,64 @@ export default async function DashboardPage() {
             </p>
             <p className="mt-1.5 text-xs text-gray-500">{upcomingJobsWeek.length} jobs scheduled</p>
           </Link>
+        </div>
+      )}
+
+      {/* ── On the clock — who's working right now (owners/admins) ─────────── */}
+      {isManager(actor.role) && onClock.length > 0 && (
+        <div className="anim-fade-up anim-delay-1 mb-8">
+          <RuledLabel>On the clock</RuledLabel>
+          <div className="card-ledger divide-y divide-gray-50">
+            {onClock.map((e) => (
+              <div key={e.id} className="flex items-center gap-3 px-5 py-3">
+                <span className="relative flex h-2.5 w-2.5 shrink-0">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-60" />
+                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-green-500" />
+                </span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-gray-900 truncate">{e.user.name}</p>
+                  {e.job ? (
+                    <Link
+                      href={`/app/jobs/${e.job.id}`}
+                      className="text-xs text-green-700 hover:underline truncate block"
+                    >
+                      {e.job.title}
+                    </Link>
+                  ) : (
+                    <p className="text-xs text-gray-500">General time</p>
+                  )}
+                </div>
+                {e.startLat != null && e.startLng != null && (
+                  <a
+                    href={mapsHref(e.startLat, e.startLng)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="Clock-in location"
+                    className="text-gray-400 hover:text-green-700"
+                  >
+                    <MapPin size={15} />
+                  </a>
+                )}
+                <div className="text-right shrink-0">
+                  <p className="numeral-ledger text-sm font-semibold text-gray-900 tabular-nums">
+                    {formatDuration(now.getTime() - e.startedAt.getTime())}
+                  </p>
+                  <p className="text-[11px] text-gray-500">
+                    since{" "}
+                    {e.startedAt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+                  </p>
+                </div>
+              </div>
+            ))}
+            <Link
+              href="/app/timesheets"
+              className="flex items-center justify-center gap-1.5 px-5 py-2.5 text-xs font-semibold text-green-700 hover:bg-gray-50 transition-colors"
+            >
+              <Timer size={12} />
+              Timesheets
+              <ArrowRight size={11} />
+            </Link>
+          </div>
         </div>
       )}
 

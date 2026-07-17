@@ -94,6 +94,7 @@ model Company {
   chatChannels      ChatChannel[]
   pipelineStages    PipelineStage[]
   timeBlocks        TimeBlock[]
+  timeEntries       TimeEntry[]
   quickBooks        QuickBooksConnection?
 
   @@index([slug])
@@ -124,6 +125,9 @@ model User {
   tourCompletedAt DateTime?
   // Team chat: last time this user opened the chat (drives the unread badge)
   chatLastSeenAt  DateTime?
+  // Internal labor cost per hour — feeds job labor costing from time entries.
+  // Never shown to techs (pricing gate); null = don't cost this user's time.
+  hourlyCost   Decimal? @db.Decimal(10, 2)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -139,6 +143,7 @@ model User {
   pushSubscriptions PushSubscription[]
   passwordResetTokens PasswordResetToken[]
   timeBlocks       TimeBlock[]     @relation("TimeBlockUser")
+  timeEntries      TimeEntry[]
 
   @@index([companyId])
   @@index([role])
@@ -727,6 +732,7 @@ model Job {
   notes       JobNote[]
   photos      JobPhoto[]
   lineItems   JobLineItem[]
+  timeEntries TimeEntry[]
   quote       Quote?
   invoice     Invoice?
 
@@ -761,6 +767,51 @@ model JobAssignment {
 
   @@unique([jobId, userId])
   @@index([userId])
+}
+
+// ─── Time tracking ────────────────────────────────────────────────────────────
+
+enum TimeEntrySource {
+  CLOCK // live clock-in/out from the tech's device
+  MANUAL // typed in or edited by a manager (forgotten clock-out, paper fix)
+}
+
+// One clock-in → clock-out span for a user on a job. endedAt null = currently
+// on the clock; at most one open entry per user, enforced in the clock route
+// (a new clock-in auto-closes any prior open entry). GPS fields are single
+// point-in-time stamps captured at the moment of the tap — never continuous
+// tracking, and only while clocking. Job deletion keeps the hours (SetNull)
+// so payroll totals survive.
+model TimeEntry {
+  id        String    @id @default(cuid())
+  companyId String
+  company   Company   @relation(fields: [companyId], references: [id])
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobId     String?
+  job       Job?      @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  startedAt DateTime
+  endedAt   DateTime?
+  source    TimeEntrySource @default(CLOCK)
+  note      String?
+  // Client-generated key so a retried/queued clock tap can't double-create
+  clientKey String?   @unique
+  // Location stamps (nullable — tech may deny location); accuracy in meters
+  startLat      Float?
+  startLng      Float?
+  startAccuracy Float?
+  endLat        Float?
+  endLng        Float?
+  endAccuracy   Float?
+  // Manager who last hand-edited this entry (audit trail for payroll)
+  editedById String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([companyId, startedAt])
+  @@index([companyId, endedAt])
+  @@index([userId, endedAt])
+  @@index([jobId])
 }
 
 model JobNote {

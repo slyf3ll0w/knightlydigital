@@ -142,6 +142,50 @@ NextAuth v4 with Credentials provider. JWT sessions.
 - No company → redirected to `/app/register`
 - Middleware in `middleware.ts` protects `/app/*` and `/superadmin/*`
 
+## Offline mode (phase 1 — read-only snapshot)
+
+Field techs can view previously loaded pages without a connection; writes are
+still online-only. Four pieces:
+
+- **`public/sw.js`** — the one service worker (also owns web push). `/app/*`
+  navigations are network-first with cached fallback → `public/offline.html`;
+  `_next/static` + Google Fonts cache-first; same-origin images (job photos,
+  avatars, logos) stale-while-revalidate. Any navigation landing on
+  `/app/login` wipes the snapshot (sign-out / session expiry / user switch).
+  Bump `VERSION` in sw.js to invalidate all caches on deploy.
+- **`components/OfflineSupport.tsx`** — mounted in the platform layout
+  (signed-in branch). Registers the SW (production only), shows the
+  offline/back-online pills, forces full-page navigations while offline
+  (client-side RSC fetches die without network), and warms the cache via
+  `/api/app/offline`.
+- **`/api/app/offline`** — role-scoped warm list: core pages + today's/
+  tomorrow's + recently active job detail pages.
+- **iOS shell**: service workers in WKWebView require App-Bound Domains —
+  `WKAppBoundDomains` in `ios/App/App/Info.plist` +
+  `ios.limitsNavigationsToAppBoundDomains` in `capacitor.config.ts`. Changing
+  the domain means updating both and shipping a new store build. Android
+  WebView needs nothing special.
+
+## Time tracking (clock-in/out + timesheets)
+
+Techs clock in/out on a job from the job page (`ClockCard.tsx`); each punch
+optionally captures a one-shot GPS stamp (never continuous tracking, only
+while clocking). Data model: `TimeEntry` (open entry = `endedAt` null; one
+open entry per user, auto-closed on the next clock-in). Engine bits:
+
+- **`lib/time-entries.ts`** — duration/GPS helpers shared by UI + API.
+- **`POST /api/app/jobs/[id]/clock`** — `{action: "in"|"out", clientKey,
+  occurredAt, lat/lng/accuracy}`; idempotent on `clientKey` (safe for the
+  future offline outbox), drops "Clocked in/out" JobNotes.
+- **`/api/app/time-entries[/id]`** — manager-only manual add / edit / delete
+  (fix forgotten clock-outs); edits stamped with `editedById`.
+- **`/app/timesheets`** — weekly view (Sun–Sat, company TZ), techs see their
+  own, managers see everyone + edit; `?week=YYYY-MM-DD`.
+- **Dashboard "On the clock" card** (owners/admins) — live open entries with
+  map-pin links to the clock-in stamp.
+- **Labor costing**: `User.hourlyCost` (set on the Team page, $/hr input) ×
+  logged time appears as a Labor line on the job Profit margin card.
+
 ## Payment processor
 
 `lib/payments.ts` is a stub. To go live:

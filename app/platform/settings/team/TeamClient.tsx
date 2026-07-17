@@ -20,6 +20,7 @@ type Member = {
   role: string;
   isActive: boolean;
   bookable: boolean;
+  hourlyCost: number | null;
   createdAt: string;
 };
 
@@ -72,6 +73,10 @@ export default function TeamClient({
   const [resetFor, setResetFor] = useState<string | null>(null);
   const [resetPassword, setResetPassword] = useState("");
   const [policyBusy, setPolicyBusy] = useState(false);
+  // Draft hourly-cost inputs, saved on blur (keyed by member id)
+  const [rates, setRates] = useState<Record<string, string>>(() =>
+    Object.fromEntries(users.map((u) => [u.id, u.hourlyCost != null ? String(u.hourlyCost) : ""]))
+  );
 
   const canManage = (m: Member) => m.id !== actorId && manageable.includes(m.role);
   const activeMembers = users.filter((u) => u.isActive);
@@ -235,6 +240,32 @@ export default function TeamClient({
                   {m.phone ? ` · ${m.phone}` : ""}
                 </p>
               </div>
+
+              {m.isActive && (canManage(m) || m.id === actorId) && (
+                <label
+                  className="flex items-center gap-1 text-xs text-gray-600"
+                  title="Internal labor cost per hour — logged time drives labor costing on job profit. Never shown to techs."
+                >
+                  <span className="text-gray-400">$</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.50"
+                    value={rates[m.id] ?? ""}
+                    placeholder="0"
+                    disabled={busy}
+                    onChange={(e) => setRates({ ...rates, [m.id]: e.target.value })}
+                    onBlur={() => {
+                      const original = m.hourlyCost != null ? String(m.hourlyCost) : "";
+                      if ((rates[m.id] ?? "") !== original) {
+                        patchMember(m.id, { hourlyCost: rates[m.id] || null });
+                      }
+                    }}
+                    className="w-16 px-2 py-1.5 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                  <span className="text-gray-400">/hr</span>
+                </label>
+              )}
 
               {m.isActive && (canManage(m) || m.id === actorId) && (
                 <label

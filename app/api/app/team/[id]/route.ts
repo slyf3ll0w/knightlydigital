@@ -43,6 +43,19 @@ export async function PATCH(
 
   if (body.bookable !== undefined) data.bookable = Boolean(body.bookable);
 
+  // Internal labor cost per hour (feeds job labor costing from time entries)
+  if (body.hourlyCost !== undefined) {
+    if (body.hourlyCost === null || body.hourlyCost === "") {
+      data.hourlyCost = null;
+    } else {
+      const rate = Number(body.hourlyCost);
+      if (!Number.isFinite(rate) || rate < 0 || rate > 10000) {
+        return NextResponse.json({ error: "Enter a valid hourly cost." }, { status: 400 });
+      }
+      data.hourlyCost = rate;
+    }
+  }
+
   if (body.isActive !== undefined) {
     if (target.id === actor.id && body.isActive === false) {
       return NextResponse.json({ error: "You can't deactivate your own account." }, { status: 400 });
@@ -73,7 +86,7 @@ export async function PATCH(
   const updated = await prisma.user.update({
     where: { id: target.id },
     data,
-    select: { id: true, name: true, email: true, phone: true, role: true, isActive: true, bookable: true },
+    select: { id: true, name: true, email: true, phone: true, role: true, isActive: true, bookable: true, hourlyCost: true },
   });
 
   return NextResponse.json(updated);

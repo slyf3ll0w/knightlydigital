@@ -19,6 +19,7 @@ export default async function TeamPage() {
         role: true,
         isActive: true,
         bookable: true,
+        hourlyCost: true,
         createdAt: true,
       },
       orderBy: [{ isActive: "desc" }, { createdAt: "asc" }],
@@ -33,7 +34,11 @@ export default async function TeamPage() {
     <TeamClient
       actorId={actor.id}
       actorRole={actor.role}
-      users={users.map((u) => ({ ...u, createdAt: u.createdAt.toISOString() }))}
+      users={users.map((u) => ({
+        ...u,
+        hourlyCost: u.hourlyCost != null ? Number(u.hourlyCost) : null,
+        createdAt: u.createdAt.toISOString(),
+      }))}
       defaultLeadUserId={company?.defaultLeadUserId ?? ""}
       salesSeePayments={company?.salesSeePayments ?? true}
     />

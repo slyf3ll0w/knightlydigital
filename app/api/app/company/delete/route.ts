@@ -65,6 +65,7 @@ export async function POST(req: NextRequest) {
       await tx.contract.deleteMany({ where });
       await tx.reviewRequest.deleteMany({ where });
       await tx.quote.deleteMany({ where }); // references jobs — before jobs
+      await tx.timeEntry.deleteMany({ where }); // references jobs + users
       await tx.job.deleteMany({ where }); // cascades items/assignments/notes/photos
       await tx.appointment.deleteMany({ where });
       await tx.bookingRequest.deleteMany({ where });

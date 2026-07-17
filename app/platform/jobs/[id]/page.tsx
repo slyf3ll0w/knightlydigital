@@ -8,7 +8,9 @@ import CallTextButtons from "@/components/CallTextButtons";
 import { requirePageActor, jobScope, canSeePricing, canSell, isManager } from "@/lib/permissions";
 import { resolveSlotInterval } from "@/lib/scheduling";
 import { renderMessageTemplate, DEFAULT_ON_MY_WAY_TEMPLATE } from "@/lib/messaging";
+import { entryMs, formatDuration } from "@/lib/time-entries";
 import JobActions from "./JobActions";
+import ClockCard from "./ClockCard";
 import OnMyWay from "./OnMyWay";
 import AskForReview from "./AskForReview";
 import NoteForm from "./NoteForm";
@@ -30,7 +32,7 @@ export default async function JobDetailPage({
 
   const { id } = await params;
 
-  const [job, teamUsers, company] = await Promise.all([
+  const [job, teamUsers, company, myOpenEntry] = await Promise.all([
     prisma.job.findFirst({
       where: { id, companyId, ...jobScope(actor) },
       include: {
@@ -40,6 +42,10 @@ export default async function JobDetailPage({
         notes: { include: { user: true }, orderBy: { createdAt: "asc" } },
         photos: { orderBy: { createdAt: "asc" } },
         lineItems: { orderBy: { sortOrder: "asc" } },
+        timeEntries: {
+          include: { user: { select: { id: true, name: true, hourlyCost: true } } },
+          orderBy: { startedAt: "asc" },
+        },
         quote: true,
         invoice: { include: { payments: true } },
       },
@@ -61,9 +67,26 @@ export default async function JobDetailPage({
         reviewLink: true,
       },
     }),
+    // My open clock entry, wherever it is (drives the Clock In/Out card)
+    prisma.timeEntry.findFirst({
+      where: { userId: actor.id, endedAt: null },
+      include: { job: { select: { id: true, title: true } } },
+    }),
   ]);
 
   if (!job) notFound();
+
+  // Time clock: closed time on this job + who's on it right now
+  const closedEntries = job.timeEntries.filter((e) => e.endedAt);
+  const loggedMs = closedEntries.reduce((s, e) => s + entryMs(e), 0);
+  const laborCost = closedEntries.reduce((s, e) => {
+    const rate = e.user.hourlyCost ? Number(e.user.hourlyCost) : 0;
+    return s + (rate > 0 ? (entryMs(e) / 3600_000) * rate : 0);
+  }, 0);
+  const othersOnClock = job.timeEntries
+    .filter((e) => !e.endedAt && e.userId !== actor.id)
+    .map((e) => e.user.name);
+  const canClock = actor.role !== "SALES";
 
   const onMyWayMessage = renderMessageTemplate(
     company?.onMyWayTemplate || DEFAULT_ON_MY_WAY_TEMPLATE,
@@ -361,6 +384,26 @@ export default async function JobDetailPage({
 
         {/* Sidebar */}
         <div className="space-y-4">
+          {/* Time clock — the tech's primary action; stays visible after
+              completion while an entry is still open so they can clock out */}
+          {canClock && (job.status === "ACTIVE" || myOpenEntry?.jobId === job.id) && (
+            <ClockCard
+              jobId={job.id}
+              openEntry={
+                myOpenEntry?.jobId === job.id
+                  ? { id: myOpenEntry.id, startedAt: myOpenEntry.startedAt.toISOString() }
+                  : null
+              }
+              openElsewhereTitle={
+                myOpenEntry && myOpenEntry.jobId !== job.id
+                  ? (myOpenEntry.job?.title ?? "another job")
+                  : null
+              }
+              loggedMs={loggedMs}
+              othersOnClock={othersOnClock}
+            />
+          )}
+
           {/* Team assignment — shown even for a team of one: assignments drive
               tech visibility, the schedule filter, AND booking availability
               (an unassigned job doesn't block anyone's slots individually) */}
@@ -405,7 +448,7 @@ export default async function JobDetailPage({
           )}
 
           {/* Profit (when costs are tracked) */}
-          {showMoney && lineCost > 0 && (
+          {showMoney && (lineCost > 0 || laborCost > 0) && (
             <div className="card-ledger p-4">
               <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
                 Profit margin
@@ -415,16 +458,28 @@ export default async function JobDetailPage({
                   <span className="text-gray-500">Revenue</span>
                   <span className="text-gray-800">{money(lineTotal)}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Line item cost</span>
-                  <span className="text-gray-800">-{money(lineCost)}</span>
-                </div>
+                {lineCost > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Line item cost</span>
+                    <span className="text-gray-800">-{money(lineCost)}</span>
+                  </div>
+                )}
+                {laborCost > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Labor ({formatDuration(loggedMs)})</span>
+                    <span className="text-gray-800">-{money(laborCost)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between font-semibold border-t border-gray-100 pt-1.5">
                   <span className="text-gray-900">Profit</span>
-                  <span className={lineTotal - lineCost >= 0 ? "text-green-700" : "text-red-600"}>
-                    {money(lineTotal - lineCost)}
+                  <span
+                    className={
+                      lineTotal - lineCost - laborCost >= 0 ? "text-green-700" : "text-red-600"
+                    }
+                  >
+                    {money(lineTotal - lineCost - laborCost)}
                     {lineTotal > 0 &&
-                      ` (${Math.round(((lineTotal - lineCost) / lineTotal) * 100)}%)`}
+                      ` (${Math.round(((lineTotal - lineCost - laborCost) / lineTotal) * 100)}%)`}
                   </span>
                 </div>
               </div>
