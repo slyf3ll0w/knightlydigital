@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { postJson } from "@/lib/safe-fetch";
 
-const OXANIUM = { fontFamily: "Oxanium, system-ui, sans-serif" } as const;
+const OXANIUM = { fontFamily: '"Nunito", system-ui, sans-serif' } as const;
 
 type Category = "FEATURE" | "BUG" | "QOL";
 const ORDER: Category[] = ["FEATURE", "BUG", "QOL"];
@@ -34,7 +34,7 @@ interface Item {
 const SECTIONS: Record<Category, { label: string; blurb: string; icon: React.ReactNode }> = {
   FEATURE: {
     label: "Features",
-    blurb: "New capabilities coming to the Hub.",
+    blurb: "New capabilities coming to WorkBench.",
     icon: <Sparkle size={16} />,
   },
   BUG: {
@@ -130,7 +130,7 @@ export default function RoadmapClient({
     .sort((a, b) => (b.shippedAt! < a.shippedAt! ? -1 : 1));
 
   return (
-    <div className={app ? "" : "min-h-screen bg-gray-50"}>
+    <div className={app ? "" : "wb-site min-h-screen bg-gray-50"}>
       <style>{`
         @keyframes rm-out-left  { to   { opacity: 0; transform: translateX(-56px); } }
         @keyframes rm-out-right { to   { opacity: 0; transform: translateX(56px); } }
@@ -142,16 +142,22 @@ export default function RoadmapClient({
         .rm-in-left   { animation: rm-in-left ${IN_MS}ms cubic-bezier(0.16, 1, 0.3, 1) both; }
       `}</style>
 
-      {/* Slim app-style top bar for the public page (in-app, AppShell handles chrome) */}
+      {/* Slim WB-style top bar for the public page (in-app, AppShell handles chrome) */}
       {!app && (
-        <div className="bg-rail">
-          <div className="max-w-5xl mx-auto px-4 lg:px-8 h-14 flex items-center justify-between">
-            <Link href="/" className="text-white font-semibold text-sm tracking-wide" style={OXANIUM}>
-              Streamflaire <span className="text-green-500">Hub</span>
+        <div className="bg-white">
+          <div
+            className="h-[3px]"
+            style={{ background: "linear-gradient(90deg, #0B57D8 0%, #0B57D8 55%, #F86A0A 100%)" }}
+            aria-hidden
+          />
+          <div className="max-w-5xl mx-auto px-4 lg:px-8 h-14 flex items-center justify-between border-b border-gray-200">
+            <Link href="/" className="flex items-center">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/workbench-logo.png" alt="WorkBench" className="h-6 w-auto" />
             </Link>
             <Link
               href="/app/dashboard"
-              className="text-xs font-semibold text-white/70 hover:text-white transition-colors"
+              className="text-xs font-bold text-[#0B57D8] hover:text-[#0A4CBB] transition-colors"
             >
               Open the app →
             </Link>
@@ -160,11 +166,11 @@ export default function RoadmapClient({
       )}
 
       <div className={`max-w-5xl mx-auto px-4 lg:px-8 ${app ? "pt-4 lg:pt-8" : "pt-8"} pb-12`}>
-        <h1 className="numeral-ledger text-2xl font-semibold text-gray-900 mb-1">
+        <h1 className="text-2xl font-semibold text-gray-900 mb-1">
           Upcoming Features
         </h1>
         <p className="text-sm text-gray-500 mb-6">
-          What we&apos;re building next for the Hub — and everything that&apos;s already shipped.
+          What we&apos;re building next for WorkBench — and everything that&apos;s already shipped.
         </p>
 
         {/* ── Tabs ── */}
@@ -178,21 +184,21 @@ export default function RoadmapClient({
                 role="tab"
                 aria-selected={active}
                 onClick={() => selectTab(cat)}
-                className={`chamfer flex items-center gap-2 px-4 py-2.5 text-sm font-semibold transition-colors ${
+                className={`rounded-full flex items-center gap-2 px-4 py-2.5 text-sm font-semibold transition-colors ${
                   active
-                    ? "bg-[#0C0F0C] text-white"
+                    ? "bg-[#0B57D8] text-white"
                     : "bg-white border border-gray-300 text-gray-600 hover:border-gray-400 hover:text-gray-900"
                 }`}
                 style={OXANIUM}
               >
-                <span className={active ? "text-green-500" : "text-gray-400"}>
+                <span className={active ? "text-[#FFC08A]" : "text-gray-400"}>
                   {SECTIONS[cat].icon}
                 </span>
                 {SECTIONS[cat].label}
                 {count > 0 && (
                   <span
                     className={`text-[11px] font-bold px-1.5 py-0.5 rounded-full leading-none ${
-                      active ? "bg-green-500 text-white" : "bg-gray-100 text-gray-500"
+                      active ? "bg-white/20 text-white" : "bg-gray-100 text-gray-500"
                     }`}
                   >
                     {count}
@@ -206,7 +212,7 @@ export default function RoadmapClient({
         {/* ── Active section (slides out/in on tab change) ── */}
         <div key={shown} className={anim}>
           <div className="flex items-center gap-2 mb-1 text-gray-900">
-            <span className="text-green-600">{section.icon}</span>
+            <span className="text-[#0B57D8]">{section.icon}</span>
             <h2 className="text-lg font-semibold" style={OXANIUM}>
               {section.label}
             </h2>
@@ -235,7 +241,7 @@ export default function RoadmapClient({
                         onClick={() => toggleShipped(item)}
                         disabled={busyId === item.id}
                         title="Mark shipped"
-                        className="mt-0.5 shrink-0 border-2 border-gray-300 hover:border-green-500 transition-colors flex items-center justify-center"
+                        className="mt-0.5 shrink-0 rounded-[5px] border-2 border-gray-300 hover:border-[#0B57D8] transition-colors flex items-center justify-center"
                         style={{ width: 18, height: 18 }}
                       >
                         {busyId === item.id && (
@@ -270,7 +276,7 @@ export default function RoadmapClient({
             {/* Shipped */}
             <div className="card-ledger">
               <div
-                className="px-4 py-2.5 text-xs font-bold uppercase tracking-widest border-b border-gray-200 flex items-center gap-1.5 text-green-600"
+                className="px-4 py-2.5 text-xs font-bold uppercase tracking-widest border-b border-gray-200 flex items-center gap-1.5 text-[#0B57D8]"
                 style={OXANIUM}
               >
                 <Check size={13} strokeWidth={3} /> Shipped
@@ -284,7 +290,7 @@ export default function RoadmapClient({
                 {shipped.map((item) => (
                   <li key={item.id} className="px-4 py-3 flex items-start gap-3">
                     <span
-                      className="mt-0.5 shrink-0 flex items-center justify-center bg-green-500 text-white"
+                      className="mt-0.5 shrink-0 rounded-[5px] flex items-center justify-center bg-[#0B57D8] text-white"
                       style={{ width: 18, height: 18 }}
                     >
                       <Check size={12} strokeWidth={3.5} />
@@ -473,14 +479,14 @@ function AddForm({ category, onAdded }: { category: Category; onAdded: (item: It
         onChange={(e) => setTitle(e.target.value)}
         onKeyDown={(e) => e.key === "Enter" && add()}
         placeholder="What's coming?"
-        className="w-full px-2.5 py-1.5 border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+        className="w-full px-2.5 py-1.5 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#2E6FF2]"
       />
       <textarea
         value={details}
         onChange={(e) => setDetails(e.target.value)}
         placeholder="Public details — everyone sees this (optional)"
         rows={2}
-        className="w-full px-2.5 py-1.5 border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
+        className="w-full px-2.5 py-1.5 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#2E6FF2] resize-none"
       />
       <textarea
         value={privateNotes}
@@ -493,7 +499,7 @@ function AddForm({ category, onAdded }: { category: Category; onAdded: (item: It
         <button
           onClick={add}
           disabled={busy || !title.trim()}
-          className="flex items-center gap-1.5 px-3.5 py-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-bold uppercase tracking-wider transition-colors disabled:opacity-50"
+          className="flex items-center gap-1.5 rounded-full px-3.5 py-1.5 bg-[#0B57D8] hover:bg-[#0A4CBB] text-white text-xs font-bold uppercase tracking-wider transition-colors disabled:opacity-50"
           style={OXANIUM}
         >
           {busy && <Loader2 size={12} className="animate-spin" />} Add

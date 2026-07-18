@@ -68,7 +68,7 @@ export default function WBFooter() {
       </div>
       <div className="border-t border-gray-100">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4 sm:px-8">
-          <p className="text-[11.5px] text-gray-400">© 2026 Streamflaire</p>
+          <p className="text-[11.5px] text-gray-400">© 2026 WorkBench</p>
           <p className="text-[11.5px] text-gray-400">Dallas–Fort Worth, TX</p>
         </div>
       </div>

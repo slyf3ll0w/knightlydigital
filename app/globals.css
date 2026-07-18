@@ -624,6 +624,39 @@ body {
   transform: translate(2px, 2px);
   box-shadow: 1px 1px 0 #0A1428;
 }
+/* Gentle bob for the hero work cards — staggered via animation-delay */
+@keyframes wb-float {
+  0%, 100% { transform: translateY(0) rotate(var(--wb-tilt, 0deg)); }
+  50% { transform: translateY(-7px) rotate(var(--wb-tilt, 0deg)); }
+}
+.wb-float {
+  animation: wb-float 5.5s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .wb-float { animation: none; }
+}
+
+/* Trades marquee — track holds the list twice, slides half its width */
+.wb-marquee {
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(90deg, transparent, black 8%, black 92%, transparent);
+  mask-image: linear-gradient(90deg, transparent, black 8%, black 92%, transparent);
+}
+.wb-marquee-track {
+  display: flex;
+  width: max-content;
+  animation: wb-marquee 36s linear infinite;
+}
+.wb-marquee:hover .wb-marquee-track {
+  animation-play-state: paused;
+}
+@keyframes wb-marquee {
+  to { transform: translateX(-50%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wb-marquee-track { animation: none; }
+}
+
 /* Nav link underline: orange, slides in from the left */
 .wb-navlink {
   position: relative;

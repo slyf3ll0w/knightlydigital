@@ -147,9 +147,16 @@ export default function WBHomePage() {
             </p>
           </AnimateIn>
 
-          {/* Floating work cards */}
+          {/* Floating work cards — bob gently, each on its own beat */}
           <AnimateIn delay={150} className="relative hidden min-h-[380px] lg:block">
-            <div className="card-lift absolute right-0 top-2 w-64 rotate-2 rounded-2xl border border-gray-100 bg-white p-4 shadow-xl">
+            {/* blueprint registration marks */}
+            <span className="pointer-events-none absolute -left-6 top-0 select-none text-2xl font-light text-blue-200" aria-hidden>+</span>
+            <span className="pointer-events-none absolute right-2 top-28 select-none text-xl font-light text-orange-200" aria-hidden>+</span>
+            <span className="pointer-events-none absolute -bottom-2 left-16 select-none text-2xl font-light text-blue-200" aria-hidden>+</span>
+            <div
+              className="wb-float absolute right-0 top-2 w-64 rounded-2xl border border-gray-100 bg-white p-4 shadow-xl"
+              style={{ "--wb-tilt": "2deg" } as React.CSSProperties}
+            >
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50">
                   <CheckCircle2 className="h-5 w-5 text-[#0B57D8]" strokeWidth={2} />
@@ -162,7 +169,10 @@ export default function WBHomePage() {
                 </div>
               </div>
             </div>
-            <div className="card-lift absolute left-2 top-36 w-60 -rotate-3 rounded-2xl border border-gray-100 bg-white p-4 shadow-xl">
+            <div
+              className="wb-float absolute left-2 top-36 w-60 rounded-2xl border border-gray-100 bg-white p-4 shadow-xl"
+              style={{ "--wb-tilt": "-3deg", animationDelay: "1.3s" } as React.CSSProperties}
+            >
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-50">
                   <CalendarClock className="h-5 w-5 text-[#F86A0A]" strokeWidth={2} />
@@ -173,7 +183,10 @@ export default function WBHomePage() {
                 </div>
               </div>
             </div>
-            <div className="card-lift absolute bottom-16 right-10 w-64 rotate-1 rounded-2xl border border-gray-100 bg-white p-4 shadow-xl">
+            <div
+              className="wb-float absolute bottom-16 right-10 w-64 rounded-2xl border border-gray-100 bg-white p-4 shadow-xl"
+              style={{ "--wb-tilt": "1deg", animationDelay: "2.2s" } as React.CSSProperties}
+            >
               <div className="flex items-center gap-3">
                 <Image
                   src="/workbench-icon.png"
@@ -188,13 +201,49 @@ export default function WBHomePage() {
                 </div>
               </div>
             </div>
-            <div className="card-lift absolute bottom-0 left-8 w-fit -rotate-2 rounded-full border border-gray-200 bg-white px-4 py-2.5 shadow-lg">
+            <div
+              className="wb-float absolute bottom-0 left-8 w-fit rounded-full border border-gray-200 bg-white px-4 py-2.5 shadow-lg"
+              style={{ "--wb-tilt": "-2deg", animationDelay: "0.7s" } as React.CSSProperties}
+            >
               <p className="flex items-center gap-2 text-[13px] font-semibold text-gray-700">
                 <Compass className="h-4 w-4 text-[#0B57D8]" strokeWidth={2} />
                 “Atlas, send Friday&apos;s invoices”
               </p>
             </div>
           </AnimateIn>
+        </div>
+      </section>
+
+      {/* ── Trades ticker ── */}
+      <section className="border-y border-gray-200 bg-white py-4">
+        <div className="wb-marquee">
+          <div className="wb-marquee-track">
+            {[0, 1].map((dup) => (
+              <div key={dup} className="flex items-center" aria-hidden={dup === 1}>
+                {[
+                  "Plumbing",
+                  "HVAC",
+                  "Electrical",
+                  "Cleaning",
+                  "Lawn care",
+                  "Roofing",
+                  "Handyman",
+                  "Pest control",
+                  "Pool service",
+                  "Appliance repair",
+                  "Garage doors",
+                  "Pressure washing",
+                ].map((t, i) => (
+                  <span key={t} className="flex items-center">
+                    <span className="whitespace-nowrap text-[13.5px] font-bold tracking-wide text-gray-500">
+                      {t}
+                    </span>
+                    <span className={`mx-8 h-1.5 w-1.5 rounded-full ${i % 2 ? "bg-[#F86A0A]/50" : "bg-[#0B57D8]/40"}`} />
+                  </span>
+                ))}
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 

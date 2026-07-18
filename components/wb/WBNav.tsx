@@ -13,7 +13,6 @@ export const WB_HOME = "/";
 const links = [
   { href: WB_HOME, label: "Product" },
   { href: "/pricing", label: "Pricing" },
-  { href: "/roadmap", label: "Roadmap" },
 ];
 
 export default function WBNav() {
@@ -60,19 +59,33 @@ export default function WBNav() {
               );
             })}
             <Link
+              href="/app/login"
+              className="text-[14px] font-semibold text-gray-600 transition-colors hover:text-gray-900"
+            >
+              Log in
+            </Link>
+            <Link
               href="/apply"
               className="wb-btn-tool rounded-lg bg-[#0B57D8] px-5 py-2.5 text-[14px] font-bold text-white"
             >
               Apply for access
             </Link>
           </nav>
-          {/* Mobile: essential action only */}
-          <Link
-            href="/apply"
-            className="wb-btn-tool rounded-lg bg-[#0B57D8] px-4 py-2 text-[13px] font-bold text-white sm:hidden"
-          >
-            Apply
-          </Link>
+          {/* Mobile: log in + the essential action */}
+          <div className="flex items-center gap-4 sm:hidden">
+            <Link
+              href="/app/login"
+              className="text-[13px] font-semibold text-gray-600"
+            >
+              Log in
+            </Link>
+            <Link
+              href="/apply"
+              className="wb-btn-tool rounded-lg bg-[#0B57D8] px-4 py-2 text-[13px] font-bold text-white"
+            >
+              Apply
+            </Link>
+          </div>
         </div>
       </div>
     </header>
