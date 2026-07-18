@@ -35,6 +35,14 @@ model Company {
   timezone         String   @default("America/Chicago")
   surchargeEnabled Boolean  @default(false)
   surchargeRate    Decimal  @default(0.0300) @db.Decimal(5, 4)
+  // Finix payment processing (Streamflaire Payments). The identity/merchant pair
+  // comes from the hosted onboarding form; onboardingState mirrors Finix's
+  // merchant onboarding_state (PROVISIONING | APPROVED | REJECTED |
+  // UPDATE_REQUESTED). Online charges only run when APPROVED.
+  finixOnboardingFormId String?
+  finixIdentityId       String?
+  finixMerchantId       String? @unique
+  finixOnboardingState  String?
   // Company-wide default deposit, applied to preset services with no deposit of
   // their own and used to prefill custom quotes. NONE = no default deposit.
   defaultDepositType  DepositType @default(NONE)
@@ -421,6 +429,10 @@ model Contact {
   // Payment processor's customer/vault token — populated once a card is saved
   // on file (processor goes live). Recurring billing auto-charges when set.
   processorCustomerRef String?
+  // Finix buyer Identity (IDxxx) — created on the contact's first online
+  // payment and reused after. NOT a chargeable token (that's
+  // processorCustomerRef, which stays null until card-on-file ships).
+  finixBuyerIdentityId String?
   hubToken         String        @unique @default(cuid())
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt

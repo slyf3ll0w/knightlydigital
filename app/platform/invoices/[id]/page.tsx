@@ -268,6 +268,7 @@ export default async function InvoiceDetailPage({
                   details: p.details ?? "",
                 }}
                 canDelete={isManager(actor.role)}
+                canRefund={isManager(actor.role) && (p.processorRef?.startsWith("TR") ?? false)}
               />
             ))}
           </div>

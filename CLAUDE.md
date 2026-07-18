@@ -195,13 +195,42 @@ open entry per user, auto-closed on the next clock-in). Engine bits:
   `NSLocationWhenInUseUsageDescription` (already in Info.plist) — ships with
   the next store build.
 
-## Payment processor
+## Payment processor (Finix)
 
-`lib/payments.ts` is a stub. To go live:
-1. Add your processor's SDK (e.g., `npm i stripe`)
-2. Replace `chargePayment()` and `createPaymentLink()` with real calls
-3. For Stripe: mount Stripe Elements on the `/pay/[token]` page
-4. For surcharging: enable in company settings and the rate is applied automatically
+Two processors implement the `PaymentProcessor` seam in `lib/payments.ts`,
+selected by `PAYMENT_PROCESSOR`: `manual` (records payments, moves no money)
+and `finix` (real card/ACH charges — Streamflaire Payments). The Finix REST
+client lives in `lib/finix.ts` (all amounts in CENTS at that boundary).
+
+How the Finix flow hangs together:
+- **Merchant onboarding:** Settings → Online Payments card → owner clicks
+  "Set up payments" → `POST /api/app/settings/payments` creates a hosted Finix
+  onboarding form (white-labeled KYC/underwriting) and returns a session link
+  (links expire hourly — mint fresh ones, never store them). Form completion →
+  merchant `PROVISIONING` → `APPROVED`; state lands on
+  `Company.finixMerchantId`/`finixOnboardingState` via the settings GET
+  (re-syncs on card mount) and the webhook.
+- **Charging:** `/pay/[token]` mounts the finix.js tokenization form (CDN
+  `js.finix.com/v/2/finix.js` — must never be self-hosted/bundled, PCI) when
+  the platform processor is live AND the company is APPROVED; otherwise the
+  old "contact the business" fallback. Token → `POST /api/public/pay/[token]`
+  → buyer identity (reused via `Contact.finixBuyerIdentityId`) → payment
+  instrument → transfer → `recordPayment()` with `processorRef` = transfer id.
+  ACH transfers stay PENDING for days — recorded immediately, pulled back by
+  the webhook if the bank later returns them.
+- **Webhooks:** `POST /api/public/webhooks/finix` (register once per env with
+  `scripts/finix-register-webhook.mjs`). Payloads are hints only — the handler
+  re-fetches the resource from Finix before acting, so forged posts are inert.
+  Not required for correctness: settings-load re-sync self-heals missed events.
+- **Refunds:** payment row ↺ button (managers) → `POST
+  /api/app/payments/[id]/refund` → Finix reversal, then the payment amount
+  drops and invoice status recomputes. Manual payments have nothing to
+  reverse — edit/delete the record instead.
+- **Sandbox:** `FINIX_ENVIRONMENT=sandbox` uses processor `DUMMY_V1`, merchants
+  auto-approve in ~2 min, raw card `POST /payment_instruments` is allowed, and
+  the app's per-transaction cap is $10,000. Amount-triggered outcomes (cents):
+  102 decline, 193 insufficient funds, 888888 dispute. `/terms` + `/pricing`
+  are the ToS/fee URLs baked into onboarding forms — keep both published.
 
 ## Environment variables required
 
@@ -210,7 +239,12 @@ AUTH_SECRET=     # generate: openssl rand -base64 32
 DATABASE_URL=    # PostgreSQL connection string from Railway
 NEXTAUTH_URL=    # deployed URL (e.g. https://jobflow.streamflaremedia.com or https://streamflaremedia.com)
 CRON_SECRET=     # shared secret for the recurring-billing cron (generate: openssl rand -base64 32)
-PAYMENT_PROCESSOR=manual  # swap to "finix"/"stripe" once a real processor is registered in lib/payments.ts
+PAYMENT_PROCESSOR=manual  # "finix" turns on real payments (needs the FINIX_* vars below)
+# Finix (Streamflaire Payments) — keys from dashboard.finix.com → Developers → API Keys
+FINIX_ENVIRONMENT=sandbox   # "live" + live keys at launch (sandbox keys only work on the sandbox host)
+FINIX_API_USERNAME=
+FINIX_API_PASSWORD=
+FINIX_APPLICATION_ID=       # public (finix.js uses it client-side)
 # Optional — QuickBooks Online sync (lib/quickbooks.ts); feature is hidden until set
 QBO_CLIENT_ID=       # Intuit app keys from developer.intuit.com
 QBO_CLIENT_SECRET=

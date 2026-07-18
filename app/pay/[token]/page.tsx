@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { companyMeta } from "@/lib/client-meta";
+import { getProcessor } from "@/lib/payments";
+import { finixApplicationId, finixEnvironment } from "@/lib/finix";
 import PayPage from "./PayPage";
 
 export async function generateMetadata({ params }: { params: Promise<{ token: string }> }) {
@@ -67,5 +69,23 @@ export default async function PublicPayPage({
 
   if (!invoice) notFound();
 
-  return <PayPage invoice={JSON.parse(JSON.stringify(invoice))} />;
+  // Online charging is on only when the platform processor is Finix AND this
+  // company's merchant is approved. Checked with a separate server-only query —
+  // merchant/onboarding ids must never ride the serialized invoice into HTML.
+  // The application id IS public by design (finix.js needs it client-side).
+  let finix: { applicationId: string; environment: "sandbox" | "live" } | null = null;
+  const processor = getProcessor();
+  if (processor.name === "finix" && processor.live) {
+    const gate = await prisma.invoice.findFirst({
+      where: { publicToken: token },
+      select: {
+        company: { select: { finixMerchantId: true, finixOnboardingState: true } },
+      },
+    });
+    if (gate?.company.finixMerchantId && gate.company.finixOnboardingState === "APPROVED") {
+      finix = { applicationId: finixApplicationId(), environment: finixEnvironment() };
+    }
+  }
+
+  return <PayPage invoice={JSON.parse(JSON.stringify(invoice))} finix={finix} />;
 }

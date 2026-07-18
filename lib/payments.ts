@@ -5,23 +5,32 @@
  * layer is built to make taking payments as easy as possible:
  *
  *  - `getProcessor()` returns the active PaymentProcessor implementation,
- *    selected by the PAYMENT_PROCESSOR env var. Today only "manual" exists
- *    (records payments without moving money). When David's processor is live,
- *    add a `FinixProcessor` (or Stripe/Square) implementing the same interface
- *    and flip the env var — no call sites change.
+ *    selected by the PAYMENT_PROCESSOR env var: "manual" (records payments
+ *    without moving money) or "finix" (real card/ACH charges through the
+ *    company's Finix merchant account — see lib/finix.ts). Flipping the env
+ *    var changes no call sites.
  *  - `recordPayment()` is the single write path for payments: it creates the
  *    Payment row, recalculates the invoice balance, and flips invoice status.
  */
 
 import { prisma } from "@/lib/db";
+import * as finix from "@/lib/finix";
 import { notifyUsers } from "@/lib/push";
 import { queueQuickBooksPaymentSync } from "@/lib/quickbooks";
-import type { PaymentMethod } from "@prisma/client";
+import type { PaymentMethod, Prisma } from "@prisma/client";
 
 // ─── Processor interface ─────────────────────────────────────────────────────
 
 export type ChargeResult =
-  | { success: true; transactionId: string; amount: number }
+  | {
+      success: true;
+      transactionId: string;
+      amount: number;
+      /** ACH debits stay pending for days after acceptance; card charges settle instantly. */
+      pending?: boolean;
+      /** Buyer identity the processor created/used — persist on the contact for reuse. */
+      buyerIdentityRef?: string;
+    }
   | { success: false; error: string };
 
 export type CheckoutSession =
@@ -35,6 +44,18 @@ export interface ChargeParams {
   surcharge?: number;
   description?: string;
   metadata?: Record<string, string>;
+  /** One-time tokenized payment details from the processor's client-side form (finix.js TKxxx). */
+  token?: string;
+  /** The company's processor merchant account (Company.finixMerchantId). */
+  merchantRef?: string;
+  /** Buyer identity to charge under — existing ref reused, otherwise created from the details. */
+  buyer?: {
+    identityRef?: string | null;
+    firstName?: string | null;
+    lastName?: string | null;
+    email?: string | null;
+    phone?: string | null;
+  };
 }
 
 export interface CheckoutParams {
@@ -105,11 +126,134 @@ class ManualProcessor implements PaymentProcessor {
   }
 }
 
-// When the processor account exists, implement it here and register it below.
-// class FinixProcessor implements PaymentProcessor { ... }
+/**
+ * Finix processor (Streamflaire Payments). Charges run per-company: the caller
+ * passes the company's finixMerchantId as merchantRef plus a one-time finix.js
+ * token; the buyer's Finix identity is created on first use and returned so the
+ * route can persist it on the contact. Companies without an APPROVED merchant
+ * fall back to the same "record manually" decline as the manual processor.
+ */
+class FinixProcessor implements PaymentProcessor {
+  readonly name = "finix";
+  get live(): boolean {
+    return finix.finixConfigured();
+  }
+
+  async charge(params: ChargeParams): Promise<ChargeResult> {
+    if (!this.live) {
+      return { success: false, error: "Online payments are not enabled yet. Record this payment manually." };
+    }
+    if (!params.merchantRef) {
+      return { success: false, error: "This business hasn't finished payment setup yet. Please contact them to arrange payment." };
+    }
+    if (!params.token) {
+      return { success: false, error: "Missing payment details. Please re-enter your card or bank information." };
+    }
+
+    try {
+      const identityId =
+        params.buyer?.identityRef ??
+        (await finix.createBuyerIdentity({
+          firstName: params.buyer?.firstName,
+          lastName: params.buyer?.lastName,
+          email: params.buyer?.email,
+          phone: params.buyer?.phone,
+        })).id;
+
+      const instrument = await finix.exchangeToken({
+        token: params.token,
+        identityId,
+      });
+
+      const transfer = await finix.createTransfer({
+        amountCents: finix.toCents(params.amount),
+        merchantId: params.merchantRef,
+        sourceInstrumentId: instrument.id,
+        // One attempt per invoice+amount+minute: a double-click never double
+        // charges, while a genuine retry after a decline gets a fresh id.
+        idempotencyId: `${params.metadata?.invoiceId ?? "inv"}-${finix.toCents(params.amount)}-${Math.floor(Date.now() / 60000)}`,
+        tags: params.metadata ?? {},
+      });
+
+      if (transfer.state === "FAILED" || transfer.state === "CANCELED") {
+        return {
+          success: false,
+          error: transfer.failure_message || "The payment was declined. Please try another payment method.",
+        };
+      }
+
+      return {
+        success: true,
+        transactionId: transfer.id,
+        amount: params.amount,
+        pending: transfer.state === "PENDING",
+        buyerIdentityRef: identityId,
+      };
+    } catch (err) {
+      if (err instanceof finix.FinixError) {
+        // Card declines etc. surface as API errors too — show Finix's message.
+        return { success: false, error: err.message };
+      }
+      console.error("[payments] finix charge failed", err);
+      return { success: false, error: "Payment failed. Please try again." };
+    }
+  }
+
+  async chargeStored(params: ChargeStoredParams): Promise<ChargeResult> {
+    // customerRef is a vaulted Finix payment instrument (PIxxx). The merchant
+    // comes from the invoice's company, resolved via metadata.
+    const invoiceId = params.metadata?.invoiceId;
+    if (!invoiceId) return { success: false, error: "Missing invoice reference for stored charge." };
+
+    try {
+      const invoice = await prisma.invoice.findUnique({
+        where: { id: invoiceId },
+        select: { company: { select: { finixMerchantId: true, finixOnboardingState: true } } },
+      });
+      const merchantId = invoice?.company.finixMerchantId;
+      if (!this.live || !merchantId || invoice?.company.finixOnboardingState !== "APPROVED") {
+        return { success: false, error: "Online payments are not enabled for this business." };
+      }
+
+      const transfer = await finix.createTransfer({
+        amountCents: finix.toCents(params.amount),
+        merchantId,
+        sourceInstrumentId: params.customerRef,
+        idempotencyId: `${invoiceId}-stored-${finix.toCents(params.amount)}`,
+        tags: params.metadata ?? {},
+      });
+
+      if (transfer.state === "FAILED" || transfer.state === "CANCELED") {
+        return { success: false, error: transfer.failure_message || "The stored payment method was declined." };
+      }
+      return {
+        success: true,
+        transactionId: transfer.id,
+        amount: params.amount,
+        pending: transfer.state === "PENDING",
+      };
+    } catch (err) {
+      if (err instanceof finix.FinixError) return { success: false, error: err.message };
+      console.error("[payments] finix stored charge failed", err);
+      return { success: false, error: "Auto-charge failed." };
+    }
+  }
+
+  async createCheckout(params: CheckoutParams): Promise<CheckoutSession> {
+    // The hosted /pay page IS the checkout — it mounts the finix.js form when
+    // the company's merchant is approved.
+    const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+    return {
+      success: true,
+      url: `${baseUrl}/pay/${params.publicToken}`,
+      expiresAt: new Date(Date.now() + 30 * 86400 * 1000),
+    };
+  }
+}
 
 const processors: Record<string, PaymentProcessor> = {
   manual: new ManualProcessor(),
+  finix: new FinixProcessor(),
 };
 
 export function getProcessor(): PaymentProcessor {
@@ -204,6 +348,44 @@ export async function recordPayment(params: RecordPaymentParams) {
   });
 
   return { payment: result.payment, fullyPaid: result.fullyPaid };
+}
+
+/**
+ * Re-derive an invoice's status from its remaining payments — shared by the
+ * routes that shrink or remove a payment (corrections, refunds).
+ */
+export async function recomputeInvoiceStatus(
+  tx: Prisma.TransactionClient,
+  invoiceId: string
+) {
+  const invoice = await tx.invoice.findUnique({
+    where: { id: invoiceId },
+    include: { payments: true },
+  });
+  if (!invoice) return;
+
+  const paid = invoice.payments.reduce((s, p) => s + Number(p.amount), 0);
+  const fullyPaid = paid > 0 && paid >= Number(invoice.total) - 0.005;
+
+  if (fullyPaid) {
+    const lastPaidAt = invoice.payments.reduce<Date | null>(
+      (latest, p) => (!latest || p.paidAt > latest ? p.paidAt : latest),
+      null
+    );
+    await tx.invoice.update({
+      where: { id: invoiceId },
+      data: { status: "PAID", paidAt: lastPaidAt ?? new Date() },
+    });
+  } else if (invoice.status === "PAID") {
+    await tx.invoice.update({
+      where: { id: invoiceId },
+      data: {
+        status:
+          invoice.dueDate && invoice.dueDate < new Date() ? "PAST_DUE" : "AWAITING_PAYMENT",
+        paidAt: null,
+      },
+    });
+  }
 }
 
 /** Outstanding balance on an invoice (total minus recorded payments). */

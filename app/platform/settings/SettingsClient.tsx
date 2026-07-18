@@ -126,6 +126,136 @@ const TIMEZONES = [
   { value: "Pacific/Honolulu", label: "Hawaii (Honolulu)" },
 ];
 
+/**
+ * Online payments setup (Finix merchant onboarding). Status comes from
+ * GET /api/app/settings/payments — which also re-syncs from Finix, so
+ * loading this card is what keeps onboarding state fresh. Hidden entirely
+ * while the platform processor isn't live (pre-launch).
+ */
+function PaymentsOnlineCard({ isOwner }: { isOwner: boolean }) {
+  const [status, setStatus] = useState<{
+    available: boolean;
+    environment?: "sandbox" | "live";
+    started?: boolean;
+    state?: string | null;
+  } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/app/settings/payments")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!cancelled && d) setStatus(d);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function openSetup() {
+    setBusy(true);
+    setError("");
+    try {
+      const res = await fetch("/api/app/settings/payments", { method: "POST" });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.url) {
+        setError(data?.error ?? "Couldn't start payment setup. Please try again.");
+        return;
+      }
+      window.open(data.url, "_blank", "noopener");
+    } catch {
+      setError("Couldn't reach the server. Check your connection and try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Pre-launch (processor not configured) — say nothing rather than tease
+  if (!status || !status.available) return null;
+
+  const state = status.state ?? null;
+  const approved = state === "APPROVED";
+
+  return (
+    <div className="card-ledger p-5 space-y-3">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+            Online Payments
+          </h2>
+          <p className="text-xs text-gray-400 mt-0.5">
+            Let clients pay invoices by card or bank transfer, straight from their pay link
+          </p>
+        </div>
+        {status.environment === "sandbox" && (
+          <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">
+            Test mode
+          </span>
+        )}
+      </div>
+
+      {approved ? (
+        <div className="flex items-center gap-2 text-sm text-green-700">
+          <Check size={15} />
+          <span>
+            Online payments are <span className="font-semibold">enabled</span> — payouts go to
+            the bank account from your application.
+          </span>
+        </div>
+      ) : state === "PROVISIONING" ? (
+        <p className="text-sm text-gray-600">
+          Your application is <span className="font-medium">under review</span> — most are
+          approved within 1–2 business days. We&apos;ll notify you the moment it clears.
+        </p>
+      ) : state === "REJECTED" ? (
+        <p className="text-sm text-red-600">
+          Your application couldn&apos;t be approved. Contact support and we&apos;ll help sort
+          it out.
+        </p>
+      ) : state === "UPDATE_REQUESTED" ? (
+        <p className="text-sm text-amber-700">
+          The underwriter needs a little more information — reopen your application to finish
+          up.
+        </p>
+      ) : status.started ? (
+        <p className="text-sm text-gray-600">
+          Your application is <span className="font-medium">started but not submitted</span> —
+          pick up where you left off.
+        </p>
+      ) : (
+        <p className="text-sm text-gray-600">
+          A short application (business details + the bank account for payouts). Most
+          businesses are approved within 1–2 days.
+        </p>
+      )}
+
+      {error && <p className="text-xs text-red-600">{error}</p>}
+
+      {!approved && state !== "PROVISIONING" && state !== "REJECTED" && (
+        isOwner ? (
+          <button
+            onClick={openSetup}
+            disabled={busy}
+            className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-xs font-semibold rounded-full transition-colors disabled:opacity-40"
+          >
+            {busy && <Loader2 size={11} className="animate-spin" />}
+            {state === "UPDATE_REQUESTED" || status.started
+              ? "Continue application"
+              : "Set up payments"}
+          </button>
+        ) : (
+          <p className="text-xs text-gray-400">
+            Only the account owner can set up payments.
+          </p>
+        )
+      )}
+    </div>
+  );
+}
+
 function PortalLinkCard({ slug }: { slug: string }) {
   const [copied, setCopied] = useState(false);
   return (
@@ -972,6 +1102,9 @@ export default function SettingsClient({
           </div>
         </div>
         )}
+
+        {/* Online payments (Finix) */}
+        {show("payments") && <PaymentsOnlineCard isOwner={isOwner} />}
 
         {/* QuickBooks */}
         {show("payments") && (

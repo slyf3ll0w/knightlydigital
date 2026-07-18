@@ -19,6 +19,16 @@ const rateLimits: { match: (path: string) => boolean; max: number; windowMs: num
     name: "register",
   },
   {
+    // Processor webhooks (Finix) burst on settlement days — own generous
+    // bucket so they never starve behind the strict public-write limit.
+    // The handler verifies by re-fetching from the Finix API, so a flood
+    // can't inject state.
+    match: (p) => p.startsWith("/api/public/webhooks/"),
+    max: 300,
+    windowMs: 60 * 60_000,
+    name: "webhooks",
+  },
+  {
     // Public client-facing writes: booking form, quote responses, payments
     match: (p) => p.startsWith("/api/public/") || p.startsWith("/api/hub/"),
     max: 10,
