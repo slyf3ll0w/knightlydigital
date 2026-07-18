@@ -16,7 +16,7 @@ import { prisma } from "@/lib/db";
 
 const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY;
 const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY;
-const CONTACT = process.env.EMAIL_FROM?.match(/<(.+)>/)?.[1] ?? "notifications@streamflaremedia.com";
+const CONTACT = process.env.EMAIL_FROM?.match(/<(.+)>/)?.[1] ?? "notifications@workbenchfsm.com";
 
 const configured = Boolean(VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY);
 if (configured) {
