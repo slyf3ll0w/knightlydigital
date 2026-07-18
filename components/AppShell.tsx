@@ -37,7 +37,7 @@ import Avatar from "@/components/Avatar";
 import AtlasIcon, { AtlasMark } from "@/components/AtlasIcon";
 import TourGuide from "@/components/TourGuide";
 import AssistantDrawer from "@/components/AssistantDrawer";
-import { textOn } from "@/lib/branding";
+import { shade, textOn } from "@/lib/branding";
 import { hapticImpact } from "@/lib/haptics";
 import { WALLPAPER_PATTERNS } from "@/lib/wallpapers";
 
@@ -68,6 +68,19 @@ function surfaceAccent(hex: string): string {
 function darkSurfaceAccent(hex: string): string {
   const luminance = luminanceOf(hex);
   return luminance === null || luminance < 70 ? "#FFFFFF" : hex;
+}
+
+/** Lighten toward white — the brighter sibling of shade(), so brand-colored
+ *  buttons keep a visible hover shift between their 500/600 slots. */
+function tint(hex: string, amount: number): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex);
+  if (!m) return hex;
+  const n = parseInt(m[1], 16);
+  const f = (c: number) => Math.min(255, Math.round(c + (255 - c) * amount));
+  const r = f((n >> 16) & 255);
+  const g = f((n >> 8) & 255);
+  const b = f(n & 255);
+  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, "0")}`;
 }
 
 // Per-role visibility, mirroring lib/permissions.ts (server still enforces):
@@ -606,16 +619,29 @@ export default function AppShell({
   // the Streamflaire-green defaults; CSS resolves light vs dark, so the
   // active tab / create button read on BOTH bars).
   const rawBrand = brandColorSecondary || brandColor || null;
-  const mobileAccentVars = rawBrand
-    ? ({
-        "--mobile-accent-light": surfaceAccent(rawBrand),
-        "--mobile-on-accent-light": textOn(surfaceAccent(rawBrand)),
-        "--mobile-accent-soft-light": `${surfaceAccent(rawBrand)}1A`,
-        "--mobile-accent-dark": darkSurfaceAccent(rawBrand),
-        "--mobile-on-accent-dark": textOn(darkSurfaceAccent(rawBrand)),
-        "--mobile-accent-soft-dark": `${darkSurfaceAccent(rawBrand)}24`,
-      } as React.CSSProperties)
-    : undefined;
+  const lightAccent = rawBrand ? surfaceAccent(rawBrand) : null;
+  const darkAccent = rawBrand ? darkSurfaceAccent(rawBrand) : null;
+  const mobileAccentVars =
+    rawBrand && lightAccent && darkAccent
+      ? ({
+          "--mobile-accent-light": lightAccent,
+          "--mobile-on-accent-light": textOn(lightAccent),
+          "--mobile-accent-soft-light": `${lightAccent}1A`,
+          "--mobile-accent-dark": darkAccent,
+          "--mobile-on-accent-dark": textOn(darkAccent),
+          "--mobile-accent-soft-dark": `${darkAccent}24`,
+          // Solid primary buttons app-wide (the green→accent bridge in
+          // globals.css): 500/600/700 slots as bright/base/pressed.
+          "--wb-accent-bright-light": tint(lightAccent, 0.14),
+          "--wb-accent-light": lightAccent,
+          "--wb-accent-strong-light": shade(lightAccent, 0.14),
+          "--wb-on-accent-light": textOn(lightAccent),
+          "--wb-accent-bright-dark": tint(darkAccent, 0.14),
+          "--wb-accent-dark": darkAccent,
+          "--wb-accent-strong-dark": shade(darkAccent, 0.14),
+          "--wb-on-accent-dark": textOn(darkAccent),
+        } as React.CSSProperties)
+      : undefined;
 
   return (
     <div className="app-ui flex h-screen bg-paper-plain overflow-hidden" style={mobileAccentVars}>

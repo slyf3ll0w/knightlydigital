@@ -156,11 +156,23 @@ h1, h2, h3, h4, h5, h6, .font-display {
      the tile stays dark in both themes, so this uses the dark-surface
      guard regardless of the active theme. */
   --mobile-accent-ink: var(--mobile-accent-dark, #3b82f6);
+  /* Solid primary-button accent — tenant brand color when set (AppShell
+     injects the -light/-dark halves, luminance-guarded per surface),
+     WorkBench blue ramp (500/600/700) otherwise. The accent bridge below
+     points every solid green button at these. */
+  --wb-accent-bright: var(--wb-accent-bright-light, #2E6FF2);
+  --wb-accent: var(--wb-accent-light, #0B57D8);
+  --wb-accent-strong: var(--wb-accent-strong-light, #0A4CBB);
+  --wb-on-accent: var(--wb-on-accent-light, #ffffff);
 }
 html[data-mode="dark"] .app-ui {
   --mobile-accent: var(--mobile-accent-dark, #3b82f6);
   --mobile-on-accent: var(--mobile-on-accent-dark, #071129);
   --mobile-accent-soft: var(--mobile-accent-soft-dark, rgba(59, 130, 246, 0.14));
+  --wb-accent-bright: var(--wb-accent-bright-dark, #2E6FF2);
+  --wb-accent: var(--wb-accent-dark, #0B57D8);
+  --wb-accent-strong: var(--wb-accent-strong-dark, #0A4CBB);
+  --wb-on-accent: var(--wb-on-accent-dark, #ffffff);
 }
 
 /* ── Native feel: app chrome never selects like a web page, and taps on
@@ -708,10 +720,16 @@ body {
    900 #0A336F
    ═══════════════════════════════════════════════════════════════════════ */
 .app-ui .bg-green-400 { background-color: #4E82EC; }
-.app-ui .bg-green-500, .app-ui .hover\:bg-green-500:hover { background-color: #2E6FF2; }
+/* Solid button shades ride the --wb-accent vars so tenant brand colors
+   apply everywhere; the forced on-accent ink keeps labels readable when a
+   company picks a light brand color (beats the hardcoded text-white). */
+.app-ui .bg-green-500 { background-color: var(--wb-accent-bright); color: var(--wb-on-accent); }
+.app-ui .hover\:bg-green-500:hover { background-color: var(--wb-accent-bright); }
 .app-ui .bg-green-500\/10 { background-color: rgba(46, 111, 242, 0.1); }
-.app-ui .bg-green-600, .app-ui .hover\:bg-green-600:hover { background-color: #0B57D8; }
-.app-ui .bg-green-700, .app-ui .hover\:bg-green-700:hover, .app-ui .active\:bg-green-700:active { background-color: #0A4CBB; }
+.app-ui .bg-green-600 { background-color: var(--wb-accent); color: var(--wb-on-accent); }
+.app-ui .hover\:bg-green-600:hover { background-color: var(--wb-accent); }
+.app-ui .bg-green-700 { background-color: var(--wb-accent-strong); color: var(--wb-on-accent); }
+.app-ui .hover\:bg-green-700:hover, .app-ui .active\:bg-green-700:active { background-color: var(--wb-accent-strong); }
 .app-ui .bg-green-50, .app-ui .hover\:bg-green-50:hover { background-color: #EEF4FE; }
 .app-ui .bg-green-50\/30, .app-ui .hover\:bg-green-50\/30:hover { background-color: rgba(238, 244, 254, 0.3); }
 .app-ui .bg-green-50\/40 { background-color: rgba(238, 244, 254, 0.4); }
@@ -737,7 +755,7 @@ body {
 .app-ui .ring-green-500, .app-ui .focus\:ring-green-500:focus { --tw-ring-color: #2E6FF2; }
 .app-ui .ring-green-500\/30, .app-ui .focus\:ring-green-500\/30:focus { --tw-ring-color: rgba(46, 111, 242, 0.3); }
 .app-ui .ring-green-500\/40 { --tw-ring-color: rgba(46, 111, 242, 0.4); }
-.app-ui .accent-green-600 { accent-color: #0B57D8; }
+.app-ui .accent-green-600 { accent-color: var(--wb-accent); }
 @media (min-width: 1024px) {
   .app-ui .lg\:bg-green-50\/60 { background-color: rgba(238, 244, 254, 0.6); }
 }
@@ -761,11 +779,11 @@ body {
    colors in dark mode (e.g. white logo tiles).
    ═══════════════════════════════════════════════════════════════════════ */
   html[data-mode="dark"] .app-ui {
-    --t-ground: #0B1120;
-    --t-surface: #121829;
-    --t-raised: #161D31;
-    --t-lifted: #1B2339;
-    --t-ink: #EBF0F8;
+    --t-ground: #0E0E0E;
+    --t-surface: #171717;
+    --t-raised: #1E1E1E;
+    --t-lifted: #262626;
+    --t-ink: #F5F5F5;
     --t-line: rgba(255, 255, 255, 0.10);
     color-scheme: dark;
   }
@@ -784,10 +802,10 @@ body {
   html[data-mode="dark"] .app-ui .hover\:bg-gray-100:hover,
   html[data-mode="dark"] .app-ui .active\:bg-gray-100:active { background-color: var(--t-lifted); }
   html[data-mode="dark"] .app-ui .bg-gray-200,
-  html[data-mode="dark"] .app-ui .hover\:bg-gray-200:hover { background-color: #222B44; }
-  html[data-mode="dark"] .app-ui .bg-gray-300 { background-color: #2B3552; }
-  html[data-mode="dark"] .app-ui .bg-gray-800, html[data-mode="dark"] .app-ui .hover\:bg-gray-700:hover { background-color: #252E4A; }
-  html[data-mode="dark"] .app-ui .bg-gray-900 { background-color: #202942; }
+  html[data-mode="dark"] .app-ui .hover\:bg-gray-200:hover { background-color: #2E2E2E; }
+  html[data-mode="dark"] .app-ui .bg-gray-300 { background-color: #3A3A3A; }
+  html[data-mode="dark"] .app-ui .bg-gray-800, html[data-mode="dark"] .app-ui .hover\:bg-gray-700:hover { background-color: #343434; }
+  html[data-mode="dark"] .app-ui .bg-gray-900 { background-color: #2E2E2E; }
   html[data-mode="dark"] .app-ui.bg-paper, html[data-mode="dark"] .app-ui .bg-paper {
     background-color: var(--t-ground);
     background-image:
@@ -827,19 +845,19 @@ body {
 
   /* ── Ink ── */
   html[data-mode="dark"] .app-ui .text-gray-900 { color: var(--t-ink); }
-  html[data-mode="dark"] .app-ui .text-gray-800 { color: #DFE6F2; }
-  html[data-mode="dark"] .app-ui .text-gray-700 { color: #C3CDE0; }
-  html[data-mode="dark"] .app-ui .text-gray-600 { color: #9FACC6; }
-  html[data-mode="dark"] .app-ui .text-gray-500 { color: #8B9AB8; }
-  html[data-mode="dark"] .app-ui .text-gray-400, html[data-mode="dark"] .app-ui .disabled\:text-gray-400:disabled { color: #68779A; }
-  html[data-mode="dark"] .app-ui .text-gray-300 { color: #59688C; }
-  html[data-mode="dark"] .app-ui .disabled\:text-gray-500:disabled { color: #68779A; }
-  html[data-mode="dark"] .app-ui .hover\:text-gray-900:hover { color: #EEF2FA; }
-  html[data-mode="dark"] .app-ui .hover\:text-gray-700:hover { color: #D2DBEB; }
-  html[data-mode="dark"] .app-ui .hover\:text-gray-600:hover { color: #B6C1D8; }
-  html[data-mode="dark"] .app-ui .hover\:text-gray-500:hover { color: #9CA9C4; }
+  html[data-mode="dark"] .app-ui .text-gray-800 { color: #E7E7E7; }
+  html[data-mode="dark"] .app-ui .text-gray-700 { color: #CFCFCF; }
+  html[data-mode="dark"] .app-ui .text-gray-600 { color: #A9A9A9; }
+  html[data-mode="dark"] .app-ui .text-gray-500 { color: #979797; }
+  html[data-mode="dark"] .app-ui .text-gray-400, html[data-mode="dark"] .app-ui .disabled\:text-gray-400:disabled { color: #767676; }
+  html[data-mode="dark"] .app-ui .text-gray-300 { color: #646464; }
+  html[data-mode="dark"] .app-ui .disabled\:text-gray-500:disabled { color: #767676; }
+  html[data-mode="dark"] .app-ui .hover\:text-gray-900:hover { color: #F2F2F2; }
+  html[data-mode="dark"] .app-ui .hover\:text-gray-700:hover { color: #DBDBDB; }
+  html[data-mode="dark"] .app-ui .hover\:text-gray-600:hover { color: #C0C0C0; }
+  html[data-mode="dark"] .app-ui .hover\:text-gray-500:hover { color: #AAAAAA; }
   html[data-mode="dark"] .app-ui input::placeholder,
-  html[data-mode="dark"] .app-ui textarea::placeholder { color: #59688C; }
+  html[data-mode="dark"] .app-ui textarea::placeholder { color: #646464; }
 
   /* ── Hairlines ── */
   html[data-mode="dark"] .app-ui .border-gray-50 { border-color: rgba(255, 255, 255, 0.05); }
@@ -915,12 +933,12 @@ body {
     caret-color: var(--t-ink);
   }
   html[data-mode="dark"] .app-ui ::-webkit-scrollbar-thumb {
-    background: #2E372E;
+    background: #343434;
     border: 2px solid transparent;
     background-clip: padding-box;
   }
   html[data-mode="dark"] .app-ui ::-webkit-scrollbar-thumb:hover {
-    background: #3A453A;
+    background: #424242;
     border: 2px solid transparent;
     background-clip: padding-box;
   }

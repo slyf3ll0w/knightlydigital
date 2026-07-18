@@ -57,19 +57,15 @@ export default function DisputeEvidence({
   }
 
   return (
-    <div className="w-full pl-[52px] sm:pl-14">
+    <div className="w-full">
       {evidence.length > 0 && (
         <ul className="space-y-1 mb-1.5">
           {evidence.map((e) => (
-            <li key={e.id} className="flex items-center gap-1.5 text-xs text-gray-500">
+            <li key={e.id} className="flex items-center gap-2 text-xs text-gray-500">
               <FileText size={12} className="text-gray-400 shrink-0" />
               <span className="truncate">{e.fileName}</span>
               <span
-                className={`text-[10px] font-semibold uppercase tracking-wide px-1 py-px rounded ${
-                  e.state === "FAILED"
-                    ? "bg-red-100 text-red-700"
-                    : "bg-green-100 text-green-700"
-                }`}
+                className={`stamp ${e.state === "FAILED" ? "text-red-700" : "text-green-700"}`}
               >
                 {e.state === "FAILED" ? "Failed" : "Sent"}
               </span>

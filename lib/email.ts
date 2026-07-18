@@ -88,6 +88,21 @@ export async function sendEmail({
 }): Promise<boolean> {
   if (!RESEND_API_KEY) return false;
   if (brand) html = brandEmail(html, brand);
+  // Templates are bare <div>s with light backgrounds and near-black inline
+  // text. Without an explicit light-only color-scheme, dark-mode email
+  // clients (Outlook especially) darken the white card but keep the inline
+  // text — black on black. The shell pins every send to light.
+  html = `<!DOCTYPE html>
+<html lang="en" style="color-scheme: light only; supported-color-schemes: light;">
+<head>
+<meta charset="utf-8" />
+<meta name="color-scheme" content="light only" />
+<meta name="supported-color-schemes" content="light" />
+</head>
+<body style="margin:0;padding:0;background-color:#f3f4f6;color-scheme:light only;" bgcolor="#f3f4f6">
+${html}
+</body>
+</html>`;
   // Company names are user input headed into an email header — strip anything
   // that could break out of the quoted display name.
   const cleanName = fromName?.replace(/[\r\n"<>]/g, "").trim();
