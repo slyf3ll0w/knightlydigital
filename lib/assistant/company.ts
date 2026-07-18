@@ -223,7 +223,7 @@ export const companyTools: Tool[] = [
       const brandColor = str(args.brandColor, 7);
       if (brandColor) {
         if (!/^#[0-9a-fA-F]{6}$/.test(brandColor)) {
-          return { error: `brandColor must be a 6-digit hex like #16A34A (got "${brandColor}").` };
+          return { error: `brandColor must be a 6-digit hex like #0B57D8 (got "${brandColor}").` };
         }
         payload.brandColor = brandColor;
         lines.push(`Primary brand color: ${brandColor}`);
@@ -232,7 +232,7 @@ export const companyTools: Tool[] = [
       if (brandColorSecondary) {
         if (!/^#[0-9a-fA-F]{6}$/.test(brandColorSecondary)) {
           return {
-            error: `brandColorSecondary must be a 6-digit hex like #16A34A (got "${brandColorSecondary}").`,
+            error: `brandColorSecondary must be a 6-digit hex like #0B57D8 (got "${brandColorSecondary}").`,
           };
         }
         payload.brandColorSecondary = brandColorSecondary;
@@ -869,7 +869,7 @@ export const companyTools: Tool[] = [
       const buttonColor = str(args.buttonColor, 7);
       if (buttonColor) {
         if (!/^#[0-9a-fA-F]{6}$/.test(buttonColor)) {
-          return { error: `buttonColor must be a 6-digit hex like #16A34A (got "${buttonColor}").` };
+          return { error: `buttonColor must be a 6-digit hex like #0B57D8 (got "${buttonColor}").` };
         }
         cfg.button = { ...(cfg.button ?? {}), color: buttonColor };
         lines.push(`Button color: ${buttonColor}`);

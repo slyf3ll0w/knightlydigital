@@ -60,7 +60,7 @@ function sidebarAccent(hex: string): string {
  *  where too-LIGHT colors disappear — those flip to console near-black. */
 function surfaceAccent(hex: string): string {
   const luminance = luminanceOf(hex);
-  return luminance === null || luminance > 200 ? "#0C0F0C" : hex;
+  return luminance === null || luminance > 200 ? "#0A1428" : hex;
 }
 
 /** And for DARK surfaces (dark-theme tab bar), where too-dark colors blend
@@ -357,7 +357,7 @@ export default function AppShell({
   // Guarded per rail: colors that would vanish flip to the readable default.
   const accent = railDark
     ? sidebarAccent(brandColorSecondary || brandColor || DEFAULT_ACCENT)
-    : surfaceAccent(brandColorSecondary || brandColor || "#0C0F0C");
+    : surfaceAccent(brandColorSecondary || brandColor || "#0A1428");
   const pathname = usePathname();
   const router = useRouter();
   const [moreOpen, setMoreOpen] = useState(false);
@@ -937,9 +937,9 @@ function MobileTabBar({
                   <span
                     className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl"
                     style={{
-                      backgroundColor: `${createTints[href] ?? "#0C0F0C"}1c`,
-                      color: createTints[href] ?? "#0C0F0C",
-                      boxShadow: `inset 0 0 0 1.5px ${createTints[href] ?? "#0C0F0C"}30`,
+                      backgroundColor: `${createTints[href] ?? "#0A1428"}1c`,
+                      color: createTints[href] ?? "#0A1428",
+                      boxShadow: `inset 0 0 0 1.5px ${createTints[href] ?? "#0A1428"}30`,
                     }}
                   >
                     <Icon size={19} strokeWidth={2} />

@@ -48,12 +48,12 @@ function brandEmail(html: string, brand: EmailBrand): string {
     const src = brand.logoUrl.startsWith("http") ? brand.logoUrl : `${APP_URL}${brand.logoUrl}`;
     out = swap(
       out,
-      `<div style="background:#0C0F0C;padding:16px 24px;">`,
-      `<div style="background:#0C0F0C;padding:16px 24px;"><img src="${src}" alt="" style="display:block;max-height:44px;max-width:200px;margin:0 0 8px;" />`
+      `<div style="background:#0A1428;padding:16px 24px;">`,
+      `<div style="background:#0A1428;padding:16px 24px;"><img src="${src}" alt="" style="display:block;max-height:44px;max-width:200px;margin:0 0 8px;" />`
     );
   }
   if (color) {
-    out = swap(out, "background:#0C0F0C;padding:16px 24px;", `background:${color};padding:16px 24px;`);
+    out = swap(out, "background:#0A1428;padding:16px 24px;", `background:${color};padding:16px 24px;`);
     out = swap(
       out,
       "color:#0B57D8;font-size:13px;font-weight:700;letter-spacing:0.5px;",
@@ -61,10 +61,10 @@ function brandEmail(html: string, brand: EmailBrand): string {
     );
   }
   if (accent) {
-    out = swap(out, "background:#22C55E;color:#ffffff;", `background:${accent};color:${onColor(accent)};`);
+    out = swap(out, "background:#0B57D8;color:#ffffff;", `background:${accent};color:${onColor(accent)};`);
     // Inline text links sit on white — flip too-light accents back to green
-    const link = luminance(accent) > 200 ? "#16a34a" : accent;
-    out = swap(out, "color:#16a34a;text-decoration:underline;", `color:${link};text-decoration:underline;`);
+    const link = luminance(accent) > 200 ? "#0B57D8" : accent;
+    out = swap(out, "color:#0B57D8;text-decoration:underline;", `color:${link};text-decoration:underline;`);
   }
   return out;
 }
@@ -163,7 +163,7 @@ export function newRequestEmail({
   const html = `
 <div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f3f4f6;padding:24px;">
   <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
-    <div style="background:#0C0F0C;padding:16px 24px;">
+    <div style="background:#0A1428;padding:16px 24px;">
       <p style="margin:0;color:#0B57D8;font-size:13px;font-weight:700;letter-spacing:0.5px;">NEW REQUEST</p>
     </div>
     <div style="padding:24px;">
@@ -178,7 +178,7 @@ export function newRequestEmail({
       ${contactEmail ? `<p style="margin:0 0 2px;color:#374151;font-size:14px;">${esc(contactEmail)}</p>` : ""}
       ${detailRows ? `<p style="margin:16px 0 4px;color:#6b7280;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Details</p>${detailRows}` : ""}
       <a href="${APP_URL}/app/requests/${requestId}"
-         style="display:inline-block;margin-top:20px;background:#22C55E;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:10px 20px;border-radius:6px;">
+         style="display:inline-block;margin-top:20px;background:#0B57D8;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:10px 20px;border-radius:6px;">
         View Request
       </a>
     </div>
@@ -206,7 +206,7 @@ export function reviewRequestEmail({
   const html = `
 <div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f3f4f6;padding:24px;">
   <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
-    <div style="background:#0C0F0C;padding:16px 24px;">
+    <div style="background:#0A1428;padding:16px 24px;">
       <p style="margin:0;color:#0B57D8;font-size:13px;font-weight:700;letter-spacing:0.5px;">${esc(companyName.toUpperCase())}</p>
     </div>
     <div style="padding:24px;">
@@ -219,7 +219,7 @@ export function reviewRequestEmail({
         If you have a minute, a quick Google review helps our small business more than you know.
       </p>
       <a href="${esc(reviewLink)}"
-         style="display:inline-block;background:#22C55E;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:10px 20px;border-radius:6px;">
+         style="display:inline-block;background:#0B57D8;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:10px 20px;border-radius:6px;">
         Leave a Review
       </a>
     </div>
@@ -246,7 +246,7 @@ export function contractSignEmail({
   const html = `
 <div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f3f4f6;padding:24px;">
   <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
-    <div style="background:#0C0F0C;padding:16px 24px;">
+    <div style="background:#0A1428;padding:16px 24px;">
       <p style="margin:0;color:#0B57D8;font-size:13px;font-weight:700;letter-spacing:0.5px;">${esc(companyName.toUpperCase())}</p>
     </div>
     <div style="padding:24px;">
@@ -256,7 +256,7 @@ export function contractSignEmail({
         <strong>${esc(title)}</strong>.
       </p>
       <a href="${esc(signUrl)}"
-         style="display:inline-block;background:#22C55E;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:10px 20px;border-radius:6px;">
+         style="display:inline-block;background:#0B57D8;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:10px 20px;border-radius:6px;">
         Review &amp; Sign
       </a>
     </div>
@@ -285,7 +285,7 @@ export function hubAccessEmail({
   const html = `
 <div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f3f4f6;padding:24px;">
   <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
-    <div style="background:#0C0F0C;padding:16px 24px;">
+    <div style="background:#0A1428;padding:16px 24px;">
       <p style="margin:0;color:#0B57D8;font-size:13px;font-weight:700;letter-spacing:0.5px;">${esc(companyName.toUpperCase())}</p>
     </div>
     <div style="padding:24px;">
@@ -295,7 +295,7 @@ export function hubAccessEmail({
         quotes and invoices, check scheduled visits, and send us new requests.
       </p>
       <a href="${esc(hubUrl)}"
-         style="display:inline-block;background:#22C55E;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:10px 20px;border-radius:6px;">
+         style="display:inline-block;background:#0B57D8;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:10px 20px;border-radius:6px;">
         Open Your Client Portal
       </a>
       <p style="margin:16px 0 0;color:#6b7280;font-size:12px;">
@@ -336,7 +336,7 @@ export function contractSignedCopyEmail({
   const html = `
 <div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f3f4f6;padding:24px;">
   <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
-    <div style="background:#0C0F0C;padding:16px 24px;">
+    <div style="background:#0A1428;padding:16px 24px;">
       <p style="margin:0;color:#0B57D8;font-size:13px;font-weight:700;letter-spacing:0.5px;">${esc(companyName.toUpperCase())}</p>
     </div>
     <div style="padding:24px;">
@@ -350,7 +350,7 @@ export function contractSignedCopyEmail({
         ${bodyHtml}
       </div>
       <a href="${esc(signUrl)}"
-         style="display:inline-block;margin-top:16px;color:#16a34a;text-decoration:underline;font-size:13px;">
+         style="display:inline-block;margin-top:16px;color:#0B57D8;text-decoration:underline;font-size:13px;">
         View online
       </a>
     </div>
@@ -382,7 +382,7 @@ export function invoiceLinkEmail({
   const html = `
 <div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f3f4f6;padding:24px;">
   <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
-    <div style="background:#0C0F0C;padding:16px 24px;">
+    <div style="background:#0A1428;padding:16px 24px;">
       <p style="margin:0;color:#0B57D8;font-size:13px;font-weight:700;letter-spacing:0.5px;">${esc(companyName.toUpperCase())}</p>
     </div>
     <div style="padding:24px;">
@@ -393,7 +393,7 @@ export function invoiceLinkEmail({
       ${items}
       <p style="margin:16px 0 0;color:#111827;font-size:20px;font-weight:700;">$${total.toFixed(2)}</p>
       <a href="${payUrl}"
-         style="display:inline-block;margin-top:20px;background:#22C55E;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:10px 20px;border-radius:6px;">
+         style="display:inline-block;margin-top:20px;background:#0B57D8;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:10px 20px;border-radius:6px;">
         View &amp; Pay Invoice
       </a>
     </div>
@@ -434,7 +434,7 @@ export function quoteLinkEmail({
   const html = `
 <div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f3f4f6;padding:24px;">
   <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
-    <div style="background:#0C0F0C;padding:16px 24px;">
+    <div style="background:#0A1428;padding:16px 24px;">
       <p style="margin:0;color:#0B57D8;font-size:13px;font-weight:700;letter-spacing:0.5px;">${esc(companyName.toUpperCase())}</p>
     </div>
     <div style="padding:24px;">
@@ -446,7 +446,7 @@ export function quoteLinkEmail({
       <p style="margin:16px 0 0;color:#111827;font-size:20px;font-weight:700;">$${total.toFixed(2)}</p>
       ${deposit}
       <a href="${viewUrl}"
-         style="display:inline-block;margin-top:20px;background:#22C55E;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:10px 20px;border-radius:6px;">
+         style="display:inline-block;margin-top:20px;background:#0B57D8;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:10px 20px;border-radius:6px;">
         View &amp; Approve Quote
       </a>
     </div>
@@ -463,7 +463,7 @@ function bookingShell(companyName: string, inner: string): string {
   return `
 <div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f3f4f6;padding:24px;">
   <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
-    <div style="background:#0C0F0C;padding:16px 24px;">
+    <div style="background:#0A1428;padding:16px 24px;">
       <p style="margin:0;color:#0B57D8;font-size:13px;font-weight:700;letter-spacing:0.5px;">${esc(companyName.toUpperCase())}</p>
     </div>
     <div style="padding:24px;">
@@ -649,7 +649,7 @@ export function paymentReminderEmail({
   const html = `
 <div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f3f4f6;padding:24px;">
   <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
-    <div style="background:#0C0F0C;padding:16px 24px;">
+    <div style="background:#0A1428;padding:16px 24px;">
       <p style="margin:0;color:#0B57D8;font-size:13px;font-weight:700;letter-spacing:0.5px;">${esc(companyName.toUpperCase())}</p>
     </div>
     <div style="padding:24px;">
@@ -657,7 +657,7 @@ export function paymentReminderEmail({
       <p style="margin:0 0 4px;color:#6b7280;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Balance due</p>
       <p style="margin:0;color:#111827;font-size:20px;font-weight:700;">$${balance.toFixed(2)}</p>
       <a href="${payUrl}"
-         style="display:inline-block;margin-top:20px;background:#22C55E;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:10px 20px;border-radius:6px;">
+         style="display:inline-block;margin-top:20px;background:#0B57D8;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:10px 20px;border-radius:6px;">
         View &amp; Pay Invoice
       </a>
       ${companyEmail ? `<p style="margin:20px 0 0;color:#6b7280;font-size:13px;">Already paid or have a question? Reply to this email or reach ${esc(companyName)} at ${esc(companyEmail)}.</p>` : ""}
@@ -684,8 +684,8 @@ export function passwordResetEmail({
   const html = `
 <div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f3f4f6;padding:24px;">
   <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
-    <div style="background:#0C0F0C;padding:16px 24px;">
-      <p style="margin:0;color:#0B57D8;font-size:13px;font-weight:700;letter-spacing:0.5px;">WORKBENCH</p>
+    <div style="background:#0A1428;padding:16px 24px;">
+      <p style="margin:0;color:#60A5FA;font-size:13px;font-weight:700;letter-spacing:0.5px;">WORKBENCH</p>
     </div>
     <div style="padding:24px;">
       <p style="margin:0 0 12px;color:#111827;font-size:15px;">Hi ${esc(name)},</p>
@@ -695,7 +695,7 @@ export function passwordResetEmail({
         used once.
       </p>
       <a href="${esc(resetUrl)}"
-         style="display:inline-block;background:#22C55E;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:10px 20px;border-radius:6px;">
+         style="display:inline-block;background:#0B57D8;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:10px 20px;border-radius:6px;">
         Reset Your Password
       </a>
       <p style="margin:16px 0 0;color:#6b7280;font-size:12px;">

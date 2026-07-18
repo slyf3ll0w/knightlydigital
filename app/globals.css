@@ -107,10 +107,10 @@
   --sf-border: rgba(255,255,255,0.08);
   --sf-border-light: #E5E7EB;
   --sf-muted: #6B7280;
-  /* Portal/admin UI semantic tokens */
-  --primary:           #0C0F0C;
+  /* Portal/admin UI semantic tokens — accent is WorkBench blue */
+  --primary:           #0A1428;
   --primary-foreground:#ffffff;
-  --accent:            #22C55E;
+  --accent:            #0B57D8;
   --accent-foreground: #ffffff;
   --muted:             #F5F7F5;
   --muted-foreground:  #6B7280;
@@ -149,18 +149,18 @@ h1, h2, h3, h4, h5, h6, .font-display {
    --mobile-accent-light/dark custom properties AppShell injects, each
    already luminance-guarded for its surface. ── */
 .app-ui {
-  --mobile-accent: var(--mobile-accent-light, #16a34a);
+  --mobile-accent: var(--mobile-accent-light, #0b57d8);
   --mobile-on-accent: var(--mobile-on-accent-light, #ffffff);
-  --mobile-accent-soft: var(--mobile-accent-soft-light, rgba(22, 163, 74, 0.1));
+  --mobile-accent-soft: var(--mobile-accent-soft-light, rgba(11, 87, 216, 0.1));
   /* Accent as drawn on console-ink tiles (create sheet, Atlas-style marks) —
-     the tile stays #0C0F0C in both themes, so this uses the dark-surface
+     the tile stays dark in both themes, so this uses the dark-surface
      guard regardless of the active theme. */
-  --mobile-accent-ink: var(--mobile-accent-dark, #22c55e);
+  --mobile-accent-ink: var(--mobile-accent-dark, #3b82f6);
 }
 html[data-mode="dark"] .app-ui {
-  --mobile-accent: var(--mobile-accent-dark, #22c55e);
-  --mobile-on-accent: var(--mobile-on-accent-dark, #06130a);
-  --mobile-accent-soft: var(--mobile-accent-soft-dark, rgba(34, 197, 94, 0.14));
+  --mobile-accent: var(--mobile-accent-dark, #3b82f6);
+  --mobile-on-accent: var(--mobile-on-accent-dark, #071129);
+  --mobile-accent-soft: var(--mobile-accent-soft-dark, rgba(59, 130, 246, 0.14));
 }
 
 /* ── Native feel: app chrome never selects like a web page, and taps on
@@ -352,7 +352,7 @@ body {
    theme sets the full ink ramp as vars; the rail markup reads only vars,
    so it's untouched by the dark-mode utility bridge (theme-fixed). ── */
 .rail-black {
-  --rail-bg: #0C0F0C;
+  --rail-bg: #0A1428;
   --rail-ink: #FFFFFF;
   --rail-muted: #9CA3AF;
   --rail-faint: rgba(255, 255, 255, 0.4);
@@ -396,16 +396,16 @@ body {
 /* ── Console rail — the nav sits on the marketing site's near-black, with a
    whisper of the same grid, so app and brand read as one product. ── */
 .bg-rail {
-  background-color: #0C0F0C;
+  background-color: #0A1428;
   background-image:
     linear-gradient(to right,  rgba(255, 255, 255, 0.035) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
   background-size: 24px 24px;
 }
 
-/* ── Dark section dot pattern (green tint) ── */
+/* ── Dark section dot pattern (blue tint) ── */
 .bg-dot-pattern {
-  background-image: radial-gradient(circle, rgba(34, 197, 94, 0.13) 1px, transparent 1px);
+  background-image: radial-gradient(circle, rgba(59, 130, 246, 0.13) 1px, transparent 1px);
   background-size: 22px 22px;
 }
 
@@ -592,14 +592,110 @@ body {
   animation: x-twirl 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) 0.12s both;
 }
 
+/* ═══════════════════════════════════════════════════════════════════════
+   WORKBENCH MARKETING SITE (.wb-site) — /wb, /pricing, /apply. Rounded
+   Nunito headings (same face as the wordmark), blue graph-paper heroes,
+   and the hard-shadow "tool button" that presses down on hover.
+   ═══════════════════════════════════════════════════════════════════════ */
+.wb-site h1, .wb-site h2, .wb-site h3, .wb-site h4 {
+  font-family: "Nunito", var(--font-body);
+  letter-spacing: -0.015em;
+}
+.wb-grid-paper {
+  background-image:
+    linear-gradient(rgba(11, 87, 216, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(11, 87, 216, 0.07) 1px, transparent 1px);
+  background-size: 30px 30px;
+  -webkit-mask-image: radial-gradient(ellipse 75% 75% at 50% 25%, black 25%, transparent 78%);
+  mask-image: radial-gradient(ellipse 75% 75% at 50% 25%, black 25%, transparent 78%);
+}
+.wb-grid-lines {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+/* Tool button: solid offset shadow that presses flat on hover */
+.wb-btn-tool {
+  box-shadow: 3px 3px 0 #0A1428;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.wb-btn-tool:hover {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 #0A1428;
+}
+/* Nav link underline: orange, slides in from the left */
+.wb-navlink {
+  position: relative;
+}
+.wb-navlink::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 100%;
+  bottom: -6px;
+  height: 3px;
+  border-radius: 2px;
+  background: #F86A0A;
+  transition: right 0.22s ease;
+}
+.wb-navlink:hover::after,
+.wb-navlink.wb-active::after {
+  right: 0;
+}
+
 /* ── Card hover lift ── */
 .card-lift {
   transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
 }
 .card-lift:hover {
   transform: translateY(-4px);
-  box-shadow: 0 12px 32px rgba(34, 197, 94, 0.10);
-  border-color: #22C55E !important;
+  box-shadow: 0 12px 32px rgba(11, 87, 216, 0.10);
+  border-color: #0B57D8 !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   WORKBENCH ACCENT BRIDGE — light mode, app scope (.app-ui). Screens are
+   written in the green Tailwind palette from the Streamflaire era; this
+   remaps every green utility in use to the WorkBench blue ramp (same
+   technique as the dark bridge below). Semantic red/amber untouched.
+   WB ramp: 50 #EEF4FE · 100 #D9E6FC · 200 #B7CFFA · 300 #8FB3F5 ·
+   400 #4E82EC · 500 #2E6FF2 · 600 #0B57D8 · 700 #0A4CBB · 800 #093D96 ·
+   900 #0A336F
+   ═══════════════════════════════════════════════════════════════════════ */
+.app-ui .bg-green-400 { background-color: #4E82EC; }
+.app-ui .bg-green-500, .app-ui .hover\:bg-green-500:hover { background-color: #2E6FF2; }
+.app-ui .bg-green-500\/10 { background-color: rgba(46, 111, 242, 0.1); }
+.app-ui .bg-green-600, .app-ui .hover\:bg-green-600:hover { background-color: #0B57D8; }
+.app-ui .bg-green-700, .app-ui .hover\:bg-green-700:hover, .app-ui .active\:bg-green-700:active { background-color: #0A4CBB; }
+.app-ui .bg-green-50, .app-ui .hover\:bg-green-50:hover { background-color: #EEF4FE; }
+.app-ui .bg-green-50\/30, .app-ui .hover\:bg-green-50\/30:hover { background-color: rgba(238, 244, 254, 0.3); }
+.app-ui .bg-green-50\/40 { background-color: rgba(238, 244, 254, 0.4); }
+.app-ui .bg-green-50\/50, .app-ui .hover\:bg-green-50\/50:hover { background-color: rgba(238, 244, 254, 0.5); }
+.app-ui .bg-green-50\/60 { background-color: rgba(238, 244, 254, 0.6); }
+.app-ui .bg-green-100, .app-ui .hover\:bg-green-100:hover, .app-ui .active\:bg-green-100:active { background-color: #D9E6FC; }
+.app-ui .bg-green-100\/70 { background-color: rgba(217, 230, 252, 0.7); }
+.app-ui .bg-green-200, .app-ui .hover\:bg-green-200:hover { background-color: #B7CFFA; }
+.app-ui .text-green-400 { color: #4E82EC; }
+.app-ui .text-green-500 { color: #2E6FF2; }
+.app-ui .text-green-600, .app-ui .hover\:text-green-600:hover { color: #0B57D8; }
+.app-ui .text-green-700, .app-ui .hover\:text-green-700:hover { color: #0A4CBB; }
+.app-ui .text-green-800 { color: #093D96; }
+.app-ui .text-green-900 { color: #0A336F; }
+.app-ui .border-green-200 { border-color: #B7CFFA; }
+.app-ui .border-green-200\/60 { border-color: rgba(183, 207, 250, 0.6); }
+.app-ui .border-green-300, .app-ui .hover\:border-green-300:hover { border-color: #8FB3F5; }
+.app-ui .border-green-400, .app-ui .hover\:border-green-400:hover, .app-ui .focus\:border-green-400:focus { border-color: #4E82EC; }
+.app-ui .border-green-500, .app-ui .hover\:border-green-500:hover, .app-ui .focus\:border-green-500:focus { border-color: #2E6FF2; }
+.app-ui .border-green-600\/25 { border-color: rgba(11, 87, 216, 0.25); }
+.app-ui .ring-green-300 { --tw-ring-color: #8FB3F5; }
+.app-ui .ring-green-400 { --tw-ring-color: #4E82EC; }
+.app-ui .ring-green-500, .app-ui .focus\:ring-green-500:focus { --tw-ring-color: #2E6FF2; }
+.app-ui .ring-green-500\/30, .app-ui .focus\:ring-green-500\/30:focus { --tw-ring-color: rgba(46, 111, 242, 0.3); }
+.app-ui .ring-green-500\/40 { --tw-ring-color: rgba(46, 111, 242, 0.4); }
+.app-ui .accent-green-600 { accent-color: #0B57D8; }
+@media (min-width: 1024px) {
+  .app-ui .lg\:bg-green-50\/60 { background-color: rgba(238, 244, 254, 0.6); }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -621,11 +717,11 @@ body {
    colors in dark mode (e.g. white logo tiles).
    ═══════════════════════════════════════════════════════════════════════ */
   html[data-mode="dark"] .app-ui {
-    --t-ground: #0C0F0C;
-    --t-surface: #131813;
-    --t-raised: #171D17;
-    --t-lifted: #1C231C;
-    --t-ink: #EDF2ED;
+    --t-ground: #0B1120;
+    --t-surface: #121829;
+    --t-raised: #161D31;
+    --t-lifted: #1B2339;
+    --t-ink: #EBF0F8;
     --t-line: rgba(255, 255, 255, 0.10);
     color-scheme: dark;
   }
@@ -644,10 +740,10 @@ body {
   html[data-mode="dark"] .app-ui .hover\:bg-gray-100:hover,
   html[data-mode="dark"] .app-ui .active\:bg-gray-100:active { background-color: var(--t-lifted); }
   html[data-mode="dark"] .app-ui .bg-gray-200,
-  html[data-mode="dark"] .app-ui .hover\:bg-gray-200:hover { background-color: #232B23; }
-  html[data-mode="dark"] .app-ui .bg-gray-300 { background-color: #2B342B; }
-  html[data-mode="dark"] .app-ui .bg-gray-800, html[data-mode="dark"] .app-ui .hover\:bg-gray-700:hover { background-color: #262E26; }
-  html[data-mode="dark"] .app-ui .bg-gray-900 { background-color: #202820; }
+  html[data-mode="dark"] .app-ui .hover\:bg-gray-200:hover { background-color: #222B44; }
+  html[data-mode="dark"] .app-ui .bg-gray-300 { background-color: #2B3552; }
+  html[data-mode="dark"] .app-ui .bg-gray-800, html[data-mode="dark"] .app-ui .hover\:bg-gray-700:hover { background-color: #252E4A; }
+  html[data-mode="dark"] .app-ui .bg-gray-900 { background-color: #202942; }
   html[data-mode="dark"] .app-ui.bg-paper, html[data-mode="dark"] .app-ui .bg-paper {
     background-color: var(--t-ground);
     background-image:
@@ -687,19 +783,19 @@ body {
 
   /* ── Ink ── */
   html[data-mode="dark"] .app-ui .text-gray-900 { color: var(--t-ink); }
-  html[data-mode="dark"] .app-ui .text-gray-800 { color: #E2E9E2; }
-  html[data-mode="dark"] .app-ui .text-gray-700 { color: #C6D0C6; }
-  html[data-mode="dark"] .app-ui .text-gray-600 { color: #A3AFA3; }
-  html[data-mode="dark"] .app-ui .text-gray-500 { color: #8FA08F; }
-  html[data-mode="dark"] .app-ui .text-gray-400, html[data-mode="dark"] .app-ui .disabled\:text-gray-400:disabled { color: #6B7A6B; }
-  html[data-mode="dark"] .app-ui .text-gray-300 { color: #5C6B5C; }
-  html[data-mode="dark"] .app-ui .disabled\:text-gray-500:disabled { color: #6B7A6B; }
-  html[data-mode="dark"] .app-ui .hover\:text-gray-900:hover { color: #F0F4F0; }
-  html[data-mode="dark"] .app-ui .hover\:text-gray-700:hover { color: #D5DED5; }
-  html[data-mode="dark"] .app-ui .hover\:text-gray-600:hover { color: #B9C4B9; }
-  html[data-mode="dark"] .app-ui .hover\:text-gray-500:hover { color: #9FAC9F; }
+  html[data-mode="dark"] .app-ui .text-gray-800 { color: #DFE6F2; }
+  html[data-mode="dark"] .app-ui .text-gray-700 { color: #C3CDE0; }
+  html[data-mode="dark"] .app-ui .text-gray-600 { color: #9FACC6; }
+  html[data-mode="dark"] .app-ui .text-gray-500 { color: #8B9AB8; }
+  html[data-mode="dark"] .app-ui .text-gray-400, html[data-mode="dark"] .app-ui .disabled\:text-gray-400:disabled { color: #68779A; }
+  html[data-mode="dark"] .app-ui .text-gray-300 { color: #59688C; }
+  html[data-mode="dark"] .app-ui .disabled\:text-gray-500:disabled { color: #68779A; }
+  html[data-mode="dark"] .app-ui .hover\:text-gray-900:hover { color: #EEF2FA; }
+  html[data-mode="dark"] .app-ui .hover\:text-gray-700:hover { color: #D2DBEB; }
+  html[data-mode="dark"] .app-ui .hover\:text-gray-600:hover { color: #B6C1D8; }
+  html[data-mode="dark"] .app-ui .hover\:text-gray-500:hover { color: #9CA9C4; }
   html[data-mode="dark"] .app-ui input::placeholder,
-  html[data-mode="dark"] .app-ui textarea::placeholder { color: #5C6B5C; }
+  html[data-mode="dark"] .app-ui textarea::placeholder { color: #59688C; }
 
   /* ── Hairlines ── */
   html[data-mode="dark"] .app-ui .border-gray-50 { border-color: rgba(255, 255, 255, 0.05); }
@@ -716,22 +812,22 @@ body {
   /* Notification-dot halos cut out of the bar behind them, not white */
   html[data-mode="dark"] .app-ui .ring-white { --tw-ring-color: var(--t-surface); }
 
-  /* ── Brand green, brightened one step for dark contrast ── */
-  html[data-mode="dark"] .app-ui .text-green-600, html[data-mode="dark"] .app-ui .hover\:text-green-600:hover { color: #22C55E; }
-  html[data-mode="dark"] .app-ui .text-green-700, html[data-mode="dark"] .app-ui .hover\:text-green-700:hover { color: #4ADE80; }
-  html[data-mode="dark"] .app-ui .text-green-800 { color: #86EFAC; }
+  /* ── Brand blue (WorkBench), brightened one step for dark contrast ── */
+  html[data-mode="dark"] .app-ui .text-green-600, html[data-mode="dark"] .app-ui .hover\:text-green-600:hover { color: #3B82F6; }
+  html[data-mode="dark"] .app-ui .text-green-700, html[data-mode="dark"] .app-ui .hover\:text-green-700:hover { color: #60A5FA; }
+  html[data-mode="dark"] .app-ui .text-green-800 { color: #93C5FD; }
   html[data-mode="dark"] .app-ui .bg-green-50, html[data-mode="dark"] .app-ui .bg-green-50\/40,
   html[data-mode="dark"] .app-ui .hover\:bg-green-50:hover,
   html[data-mode="dark"] .app-ui .hover\:bg-green-50\/30:hover,
-  html[data-mode="dark"] .app-ui .hover\:bg-green-50\/50:hover { background-color: rgba(34, 197, 94, 0.10); }
+  html[data-mode="dark"] .app-ui .hover\:bg-green-50\/50:hover { background-color: rgba(59, 130, 246, 0.10); }
   html[data-mode="dark"] .app-ui .bg-green-100, html[data-mode="dark"] .app-ui .bg-green-100\/70,
-  html[data-mode="dark"] .app-ui .hover\:bg-green-100:hover { background-color: rgba(34, 197, 94, 0.16); }
-  html[data-mode="dark"] .app-ui .hover\:bg-green-200:hover { background-color: rgba(34, 197, 94, 0.22); }
-  html[data-mode="dark"] .app-ui .border-green-50 { border-color: rgba(34, 197, 94, 0.15); }
+  html[data-mode="dark"] .app-ui .hover\:bg-green-100:hover { background-color: rgba(59, 130, 246, 0.16); }
+  html[data-mode="dark"] .app-ui .hover\:bg-green-200:hover { background-color: rgba(59, 130, 246, 0.22); }
+  html[data-mode="dark"] .app-ui .border-green-50 { border-color: rgba(59, 130, 246, 0.15); }
   html[data-mode="dark"] .app-ui .border-green-200, html[data-mode="dark"] .app-ui .border-green-200\/60,
-  html[data-mode="dark"] .app-ui .border-green-600\/25 { border-color: rgba(34, 197, 94, 0.30); }
-  html[data-mode="dark"] .app-ui .border-green-300, html[data-mode="dark"] .app-ui .hover\:border-green-300:hover { border-color: rgba(34, 197, 94, 0.40); }
-  html[data-mode="dark"] .app-ui .hover\:border-green-400:hover { border-color: rgba(34, 197, 94, 0.55); }
+  html[data-mode="dark"] .app-ui .border-green-600\/25 { border-color: rgba(59, 130, 246, 0.30); }
+  html[data-mode="dark"] .app-ui .border-green-300, html[data-mode="dark"] .app-ui .hover\:border-green-300:hover { border-color: rgba(59, 130, 246, 0.40); }
+  html[data-mode="dark"] .app-ui .hover\:border-green-400:hover { border-color: rgba(59, 130, 246, 0.55); }
 
   /* ── Money red ── */
   html[data-mode="dark"] .app-ui .text-red-600, html[data-mode="dark"] .app-ui .text-red-700,

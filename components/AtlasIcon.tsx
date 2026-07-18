@@ -68,7 +68,7 @@ function shade(hex: string, amount: number): string {
 
 export function AtlasMark({
   size = 32,
-  accent = "#22C55E",
+  accent = "#3B82F6",
   className = "",
 }: {
   size?: number;
@@ -77,9 +77,9 @@ export function AtlasMark({
   className?: string;
 }) {
   const lum = luminanceOf(accent);
-  const base = lum === null ? "#22C55E" : accent;
+  const base = lum === null ? "#3B82F6" : accent;
   // Very light accents (pale yellows, near-white) need an ink glyph.
-  const glyph = lum !== null && lum > 165 ? "#0C0F0C" : "#FFFFFF";
+  const glyph = lum !== null && lum > 165 ? "#0A1428" : "#FFFFFF";
   // Gradient id must be unique per accent — two marks with different accents
   // can share one document, and SVG defs are document-global.
   const gid = `atlas-badge-${base.replace("#", "")}`;

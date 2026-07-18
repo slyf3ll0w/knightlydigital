@@ -32,7 +32,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        <meta name="theme-color" content="#0C0F0C" />
+        <meta name="theme-color" content="#0A1428" />
         {/* Theme stamp — runs before paint so there's no light/dark flash.
             data-mode on <html> drives every dark-theme rule in globals.css;
             "hub-theme" in localStorage ("light" | "dark") overrides the
@@ -50,7 +50,7 @@ apply();m.addEventListener("change",apply);window.applyHubTheme=apply;
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
-          href="https://fonts.googleapis.com/css2?family=Oxanium:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Oxanium:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700&family=Nunito:wght@800&display=swap"
           rel="stylesheet"
         />
       </head>

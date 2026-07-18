@@ -13,8 +13,8 @@ export type CompanyBrand = {
   brandColorSecondary?: string | null;
 };
 
-const DEFAULT_HEADER = "#0C0F0C";
-const DEFAULT_ACCENT = "#16A34A"; // green-600
+const DEFAULT_HEADER = "#0A1428";
+const DEFAULT_ACCENT = "#0B57D8"; // WorkBench blue
 
 /** Header background for branded page tops (primary color). */
 export function brandHeader(company: CompanyBrand): string {

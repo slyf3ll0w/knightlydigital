@@ -28,7 +28,7 @@ export function EstimateForm({ dark = false }: Props) {
           className="w-14 h-14 mx-auto mb-5 flex items-center justify-center"
           style={{ backgroundColor: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)' }}
         >
-          <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="#22C55E" strokeWidth="2.5">
+          <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="#0B57D8" strokeWidth="2.5">
             <polyline points="20 6 9 17 4 12" />
           </svg>
         </div>
@@ -116,7 +116,7 @@ export function EstimateForm({ dark = false }: Props) {
         disabled={submitting}
         className="w-full py-4 text-sm font-bold uppercase tracking-wider text-white transition-opacity hover:opacity-90 disabled:opacity-70"
         style={{
-          backgroundColor: '#22C55E',
+          backgroundColor: '#0B57D8',
           fontFamily: 'Oxanium, system-ui, sans-serif',
         }}
       >

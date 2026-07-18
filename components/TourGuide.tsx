@@ -201,7 +201,7 @@ export default function TourGuide({ role, needsTour }: { role: string; needsTour
           }}
         />
       ) : (
-        <div className="absolute inset-0 bg-[#0C0F0C]/55" />
+        <div className="absolute inset-0 bg-[#0A1428]/55" />
       )}
 
       <div

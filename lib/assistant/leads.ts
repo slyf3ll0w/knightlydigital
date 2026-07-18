@@ -175,7 +175,7 @@ export const leadTools: Tool[] = [
           action: { type: "string", enum: ["create", "rename", "recolor", "set_trigger", "reorder", "delete"] },
           stage: { type: "string", description: "Existing stage name (all actions except create/reorder)" },
           name: { type: "string", description: "create/rename: the (new) stage name" },
-          color: { type: "string", description: "recolor/create: hex like #22C55E" },
+          color: { type: "string", description: "recolor/create: hex like #0B57D8" },
           trigger: {
             type: "string",
             enum: ["REQUEST_CREATED", "APPOINTMENT_SCHEDULED", "QUOTE_SENT", "none"],
@@ -264,7 +264,7 @@ export const leadTools: Tool[] = [
         });
       }
       if (action === "recolor") {
-        if (!/^#[0-9a-fA-F]{6}$/.test(color)) return { error: "color must be hex like #22C55E" };
+        if (!/^#[0-9a-fA-F]{6}$/.test(color)) return { error: "color must be hex like #0B57D8" };
         return stage(ctx, {
           kind: "manage_pipeline_stage",
           title: `Recolor stage "${target.name}" to ${color}`,

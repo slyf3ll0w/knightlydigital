@@ -70,7 +70,7 @@ export default function NativeShell() {
         StatusBar?.setStyle?.({ style: isDarkTheme() ? "DARK" : "LIGHT" }).catch(() => {});
       } else {
         StatusBar?.setStyle?.({ style: "DARK" }).catch(() => {});
-        StatusBar?.setBackgroundColor?.({ color: "#0C0F0C" }).catch(() => {});
+        StatusBar?.setBackgroundColor?.({ color: "#0A1428" }).catch(() => {});
       }
     };
     applyStatusBar();
