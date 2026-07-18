@@ -640,6 +640,12 @@ export default function AppShell({
           "--wb-accent-dark": darkAccent,
           "--wb-accent-strong-dark": shade(darkAccent, 0.14),
           "--wb-on-accent-dark": textOn(darkAccent),
+          // Accent as ink (links/icons/tints). Dark ink runs brighter, like
+          // the default #0B57D8 → #3B82F6 step.
+          "--wb-ink-light": lightAccent,
+          "--wb-ink-strong-light": shade(lightAccent, 0.14),
+          "--wb-ink-dark": tint(darkAccent, 0.2),
+          "--wb-ink-strong-dark": tint(darkAccent, 0.38),
         } as React.CSSProperties)
       : undefined;
 

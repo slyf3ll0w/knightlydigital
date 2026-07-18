@@ -17,7 +17,7 @@ function Art({ name }: { name: EmptyArt }) {
     strokeLinejoin: "round" as const,
   };
   const gray = { ...base, stroke: "#D1D5DB" }; // gray-300 to sit on the graph-paper canvas
-  const green = { ...base, stroke: "#2E6FF2" };
+  const green = { ...base, stroke: "var(--wb-accent-bright, #2E6FF2)" };
 
   switch (name) {
     case "requests":

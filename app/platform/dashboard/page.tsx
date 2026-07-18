@@ -40,7 +40,12 @@ function Sparkline({ values }: { values: number[] }) {
   const gap = 1.5;
   const bw = (w - gap * (values.length - 1)) / values.length;
   return (
-    <svg viewBox={`0 0 ${w} 24`} className="mt-2 h-6 w-full" preserveAspectRatio="none" aria-hidden>
+    <svg
+      viewBox={`0 0 ${w} 24`}
+      className="mt-2 h-6 w-full text-green-600"
+      preserveAspectRatio="none"
+      aria-hidden
+    >
       {values.map((v, i) => {
         const h = v > 0 ? Math.max((v / max) * 22, 2) : 1;
         return (
@@ -51,8 +56,8 @@ function Sparkline({ values }: { values: number[] }) {
             width={bw}
             height={h}
             rx={0.75}
-            fill={v > 0 ? "#22C55E" : "#E7E5E4"}
-            opacity={v > 0 ? 0.85 : 1}
+            fill="currentColor"
+            opacity={v > 0 ? 0.85 : 0.15}
           />
         );
       })}

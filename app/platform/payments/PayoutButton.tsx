@@ -9,7 +9,7 @@ import { Landmark, Loader2 } from "lucide-react";
  * automatically every business day, so failure here is never money lost; the
  * common "error" is just that nothing has cleared yet.
  */
-export default function PayoutButton() {
+export default function PayoutButton({ dark = false }: { dark?: boolean }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -42,13 +42,27 @@ export default function PayoutButton() {
       <button
         onClick={send}
         disabled={busy}
-        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-full border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors"
+        className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-full border disabled:opacity-50 transition-colors ${
+          dark
+            ? "border-white/25 text-white hover:bg-white/10"
+            : "border-gray-200 text-gray-700 hover:bg-gray-50"
+        }`}
       >
         {busy ? <Loader2 size={12} className="animate-spin" /> : <Landmark size={12} />}
         Send to bank now
       </button>
       {msg && (
-        <p className={`text-xs max-w-64 text-right ${isError ? "text-amber-600" : "text-green-600"}`}>
+        <p
+          className={`text-xs max-w-64 text-right ${
+            dark
+              ? isError
+                ? "text-amber-300"
+                : "text-emerald-300"
+              : isError
+                ? "text-amber-600"
+                : "text-green-600"
+          }`}
+        >
           {msg}
         </p>
       )}

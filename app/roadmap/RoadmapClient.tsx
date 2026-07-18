@@ -479,14 +479,14 @@ function AddForm({ category, onAdded }: { category: Category; onAdded: (item: It
         onChange={(e) => setTitle(e.target.value)}
         onKeyDown={(e) => e.key === "Enter" && add()}
         placeholder="What's coming?"
-        className="w-full px-2.5 py-1.5 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#2E6FF2]"
+        className="w-full px-2.5 py-1.5 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--wb-accent-bright,#2E6FF2)]"
       />
       <textarea
         value={details}
         onChange={(e) => setDetails(e.target.value)}
         placeholder="Public details — everyone sees this (optional)"
         rows={2}
-        className="w-full px-2.5 py-1.5 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#2E6FF2] resize-none"
+        className="w-full px-2.5 py-1.5 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--wb-accent-bright,#2E6FF2)] resize-none"
       />
       <textarea
         value={privateNotes}
@@ -499,7 +499,7 @@ function AddForm({ category, onAdded }: { category: Category; onAdded: (item: It
         <button
           onClick={add}
           disabled={busy || !title.trim()}
-          className="flex items-center gap-1.5 rounded-full px-3.5 py-1.5 bg-[#0B57D8] hover:bg-[#0A4CBB] text-white text-xs font-bold uppercase tracking-wider transition-colors disabled:opacity-50"
+          className="flex items-center gap-1.5 rounded-full px-3.5 py-1.5 bg-[color:var(--wb-accent,#0B57D8)] hover:bg-[color:var(--wb-accent-strong,#0A4CBB)] text-[color:var(--wb-on-accent,#ffffff)] text-xs font-bold uppercase tracking-wider transition-colors disabled:opacity-50"
           style={OXANIUM}
         >
           {busy && <Loader2 size={12} className="animate-spin" />} Add
