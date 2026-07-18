@@ -311,6 +311,7 @@ export interface FinixTransfer {
   type: string;
   failure_code: string | null;
   failure_message?: string | null;
+  ready_to_settle_at?: string | null; // ~1 business day after the charge
   tags?: Record<string, string>;
 }
 
@@ -367,6 +368,31 @@ export interface FinixSettlement {
   merchant_id?: string;
   created_at?: string;
   updated_at?: string;
+}
+
+/**
+ * Close the merchant's accruing settlement now instead of waiting for the
+ * daily payout cycle ("send to bank now"). Finix approves and funds the closed
+ * settlement on its side — approval isn't exposed to platform API keys. Throws
+ * FinixError when no cleared transfers are ready to settle.
+ */
+export async function closeSettlementForIdentity(
+  identityId: string
+): Promise<FinixSettlement> {
+  return finixFetch<FinixSettlement>(`/identities/${identityId}/settlements`, {
+    method: "POST",
+    body: { currency: "USD", processor: processorName() },
+  });
+}
+
+/** Funding transfers = the actual bank credit/debit created once a settlement is approved. */
+export async function listSettlementFundingTransfers(
+  settlementId: string
+): Promise<FinixTransfer[]> {
+  const res = await finixFetch<{
+    _embedded?: { transfers?: FinixTransfer[]; funding_transfers?: FinixTransfer[] };
+  }>(`/settlements/${settlementId}/funding_transfers`);
+  return res._embedded?.transfers ?? res._embedded?.funding_transfers ?? [];
 }
 
 export async function listSettlementsForIdentity(

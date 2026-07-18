@@ -49,7 +49,11 @@ export default function WBPricingPage() {
                 Payments. WorkBench has card and ACH processing built into
                 every quote, invoice, and booking, at a flat{" "}
                 <span className="font-bold text-gray-900">
-                  2.9% + 30¢ per transaction
+                  2.9% + 30¢ per card transaction
+                </span>{" "}
+                and{" "}
+                <span className="font-bold text-gray-900">
+                  0.75% per ACH bank transfer
                 </span>
                 . When your clients pay you through WorkBench, a small slice
                 of that processing fee is what funds the software.
@@ -66,7 +70,7 @@ export default function WBPricingPage() {
                 {
                   icon: CreditCard,
                   title: "One flat rate",
-                  body: "2.9% + 30¢ per successful transaction. No monthly fees, no minimums, no charge on failed payments.",
+                  body: "2.9% + 30¢ per successful card transaction, 0.75% for ACH bank transfers. No monthly fees, no minimums, no charge on failed payments.",
                 },
                 {
                   icon: HandCoins,

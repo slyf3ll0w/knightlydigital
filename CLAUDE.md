@@ -226,6 +226,19 @@ How the Finix flow hangs together:
   /api/app/payments/[id]/refund` → Finix reversal, then the payment amount
   drops and invoice status recomputes. Manual payments have nothing to
   reverse — edit/delete the record instead.
+- **Fees:** our take (card 2.9% + 30¢, ACH 0.75%; `WORKBENCH_*_FEE_*` env
+  overrides in `processingFees()`) is deducted at settlement by a Finix **fee
+  profile** — configured in the Finix dashboard, NOT the API (`POST
+  /fee_profiles` is certification-gated: "forbidden by Fee Profile Settings").
+  Keep the dashboard profile and the env rates in sync; app-side numbers are
+  estimates, settlements carry the real `total_fees`.
+- **Payouts:** automatic — transfers become settleable ~1 business day after
+  the charge (`ready_to_settle_at`), accrue into a settlement, and Finix
+  approves + funds per the merchant's payout profile (daily/net/next-day ACH).
+  Settlement approval is NOT platform-API-accessible (`PUT /settlements/{id}`
+  only takes `action: STOP_ACCRUAL`). "Send to bank now" on /app/payments →
+  `POST /api/app/payments/payout` just closes the accruing settlement early
+  via `POST /identities/{id}/settlements` (body needs `currency` + `processor`).
 - **Sandbox:** `FINIX_ENVIRONMENT=sandbox` uses processor `DUMMY_V1`, merchants
   auto-approve in ~2 min, raw card `POST /payment_instruments` is allowed, and
   the app's per-transaction cap is $10,000. Amount-triggered outcomes (cents):

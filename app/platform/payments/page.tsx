@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { requirePageActor, canSeeMoney, isManager } from "@/lib/permissions";
 import Link from "next/link";
 import DisputeEvidence from "./DisputeEvidence";
+import PayoutButton from "./PayoutButton";
 import {
   DollarSign,
   Landmark,
@@ -12,11 +13,13 @@ import {
 } from "lucide-react";
 import { money, shortDate } from "@/lib/statuses";
 import EmptyState from "@/components/EmptyState";
-import { getProcessor } from "@/lib/payments";
+import { getProcessor, processingFees, estimateFeeCents, feeRateLabel } from "@/lib/payments";
 import {
   finixEnvironment,
+  toCents,
   listTransfersForIdentity,
   listSettlementsForIdentity,
+  listSettlementFundingTransfers,
   listDisputes,
   listDisputeEvidence,
   type FinixTransfer,
@@ -117,6 +120,42 @@ export default async function PaymentsDashboardPage() {
     });
   }
 
+  // Funding transfers = the actual bank movement once Finix approves a settlement
+  const fundingBySettlement = new Map<string, FinixTransfer[]>();
+  if (settlements.length > 0) {
+    const fundingRes = await Promise.allSettled(
+      settlements.map((s) => listSettlementFundingTransfers(s.id))
+    );
+    fundingRes.forEach((r, i) => {
+      if (r.status === "fulfilled") fundingBySettlement.set(settlements[i].id, r.value);
+    });
+  }
+
+  // Clearing = charged successfully but inside the ~1-business-day window
+  // before funds are settleable. Fee estimate uses our published rates; the
+  // settlement carries the exact number.
+  const now = Date.now();
+  const clearingPayments = payments.filter((p) => {
+    const t = p.processorRef ? transferStates.get(p.processorRef) : undefined;
+    return (
+      t?.state === "SUCCEEDED" &&
+      t.ready_to_settle_at &&
+      new Date(t.ready_to_settle_at).getTime() > now &&
+      Number(p.amount) > 0
+    );
+  });
+  const clearingTotal = clearingPayments.reduce((s, p) => s + Number(p.amount), 0);
+  const clearingFees =
+    clearingPayments.reduce(
+      (s, p) =>
+        s + estimateFeeCents(toCents(Number(p.amount)), p.method === "ACH" ? "ACH" : "CARD"),
+      0
+    ) / 100;
+
+  const fees = processingFees();
+  const cardRate = feeRateLabel(fees.cardBps, fees.cardFixedCents);
+  const achRate = feeRateLabel(fees.achBps, fees.achFixedCents);
+
   // Payout totals across listed settlements — the "what has processing cost me" line
   const payoutTotals = settlements.reduce(
     (acc, s) => {
@@ -137,6 +176,20 @@ export default async function PaymentsDashboardPage() {
 
   // Dispute debits make settlement nets negative; "$-8,888.88" reads badly
   const signedMoney = (v: number) => (v < 0 ? `−${money(-v)}` : money(v));
+
+  // A settlement's real-world position, funding transfers beating raw status
+  const payoutState = (s: FinixSettlement) => {
+    const funding = fundingBySettlement.get(s.id) ?? [];
+    if (funding.some((f) => f.state === "SUCCEEDED"))
+      return { label: "Paid out", cls: "bg-green-100 text-green-700" };
+    if (funding.some((f) => f.state === "PENDING"))
+      return { label: "On the way", cls: "bg-blue-100 text-blue-700" };
+    if (s.status === "ACCRUING")
+      return { label: "Accruing", cls: "bg-blue-100 text-blue-700" };
+    if (s.status === "AWAITING_APPROVAL" || s.status === "APPROVED")
+      return { label: "Processing payout", cls: "bg-gray-100 text-gray-600" };
+    return { label: s.status ?? "PENDING", cls: "bg-gray-100 text-gray-600" };
+  };
 
   const stateChip = (ref: string | null) => {
     const t = ref ? transferStates.get(ref) : undefined;
@@ -288,10 +341,31 @@ export default async function PaymentsDashboardPage() {
       {/* Payouts */}
       {online && (
         <div className="card-ledger mb-6 overflow-hidden">
-          <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2">
+          <div className="px-5 py-3 border-b border-gray-100 flex flex-wrap items-center gap-2">
             <Landmark size={15} className="text-gray-400" />
-            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Payouts</h2>
+            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide flex-1">
+              Payouts
+            </h2>
+            {isManager(actor.role) && <PayoutButton />}
           </div>
+          <p className="px-5 py-2.5 text-xs text-gray-400 border-b border-gray-50">
+            Payments clear in about one business day, then pay out to your bank automatically
+            every business day. Processing fees — cards {cardRate}, bank transfers {achRate} —
+            come out of each payout.
+          </p>
+          {clearingTotal > 0 && (
+            <div className="flex flex-wrap items-center gap-3 px-5 py-3 text-sm border-b border-gray-50">
+              <Clock size={14} className="text-blue-500" />
+              <span className="flex-1 text-gray-700">
+                Clearing
+                <span className="text-xs text-gray-400">
+                  {" "}
+                  · ≈{money(clearingFees)} in fees will be deducted
+                </span>
+              </span>
+              <span className="font-semibold text-gray-900">{money(clearingTotal)}</span>
+            </div>
+          )}
           {settlements.length === 0 ? (
             <p className="px-5 py-8 text-center text-sm text-gray-400">
               No payouts yet — your first payout appears here once collected payments settle to
@@ -309,13 +383,16 @@ export default async function PaymentsDashboardPage() {
                       : gross != null && fees != null
                         ? gross - fees
                         : null;
+                  const state = payoutState(s);
                   return (
                     <div key={s.id} className="flex flex-wrap items-center gap-3 px-5 py-3 text-sm">
                       <span className="text-gray-500 text-xs w-24">
                         {s.created_at ? shortDate(new Date(s.created_at)) : ""}
                       </span>
-                      <span className="text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
-                        {s.status ?? "PENDING"}
+                      <span
+                        className={`text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded ${state.cls}`}
+                      >
+                        {state.label}
                       </span>
                       <span className="flex-1 text-xs text-gray-400">
                         {gross != null && <>Gross {signedMoney(gross)}</>}

@@ -402,6 +402,34 @@ export function calculateSurcharge(amount: number, rateDecimal: number): number 
   return Math.round(amount * rateDecimal * 100) / 100;
 }
 
+/**
+ * Workbench's processing rates — what the fee profile deducts from payouts.
+ * Env-tunable so live-rate changes don't need a deploy; keep these matching
+ * the fee profile configured in the Finix dashboard.
+ */
+export function processingFees() {
+  return {
+    cardBps: Number(process.env.WORKBENCH_CARD_FEE_BPS ?? 290),
+    cardFixedCents: Number(process.env.WORKBENCH_CARD_FEE_FIXED_CENTS ?? 30),
+    achBps: Number(process.env.WORKBENCH_ACH_FEE_BPS ?? 75),
+    achFixedCents: Number(process.env.WORKBENCH_ACH_FEE_FIXED_CENTS ?? 0),
+  };
+}
+
+/** Estimated processing fee in cents for one payment (settlements hold the real number). */
+export function estimateFeeCents(amountCents: number, method: "CARD" | "ACH"): number {
+  const f = processingFees();
+  return method === "ACH"
+    ? Math.round((amountCents * f.achBps) / 10000) + f.achFixedCents
+    : Math.round((amountCents * f.cardBps) / 10000) + f.cardFixedCents;
+}
+
+/** Human label like "2.9% + 30¢" / "0.75%" for a bps + fixed-cents pair. */
+export function feeRateLabel(bps: number, fixedCents: number): string {
+  const pct = `${(bps / 100).toLocaleString("en-US", { maximumFractionDigits: 2 })}%`;
+  return fixedCents > 0 ? `${pct} + ${fixedCents}¢` : pct;
+}
+
 /** Send a payment reminder via email/SMS (stub — wire to Resend/Twilio). */
 export async function sendPaymentReminder(_params: {
   invoiceId: string;
