@@ -27,8 +27,33 @@ const rateLimits: { match: (path: string) => boolean; max: number; windowMs: num
   },
 ];
 
+// Agency pages moved to streamflaire.com when this app became workbenchfsm.com
+const agencyMoved: Record<string, string> = {
+  "/about": "https://streamflaire.com/about",
+  "/services": "https://streamflaire.com/services",
+  "/custom-web-design": "https://streamflaire.com/services",
+  "/custom-software": "https://streamflaire.com/services",
+  "/digital-marketing": "https://streamflaire.com/services",
+  "/contact": "https://streamflaire.com/contact",
+  "/crm": "/",
+};
+
 export async function middleware(req: NextRequest) {
   const path = req.nextUrl.pathname;
+
+  // ── WorkBench domain routing ───────────────────────────────────────────────
+  // This app lives at workbenchfsm.com now: the root serves the WorkBench
+  // marketing home (built at /wb), and the old Streamflaire agency pages
+  // redirect to the parent-company site.
+  if (path === "/") {
+    return NextResponse.rewrite(new URL("/wb", req.url));
+  }
+  if (path === "/wb") {
+    return NextResponse.redirect(new URL("/", req.url), 308);
+  }
+  if (path in agencyMoved) {
+    return NextResponse.redirect(new URL(agencyMoved[path], req.url), 308);
+  }
 
   // ── Rate limiting (POST-like methods only) ─────────────────────────────────
   if (req.method !== "GET" && req.method !== "HEAD") {
@@ -84,6 +109,15 @@ export async function middleware(req: NextRequest) {
 
 export const config = {
   matcher: [
+    "/",
+    "/wb",
+    "/about",
+    "/services",
+    "/custom-web-design",
+    "/custom-software",
+    "/digital-marketing",
+    "/contact",
+    "/crm",
     "/app/:path*",
     "/superadmin/:path*",
     "/api/auth/callback/credentials",

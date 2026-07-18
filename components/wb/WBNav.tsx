@@ -5,10 +5,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 /**
- * WorkBench marketing nav. Until the workbenchfsm.com cutover the WB home
- * lives at /wb; flip HOME to "/" when these pages move to the site root.
+ * WorkBench marketing nav. The home is built at /wb; middleware rewrites
+ * the site root to it, so all links point at "/".
  */
-export const WB_HOME = "/wb";
+export const WB_HOME = "/";
 
 const links = [
   { href: WB_HOME, label: "Product" },

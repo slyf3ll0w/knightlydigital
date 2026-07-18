@@ -17,7 +17,7 @@ export default async function PipelineSettingsPage() {
     }),
   ]);
 
-  const base = (process.env.NEXTAUTH_URL ?? "https://streamflaire.com").replace(/\/$/, "");
+  const base = (process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com").replace(/\/$/, "");
   const converted = stages.find((s) => s.isConverted);
 
   return (

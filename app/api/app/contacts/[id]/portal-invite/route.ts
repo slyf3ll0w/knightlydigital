@@ -32,7 +32,7 @@ export async function POST(
     );
   }
 
-  const baseUrl = process.env.NEXTAUTH_URL ?? "https://streamflaire.com";
+  const baseUrl = process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com";
   const { subject, html } = hubAccessEmail({
     companyName: contact.company?.name ?? "",
     contactFirstName: contact.firstName,

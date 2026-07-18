@@ -483,7 +483,7 @@ export async function POST(
 
   // Auto-send mode: the client gets the quote approval link
   if (result.quote && form.config.serviceRequest.quoteMode === "send" && email) {
-    const baseUrl = process.env.NEXTAUTH_URL ?? "https://streamflaire.com";
+    const baseUrl = process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com";
     const { subject, html } = quoteLinkEmail({
       companyName: company.name,
       quoteNumber: result.quote.quoteNumber,

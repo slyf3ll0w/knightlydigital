@@ -47,7 +47,7 @@ export async function POST(
 
   // Email the client the pay link (whether freshly created or re-sent)
   if (quote.contact.email) {
-    const baseUrl = process.env.NEXTAUTH_URL ?? "https://streamflaire.com";
+    const baseUrl = process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com";
     const { subject, html } = invoiceLinkEmail({
       companyName: quote.company.name,
       invoiceNumber: deposit.invoice.invoiceNumber,

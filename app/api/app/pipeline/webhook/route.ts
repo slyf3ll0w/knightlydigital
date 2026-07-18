@@ -10,7 +10,7 @@ import { getActor, isManager } from "@/lib/permissions";
  */
 
 function webhookUrl(token: string): string {
-  const base = (process.env.NEXTAUTH_URL ?? "https://streamflaire.com").replace(/\/$/, "");
+  const base = (process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com").replace(/\/$/, "");
   return `${base}/api/public/leads/${token}`;
 }
 

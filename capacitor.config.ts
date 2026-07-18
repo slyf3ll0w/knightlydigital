@@ -13,10 +13,10 @@ const config: CapacitorConfig = {
   server: {
     // /app/dashboard so the shell opens into the product, not the marketing
     // home; middleware redirects to /app/login when unauthenticated
-    url: 'https://streamflaire.com/app/dashboard',
+    url: 'https://workbenchfsm.com/app/dashboard',
     // Required because url has a path: Capacitor otherwise treats any other
     // path (e.g. the 307 → /app/login) as external and throws it to Safari
-    allowNavigation: ['streamflaire.com'],
+    allowNavigation: ['workbenchfsm.com'],
     // Shown instead of the default webview error page when the site is unreachable
     errorPath: 'error.html',
   },

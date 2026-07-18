@@ -123,7 +123,7 @@ export async function POST(
 
   // Email the client the deposit pay link when a deposit invoice was just created
   if (deposit?.created && quote.contact.email) {
-    const baseUrl = process.env.NEXTAUTH_URL ?? "https://streamflaire.com";
+    const baseUrl = process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com";
     const { subject, html } = invoiceLinkEmail({
       companyName: quote.company.name,
       invoiceNumber: deposit.invoice.invoiceNumber,

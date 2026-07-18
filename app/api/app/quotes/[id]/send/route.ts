@@ -45,7 +45,7 @@ export async function POST(
     );
   }
 
-  const baseUrl = process.env.NEXTAUTH_URL ?? "https://streamflaire.com";
+  const baseUrl = process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com";
   const deposit = quoteDepositAmount({
     total: Number(quote.total),
     depositType: quote.depositType,

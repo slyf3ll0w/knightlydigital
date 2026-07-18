@@ -301,7 +301,7 @@ async function generateCycle(sub: DueSub, now: Date): Promise<"billed" | "drafte
         },
       });
       if (inv && company) {
-        const baseUrl = process.env.NEXTAUTH_URL ?? "https://streamflaire.com";
+        const baseUrl = process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com";
         const { subject, html } = invoiceLinkEmail({
           companyName: company.name,
           invoiceNumber: inv.invoiceNumber,

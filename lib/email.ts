@@ -12,7 +12,7 @@ const FROM = process.env.EMAIL_FROM ?? "WorkBench <notifications@streamflaire.co
 // Bare address from FROM — sends that brand the display name still have to
 // use the Resend-verified domain, only the name in front of it changes.
 const FROM_ADDRESS = FROM.match(/<([^>]+)>/)?.[1] ?? FROM;
-const APP_URL = process.env.NEXTAUTH_URL ?? "https://streamflaire.com";
+const APP_URL = process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com";
 
 /** Tenant branding applied to client-facing emails — the same settings the
  *  quote/invoice/portal pages use. Pass the company row itself; only these
@@ -56,7 +56,7 @@ function brandEmail(html: string, brand: EmailBrand): string {
     out = swap(out, "background:#0A1428;padding:16px 24px;", `background:${color};padding:16px 24px;`);
     out = swap(
       out,
-      "color:#0B57D8;font-size:13px;font-weight:700;letter-spacing:0.5px;",
+      "color:#60A5FA;font-size:13px;font-weight:700;letter-spacing:0.5px;",
       `color:${onColor(color)};font-size:13px;font-weight:700;letter-spacing:0.5px;`
     );
   }
@@ -164,7 +164,7 @@ export function newRequestEmail({
 <div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f3f4f6;padding:24px;">
   <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
     <div style="background:#0A1428;padding:16px 24px;">
-      <p style="margin:0;color:#0B57D8;font-size:13px;font-weight:700;letter-spacing:0.5px;">NEW REQUEST</p>
+      <p style="margin:0;color:#60A5FA;font-size:13px;font-weight:700;letter-spacing:0.5px;">NEW REQUEST</p>
     </div>
     <div style="padding:24px;">
       <p style="margin:0 0 16px;color:#111827;font-size:15px;">
@@ -207,7 +207,7 @@ export function reviewRequestEmail({
 <div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f3f4f6;padding:24px;">
   <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
     <div style="background:#0A1428;padding:16px 24px;">
-      <p style="margin:0;color:#0B57D8;font-size:13px;font-weight:700;letter-spacing:0.5px;">${esc(companyName.toUpperCase())}</p>
+      <p style="margin:0;color:#60A5FA;font-size:13px;font-weight:700;letter-spacing:0.5px;">${esc(companyName.toUpperCase())}</p>
     </div>
     <div style="padding:24px;">
       <p style="margin:0 0 12px;color:#111827;font-size:15px;">Hi ${esc(contactFirstName)},</p>
@@ -247,7 +247,7 @@ export function contractSignEmail({
 <div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f3f4f6;padding:24px;">
   <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
     <div style="background:#0A1428;padding:16px 24px;">
-      <p style="margin:0;color:#0B57D8;font-size:13px;font-weight:700;letter-spacing:0.5px;">${esc(companyName.toUpperCase())}</p>
+      <p style="margin:0;color:#60A5FA;font-size:13px;font-weight:700;letter-spacing:0.5px;">${esc(companyName.toUpperCase())}</p>
     </div>
     <div style="padding:24px;">
       <p style="margin:0 0 12px;color:#111827;font-size:15px;">Hi ${esc(contactFirstName)},</p>
@@ -286,7 +286,7 @@ export function hubAccessEmail({
 <div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f3f4f6;padding:24px;">
   <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
     <div style="background:#0A1428;padding:16px 24px;">
-      <p style="margin:0;color:#0B57D8;font-size:13px;font-weight:700;letter-spacing:0.5px;">${esc(companyName.toUpperCase())}</p>
+      <p style="margin:0;color:#60A5FA;font-size:13px;font-weight:700;letter-spacing:0.5px;">${esc(companyName.toUpperCase())}</p>
     </div>
     <div style="padding:24px;">
       <p style="margin:0 0 12px;color:#111827;font-size:15px;">Hi ${esc(contactFirstName)},</p>
@@ -337,7 +337,7 @@ export function contractSignedCopyEmail({
 <div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f3f4f6;padding:24px;">
   <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
     <div style="background:#0A1428;padding:16px 24px;">
-      <p style="margin:0;color:#0B57D8;font-size:13px;font-weight:700;letter-spacing:0.5px;">${esc(companyName.toUpperCase())}</p>
+      <p style="margin:0;color:#60A5FA;font-size:13px;font-weight:700;letter-spacing:0.5px;">${esc(companyName.toUpperCase())}</p>
     </div>
     <div style="padding:24px;">
       <p style="margin:0 0 12px;color:#111827;font-size:15px;">Hi ${esc(contactFirstName)},</p>
@@ -383,7 +383,7 @@ export function invoiceLinkEmail({
 <div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f3f4f6;padding:24px;">
   <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
     <div style="background:#0A1428;padding:16px 24px;">
-      <p style="margin:0;color:#0B57D8;font-size:13px;font-weight:700;letter-spacing:0.5px;">${esc(companyName.toUpperCase())}</p>
+      <p style="margin:0;color:#60A5FA;font-size:13px;font-weight:700;letter-spacing:0.5px;">${esc(companyName.toUpperCase())}</p>
     </div>
     <div style="padding:24px;">
       <p style="margin:0 0 16px;color:#111827;font-size:15px;">
@@ -435,7 +435,7 @@ export function quoteLinkEmail({
 <div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f3f4f6;padding:24px;">
   <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
     <div style="background:#0A1428;padding:16px 24px;">
-      <p style="margin:0;color:#0B57D8;font-size:13px;font-weight:700;letter-spacing:0.5px;">${esc(companyName.toUpperCase())}</p>
+      <p style="margin:0;color:#60A5FA;font-size:13px;font-weight:700;letter-spacing:0.5px;">${esc(companyName.toUpperCase())}</p>
     </div>
     <div style="padding:24px;">
       <p style="margin:0 0 16px;color:#111827;font-size:15px;">
@@ -464,7 +464,7 @@ function bookingShell(companyName: string, inner: string): string {
 <div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f3f4f6;padding:24px;">
   <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
     <div style="background:#0A1428;padding:16px 24px;">
-      <p style="margin:0;color:#0B57D8;font-size:13px;font-weight:700;letter-spacing:0.5px;">${esc(companyName.toUpperCase())}</p>
+      <p style="margin:0;color:#60A5FA;font-size:13px;font-weight:700;letter-spacing:0.5px;">${esc(companyName.toUpperCase())}</p>
     </div>
     <div style="padding:24px;">
       ${inner}
@@ -650,7 +650,7 @@ export function paymentReminderEmail({
 <div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f3f4f6;padding:24px;">
   <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
     <div style="background:#0A1428;padding:16px 24px;">
-      <p style="margin:0;color:#0B57D8;font-size:13px;font-weight:700;letter-spacing:0.5px;">${esc(companyName.toUpperCase())}</p>
+      <p style="margin:0;color:#60A5FA;font-size:13px;font-weight:700;letter-spacing:0.5px;">${esc(companyName.toUpperCase())}</p>
     </div>
     <div style="padding:24px;">
       <p style="margin:0 0 16px;color:#111827;font-size:15px;">${esc(copy.lead)}</p>

@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  const base = process.env.NEXTAUTH_URL ?? "https://streamflaire.com";
+  const base = process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com";
   const resetUrl = `${base}/app/reset-password?token=${token}`;
   const { subject, html } = passwordResetEmail({ name: user.name, resetUrl });
   await sendEmail({ to: user.email, subject, html });

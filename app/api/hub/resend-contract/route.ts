@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
     data: { sentAt: new Date() },
   });
 
-  const baseUrl = process.env.NEXTAUTH_URL ?? "https://streamflaire.com";
+  const baseUrl = process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com";
   const { subject, html } = contractSignEmail({
     companyName: contact.company?.name ?? "",
     contactFirstName: contact.firstName,

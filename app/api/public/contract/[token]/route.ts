@@ -62,7 +62,7 @@ export async function POST(
       },
     }),
   ]);
-  const baseUrl = process.env.NEXTAUTH_URL ?? "https://streamflaire.com";
+  const baseUrl = process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com";
   const signUrl = `${baseUrl}/contract/${contract.publicToken}`;
   if (contact?.email && company) {
     const { subject, html } = contractSignedCopyEmail({

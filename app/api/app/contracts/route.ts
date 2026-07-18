@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
   // signature to their email address (and they don't need anyone to text
   // them a link)
   if (contact.email) {
-    const baseUrl = process.env.NEXTAUTH_URL ?? "https://streamflaire.com";
+    const baseUrl = process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com";
     const { subject, html } = contractSignEmail({
       companyName: company?.name ?? "",
       contactFirstName: contact.firstName,

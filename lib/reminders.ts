@@ -84,7 +84,7 @@ export async function runDueReminders(now: Date = new Date()): Promise<ReminderS
       if (eligible.length === 0) continue;
 
       const stage = eligible[eligible.length - 1]; // most advanced unsent stage
-      const baseUrl = process.env.NEXTAUTH_URL ?? "https://streamflaire.com";
+      const baseUrl = process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com";
       const { subject, html } = paymentReminderEmail({
         companyName: inv.company.name,
         companyEmail: inv.company.email,

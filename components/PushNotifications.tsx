@@ -235,7 +235,7 @@ export function PushToggleCard() {
 
   const explainer =
     state === "unsupported" && isIos() && !isStandalone()
-      ? "On iPhone, notifications need the home-screen app: open streamflaire.com in Safari, tap Share, then \"Add to Home Screen\", and turn this on from inside it."
+      ? "On iPhone, notifications need the home-screen app: open workbenchfsm.com in Safari, tap Share, then \"Add to Home Screen\", and turn this on from inside it."
       : state === "unsupported"
         ? "This browser doesn't support push notifications."
         : state === "denied"

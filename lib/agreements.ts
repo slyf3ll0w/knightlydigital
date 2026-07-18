@@ -110,7 +110,7 @@ export async function autoSendQuoteAgreements(
       });
 
       if (quote.contact.email) {
-        const baseUrl = process.env.NEXTAUTH_URL ?? "https://streamflaire.com";
+        const baseUrl = process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com";
         const { subject, html } = contractSignEmail({
           companyName: company?.name ?? "",
           contactFirstName: quote.contact.firstName,

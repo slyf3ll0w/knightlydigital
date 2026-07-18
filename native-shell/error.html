@@ -77,8 +77,8 @@
         // bouncing through a slow webview error cycle.
         // no-cors: this page runs on the shell's local origin, so a normal
         // fetch is CORS-blocked and would report "offline" even when online
-        fetch('https://streamflaire.com/', { method: 'HEAD', cache: 'no-store', mode: 'no-cors' })
-          .then(function () { window.location.href = 'https://streamflaire.com/app/dashboard'; })
+        fetch('https://workbenchfsm.com/', { method: 'HEAD', cache: 'no-store', mode: 'no-cors' })
+          .then(function () { window.location.href = 'https://workbenchfsm.com/app/dashboard'; })
           .catch(function () {
             status.textContent = 'Still offline — try again in a moment.';
             btn.disabled = false;
