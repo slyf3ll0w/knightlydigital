@@ -16,6 +16,7 @@
 
 import { prisma } from "@/lib/db";
 import { sendEmail, paymentReminderEmail, appointmentReminderEmail } from "@/lib/email";
+import { sendSms, appointmentReminderText } from "@/lib/sms";
 import { notifyUser } from "@/lib/push";
 import { slotLabel } from "@/lib/booking-availability";
 
@@ -146,12 +147,12 @@ export async function runAppointmentReminders(
       tentative: false,
       scheduledAnytime: false,
       scheduledAt: { gt: now, lte: new Date(now.getTime() + 26 * HOUR) },
-      contact: { is: { email: { not: null } } },
+      contact: { is: { OR: [{ email: { not: null } }, { phone: { not: null } }] } },
       request: { is: { source: "booking_form" } },
       OR: [{ reminderDaySentAt: null }, { reminderHourSentAt: null }],
     },
     include: {
-      contact: { select: { firstName: true, email: true } },
+      contact: { select: { firstName: true, email: true, phone: true, smsOptOut: true } },
       company: {
         select: {
           name: true,
@@ -178,28 +179,51 @@ export async function runAppointmentReminders(
           : msUntil > 2 * HOUR && !appt.reminderDaySentAt
             ? "day"
             : null;
-      if (!stage || !appt.contact.email) continue;
+      if (!stage) continue;
 
       const windowEnd = new Date(
         appt.scheduledAt.getTime() + appt.company.arrivalWindowMinutes * 60000
       );
-      const { subject, html } = appointmentReminderEmail({
-        companyName: appt.company.name,
-        companyEmail: appt.company.email,
-        contactFirstName: appt.contact.firstName,
-        serviceName: appt.title,
-        windowLabel: slotLabel(appt.company.timezone, appt.scheduledAt, windowEnd),
-        address: appt.address,
-        stage,
-      });
-      const ok = await sendEmail({
-        to: appt.contact.email,
-        subject,
-        html,
-        replyTo: appt.company.email || undefined,
-        fromName: appt.company.name,
-        brand: appt.company,
-      });
+      const windowLabel = slotLabel(appt.company.timezone, appt.scheduledAt, windowEnd);
+
+      let emailOk = false;
+      if (appt.contact.email) {
+        const { subject, html } = appointmentReminderEmail({
+          companyName: appt.company.name,
+          companyEmail: appt.company.email,
+          contactFirstName: appt.contact.firstName,
+          serviceName: appt.title,
+          windowLabel,
+          address: appt.address,
+          stage,
+        });
+        emailOk = await sendEmail({
+          to: appt.contact.email,
+          subject,
+          html,
+          replyTo: appt.company.email || undefined,
+          fromName: appt.company.name,
+          brand: appt.company,
+        });
+      }
+
+      // Text rides alongside the email (either channel counts as reminded).
+      let smsOk = false;
+      if (appt.contact.phone && !appt.contact.smsOptOut) {
+        smsOk = await sendSms({
+          to: appt.contact.phone,
+          text: appointmentReminderText({
+            companyName: appt.company.name,
+            firstName: appt.contact.firstName,
+            serviceName: appt.title,
+            windowLabel,
+            address: appt.address,
+            stage,
+          }),
+        });
+      }
+
+      const ok = emailOk || smsOk;
       if (ok) {
         await prisma.appointment.update({
           where: { id: appt.id },

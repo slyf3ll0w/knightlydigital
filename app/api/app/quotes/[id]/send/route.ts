@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, viaContactScope } from "@/lib/permissions";
 import { sendEmail, quoteLinkEmail } from "@/lib/email";
+import { sendSms, quoteLinkText } from "@/lib/sms";
 import { quoteDepositAmount, money } from "@/lib/statuses";
 import { autoSendQuoteAgreements } from "@/lib/agreements";
 import { autoAdvance } from "@/lib/pipeline";
@@ -78,6 +79,21 @@ export async function POST(
     );
   }
 
+  // Best-effort text with the same link — never fails the send.
+  let texted = false;
+  if (quote.contact.phone && !quote.contact.smsOptOut) {
+    texted = await sendSms({
+      to: quote.contact.phone,
+      text: quoteLinkText({
+        companyName: quote.company.name,
+        firstName: quote.contact.firstName,
+        quoteNumber: quote.quoteNumber,
+        total: Number(quote.total),
+        viewUrl: `${baseUrl}/quote/${quote.publicToken}`,
+      }),
+    });
+  }
+
   const justSent = !quote.sentAt;
   await prisma.quote.update({
     where: { id: quote.id },
@@ -94,5 +110,5 @@ export async function POST(
   // Pipeline board: a sent quote advances the lead's card
   await autoAdvance(prisma, companyId, quote.contactId, "QUOTE_SENT");
 
-  return NextResponse.json({ emailed: true, to: quote.contact.email });
+  return NextResponse.json({ emailed: true, texted, to: quote.contact.email });
 }

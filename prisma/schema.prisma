@@ -433,6 +433,10 @@ model Contact {
   // payment and reused after. NOT a chargeable token (that's
   // processorCustomerRef, which stays null until card-on-file ships).
   finixBuyerIdentityId String?
+  // Provider SMS (Telnyx): set when the client texts STOP to our number —
+  // automated texts (reminders, quote/invoice links) skip them. Telnyx also
+  // blocks at their edge; this flag keeps our senders honest and visible.
+  smsOptOut        Boolean       @default(false)
   hubToken         String        @unique @default(cuid())
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt

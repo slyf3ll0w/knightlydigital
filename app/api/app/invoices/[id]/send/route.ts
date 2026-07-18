@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, canSeeMoney, viaContactScope } from "@/lib/permissions";
 import { sendEmail, invoiceLinkEmail } from "@/lib/email";
+import { sendSms, invoiceLinkText } from "@/lib/sms";
 
 /**
  * POST — email the client their invoice pay link and mark the invoice sent.
@@ -62,6 +63,21 @@ export async function POST(
     );
   }
 
+  // Best-effort text with the same link — never fails the send.
+  let texted = false;
+  if (invoice.contact.phone && !invoice.contact.smsOptOut) {
+    texted = await sendSms({
+      to: invoice.contact.phone,
+      text: invoiceLinkText({
+        companyName: invoice.company.name,
+        firstName: invoice.contact.firstName,
+        invoiceNumber: invoice.invoiceNumber,
+        total: Number(invoice.total),
+        payUrl: `${baseUrl}/pay/${invoice.publicToken}`,
+      }),
+    });
+  }
+
   if (invoice.status === "DRAFT") {
     await prisma.invoice.update({
       where: { id: invoice.id },
@@ -69,5 +85,5 @@ export async function POST(
     });
   }
 
-  return NextResponse.json({ emailed: true, to: invoice.contact.email });
+  return NextResponse.json({ emailed: true, texted, to: invoice.contact.email });
 }
