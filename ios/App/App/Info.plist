@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-        <string>Streamflaire Hub</string>
+        <string>WorkBench</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -25,13 +25,13 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>Streamflaire Hub uses the camera so you can take photos of job sites and attach them to jobs.</string>
+	<string>WorkBench uses the camera so you can take photos of job sites and attach them to jobs.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Streamflaire Hub accesses your photo library so you can attach existing photos to jobs.</string>
+	<string>WorkBench accesses your photo library so you can attach existing photos to jobs.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>Streamflaire Hub can save job photos to your photo library.</string>
+	<string>WorkBench can save job photos to your photo library.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Streamflaire Hub records your location only when you clock in or out and while you're on the clock, so your team can see where work is happening. It is never tracked off the clock.</string>
+	<string>WorkBench records your location only when you clock in or out and while you're on the clock, so your team can see where work is happening. It is never tracked off the clock.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
