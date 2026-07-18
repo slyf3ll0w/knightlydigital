@@ -1,13 +1,13 @@
 import type { MetadataRoute } from "next";
 
-// Streamflaire Hub installs as an app from the browser ("Add to Home
+// WorkBench installs as an app from the browser ("Add to Home
 // Screen" / "Install app"): standalone window, leaf-mark icon, opens on the
 // dashboard. Scope is /app so client-facing pages (/hub, /quote, /pay)
 // still open with normal browser chrome.
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Streamflaire Hub",
-    short_name: "Streamflaire",
+    name: "WorkBench",
+    short_name: "WorkBench",
     description: "Free field service management — quotes, jobs, invoices, and payments.",
     start_url: "/app/dashboard",
     scope: "/app",

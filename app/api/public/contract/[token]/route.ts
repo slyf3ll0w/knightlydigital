@@ -91,7 +91,7 @@ export async function POST(
         <strong>${contact ? `${contact.firstName} ${contact.lastName}` : "Your client"}</strong>
         signed "<strong>${contract.title.replace(/</g, "&lt;")}</strong>"
         on ${signedAt.toLocaleString("en-US", { month: "long", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })}.
-        <a href="${baseUrl}/app/contracts/${contract.id}">View it in Streamflaire Hub</a>.
+        <a href="${baseUrl}/app/contracts/${contract.id}">View it in WorkBench</a>.
       </p>`,
       replyTo: contact?.email ?? undefined,
     });

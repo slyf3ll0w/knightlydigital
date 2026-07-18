@@ -91,7 +91,7 @@ const APP_CHEATSHEET = `Navigation map — ONLY for when the user asks where som
 function systemPrompt(actor: Actor, companyName: string, tz: string, assistantName: string): string {
   const today = new Date().toLocaleDateString("en-CA", { timeZone: tz }); // YYYY-MM-DD
   const weekday = new Date().toLocaleDateString("en-US", { timeZone: tz, weekday: "long" });
-  return `You are ${assistantName}, the built-in AI assistant for ${companyName}'s Streamflaire Hub account — field-service business software (clients, quotes, jobs, invoices, scheduling, agreements, online booking). Your job is to make running this business easier: answer from real data, do the busywork, and surface what matters. If asked, your name is ${assistantName}; owners can rename you in /app/settings (or just ask you to do it — update_company_settings assistantName).
+  return `You are ${assistantName}, the built-in AI assistant for ${companyName}'s WorkBench account — field-service business software (clients, quotes, jobs, invoices, scheduling, agreements, online booking). Your job is to make running this business easier: answer from real data, do the busywork, and surface what matters. If asked, your name is ${assistantName}; owners can rename you in /app/settings (or just ask you to do it — update_company_settings assistantName).
 
 Today is ${weekday}, ${today} (${tz}). The user is ${actor.name}, role: ${roleLabel[actor.role]}.
 

@@ -20,7 +20,7 @@
  * and must be registered verbatim in the Intuit developer portal.
  *
  * Known Phase 1 simplifications (documented in Settings copy too):
- *  - All invoice lines bill against one generic "Streamflaire Services"
+ *  - All invoice lines bill against one generic "WorkBench Services"
  *    item (Jobber's default behavior) — per-WorkItem item sync is Phase 2.
  *  - Tax is pushed as an invoice-level total (all lines marked TAX when the
  *    invoice has tax); QBO Automated Sales Tax may recalculate it.
@@ -40,7 +40,7 @@ const OAUTH_REVOKE_URL = "https://developer.api.intuit.com/v2/oauth2/tokens/revo
 const OAUTH_SCOPE = "com.intuit.quickbooks.accounting";
 const MINOR_VERSION = "75";
 /** The generic Service item all invoice lines bill against (Phase 1). */
-const DEFAULT_ITEM_NAME = "Streamflaire Services";
+const DEFAULT_ITEM_NAME = "WorkBench Services";
 /** Per-run cap so a huge first sync can't run away; the next run continues. */
 const SYNC_BATCH_LIMIT = 100;
 
@@ -594,7 +594,7 @@ export async function pushInvoice(
     ...(invoice.dueDate ? { DueDate: dateOnly(invoice.dueDate) } : {}),
     Line: lines,
     ...(taxable ? { TxnTaxDetail: { TotalTax: money(invoice.tax) } } : {}),
-    PrivateNote: `Synced from Streamflaire Hub (invoice #${invoice.invoiceNumber})`.slice(0, 4000),
+    PrivateNote: `Synced from WorkBench (invoice #${invoice.invoiceNumber})`.slice(0, 4000),
   };
 
   let result: QboEntity;
@@ -647,7 +647,7 @@ export async function pushPayment(
   const customerId = await ensureCustomer(connection, payment.invoice.contactId);
 
   const memoBits = [
-    `Streamflaire Hub payment — ${payment.method.toLowerCase().replace(/_/g, " ")}`,
+    `WorkBench payment — ${payment.method.toLowerCase().replace(/_/g, " ")}`,
     payment.details ?? "",
     money(payment.surchargeAmount) > 0
       ? `includes $${money(payment.surchargeAmount).toFixed(2)} card surcharge`

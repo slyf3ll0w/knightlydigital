@@ -134,7 +134,7 @@ export default function RegisterPage() {
         <div className="px-6 lg:px-12 pt-6 shrink-0">
           <div className="flex items-center justify-between mb-4">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/streamflaire-hub-logo.png" alt="Streamflaire Hub" className="h-6 w-auto" />
+            <img src="/workbench-logo.png" alt="WorkBench" className="h-6 w-auto" />
             <span className="text-xs text-gray-400 font-medium">
               Step {step + 1} of {STEPS.length}
             </span>

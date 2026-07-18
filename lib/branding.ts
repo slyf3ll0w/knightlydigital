@@ -3,7 +3,7 @@
  * Companies set logoUrl + two brand colors in Settings: primary (brandColor)
  * drives headers/surfaces, secondary (brandColorSecondary) drives buttons and
  * accents. Secondary falls back to primary; everything falls back to
- * Streamflaire Hub defaults when unset.
+ * WorkBench defaults when unset.
  */
 
 export type CompanyBrand = {

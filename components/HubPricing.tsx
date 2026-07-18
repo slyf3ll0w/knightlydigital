@@ -84,7 +84,7 @@ export function HubPricing() {
           className="text-xs font-bold uppercase tracking-widest mb-6"
           style={{ ...OXANIUM, color: '#22C55E' }}
         >
-          The Job Manager
+          WorkBench
         </p>
 
         {/* Billing toggle */}

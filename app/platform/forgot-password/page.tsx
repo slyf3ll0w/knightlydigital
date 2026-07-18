@@ -35,7 +35,7 @@ export default function ForgotPasswordPage() {
       <div className="w-full max-w-sm">
         <div className="flex justify-center mb-8">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/streamflaire-hub-logo.png" alt="Streamflaire Hub" className="h-7 w-auto" />
+          <img src="/workbench-logo.png" alt="WorkBench" className="h-7 w-auto" />
         </div>
 
         <div className="card-ledger p-8 shadow-sm">

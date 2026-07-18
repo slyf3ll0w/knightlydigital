@@ -4,9 +4,9 @@ import { isRoadmapEditor } from "@/lib/roadmap";
 import RoadmapClient from "./RoadmapClient";
 
 export const metadata: Metadata = {
-  title: "Upcoming Features — Streamflaire Hub",
+  title: "Upcoming Features — WorkBench",
   description:
-    "What we're building next for Streamflaire Hub — upcoming features, bug fixes, and quality-of-life improvements, and everything that already shipped.",
+    "What we're building next for WorkBench — upcoming features, bug fixes, and quality-of-life improvements, and everything that already shipped.",
 };
 
 export const dynamic = "force-dynamic";

@@ -165,7 +165,7 @@ export default function QuickBooksSettingsClient({ configured }: { configured: b
               <li>Payments are applied against the right invoice automatically</li>
             </ul>
             <p className="text-xs text-gray-400 mt-2">
-              Invoice lines bill against a single &ldquo;Streamflaire Services&rdquo; item in your
+              Invoice lines bill against a single &ldquo;WorkBench Services&rdquo; item in your
               books — ask your accountant if they want it mapped differently.
             </p>
           </div>

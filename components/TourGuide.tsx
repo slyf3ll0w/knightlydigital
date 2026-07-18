@@ -30,7 +30,7 @@ const moneyRoles = (r: string) => isManagerRole(r) || r === "USER" || r === "SAL
 const allSteps: Step[] = [
   {
     key: null,
-    title: "Welcome to Streamflaire Hub",
+    title: "Welcome to WorkBench",
     body: "Here's a quick tour of how work flows through your account — from a new lead to money in the bank. It takes about a minute.",
   },
   {

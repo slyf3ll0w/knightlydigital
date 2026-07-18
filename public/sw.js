@@ -1,5 +1,5 @@
 /**
- * Service worker for Streamflaire Hub. Two jobs:
+ * Service worker for WorkBench. Two jobs:
  *
  * 1) Web push (original role): show notifications and click into the right page.
  * 2) Offline mode, phase 1 (read-only snapshot):
@@ -252,7 +252,7 @@ self.addEventListener("push", (event) => {
   } catch {
     /* non-JSON payload — show the generic notification */
   }
-  const title = data.title || "Streamflaire Hub";
+  const title = data.title || "WorkBench";
   event.waitUntil(
     self.registration.showNotification(title, {
       body: data.body || "",

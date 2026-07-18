@@ -8,7 +8,7 @@
  */
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
-const FROM = process.env.EMAIL_FROM ?? "Streamflaire Hub <notifications@streamflaire.com>";
+const FROM = process.env.EMAIL_FROM ?? "WorkBench <notifications@streamflaire.com>";
 // Bare address from FROM — sends that brand the display name still have to
 // use the Resend-verified domain, only the name in front of it changes.
 const FROM_ADDRESS = FROM.match(/<([^>]+)>/)?.[1] ?? FROM;
@@ -56,7 +56,7 @@ function brandEmail(html: string, brand: EmailBrand): string {
     out = swap(out, "background:#0C0F0C;padding:16px 24px;", `background:${color};padding:16px 24px;`);
     out = swap(
       out,
-      "color:#22C55E;font-size:13px;font-weight:700;letter-spacing:0.5px;",
+      "color:#0B57D8;font-size:13px;font-weight:700;letter-spacing:0.5px;",
       `color:${onColor(color)};font-size:13px;font-weight:700;letter-spacing:0.5px;`
     );
   }
@@ -164,7 +164,7 @@ export function newRequestEmail({
 <div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f3f4f6;padding:24px;">
   <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
     <div style="background:#0C0F0C;padding:16px 24px;">
-      <p style="margin:0;color:#22C55E;font-size:13px;font-weight:700;letter-spacing:0.5px;">NEW REQUEST</p>
+      <p style="margin:0;color:#0B57D8;font-size:13px;font-weight:700;letter-spacing:0.5px;">NEW REQUEST</p>
     </div>
     <div style="padding:24px;">
       <p style="margin:0 0 16px;color:#111827;font-size:15px;">
@@ -183,7 +183,7 @@ export function newRequestEmail({
       </a>
     </div>
     <div style="padding:12px 24px;border-top:1px solid #f3f4f6;">
-      <p style="margin:0;color:#9ca3af;font-size:12px;">Sent to ${esc(companyName)} by Streamflaire Hub</p>
+      <p style="margin:0;color:#9ca3af;font-size:12px;">Sent to ${esc(companyName)} by WorkBench</p>
     </div>
   </div>
 </div>`;
@@ -207,7 +207,7 @@ export function reviewRequestEmail({
 <div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f3f4f6;padding:24px;">
   <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
     <div style="background:#0C0F0C;padding:16px 24px;">
-      <p style="margin:0;color:#22C55E;font-size:13px;font-weight:700;letter-spacing:0.5px;">${esc(companyName.toUpperCase())}</p>
+      <p style="margin:0;color:#0B57D8;font-size:13px;font-weight:700;letter-spacing:0.5px;">${esc(companyName.toUpperCase())}</p>
     </div>
     <div style="padding:24px;">
       <p style="margin:0 0 12px;color:#111827;font-size:15px;">Hi ${esc(contactFirstName)},</p>
@@ -224,7 +224,7 @@ export function reviewRequestEmail({
       </a>
     </div>
     <div style="padding:12px 24px;border-top:1px solid #f3f4f6;">
-      <p style="margin:0;color:#9ca3af;font-size:12px;">Sent by ${esc(companyName)} via Streamflaire Hub</p>
+      <p style="margin:0;color:#9ca3af;font-size:12px;">Sent by ${esc(companyName)} via WorkBench</p>
     </div>
   </div>
 </div>`;
@@ -247,7 +247,7 @@ export function contractSignEmail({
 <div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f3f4f6;padding:24px;">
   <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
     <div style="background:#0C0F0C;padding:16px 24px;">
-      <p style="margin:0;color:#22C55E;font-size:13px;font-weight:700;letter-spacing:0.5px;">${esc(companyName.toUpperCase())}</p>
+      <p style="margin:0;color:#0B57D8;font-size:13px;font-weight:700;letter-spacing:0.5px;">${esc(companyName.toUpperCase())}</p>
     </div>
     <div style="padding:24px;">
       <p style="margin:0 0 12px;color:#111827;font-size:15px;">Hi ${esc(contactFirstName)},</p>
@@ -261,7 +261,7 @@ export function contractSignEmail({
       </a>
     </div>
     <div style="padding:12px 24px;border-top:1px solid #f3f4f6;">
-      <p style="margin:0;color:#9ca3af;font-size:12px;">Sent by ${esc(companyName)} via Streamflaire Hub</p>
+      <p style="margin:0;color:#9ca3af;font-size:12px;">Sent by ${esc(companyName)} via WorkBench</p>
     </div>
   </div>
 </div>`;
@@ -286,7 +286,7 @@ export function hubAccessEmail({
 <div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f3f4f6;padding:24px;">
   <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
     <div style="background:#0C0F0C;padding:16px 24px;">
-      <p style="margin:0;color:#22C55E;font-size:13px;font-weight:700;letter-spacing:0.5px;">${esc(companyName.toUpperCase())}</p>
+      <p style="margin:0;color:#0B57D8;font-size:13px;font-weight:700;letter-spacing:0.5px;">${esc(companyName.toUpperCase())}</p>
     </div>
     <div style="padding:24px;">
       <p style="margin:0 0 12px;color:#111827;font-size:15px;">Hi ${esc(contactFirstName)},</p>
@@ -304,7 +304,7 @@ export function hubAccessEmail({
       </p>
     </div>
     <div style="padding:12px 24px;border-top:1px solid #f3f4f6;">
-      <p style="margin:0;color:#9ca3af;font-size:12px;">Sent by ${esc(companyName)} via Streamflaire Hub</p>
+      <p style="margin:0;color:#9ca3af;font-size:12px;">Sent by ${esc(companyName)} via WorkBench</p>
     </div>
   </div>
 </div>`;
@@ -337,7 +337,7 @@ export function contractSignedCopyEmail({
 <div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f3f4f6;padding:24px;">
   <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
     <div style="background:#0C0F0C;padding:16px 24px;">
-      <p style="margin:0;color:#22C55E;font-size:13px;font-weight:700;letter-spacing:0.5px;">${esc(companyName.toUpperCase())}</p>
+      <p style="margin:0;color:#0B57D8;font-size:13px;font-weight:700;letter-spacing:0.5px;">${esc(companyName.toUpperCase())}</p>
     </div>
     <div style="padding:24px;">
       <p style="margin:0 0 12px;color:#111827;font-size:15px;">Hi ${esc(contactFirstName)},</p>
@@ -355,7 +355,7 @@ export function contractSignedCopyEmail({
       </a>
     </div>
     <div style="padding:12px 24px;border-top:1px solid #f3f4f6;">
-      <p style="margin:0;color:#9ca3af;font-size:12px;">Sent by ${esc(companyName)} via Streamflaire Hub</p>
+      <p style="margin:0;color:#9ca3af;font-size:12px;">Sent by ${esc(companyName)} via WorkBench</p>
     </div>
   </div>
 </div>`;
@@ -383,7 +383,7 @@ export function invoiceLinkEmail({
 <div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f3f4f6;padding:24px;">
   <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
     <div style="background:#0C0F0C;padding:16px 24px;">
-      <p style="margin:0;color:#22C55E;font-size:13px;font-weight:700;letter-spacing:0.5px;">${esc(companyName.toUpperCase())}</p>
+      <p style="margin:0;color:#0B57D8;font-size:13px;font-weight:700;letter-spacing:0.5px;">${esc(companyName.toUpperCase())}</p>
     </div>
     <div style="padding:24px;">
       <p style="margin:0 0 16px;color:#111827;font-size:15px;">
@@ -398,7 +398,7 @@ export function invoiceLinkEmail({
       </a>
     </div>
     <div style="padding:12px 24px;border-top:1px solid #f3f4f6;">
-      <p style="margin:0;color:#9ca3af;font-size:12px;">Sent by ${esc(companyName)} via Streamflaire Hub</p>
+      <p style="margin:0;color:#9ca3af;font-size:12px;">Sent by ${esc(companyName)} via WorkBench</p>
     </div>
   </div>
 </div>`;
@@ -435,7 +435,7 @@ export function quoteLinkEmail({
 <div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f3f4f6;padding:24px;">
   <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
     <div style="background:#0C0F0C;padding:16px 24px;">
-      <p style="margin:0;color:#22C55E;font-size:13px;font-weight:700;letter-spacing:0.5px;">${esc(companyName.toUpperCase())}</p>
+      <p style="margin:0;color:#0B57D8;font-size:13px;font-weight:700;letter-spacing:0.5px;">${esc(companyName.toUpperCase())}</p>
     </div>
     <div style="padding:24px;">
       <p style="margin:0 0 16px;color:#111827;font-size:15px;">
@@ -451,7 +451,7 @@ export function quoteLinkEmail({
       </a>
     </div>
     <div style="padding:12px 24px;border-top:1px solid #f3f4f6;">
-      <p style="margin:0;color:#9ca3af;font-size:12px;">Sent by ${esc(companyName)} via Streamflaire Hub</p>
+      <p style="margin:0;color:#9ca3af;font-size:12px;">Sent by ${esc(companyName)} via WorkBench</p>
     </div>
   </div>
 </div>`;
@@ -464,13 +464,13 @@ function bookingShell(companyName: string, inner: string): string {
 <div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f3f4f6;padding:24px;">
   <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
     <div style="background:#0C0F0C;padding:16px 24px;">
-      <p style="margin:0;color:#22C55E;font-size:13px;font-weight:700;letter-spacing:0.5px;">${esc(companyName.toUpperCase())}</p>
+      <p style="margin:0;color:#0B57D8;font-size:13px;font-weight:700;letter-spacing:0.5px;">${esc(companyName.toUpperCase())}</p>
     </div>
     <div style="padding:24px;">
       ${inner}
     </div>
     <div style="padding:12px 24px;border-top:1px solid #f3f4f6;">
-      <p style="margin:0;color:#9ca3af;font-size:12px;">Sent by ${esc(companyName)} via Streamflaire Hub</p>
+      <p style="margin:0;color:#9ca3af;font-size:12px;">Sent by ${esc(companyName)} via WorkBench</p>
     </div>
   </div>
 </div>`;
@@ -650,7 +650,7 @@ export function paymentReminderEmail({
 <div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f3f4f6;padding:24px;">
   <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
     <div style="background:#0C0F0C;padding:16px 24px;">
-      <p style="margin:0;color:#22C55E;font-size:13px;font-weight:700;letter-spacing:0.5px;">${esc(companyName.toUpperCase())}</p>
+      <p style="margin:0;color:#0B57D8;font-size:13px;font-weight:700;letter-spacing:0.5px;">${esc(companyName.toUpperCase())}</p>
     </div>
     <div style="padding:24px;">
       <p style="margin:0 0 16px;color:#111827;font-size:15px;">${esc(copy.lead)}</p>
@@ -663,7 +663,7 @@ export function paymentReminderEmail({
       ${companyEmail ? `<p style="margin:20px 0 0;color:#6b7280;font-size:13px;">Already paid or have a question? Reply to this email or reach ${esc(companyName)} at ${esc(companyEmail)}.</p>` : ""}
     </div>
     <div style="padding:12px 24px;border-top:1px solid #f3f4f6;">
-      <p style="margin:0;color:#9ca3af;font-size:12px;">Sent by ${esc(companyName)} via Streamflaire Hub</p>
+      <p style="margin:0;color:#9ca3af;font-size:12px;">Sent by ${esc(companyName)} via WorkBench</p>
     </div>
   </div>
 </div>`;
@@ -671,7 +671,7 @@ export function paymentReminderEmail({
 }
 
 /**
- * Password reset for a Streamflaire Hub account (the business owner/staff login,
+ * Password reset for a WorkBench account (the business owner/staff login,
  * not a client). Hub-branded, not company-branded.
  */
 export function passwordResetEmail({
@@ -685,12 +685,12 @@ export function passwordResetEmail({
 <div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f3f4f6;padding:24px;">
   <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
     <div style="background:#0C0F0C;padding:16px 24px;">
-      <p style="margin:0;color:#22C55E;font-size:13px;font-weight:700;letter-spacing:0.5px;">STREAMFLAIRE HUB</p>
+      <p style="margin:0;color:#0B57D8;font-size:13px;font-weight:700;letter-spacing:0.5px;">WORKBENCH</p>
     </div>
     <div style="padding:24px;">
       <p style="margin:0 0 12px;color:#111827;font-size:15px;">Hi ${esc(name)},</p>
       <p style="margin:0 0 16px;color:#374151;font-size:14px;">
-        We received a request to reset your Streamflaire Hub password. Click the
+        We received a request to reset your WorkBench password. Click the
         button below to choose a new one. This link expires in 1 hour and can be
         used once.
       </p>
@@ -704,9 +704,9 @@ export function passwordResetEmail({
       </p>
     </div>
     <div style="padding:12px 24px;border-top:1px solid #f3f4f6;">
-      <p style="margin:0;color:#9ca3af;font-size:12px;">Streamflaire Hub</p>
+      <p style="margin:0;color:#9ca3af;font-size:12px;">WorkBench</p>
     </div>
   </div>
 </div>`;
-  return { subject: "Reset your Streamflaire Hub password", html };
+  return { subject: "Reset your WorkBench password", html };
 }

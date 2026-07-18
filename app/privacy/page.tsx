@@ -4,12 +4,12 @@ import Link from 'next/link';
 export const metadata: Metadata = {
   title: 'Privacy Policy',
   description:
-    'How Streamflaire and Streamflaire Hub collect, use, and protect your information.',
+    'How Streamflaire and WorkBench collect, use, and protect your information.',
 };
 
 const LAST_UPDATED = 'July 9, 2026';
 
-/* Generic policy covering both the marketing site and Streamflaire Hub.
+/* Generic policy covering both the marketing site and WorkBench.
    Both app stores require a public privacy-policy URL, so this page is a
    Play Store / App Store prerequisite — keep it accurate as features ship. */
 
@@ -17,7 +17,7 @@ const sections: { heading: string; paragraphs: (string | React.ReactNode)[] }[] 
   {
     heading: '1. Who we are',
     paragraphs: [
-      'Streamflaire Media Group ("Streamflaire," "we," "us") operates this website and Streamflaire Hub, a business-management platform for home-service companies ("the Service"). We are headquartered in Allen, Texas, USA.',
+      'Streamflaire Media Group ("Streamflaire," "we," "us") operates this website and WorkBench, a business-management platform for home-service companies ("the Service"). We are headquartered in Allen, Texas, USA.',
       'This policy explains what information we collect, how we use it, and the choices you have. By using the website or the Service, you agree to the practices described here.',
     ],
   },
@@ -33,8 +33,8 @@ const sections: { heading: string; paragraphs: (string | React.ReactNode)[] }[] 
   {
     heading: '3. Your clients’ information',
     paragraphs: [
-      'Businesses using Streamflaire Hub upload and manage information about their own customers (names, contact details, addresses, job history). That information belongs to the business that entered it. We process it only to provide the Service to that business and never sell it or use it for advertising.',
-      'If you are a customer of a business that uses Streamflaire Hub and have questions about your information, please contact that business directly — they control their records.',
+      'Businesses using WorkBench upload and manage information about their own customers (names, contact details, addresses, job history). That information belongs to the business that entered it. We process it only to provide the Service to that business and never sell it or use it for advertising.',
+      'If you are a customer of a business that uses WorkBench and have questions about your information, please contact that business directly — they control their records.',
     ],
   },
   {

@@ -1,7 +1,7 @@
 /**
  * Payment processing layer.
  *
- * Streamflaire Hub is free software — payment processing is the business model, so this
+ * WorkBench is free software — payment processing is the business model, so this
  * layer is built to make taking payments as easy as possible:
  *
  *  - `getProcessor()` returns the active PaymentProcessor implementation,

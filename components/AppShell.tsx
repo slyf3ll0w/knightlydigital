@@ -555,11 +555,11 @@ export default function AppShell({
         <p className="px-3 pt-1.5 pb-1 text-[10px] text-[color:var(--rail-faint)] flex items-center gap-1.5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/streamflaire-hub-mark.png"
+            src="/workbench-icon.png"
             alt=""
             className={`h-2.5 w-auto shrink-0 opacity-60 brightness-0 ${railDark ? "invert" : ""}`}
           />
-          Powered by Streamflaire Hub
+          Powered by WorkBench
         </p>
       </div>
     </>
@@ -595,7 +595,7 @@ export default function AppShell({
         {companyName?.charAt(0).toUpperCase() ?? "J"}
       </div>
       <span className="font-display font-bold text-[14px] tracking-tight text-[color:var(--rail-ink)] truncate">
-        {companyName ?? "Streamflaire Hub"}
+        {companyName ?? "WorkBench"}
       </span>
     </div>
   );
@@ -1166,7 +1166,7 @@ function MoreSheet({
           </div>
 
           <p className="pt-4 text-center text-[11px] text-gray-400">
-            Powered by Streamflaire Hub
+            Powered by WorkBench
           </p>
         </div>
       </div>

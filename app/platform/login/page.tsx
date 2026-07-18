@@ -72,12 +72,12 @@ export default function AppLoginPage() {
         {/* Logo */}
         <div className="flex justify-center mb-8">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/streamflaire-hub-logo.png" alt="Streamflaire Hub" className="h-7 w-auto" />
+          <img src="/workbench-logo.png" alt="WorkBench" className="h-7 w-auto" />
         </div>
 
         <div className="card-ledger p-8 shadow-sm">
           <h1 className="text-xl font-bold text-gray-900 mb-1">Sign in</h1>
-          <p className="text-sm text-gray-500 mb-6">Welcome back to Streamflaire Hub</p>
+          <p className="text-sm text-gray-500 mb-6">Welcome back to WorkBench</p>
 
           {staleSession && (
             <div className="mb-4 px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">

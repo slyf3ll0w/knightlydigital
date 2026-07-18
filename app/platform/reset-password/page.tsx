@@ -127,7 +127,7 @@ export default function ResetPasswordPage() {
       <div className="w-full max-w-sm">
         <div className="flex justify-center mb-8">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/streamflaire-hub-logo.png" alt="Streamflaire Hub" className="h-7 w-auto" />
+          <img src="/workbench-logo.png" alt="WorkBench" className="h-7 w-auto" />
         </div>
         <Suspense fallback={<div className="card-ledger p-8 shadow-sm text-center text-sm text-gray-500">Loading…</div>}>
           <ResetPasswordForm />

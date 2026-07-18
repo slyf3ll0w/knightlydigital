@@ -10,8 +10,8 @@ import { resolveWallpaper } from "@/lib/wallpapers";
 
 export const metadata: Metadata = {
   title: {
-    absolute: "Streamflaire Hub",
-    template: "%s · Streamflaire Hub",
+    absolute: "WorkBench",
+    template: "%s · WorkBench",
   },
 };
 

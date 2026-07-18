@@ -8,7 +8,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
  */
 const config: CapacitorConfig = {
   appId: 'com.streamflaire.hub',
-  appName: 'Streamflaire Hub',
+  appName: 'WorkBench',
   webDir: 'native-shell',
   server: {
     // /app/dashboard so the shell opens into the product, not the marketing
