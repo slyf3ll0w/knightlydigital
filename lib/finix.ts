@@ -335,6 +335,66 @@ export async function getTransfer(id: string): Promise<FinixTransfer> {
   return finixFetch<FinixTransfer>(`/transfers/${id}`);
 }
 
+/** All transfers processed under a seller identity (charges, reversals). */
+export async function listTransfersForIdentity(
+  identityId: string,
+  limit = 100
+): Promise<FinixTransfer[]> {
+  const res = await finixFetch<{ _embedded?: { transfers?: FinixTransfer[] } }>(
+    `/transfers?merchant_identity_id=${encodeURIComponent(identityId)}&limit=${limit}`
+  );
+  return res._embedded?.transfers ?? [];
+}
+
+/**
+ * Settlement = one payout batch (gross - fees = net to the merchant's bank).
+ * Field names vary a little between Finix versions, so consumers should read
+ * them tolerantly. Sandbox closes settlements on its own schedule.
+ */
+export interface FinixSettlement {
+  id: string;
+  status?: string;
+  currency?: string;
+  total_amount?: number; // cents, gross
+  total_fees?: number; // cents
+  net_amount?: number; // cents
+  identity?: string;
+  merchant_id?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export async function listSettlementsForIdentity(
+  identityId: string,
+  limit = 40
+): Promise<FinixSettlement[]> {
+  const res = await finixFetch<{ _embedded?: { settlements?: FinixSettlement[] } }>(
+    `/settlements?limit=${limit}`
+  );
+  // Server-side filter support varies; filter locally by identity to be safe
+  return (res._embedded?.settlements ?? []).filter(
+    (s) => !s.identity || s.identity === identityId
+  );
+}
+
+export interface FinixDispute {
+  id: string;
+  state?: string; // INQUIRY | PENDING | WON | LOST ...
+  reason?: string;
+  amount?: number; // cents
+  transfer?: string; // TRxxx being disputed
+  respond_by?: string;
+  identity?: string;
+  created_at?: string;
+}
+
+export async function listDisputes(limit = 40): Promise<FinixDispute[]> {
+  const res = await finixFetch<{ _embedded?: { disputes?: FinixDispute[] } }>(
+    `/disputes?limit=${limit}`
+  );
+  return res._embedded?.disputes ?? [];
+}
+
 /** Refund (full or partial) a settled card/ACH transfer. */
 export async function reverseTransfer(params: {
   transferId: string;

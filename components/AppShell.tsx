@@ -101,6 +101,7 @@ const navGroups: { label?: string; items: NavItem[] }[] = [
       // a direct path to their own hours.
       { href: "/app/timesheets", label: "Timesheets", icon: Timer, show: (r) => !isManagerRole(r) && r !== "SALES" },
       { href: "/app/invoices", label: "Invoices", icon: Receipt, show: moneyRoles },
+      { href: "/app/payments", label: "Payments", icon: DollarSign, show: moneyRoles },
       { href: "/app/subscriptions", label: "Subscriptions", icon: Repeat, show: moneyRoles },
     ],
   },
@@ -151,6 +152,7 @@ const sectionTints: Record<string, string> = {
   "/app/quotes": "#22C55E",
   "/app/jobs": "#F97316",
   "/app/invoices": "#0EA5E9",
+  "/app/payments": "#14B8A6",
   "/app/subscriptions": "#14B8A6",
   "/app/business": "#6366F1",
   "/app/settings/products": "#EC4899",
