@@ -8,17 +8,16 @@ export const viewport: Viewport = {
   // Keyboard shrinks the layout instead of scrolling over it (Android/Chrome)
   interactiveWidget: "resizes-content",
 };
-import { MarketingWrapper } from "@/components/MarketingWrapper";
 import { SessionProviderWrapper } from "@/components/SessionProviderWrapper";
 
 export const metadata: Metadata = {
   title: {
-    default: "Streamflaire Media Group | Allen, TX",
-    template: "%s | Streamflaire Media Group",
+    default: "WorkBench",
+    template: "%s — WorkBench",
   },
   description:
-    "Streamflaire Media Group delivers custom software and custom web design for growth-minded businesses across the DFW Metroplex.",
-  metadataBase: new URL("https://streamflaremedia.com"),
+    "WorkBench is field service management for home-service teams: scheduling, quotes, invoices, online booking, client hub, team chat, and built-in payments. Free to use.",
+  metadataBase: new URL("https://workbenchfsm.com"),
   icons: {
     icon: "/icon.png",
   },
@@ -55,9 +54,7 @@ apply();m.addEventListener("change",apply);window.applyHubTheme=apply;
         />
       </head>
       <body>
-        <SessionProviderWrapper>
-          <MarketingWrapper>{children}</MarketingWrapper>
-        </SessionProviderWrapper>
+        <SessionProviderWrapper>{children}</SessionProviderWrapper>
       </body>
     </html>
   );

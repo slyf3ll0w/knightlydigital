@@ -27,14 +27,14 @@ const rateLimits: { match: (path: string) => boolean; max: number; windowMs: num
   },
 ];
 
-// Agency pages moved to streamflaire.com when this app became workbenchfsm.com
+// Old agency paths — everything stays on workbenchfsm.com now
 const agencyMoved: Record<string, string> = {
-  "/about": "https://streamflaire.com/about",
-  "/services": "https://streamflaire.com/services",
-  "/custom-web-design": "https://streamflaire.com/services",
-  "/custom-software": "https://streamflaire.com/services",
-  "/digital-marketing": "https://streamflaire.com/services",
-  "/contact": "https://streamflaire.com/contact",
+  "/about": "/",
+  "/services": "/",
+  "/custom-web-design": "/",
+  "/custom-software": "/",
+  "/digital-marketing": "/",
+  "/contact": "/apply",
   "/crm": "/",
 };
 
