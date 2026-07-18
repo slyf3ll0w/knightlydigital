@@ -8,6 +8,7 @@ import {
   getOnboardingForm,
   getMerchant,
   listMerchantsForIdentity,
+  provisionSandboxMerchant,
   finixConfigured,
   finixEnvironment,
   FinixError,
@@ -23,6 +24,10 @@ import { notifyUsers } from "@/lib/push";
  *        webhooks — the webhook route is a faster path, not a required one.
  * POST — owner-only: create the company's hosted onboarding form (first click)
  *        or mint a fresh session link (links expire hourly). Returns { url }.
+ *        Body { action: "test-approve" } (SANDBOX ONLY) skips the form and
+ *        provisions a merchant from canned test data instead — auto-approves
+ *        in ~2 minutes. provisionSandboxMerchant throws in live mode, so this
+ *        can never bypass real KYC.
  */
 
 async function syncFromFinix(companyId: string) {
@@ -113,7 +118,7 @@ export async function GET() {
   });
 }
 
-export async function POST() {
+export async function POST(req: Request) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (actor.role !== "OWNER") {
@@ -122,6 +127,7 @@ export async function POST() {
       { status: 403 }
     );
   }
+  const body = await req.json().catch(() => ({}));
 
   const processor = getProcessor();
   if (processor.name !== "finix" || !finixConfigured()) {
@@ -144,6 +150,36 @@ export async function POST() {
   if (!company) return NextResponse.json({ error: "Company not found." }, { status: 404 });
   if (company.finixOnboardingState === "APPROVED") {
     return NextResponse.json({ error: "Payments are already set up." }, { status: 400 });
+  }
+
+  if (body.action === "test-approve") {
+    if (finixEnvironment() !== "sandbox") {
+      return NextResponse.json(
+        { error: "Test approval only exists in sandbox mode." },
+        { status: 400 }
+      );
+    }
+    try {
+      const result = await provisionSandboxMerchant({
+        businessName: company.name,
+        email: company.email,
+        phone: company.phone,
+      });
+      await prisma.company.update({
+        where: { id: actor.companyId },
+        data: {
+          finixIdentityId: result.identityId,
+          finixMerchantId: result.merchantId,
+          finixOnboardingState: result.onboardingState,
+        },
+      });
+      return NextResponse.json({ testApproved: true, state: result.onboardingState });
+    } catch (err) {
+      console.error("[payments] sandbox test approval failed", err);
+      const message =
+        err instanceof FinixError ? `Test approval failed: ${err.message}` : "Test approval failed.";
+      return NextResponse.json({ error: message }, { status: 502 });
+    }
   }
 
   const baseUrl = process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com";

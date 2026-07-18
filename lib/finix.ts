@@ -187,6 +187,79 @@ export async function listMerchantsForIdentity(
   return res._embedded?.merchants ?? [];
 }
 
+/**
+ * SANDBOX ONLY: provision a merchant directly through the API — canned
+ * underwriting data + Finix's test bank account — skipping the hosted
+ * onboarding form. Sandbox auto-approves these in ~2 minutes. Throws in the
+ * live environment: real merchants must complete real KYC.
+ */
+export async function provisionSandboxMerchant(params: {
+  businessName: string;
+  email?: string | null;
+  phone?: string | null;
+}): Promise<{ identityId: string; merchantId: string; onboardingState: string }> {
+  if (finixEnvironment() !== "sandbox") {
+    throw new FinixError("Test approval is only available in the sandbox environment.", 400);
+  }
+
+  const digitsOnly = (params.phone ?? "").replace(/\D/g, "");
+  const identity = await finixFetch<{ id: string }>("/identities", {
+    method: "POST",
+    body: {
+      entity: {
+        business_name: params.businessName,
+        doing_business_as: params.businessName,
+        default_statement_descriptor: params.businessName.slice(0, 20),
+        email: params.email || "sandbox-test@workbenchfsm.com",
+        business_phone: digitsOnly.length === 10 ? digitsOnly : "2145550100",
+        phone: digitsOnly.length === 10 ? digitsOnly : "2145550100",
+        // Canned sandbox underwriting data — never sent in live mode
+        business_type: "INDIVIDUAL_SOLE_PROPRIETORSHIP",
+        business_tax_id: "123456789",
+        tax_id: "123456789",
+        business_address: { line1: "123 Main St", city: "Dallas", region: "TX", postal_code: "75201", country: "USA" },
+        personal_address: { line1: "123 Main St", city: "Dallas", region: "TX", postal_code: "75201", country: "USA" },
+        first_name: "Sandbox",
+        last_name: "Owner",
+        title: "Owner",
+        dob: { year: 1985, month: 5, day: 12 },
+        incorporation_date: { year: 2015, month: 1, day: 1 },
+        principal_percentage_ownership: 100,
+        ownership_type: "PRIVATE",
+        mcc: "1711",
+        annual_card_volume: 12000000,
+        max_transaction_amount: maxTransactionCents(),
+        url: "https://workbenchfsm.com",
+      },
+      tags: { sandboxBypass: "true" },
+    },
+  });
+
+  // Finix's standard test settlement account
+  await finixFetch("/payment_instruments", {
+    method: "POST",
+    body: {
+      type: "BANK_ACCOUNT",
+      identity: identity.id,
+      name: "Sandbox Owner",
+      account_number: "0000000016",
+      bank_code: "122105278",
+      account_type: "BUSINESS_CHECKING",
+    },
+  });
+
+  const merchant = await finixFetch<FinixMerchant>(`/identities/${identity.id}/merchants`, {
+    method: "POST",
+    body: { processor: processorName() },
+  });
+
+  return {
+    identityId: identity.id,
+    merchantId: merchant.id,
+    onboardingState: merchant.onboarding_state,
+  };
+}
+
 // ─── Buyers + payment instruments ────────────────────────────────────────────
 
 export async function createBuyerIdentity(params: {

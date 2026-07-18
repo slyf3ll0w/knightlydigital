@@ -144,14 +144,25 @@ function PaymentsOnlineCard({ isOwner }: { isOwner: boolean }) {
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/app/settings/payments")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (!cancelled && d) setStatus(d);
-      })
-      .catch(() => {});
+    const load = () =>
+      fetch("/api/app/settings/payments")
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => {
+          if (!cancelled && d) setStatus(d);
+        })
+        .catch(() => {});
+    load();
+    // While underwriting runs (sandbox auto-approves in ~2 min), keep
+    // checking so the card flips to "enabled" without a reload.
+    const t = setInterval(() => {
+      setStatus((s) => {
+        if (s?.state === "PROVISIONING") load();
+        return s;
+      });
+    }, 20000);
     return () => {
       cancelled = true;
+      clearInterval(t);
     };
   }, []);
 
@@ -166,6 +177,30 @@ function PaymentsOnlineCard({ isOwner }: { isOwner: boolean }) {
         return;
       }
       window.open(data.url, "_blank", "noopener");
+    } catch {
+      setError("Couldn't reach the server. Check your connection and try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Sandbox-only: provision a test merchant from canned data, skipping the
+  // application form entirely. The server refuses this outside sandbox.
+  async function testApprove() {
+    setBusy(true);
+    setError("");
+    try {
+      const res = await fetch("/api/app/settings/payments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "test-approve" }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setError(data?.error ?? "Test approval failed. Please try again.");
+        return;
+      }
+      setStatus((s) => (s ? { ...s, started: true, state: data?.state ?? "PROVISIONING" } : s));
     } catch {
       setError("Couldn't reach the server. Check your connection and try again.");
     } finally {
@@ -236,16 +271,29 @@ function PaymentsOnlineCard({ isOwner }: { isOwner: boolean }) {
 
       {!approved && state !== "PROVISIONING" && state !== "REJECTED" && (
         isOwner ? (
-          <button
-            onClick={openSetup}
-            disabled={busy}
-            className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-xs font-semibold rounded-full transition-colors disabled:opacity-40"
-          >
-            {busy && <Loader2 size={11} className="animate-spin" />}
-            {state === "UPDATE_REQUESTED" || status.started
-              ? "Continue application"
-              : "Set up payments"}
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={openSetup}
+              disabled={busy}
+              className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-xs font-semibold rounded-full transition-colors disabled:opacity-40"
+            >
+              {busy && <Loader2 size={11} className="animate-spin" />}
+              {state === "UPDATE_REQUESTED" || status.started
+                ? "Continue application"
+                : "Set up payments"}
+            </button>
+            {status.environment === "sandbox" && (
+              <button
+                onClick={testApprove}
+                disabled={busy}
+                title="Sandbox only: provisions a merchant from canned test data — no form"
+                className="flex items-center gap-1.5 px-4 py-2 border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-semibold rounded-full transition-colors disabled:opacity-40"
+              >
+                {busy && <Loader2 size={11} className="animate-spin" />}
+                Skip form — instant test approval
+              </button>
+            )}
+          </div>
         ) : (
           <p className="text-xs text-gray-400">
             Only the account owner can set up payments.
