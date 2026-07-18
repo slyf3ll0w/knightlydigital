@@ -147,46 +147,37 @@ export default function WBHomePage() {
             </p>
           </AnimateIn>
 
-          {/* Floating work cards — bob gently, each on its own beat */}
-          <AnimateIn delay={150} className="relative hidden min-h-[380px] lg:block">
+          {/* The day drawn as a workflow: booking → scheduled → paid, connected
+              by a marching blueprint path. Only the Atlas chip floats. */}
+          <AnimateIn delay={150} className="relative hidden min-h-[400px] lg:block">
             {/* blueprint registration marks */}
             <span className="pointer-events-none absolute -left-6 top-0 select-none text-2xl font-light text-blue-200" aria-hidden>+</span>
-            <span className="pointer-events-none absolute right-2 top-28 select-none text-xl font-light text-orange-200" aria-hidden>+</span>
-            <span className="pointer-events-none absolute -bottom-2 left-16 select-none text-2xl font-light text-blue-200" aria-hidden>+</span>
-            <div
-              className="wb-float absolute right-0 top-2 w-64 rounded-2xl border border-gray-100 bg-white p-4 shadow-xl"
-              style={{ "--wb-tilt": "2deg" } as React.CSSProperties}
+            <span className="pointer-events-none absolute right-0 top-24 select-none text-xl font-light text-orange-200" aria-hidden>+</span>
+            <span className="pointer-events-none absolute -bottom-2 left-2 select-none text-2xl font-light text-blue-200" aria-hidden>+</span>
+
+            {/* connector path behind the cards */}
+            <svg
+              className="pointer-events-none absolute inset-0 h-full w-full"
+              viewBox="0 0 460 400"
+              preserveAspectRatio="none"
+              aria-hidden
             >
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50">
-                  <CheckCircle2 className="h-5 w-5 text-[#0B57D8]" strokeWidth={2} />
-                </div>
-                <div>
-                  <p className="text-[14px] font-bold text-gray-900">Invoice #2481</p>
-                  <p className="text-[12.5px] text-gray-500">
-                    $1,240.00 · <span className="font-semibold text-[#0B57D8]">Paid</span>
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div
-              className="wb-float absolute left-2 top-36 w-60 rounded-2xl border border-gray-100 bg-white p-4 shadow-xl"
-              style={{ "--wb-tilt": "-3deg", animationDelay: "1.3s" } as React.CSSProperties}
-            >
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-50">
-                  <CalendarClock className="h-5 w-5 text-[#F86A0A]" strokeWidth={2} />
-                </div>
-                <div>
-                  <p className="text-[14px] font-bold text-gray-900">Tue · 2:00 PM</p>
-                  <p className="text-[12.5px] text-gray-500">AC repair — Ravenwood Dr</p>
-                </div>
-              </div>
-            </div>
-            <div
-              className="wb-float absolute bottom-16 right-10 w-64 rounded-2xl border border-gray-100 bg-white p-4 shadow-xl"
-              style={{ "--wb-tilt": "1deg", animationDelay: "2.2s" } as React.CSSProperties}
-            >
+              <path
+                d="M 150 68 C 300 78, 360 110, 330 172 C 305 224, 200 218, 172 268"
+                fill="none"
+                stroke="#93C5FD"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeDasharray="7 9"
+                className="wb-dash"
+              />
+              <circle cx="150" cy="68" r="4" fill="#0B57D8" />
+              <circle cx="330" cy="172" r="4" fill="#F86A0A" />
+              <circle cx="172" cy="268" r="4" fill="#0B57D8" />
+            </svg>
+
+            <div className="absolute left-0 top-0 w-64 -rotate-1 rounded-2xl border border-gray-100 bg-white p-4 shadow-xl">
+              <span className="absolute -left-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-[#0B57D8] text-[11px] font-bold text-white ring-2 ring-white">1</span>
               <div className="flex items-center gap-3">
                 <Image
                   src="/workbench-icon.png"
@@ -201,9 +192,38 @@ export default function WBHomePage() {
                 </div>
               </div>
             </div>
+
+            <div className="absolute right-0 top-[136px] w-60 rotate-1 rounded-2xl border border-gray-100 bg-white p-4 shadow-xl">
+              <span className="absolute -left-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-[#F86A0A] text-[11px] font-bold text-white ring-2 ring-white">2</span>
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-50">
+                  <CalendarClock className="h-5 w-5 text-[#F86A0A]" strokeWidth={2} />
+                </div>
+                <div>
+                  <p className="text-[14px] font-bold text-gray-900">Tue · 2:00 PM</p>
+                  <p className="text-[12.5px] text-gray-500">AC repair — Ravenwood Dr</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="absolute left-6 top-[268px] w-64 -rotate-1 rounded-2xl border border-gray-100 bg-white p-4 shadow-xl">
+              <span className="absolute -left-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-[#0B57D8] text-[11px] font-bold text-white ring-2 ring-white">3</span>
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50">
+                  <CheckCircle2 className="h-5 w-5 text-[#0B57D8]" strokeWidth={2} />
+                </div>
+                <div>
+                  <p className="text-[14px] font-bold text-gray-900">Invoice #2481</p>
+                  <p className="text-[12.5px] text-gray-500">
+                    $1,240.00 · <span className="font-semibold text-[#0B57D8]">Paid</span>
+                  </p>
+                </div>
+              </div>
+            </div>
+
             <div
-              className="wb-float absolute bottom-0 left-8 w-fit rounded-full border border-gray-200 bg-white px-4 py-2.5 shadow-lg"
-              style={{ "--wb-tilt": "-2deg", animationDelay: "0.7s" } as React.CSSProperties}
+              className="wb-float absolute -bottom-1 right-4 w-fit rounded-full border border-gray-200 bg-white px-4 py-2.5 shadow-lg"
+              style={{ "--wb-tilt": "-2deg" } as React.CSSProperties}
             >
               <p className="flex items-center gap-2 text-[13px] font-semibold text-gray-700">
                 <Compass className="h-4 w-4 text-[#0B57D8]" strokeWidth={2} />

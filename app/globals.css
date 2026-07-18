@@ -636,6 +636,17 @@ body {
   .wb-float { animation: none; }
 }
 
+/* Marching dashes along the hero workflow path */
+@keyframes wb-dash {
+  to { stroke-dashoffset: -56; }
+}
+.wb-dash {
+  animation: wb-dash 3.2s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .wb-dash { animation: none; }
+}
+
 /* Trades marquee — track holds the list twice, slides half its width */
 .wb-marquee {
   overflow: hidden;

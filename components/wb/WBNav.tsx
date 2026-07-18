@@ -60,7 +60,7 @@ export default function WBNav() {
             })}
             <Link
               href="/app/login"
-              className="text-[14px] font-semibold text-gray-600 transition-colors hover:text-gray-900"
+              className="wb-navlink text-[14px] font-semibold text-gray-600 transition-colors hover:text-gray-900"
             >
               Log in
             </Link>
