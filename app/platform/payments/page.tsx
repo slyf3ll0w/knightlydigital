@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
-import { requirePageActor, canSeeMoney } from "@/lib/permissions";
+import { requirePageActor, canSeeMoney, isManager } from "@/lib/permissions";
 import Link from "next/link";
+import DisputeEvidence from "./DisputeEvidence";
 import {
   DollarSign,
   Landmark,
@@ -17,9 +18,11 @@ import {
   listTransfersForIdentity,
   listSettlementsForIdentity,
   listDisputes,
+  listDisputeEvidence,
   type FinixTransfer,
   type FinixSettlement,
   type FinixDispute,
+  type FinixDisputeEvidence,
 } from "@/lib/finix";
 
 /**
@@ -103,12 +106,37 @@ export default async function PaymentsDashboardPage() {
     }
   }
 
+  // Evidence already uploaded per dispute — best-effort, like the reads above
+  const evidenceByDispute = new Map<string, FinixDisputeEvidence[]>();
+  if (disputes.length > 0) {
+    const evidenceRes = await Promise.allSettled(
+      disputes.map((d) => listDisputeEvidence(d.id))
+    );
+    evidenceRes.forEach((r, i) => {
+      if (r.status === "fulfilled") evidenceByDispute.set(disputes[i].id, r.value);
+    });
+  }
+
+  // Payout totals across listed settlements — the "what has processing cost me" line
+  const payoutTotals = settlements.reduce(
+    (acc, s) => {
+      if (s.total_amount != null) acc.gross += s.total_amount;
+      if (s.total_fees != null) acc.fees += s.total_fees;
+      acc.net += s.net_amount ?? (s.total_amount ?? 0) - (s.total_fees ?? 0);
+      return acc;
+    },
+    { gross: 0, fees: 0, net: 0 }
+  );
+
   const pendingAch = payments
     .filter((p) => {
       const t = p.processorRef ? transferStates.get(p.processorRef) : undefined;
       return t?.state === "PENDING";
     })
     .reduce((s, p) => s + Number(p.amount), 0);
+
+  // Dispute debits make settlement nets negative; "$-8,888.88" reads badly
+  const signedMoney = (v: number) => (v < 0 ? `−${money(-v)}` : money(v));
 
   const stateChip = (ref: string | null) => {
     const t = ref ? transferStates.get(ref) : undefined;
@@ -218,26 +246,41 @@ export default async function PaymentsDashboardPage() {
             <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Disputes</h2>
           </div>
           <div className="divide-y divide-gray-50">
-            {disputes.map((d) => (
-              <div key={d.id} className="flex flex-wrap items-center gap-3 px-5 py-3 text-sm">
-                <span className="text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded bg-red-100 text-red-700">
-                  {d.state ?? "OPEN"}
-                </span>
-                <span className="flex-1 text-gray-700">
-                  {(d.reason ?? "Dispute").replaceAll("_", " ").toLowerCase()}
-                  {d.respond_by && (
-                    <span className="text-xs text-gray-400"> · respond by {shortDate(new Date(d.respond_by))}</span>
-                  )}
-                </span>
-                <span className="font-semibold text-gray-900">
-                  {d.amount != null ? money(d.amount / 100) : ""}
-                </span>
-              </div>
-            ))}
+            {disputes.map((d) => {
+              const evidence = evidenceByDispute.get(d.id) ?? [];
+              return (
+                <div key={d.id} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-5 py-3 text-sm">
+                  <span className="text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded bg-red-100 text-red-700">
+                    {d.state ?? "OPEN"}
+                  </span>
+                  <span className="flex-1 text-gray-700">
+                    {(d.reason ?? "Dispute").replaceAll("_", " ").toLowerCase()}
+                    {d.respond_by && (
+                      <span className="text-xs text-gray-400"> · respond by {shortDate(new Date(d.respond_by))}</span>
+                    )}
+                  </span>
+                  <span className="font-semibold text-gray-900">
+                    {d.amount != null ? money(d.amount / 100) : ""}
+                  </span>
+                  <DisputeEvidence
+                    disputeId={d.id}
+                    canUpload={isManager(actor.role)}
+                    initialEvidence={evidence.map((e) => ({
+                      id: e.id,
+                      fileName: e.file_name ?? "file",
+                      state: e.state ?? "PENDING",
+                      createdAt: e.created_at ?? null,
+                    }))}
+                  />
+                </div>
+              );
+            })}
           </div>
           <p className="px-5 py-2.5 bg-red-50/50 text-xs text-red-700">
-            A client&apos;s bank flagged these charges. Respond with evidence (invoice, signed
-            agreement, photos) from your records — we&apos;ll reach out to help with each one.
+            A client&apos;s bank flagged these charges. Upload evidence before the respond-by
+            date — the invoice, a signed agreement, photos of the completed work, or messages
+            with the client (PDF, JPG, or PNG). It goes straight to the bank reviewing the
+            dispute, and we&apos;ll reach out to help with each one too.
           </p>
         </div>
       )}
@@ -255,33 +298,50 @@ export default async function PaymentsDashboardPage() {
               your bank account.
             </p>
           ) : (
-            <div className="divide-y divide-gray-50">
-              {settlements.map((s) => {
-                const gross = s.total_amount != null ? s.total_amount / 100 : null;
-                const fees = s.total_fees != null ? s.total_fees / 100 : null;
-                const net =
-                  s.net_amount != null
-                    ? s.net_amount / 100
-                    : gross != null && fees != null
-                      ? gross - fees
-                      : null;
-                return (
-                  <div key={s.id} className="flex flex-wrap items-center gap-3 px-5 py-3 text-sm">
-                    <span className="text-gray-500 text-xs w-24">
-                      {s.created_at ? shortDate(new Date(s.created_at)) : ""}
-                    </span>
-                    <span className="text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
-                      {s.status ?? "PENDING"}
-                    </span>
-                    <span className="flex-1 text-xs text-gray-400">
-                      {gross != null && <>Gross {money(gross)}</>}
-                      {fees != null && <> · Fees {money(fees)}</>}
-                    </span>
-                    <span className="font-semibold text-gray-900">{net != null ? money(net) : ""}</span>
-                  </div>
-                );
-              })}
-            </div>
+            <>
+              <div className="divide-y divide-gray-50">
+                {settlements.map((s) => {
+                  const gross = s.total_amount != null ? s.total_amount / 100 : null;
+                  const fees = s.total_fees != null ? s.total_fees / 100 : null;
+                  const net =
+                    s.net_amount != null
+                      ? s.net_amount / 100
+                      : gross != null && fees != null
+                        ? gross - fees
+                        : null;
+                  return (
+                    <div key={s.id} className="flex flex-wrap items-center gap-3 px-5 py-3 text-sm">
+                      <span className="text-gray-500 text-xs w-24">
+                        {s.created_at ? shortDate(new Date(s.created_at)) : ""}
+                      </span>
+                      <span className="text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
+                        {s.status ?? "PENDING"}
+                      </span>
+                      <span className="flex-1 text-xs text-gray-400">
+                        {gross != null && <>Gross {signedMoney(gross)}</>}
+                        {fees != null && <> · Fees {money(fees)}</>}
+                      </span>
+                      <span
+                        className={`font-semibold ${net != null && net < 0 ? "text-red-600" : "text-gray-900"}`}
+                      >
+                        {net != null ? signedMoney(net) : ""}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="flex flex-wrap items-center gap-3 px-5 py-2.5 bg-gray-50/60 border-t border-gray-100 text-xs">
+                <span className="font-semibold text-gray-500 uppercase tracking-wide">Total</span>
+                <span className="flex-1 text-gray-400">
+                  Gross {signedMoney(payoutTotals.gross / 100)} · Fees {money(payoutTotals.fees / 100)}
+                </span>
+                <span
+                  className={`font-semibold ${payoutTotals.net < 0 ? "text-red-600" : "text-gray-900"}`}
+                >
+                  Net {signedMoney(payoutTotals.net / 100)}
+                </span>
+              </div>
+            </>
           )}
         </div>
       )}

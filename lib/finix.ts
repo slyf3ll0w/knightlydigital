@@ -60,23 +60,13 @@ export class FinixError extends Error {
   }
 }
 
-async function finixFetch<T>(
-  path: string,
-  init?: { method?: "GET" | "POST" | "PUT"; body?: unknown }
-): Promise<T> {
-  const auth = Buffer.from(
+function basicAuth(): string {
+  return Buffer.from(
     `${process.env.FINIX_API_USERNAME}:${process.env.FINIX_API_PASSWORD}`
   ).toString("base64");
+}
 
-  const res = await fetch(`${HOSTS[finixEnvironment()]}${path}`, {
-    method: init?.method ?? "GET",
-    headers: {
-      Authorization: `Basic ${auth}`,
-      "Content-Type": "application/json",
-    },
-    body: init?.body === undefined ? undefined : JSON.stringify(init.body),
-  });
-
+async function parseFinixResponse<T>(res: Response): Promise<T> {
   const data = await res.json().catch(() => null);
   if (!res.ok) {
     // Finix error envelope: { _embedded: { errors: [{ message, code, field }] } }
@@ -88,6 +78,21 @@ async function finixFetch<T>(
     );
   }
   return data as T;
+}
+
+async function finixFetch<T>(
+  path: string,
+  init?: { method?: "GET" | "POST" | "PUT"; body?: unknown }
+): Promise<T> {
+  const res = await fetch(`${HOSTS[finixEnvironment()]}${path}`, {
+    method: init?.method ?? "GET",
+    headers: {
+      Authorization: `Basic ${basicAuth()}`,
+      "Content-Type": "application/json",
+    },
+    body: init?.body === undefined ? undefined : JSON.stringify(init.body),
+  });
+  return parseFinixResponse<T>(res);
 }
 
 // ─── Merchant onboarding (hosted forms) ──────────────────────────────────────
@@ -385,6 +390,8 @@ export interface FinixDispute {
   transfer?: string; // TRxxx being disputed
   respond_by?: string;
   identity?: string;
+  merchant?: string;
+  response_state?: string; // NEEDS_RESPONSE | RESPONDED | ...
   created_at?: string;
 }
 
@@ -393,6 +400,55 @@ export async function listDisputes(limit = 40): Promise<FinixDispute[]> {
     `/disputes?limit=${limit}`
   );
   return res._embedded?.disputes ?? [];
+}
+
+export async function getDispute(id: string): Promise<FinixDispute> {
+  return finixFetch<FinixDispute>(`/disputes/${id}`);
+}
+
+export interface FinixDisputeEvidence {
+  id: string;
+  file_name?: string;
+  content_type?: string;
+  state?: string; // PENDING | SUCCEEDED | FAILED
+  created_at?: string;
+}
+
+export async function listDisputeEvidence(
+  disputeId: string
+): Promise<FinixDisputeEvidence[]> {
+  const res = await finixFetch<{ _embedded?: { evidences?: FinixDisputeEvidence[] } }>(
+    `/disputes/${disputeId}/evidence`
+  );
+  return res._embedded?.evidences ?? [];
+}
+
+/**
+ * Upload one evidence file to a dispute. Finix accepts only pdf/jpeg/jpg/png
+ * (it sniffs the file contents, not just the declared type).
+ */
+export async function uploadDisputeEvidence(params: {
+  disputeId: string;
+  fileName: string;
+  contentType: string;
+  bytes: Uint8Array<ArrayBuffer>;
+}): Promise<FinixDisputeEvidence> {
+  const form = new FormData();
+  form.append(
+    "file",
+    new Blob([params.bytes], { type: params.contentType }),
+    params.fileName
+  );
+  const res = await fetch(
+    `${HOSTS[finixEnvironment()]}/disputes/${params.disputeId}/evidence`,
+    {
+      method: "POST",
+      // No Content-Type header — fetch sets the multipart boundary itself
+      headers: { Authorization: `Basic ${basicAuth()}` },
+      body: form,
+    }
+  );
+  return parseFinixResponse<FinixDisputeEvidence>(res);
 }
 
 /** Refund (full or partial) a settled card/ACH transfer. */
