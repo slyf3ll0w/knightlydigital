@@ -55,10 +55,27 @@ export async function PATCH(
   }
   if (body.scheduledAt !== undefined) {
     if (!body.scheduledAt) return NextResponse.json({ error: "A date is required." }, { status: 400 });
-    data.scheduledAt = new Date(body.scheduledAt);
+    const start = new Date(body.scheduledAt);
+    if (isNaN(start.getTime())) {
+      return NextResponse.json({ error: "Invalid date." }, { status: 400 });
+    }
+    data.scheduledAt = start;
   }
   if (body.scheduledEnd !== undefined) {
-    data.scheduledEnd = body.scheduledEnd ? new Date(body.scheduledEnd) : null;
+    if (body.scheduledEnd) {
+      const end = new Date(body.scheduledEnd);
+      if (isNaN(end.getTime())) {
+        return NextResponse.json({ error: "Invalid end date." }, { status: 400 });
+      }
+      data.scheduledEnd = end;
+    } else {
+      data.scheduledEnd = null;
+    }
+  }
+  const nextStart = (data.scheduledAt ?? appt.scheduledAt) as Date;
+  const nextEnd = ("scheduledEnd" in data ? data.scheduledEnd : appt.scheduledEnd) as Date | null;
+  if (nextEnd && nextEnd.getTime() <= nextStart.getTime()) {
+    return NextResponse.json({ error: "End time must be after the start time." }, { status: 400 });
   }
   if (body.scheduledAnytime !== undefined) data.scheduledAnytime = Boolean(body.scheduledAnytime);
 

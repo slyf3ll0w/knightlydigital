@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, contactScope } from "@/lib/permissions";
 import { enterPipeline, autoAdvance } from "@/lib/pipeline";
+import { withRequestNumberRetry } from "@/lib/request-number";
 
 export async function POST(req: NextRequest) {
   const actor = await getActor();
@@ -22,19 +23,21 @@ export async function POST(req: NextRequest) {
   });
   if (!contact) return NextResponse.json({ error: "Client not found." }, { status: 404 });
 
-  const last = await prisma.request.findFirst({
-    where: { companyId },
-    orderBy: { requestNumber: "desc" },
-  });
+  const request = await withRequestNumberRetry(async () => {
+    const last = await prisma.request.findFirst({
+      where: { companyId },
+      orderBy: { requestNumber: "desc" },
+    });
 
-  const request = await prisma.request.create({
-    data: {
-      companyId,
-      contactId,
-      requestNumber: (last?.requestNumber ?? 0) + 1,
-      title,
-      details: details || null,
-    },
+    return prisma.request.create({
+      data: {
+        companyId,
+        contactId,
+        requestNumber: (last?.requestNumber ?? 0) + 1,
+        title,
+        details: details || null,
+      },
+    });
   });
 
   // Pipeline board: a fresh request puts the contact on the board (repeat

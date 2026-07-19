@@ -57,11 +57,15 @@ export default function InvoiceActions({
     setOpen(false);
     setBusy(true);
     try {
-      await fetch(`/api/app/invoices/${invoiceId}/status`, {
+      const res = await fetch(`/api/app/invoices/${invoiceId}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
       });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        alert(data?.error ?? "Couldn't update the invoice.");
+      }
     } finally {
       setBusy(false);
       router.refresh();

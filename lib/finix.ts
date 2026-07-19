@@ -395,17 +395,15 @@ export async function listSettlementFundingTransfers(
   return res._embedded?.transfers ?? res._embedded?.funding_transfers ?? [];
 }
 
-export async function listSettlementsForIdentity(
-  identityId: string,
-  limit = 40
+/** Settlements (payout batches) belonging to a single merchant — server-scoped. */
+export async function listSettlementsForMerchant(
+  merchantId: string,
+  limit = 100
 ): Promise<FinixSettlement[]> {
   const res = await finixFetch<{ _embedded?: { settlements?: FinixSettlement[] } }>(
-    `/settlements?limit=${limit}`
+    `/merchants/${merchantId}/settlements?limit=${limit}`
   );
-  // Server-side filter support varies; filter locally by identity to be safe
-  return (res._embedded?.settlements ?? []).filter(
-    (s) => !s.identity || s.identity === identityId
-  );
+  return res._embedded?.settlements ?? [];
 }
 
 export interface FinixDispute {
@@ -421,11 +419,27 @@ export interface FinixDispute {
   created_at?: string;
 }
 
-export async function listDisputes(limit = 40): Promise<FinixDispute[]> {
-  const res = await finixFetch<{ _embedded?: { disputes?: FinixDispute[] } }>(
-    `/disputes?limit=${limit}`
-  );
-  return res._embedded?.disputes ?? [];
+/**
+ * Disputes are only listable application-wide (Finix has no merchant-scoped
+ * list endpoint), so paginate and let callers filter strictly to their own
+ * identity/transfers — never include a dispute whose owner is unknown.
+ */
+export async function listDisputes(limit = 100): Promise<FinixDispute[]> {
+  const disputes: FinixDispute[] = [];
+  let path: string | null = `/disputes?limit=${limit}`;
+  for (let page = 0; page < 10 && path; page++) {
+    const res: {
+      _embedded?: { disputes?: FinixDispute[] };
+      _links?: { next?: { href?: string } };
+    } = await finixFetch(path);
+    disputes.push(...(res._embedded?.disputes ?? []));
+    const nextHref = res._links?.next?.href;
+    const nextPath = nextHref
+      ? nextHref.replace(HOSTS[finixEnvironment()], "")
+      : null;
+    path = nextPath && nextPath !== path ? nextPath : null;
+  }
+  return disputes;
 }
 
 export async function getDispute(id: string): Promise<FinixDispute> {

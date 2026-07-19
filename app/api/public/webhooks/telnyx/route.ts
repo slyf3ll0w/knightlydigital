@@ -10,10 +10,9 @@ import { prisma } from "@/lib/db";
  * also enforces opt-outs at their edge, so this flag is about our senders
  * not even attempting the send (and the state being visible in the app).
  *
- * Signature check (Ed25519 over `${timestamp}|${rawBody}`) runs when
- * TELNYX_PUBLIC_KEY is set. Without it we still process events: the only
- * effect a forged payload could have is flipping an opt-out flag, and the
- * conservative direction (opting someone out) is the harmless one.
+ * Signature check (Ed25519 over `${timestamp}|${rawBody}`) requires
+ * TELNYX_PUBLIC_KEY. Without it we fail closed and process nothing —
+ * unauthenticated posts must never be able to flip opt-out flags.
  */
 
 const STOP_RE = /^\s*(stop|stopall|unsubscribe|cancel|end|quit)\b/i;
@@ -21,7 +20,7 @@ const START_RE = /^\s*(start|unstop|yes)\b/i;
 
 function verifySignature(req: NextRequest, raw: string): boolean {
   const publicKey = process.env.TELNYX_PUBLIC_KEY;
-  if (!publicKey) return true; // unset = accept (see header comment)
+  if (!publicKey) return false;
   const signature = req.headers.get("telnyx-signature-ed25519");
   const timestamp = req.headers.get("telnyx-timestamp");
   if (!signature || !timestamp) return false;
@@ -47,6 +46,10 @@ function verifySignature(req: NextRequest, raw: string): boolean {
 }
 
 export async function POST(req: NextRequest) {
+  if (!process.env.TELNYX_PUBLIC_KEY) {
+    console.error("Telnyx webhook: TELNYX_PUBLIC_KEY is not set; rejecting request");
+    return NextResponse.json({ error: "Webhook not configured" }, { status: 503 });
+  }
   const raw = await req.text();
   if (!verifySignature(req, raw)) {
     return NextResponse.json({ error: "Bad signature" }, { status: 400 });
@@ -69,7 +72,7 @@ export async function POST(req: NextRequest) {
       await prisma.$executeRaw`
         UPDATE "Contact"
         SET "smsOptOut" = ${optOut}
-        WHERE regexp_replace(coalesce("phone", ''), '\D', '', 'g') LIKE ${"%" + last10}`;
+        WHERE regexp_replace(coalesce("phone", ''), '[^0-9]', '', 'g') LIKE ${"%" + last10}`;
     }
   }
 

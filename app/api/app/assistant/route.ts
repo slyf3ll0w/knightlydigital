@@ -16,10 +16,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "The assistant isn't available right now." }, { status: 503 });
   }
 
-  // burst + daily caps per company — every turn is a real AI spend
+  // burst + daily caps per company — every turn is a real AI spend — plus a
+  // per-user ceiling at half the company quota so one user can't exhaust it
   const burst = limit(`assistant:${actor.companyId}`, 20, 10 * 60 * 1000);
   const daily = limit(`assistant-day:${actor.companyId}`, 200, 24 * 60 * 60 * 1000);
-  if (!burst.ok || !daily.ok) {
+  const userBurst = limit(`assistant-user:${actor.id}`, 10, 10 * 60 * 1000);
+  const userDaily = limit(`assistant-user-day:${actor.id}`, 100, 24 * 60 * 60 * 1000);
+  if (!burst.ok || !daily.ok || !userBurst.ok || !userDaily.ok) {
     return NextResponse.json(
       { error: "The assistant needs a breather — try again in a few minutes." },
       { status: 429 }

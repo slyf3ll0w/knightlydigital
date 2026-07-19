@@ -1140,7 +1140,7 @@ export default function SettingsClient({
               <p className="text-sm font-medium text-[#111827]">
                 {form.name}{" "}
                 <span className="font-normal text-[#9CA3AF]">
-                  &lt;notifications@streamflaire.com&gt;
+                  &lt;notifications@workbenchfsm.com&gt;
                 </span>
               </p>
               <p className="text-xs text-[#6B7280]">

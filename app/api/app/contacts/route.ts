@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { randomBytes } from "crypto";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, contactScope, isManager } from "@/lib/permissions";
 import { getActiveFieldDefs, sanitizeCustomFields } from "@/lib/contact-fields";
@@ -65,6 +66,7 @@ export async function POST(req: NextRequest) {
   const contact = await prisma.contact.create({
     data: {
       companyId: actor.companyId,
+      hubToken: randomBytes(24).toString("hex"),
       status,
       firstName,
       lastName,

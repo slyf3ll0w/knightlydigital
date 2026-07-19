@@ -33,7 +33,18 @@ export async function PATCH(
   }
   if (body.details !== undefined) data.details = String(body.details).trim() || null;
 
-  const updated = await prisma.request.update({ where: { id }, data });
+  const updated = await prisma.$transaction(async (tx) => {
+    const result = await tx.request.update({ where: { id }, data });
+    // Archiving an unapproved self-booking outside the decline route: cancel
+    // its tentative appointment too, or it blocks the slot forever
+    if (request.status === "NEEDS_APPROVAL" && data.status === "ARCHIVED") {
+      await tx.appointment.updateMany({
+        where: { requestId: id, companyId, tentative: true, status: "SCHEDULED" },
+        data: { status: "CANCELLED" },
+      });
+    }
+    return result;
+  });
   return NextResponse.json(updated);
 }
 

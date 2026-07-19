@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { randomBytes } from "crypto";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, contactScope } from "@/lib/permissions";
 import { sendEmail, contractSignEmail } from "@/lib/email";
@@ -66,6 +67,7 @@ export async function POST(req: NextRequest) {
     data: {
       companyId,
       contactId,
+      publicToken: randomBytes(24).toString("hex"),
       templateId: templateId || null,
       quoteId: quoteId || null,
       title,

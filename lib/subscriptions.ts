@@ -14,10 +14,12 @@
  * go live — only a new processor implementation.
  */
 
+import { randomBytes } from "crypto";
 import type { Frequency, Prisma, PrismaClient, RecurringInterval } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getProcessor, recordPayment } from "@/lib/payments";
 import { sendEmail, invoiceLinkEmail } from "@/lib/email";
+import { localDayParts, wallTimeToUtc } from "@/lib/booking-slots";
 
 type Tx = Prisma.TransactionClient | PrismaClient;
 
@@ -155,14 +157,18 @@ type DueSub = Prisma.SubscriptionGetPayload<{ include: { contact: true } }>;
 
 /**
  * Generate one cycle for a single subscription: optional job, an invoice, and
- * either an auto-charge or a pay-link email. Advances nextRunDate. Runs in its
- * own transaction; the `lastGeneratedAt` guard makes a re-run within the same
- * cycle a no-op, so overlapping cron fires can't double-bill.
+ * either an auto-charge or a pay-link email. The invoice + nextRunDate advance
+ * commit FIRST in one transaction (with an optimistic claim on nextRunDate so
+ * overlapping runs can't double-bill); the charge happens post-commit, so a
+ * transaction timeout can never roll back an invoice whose card was already
+ * charged. If the process dies between commit and charge, the invoice simply
+ * sits unpaid and the normal reminder/dunning flow picks it up — never a
+ * second charge.
  */
 async function generateCycle(sub: DueSub, now: Date): Promise<"billed" | "drafted" | "charged"> {
   const lineTotal = Number(sub.unitPrice) * Number(sub.quantity);
 
-  return prisma.$transaction(async (tx) => {
+  const cycle = await prisma.$transaction(async (tx) => {
     // Idempotency: bail if another run already advanced this subscription past
     // the due date we picked it up for.
     const fresh = await tx.subscription.findUnique({
@@ -170,8 +176,19 @@ async function generateCycle(sub: DueSub, now: Date): Promise<"billed" | "drafte
       select: { nextRunDate: true, status: true },
     });
     if (!fresh || fresh.status !== "ACTIVE" || fresh.nextRunDate > now) {
-      return "drafted"; // already handled by a concurrent run
+      return null; // already handled by a concurrent run
     }
+
+    // Optimistic claim: advance the schedule keyed on the exact nextRunDate we
+    // read. A concurrent run for the same cycle matches zero rows and bails.
+    const claimed = await tx.subscription.updateMany({
+      where: { id: sub.id, status: "ACTIVE", nextRunDate: fresh.nextRunDate },
+      data: {
+        nextRunDate: addInterval(fresh.nextRunDate, sub.interval),
+        lastGeneratedAt: now,
+      },
+    });
+    if (claimed.count === 0) return null;
 
     // Optional job for visit-based recurring work. When the subscription has
     // its own visit series (visitFrequency), the visit engine owns job
@@ -216,6 +233,7 @@ async function generateCycle(sub: DueSub, now: Date): Promise<"billed" | "drafte
     const invoice = await tx.invoice.create({
       data: {
         companyId: sub.companyId,
+        publicToken: randomBytes(24).toString("hex"),
         contactId: sub.contactId,
         subscriptionId: sub.id,
         invoiceNumber: (lastInv?.invoiceNumber ?? 0) + 1,
@@ -239,88 +257,71 @@ async function generateCycle(sub: DueSub, now: Date): Promise<"billed" | "drafte
       },
     });
 
-    // Advance the schedule and stamp the run (idempotency anchor)
-    await tx.subscription.update({
-      where: { id: sub.id },
-      data: {
-        nextRunDate: addInterval(fresh.nextRunDate, sub.interval),
-        lastGeneratedAt: now,
-      },
-    });
+    return {
+      invoiceId: invoice.id,
+      invoiceNumber: invoice.invoiceNumber,
+      publicToken: invoice.publicToken,
+      send,
+    };
+  });
 
-    // Billing branch — the auto-charge seam
-    const processor = getProcessor();
-    if (send && processor.live && sub.contact.processorCustomerRef) {
-      const result = await processor.chargeStored({
-        customerRef: sub.contact.processorCustomerRef,
+  if (!cycle) return "drafted";
+
+  // Post-commit: the cycle (invoice + schedule advance) is durable before any
+  // external call, so a slow or crashed charge leaves an unpaid invoice for
+  // dunning instead of rolling back a billed cycle.
+  const processor = getProcessor();
+  if (cycle.send && processor.live && sub.contact.processorCustomerRef) {
+    const result = await processor.chargeStored({
+      customerRef: sub.contact.processorCustomerRef,
+      amount: lineTotal,
+      description: `${sub.name} — subscription`,
+      metadata: { invoiceId: cycle.invoiceId, subscriptionId: sub.id },
+    });
+    if (result.success) {
+      await recordPayment({
+        companyId: sub.companyId,
+        invoiceId: cycle.invoiceId,
         amount: lineTotal,
-        description: `${sub.name} — subscription`,
-        metadata: { invoiceId: invoice.id, subscriptionId: sub.id },
+        method: "CARD",
+        processorRef: result.transactionId,
+        details: "Auto-charged (recurring subscription)",
       });
-      if (result.success) {
-        // recordPayment opens its own transaction; safe to defer to after-commit
-        // by returning a marker. We record outside this tx below.
-        return "charged";
-      }
-    }
-    return send ? "billed" : "drafted";
-  }).then(async (outcome) => {
-    // Post-commit side effects (payment recording + email) — kept out of the
-    // invoice-creating transaction so a slow processor/email can't hold a db tx.
-    if (outcome === "charged") {
-      const inv = await prisma.invoice.findFirst({
-        where: { subscriptionId: sub.id },
-        orderBy: { createdAt: "desc" },
-        select: { id: true },
-      });
-      if (inv) {
-        await recordPayment({
-          companyId: sub.companyId,
-          invoiceId: inv.id,
-          amount: lineTotal,
-          method: "CARD",
-          details: "Auto-charged (recurring subscription)",
-        });
-      }
       return "charged";
     }
-    if (outcome === "billed" && sub.contact.email) {
-      const inv = await prisma.invoice.findFirst({
-        where: { subscriptionId: sub.id },
-        orderBy: { createdAt: "desc" },
-        select: { invoiceNumber: true, publicToken: true },
+  }
+
+  if (cycle.send && sub.contact.email) {
+    const company = await prisma.company.findUnique({
+      where: { id: sub.companyId },
+      select: {
+        name: true,
+        email: true,
+        brandColor: true,
+        brandColorSecondary: true,
+        logoUrl: true,
+      },
+    });
+    if (company) {
+      const baseUrl = process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com";
+      const { subject, html } = invoiceLinkEmail({
+        companyName: company.name,
+        invoiceNumber: cycle.invoiceNumber,
+        total: lineTotal,
+        payUrl: `${baseUrl}/pay/${cycle.publicToken}`,
+        serviceNames: [sub.name],
       });
-      const company = await prisma.company.findUnique({
-        where: { id: sub.companyId },
-        select: {
-          name: true,
-          email: true,
-          brandColor: true,
-          brandColorSecondary: true,
-          logoUrl: true,
-        },
+      await sendEmail({
+        to: sub.contact.email,
+        subject,
+        html,
+        replyTo: company.email || undefined,
+        fromName: company.name,
+        brand: company,
       });
-      if (inv && company) {
-        const baseUrl = process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com";
-        const { subject, html } = invoiceLinkEmail({
-          companyName: company.name,
-          invoiceNumber: inv.invoiceNumber,
-          total: lineTotal,
-          payUrl: `${baseUrl}/pay/${inv.publicToken}`,
-          serviceNames: [sub.name],
-        });
-        await sendEmail({
-          to: sub.contact.email,
-          subject,
-          html,
-          replyTo: company.email || undefined,
-          fromName: company.name,
-          brand: company,
-        });
-      }
     }
-    return outcome;
-  });
+  }
+  return cycle.send ? "billed" : "drafted";
 }
 
 /**
@@ -383,7 +384,7 @@ export async function generateDueVisits(
       nextVisitDate: { not: null, lte: horizon },
       ...(companyId ? { companyId } : {}),
     },
-    include: { contact: true },
+    include: { contact: true, company: { select: { timezone: true } } },
     orderBy: { nextVisitDate: "asc" },
     take: 500,
   });
@@ -408,6 +409,14 @@ export async function generateDueVisits(
           return 0;
         }
 
+        // Optimistic claim keyed on the cursor we read — a concurrent sweep
+        // for the same series matches zero rows and bails.
+        const claimed = await tx.subscription.updateMany({
+          where: { id: sub.id, nextVisitDate: fresh.nextVisitDate },
+          data: { lastVisitGeneratedAt: now },
+        });
+        if (claimed.count === 0) return 0;
+
         // Default assignees, filtered to live team members
         const assigneeIds =
           sub.visitAssigneeIds.length > 0
@@ -419,22 +428,34 @@ export async function generateDueVisits(
               ).map((u) => u.id)
             : [];
 
+        const tz = sub.company.timezone;
         let cursor = fresh.nextVisitDate;
         let count = 0;
         while (cursor <= horizon && count < MAX_VISITS_PER_SWEEP) {
-          // Build the visit's schedule from the date + series time window
-          const dayStart = new Date(cursor);
-          dayStart.setHours(0, 0, 0, 0);
+          // Fast-forward cycles a long cron outage left in the past (1-day
+          // grace) instead of materializing back-dated phantom visits.
+          if (cursor.getTime() < now.getTime() - 86400000) {
+            cursor = addVisitInterval(cursor, fresh.visitFrequency);
+            continue;
+          }
+          // Build the visit's schedule from the date + series time window,
+          // in the company's timezone (DST-safe)
+          const { y, m, d } = localDayParts(tz, cursor);
+          const dayStart = wallTimeToUtc(tz, y, m, d, 0);
           const anytime = sub.visitStartMinutes == null;
-          const scheduledAt = anytime
-            ? new Date(dayStart.getTime() + 12 * 3600_000) // noon anchor, "Anytime" row
-            : new Date(dayStart.getTime() + sub.visitStartMinutes! * 60000);
+          const scheduledAt = wallTimeToUtc(
+            tz,
+            y,
+            m,
+            d,
+            anytime ? 12 * 60 : sub.visitStartMinutes! // noon anchor = "Anytime" row
+          );
           const scheduledEnd = anytime
             ? null
             : new Date(scheduledAt.getTime() + (sub.visitDurationMinutes ?? 60) * 60000);
 
           // Same-day duplicate guard (idempotency across overlapping runs)
-          const dayEnd = new Date(dayStart.getTime() + 86400000);
+          const dayEnd = wallTimeToUtc(tz, y, m, d, 24 * 60);
           const dupe = await tx.job.findFirst({
             where: { subscriptionId: sub.id, scheduledAt: { gte: dayStart, lt: dayEnd } },
             select: { id: true },

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { randomBytes } from "crypto";
 import { prisma } from "@/lib/db";
 import { verifyCaptcha } from "@/lib/captcha";
 import { sendEmail, newRequestEmail, quoteLinkEmail, bookingReceivedEmail } from "@/lib/email";
@@ -18,6 +19,7 @@ import {
 } from "@/lib/booking-availability";
 import { Prisma } from "@prisma/client";
 import { enterPipeline, autoAdvance } from "@/lib/pipeline";
+import { withRequestNumberRetry } from "@/lib/request-number";
 
 // Submit-time double-booking race: thrown inside the transaction when the
 // picked slot is no longer free, mapped to a 409 the form handles by
@@ -196,7 +198,7 @@ export async function POST(
 
   const since = new Date(Date.now() - 86400000);
   const recent = await prisma.request.count({
-    where: { companyId: company.id, createdAt: { gte: since } },
+    where: { companyId: company.id, source: { not: "webhook" }, createdAt: { gte: since } },
   });
   if (recent >= MAX_REQUESTS_PER_COMPANY_PER_DAY) {
     return NextResponse.json(
@@ -227,205 +229,207 @@ export async function POST(
       ? new Date(`${preferredDate}T12:00:00`)
       : null;
 
-  const result = await prisma.$transaction(async (tx) => {
-    // Match an existing contact by phone or email; otherwise create a lead
-    let contact = await tx.contact.findFirst({
-      where: {
-        companyId: company.id,
-        OR: [...(phone ? [{ phone }] : []), ...(email ? [{ email }] : [])],
-      },
-    });
-    if (!contact) {
-      contact = await tx.contact.create({
-        data: {
+  const result = await withRequestNumberRetry(() =>
+    prisma.$transaction(async (tx) => {
+      // Match an existing contact by phone or email; otherwise create a lead
+      let contact = await tx.contact.findFirst({
+        where: {
           companyId: company.id,
-          firstName,
-          lastName,
-          email: email || null,
-          phone: phone || null,
-          address: address || null,
-          leadSource: "Online booking",
-          assignedToId,
-          customFields: sanitizedMapped,
+          OR: [...(phone ? [{ phone }] : []), ...(email ? [{ email }] : [])],
         },
       });
-    } else if (Object.keys(sanitizedMapped).length > 0) {
-      await tx.contact.update({
-        where: { id: contact.id },
-        data: {
-          customFields: {
-            ...((contact.customFields as Record<string, string>) ?? {}),
-            ...sanitizedMapped,
+      if (!contact) {
+        contact = await tx.contact.create({
+          data: {
+            companyId: company.id,
+            hubToken: randomBytes(24).toString("hex"),
+            firstName,
+            lastName,
+            email: email || null,
+            phone: phone || null,
+            address: address || null,
+            leadSource: "Online booking",
+            assignedToId,
+            customFields: sanitizedMapped,
           },
-        },
-      });
-    }
+        });
+      } else if (Object.keys(sanitizedMapped).length > 0) {
+        await tx.contact.update({
+          where: { id: contact.id },
+          data: {
+            customFields: {
+              ...((contact.customFields as Record<string, string>) ?? {}),
+              ...sanitizedMapped,
+            },
+          },
+        });
+      }
 
-    // Service-request forms auto-create a quote (draft, or sent for approval).
-    // Recurring services start a subscription only on quote→job conversion.
-    let quote:
-      | { id: string; quoteNumber: number; publicToken: string; total: number; deposit: number }
-      | null = null;
-    if (form.type === "SERVICE_REQUEST") {
-      // Pull price-book config (recurring, deposit, agreement) for picked services
-      const pickedWorkItemIds = pickedServices
-        .map((s) => s.workItemId)
-        .filter((id): id is string => !!id);
-      const wi =
-        pickedWorkItemIds.length > 0
-          ? await tx.workItem.findMany({
-              where: { id: { in: pickedWorkItemIds }, companyId: company.id },
-              select: {
-                id: true,
-                recurringInterval: true,
-                depositType: true,
-                depositValue: true,
-                requiresAgreement: true,
-              },
-            })
-          : [];
-      const wiById = new Map(wi.map((w) => [w.id, w] as const));
+      // Service-request forms auto-create a quote (draft, or sent for approval).
+      // Recurring services start a subscription only on quote→job conversion.
+      let quote:
+        | { id: string; quoteNumber: number; publicToken: string; total: number; deposit: number }
+        | null = null;
+      if (form.type === "SERVICE_REQUEST") {
+        // Pull price-book config (recurring, deposit, agreement) for picked services
+        const pickedWorkItemIds = pickedServices
+          .map((s) => s.workItemId)
+          .filter((id): id is string => !!id);
+        const wi =
+          pickedWorkItemIds.length > 0
+            ? await tx.workItem.findMany({
+                where: { id: { in: pickedWorkItemIds }, companyId: company.id },
+                select: {
+                  id: true,
+                  recurringInterval: true,
+                  depositType: true,
+                  depositValue: true,
+                  requiresAgreement: true,
+                },
+              })
+            : [];
+        const wiById = new Map(wi.map((w) => [w.id, w] as const));
 
-      const subtotal = Math.round(pickedServices.reduce((s, p) => s + p.price, 0) * 100) / 100;
-      // Deposit = sum of each preset service's rule, falling back to the company
-      // default; custom (non-price-book) picks contribute nothing automatically.
-      const deposit = derivedQuoteDeposit(
-        pickedServices.map((s) => ({
-          total: s.price,
-          deposit: s.workItemId
-            ? {
-                depositType: wiById.get(s.workItemId)?.depositType ?? "NONE",
-                depositValue: wiById.get(s.workItemId)?.depositValue ?? null,
-              }
-            : null,
-        })),
-        subtotal,
-        { depositType: company.defaultDepositType, depositValue: company.defaultDepositValue }
-      );
-
-      const lastQuote = await tx.quote.findFirst({
-        where: { companyId: company.id },
-        orderBy: { quoteNumber: "desc" },
-      });
-      const send = config.serviceRequest.quoteMode === "send";
-      const created = await tx.quote.create({
-        data: {
-          companyId: company.id,
-          contactId: contact.id,
-          quoteNumber: (lastQuote?.quoteNumber ?? 0) + 1,
-          title: requestTitle,
-          status: send ? "AWAITING_RESPONSE" : "DRAFT",
+        const subtotal = Math.round(pickedServices.reduce((s, p) => s + p.price, 0) * 100) / 100;
+        // Deposit = sum of each preset service's rule, falling back to the company
+        // default; custom (non-price-book) picks contribute nothing automatically.
+        const deposit = derivedQuoteDeposit(
+          pickedServices.map((s) => ({
+            total: s.price,
+            deposit: s.workItemId
+              ? {
+                  depositType: wiById.get(s.workItemId)?.depositType ?? "NONE",
+                  depositValue: wiById.get(s.workItemId)?.depositValue ?? null,
+                }
+              : null,
+          })),
           subtotal,
-          total: subtotal,
-          depositType: deposit > 0 ? "FIXED" : "NONE",
-          depositValue: deposit > 0 ? deposit : null,
-          clientMessage:
-            typeof message === "string" && message.trim() ? message.trim().slice(0, 5000) : null,
-          sentAt: send ? new Date() : null,
-          lineItems: {
-            create: pickedServices.map((s, i) => ({
-              name: s.name,
-              description: "",
-              quantity: 1,
-              unitPrice: s.price,
-              total: s.price,
-              workItemId: s.workItemId ?? null,
-              recurringInterval: (s.workItemId && wiById.get(s.workItemId)?.recurringInterval) || null,
-              requiresAgreement: (s.workItemId && wiById.get(s.workItemId)?.requiresAgreement) || false,
-              sortOrder: i,
-            })),
+          { depositType: company.defaultDepositType, depositValue: company.defaultDepositValue }
+        );
+
+        const lastQuote = await tx.quote.findFirst({
+          where: { companyId: company.id },
+          orderBy: { quoteNumber: "desc" },
+        });
+        const send = config.serviceRequest.quoteMode === "send";
+        const created = await tx.quote.create({
+          data: {
+            companyId: company.id,
+            contactId: contact.id,
+            publicToken: randomBytes(24).toString("hex"),
+            quoteNumber: (lastQuote?.quoteNumber ?? 0) + 1,
+            title: requestTitle,
+            status: send ? "AWAITING_RESPONSE" : "DRAFT",
+            subtotal,
+            total: subtotal,
+            depositType: deposit > 0 ? "FIXED" : "NONE",
+            depositValue: deposit > 0 ? deposit : null,
+            clientMessage:
+              typeof message === "string" && message.trim() ? message.trim().slice(0, 5000) : null,
+            sentAt: send ? new Date() : null,
+            lineItems: {
+              create: pickedServices.map((s, i) => ({
+                name: s.name,
+                description: "",
+                quantity: 1,
+                unitPrice: s.price,
+                total: s.price,
+                workItemId: s.workItemId ?? null,
+                recurringInterval: (s.workItemId && wiById.get(s.workItemId)?.recurringInterval) || null,
+                requiresAgreement: (s.workItemId && wiById.get(s.workItemId)?.requiresAgreement) || false,
+                sortOrder: i,
+              })),
+            },
           },
-        },
+        });
+        quote = {
+          id: created.id,
+          quoteNumber: created.quoteNumber,
+          publicToken: created.publicToken,
+          total: subtotal,
+          deposit,
+        };
+      }
+
+      const last = await tx.request.findFirst({
+        where: { companyId: company.id },
+        orderBy: { requestNumber: "desc" },
       });
-      quote = {
-        id: created.id,
-        quoteNumber: created.quoteNumber,
-        publicToken: created.publicToken,
-        total: subtotal,
-        deposit,
-      };
-    }
 
-    const last = await tx.request.findFirst({
-      where: { companyId: company.id },
-      orderBy: { requestNumber: "desc" },
-    });
-
-    const request = await tx.request.create({
-      data: {
-        companyId: company.id,
-        contactId: contact.id,
-        requestNumber: (last?.requestNumber ?? 0) + 1,
-        title: requestTitle,
-        status: booking ? "NEEDS_APPROVAL" : undefined,
-        preferredDate: booking ? booking.start : preferred,
-        details: [
-          message,
-          ...customLines,
-          form.type === "SERVICE_REQUEST"
-            ? `Services: ${pickedServices.map((s) => `${s.name} ($${s.price.toFixed(2)})`).join(", ")}`
-            : null,
-          booking
-            ? `Self-scheduled online: ${booking.service.name} ($${booking.service.price.toFixed(2)}) — requested arrival ${bookingWindow}`
-            : null,
-          quote
-            ? `Quote #${quote.quoteNumber} created automatically (${config.serviceRequest.quoteMode === "send" ? "sent for approval" : "draft"})${quote.deposit > 0 ? ` — deposit $${quote.deposit.toFixed(2)}` : ""}.`
-            : null,
-          preferred ? `Preferred date: ${preferredDate}` : null,
-          address ? `Address: ${address}` : null,
-          `Form: ${form.name}`,
-        ]
-          .filter(Boolean)
-          .join("\n"),
-        source: "booking_form",
-      },
-    });
-
-    // Link the auto-created quote back to its request
-    if (quote) {
-      await tx.quote.update({ where: { id: quote.id }, data: { requestId: request.id } });
-    }
-
-    // Pipeline board: new leads enter, existing clients re-enter as repeat
-    // business, and stage triggers advance the card
-    await enterPipeline(tx, company.id, contact.id);
-    await autoAdvance(tx, company.id, contact.id, "REQUEST_CREATED");
-    if (quote && config.serviceRequest.quoteMode === "send") {
-      await autoAdvance(tx, company.id, contact.id, "QUOTE_SENT");
-    }
-
-    // Self-scheduled slot → tentative appointment. Availability re-checked
-    // inside the transaction (serializable, see below) so two clients
-    // grabbing the same window can't both win.
-    if (booking) {
-      const usersNow = await getBookableUsersWithBusy(
-        company.id,
-        booking.start,
-        booking.end,
-        tx
-      );
-      const userId = pickUserForSlot(booking.start, booking.end, usersNow);
-      if (!userId) throw new SlotTakenError();
-      await tx.appointment.create({
+      const request = await tx.request.create({
         data: {
           companyId: company.id,
           contactId: contact.id,
-          requestId: request.id,
-          assignedToId: userId,
-          title: booking.service.name,
-          type: "IN_PERSON",
-          scheduledAt: booking.start,
-          scheduledEnd: booking.end,
-          address: address || null,
-          tentative: true,
-          notes: `Booked online — promised arrival window ${bookingWindow}.`,
+          requestNumber: (last?.requestNumber ?? 0) + 1,
+          title: requestTitle,
+          status: booking ? "NEEDS_APPROVAL" : undefined,
+          preferredDate: booking ? booking.start : preferred,
+          details: [
+            message,
+            ...customLines,
+            form.type === "SERVICE_REQUEST"
+              ? `Services: ${pickedServices.map((s) => `${s.name} ($${s.price.toFixed(2)})`).join(", ")}`
+              : null,
+            booking
+              ? `Self-scheduled online: ${booking.service.name} ($${booking.service.price.toFixed(2)}) — requested arrival ${bookingWindow}`
+              : null,
+            quote
+              ? `Quote #${quote.quoteNumber} created automatically (${config.serviceRequest.quoteMode === "send" ? "sent for approval" : "draft"})${quote.deposit > 0 ? ` — deposit $${quote.deposit.toFixed(2)}` : ""}.`
+              : null,
+            preferred ? `Preferred date: ${preferredDate}` : null,
+            address ? `Address: ${address}` : null,
+            `Form: ${form.name}`,
+          ]
+            .filter(Boolean)
+            .join("\n"),
+          source: "booking_form",
         },
       });
-    }
 
-    return { contact, request, quote };
-  },
-  booking ? { isolationLevel: Prisma.TransactionIsolationLevel.Serializable } : undefined
+      // Link the auto-created quote back to its request
+      if (quote) {
+        await tx.quote.update({ where: { id: quote.id }, data: { requestId: request.id } });
+      }
+
+      // Pipeline board: new leads enter, existing clients re-enter as repeat
+      // business, and stage triggers advance the card
+      await enterPipeline(tx, company.id, contact.id);
+      await autoAdvance(tx, company.id, contact.id, "REQUEST_CREATED");
+      if (quote && config.serviceRequest.quoteMode === "send") {
+        await autoAdvance(tx, company.id, contact.id, "QUOTE_SENT");
+      }
+
+      // Self-scheduled slot → tentative appointment. Availability re-checked
+      // inside the transaction (serializable, see below) so two clients
+      // grabbing the same window can't both win.
+      if (booking) {
+        const usersNow = await getBookableUsersWithBusy(
+          company.id,
+          booking.start,
+          booking.end,
+          tx
+        );
+        const userId = pickUserForSlot(booking.start, booking.end, usersNow);
+        if (!userId) throw new SlotTakenError();
+        await tx.appointment.create({
+          data: {
+            companyId: company.id,
+            contactId: contact.id,
+            requestId: request.id,
+            assignedToId: userId,
+            title: booking.service.name,
+            type: "IN_PERSON",
+            scheduledAt: booking.start,
+            scheduledEnd: booking.end,
+            address: address || null,
+            tentative: true,
+            notes: `Booked online — promised arrival window ${bookingWindow}.`,
+          },
+        });
+      }
+
+      return { contact, request, quote };
+    }, booking ? { isolationLevel: Prisma.TransactionIsolationLevel.Serializable } : undefined)
   ).catch((e) => {
     // Slot races: our explicit re-check, or Postgres aborting one of two
     // serializable transactions that raced. The form refreshes its slots.

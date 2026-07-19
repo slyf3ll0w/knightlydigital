@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { companyMeta } from "@/lib/client-meta";
 import { getProcessor } from "@/lib/payments";
+import { recomputeDepositApplied } from "@/lib/deposits";
 import { finixApplicationId, finixEnvironment } from "@/lib/finix";
 import PayPage from "./PayPage";
 
@@ -20,6 +21,21 @@ export default async function PublicPayPage({
   params: Promise<{ token: string }>;
 }) {
   const { token } = await params;
+
+  // A final invoice's deposit credit may have changed since it was created
+  // (deposit paid late, or a pending ACH deposit bounced) — re-derive it before
+  // showing the amount due.
+  const link = await prisma.invoice.findFirst({
+    where: { publicToken: token },
+    select: { jobId: true },
+  });
+  if (link?.jobId) {
+    const quote = await prisma.quote.findFirst({
+      where: { jobId: link.jobId },
+      select: { id: true },
+    });
+    if (quote) await recomputeDepositApplied(prisma, quote.id);
+  }
 
   // Explicit select — serialized into public page HTML, so client-facing fields
   // ONLY. Never `include: { contact, company }`: that leaks company.leadWebhookToken,
@@ -64,10 +80,17 @@ export default async function PublicPayPage({
           recurringInterval: true,
         },
       },
+      payments: { select: { amount: true } },
     },
   });
 
   if (!invoice) notFound();
+
+  // The server charge path bills the remaining balance (total minus recorded
+  // payments) — the page must display and authorize that same amount.
+  const { payments, ...publicInvoice } = invoice;
+  const paid = payments.reduce((s, p) => s + Number(p.amount), 0);
+  const balance = Math.round((Number(invoice.total) - paid) * 100) / 100;
 
   // Online charging is on only when the platform processor is Finix AND this
   // company's merchant is approved. Checked with a separate server-only query —
@@ -87,5 +110,5 @@ export default async function PublicPayPage({
     }
   }
 
-  return <PayPage invoice={JSON.parse(JSON.stringify(invoice))} finix={finix} />;
+  return <PayPage invoice={JSON.parse(JSON.stringify(publicInvoice))} balance={balance} finix={finix} />;
 }

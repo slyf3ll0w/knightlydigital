@@ -53,13 +53,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Input too long." }, { status: 400 });
   }
 
-  if (password.length < 8) {
-    return NextResponse.json({ error: "Password must be at least 8 characters." }, { status: 400 });
+  if (password.length < 8 || password.length > 72) {
+    return NextResponse.json({ error: "Password must be 8–72 characters." }, { status: 400 });
   }
 
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
-    return NextResponse.json({ error: "An account with that email already exists." }, { status: 409 });
+    return NextResponse.json(
+      { error: "Unable to register. Please try again, or sign in if you already have an account." },
+      { status: 400 }
+    );
   }
 
   const hash = await bcrypt.hash(password, 12);

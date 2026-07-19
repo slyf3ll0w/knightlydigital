@@ -47,7 +47,7 @@ declare global {
 
 const FINIX_JS_SRC = "https://js.finix.com/v/2/finix.js";
 
-export default function PayPage({ invoice, finix }: { invoice: Invoice; finix: FinixConfig }) {
+export default function PayPage({ invoice, balance, finix }: { invoice: Invoice; balance: number; finix: FinixConfig }) {
   const [method, setMethod] = useState<"CARD" | "ACH">("CARD");
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
@@ -62,11 +62,11 @@ export default function PayPage({ invoice, finix }: { invoice: Invoice; finix: F
     ? Number(invoice.company.surchargeRate) || 0.03
     : 0;
 
-  const baseTotal = Number(invoice.total);
+  const paid = Math.round((Number(invoice.total) - balance) * 100) / 100;
   const surcharge = method === "CARD" && invoice.company.surchargeEnabled
-    ? Math.round(baseTotal * surchargeRate * 100) / 100
+    ? Math.round(balance * surchargeRate * 100) / 100
     : 0;
-  const chargeTotal = baseTotal + surcharge;
+  const chargeTotal = balance + surcharge;
 
   // Load finix.js once (only when this company can actually charge online)
   useEffect(() => {
@@ -277,6 +277,12 @@ export default function PayPage({ invoice, finix }: { invoice: Invoice; finix: F
               <div className="flex justify-between text-sm text-green-700">
                 <span>Deposit applied</span>
                 <span>-${Number(invoice.depositApplied).toFixed(2)}</span>
+              </div>
+            )}
+            {paid > 0 && (
+              <div className="flex justify-between text-sm text-green-700">
+                <span>Paid to date</span>
+                <span>-${paid.toFixed(2)}</span>
               </div>
             )}
             {surcharge > 0 && (

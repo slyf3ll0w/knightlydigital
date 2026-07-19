@@ -1105,6 +1105,7 @@ model PaymentReminder {
   type      String
   sentAt    DateTime
 
+  @@unique([invoiceId, type])
   @@index([invoiceId])
 }
 

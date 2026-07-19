@@ -69,10 +69,12 @@ export async function POST(req: NextRequest) {
       await tx.timeEntry.deleteMany({ where }); // references jobs + users
       await tx.job.deleteMany({ where }); // cascades items/assignments/notes/photos
       await tx.appointment.deleteMany({ where });
+      await tx.timeBlock.deleteMany({ where });
       await tx.bookingRequest.deleteMany({ where });
       await tx.request.deleteMany({ where });
       await tx.subscription.deleteMany({ where }); // references work items — before them
       await tx.contact.deleteMany({ where }); // cascades contact notes
+      await tx.pipelineStage.deleteMany({ where }); // referenced by contacts — after them
       await tx.contactFieldDef.deleteMany({ where });
       await tx.workItem.deleteMany({ where }); // references contract templates — before them
       await tx.contractTemplate.deleteMany({ where });

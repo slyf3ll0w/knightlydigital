@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { autoSendQuoteAgreements } from "@/lib/agreements";
 import { createDepositInvoice, type DepositInvoiceResult } from "@/lib/deposits";
+import { computeQuoteTotals } from "@/lib/quote-totals";
 import { sendEmail, invoiceLinkEmail } from "@/lib/email";
 import { recordLeadWin } from "@/lib/pipeline";
 
@@ -65,16 +66,12 @@ export async function POST(
   // this must mirror the internal PATCH route and the client-facing approval
   // page (QuoteAcceptPage), or the approved total drifts above what the client
   // signed for and the deposit invoice is minted on the wrong amount.
-  const discountValueRaw = quote.discountValue == null ? 0 : Number(quote.discountValue);
-  const discount =
-    quote.discountType === "PERCENT"
-      ? Math.round(subtotal * Math.min(Math.max(discountValueRaw, 0), 100)) / 100
-      : quote.discountType === "FIXED"
-        ? Math.min(Math.max(discountValueRaw, 0), subtotal)
-        : 0;
-  const taxable = subtotal - discount;
-  const tax = quote.taxRate ? Math.round(taxable * Number(quote.taxRate) * 100) / 100 : null;
-  const total = taxable + (tax ?? 0);
+  const { discount, tax, total } = computeQuoteTotals({
+    subtotal,
+    discountType: quote.discountType,
+    discountValue: quote.discountValue == null ? null : Number(quote.discountValue),
+    taxRate: quote.taxRate == null ? null : Number(quote.taxRate),
+  });
 
   const deposit: DepositInvoiceResult | null = await prisma.$transaction(async (tx) => {
     if (validOptOuts.length > 0) {

@@ -9,6 +9,7 @@
  * (quotes/[id]/convert) still blocks job creation until it's signed.
  */
 
+import { randomBytes } from "crypto";
 import type { AgreementTiming } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { sendEmail, contractSignEmail } from "@/lib/email";
@@ -100,6 +101,7 @@ export async function autoSendQuoteAgreements(
         data: {
           companyId: quote.companyId,
           contactId: quote.contactId,
+          publicToken: randomBytes(24).toString("hex"),
           templateId: template.id,
           quoteId: quote.id,
           title: template.name,

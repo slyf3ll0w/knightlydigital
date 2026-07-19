@@ -21,8 +21,8 @@ export async function PATCH(req: NextRequest) {
   if (body.phone !== undefined) data.phone = body.phone ? String(body.phone).trim().slice(0, 30) : null;
 
   if (body.newPassword !== undefined) {
-    if (String(body.newPassword).length < 8) {
-      return NextResponse.json({ error: "New password must be at least 8 characters." }, { status: 400 });
+    if (String(body.newPassword).length < 8 || String(body.newPassword).length > 72) {
+      return NextResponse.json({ error: "New password must be 8–72 characters." }, { status: 400 });
     }
     const user = await prisma.user.findUnique({ where: { id: actor.id } });
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

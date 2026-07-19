@@ -9,9 +9,8 @@ import { recordLeadWin, recordLeadLoss } from "@/lib/pipeline";
  *   { stageId }                      — drag to a column (card lands on top)
  *   { action: "won" }                — closes the lead → ACTIVE client
  *   { action: "lost", reason? }      — lead archives; repeat client stays ACTIVE
- *   { action: "reopen", stageId, status, wonAt?, lostAt?, lostReason? }
- *                                    — undo of won/lost (client sends back the
- *                                      `undo` snapshot from that response)
+ *   { action: "reopen", stageId }    — undo of won/lost onto a working stage
+ *                                      (win history restored server-side)
  * Sales/USER roles can only move their own leads (contactScope).
  */
 export async function PATCH(
@@ -63,33 +62,25 @@ export async function PATCH(
   }
 
   if (action === "reopen") {
-    const status = body.status === "ACTIVE" ? "ACTIVE" : "LEAD";
     const stage = await prisma.pipelineStage.findFirst({
-      where: { id: String(body.stageId ?? ""), companyId },
+      where: { id: String(body.stageId ?? ""), companyId, isConverted: false },
     });
     if (!stage) return NextResponse.json({ error: "Stage not found." }, { status: 404 });
-    const restoreDate = (v: unknown) => {
-      if (v === null || v === undefined) return null;
-      const d = new Date(String(v));
-      return isNaN(d.getTime()) ? null : d;
-    };
+    // Win history is derived from the contact's current state, never from the
+    // request: undoing a loss keeps it, undoing a win rolls the counter back —
+    // otherwise the undone win reads as a Repeat forever after
+    const undoingLoss = contact.lostAt !== null;
+    const timesWon = undoingLoss ? contact.timesWon : Math.max(0, contact.timesWon - 1);
     await prisma.contact.update({
       where: { id: contact.id },
       data: {
-        status,
+        status: timesWon > 0 ? "ACTIVE" : "LEAD",
         pipelineStageId: stage.id,
         stageChangedAt: new Date(),
-        wonAt: restoreDate(body.wonAt),
-        lostAt: restoreDate(body.lostAt),
-        lostReason:
-          typeof body.lostReason === "string" && body.lostReason.trim()
-            ? body.lostReason.trim().slice(0, 300)
-            : null,
-        // Undoing an accidental Won also rolls the win counter back —
-        // otherwise the undone win reads as a Repeat forever after
-        ...(Number.isInteger(body.timesWon) && body.timesWon >= 0
-          ? { timesWon: body.timesWon }
-          : {}),
+        wonAt: timesWon > 0 ? contact.wonAt : null,
+        lostAt: null,
+        lostReason: null,
+        timesWon,
       },
     });
     return NextResponse.json({ success: true });

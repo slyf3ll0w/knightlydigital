@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { randomBytes } from "crypto";
 import type { RecurringInterval } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, contactScope } from "@/lib/permissions";
-import { backfillLineItemCosts, intQuantity } from "@/lib/work-items";
+import { backfillLineItemCosts, deriveLineItemAgreements, intQuantity } from "@/lib/work-items";
+import { computeQuoteTotals } from "@/lib/quote-totals";
 
 export async function POST(req: NextRequest) {
   const actor = await getActor();
@@ -63,7 +65,10 @@ export async function POST(req: NextRequest) {
     recurringInterval?: RecurringInterval | null;
     sortOrder?: number;
   };
-  const costedLineItems = await backfillLineItemCosts(companyId, lineItems as QuoteLineInput[]);
+  const costedLineItems = await deriveLineItemAgreements(
+    companyId,
+    await backfillLineItemCosts(companyId, lineItems as QuoteLineInput[])
+  );
 
   const subtotal = lineItems.reduce(
     (s: number, li: { quantity: number; unitPrice: number }) => s + li.quantity * li.unitPrice,
@@ -73,15 +78,12 @@ export async function POST(req: NextRequest) {
   const discountType =
     body.discountType === "PERCENT" || body.discountType === "FIXED" ? body.discountType : "NONE";
   const discountValue = Number(body.discountValue) || 0;
-  const discount =
-    discountType === "PERCENT"
-      ? Math.round(subtotal * Math.min(Math.max(discountValue, 0), 100)) / 100
-      : discountType === "FIXED"
-        ? Math.min(Math.max(discountValue, 0), subtotal)
-        : 0;
-  const taxable = subtotal - discount;
-  const tax = taxRate ? taxable * taxRate : null;
-  const total = taxable + (tax ?? 0);
+  const { discount, tax, total } = computeQuoteTotals({
+    subtotal,
+    discountType,
+    discountValue,
+    taxRate: taxRate || null,
+  });
 
   const quote = await prisma.$transaction(async (tx) => {
     const created = await tx.quote.create({
@@ -89,6 +91,7 @@ export async function POST(req: NextRequest) {
         companyId,
         contactId,
         requestId: requestId || null,
+        publicToken: randomBytes(24).toString("hex"),
         quoteNumber,
         title: title || null,
         subtotal,

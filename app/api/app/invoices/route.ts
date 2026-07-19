@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { randomBytes } from "crypto";
 import type { RecurringInterval } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getActor, canSeeMoney, contactScope } from "@/lib/permissions";
@@ -24,6 +25,13 @@ export async function POST(req: NextRequest) {
   const contact = contactId
     ? await prisma.contact.findFirst({ where: { id: contactId, companyId, ...contactScope(actor) } })
     : null;
+  if (contactId && !contact) {
+    return NextResponse.json({ error: "Contact not found." }, { status: 404 });
+  }
+  if (jobId) {
+    const job = await prisma.job.findFirst({ where: { id: jobId, companyId }, select: { id: true } });
+    if (!job) return NextResponse.json({ error: "Job not found." }, { status: 404 });
+  }
 
   const subtotal = lineItems.reduce(
     (s: number, li: { quantity: number; unitPrice: number }) => s + li.quantity * li.unitPrice,
@@ -89,6 +97,7 @@ export async function POST(req: NextRequest) {
         companyId,
         contactId: contactId || null,
         jobId: jobId || null,
+        publicToken: randomBytes(24).toString("hex"),
         invoiceNumber: (last?.invoiceNumber ?? 0) + 1,
         subject: subject || null,
         subtotal,

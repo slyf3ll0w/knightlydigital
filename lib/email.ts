@@ -14,6 +14,11 @@ const FROM = process.env.EMAIL_FROM ?? "WorkBench <notifications@workbenchfsm.co
 const FROM_ADDRESS = FROM.match(/<([^>]+)>/)?.[1] ?? FROM;
 const APP_URL = process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com";
 
+/** Whether Resend is configured — without it every sendEmail is a no-op. */
+export function emailEnabled(): boolean {
+  return Boolean(RESEND_API_KEY);
+}
+
 /** Tenant branding applied to client-facing emails — the same settings the
  *  quote/invoice/portal pages use. Pass the company row itself; only these
  *  fields are read. */

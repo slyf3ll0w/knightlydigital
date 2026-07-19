@@ -1,13 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
+import { randomBytes } from "crypto";
 import { prisma } from "@/lib/db";
 import { defaultLeadAssignee } from "@/lib/permissions";
 import { sendEmail, newRequestEmail } from "@/lib/email";
 import { companyNotifyAddress } from "@/lib/notify";
 import { notifyUsers, requestNotifyUserIds } from "@/lib/push";
 import { enterPipeline, autoAdvance } from "@/lib/pipeline";
+import { limit } from "@/lib/rate-limit";
+import { withRequestNumberRetry } from "@/lib/request-number";
 
-// Same backstop as the public booking forms
+// Webhook leads get their own daily cap (counted by source, so a leaky
+// integration can't eat the booking forms' backstop) plus an hourly limiter.
 const MAX_LEADS_PER_COMPANY_PER_DAY = 200;
+const MAX_LEADS_PER_COMPANY_PER_HOUR = 60;
 
 const s = (v: unknown, max = 200): string =>
   typeof v === "string" ? v.trim().slice(0, max) : "";
@@ -40,6 +45,14 @@ export async function POST(
   });
   if (!company) return NextResponse.json({ error: "Not found." }, { status: 404 });
 
+  const rl = limit(`lead-webhook:${company.id}`, MAX_LEADS_PER_COMPANY_PER_HOUR, 3600000);
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: "Too many requests. Try again later." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfterSeconds) } }
+    );
+  }
+
   let body: Record<string, unknown>;
   try {
     body = await req.json();
@@ -69,7 +82,7 @@ export async function POST(
 
   const since = new Date(Date.now() - 86400000);
   const recent = await prisma.request.count({
-    where: { companyId: company.id, createdAt: { gte: since } },
+    where: { companyId: company.id, source: "webhook", createdAt: { gte: since } },
   });
   if (recent >= MAX_LEADS_PER_COMPANY_PER_DAY) {
     return NextResponse.json({ error: "Daily lead limit reached." }, { status: 429 });
@@ -80,56 +93,59 @@ export async function POST(
   const address = s(body.address, 300) || null;
   const assignedToId = await defaultLeadAssignee(company.id);
 
-  const result = await prisma.$transaction(async (tx) => {
-    // Same dedupe as the public booking forms: match by phone or email
-    let contact = await tx.contact.findFirst({
-      where: {
-        companyId: company.id,
-        OR: [...(phone ? [{ phone }] : []), ...(email ? [{ email }] : [])],
-      },
-    });
-    if (!contact) {
-      contact = await tx.contact.create({
-        data: {
+  const result = await withRequestNumberRetry(() =>
+    prisma.$transaction(async (tx) => {
+      // Same dedupe as the public booking forms: match by phone or email
+      let contact = await tx.contact.findFirst({
+        where: {
           companyId: company.id,
-          firstName,
-          lastName,
-          email,
-          phone,
-          address,
-          city: s(body.city, 100) || null,
-          state: s(body.state, 40) || null,
-          zip: s(body.zip, 20) || null,
-          leadSource: source,
-          assignedToId,
+          OR: [...(phone ? [{ phone }] : []), ...(email ? [{ email }] : [])],
         },
       });
-    }
+      if (!contact) {
+        contact = await tx.contact.create({
+          data: {
+            companyId: company.id,
+            hubToken: randomBytes(24).toString("hex"),
+            firstName,
+            lastName,
+            email,
+            phone,
+            address,
+            city: s(body.city, 100) || null,
+            state: s(body.state, 40) || null,
+            zip: s(body.zip, 20) || null,
+            leadSource: source,
+            assignedToId,
+          },
+        });
+      }
 
-    const last = await tx.request.findFirst({
-      where: { companyId: company.id },
-      orderBy: { requestNumber: "desc" },
-    });
-    const request = await tx.request.create({
-      data: {
-        companyId: company.id,
-        contactId: contact.id,
-        requestNumber: (last?.requestNumber ?? 0) + 1,
-        title: `${source} lead`,
-        details: [message, address ? `Address: ${address}` : null, `Source: ${source}`]
-          .filter(Boolean)
-          .join("\n"),
-        source: "webhook",
-      },
-    });
+      const last = await tx.request.findFirst({
+        where: { companyId: company.id },
+        orderBy: { requestNumber: "desc" },
+      });
+      const request = await tx.request.create({
+        data: {
+          companyId: company.id,
+          contactId: contact.id,
+          requestNumber: (last?.requestNumber ?? 0) + 1,
+          title: `${source} lead`,
+          details: [message, address ? `Address: ${address}` : null, `Source: ${source}`]
+            .filter(Boolean)
+            .join("\n"),
+          source: "webhook",
+        },
+      });
 
-    // Onto the board: new leads land on the first stage; existing clients
-    // re-enter as repeat business; archived leads resurrect.
-    await enterPipeline(tx, company.id, contact.id);
-    await autoAdvance(tx, company.id, contact.id, "REQUEST_CREATED");
+      // Onto the board: new leads land on the first stage; existing clients
+      // re-enter as repeat business; archived leads resurrect.
+      await enterPipeline(tx, company.id, contact.id);
+      await autoAdvance(tx, company.id, contact.id, "REQUEST_CREATED");
 
-    return { contact, request };
-  });
+      return { contact, request };
+    })
+  );
 
   await notifyUsers(await requestNotifyUserIds(company.id), {
     title: `New ${source} lead: ${firstName} ${lastName}`.slice(0, 80),

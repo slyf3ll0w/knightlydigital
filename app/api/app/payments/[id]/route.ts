@@ -60,6 +60,16 @@ export async function PATCH(
   });
   if (!payment) return NextResponse.json({ error: "Payment not found." }, { status: 404 });
 
+  if (
+    payment.processorRef?.startsWith("TR") &&
+    (body.amount !== undefined || body.method !== undefined || body.paidAt !== undefined)
+  ) {
+    return NextResponse.json(
+      { error: "This payment was processed online — issue a refund instead of editing it." },
+      { status: 400 }
+    );
+  }
+
   let amount: number | undefined;
   if (body.amount !== undefined) {
     amount = Number(body.amount);

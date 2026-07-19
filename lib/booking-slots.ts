@@ -77,7 +77,7 @@ export function wallTimeToUtc(
 }
 
 /** Y/M/D + weekday of an instant, seen from `tz`. */
-function localDayParts(tz: string, date: Date): { y: number; m: number; d: number; day: DayKeyIndex } {
+export function localDayParts(tz: string, date: Date): { y: number; m: number; d: number; day: DayKeyIndex } {
   const dtf = new Intl.DateTimeFormat("en-US", {
     timeZone: tz,
     year: "numeric",

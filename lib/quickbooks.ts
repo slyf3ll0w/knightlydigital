@@ -608,7 +608,22 @@ export async function pushInvoice(
       sparse: true,
     });
   } else {
-    result = await qboPost(connection, "invoice", payload);
+    const matches = await qboQuery(
+      connection,
+      "Invoice",
+      `select Id, SyncToken from Invoice where DocNumber = '${q(String(invoice.invoiceNumber))}' and CustomerRef = '${q(customerId)}'`
+    );
+    if (matches.length > 0) {
+      const existing = matches[0] as { Id: string; SyncToken?: string };
+      result = await qboPost(connection, "invoice", {
+        ...payload,
+        Id: existing.Id,
+        SyncToken: existing.SyncToken,
+        sparse: true,
+      });
+    } else {
+      result = await qboPost(connection, "invoice", payload);
+    }
   }
 
   const qboInvoice = result.Invoice as { Id: string; SyncToken?: string };

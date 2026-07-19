@@ -48,6 +48,22 @@ export async function POST(
     );
   }
 
+  const remaining = Math.round((paymentAmount - refundAmount) * 100) / 100;
+
+  // Reserve the refund atomically before touching the processor: the update
+  // only lands if the amount is still what we validated against, so a
+  // concurrent refund of the same payment loses the race and gets a 409.
+  const reserved = await prisma.payment.updateMany({
+    where: { id, companyId: actor.companyId, amount: payment.amount },
+    data: { amount: remaining },
+  });
+  if (reserved.count === 0) {
+    return NextResponse.json(
+      { error: "This payment just changed — reload and try again." },
+      { status: 409 }
+    );
+  }
+
   try {
     const reversal = await reverseTransfer({
       transferId: payment.processorRef,
@@ -55,7 +71,6 @@ export async function POST(
     });
 
     const note = `Refunded $${refundAmount.toFixed(2)} (${reversal.id})`;
-    const remaining = Math.round((paymentAmount - refundAmount) * 100) / 100;
 
     const updated = await prisma.$transaction(async (tx) => {
       // Full refund keeps the row (audit trail of the charge + reversal ids)
@@ -63,7 +78,6 @@ export async function POST(
       const p = await tx.payment.update({
         where: { id },
         data: {
-          amount: remaining,
           details: payment.details ? `${payment.details} · ${note}` : note,
         },
       });
@@ -73,6 +87,11 @@ export async function POST(
 
     return NextResponse.json({ success: true, payment: updated, reversalId: reversal.id });
   } catch (err) {
+    await prisma.payment
+      .update({ where: { id }, data: { amount: payment.amount } })
+      .catch((restoreErr) => {
+        console.error("[payments] refund reservation rollback failed", restoreErr);
+      });
     console.error("[payments] refund failed", err);
     const message =
       err instanceof FinixError

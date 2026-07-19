@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor } from "@/lib/permissions";
+import { limit } from "@/lib/rate-limit";
 import { notifyUsers } from "@/lib/push";
 import {
   resolveChannel,
@@ -55,6 +56,14 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const rl = limit(`chat-message:${actor.id}`, 30, 60 * 1000);
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: "You're sending messages too fast — give it a few seconds." },
+      { status: 429 }
+    );
+  }
 
   const body = await req.json().catch(() => null);
   const text = typeof body?.body === "string" ? body.body.trim() : "";

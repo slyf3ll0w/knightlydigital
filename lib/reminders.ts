@@ -14,9 +14,10 @@
  * already auto-charges; this covers everything that still needs a human to pay.
  */
 
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { sendEmail, paymentReminderEmail, appointmentReminderEmail } from "@/lib/email";
-import { sendSms, appointmentReminderText } from "@/lib/sms";
+import { sendEmail, emailEnabled, paymentReminderEmail, appointmentReminderEmail } from "@/lib/email";
+import { sendSms, smsEnabled, appointmentReminderText } from "@/lib/sms";
 import { notifyUser } from "@/lib/push";
 import { slotLabel } from "@/lib/booking-availability";
 
@@ -47,6 +48,12 @@ export async function runDueReminders(now: Date = new Date()): Promise<ReminderS
     where: { status: "AWAITING_PAYMENT", dueDate: { lt: now } },
     data: { status: "PAST_DUE" },
   });
+
+  // Without Resend every send is a no-op — bail before claiming any stage so
+  // the cadence simply picks up once email is live.
+  if (!emailEnabled()) {
+    return { checked: 0, sent: 0, markedPastDue: flipped.count, errors: 0 };
+  }
 
   const invoices = await prisma.invoice.findMany({
     where: {
@@ -85,6 +92,28 @@ export async function runDueReminders(now: Date = new Date()): Promise<ReminderS
       if (eligible.length === 0) continue;
 
       const stage = eligible[eligible.length - 1]; // most advanced unsent stage
+
+      // Claim before sending: the @@unique([invoiceId, type]) constraint makes
+      // this create the atomic lock, so overlapping or retried cron runs can't
+      // both send the same stage. A claim whose send then fails is left in
+      // place (logged, never retried) — a missed reminder beats double-emailing
+      // the client.
+      try {
+        await prisma.paymentReminder.create({
+          data: { invoiceId: inv.id, type: stage.type, sentAt: now },
+        });
+      } catch (e) {
+        if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") continue;
+        throw e;
+      }
+      if (eligible.length > 1) {
+        // Mark all earlier passed stages too so we never back-fill them.
+        await prisma.paymentReminder.createMany({
+          data: eligible.slice(0, -1).map((s) => ({ invoiceId: inv.id, type: s.type, sentAt: now })),
+          skipDuplicates: true,
+        });
+      }
+
       const baseUrl = process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com";
       const { subject, html } = paymentReminderEmail({
         companyName: inv.company.name,
@@ -104,14 +133,11 @@ export async function runDueReminders(now: Date = new Date()): Promise<ReminderS
         brand: inv.company,
       });
 
-      // Only record once the email actually went out, so an unconfigured Resend
-      // (no-op send) doesn't silently burn through the cadence — it resumes when
-      // email is live. Mark all passed stages so we never back-fill earlier ones.
       if (ok) {
-        await prisma.paymentReminder.createMany({
-          data: eligible.map((s) => ({ invoiceId: inv.id, type: s.type, sentAt: now })),
-        });
         summary.sent++;
+      } else {
+        summary.errors++;
+        console.error("[reminders] send failed after claim for invoice", inv.id, stage.type);
       }
     } catch (err) {
       summary.errors++;
@@ -128,8 +154,9 @@ export async function runDueReminders(now: Date = new Date()): Promise<ReminderS
  * hourly to actually catch it; on a daily cron only the day reminder lands).
  * Scoped to confirmed appointments whose request came from a booking form —
  * manually created appointments never email clients unprompted. Each stage
- * fires once (reminderDaySentAt / reminderHourSentAt) and only records after
- * a real send, so an unconfigured Resend doesn't burn the stage.
+ * fires once (reminderDaySentAt / reminderHourSentAt), claimed atomically
+ * before sending; stages are only claimed when at least one channel can
+ * actually send, so an unconfigured Resend/Telnyx doesn't burn the stage.
  */
 export interface AppointmentReminderSummary {
   checked: number;
@@ -181,13 +208,50 @@ export async function runAppointmentReminders(
             : null;
       if (!stage) continue;
 
+      // SMS quiet hours: never text outside 8 AM–9 PM company-local. Email is
+      // fine anytime.
+      const localHour = Number(
+        new Intl.DateTimeFormat("en-US", {
+          timeZone: appt.company.timezone,
+          hour: "2-digit",
+          hourCycle: "h23",
+        }).format(now)
+      );
+      const smsQuiet = localHour < 8 || localHour >= 21;
+
+      const canEmail = emailEnabled() && Boolean(appt.contact.email);
+      const canSms =
+        smsEnabled() && Boolean(appt.contact.phone) && !appt.contact.smsOptOut && !smsQuiet;
+      // Nothing can actually go out right now (unconfigured providers, or a
+      // phone-only client inside quiet hours) — leave the stage unclaimed so a
+      // later cron run still in the window picks it up.
+      if (!canEmail && !canSms) continue;
+
+      // Claim before sending (compare-and-set on the stage column) so
+      // overlapping cron runs can't both remind the client. A claim whose
+      // sends then fail is left in place (logged, never retried) — a missed
+      // reminder beats double-texting.
+      const claimed = await prisma.appointment.updateMany({
+        where: {
+          id: appt.id,
+          ...(stage === "hour" ? { reminderHourSentAt: null } : { reminderDaySentAt: null }),
+        },
+        data:
+          stage === "hour"
+            ? // an hour-stage send also closes the day stage so a late
+              // booking doesn't get the "day before" email after the visit
+              { reminderHourSentAt: now, reminderDaySentAt: appt.reminderDaySentAt ?? now }
+            : { reminderDaySentAt: now },
+      });
+      if (claimed.count === 0) continue;
+
       const windowEnd = new Date(
         appt.scheduledAt.getTime() + appt.company.arrivalWindowMinutes * 60000
       );
       const windowLabel = slotLabel(appt.company.timezone, appt.scheduledAt, windowEnd);
 
       let emailOk = false;
-      if (appt.contact.email) {
+      if (canEmail && appt.contact.email) {
         const { subject, html } = appointmentReminderEmail({
           companyName: appt.company.name,
           companyEmail: appt.company.email,
@@ -209,7 +273,7 @@ export async function runAppointmentReminders(
 
       // Text rides alongside the email (either channel counts as reminded).
       let smsOk = false;
-      if (appt.contact.phone && !appt.contact.smsOptOut) {
+      if (canSms && appt.contact.phone) {
         smsOk = await sendSms({
           to: appt.contact.phone,
           text: appointmentReminderText({
@@ -225,15 +289,6 @@ export async function runAppointmentReminders(
 
       const ok = emailOk || smsOk;
       if (ok) {
-        await prisma.appointment.update({
-          where: { id: appt.id },
-          data:
-            stage === "hour"
-              ? // an hour-stage send also closes the day stage so a late
-                // booking doesn't get the "day before" email after the visit
-                { reminderHourSentAt: now, reminderDaySentAt: appt.reminderDaySentAt ?? now }
-              : { reminderDaySentAt: now },
-        });
         summary.sent++;
         // The email reminds the client; the push reminds whoever's going
         if (stage === "hour" && appt.assignedToId) {
@@ -244,6 +299,9 @@ export async function runAppointmentReminders(
             tag: `appt-${appt.id}`,
           });
         }
+      } else {
+        summary.errors++;
+        console.error("[reminders] send failed after claim for appointment", appt.id, stage);
       }
     } catch (err) {
       summary.errors++;

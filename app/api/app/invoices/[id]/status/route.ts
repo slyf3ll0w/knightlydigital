@@ -21,8 +21,25 @@ export async function PATCH(
 
   const invoice = await prisma.invoice.findFirst({
     where: { id, companyId, ...viaContactScope(actor) },
+    include: { payments: true },
   });
   if (!invoice) return NextResponse.json({ error: "Invoice not found." }, { status: 404 });
+
+  const paid = invoice.payments.reduce((s, p) => s + Number(p.amount), 0);
+  const covered = paid > 0 && paid >= Number(invoice.total) - 0.005;
+
+  if (status === "PAID" && !covered) {
+    return NextResponse.json(
+      { error: "Recorded payments don't cover this invoice. Use Collect Payment to record the payment instead." },
+      { status: 409 }
+    );
+  }
+  if (status !== "PAID" && covered) {
+    return NextResponse.json(
+      { error: "This invoice is fully covered by recorded payments. Remove or refund a payment to re-open it." },
+      { status: 409 }
+    );
+  }
 
   await prisma.invoice.update({
     where: { id },

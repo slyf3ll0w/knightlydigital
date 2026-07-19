@@ -91,22 +91,38 @@ export async function DELETE(
     );
   }
 
-  const fallback = await prisma.pipelineStage.findFirst({
-    where: { companyId, NOT: { id }, isConverted: false },
-    orderBy: { sortOrder: "asc" },
-  });
-  if (!fallback) {
+  let result: { movedTo: string; moved: number } | null;
+  try {
+    result = await prisma.$transaction(
+      async (tx) => {
+        const fallback = await tx.pipelineStage.findFirst({
+          where: { companyId, NOT: { id }, isConverted: false },
+          orderBy: { sortOrder: "asc" },
+        });
+        if (!fallback) return null;
+        const res = await tx.contact.updateMany({
+          where: { companyId, pipelineStageId: id },
+          data: { pipelineStageId: fallback.id, stageChangedAt: new Date() },
+        });
+        await tx.pipelineStage.delete({ where: { id } });
+        return { movedTo: fallback.name, moved: res.count };
+      },
+      { isolationLevel: "Serializable" }
+    );
+  } catch (err) {
+    // P2034 = serialization conflict, P2025 = someone else deleted it first
+    const code = (err as { code?: string })?.code;
+    if (code === "P2034" || code === "P2025") {
+      return NextResponse.json(
+        { error: "The board changed while deleting — try again." },
+        { status: 409 }
+      );
+    }
+    throw err;
+  }
+  if (!result) {
     return NextResponse.json({ error: "A board needs at least one stage." }, { status: 400 });
   }
 
-  const moved = await prisma.$transaction(async (tx) => {
-    const res = await tx.contact.updateMany({
-      where: { companyId, pipelineStageId: id },
-      data: { pipelineStageId: fallback.id, stageChangedAt: new Date() },
-    });
-    await tx.pipelineStage.delete({ where: { id } });
-    return res.count;
-  });
-
-  return NextResponse.json({ success: true, movedTo: fallback.name, moved });
+  return NextResponse.json({ success: true, movedTo: result.movedTo, moved: result.moved });
 }

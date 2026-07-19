@@ -74,6 +74,33 @@ export async function backfillLineItemCosts<
   });
 }
 
+/**
+ * requiresAgreement on a quote line is server-derived: lines linked to a
+ * price-book item inherit its flag; free-typed lines can't be agreement-gated.
+ * Client-supplied values are ignored so the conversion gate can't be stripped
+ * from a request.
+ */
+export async function deriveLineItemAgreements<
+  T extends { workItemId?: string | null; requiresAgreement?: boolean }
+>(companyId: string, lineItems: T[]): Promise<T[]> {
+  const ids = [
+    ...new Set(
+      lineItems.map((li) => li.workItemId).filter((id): id is string => Boolean(id))
+    ),
+  ];
+  const gated = ids.length
+    ? await prisma.workItem.findMany({
+        where: { id: { in: ids }, companyId, requiresAgreement: true },
+        select: { id: true },
+      })
+    : [];
+  const gatedIds = new Set(gated.map((w) => w.id));
+  return lineItems.map((li) => ({
+    ...li,
+    requiresAgreement: li.workItemId ? gatedIds.has(li.workItemId) : false,
+  }));
+}
+
 export async function sanitizeRecurringAndAgreement(
   body: Record<string, unknown>,
   companyId: string

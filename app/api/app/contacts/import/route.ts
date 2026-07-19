@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { randomBytes } from "crypto";
 import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
 import { normalizePhone } from "@/lib/csv";
@@ -97,6 +98,7 @@ export async function POST(req: NextRequest) {
     const email = trim(r.email, 254)?.toLowerCase() ?? null;
     const phone = trim(r.phone, 30);
     const normPhone = normalizePhone(phone);
+    const leadSource = trim(r.leadSource, 80);
 
     const data = {
       firstName: firstName ?? companyName ?? "—",
@@ -109,7 +111,7 @@ export async function POST(req: NextRequest) {
       state: trim(r.state, 40),
       zip: trim(r.zip, 20),
       notes: trim(r.notes, 2000),
-      leadSource: trim(r.leadSource, 80) ?? "Imported",
+      leadSource: leadSource ?? "Imported",
     };
     const customFields = sanitizeCustomFields(r.customFields, fieldDefs);
 
@@ -126,6 +128,8 @@ export async function POST(req: NextRequest) {
         const patch: Record<string, unknown> = Object.fromEntries(
           Object.entries(data).filter(([, v]) => v !== null && v !== "")
         );
+        if (!firstName) delete patch.firstName;
+        if (!leadSource) delete patch.leadSource;
         if (Object.keys(customFields).length > 0) {
           const cur = await prisma.contact.findUnique({
             where: { id: matchId },
@@ -142,6 +146,7 @@ export async function POST(req: NextRequest) {
         const contact = await prisma.contact.create({
           data: {
             companyId,
+            hubToken: randomBytes(24).toString("hex"),
             ...data,
             customFields,
             status: statusForNew,
@@ -174,7 +179,7 @@ export async function DELETE(req: NextRequest) {
     where: { companyId, importBatchId: batchId },
     include: {
       _count: {
-        select: { quotes: true, jobs: true, invoices: true, payments: true, subscriptions: true, appointments: true },
+        select: { quotes: true, jobs: true, invoices: true, payments: true, subscriptions: true, appointments: true, contracts: true },
       },
     },
   });
@@ -183,7 +188,7 @@ export async function DELETE(req: NextRequest) {
     const n = c._count;
     return (
       n.quotes === 0 && n.jobs === 0 && n.invoices === 0 && n.payments === 0 &&
-      n.subscriptions === 0 && n.appointments === 0
+      n.subscriptions === 0 && n.appointments === 0 && n.contracts === 0
     );
   });
   const ids = removable.map((c) => c.id);

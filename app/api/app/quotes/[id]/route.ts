@@ -3,7 +3,8 @@ import type { RecurringInterval } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, isManager, viaContactScope } from "@/lib/permissions";
 import { autoSendQuoteAgreements } from "@/lib/agreements";
-import { backfillLineItemCosts, intQuantity } from "@/lib/work-items";
+import { backfillLineItemCosts, deriveLineItemAgreements, intQuantity } from "@/lib/work-items";
+import { computeQuoteTotals } from "@/lib/quote-totals";
 import { autoAdvance, recordLeadWin } from "@/lib/pipeline";
 
 const allowedStatuses = [
@@ -84,20 +85,21 @@ export async function PATCH(
     }[];
     for (const li of rawLineItems) li.quantity = intQuantity(li.quantity);
     // Hand-typed items matching a price-book name inherit its cost (margins)
-    const lineItems = await backfillLineItemCosts(companyId, rawLineItems);
+    const lineItems = await deriveLineItemAgreements(
+      companyId,
+      await backfillLineItemCosts(companyId, rawLineItems)
+    );
     const subtotal = lineItems.reduce((s, li) => s + (li.quantity || 0) * (li.unitPrice || 0), 0);
     const discountType =
       body.discountType === "PERCENT" || body.discountType === "FIXED" ? body.discountType : "NONE";
     const discountValue = Number(body.discountValue) || 0;
-    const discount =
-      discountType === "PERCENT"
-        ? Math.round(subtotal * Math.min(Math.max(discountValue, 0), 100)) / 100
-        : discountType === "FIXED"
-          ? Math.min(Math.max(discountValue, 0), subtotal)
-          : 0;
     const taxRate = Number(body.taxRate) || null;
-    const tax = taxRate ? (subtotal - discount) * taxRate : null;
-    const total = subtotal - discount + (tax ?? 0);
+    const { discount, tax, total } = computeQuoteTotals({
+      subtotal,
+      discountType,
+      discountValue,
+      taxRate,
+    });
 
     const updated = await prisma.$transaction(async (tx) => {
       await tx.quoteLineItem.deleteMany({ where: { quoteId: quote.id } });

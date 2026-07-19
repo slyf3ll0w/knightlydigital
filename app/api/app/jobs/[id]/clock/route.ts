@@ -40,13 +40,13 @@ export async function POST(
   const gps = sanitizeGps(body);
   const clientKey =
     typeof body.clientKey === "string" && body.clientKey.length > 0 && body.clientKey.length <= 64
-      ? body.clientKey
+      ? `${actor.id}:${body.clientKey}`
       : null;
 
   // Idempotent replay: this exact tap already landed.
   if (clientKey) {
     const existing = await prisma.timeEntry.findUnique({ where: { clientKey } });
-    if (existing && existing.companyId === actor.companyId) {
+    if (existing && existing.userId === actor.id && existing.companyId === actor.companyId) {
       return NextResponse.json({ success: true, entry: toDTO(existing) });
     }
   }

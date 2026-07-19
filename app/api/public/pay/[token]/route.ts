@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getProcessor, recordPayment, calculateSurcharge, sendReviewRequest } from "@/lib/payments";
+import { recomputeDepositApplied } from "@/lib/deposits";
 
 /**
  * Public online payment endpoint. Routes through the active payment processor;
@@ -15,6 +16,20 @@ export async function POST(
 ) {
   const { token } = await params;
   const { method, paymentToken } = await req.json();
+
+  // Re-derive any deposit credit on a final invoice before computing the
+  // balance, so the charge reflects deposits paid (or bounced) since creation.
+  const link = await prisma.invoice.findFirst({
+    where: { publicToken: token },
+    select: { jobId: true },
+  });
+  if (link?.jobId) {
+    const quote = await prisma.quote.findFirst({
+      where: { jobId: link.jobId },
+      select: { id: true },
+    });
+    if (quote) await recomputeDepositApplied(prisma, quote.id);
+  }
 
   const invoice = await prisma.invoice.findFirst({
     where: { publicToken: token },

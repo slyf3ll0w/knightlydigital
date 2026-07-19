@@ -6,12 +6,18 @@ import PayoutButton from "./PayoutButton";
 import { Plus, ArrowUpRight, ChevronRight } from "lucide-react";
 import { money, shortDate } from "@/lib/statuses";
 import EmptyState from "@/components/EmptyState";
-import { getProcessor, processingFees, estimateFeeCents, feeRateLabel } from "@/lib/payments";
+import {
+  getProcessor,
+  processingFees,
+  estimateFeeCents,
+  feeRateLabel,
+  recomputeInvoiceStatus,
+} from "@/lib/payments";
 import {
   finixEnvironment,
   toCents,
   listTransfersForIdentity,
-  listSettlementsForIdentity,
+  listSettlementsForMerchant,
   listSettlementFundingTransfers,
   listDisputes,
   listDisputeEvidence,
@@ -94,7 +100,7 @@ export default async function PaymentsDashboardPage() {
     company.finixOnboardingState === "APPROVED";
 
   // Online payments = rows the processor created (processorRef set)
-  const payments = await prisma.payment.findMany({
+  let payments = await prisma.payment.findMany({
     where: { companyId, processorRef: { not: null } },
     orderBy: { paidAt: "desc" },
     take: 25,
@@ -103,6 +109,53 @@ export default async function PaymentsDashboardPage() {
       contact: { select: { firstName: true, lastName: true } },
     },
   });
+
+  // Live processor data — one call each, tolerated to fail independently
+  let transferStates = new Map<string, FinixTransfer>();
+  let settlements: FinixSettlement[] = [];
+  let disputes: FinixDispute[] = [];
+  if (online && company?.finixIdentityId && company.finixMerchantId) {
+    const [transfersRes, settlementsRes, disputesRes] = await Promise.allSettled([
+      listTransfersForIdentity(company.finixIdentityId),
+      listSettlementsForMerchant(company.finixMerchantId),
+      listDisputes(),
+    ]);
+    if (transfersRes.status === "fulfilled") {
+      transferStates = new Map(transfersRes.value.map((t) => [t.id, t]));
+    }
+    if (settlementsRes.status === "fulfilled") settlements = settlementsRes.value;
+    if (disputesRes.status === "fulfilled") {
+      // The disputes list is application-wide; keep only ours — matched by
+      // identity when present, else by the disputed transfer id.
+      const ourTransfers = new Set(transferStates.keys());
+      disputes = disputesRes.value.filter(
+        (d) =>
+          (d.identity && d.identity === company.finixIdentityId) ||
+          (d.transfer && ourTransfers.has(d.transfer))
+      );
+    }
+  }
+
+  // Reconcile recorded payments whose transfer has since failed at the
+  // processor (a missed FAILED webhook) — same unwind the webhook applies.
+  const failedPayments = payments.filter((p) => {
+    const t = p.processorRef ? transferStates.get(p.processorRef) : undefined;
+    return t?.state === "FAILED" || t?.state === "CANCELED";
+  });
+  for (const p of failedPayments) {
+    try {
+      await prisma.$transaction(async (tx) => {
+        await tx.payment.delete({ where: { id: p.id } });
+        await recomputeInvoiceStatus(tx, p.invoiceId);
+      });
+    } catch (err) {
+      console.error("[payments] failed-transfer reconciliation failed", err);
+    }
+  }
+  if (failedPayments.length > 0) {
+    const failedIds = new Set(failedPayments.map((p) => p.id));
+    payments = payments.filter((p) => !failedIds.has(p.id));
+  }
 
   const today = new Date();
   const monthStart = new Date();
@@ -130,32 +183,6 @@ export default async function PaymentsDashboardPage() {
   for (const p of monthPayments) {
     const amt = Number(p.amount);
     if (amt > 0) dailyOnline[new Date(p.paidAt).getDate() - 1] += amt;
-  }
-
-  // Live processor data — one call each, tolerated to fail independently
-  let transferStates = new Map<string, FinixTransfer>();
-  let settlements: FinixSettlement[] = [];
-  let disputes: FinixDispute[] = [];
-  if (online && company?.finixIdentityId) {
-    const [transfersRes, settlementsRes, disputesRes] = await Promise.allSettled([
-      listTransfersForIdentity(company.finixIdentityId),
-      listSettlementsForIdentity(company.finixIdentityId),
-      listDisputes(),
-    ]);
-    if (transfersRes.status === "fulfilled") {
-      transferStates = new Map(transfersRes.value.map((t) => [t.id, t]));
-    }
-    if (settlementsRes.status === "fulfilled") settlements = settlementsRes.value;
-    if (disputesRes.status === "fulfilled") {
-      // The disputes list is application-wide; keep only ours — matched by
-      // identity when present, else by the disputed transfer id.
-      const ourTransfers = new Set(transferStates.keys());
-      disputes = disputesRes.value.filter(
-        (d) =>
-          (d.identity && d.identity === company.finixIdentityId) ||
-          (d.transfer && ourTransfers.has(d.transfer))
-      );
-    }
   }
 
   // Evidence already uploaded per dispute — best-effort, like the reads above

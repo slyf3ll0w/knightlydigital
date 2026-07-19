@@ -32,8 +32,8 @@ export async function POST(req: NextRequest) {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || String(email).length > 254) {
     return NextResponse.json({ error: "Enter a valid email address." }, { status: 400 });
   }
-  if (String(password).length < 8) {
-    return NextResponse.json({ error: "Password must be at least 8 characters." }, { status: 400 });
+  if (String(password).length < 8 || String(password).length > 72) {
+    return NextResponse.json({ error: "Password must be 8–72 characters." }, { status: 400 });
   }
   if (!canManageRole(actor.role, role as Role)) {
     return NextResponse.json(

@@ -9,6 +9,7 @@
  * any PAID deposits (see app/api/app/invoices/route.ts).
  */
 
+import { randomBytes } from "crypto";
 import type { DepositType, Prisma, PrismaClient } from "@prisma/client";
 import { quoteDepositAmount } from "@/lib/statuses";
 
@@ -88,6 +89,7 @@ export async function createDepositInvoice(
       companyId: quote.companyId,
       contactId: quote.contactId,
       quoteId: quote.id,
+      publicToken: randomBytes(24).toString("hex"),
       kind: "DEPOSIT",
       invoiceNumber: (last?.invoiceNumber ?? 0) + 1,
       subject: `Deposit — Quote #${quote.quoteNumber}`,
@@ -129,4 +131,51 @@ export async function paidDepositTotal(tx: Tx, quoteId: string): Promise<number>
     select: { total: true },
   });
   return Math.round(deposits.reduce((s, d) => s + Number(d.total), 0) * 100) / 100;
+}
+
+/**
+ * Re-derive the deposit credit on a quote's final invoice from its
+ * currently-PAID deposit invoices. The final invoice stores `total` net of
+ * `depositApplied`, so both move together when a deposit pays after the final
+ * invoice was created, or when a pending ACH deposit payment later bounces.
+ */
+export async function recomputeDepositApplied(tx: Tx, quoteId: string): Promise<void> {
+  const quote = await tx.quote.findFirst({
+    where: { id: quoteId },
+    select: { jobId: true },
+  });
+  if (!quote?.jobId) return;
+
+  const final = await tx.invoice.findFirst({
+    where: { jobId: quote.jobId, kind: { not: "DEPOSIT" } },
+    include: { payments: true },
+  });
+  if (!final) return;
+
+  const gross =
+    Math.round((Number(final.total) + Number(final.depositApplied ?? 0)) * 100) / 100;
+  const applied = Math.min(await paidDepositTotal(tx, quoteId), gross);
+  if (applied === Number(final.depositApplied ?? 0)) return;
+
+  const netTotal = Math.round((gross - applied) * 100) / 100;
+  const paid = final.payments.reduce((s, p) => s + Number(p.amount), 0);
+  const fullyPaid = paid > 0 && paid >= netTotal - 0.005;
+
+  await tx.invoice.update({
+    where: { id: final.id },
+    data: {
+      depositApplied: applied > 0 ? applied : null,
+      total: netTotal,
+      ...(fullyPaid && final.status !== "PAID"
+        ? { status: "PAID", paidAt: new Date() }
+        : {}),
+      ...(!fullyPaid && final.status === "PAID"
+        ? {
+            status:
+              final.dueDate && final.dueDate < new Date() ? "PAST_DUE" : "AWAITING_PAYMENT",
+            paidAt: null,
+          }
+        : {}),
+    },
+  });
 }

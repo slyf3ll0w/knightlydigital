@@ -14,6 +14,7 @@
  */
 
 import { prisma } from "@/lib/db";
+import { recomputeDepositApplied } from "@/lib/deposits";
 import * as finix from "@/lib/finix";
 import { notifyUsers } from "@/lib/push";
 import { queueQuickBooksPaymentSync } from "@/lib/quickbooks";
@@ -318,6 +319,10 @@ export async function recordPayment(params: RecordPaymentParams) {
           : {},
     });
 
+    if (invoice.kind === "DEPOSIT" && invoice.quoteId && fullyPaid) {
+      await recomputeDepositApplied(tx, invoice.quoteId);
+    }
+
     return { payment, fullyPaid, invoiceNumber: invoice.invoiceNumber };
   });
 
@@ -385,6 +390,10 @@ export async function recomputeInvoiceStatus(
         paidAt: null,
       },
     });
+  }
+
+  if (invoice.kind === "DEPOSIT" && invoice.quoteId) {
+    await recomputeDepositApplied(tx, invoice.quoteId);
   }
 }
 

@@ -34,9 +34,21 @@ export async function POST(
 
   // Agreement gate: services flagged in the price book require a signed
   // agreement on this quote before work can start (client-removed optional
-  // items don't count)
-  const needsAgreement = quote.lineItems.some(
-    (li) => li.requiresAgreement && !(li.isOptional && li.optedOut)
+  // items don't count). Checked against the live price-book flag as well as
+  // the snapshot so the gate can't be bypassed with a stale or doctored line.
+  const activeItems = quote.lineItems.filter((li) => !(li.isOptional && li.optedOut));
+  const workItemIds = activeItems
+    .map((li) => li.workItemId)
+    .filter((wid): wid is string => Boolean(wid));
+  const gatedWorkItems = workItemIds.length
+    ? await prisma.workItem.findMany({
+        where: { id: { in: workItemIds }, companyId, requiresAgreement: true },
+        select: { id: true },
+      })
+    : [];
+  const gatedIds = new Set(gatedWorkItems.map((w) => w.id));
+  const needsAgreement = activeItems.some(
+    (li) => li.requiresAgreement || (li.workItemId && gatedIds.has(li.workItemId))
   );
   if (needsAgreement && !quote.contracts.some((c) => c.status === "SIGNED")) {
     const pending = quote.contracts.some((c) => c.status === "SENT");

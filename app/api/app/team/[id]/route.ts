@@ -64,8 +64,8 @@ export async function PATCH(
   }
 
   if (body.password !== undefined) {
-    if (String(body.password).length < 8) {
-      return NextResponse.json({ error: "Password must be at least 8 characters." }, { status: 400 });
+    if (String(body.password).length < 8 || String(body.password).length > 72) {
+      return NextResponse.json({ error: "Password must be 8–72 characters." }, { status: 400 });
     }
     data.passwordHash = await bcrypt.hash(body.password, 12);
   }

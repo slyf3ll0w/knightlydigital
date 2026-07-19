@@ -22,8 +22,7 @@ export async function verifyCaptcha(token: string | null | undefined): Promise<b
     const data = (await res.json()) as { success?: boolean };
     return data.success === true;
   } catch {
-    // Cloudflare unreachable — fail open so a Turnstile outage can't block
-    // real signups; the rate limiter still applies.
-    return true;
+    // Cloudflare unreachable — with a secret configured, fail closed.
+    return false;
   }
 }

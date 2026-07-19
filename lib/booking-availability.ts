@@ -26,18 +26,30 @@ export async function getBookableUsersWithBusy(
   });
   if (users.length === 0) return [];
   const ids = users.map((u) => u.id);
-  // Buffer a day back so something that started before `from` but overlaps it
-  // still blocks; "anytime" (date-only) items don't hold a clock position.
-  const buffer = new Date(from.getTime() - 86400000);
+  // True overlap: start < to AND end > from. Records without an explicit end
+  // default to an hour long, so "end > from" becomes start > from - 1h.
+  // "Anytime" (date-only) items don't hold a clock position.
+  const HOUR = 3600000;
+  const openEndFloor = new Date(from.getTime() - HOUR);
+  const overlaps = {
+    scheduledAt: { lt: to },
+    OR: [
+      { scheduledEnd: { gt: from } },
+      { scheduledEnd: null, scheduledAt: { gt: openEndFloor } },
+    ],
+  };
 
   const [appointments, assignments, unassignedJobs, blocks] = await Promise.all([
+    // Unassigned appointments (assignedToId null) still hold real commitments
+    // to a client — block every bookable user so "unassign to reassign later"
+    // can't reopen the slot to the public.
     db.appointment.findMany({
       where: {
         companyId,
-        assignedToId: { in: ids },
+        OR: [{ assignedToId: null }, { assignedToId: { in: ids } }],
         status: "SCHEDULED",
         scheduledAnytime: false,
-        scheduledAt: { gte: buffer, lt: to },
+        AND: [overlaps],
       },
       select: { assignedToId: true, scheduledAt: true, scheduledEnd: true },
     }),
@@ -48,7 +60,7 @@ export async function getBookableUsersWithBusy(
           companyId,
           status: { not: "ARCHIVED" },
           scheduledAnytime: false,
-          scheduledAt: { gte: buffer, lt: to },
+          ...overlaps,
         },
       },
       select: { userId: true, job: { select: { scheduledAt: true, scheduledEnd: true } } },
@@ -61,7 +73,7 @@ export async function getBookableUsersWithBusy(
         companyId,
         status: { not: "ARCHIVED" },
         scheduledAnytime: false,
-        scheduledAt: { gte: buffer, lt: to },
+        ...overlaps,
         assignments: { none: {} },
       },
       select: { scheduledAt: true, scheduledEnd: true },
@@ -81,12 +93,13 @@ export async function getBookableUsersWithBusy(
   ]);
 
   const busyByUser = new Map<string, { start: Date; end: Date }[]>(ids.map((id) => [id, []]));
-  const HOUR = 3600000;
   for (const a of appointments) {
-    busyByUser.get(a.assignedToId!)?.push({
+    const interval = {
       start: a.scheduledAt,
       end: a.scheduledEnd ?? new Date(a.scheduledAt.getTime() + HOUR),
-    });
+    };
+    if (a.assignedToId) busyByUser.get(a.assignedToId)?.push(interval);
+    else for (const id of ids) busyByUser.get(id)?.push(interval);
   }
   for (const j of assignments) {
     if (!j.job.scheduledAt) continue;

@@ -16,8 +16,8 @@ export async function POST(req: NextRequest) {
   if (!token || !password) {
     return NextResponse.json({ error: "Missing token or password." }, { status: 400 });
   }
-  if (password.length < 8) {
-    return NextResponse.json({ error: "Password must be at least 8 characters." }, { status: 400 });
+  if (password.length < 8 || password.length > 72) {
+    return NextResponse.json({ error: "Password must be 8–72 characters." }, { status: 400 });
   }
 
   const tokenHash = createHash("sha256").update(token).digest("hex");

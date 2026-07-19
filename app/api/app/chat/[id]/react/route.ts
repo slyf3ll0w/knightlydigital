@@ -1,12 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor } from "@/lib/permissions";
+import { limit } from "@/lib/rate-limit";
 import { TAPBACKS } from "@/lib/chat";
 
 /** Toggle a tapback reaction on a message in any channel you belong to. */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const rl = limit(`chat-react:${actor.id}`, 60, 60 * 1000);
+  if (!rl.ok) {
+    return NextResponse.json({ error: "Too many reactions — slow down." }, { status: 429 });
+  }
+
   const { id } = await params;
 
   const body = await req.json().catch(() => null);
