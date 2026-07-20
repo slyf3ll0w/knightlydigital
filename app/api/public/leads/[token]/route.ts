@@ -41,9 +41,12 @@ export async function POST(
 
   const company = await prisma.company.findUnique({
     where: { leadWebhookToken: token },
-    select: { id: true, name: true, email: true },
+    select: { id: true, name: true, email: true, suspendedAt: true },
   });
   if (!company) return NextResponse.json({ error: "Not found." }, { status: 404 });
+  // Suspended companies stop ingesting leads — same response as a bad token
+  // so ad platforms just see a dead webhook.
+  if (company.suspendedAt) return NextResponse.json({ error: "Not found." }, { status: 404 });
 
   const rl = limit(`lead-webhook:${company.id}`, MAX_LEADS_PER_COMPANY_PER_HOUR, 3600000);
   if (!rl.ok) {

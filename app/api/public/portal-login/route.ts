@@ -20,9 +20,12 @@ export async function POST(req: NextRequest) {
 
   const company = await prisma.company.findUnique({
     where: { slug },
-    select: { id: true, name: true, brandColor: true, brandColorSecondary: true, logoUrl: true },
+    select: { id: true, name: true, brandColor: true, brandColorSecondary: true, logoUrl: true, suspendedAt: true },
   });
   if (!company) return ok;
+  // Suspended companies: same silent response as an unknown email — no
+  // portal links go out while the account is paused.
+  if (company.suspendedAt) return ok;
 
   const contact = await prisma.contact.findFirst({
     where: { companyId: company.id, email: { equals: email, mode: "insensitive" } },

@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
  * Monthly true-up: Finix's Net Profit report is dashboard-download only (no
  * report API), so once a month the CSV gets dropped here and becomes
  * FinixCostSnapshot rows — the authoritative per-merchant cost/margin the
- * profitability table prefers over estimates.
+ * profitability pages prefer over estimates.
  */
 export default async function FinixImportPage() {
   const snapshots = await prisma.finixCostSnapshot.findMany({
@@ -25,8 +25,8 @@ export default async function FinixImportPage() {
   return (
     <div className="max-w-3xl space-y-6">
       <div>
-        <h1 className="text-lg font-bold">Finix Net Profit import</h1>
-        <p className="mt-1 text-sm text-stone-400">
+        <h1 className="text-lg font-bold text-gray-900">Finix Net Profit import</h1>
+        <p className="mt-1 text-sm text-gray-500">
           Download the monthly <em>Net Profit</em> report from the Finix dashboard (generated
           around the 10th–15th for the prior month) and upload it here. Rows are matched to
           companies by merchant ID; re-uploading a month overwrites it.
@@ -35,38 +35,40 @@ export default async function FinixImportPage() {
 
       <ImportForm />
 
-      <div className="overflow-x-auto rounded-lg border border-stone-800">
+      <div className="card-ledger overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-stone-900 text-left text-xs text-stone-400">
+          <thead className="border-b border-gray-200 text-left text-xs text-gray-500">
             <tr>
-              <th className="px-3 py-2">Month</th>
-              <th className="px-3 py-2">Merchant</th>
-              <th className="px-3 py-2 text-right">Card sales</th>
-              <th className="px-3 py-2 text-right">Fees billed</th>
-              <th className="px-3 py-2 text-right">Interchange</th>
-              <th className="px-3 py-2 text-right">Residual</th>
+              <th className="px-3 py-2 font-medium">Month</th>
+              <th className="px-3 py-2 font-medium">Merchant</th>
+              <th className="px-3 py-2 text-right font-medium">Card sales</th>
+              <th className="px-3 py-2 text-right font-medium">Fees billed</th>
+              <th className="px-3 py-2 text-right font-medium">Interchange</th>
+              <th className="px-3 py-2 text-right font-medium">Residual</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-stone-800/60">
+          <tbody className="divide-y divide-gray-100">
             {snapshots.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-3 py-6 text-center text-stone-500">
+                <td colSpan={6} className="px-3 py-6 text-center text-gray-400">
                   Nothing imported yet.
                 </td>
               </tr>
             )}
             {snapshots.map((s) => (
               <tr key={s.id}>
-                <td className="px-3 py-2 tabular-nums">{s.month}</td>
+                <td className="numeral-ledger px-3 py-2">{s.month}</td>
                 <td className="px-3 py-2">
                   {nameBy.get(s.finixMerchantId) ?? (
-                    <span className="text-stone-500">{s.finixMerchantId}</span>
+                    <span className="text-gray-400">{s.finixMerchantId}</span>
                   )}
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums">{usd(s.cardSaleCents)}</td>
-                <td className="px-3 py-2 text-right tabular-nums">{usd(s.cardFeesCents)}</td>
-                <td className="px-3 py-2 text-right tabular-nums">{usd(s.interchangeFeesCents)}</td>
-                <td className="px-3 py-2 text-right font-semibold tabular-nums text-emerald-400">
+                <td className="numeral-ledger px-3 py-2 text-right">{usd(s.cardSaleCents)}</td>
+                <td className="numeral-ledger px-3 py-2 text-right">{usd(s.cardFeesCents)}</td>
+                <td className="numeral-ledger px-3 py-2 text-right">
+                  {usd(s.interchangeFeesCents)}
+                </td>
+                <td className="numeral-ledger px-3 py-2 text-right font-semibold text-emerald-600">
                   {usd(s.residualCents)}
                 </td>
               </tr>

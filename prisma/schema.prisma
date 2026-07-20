@@ -68,6 +68,11 @@ model Company {
   setupWizardAt    DateTime?
   // Display name for the in-app AI assistant; null = the default ("Atlas")
   assistantName    String?
+  // Platform suspension (superadmin-only): set → the tenant app and public
+  // booking/leads/payments are disabled, data stays intact until support
+  // reinstates. Deletion is separate and permanent.
+  suspendedAt      DateTime?
+  suspendedReason  String?
   // Team settings: who gets website/booking leads (null = company owner),
   // and whether SALES users can see invoices & payments for their leads.
   defaultLeadUserId String?

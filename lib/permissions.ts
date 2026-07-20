@@ -42,13 +42,13 @@ export const roleLabel: Record<string, string> = {
 export const assignableRoles: Role[] = ["OWNER", "ADMIN", "USER", "SALES", "TECH"];
 
 /**
- * The session JWT only refreshes at sign-in, so role changes and
- * deactivation must be enforced from the DB. Every /api/app route and
- * platform page goes through this — one indexed lookup per request.
+ * The session JWT only refreshes at sign-in, so role changes, deactivation,
+ * and platform suspension must be enforced from the DB. Every /api/app route
+ * and platform page goes through this — one indexed lookup per request.
  */
-export async function getActor(): Promise<Actor | null> {
+async function loadActor(): Promise<{ actor: Actor | null; suspended: boolean }> {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.id) return null;
+  if (!session?.user?.id) return { actor: null, suspended: false };
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
     select: {
@@ -57,25 +57,36 @@ export async function getActor(): Promise<Actor | null> {
       role: true,
       companyId: true,
       isActive: true,
-      company: { select: { salesSeePayments: true } },
+      company: { select: { salesSeePayments: true, suspendedAt: true } },
     },
   });
-  if (!user || !user.isActive || !user.companyId) return null;
+  if (!user || !user.isActive || !user.companyId) return { actor: null, suspended: false };
   return {
-    id: user.id,
-    name: user.name,
-    role: user.role as Role,
-    companyId: user.companyId,
-    salesSeePayments: user.company?.salesSeePayments ?? true,
+    actor: {
+      id: user.id,
+      name: user.name,
+      role: user.role as Role,
+      companyId: user.companyId,
+      salesSeePayments: user.company?.salesSeePayments ?? true,
+    },
+    suspended: Boolean(user.company?.suspendedAt),
   };
+}
+
+/** Suspended companies get null everywhere — every /api/app route dies 401. */
+export async function getActor(): Promise<Actor | null> {
+  const { actor, suspended } = await loadActor();
+  return suspended ? null : actor;
 }
 
 /**
  * Page-side variant: redirects instead of returning null. Pages that a role
- * shouldn't see bounce to the dashboard (which every role can open).
+ * shouldn't see bounce to the dashboard (which every role can open);
+ * suspended companies land on the contact-support page.
  */
 export async function requirePageActor(allowed?: (a: Actor) => boolean): Promise<Actor> {
-  const actor = await getActor();
+  const { actor, suspended } = await loadActor();
+  if (suspended) redirect("/app/suspended");
   if (!actor) {
     const session = await getServerSession(authOptions);
     redirect(session ? "/app/register" : "/app/login");

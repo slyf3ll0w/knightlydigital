@@ -37,6 +37,13 @@ export async function POST(
   });
 
   if (!invoice) return NextResponse.json({ error: "Invoice not found." }, { status: 404 });
+  if (invoice.company.suspendedAt) {
+    // Suspended merchants can't move money through the platform.
+    return NextResponse.json(
+      { error: "Online payments are unavailable for this business. Please contact them directly to arrange payment." },
+      { status: 503 }
+    );
+  }
   if (invoice.status === "PAID") {
     return NextResponse.json({ error: "Already paid." }, { status: 400 });
   }

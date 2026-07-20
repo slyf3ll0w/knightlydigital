@@ -110,6 +110,9 @@ export async function resolveWebForm(
 ): Promise<{ company: NonNullable<Awaited<ReturnType<typeof prisma.company.findUnique>>>; form: WebFormRow } | null> {
   const company = await prisma.company.findUnique({ where: { slug: companySlug } });
   if (!company) return null;
+  // Suspended companies disappear from public booking entirely — the booking
+  // page and its POST both resolve through here, so this is the one gate.
+  if (company.suspendedAt) return null;
 
   await ensureDefaultForm(company.id, company.bookingForm);
 

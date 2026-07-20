@@ -385,6 +385,7 @@ export async function generateDueVisits(
       status: "ACTIVE",
       visitFrequency: { not: null },
       nextVisitDate: { not: null, lte: horizon },
+      company: { is: { suspendedAt: null } },
       ...(companyId ? { companyId } : {}),
     },
     include: { contact: true, company: { select: { timezone: true } } },
@@ -557,6 +558,7 @@ export async function runDueSubscriptions(
     where: {
       status: "ACTIVE",
       nextRunDate: { lte: now },
+      company: { is: { suspendedAt: null } },
       ...(companyId ? { companyId } : {}),
     },
     include: { contact: true },

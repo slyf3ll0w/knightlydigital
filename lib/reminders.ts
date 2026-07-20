@@ -60,6 +60,7 @@ export async function runDueReminders(now: Date = new Date()): Promise<ReminderS
       status: { in: ["AWAITING_PAYMENT", "PAST_DUE"] },
       dueDate: { not: null, lte: now },
       contact: { is: { email: { not: null } } },
+      company: { is: { suspendedAt: null } },
     },
     include: {
       payments: { select: { amount: true } },
@@ -177,6 +178,7 @@ export async function runAppointmentReminders(
       scheduledAt: { gt: now, lte: new Date(now.getTime() + 26 * HOUR) },
       contact: { is: { OR: [{ email: { not: null } }, { phone: { not: null } }] } },
       request: { is: { source: "booking_form" } },
+      company: { is: { suspendedAt: null } },
       OR: [{ reminderDaySentAt: null }, { reminderHourSentAt: null }],
     },
     include: {

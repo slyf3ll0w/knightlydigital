@@ -36,7 +36,14 @@ export default async function SuperadminDashboard({
 
   const [companies, usage, latestStorage, payments, snapshots] = await Promise.all([
     prisma.company.findMany({
-      select: { id: true, name: true, slug: true, createdAt: true, finixMerchantId: true },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        createdAt: true,
+        finixMerchantId: true,
+        suspendedAt: true,
+      },
       orderBy: { createdAt: "asc" },
     }),
     prisma.companyUsageDaily.groupBy({
@@ -67,7 +74,7 @@ export default async function SuperadminDashboard({
     }),
     prisma.finixCostSnapshot.findMany({
       where: { month: { gte: sinceDay.slice(0, 7) } },
-      select: { finixMerchantId: true, residualCents: true, interchangeFeesCents: true },
+      select: { finixMerchantId: true, residualCents: true },
     }),
   ]);
 
@@ -112,6 +119,7 @@ export default async function SuperadminDashboard({
       id: c.id,
       name: c.name,
       slug: c.slug,
+      suspended: Boolean(c.suspendedAt),
       volumeCents: Math.round(Number(p?._sum.amount ?? 0) * 100),
       paymentCount: p?._count._all ?? 0,
       revenue,
@@ -155,96 +163,106 @@ export default async function SuperadminDashboard({
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-lg font-bold">Business profitability — last {days} days</h1>
-        <nav className="flex gap-1 rounded-md border border-stone-800 p-0.5 text-xs">
+        <h1 className="text-lg font-bold text-gray-900">
+          Business profitability — last {days} days
+        </h1>
+        <nav className="flex gap-1 rounded-md border border-gray-200 bg-white p-0.5 text-xs">
           {RANGES.map((r) => (
             <Link
               key={r}
               href={`/superadmin?days=${r}`}
-              className={`rounded px-2 py-1 ${r === days ? "bg-stone-700 text-white" : "text-stone-400 hover:text-white"}`}
+              className={`rounded px-2 py-1 font-medium ${r === days ? "bg-[#0B57D8] text-white" : "text-gray-500 hover:text-gray-900"}`}
             >
               {r}d
             </Link>
           ))}
         </nav>
         {!platformPricingConfirmed() && (
-          <span className="rounded border border-amber-600/50 bg-amber-950/50 px-2 py-1 text-xs text-amber-400">
-            Estimated pricing — set COST_* / FINIX_* env vars and PLATFORM_PRICING_CONFIRMED=1
-            once vendor pricing is finalized
-          </span>
+          <span className="stamp text-amber-600">Estimated pricing</span>
         )}
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
-          ["Processing volume", usd(totals.volume)],
-          ["Fee revenue", usd(totals.revenue)],
-          ["Total cost", usd(Math.round(totals.cost))],
-          ["Net", usd(Math.round(totals.revenue - totals.cost))],
-        ].map(([label, value]) => (
-          <div key={label} className="rounded-lg border border-stone-800 bg-stone-900 p-3">
-            <div className="text-xs text-stone-400">{label}</div>
-            <div className="mt-1 text-xl font-bold tabular-nums">{value}</div>
+          ["Processing volume", usd(totals.volume), ""],
+          ["Fee revenue", usd(totals.revenue), "text-[#0B57D8]"],
+          ["Total cost", usd(Math.round(totals.cost)), ""],
+          [
+            "Net",
+            usd(Math.round(totals.revenue - totals.cost)),
+            totals.revenue - totals.cost >= 0 ? "text-emerald-600" : "text-red-600",
+          ],
+        ].map(([label, value, tone]) => (
+          <div key={label} className="card-ledger p-3">
+            <div className="text-xs text-gray-500">{label}</div>
+            <div className={`numeral-ledger mt-1 text-xl font-bold ${tone}`}>{value}</div>
           </div>
         ))}
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-stone-800">
+      <div className="card-ledger overflow-x-auto">
         <table className="w-full min-w-[900px] text-sm">
-          <thead className="bg-stone-900 text-left text-xs text-stone-400">
+          <thead className="border-b border-gray-200 text-left text-xs text-gray-500">
             <tr>
-              <th className="px-3 py-2">Company</th>
-              <th className="px-3 py-2 text-right">Volume</th>
-              <th className="px-3 py-2 text-right">Fee revenue</th>
-              <th className="px-3 py-2 text-right">Card cost (est)</th>
-              <th className="px-3 py-2 text-right">AI</th>
-              <th className="px-3 py-2 text-right">Email / SMS</th>
-              <th className="px-3 py-2 text-right">Storage</th>
-              <th className="px-3 py-2 text-right">Net</th>
-              <th className="px-3 py-2 text-right">Finix actual</th>
+              <th className="px-3 py-2 font-medium">Company</th>
+              <th className="px-3 py-2 text-right font-medium">Volume</th>
+              <th className="px-3 py-2 text-right font-medium">Fee revenue</th>
+              <th className="px-3 py-2 text-right font-medium">Card cost (est)</th>
+              <th className="px-3 py-2 text-right font-medium">AI</th>
+              <th className="px-3 py-2 text-right font-medium">Email / SMS</th>
+              <th className="px-3 py-2 text-right font-medium">Storage</th>
+              <th className="px-3 py-2 text-right font-medium">Net</th>
+              <th className="px-3 py-2 text-right font-medium">Finix actual</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-stone-800/60">
+          <tbody className="divide-y divide-gray-100">
             {rows.map((r) => (
-              <tr key={r.id} className="hover:bg-stone-900/50">
+              <tr key={r.id} className="hover:bg-blue-50/40">
                 <td className="px-3 py-2">
                   <Link href={`/superadmin/company/${r.id}`} className="group block">
-                    <div className="font-medium text-white group-hover:underline">{r.name}</div>
-                    <div className="text-xs text-stone-500">/{r.slug}</div>
+                    <div className="font-medium text-gray-900 group-hover:text-[#0B57D8]">
+                      {r.name}
+                      {r.suspended && (
+                        <span className="stamp ml-2 align-middle text-red-600">Suspended</span>
+                      )}
+                    </div>
+                    <div className="text-xs text-gray-400">/{r.slug}</div>
                   </Link>
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums">
+                <td className="numeral-ledger px-3 py-2 text-right">
                   {usd(r.volumeCents)}
-                  <div className="text-xs text-stone-500">{r.paymentCount} payments</div>
+                  <div className="[font-family:var(--font-body)] text-xs font-normal text-gray-400">
+                    {r.paymentCount} payments
+                  </div>
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums text-emerald-400">
+                <td className="numeral-ledger px-3 py-2 text-right text-[#0B57D8]">
                   {usd(r.revenue)}
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums">{usd(r.processingCost)}</td>
-                <td className="px-3 py-2 text-right tabular-nums">
+                <td className="numeral-ledger px-3 py-2 text-right">{usd(r.processingCost)}</td>
+                <td className="numeral-ledger px-3 py-2 text-right">
                   {usd(Math.round(r.aiCost * 100) / 100)}
-                  <div className="text-xs text-stone-500">
+                  <div className="[font-family:var(--font-body)] text-xs font-normal text-gray-400">
                     {r.aiCalls} calls · {compact(r.aiTokens)} tok
                   </div>
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums">
+                <td className="numeral-ledger px-3 py-2 text-right">
                   {usd(Math.round(r.commsCost * 100) / 100)}
-                  <div className="text-xs text-stone-500">
+                  <div className="[font-family:var(--font-body)] text-xs font-normal text-gray-400">
                     {r.emails} em · {r.sms} sms
                   </div>
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums">
+                <td className="numeral-ledger px-3 py-2 text-right">
                   {usd(Math.round(r.storageCost * 100) / 100)}
-                  <div className="text-xs text-stone-500">
+                  <div className="[font-family:var(--font-body)] text-xs font-normal text-gray-400">
                     {(r.storageBytes / 1_048_576).toFixed(1)} MB
                   </div>
                 </td>
                 <td
-                  className={`px-3 py-2 text-right font-semibold tabular-nums ${r.net >= 0 ? "text-emerald-400" : "text-red-400"}`}
+                  className={`numeral-ledger px-3 py-2 text-right font-semibold ${r.net >= 0 ? "text-emerald-600" : "text-red-600"}`}
                 >
                   {usd(Math.round(r.net))}
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums text-stone-300">
+                <td className="numeral-ledger px-3 py-2 text-right text-gray-600">
                   {r.finixResidual !== undefined ? usd(r.finixResidual) : "—"}
                 </td>
               </tr>
@@ -253,11 +271,13 @@ export default async function SuperadminDashboard({
         </table>
       </div>
 
-      <p className="text-xs text-stone-500">
+      <p className="text-xs text-gray-400">
         Platform overhead (unattributed emails/AI — password resets, portal logins):{" "}
         {usd(Math.round(platformCost * 100) / 100)} in this range. Fee revenue is computed from
         the fee profile at charge time; card cost is an interchange estimate until the monthly
         Finix Net Profit report is imported (Finix actual column).
+        {!platformPricingConfirmed() &&
+          " Unit prices are ballpark defaults — set COST_* / FINIX_* env vars and PLATFORM_PRICING_CONFIRMED=1 once vendor pricing is finalized."}
       </p>
     </div>
   );

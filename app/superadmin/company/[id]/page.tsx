@@ -7,14 +7,15 @@ import {
   storageCostCentsPerMonth,
   usageCostCents,
 } from "@/lib/platform-costs";
+import { AccountActions } from "./AccountActions";
 
 export const dynamic = "force-dynamic";
 
 /**
  * Per-client profitability report: month-by-month revenue vs. cost for one
  * company, the cost mix, and estimate-vs-actual once Finix Net Profit
- * snapshots exist for its merchant. Same sources as the overview table —
- * this is the "how much is THIS client making me" page.
+ * snapshots exist for its merchant. Account controls (suspend / delete)
+ * live at the bottom.
  */
 
 const RANGES = [
@@ -61,7 +62,16 @@ export default async function CompanyReport({
 
   const company = await prisma.company.findUnique({
     where: { id },
-    select: { id: true, name: true, slug: true, createdAt: true, finixMerchantId: true, industry: true },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      createdAt: true,
+      finixMerchantId: true,
+      industry: true,
+      suspendedAt: true,
+      suspendedReason: true,
+    },
   });
   if (!company) notFound();
 
@@ -70,32 +80,47 @@ export default async function CompanyReport({
   const sinceDay = usageDay(sinceDate);
   const sinceMonth = sinceDay.slice(0, 7);
 
-  const [usage, payments, snapshots] = await Promise.all([
-    prisma.companyUsageDaily.findMany({
-      where: { companyId: id, day: { gte: sinceDay } },
-      orderBy: { day: "asc" },
-    }),
-    prisma.payment.findMany({
-      where: { companyId: id, paidAt: { gte: sinceDate } },
-      orderBy: { paidAt: "desc" },
-      select: {
-        id: true,
-        amount: true,
-        method: true,
-        feeCents: true,
-        estCostCents: true,
-        cardBrand: true,
-        cardType: true,
-        processorRef: true,
-        paidAt: true,
-      },
-    }),
-    company.finixMerchantId
-      ? prisma.finixCostSnapshot.findMany({
-          where: { finixMerchantId: company.finixMerchantId, month: { gte: sinceMonth } },
-        })
-      : Promise.resolve([]),
-  ]);
+  const [usage, payments, snapshots, users, contacts, jobs, invoices, paymentCountAll] =
+    await Promise.all([
+      prisma.companyUsageDaily.findMany({
+        where: { companyId: id, day: { gte: sinceDay } },
+        orderBy: { day: "asc" },
+      }),
+      prisma.payment.findMany({
+        where: { companyId: id, paidAt: { gte: sinceDate } },
+        orderBy: { paidAt: "desc" },
+        select: {
+          id: true,
+          amount: true,
+          method: true,
+          feeCents: true,
+          estCostCents: true,
+          cardBrand: true,
+          cardType: true,
+          processorRef: true,
+          paidAt: true,
+        },
+      }),
+      company.finixMerchantId
+        ? prisma.finixCostSnapshot.findMany({
+            where: { finixMerchantId: company.finixMerchantId, month: { gte: sinceMonth } },
+          })
+        : Promise.resolve([]),
+      prisma.user.count({ where: { companyId: id } }),
+      prisma.contact.count({ where: { companyId: id } }),
+      prisma.job.count({ where: { companyId: id } }),
+      prisma.invoice.count({ where: { companyId: id } }),
+      prisma.payment.count({ where: { companyId: id } }),
+    ]);
+
+  const footprint = {
+    users,
+    contacts,
+    jobs,
+    invoices,
+    payments: paymentCountAll,
+    large: paymentCountAll > 0 || contacts > 25 || jobs > 25,
+  };
 
   // ── Month-by-month rollup ──────────────────────────────────────────────────
   const months = new Map<string, MonthRow>();
@@ -177,21 +202,22 @@ export default async function CompanyReport({
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-3">
-        <Link href="/superadmin" className="text-sm text-stone-400 hover:text-white">
+        <Link href="/superadmin" className="text-sm text-gray-400 hover:text-gray-900">
           ← All companies
         </Link>
-        <h1 className="text-lg font-bold text-white">{company.name}</h1>
-        <span className="text-xs text-stone-500">
+        <h1 className="text-lg font-bold text-gray-900">{company.name}</h1>
+        {company.suspendedAt && <span className="stamp text-red-600">Suspended</span>}
+        <span className="text-xs text-gray-400">
           /{company.slug}
           {company.industry ? ` · ${company.industry}` : ""} · client since{" "}
           {company.createdAt.toLocaleDateString("en-US", { month: "short", year: "numeric" })}
         </span>
-        <nav className="ml-auto flex gap-1 rounded-md border border-stone-800 p-0.5 text-xs">
+        <nav className="ml-auto flex gap-1 rounded-md border border-gray-200 bg-white p-0.5 text-xs">
           {RANGES.map((r) => (
             <Link
               key={r.key}
               href={`/superadmin/company/${company.id}?range=${r.key}`}
-              className={`rounded px-2 py-1 ${r.key === range.key ? "bg-stone-700 text-white" : "text-stone-400 hover:text-white"}`}
+              className={`rounded px-2 py-1 font-medium ${r.key === range.key ? "bg-[#0B57D8] text-white" : "text-gray-500 hover:text-gray-900"}`}
             >
               {r.label}
             </Link>
@@ -201,54 +227,48 @@ export default async function CompanyReport({
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         {[
-          ["Processing volume", usd(totals.volume)],
-          ["Payments", String(totals.payments)],
-          ["Fee revenue", usd(totals.revenue)],
-          ["Total cost (est)", usd(Math.round(totals.cost))],
-          ["Net (est)", usd(Math.round(totals.revenue - totals.cost))],
-        ].map(([label, value]) => (
-          <div key={label} className="rounded-lg border border-stone-800 bg-stone-900 p-3">
-            <div className="text-xs text-stone-400">{label}</div>
-            <div
-              className={`mt-1 text-xl font-bold tabular-nums ${
-                label === "Net (est)"
-                  ? totals.revenue - totals.cost >= 0
-                    ? "text-emerald-400"
-                    : "text-red-400"
-                  : ""
-              }`}
-            >
-              {value}
-            </div>
+          ["Processing volume", usd(totals.volume), ""],
+          ["Payments", String(totals.payments), ""],
+          ["Fee revenue", usd(totals.revenue), "text-[#0B57D8]"],
+          ["Total cost (est)", usd(Math.round(totals.cost)), ""],
+          [
+            "Net (est)",
+            usd(Math.round(totals.revenue - totals.cost)),
+            totals.revenue - totals.cost >= 0 ? "text-emerald-600" : "text-red-600",
+          ],
+        ].map(([label, value, tone]) => (
+          <div key={label} className="card-ledger p-3">
+            <div className="text-xs text-gray-500">{label}</div>
+            <div className={`numeral-ledger mt-1 text-xl font-bold ${tone}`}>{value}</div>
           </div>
         ))}
       </div>
 
       {!platformPricingConfirmed() && (
-        <p className="text-xs text-amber-400">
+        <p className="text-xs text-amber-600">
           Costs use ballpark unit pricing until PLATFORM_PRICING_CONFIRMED=1.
         </p>
       )}
 
-      <div className="overflow-x-auto rounded-lg border border-stone-800">
+      <div className="card-ledger overflow-x-auto">
         <table className="w-full min-w-[860px] text-sm">
-          <thead className="bg-stone-900 text-left text-xs text-stone-400">
+          <thead className="border-b border-gray-200 text-left text-xs text-gray-500">
             <tr>
-              <th className="px-3 py-2">Month</th>
-              <th className="px-3 py-2 text-right">Volume</th>
-              <th className="px-3 py-2 text-right">Fee revenue</th>
-              <th className="px-3 py-2 text-right">Card cost (est)</th>
-              <th className="px-3 py-2 text-right">AI</th>
-              <th className="px-3 py-2 text-right">Email / SMS</th>
-              <th className="px-3 py-2 text-right">Storage</th>
-              <th className="px-3 py-2 text-right">Net (est)</th>
-              <th className="px-3 py-2 text-right">Finix actual</th>
+              <th className="px-3 py-2 font-medium">Month</th>
+              <th className="px-3 py-2 text-right font-medium">Volume</th>
+              <th className="px-3 py-2 text-right font-medium">Fee revenue</th>
+              <th className="px-3 py-2 text-right font-medium">Card cost (est)</th>
+              <th className="px-3 py-2 text-right font-medium">AI</th>
+              <th className="px-3 py-2 text-right font-medium">Email / SMS</th>
+              <th className="px-3 py-2 text-right font-medium">Storage</th>
+              <th className="px-3 py-2 text-right font-medium">Net (est)</th>
+              <th className="px-3 py-2 text-right font-medium">Finix actual</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-stone-800/60">
+          <tbody className="divide-y divide-gray-100">
             {rows.length === 0 && (
               <tr>
-                <td colSpan={9} className="px-3 py-6 text-center text-stone-500">
+                <td colSpan={9} className="px-3 py-6 text-center text-gray-400">
                   No activity recorded in this range yet — metering starts collecting from the
                   moment it deployed.
                 </td>
@@ -258,35 +278,39 @@ export default async function CompanyReport({
               const cost = r.cardCostCents + r.aiCostCents + r.commsCostCents + r.storageCostCents;
               const net = r.feeCents - cost;
               return (
-                <tr key={r.month} className="hover:bg-stone-900/50">
-                  <td className="px-3 py-2 font-medium tabular-nums text-white">{r.month}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">
+                <tr key={r.month} className="hover:bg-blue-50/40">
+                  <td className="numeral-ledger px-3 py-2 font-medium text-gray-900">{r.month}</td>
+                  <td className="numeral-ledger px-3 py-2 text-right">
                     {usd(r.volumeCents)}
-                    <div className="text-xs text-stone-500">{r.paymentCount} payments</div>
+                    <div className="[font-family:var(--font-body)] text-xs font-normal text-gray-400">
+                      {r.paymentCount} payments
+                    </div>
                   </td>
-                  <td className="px-3 py-2 text-right tabular-nums text-emerald-400">
+                  <td className="numeral-ledger px-3 py-2 text-right text-[#0B57D8]">
                     {usd(r.feeCents)}
                   </td>
-                  <td className="px-3 py-2 text-right tabular-nums">{usd(r.cardCostCents)}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">
+                  <td className="numeral-ledger px-3 py-2 text-right">{usd(r.cardCostCents)}</td>
+                  <td className="numeral-ledger px-3 py-2 text-right">
                     {usdFine(r.aiCostCents)}
-                    <div className="text-xs text-stone-500">{compact(r.aiTokens)} tok</div>
+                    <div className="[font-family:var(--font-body)] text-xs font-normal text-gray-400">
+                      {compact(r.aiTokens)} tok
+                    </div>
                   </td>
-                  <td className="px-3 py-2 text-right tabular-nums">
+                  <td className="numeral-ledger px-3 py-2 text-right">
                     {usdFine(r.commsCostCents)}
-                    <div className="text-xs text-stone-500">
+                    <div className="[font-family:var(--font-body)] text-xs font-normal text-gray-400">
                       {r.emails} em · {r.sms} sms
                     </div>
                   </td>
-                  <td className="px-3 py-2 text-right tabular-nums">
+                  <td className="numeral-ledger px-3 py-2 text-right">
                     {usdFine(r.storageCostCents)}
                   </td>
                   <td
-                    className={`px-3 py-2 text-right font-semibold tabular-nums ${net >= 0 ? "text-emerald-400" : "text-red-400"}`}
+                    className={`numeral-ledger px-3 py-2 text-right font-semibold ${net >= 0 ? "text-emerald-600" : "text-red-600"}`}
                   >
                     {usd(Math.round(net))}
                   </td>
-                  <td className="px-3 py-2 text-right tabular-nums text-stone-300">
+                  <td className="numeral-ledger px-3 py-2 text-right text-gray-600">
                     {r.finixResidualCents !== undefined ? usd(r.finixResidualCents) : "—"}
                   </td>
                 </tr>
@@ -298,22 +322,22 @@ export default async function CompanyReport({
 
       <div className="grid gap-6 lg:grid-cols-2">
         <div>
-          <h2 className="mb-2 text-sm font-semibold text-stone-300">Recent processor payments</h2>
-          <div className="overflow-x-auto rounded-lg border border-stone-800">
+          <h2 className="mb-2 text-sm font-semibold text-gray-700">Recent processor payments</h2>
+          <div className="card-ledger overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-stone-900 text-left text-xs text-stone-400">
+              <thead className="border-b border-gray-200 text-left text-xs text-gray-500">
                 <tr>
-                  <th className="px-3 py-2">Date</th>
-                  <th className="px-3 py-2">Card</th>
-                  <th className="px-3 py-2 text-right">Amount</th>
-                  <th className="px-3 py-2 text-right">Fee</th>
-                  <th className="px-3 py-2 text-right">Cost (est)</th>
+                  <th className="px-3 py-2 font-medium">Date</th>
+                  <th className="px-3 py-2 font-medium">Card</th>
+                  <th className="px-3 py-2 text-right font-medium">Amount</th>
+                  <th className="px-3 py-2 text-right font-medium">Fee</th>
+                  <th className="px-3 py-2 text-right font-medium">Cost (est)</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-stone-800/60">
+              <tbody className="divide-y divide-gray-100">
                 {payments.filter((p) => p.processorRef).length === 0 && (
                   <tr>
-                    <td colSpan={5} className="px-3 py-4 text-center text-stone-500">
+                    <td colSpan={5} className="px-3 py-4 text-center text-gray-400">
                       No processor payments in range.
                     </td>
                   </tr>
@@ -326,18 +350,18 @@ export default async function CompanyReport({
                       <td className="px-3 py-2 tabular-nums">
                         {p.paidAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                       </td>
-                      <td className="px-3 py-2 text-xs text-stone-400">
+                      <td className="px-3 py-2 text-xs text-gray-500">
                         {p.method === "ACH"
                           ? "ACH"
                           : [p.cardBrand, p.cardType].filter(Boolean).join(" ") || "Card"}
                       </td>
-                      <td className="px-3 py-2 text-right tabular-nums">
+                      <td className="numeral-ledger px-3 py-2 text-right">
                         {usd(Math.round(Number(p.amount) * 100))}
                       </td>
-                      <td className="px-3 py-2 text-right tabular-nums text-emerald-400">
+                      <td className="numeral-ledger px-3 py-2 text-right text-[#0B57D8]">
                         {p.feeCents !== null ? usd(p.feeCents) : "—"}
                       </td>
-                      <td className="px-3 py-2 text-right tabular-nums">
+                      <td className="numeral-ledger px-3 py-2 text-right">
                         {p.estCostCents !== null ? usd(p.estCostCents) : "—"}
                       </td>
                     </tr>
@@ -347,23 +371,35 @@ export default async function CompanyReport({
           </div>
         </div>
 
-        <div className="text-xs leading-relaxed text-stone-500">
-          <h2 className="mb-2 text-sm font-semibold text-stone-300">Reading this report</h2>
-          <p>
-            <span className="text-stone-300">Fee revenue</span> is the flat processing fee billed
-            to this company at charge time — exact, not estimated.{" "}
-            <span className="text-stone-300">Card cost</span> is the interchange + Finix margin
-            estimate per transaction; the <span className="text-stone-300">Finix actual</span>{" "}
-            column replaces it with the reported residual once that month&apos;s Net Profit CSV is{" "}
-            <Link href="/superadmin/finix" className="text-stone-300 underline">
-              imported
-            </Link>
-            . AI cost is exact token counts × unit price. Storage
-            {latestStorageBytes !== null
-              ? ` (currently ${(Number(latestStorageBytes) / 1_048_576).toFixed(1)} MB)`
-              : ""}{" "}
-            is priced at each month&apos;s latest snapshot.
-          </p>
+        <div className="space-y-4">
+          <div className="text-xs leading-relaxed text-gray-500">
+            <h2 className="mb-2 text-sm font-semibold text-gray-700">Reading this report</h2>
+            <p>
+              <span className="text-gray-700">Fee revenue</span> is the flat processing fee billed
+              to this company at charge time — exact, not estimated.{" "}
+              <span className="text-gray-700">Card cost</span> is the interchange + Finix margin
+              estimate per transaction; the <span className="text-gray-700">Finix actual</span>{" "}
+              column replaces it with the reported residual once that month&apos;s Net Profit CSV
+              is{" "}
+              <Link href="/superadmin/finix" className="text-[#0B57D8] underline">
+                imported
+              </Link>
+              . AI cost is exact token counts × unit price. Storage
+              {latestStorageBytes !== null
+                ? ` (currently ${(Number(latestStorageBytes) / 1_048_576).toFixed(1)} MB)`
+                : ""}{" "}
+              is priced at each month&apos;s latest snapshot.
+            </p>
+          </div>
+
+          <AccountActions
+            companyId={company.id}
+            name={company.name}
+            slug={company.slug}
+            suspendedAt={company.suspendedAt ? company.suspendedAt.toISOString() : null}
+            suspendedReason={company.suspendedReason}
+            footprint={footprint}
+          />
         </div>
       </div>
     </div>

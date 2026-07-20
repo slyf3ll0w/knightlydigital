@@ -3,16 +3,15 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { getActor } from "@/lib/permissions";
 import { limit } from "@/lib/rate-limit";
+import { deleteCompanyCascade, PROTECTED_EMAILS } from "@/lib/company-delete";
 
 /**
  * POST — permanently delete the company account and every record under it.
  * Deliberately hard to reach: OWNER role only, the exact company name must be
  * retyped, and the owner's password re-verified. There is no soft-delete and
  * no recovery — this exists so test accounts can be removed cleanly.
+ * (Cascade lives in lib/company-delete.ts, shared with the superadmin console.)
  */
-
-/** The public demo/showcase company must never be deletable from the UI. */
-const PROTECTED_EMAILS = ["demo@streamflaremedia.com"];
 
 export async function POST(req: NextRequest) {
   const actor = await getActor();
@@ -55,36 +54,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Incorrect password." }, { status: 403 });
   }
 
-  // Children before parents (FK order); *LineItem / notes / photos / reminders
-  // cascade from their parent deletes.
-  await prisma.$transaction(
-    async (tx) => {
-      const where = { companyId };
-      await tx.payment.deleteMany({ where });
-      await tx.invoice.deleteMany({ where }); // cascades line items + reminders
-      await tx.contract.deleteMany({ where });
-      await tx.reviewRequest.deleteMany({ where });
-      await tx.quote.deleteMany({ where }); // references jobs — before jobs
-      await tx.locationPing.deleteMany({ where }); // references time entries
-      await tx.timeEntry.deleteMany({ where }); // references jobs + users
-      await tx.job.deleteMany({ where }); // cascades items/assignments/notes/photos
-      await tx.appointment.deleteMany({ where });
-      await tx.timeBlock.deleteMany({ where });
-      await tx.bookingRequest.deleteMany({ where });
-      await tx.request.deleteMany({ where });
-      await tx.subscription.deleteMany({ where }); // references work items — before them
-      await tx.contact.deleteMany({ where }); // cascades contact notes
-      await tx.pipelineStage.deleteMany({ where }); // referenced by contacts — after them
-      await tx.contactFieldDef.deleteMany({ where });
-      await tx.workItem.deleteMany({ where }); // references contract templates — before them
-      await tx.contractTemplate.deleteMany({ where });
-      await tx.webForm.deleteMany({ where });
-      await tx.expense.deleteMany({ where });
-      await tx.user.deleteMany({ where });
-      await tx.company.delete({ where: { id: companyId } });
-    },
-    { timeout: 60_000 }
-  );
+  await deleteCompanyCascade(companyId);
 
   console.warn(`Company account deleted: "${company.name}" (${companyId}) by user ${actor.id}`);
   return NextResponse.json({ success: true });
