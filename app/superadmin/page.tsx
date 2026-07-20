@@ -208,8 +208,10 @@ export default async function SuperadminDashboard({
             {rows.map((r) => (
               <tr key={r.id} className="hover:bg-stone-900/50">
                 <td className="px-3 py-2">
-                  <div className="font-medium text-white">{r.name}</div>
-                  <div className="text-xs text-stone-500">/{r.slug}</div>
+                  <Link href={`/superadmin/company/${r.id}`} className="group block">
+                    <div className="font-medium text-white group-hover:underline">{r.name}</div>
+                    <div className="text-xs text-stone-500">/{r.slug}</div>
+                  </Link>
                 </td>
                 <td className="px-3 py-2 text-right tabular-nums">
                   {usd(r.volumeCents)}
