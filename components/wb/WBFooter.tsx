@@ -2,6 +2,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { WB_HOME } from "./WBNav";
 
+const APP_STORE_URL = "https://apps.apple.com/app/workbench-fsm/id6789991103";
+
 export default function WBFooter() {
   return (
     <footer className="border-t border-gray-200 bg-white">
@@ -16,8 +18,33 @@ export default function WBFooter() {
           />
           <p className="mt-4 text-[13px] leading-relaxed text-gray-500">
             Field service management for home-service teams. Free to run,
-            fair when you get paid. A Streamflaire product.
+            fair when you get paid. A{" "}
+            <a
+              href="https://streamflaire.com"
+              target="_blank"
+              rel="noopener"
+              className="font-semibold text-gray-600 hover:text-gray-900"
+            >
+              Streamflaire
+            </a>{" "}
+            product.
           </p>
+          <a
+            href={APP_STORE_URL}
+            target="_blank"
+            rel="noopener"
+            aria-label="Download WorkBench on the App Store"
+            className="mt-5 inline-block transition-opacity hover:opacity-80"
+          >
+            <Image
+              src="/app-store-badge.svg"
+              alt="Download on the App Store"
+              width={120}
+              height={40}
+              unoptimized
+              className="h-10 w-auto"
+            />
+          </a>
         </div>
         <div className="flex gap-16">
           <div>
@@ -40,6 +67,16 @@ export default function WBFooter() {
                   Roadmap
                 </Link>
               </li>
+              <li>
+                <a
+                  href={APP_STORE_URL}
+                  target="_blank"
+                  rel="noopener"
+                  className="hover:text-gray-900"
+                >
+                  iPhone app
+                </a>
+              </li>
             </ul>
           </div>
           <div>
@@ -51,6 +88,16 @@ export default function WBFooter() {
                 <Link href="/apply" className="hover:text-gray-900">
                   Apply for access
                 </Link>
+              </li>
+              <li>
+                <a
+                  href="https://streamflaire.com"
+                  target="_blank"
+                  rel="noopener"
+                  className="hover:text-gray-900"
+                >
+                  Streamflaire.com
+                </a>
               </li>
               <li>
                 <Link href="/privacy" className="hover:text-gray-900">

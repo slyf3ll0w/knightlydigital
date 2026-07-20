@@ -21,8 +21,10 @@ import {
 export const metadata: Metadata = {
   title: "WorkBench — Field service management, free to run",
   description:
-    "WorkBench runs the whole day for home-service teams: scheduling, quotes, invoices, online booking, client hub, team chat, an AI assistant, and built-in payments. Free to use, invite-only.",
+    "WorkBench runs the whole day for home-service teams: scheduling, quotes, invoices, online booking, client hub, team chat, an AI assistant, and built-in payments. Free to use, invite-only. Now on the App Store.",
 };
+
+const APP_STORE_URL = "https://apps.apple.com/app/workbench-fsm/id6789991103";
 
 const groups = [
   {
@@ -67,7 +69,7 @@ const groups = [
       {
         icon: Smartphone,
         title: "Works where you work",
-        body: "Full mobile experience with push notifications for requests, bookings, chat, and payments.",
+        body: "A native iPhone app on the App Store, with push notifications for requests, bookings, chat, and payments.",
       },
       {
         icon: Users,
@@ -141,6 +143,22 @@ export default function WBHomePage() {
               >
                 See pricing
               </Link>
+              <a
+                href={APP_STORE_URL}
+                target="_blank"
+                rel="noopener"
+                aria-label="Download WorkBench on the App Store"
+                className="transition-opacity hover:opacity-80"
+              >
+                <Image
+                  src="/app-store-badge.svg"
+                  alt="Download on the App Store"
+                  width={120}
+                  height={40}
+                  unoptimized
+                  className="h-[46px] w-auto"
+                />
+              </a>
             </div>
             <p className="mt-5 text-[13px] font-semibold text-gray-400">
               Invite-only while we onboard companies personally.
