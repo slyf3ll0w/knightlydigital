@@ -35,13 +35,20 @@ export default function RootLayout({
         {/* Theme stamp — runs before paint so there's no light/dark flash.
             data-mode on <html> drives every dark-theme rule in globals.css;
             "hub-theme" in localStorage ("light" | "dark") overrides the
-            system setting per device (set from Settings → Appearance). */}
+            system setting per device (set from Settings → Appearance).
+
+            Onboarding and client-facing routes are pinned to light regardless
+            of device/system/localStorage — they must never inherit dark mode
+            (kept in sync with the ForceLightTheme component, which also covers
+            client-side navigation into these pages). */}
         <script
           dangerouslySetInnerHTML={{
             __html: `(function(){try{
 var m=window.matchMedia("(prefers-color-scheme: dark)");
+var L=["/quote","/pay","/portal","/contract","/hub","/book","/embed","/app/register","/app/login","/app/forgot-password","/app/reset-password","/app/setup"];
+function forcedLight(){var p=location.pathname;for(var i=0;i<L.length;i++){if(p===L[i]||p.indexOf(L[i]+"/")===0)return true;}return false;}
 function apply(){var t=null;try{t=localStorage.getItem("hub-theme")}catch(e){}
-document.documentElement.dataset.mode=(t?t==="dark":m.matches)?"dark":"light";}
+document.documentElement.dataset.mode=(!forcedLight()&&(t?t==="dark":m.matches))?"dark":"light";}
 apply();m.addEventListener("change",apply);window.applyHubTheme=apply;
 }catch(e){}})();`,
           }}
