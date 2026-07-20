@@ -60,7 +60,7 @@ export function ImportForm() {
       <button
         type="submit"
         disabled={busy}
-        className="chamfer bg-[#0B57D8] px-4 py-1.5 text-sm font-semibold text-white hover:bg-[#0A4CBB] disabled:opacity-50"
+        className="wb-btn-tool rounded-lg bg-[#0B57D8] px-4 py-1.5 text-sm font-bold text-white disabled:opacity-50"
       >
         {busy ? "Importing…" : "Import"}
       </button>

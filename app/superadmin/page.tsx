@@ -34,7 +34,7 @@ export default async function SuperadminDashboard({
   const sinceDate = new Date(Date.now() - days * 86400000);
   const sinceDay = usageDay(sinceDate);
 
-  const [companies, usage, latestStorage, payments, snapshots] = await Promise.all([
+  const [companies, usage, latestStorage, payments, processed, snapshots] = await Promise.all([
     prisma.company.findMany({
       select: {
         id: true,
@@ -66,9 +66,18 @@ export default async function SuperadminDashboard({
       distinct: ["companyId"],
       select: { companyId: true, storageBytes: true },
     }),
+    // Complete client revenue — every payment the business recorded,
+    // including cash/check/manual entries.
     prisma.payment.groupBy({
       by: ["companyId"],
       where: { paidAt: { gte: sinceDate } },
+      _sum: { amount: true },
+      _count: { _all: true },
+    }),
+    // The card/ACH slice that ran through Streamflaire Payments (fees live here).
+    prisma.payment.groupBy({
+      by: ["companyId"],
+      where: { paidAt: { gte: sinceDate }, processorRef: { not: null } },
       _sum: { amount: true, feeCents: true, estCostCents: true },
       _count: { _all: true },
     }),
@@ -81,6 +90,7 @@ export default async function SuperadminDashboard({
   const usageBy = new Map(usage.map((u) => [u.companyId, u._sum]));
   const storageBy = new Map(latestStorage.map((s) => [s.companyId, Number(s.storageBytes ?? 0)]));
   const paymentsBy = new Map(payments.map((p) => [p.companyId, p]));
+  const processedBy = new Map(processed.map((p) => [p.companyId, p]));
   const residualBy = new Map<string, number>();
   for (const s of snapshots) {
     residualBy.set(
@@ -92,6 +102,7 @@ export default async function SuperadminDashboard({
   const rows = companies.map((c) => {
     const u = usageBy.get(c.id);
     const p = paymentsBy.get(c.id);
+    const proc = processedBy.get(c.id);
     const storageBytes = storageBy.get(c.id) ?? 0;
     const aiCost = u
       ? usageCostCents({
@@ -112,16 +123,18 @@ export default async function SuperadminDashboard({
         })
       : 0;
     const storageCost = (storageCostCentsPerMonth(storageBytes) * days) / 30;
-    const processingCost = p?._sum.estCostCents ?? 0;
-    const revenue = p?._sum.feeCents ?? 0;
+    const processingCost = proc?._sum.estCostCents ?? 0;
+    const revenue = proc?._sum.feeCents ?? 0;
     const totalCost = aiCost + commsCost + storageCost + processingCost;
     return {
       id: c.id,
       name: c.name,
       slug: c.slug,
       suspended: Boolean(c.suspendedAt),
-      volumeCents: Math.round(Number(p?._sum.amount ?? 0) * 100),
-      paymentCount: p?._count._all ?? 0,
+      collectedCents: Math.round(Number(p?._sum.amount ?? 0) * 100),
+      collectedCount: p?._count._all ?? 0,
+      processedCents: Math.round(Number(proc?._sum.amount ?? 0) * 100),
+      processedCount: proc?._count._all ?? 0,
       revenue,
       aiCalls: u?.aiCalls ?? 0,
       aiTokens: (u?.aiTokensIn ?? 0) + (u?.aiTokensOut ?? 0),
@@ -155,9 +168,10 @@ export default async function SuperadminDashboard({
     (t, r) => ({
       revenue: t.revenue + r.revenue,
       cost: t.cost + r.totalCost,
-      volume: t.volume + r.volumeCents,
+      collected: t.collected + r.collectedCents,
+      processed: t.processed + r.processedCents,
     }),
-    { revenue: 0, cost: platformCost, volume: 0 }
+    { revenue: 0, cost: platformCost, collected: 0, processed: 0 }
   );
 
   return (
@@ -178,13 +192,16 @@ export default async function SuperadminDashboard({
           ))}
         </nav>
         {!platformPricingConfirmed() && (
-          <span className="stamp text-amber-600">Estimated pricing</span>
+          <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700">
+            Estimated pricing
+          </span>
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         {[
-          ["Processing volume", usd(totals.volume), ""],
+          ["Client revenue (all methods)", usd(totals.collected), ""],
+          ["Card/ACH processed", usd(totals.processed), ""],
           ["Fee revenue", usd(totals.revenue), "text-[#0B57D8]"],
           ["Total cost", usd(Math.round(totals.cost)), ""],
           [
@@ -193,19 +210,20 @@ export default async function SuperadminDashboard({
             totals.revenue - totals.cost >= 0 ? "text-emerald-600" : "text-red-600",
           ],
         ].map(([label, value, tone]) => (
-          <div key={label} className="card-ledger p-3">
+          <div key={label} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
             <div className="text-xs text-gray-500">{label}</div>
-            <div className={`numeral-ledger mt-1 text-xl font-bold ${tone}`}>{value}</div>
+            <div className={`mt-1 text-xl font-extrabold tabular-nums ${tone}`}>{value}</div>
           </div>
         ))}
       </div>
 
-      <div className="card-ledger overflow-x-auto">
-        <table className="w-full min-w-[900px] text-sm">
+      <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <table className="w-full min-w-[1020px] text-sm">
           <thead className="border-b border-gray-200 text-left text-xs text-gray-500">
             <tr>
               <th className="px-3 py-2 font-medium">Company</th>
-              <th className="px-3 py-2 text-right font-medium">Volume</th>
+              <th className="px-3 py-2 text-right font-medium">Collected (all)</th>
+              <th className="px-3 py-2 text-right font-medium">Card/ACH</th>
               <th className="px-3 py-2 text-right font-medium">Fee revenue</th>
               <th className="px-3 py-2 text-right font-medium">Card cost (est)</th>
               <th className="px-3 py-2 text-right font-medium">AI</th>
@@ -223,46 +241,56 @@ export default async function SuperadminDashboard({
                     <div className="font-medium text-gray-900 group-hover:text-[#0B57D8]">
                       {r.name}
                       {r.suspended && (
-                        <span className="stamp ml-2 align-middle text-red-600">Suspended</span>
+                        <span className="ml-2 rounded-full bg-red-50 px-2 py-0.5 align-middle text-[10px] font-bold uppercase tracking-wide text-red-600">
+                          Suspended
+                        </span>
                       )}
                     </div>
                     <div className="text-xs text-gray-400">/{r.slug}</div>
                   </Link>
                 </td>
-                <td className="numeral-ledger px-3 py-2 text-right">
-                  {usd(r.volumeCents)}
-                  <div className="[font-family:var(--font-body)] text-xs font-normal text-gray-400">
-                    {r.paymentCount} payments
+                <td className="tabular-nums px-3 py-2 text-right">
+                  {usd(r.collectedCents)}
+                  <div className="text-xs font-normal text-gray-400">
+                    {r.collectedCount} payments
                   </div>
                 </td>
-                <td className="numeral-ledger px-3 py-2 text-right text-[#0B57D8]">
+                <td className="tabular-nums px-3 py-2 text-right">
+                  {usd(r.processedCents)}
+                  <div className="text-xs font-normal text-gray-400">
+                    {r.collectedCents > 0
+                      ? `${Math.round((r.processedCents / r.collectedCents) * 100)}% of collected`
+                      : "—"}
+                  </div>
+                </td>
+                <td className="tabular-nums px-3 py-2 text-right text-[#0B57D8]">
                   {usd(r.revenue)}
                 </td>
-                <td className="numeral-ledger px-3 py-2 text-right">{usd(r.processingCost)}</td>
-                <td className="numeral-ledger px-3 py-2 text-right">
+                <td className="tabular-nums px-3 py-2 text-right">{usd(r.processingCost)}</td>
+                <td className="tabular-nums px-3 py-2 text-right">
                   {usd(Math.round(r.aiCost * 100) / 100)}
-                  <div className="[font-family:var(--font-body)] text-xs font-normal text-gray-400">
+                  <div className="text-xs font-normal text-gray-400">
                     {r.aiCalls} calls · {compact(r.aiTokens)} tok
                   </div>
                 </td>
-                <td className="numeral-ledger px-3 py-2 text-right">
+                <td className="tabular-nums px-3 py-2 text-right">
                   {usd(Math.round(r.commsCost * 100) / 100)}
-                  <div className="[font-family:var(--font-body)] text-xs font-normal text-gray-400">
+                  <div className="text-xs font-normal text-gray-400">
                     {r.emails} em · {r.sms} sms
                   </div>
                 </td>
-                <td className="numeral-ledger px-3 py-2 text-right">
+                <td className="tabular-nums px-3 py-2 text-right">
                   {usd(Math.round(r.storageCost * 100) / 100)}
-                  <div className="[font-family:var(--font-body)] text-xs font-normal text-gray-400">
+                  <div className="text-xs font-normal text-gray-400">
                     {(r.storageBytes / 1_048_576).toFixed(1)} MB
                   </div>
                 </td>
                 <td
-                  className={`numeral-ledger px-3 py-2 text-right font-semibold ${r.net >= 0 ? "text-emerald-600" : "text-red-600"}`}
+                  className={`tabular-nums px-3 py-2 text-right font-semibold ${r.net >= 0 ? "text-emerald-600" : "text-red-600"}`}
                 >
                   {usd(Math.round(r.net))}
                 </td>
-                <td className="numeral-ledger px-3 py-2 text-right text-gray-600">
+                <td className="tabular-nums px-3 py-2 text-right text-gray-600">
                   {r.finixResidual !== undefined ? usd(r.finixResidual) : "—"}
                 </td>
               </tr>
@@ -273,9 +301,11 @@ export default async function SuperadminDashboard({
 
       <p className="text-xs text-gray-400">
         Platform overhead (unattributed emails/AI — password resets, portal logins):{" "}
-        {usd(Math.round(platformCost * 100) / 100)} in this range. Fee revenue is computed from
-        the fee profile at charge time; card cost is an interchange estimate until the monthly
-        Finix Net Profit report is imported (Finix actual column).
+        {usd(Math.round(platformCost * 100) / 100)} in this range. Collected = every payment the
+        business recorded, including cash and check; Card/ACH = the slice that ran through
+        Streamflaire Payments, which is where fee revenue comes from. Fee revenue is computed
+        from the fee profile at charge time; card cost is an interchange estimate until the
+        monthly Finix Net Profit report is imported (Finix actual column).
         {!platformPricingConfirmed() &&
           " Unit prices are ballpark defaults — set COST_* / FINIX_* env vars and PLATFORM_PRICING_CONFIRMED=1 once vendor pricing is finalized."}
       </p>

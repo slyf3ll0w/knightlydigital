@@ -35,7 +35,7 @@ export default async function FinixImportPage() {
 
       <ImportForm />
 
-      <div className="card-ledger overflow-x-auto">
+      <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white shadow-sm">
         <table className="w-full text-sm">
           <thead className="border-b border-gray-200 text-left text-xs text-gray-500">
             <tr>
@@ -57,18 +57,18 @@ export default async function FinixImportPage() {
             )}
             {snapshots.map((s) => (
               <tr key={s.id}>
-                <td className="numeral-ledger px-3 py-2">{s.month}</td>
+                <td className="tabular-nums px-3 py-2">{s.month}</td>
                 <td className="px-3 py-2">
                   {nameBy.get(s.finixMerchantId) ?? (
                     <span className="text-gray-400">{s.finixMerchantId}</span>
                   )}
                 </td>
-                <td className="numeral-ledger px-3 py-2 text-right">{usd(s.cardSaleCents)}</td>
-                <td className="numeral-ledger px-3 py-2 text-right">{usd(s.cardFeesCents)}</td>
-                <td className="numeral-ledger px-3 py-2 text-right">
+                <td className="tabular-nums px-3 py-2 text-right">{usd(s.cardSaleCents)}</td>
+                <td className="tabular-nums px-3 py-2 text-right">{usd(s.cardFeesCents)}</td>
+                <td className="tabular-nums px-3 py-2 text-right">
                   {usd(s.interchangeFeesCents)}
                 </td>
-                <td className="numeral-ledger px-3 py-2 text-right font-semibold text-emerald-600">
+                <td className="tabular-nums px-3 py-2 text-right font-semibold text-emerald-600">
                   {usd(s.residualCents)}
                 </td>
               </tr>

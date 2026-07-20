@@ -59,7 +59,7 @@ export function AccountActions({
   }
 
   return (
-    <div className="card-ledger border-red-200 p-4">
+    <div className="rounded-2xl border border-red-200 bg-white p-4 shadow-sm">
       <h2 className="text-sm font-bold text-red-700">Danger zone</h2>
 
       {suspended && (
@@ -77,7 +77,7 @@ export function AccountActions({
             onClick={async () => {
               if (await call("PATCH", { action: "reinstate" })) router.refresh();
             }}
-            className="chamfer bg-[#0B57D8] px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50"
+            className="wb-btn-tool rounded-lg bg-[#0B57D8] px-3 py-1.5 text-sm font-bold text-white disabled:opacity-50"
           >
             Reinstate account
           </button>
@@ -89,7 +89,7 @@ export function AccountActions({
               setShowDelete(false);
               setError(null);
             }}
-            className="rounded border border-amber-400 bg-amber-50 px-3 py-1.5 text-sm font-semibold text-amber-800"
+            className="rounded-lg border border-amber-400 bg-amber-50 px-3 py-1.5 text-sm font-semibold text-amber-800"
           >
             Suspend account…
           </button>
@@ -101,7 +101,7 @@ export function AccountActions({
             setShowSuspend(false);
             setError(null);
           }}
-          className="rounded border border-red-300 bg-white px-3 py-1.5 text-sm font-semibold text-red-700"
+          className="rounded-lg border border-red-300 bg-white px-3 py-1.5 text-sm font-semibold text-red-700"
         >
           Delete account…
         </button>

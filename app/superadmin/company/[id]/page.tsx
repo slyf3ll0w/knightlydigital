@@ -36,8 +36,10 @@ const compact = (n: number) => Intl.NumberFormat("en-US", { notation: "compact" 
 
 type MonthRow = {
   month: string;
-  volumeCents: number;
-  paymentCount: number;
+  collectedCents: number; // every payment method, incl. cash/check
+  collectedCount: number;
+  processedCents: number; // card/ACH through Streamflaire Payments
+  processedCount: number;
   feeCents: number;
   cardCostCents: number;
   aiCostCents: number;
@@ -129,8 +131,10 @@ export default async function CompanyReport({
     if (!row) {
       row = {
         month,
-        volumeCents: 0,
-        paymentCount: 0,
+        collectedCents: 0,
+        collectedCount: 0,
+        processedCents: 0,
+        processedCount: 0,
         feeCents: 0,
         cardCostCents: 0,
         aiCostCents: 0,
@@ -174,10 +178,15 @@ export default async function CompanyReport({
   }
   for (const p of payments) {
     const row = monthRow(p.paidAt.toISOString().slice(0, 7));
-    row.volumeCents += Math.round(Number(p.amount) * 100);
-    row.paymentCount += 1;
-    row.feeCents += p.feeCents ?? 0;
-    row.cardCostCents += p.estCostCents ?? 0;
+    const cents = Math.round(Number(p.amount) * 100);
+    row.collectedCents += cents;
+    row.collectedCount += 1;
+    if (p.processorRef) {
+      row.processedCents += cents;
+      row.processedCount += 1;
+      row.feeCents += p.feeCents ?? 0;
+      row.cardCostCents += p.estCostCents ?? 0;
+    }
   }
   for (const s of snapshots) {
     monthRow(s.month).finixResidualCents = Number(s.residualCents);
@@ -188,13 +197,13 @@ export default async function CompanyReport({
     (t, r) => {
       const cost = r.cardCostCents + r.aiCostCents + r.commsCostCents + r.storageCostCents;
       return {
-        volume: t.volume + r.volumeCents,
+        collected: t.collected + r.collectedCents,
+        processed: t.processed + r.processedCents,
         revenue: t.revenue + r.feeCents,
         cost: t.cost + cost,
-        payments: t.payments + r.paymentCount,
       };
     },
-    { volume: 0, revenue: 0, cost: 0, payments: 0 }
+    { collected: 0, processed: 0, revenue: 0, cost: 0 }
   );
   const latestStorageBytes =
     [...usage].reverse().find((u) => u.storageBytes !== null)?.storageBytes ?? null;
@@ -206,7 +215,11 @@ export default async function CompanyReport({
           ← All companies
         </Link>
         <h1 className="text-lg font-bold text-gray-900">{company.name}</h1>
-        {company.suspendedAt && <span className="stamp text-red-600">Suspended</span>}
+        {company.suspendedAt && (
+          <span className="rounded-full bg-red-50 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-red-600">
+            Suspended
+          </span>
+        )}
         <span className="text-xs text-gray-400">
           /{company.slug}
           {company.industry ? ` · ${company.industry}` : ""} · client since{" "}
@@ -227,8 +240,8 @@ export default async function CompanyReport({
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         {[
-          ["Processing volume", usd(totals.volume), ""],
-          ["Payments", String(totals.payments), ""],
+          ["Client revenue (all methods)", usd(totals.collected), ""],
+          ["Card/ACH processed", usd(totals.processed), ""],
           ["Fee revenue", usd(totals.revenue), "text-[#0B57D8]"],
           ["Total cost (est)", usd(Math.round(totals.cost)), ""],
           [
@@ -237,9 +250,9 @@ export default async function CompanyReport({
             totals.revenue - totals.cost >= 0 ? "text-emerald-600" : "text-red-600",
           ],
         ].map(([label, value, tone]) => (
-          <div key={label} className="card-ledger p-3">
+          <div key={label} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
             <div className="text-xs text-gray-500">{label}</div>
-            <div className={`numeral-ledger mt-1 text-xl font-bold ${tone}`}>{value}</div>
+            <div className={`mt-1 text-xl font-extrabold tabular-nums ${tone}`}>{value}</div>
           </div>
         ))}
       </div>
@@ -250,12 +263,13 @@ export default async function CompanyReport({
         </p>
       )}
 
-      <div className="card-ledger overflow-x-auto">
-        <table className="w-full min-w-[860px] text-sm">
+      <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <table className="w-full min-w-[1000px] text-sm">
           <thead className="border-b border-gray-200 text-left text-xs text-gray-500">
             <tr>
               <th className="px-3 py-2 font-medium">Month</th>
-              <th className="px-3 py-2 text-right font-medium">Volume</th>
+              <th className="px-3 py-2 text-right font-medium">Collected (all)</th>
+              <th className="px-3 py-2 text-right font-medium">Card/ACH</th>
               <th className="px-3 py-2 text-right font-medium">Fee revenue</th>
               <th className="px-3 py-2 text-right font-medium">Card cost (est)</th>
               <th className="px-3 py-2 text-right font-medium">AI</th>
@@ -279,38 +293,44 @@ export default async function CompanyReport({
               const net = r.feeCents - cost;
               return (
                 <tr key={r.month} className="hover:bg-blue-50/40">
-                  <td className="numeral-ledger px-3 py-2 font-medium text-gray-900">{r.month}</td>
-                  <td className="numeral-ledger px-3 py-2 text-right">
-                    {usd(r.volumeCents)}
-                    <div className="[font-family:var(--font-body)] text-xs font-normal text-gray-400">
-                      {r.paymentCount} payments
+                  <td className="tabular-nums px-3 py-2 font-medium text-gray-900">{r.month}</td>
+                  <td className="tabular-nums px-3 py-2 text-right">
+                    {usd(r.collectedCents)}
+                    <div className="text-xs font-normal text-gray-400">
+                      {r.collectedCount} payments
                     </div>
                   </td>
-                  <td className="numeral-ledger px-3 py-2 text-right text-[#0B57D8]">
+                  <td className="tabular-nums px-3 py-2 text-right">
+                    {usd(r.processedCents)}
+                    <div className="text-xs font-normal text-gray-400">
+                      {r.processedCount} of {r.collectedCount}
+                    </div>
+                  </td>
+                  <td className="tabular-nums px-3 py-2 text-right text-[#0B57D8]">
                     {usd(r.feeCents)}
                   </td>
-                  <td className="numeral-ledger px-3 py-2 text-right">{usd(r.cardCostCents)}</td>
-                  <td className="numeral-ledger px-3 py-2 text-right">
+                  <td className="tabular-nums px-3 py-2 text-right">{usd(r.cardCostCents)}</td>
+                  <td className="tabular-nums px-3 py-2 text-right">
                     {usdFine(r.aiCostCents)}
-                    <div className="[font-family:var(--font-body)] text-xs font-normal text-gray-400">
+                    <div className="text-xs font-normal text-gray-400">
                       {compact(r.aiTokens)} tok
                     </div>
                   </td>
-                  <td className="numeral-ledger px-3 py-2 text-right">
+                  <td className="tabular-nums px-3 py-2 text-right">
                     {usdFine(r.commsCostCents)}
-                    <div className="[font-family:var(--font-body)] text-xs font-normal text-gray-400">
+                    <div className="text-xs font-normal text-gray-400">
                       {r.emails} em · {r.sms} sms
                     </div>
                   </td>
-                  <td className="numeral-ledger px-3 py-2 text-right">
+                  <td className="tabular-nums px-3 py-2 text-right">
                     {usdFine(r.storageCostCents)}
                   </td>
                   <td
-                    className={`numeral-ledger px-3 py-2 text-right font-semibold ${net >= 0 ? "text-emerald-600" : "text-red-600"}`}
+                    className={`tabular-nums px-3 py-2 text-right font-semibold ${net >= 0 ? "text-emerald-600" : "text-red-600"}`}
                   >
                     {usd(Math.round(net))}
                   </td>
-                  <td className="numeral-ledger px-3 py-2 text-right text-gray-600">
+                  <td className="tabular-nums px-3 py-2 text-right text-gray-600">
                     {r.finixResidualCents !== undefined ? usd(r.finixResidualCents) : "—"}
                   </td>
                 </tr>
@@ -323,7 +343,7 @@ export default async function CompanyReport({
       <div className="grid gap-6 lg:grid-cols-2">
         <div>
           <h2 className="mb-2 text-sm font-semibold text-gray-700">Recent processor payments</h2>
-          <div className="card-ledger overflow-x-auto">
+          <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white shadow-sm">
             <table className="w-full text-sm">
               <thead className="border-b border-gray-200 text-left text-xs text-gray-500">
                 <tr>
@@ -355,13 +375,13 @@ export default async function CompanyReport({
                           ? "ACH"
                           : [p.cardBrand, p.cardType].filter(Boolean).join(" ") || "Card"}
                       </td>
-                      <td className="numeral-ledger px-3 py-2 text-right">
+                      <td className="tabular-nums px-3 py-2 text-right">
                         {usd(Math.round(Number(p.amount) * 100))}
                       </td>
-                      <td className="numeral-ledger px-3 py-2 text-right text-[#0B57D8]">
+                      <td className="tabular-nums px-3 py-2 text-right text-[#0B57D8]">
                         {p.feeCents !== null ? usd(p.feeCents) : "—"}
                       </td>
-                      <td className="numeral-ledger px-3 py-2 text-right">
+                      <td className="tabular-nums px-3 py-2 text-right">
                         {p.estCostCents !== null ? usd(p.estCostCents) : "—"}
                       </td>
                     </tr>
@@ -375,6 +395,10 @@ export default async function CompanyReport({
           <div className="text-xs leading-relaxed text-gray-500">
             <h2 className="mb-2 text-sm font-semibold text-gray-700">Reading this report</h2>
             <p>
+              <span className="text-gray-700">Collected</span> is every payment this business
+              recorded — cash, check, and card alike — i.e. their complete revenue through
+              WorkBench. <span className="text-gray-700">Card/ACH</span> is the slice that ran
+              through Streamflaire Payments; only that slice earns us fees.{" "}
               <span className="text-gray-700">Fee revenue</span> is the flat processing fee billed
               to this company at charge time — exact, not estimated.{" "}
               <span className="text-gray-700">Card cost</span> is the interchange + Finix margin
