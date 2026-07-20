@@ -109,6 +109,8 @@ export async function POST(
     method: method === "CARD" ? "CARD" : "ACH",
     processorRef: result.transactionId,
     surchargeAmount: surchargeAmount > 0 ? surchargeAmount : null,
+    cardBrand: result.cardBrand,
+    cardType: result.cardType,
     details: result.pending ? "Online payment — ACH processing" : "Online payment",
   });
 

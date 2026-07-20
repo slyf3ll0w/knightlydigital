@@ -209,6 +209,7 @@ export async function runAssistant(
       // truncates the batch mid-emission and records silently drop.
       maxOutputTokens: 8192,
       thinkingBudget: 0, // chat latency beats marginal quality here
+      companyId: actor.companyId, // meter every round's tokens to the tenant
       // last round: no tools, force it to answer with what it has
       ...(round === MAX_TOOL_ROUNDS ? { tools: [] } : {}),
     };

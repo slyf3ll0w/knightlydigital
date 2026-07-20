@@ -39,6 +39,7 @@ export async function POST(
     hubUrl: `${baseUrl}/hub/${contact.hubToken}`,
   });
   const sent = await sendEmail({
+    companyId: actor.companyId,
     to: contact.email,
     subject,
     html,

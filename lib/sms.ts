@@ -11,6 +11,8 @@
  * sender here is expected to check it before calling sendSms.
  */
 
+import { recordSmsSent, smsSegmentCount } from "@/lib/usage";
+
 const TELNYX_API_KEY = process.env.TELNYX_API_KEY;
 const MESSAGING_PROFILE_ID = process.env.TELNYX_MESSAGING_PROFILE_ID;
 
@@ -32,7 +34,16 @@ export function toE164(phone: string | null | undefined): string | null {
   return null;
 }
 
-export async function sendSms({ to, text }: { to: string; text: string }): Promise<boolean> {
+export async function sendSms({
+  to,
+  text,
+  companyId,
+}: {
+  to: string;
+  text: string;
+  /** Tenant to meter this send against (lib/usage.ts) — SMS bills per segment. */
+  companyId?: string | null;
+}): Promise<boolean> {
   if (!smsEnabled()) return false;
   const e164 = toE164(to);
   if (!e164) return false;
@@ -52,6 +63,8 @@ export async function sendSms({ to, text }: { to: string; text: string }): Promi
     });
     if (!res.ok) {
       console.error("[sms] telnyx send failed:", res.status, await res.text());
+    } else {
+      recordSmsSent(companyId, smsSegmentCount(text));
     }
     return res.ok;
   } catch (err) {

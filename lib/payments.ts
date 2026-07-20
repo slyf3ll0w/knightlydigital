@@ -16,6 +16,7 @@
 import { prisma } from "@/lib/db";
 import { recomputeDepositApplied } from "@/lib/deposits";
 import * as finix from "@/lib/finix";
+import { estimateProcessingCostCents } from "@/lib/platform-costs";
 import { notifyUsers } from "@/lib/push";
 import { queueQuickBooksPaymentSync } from "@/lib/quickbooks";
 import type { PaymentMethod, Prisma } from "@prisma/client";
@@ -31,6 +32,10 @@ export type ChargeResult =
       pending?: boolean;
       /** Buyer identity the processor created/used — persist on the contact for reuse. */
       buyerIdentityRef?: string;
+      /** Card metadata from the payment instrument — feeds the interchange
+       *  cost estimate on the Payment row (platform profitability). */
+      cardBrand?: string | null;
+      cardType?: string | null;
     }
   | { success: false; error: string };
 
@@ -189,6 +194,8 @@ class FinixProcessor implements PaymentProcessor {
         amount: params.amount,
         pending: transfer.state === "PENDING",
         buyerIdentityRef: identityId,
+        cardBrand: instrument.brand ?? null,
+        cardType: instrument.card_type ?? null,
       };
     } catch (err) {
       if (err instanceof finix.FinixError) {
@@ -227,11 +234,18 @@ class FinixProcessor implements PaymentProcessor {
       if (transfer.state === "FAILED" || transfer.state === "CANCELED") {
         return { success: false, error: transfer.failure_message || "The stored payment method was declined." };
       }
+      // Card metadata for the cost estimate — best-effort; the vaulted
+      // instrument is fetched fresh since the exchange response is long gone.
+      const instrument = await finix
+        .getPaymentInstrument(params.customerRef)
+        .catch(() => null);
       return {
         success: true,
         transactionId: transfer.id,
         amount: params.amount,
         pending: transfer.state === "PENDING",
+        cardBrand: instrument?.brand ?? null,
+        cardType: instrument?.card_type ?? null,
       };
     } catch (err) {
       if (err instanceof finix.FinixError) return { success: false, error: err.message };
@@ -277,6 +291,10 @@ export interface RecordPaymentParams {
   /** Team member who recorded it — skipped in the owner push so people
    *  don't get notified about their own keystrokes. */
   recordedById?: string | null;
+  /** Card metadata from the processor charge (ChargeResult) — only present
+   *  on real processor payments; drives platform cost estimates. */
+  cardBrand?: string | null;
+  cardType?: string | null;
 }
 
 /**
@@ -284,6 +302,24 @@ export interface RecordPaymentParams {
  * Marks the invoice PAID when total payments cover the total.
  */
 export async function recordPayment(params: RecordPaymentParams) {
+  // Platform-economics columns — only when money actually moved through the
+  // processor (processorRef set). Manual cash/check/offline-card rows carry
+  // no fee and cost us nothing.
+  const isProcessorPayment =
+    Boolean(params.processorRef) && (params.method === "CARD" || params.method === "ACH");
+  const amountCents = Math.round(params.amount * 100);
+  const feeCents = isProcessorPayment
+    ? estimateFeeCents(amountCents, params.method as "CARD" | "ACH")
+    : null;
+  const estCostCents = isProcessorPayment
+    ? estimateProcessingCostCents({
+        amountCents,
+        method: params.method as "CARD" | "ACH",
+        cardBrand: params.cardBrand,
+        cardType: params.cardType,
+      })
+    : null;
+
   const result = await prisma.$transaction(async (tx) => {
     const invoice = await tx.invoice.findFirst({
       where: { id: params.invoiceId, companyId: params.companyId },
@@ -302,6 +338,10 @@ export async function recordPayment(params: RecordPaymentParams) {
         details: params.details ?? null,
         processorRef: params.processorRef ?? null,
         surchargeAmount: params.surchargeAmount ?? null,
+        feeCents,
+        cardBrand: isProcessorPayment ? (params.cardBrand ?? null) : null,
+        cardType: isProcessorPayment ? (params.cardType ?? null) : null,
+        estCostCents,
         paidAt: params.paidAt ?? new Date(),
       },
     });

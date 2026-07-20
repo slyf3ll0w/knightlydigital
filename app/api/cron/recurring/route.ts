@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { runDueSubscriptions, generateDueVisits } from "@/lib/subscriptions";
 import { runDueReminders, runAppointmentReminders } from "@/lib/reminders";
 import { runQuickBooksNightlySync } from "@/lib/quickbooks";
+import { rollupStorageSnapshots } from "@/lib/usage";
 
 /**
  * Daily billing cron. A scheduler (Railway cron service, or an external pinger
@@ -47,6 +48,12 @@ export async function POST(req: NextRequest) {
   const prunedPings = await prisma.locationPing.deleteMany({
     where: { recordedAt: { lt: new Date(now.getTime() - 30 * 86400000) } },
   });
+  // Per-company storage snapshot for the superadmin cost dashboard. On an
+  // hourly cron this just overwrites today's level — harmless.
+  const storageCompanies = await rollupStorageSnapshots().catch((err) => {
+    console.error("[cron] storage rollup failed", err);
+    return 0;
+  });
   return NextResponse.json({
     ok: true,
     subscriptions,
@@ -55,5 +62,6 @@ export async function POST(req: NextRequest) {
     appointmentReminders,
     quickbooks,
     prunedPings: prunedPings.count,
+    storageCompanies,
   });
 }

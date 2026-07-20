@@ -69,6 +69,7 @@ export async function POST(req: NextRequest) {
       source: "client_hub",
     });
     await sendEmail({
+      companyId: contact.companyId,
       to: notifyTo,
       subject,
       html,

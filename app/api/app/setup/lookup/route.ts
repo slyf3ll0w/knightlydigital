@@ -4,6 +4,7 @@ import { limit } from "@/lib/rate-limit";
 import { aiEnabled } from "@/lib/ai";
 import { lookupBusiness, lookupFromWebsite } from "@/lib/business-lookup";
 import { normalizeWebsiteUrl } from "@/lib/website-info";
+import { withUsageCompany } from "@/lib/usage";
 
 /**
  * POST — "Find my business" for the setup wizard: grounded search for the
@@ -39,11 +40,14 @@ export async function POST(req: NextRequest) {
   // Name → grounded search (their typed website wins over anything cited);
   // no hit (thin web presence / no Google profile) but a website given →
   // brand straight from the site instead.
-  let business = name
-    ? await lookupBusiness(name, s(body.city, 80), s(body.state, 40), s(body.industry, 80), website)
-    : null;
-  if (!business?.found && website) {
-    business = await lookupFromWebsite(website, name);
-  }
+  const business = await withUsageCompany(actor.companyId, async () => {
+    let found = name
+      ? await lookupBusiness(name, s(body.city, 80), s(body.state, 40), s(body.industry, 80), website)
+      : null;
+    if (!found?.found && website) {
+      found = await lookupFromWebsite(website, name);
+    }
+    return found;
+  });
   return NextResponse.json({ business });
 }

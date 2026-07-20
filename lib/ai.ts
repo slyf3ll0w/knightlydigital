@@ -11,8 +11,27 @@
  * inputs for training.
  */
 
+import { currentUsageCompany, recordAiUsage } from "@/lib/usage";
+
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 const DEFAULT_MODEL = "gemini-3.1-flash-lite";
+
+/** Shape of Gemini's per-call token accounting (present on every response). */
+type UsageMetadata = {
+  promptTokenCount?: number;
+  candidatesTokenCount?: number;
+  cachedContentTokenCount?: number;
+  thoughtsTokenCount?: number; // thinking tokens bill as output
+};
+
+function meterUsage(companyId: string | null | undefined, u?: UsageMetadata) {
+  if (!u) return;
+  recordAiUsage(companyId ?? currentUsageCompany(), {
+    tokensIn: u.promptTokenCount ?? 0,
+    tokensOut: (u.candidatesTokenCount ?? 0) + (u.thoughtsTokenCount ?? 0),
+    tokensCached: u.cachedContentTokenCount ?? 0,
+  });
+}
 
 export function aiEnabled(): boolean {
   return Boolean(process.env.GEMINI_API_KEY);
@@ -35,6 +54,9 @@ export type AskAIOptions = {
   imageMime?: string;
   maxOutputTokens?: number;
   temperature?: number;
+  /** Tenant to meter this call's token usage against (lib/usage.ts). Omitted
+   *  → recorded under the "platform" sentinel so the totals still reconcile. */
+  companyId?: string | null;
 };
 
 /** Free-tier quotas are per-model — when the primary is exhausted (429), one
@@ -92,7 +114,9 @@ export async function askAI(
     }
     const data = (await res.json()) as {
       candidates?: { content?: { parts?: { text?: string }[] } }[];
+      usageMetadata?: UsageMetadata;
     };
+    meterUsage(opts.companyId, data.usageMetadata);
     const text = data.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
     return text || null;
   } catch (err) {
@@ -183,6 +207,8 @@ export type AIChatOptions = {
   /** Gemini 2.5 models "think" by default, adding seconds per call — pass 0
    *  for latency-sensitive chat. Ignored on models that don't support it. */
   thinkingBudget?: number;
+  /** Tenant to meter this call's token usage against (lib/usage.ts). */
+  companyId?: string | null;
 };
 
 /**
@@ -233,7 +259,9 @@ export async function aiChat(opts: AIChatOptions): Promise<AIPart[] | null> {
       }
       const data = (await res.json()) as {
         candidates?: { content?: { parts?: AIPart[] }; finishReason?: string }[];
+        usageMetadata?: UsageMetadata;
       };
+      meterUsage(opts.companyId, data.usageMetadata);
       const candidate = data.candidates?.[0];
       // Truncation eats trailing functionCalls — the visible symptom is bulk
       // work silently missing records, so make it loud in the logs.

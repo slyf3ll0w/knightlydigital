@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
       title,
       signUrl: `${baseUrl}/contract/${contract.publicToken}`,
     });
-    await sendEmail({ to: contact.email, subject, html, fromName: company?.name, brand: company });
+    await sendEmail({ companyId, to: contact.email, subject, html, fromName: company?.name, brand: company });
   }
 
   return NextResponse.json(contract, { status: 201 });

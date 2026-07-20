@@ -120,6 +120,7 @@ export async function autoSendQuoteAgreements(
           signUrl: `${baseUrl}/contract/${contract.publicToken}`,
         });
         await sendEmail({
+          companyId: quote.companyId,
           to: quote.contact.email,
           subject,
           html,

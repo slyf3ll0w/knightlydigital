@@ -129,6 +129,7 @@ export async function POST(
       serviceNames: [`Deposit for Quote #${quote.quoteNumber}`],
     });
     await sendEmail({
+      companyId: quote.companyId,
       to: quote.contact.email,
       subject,
       html,

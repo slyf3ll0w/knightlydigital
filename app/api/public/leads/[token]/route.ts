@@ -167,7 +167,7 @@ export async function POST(
       contactEmail: email,
       source: "webhook",
     });
-    await sendEmail({ to: notifyTo, subject, html, replyTo: email || undefined });
+    await sendEmail({ companyId: company.id, to: notifyTo, subject, html, replyTo: email || undefined });
   }
 
   return NextResponse.json({ success: true, leadId: result.contact.id }, { status: 201 });

@@ -285,6 +285,8 @@ async function generateCycle(sub: DueSub, now: Date): Promise<"billed" | "drafte
         amount: lineTotal,
         method: "CARD",
         processorRef: result.transactionId,
+        cardBrand: result.cardBrand,
+        cardType: result.cardType,
         details: "Auto-charged (recurring subscription)",
       });
       return "charged";
@@ -312,6 +314,7 @@ async function generateCycle(sub: DueSub, now: Date): Promise<"billed" | "drafte
         serviceNames: [sub.name],
       });
       await sendEmail({
+        companyId: sub.companyId,
         to: sub.contact.email,
         subject,
         html,

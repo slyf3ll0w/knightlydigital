@@ -49,6 +49,7 @@ export async function POST(
   });
 
   const emailed = await sendEmail({
+    companyId: invoice.companyId,
     to: invoice.contact.email,
     subject,
     html,
@@ -67,6 +68,7 @@ export async function POST(
   let texted = false;
   if (invoice.contact.phone && !invoice.contact.smsOptOut) {
     texted = await sendSms({
+      companyId: invoice.companyId,
       to: invoice.contact.phone,
       text: invoiceLinkText({
         companyName: invoice.company.name,

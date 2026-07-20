@@ -8,6 +8,7 @@ import {
   type ExistingServiceInput,
 } from "@/lib/setup-wizard";
 import { fetchWebsiteInfo } from "@/lib/website-info";
+import { withUsageCompany } from "@/lib/usage";
 
 /**
  * POST — draft a personalized account setup (AI with deterministic fallback).
@@ -56,7 +57,9 @@ export async function POST(req: NextRequest) {
   const fetched = websiteUrl ? await fetchWebsiteInfo(websiteUrl) : null;
   const site = fetched === "parked" ? null : fetched;
 
-  const draft = await generateSetupDraft(company.name, intake, existing, site);
+  const draft = await withUsageCompany(companyId, () =>
+    generateSetupDraft(company.name, intake, existing, site)
+  );
 
   return NextResponse.json({ draft });
 }

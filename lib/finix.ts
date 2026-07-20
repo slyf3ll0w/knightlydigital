@@ -288,18 +288,30 @@ export async function createBuyerIdentity(params: {
   });
 }
 
+/** Card metadata Finix reports on a payment instrument — drives the
+ *  per-transaction interchange cost estimate (lib/platform-costs.ts). */
+export interface FinixPaymentInstrument {
+  id: string;
+  instrument_type?: string; // PAYMENT_CARD | BANK_ACCOUNT
+  brand?: string | null; // VISA / MASTERCARD / AMERICAN_EXPRESS / DISCOVER ...
+  card_type?: string | null; // CREDIT / DEBIT / UNKNOWN
+}
+
 /** Exchange a finix.js token (TKxxx, 30-min TTL) for a Payment Instrument (PIxxx). */
 export async function exchangeToken(params: {
   token: string;
   identityId: string;
-}): Promise<{ id: string; instrument_type?: string }> {
-  return finixFetch<{ id: string; instrument_type?: string }>(
-    "/payment_instruments",
-    {
-      method: "POST",
-      body: { token: params.token, type: "TOKEN", identity: params.identityId },
-    }
-  );
+}): Promise<FinixPaymentInstrument> {
+  return finixFetch<FinixPaymentInstrument>("/payment_instruments", {
+    method: "POST",
+    body: { token: params.token, type: "TOKEN", identity: params.identityId },
+  });
+}
+
+/** Fetch a vaulted instrument (stored-card auto-charges — the token exchange
+ *  response isn't around anymore, but the card metadata still is). */
+export async function getPaymentInstrument(id: string): Promise<FinixPaymentInstrument> {
+  return finixFetch<FinixPaymentInstrument>(`/payment_instruments/${id}`);
 }
 
 // ─── Transfers (charges) + reversals (refunds) ───────────────────────────────

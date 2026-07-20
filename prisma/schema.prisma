@@ -1090,6 +1090,12 @@ model Payment {
   details         String?
   processorRef    String? // transaction id from the payment processor (card/ACH)
   surchargeAmount Decimal?      @db.Decimal(10, 2)
+  // Platform-economics columns (superadmin profitability tracking). Only set
+  // on processor-run payments; manual/check/cash rows stay null.
+  feeCents        Int? // processing fee billed to the merchant (our gross revenue), from the fee profile at charge time
+  cardBrand       String? // VISA / MASTERCARD / AMERICAN_EXPRESS ... from the Finix payment instrument
+  cardType        String? // CREDIT / DEBIT — drives the interchange cost estimate
+  estCostCents    Int? // estimated buy-rate cost (interchange + Finix margin); trued up monthly via FinixCostSnapshot
   paidAt          DateTime      @default(now())
   createdAt       DateTime      @default(now())
 
@@ -1107,6 +1113,48 @@ model PaymentReminder {
 
   @@unique([invoiceId, type])
   @@index([invoiceId])
+}
+
+// ─── Platform usage metering (superadmin cost tracking) ──────────────────────
+
+// One row per company per UTC day, upserted with atomic increments by
+// lib/usage.ts. companyId is a PLAIN string — deliberately no FK — so cost
+// history survives company deletion; the sentinel "platform" collects sends
+// that belong to no tenant (password resets, portal logins).
+model CompanyUsageDaily {
+  id             String   @id @default(cuid())
+  companyId      String // Company.id, or "platform" for unattributed
+  day            String // UTC date "2026-07-20" — lexicographic order == chronological
+  aiCalls        Int      @default(0)
+  aiTokensIn     Int      @default(0)
+  aiTokensOut    Int      @default(0)
+  aiTokensCached Int      @default(0)
+  emailsSent     Int      @default(0)
+  smsSent        Int      @default(0)
+  smsSegments    Int      @default(0)
+  storageBytes   BigInt? // nightly snapshot (photos + logos + avatars), not a counter
+  updatedAt      DateTime @updatedAt
+
+  @@unique([companyId, day])
+  @@index([day])
+}
+
+// Monthly per-merchant ACTUALS imported from Finix's Net Profit report
+// (dashboard-only CSV — Finix exposes no report API). Where a snapshot
+// exists, /superadmin shows these numbers instead of estimates.
+model FinixCostSnapshot {
+  id                   String   @id @default(cuid())
+  finixMerchantId      String
+  month                String // "2026-07"
+  cardSaleCents        BigInt   @default(0)
+  echeckSaleCents      BigInt   @default(0)
+  cardFeesCents        BigInt   @default(0) // fees billed to the merchant = our gross processing revenue
+  interchangeFeesCents BigInt   @default(0) // actual interchange cost incurred
+  residualCents        BigInt   @default(0) // Finix-reported net margin (the authoritative number)
+  raw                  Json? // full CSV row, for columns not modeled here
+  importedAt           DateTime @default(now())
+
+  @@unique([finixMerchantId, month])
 }
 
 // ─── Price Book ───────────────────────────────────────────────────────────────

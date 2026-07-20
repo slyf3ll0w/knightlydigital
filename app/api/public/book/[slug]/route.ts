@@ -482,7 +482,7 @@ export async function POST(
       contactEmail: email || null,
       source: "booking_form",
     });
-    await sendEmail({ to: notifyTo, subject, html, replyTo: email || undefined });
+    await sendEmail({ companyId: company.id, to: notifyTo, subject, html, replyTo: email || undefined });
   }
 
   // Auto-send mode: the client gets the quote approval link
@@ -500,6 +500,7 @@ export async function POST(
           : undefined,
     });
     await sendEmail({
+      companyId: company.id,
       to: email,
       subject,
       html,
@@ -521,6 +522,7 @@ export async function POST(
       address: address || null,
     });
     await sendEmail({
+      companyId: company.id,
       to: email,
       subject,
       html,

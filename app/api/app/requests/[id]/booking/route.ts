@@ -122,6 +122,7 @@ export async function POST(
     // nothing rather than a wrong "confirmed" email
     if (action === "decline" || windowLabel) {
       await sendEmail({
+        companyId: request.companyId,
         to: request.contact.email,
         subject,
         html,

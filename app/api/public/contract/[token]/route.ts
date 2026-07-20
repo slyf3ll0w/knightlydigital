@@ -75,6 +75,7 @@ export async function POST(
       signUrl,
     });
     await sendEmail({
+      companyId: contract.companyId,
       to: contact.email,
       subject,
       html,
@@ -85,6 +86,7 @@ export async function POST(
   }
   if (company?.email) {
     await sendEmail({
+      companyId: contract.companyId,
       to: company.email,
       subject: `Contract signed: ${contract.title}`,
       html: `<p style="font-family:sans-serif;font-size:14px;color:#374151;">

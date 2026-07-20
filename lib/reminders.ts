@@ -125,6 +125,7 @@ export async function runDueReminders(now: Date = new Date()): Promise<ReminderS
         stage: stage.type,
       });
       const ok = await sendEmail({
+        companyId: inv.companyId,
         to: inv.contact.email,
         subject,
         html,
@@ -262,6 +263,7 @@ export async function runAppointmentReminders(
           stage,
         });
         emailOk = await sendEmail({
+          companyId: appt.companyId,
           to: appt.contact.email,
           subject,
           html,
@@ -275,6 +277,7 @@ export async function runAppointmentReminders(
       let smsOk = false;
       if (canSms && appt.contact.phone) {
         smsOk = await sendSms({
+          companyId: appt.companyId,
           to: appt.contact.phone,
           text: appointmentReminderText({
             companyName: appt.company.name,

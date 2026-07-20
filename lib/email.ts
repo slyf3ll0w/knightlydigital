@@ -7,6 +7,8 @@
  * (default: notifications@workbenchfsm.com).
  */
 
+import { recordEmailSent } from "@/lib/usage";
+
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const FROM = process.env.EMAIL_FROM ?? "WorkBench <notifications@workbenchfsm.com>";
 // Bare address from FROM — sends that brand the display name still have to
@@ -81,6 +83,7 @@ export async function sendEmail({
   replyTo,
   fromName,
   brand,
+  companyId,
 }: {
   to: string;
   subject: string;
@@ -90,6 +93,9 @@ export async function sendEmail({
   fromName?: string;
   /** Tenant branding for client-facing sends — restyles the template like their quote pages. */
   brand?: EmailBrand | null;
+  /** Tenant to meter this send against (lib/usage.ts). Omitted → counted as
+   *  platform overhead (password resets, portal logins). */
+  companyId?: string | null;
 }): Promise<boolean> {
   if (!RESEND_API_KEY) return false;
   if (brand) html = brandEmail(html, brand);
@@ -129,6 +135,8 @@ ${html}
     });
     if (!res.ok) {
       console.error("[email] resend send failed:", res.status, await res.text());
+    } else {
+      recordEmailSent(companyId);
     }
     return res.ok;
   } catch (err) {

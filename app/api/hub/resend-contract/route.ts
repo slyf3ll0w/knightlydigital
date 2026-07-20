@@ -20,6 +20,7 @@ export async function POST(req: NextRequest) {
       id: true,
       email: true,
       firstName: true,
+      companyId: true,
       company: {
         select: { name: true, brandColor: true, brandColorSecondary: true, logoUrl: true },
       },
@@ -50,6 +51,7 @@ export async function POST(req: NextRequest) {
     signUrl: `${baseUrl}/contract/${contract.publicToken}`,
   });
   const sent = await sendEmail({
+    companyId: contact.companyId,
     to: contact.email,
     subject,
     html,
