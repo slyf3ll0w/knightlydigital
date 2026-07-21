@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Copy, Loader2, X } from "lucide-react";
+import { Check, Copy, ExternalLink, Loader2, X } from "lucide-react";
 
 type Application = {
   id: string;
@@ -12,6 +12,12 @@ type Application = {
   companyName: string;
   industry: string | null;
   teamSize: string | null;
+  city: string | null;
+  state: string | null;
+  paymentsToday: string | null;
+  monthlyVolume: string | null;
+  yearsInBusiness: string | null;
+  entityType: string | null;
   website: string | null;
   message: string | null;
   status: "PENDING" | "APPROVED" | "REJECTED";
@@ -68,12 +74,33 @@ export default function ApplicationsClient({ applications }: { applications: App
   }
 
   function Card({ app }: { app: Application }) {
+    const location = [app.city, app.state].filter(Boolean).join(", ");
     const rows: [string, string | null][] = [
       ["Contact", `${app.name} — ${app.email}${app.phone ? ` — ${app.phone}` : ""}`],
       ["Trade", app.industry],
+      ["Location", location || null],
       ["Team size", app.teamSize],
+      ["Pays today", app.paymentsToday],
+      ["Volume/mo", app.monthlyVolume],
+      ["In business", app.yearsInBusiness],
+      ["Structure", app.entityType],
       ["Website", app.website],
       ["Notes", app.message],
+    ];
+    // One-click background check: their site, plus Google/Maps searches built
+    // from what they claimed — a real business shows up in ten seconds.
+    const query = encodeURIComponent(`${app.companyName} ${location}`.trim());
+    const verifyLinks: [string, string][] = [
+      ...(app.website
+        ? ([
+            [
+              "Their site",
+              app.website.startsWith("http") ? app.website : `https://${app.website}`,
+            ],
+          ] as [string, string][])
+        : []),
+      ["Google", `https://www.google.com/search?q=${query}`],
+      ["Maps", `https://www.google.com/maps/search/${query}`],
     ];
     return (
       <div className="rounded-xl border border-gray-200 bg-white p-5">
@@ -100,6 +127,20 @@ export default function ApplicationsClient({ applications }: { applications: App
               )
           )}
         </dl>
+        <div className="mt-3 flex flex-wrap items-center gap-3 text-xs">
+          <span className="font-semibold uppercase tracking-wide text-gray-400">Verify:</span>
+          {verifyLinks.map(([label, href]) => (
+            <a
+              key={label}
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 font-semibold text-[#0B57D8] hover:underline"
+            >
+              {label} <ExternalLink size={11} />
+            </a>
+          ))}
+        </div>
         {app.status === "PENDING" && (
           <div className="mt-4 flex gap-2">
             <button
@@ -144,7 +185,9 @@ export default function ApplicationsClient({ applications }: { applications: App
     <div>
       <h1 className="text-xl font-bold text-gray-900">Access applications</h1>
       <p className="mt-1 text-sm text-gray-500">
-        Approving emails the applicant a single-use invite code for the signup page.
+        Approving emails the applicant a single-use invite code for the signup page. This is a
+        pre-screen — Finix underwriting (KYC/KYB) is the hard gate after they sign up, so approve
+        anyone who looks like a real business that will actually run card payments.
       </p>
 
       {error && (

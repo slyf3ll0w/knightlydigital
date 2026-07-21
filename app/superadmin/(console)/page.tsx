@@ -42,6 +42,8 @@ export default async function SuperadminDashboard({
         slug: true,
         createdAt: true,
         finixMerchantId: true,
+        finixOnboardingState: true,
+        paymentsWaived: true,
         suspendedAt: true,
       },
       orderBy: { createdAt: "asc" },
@@ -131,6 +133,17 @@ export default async function SuperadminDashboard({
       name: c.name,
       slug: c.slug,
       suspended: Boolean(c.suspendedAt),
+      // Underwriting status chip: APPROVED companies show nothing (the normal
+      // case); everyone else is either stuck in the funnel or exempted.
+      payments: c.paymentsWaived
+        ? { label: "Waived", tone: "bg-purple-50 text-purple-600" }
+        : c.finixOnboardingState === "APPROVED"
+          ? null
+          : c.finixOnboardingState === "REJECTED"
+            ? { label: "KYC rejected", tone: "bg-red-50 text-red-600" }
+            : c.finixOnboardingState
+              ? { label: "KYC pending", tone: "bg-amber-50 text-amber-600" }
+              : { label: "Not verified", tone: "bg-gray-100 text-gray-500" },
       collectedCents: Math.round(Number(p?._sum.amount ?? 0) * 100),
       collectedCount: p?._count._all ?? 0,
       processedCents: Math.round(Number(proc?._sum.amount ?? 0) * 100),
@@ -243,6 +256,13 @@ export default async function SuperadminDashboard({
                       {r.suspended && (
                         <span className="ml-2 rounded-full bg-red-50 px-2 py-0.5 align-middle text-[10px] font-bold uppercase tracking-wide text-red-600">
                           Suspended
+                        </span>
+                      )}
+                      {r.payments && (
+                        <span
+                          className={`ml-2 rounded-full px-2 py-0.5 align-middle text-[10px] font-bold uppercase tracking-wide ${r.payments.tone}`}
+                        >
+                          {r.payments.label}
                         </span>
                       )}
                     </div>

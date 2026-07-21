@@ -43,6 +43,11 @@ model Company {
   finixIdentityId       String?
   finixMerchantId       String? @unique
   finixOnboardingState  String?
+  // Payment verification is mandatory: new companies are held at /app/activate
+  // until Finix underwriting approves them. This flag exempts a company from
+  // that gate (test accounts, comped users) — flipped only from the superadmin
+  // console.
+  paymentsWaived Boolean @default(false)
   // Company-wide default deposit, applied to preset services with no deposit of
   // their own and used to prefill custom quotes. NONE = no default deposit.
   defaultDepositType  DepositType @default(NONE)
@@ -1481,6 +1486,15 @@ model AccessApplication {
   teamSize    String?
   website     String?
   message     String?
+  // Payment-intent screening (2026-07): every company must pass Finix
+  // underwriting, so the application asks up front whether they're a real
+  // business that will actually run card volume.
+  city            String?
+  state           String?
+  paymentsToday   String? // how they collect payment now (cash-only is a flag)
+  monthlyVolume   String? // monthly invoicing range — our revenue forecast
+  yearsInBusiness String?
+  entityType      String? // LLC/corp vs sole prop vs not registered
   status      ApplicationStatus @default(PENDING)
   decidedAt   DateTime?
   createdAt   DateTime          @default(now())

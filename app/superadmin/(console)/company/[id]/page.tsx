@@ -8,6 +8,7 @@ import {
   usageCostCents,
 } from "@/lib/platform-costs";
 import { AccountActions } from "./AccountActions";
+import { PaymentsControl } from "./PaymentsControl";
 
 export const dynamic = "force-dynamic";
 
@@ -70,6 +71,8 @@ export default async function CompanyReport({
       slug: true,
       createdAt: true,
       finixMerchantId: true,
+      finixOnboardingState: true,
+      paymentsWaived: true,
       industry: true,
       suspendedAt: true,
       suspendedReason: true,
@@ -415,6 +418,12 @@ export default async function CompanyReport({
               is priced at each month&apos;s latest snapshot.
             </p>
           </div>
+
+          <PaymentsControl
+            companyId={company.id}
+            onboardingState={company.finixOnboardingState}
+            paymentsWaived={company.paymentsWaived}
+          />
 
           <AccountActions
             companyId={company.id}

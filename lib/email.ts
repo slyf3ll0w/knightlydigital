@@ -747,6 +747,12 @@ export function newApplicationEmail({
   companyName,
   industry,
   teamSize,
+  city,
+  state,
+  paymentsToday,
+  monthlyVolume,
+  yearsInBusiness,
+  entityType,
   website,
   message,
 }: {
@@ -756,6 +762,12 @@ export function newApplicationEmail({
   companyName: string;
   industry: string | null;
   teamSize: string | null;
+  city: string | null;
+  state: string | null;
+  paymentsToday: string | null;
+  monthlyVolume: string | null;
+  yearsInBusiness: string | null;
+  entityType: string | null;
   website: string | null;
   message: string | null;
 }): { subject: string; html: string } {
@@ -781,6 +793,11 @@ export function newApplicationEmail({
       ${row("Phone", phone)}
       ${row("Trade", industry)}
       ${row("Team size", teamSize)}
+      ${row("Location", [city, state].filter(Boolean).join(", ") || null)}
+      ${row("Takes payment today", paymentsToday)}
+      ${row("Monthly volume", monthlyVolume)}
+      ${row("Years in business", yearsInBusiness)}
+      ${row("Structure", entityType)}
       ${row("Website", website)}
       ${row("Notes", message)}
       <a href="${APP_URL}/superadmin/applications"

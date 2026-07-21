@@ -5,15 +5,12 @@ import { getProcessor } from "@/lib/payments";
 import {
   createOnboardingForm,
   createOnboardingFormLink,
-  getOnboardingForm,
-  getMerchant,
-  listMerchantsForIdentity,
   provisionSandboxMerchant,
   finixConfigured,
   finixEnvironment,
   FinixError,
 } from "@/lib/finix";
-import { notifyUsers } from "@/lib/push";
+import { syncFromFinix } from "@/lib/finix-status";
 
 /**
  * Online-payments setup (Finix merchant onboarding).
@@ -29,76 +26,6 @@ import { notifyUsers } from "@/lib/push";
  *        in ~2 minutes. provisionSandboxMerchant throws in live mode, so this
  *        can never bypass real KYC.
  */
-
-async function syncFromFinix(companyId: string) {
-  const company = await prisma.company.findUnique({
-    where: { id: companyId },
-    select: {
-      finixOnboardingFormId: true,
-      finixIdentityId: true,
-      finixMerchantId: true,
-      finixOnboardingState: true,
-    },
-  });
-  if (!company) return null;
-
-  let { finixIdentityId, finixMerchantId, finixOnboardingState } = company;
-
-  try {
-    // Form completed but merchant not yet linked → follow form → identity → merchant
-    if (!finixMerchantId && company.finixOnboardingFormId) {
-      const form = await getOnboardingForm(company.finixOnboardingFormId);
-      if (form.identity_id) {
-        finixIdentityId = form.identity_id;
-        const merchants = await listMerchantsForIdentity(form.identity_id);
-        if (merchants[0]) {
-          finixMerchantId = merchants[0].id;
-          finixOnboardingState = merchants[0].onboarding_state;
-        }
-      }
-    } else if (finixMerchantId && finixOnboardingState !== "APPROVED") {
-      const merchant = await getMerchant(finixMerchantId);
-      finixOnboardingState = merchant.onboarding_state;
-    }
-  } catch (err) {
-    // A Finix hiccup shouldn't break the settings page — serve the stored state
-    console.error("[payments] finix status sync failed", err);
-  }
-
-  if (
-    finixIdentityId !== company.finixIdentityId ||
-    finixMerchantId !== company.finixMerchantId ||
-    finixOnboardingState !== company.finixOnboardingState
-  ) {
-    const becameApproved =
-      finixOnboardingState === "APPROVED" && company.finixOnboardingState !== "APPROVED";
-    await prisma.company.update({
-      where: { id: companyId },
-      data: { finixIdentityId, finixMerchantId, finixOnboardingState },
-    });
-    if (becameApproved) {
-      const owners = await prisma.user.findMany({
-        where: { companyId, role: "OWNER", isActive: true },
-        select: { id: true },
-      });
-      await notifyUsers(
-        owners.map((o) => o.id),
-        {
-          title: "Online payments approved!",
-          body: "Your payment account is live — clients can now pay invoices by card or bank online.",
-          url: "/app/settings",
-          tag: "payments-approved",
-        }
-      );
-    }
-  }
-
-  return {
-    started: Boolean(company.finixOnboardingFormId),
-    state: finixOnboardingState,
-    merchantId: finixMerchantId,
-  };
-}
 
 export async function GET() {
   const actor = await getActor();
@@ -183,9 +110,12 @@ export async function POST(req: Request) {
   }
 
   const baseUrl = process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com";
+  // The form is reachable from Settings and from the /app/activate gate —
+  // send the owner back to whichever one they came from.
+  const returnPath = body.returnTo === "activate" ? "/app/activate" : "/app/settings";
   const linkParams = {
-    returnUrl: `${baseUrl}/app/settings?payments=submitted`,
-    expiredSessionUrl: `${baseUrl}/app/settings?payments=expired`,
+    returnUrl: `${baseUrl}${returnPath}?payments=submitted`,
+    expiredSessionUrl: `${baseUrl}${returnPath}?payments=expired`,
   };
 
   try {

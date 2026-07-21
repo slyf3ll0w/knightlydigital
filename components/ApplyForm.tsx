@@ -5,11 +5,29 @@ import { CheckCircle2, Loader2 } from "lucide-react";
 import TurnstileWidget, { type TurnstileHandle } from "@/components/TurnstileWidget";
 
 const TEAM_SIZES = ["Just me", "2–5", "6–15", "16+"];
+const PAYMENTS_TODAY = [
+  "Card — through Square, Stripe, or similar",
+  "Card — through my current software",
+  "Mostly cash or check",
+  "Mix of everything",
+];
+const MONTHLY_VOLUMES = ["Under $5k", "$5k – $20k", "$20k – $75k", "$75k+"];
+const YEARS_IN_BUSINESS = ["Less than 1 year", "1–3 years", "3–10 years", "10+ years"];
+const ENTITY_TYPES = [
+  "LLC or corporation",
+  "Sole proprietor",
+  "Partnership",
+  "Not registered yet",
+];
 
 /**
  * The /apply access application. Posts to /api/public/apply, which queues a
  * PENDING AccessApplication for superadmin review — approval emails the
  * applicant a single-use invite code for /app/register.
+ *
+ * The questions are payment-intent screening: every company must pass Finix
+ * underwriting before their account opens, so this form's job is to predict
+ * (a) is this a real business and (b) will they actually run card volume.
  */
 export default function ApplyForm() {
   const [loading, setLoading] = useState(false);
@@ -24,6 +42,12 @@ export default function ApplyForm() {
     companyName: "",
     industry: "",
     teamSize: "",
+    city: "",
+    state: "",
+    paymentsToday: "",
+    monthlyVolume: "",
+    yearsInBusiness: "",
+    entityType: "",
     website: "",
     message: "",
   });
@@ -82,7 +106,8 @@ export default function ApplyForm() {
       <h2 className="text-2xl font-extrabold">Apply for access</h2>
       <p className="mt-2 text-[15px] leading-relaxed text-gray-600">
         Tell us about your business. If you&apos;re approved, your invite code
-        arrives by email.
+        arrives by email — then a short payment-verification step activates
+        your account.
       </p>
 
       {error && (
@@ -171,9 +196,105 @@ export default function ApplyForm() {
             ))}
           </select>
         </div>
+        <div>
+          <label className={labelClass}>City</label>
+          <input
+            type="text"
+            required
+            maxLength={80}
+            value={form.city}
+            onChange={(e) => set("city", e.target.value)}
+            className={inputClass}
+            placeholder="Allen"
+          />
+        </div>
+        <div>
+          <label className={labelClass}>State</label>
+          <input
+            type="text"
+            required
+            maxLength={40}
+            value={form.state}
+            onChange={(e) => set("state", e.target.value)}
+            className={inputClass}
+            placeholder="TX"
+          />
+        </div>
+        <div>
+          <label className={labelClass}>How do you take payment today?</label>
+          <select
+            required
+            value={form.paymentsToday}
+            onChange={(e) => set("paymentsToday", e.target.value)}
+            className={`${inputClass} bg-white`}
+          >
+            <option value="" disabled>
+              Select…
+            </option>
+            {PAYMENTS_TODAY.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className={labelClass}>Roughly how much do you invoice per month?</label>
+          <select
+            required
+            value={form.monthlyVolume}
+            onChange={(e) => set("monthlyVolume", e.target.value)}
+            className={`${inputClass} bg-white`}
+          >
+            <option value="" disabled>
+              Select…
+            </option>
+            {MONTHLY_VOLUMES.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className={labelClass}>How long have you been in business?</label>
+          <select
+            required
+            value={form.yearsInBusiness}
+            onChange={(e) => set("yearsInBusiness", e.target.value)}
+            className={`${inputClass} bg-white`}
+          >
+            <option value="" disabled>
+              Select…
+            </option>
+            {YEARS_IN_BUSINESS.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className={labelClass}>Business structure</label>
+          <select
+            required
+            value={form.entityType}
+            onChange={(e) => set("entityType", e.target.value)}
+            className={`${inputClass} bg-white`}
+          >
+            <option value="" disabled>
+              Select…
+            </option>
+            {ENTITY_TYPES.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+        </div>
         <div className="sm:col-span-2">
           <label className={labelClass}>
-            Website or social page <span className="font-normal text-gray-400">(optional — helps us verify you faster)</span>
+            Website or social page <span className="font-normal text-gray-400">(optional — the fastest way for us to verify you)</span>
           </label>
           <input
             type="text"

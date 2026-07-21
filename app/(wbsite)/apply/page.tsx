@@ -47,12 +47,13 @@ export default function WBApplyPage() {
                 That&apos;s not something we hand out to anonymous signups.
               </p>
               <p>
-                So instead of an open signup form, there&apos;s an
-                application. We confirm you&apos;re a legitimate business
-                doing real work, the same way any payments provider would —
-                and that&apos;s it. No gatekeeping, no exclusivity games.
-                If you run a real service business, you&apos;re exactly who
-                this is for.
+                So joining happens in two steps. First, this application: we
+                confirm you&apos;re a legitimate business doing real work.
+                Then, when you sign up, a short payment-verification form
+                (the same KYC check every payments provider runs) activates
+                your account. No gatekeeping, no exclusivity games — if you
+                run a real service business that takes card payments,
+                you&apos;re exactly who this is for.
               </p>
             </div>
           </AnimateIn>

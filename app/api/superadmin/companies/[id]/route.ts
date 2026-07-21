@@ -42,7 +42,12 @@ export async function PATCH(
 
   const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
   const action = body.action;
-  if (action !== "suspend" && action !== "reinstate") {
+  if (
+    action !== "suspend" &&
+    action !== "reinstate" &&
+    action !== "waive-payments" &&
+    action !== "require-payments"
+  ) {
     return NextResponse.json({ error: "Unknown action." }, { status: 400 });
   }
 
@@ -51,6 +56,17 @@ export async function PATCH(
     select: { id: true, name: true, suspendedAt: true },
   });
   if (!company) return NextResponse.json({ error: "Company not found." }, { status: 404 });
+
+  // Payment-verification waiver: exempts the company from the /app/activate
+  // underwriting gate (test accounts, comped users).
+  if (action === "waive-payments" || action === "require-payments") {
+    const waived = action === "waive-payments";
+    await prisma.company.update({ where: { id }, data: { paymentsWaived: waived } });
+    console.warn(
+      `[superadmin] payments gate ${waived ? "WAIVED" : "REQUIRED"} for "${company.name}" (${id}) by ${admin.email}`
+    );
+    return NextResponse.json({ success: true });
+  }
 
   if (action === "suspend") {
     if (await companyHasProtectedUser(id)) {

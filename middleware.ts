@@ -134,7 +134,11 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL("/app/dashboard", req.url));
   }
 
-  return NextResponse.next();
+  // The platform layout needs the request path to run the payment-verification
+  // gate without redirect-looping on /app/activate (layouts can't see the URL).
+  const requestHeaders = new Headers(req.headers);
+  requestHeaders.set("x-wb-path", path);
+  return NextResponse.next({ request: { headers: requestHeaders } });
 }
 
 export const config = {

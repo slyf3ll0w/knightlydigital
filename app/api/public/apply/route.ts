@@ -14,8 +14,23 @@ const APPLICATION_INBOX = process.env.APPLICATION_INBOX ?? "info@streamflaire.co
  */
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
-  const { name, email, phone, companyName, industry, teamSize, website, message, captchaToken } =
-    body;
+  const {
+    name,
+    email,
+    phone,
+    companyName,
+    industry,
+    teamSize,
+    city,
+    state,
+    paymentsToday,
+    monthlyVolume,
+    yearsInBusiness,
+    entityType,
+    website,
+    message,
+    captchaToken,
+  } = body;
 
   if (!(await verifyCaptcha(captchaToken))) {
     return NextResponse.json(
@@ -37,6 +52,12 @@ export async function POST(req: NextRequest) {
     String(companyName).length > 120 ||
     String(industry ?? "").length > 80 ||
     String(teamSize ?? "").length > 40 ||
+    String(city ?? "").length > 80 ||
+    String(state ?? "").length > 40 ||
+    String(paymentsToday ?? "").length > 80 ||
+    String(monthlyVolume ?? "").length > 40 ||
+    String(yearsInBusiness ?? "").length > 40 ||
+    String(entityType ?? "").length > 40 ||
     String(website ?? "").length > 200 ||
     String(message ?? "").length > 2000
   ) {
@@ -61,6 +82,12 @@ export async function POST(req: NextRequest) {
       companyName,
       industry: industry || null,
       teamSize: teamSize || null,
+      city: city || null,
+      state: state || null,
+      paymentsToday: paymentsToday || null,
+      monthlyVolume: monthlyVolume || null,
+      yearsInBusiness: yearsInBusiness || null,
+      entityType: entityType || null,
       website: website || null,
       message: message || null,
     },
@@ -74,6 +101,12 @@ export async function POST(req: NextRequest) {
     companyName: application.companyName,
     industry: application.industry,
     teamSize: application.teamSize,
+    city: application.city,
+    state: application.state,
+    paymentsToday: application.paymentsToday,
+    monthlyVolume: application.monthlyVolume,
+    yearsInBusiness: application.yearsInBusiness,
+    entityType: application.entityType,
     website: application.website,
     message: application.message,
   });
