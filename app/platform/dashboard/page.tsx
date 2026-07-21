@@ -373,9 +373,11 @@ export default async function DashboardPage() {
               Booked this week
             </p>
             <p className="numeral-ledger mt-1 text-[24px] leading-none font-semibold text-gray-900">
-              {weekRevenue > 0 ? money(weekRevenue) : "—"}
+              {upcomingJobsWeek.length > 0 ? money(weekRevenue) : "—"}
             </p>
-            <p className="mt-1.5 text-xs text-gray-500">{upcomingJobsWeek.length} jobs scheduled</p>
+            <p className="mt-1.5 text-xs text-gray-500">
+              {upcomingJobsWeek.length} {upcomingJobsWeek.length === 1 ? "job" : "jobs"} scheduled
+            </p>
           </Link>
         </div>
       )}
