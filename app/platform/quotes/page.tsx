@@ -5,6 +5,7 @@ import { Plus, ChevronRight } from "lucide-react";
 import { money, shortDate } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
 import EmptyState from "@/components/EmptyState";
+import KpiStrip from "@/components/KpiStrip";
 import type { QuoteStatus } from "@prisma/client";
 
 const statusFilters = [
@@ -56,15 +57,29 @@ export default async function QuotesPage({
 
   const conversionRate = sent30 > 0 ? Math.round((approved30._count / sent30) * 100) : null;
 
+  const approved30Total = Number(approved30._sum.total) || 0;
   const kpis = [
-    { label: "Draft", value: draftCount, href: "/app/quotes?status=DRAFT" },
-    { label: "Awaiting response", value: awaitingCount, href: "/app/quotes?status=AWAITING_RESPONSE" },
-    { label: "Approved", value: approvedCount, href: "/app/quotes?status=APPROVED" },
+    { label: "Draft", value: draftCount, href: "/app/quotes?status=DRAFT", zero: draftCount === 0 },
+    {
+      label: "Awaiting response",
+      mobileLabel: "Awaiting",
+      value: awaitingCount,
+      href: "/app/quotes?status=AWAITING_RESPONSE",
+      zero: awaitingCount === 0,
+    },
+    {
+      label: "Approved",
+      value: approvedCount,
+      href: "/app/quotes?status=APPROVED",
+      zero: approvedCount === 0,
+    },
     {
       label: "Approved (30 days)",
-      value: money(Number(approved30._sum.total) || 0),
+      mobileLabel: "Won 30 days",
+      value: money(approved30Total),
       sub: conversionRate !== null ? `${conversionRate}% conversion` : undefined,
       href: "/app/quotes?status=APPROVED",
+      zero: approved30Total === 0,
     },
   ];
 
@@ -72,31 +87,19 @@ export default async function QuotesPage({
 
   return (
     <div className="p-4 lg:p-8 max-w-6xl mx-auto">
-      <div className="flex flex-wrap items-center justify-between gap-y-3 mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-y-3 mb-4 lg:mb-6">
         <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">Quotes</h1>
+        {/* Phones create from the tab-bar FAB */}
         <Link
           href="/app/quotes/new"
-          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-full transition-colors"
+          className="hidden lg:flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-full transition-colors"
         >
           <Plus size={15} />
           New Quote
         </Link>
       </div>
 
-      {/* KPI strip */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-        {kpis.map((k) => (
-          <Link
-            key={k.label}
-            href={k.href}
-            className="card-ledger p-4 hover:shadow-sm transition-shadow"
-          >
-            <p className="text-xs font-medium text-gray-500 mb-1">{k.label}</p>
-            <p className="numeral-ledger text-2xl font-semibold text-gray-900">{k.value}</p>
-            {k.sub && <p className="text-xs text-gray-500 mt-0.5">{k.sub}</p>}
-          </Link>
-        ))}
-      </div>
+      <KpiStrip kpis={kpis} desktopCols={4} />
 
       {/* Filter tabs */}
       <div className="flex items-center gap-1 mb-4 flex-wrap">
@@ -143,18 +146,38 @@ export default async function QuotesPage({
                 <Link
                   key={q.id}
                   href={`/app/quotes/${q.id}`}
-                  className="flex lg:grid lg:grid-cols-[1fr_70px_140px_150px_100px_40px] gap-4 items-center px-4 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
+                  className="block lg:grid lg:grid-cols-[1fr_70px_140px_150px_100px_40px] lg:gap-4 lg:items-center px-4 py-3 lg:py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
                 >
-                  <div className="min-w-0">
+                  {/* Phone row: name + total, then #/title + status */}
+                  <div className="lg:hidden min-w-0">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <p className="min-w-0 flex-1 truncate text-sm font-medium text-gray-900">
+                        {q.contact.firstName} {q.contact.lastName}
+                      </p>
+                      <p className="numeral-ledger shrink-0 text-sm font-semibold text-gray-900">
+                        {money(q.total)}
+                      </p>
+                    </div>
+                    <div className="mt-1 flex items-center justify-between gap-3">
+                      <p className="min-w-0 flex-1 truncate text-xs text-gray-500">
+                        #{q.quoteNumber}
+                        {q.title ? ` · ${q.title}` : ""}
+                      </p>
+                      <StatusChip kind="quote" status={q.status} className="shrink-0" />
+                    </div>
+                  </div>
+                  <div className="hidden lg:block min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">
                       {q.contact.firstName} {q.contact.lastName}
                     </p>
                     {q.title && <p className="text-xs text-gray-500 truncate">{q.title}</p>}
                   </div>
-                  <span className="text-sm text-gray-500">#{q.quoteNumber}</span>
+                  <span className="hidden lg:block text-sm text-gray-500">#{q.quoteNumber}</span>
                   <span className="hidden lg:block text-sm text-gray-500">{shortDate(q.createdAt)}</span>
-                  <StatusChip kind="quote" status={q.status} />
-                  <span className="numeral-ledger text-sm font-semibold text-gray-900 lg:text-right">
+                  <span className="hidden lg:block">
+                    <StatusChip kind="quote" status={q.status} />
+                  </span>
+                  <span className="numeral-ledger hidden lg:block text-sm font-semibold text-gray-900 lg:text-right">
                     {money(q.total)}
                   </span>
                   <ChevronRight size={14} className="text-gray-400 shrink-0 hidden lg:block" />

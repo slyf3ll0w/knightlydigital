@@ -5,6 +5,7 @@ import { Plus, ChevronRight } from "lucide-react";
 import { money, shortDate } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
 import EmptyState from "@/components/EmptyState";
+import KpiStrip from "@/components/KpiStrip";
 import type { JobStatus } from "@prisma/client";
 
 const statusFilters = [
@@ -47,13 +48,20 @@ export default async function JobsPage({
   ]);
 
   const kpis = [
-    { label: "Active", value: activeCount, href: "/app/jobs?status=ACTIVE" },
+    { label: "Active", value: activeCount, href: "/app/jobs?status=ACTIVE", zero: activeCount === 0 },
     {
       label: "Requires invoicing",
+      mobileLabel: "To invoice",
       value: requiresInvoicingCount,
       href: "/app/jobs?status=REQUIRES_INVOICING",
+      zero: requiresInvoicingCount === 0,
     },
-    { label: "Unscheduled", value: unscheduledCount, href: "/app/jobs?status=ACTIVE&unscheduled=1" },
+    {
+      label: "Unscheduled",
+      value: unscheduledCount,
+      href: "/app/jobs?status=ACTIVE&unscheduled=1",
+      zero: unscheduledCount === 0,
+    },
   ];
 
   const pageTotal = jobs.reduce(
@@ -63,12 +71,14 @@ export default async function JobsPage({
 
   return (
     <div className="p-4 lg:p-8 max-w-6xl mx-auto">
-      <div className="flex flex-wrap items-center justify-between gap-y-3 mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-y-3 mb-4 lg:mb-6">
         <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">Jobs</h1>
+        {/* Phones create from the tab-bar FAB — a second button here just
+            crowded the header */}
         {canCreate && (
           <Link
             href="/app/jobs/new"
-            className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-full transition-colors"
+            className="hidden lg:flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-full transition-colors"
           >
             <Plus size={15} />
             New Job
@@ -76,19 +86,7 @@ export default async function JobsPage({
         )}
       </div>
 
-      {/* KPI strip */}
-      <div className="grid grid-cols-3 gap-3 mb-6">
-        {kpis.map((k) => (
-          <Link
-            key={k.label}
-            href={k.href}
-            className="card-ledger p-4 hover:shadow-sm transition-shadow"
-          >
-            <p className="text-xs font-medium text-gray-500 mb-1">{k.label}</p>
-            <p className="numeral-ledger text-2xl font-semibold text-gray-900">{k.value}</p>
-          </Link>
-        ))}
-      </div>
+      <KpiStrip kpis={kpis} desktopCols={3} />
 
       {/* Filter tabs */}
       <div className="flex items-center gap-1 mb-4">
@@ -137,20 +135,44 @@ export default async function JobsPage({
                   <Link
                     key={j.id}
                     href={`/app/jobs/${j.id}`}
-                    className="flex lg:grid lg:grid-cols-[1fr_70px_150px_160px_100px_40px] gap-4 items-center px-4 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
+                    className="block lg:grid lg:grid-cols-[1fr_70px_150px_160px_100px_40px] lg:gap-4 lg:items-center px-4 py-3 lg:py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
                   >
-                    <div className="min-w-0">
+                    {/* Phone row: two stacked lines — name + money, then
+                        schedule/title + status. The desktop columns crammed
+                        side-by-side here never aligned. */}
+                    <div className="lg:hidden min-w-0">
+                      <div className="flex items-baseline justify-between gap-3">
+                        <p className="min-w-0 flex-1 truncate text-sm font-medium text-gray-900">
+                          {j.contact.firstName} {j.contact.lastName}
+                        </p>
+                        {showMoney && total > 0 && (
+                          <p className="numeral-ledger shrink-0 text-sm font-semibold text-gray-900">
+                            {money(total)}
+                          </p>
+                        )}
+                      </div>
+                      <div className="mt-1 flex items-center justify-between gap-3">
+                        <p className="min-w-0 flex-1 truncate text-xs text-gray-500">
+                          {j.scheduledAt ? `${shortDate(j.scheduledAt)} · ` : ""}
+                          {j.title}
+                        </p>
+                        <StatusChip kind="job" status={j.status} className="shrink-0" />
+                      </div>
+                    </div>
+                    <div className="hidden lg:block min-w-0">
                       <p className="text-sm font-medium text-gray-900 truncate">
                         {j.contact.firstName} {j.contact.lastName}
                       </p>
                       <p className="text-xs text-gray-500 truncate">{j.title}</p>
                     </div>
-                    <span className="text-sm text-gray-500">#{j.jobNumber}</span>
+                    <span className="hidden lg:block text-sm text-gray-500">#{j.jobNumber}</span>
                     <span className="hidden lg:block text-sm text-gray-500">
                       {j.scheduledAt ? shortDate(j.scheduledAt) : "Unscheduled"}
                     </span>
-                    <StatusChip kind="job" status={j.status} />
-                    <span className="numeral-ledger text-sm font-semibold text-gray-900 lg:text-right">
+                    <span className="hidden lg:block">
+                      <StatusChip kind="job" status={j.status} />
+                    </span>
+                    <span className="numeral-ledger hidden lg:block text-sm font-semibold text-gray-900 lg:text-right">
                       {showMoney && total > 0 ? money(total) : "—"}
                     </span>
                     <ChevronRight size={14} className="text-gray-400 shrink-0 hidden lg:block" />

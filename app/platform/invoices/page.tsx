@@ -5,6 +5,7 @@ import { Plus, ChevronRight, DollarSign } from "lucide-react";
 import { money, shortDate } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
 import EmptyState from "@/components/EmptyState";
+import KpiStrip from "@/components/KpiStrip";
 import type { InvoiceStatus } from "@prisma/client";
 
 const statusFilters = [
@@ -60,22 +61,26 @@ export default async function InvoicesPage({
 
   const kpis = [
     {
-      label: "Past due",
-      count: pastDue._count,
+      label: `Past due (${pastDue._count})`,
+      mobileLabel: "Past due",
       value: money(Number(pastDue._sum.total) || 0),
       href: "/app/invoices?status=PAST_DUE",
+      zero: pastDue._count === 0,
+      tone: pastDue._count > 0 ? ("danger" as const) : undefined,
     },
     {
-      label: "Awaiting payment",
-      count: awaiting._count,
+      label: `Awaiting payment (${awaiting._count})`,
+      mobileLabel: "Awaiting",
       value: money(Number(awaiting._sum.total) || 0),
       href: "/app/invoices?status=AWAITING_PAYMENT",
+      zero: awaiting._count === 0,
     },
     {
-      label: "Draft",
-      count: draft._count,
+      label: `Draft (${draft._count})`,
+      mobileLabel: "Draft",
       value: money(Number(draft._sum.total) || 0),
       href: "/app/invoices?status=DRAFT",
+      zero: draft._count === 0,
     },
   ];
 
@@ -89,9 +94,10 @@ export default async function InvoicesPage({
 
   return (
     <div className="p-4 lg:p-8 max-w-6xl mx-auto">
-      <div className="flex flex-wrap items-center justify-between gap-y-3 mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-y-3 mb-4 lg:mb-6">
         <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">Invoices</h1>
-        <div className="flex items-center gap-2">
+        {/* Phones create from the tab-bar FAB (Invoice + Payment both live there) */}
+        <div className="hidden lg:flex items-center gap-2">
           <Link
             href="/app/payments/new"
             className="flex items-center gap-1.5 px-4 py-2 border border-gray-300 text-sm font-medium text-gray-700 rounded-full hover:bg-gray-50 active:bg-gray-100 transition-colors"
@@ -109,21 +115,7 @@ export default async function InvoicesPage({
         </div>
       </div>
 
-      {/* KPI strip */}
-      <div className="grid grid-cols-3 gap-3 mb-6">
-        {kpis.map((k) => (
-          <Link
-            key={k.label}
-            href={k.href}
-            className="card-ledger p-4 hover:shadow-sm transition-shadow"
-          >
-            <p className="text-xs font-medium text-gray-500 mb-1">
-              {k.label} ({k.count})
-            </p>
-            <p className="numeral-ledger text-2xl font-semibold text-gray-900">{k.value}</p>
-          </Link>
-        ))}
-      </div>
+      <KpiStrip kpis={kpis} desktopCols={3} />
 
       {/* Filter tabs */}
       <div className="flex items-center gap-1 mb-4 flex-wrap">
@@ -174,23 +166,46 @@ export default async function InvoicesPage({
                   <Link
                     key={inv.id}
                     href={`/app/invoices/${inv.id}`}
-                    className="flex lg:grid lg:grid-cols-[1fr_70px_130px_150px_100px_100px_40px] gap-4 items-center px-4 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
+                    className="block lg:grid lg:grid-cols-[1fr_70px_130px_150px_100px_100px_40px] lg:gap-4 lg:items-center px-4 py-3 lg:py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
                   >
-                    <div className="min-w-0">
+                    {/* Phone row: name + the amount that matters (balance while
+                        anything is owed, else the total), then #/due + status.
+                        Two unlabeled amounts side by side read as a typo. */}
+                    <div className="lg:hidden min-w-0">
+                      <div className="flex items-baseline justify-between gap-3">
+                        <p className="min-w-0 flex-1 truncate text-sm font-medium text-gray-900">
+                          {inv.contact ? `${inv.contact.firstName} ${inv.contact.lastName}` : "—"}
+                        </p>
+                        <p className="numeral-ledger shrink-0 text-sm font-semibold text-gray-900">
+                          {money(balance > 0 ? balance : inv.total)}
+                        </p>
+                      </div>
+                      <div className="mt-1 flex items-center justify-between gap-3">
+                        <p className="min-w-0 flex-1 truncate text-xs text-gray-500">
+                          #{inv.invoiceNumber}
+                          {balance > 0 ? ` · Due ${shortDate(inv.dueDate)}` : ""}
+                          {inv.subject ? ` · ${inv.subject}` : ""}
+                        </p>
+                        <StatusChip kind="invoice" status={inv.status} className="shrink-0" />
+                      </div>
+                    </div>
+                    <div className="hidden lg:block min-w-0">
                       <p className="text-sm font-medium text-gray-900 truncate">
                         {inv.contact ? `${inv.contact.firstName} ${inv.contact.lastName}` : "—"}
                       </p>
                       {inv.subject && <p className="text-xs text-gray-500 truncate">{inv.subject}</p>}
                     </div>
-                    <span className="text-sm text-gray-500">#{inv.invoiceNumber}</span>
+                    <span className="hidden lg:block text-sm text-gray-500">#{inv.invoiceNumber}</span>
                     <span className="hidden lg:block text-sm text-gray-500">
                       {shortDate(inv.dueDate)}
                     </span>
-                    <StatusChip kind="invoice" status={inv.status} />
-                    <span className="numeral-ledger text-sm text-gray-600 lg:text-right">
+                    <span className="hidden lg:block">
+                      <StatusChip kind="invoice" status={inv.status} />
+                    </span>
+                    <span className="numeral-ledger hidden lg:block text-sm text-gray-600 lg:text-right">
                       {money(inv.total)}
                     </span>
-                    <span className="numeral-ledger text-sm font-semibold text-gray-900 lg:text-right">
+                    <span className="numeral-ledger hidden lg:block text-sm font-semibold text-gray-900 lg:text-right">
                       {money(balance)}
                     </span>
                     <ChevronRight size={14} className="text-gray-400 shrink-0 hidden lg:block" />
@@ -209,7 +224,10 @@ export default async function InvoicesPage({
               <span className="numeral-ledger hidden text-sm font-semibold text-gray-600 lg:block lg:text-right">
                 {money(pageTotal)}
               </span>
-              <span className="numeral-ledger text-sm font-bold text-gray-900 lg:text-right">
+              <span className="numeral-ledger lg:hidden text-sm font-bold text-gray-900">
+                {money(pageBalance > 0 ? pageBalance : pageTotal)}
+              </span>
+              <span className="numeral-ledger hidden lg:block text-sm font-bold text-gray-900 lg:text-right">
                 {money(pageBalance)}
               </span>
               <span className="hidden lg:block" />

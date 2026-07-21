@@ -4,6 +4,7 @@ import { Plus, ChevronRight, UserCheck } from "lucide-react";
 import { shortDate } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
 import EmptyState from "@/components/EmptyState";
+import KpiStrip from "@/components/KpiStrip";
 import { requirePageActor, canSell, viaContactScope, seesAllLeads } from "@/lib/permissions";
 import type { RequestStatus } from "@prisma/client";
 
@@ -56,38 +57,40 @@ export default async function RequestsPage({
 
   return (
     <div className="p-4 lg:p-8 max-w-6xl mx-auto">
-      <div className="flex flex-wrap items-center justify-between gap-y-3 mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-y-3 mb-4 lg:mb-6">
         <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">Requests</h1>
+        {/* Phones create from the tab-bar FAB */}
         <Link
           href="/app/requests/new"
-          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-full transition-colors"
+          className="hidden lg:flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-full transition-colors"
         >
           <Plus size={15} />
           New Request
         </Link>
       </div>
 
-      {/* KPI strip */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-        <Link
-          href="/app/requests?status=NEW"
-          className="card-ledger p-4 hover:shadow-sm transition-shadow"
-        >
-          <p className="text-xs font-medium text-gray-500 mb-1">New requests</p>
-          <p className="numeral-ledger text-2xl font-semibold text-gray-900">{newCount}</p>
-        </Link>
-        {needsApprovalCount > 0 && (
-          <Link
-            href="/app/requests?status=NEEDS_APPROVAL"
-            className="card-ledger p-4 hover:shadow-sm transition-shadow border-red-200"
-          >
-            <p className="text-xs font-medium text-red-600 mb-1">Bookings to approve</p>
-            <p className="numeral-ledger text-2xl font-semibold text-red-700">
-              {needsApprovalCount}
-            </p>
-          </Link>
-        )}
-      </div>
+      <KpiStrip
+        desktopCols={4}
+        kpis={[
+          {
+            label: "New requests",
+            value: newCount,
+            href: "/app/requests?status=NEW",
+            zero: newCount === 0,
+          },
+          ...(needsApprovalCount > 0
+            ? [
+                {
+                  label: "Bookings to approve",
+                  mobileLabel: "To approve",
+                  value: needsApprovalCount,
+                  href: "/app/requests?status=NEEDS_APPROVAL",
+                  tone: "danger" as const,
+                },
+              ]
+            : []),
+        ]}
+      />
 
       {/* Filter tabs */}
       <div className="flex flex-wrap items-center gap-1 mb-4">
@@ -146,14 +149,29 @@ export default async function RequestsPage({
               <Link
                 key={r.id}
                 href={`/app/requests/${r.id}`}
-                className="flex lg:grid lg:grid-cols-[1fr_1fr_140px_130px_40px] gap-4 items-center px-4 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
+                className="block lg:grid lg:grid-cols-[1fr_1fr_140px_130px_40px] lg:gap-4 lg:items-center px-4 py-3 lg:py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
               >
-                <span className="text-sm font-medium text-gray-900">
+                {/* Phone row: name + date, then title + status */}
+                <div className="lg:hidden min-w-0">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <p className="min-w-0 flex-1 truncate text-sm font-medium text-gray-900">
+                      {r.contact.firstName} {r.contact.lastName}
+                    </p>
+                    <p className="shrink-0 text-xs text-gray-500">{shortDate(r.createdAt)}</p>
+                  </div>
+                  <div className="mt-1 flex items-center justify-between gap-3">
+                    <p className="min-w-0 flex-1 truncate text-xs text-gray-500">{r.title}</p>
+                    <StatusChip kind="request" status={r.status} className="shrink-0" />
+                  </div>
+                </div>
+                <span className="hidden lg:block text-sm font-medium text-gray-900">
                   {r.contact.firstName} {r.contact.lastName}
                 </span>
-                <span className="text-sm text-gray-600 truncate">{r.title}</span>
+                <span className="hidden lg:block text-sm text-gray-600 truncate">{r.title}</span>
                 <span className="hidden lg:block text-sm text-gray-500">{shortDate(r.createdAt)}</span>
-                <StatusChip kind="request" status={r.status} />
+                <span className="hidden lg:block">
+                  <StatusChip kind="request" status={r.status} />
+                </span>
                 <ChevronRight size={14} className="text-gray-400 shrink-0 hidden lg:block" />
               </Link>
             ))}
