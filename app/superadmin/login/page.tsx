@@ -1,8 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { signIn, useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Loader2, Eye, EyeOff, ShieldCheck } from "lucide-react";
 import TurnstileWidget, { TurnstileHandle } from "@/components/TurnstileWidget";
@@ -11,12 +9,12 @@ const TURNSTILE_ON = Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY);
 
 /**
  * The console's own front door. Two steps: password check emails a 6-digit
- * code (/api/superadmin/login-code), then the code rides along on the real
- * NextAuth sign-in — authorize() refuses superadmin sessions without it.
+ * code (/api/superadmin/login-code), then POST /api/superadmin/session
+ * verifies the code and sets the console's own cookie — deliberately not a
+ * NextAuth session, so a tenant login in this browser is untouched.
+ * (middleware.ts bounces already-signed-in staff from here to /superadmin.)
  */
 export default function SuperadminLoginPage() {
-  const router = useRouter();
-  const { data: session, status } = useSession();
   const [step, setStep] = useState<"credentials" | "code">("credentials");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -28,16 +26,6 @@ export default function SuperadminLoginPage() {
   const [captchaToken, setCaptchaToken] = useState("");
   const [pendingResend, setPendingResend] = useState(false);
   const captchaRef = useRef<TurnstileHandle>(null);
-  const redirected = useRef(false);
-
-  // Already signed in as a superadmin — straight to the console.
-  useEffect(() => {
-    if (redirected.current || status !== "authenticated") return;
-    if (session?.user?.role === "SUPERADMIN") {
-      redirected.current = true;
-      router.replace("/superadmin");
-    }
-  }, [status, session, router]);
 
   async function requestCode(token: string): Promise<boolean> {
     setError("");
@@ -97,25 +85,32 @@ export default function SuperadminLoginPage() {
     setNotice("");
     setLoading(true);
 
-    const res = await signIn("credentials", {
-      email,
-      password,
-      otpCode: code,
-      redirect: false,
-    });
+    let failed: string | null = "network";
+    try {
+      const res = await fetch("/api/superadmin/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, code }),
+      });
+      const data = await res.json().catch(() => ({}));
+      failed = res.ok ? null : ((data.error as string) ?? "invalid");
+    } catch {
+      failed = "network";
+    }
 
-    if (res?.error) {
+    if (failed) {
       setLoading(false);
       setError(
-        res.error === "otp"
+        failed === "code"
           ? "That code isn't right or has expired. Check the email or resend."
-          : "Sign-in failed. Start over and try again."
+          : failed === "network"
+            ? "Network error — please try again."
+            : "Sign-in failed. Start over and try again."
       );
       return;
     }
 
     // Full page load so the console layout renders with the new session.
-    redirected.current = true;
     window.location.href = "/superadmin";
   }
 

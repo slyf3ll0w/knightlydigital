@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { requireSuperadminPage } from "@/lib/superadmin";
+import SignOutButton from "./SignOutButton";
 
 /**
  * Platform-owner shell in the WorkBench MARKETING site's language (WBNav's
@@ -62,6 +63,7 @@ export default async function SuperadminLayout({ children }: { children: React.R
               <span className="hidden text-[12px] font-medium text-gray-400 md:block">
                 {user.email}
               </span>
+              <SignOutButton />
             </nav>
           </div>
         </div>

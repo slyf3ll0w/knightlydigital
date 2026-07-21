@@ -3,7 +3,6 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { verifyCaptcha } from "@/lib/captcha";
-import { verifySuperadminLoginCode } from "@/lib/superadmin-otp";
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -13,7 +12,6 @@ export const authOptions: NextAuthOptions = {
         email: { label: "Email" },
         password: { label: "Password", type: "password" },
         captchaToken: { label: "Captcha" },
-        otpCode: { label: "Sign-in code" },
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
@@ -24,7 +22,11 @@ export const authOptions: NextAuthOptions = {
         });
         if (!user || !user.isActive) return null;
 
-        const isSuperadmin = user.role === "SUPERADMIN";
+        // Superadmin accounts never get a tenant session at all — the
+        // platform console has its own cookie session, minted only at
+        // /superadmin/login (password + emailed code). Generic failure so
+        // this endpoint never confirms which addresses are staff.
+        if (user.role === "SUPERADMIN") return null;
 
         // Captcha-gate the login BEFORE the password check, so password
         // validity is never revealed without a human-verified token
@@ -32,26 +34,15 @@ export const authOptions: NextAuthOptions = {
         // created moments ago skip it so the register page's auto sign-in
         // works — its Turnstile token was already consumed by the register
         // API, and an attacker who just created the account knows its
-        // password anyway. Superadmins presenting an emailed sign-in code
-        // skip it too: their captcha was consumed by /api/superadmin/
-        // login-code, and the code itself (single-use, attempt-capped,
-        // rate-limited) is a far stronger human check.
+        // password anyway.
         const justRegistered = Date.now() - user.createdAt.getTime() < 2 * 60 * 1000;
-        if (!justRegistered && !(isSuperadmin && credentials.otpCode)) {
+        if (!justRegistered) {
           const captchaOk = await verifyCaptcha(credentials.captchaToken);
           if (!captchaOk) throw new Error("captcha");
         }
 
         const valid = await bcrypt.compare(credentials.password, user.passwordHash);
         if (!valid) return null;
-
-        // Superadmins never get a session from the password alone — they
-        // sign in at /superadmin/login, which emails a code first.
-        if (isSuperadmin) {
-          if (!credentials.otpCode) throw new Error("superadmin-otp");
-          const codeOk = await verifySuperadminLoginCode(user.id, credentials.otpCode);
-          if (!codeOk) throw new Error("otp");
-        }
 
         return {
           id: user.id,

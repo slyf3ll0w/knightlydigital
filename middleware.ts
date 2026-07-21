@@ -2,9 +2,11 @@ import { getToken } from "next-auth/jwt";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { limit, clientIp } from "@/lib/rate-limit";
+import { SUPERADMIN_COOKIE, verifySuperadminSessionToken } from "@/lib/superadmin-session";
 
 // Per-IP limits on abuse-prone endpoints: { max requests, window }
-const rateLimits: { match: (path: string) => boolean; max: number; windowMs: number; name: string }[] = [
+// `methods` narrows the rule (default: every non-GET/HEAD method).
+const rateLimits: { match: (path: string) => boolean; max: number; windowMs: number; name: string; methods?: string[] }[] = [
   {
     // Login attempts (NextAuth credentials callback)
     match: (p) => p.startsWith("/api/auth/callback/credentials"),
@@ -27,12 +29,14 @@ const rateLimits: { match: (path: string) => boolean; max: number; windowMs: num
     name: "invite-check",
   },
   {
-    // Superadmin sign-in codes: each POST does a bcrypt compare and may send
-    // an email — keep it as tight as the login bucket.
-    match: (p) => p.startsWith("/api/superadmin/login-code"),
+    // Superadmin sign-in: code issue + session mint both do a bcrypt compare
+    // (and may send an email) — keep them as tight as the login bucket.
+    // POST-only so signing OUT (DELETE /session) never burns login attempts.
+    match: (p) => p.startsWith("/api/superadmin/login-code") || p.startsWith("/api/superadmin/session"),
     max: 5,
     windowMs: 15 * 60_000,
     name: "superadmin-otp",
+    methods: ["POST"],
   },
   {
     // Processor webhooks (Finix) burst on settlement days — own generous
@@ -84,7 +88,7 @@ export async function middleware(req: NextRequest) {
   // ── Rate limiting (POST-like methods only) ─────────────────────────────────
   if (req.method !== "GET" && req.method !== "HEAD") {
     for (const rule of rateLimits) {
-      if (rule.match(path)) {
+      if (rule.match(path) && (!rule.methods || rule.methods.includes(req.method))) {
         const result = limit(`${rule.name}:${clientIp(req.headers)}`, rule.max, rule.windowMs);
         if (!result.ok) {
           return NextResponse.json(
@@ -97,8 +101,24 @@ export async function middleware(req: NextRequest) {
     }
   }
 
+  // ── Platform console (own cookie session, separate from NextAuth) ─────────
+  // The console never looks at the tenant session and vice versa, so staff
+  // can be signed into both simultaneously. Only the direct /superadmin URL
+  // reaches it — nothing on the marketing site or tenant app links here.
+  if (path.startsWith("/superadmin")) {
+    const saToken = req.cookies.get(SUPERADMIN_COOKIE)?.value;
+    const saUser = saToken ? await verifySuperadminSessionToken(saToken) : null;
+    if (path === "/superadmin/login") {
+      return saUser
+        ? NextResponse.redirect(new URL("/superadmin", req.url))
+        : NextResponse.next();
+    }
+    if (!saUser) return NextResponse.redirect(new URL("/superadmin/login", req.url));
+    return NextResponse.next();
+  }
+
   // ── Auth for the app ───────────────────────────────────────────────────────
-  if (!path.startsWith("/app") && !path.startsWith("/superadmin")) {
+  if (!path.startsWith("/app")) {
     return NextResponse.next();
   }
 
@@ -107,31 +127,18 @@ export async function middleware(req: NextRequest) {
     path.startsWith("/app/login") ||
     path.startsWith("/app/register") ||
     path.startsWith("/app/forgot-password") ||
-    path.startsWith("/app/reset-password") ||
-    path === "/superadmin/login";
+    path.startsWith("/app/reset-password");
   if (isPublic) return NextResponse.next();
 
   const token = await getToken({ req, secret: process.env.AUTH_SECRET });
 
   if (!token) {
-    // The console has its own front door — don't bounce platform staff
-    // through the tenant login.
-    const loginUrl = path.startsWith("/superadmin") ? "/superadmin/login" : "/app/login";
-    return NextResponse.redirect(new URL(loginUrl, req.url));
+    return NextResponse.redirect(new URL("/app/login", req.url));
   }
 
-  const role = (token.role as string) ?? "";
-  const isSuperAdmin = role === "SUPERADMIN";
-  const hasCompany = !!token.companyId;
-
-  // Non-superadmin users without a company go to register
-  if (path.startsWith("/app") && !hasCompany && !isSuperAdmin) {
+  // Users without a company go to register
+  if (!token.companyId) {
     return NextResponse.redirect(new URL("/app/register", req.url));
-  }
-
-  // Only superadmins can access /superadmin/*
-  if (path.startsWith("/superadmin") && !isSuperAdmin) {
-    return NextResponse.redirect(new URL("/app/dashboard", req.url));
   }
 
   // The platform layout needs the request path to run the payment-verification
@@ -158,6 +165,7 @@ export const config = {
     "/api/app/register",
     "/api/app/invite-check",
     "/api/superadmin/login-code",
+    "/api/superadmin/session",
     "/api/public/:path*",
     "/api/hub/:path*",
   ],

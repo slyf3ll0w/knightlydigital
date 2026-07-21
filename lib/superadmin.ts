@@ -1,38 +1,41 @@
-import { getServerSession } from "next-auth";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/db";
+import { SUPERADMIN_COOKIE, verifySuperadminSessionToken } from "@/lib/superadmin-session";
 
 /**
- * Platform-owner auth. Superadmins have no companyId, so getActor() (which
- * requires one) deliberately rejects them — these are the only entry points
- * for /superadmin pages and /api/superadmin routes. middleware.ts already
- * gates the routes by JWT role; this re-checks against the DB like getActor
- * does, so a demoted/deactivated superadmin dies with the next request, not
- * the next sign-in.
+ * Platform-owner auth. The console rides its own signed cookie
+ * (lib/superadmin-session.ts), completely separate from the tenant NextAuth
+ * session — staff can be signed into both at once, and a tenant session never
+ * grants console access. These are the only entry points for /superadmin
+ * pages and /api/superadmin routes. middleware.ts already gates the routes by
+ * cookie signature; this re-checks against the DB, so a demoted/deactivated
+ * superadmin dies with the next request, not the next sign-in.
  */
 
 export type SuperadminUser = { id: string; email: string; name: string };
 
-async function loadSuperadmin(): Promise<{ signedIn: boolean; user: SuperadminUser | null }> {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) return { signedIn: false, user: null };
+async function loadSuperadmin(): Promise<SuperadminUser | null> {
+  const token = (await cookies()).get(SUPERADMIN_COOKIE)?.value;
+  if (!token) return null;
+  const userId = await verifySuperadminSessionToken(token);
+  if (!userId) return null;
   const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
+    where: { id: userId },
     select: { id: true, email: true, name: true, role: true, isActive: true },
   });
-  if (!user || !user.isActive || user.role !== "SUPERADMIN") return { signedIn: true, user: null };
-  return { signedIn: true, user: { id: user.id, email: user.email, name: user.name } };
+  if (!user || !user.isActive || user.role !== "SUPERADMIN") return null;
+  return { id: user.id, email: user.email, name: user.name };
 }
 
-/** Page-side: signed-out visitors go to the console login, tenants to their app. */
+/** Page-side: anyone without a console session goes to the console login. */
 export async function requireSuperadminPage(): Promise<SuperadminUser> {
-  const { signedIn, user } = await loadSuperadmin();
-  if (!user) redirect(signedIn ? "/app/dashboard" : "/superadmin/login");
+  const user = await loadSuperadmin();
+  if (!user) redirect("/superadmin/login");
   return user;
 }
 
 /** API-side: null → caller returns 403. */
 export async function getSuperadmin(): Promise<SuperadminUser | null> {
-  return (await loadSuperadmin()).user;
+  return loadSuperadmin();
 }
