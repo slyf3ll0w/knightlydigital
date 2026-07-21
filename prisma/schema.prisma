@@ -113,6 +113,7 @@ model Company {
   timeEntries       TimeEntry[]
   locationPings     LocationPing[]
   quickBooks        QuickBooksConnection?
+  inviteCode        InviteCode?
 
   @@index([slug])
 }
@@ -1422,4 +1423,52 @@ model QuickBooksSyncRecord {
   @@unique([companyId, entityType, localId])
   @@index([connectionId])
   @@index([companyId, status])
+}
+
+// ─── Invite-gated onboarding ─────────────────────────────────────────────────
+
+// A single-use code that authorizes one company signup. Minted by a
+// superadmin — directly from /superadmin/invites or by approving an
+// AccessApplication — and required by /api/app/register.
+model InviteCode {
+  id              String    @id @default(cuid())
+  code            String    @unique // human-typable, e.g. WB-7K2M-9QX4
+  note            String? // superadmin's memo: who this is for
+  email           String? // where it was sent — informational, not enforced
+  expiresAt       DateTime? // null = never expires
+  usedAt          DateTime?
+  usedByCompanyId String?   @unique
+  usedByCompany   Company?  @relation(fields: [usedByCompanyId], references: [id], onDelete: SetNull)
+  revokedAt       DateTime?
+  createdAt       DateTime  @default(now())
+
+  applicationId String?            @unique
+  application   AccessApplication? @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+}
+
+enum ApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// Public /apply form submissions, reviewed at /superadmin/applications.
+// Approving one mints an InviteCode and emails it to the applicant.
+model AccessApplication {
+  id          String            @id @default(cuid())
+  name        String
+  email       String
+  phone       String?
+  companyName String
+  industry    String?
+  teamSize    String?
+  website     String?
+  message     String?
+  status      ApplicationStatus @default(PENDING)
+  decidedAt   DateTime?
+  createdAt   DateTime          @default(now())
+
+  inviteCode InviteCode?
+
+  @@index([status])
 }

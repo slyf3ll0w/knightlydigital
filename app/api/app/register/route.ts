@@ -4,6 +4,11 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { pricebookForIndustry } from "@/lib/pricebooks";
 import { verifyCaptcha } from "@/lib/captcha";
+import { checkInviteCode } from "@/lib/invites";
+
+// Thrown when the transaction finds the invite already claimed — the check
+// above it raced another signup using the same code.
+class InviteClaimedError extends Error {}
 
 function slugify(name: string) {
   return name
@@ -57,6 +62,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Password must be 8–72 characters." }, { status: 400 });
   }
 
+  // WorkBench is invite-only: no live code, no account.
+  const invite = await checkInviteCode(body.inviteCode);
+  if (!invite.ok) {
+    return NextResponse.json({ error: invite.reason }, { status: 403 });
+  }
+
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
     return NextResponse.json(
@@ -76,9 +87,15 @@ export async function POST(req: NextRequest) {
       attempt === 0 ? slugify(companyName) : `${slugify(companyName)}-${attempt}`
     );
     try {
-      company = await createCompany(companyName, slug, hash, body);
+      company = await createCompany(companyName, slug, hash, body, invite.id);
       break;
     } catch (e) {
+      if (e instanceof InviteClaimedError) {
+        return NextResponse.json(
+          { error: "That invite code has already been used." },
+          { status: 403 }
+        );
+      }
       const slugClash =
         e instanceof Prisma.PrismaClientKnownRequestError &&
         e.code === "P2002" &&
@@ -103,33 +120,51 @@ function createCompany(
     currentSoftware?: string;
     topPriority?: string;
     referralSource?: string;
-  }
+  },
+  inviteId: string
 ) {
   const { yourName, email, phone, industry, teamSize, currentSoftware, topPriority, referralSource } =
     body;
-  return prisma.company.create({
-    data: {
-      name: companyName,
-      slug,
-      phone: phone || null,
-      // Default notification inbox: the owner's email, editable in Settings.
-      email,
-      industry: industry || null,
-      teamSize: teamSize || null,
-      currentSoftware: currentSoftware || null,
-      topPriority: topPriority || null,
-      referralSource: referralSource || null,
-      users: {
-        create: {
-          email,
-          name: yourName,
-          passwordHash: hash,
-          role: "OWNER",
-          phone: phone || null,
+  return prisma.$transaction(async (tx) => {
+    // Claim the invite atomically — the pre-check outside the transaction can
+    // race a concurrent signup on the same code; the updateMany count settles it.
+    const claimed = await tx.inviteCode.updateMany({
+      where: { id: inviteId, usedAt: null, revokedAt: null },
+      data: { usedAt: new Date() },
+    });
+    if (claimed.count === 0) throw new InviteClaimedError();
+
+    const company = await tx.company.create({
+      data: {
+        name: companyName,
+        slug,
+        phone: phone || null,
+        // Default notification inbox: the owner's email, editable in Settings.
+        email,
+        industry: industry || null,
+        teamSize: teamSize || null,
+        currentSoftware: currentSoftware || null,
+        topPriority: topPriority || null,
+        referralSource: referralSource || null,
+        users: {
+          create: {
+            email,
+            name: yourName,
+            passwordHash: hash,
+            role: "OWNER",
+            phone: phone || null,
+          },
         },
+        // Industry-matched starter price book; "Other"/unknown industries start empty
+        workItems: { create: pricebookForIndustry(industry) },
       },
-      // Industry-matched starter price book; "Other"/unknown industries start empty
-      workItems: { create: pricebookForIndustry(industry) },
-    },
+    });
+
+    await tx.inviteCode.update({
+      where: { id: inviteId },
+      data: { usedByCompanyId: company.id },
+    });
+
+    return company;
   });
 }

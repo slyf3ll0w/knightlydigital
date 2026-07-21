@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { signIn } from "next-auth/react";
 import { Loader2, ArrowLeft, ArrowRight, Check, CreditCard, Banknote, Bell } from "lucide-react";
 import Link from "next/link";
@@ -40,7 +40,9 @@ export default function RegisterPage() {
   const [error, setError] = useState("");
   const [captchaToken, setCaptchaToken] = useState("");
   const [otherIndustry, setOtherIndustry] = useState("");
+  const [checkingCode, setCheckingCode] = useState(false);
   const [form, setForm] = useState({
+    inviteCode: "",
     yourName: "",
     companyName: "",
     phone: "",
@@ -52,6 +54,13 @@ export default function RegisterPage() {
     topPriority: "",
     referralSource: "",
   });
+
+  // Approval emails link here as /app/register?code=WB-XXXX-XXXX — prefill it.
+  // Read after mount (not in the initializer) so SSR and first client render match.
+  useEffect(() => {
+    const code = new URLSearchParams(window.location.search).get("code");
+    if (code) setForm((f) => ({ ...f, inviteCode: code.toUpperCase() }));
+  }, []);
 
   const current = STEPS[step];
   const progress = Math.round(((step + 1) / STEPS.length) * 100);
@@ -74,6 +83,34 @@ export default function RegisterPage() {
   function pick(field: keyof typeof form, value: string) {
     set(field, value);
     next();
+  }
+
+  /**
+   * Step 1 gate: verify the invite code before letting them fill out the rest
+   * of the wizard. Register re-checks and claims it server-side — this just
+   * keeps a bad code from failing at the very end.
+   */
+  async function submitBasics() {
+    setError("");
+    setCheckingCode(true);
+    try {
+      const res = await fetch("/api/app/invite-check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: form.inviteCode }),
+      });
+      const data = await res.json();
+      if (data.valid) {
+        next();
+      } else {
+        setError(data.error ?? "That invite code isn't valid.");
+      }
+    } catch {
+      // Network hiccup — don't strand them; register's own check is the real gate.
+      next();
+    } finally {
+      setCheckingCode(false);
+    }
   }
 
   async function handleSubmit() {
@@ -170,7 +207,7 @@ export default function RegisterPage() {
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
-                  next();
+                  submitBasics();
                 }}
               >
                 <h1 className="numeral-ledger text-2xl font-semibold text-gray-900 mb-1">Let&apos;s get you set up</h1>
@@ -178,6 +215,26 @@ export default function RegisterPage() {
                   Free forever — we make money when you get paid, not before.
                 </p>
                 <div className="space-y-4">
+                  <div>
+                    <label className={labelClass}>Invite code</label>
+                    <input
+                      type="text"
+                      value={form.inviteCode}
+                      onChange={(e) => set("inviteCode", e.target.value.toUpperCase())}
+                      required
+                      className={`${inputClass} font-mono tracking-wider uppercase`}
+                      placeholder="WB-XXXX-XXXX"
+                      autoCapitalize="characters"
+                      autoCorrect="off"
+                      spellCheck={false}
+                    />
+                    <p className="mt-1.5 text-xs text-gray-400">
+                      WorkBench is invite-only. Don&apos;t have a code?{" "}
+                      <Link href="/apply" className="text-green-600 hover:underline font-medium">
+                        Apply for access
+                      </Link>
+                    </p>
+                  </div>
                   <div>
                     <label className={labelClass}>Your name</label>
                     <input
@@ -215,7 +272,8 @@ export default function RegisterPage() {
                   </div>
                 </div>
                 <div className="mt-6 flex items-center justify-between">
-                  <button type="submit" className={continueClass}>
+                  <button type="submit" disabled={checkingCode} className={continueClass}>
+                    {checkingCode && <Loader2 size={14} className="animate-spin" />}
                     Continue <ArrowRight size={14} />
                   </button>
                   <p className="text-sm text-gray-500">

@@ -19,6 +19,14 @@ const rateLimits: { match: (path: string) => boolean; max: number; windowMs: num
     name: "register",
   },
   {
+    // Invite-code pre-flight on the signup wizard — looser than register so
+    // typos don't lock people out, tight enough that guessing codes is hopeless.
+    match: (p) => p.startsWith("/api/app/invite-check"),
+    max: 20,
+    windowMs: 60 * 60_000,
+    name: "invite-check",
+  },
+  {
     // Processor webhooks (Finix) burst on settlement days — own generous
     // bucket so they never starve behind the strict public-write limit.
     // The handler verifies by re-fetching from the Finix API, so a flood
@@ -132,6 +140,7 @@ export const config = {
     "/superadmin/:path*",
     "/api/auth/callback/credentials",
     "/api/app/register",
+    "/api/app/invite-check",
     "/api/public/:path*",
     "/api/hub/:path*",
   ],

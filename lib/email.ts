@@ -738,3 +738,101 @@ export function passwordResetEmail({
 </div>`;
   return { subject: "Reset your WorkBench password", html };
 }
+
+/** "New access application" notification to the WorkBench admin inbox. */
+export function newApplicationEmail({
+  name,
+  email,
+  phone,
+  companyName,
+  industry,
+  teamSize,
+  website,
+  message,
+}: {
+  name: string;
+  email: string;
+  phone: string | null;
+  companyName: string;
+  industry: string | null;
+  teamSize: string | null;
+  website: string | null;
+  message: string | null;
+}): { subject: string; html: string } {
+  const row = (label: string, value: string | null) =>
+    value
+      ? `<p style="margin:0 0 4px;color:#6b7280;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">${label}</p>
+         <p style="margin:0 0 12px;color:#111827;font-size:14px;">${esc(value)}</p>`
+      : "";
+
+  const html = `
+<div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f3f4f6;padding:24px;">
+  <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
+    <div style="background:#0A1428;padding:16px 24px;">
+      <p style="margin:0;color:#60A5FA;font-size:13px;font-weight:700;letter-spacing:0.5px;">NEW APPLICATION</p>
+    </div>
+    <div style="padding:24px;">
+      <p style="margin:0 0 16px;color:#111827;font-size:15px;">
+        A new company applied for WorkBench access.
+      </p>
+      ${row("Business", companyName)}
+      ${row("Contact", name)}
+      ${row("Email", email)}
+      ${row("Phone", phone)}
+      ${row("Trade", industry)}
+      ${row("Team size", teamSize)}
+      ${row("Website", website)}
+      ${row("Notes", message)}
+      <a href="${APP_URL}/superadmin/applications"
+         style="display:inline-block;margin-top:8px;background:#0B57D8;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:10px 20px;border-radius:6px;">
+        Review Application
+      </a>
+    </div>
+    <div style="padding:12px 24px;border-top:1px solid #f3f4f6;">
+      <p style="margin:0;color:#9ca3af;font-size:12px;">WorkBench</p>
+    </div>
+  </div>
+</div>`;
+  return { subject: `New WorkBench application — ${companyName}`, html };
+}
+
+/** Invite code delivery — sent on application approval or a direct invite. */
+export function inviteCodeEmail({
+  name,
+  code,
+}: {
+  name: string | null;
+  code: string;
+}): { subject: string; html: string } {
+  const signupUrl = `${APP_URL}/app/register?code=${encodeURIComponent(code)}`;
+  const html = `
+<div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f3f4f6;padding:24px;">
+  <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
+    <div style="background:#0A1428;padding:16px 24px;">
+      <p style="margin:0;color:#60A5FA;font-size:13px;font-weight:700;letter-spacing:0.5px;">YOU'RE IN</p>
+    </div>
+    <div style="padding:24px;">
+      <p style="margin:0 0 12px;color:#111827;font-size:15px;">Hi ${esc(name || "there")},</p>
+      <p style="margin:0 0 16px;color:#374151;font-size:14px;">
+        Your WorkBench access has been approved. Use the invite code below to
+        create your account — it's single-use and tied to your business.
+      </p>
+      <p style="margin:0 0 16px;padding:14px 20px;background:#f3f4f6;border:1px dashed #d1d5db;border-radius:8px;color:#111827;font-size:20px;font-weight:700;letter-spacing:2px;font-family:ui-monospace,Menlo,monospace;text-align:center;">
+        ${esc(code)}
+      </p>
+      <a href="${esc(signupUrl)}"
+         style="display:inline-block;background:#0B57D8;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:10px 20px;border-radius:6px;">
+        Create Your Account
+      </a>
+      <p style="margin:16px 0 0;color:#6b7280;font-size:12px;">
+        The button pre-fills your code. If you weren't expecting this email,
+        you can ignore it.
+      </p>
+    </div>
+    <div style="padding:12px 24px;border-top:1px solid #f3f4f6;">
+      <p style="margin:0;color:#9ca3af;font-size:12px;">WorkBench</p>
+    </div>
+  </div>
+</div>`;
+  return { subject: "You're in — your WorkBench invite code", html };
+}

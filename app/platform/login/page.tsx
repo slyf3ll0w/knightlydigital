@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { signIn, signOut, useSession } from "next-auth/react";
+import { getSession, signIn, signOut, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
@@ -23,18 +23,26 @@ export default function AppLoginPage() {
   // native shell surfaces as a load failure (NSURLError -999).
   const redirected = useRef(false);
 
-  // Already signed in with a company — go straight to the dashboard.
-  // Sessions WITHOUT a company (superadmin, or a deleted test company) must
-  // stay here, or login → dashboard → register becomes a bounce loop and the
-  // register page's "Sign in" link appears dead.
+  // Already signed in with a company — go straight to the dashboard
+  // (superadmins to their panel). Sessions WITHOUT a company or superadmin
+  // role (e.g. a deleted test company) must stay here, or login → dashboard
+  // → register becomes a bounce loop and the register page's "Sign in" link
+  // appears dead.
   useEffect(() => {
-    if (status === "authenticated" && session?.user?.companyId && !redirected.current) {
+    if (status !== "authenticated" || redirected.current) return;
+    if (session?.user?.role === "SUPERADMIN") {
+      redirected.current = true;
+      router.replace("/superadmin");
+    } else if (session?.user?.companyId) {
       redirected.current = true;
       router.replace("/app/dashboard");
     }
   }, [status, session, router]);
 
-  const staleSession = status === "authenticated" && !session?.user?.companyId;
+  const staleSession =
+    status === "authenticated" &&
+    !session?.user?.companyId &&
+    session?.user?.role !== "SUPERADMIN";
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -62,7 +70,9 @@ export default function AppLoginPage() {
       // Full page load so the app layout re-renders with the new session
       // (client-side navigation would reuse the signed-out layout — no sidebar)
       redirected.current = true;
-      window.location.href = "/app/dashboard";
+      const fresh = await getSession();
+      window.location.href =
+        fresh?.user?.role === "SUPERADMIN" ? "/superadmin" : "/app/dashboard";
     }
   }
 

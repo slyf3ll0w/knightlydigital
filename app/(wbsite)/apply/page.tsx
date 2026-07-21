@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { AnimateIn } from "@/components/AnimateIn";
-import { BadgeCheck, Landmark, Mail, ShieldCheck } from "lucide-react";
+import ApplyForm from "@/components/ApplyForm";
+import { BadgeCheck, Landmark, ShieldCheck } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Apply for access — WorkBench",
@@ -75,30 +76,10 @@ export default function WBApplyPage() {
         </div>
       </section>
 
-      {/* ── Application form placeholder ── */}
-      <section className="mx-auto max-w-6xl px-5 pb-20 sm:px-8">
+      {/* ── Application form ── */}
+      <section className="mx-auto max-w-3xl px-5 pb-20 sm:px-8">
         <AnimateIn>
-          <div className="rounded-3xl border-2 border-dashed border-gray-300 bg-white px-6 py-14 text-center sm:px-12">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50">
-              <Mail className="h-5 w-5 text-[#0B57D8]" strokeWidth={2} />
-            </div>
-            <h2 className="mx-auto mt-5 max-w-md text-2xl font-extrabold">
-              The application form lands here soon.
-            </h2>
-            <p className="mx-auto mt-3 max-w-md text-[15px] leading-relaxed text-gray-600">
-              Until then, applying is one email. Send us your business name,
-              your trade, and your team size.
-            </p>
-            <a
-              href="mailto:info@streamflaire.com?subject=WorkBench%20access%20application"
-              className="wb-btn-tool mt-7 inline-flex items-center gap-2 rounded-lg bg-[#0B57D8] px-6 py-3 text-[15px] font-bold text-white"
-            >
-              Apply by email
-            </a>
-            <p className="mt-4 text-[13px] text-gray-400">
-              info@streamflaire.com — a person reads every one.
-            </p>
-          </div>
+          <ApplyForm />
         </AnimateIn>
       </section>
     </>

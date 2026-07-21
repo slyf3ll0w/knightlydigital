@@ -42,6 +42,18 @@ export default async function SuperadminLayout({ children }: { children: React.R
                 Profitability
               </Link>
               <Link
+                href="/superadmin/applications"
+                className="wb-navlink text-[14px] font-semibold text-gray-600 transition-colors hover:text-gray-900"
+              >
+                Applications
+              </Link>
+              <Link
+                href="/superadmin/invites"
+                className="wb-navlink text-[14px] font-semibold text-gray-600 transition-colors hover:text-gray-900"
+              >
+                Invite codes
+              </Link>
+              <Link
                 href="/superadmin/finix"
                 className="wb-navlink text-[14px] font-semibold text-gray-600 transition-colors hover:text-gray-900"
               >
