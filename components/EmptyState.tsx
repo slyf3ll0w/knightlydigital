@@ -9,7 +9,7 @@ import { Plus } from "lucide-react";
 
 export type EmptyArt = "requests" | "quotes" | "jobs" | "invoices" | "contacts" | "schedule";
 
-function Art({ name }: { name: EmptyArt }) {
+function Art({ name, hue }: { name: EmptyArt; hue?: string }) {
   const base = {
     fill: "none",
     strokeWidth: 2,
@@ -17,7 +17,8 @@ function Art({ name }: { name: EmptyArt }) {
     strokeLinejoin: "round" as const,
   };
   const gray = { ...base, stroke: "#D1D5DB" }; // gray-300 to sit on the graph-paper canvas
-  const green = { ...base, stroke: "var(--wb-accent-bright, #2E6FF2)" };
+  // Section hue when the page has one; brand accent otherwise
+  const green = { ...base, stroke: hue ?? "var(--wb-accent-bright, #2E6FF2)" };
 
   switch (name) {
     case "requests":
@@ -98,6 +99,7 @@ export default function EmptyState({
   actionHref,
   actionLabel,
   showPlusIcon = true,
+  hue,
 }: {
   art: EmptyArt;
   title: string;
@@ -105,10 +107,12 @@ export default function EmptyState({
   actionHref?: string;
   actionLabel?: string;
   showPlusIcon?: boolean;
+  /** Section hue for the art's accent strokes */
+  hue?: string;
 }) {
   return (
     <div className="flex flex-col items-center px-6 py-14 text-center">
-      <Art name={art} />
+      <Art name={art} hue={hue} />
       <p className="mt-4 text-sm font-semibold text-gray-900">{title}</p>
       {body && <p className="mt-1 max-w-sm text-sm text-gray-500">{body}</p>}
       {actionHref && actionLabel && (

@@ -1,7 +1,10 @@
 import { prisma } from "@/lib/db";
 import { requirePageActor, jobScope, canSeePricing, isManager } from "@/lib/permissions";
 import Link from "next/link";
-import { Plus, ChevronRight } from "lucide-react";
+import { Plus, ChevronRight, Briefcase } from "lucide-react";
+import PageTitle from "@/components/PageTitle";
+import { SECTION_HUES } from "@/lib/section-colors";
+import { textOn } from "@/lib/branding";
 import { money, shortDate } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
 import EmptyState from "@/components/EmptyState";
@@ -72,7 +75,9 @@ export default async function JobsPage({
   return (
     <div className="p-4 lg:p-8 max-w-6xl mx-auto">
       <div className="flex flex-wrap items-center justify-between gap-y-3 mb-4 lg:mb-6">
-        <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">Jobs</h1>
+        <PageTitle section="jobs" icon={Briefcase}>
+          Jobs
+        </PageTitle>
         {/* Phones create from the tab-bar FAB — a second button here just
             crowded the header */}
         {canCreate && (
@@ -86,7 +91,7 @@ export default async function JobsPage({
         )}
       </div>
 
-      <KpiStrip kpis={kpis} desktopCols={3} />
+      <KpiStrip kpis={kpis} desktopCols={3} hue={SECTION_HUES.jobs} />
 
       {/* Filter tabs */}
       <div className="flex items-center gap-1 mb-4">
@@ -96,9 +101,14 @@ export default async function JobsPage({
             href={f.value ? `/app/jobs?status=${f.value}` : "/app/jobs"}
             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
               (validStatus ?? "") === f.value && !unscheduled
-                ? "bg-gray-900 text-white"
+                ? "font-semibold"
                 : "text-gray-600 hover:bg-gray-100"
             }`}
+            style={
+              (validStatus ?? "") === f.value && !unscheduled
+                ? { backgroundColor: SECTION_HUES.jobs, color: textOn(SECTION_HUES.jobs) }
+                : undefined
+            }
           >
             {f.label}
           </Link>
@@ -109,6 +119,7 @@ export default async function JobsPage({
         {jobs.length === 0 ? (
           <EmptyState
             art="jobs"
+            hue={SECTION_HUES.jobs}
             title={validStatus || unscheduled ? "No jobs match this filter" : "No jobs yet"}
             body={
               validStatus || unscheduled

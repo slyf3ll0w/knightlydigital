@@ -1,6 +1,9 @@
 import { prisma } from "@/lib/db";
 import Link from "next/link";
-import { Plus, ChevronRight, UserCheck } from "lucide-react";
+import { Plus, ChevronRight, UserCheck, Inbox } from "lucide-react";
+import PageTitle from "@/components/PageTitle";
+import { SECTION_HUES } from "@/lib/section-colors";
+import { textOn } from "@/lib/branding";
 import { shortDate } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
 import EmptyState from "@/components/EmptyState";
@@ -58,7 +61,9 @@ export default async function RequestsPage({
   return (
     <div className="p-4 lg:p-8 max-w-6xl mx-auto">
       <div className="flex flex-wrap items-center justify-between gap-y-3 mb-4 lg:mb-6">
-        <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">Requests</h1>
+        <PageTitle section="requests" icon={Inbox}>
+          Requests
+        </PageTitle>
         {/* Phones create from the tab-bar FAB */}
         <Link
           href="/app/requests/new"
@@ -71,6 +76,7 @@ export default async function RequestsPage({
 
       <KpiStrip
         desktopCols={4}
+        hue={SECTION_HUES.requests}
         kpis={[
           {
             label: "New requests",
@@ -100,9 +106,14 @@ export default async function RequestsPage({
             href={qs({ status: f.value })}
             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
               (validStatus ?? "") === f.value
-                ? "bg-gray-900 text-white"
+                ? "font-semibold"
                 : "text-gray-600 hover:bg-gray-100"
             }`}
+            style={
+              (validStatus ?? "") === f.value
+                ? { backgroundColor: SECTION_HUES.requests, color: textOn(SECTION_HUES.requests) }
+                : undefined
+            }
           >
             {f.label}
           </Link>
@@ -127,6 +138,7 @@ export default async function RequestsPage({
         {requests.length === 0 ? (
           <EmptyState
             art="requests"
+            hue={SECTION_HUES.requests}
             title={validStatus ? "No requests with this status" : "No requests yet"}
             body={
               validStatus

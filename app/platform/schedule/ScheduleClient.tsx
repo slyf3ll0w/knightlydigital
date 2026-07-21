@@ -19,6 +19,7 @@ import {
   Video as VideoIcon,
   X,
 } from "lucide-react";
+import PageTitle from "@/components/PageTitle";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 
 /**
@@ -754,7 +755,9 @@ export default function ScheduleClient({
       {/* Header — actions are icon circles on phones (labels return at md)
           so the row breathes instead of cramming three long buttons. */}
       <div className="mb-5 flex items-center justify-between gap-2">
-        <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">Schedule</h1>
+        <PageTitle section="schedule" icon={CalendarDays}>
+          Schedule
+        </PageTitle>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setDrawerOpen((o) => !o)}

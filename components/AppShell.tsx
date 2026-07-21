@@ -38,6 +38,7 @@ import AtlasIcon, { AtlasMark } from "@/components/AtlasIcon";
 import TourGuide from "@/components/TourGuide";
 import AssistantDrawer from "@/components/AssistantDrawer";
 import { shade, textOn } from "@/lib/branding";
+import { SECTION_HUES } from "@/lib/section-colors";
 import { hapticImpact } from "@/lib/haptics";
 import { WALLPAPER_PATTERNS } from "@/lib/wallpapers";
 
@@ -141,38 +142,38 @@ const createItems: NavItem[] = [
 ];
 
 // One hue per entity so the create grid scans at a glance (identical ink
-// tiles made the sheet a guessing game). Echoes the status-color language:
-// requests amber, quotes green, money teal.
+// tiles made the sheet a guessing game). Hues live in lib/section-colors.ts —
+// the same palette drives page titles, filter pills, and KPI rules.
 const createTints: Record<string, string> = {
-  "/app/contacts/new": "#3B82F6", // Client — blue
-  "/app/contacts/new?type=lead": "#84CC16", // Lead — lime, matches the Leads board
-  "/app/requests/new": "#F59E0B", // Request — amber
-  "/app/appointments/new": "#8B5CF6", // Appointment — violet
-  "/app/quotes/new": "#22C55E", // Quote — green
-  "/app/jobs/new": "#F97316", // Job — orange
-  "/app/invoices/new": "#0EA5E9", // Invoice — sky
-  "/app/payments/new": "#14B8A6", // Payment — teal
+  "/app/contacts/new": SECTION_HUES.clients,
+  "/app/contacts/new?type=lead": SECTION_HUES.leads,
+  "/app/requests/new": SECTION_HUES.requests,
+  "/app/appointments/new": SECTION_HUES.schedule,
+  "/app/quotes/new": SECTION_HUES.quotes,
+  "/app/jobs/new": SECTION_HUES.jobs,
+  "/app/invoices/new": SECTION_HUES.invoices,
+  "/app/payments/new": SECTION_HUES.payments,
 };
 
 // The same color language on navigation: More-sheet icon tiles and the
 // desktop sidebar's hover/active states. Home + Settings stay neutral (and
 // keep the tenant's brand accent) — everything with an entity gets its hue.
 const sectionTints: Record<string, string> = {
-  "/app/schedule": "#8B5CF6", // appointments live here
-  "/app/contacts": "#3B82F6",
-  "/app/requests": "#F59E0B",
-  "/app/leads": "#84CC16", // lime — between request amber and quote green
-  "/app/quotes": "#22C55E",
-  "/app/jobs": "#F97316",
-  "/app/invoices": "#0EA5E9",
-  "/app/payments": "#14B8A6",
-  "/app/subscriptions": "#14B8A6",
-  "/app/business": "#6366F1",
-  "/app/settings/products": "#EC4899",
-  "/app/settings/contracts": "#A855F7",
-  "/app/chat": "#F43F5E",
-  "/app/settings/booking": "#06B6D4",
-  "/app/settings/team": "#10B981",
+  "/app/schedule": SECTION_HUES.schedule,
+  "/app/contacts": SECTION_HUES.clients,
+  "/app/requests": SECTION_HUES.requests,
+  "/app/leads": SECTION_HUES.leads,
+  "/app/quotes": SECTION_HUES.quotes,
+  "/app/jobs": SECTION_HUES.jobs,
+  "/app/invoices": SECTION_HUES.invoices,
+  "/app/payments": SECTION_HUES.payments,
+  "/app/subscriptions": SECTION_HUES.subscriptions,
+  "/app/business": SECTION_HUES.business,
+  "/app/settings/products": SECTION_HUES.services,
+  "/app/settings/contracts": SECTION_HUES.contracts,
+  "/app/chat": SECTION_HUES.chat,
+  "/app/settings/booking": SECTION_HUES.forms,
+  "/app/settings/team": SECTION_HUES.team,
 };
 
 // Tab bar: Home · Schedule · [create] · Atlas · More. Everything else lives

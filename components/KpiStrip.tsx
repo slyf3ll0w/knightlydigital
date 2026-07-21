@@ -23,8 +23,19 @@ const desktopGrid: Record<3 | 4, string> = {
  * actual list below the fold on small screens. Zero stats drop out of the
  * strip entirely, and if everything is zero the strip doesn't render at all.
  */
-export default function KpiStrip({ kpis, desktopCols = 3 }: { kpis: Kpi[]; desktopCols?: 3 | 4 }) {
+export default function KpiStrip({
+  kpis,
+  desktopCols = 3,
+  hue,
+}: {
+  kpis: Kpi[];
+  desktopCols?: 3 | 4;
+  /** Section hue — a 3px rule on each stat ties the strip to its section */
+  hue?: string;
+}) {
   const visible = kpis.filter((k) => !k.zero);
+  const rule = (k: Kpi) =>
+    k.tone === "danger" ? "#EF4444" : hue;
   return (
     <>
       {visible.length > 0 && (
@@ -34,6 +45,7 @@ export default function KpiStrip({ kpis, desktopCols = 3 }: { kpis: Kpi[]; deskt
               key={k.label}
               href={k.href}
               className="min-w-0 flex-1 px-3 py-2.5 transition-colors active:bg-gray-50"
+              style={rule(k) ? { borderLeft: `3px solid ${rule(k)}` } : undefined}
             >
               <p
                 className={`truncate text-[11px] font-medium ${
@@ -61,6 +73,7 @@ export default function KpiStrip({ kpis, desktopCols = 3 }: { kpis: Kpi[]; deskt
             className={`card-ledger p-4 transition-shadow hover:shadow-sm ${
               k.tone === "danger" ? "border-red-200" : ""
             }`}
+            style={rule(k) ? { borderLeft: `3px solid ${rule(k)}` } : undefined}
           >
             <p
               className={`mb-1 text-xs font-medium ${

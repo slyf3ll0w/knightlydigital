@@ -1,7 +1,10 @@
 import { prisma } from "@/lib/db";
 import { requirePageActor, canSell, viaContactScope } from "@/lib/permissions";
 import Link from "next/link";
-import { Plus, ChevronRight } from "lucide-react";
+import { Plus, ChevronRight, FileText } from "lucide-react";
+import PageTitle from "@/components/PageTitle";
+import { SECTION_HUES } from "@/lib/section-colors";
+import { textOn } from "@/lib/branding";
 import { money, shortDate } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
 import EmptyState from "@/components/EmptyState";
@@ -88,7 +91,9 @@ export default async function QuotesPage({
   return (
     <div className="p-4 lg:p-8 max-w-6xl mx-auto">
       <div className="flex flex-wrap items-center justify-between gap-y-3 mb-4 lg:mb-6">
-        <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">Quotes</h1>
+        <PageTitle section="quotes" icon={FileText}>
+          Quotes
+        </PageTitle>
         {/* Phones create from the tab-bar FAB */}
         <Link
           href="/app/quotes/new"
@@ -99,7 +104,7 @@ export default async function QuotesPage({
         </Link>
       </div>
 
-      <KpiStrip kpis={kpis} desktopCols={4} />
+      <KpiStrip kpis={kpis} desktopCols={4} hue={SECTION_HUES.quotes} />
 
       {/* Filter tabs */}
       <div className="flex items-center gap-1 mb-4 flex-wrap">
@@ -109,9 +114,14 @@ export default async function QuotesPage({
             href={f.value ? `/app/quotes?status=${f.value}` : "/app/quotes"}
             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
               (validStatus ?? "") === f.value
-                ? "bg-gray-900 text-white"
+                ? "font-semibold"
                 : "text-gray-600 hover:bg-gray-100"
             }`}
+            style={
+              (validStatus ?? "") === f.value
+                ? { backgroundColor: SECTION_HUES.quotes, color: textOn(SECTION_HUES.quotes) }
+                : undefined
+            }
           >
             {f.label}
           </Link>
@@ -122,6 +132,7 @@ export default async function QuotesPage({
         {quotes.length === 0 ? (
           <EmptyState
             art="quotes"
+            hue={SECTION_HUES.quotes}
             title={validStatus ? "No quotes with this status" : "No quotes yet"}
             body={
               validStatus

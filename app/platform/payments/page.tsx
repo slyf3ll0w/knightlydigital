@@ -3,9 +3,11 @@ import { requirePageActor, canSeeMoney, isManager } from "@/lib/permissions";
 import Link from "next/link";
 import DisputeEvidence from "./DisputeEvidence";
 import PayoutButton from "./PayoutButton";
-import { Plus, ArrowUpRight, ChevronRight } from "lucide-react";
+import { Plus, ArrowUpRight, ChevronRight, DollarSign } from "lucide-react";
 import { money, shortDate } from "@/lib/statuses";
 import EmptyState from "@/components/EmptyState";
+import PageTitle from "@/components/PageTitle";
+import { brandSurface } from "@/lib/branding";
 import {
   getProcessor,
   processingFees,
@@ -89,6 +91,7 @@ export default async function PaymentsDashboardPage() {
       finixIdentityId: true,
       finixMerchantId: true,
       finixOnboardingState: true,
+      brandColor: true,
     },
   });
 
@@ -315,15 +318,16 @@ export default async function PaymentsDashboardPage() {
   return (
     <div className="p-4 lg:p-8 max-w-6xl mx-auto">
       <div className="flex flex-wrap items-center justify-between gap-y-3 mb-6">
-        <h1 className="numeral-ledger text-2xl font-semibold text-gray-900 flex items-center gap-3">
+        <PageTitle section="payments" icon={DollarSign}>
           Payments
           {online && finixEnvironment() === "sandbox" && (
             <span className="stamp text-amber-700">Test mode</span>
           )}
-        </h1>
+        </PageTitle>
+        {/* Phones create from the tab-bar FAB */}
         <Link
           href="/app/payments/new"
-          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-full transition-colors"
+          className="hidden lg:flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-full transition-colors"
         >
           <Plus size={15} />
           Collect Payment
@@ -350,9 +354,14 @@ export default async function PaymentsDashboardPage() {
         </div>
       )}
 
-      {/* ── Balance hero — the console panel anchoring the page ─────────── */}
+      {/* ── Balance hero — the console panel anchoring the page. Painted with
+             the company's primary brand color when it's dark enough to carry
+             white text (mirrors brandHeader on client-facing pages). ─────── */}
       {online && (
-        <div className="chamfer bg-rail mb-6 overflow-hidden rounded-[8px]">
+        <div
+          className="chamfer bg-rail mb-6 overflow-hidden rounded-[8px]"
+          style={{ backgroundColor: brandSurface(company ?? {}) }}
+        >
           <div className="flex flex-wrap items-end justify-between gap-x-10 gap-y-5 p-5 sm:p-6">
             <div>
               <p className="font-display text-[11px] font-bold uppercase tracking-[0.14em] text-white/50">

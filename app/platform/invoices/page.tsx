@@ -1,7 +1,10 @@
 import { prisma } from "@/lib/db";
 import { requirePageActor, canSeeMoney, viaContactScope } from "@/lib/permissions";
 import Link from "next/link";
-import { Plus, ChevronRight, DollarSign } from "lucide-react";
+import { Plus, ChevronRight, DollarSign, Receipt } from "lucide-react";
+import PageTitle from "@/components/PageTitle";
+import { SECTION_HUES } from "@/lib/section-colors";
+import { textOn } from "@/lib/branding";
 import { money, shortDate } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
 import EmptyState from "@/components/EmptyState";
@@ -95,7 +98,9 @@ export default async function InvoicesPage({
   return (
     <div className="p-4 lg:p-8 max-w-6xl mx-auto">
       <div className="flex flex-wrap items-center justify-between gap-y-3 mb-4 lg:mb-6">
-        <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">Invoices</h1>
+        <PageTitle section="invoices" icon={Receipt}>
+          Invoices
+        </PageTitle>
         {/* Phones create from the tab-bar FAB (Invoice + Payment both live there) */}
         <div className="hidden lg:flex items-center gap-2">
           <Link
@@ -115,7 +120,7 @@ export default async function InvoicesPage({
         </div>
       </div>
 
-      <KpiStrip kpis={kpis} desktopCols={3} />
+      <KpiStrip kpis={kpis} desktopCols={3} hue={SECTION_HUES.invoices} />
 
       {/* Filter tabs */}
       <div className="flex items-center gap-1 mb-4 flex-wrap">
@@ -125,9 +130,14 @@ export default async function InvoicesPage({
             href={f.value ? `/app/invoices?status=${f.value}` : "/app/invoices"}
             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
               (validStatus ?? "") === f.value
-                ? "bg-gray-900 text-white"
+                ? "font-semibold"
                 : "text-gray-600 hover:bg-gray-100"
             }`}
+            style={
+              (validStatus ?? "") === f.value
+                ? { backgroundColor: SECTION_HUES.invoices, color: textOn(SECTION_HUES.invoices) }
+                : undefined
+            }
           >
             {f.label}
           </Link>
@@ -138,6 +148,7 @@ export default async function InvoicesPage({
         {invoices.length === 0 ? (
           <EmptyState
             art="invoices"
+            hue={SECTION_HUES.invoices}
             title={validStatus ? "No invoices with this status" : "No invoices yet"}
             body={
               validStatus

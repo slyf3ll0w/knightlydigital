@@ -16,6 +16,7 @@ import {
   Timer,
 } from "lucide-react";
 import { money, appointmentTypeLabel } from "@/lib/statuses";
+import { SECTION_HUES } from "@/lib/section-colors";
 import { formatDuration, mapsHref } from "@/lib/time-entries";
 import EmptyState from "@/components/EmptyState";
 import DashboardSetupCard from "./DashboardSetupCard";
@@ -200,6 +201,7 @@ export default async function DashboardPage() {
       show: sell,
       count: needsApprovalRequests,
       icon: CalendarCheck,
+      hue: SECTION_HUES.requests,
       title: plural(needsApprovalRequests, "Booking to approve", "Bookings to approve"),
       action: "Accept or decline",
       href: "/app/requests?status=NEEDS_APPROVAL",
@@ -209,6 +211,7 @@ export default async function DashboardPage() {
       show: seeMoney,
       count: pastDueInvoices,
       icon: Receipt,
+      hue: SECTION_HUES.invoices,
       title: plural(pastDueInvoices, "Past-due invoice", "Past-due invoices"),
       action: "Send a reminder",
       href: "/app/invoices?status=PAST_DUE",
@@ -218,6 +221,7 @@ export default async function DashboardPage() {
       show: sell,
       count: newRequests,
       icon: Inbox,
+      hue: SECTION_HUES.requests,
       title: plural(newRequests, "New request", "New requests"),
       action: "Review & send a quote",
       href: "/app/requests?status=NEW",
@@ -227,6 +231,7 @@ export default async function DashboardPage() {
       show: sell,
       count: changesRequestedQuotes,
       icon: FileText,
+      hue: SECTION_HUES.quotes,
       title: "Changes requested",
       action: "Update the quote",
       href: "/app/quotes?status=CHANGES_REQUESTED",
@@ -236,6 +241,7 @@ export default async function DashboardPage() {
       show: sell,
       count: approvedQuotes,
       icon: FileText,
+      hue: SECTION_HUES.quotes,
       title: plural(approvedQuotes, "Approved quote", "Approved quotes"),
       action: "Convert to a job",
       href: "/app/quotes?status=APPROVED",
@@ -245,6 +251,7 @@ export default async function DashboardPage() {
       show: seeMoney,
       count: requiresInvoicingJobs,
       icon: Briefcase,
+      hue: SECTION_HUES.jobs,
       title: plural(requiresInvoicingJobs, "Job ready to invoice", "Jobs ready to invoice"),
       action: "Send the invoice",
       href: "/app/jobs?status=REQUIRES_INVOICING",
@@ -254,6 +261,7 @@ export default async function DashboardPage() {
       show: true,
       count: unscheduledJobs,
       icon: CalendarPlus,
+      hue: SECTION_HUES.schedule,
       title: plural(unscheduledJobs, "Unscheduled job", "Unscheduled jobs"),
       action: "Put it on the calendar",
       href: "/app/jobs?status=ACTIVE&unscheduled=1",
@@ -263,6 +271,7 @@ export default async function DashboardPage() {
       show: sell,
       count: draftQuotes,
       icon: FileText,
+      hue: SECTION_HUES.quotes,
       title: plural(draftQuotes, "Draft quote", "Draft quotes"),
       action: "Finish & send",
       href: "/app/quotes?status=DRAFT",
@@ -323,8 +332,10 @@ export default async function DashboardPage() {
         <p className="hidden lg:block text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">
           {now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
         </p>
+        {/* Two-tone greeting, like the marketing headline — the name carries
+            the brand accent (text-green-* bridges to the tenant color) */}
         <h1 className="font-display mt-0.5 text-[27px] font-bold tracking-tight text-gray-900">
-          {greeting}, {firstName}
+          {greeting}, <span className="text-green-600">{firstName}</span>
         </h1>
       </div>
 
@@ -472,7 +483,11 @@ export default async function DashboardPage() {
                 }`}
               >
                 <div className="mb-3 flex items-center justify-between">
-                  <n.icon size={15} className={n.urgent ? "text-red-500" : "text-gray-400"} />
+                  <n.icon
+                    size={15}
+                    className={n.urgent ? "text-red-500" : undefined}
+                    style={n.urgent ? undefined : { color: n.hue }}
+                  />
                   {n.urgent && (
                     <span className="stamp text-red-600">Overdue</span>
                   )}
@@ -505,6 +520,7 @@ export default async function DashboardPage() {
           {todayItems.length === 0 ? (
             <EmptyState
               art="schedule"
+              hue={SECTION_HUES.schedule}
               title="Nothing scheduled today"
               body="Jobs and appointments you schedule for today will show up here."
               actionHref="/app/jobs/new"

@@ -26,6 +26,21 @@ export function brandAccent(company: CompanyBrand): string {
   return company.brandColorSecondary || company.brandColor || DEFAULT_ACCENT;
 }
 
+/**
+ * Dark brand surface for in-app hero panels (e.g. the Payments balance card):
+ * the company's primary color when it's dark enough to carry white text,
+ * otherwise the WorkBench console navy. Mirrors brandHeader() on the client-
+ * facing pages so "primary = surfaces" holds inside the app too.
+ */
+export function brandSurface(company: Pick<CompanyBrand, "brandColor">): string {
+  const hex = company.brandColor;
+  const m = hex ? /^#?([0-9a-f]{6})$/i.exec(hex) : null;
+  if (!m) return DEFAULT_HEADER;
+  const n = parseInt(m[1], 16);
+  const luminance = 0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255);
+  return luminance > 160 ? DEFAULT_HEADER : `#${m[1]}`;
+}
+
 /** Darken a hex color by 0–1 (gradient depth on branded portal headers). */
 export function shade(hex: string, amount: number): string {
   const m = /^#?([0-9a-f]{6})$/i.exec(hex);

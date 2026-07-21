@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import Link from "next/link";
-import { Plus, ChevronRight, UserCheck, Upload, ListPlus } from "lucide-react";
+import { Plus, ChevronRight, UserCheck, Upload, ListPlus, Users } from "lucide-react";
+import PageTitle from "@/components/PageTitle";
 import { shortDate } from "@/lib/statuses";
 import ContactStatus from "@/components/ContactStatus";
 import EmptyState from "@/components/EmptyState";
@@ -73,7 +74,9 @@ export default async function ContactsPage({
       {/* Header — secondary actions collapse to icon circles on phones so the
           row never crams; labels return at sm. */}
       <div className="flex items-center justify-between gap-2 mb-6">
-        <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">Clients</h1>
+        <PageTitle section="clients" icon={Users}>
+          Clients
+        </PageTitle>
         <div className="flex items-center gap-2">
           {isManager(actor.role) && (
             <>
@@ -97,9 +100,10 @@ export default async function ContactsPage({
               </Link>
             </>
           )}
+          {/* Phones create from the tab-bar FAB */}
           <Link
             href="/app/contacts/new"
-            className="flex h-10 items-center gap-1.5 rounded-full bg-green-500 px-4 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold transition-colors"
+            className="hidden lg:flex h-10 items-center gap-1.5 rounded-full bg-green-500 px-4 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold transition-colors"
           >
             <Plus size={15} />
             New Client

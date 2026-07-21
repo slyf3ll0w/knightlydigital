@@ -16,7 +16,9 @@ import {
   UserRound,
   X,
   RotateCcw,
+  SquareKanban,
 } from "lucide-react";
+import PageTitle from "@/components/PageTitle";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { money } from "@/lib/statuses";
 
@@ -293,7 +295,9 @@ export default function LeadsBoardClient({
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-y-3 mb-4 max-w-none">
         <div className="flex items-baseline gap-3">
-          <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">Leads</h1>
+          <PageTitle section="leads" icon={SquareKanban}>
+            Leads
+          </PageTitle>
           <span className="text-sm text-gray-500">
             {working.length} on the board
             {totalValue > 0 && (
