@@ -29,9 +29,9 @@ async function uniqueSlug(base: string) {
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { companyName, yourName, email, password, phone, captchaToken } = body;
-  // Onboarding answers — all optional so the wizard can never hard-fail on them
-  const { industry, teamSize, currentSoftware, topPriority, referralSource } = body;
+  const { companyName, yourName, email, password, captchaToken } = body;
+  // Optional — seeds the starter price book; signup never hard-fails on it
+  const { industry } = body;
 
   if (!(await verifyCaptcha(captchaToken))) {
     return NextResponse.json(
@@ -48,12 +48,7 @@ export async function POST(req: NextRequest) {
     String(companyName).length > 120 ||
     String(yourName).length > 120 ||
     String(email).length > 254 ||
-    String(phone ?? "").length > 30 ||
-    String(industry ?? "").length > 80 ||
-    String(teamSize ?? "").length > 40 ||
-    String(currentSoftware ?? "").length > 80 ||
-    String(topPriority ?? "").length > 80 ||
-    String(referralSource ?? "").length > 80
+    String(industry ?? "").length > 80
   ) {
     return NextResponse.json({ error: "Input too long." }, { status: 400 });
   }
@@ -114,17 +109,11 @@ function createCompany(
   body: {
     yourName: string;
     email: string;
-    phone?: string;
     industry?: string;
-    teamSize?: string;
-    currentSoftware?: string;
-    topPriority?: string;
-    referralSource?: string;
   },
   inviteId: string
 ) {
-  const { yourName, email, phone, industry, teamSize, currentSoftware, topPriority, referralSource } =
-    body;
+  const { yourName, email, industry } = body;
   return prisma.$transaction(async (tx) => {
     // Claim the invite atomically — the pre-check outside the transaction can
     // race a concurrent signup on the same code; the updateMany count settles it.
@@ -138,21 +127,15 @@ function createCompany(
       data: {
         name: companyName,
         slug,
-        phone: phone || null,
         // Default notification inbox: the owner's email, editable in Settings.
         email,
         industry: industry || null,
-        teamSize: teamSize || null,
-        currentSoftware: currentSoftware || null,
-        topPriority: topPriority || null,
-        referralSource: referralSource || null,
         users: {
           create: {
             email,
             name: yourName,
             passwordHash: hash,
             role: "OWNER",
-            phone: phone || null,
           },
         },
         // Industry-matched starter price book; "Other"/unknown industries start empty

@@ -3,9 +3,9 @@ import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
 
 /**
- * POST — dismiss the dashboard setup card without running the wizard.
- * Stamps setupWizardAt (same flag as applying); the wizard itself stays
- * reachable from Settings.
+ * POST — dismiss the dashboard "price book is ready" card. Stamps
+ * setupWizardAt (the flag predates the AI setup wizard's removal and keeps
+ * its name so existing rows still count as dismissed).
  */
 export async function POST() {
   const actor = await getActor();

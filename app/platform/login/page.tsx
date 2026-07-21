@@ -59,6 +59,12 @@ export default function AppLoginPage() {
     setLoading(false);
 
     if (res?.error) {
+      // Superadmins sign in through the console's own door (email code).
+      if (res.error === "superadmin-otp") {
+        redirected.current = true;
+        window.location.href = "/superadmin/login";
+        return;
+      }
       setError(
         res.error === "captcha"
           ? "Verification failed — please complete the check below and try again."

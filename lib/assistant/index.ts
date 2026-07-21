@@ -85,8 +85,7 @@ const APP_CHEATSHEET = `Navigation map — ONLY for when the user asks where som
 - Booking forms + embed code + online scheduling settings: /app/settings/booking
 - Contract templates (e-sign agreements): /app/settings/contracts
 - Team, roles, who's bookable online: /app/settings/team
-- Business info, timezone, branding, deposits: /app/settings
-- AI setup assistant (re-runnable): /app/setup`;
+- Business info, timezone, branding, deposits: /app/settings`;
 
 function systemPrompt(actor: Actor, companyName: string, tz: string, assistantName: string): string {
   const today = new Date().toLocaleDateString("en-CA", { timeZone: tz }); // YYYY-MM-DD

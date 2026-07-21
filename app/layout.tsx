@@ -45,7 +45,7 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html: `(function(){try{
 var m=window.matchMedia("(prefers-color-scheme: dark)");
-var L=["/quote","/pay","/portal","/contract","/hub","/book","/embed","/app/register","/app/login","/app/forgot-password","/app/reset-password","/app/setup"];
+var L=["/quote","/pay","/portal","/contract","/hub","/book","/embed","/app/register","/app/login","/app/forgot-password","/app/reset-password","/superadmin/login"];
 function forcedLight(){var p=location.pathname;for(var i=0;i<L.length;i++){if(p===L[i]||p.indexOf(L[i]+"/")===0)return true;}return false;}
 function apply(){var t=null;try{t=localStorage.getItem("hub-theme")}catch(e){}
 document.documentElement.dataset.mode=(!forcedLight()&&(t?t==="dark":m.matches))?"dark":"light";}

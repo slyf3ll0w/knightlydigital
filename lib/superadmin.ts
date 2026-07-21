@@ -14,25 +14,25 @@ import { prisma } from "@/lib/db";
 
 export type SuperadminUser = { id: string; email: string; name: string };
 
-async function loadSuperadmin(): Promise<SuperadminUser | null> {
+async function loadSuperadmin(): Promise<{ signedIn: boolean; user: SuperadminUser | null }> {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.id) return null;
+  if (!session?.user?.id) return { signedIn: false, user: null };
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
     select: { id: true, email: true, name: true, role: true, isActive: true },
   });
-  if (!user || !user.isActive || user.role !== "SUPERADMIN") return null;
-  return { id: user.id, email: user.email, name: user.name };
+  if (!user || !user.isActive || user.role !== "SUPERADMIN") return { signedIn: true, user: null };
+  return { signedIn: true, user: { id: user.id, email: user.email, name: user.name } };
 }
 
-/** Page-side: redirects non-superadmins away. */
+/** Page-side: signed-out visitors go to the console login, tenants to their app. */
 export async function requireSuperadminPage(): Promise<SuperadminUser> {
-  const user = await loadSuperadmin();
-  if (!user) redirect("/app/dashboard");
+  const { signedIn, user } = await loadSuperadmin();
+  if (!user) redirect(signedIn ? "/app/dashboard" : "/superadmin/login");
   return user;
 }
 
 /** API-side: null → caller returns 403. */
 export async function getSuperadmin(): Promise<SuperadminUser | null> {
-  return loadSuperadmin();
+  return (await loadSuperadmin()).user;
 }

@@ -27,6 +27,14 @@ const rateLimits: { match: (path: string) => boolean; max: number; windowMs: num
     name: "invite-check",
   },
   {
+    // Superadmin sign-in codes: each POST does a bcrypt compare and may send
+    // an email — keep it as tight as the login bucket.
+    match: (p) => p.startsWith("/api/superadmin/login-code"),
+    max: 5,
+    windowMs: 15 * 60_000,
+    name: "superadmin-otp",
+  },
+  {
     // Processor webhooks (Finix) burst on settlement days — own generous
     // bucket so they never starve behind the strict public-write limit.
     // The handler verifies by re-fetching from the Finix API, so a flood
@@ -99,13 +107,17 @@ export async function middleware(req: NextRequest) {
     path.startsWith("/app/login") ||
     path.startsWith("/app/register") ||
     path.startsWith("/app/forgot-password") ||
-    path.startsWith("/app/reset-password");
+    path.startsWith("/app/reset-password") ||
+    path === "/superadmin/login";
   if (isPublic) return NextResponse.next();
 
   const token = await getToken({ req, secret: process.env.AUTH_SECRET });
 
   if (!token) {
-    return NextResponse.redirect(new URL("/app/login", req.url));
+    // The console has its own front door — don't bounce platform staff
+    // through the tenant login.
+    const loginUrl = path.startsWith("/superadmin") ? "/superadmin/login" : "/app/login";
+    return NextResponse.redirect(new URL(loginUrl, req.url));
   }
 
   const role = (token.role as string) ?? "";
@@ -141,6 +153,7 @@ export const config = {
     "/api/auth/callback/credentials",
     "/api/app/register",
     "/api/app/invite-check",
+    "/api/superadmin/login-code",
     "/api/public/:path*",
     "/api/hub/:path*",
   ],

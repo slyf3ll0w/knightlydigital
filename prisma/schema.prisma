@@ -160,6 +160,7 @@ model User {
   chatChannelMembers ChatChannelMember[]
   pushSubscriptions PushSubscription[]
   passwordResetTokens PasswordResetToken[]
+  superadminLoginCodes SuperadminLoginCode[]
   timeBlocks       TimeBlock[]     @relation("TimeBlockUser")
   timeEntries      TimeEntry[]
   locationPings    LocationPing[]
@@ -179,6 +180,22 @@ model PasswordResetToken {
   expiresAt DateTime
   usedAt    DateTime?
   createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+// Second factor for /superadmin/login: a 6-digit code emailed after the
+// password checks out. SHA-256 hash only, one live code per user (issuing
+// replaces), short-lived, consumed on successful sign-in, and attempt-capped
+// so the 1M keyspace can't be walked.
+model SuperadminLoginCode {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  codeHash  String
+  attempts  Int      @default(0)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
 
   @@index([userId])
 }

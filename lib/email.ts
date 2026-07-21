@@ -836,3 +836,35 @@ export function inviteCodeEmail({
 </div>`;
   return { subject: "You're in — your WorkBench invite code", html };
 }
+
+/** Platform-console sign-in code — the email second factor for superadmins. */
+export function superadminLoginCodeEmail({ code }: { code: string }): {
+  subject: string;
+  html: string;
+} {
+  const html = `
+<div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f3f4f6;padding:24px;">
+  <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
+    <div style="background:#0A1428;padding:16px 24px;">
+      <p style="margin:0;color:#60A5FA;font-size:13px;font-weight:700;letter-spacing:0.5px;">PLATFORM CONSOLE</p>
+    </div>
+    <div style="padding:24px;">
+      <p style="margin:0 0 16px;color:#374151;font-size:14px;">
+        Here's your sign-in code for the WorkBench platform console. It expires
+        in 10 minutes and works once.
+      </p>
+      <p style="margin:0 0 16px;padding:14px 20px;background:#f3f4f6;border:1px dashed #d1d5db;border-radius:8px;color:#111827;font-size:24px;font-weight:700;letter-spacing:6px;font-family:ui-monospace,Menlo,monospace;text-align:center;">
+        ${esc(code)}
+      </p>
+      <p style="margin:16px 0 0;color:#6b7280;font-size:12px;">
+        If you didn't just try to sign in, someone else has your password —
+        change it now.
+      </p>
+    </div>
+    <div style="padding:12px 24px;border-top:1px solid #f3f4f6;">
+      <p style="margin:0;color:#9ca3af;font-size:12px;">WorkBench</p>
+    </div>
+  </div>
+</div>`;
+  return { subject: "Your WorkBench console sign-in code", html };
+}
