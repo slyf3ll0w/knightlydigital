@@ -12,7 +12,7 @@ async function main() {
     console.log("Seed: SUPERADMIN_PASSWORD not set — superadmin unchanged.");
     return;
   }
-  const email = process.env.SUPERADMIN_EMAIL ?? "admin@streamflaremedia.com";
+  const email = process.env.SUPERADMIN_EMAIL ?? "info@streamflaire.com";
   const hash = await bcrypt.hash(password, 12);
   const admin = await prisma.user.upsert({
     where: { email },
