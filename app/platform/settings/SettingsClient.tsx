@@ -1025,14 +1025,14 @@ export default function SettingsClient({
           <div className="grid sm:grid-cols-2 gap-4">
             <ColorField
               label="Primary color"
-              hint="Headers on your client-facing pages (quotes, invoices, portal)"
+              hint="Surfaces and structure — client page headers, plus the app's card outlines and frame"
               value={form.brandColor}
               fallback="#0C0F0C"
               onChange={(v) => set("brandColor", v)}
             />
             <ColorField
               label="Secondary color"
-              hint="Buttons and accents — defaults to your primary color"
+              hint="Buttons, links, and accents — defaults to your primary color"
               value={form.brandColorSecondary}
               fallback={form.brandColor || "#16A34A"}
               onChange={(v) => set("brandColorSecondary", v)}

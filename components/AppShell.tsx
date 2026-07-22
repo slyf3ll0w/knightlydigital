@@ -669,16 +669,35 @@ export default function AppShell({
           "--wb-ink-strong-light": shade(lightAccent, 0.14),
           "--wb-ink-dark": tint(darkAccent, 0.2),
           "--wb-ink-strong-dark": tint(darkAccent, 0.38),
-          // Tool hardware (chip-tool/card-tool/btn-tool outlines + hard
-          // offsets): a deep-brand ink instead of stock console navy. The
-          // light half leans mostly navy so pale brands stay readable; the
-          // dark half tints the translucent line/offset the theme expects.
-          "--tool-line-l": mixHex(lightAccent, "#0a1428", 0.6),
-          "--tool-shadow-l": mixHex(lightAccent, "#0a1428", 0.6),
-          "--tool-line-d": hexToRgba(tint(darkAccent, 0.45), 0.4),
-          "--tool-shadow-d": hexToRgba(shade(darkAccent, 0.72), 0.7),
         } as React.CSSProperties)
       : undefined;
+
+  // PRIMARY brand color = structural ink (surfaces/frame/tool hardware),
+  // mirroring the client-facing split where primary drives headers and
+  // secondary drives buttons. Falls back to the secondary so single-color
+  // companies stay cohesive; unset = WorkBench console navy.
+  const rawPrimary = brandColor || brandColorSecondary || null;
+  const primaryVars = rawPrimary
+    ? (() => {
+        // Light surfaces: near-white primaries flip to navy. Dark surfaces:
+        // near-black primaries lift toward slate instead of vanishing.
+        const lightPrimary = surfaceAccent(rawPrimary);
+        const darkPrimary =
+          (luminanceOf(rawPrimary) ?? 0) < 70 ? tint(rawPrimary, 0.4) : rawPrimary;
+        return {
+          "--wb-primary-l": lightPrimary,
+          "--wb-primary-d": darkPrimary,
+          // Tool hardware (chip-tool/card-tool/btn-tool outlines + hard
+          // offsets): a deep-primary ink instead of stock console navy. The
+          // light half leans navy so pale primaries stay readable; the dark
+          // half tints the translucent line/offset the theme expects.
+          "--tool-line-l": mixHex(lightPrimary, "#0a1428", 0.45),
+          "--tool-shadow-l": mixHex(lightPrimary, "#0a1428", 0.45),
+          "--tool-line-d": hexToRgba(tint(darkPrimary, 0.35), 0.4),
+          "--tool-shadow-d": hexToRgba(shade(darkPrimary, 0.7), 0.7),
+        } as React.CSSProperties;
+      })()
+    : undefined;
 
   // Custom section colors (Settings → Branding → Section colors): four
   // theme-guarded vars per overridden section; defaults live in globals.css.
@@ -687,7 +706,7 @@ export default function AppShell({
   return (
     <div
       className="app-ui flex h-screen bg-paper-plain overflow-hidden"
-      style={{ ...(mobileAccentVars ?? {}), ...sectionVars } as React.CSSProperties}
+      style={{ ...(mobileAccentVars ?? {}), ...(primaryVars ?? {}), ...sectionVars } as React.CSSProperties}
     >
       {/* ── Desktop sidebar ──────────────────────────────────────────────── */}
       <aside className={`hidden lg:flex flex-col w-[232px] shrink-0 rail-${rail}`}>
@@ -733,11 +752,12 @@ export default function AppShell({
         )}
         {/* Top bar */}
         <header className="relative flex items-center gap-4 px-4 lg:px-6 min-h-[57px] pt-[env(safe-area-inset-top)] border-b border-gray-200 bg-white shrink-0">
-          {/* Ledger margin rule — a crisp brand-accent line on the app frame */}
+          {/* Ledger margin rule — both brand colors meet on the app frame:
+              primary (structure) running into secondary (accent) */}
           <span
             aria-hidden
             className="pointer-events-none absolute inset-x-0 -bottom-px h-[2.5px]"
-            style={{ backgroundColor: "var(--wb-accent)" }}
+            style={{ background: "linear-gradient(90deg, var(--wb-primary), var(--wb-accent))" }}
           />
           {/* Mobile header: settings on the left (the date it replaced now
               lives on the dashboard Today card). Company identity lives in

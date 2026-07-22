@@ -207,9 +207,14 @@ h1, h2, h3, h4, h5, h6, .font-display {
   --wb-tint-50: color-mix(in srgb, var(--wb-ink) 7%, #ffffff);
   --wb-tint-100: color-mix(in srgb, var(--wb-ink) 15%, #ffffff);
   --wb-tint-200: color-mix(in srgb, var(--wb-ink) 28%, #ffffff);
+  /* PRIMARY brand color as structural ink — surfaces and frame, per the
+     settings copy ("primary = headers/surfaces"). WorkBench console navy
+     by default; AppShell injects guarded halves when the company set one.
+     The secondary color stays the interactive accent (--wb-accent). */
+  --wb-primary: var(--wb-primary-l, #0A1428);
   /* Tool hardware ink — the outline + hard-offset color of chip-tool /
      card-tool / btn-tool. Console navy by default; AppShell injects a
-     deep-brand mix when the company set a brand color, so the design's
+     deep-PRIMARY mix when the company set a brand color, so the design's
      signature chrome carries the brand everywhere. */
   --tool-line: var(--tool-line-l, #0a1428);
   --tool-shadow: var(--tool-shadow-l, #0a1428);
@@ -258,6 +263,8 @@ html[data-mode="dark"] .app-ui {
   --wb-on-accent: var(--wb-on-accent-dark, #ffffff);
   --wb-ink: var(--wb-ink-dark, #3B82F6);
   --wb-ink-strong: var(--wb-ink-strong-dark, #60A5FA);
+  /* Primary lifts on the dark canvas (navy default → readable slate) */
+  --wb-primary: var(--wb-primary-d, #606673);
   /* Tool hardware on the dark canvas: navy outlines vanish, so lines go
      translucent white and offsets go black — both brand-tinted when
      AppShell injects the -d halves. */
