@@ -136,10 +136,7 @@ export default async function InvoicesPage({
         ))}
       </FilterRow>
 
-      <div
-        className="card-ledger overflow-hidden"
-        style={{ borderTop: `3px solid ${SECTION_HUES.invoices}` }}
-      >
+      <div className="card-ledger overflow-hidden">
         {invoices.length === 0 ? (
           <EmptyState
             art="invoices"

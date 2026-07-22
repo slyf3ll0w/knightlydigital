@@ -353,9 +353,13 @@ export default async function DashboardPage() {
         <Link
           href="/app/invoices"
           className="card-ledger anim-fade-up anim-delay-1 mb-8 block overflow-hidden lg:hidden"
-          style={{ borderTop: "3px solid var(--wb-accent, #0B57D8)" }}
         >
           <div className="p-5 pb-4">
+            <span
+              className="mb-2.5 block h-[3px] w-7 rounded-full"
+              style={{ backgroundColor: "var(--wb-accent, #0B57D8)" }}
+              aria-hidden
+            />
             <p className="stamp text-green-700">
               Collected · {now.toLocaleDateString("en-US", { month: "long" })}
             </p>

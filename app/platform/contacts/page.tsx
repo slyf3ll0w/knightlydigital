@@ -152,10 +152,7 @@ export default async function ContactsPage({
         </FilterChip>
       </FilterRow>
 
-      <div
-        className="card-ledger overflow-hidden"
-        style={{ borderTop: `3px solid ${SECTION_HUES.clients}` }}
-      >
+      <div className="card-ledger overflow-hidden">
         {contacts.length === 0 ? (
           <EmptyState
             art="contacts"

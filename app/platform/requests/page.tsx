@@ -125,10 +125,7 @@ export default async function RequestsPage({
         )}
       </FilterRow>
 
-      <div
-        className="card-ledger overflow-hidden"
-        style={{ borderTop: `3px solid ${SECTION_HUES.requests}` }}
-      >
+      <div className="card-ledger overflow-hidden">
         {requests.length === 0 ? (
           <EmptyState
             art="requests"

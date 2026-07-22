@@ -7,6 +7,7 @@ import { Plus, ArrowUpRight, ChevronRight, DollarSign } from "lucide-react";
 import { money, shortDate } from "@/lib/statuses";
 import EmptyState from "@/components/EmptyState";
 import PageTitle from "@/components/PageTitle";
+import KpiStrip from "@/components/KpiStrip";
 import { SECTION_HUES } from "@/lib/section-colors";
 import {
   getProcessor,
@@ -38,38 +39,6 @@ import {
  * the page renders from our own records even if the processor API is briefly
  * unreachable.
  */
-
-/** Tiny daily-revenue bar chart — pure SVG, renders on the server. */
-function Sparkline({ values }: { values: number[] }) {
-  const max = Math.max(...values, 1);
-  const w = 100;
-  const gap = 1.5;
-  const bw = (w - gap * (values.length - 1)) / values.length;
-  return (
-    <svg
-      viewBox={`0 0 ${w} 24`}
-      className="mt-2 h-6 w-full text-green-600"
-      preserveAspectRatio="none"
-      aria-hidden
-    >
-      {values.map((v, i) => {
-        const h = v > 0 ? Math.max((v / max) * 22, 2) : 1;
-        return (
-          <rect
-            key={i}
-            x={i * (bw + gap)}
-            y={24 - h}
-            width={bw}
-            height={h}
-            rx={0.75}
-            fill="currentColor"
-            opacity={v > 0 ? 0.85 : 0.15}
-          />
-        );
-      })}
-    </svg>
-  );
-}
 
 /** Section label with a ledger hairline running out to the right edge. */
 function RuledLabel({ children }: { children: React.ReactNode }) {
@@ -358,11 +327,13 @@ export default async function PaymentsDashboardPage() {
              label + big numeral, then payout history and the action in a
              double-rule foot, same receipt grammar as the list pages. ────── */}
       {online && (
-        <div
-          className="card-ledger mb-6 overflow-hidden"
-          style={{ borderTop: "3px solid var(--wb-accent, #0B57D8)" }}
-        >
+        <div className="card-ledger mb-6 overflow-hidden">
           <div className="p-5 sm:p-6">
+            <span
+              className="mb-2.5 block h-[3px] w-7 rounded-full"
+              style={{ backgroundColor: "var(--wb-accent, #0B57D8)" }}
+              aria-hidden
+            />
             <p className="stamp text-green-700">On its way to your bank</p>
             <p className="numeral-ledger mt-2 text-[34px] sm:text-[38px] font-semibold leading-none text-gray-900">
               {signedMoney(onTheWay)}
@@ -386,73 +357,35 @@ export default async function PaymentsDashboardPage() {
         </div>
       )}
 
-      {/* Phone: one divided strip with hue-dot labels (KpiStrip pattern) —
-          zero stats drop out, and an all-zero month shows nothing at all */}
-      {(() => {
-        const hue = SECTION_HUES.payments;
-        const cells = [
-          { label: "Collected", value: Number(monthAgg._sum.amount ?? 0) },
-          { label: "Processing", value: pendingAch },
-          { label: "All-time", value: Number(allAgg._sum.amount ?? 0) },
-        ].filter((c) => c.value > 0);
-        if (cells.length === 0) return null;
-        return (
-          <div className="card-ledger mb-4 flex divide-x divide-gray-100 overflow-hidden lg:hidden">
-            {cells.map((c) => (
-              <div key={c.label} className="min-w-0 flex-1 px-3 py-2.5">
-                <p className="flex items-center gap-1.5 truncate text-[11px] font-medium text-gray-500">
-                  <span
-                    className="h-1.5 w-1.5 shrink-0 rounded-full"
-                    style={{ backgroundColor: hue }}
-                    aria-hidden
-                  />
-                  <span className="truncate">{c.label}</span>
-                </p>
-                <p className="numeral-ledger truncate text-base font-semibold text-gray-900">
-                  {money(c.value)}
-                </p>
-              </div>
-            ))}
-          </div>
-        );
-      })()}
-      {/* Desktop keeps the money-card grid */}
-      <div className="mb-8 hidden gap-3 lg:grid lg:grid-cols-3">
-        <div className="card-ledger p-4">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-gray-500">
-            Collected
-          </p>
-          <p className="numeral-ledger mt-1 text-[24px] leading-none font-semibold text-green-700">
-            {money(Number(monthAgg._sum.amount ?? 0))}
-          </p>
-          <p className="mt-1.5 text-xs text-gray-500">
-            this month · {monthAgg._count} {monthAgg._count === 1 ? "payment" : "payments"}
-          </p>
-          {dailyOnline.length > 1 && Number(monthAgg._sum.amount ?? 0) > 0 && (
-            <Sparkline values={dailyOnline} />
-          )}
-        </div>
-        <div className="card-ledger p-4">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-gray-500">
-            Bank transfers processing
-          </p>
-          <p className="numeral-ledger mt-1 text-[24px] leading-none font-semibold text-gray-900">
-            {pendingAch > 0 ? money(pendingAch) : "—"}
-          </p>
-          <p className="mt-1.5 text-xs text-gray-500">ACH clears in a few business days</p>
-        </div>
-        <div className="card-ledger col-span-2 lg:col-span-1 p-4">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-gray-500">
-            All-time online
-          </p>
-          <p className="numeral-ledger mt-1 text-[24px] leading-none font-semibold text-gray-900">
-            {money(Number(allAgg._sum.amount ?? 0))}
-          </p>
-          <p className="mt-1.5 text-xs text-gray-500">
-            {allAgg._count} {allAgg._count === 1 ? "payment" : "payments"} collected
-          </p>
-        </div>
-      </div>
+      {/* KPI strip — the same component the list pages use, phone strip +
+          desktop cards, so this page stops speaking its own dialect */}
+      <KpiStrip
+        desktopCols={3}
+        hue={SECTION_HUES.payments}
+        kpis={[
+          {
+            label: "Collected",
+            value: money(Number(monthAgg._sum.amount ?? 0)),
+            sub: `this month · ${monthAgg._count} ${monthAgg._count === 1 ? "payment" : "payments"}`,
+            zero: Number(monthAgg._sum.amount ?? 0) === 0,
+            spark: Number(monthAgg._sum.amount ?? 0) > 0 ? dailyOnline : undefined,
+          },
+          {
+            label: "Bank transfers processing",
+            mobileLabel: "Processing",
+            value: pendingAch > 0 ? money(pendingAch) : "—",
+            sub: "ACH clears in a few business days",
+            zero: pendingAch === 0,
+          },
+          {
+            label: "All-time online",
+            mobileLabel: "All-time",
+            value: money(Number(allAgg._sum.amount ?? 0)),
+            sub: `${allAgg._count} ${allAgg._count === 1 ? "payment" : "payments"} collected`,
+            zero: Number(allAgg._sum.amount ?? 0) === 0,
+          },
+        ]}
+      />
 
       {/* Disputes — only demand attention when there are any */}
       {disputes.length > 0 && (

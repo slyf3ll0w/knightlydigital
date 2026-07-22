@@ -120,10 +120,7 @@ export default async function QuotesPage({
         ))}
       </FilterRow>
 
-      <div
-        className="card-ledger overflow-hidden"
-        style={{ borderTop: `3px solid ${SECTION_HUES.quotes}` }}
-      >
+      <div className="card-ledger overflow-hidden">
         {quotes.length === 0 ? (
           <EmptyState
             art="quotes"

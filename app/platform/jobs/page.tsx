@@ -107,10 +107,7 @@ export default async function JobsPage({
         ))}
       </FilterRow>
 
-      <div
-        className="card-ledger overflow-hidden"
-        style={{ borderTop: `3px solid ${SECTION_HUES.jobs}` }}
-      >
+      <div className="card-ledger overflow-hidden">
         {jobs.length === 0 ? (
           <EmptyState
             art="jobs"
