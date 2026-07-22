@@ -21,6 +21,7 @@ import {
 import PageTitle from "@/components/PageTitle";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { money } from "@/lib/statuses";
+import { themedInkVars, themedBgVars } from "@/lib/section-colors";
 
 export type BoardStage = {
   id: string;
@@ -61,15 +62,10 @@ type Toast = {
   undo?: { cardId: string; payload: UndoPayload };
 };
 
-/** Stage colors sit on white column headers — too-light ones flip to ink. */
-function stageInk(hex: string | null): string {
-  const m = /^#?([0-9a-f]{6})$/i.exec(hex ?? "");
-  if (!m) return "#0C0F0C";
-  const n = parseInt(m[1], 16);
-  const luminance =
-    0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255);
-  return luminance > 200 ? "#0C0F0C" : `#${m[1]}`;
-}
+// Stage colors are user-picked, so they render through the app-wide
+// theme guard (.ink-themed/.bg-themed + themedInkVars/themedBgVars):
+// too-light picks flip to ink on the light theme, too-dark picks flip to
+// paper on the dark theme — a black stage never disappears in dark mode.
 
 /** The stage color at low alpha — column section backgrounds/borders. */
 function stageTint(hex: string | null, alpha: number): string {
@@ -401,7 +397,6 @@ export default function LeadsBoardClient({
           {stages.map((stage) => {
             const columnCards = byStage.get(stage.id) ?? [];
             const columnValue = columnCards.reduce((s, c) => s + c.value, 0);
-            const ink = stageInk(stage.color);
             return (
               <div
                 key={stage.id}
@@ -413,7 +408,7 @@ export default function LeadsBoardClient({
               >
                 {/* Column header */}
                 <div className="flex items-center justify-between px-1 pb-2 pt-0.5">
-                  <span className="stamp" style={{ color: ink }}>
+                  <span className="stamp ink-themed" style={themedInkVars(stage.color)}>
                     {stage.isConverted && <Trophy size={11} className="shrink-0" aria-hidden />}
                     {stage.name}
                     <span className="text-gray-400 normal-case tracking-normal font-semibold">
@@ -854,8 +849,8 @@ function ActionSheet({
               }`}
             >
               <span
-                className="w-2 h-2 rounded-full shrink-0"
-                style={{ backgroundColor: stageInk(s.color) }}
+                className="w-2 h-2 rounded-full shrink-0 bg-themed"
+                style={themedBgVars(s.color)}
                 aria-hidden
               />
               {s.name}

@@ -17,7 +17,7 @@ import {
   Timer,
 } from "lucide-react";
 import { money, appointmentTypeLabel } from "@/lib/statuses";
-import { SECTION_HUES } from "@/lib/section-colors";
+import { SECTION_HUES, hueTint } from "@/lib/section-colors";
 import { formatDuration, mapsHref } from "@/lib/time-entries";
 import EmptyState from "@/components/EmptyState";
 import DashboardSetupCard from "./DashboardSetupCard";
@@ -536,7 +536,7 @@ export default async function DashboardPage() {
                 >
                   <span
                     className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px]"
-                    style={{ backgroundColor: `${ink}1a`, color: ink }}
+                    style={{ backgroundColor: hueTint(ink, 0.1), color: ink }}
                   >
                     <n.icon size={15} />
                   </span>
@@ -652,7 +652,7 @@ export default async function DashboardPage() {
                 >
                   <span
                     className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px]"
-                    style={{ backgroundColor: `${hue}1a`, color: hue }}
+                    style={{ backgroundColor: hueTint(hue, 0.1), color: hue }}
                   >
                     <Icon size={15} strokeWidth={2.25} />
                   </span>

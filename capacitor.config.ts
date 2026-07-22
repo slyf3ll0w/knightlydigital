@@ -22,7 +22,7 @@ const config: CapacitorConfig = {
   },
   // Lets the server/web code recognize the native shell by user agent
   appendUserAgent: 'StreamflaireHubShell',
-  backgroundColor: '#0A1428',
+  backgroundColor: '#FFFFFF',
   ios: {
     // WKWebView only enables service workers (offline snapshot cache, sw.js)
     // under App-Bound Domains: this flag + WKAppBoundDomains in Info.plist.
@@ -37,9 +37,10 @@ const config: CapacitorConfig = {
       resizeOnFullScreen: true,
     },
     SplashScreen: {
-      backgroundColor: '#0A1428',
+      backgroundColor: '#FFFFFF',
       launchShowDuration: 900,
       launchAutoHide: true,
+      iosContentMode: 'scaleAspectFit',
       androidScale: 'CENTER_CROP',
     },
     PushNotifications: {

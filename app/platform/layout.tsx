@@ -46,6 +46,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             sidebarLogoColor: true,
             brandColor: true,
             brandColorSecondary: true,
+            sectionColors: true,
             assistantName: true,
             finixOnboardingState: true,
             paymentsWaived: true,
@@ -103,6 +104,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         sidebarLogoColor={company?.sidebarLogoColor}
         brandColor={company?.brandColor}
         brandColorSecondary={company?.brandColorSecondary}
+        sectionColors={company?.sectionColors}
         teamCount={teamCount}
         needsTour={!!user && !user.tourCompletedAt}
         aiEnabled={Boolean(process.env.GEMINI_API_KEY)}

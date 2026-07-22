@@ -54,7 +54,7 @@
      miniature. Active filters and section tiles sit proud of the page on a
      solid navy offset instead of blending into it. */
   .chip-tool {
-    box-shadow: 2px 2px 0 #0a1428;
+    box-shadow: 2px 2px 0 var(--tool-shadow, #0a1428);
   }
 
   /* ── Tool card — the button language at card scale: navy outline + solid
@@ -63,15 +63,15 @@
      border soup. */
   .card-tool {
     @apply bg-white rounded-[12px];
-    border: 1.5px solid #0a1428;
-    box-shadow: 3px 3px 0 #0a1428;
+    border: 1.5px solid var(--tool-line, #0a1428);
+    box-shadow: 3px 3px 0 var(--tool-shadow, #0a1428);
   }
 
   /* ── Tool button — same offset, but it presses flat when you push it
      (the marketing site's .wb-btn-tool). Solid primary actions only;
      surfaces and cards keep their soft ledger shadows. */
   .btn-tool {
-    box-shadow: 2px 2px 0 #0a1428;
+    box-shadow: 2px 2px 0 var(--tool-shadow, #0a1428);
     transition:
       transform 0.13s ease,
       box-shadow 0.13s ease,
@@ -79,11 +79,11 @@
   }
   .btn-tool:hover {
     transform: translate(1px, 1px);
-    box-shadow: 1px 1px 0 #0a1428;
+    box-shadow: 1px 1px 0 var(--tool-shadow, #0a1428);
   }
   .btn-tool:active {
     transform: translate(2px, 2px);
-    box-shadow: 0 0 0 #0a1428;
+    box-shadow: 0 0 0 var(--tool-shadow, #0a1428);
   }
 }
 
@@ -207,6 +207,46 @@ h1, h2, h3, h4, h5, h6, .font-display {
   --wb-tint-50: color-mix(in srgb, var(--wb-ink) 7%, #ffffff);
   --wb-tint-100: color-mix(in srgb, var(--wb-ink) 15%, #ffffff);
   --wb-tint-200: color-mix(in srgb, var(--wb-ink) 28%, #ffffff);
+  /* Tool hardware ink — the outline + hard-offset color of chip-tool /
+     card-tool / btn-tool. Console navy by default; AppShell injects a
+     deep-brand mix when the company set a brand color, so the design's
+     signature chrome carries the brand everywhere. */
+  --tool-line: var(--tool-line-l, #0a1428);
+  --tool-shadow: var(--tool-shadow-l, #0a1428);
+  /* Section hues (lib/section-colors.ts) — every render site reads these
+     vars. AppShell overrides the -l/-d halves per company customization
+     (Settings → Branding → Section colors), each theme-guarded. The -on
+     var is the readable ink on a solid tile of that hue. */
+  --sh-schedule: var(--sh-schedule-l, #8B5CF6);
+  --sh-schedule-on: var(--sh-schedule-on-l, #FFFFFF);
+  --sh-clients: var(--sh-clients-l, #3B82F6);
+  --sh-clients-on: var(--sh-clients-on-l, #FFFFFF);
+  --sh-requests: var(--sh-requests-l, #F59E0B);
+  --sh-requests-on: var(--sh-requests-on-l, #111827);
+  --sh-leads: var(--sh-leads-l, #84CC16);
+  --sh-leads-on: var(--sh-leads-on-l, #111827);
+  --sh-quotes: var(--sh-quotes-l, #22C55E);
+  --sh-quotes-on: var(--sh-quotes-on-l, #FFFFFF);
+  --sh-jobs: var(--sh-jobs-l, #F97316);
+  --sh-jobs-on: var(--sh-jobs-on-l, #FFFFFF);
+  --sh-invoices: var(--sh-invoices-l, #0EA5E9);
+  --sh-invoices-on: var(--sh-invoices-on-l, #FFFFFF);
+  --sh-payments: var(--sh-payments-l, #14B8A6);
+  --sh-payments-on: var(--sh-payments-on-l, #FFFFFF);
+  --sh-subscriptions: var(--sh-subscriptions-l, #14B8A6);
+  --sh-subscriptions-on: var(--sh-subscriptions-on-l, #FFFFFF);
+  --sh-business: var(--sh-business-l, #6366F1);
+  --sh-business-on: var(--sh-business-on-l, #FFFFFF);
+  --sh-services: var(--sh-services-l, #EC4899);
+  --sh-services-on: var(--sh-services-on-l, #FFFFFF);
+  --sh-contracts: var(--sh-contracts-l, #A855F7);
+  --sh-contracts-on: var(--sh-contracts-on-l, #FFFFFF);
+  --sh-chat: var(--sh-chat-l, #F43F5E);
+  --sh-chat-on: var(--sh-chat-on-l, #FFFFFF);
+  --sh-forms: var(--sh-forms-l, #06B6D4);
+  --sh-forms-on: var(--sh-forms-on-l, #FFFFFF);
+  --sh-team: var(--sh-team-l, #10B981);
+  --sh-team-on: var(--sh-team-on-l, #FFFFFF);
 }
 html[data-mode="dark"] .app-ui {
   --mobile-accent: var(--mobile-accent-dark, #3b82f6);
@@ -218,6 +258,59 @@ html[data-mode="dark"] .app-ui {
   --wb-on-accent: var(--wb-on-accent-dark, #ffffff);
   --wb-ink: var(--wb-ink-dark, #3B82F6);
   --wb-ink-strong: var(--wb-ink-strong-dark, #60A5FA);
+  /* Tool hardware on the dark canvas: navy outlines vanish, so lines go
+     translucent white and offsets go black — both brand-tinted when
+     AppShell injects the -d halves. */
+  --tool-line: var(--tool-line-d, rgba(255, 255, 255, 0.22));
+  --tool-shadow: var(--tool-shadow-d, rgba(0, 0, 0, 0.65));
+  --sh-schedule: var(--sh-schedule-d, #8B5CF6);
+  --sh-schedule-on: var(--sh-schedule-on-d, #FFFFFF);
+  --sh-clients: var(--sh-clients-d, #3B82F6);
+  --sh-clients-on: var(--sh-clients-on-d, #FFFFFF);
+  --sh-requests: var(--sh-requests-d, #F59E0B);
+  --sh-requests-on: var(--sh-requests-on-d, #111827);
+  --sh-leads: var(--sh-leads-d, #84CC16);
+  --sh-leads-on: var(--sh-leads-on-d, #111827);
+  --sh-quotes: var(--sh-quotes-d, #22C55E);
+  --sh-quotes-on: var(--sh-quotes-on-d, #FFFFFF);
+  --sh-jobs: var(--sh-jobs-d, #F97316);
+  --sh-jobs-on: var(--sh-jobs-on-d, #FFFFFF);
+  --sh-invoices: var(--sh-invoices-d, #0EA5E9);
+  --sh-invoices-on: var(--sh-invoices-on-d, #FFFFFF);
+  --sh-payments: var(--sh-payments-d, #14B8A6);
+  --sh-payments-on: var(--sh-payments-on-d, #FFFFFF);
+  --sh-subscriptions: var(--sh-subscriptions-d, #14B8A6);
+  --sh-subscriptions-on: var(--sh-subscriptions-on-d, #FFFFFF);
+  --sh-business: var(--sh-business-d, #6366F1);
+  --sh-business-on: var(--sh-business-on-d, #FFFFFF);
+  --sh-services: var(--sh-services-d, #EC4899);
+  --sh-services-on: var(--sh-services-on-d, #FFFFFF);
+  --sh-contracts: var(--sh-contracts-d, #A855F7);
+  --sh-contracts-on: var(--sh-contracts-on-d, #FFFFFF);
+  --sh-chat: var(--sh-chat-d, #F43F5E);
+  --sh-chat-on: var(--sh-chat-on-d, #FFFFFF);
+  --sh-forms: var(--sh-forms-d, #06B6D4);
+  --sh-forms-on: var(--sh-forms-on-d, #FFFFFF);
+  --sh-team: var(--sh-team-d, #10B981);
+  --sh-team-on: var(--sh-team-on-d, #FFFFFF);
+}
+
+/* ── Theme-guarded custom colors — the app-wide override rule for stored,
+   user-picked colors (pipeline stages etc.). Components set the guarded
+   halves via themedInkVars()/themedBgVars() (lib/section-colors.ts) and
+   the active theme picks its half, so a black pick never disappears on
+   the dark theme, nor a white pick on the light one. ── */
+.app-ui .ink-themed {
+  color: var(--ink-l, inherit);
+}
+.app-ui .bg-themed {
+  background-color: var(--bg-l, transparent);
+}
+html[data-mode="dark"] .app-ui .ink-themed {
+  color: var(--ink-d, inherit);
+}
+html[data-mode="dark"] .app-ui .bg-themed {
+  background-color: var(--bg-d, transparent);
 }
 
 /* ── Native feel: app chrome never selects like a web page, and taps on
@@ -236,19 +329,24 @@ html[data-mode="dark"] .app-ui {
   touch-action: manipulation;
 }
 
-/* Slim, quiet scrollbars inside the product UI */
+/* Text selection in the brand accent — small, everywhere */
+.app-ui ::selection {
+  background-color: color-mix(in srgb, var(--wb-accent, #0B57D8) 26%, transparent);
+}
+
+/* Slim, quiet scrollbars inside the product UI — brand-warmed gray thumbs */
 .app-ui ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 .app-ui ::-webkit-scrollbar-thumb {
-  background: #d1d5db;
+  background: color-mix(in srgb, var(--wb-ink, #0B57D8) 16%, #d1d5db);
   border-radius: 9999px;
   border: 2px solid transparent;
   background-clip: padding-box;
 }
 .app-ui ::-webkit-scrollbar-thumb:hover {
-  background: #9ca3af;
+  background: color-mix(in srgb, var(--wb-ink, #0B57D8) 26%, #9ca3af);
   border: 2px solid transparent;
   background-clip: padding-box;
 }
@@ -307,16 +405,18 @@ body {
 /* ── Graph paper — fine hairline grid: work orders, site plans, job tickets.
    The canvas of the product UI and the light marketing sections. ── */
 .bg-paper {
-  background-color: #FBFBFB;
+  /* A whisper of the brand accent in the ground and hairlines — the whole
+     workspace takes the company's temperature instead of neutral gray. */
+  background-color: color-mix(in srgb, var(--wb-accent, #0B57D8) 3%, #FBFBFB);
   background-image:
-    linear-gradient(to right,  rgba(15, 23, 42, 0.04) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(15, 23, 42, 0.04) 1px, transparent 1px);
+    linear-gradient(to right,  color-mix(in srgb, var(--wb-ink, #0B57D8) 6%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--wb-ink, #0B57D8) 6%, transparent) 1px, transparent 1px);
   background-size: 24px 24px;
 }
 
 /* Same canvas, no grid — the dashboard opts out of the graph paper. */
 .bg-paper-plain {
-  background-color: #FBFBFB;
+  background-color: color-mix(in srgb, var(--wb-accent, #0B57D8) 3%, #FBFBFB);
 }
 
 /* ── Blocked-off time on the schedule — diagonal hatching reads as
@@ -825,7 +925,8 @@ body {
    colors in dark mode (e.g. white logo tiles).
    ═══════════════════════════════════════════════════════════════════════ */
   html[data-mode="dark"] .app-ui {
-    --t-ground: #0E0E0E;
+    /* Ground carries the same whisper of brand accent as the light canvas */
+    --t-ground: color-mix(in srgb, var(--wb-accent, #0B57D8) 4%, #0E0E0E);
     --t-surface: #171717;
     --t-raised: #1E1E1E;
     --t-lifted: #262626;
@@ -888,23 +989,11 @@ body {
       0 1px 2px rgba(0, 0, 0, 0.4),
       0 2px 6px rgba(0, 0, 0, 0.25);
   }
-  /* Navy offsets disappear against the dark canvas — go black instead */
-  html[data-mode="dark"] .app-ui .chip-tool {
-    box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.65);
-  }
+  /* Navy offsets disappear against the dark canvas — --tool-line and
+     --tool-shadow flip in the dark var block above; only the surface color
+     needs restating here. */
   html[data-mode="dark"] .app-ui .card-tool {
     background-color: var(--t-surface);
-    border-color: rgba(255, 255, 255, 0.22);
-    box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.65);
-  }
-  html[data-mode="dark"] .app-ui .btn-tool {
-    box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.65);
-  }
-  html[data-mode="dark"] .app-ui .btn-tool:hover {
-    box-shadow: 1px 1px 0 rgba(0, 0, 0, 0.65);
-  }
-  html[data-mode="dark"] .app-ui .btn-tool:active {
-    box-shadow: 0 0 0 rgba(0, 0, 0, 0.65);
   }
 
   /* ── Ink ── */
@@ -998,12 +1087,12 @@ body {
     caret-color: var(--t-ink);
   }
   html[data-mode="dark"] .app-ui ::-webkit-scrollbar-thumb {
-    background: #343434;
+    background: color-mix(in srgb, var(--wb-ink, #3B82F6) 14%, #343434);
     border: 2px solid transparent;
     background-clip: padding-box;
   }
   html[data-mode="dark"] .app-ui ::-webkit-scrollbar-thumb:hover {
-    background: #424242;
+    background: color-mix(in srgb, var(--wb-ink, #3B82F6) 22%, #424242);
     border: 2px solid transparent;
     background-clip: padding-box;
   }

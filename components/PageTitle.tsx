@@ -1,6 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { SECTION_HUES, type SectionKey } from "@/lib/section-colors";
-import { textOn } from "@/lib/branding";
+import { SECTION_HUES, type SectionKey, hueInk } from "@/lib/section-colors";
 
 /**
  * Page heading with the section's icon tile — solid section hue on a hard
@@ -21,7 +20,7 @@ export default function PageTitle({
     <h1 className="numeral-ledger flex items-center gap-3 text-2xl font-semibold text-gray-900">
       <span
         className="chip-tool flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px]"
-        style={{ backgroundColor: hue, color: textOn(hue) }}
+        style={{ backgroundColor: hue, color: hueInk(hue) }}
         aria-hidden
       >
         <Icon size={18} strokeWidth={2.25} />

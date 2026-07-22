@@ -6,6 +6,7 @@ import { sanitizeDeposit } from "@/lib/deposits";
 import { SLOT_INTERVAL_CHOICES } from "@/lib/scheduling";
 import { getActor, isManager } from "@/lib/permissions";
 import { isWallpaper } from "@/lib/wallpapers";
+import { sanitizeSectionColors } from "@/lib/section-colors";
 
 function isValidTimezone(tz: unknown): tz is string {
   if (typeof tz !== "string" || !tz) return false;
@@ -69,6 +70,12 @@ export async function PATCH(req: NextRequest) {
           ? /^#[0-9a-fA-F]{6}$/.test(body.brandColorSecondary ?? "")
             ? body.brandColorSecondary
             : null
+          : undefined,
+      // Advanced section-color overrides — unknown keys/bad hexes dropped;
+      // {} = back to the stock palette.
+      sectionColors:
+        body.sectionColors !== undefined
+          ? (sanitizeSectionColors(body.sectionColors) as object)
           : undefined,
       surchargeEnabled: body.surchargeEnabled ?? undefined,
       surchargeRate: body.surchargeRate ?? undefined,

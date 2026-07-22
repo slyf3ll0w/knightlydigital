@@ -1,23 +1,30 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
-import { Loader2, Check, Upload, Trash2, AlertTriangle } from "lucide-react";
+import { Loader2, Check, Upload, Trash2, AlertTriangle, ChevronRight } from "lucide-react";
 import { resizeImageFile } from "@/lib/resize-image";
 import { INDUSTRIES } from "@/lib/pricebooks";
 import { DEFAULT_ON_MY_WAY_TEMPLATE, ON_MY_WAY_PLACEHOLDERS } from "@/lib/messaging";
 import { textOn } from "@/lib/branding";
 import { resolveWallpaper } from "@/lib/wallpapers";
 import { FilterChip } from "@/components/FilterChips";
-import { SECTION_HUES } from "@/lib/section-colors";
+import {
+  SECTION_HUES,
+  SECTION_HUE_DEFAULTS,
+  SECTION_KEYS,
+  SECTION_LABELS,
+  type SectionKey,
+} from "@/lib/section-colors";
 
 type Company = {
   id: string; name: string; slug: string; phone: string | null;
   email: string | null; address: string | null; city: string | null;
   state: string | null; zip: string | null; website: string | null;
   logoUrl: string | null; brandColor: string | null; brandColorSecondary: string | null;
+  sectionColors: Record<string, string> | null;
   logoWallpaper: boolean; wallpaper: string | null;
   sidebarTheme: string; sidebarLogoColor: string | null;
   surchargeEnabled: boolean; surchargeRate: string | number | null;
@@ -482,6 +489,8 @@ export default function SettingsClient({
     sidebarLogoColor: company.sidebarLogoColor ?? "",
     brandColor: company.brandColor ?? "",
     brandColorSecondary: company.brandColorSecondary ?? "",
+    // Kept as a JSON string so the flat string-diff auto-save machinery works
+    sectionColors: JSON.stringify(company.sectionColors ?? {}),
     surchargeEnabled: company.surchargeEnabled,
     surchargeRate: company.surchargeRate ? (Number(company.surchargeRate) * 100).toFixed(2) : "3.00",
     defaultDepositType: company.defaultDepositType ?? "NONE",
@@ -502,6 +511,26 @@ export default function SettingsClient({
   function set(field: string, value: string | boolean) {
     setForm((f) => ({ ...f, [field]: value }));
     setSaved(false);
+  }
+
+  // Advanced per-section hue overrides (Company.sectionColors) — the form
+  // holds them as a JSON string; this is the parsed working copy.
+  const [showSectionColors, setShowSectionColors] = useState(false);
+  const sectionColorMap = useMemo(() => {
+    try {
+      const parsed = JSON.parse(form.sectionColors);
+      return parsed && typeof parsed === "object"
+        ? (parsed as Partial<Record<SectionKey, string>>)
+        : {};
+    } catch {
+      return {} as Partial<Record<SectionKey, string>>;
+    }
+  }, [form.sectionColors]);
+  function setSectionColor(key: SectionKey, hex: string) {
+    const next = { ...sectionColorMap };
+    if (hex) next[key] = hex;
+    else delete next[key];
+    set("sectionColors", JSON.stringify(next));
   }
 
   // Appearance is a per-DEVICE preference (localStorage, not the database):
@@ -546,6 +575,15 @@ export default function SettingsClient({
       if ("defaultDepositType" in payload || "defaultDepositValue" in payload) {
         payload.defaultDepositType = form.defaultDepositType;
         payload.defaultDepositValue = form.defaultDepositValue;
+      }
+      // Stored as a JSON string in the form (string diffing) — the API wants
+      // the object
+      if ("sectionColors" in payload) {
+        try {
+          payload.sectionColors = JSON.parse(form.sectionColors);
+        } catch {
+          delete payload.sectionColors;
+        }
       }
 
       setSaving(true);
@@ -999,6 +1037,66 @@ export default function SettingsClient({
               fallback={form.brandColor || "#16A34A"}
               onChange={(v) => set("brandColorSecondary", v)}
             />
+          </div>
+
+          {/* Advanced: the app's per-section color language */}
+          <div className="border-t border-gray-100 pt-4">
+            <button
+              type="button"
+              onClick={() => setShowSectionColors((v) => !v)}
+              className="flex items-center gap-1.5 text-sm font-medium text-gray-700 hover:text-gray-900"
+            >
+              <ChevronRight
+                size={14}
+                className={`transition-transform ${showSectionColors ? "rotate-90" : ""}`}
+              />
+              Section colors
+              <span className="text-xs font-normal text-gray-400">Advanced</span>
+            </button>
+            {showSectionColors && (
+              <>
+                <p className="mt-1.5 text-xs text-gray-400">
+                  The app color-codes each area — nav tiles, page headings, active
+                  filters. Override any of them here. Picks that are too light for
+                  the light theme or too dark for the dark theme are automatically
+                  adjusted so they always stay readable.
+                </p>
+                <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2.5 sm:grid-cols-3">
+                  {SECTION_KEYS.map((k) => (
+                    <div key={k} className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={sectionColorMap[k] ?? SECTION_HUE_DEFAULTS[k]}
+                        onChange={(e) => setSectionColor(k, e.target.value.toUpperCase())}
+                        aria-label={`${SECTION_LABELS[k]} color`}
+                        className="h-8 w-9 shrink-0 cursor-pointer rounded-md border border-gray-300 p-0.5"
+                      />
+                      <span className="min-w-0 flex-1 truncate text-xs font-medium text-gray-700">
+                        {SECTION_LABELS[k]}
+                      </span>
+                      {sectionColorMap[k] && (
+                        <button
+                          type="button"
+                          onClick={() => setSectionColor(k, "")}
+                          className="text-[11px] text-gray-400 underline hover:text-gray-600"
+                        >
+                          Reset
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                {Object.keys(sectionColorMap).length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => set("sectionColors", "{}")}
+                    className="mt-3 text-xs text-gray-500 underline hover:text-gray-700"
+                  >
+                    Reset all to defaults
+                  </button>
+                )}
+              </>
+            )}
           </div>
         </div>
         )}

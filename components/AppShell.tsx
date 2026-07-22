@@ -38,7 +38,13 @@ import AtlasIcon, { AtlasMark } from "@/components/AtlasIcon";
 import TourGuide from "@/components/TourGuide";
 import AssistantDrawer from "@/components/AssistantDrawer";
 import { shade, textOn } from "@/lib/branding";
-import { SECTION_HUES } from "@/lib/section-colors";
+import {
+  SECTION_HUES,
+  hueInk,
+  hueTint,
+  sanitizeSectionColors,
+  sectionColorVars,
+} from "@/lib/section-colors";
 import { hapticImpact } from "@/lib/haptics";
 import { WALLPAPER_PATTERNS } from "@/lib/wallpapers";
 
@@ -69,6 +75,27 @@ function surfaceAccent(hex: string): string {
 function darkSurfaceAccent(hex: string): string {
   const luminance = luminanceOf(hex);
   return luminance === null || luminance < 70 ? "#FFFFFF" : hex;
+}
+
+/** Mix two hexes — `t` is the weight of `b` (0 = all a, 1 = all b). */
+function mixHex(a: string, b: string, t: number): string {
+  const pa = /^#?([0-9a-f]{6})$/i.exec(a);
+  const pb = /^#?([0-9a-f]{6})$/i.exec(b);
+  if (!pa || !pb) return a;
+  const na = parseInt(pa[1], 16);
+  const nb = parseInt(pb[1], 16);
+  const ch = (sa: number, sb: number) => Math.round(sa + (sb - sa) * t);
+  const r = ch((na >> 16) & 255, (nb >> 16) & 255);
+  const g = ch((na >> 8) & 255, (nb >> 8) & 255);
+  const bl = ch(na & 255, nb & 255);
+  return `#${((r << 16) | (g << 8) | bl).toString(16).padStart(6, "0")}`;
+}
+
+function hexToRgba(hex: string, alpha: number): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex);
+  if (!m) return hex;
+  const n = parseInt(m[1], 16);
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
 }
 
 /** Lighten toward white — the brighter sibling of shade(), so brand-colored
@@ -339,6 +366,8 @@ interface AppShellProps {
   sidebarLogoColor?: string | null;
   brandColor?: string | null;
   brandColorSecondary?: string | null;
+  /** Company.sectionColors — per-section hue overrides (Settings → Branding) */
+  sectionColors?: unknown;
   teamCount?: number;
   needsTour?: boolean;
   aiEnabled?: boolean;
@@ -358,6 +387,7 @@ export default function AppShell({
   sidebarLogoColor,
   brandColor,
   brandColorSecondary,
+  sectionColors,
   teamCount = 1,
   needsTour = false,
   aiEnabled = false,
@@ -495,7 +525,7 @@ export default function AppShell({
             ? "font-semibold text-[color:var(--rail-ink)]"
             : "font-medium text-[color:var(--rail-muted)] hover:bg-[var(--rail-hover)] hover:text-[color:var(--rail-ink)]"
         }`}
-        style={{ "--st": tint, ...(active ? { backgroundColor: `${tint}26` } : {}) } as React.CSSProperties}
+        style={{ "--st": tint, ...(active ? { backgroundColor: hueTint(tint, 0.15) } : {}) } as React.CSSProperties}
       >
         {active && (
           <span
@@ -639,11 +669,26 @@ export default function AppShell({
           "--wb-ink-strong-light": shade(lightAccent, 0.14),
           "--wb-ink-dark": tint(darkAccent, 0.2),
           "--wb-ink-strong-dark": tint(darkAccent, 0.38),
+          // Tool hardware (chip-tool/card-tool/btn-tool outlines + hard
+          // offsets): a deep-brand ink instead of stock console navy. The
+          // light half leans mostly navy so pale brands stay readable; the
+          // dark half tints the translucent line/offset the theme expects.
+          "--tool-line-l": mixHex(lightAccent, "#0a1428", 0.6),
+          "--tool-shadow-l": mixHex(lightAccent, "#0a1428", 0.6),
+          "--tool-line-d": hexToRgba(tint(darkAccent, 0.45), 0.4),
+          "--tool-shadow-d": hexToRgba(shade(darkAccent, 0.72), 0.7),
         } as React.CSSProperties)
       : undefined;
 
+  // Custom section colors (Settings → Branding → Section colors): four
+  // theme-guarded vars per overridden section; defaults live in globals.css.
+  const sectionVars = sectionColorVars(sanitizeSectionColors(sectionColors));
+
   return (
-    <div className="app-ui flex h-screen bg-paper-plain overflow-hidden" style={mobileAccentVars}>
+    <div
+      className="app-ui flex h-screen bg-paper-plain overflow-hidden"
+      style={{ ...(mobileAccentVars ?? {}), ...sectionVars } as React.CSSProperties}
+    >
       {/* ── Desktop sidebar ──────────────────────────────────────────────── */}
       <aside className={`hidden lg:flex flex-col w-[232px] shrink-0 rail-${rail}`}>
         {logo}
@@ -688,6 +733,12 @@ export default function AppShell({
         )}
         {/* Top bar */}
         <header className="relative flex items-center gap-4 px-4 lg:px-6 min-h-[57px] pt-[env(safe-area-inset-top)] border-b border-gray-200 bg-white shrink-0">
+          {/* Ledger margin rule — a crisp brand-accent line on the app frame */}
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 -bottom-px h-[2.5px]"
+            style={{ backgroundColor: "var(--wb-accent)" }}
+          />
           {/* Mobile header: settings on the left (the date it replaced now
               lives on the dashboard Today card). Company identity lives in
               the sidebar on desktop. The hamburger is retired — the More tab
@@ -968,10 +1019,10 @@ function MobileTabBar({
                 >
                   {/* Solid hue tool tile — same chrome as the page-title tiles */}
                   <span
-                    className="chip-tool flex h-12 w-12 shrink-0 items-center justify-center rounded-[12px] border-[1.5px] border-[#0A1428]"
+                    className="chip-tool flex h-12 w-12 shrink-0 items-center justify-center rounded-[12px] border-[1.5px] border-[color:var(--tool-line,#0A1428)]"
                     style={{
                       backgroundColor: createTints[href] ?? "#0A1428",
-                      color: textOn(createTints[href] ?? "#0A1428"),
+                      color: hueInk(createTints[href] ?? "#0A1428"),
                     }}
                   >
                     <Icon size={19} strokeWidth={2.25} />
@@ -1086,15 +1137,20 @@ function MoreSheet({
         href={href}
         onClick={() => hapticImpact("LIGHT")}
         className={`flex items-center gap-3 px-4 py-3 active:bg-gray-50 transition-colors ${
-          active ? "bg-gray-50/70 " : ""
-        }${i < total - 1 ? "border-b border-gray-100" : ""}`}
+          i < total - 1 ? "border-b border-gray-100" : ""
+        }`}
+        style={
+          active
+            ? { backgroundColor: "color-mix(in srgb, var(--wb-ink) 9%, transparent)" }
+            : undefined
+        }
       >
         {/* Solid hue tiles — the sheet scans as a toolbox, not a tint chart */}
         <span
           className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] ${
             tint ? "" : "bg-[color:var(--mobile-accent)] text-[color:var(--mobile-on-accent)]"
           }`}
-          style={tint ? { backgroundColor: tint, color: textOn(tint) } : undefined}
+          style={tint ? { backgroundColor: tint, color: hueInk(tint) } : undefined}
         >
           <Icon size={16} strokeWidth={2.25} />
         </span>

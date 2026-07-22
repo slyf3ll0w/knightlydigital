@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { textOn } from "@/lib/branding";
+import { hueInk } from "@/lib/section-colors";
 
 /**
  * Filter rail + chips shared by every list page. One horizontal row that
@@ -37,9 +37,9 @@ export function FilterChip({
   const base =
     "flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[9px] border-[1.5px] px-3.5 py-1.5 text-sm transition-all";
   const cls = active
-    ? `${base} chip-tool border-[#0A1428] font-semibold`
+    ? `${base} chip-tool border-[color:var(--tool-line,#0A1428)] font-semibold`
     : `${base} border-gray-300 bg-white font-medium text-gray-600 hover:border-gray-400 hover:text-gray-900`;
-  const style = active ? { backgroundColor: hue, color: textOn(hue) } : undefined;
+  const style = active ? { backgroundColor: hue, color: hueInk(hue) } : undefined;
 
   if (href) {
     return (

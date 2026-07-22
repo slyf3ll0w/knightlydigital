@@ -17,8 +17,9 @@ function Art({ name, hue }: { name: EmptyArt; hue?: string }) {
     strokeLinejoin: "round" as const,
   };
   const gray = { ...base, stroke: "#D1D5DB" }; // gray-300 to sit on the graph-paper canvas
-  // Section hue when the page has one; brand accent otherwise
-  const green = { ...base, stroke: hue ?? "var(--wb-accent-bright, #2E6FF2)" };
+  // Section hue when the page has one; brand accent otherwise. Hues are CSS
+  // vars now, and var() only resolves in style, not presentation attributes.
+  const green = { ...base, style: { stroke: hue ?? "var(--wb-accent-bright, #2E6FF2)" } };
 
   switch (name) {
     case "requests":
