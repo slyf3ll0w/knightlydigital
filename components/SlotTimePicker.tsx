@@ -14,6 +14,7 @@ export default function SlotTimePicker({
   value,
   onChange,
   intervalMinutes,
+  dayStartMinutes,
   inputCls,
   timeCls,
   ariaLabel,
@@ -21,6 +22,9 @@ export default function SlotTimePicker({
   value: string;
   onChange: (next: string) => void;
   intervalMinutes: number;
+  /** Business-day anchor (minutes since midnight) — the option list opens
+      here and wraps, so operating hours come before the small hours. */
+  dayStartMinutes?: number;
   inputCls: string;
   timeCls?: string;
   ariaLabel?: string;
@@ -28,13 +32,13 @@ export default function SlotTimePicker({
   const { date, time } = splitLocalDateTime(value);
 
   const options = useMemo(() => {
-    const base = slotTimeOptions(intervalMinutes);
+    const base = slotTimeOptions(intervalMinutes, dayStartMinutes);
     // Keep an off-grid existing time selectable so we never lose it on edit.
     if (time && !base.some((o) => o.value === time)) {
       return [{ value: time, label: `${formatSlotLabel(time)} (current)` }, ...base];
     }
     return base;
-  }, [intervalMinutes, time]);
+  }, [intervalMinutes, dayStartMinutes, time]);
 
   return (
     <div className="flex gap-2">

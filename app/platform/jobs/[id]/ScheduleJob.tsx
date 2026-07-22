@@ -6,7 +6,7 @@ import { CalendarDays, Loader2, X } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { localInputToISO } from "@/lib/statuses";
 import SlotTimePicker from "@/components/SlotTimePicker";
-import { addMinutesToLocalDateTime } from "@/lib/scheduling";
+import { addMinutesToLocalDateTime, DEFAULT_JOB_DURATION_MINUTES } from "@/lib/scheduling";
 
 const SLOT_INPUT_CLS =
   "min-w-0 flex-[1.15] px-2 py-1.5 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500";
@@ -31,6 +31,7 @@ export default function ScheduleJob({
   scheduledAnytime,
   intervalMinutes = 30,
   defaultDurationMinutes,
+  dayStartMinutes,
 }: {
   jobId: string;
   scheduledAt: string | null;
@@ -38,8 +39,10 @@ export default function ScheduleJob({
   scheduledAnytime: boolean;
   intervalMinutes?: number;
   /** Expected on-site time from the price book (sum of the job's line items'
-      service durations). Falls back to one slot interval when absent. */
+      service durations). Falls back to one hour when absent. */
   defaultDurationMinutes?: number;
+  /** Business-day anchor for the time dropdowns (minutes since midnight). */
+  dayStartMinutes?: number;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -122,16 +125,20 @@ export default function ScheduleJob({
             <SlotTimePicker
               value={start}
               intervalMinutes={intervalMinutes}
+              dayStartMinutes={dayStartMinutes}
               inputCls={SLOT_INPUT_CLS}
               timeCls={SLOT_TIME_CLS}
               ariaLabel="Start"
               onChange={(next) => {
                 setStart(next);
-                // Auto-fill the end from the price-book duration (or one slot
-                // interval) when it isn't set yet; the user can still adjust.
+                // Auto-fill the end from the price-book duration (or an hour)
+                // when it isn't set yet; the user can still adjust.
                 if (!end && next)
                   setEnd(
-                    addMinutesToLocalDateTime(next, defaultDurationMinutes || intervalMinutes)
+                    addMinutesToLocalDateTime(
+                      next,
+                      defaultDurationMinutes || DEFAULT_JOB_DURATION_MINUTES
+                    )
                   );
               }}
             />
@@ -141,6 +148,7 @@ export default function ScheduleJob({
             <SlotTimePicker
               value={end}
               intervalMinutes={intervalMinutes}
+              dayStartMinutes={dayStartMinutes}
               inputCls={SLOT_INPUT_CLS}
               timeCls={SLOT_TIME_CLS}
               ariaLabel="End"

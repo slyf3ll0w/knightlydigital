@@ -45,6 +45,7 @@ export default function AppointmentActions({
   details,
   users = [],
   intervalMinutes = 30,
+  dayStartMinutes,
 }: {
   appointmentId: string;
   status: string;
@@ -57,6 +58,7 @@ export default function AppointmentActions({
   details: Details;
   users?: { id: string; name: string }[];
   intervalMinutes?: number;
+  dayStartMinutes?: number;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -249,6 +251,7 @@ export default function AppointmentActions({
                 <SlotTimePicker
                   value={start}
                   intervalMinutes={intervalMinutes}
+                  dayStartMinutes={dayStartMinutes}
                   inputCls="px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                   ariaLabel="Start"
                   onChange={(next) => {
@@ -265,6 +268,7 @@ export default function AppointmentActions({
                 <SlotTimePicker
                   value={end}
                   intervalMinutes={intervalMinutes}
+                  dayStartMinutes={dayStartMinutes}
                   inputCls="px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                   ariaLabel="End"
                   onChange={setEnd}

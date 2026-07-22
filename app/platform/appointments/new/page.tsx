@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { prisma } from "@/lib/db";
 import { requirePageActor, canSell, contactScope, isManager } from "@/lib/permissions";
 import { resolveSlotInterval } from "@/lib/scheduling";
+import { earliestOpenMinutes, sanitizeBusinessHours } from "@/lib/business-hours";
 import AppointmentForm from "./AppointmentForm";
 
 export const metadata: Metadata = { title: "New Appointment" };
@@ -45,7 +46,7 @@ export default async function NewAppointmentPage({
       : Promise.resolve(null),
     prisma.company.findUnique({
       where: { id: companyId },
-      select: { schedulingIntervalMinutes: true },
+      select: { schedulingIntervalMinutes: true, businessHours: true },
     }),
   ]);
 
@@ -61,6 +62,7 @@ export default async function NewAppointmentPage({
       intervalMinutes={resolveSlotInterval({
         companyIntervalMinutes: company?.schedulingIntervalMinutes,
       })}
+      dayStartMinutes={earliestOpenMinutes(sanitizeBusinessHours(company?.businessHours))}
     />
   );
 }

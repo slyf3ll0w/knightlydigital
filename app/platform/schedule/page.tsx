@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import { prisma } from "@/lib/db";
 import { requirePageActor, isManager, jobScope, canSell, appointmentScope } from "@/lib/permissions";
 import ScheduleClient, { type ScheduleJobDTO } from "./ScheduleClient";
@@ -148,7 +149,16 @@ export default async function SchedulePage({
   const { view: viewParam, date: dateParam, team: teamParam } = await searchParams;
   const team = canFilterTeam ? teamParam : undefined;
   const explicitView = viewParam === "month" || viewParam === "week" || viewParam === "day";
-  const view = viewParam === "week" || viewParam === "day" ? viewParam : "month";
+  let view: "month" | "week" | "day" =
+    viewParam === "week" || viewParam === "day" ? viewParam : "month";
+  // Phones open on the Day agenda. Decide it here from the user agent so the
+  // first paint is already Day — the old client-side redirect flashed the
+  // month grid first. The client matchMedia effect stays as a fallback for
+  // narrow desktop windows the UA can't reveal.
+  if (!explicitView) {
+    const ua = (await headers()).get("user-agent") ?? "";
+    if (/iPhone|iPod|Windows Phone|Android(?=.*Mobile)/i.test(ua)) view = "day";
+  }
   const anchor = parseDateParam(dateParam);
 
   // Visible range (server TZ = company TZ via Railway TZ env)

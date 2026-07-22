@@ -70,6 +70,22 @@ export function sanitizeBusinessHours(raw: unknown): BusinessHours {
   return out;
 }
 
+/**
+ * Earliest opening time across the week, in minutes since midnight — the
+ * anchor the in-app time pickers open on. Companies with no open days (or
+ * unset hours) get the 8:00 AM default so the pickers still read sensibly.
+ */
+export function earliestOpenMinutes(hours: BusinessHours): number {
+  let earliest: number | null = null;
+  for (const day of DAY_KEYS) {
+    for (const range of hours[day] ?? []) {
+      const s = timeToMinutes(range.start);
+      if (s !== null && (earliest === null || s < earliest)) earliest = s;
+    }
+  }
+  return earliest ?? 8 * 60;
+}
+
 /** ZIP list: 5-digit US ZIPs, deduped. Empty = no service-area restriction. */
 export function sanitizeServiceZips(raw: unknown): string[] {
   if (!Array.isArray(raw)) return [];

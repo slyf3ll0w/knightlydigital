@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor } from "@/lib/permissions";
 import { resolveSlotInterval } from "@/lib/scheduling";
+import { earliestOpenMinutes, sanitizeBusinessHours } from "@/lib/business-hours";
 
 /**
  * GET — the company's in-app scheduling slot interval (minutes). Used by fully
@@ -14,12 +15,13 @@ export async function GET() {
 
   const company = await prisma.company.findUnique({
     where: { id: actor.companyId },
-    select: { schedulingIntervalMinutes: true },
+    select: { schedulingIntervalMinutes: true, businessHours: true },
   });
 
   return NextResponse.json({
     intervalMinutes: resolveSlotInterval({
       companyIntervalMinutes: company?.schedulingIntervalMinutes,
     }),
+    dayStartMinutes: earliestOpenMinutes(sanitizeBusinessHours(company?.businessHours)),
   });
 }

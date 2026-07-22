@@ -8,7 +8,11 @@ import { Suspense } from "react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { localInputToISO } from "@/lib/statuses";
 import SlotTimePicker from "@/components/SlotTimePicker";
-import { addMinutesToLocalDateTime, DEFAULT_SLOT_INTERVAL_MINUTES } from "@/lib/scheduling";
+import {
+  addMinutesToLocalDateTime,
+  DEFAULT_SLOT_INTERVAL_MINUTES,
+  DEFAULT_JOB_DURATION_MINUTES,
+} from "@/lib/scheduling";
 
 type ContactAddress = {
   id: string;
@@ -42,6 +46,7 @@ function NewJobForm() {
   const [team, setTeam] = useState<TeamUser[]>([]);
   const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
   const [interval, setInterval] = useState(DEFAULT_SLOT_INTERVAL_MINUTES);
+  const [dayStart, setDayStart] = useState(8 * 60);
   const [form, setForm] = useState({
     contactId: prefilledContactId,
     requestId,
@@ -69,6 +74,7 @@ function NewJobForm() {
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (d?.intervalMinutes) setInterval(d.intervalMinutes);
+        if (d?.dayStartMinutes) setDayStart(d.dayStartMinutes);
       })
       .catch(() => {});
   }, []);
@@ -225,12 +231,16 @@ function NewJobForm() {
               <SlotTimePicker
                 value={form.scheduledAt}
                 intervalMinutes={interval}
+                dayStartMinutes={dayStart}
                 inputCls="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                 ariaLabel="Start"
                 onChange={(next) => {
                   set("scheduledAt", next);
                   if (!form.scheduledEnd && next.length >= 16) {
-                    set("scheduledEnd", addMinutesToLocalDateTime(next, interval));
+                    set(
+                      "scheduledEnd",
+                      addMinutesToLocalDateTime(next, DEFAULT_JOB_DURATION_MINUTES)
+                    );
                   }
                 }}
               />
@@ -240,6 +250,7 @@ function NewJobForm() {
               <SlotTimePicker
                 value={form.scheduledEnd}
                 intervalMinutes={interval}
+                dayStartMinutes={dayStart}
                 inputCls="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                 ariaLabel="End"
                 onChange={(next) => set("scheduledEnd", next)}

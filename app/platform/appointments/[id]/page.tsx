@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { requirePageActor, canSell, isManager, appointmentScope } from "@/lib/permissions";
 import { appointmentTypeLabel } from "@/lib/statuses";
 import { resolveSlotInterval } from "@/lib/scheduling";
+import { earliestOpenMinutes, sanitizeBusinessHours } from "@/lib/business-hours";
 import StatusChip from "@/components/StatusChip";
 import AppointmentActions from "./AppointmentActions";
 
@@ -47,7 +48,7 @@ export default async function AppointmentDetailPage({
       : Promise.resolve([]),
     prisma.company.findUnique({
       where: { id: actor.companyId },
-      select: { schedulingIntervalMinutes: true },
+      select: { schedulingIntervalMinutes: true, businessHours: true },
     }),
   ]);
   if (!appt) notFound();
@@ -118,6 +119,7 @@ export default async function AppointmentDetailPage({
           intervalMinutes={resolveSlotInterval({
             companyIntervalMinutes: company?.schedulingIntervalMinutes,
           })}
+          dayStartMinutes={earliestOpenMinutes(sanitizeBusinessHours(company?.businessHours))}
         />
       </div>
 

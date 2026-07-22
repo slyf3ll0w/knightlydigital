@@ -250,10 +250,24 @@ export default function ScheduleClient({
 
   useEffect(() => setMounted(true), []);
 
-  // Open week/day on business hours instead of midnight
+  // Open week/day scrolled to the current time when "now" is on screen (an
+  // hour of context above it), otherwise to business hours instead of midnight.
   useEffect(() => {
-    if (scrollRef.current) scrollRef.current.scrollTop = 7 * HOUR_PX;
-  }, [view, date]);
+    if (!scrollRef.current) return;
+    const now = new Date();
+    const nowVisible =
+      view === "day"
+        ? sameDay(anchor, now)
+        : (() => {
+            const ws = new Date(anchor);
+            ws.setDate(ws.getDate() - ws.getDay());
+            ws.setHours(0, 0, 0, 0);
+            return now >= ws && now < addDays(ws, 7);
+          })();
+    scrollRef.current.scrollTop = nowVisible
+      ? Math.max(0, ((now.getHours() * 60 + now.getMinutes()) / 60 - 1) * HOUR_PX)
+      : 7 * HOUR_PX;
+  }, [view, date, anchor]);
 
   function go(next: { view?: View; date?: Date; team?: string }, replace = false) {
     const v = next.view ?? view;
@@ -270,7 +284,7 @@ export default function ScheduleClient({
   // its truncated chips are unreadable at phone widths. Only when the URL
   // didn't ask for a view explicitly, so shared links still win.
   useEffect(() => {
-    if (!explicitView && window.matchMedia("(max-width: 1023px)").matches) {
+    if (!explicitView && view !== "day" && window.matchMedia("(max-width: 1023px)").matches) {
       go({ view: "day", date: new Date() }, true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

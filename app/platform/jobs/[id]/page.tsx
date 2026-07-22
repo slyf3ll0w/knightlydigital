@@ -7,6 +7,7 @@ import StatusChip from "@/components/StatusChip";
 import CallTextButtons from "@/components/CallTextButtons";
 import { requirePageActor, jobScope, canSeePricing, canSell, isManager } from "@/lib/permissions";
 import { resolveSlotInterval } from "@/lib/scheduling";
+import { earliestOpenMinutes, sanitizeBusinessHours } from "@/lib/business-hours";
 import { renderMessageTemplate, DEFAULT_ON_MY_WAY_TEMPLATE } from "@/lib/messaging";
 import { entryMs, formatDuration } from "@/lib/time-entries";
 import { visitFrequencyLabel } from "@/lib/subscriptions";
@@ -63,6 +64,7 @@ export default async function JobDetailPage({
       where: { id: companyId },
       select: {
         schedulingIntervalMinutes: true,
+        businessHours: true,
         name: true,
         timezone: true,
         onMyWayTemplate: true,
@@ -208,6 +210,7 @@ export default async function JobDetailPage({
               companyIntervalMinutes: company?.schedulingIntervalMinutes,
             })}
             defaultDurationMinutes={bookDurationMinutes || undefined}
+            dayStartMinutes={earliestOpenMinutes(sanitizeBusinessHours(company?.businessHours))}
           />
         </div>
         {job.quote && (

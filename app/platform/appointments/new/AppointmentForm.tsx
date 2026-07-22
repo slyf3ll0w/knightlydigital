@@ -55,6 +55,7 @@ export default function AppointmentForm({
   requestTitle,
   prefilledDate,
   intervalMinutes = 30,
+  dayStartMinutes,
 }: {
   actorId: string;
   contacts: ContactOption[];
@@ -64,6 +65,7 @@ export default function AppointmentForm({
   requestTitle: string;
   prefilledDate: string;
   intervalMinutes?: number;
+  dayStartMinutes?: number;
 }) {
   const router = useRouter();
   const [contactId, setContactId] = useState(prefilledContactId);
@@ -263,6 +265,7 @@ export default function AppointmentForm({
                 <SlotTimePicker
                   value={start}
                   intervalMinutes={intervalMinutes}
+                  dayStartMinutes={dayStartMinutes}
                   inputCls={inputCls}
                   ariaLabel="Start"
                   onChange={pickStart}
@@ -275,6 +278,7 @@ export default function AppointmentForm({
                 <SlotTimePicker
                   value={end}
                   intervalMinutes={intervalMinutes}
+                  dayStartMinutes={dayStartMinutes}
                   inputCls={inputCls}
                   ariaLabel="End"
                   onChange={setEnd}

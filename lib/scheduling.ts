@@ -13,6 +13,9 @@
 
 export const DEFAULT_SLOT_INTERVAL_MINUTES = 30;
 
+/** End-time autofill for a job whose services carry no price-book duration. */
+export const DEFAULT_JOB_DURATION_MINUTES = 60;
+
 /** Interval choices offered in Settings (and accepted by the resolver clamp). */
 export const SLOT_INTERVAL_CHOICES = [15, 30, 60] as const;
 
@@ -59,11 +62,24 @@ export function formatSlotLabel(hhmm: string): string {
 /**
  * Every even time slot across a day at the given interval, as { value:"HH:mm",
  * label:"9:00 AM" }. interval must divide evenly; guarded to a sane range.
+ *
+ * `dayStartMinutes` rotates the list so it opens on the business day instead
+ * of midnight: with 480 (8:00 AM) the options run 8:00 AM → 11:30 PM and the
+ * small hours trail at the end, so the first visible times are ones an owner
+ * would actually pick.
  */
-export function slotTimeOptions(intervalMinutes: number): { value: string; label: string }[] {
+export function slotTimeOptions(
+  intervalMinutes: number,
+  dayStartMinutes = 0
+): { value: string; label: string }[] {
   const step = Number.isFinite(intervalMinutes) && intervalMinutes > 0 ? intervalMinutes : DEFAULT_SLOT_INTERVAL_MINUTES;
+  const anchor =
+    Number.isFinite(dayStartMinutes) && dayStartMinutes > 0 && dayStartMinutes < 24 * 60
+      ? Math.floor(dayStartMinutes / step) * step // snap onto the grid
+      : 0;
   const out: { value: string; label: string }[] = [];
-  for (let mins = 0; mins < 24 * 60; mins += step) {
+  for (let offset = 0; offset < 24 * 60; offset += step) {
+    const mins = (anchor + offset) % (24 * 60);
     const value = `${pad(Math.floor(mins / 60))}:${pad(mins % 60)}`;
     out.push({ value, label: formatSlotLabel(value) });
   }
