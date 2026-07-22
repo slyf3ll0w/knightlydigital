@@ -99,7 +99,7 @@ export default function KpiStrip({
   return (
     <>
       {visible.length > 0 && (
-        <div className="card-ledger mb-4 flex divide-x divide-gray-100 overflow-hidden lg:hidden">
+        <div className="card-tool mb-4 flex divide-x divide-gray-100 overflow-hidden lg:hidden">
           {visible.map((k) => {
             const cell = (
               <>
@@ -158,9 +158,7 @@ export default function KpiStrip({
               {k.spark && k.spark.length > 1 && <Spark values={k.spark} />}
             </>
           );
-          const cls = `card-ledger p-4 transition-shadow hover:shadow-sm ${
-            k.tone === "danger" ? "border-red-200" : ""
-          }`;
+          const cls = "card-tool p-4";
           return k.href ? (
             <Link key={k.label} href={k.href} className={cls}>
               {card}

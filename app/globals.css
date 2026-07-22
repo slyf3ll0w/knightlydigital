@@ -57,6 +57,16 @@
     box-shadow: 2px 2px 0 #0a1428;
   }
 
+  /* ── Tool card — the button language at card scale: navy outline + solid
+     offset. For compact info cards (stat strips, statements, sheet groups);
+     large record lists stay on .card-ledger paper so pages don't become
+     border soup. */
+  .card-tool {
+    @apply bg-white rounded-[12px];
+    border: 1.5px solid #0a1428;
+    box-shadow: 3px 3px 0 #0a1428;
+  }
+
   /* ── Tool button — same offset, but it presses flat when you push it
      (the marketing site's .wb-btn-tool). Solid primary actions only;
      surfaces and cards keep their soft ledger shadows. */
@@ -881,6 +891,11 @@ body {
   /* Navy offsets disappear against the dark canvas — go black instead */
   html[data-mode="dark"] .app-ui .chip-tool {
     box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.65);
+  }
+  html[data-mode="dark"] .app-ui .card-tool {
+    background-color: var(--t-surface);
+    border-color: rgba(255, 255, 255, 0.22);
+    box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.65);
   }
   html[data-mode="dark"] .app-ui .btn-tool {
     box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.65);

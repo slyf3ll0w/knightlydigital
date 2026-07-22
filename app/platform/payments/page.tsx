@@ -303,23 +303,34 @@ export default async function PaymentsDashboardPage() {
         </Link>
       </div>
 
+      {/* Not set up yet — the statement card's spot holds the pitch, in the
+          same grammar, so this page never opens on a plain gray banner */}
       {!online && (
-        <div className="card-ledger p-5 mb-6 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-sm font-semibold text-gray-900">
-              Online payments aren&apos;t set up yet
-            </h2>
-            <p className="text-xs text-gray-500 mt-0.5">
-              Let clients pay invoices by card or bank straight from their pay links — money
-              lands in your own bank account.
+        <div className="card-tool mb-6 overflow-hidden">
+          <div className="p-5 sm:p-6">
+            <span
+              className="mb-2.5 block h-[3px] w-7 rounded-full"
+              style={{ backgroundColor: "var(--wb-accent, #0B57D8)" }}
+              aria-hidden
+            />
+            <p className="stamp text-green-700">Online payments</p>
+            <p className="numeral-ledger mt-2 text-2xl font-semibold leading-tight text-gray-900">
+              Get paid by card or bank
+            </p>
+            <p className="mt-2 max-w-md text-xs leading-relaxed text-gray-500">
+              Clients pay invoices straight from their pay links — the money lands in your own
+              bank account, usually the next business day.
             </p>
           </div>
-          <Link
-            href="/app/settings"
-            className="flex items-center gap-1 text-sm font-medium text-green-600 hover:text-green-700"
-          >
-            Set up in Settings <ArrowUpRight size={14} />
-          </Link>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t-2 border-double border-gray-300 bg-gray-50/60 px-5 py-3 sm:px-6">
+            <p className="text-xs text-gray-500">A short application in Settings starts it.</p>
+            <Link
+              href="/app/settings"
+              className="btn-tool flex items-center gap-1.5 rounded-[10px] bg-green-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-600"
+            >
+              Set up payments <ArrowUpRight size={14} />
+            </Link>
+          </div>
         </div>
       )}
 
@@ -327,7 +338,7 @@ export default async function PaymentsDashboardPage() {
              label + big numeral, then payout history and the action in a
              double-rule foot, same receipt grammar as the list pages. ────── */}
       {online && (
-        <div className="card-ledger mb-6 overflow-hidden">
+        <div className="card-tool mb-6 overflow-hidden">
           <div className="p-5 sm:p-6">
             <span
               className="mb-2.5 block h-[3px] w-7 rounded-full"

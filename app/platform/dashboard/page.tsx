@@ -352,7 +352,7 @@ export default async function DashboardPage() {
       {seePerformance && (
         <Link
           href="/app/invoices"
-          className="card-ledger anim-fade-up anim-delay-1 mb-8 block overflow-hidden lg:hidden"
+          className="card-tool anim-fade-up anim-delay-1 mb-8 block overflow-hidden lg:hidden"
         >
           <div className="p-5 pb-4">
             <span
@@ -525,7 +525,7 @@ export default async function DashboardPage() {
           <>
           {/* Phone: one prioritized list — each row is a task with its section
               hue, not a wall of 2-up number cards */}
-          <div className="card-ledger divide-y divide-gray-100 overflow-hidden lg:hidden">
+          <div className="card-tool divide-y divide-gray-100 overflow-hidden lg:hidden">
             {needs.map((n) => {
               const ink = n.urgent ? "#DC2626" : n.hue ?? SECTION_HUES.invoices;
               return (

@@ -969,15 +969,15 @@ function MobileTabBar({
                   }
                   className={`col-span-2 ${placement} flex flex-col items-center gap-2 rounded-2xl px-1 py-3.5 transition-transform active:scale-95`}
                 >
+                  {/* Solid hue tool tile — same chrome as the page-title tiles */}
                   <span
-                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl"
+                    className="chip-tool flex h-12 w-12 shrink-0 items-center justify-center rounded-[12px] border-[1.5px] border-[#0A1428]"
                     style={{
-                      backgroundColor: `${createTints[href] ?? "#0A1428"}1c`,
-                      color: createTints[href] ?? "#0A1428",
-                      boxShadow: `inset 0 0 0 1.5px ${createTints[href] ?? "#0A1428"}30`,
+                      backgroundColor: createTints[href] ?? "#0A1428",
+                      color: textOn(createTints[href] ?? "#0A1428"),
                     }}
                   >
-                    <Icon size={19} strokeWidth={2} />
+                    <Icon size={19} strokeWidth={2.25} />
                   </span>
                   <span className="font-display text-[11px] font-semibold text-gray-800">
                     {label}
@@ -1089,26 +1089,17 @@ function MoreSheet({
         href={href}
         onClick={() => hapticImpact("LIGHT")}
         className={`flex items-center gap-3 px-4 py-3 active:bg-gray-50 transition-colors ${
-          i < total - 1 ? "border-b border-gray-100" : ""
-        }`}
+          active ? "bg-gray-50/70 " : ""
+        }${i < total - 1 ? "border-b border-gray-100" : ""}`}
       >
+        {/* Solid hue tiles — the sheet scans as a toolbox, not a tint chart */}
         <span
-          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] ${
-            tint
-              ? ""
-              : active
-                ? "bg-[color:var(--mobile-accent)] text-[color:var(--mobile-on-accent)]"
-                : "bg-[color:var(--mobile-accent-soft)] text-[color:var(--mobile-accent)]"
+          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] ${
+            tint ? "" : "bg-[color:var(--mobile-accent)] text-[color:var(--mobile-on-accent)]"
           }`}
-          style={
-            tint
-              ? active
-                ? { backgroundColor: tint, color: "#ffffff" }
-                : { backgroundColor: `${tint}1c`, color: tint }
-              : undefined
-          }
+          style={tint ? { backgroundColor: tint, color: textOn(tint) } : undefined}
         >
-          <Icon size={16} strokeWidth={2} />
+          <Icon size={16} strokeWidth={2.25} />
         </span>
         <span className="flex-1 text-[15px] font-medium text-gray-900">{label}</span>
         {badge && (
@@ -1134,7 +1125,7 @@ function MoreSheet({
             {label}
           </p>
         )}
-        <div className="overflow-hidden rounded-2xl bg-white ring-1 ring-black/5">
+        <div className="card-tool overflow-hidden">
           {items.map((item, i) => row(item, i, items.length))}
         </div>
       </div>
@@ -1172,7 +1163,7 @@ function MoreSheet({
           <Link
             href="/app/settings/profile"
             onClick={() => hapticImpact("LIGHT")}
-            className="flex items-center gap-3 rounded-2xl bg-white px-4 py-3.5 ring-1 ring-black/5 active:bg-gray-50 transition-colors"
+            className="card-tool flex items-center gap-3 px-4 py-3.5 active:bg-gray-50 transition-colors"
           >
             <Avatar name={userName} userId={userId} size={40} />
             <div className="min-w-0 flex-1">
@@ -1188,7 +1179,7 @@ function MoreSheet({
           {group(teamItems.length > 0 ? "Team" : null, teamItems)}
 
           {/* Sign out */}
-          <div className="mt-4 overflow-hidden rounded-2xl bg-white ring-1 ring-black/5">
+          <div className="card-tool mt-4 overflow-hidden">
             <button
               onClick={() => signOut({ callbackUrl: "/app/login" })}
               className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-gray-50 transition-colors"
