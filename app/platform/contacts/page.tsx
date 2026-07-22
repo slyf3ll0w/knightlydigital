@@ -2,6 +2,8 @@ import { prisma } from "@/lib/db";
 import Link from "next/link";
 import { Plus, ChevronRight, UserCheck, Upload, ListPlus, Users } from "lucide-react";
 import PageTitle from "@/components/PageTitle";
+import { SECTION_HUES } from "@/lib/section-colors";
+import { FilterRow, FilterChip, FilterDivider } from "@/components/FilterChips";
 import { shortDate } from "@/lib/statuses";
 import ContactStatus from "@/components/ContactStatus";
 import EmptyState from "@/components/EmptyState";
@@ -124,46 +126,36 @@ export default async function ContactsPage({
       </form>
 
       {/* Filter pills — scroll horizontally on phones instead of wrapping */}
-      <div className="no-scrollbar -mx-4 mb-4 flex items-center gap-1.5 overflow-x-auto px-4 lg:mx-0 lg:px-0">
+      <FilterRow>
         {statusFilters.map((f) => (
-          <Link
+          <FilterChip
             key={f.value}
+            hue={SECTION_HUES.clients}
+            active={(validStatus ?? "") === f.value}
             href={statusQS(f.value)}
-            className={`shrink-0 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors ${
-              (validStatus ?? "") === f.value
-                ? "border-gray-900 bg-gray-900 text-white"
-                : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
-            }`}
           >
             {f.label}
-          </Link>
+          </FilterChip>
         ))}
         {showAll && (
           <>
-            <span className="mx-1 h-5 w-px shrink-0 bg-gray-200" />
-            <Link
-              href={assigneeQS(!mineOnly)}
-              className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors ${
-                mineOnly
-                  ? "border-green-500 bg-green-500 text-white"
-                  : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
-              }`}
-            >
+            <FilterDivider />
+            <FilterChip hue={SECTION_HUES.clients} active={mineOnly} href={assigneeQS(!mineOnly)}>
               <UserCheck size={13} />
               Mine
-            </Link>
+            </FilterChip>
           </>
         )}
-        <span className="mx-1 h-5 w-px shrink-0 bg-gray-200" />
-        <Link
-          href="/app/leads"
-          className="shrink-0 whitespace-nowrap rounded-full border border-gray-200 bg-white px-3.5 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
-        >
+        <FilterDivider />
+        <FilterChip hue={SECTION_HUES.clients} active={false} href="/app/leads">
           Leads board →
-        </Link>
-      </div>
+        </FilterChip>
+      </FilterRow>
 
-      <div className="card-ledger overflow-hidden">
+      <div
+        className="card-ledger overflow-hidden"
+        style={{ borderTop: `3px solid ${SECTION_HUES.clients}` }}
+      >
         {contacts.length === 0 ? (
           <EmptyState
             art="contacts"

@@ -10,6 +10,8 @@ import { INDUSTRIES } from "@/lib/pricebooks";
 import { DEFAULT_ON_MY_WAY_TEMPLATE, ON_MY_WAY_PLACEHOLDERS } from "@/lib/messaging";
 import { textOn } from "@/lib/branding";
 import { resolveWallpaper } from "@/lib/wallpapers";
+import { FilterChip } from "@/components/FilterChips";
+import { SECTION_HUES } from "@/lib/section-colors";
 
 type Company = {
   id: string; name: string; slug: string; phone: string | null;
@@ -660,20 +662,16 @@ export default function SettingsClient({
       </div>
 
       {/* Section filter — the page got crowded; pills narrow it down */}
-      <div className="mb-6 flex gap-2 overflow-x-auto pb-1">
+      <div className="no-scrollbar -mx-4 mb-5 flex gap-2 overflow-x-auto px-4 py-1 lg:mx-0 lg:px-0">
         {SECTION_TABS.map(([key, label]) => (
-          <button
+          <FilterChip
             key={key}
-            type="button"
+            hue={SECTION_HUES.business}
+            active={section === key}
             onClick={() => setSection(key)}
-            className={`shrink-0 rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-              section === key
-                ? "bg-gray-900 text-white"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-            }`}
           >
             {label}
-          </button>
+          </FilterChip>
         ))}
       </div>
 

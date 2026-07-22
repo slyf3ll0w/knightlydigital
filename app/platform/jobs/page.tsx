@@ -4,11 +4,11 @@ import Link from "next/link";
 import { Plus, ChevronRight, Briefcase } from "lucide-react";
 import PageTitle from "@/components/PageTitle";
 import { SECTION_HUES } from "@/lib/section-colors";
-import { textOn } from "@/lib/branding";
 import { money, shortDate } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
 import EmptyState from "@/components/EmptyState";
 import KpiStrip from "@/components/KpiStrip";
+import { FilterRow, FilterChip } from "@/components/FilterChips";
 import type { JobStatus } from "@prisma/client";
 
 const statusFilters = [
@@ -94,28 +94,23 @@ export default async function JobsPage({
       <KpiStrip kpis={kpis} desktopCols={3} hue={SECTION_HUES.jobs} />
 
       {/* Filter tabs */}
-      <div className="flex items-center gap-1 mb-4">
+      <FilterRow>
         {statusFilters.map((f) => (
-          <Link
+          <FilterChip
             key={f.value}
+            hue={SECTION_HUES.jobs}
+            active={(validStatus ?? "") === f.value && !unscheduled}
             href={f.value ? `/app/jobs?status=${f.value}` : "/app/jobs"}
-            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-              (validStatus ?? "") === f.value && !unscheduled
-                ? "font-semibold"
-                : "text-gray-600 hover:bg-gray-100"
-            }`}
-            style={
-              (validStatus ?? "") === f.value && !unscheduled
-                ? { backgroundColor: SECTION_HUES.jobs, color: textOn(SECTION_HUES.jobs) }
-                : undefined
-            }
           >
             {f.label}
-          </Link>
+          </FilterChip>
         ))}
-      </div>
+      </FilterRow>
 
-      <div className="card-ledger overflow-hidden">
+      <div
+        className="card-ledger overflow-hidden"
+        style={{ borderTop: `3px solid ${SECTION_HUES.jobs}` }}
+      >
         {jobs.length === 0 ? (
           <EmptyState
             art="jobs"

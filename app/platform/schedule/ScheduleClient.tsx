@@ -20,6 +20,8 @@ import {
   X,
 } from "lucide-react";
 import PageTitle from "@/components/PageTitle";
+import { SECTION_HUES } from "@/lib/section-colors";
+import { FilterChip } from "@/components/FilterChips";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 
 /**
@@ -200,6 +202,7 @@ type BlockForm = {
 
 export default function ScheduleClient({
   view,
+  explicitView = true,
   date,
   team,
   jobs,
@@ -211,6 +214,7 @@ export default function ScheduleClient({
   meId = "",
 }: {
   view: View;
+  explicitView?: boolean;
   date: string;
   team: string;
   jobs: ScheduleJobDTO[];
@@ -251,15 +255,26 @@ export default function ScheduleClient({
     if (scrollRef.current) scrollRef.current.scrollTop = 7 * HOUR_PX;
   }, [view, date]);
 
-  function go(next: { view?: View; date?: Date; team?: string }) {
+  function go(next: { view?: View; date?: Date; team?: string }, replace = false) {
     const v = next.view ?? view;
     const params = new URLSearchParams();
     params.set("view", v);
     params.set("date", toParam(next.date ?? anchor));
     const t = next.team !== undefined ? next.team : team;
     if (t) params.set("team", t);
-    startTransition(() => router.push(`/app/schedule?${params.toString()}`));
+    const url = `/app/schedule?${params.toString()}`;
+    startTransition(() => (replace ? router.replace(url) : router.push(url)));
   }
+
+  // Phones open on today's Day agenda — the month grid is a desktop tool and
+  // its truncated chips are unreadable at phone widths. Only when the URL
+  // didn't ask for a view explicitly, so shared links still win.
+  useEffect(() => {
+    if (!explicitView && window.matchMedia("(max-width: 1023px)").matches) {
+      go({ view: "day", date: new Date() }, true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function step(dir: 1 | -1) {
     if (view === "month") {
@@ -797,10 +812,11 @@ export default function ScheduleClient({
               <span className="hidden md:inline">New Appointment</span>
             </Link>
           )}
+          {/* Phones create from the tab-bar FAB */}
           {canCreateJob && (
             <Link
               href="/app/jobs/new"
-              className="flex h-10 items-center gap-1.5 rounded-full bg-green-500 px-4 text-sm font-semibold text-white transition-colors hover:bg-green-600 active:bg-green-700"
+              className="hidden lg:flex h-10 items-center gap-1.5 rounded-full bg-green-500 px-4 text-sm font-semibold text-white transition-colors hover:bg-green-600 active:bg-green-700"
             >
               <Plus size={15} />
               New Job
@@ -809,8 +825,10 @@ export default function ScheduleClient({
         </div>
       </div>
 
-      {/* Controls */}
-      <div className="mb-4 flex flex-wrap items-center gap-2">
+      {/* Controls — two rows on phones (nav + label, then view chips + team),
+          one row on desktop. The old single flex row clipped the view
+          switcher off the right edge at phone widths. */}
+      <div className="mb-4 flex flex-wrap items-center gap-x-2 gap-y-2">
         <div className="flex items-center gap-1">
           <button onClick={() => step(-1)} className="rounded-full p-2 transition-colors hover:bg-gray-100" aria-label="Previous">
             <ChevronLeft size={18} className="text-gray-600" />
@@ -829,12 +847,24 @@ export default function ScheduleClient({
         <h2 className="text-base font-bold text-gray-900 lg:text-lg">{rangeLabel}</h2>
         {(saving || isPending) && <Loader2 size={15} className="animate-spin text-gray-400" />}
 
-        <div className="ml-auto flex items-center gap-2">
+        <div className="flex w-full items-center gap-2 py-1 lg:ml-auto lg:w-auto lg:py-0">
+          <div className="flex shrink-0 items-center gap-1.5">
+            {(["month", "week", "day"] as View[]).map((v) => (
+              <FilterChip
+                key={v}
+                hue={SECTION_HUES.schedule}
+                active={view === v}
+                onClick={() => go({ view: v })}
+              >
+                <span className="capitalize">{v}</span>
+              </FilterChip>
+            ))}
+          </div>
           {users.length > 1 && (
             <select
               value={team}
               onChange={(e) => go({ team: e.target.value })}
-              className="rounded-full border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="ml-auto min-w-0 rounded-full border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500 lg:ml-0"
             >
               <option value="">All team members</option>
               {users.map((u) => (
@@ -844,22 +874,6 @@ export default function ScheduleClient({
               ))}
             </select>
           )}
-          {/* Segmented view switcher — native-style pill track */}
-          <div className="flex rounded-full border border-gray-300 bg-white p-0.5">
-            {(["month", "week", "day"] as View[]).map((v) => (
-              <button
-                key={v}
-                onClick={() => go({ view: v })}
-                className={`rounded-full px-3 py-1 text-sm font-medium capitalize transition-colors ${
-                  view === v
-                    ? "bg-[color:var(--mobile-accent)] text-[color:var(--mobile-on-accent)]"
-                    : "text-gray-700 hover:bg-gray-50"
-                }`}
-              >
-                {v}
-              </button>
-            ))}
-          </div>
         </div>
       </div>
 

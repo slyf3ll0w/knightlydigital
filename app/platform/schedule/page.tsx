@@ -147,6 +147,7 @@ export default async function SchedulePage({
 
   const { view: viewParam, date: dateParam, team: teamParam } = await searchParams;
   const team = canFilterTeam ? teamParam : undefined;
+  const explicitView = viewParam === "month" || viewParam === "week" || viewParam === "day";
   const view = viewParam === "week" || viewParam === "day" ? viewParam : "month";
   const anchor = parseDateParam(dateParam);
 
@@ -237,6 +238,7 @@ export default async function SchedulePage({
   return (
     <ScheduleClient
       view={view}
+      explicitView={explicitView}
       date={`${anchor.getFullYear()}-${pad(anchor.getMonth() + 1)}-${pad(anchor.getDate())}`}
       team={team ?? ""}
       jobs={[...jobs.map(toDTO), ...appointments.map(apptToDTO), ...blockDTOs]}

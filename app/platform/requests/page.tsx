@@ -2,8 +2,8 @@ import { prisma } from "@/lib/db";
 import Link from "next/link";
 import { Plus, ChevronRight, UserCheck, Inbox } from "lucide-react";
 import PageTitle from "@/components/PageTitle";
+import { FilterRow, FilterChip, FilterDivider } from "@/components/FilterChips";
 import { SECTION_HUES } from "@/lib/section-colors";
-import { textOn } from "@/lib/branding";
 import { shortDate } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
 import EmptyState from "@/components/EmptyState";
@@ -99,42 +99,36 @@ export default async function RequestsPage({
       />
 
       {/* Filter tabs */}
-      <div className="flex flex-wrap items-center gap-1 mb-4">
+      <FilterRow>
         {statusFilters.map((f) => (
-          <Link
+          <FilterChip
             key={f.value}
+            hue={SECTION_HUES.requests}
+            active={(validStatus ?? "") === f.value}
             href={qs({ status: f.value })}
-            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-              (validStatus ?? "") === f.value
-                ? "font-semibold"
-                : "text-gray-600 hover:bg-gray-100"
-            }`}
-            style={
-              (validStatus ?? "") === f.value
-                ? { backgroundColor: SECTION_HUES.requests, color: textOn(SECTION_HUES.requests) }
-                : undefined
-            }
           >
             {f.label}
-          </Link>
+          </FilterChip>
         ))}
         {showAll && (
           <>
-            <span className="mx-1 h-5 w-px bg-gray-200" />
-            <Link
+            <FilterDivider />
+            <FilterChip
+              hue={SECTION_HUES.requests}
+              active={mineOnly}
               href={qs({ mine: !mineOnly })}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                mineOnly ? "bg-green-500 text-white" : "text-gray-600 hover:bg-gray-100"
-              }`}
             >
               <UserCheck size={13} />
               My leads
-            </Link>
+            </FilterChip>
           </>
         )}
-      </div>
+      </FilterRow>
 
-      <div className="card-ledger overflow-hidden">
+      <div
+        className="card-ledger overflow-hidden"
+        style={{ borderTop: `3px solid ${SECTION_HUES.requests}` }}
+      >
         {requests.length === 0 ? (
           <EmptyState
             art="requests"
