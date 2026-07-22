@@ -993,7 +993,7 @@ export default function ChatClient({
               type="button"
               onClick={createChat}
               disabled={picked.length === 0}
-              className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-full bg-green-500 py-3 text-sm font-bold text-white transition-colors hover:bg-green-600 disabled:opacity-40"
+              className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-[10px] btn-tool bg-green-500 py-3 text-sm font-bold text-white transition-colors hover:bg-green-600 disabled:opacity-40"
             >
               {showNewChat === "add"
                 ? `Add ${picked.length || ""}`

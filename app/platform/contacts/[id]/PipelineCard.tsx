@@ -73,7 +73,7 @@ export default function PipelineCard({
               send({ action: "won" });
           }}
           disabled={busy}
-          className="rounded-full flex items-center justify-center gap-1 px-2 py-2 bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white text-xs font-bold"
+          className="rounded-[10px] flex items-center justify-center gap-1 px-2 py-2 bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white text-xs font-bold"
         >
           <Trophy size={13} />
           Won

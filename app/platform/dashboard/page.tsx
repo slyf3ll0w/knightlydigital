@@ -6,6 +6,7 @@ import {
   Briefcase,
   Receipt,
   ArrowRight,
+  ChevronRight,
   Phone,
   Video,
   MapPin,
@@ -16,6 +17,7 @@ import {
   Timer,
 } from "lucide-react";
 import { money, appointmentTypeLabel } from "@/lib/statuses";
+import { brandSurface } from "@/lib/branding";
 import { SECTION_HUES } from "@/lib/section-colors";
 import { formatDuration, mapsHref } from "@/lib/time-entries";
 import EmptyState from "@/components/EmptyState";
@@ -35,7 +37,7 @@ import {
 const apptIcons = { PHONE_CALL: Phone, VIDEO_CALL: Video, IN_PERSON: MapPin } as const;
 
 /** Tiny daily-revenue bar chart — pure SVG, renders on the server. */
-function Sparkline({ values }: { values: number[] }) {
+function Sparkline({ values, className = "text-green-600" }: { values: number[]; className?: string }) {
   const max = Math.max(...values, 1);
   const w = 100;
   const gap = 1.5;
@@ -43,7 +45,7 @@ function Sparkline({ values }: { values: number[] }) {
   return (
     <svg
       viewBox={`0 0 ${w} 24`}
-      className="mt-2 h-6 w-full text-green-600"
+      className={`mt-2 h-6 w-full ${className}`}
       preserveAspectRatio="none"
       aria-hidden
     >
@@ -112,6 +114,7 @@ export default async function DashboardPage() {
     monthPayments,
     setupCompany,
     onClock,
+    brandCo,
   ] = await Promise.all([
     prisma.request.count({ where: { companyId, ...leadScope, status: "NEW" } }),
     prisma.request.count({ where: { companyId, ...leadScope, status: "NEEDS_APPROVAL" } }),
@@ -171,6 +174,7 @@ export default async function DashboardPage() {
           orderBy: { startedAt: "asc" },
         })
       : Promise.resolve([]),
+    prisma.company.findUnique({ where: { id: companyId }, select: { brandColor: true } }),
   ]);
   const showSetupCard = isManager(actor.role) && setupCompany?.setupWizardAt == null;
 
@@ -281,6 +285,7 @@ export default async function DashboardPage() {
       show: seeMoney,
       count: draftInvoices,
       icon: Receipt,
+      hue: SECTION_HUES.invoices,
       title: plural(draftInvoices, "Draft invoice", "Draft invoices"),
       action: "Finish & send",
       href: "/app/invoices?status=DRAFT",
@@ -343,8 +348,49 @@ export default async function DashboardPage() {
       <PushNudge />
 
       {/* ── Money first (Amex pattern): collected in green, owed in red ────── */}
+      {/* Phone: one navy console panel (the Payments-hero language) instead of
+          three stacked white cards — the numbers get a stage to stand on. */}
       {seePerformance && (
-        <div className="anim-fade-up anim-delay-1 mb-8 grid grid-cols-2 gap-3 lg:grid-cols-3">
+        <Link
+          href="/app/invoices"
+          className="chamfer bg-rail anim-fade-up anim-delay-1 mb-8 block overflow-hidden rounded-[8px] p-5 lg:hidden"
+          style={{ backgroundColor: brandSurface(brandCo ?? {}) }}
+        >
+          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-white/60">
+            Collected this month
+          </p>
+          <p className="numeral-ledger mt-1 text-[32px] leading-none font-semibold text-white">
+            {money(monthRevenue)}
+          </p>
+          {dailyRevenue.length > 1 && monthRevenue > 0 && (
+            <Sparkline values={dailyRevenue} className="text-white/80" />
+          )}
+          <div className="mt-4 grid grid-cols-2 gap-4 border-t border-white/15 pt-3">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-white/60">
+                Outstanding
+              </p>
+              <p
+                className={`numeral-ledger mt-0.5 text-lg leading-none font-semibold ${
+                  receivableTotal > 0 ? "text-red-300" : "text-white"
+                }`}
+              >
+                {receivableTotal > 0 ? money(receivableTotal) : "—"}
+              </p>
+            </div>
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-white/60">
+                Booked this week
+              </p>
+              <p className="numeral-ledger mt-0.5 text-lg leading-none font-semibold text-white">
+                {upcomingJobsWeek.length > 0 ? money(weekRevenue) : "—"}
+              </p>
+            </div>
+          </div>
+        </Link>
+      )}
+      {seePerformance && (
+        <div className="anim-fade-up anim-delay-1 mb-8 hidden gap-3 lg:grid lg:grid-cols-3">
           <Link
             href="/app/invoices"
             className="card-ledger block p-4 transition-shadow hover:shadow-md"
@@ -473,7 +519,43 @@ export default async function DashboardPage() {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <>
+          {/* Phone: one prioritized list — each row is a task with its section
+              hue, not a wall of 2-up number cards */}
+          <div className="card-ledger divide-y divide-gray-100 overflow-hidden lg:hidden">
+            {needs.map((n) => {
+              const ink = n.urgent ? "#DC2626" : n.hue ?? SECTION_HUES.invoices;
+              return (
+                <Link
+                  key={n.href}
+                  href={n.href}
+                  className="flex items-center gap-3 px-4 py-3 transition-colors active:bg-gray-100"
+                >
+                  <span
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px]"
+                    style={{ backgroundColor: `${ink}1a`, color: ink }}
+                  >
+                    <n.icon size={15} />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center gap-2">
+                      <span className="truncate text-sm font-semibold text-gray-900">{n.title}</span>
+                      {n.urgent && <span className="stamp shrink-0 text-red-600">Overdue</span>}
+                    </span>
+                    <span className="block truncate text-xs text-gray-500">{n.action}</span>
+                  </span>
+                  <span
+                    className="numeral-ledger shrink-0 text-lg font-semibold"
+                    style={{ color: ink }}
+                  >
+                    {n.count}
+                  </span>
+                  <ChevronRight size={14} className="shrink-0 text-gray-400" />
+                </Link>
+              );
+            })}
+          </div>
+          <div className="hidden lg:grid lg:grid-cols-4 gap-3">
             {needs.map((n) => (
               <Link
                 key={n.href}
@@ -506,6 +588,7 @@ export default async function DashboardPage() {
               </Link>
             ))}
           </div>
+          </>
         )}
       </div>
 

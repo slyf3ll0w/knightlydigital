@@ -57,7 +57,7 @@ function ResetPasswordForm() {
         </p>
         <Link
           href="/app/login"
-          className="inline-block w-full py-2.5 bg-green-500 hover:bg-green-600 text-white font-semibold text-sm rounded-full transition-colors"
+          className="inline-block w-full py-2.5 bg-green-500 hover:bg-green-600 text-white font-semibold text-sm rounded-[10px] btn-tool transition-colors"
         >
           Go to sign in
         </Link>
@@ -111,7 +111,7 @@ function ResetPasswordForm() {
         <button
           type="submit"
           disabled={loading || !token}
-          className="w-full py-2.5 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white font-semibold text-sm rounded-full transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+          className="w-full py-2.5 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white font-semibold text-sm rounded-[10px] btn-tool transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
         >
           {loading && <Loader2 size={14} className="animate-spin" />}
           Update password
