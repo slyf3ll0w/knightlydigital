@@ -7,7 +7,6 @@ import { Plus, ArrowUpRight, ChevronRight, DollarSign } from "lucide-react";
 import { money, shortDate } from "@/lib/statuses";
 import EmptyState from "@/components/EmptyState";
 import PageTitle from "@/components/PageTitle";
-import { brandSurface } from "@/lib/branding";
 import {
   getProcessor,
   processingFees,
@@ -354,38 +353,34 @@ export default async function PaymentsDashboardPage() {
         </div>
       )}
 
-      {/* ── Balance hero — the console panel anchoring the page. Painted with
-             the company's primary brand color when it's dark enough to carry
-             white text (mirrors brandHeader on client-facing pages). ─────── */}
+      {/* ── Balance statement — the ledger sheet anchoring the page: stamp
+             label + big numeral, then payout history and the action in a
+             double-rule foot, same receipt grammar as the list pages. ────── */}
       {online && (
         <div
-          className="chamfer bg-rail mb-6 overflow-hidden rounded-[8px]"
-          style={{ backgroundColor: brandSurface(company ?? {}) }}
+          className="card-ledger mb-6 overflow-hidden"
+          style={{ borderTop: "3px solid var(--wb-accent, #0B57D8)" }}
         >
-          <div className="flex flex-wrap items-end justify-between gap-x-10 gap-y-5 p-5 sm:p-6">
+          <div className="p-5 sm:p-6">
+            <p className="stamp text-green-700">On its way to your bank</p>
+            <p className="numeral-ledger mt-2 text-[34px] sm:text-[38px] font-semibold leading-none text-gray-900">
+              {signedMoney(onTheWay)}
+            </p>
+            <p className="mt-2.5 max-w-md text-xs leading-relaxed text-gray-500">
+              Payments clear in about a business day, then pay out to your bank
+              automatically every business day.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-x-10 gap-y-3 border-t-2 border-double border-gray-300 bg-gray-50/60 px-5 py-3 sm:px-6">
             <div>
-              <p className="font-display text-[11px] font-bold uppercase tracking-[0.14em] text-white/50">
-                On its way to your bank
+              <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-gray-500">
+                Paid out to date
               </p>
-              <p className="numeral-ledger mt-2 text-[34px] sm:text-[38px] font-semibold leading-none text-white">
-                {signedMoney(onTheWay)}
-              </p>
-              <p className="mt-2.5 max-w-md text-xs leading-relaxed text-white/50">
-                Payments clear in about a business day, then pay out to your bank
-                automatically every business day.
+              <p className="numeral-ledger mt-0.5 text-lg font-semibold leading-tight text-gray-900">
+                {signedMoney(paidOut)}
               </p>
             </div>
-            <div className="flex flex-wrap items-end gap-x-10 gap-y-4">
-              <div>
-                <p className="font-display text-[11px] font-bold uppercase tracking-[0.14em] text-white/50">
-                  Paid out to date
-                </p>
-                <p className="numeral-ledger mt-2 text-xl font-semibold leading-none text-white">
-                  {signedMoney(paidOut)}
-                </p>
-              </div>
-              {isManager(actor.role) && <PayoutButton dark />}
-            </div>
+            {isManager(actor.role) && <PayoutButton />}
           </div>
         </div>
       )}

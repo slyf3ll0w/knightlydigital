@@ -17,7 +17,6 @@ import {
   Timer,
 } from "lucide-react";
 import { money, appointmentTypeLabel } from "@/lib/statuses";
-import { brandSurface } from "@/lib/branding";
 import { SECTION_HUES } from "@/lib/section-colors";
 import { formatDuration, mapsHref } from "@/lib/time-entries";
 import EmptyState from "@/components/EmptyState";
@@ -114,7 +113,6 @@ export default async function DashboardPage() {
     monthPayments,
     setupCompany,
     onClock,
-    brandCo,
   ] = await Promise.all([
     prisma.request.count({ where: { companyId, ...leadScope, status: "NEW" } }),
     prisma.request.count({ where: { companyId, ...leadScope, status: "NEEDS_APPROVAL" } }),
@@ -174,7 +172,6 @@ export default async function DashboardPage() {
           orderBy: { startedAt: "asc" },
         })
       : Promise.resolve([]),
-    prisma.company.findUnique({ where: { id: companyId }, select: { brandColor: true } }),
   ]);
   const showSetupCard = isManager(actor.role) && setupCompany?.setupWizardAt == null;
 
@@ -348,41 +345,43 @@ export default async function DashboardPage() {
       <PushNudge />
 
       {/* ── Money first (Amex pattern): collected in green, owed in red ────── */}
-      {/* Phone: one navy console panel (the Payments-hero language) instead of
-          three stacked white cards — the numbers get a stage to stand on. */}
+      {/* Phone: one ledger "statement" instead of three stacked white cards —
+          stamp label, big numeral, then a double-rule foot exactly like the
+          list-page ledger feet, so the money card speaks the product's own
+          receipt language. */}
       {seePerformance && (
         <Link
           href="/app/invoices"
-          className="chamfer bg-rail anim-fade-up anim-delay-1 mb-8 block overflow-hidden rounded-[8px] p-5 lg:hidden"
-          style={{ backgroundColor: brandSurface(brandCo ?? {}) }}
+          className="card-ledger anim-fade-up anim-delay-1 mb-8 block overflow-hidden lg:hidden"
+          style={{ borderTop: "3px solid var(--wb-accent, #0B57D8)" }}
         >
-          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-white/60">
-            Collected this month
-          </p>
-          <p className="numeral-ledger mt-1 text-[32px] leading-none font-semibold text-white">
-            {money(monthRevenue)}
-          </p>
-          {dailyRevenue.length > 1 && monthRevenue > 0 && (
-            <Sparkline values={dailyRevenue} className="text-white/80" />
-          )}
-          <div className="mt-4 grid grid-cols-2 gap-4 border-t border-white/15 pt-3">
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-white/60">
+          <div className="p-5 pb-4">
+            <p className="stamp text-green-700">
+              Collected · {now.toLocaleDateString("en-US", { month: "long" })}
+            </p>
+            <p className="numeral-ledger mt-2 text-[34px] leading-none font-semibold text-gray-900">
+              {money(monthRevenue)}
+            </p>
+            {dailyRevenue.length > 1 && monthRevenue > 0 && <Sparkline values={dailyRevenue} />}
+          </div>
+          <div className="flex divide-x divide-gray-100 border-t-2 border-double border-gray-300 bg-gray-50/60">
+            <div className="min-w-0 flex-1 px-5 py-3">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-gray-500">
                 Outstanding
               </p>
               <p
-                className={`numeral-ledger mt-0.5 text-lg leading-none font-semibold ${
-                  receivableTotal > 0 ? "text-red-300" : "text-white"
+                className={`numeral-ledger mt-0.5 truncate text-base leading-tight font-semibold ${
+                  receivableTotal > 0 ? "text-red-600" : "text-gray-900"
                 }`}
               >
                 {receivableTotal > 0 ? money(receivableTotal) : "—"}
               </p>
             </div>
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-white/60">
+            <div className="min-w-0 flex-1 px-5 py-3">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-gray-500">
                 Booked this week
               </p>
-              <p className="numeral-ledger mt-0.5 text-lg leading-none font-semibold text-white">
+              <p className="numeral-ledger mt-0.5 truncate text-base leading-tight font-semibold text-gray-900">
                 {upcomingJobsWeek.length > 0 ? money(weekRevenue) : "—"}
               </p>
             </div>
