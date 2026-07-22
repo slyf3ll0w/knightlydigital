@@ -250,20 +250,20 @@ export default function ProductsClient({
           className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
         />
       </div>
-      {/* Online booking duration */}
+      {/* Time on site — drives job end-time autofill + online booking slots */}
       {form.type === "SERVICE" && (
         <div className="border-t border-green-200/60 pt-3">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">
-                Time on site (online booking)
+                Time on site
               </label>
               <select
                 value={form.durationMinutes}
                 onChange={(e) => set("durationMinutes", e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
               >
-                <option value="">Not bookable online</option>
+                <option value="">No set time</option>
                 <option value="30">30 minutes</option>
                 <option value="45">45 minutes</option>
                 <option value="60">1 hour</option>
@@ -277,7 +277,9 @@ export default function ProductsClient({
             </div>
           </div>
           <p className="mt-1 text-xs text-gray-500">
-            How long this service takes — the online slot picker uses it to find open times.
+            How long this service takes — auto-fills the end time when you schedule a job
+            with it, and the online slot picker uses it to find open times (services with
+            no set time can&apos;t be booked online).
           </p>
         </div>
       )}

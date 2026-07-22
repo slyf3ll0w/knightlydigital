@@ -7,6 +7,7 @@ import { CalendarDays, Check, FileText, Loader2, MoreHorizontal, Pencil, Trash2,
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { localInputToISO, appointmentTypeLabel } from "@/lib/statuses";
 import SlotTimePicker from "@/components/SlotTimePicker";
+import { addMinutesToLocalDateTime } from "@/lib/scheduling";
 
 /**
  * Appointment lifecycle controls: Complete (→ Create Quote CTA), No-show,
@@ -250,7 +251,13 @@ export default function AppointmentActions({
                   intervalMinutes={intervalMinutes}
                   inputCls="px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                   ariaLabel="Start"
-                  onChange={setStart}
+                  onChange={(next) => {
+                    setStart(next);
+                    // Default the end 30 minutes out while it hasn't been set.
+                    if (next && next.length >= 16 && !end) {
+                      setEnd(addMinutesToLocalDateTime(next, 30));
+                    }
+                  }}
                 />
               </div>
               <div>

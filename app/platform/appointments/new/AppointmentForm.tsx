@@ -90,9 +90,10 @@ export default function AppointmentForm({
 
   function pickStart(v: string) {
     setStart(v);
-    // Default the end one slot-interval later while it hasn't been customized.
+    // Default the end 30 minutes later while it hasn't been customized —
+    // appointments are quick touchpoints regardless of the job slot interval.
     if (v && v.length >= 16 && !end) {
-      setEnd(addMinutesToLocalDateTime(v, intervalMinutes));
+      setEnd(addMinutesToLocalDateTime(v, 30));
     }
   }
 

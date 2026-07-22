@@ -414,14 +414,6 @@ export default function AppShell({
   useEffect(() => {
     if (assistantOpen) setTeaserVisible(false);
   }, [assistantOpen]);
-  // Set after mount: the server renders in UTC, so an SSR'd date can be
-  // tomorrow's (and a hydration mismatch) for evening users.
-  const [today, setToday] = useState("");
-  useEffect(() => {
-    setToday(
-      new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })
-    );
-  }, []);
   const [search, setSearch] = useState("");
   const [counts, setCounts] = useState({ requests: 0, pastDue: 0, chat: 0, leads: 0 });
 
@@ -696,13 +688,18 @@ export default function AppShell({
         )}
         {/* Top bar */}
         <header className="relative flex items-center gap-4 px-4 lg:px-6 min-h-[57px] pt-[env(safe-area-inset-top)] border-b border-gray-200 bg-white shrink-0">
-          {/* Mobile header carries the date (moved up from the dashboard —
-              the logo rendered too small here to be worth it). Company
-              identity lives in the sidebar on desktop. The hamburger is
-              retired — the More tab opens the drawer. */}
-          <span className="lg:hidden font-display text-[12px] font-semibold uppercase tracking-[0.1em] text-gray-500 truncate">
-            {today}
-          </span>
+          {/* Mobile header: settings on the left (the date it replaced now
+              lives on the dashboard Today card). Company identity lives in
+              the sidebar on desktop. The hamburger is retired — the More tab
+              opens the drawer. */}
+          <Link
+            href={manager ? "/app/settings" : "/app/settings/profile"}
+            onClick={() => hapticImpact("LIGHT")}
+            aria-label={manager ? "Settings" : "My Profile"}
+            className="lg:hidden -ml-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-500 active:bg-gray-100 transition-colors"
+          >
+            <Settings size={20} />
+          </Link>
 
           {/* Team chat, one tap from anywhere — red dot when messages wait */}
           <Link

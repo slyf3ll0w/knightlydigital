@@ -109,6 +109,25 @@ export default async function JobDetailPage({
     }
   );
 
+  // Expected on-site time from the price book. Line items are name snapshots
+  // (no workItemId), so match by name; a renamed service simply contributes
+  // nothing and the scheduler falls back to one slot interval.
+  const lineItemNames = [...new Set(job.lineItems.map((li) => li.name))];
+  const bookDurationMinutes =
+    lineItemNames.length === 0
+      ? 0
+      : (
+          await prisma.workItem.findMany({
+            where: {
+              companyId,
+              name: { in: lineItemNames },
+              durationMinutes: { not: null },
+            },
+            select: { durationMinutes: true },
+            distinct: ["name"],
+          })
+        ).reduce((s, w) => s + (w.durationMinutes ?? 0), 0);
+
   const lineTotal = job.lineItems.reduce((s, li) => s + Number(li.total), 0);
   const lineCost = job.lineItems.reduce(
     (s, li) => s + Number(li.unitCost ?? 0) * Number(li.quantity),
@@ -188,6 +207,7 @@ export default async function JobDetailPage({
             intervalMinutes={resolveSlotInterval({
               companyIntervalMinutes: company?.schedulingIntervalMinutes,
             })}
+            defaultDurationMinutes={bookDurationMinutes || undefined}
           />
         </div>
         {job.quote && (

@@ -30,12 +30,16 @@ export default function ScheduleJob({
   scheduledEnd,
   scheduledAnytime,
   intervalMinutes = 30,
+  defaultDurationMinutes,
 }: {
   jobId: string;
   scheduledAt: string | null;
   scheduledEnd: string | null;
   scheduledAnytime: boolean;
   intervalMinutes?: number;
+  /** Expected on-site time from the price book (sum of the job's line items'
+      service durations). Falls back to one slot interval when absent. */
+  defaultDurationMinutes?: number;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -123,9 +127,12 @@ export default function ScheduleJob({
               ariaLabel="Start"
               onChange={(next) => {
                 setStart(next);
-                // Auto-fill the end one interval later when it isn't set yet, so
-                // a single pick produces a valid block; the user can still adjust.
-                if (!end && next) setEnd(addMinutesToLocalDateTime(next, intervalMinutes));
+                // Auto-fill the end from the price-book duration (or one slot
+                // interval) when it isn't set yet; the user can still adjust.
+                if (!end && next)
+                  setEnd(
+                    addMinutesToLocalDateTime(next, defaultDurationMinutes || intervalMinutes)
+                  );
               }}
             />
           </div>

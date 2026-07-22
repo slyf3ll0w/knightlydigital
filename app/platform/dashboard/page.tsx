@@ -330,7 +330,7 @@ export default async function DashboardPage() {
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto">
       <div className="mb-7 anim-fade-up">
-        {/* Mobile shows this date in the top bar instead (AppShell) */}
+        {/* Mobile shows the date on the Today card instead */}
         <p className="hidden lg:block text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">
           {now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
         </p>
