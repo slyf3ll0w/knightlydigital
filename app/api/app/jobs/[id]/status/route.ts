@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, jobScope } from "@/lib/permissions";
 import { sendEmail, reviewRequestEmail } from "@/lib/email";
+import { syncJobChecklist, countOpenChecklistItems } from "@/lib/job-checklist";
 
 export async function PATCH(
   req: NextRequest,
@@ -23,6 +24,22 @@ export async function PATCH(
 
   const job = await prisma.job.findFirst({ where: { id, companyId, ...jobScope(actor) } });
   if (!job) return NextResponse.json({ error: "Job not found." }, { status: 404 });
+
+  // Close-out gate: an ACTIVE job can't complete or close while its service
+  // checklist has tasks that are neither checked off nor given a skip reason.
+  // Sync first so the gate holds even if the job page was never opened.
+  if (job.status === "ACTIVE" && (status === "REQUIRES_INVOICING" || status === "ARCHIVED")) {
+    await syncJobChecklist(id, companyId);
+    const open = await countOpenChecklistItems(id);
+    if (open > 0) {
+      return NextResponse.json(
+        {
+          error: `${open} checklist ${open === 1 ? "task" : "tasks"} still need${open === 1 ? "s" : ""} to be checked off (or given a reason it wasn't done) before this job can be closed out.`,
+        },
+        { status: 400 }
+      );
+    }
+  }
 
   const extra: Record<string, Date | null> = {};
   if (status === "REQUIRES_INVOICING") extra.completedAt = new Date();

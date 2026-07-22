@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
+import { Prisma } from "@prisma/client";
 import { sanitizeRecurringAndAgreement, sanitizeDuration, sanitizePriceDisplay } from "@/lib/work-items";
 import { sanitizeDeposit } from "@/lib/deposits";
+import { sanitizeChecklist } from "@/lib/job-checklist";
 
 // Price-book edits are settings territory: managers only
 async function getCompanyId() {
@@ -43,6 +45,9 @@ export async function PATCH(
       }),
       ...(body.durationMinutes !== undefined && {
         durationMinutes: sanitizeDuration(body.durationMinutes),
+      }),
+      ...(body.checklist !== undefined && {
+        checklist: sanitizeChecklist(body.checklist) ?? Prisma.DbNull,
       }),
       ...(body.priceDisplay !== undefined && {
         priceDisplay: sanitizePriceDisplay(body.priceDisplay),

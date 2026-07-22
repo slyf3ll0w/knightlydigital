@@ -26,6 +26,7 @@ type WorkItem = {
   agreementTiming: "WITH_QUOTE" | "ON_APPROVAL";
   depositType: DepositType;
   depositValue: number | string | null;
+  checklist: string[] | null;
 };
 
 type Template = { id: string; name: string };
@@ -45,6 +46,7 @@ type FormState = {
   agreementTiming: "WITH_QUOTE" | "ON_APPROVAL";
   depositType: DepositType;
   depositValue: string;
+  checklist: string; // one task per line
 };
 
 const emptyForm: FormState = {
@@ -62,6 +64,7 @@ const emptyForm: FormState = {
   agreementTiming: "ON_APPROVAL",
   depositType: "NONE",
   depositValue: "",
+  checklist: "",
 };
 
 const INTERVAL_LABEL: Record<RecurringInterval, string> = {
@@ -110,6 +113,7 @@ export default function ProductsClient({
       agreementTiming: item.agreementTiming,
       depositType: item.depositType ?? "NONE",
       depositValue: item.depositValue != null ? String(Number(item.depositValue)) : "",
+      checklist: Array.isArray(item.checklist) ? item.checklist.join("\n") : "",
     });
     setEditingId(item.id);
     setError("");
@@ -142,6 +146,10 @@ export default function ProductsClient({
       agreementTiming: form.agreementTiming,
       depositType: form.depositType,
       depositValue: form.depositValue === "" ? null : parseFloat(form.depositValue) || 0,
+      checklist: form.checklist
+        .split("\n")
+        .map((t) => t.trim())
+        .filter(Boolean),
     };
 
     const { ok, data } =
@@ -280,6 +288,26 @@ export default function ProductsClient({
             How long this service takes — auto-fills the end time when you schedule a job
             with it, and the online slot picker uses it to find open times (services with
             no set time can&apos;t be booked online).
+          </p>
+        </div>
+      )}
+      {/* Close-out checklist — required tasks on every job with this service */}
+      {form.type === "SERVICE" && (
+        <div className="border-t border-green-200/60 pt-3">
+          <label className="block text-xs font-medium text-gray-500 mb-1">
+            Job checklist
+          </label>
+          <textarea
+            value={form.checklist}
+            onChange={(e) => set("checklist", e.target.value)}
+            rows={4}
+            placeholder={"One task per line, e.g.\nBefore/after photos taken\nWork area cleaned up\nWalked the client through the work"}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+          />
+          <p className="mt-1 text-xs text-gray-500">
+            These tasks appear on every job that includes this service. Each one must be
+            checked off — or given a reason it wasn&apos;t done — before the job can be
+            completed or closed.
           </p>
         </div>
       )}
@@ -520,6 +548,11 @@ export default function ProductsClient({
                             {item.durationMinutes % 60 === 0
                               ? `${item.durationMinutes / 60}h`
                               : `${item.durationMinutes}m`}
+                          </span>
+                        )}
+                        {Array.isArray(item.checklist) && item.checklist.length > 0 && (
+                          <span className="ml-2 stamp text-teal-700">
+                            Checklist · {item.checklist.length}
                           </span>
                         )}
                         {item.depositType && item.depositType !== "NONE" && (

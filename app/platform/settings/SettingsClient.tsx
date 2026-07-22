@@ -41,15 +41,13 @@ type Company = {
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
 
 // Wallpaper picker options (Company.wallpaper — see lib/wallpapers.ts).
-// "logo" only renders when a logo is uploaded.
+// The logo options only render when a logo is uploaded.
 const WALLPAPER_CHOICES: [string, string][] = [
   ["none", "None"],
-  ["logo", "Your logo"],
+  ["logo", "Logo — tilted"],
+  ["logo-straight", "Logo — straight"],
   ["grid", "Graph paper"],
   ["dots", "Dot grid"],
-  ["blueprint", "Blueprint"],
-  ["topo", "Topographic"],
-  ["pinstripe", "Pinstripe"],
 ];
 
 /** Color picker + typed hex code, kept in sync. Empty = default. */
@@ -991,9 +989,9 @@ export default function SettingsClient({
             <p className="text-xs text-gray-400 mb-2">
               A subtle backdrop behind every page of the app — your team sees it, clients never do
             </p>
-            <div className="grid grid-cols-3 sm:grid-cols-4 xl:grid-cols-7 gap-2">
+            <div className="grid grid-cols-3 sm:grid-cols-4 xl:grid-cols-5 gap-2">
               {WALLPAPER_CHOICES.map(([value, label]) =>
-                value === "logo" && !form.logoUrl ? null : (
+                value.startsWith("logo") && !form.logoUrl ? null : (
                   <button
                     key={value}
                     type="button"
@@ -1005,12 +1003,14 @@ export default function SettingsClient({
                     }`}
                   >
                     <div className="relative h-12 overflow-hidden rounded-md border border-gray-100 bg-white">
-                      {value === "logo" ? (
+                      {value.startsWith("logo") ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={form.logoUrl}
                           alt=""
-                          className="h-full w-full rotate-45 scale-125 object-contain opacity-30"
+                          className={`h-full w-full object-contain opacity-30 ${
+                            value === "logo" ? "rotate-45 scale-125" : "scale-90"
+                          }`}
                         />
                       ) : value !== "none" ? (
                         <div className={`wp-preview wp-${value} absolute inset-0`} />

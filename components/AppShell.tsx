@@ -731,10 +731,11 @@ export default function AppShell({
       {/* ── Main content area ─────────────────────────────────────────────── */}
       <div className="relative flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Optional company wallpaper — pinned behind every page (it doesn't
-            scroll with the content). Either the huge tilted logo watermark or
-            one of the .wp-* patterns from globals.css (lib/wallpapers.ts).
-            The header paints over its own strip; <main> is transparent. */}
-        {wallpaper === "logo" && companyLogoUrl && (
+            scroll with the content). Either the huge logo watermark (tilted
+            or straight) or one of the .wp-* patterns from globals.css
+            (lib/wallpapers.ts). The header paints over its own strip;
+            <main> is transparent. */}
+        {(wallpaper === "logo" || wallpaper === "logo-straight") && companyLogoUrl && (
           <div
             aria-hidden
             className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden"
@@ -743,7 +744,9 @@ export default function AppShell({
             <img
               src={companyLogoUrl}
               alt=""
-              className="logo-wallpaper w-[120%] max-w-none shrink-0 rotate-45 object-contain"
+              className={`logo-wallpaper max-w-none shrink-0 object-contain ${
+                wallpaper === "logo" ? "w-[120%] rotate-45" : "w-[85%] max-h-[80%]"
+              }`}
             />
           </div>
         )}

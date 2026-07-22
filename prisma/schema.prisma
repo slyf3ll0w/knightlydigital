@@ -176,6 +176,7 @@ model User {
   timeBlocks       TimeBlock[]     @relation("TimeBlockUser")
   timeEntries      TimeEntry[]
   locationPings    LocationPing[]
+  checklistChecks  JobChecklistItem[]
 
   @@index([companyId])
   @@index([role])
@@ -788,6 +789,7 @@ model Job {
   photos      JobPhoto[]
   lineItems   JobLineItem[]
   timeEntries TimeEntry[]
+  checklistItems JobChecklistItem[]
   quote       Quote?
   invoice     Invoice?
 
@@ -810,6 +812,29 @@ model JobLineItem {
   recurringInterval RecurringInterval? // display-only snapshot from the price book
   sortOrder   Int      @default(0)
 
+  @@index([jobId])
+}
+
+// A single required task on a job, materialized from the checklists of the
+// price-book services on its line items (lib/job-checklist.ts syncs them by
+// service name). Every item must be done OR carry a skip reason before the
+// job can leave ACTIVE (enforced in the job status route).
+model JobChecklistItem {
+  id         String    @id @default(cuid())
+  jobId      String
+  job        Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  label      String
+  // Name of the price-book service this task came from — the sync key.
+  sourceName String
+  sortOrder  Int       @default(0)
+  doneAt     DateTime?
+  doneById   String?
+  doneBy     User?     @relation(fields: [doneById], references: [id])
+  // Why this task was NOT done (mutually exclusive with doneAt in practice)
+  skipReason String?
+  createdAt  DateTime  @default(now())
+
+  @@unique([jobId, sourceName, label])
   @@index([jobId])
 }
 
@@ -1259,6 +1284,10 @@ model WorkItem {
   // agreement is signed (flag snapshots onto QuoteLineItem at pick time).
   // Set automatically whenever an agreement template is attached.
   requiresAgreement Boolean @default(false)
+  // Task list for this service (Json string[]). Jobs whose line items include
+  // this service materialize these as JobChecklistItems, which must each be
+  // checked off (or given a skip reason) before the job can be closed out.
+  checklist Json?
   // Optional agreement that auto-sends with quotes for this service
   agreementTemplateId String?
   agreementTemplate   ContractTemplate? @relation(fields: [agreementTemplateId], references: [id])

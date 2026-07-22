@@ -11,6 +11,7 @@ import { earliestOpenMinutes, sanitizeBusinessHours } from "@/lib/business-hours
 import { renderMessageTemplate, DEFAULT_ON_MY_WAY_TEMPLATE } from "@/lib/messaging";
 import { entryMs, formatDuration } from "@/lib/time-entries";
 import { visitFrequencyLabel } from "@/lib/subscriptions";
+import { syncJobChecklist } from "@/lib/job-checklist";
 import JobActions from "./JobActions";
 import ClockCard from "./ClockCard";
 import OnMyWay from "./OnMyWay";
@@ -20,6 +21,7 @@ import JobNoteItem from "./JobNoteItem";
 import ScheduleJob from "./ScheduleJob";
 import AssignTeam from "./AssignTeam";
 import PhotoUpload from "./PhotoUpload";
+import JobChecklist from "./JobChecklist";
 
 export default async function JobDetailPage({
   params,
@@ -79,6 +81,15 @@ export default async function JobDetailPage({
   ]);
 
   if (!job) notFound();
+
+  // Close-out checklist: keep the rows in step with the current line items
+  // while the job is open (closed jobs are a frozen record), then load them.
+  if (job.status === "ACTIVE") await syncJobChecklist(job.id, companyId);
+  const checklistItems = await prisma.jobChecklistItem.findMany({
+    where: { jobId: job.id },
+    include: { doneBy: { select: { name: true } } },
+    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+  });
 
   // Time clock: closed time on this job + who's on it right now
   const closedEntries = job.timeEntries.filter((e) => e.endedAt);
@@ -304,6 +315,22 @@ export default async function JobDetailPage({
               )}
             </div>
           </div>
+
+          {/* Close-out checklist — must be fully resolved to complete the job */}
+          {checklistItems.length > 0 && (
+            <JobChecklist
+              jobId={job.id}
+              readOnly={job.status === "ARCHIVED" || actor.role === "SALES"}
+              items={checklistItems.map((c) => ({
+                id: c.id,
+                label: c.label,
+                sourceName: c.sourceName,
+                done: !!c.doneAt,
+                doneByName: c.doneBy?.name ?? null,
+                skipReason: c.skipReason,
+              }))}
+            />
+          )}
 
           {/* Line items */}
           {job.lineItems.length > 0 && (

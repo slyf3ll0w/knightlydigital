@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getActor, canSell, isManager } from "@/lib/permissions";
 import { sanitizeRecurringAndAgreement, sanitizeDuration, sanitizePriceDisplay } from "@/lib/work-items";
 import { sanitizeDeposit } from "@/lib/deposits";
+import { sanitizeChecklist } from "@/lib/job-checklist";
 
 export async function GET() {
   // Read access for anyone who builds quotes (price-book autocomplete)
@@ -47,6 +48,7 @@ export async function POST(req: NextRequest) {
       unitCost: unitCost !== null && unitCost !== undefined && unitCost !== "" ? Number(unitCost) : null,
       priceDisplay: sanitizePriceDisplay(body.priceDisplay),
       durationMinutes: sanitizeDuration(body.durationMinutes),
+      checklist: sanitizeChecklist(body.checklist) ?? undefined,
       ...recurring.data,
       ...sanitizeDeposit(body),
     },

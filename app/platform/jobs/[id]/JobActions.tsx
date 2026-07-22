@@ -38,11 +38,16 @@ export default function JobActions({
     setOpen(false);
     setBusy(true);
     try {
-      await fetch(`/api/app/jobs/${jobId}/status`, {
+      const res = await fetch(`/api/app/jobs/${jobId}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
       });
+      // The close-out checklist gate (and other validation) answers 400
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        if (data?.error) alert(data.error);
+      }
     } finally {
       setBusy(false);
       router.refresh();
