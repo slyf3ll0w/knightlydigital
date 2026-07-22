@@ -71,6 +71,12 @@ export async function PATCH(req: NextRequest) {
             ? body.brandColorSecondary
             : null
           : undefined,
+      documentColor:
+        body.documentColor !== undefined
+          ? /^#[0-9a-fA-F]{6}$/.test(body.documentColor ?? "")
+            ? body.documentColor
+            : null
+          : undefined,
       // Advanced section-color overrides — unknown keys/bad hexes dropped;
       // {} = back to the stock palette.
       sectionColors:

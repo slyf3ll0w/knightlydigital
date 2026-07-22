@@ -26,7 +26,7 @@ export default async function HubLayout({
   const contact = await prisma.contact.findUnique({
     where: { hubToken: token },
     include: {
-      company: { select: { name: true, logoUrl: true, brandColor: true, brandColorSecondary: true } },
+      company: { select: { name: true, logoUrl: true, brandColor: true, documentColor: true, brandColorSecondary: true } },
     },
   });
   if (!contact) notFound();

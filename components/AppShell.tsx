@@ -688,12 +688,12 @@ export default function AppShell({
           "--wb-primary-l": lightPrimary,
           "--wb-primary-d": darkPrimary,
           // Tool hardware (chip-tool/card-tool/btn-tool outlines + hard
-          // offsets): a deep-primary ink instead of stock console navy. The
-          // light half leans navy so pale primaries stay readable; the dark
-          // half tints the translucent line/offset the theme expects.
-          "--tool-line-l": mixHex(lightPrimary, "#0a1428", 0.45),
-          "--tool-shadow-l": mixHex(lightPrimary, "#0a1428", 0.45),
-          "--tool-line-d": hexToRgba(tint(darkPrimary, 0.35), 0.4),
+          // offsets): a deep-primary ink instead of stock console navy —
+          // mostly primary, with just enough navy to keep pale picks
+          // readable; the dark half tints the translucent line/offset.
+          "--tool-line-l": mixHex(lightPrimary, "#0a1428", 0.25),
+          "--tool-shadow-l": mixHex(lightPrimary, "#0a1428", 0.25),
+          "--tool-line-d": hexToRgba(tint(darkPrimary, 0.35), 0.45),
           "--tool-shadow-d": hexToRgba(shade(darkPrimary, 0.7), 0.7),
         } as React.CSSProperties;
       })()
@@ -751,7 +751,7 @@ export default function AppShell({
           <div aria-hidden className={`wp-layer wp-${wallpaper} pointer-events-none absolute inset-0`} />
         )}
         {/* Top bar */}
-        <header className="relative flex items-center gap-4 px-4 lg:px-6 min-h-[57px] pt-[env(safe-area-inset-top)] border-b border-gray-200 bg-white shrink-0">
+        <header className="relative flex items-center gap-4 px-4 lg:px-6 min-h-[57px] pt-[env(safe-area-inset-top)] border-b border-gray-200 bg-chrome shrink-0">
           {/* Ledger margin rule — both brand colors meet on the app frame:
               primary (structure) running into secondary (accent) */}
           <span
@@ -1073,7 +1073,7 @@ function MobileTabBar({
       )}
 
       {/* ── Mobile bottom tab bar ─────────────────────────────────────────── */}
-      <nav className="mobile-tab-bar lg:hidden fixed bottom-0 inset-x-0 z-30 bg-white border-t border-gray-200 flex items-stretch pb-[env(safe-area-inset-bottom)]">
+      <nav className="mobile-tab-bar lg:hidden fixed bottom-0 inset-x-0 z-30 bg-chrome border-t border-gray-200 flex items-stretch pb-[env(safe-area-inset-bottom)]">
         {tabs.map(tabLink)}
         {creates.length > 0 && (
           <div className="relative w-16 shrink-0">

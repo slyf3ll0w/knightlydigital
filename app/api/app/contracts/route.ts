@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
 
   const company = await prisma.company.findUnique({
     where: { id: companyId },
-    select: { name: true, brandColor: true, brandColorSecondary: true, logoUrl: true },
+    select: { name: true, brandColor: true, documentColor: true, brandColorSecondary: true, logoUrl: true },
   });
   const today = new Date().toLocaleDateString("en-US", {
     month: "long",

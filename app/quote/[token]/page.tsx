@@ -51,6 +51,7 @@ export default async function PublicQuotePage({
           name: true,
           logoUrl: true,
           brandColor: true,
+          documentColor: true,
           brandColorSecondary: true,
         },
       },

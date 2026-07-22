@@ -44,6 +44,7 @@ export async function POST(
           timezone: true,
           arrivalWindowMinutes: true,
           brandColor: true,
+          documentColor: true,
           brandColorSecondary: true,
           logoUrl: true,
         },

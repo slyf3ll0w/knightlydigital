@@ -44,6 +44,7 @@ export async function PATCH(
           name: true,
           reviewLink: true,
           brandColor: true,
+          documentColor: true,
           brandColorSecondary: true,
           logoUrl: true,
         },

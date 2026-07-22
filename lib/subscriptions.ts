@@ -300,6 +300,7 @@ async function generateCycle(sub: DueSub, now: Date): Promise<"billed" | "drafte
         name: true,
         email: true,
         brandColor: true,
+        documentColor: true,
         brandColorSecondary: true,
         logoUrl: true,
       },

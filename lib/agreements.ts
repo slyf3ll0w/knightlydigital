@@ -74,7 +74,7 @@ export async function autoSendQuoteAgreements(
 
     const company = await prisma.company.findUnique({
       where: { id: quote.companyId },
-      select: { name: true, brandColor: true, brandColorSecondary: true, logoUrl: true },
+      select: { name: true, brandColor: true, documentColor: true, brandColorSecondary: true, logoUrl: true },
     });
     const today = new Date().toLocaleDateString("en-US", {
       month: "long",

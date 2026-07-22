@@ -24,6 +24,7 @@ type Company = {
   email: string | null; address: string | null; city: string | null;
   state: string | null; zip: string | null; website: string | null;
   logoUrl: string | null; brandColor: string | null; brandColorSecondary: string | null;
+  documentColor: string | null;
   sectionColors: Record<string, string> | null;
   logoWallpaper: boolean; wallpaper: string | null;
   sidebarTheme: string; sidebarLogoColor: string | null;
@@ -489,6 +490,7 @@ export default function SettingsClient({
     sidebarLogoColor: company.sidebarLogoColor ?? "",
     brandColor: company.brandColor ?? "",
     brandColorSecondary: company.brandColorSecondary ?? "",
+    documentColor: company.documentColor ?? "",
     // Kept as a JSON string so the flat string-diff auto-save machinery works
     sectionColors: JSON.stringify(company.sectionColors ?? {}),
     surchargeEnabled: company.surchargeEnabled,
@@ -1025,7 +1027,7 @@ export default function SettingsClient({
           <div className="grid sm:grid-cols-2 gap-4">
             <ColorField
               label="Primary color"
-              hint="Surfaces and structure — client page headers, plus the app's card outlines and frame"
+              hint="Your main brand color — the app's outlines, frame, and surfaces"
               value={form.brandColor}
               fallback="#0C0F0C"
               onChange={(v) => set("brandColor", v)}
@@ -1036,6 +1038,13 @@ export default function SettingsClient({
               value={form.brandColorSecondary}
               fallback={form.brandColor || "#16A34A"}
               onChange={(v) => set("brandColorSecondary", v)}
+            />
+            <ColorField
+              label="Quotes & invoices color"
+              hint="Headers on client-facing pages and emails — quotes, invoices, the client hub. Defaults to your primary color."
+              value={form.documentColor}
+              fallback={form.brandColor || "#0C0F0C"}
+              onChange={(v) => set("documentColor", v)}
             />
           </div>
 
@@ -1168,10 +1177,10 @@ export default function SettingsClient({
             </p>
           </div>
           <div className="theme-fixed overflow-hidden rounded-lg border border-gray-200 bg-white">
-            {/* Client page header */}
+            {/* Client page header — the document color wins, like the live pages */}
             <div
               className="flex items-center gap-3 px-5 py-4"
-              style={{ backgroundColor: form.brandColor || "#0C0F0C" }}
+              style={{ backgroundColor: form.documentColor || form.brandColor || "#0C0F0C" }}
             >
               {form.logoUrl && (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -1183,7 +1192,7 @@ export default function SettingsClient({
               )}
               <span
                 className="font-display font-bold text-[15px]"
-                style={{ color: textOn(form.brandColor || "#0C0F0C") }}
+                style={{ color: textOn(form.documentColor || form.brandColor || "#0C0F0C") }}
               >
                 {form.name}
               </span>

@@ -27,6 +27,8 @@ export function emailEnabled(): boolean {
 export type EmailBrand = {
   brandColor?: string | null;
   brandColorSecondary?: string | null;
+  /** Client-document color — preferred over brandColor when set */
+  documentColor?: string | null;
   logoUrl?: string | null;
 };
 
@@ -47,7 +49,9 @@ const swap = (html: string, find: string, replace: string) => html.split(find).j
  * the classic console look stays.
  */
 function brandEmail(html: string, brand: EmailBrand): string {
-  const color = BRAND_HEX.test(brand.brandColor ?? "") ? brand.brandColor! : null;
+  const color =
+    (BRAND_HEX.test(brand.documentColor ?? "") ? brand.documentColor! : null) ??
+    (BRAND_HEX.test(brand.brandColor ?? "") ? brand.brandColor! : null);
   const accent =
     (BRAND_HEX.test(brand.brandColorSecondary ?? "") ? brand.brandColorSecondary! : null) ?? color;
   let out = html;

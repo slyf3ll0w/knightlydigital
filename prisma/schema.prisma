@@ -25,6 +25,9 @@ model Company {
   logoMime         String?
   brandColor       String? // primary brand hex: headers/surfaces on client-facing pages + app accent
   brandColorSecondary String? // secondary brand hex: buttons/accents; falls back to brandColor
+  // Client-document header hex (quotes, invoices, emails, hub, portal) —
+  // decoupled from the in-app primary; falls back to brandColor when unset.
+  documentColor    String?
   // Advanced customization: per-section hue overrides for the app's color
   // language ({ jobs: "#F97316", ... } — keys/validation in lib/section-colors.ts).
   // {} or null = the stock palette.

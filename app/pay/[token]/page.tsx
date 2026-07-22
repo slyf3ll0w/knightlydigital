@@ -63,6 +63,7 @@ export default async function PublicPayPage({
           email: true,
           logoUrl: true,
           brandColor: true,
+          documentColor: true,
           brandColorSecondary: true,
           surchargeEnabled: true,
           surchargeRate: true,

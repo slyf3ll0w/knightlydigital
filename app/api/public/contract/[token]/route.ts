@@ -57,6 +57,7 @@ export async function POST(
         name: true,
         email: true,
         brandColor: true,
+        documentColor: true,
         brandColorSecondary: true,
         logoUrl: true,
       },

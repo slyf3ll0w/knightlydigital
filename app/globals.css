@@ -9,6 +9,8 @@
      recipe everywhere. */
   .card-ledger {
     @apply bg-white border border-gray-200 rounded-[8px];
+    /* Hairline carries the primary's temperature instead of neutral gray */
+    border-color: color-mix(in srgb, var(--wb-primary, #0A1428) 16%, #e5e7eb);
     box-shadow:
       0 1px 2px rgba(15, 23, 42, 0.05),
       0 2px 6px rgba(15, 23, 42, 0.03);
@@ -300,6 +302,16 @@ html[data-mode="dark"] .app-ui {
   --sh-forms-on: var(--sh-forms-on-d, #FFFFFF);
   --sh-team: var(--sh-team-d, #10B981);
   --sh-team-on: var(--sh-team-on-d, #FFFFFF);
+}
+
+/* ── Chrome wash — the app frame (top bar, mobile tab bar) takes a faint
+   coat of the PRIMARY color instead of flat white, so the structural brand
+   color is ambient on every screen. ── */
+.app-ui .bg-chrome {
+  background-color: color-mix(in srgb, var(--wb-primary, #0A1428) 4%, #ffffff);
+}
+html[data-mode="dark"] .app-ui .bg-chrome {
+  background-color: color-mix(in srgb, var(--wb-primary, #606673) 8%, #171717);
 }
 
 /* ── Theme-guarded custom colors — the app-wide override rule for stored,
@@ -991,7 +1003,7 @@ body {
   html[data-mode="dark"] .app-ui .wp-preview { opacity: 0.5; }
   html[data-mode="dark"] .app-ui .card-ledger {
     background-color: var(--t-surface);
-    border-color: var(--t-line);
+    border-color: color-mix(in srgb, var(--wb-primary, #606673) 14%, var(--t-line));
     box-shadow:
       0 1px 2px rgba(0, 0, 0, 0.4),
       0 2px 6px rgba(0, 0, 0, 0.25);

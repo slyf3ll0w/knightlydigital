@@ -11,14 +11,18 @@ export type CompanyBrand = {
   logoUrl?: string | null;
   brandColor?: string | null;
   brandColorSecondary?: string | null;
+  /** Client-document override — quotes/invoices/emails keep their own color
+   *  so the in-app primary can change freely. Falls back to brandColor. */
+  documentColor?: string | null;
 };
 
 const DEFAULT_HEADER = "#0A1428";
 const DEFAULT_ACCENT = "#0B57D8"; // WorkBench blue
 
-/** Header background for branded page tops (primary color). */
+/** Header background for branded client-page tops — the document color,
+ *  falling back to the primary. */
 export function brandHeader(company: CompanyBrand): string {
-  return company.brandColor || DEFAULT_HEADER;
+  return company.documentColor || company.brandColor || DEFAULT_HEADER;
 }
 
 /** Accent for primary buttons / highlights (secondary color, falls back to primary). */
