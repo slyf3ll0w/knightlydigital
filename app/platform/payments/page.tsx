@@ -7,6 +7,7 @@ import { Plus, ArrowUpRight, ChevronRight, DollarSign } from "lucide-react";
 import { money, shortDate } from "@/lib/statuses";
 import EmptyState from "@/components/EmptyState";
 import PageTitle from "@/components/PageTitle";
+import { SECTION_HUES } from "@/lib/section-colors";
 import {
   getProcessor,
   processingFees,
@@ -385,8 +386,38 @@ export default async function PaymentsDashboardPage() {
         </div>
       )}
 
-      {/* KPI strip — same money-card recipe as the dashboard */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-8">
+      {/* Phone: one divided strip with hue-dot labels (KpiStrip pattern) —
+          zero stats drop out, and an all-zero month shows nothing at all */}
+      {(() => {
+        const hue = SECTION_HUES.payments;
+        const cells = [
+          { label: "Collected", value: Number(monthAgg._sum.amount ?? 0) },
+          { label: "Processing", value: pendingAch },
+          { label: "All-time", value: Number(allAgg._sum.amount ?? 0) },
+        ].filter((c) => c.value > 0);
+        if (cells.length === 0) return null;
+        return (
+          <div className="card-ledger mb-4 flex divide-x divide-gray-100 overflow-hidden lg:hidden">
+            {cells.map((c) => (
+              <div key={c.label} className="min-w-0 flex-1 px-3 py-2.5">
+                <p className="flex items-center gap-1.5 truncate text-[11px] font-medium text-gray-500">
+                  <span
+                    className="h-1.5 w-1.5 shrink-0 rounded-full"
+                    style={{ backgroundColor: hue }}
+                    aria-hidden
+                  />
+                  <span className="truncate">{c.label}</span>
+                </p>
+                <p className="numeral-ledger truncate text-base font-semibold text-gray-900">
+                  {money(c.value)}
+                </p>
+              </div>
+            ))}
+          </div>
+        );
+      })()}
+      {/* Desktop keeps the money-card grid */}
+      <div className="mb-8 hidden gap-3 lg:grid lg:grid-cols-3">
         <div className="card-ledger p-4">
           <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-gray-500">
             Collected
