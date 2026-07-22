@@ -203,7 +203,7 @@ export default function QuoteActions({
         (contactEmail ? (
           <button
             onClick={emailToClient}
-            className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-full transition-colors"
+            className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors"
           >
             <Send size={13} />
             Email to Client
@@ -212,7 +212,7 @@ export default function QuoteActions({
           <button
             onClick={() => setStatus("AWAITING_RESPONSE")}
             title="No client email on file — this only marks the quote as sent"
-            className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-full transition-colors"
+            className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors"
           >
             <Send size={13} />
             Mark as Sent
@@ -221,7 +221,7 @@ export default function QuoteActions({
       {(status === "AWAITING_RESPONSE" || status === "CHANGES_REQUESTED") && (
         <button
           onClick={() => setStatus("APPROVED")}
-          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-full transition-colors"
+          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors"
         >
           <CheckCircle size={13} />
           Mark Approved
@@ -238,7 +238,7 @@ export default function QuoteActions({
         ) : (
           <button
             onClick={() => setAgreementOpen(true)}
-            className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-full transition-colors"
+            className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors"
           >
             <FileSignature size={13} />
             Send Agreement
@@ -249,7 +249,7 @@ export default function QuoteActions({
         !hasJob && (
           <button
             onClick={convertToJob}
-            className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-full transition-colors"
+            className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors"
           >
             <Briefcase size={13} />
             Convert to Job
@@ -261,7 +261,7 @@ export default function QuoteActions({
       {status === "ARCHIVED" && (
         <button
           onClick={() => setStatus(wasSent ? "AWAITING_RESPONSE" : "DRAFT")}
-          className="flex items-center gap-1.5 px-4 py-2 border border-gray-300 text-sm font-medium text-gray-700 rounded-full hover:bg-gray-50 transition-colors"
+          className="flex items-center gap-1.5 px-4 py-2 border border-gray-300 text-sm font-medium text-gray-700 rounded-[10px] hover:bg-gray-50 transition-colors"
         >
           <RotateCcw size={13} />
           Reopen Quote
@@ -271,7 +271,7 @@ export default function QuoteActions({
       {editable && (
         <Link
           href={`/app/quotes/${quoteId}/edit`}
-          className="p-2 border border-gray-300 rounded-full text-gray-600 hover:bg-gray-50 transition-colors"
+          className="p-2 border border-gray-300 rounded-[10px] text-gray-600 hover:bg-gray-50 transition-colors"
           title="Edit quote"
         >
           <Pencil size={15} />
@@ -281,7 +281,7 @@ export default function QuoteActions({
       <div className="relative">
         <button
           onClick={() => setOpen((v) => !v)}
-          className="p-2 border border-gray-300 rounded-full text-gray-600 hover:bg-gray-50 transition-colors"
+          className="p-2 border border-gray-300 rounded-[10px] text-gray-600 hover:bg-gray-50 transition-colors"
         >
           <MoreHorizontal size={16} />
         </button>
@@ -438,7 +438,7 @@ export default function QuoteActions({
                 <button
                   onClick={sendAgreement}
                   disabled={busy || !templateId}
-                  className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded-full transition-colors disabled:opacity-50"
+                  className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors disabled:opacity-50"
                 >
                   {busy ? <Loader2 size={13} className="animate-spin" /> : <FileSignature size={13} />}
                   Send Agreement

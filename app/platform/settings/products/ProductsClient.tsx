@@ -425,14 +425,14 @@ export default function ProductsClient({
         <button
           onClick={save}
           disabled={loading}
-          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-full transition-colors disabled:opacity-50"
+          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors disabled:opacity-50"
         >
           {loading && <Loader2 size={13} className="animate-spin" />}
           {editingId === "new" ? "Add Item" : "Save Changes"}
         </button>
         <button
           onClick={() => setEditingId(null)}
-          className="px-4 py-2 border border-gray-300 text-sm font-medium text-gray-600 rounded-full hover:bg-gray-50 transition-colors"
+          className="px-4 py-2 border border-gray-300 text-sm font-medium text-gray-600 rounded-[10px] hover:bg-gray-50 transition-colors"
         >
           Cancel
         </button>
@@ -456,7 +456,7 @@ export default function ProductsClient({
         {editingId !== "new" && (
           <button
             onClick={startNew}
-            className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-full transition-colors"
+            className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors"
           >
             <Plus size={15} />
             Add Item

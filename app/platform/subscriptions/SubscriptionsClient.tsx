@@ -212,7 +212,7 @@ export default function SubscriptionsClient({
           <button
             onClick={runAll}
             disabled={runningAll}
-            className="flex items-center gap-1.5 px-3 py-2 border border-gray-300 text-sm font-medium text-gray-700 rounded-full hover:bg-gray-50 transition-colors disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3 py-2 border border-gray-300 text-sm font-medium text-gray-700 rounded-[10px] hover:bg-gray-50 transition-colors disabled:opacity-50"
             title="Generate invoices for any subscriptions that are due now"
           >
             {runningAll ? <Loader2 size={14} className="animate-spin" /> : <RotateCw size={14} />}
@@ -426,7 +426,7 @@ export default function SubscriptionsClient({
                       <button
                         onClick={() => saveEdit(s.id)}
                         disabled={busyId === s.id}
-                        className="flex items-center gap-1 px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-semibold rounded-full transition-colors disabled:opacity-40"
+                        className="flex items-center gap-1 px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-semibold rounded-[10px] btn-tool transition-colors disabled:opacity-40"
                       >
                         {busyId === s.id ? (
                           <Loader2 size={11} className="animate-spin" />

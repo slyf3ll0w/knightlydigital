@@ -147,7 +147,7 @@ export default function AppointmentActions({
           <button
             onClick={() => patch({ status: "COMPLETED" })}
             disabled={busy}
-            className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-full transition-colors disabled:opacity-50"
+            className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors disabled:opacity-50"
           >
             {busy ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
             Mark Completed
@@ -156,7 +156,7 @@ export default function AppointmentActions({
         {status === "COMPLETED" && (
           <Link
             href={quoteHref}
-            className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-full transition-colors"
+            className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors"
           >
             <FileText size={14} />
             Create Quote
@@ -165,7 +165,7 @@ export default function AppointmentActions({
         <div className="relative">
           <button
             onClick={() => setMenuOpen((v) => !v)}
-            className="p-2 border border-gray-300 rounded-full text-gray-500 hover:bg-gray-50"
+            className="p-2 border border-gray-300 rounded-[10px] text-gray-500 hover:bg-gray-50"
           >
             <MoreHorizontal size={16} />
           </button>
@@ -277,7 +277,7 @@ export default function AppointmentActions({
           <button
             onClick={saveReschedule}
             disabled={busy}
-            className="px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded-full disabled:opacity-50"
+            className="px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded-[10px] btn-tool disabled:opacity-50"
           >
             Save
           </button>
@@ -389,14 +389,14 @@ export default function AppointmentActions({
               <button
                 onClick={() => setEditing(false)}
                 disabled={busy}
-                className="px-4 py-2 text-sm font-medium text-gray-600 rounded-full hover:bg-gray-50"
+                className="px-4 py-2 text-sm font-medium text-gray-600 rounded-[10px] hover:bg-gray-50"
               >
                 Cancel
               </button>
               <button
                 onClick={saveEdit}
                 disabled={busy}
-                className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded-full transition-colors disabled:opacity-50"
+                className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors disabled:opacity-50"
               >
                 {busy && <Loader2 size={13} className="animate-spin" />}
                 Save Changes

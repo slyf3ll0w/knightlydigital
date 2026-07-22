@@ -184,7 +184,7 @@ export default function ContactForm({
                 type="button"
                 onClick={() => set("status", value)}
                 title={hint}
-                className={`rounded-full border px-4 py-2 text-sm font-medium transition-colors ${
+                className={`rounded-[10px] border px-4 py-2 text-sm font-medium transition-colors ${
                   form.status === value
                     ? "border-green-500 ring-2 ring-green-500/30 text-gray-900"
                     : "border-gray-300 text-gray-600 hover:bg-gray-50"
@@ -415,14 +415,14 @@ export default function ContactForm({
           <button
             type="submit"
             disabled={loading}
-            className="flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-full transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors disabled:opacity-50"
           >
             {loading && <Loader2 size={14} className="animate-spin" />}
             {mode === "create" ? (form.status === "LEAD" ? "Save Lead" : "Save Client") : "Save Changes"}
           </button>
           <Link
             href={backHref}
-            className="px-5 py-2.5 border border-gray-300 text-sm font-medium text-gray-600 rounded-full hover:bg-gray-50 transition-colors"
+            className="px-5 py-2.5 border border-gray-300 text-sm font-medium text-gray-600 rounded-[10px] hover:bg-gray-50 transition-colors"
           >
             Cancel
           </Link>

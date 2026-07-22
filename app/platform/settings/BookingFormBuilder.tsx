@@ -792,7 +792,7 @@ export default function BookingFormBuilder({
         <button
           type="button"
           onClick={addField}
-          className="flex items-center gap-1.5 px-3 py-2 border border-dashed border-gray-300 text-sm font-medium text-gray-600 rounded-full hover:border-gray-400 hover:bg-gray-50 active:bg-gray-100 transition-colors"
+          className="flex items-center gap-1.5 px-3 py-2 border border-dashed border-gray-300 text-sm font-medium text-gray-600 rounded-[10px] hover:border-gray-400 hover:bg-gray-50 active:bg-gray-100 transition-colors"
         >
           <Plus size={14} />
           Add field

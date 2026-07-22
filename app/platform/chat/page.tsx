@@ -35,7 +35,7 @@ export default async function ChatPage() {
           {isManager(actor.role) && (
             <Link
               href="/app/settings/team"
-              className="mt-5 inline-flex items-center gap-1.5 rounded-full bg-green-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-600"
+              className="mt-5 inline-flex items-center gap-1.5 rounded-[10px] btn-tool bg-green-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-600"
             >
               <UserPlus size={14} />
               Add a team member

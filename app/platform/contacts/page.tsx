@@ -86,7 +86,7 @@ export default async function ContactsPage({
                 href="/app/settings/client-fields"
                 aria-label="Custom Fields"
                 title="Custom Fields"
-                className="flex h-10 w-10 items-center justify-center gap-1.5 rounded-full border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-sm font-semibold transition-colors sm:w-auto sm:px-4"
+                className="flex h-10 w-10 items-center justify-center gap-1.5 rounded-[10px] border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-sm font-semibold transition-colors sm:w-auto sm:px-4"
               >
                 <ListPlus size={15} />
                 <span className="hidden sm:inline">Custom Fields</span>
@@ -95,7 +95,7 @@ export default async function ContactsPage({
                 href="/app/settings/import"
                 aria-label="Import"
                 title="Import"
-                className="flex h-10 w-10 items-center justify-center gap-1.5 rounded-full border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-sm font-semibold transition-colors sm:w-auto sm:px-4"
+                className="flex h-10 w-10 items-center justify-center gap-1.5 rounded-[10px] border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-sm font-semibold transition-colors sm:w-auto sm:px-4"
               >
                 <Upload size={15} />
                 <span className="hidden sm:inline">Import</span>
@@ -105,7 +105,7 @@ export default async function ContactsPage({
           {/* Phones create from the tab-bar FAB */}
           <Link
             href="/app/contacts/new"
-            className="hidden lg:flex h-10 items-center gap-1.5 rounded-full bg-green-500 px-4 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold transition-colors"
+            className="hidden lg:flex h-10 items-center gap-1.5 rounded-[10px] btn-tool bg-green-500 px-4 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold transition-colors"
           >
             <Plus size={15} />
             New Client
@@ -120,7 +120,7 @@ export default async function ContactsPage({
           name="q"
           defaultValue={q ?? ""}
           placeholder="Search clients..."
-          className="w-full max-w-sm rounded-full border border-gray-300 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+          className="w-full max-w-sm rounded-[10px] border border-gray-300 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
         />
         {validStatus && <input type="hidden" name="status" value={validStatus} />}
       </form>

@@ -56,6 +56,25 @@
   .chip-tool {
     box-shadow: 2px 2px 0 #0a1428;
   }
+
+  /* ── Tool button — same offset, but it presses flat when you push it
+     (the marketing site's .wb-btn-tool). Solid primary actions only;
+     surfaces and cards keep their soft ledger shadows. */
+  .btn-tool {
+    box-shadow: 2px 2px 0 #0a1428;
+    transition:
+      transform 0.13s ease,
+      box-shadow 0.13s ease,
+      background-color 0.15s ease;
+  }
+  .btn-tool:hover {
+    transform: translate(1px, 1px);
+    box-shadow: 1px 1px 0 #0a1428;
+  }
+  .btn-tool:active {
+    transform: translate(2px, 2px);
+    box-shadow: 0 0 0 #0a1428;
+  }
 }
 
 @layer utilities {
@@ -862,6 +881,15 @@ body {
   /* Navy offsets disappear against the dark canvas — go black instead */
   html[data-mode="dark"] .app-ui .chip-tool {
     box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.65);
+  }
+  html[data-mode="dark"] .app-ui .btn-tool {
+    box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.65);
+  }
+  html[data-mode="dark"] .app-ui .btn-tool:hover {
+    box-shadow: 1px 1px 0 rgba(0, 0, 0, 0.65);
+  }
+  html[data-mode="dark"] .app-ui .btn-tool:active {
+    box-shadow: 0 0 0 rgba(0, 0, 0, 0.65);
   }
 
   /* ── Ink ── */

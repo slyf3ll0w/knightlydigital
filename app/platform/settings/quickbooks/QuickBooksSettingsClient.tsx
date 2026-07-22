@@ -171,7 +171,7 @@ export default function QuickBooksSettingsClient({ configured }: { configured: b
           </div>
           <a
             href="/api/app/quickbooks/connect"
-            className="inline-flex items-center gap-2 rounded-full bg-[#2CA01C] px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#248217]"
+            className="inline-flex items-center gap-2 rounded-[10px] btn-tool bg-[#2CA01C] px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#248217]"
           >
             Connect to QuickBooks
           </a>
@@ -206,7 +206,7 @@ export default function QuickBooksSettingsClient({ configured }: { configured: b
                 type="button"
                 onClick={syncNow}
                 disabled={syncing}
-                className="flex shrink-0 items-center gap-2 rounded-full bg-green-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-700 disabled:opacity-50"
+                className="flex shrink-0 items-center gap-2 rounded-[10px] btn-tool bg-green-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-700 disabled:opacity-50"
               >
                 {syncing ? (
                   <Loader2 size={14} className="animate-spin" />
@@ -282,7 +282,7 @@ export default function QuickBooksSettingsClient({ configured }: { configured: b
                 type="button"
                 onClick={disconnect}
                 disabled={disconnecting}
-                className="flex shrink-0 items-center gap-1.5 rounded-full border border-gray-300 px-3.5 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-50"
+                className="flex shrink-0 items-center gap-1.5 rounded-[10px] border border-gray-300 px-3.5 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-50"
               >
                 {disconnecting ? (
                   <Loader2 size={13} className="animate-spin" />

@@ -230,7 +230,7 @@ function CreateMenu({ accent, role }: { accent: string; role: string }) {
         onClick={() => setOpen((v) => !v)}
         data-tour="create"
         style={{ backgroundColor: accent, color: textOn(accent) }}
-        className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 hover:brightness-110 text-sm font-semibold rounded-full transition-[filter,transform] duration-150 active:scale-[0.96]"
+        className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 hover:brightness-110 text-sm font-semibold rounded-[10px] btn-tool"
       >
         {/* The plus twirls into an × while the menu is open — springy overshoot */}
         <Plus
@@ -741,7 +741,7 @@ export default function AppShell({
               a teammate, and hiding it entirely read as "chat is gone". */}
           <Link
             href="/app/chat"
-            className={`hidden lg:flex relative items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
+            className={`hidden lg:flex relative items-center gap-1.5 rounded-[10px] border px-3 py-1.5 text-sm font-medium transition-colors ${
               isActive("/app/chat")
                 ? "border-gray-900 bg-gray-900 text-white"
                 : "border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900"
@@ -1018,7 +1018,7 @@ function MobileTabBar({
               }}
               aria-label="Create"
               data-tour="create"
-              className="absolute left-1/2 -translate-x-1/2 -top-4 flex h-12 w-12 items-center justify-center rounded-full bg-[color:var(--mobile-accent)] text-[color:var(--mobile-on-accent)] shadow-[0_4px_14px_rgba(0,0,0,0.18)] active:scale-95 transition-transform"
+              className="absolute left-1/2 -translate-x-1/2 -top-4 flex h-12 w-12 items-center justify-center rounded-full bg-[color:var(--mobile-accent)] text-[color:var(--mobile-on-accent)] chip-tool active:scale-95 transition-transform"
             >
               <Plus
                 size={22}

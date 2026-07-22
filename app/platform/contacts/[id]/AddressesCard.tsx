@@ -207,7 +207,7 @@ export default function AddressesCard({
             <button
               onClick={save}
               disabled={busy}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-semibold rounded-full transition-colors disabled:opacity-60"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-semibold rounded-[10px] btn-tool transition-colors disabled:opacity-60"
             >
               {busy && <Loader2 size={12} className="animate-spin" />}
               {editing === "new" ? "Add address" : "Save"}

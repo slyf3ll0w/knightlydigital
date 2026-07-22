@@ -101,7 +101,7 @@ export default function JobActions({
       {status === "ACTIVE" && (
         <button
           onClick={closeJob}
-          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-full transition-colors"
+          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors"
         >
           <CheckCircle size={13} />
           Complete Job
@@ -110,7 +110,7 @@ export default function JobActions({
       {status === "REQUIRES_INVOICING" && (
         <button
           onClick={() => router.push(`/app/invoices/new?jobId=${jobId}`)}
-          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-full transition-colors"
+          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors"
         >
           <Receipt size={13} />
           Create Invoice
@@ -119,7 +119,7 @@ export default function JobActions({
       {status === "ARCHIVED" && (
         <button
           onClick={() => setStatus("ACTIVE")}
-          className="flex items-center gap-1.5 px-4 py-2 border border-gray-300 text-sm font-medium text-gray-700 rounded-full hover:bg-gray-50 transition-colors"
+          className="flex items-center gap-1.5 px-4 py-2 border border-gray-300 text-sm font-medium text-gray-700 rounded-[10px] hover:bg-gray-50 transition-colors"
         >
           <RotateCcw size={13} />
           Reopen Job
@@ -130,7 +130,7 @@ export default function JobActions({
         <div className="relative">
           <button
             onClick={() => setOpen((v) => !v)}
-            className="p-2 border border-gray-300 rounded-full text-gray-600 hover:bg-gray-50 transition-colors"
+            className="p-2 border border-gray-300 rounded-[10px] text-gray-600 hover:bg-gray-50 transition-colors"
           >
             <MoreHorizontal size={16} />
           </button>

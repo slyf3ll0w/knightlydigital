@@ -105,14 +105,14 @@ export default async function InvoicesPage({
         <div className="hidden lg:flex items-center gap-2">
           <Link
             href="/app/payments/new"
-            className="flex items-center gap-1.5 px-4 py-2 border border-gray-300 text-sm font-medium text-gray-700 rounded-full hover:bg-gray-50 active:bg-gray-100 transition-colors"
+            className="flex items-center gap-1.5 px-4 py-2 border border-gray-300 text-sm font-medium text-gray-700 rounded-[10px] hover:bg-gray-50 active:bg-gray-100 transition-colors"
           >
             <DollarSign size={14} />
             Collect Payment
           </Link>
           <Link
             href="/app/invoices/new"
-            className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-full transition-colors"
+            className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors"
           >
             <Plus size={15} />
             New Invoice

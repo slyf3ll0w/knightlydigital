@@ -323,7 +323,7 @@ export default function LeadsBoardClient({
           )}
           <button
             onClick={() => setAddingTo(stages[0]?.id ?? null)}
-            className="rounded-full flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold transition-colors"
+            className="rounded-[10px] btn-tool flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold transition-colors"
           >
             <Plus size={15} />
             New Lead
@@ -386,7 +386,7 @@ export default function LeadsBoardClient({
             <button
               onClick={() => setAddingTo(stages[0]?.id ?? null)}
               disabled={!stages[0]?.id}
-              className="rounded-full inline-flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white text-sm font-semibold"
+              className="rounded-[10px] btn-tool inline-flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white text-sm font-semibold"
             >
               <Plus size={15} />
               Add a Lead
@@ -634,7 +634,7 @@ export default function LeadsBoardClient({
                   setLostCard(null);
                   closeCard(c, "lost", lostReason);
                 }}
-                className="rounded-full px-4 py-2 bg-gray-800 hover:bg-gray-900 text-white text-sm font-semibold"
+                className="rounded-[10px] px-4 py-2 bg-gray-800 hover:bg-gray-900 text-white text-sm font-semibold"
               >
                 Mark Lost
               </button>
@@ -740,7 +740,7 @@ function QuickAdd({
         <button
           type="submit"
           disabled={saving || !name.trim()}
-          className="rounded-full flex-1 px-3 py-1.5 bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white text-xs font-semibold"
+          className="rounded-[10px] btn-tool flex-1 px-3 py-1.5 bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white text-xs font-semibold"
         >
           {saving ? "Adding…" : "Add lead"}
         </button>
@@ -872,14 +872,14 @@ function ActionSheet({
         <div className="grid grid-cols-2 gap-2 mt-5">
           <button
             onClick={onWon}
-            className="rounded-full flex items-center justify-center gap-1.5 px-3 py-3 bg-green-500 hover:bg-green-600 text-white text-sm font-bold"
+            className="rounded-[10px] btn-tool flex items-center justify-center gap-1.5 px-3 py-3 bg-green-500 hover:bg-green-600 text-white text-sm font-bold"
           >
             <Trophy size={15} />
             Won
           </button>
           <button
             onClick={onLost}
-            className="rounded-full flex items-center justify-center gap-1.5 px-3 py-3 bg-gray-700 hover:bg-gray-800 text-white text-sm font-bold"
+            className="rounded-[10px] flex items-center justify-center gap-1.5 px-3 py-3 bg-gray-700 hover:bg-gray-800 text-white text-sm font-bold"
           >
             <XCircle size={15} />
             Lost

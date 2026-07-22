@@ -116,7 +116,7 @@ function ProposalCard({
               type="button"
               disabled={p.state === "confirming" || !armed}
               onClick={onConfirm}
-              className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold text-white transition-colors disabled:opacity-50 ${
+              className={`flex items-center gap-1.5 rounded-[10px] px-3 py-1.5 text-xs font-semibold text-white transition-colors disabled:opacity-50 ${
                 p.danger ? "bg-red-600 hover:bg-red-700" : "bg-green-500 hover:bg-green-600"
               }`}
             >
@@ -131,7 +131,7 @@ function ProposalCard({
               type="button"
               disabled={p.state === "confirming"}
               onClick={onCancel}
-              className="rounded-full border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-600 transition-colors hover:bg-gray-100 disabled:opacity-50"
+              className="rounded-[10px] border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-600 transition-colors hover:bg-gray-100 disabled:opacity-50"
             >
               Cancel
             </button>
@@ -403,7 +403,7 @@ export default function AssistantDrawer({
                   <button
                     type="button"
                     onClick={() => confirmAll(i, m.proposals ?? [])}
-                    className="flex items-center gap-1.5 rounded-full bg-green-500 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-green-600"
+                    className="flex items-center gap-1.5 rounded-[10px] btn-tool bg-green-500 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-green-600"
                   >
                     <Check size={12} />
                     Confirm all ({m.proposals!.filter((p) => p.state === "pending" && !p.danger).length})

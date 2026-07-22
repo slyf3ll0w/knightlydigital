@@ -125,7 +125,7 @@ export default function ExpensesClient({ expenses }: { expenses: Expense[] }) {
         </div>
         <button
           onClick={() => setShowAdd((v) => !v)}
-          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-full transition-colors"
+          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors"
         >
           <Plus size={15} />
           Log Expense
@@ -190,7 +190,7 @@ export default function ExpensesClient({ expenses }: { expenses: Expense[] }) {
             <button
               onClick={add}
               disabled={busy || !description.trim() || !amount || !incurredAt}
-              className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded-full disabled:opacity-50"
+              className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded-[10px] btn-tool disabled:opacity-50"
             >
               {busy && <Loader2 size={13} className="animate-spin" />}
               Save Expense
@@ -214,7 +214,7 @@ export default function ExpensesClient({ expenses }: { expenses: Expense[] }) {
         </div>
         <button
           onClick={exportCsv}
-          className="flex items-center gap-1.5 px-4 py-2 border border-gray-300 rounded-full text-sm font-medium text-gray-700 hover:bg-gray-50"
+          className="flex items-center gap-1.5 px-4 py-2 border border-gray-300 rounded-[10px] text-sm font-medium text-gray-700 hover:bg-gray-50"
         >
           <Download size={14} />
           Export CSV
@@ -274,7 +274,7 @@ export default function ExpensesClient({ expenses }: { expenses: Expense[] }) {
                   <button
                     onClick={() => saveEdit(e.id)}
                     disabled={busy || !editForm.description.trim() || !editForm.amount || !editForm.incurredAt}
-                    className="flex items-center gap-1 px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-semibold rounded-full disabled:opacity-40"
+                    className="flex items-center gap-1 px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-semibold rounded-[10px] btn-tool disabled:opacity-40"
                   >
                     {busy ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />}
                     Save

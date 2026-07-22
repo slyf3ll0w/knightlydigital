@@ -44,7 +44,7 @@ export default function DashboardSetupCard() {
       </div>
       <Link
         href="/app/settings/products"
-        className="flex shrink-0 items-center gap-1.5 rounded-full bg-green-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-600"
+        className="flex shrink-0 items-center gap-1.5 rounded-[10px] btn-tool bg-green-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-600"
       >
         Review prices <ArrowRight size={14} />
       </Link>

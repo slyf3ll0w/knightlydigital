@@ -128,7 +128,7 @@ export default function TeamClient({
         </div>
         <button
           onClick={() => setShowAdd((v) => !v)}
-          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-full transition-colors"
+          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors"
         >
           <Plus size={15} />
           Add Team Member
@@ -208,7 +208,7 @@ export default function TeamClient({
             <button
               onClick={addMember}
               disabled={busy}
-              className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-full transition-colors disabled:opacity-50"
+              className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors disabled:opacity-50"
             >
               {busy && <Loader2 size={13} className="animate-spin" />}
               Add Member
@@ -346,7 +346,7 @@ export default function TeamClient({
                     }
                   }}
                   disabled={busy || resetPassword.length < 8}
-                  className="px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-semibold rounded-full disabled:opacity-50"
+                  className="px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-semibold rounded-[10px] btn-tool disabled:opacity-50"
                 >
                   Set Password
                 </button>

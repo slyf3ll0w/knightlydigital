@@ -42,7 +42,7 @@ export default function PayoutButton({ dark = false }: { dark?: boolean }) {
       <button
         onClick={send}
         disabled={busy}
-        className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-full border disabled:opacity-50 transition-colors ${
+        className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-[10px] border disabled:opacity-50 transition-colors ${
           dark
             ? "border-white/25 text-white hover:bg-white/10"
             : "border-gray-200 text-gray-700 hover:bg-gray-50"

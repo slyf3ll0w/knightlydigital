@@ -277,7 +277,7 @@ function PaymentsOnlineCard({ isOwner }: { isOwner: boolean }) {
             <button
               onClick={openSetup}
               disabled={busy}
-              className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-xs font-semibold rounded-full transition-colors disabled:opacity-40"
+              className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-xs font-semibold rounded-[10px] btn-tool transition-colors disabled:opacity-40"
             >
               {busy && <Loader2 size={11} className="animate-spin" />}
               {state === "UPDATE_REQUESTED" || status.started
@@ -425,7 +425,7 @@ function DangerZone({ companyName }: { companyName: string }) {
               type="button"
               onClick={deleteAccount}
               disabled={!nameMatches || !password || busy}
-              className="flex items-center gap-2 rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"
+              className="flex items-center gap-2 rounded-[10px] bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"
             >
               {busy ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
               Permanently delete everything
@@ -863,7 +863,7 @@ export default function SettingsClient({
                 key={value}
                 type="button"
                 onClick={() => pickAppearance(value)}
-                className={`rounded-full border px-3.5 py-2 text-sm font-medium transition-colors ${
+                className={`rounded-[10px] border px-3.5 py-2 text-sm font-medium transition-colors ${
                   appearance === value
                     ? "border-green-500 ring-2 ring-green-500/30 text-gray-900"
                     : "border-gray-300 text-gray-600 hover:bg-gray-50"
@@ -922,7 +922,7 @@ export default function SettingsClient({
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={logoBusy}
-                className="flex items-center gap-1.5 px-4 py-2 border border-gray-300 text-sm font-medium text-gray-700 rounded-full hover:bg-gray-50 active:bg-gray-100 transition-colors disabled:opacity-50"
+                className="flex items-center gap-1.5 px-4 py-2 border border-gray-300 text-sm font-medium text-gray-700 rounded-[10px] hover:bg-gray-50 active:bg-gray-100 transition-colors disabled:opacity-50"
               >
                 {logoBusy ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />}
                 {form.logoUrl ? "Replace Logo" : "Upload Logo"}
@@ -1026,7 +1026,7 @@ export default function SettingsClient({
                   key={value}
                   type="button"
                   onClick={() => set("sidebarTheme", value)}
-                  className={`flex items-center gap-2 rounded-full border px-3.5 py-2 text-sm font-medium transition-colors ${
+                  className={`flex items-center gap-2 rounded-[10px] border px-3.5 py-2 text-sm font-medium transition-colors ${
                     form.sidebarTheme === value
                       ? "border-green-500 ring-2 ring-green-500/30 text-gray-900"
                       : "border-gray-300 text-gray-600 hover:bg-gray-50"

@@ -163,7 +163,7 @@ export default function ProfileClient({
               type="button"
               onClick={() => pickRef.current?.click()}
               disabled={avatarBusy}
-              className="flex items-center gap-1.5 rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50"
+              className="flex items-center gap-1.5 rounded-[10px] border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50"
             >
               {avatarBusy ? <Loader2 size={14} className="animate-spin" /> : <ImagePlus size={14} />}
               Choose photo
@@ -173,7 +173,7 @@ export default function ProfileClient({
               type="button"
               onClick={() => (isIOS ? pickRef : cameraRef).current?.click()}
               disabled={avatarBusy}
-              className="flex items-center gap-1.5 rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50 lg:hidden"
+              className="flex items-center gap-1.5 rounded-[10px] border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50 lg:hidden"
             >
               <Camera size={14} />
               Take photo
@@ -183,7 +183,7 @@ export default function ProfileClient({
                 type="button"
                 onClick={removeAvatar}
                 disabled={avatarBusy}
-                className="flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 disabled:opacity-50"
+                className="flex items-center gap-1.5 rounded-[10px] px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 disabled:opacity-50"
               >
                 <Trash2 size={14} />
                 Remove
@@ -228,7 +228,7 @@ export default function ProfileClient({
         <button
           onClick={saveProfile}
           disabled={busy || !name.trim()}
-          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-full transition-colors disabled:opacity-50"
+          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors disabled:opacity-50"
         >
           {busy ? <Loader2 size={13} className="animate-spin" /> : saved === "profile" && <Check size={13} />}
           Save
@@ -262,7 +262,7 @@ export default function ProfileClient({
         <button
           onClick={changePassword}
           disabled={busy || newPassword.length < 8 || !currentPassword}
-          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-full transition-colors disabled:opacity-50"
+          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors disabled:opacity-50"
         >
           {busy ? <Loader2 size={13} className="animate-spin" /> : saved === "password" && <Check size={13} />}
           Update Password
@@ -282,7 +282,7 @@ export default function ProfileClient({
         </div>
         <Link
           href="/app/dashboard?tour=1"
-          className="px-4 py-2 border border-gray-300 text-sm font-medium text-gray-700 rounded-full hover:bg-gray-50 transition-colors shrink-0"
+          className="px-4 py-2 border border-gray-300 text-sm font-medium text-gray-700 rounded-[10px] hover:bg-gray-50 transition-colors shrink-0"
         >
           Replay the tour
         </Link>

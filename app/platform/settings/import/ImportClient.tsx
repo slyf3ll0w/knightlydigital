@@ -282,7 +282,7 @@ export default function ImportClient({
             </div>
             <button
               onClick={downloadTemplate}
-              className="flex items-center gap-1.5 px-3 py-2 border border-gray-300 rounded-full text-sm font-medium text-gray-700 hover:bg-gray-50"
+              className="flex items-center gap-1.5 px-3 py-2 border border-gray-300 rounded-[10px] text-sm font-medium text-gray-700 hover:bg-gray-50"
             >
               <Download size={14} />
               Download template
@@ -371,7 +371,7 @@ export default function ImportClient({
             <button
               onClick={runImport}
               disabled={readyRows === 0}
-              className="flex items-center gap-1.5 px-5 py-2.5 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-full transition-colors disabled:opacity-50"
+              className="flex items-center gap-1.5 px-5 py-2.5 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors disabled:opacity-50"
             >
               Import {readyRows} Clients
               <ArrowRight size={14} />
@@ -431,7 +431,7 @@ export default function ImportClient({
           <div className="flex flex-wrap items-center gap-3">
             <Link
               href="/app/contacts"
-              className="px-5 py-2.5 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-full transition-colors"
+              className="px-5 py-2.5 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors"
             >
               View Clients
             </Link>
@@ -439,7 +439,7 @@ export default function ImportClient({
               <button
                 onClick={undoImport}
                 disabled={undoing}
-                className="flex items-center gap-1.5 px-4 py-2.5 border border-gray-300 rounded-full text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                className="flex items-center gap-1.5 px-4 py-2.5 border border-gray-300 rounded-[10px] text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
               >
                 {undoing ? <Loader2 size={13} className="animate-spin" /> : <Undo2 size={13} />}
                 Undo this import

@@ -250,7 +250,7 @@ export default function SchedulingSettingsCard({
             type="button"
             onClick={save}
             disabled={saving}
-            className="flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-full transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors disabled:opacity-50"
           >
             {saving ? <Loader2 size={13} className="animate-spin" /> : saved ? <Check size={13} /> : null}
             {saved ? "Saved!" : "Save Scheduling Settings"}

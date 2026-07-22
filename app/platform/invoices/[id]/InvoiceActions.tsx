@@ -136,7 +136,7 @@ export default function InvoiceActions({
         (contactEmail ? (
           <button
             onClick={emailToClient}
-            className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-full transition-colors"
+            className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors"
           >
             <Send size={13} />
             Email to Client
@@ -145,7 +145,7 @@ export default function InvoiceActions({
           <button
             onClick={() => setStatus("AWAITING_PAYMENT")}
             title="No client email on file — this only marks the invoice as sent"
-            className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-full transition-colors"
+            className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors"
           >
             <Send size={13} />
             Mark as Sent
@@ -154,7 +154,7 @@ export default function InvoiceActions({
       {(status === "AWAITING_PAYMENT" || status === "PAST_DUE") && (
         <button
           onClick={() => router.push(`/app/payments/new?invoiceId=${invoiceId}`)}
-          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-full transition-colors"
+          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors"
         >
           <DollarSign size={13} />
           Collect Payment
@@ -163,7 +163,7 @@ export default function InvoiceActions({
       {status === "PAID" && (
         <button
           onClick={() => setStatus("AWAITING_PAYMENT")}
-          className="flex items-center gap-1.5 px-4 py-2 border border-gray-300 text-sm font-medium text-gray-700 rounded-full hover:bg-gray-50 transition-colors"
+          className="flex items-center gap-1.5 px-4 py-2 border border-gray-300 text-sm font-medium text-gray-700 rounded-[10px] hover:bg-gray-50 transition-colors"
         >
           <RotateCcw size={13} />
           Re-open Invoice
@@ -173,7 +173,7 @@ export default function InvoiceActions({
       <div className="relative">
         <button
           onClick={() => setOpen((v) => !v)}
-          className="p-2 border border-gray-300 rounded-full text-gray-600 hover:bg-gray-50 transition-colors"
+          className="p-2 border border-gray-300 rounded-[10px] text-gray-600 hover:bg-gray-50 transition-colors"
         >
           <MoreHorizontal size={16} />
         </button>
@@ -301,7 +301,7 @@ export default function InvoiceActions({
               <button
                 onClick={() => doDelete(true)}
                 disabled={confirmText.trim().toUpperCase() !== "DELETE" || busy}
-                className="flex items-center gap-1.5 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-full transition-colors disabled:opacity-40"
+                className="flex items-center gap-1.5 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-[10px] transition-colors disabled:opacity-40"
               >
                 {busy ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
                 Delete Invoice
