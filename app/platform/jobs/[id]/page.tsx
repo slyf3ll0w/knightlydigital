@@ -178,7 +178,7 @@ export default async function JobDetailPage({
           <span className="text-xs uppercase font-semibold text-gray-400 block">Job #</span>
           <span className="text-gray-800">{job.jobNumber}</span>
         </div>
-        <div>
+        <div className="min-w-0 max-sm:basis-full">
           <span className="text-xs uppercase font-semibold text-gray-400 block">Scheduled</span>
           <ScheduleJob
             jobId={job.id}

@@ -595,8 +595,100 @@ export default async function DashboardPage() {
         )}
       </div>
 
-      {/* ── Today's appointments — timeline with a time rail ───────────────── */}
-      <div className="card-ledger anim-fade-up anim-delay-2 self-start" data-tour="today">
+      {/* ── Today's appointments ──────────────────────────────────────────── */}
+      {/* Phone: tool-card day sheet — stamp header, hue-tiled stops (jobs vs
+          appointments carry their section hue), ledger foot to the schedule. */}
+      <div
+        className="card-tool anim-fade-up anim-delay-2 self-start overflow-hidden lg:hidden"
+        data-tour="today"
+      >
+        <div className="flex items-start justify-between border-b border-gray-100 px-4 pb-3 pt-4">
+          <div>
+            <span
+              className="mb-2 block h-[3px] w-7 rounded-full"
+              style={{ backgroundColor: "var(--wb-accent, #0B57D8)" }}
+              aria-hidden
+            />
+            <p className="stamp text-green-700">
+              Today ·{" "}
+              {now.toLocaleDateString("en-US", {
+                weekday: "short",
+                month: "short",
+                day: "numeric",
+              })}
+            </p>
+          </div>
+          {todayItems.length > 0 && (
+            <p className="numeral-ledger text-xl leading-none font-semibold text-gray-900">
+              {todayItems.length}
+              <span className="ml-1 text-xs font-medium text-gray-500">
+                {todayItems.length === 1 ? "stop" : "stops"}
+              </span>
+            </p>
+          )}
+        </div>
+        {todayItems.length === 0 ? (
+          <EmptyState
+            art="schedule"
+            hue={SECTION_HUES.schedule}
+            title="Nothing scheduled today"
+            body="Jobs and appointments you schedule for today will show up here."
+            actionHref="/app/jobs/new"
+            actionLabel="Schedule a Job"
+            showPlusIcon={false}
+          />
+        ) : (
+          <div className="divide-y divide-gray-100">
+            {todayItems.map((item) => {
+              const Icon = item.apptType
+                ? apptIcons[item.apptType as keyof typeof apptIcons]
+                : Briefcase;
+              const hue = item.apptType ? SECTION_HUES.schedule : SECTION_HUES.jobs;
+              return (
+                <Link
+                  key={item.id}
+                  href={item.href}
+                  className="flex items-center gap-3 px-4 py-3 transition-colors active:bg-gray-50"
+                >
+                  <span
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px]"
+                    style={{ backgroundColor: `${hue}1a`, color: hue }}
+                  >
+                    <Icon size={15} strokeWidth={2.25} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-gray-900">{item.primary}</p>
+                    {item.detail && (
+                      <p className="truncate text-xs text-gray-500">{item.detail}</p>
+                    )}
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p className="numeral-ledger text-[13px] font-semibold text-gray-900">
+                      {item.time}
+                    </p>
+                    {seePrices && item.value > 0 && (
+                      <p className="text-xs font-medium text-gray-500">{money(item.value)}</p>
+                    )}
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        )}
+        <Link
+          href="/app/schedule"
+          className="flex items-center justify-between border-t-2 border-double border-gray-300 bg-gray-50/60 px-4 py-2.5 text-xs font-semibold text-green-700"
+        >
+          Open schedule
+          <ArrowRight size={12} />
+        </Link>
+      </div>
+
+      {/* Desktop: timeline with a time rail — unchanged */}
+      <div
+        className="card-ledger anim-fade-up anim-delay-2 hidden self-start lg:block"
+        data-tour="today"
+      >
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
           <h2 className="font-display font-bold text-gray-900">Today</h2>
           <Link href="/app/schedule" className="font-display text-sm text-green-600 hover:underline font-semibold">
