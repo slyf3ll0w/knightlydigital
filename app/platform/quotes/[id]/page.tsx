@@ -188,6 +188,12 @@ export default async function QuoteDetailPage({
       {quote.status === "CHANGES_REQUESTED" && quote.changeRequest && (
         <div className="px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg mb-6 text-sm text-amber-800">
           <span className="font-semibold">Client requested changes:</span> {quote.changeRequest}
+          <span className="block mt-1 text-amber-700">
+            <Link href={`/app/quotes/${quote.id}/edit`} className="font-semibold underline">
+              Edit the quote
+            </Link>{" "}
+            and email it to them again — it goes back to Awaiting Response.
+          </span>
         </div>
       )}
 

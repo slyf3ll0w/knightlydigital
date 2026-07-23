@@ -100,7 +100,11 @@ export async function POST(
   await prisma.quote.update({
     where: { id: quote.id },
     data: {
-      ...(quote.status === "DRAFT" && { status: "AWAITING_RESPONSE" }),
+      // A re-sent change-request goes back to Awaiting Response — the client
+      // has a fresh document to review
+      ...((quote.status === "DRAFT" || quote.status === "CHANGES_REQUESTED") && {
+        status: "AWAITING_RESPONSE",
+      }),
       ...(justSent && { sentAt: new Date() }),
     },
   });

@@ -180,7 +180,8 @@ export default function QuoteActions({
     }
   }
 
-  const editable = status === "DRAFT" || status === "AWAITING_RESPONSE";
+  const editable =
+    status === "DRAFT" || status === "AWAITING_RESPONSE" || status === "CHANGES_REQUESTED";
 
   async function copyLink() {
     await navigator.clipboard.writeText(publicUrl);

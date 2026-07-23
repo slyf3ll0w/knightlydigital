@@ -5,6 +5,7 @@ import { createDepositInvoice, type DepositInvoiceResult } from "@/lib/deposits"
 import { computeQuoteTotals } from "@/lib/quote-totals";
 import { sendEmail, invoiceLinkEmail } from "@/lib/email";
 import { recordLeadWin } from "@/lib/pipeline";
+import { signatureMatchesName } from "@/lib/signature";
 
 /**
  * Public quote response endpoint (client-facing, no auth — the [id] segment
@@ -53,7 +54,29 @@ export async function POST(
     return NextResponse.json({ success: true });
   }
 
-  // Approve: apply optional-item opt-outs, recompute totals, record signature
+  // Approve: the signature must be the client's own name — this is their
+  // sign-off on the document, not a free-text field
+  const signatureName =
+    typeof body.signatureName === "string" ? body.signatureName.trim() : "";
+  if (!signatureName) {
+    return NextResponse.json(
+      { error: "Type your full name to sign and approve." },
+      { status: 400 }
+    );
+  }
+  if (
+    quote.contact &&
+    !signatureMatchesName(signatureName, quote.contact.firstName, quote.contact.lastName)
+  ) {
+    return NextResponse.json(
+      {
+        error: `This quote was prepared for ${quote.contact.firstName} ${quote.contact.lastName} — please sign with that name to approve.`,
+      },
+      { status: 400 }
+    );
+  }
+
+  // Apply optional-item opt-outs, recompute totals, record signature
   const optedOut: string[] = Array.isArray(body.optedOutItemIds) ? body.optedOutItemIds : [];
   const validOptOuts = quote.lineItems
     .filter((li) => li.isOptional && optedOut.includes(li.id))
@@ -85,7 +108,7 @@ export async function POST(
       data: {
         status: "APPROVED",
         approvedAt: new Date(),
-        signatureName: body.signatureName || null,
+        signatureName,
         subtotal,
         discount: discount > 0 ? discount : null,
         tax,

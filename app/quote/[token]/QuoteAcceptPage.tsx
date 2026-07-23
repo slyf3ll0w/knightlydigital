@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { CheckCircle, Loader2, MessageSquare } from "lucide-react";
 import { brandHeader, brandAccent, textOn } from "@/lib/branding";
+import { signatureMatchesName } from "@/lib/signature";
 
 type Quote = {
   id: string;
@@ -98,6 +99,16 @@ export default function QuoteAcceptPage({
       setError("Please type your name to sign and approve.");
       return;
     }
+    // The signature is the client's sign-off — it has to be their own name
+    if (
+      quote.contact &&
+      !signatureMatchesName(signatureName, quote.contact.firstName, quote.contact.lastName)
+    ) {
+      setError(
+        `This quote was prepared for ${quote.contact.firstName} ${quote.contact.lastName} — please sign with that name to approve.`
+      );
+      return;
+    }
     setError("");
     setLoading(true);
     try {
@@ -107,7 +118,8 @@ export default function QuoteAcceptPage({
         body: JSON.stringify({ action: "approve", signatureName, optedOutItemIds: optedOut }),
       });
       if (!res.ok) {
-        setError("Something went wrong. Please try again.");
+        const data = await res.json().catch(() => null);
+        setError(data?.error ?? "Something went wrong. Please try again.");
         return;
       }
       setDone("approved");
@@ -353,9 +365,18 @@ export default function QuoteAcceptPage({
                   type="text"
                   value={signatureName}
                   onChange={(e) => setSignatureName(e.target.value)}
-                  placeholder="Your full name"
-                  className="w-full max-w-sm px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 mb-4"
+                  placeholder={
+                    quote.contact
+                      ? `${quote.contact.firstName} ${quote.contact.lastName}`
+                      : "Your full name"
+                  }
+                  className={`w-full max-w-sm px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 ${quote.contact ? "mb-1" : "mb-4"}`}
                 />
+                {quote.contact && (
+                  <p className="text-xs text-gray-400 mb-4">
+                    Signing as {quote.contact.firstName} {quote.contact.lastName}
+                  </p>
+                )}
                 <div className="flex flex-wrap gap-3">
                   <button
                     onClick={approve}

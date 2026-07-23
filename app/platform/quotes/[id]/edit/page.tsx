@@ -28,9 +28,9 @@ export default async function EditQuotePage({
   ]);
   if (!quote) notFound();
 
-  // Editable only before the client responds; locked once they request
-  // changes, approve, or it converts
-  if (quote.status !== "DRAFT" && quote.status !== "AWAITING_RESPONSE") {
+  // Editable until the client signs off — approved/converted/archived
+  // quotes are locked (change requests are exactly when edits happen)
+  if (!["DRAFT", "AWAITING_RESPONSE", "CHANGES_REQUESTED"].includes(quote.status)) {
     redirect(`/app/quotes/${quote.id}`);
   }
 

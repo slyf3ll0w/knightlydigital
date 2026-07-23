@@ -54,17 +54,16 @@ export async function PATCH(
     }
   }
 
-  // Full edit (line items present): drafts and sent quotes only. Once the
-  // client responds — requested changes or approved — the document they saw
-  // is locked; issue a new quote instead.
+  // Full edit (line items present): allowed until the client signs off —
+  // drafts, sent quotes, and change requests (that's the whole point of a
+  // change request). Approved/converted quotes are locked as signed.
   if (Array.isArray(body.lineItems)) {
-    if (quote.status !== "DRAFT" && quote.status !== "AWAITING_RESPONSE") {
+    const editableStatuses = ["DRAFT", "AWAITING_RESPONSE", "CHANGES_REQUESTED"];
+    if (!editableStatuses.includes(quote.status)) {
       const reason =
-        quote.status === "CHANGES_REQUESTED"
-          ? "The client requested changes on this quote — it's locked as they saw it. Create a new quote instead."
-          : quote.status === "APPROVED" || quote.status === "CONVERTED"
-            ? "Approved quotes are locked — the client signed off on this exact document."
-            : "Archived quotes can't be edited.";
+        quote.status === "APPROVED" || quote.status === "CONVERTED"
+          ? "Approved quotes are locked — the client signed off on this exact document."
+          : "Archived quotes can't be edited.";
       return NextResponse.json({ error: reason }, { status: 400 });
     }
     if (body.lineItems.length === 0) {
