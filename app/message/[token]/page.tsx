@@ -1,10 +1,10 @@
 import { notFound } from "next/navigation";
-import { Reply } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { brandHeader, brandAccent, shade, textOn } from "@/lib/branding";
 import { companyMeta } from "@/lib/client-meta";
 import ForceLightTheme from "@/components/ForceLightTheme";
 import ViewBeacon from "@/components/ViewBeacon";
+import ReplyBox from "./ReplyBox";
 
 export async function generateMetadata({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
@@ -108,20 +108,14 @@ export default async function PublicMessagePage({
             </p>
           </div>
           <div className="px-6 py-4 border-t border-gray-100 bg-gray-50">
-            {message.company.email ? (
-              <a
-                href={`mailto:${message.company.email}?subject=${encodeURIComponent(`Re: ${message.subject}`)}`}
-                className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-lg transition-opacity hover:opacity-90"
-                style={{ background: accent, color: textOn(accent) }}
-              >
-                <Reply size={15} />
-                Reply to {message.company.name}
-              </a>
-            ) : null}
-            <p className="text-xs text-gray-500 mt-3">
-              You can also just reply to the email that brought you here
-              {message.company.phone ? ` or call ${message.company.phone}` : ""}.
-            </p>
+            <ReplyBox
+              email={message.company.email}
+              phone={message.company.phone}
+              subject={message.subject}
+              companyName={message.company.name}
+              accent={accent}
+              accentText={textOn(accent)}
+            />
           </div>
         </div>
 

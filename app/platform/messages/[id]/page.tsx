@@ -25,7 +25,7 @@ export default async function MessageDetailPage({
   });
   if (!message) notFound();
 
-  const baseUrl = process.env.NEXTAUTH_URL ?? "";
+  const baseUrl = (process.env.NEXTAUTH_URL ?? "").replace(/\/+$/, "");
   const publicUrl = `${baseUrl}/message/${message.publicToken}`;
 
   return (

@@ -57,7 +57,8 @@ export async function POST(
     },
   });
 
-  const baseUrl = process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com";
+  // Trailing slash on NEXTAUTH_URL would make a //message/... link
+  const baseUrl = (process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com").replace(/\/+$/, "");
   const email = clientMessageEmail({
     brand: contact.company,
     companyName: contact.company.name,
