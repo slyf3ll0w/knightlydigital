@@ -269,16 +269,25 @@ function CreateMenu({ accent, role }: { accent: string; role: string }) {
         Create
       </button>
       {open && (
-        <div className="anim-create-pop absolute left-3 right-3 top-full mt-1.5 z-50 bg-white rounded-lg shadow-xl ring-1 ring-black/5 py-1.5 overflow-hidden">
+        <div className="anim-create-pop absolute left-3 right-3 top-full mt-1.5 z-50 card-tool py-1.5 overflow-hidden">
           {items.map(({ href, label, icon: Icon }, i) => (
             <Link
               key={href}
               href={href}
               onClick={() => setOpen(false)}
               style={{ animationDelay: `${i * 25}ms` }}
-              className="anim-create-item flex items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              className="anim-create-item flex items-center gap-2.5 px-3 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50"
             >
-              <Icon size={14} style={{ color: createTints[href] ?? "#9CA3AF" }} />
+              {/* Mini solid hue tile — the mobile Create sheet's tiles at row scale */}
+              <span
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] border-[1.5px] border-[color:var(--tool-line,#0A1428)]"
+                style={{
+                  backgroundColor: createTints[href] ?? "#0A1428",
+                  color: hueInk(createTints[href] ?? "#0A1428"),
+                }}
+              >
+                <Icon size={14} strokeWidth={2.25} />
+              </span>
               {label}
             </Link>
           ))}
@@ -690,11 +699,13 @@ export default function AppShell({
           // Tool hardware (chip-tool/card-tool/btn-tool outlines + hard
           // offsets): a deep-primary ink instead of stock console navy —
           // mostly primary, with just enough navy to keep pale picks
-          // readable; the dark half tints the translucent line/offset.
+          // readable; the dark half tints the translucent line/offset —
+          // offsets must stay light like the lines or they vanish on the
+          // dark canvas.
           "--tool-line-l": mixHex(lightPrimary, "#0a1428", 0.25),
           "--tool-shadow-l": mixHex(lightPrimary, "#0a1428", 0.25),
           "--tool-line-d": hexToRgba(tint(darkPrimary, 0.35), 0.45),
-          "--tool-shadow-d": hexToRgba(shade(darkPrimary, 0.7), 0.7),
+          "--tool-shadow-d": hexToRgba(tint(darkPrimary, 0.35), 0.45),
         } as React.CSSProperties;
       })()
     : undefined;

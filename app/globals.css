@@ -267,11 +267,11 @@ html[data-mode="dark"] .app-ui {
   --wb-ink-strong: var(--wb-ink-strong-dark, #60A5FA);
   /* Primary lifts on the dark canvas (navy default → readable slate) */
   --wb-primary: var(--wb-primary-d, #606673);
-  /* Tool hardware on the dark canvas: navy outlines vanish, so lines go
-     translucent white and offsets go black — both brand-tinted when
-     AppShell injects the -d halves. */
+  /* Tool hardware on the dark canvas: navy outlines vanish, so lines AND
+     offsets go translucent white — a black offset is invisible on the
+     near-black canvas. Both brand-tinted when AppShell injects -d halves. */
   --tool-line: var(--tool-line-d, rgba(255, 255, 255, 0.22));
-  --tool-shadow: var(--tool-shadow-d, rgba(0, 0, 0, 0.65));
+  --tool-shadow: var(--tool-shadow-d, rgba(255, 255, 255, 0.22));
   --sh-schedule: var(--sh-schedule-d, #8B5CF6);
   --sh-schedule-on: var(--sh-schedule-on-d, #FFFFFF);
   --sh-clients: var(--sh-clients-d, #3B82F6);
