@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { sanitizeBookingForm } from "@/lib/booking-form";
+import { GOOGLE_FONT_RE, sanitizeBookingForm } from "@/lib/booking-form";
 import { sanitizeBusinessHours, sanitizeServiceZips } from "@/lib/business-hours";
 import { sanitizeDeposit } from "@/lib/deposits";
 import { SLOT_INTERVAL_CHOICES } from "@/lib/scheduling";
@@ -75,6 +75,13 @@ export async function PATCH(req: NextRequest) {
         body.documentColor !== undefined
           ? /^#[0-9a-fA-F]{6}$/.test(body.documentColor ?? "")
             ? body.documentColor
+            : null
+          : undefined,
+      // App font — any Google Font name, same validation as the booking forms
+      brandFont:
+        body.brandFont !== undefined
+          ? GOOGLE_FONT_RE.test(String(body.brandFont ?? "").trim())
+            ? String(body.brandFont).trim()
             : null
           : undefined,
       // Advanced section-color overrides — unknown keys/bad hexes dropped;

@@ -47,6 +47,7 @@ import {
 } from "@/lib/section-colors";
 import { hapticImpact } from "@/lib/haptics";
 import { WALLPAPER_PATTERNS } from "@/lib/wallpapers";
+import { GOOGLE_FONT_RE } from "@/lib/booking-form";
 
 const DEFAULT_ACCENT = "#FFFFFF"; // console default: white on the dark rail
 
@@ -375,6 +376,8 @@ interface AppShellProps {
   sidebarLogoColor?: string | null;
   brandColor?: string | null;
   brandColorSecondary?: string | null;
+  /** Company.brandFont — app-wide Google Font override (Settings → Branding) */
+  brandFont?: string | null;
   /** Company.sectionColors — per-section hue overrides (Settings → Branding) */
   sectionColors?: unknown;
   teamCount?: number;
@@ -396,6 +399,7 @@ export default function AppShell({
   sidebarLogoColor,
   brandColor,
   brandColorSecondary,
+  brandFont,
   sectionColors,
   teamCount = 1,
   needsTour = false,
@@ -714,11 +718,32 @@ export default function AppShell({
   // theme-guarded vars per overridden section; defaults live in globals.css.
   const sectionVars = sectionColorVars(sanitizeSectionColors(sectionColors));
 
+  // App-wide brand font (Settings → Branding): any Google Font, loaded on the
+  // fly exactly like the booking forms do. Overrides body + display vars on
+  // the shell root; .numeral-ledger and .stamp pin Oxanium explicitly in
+  // globals.css, so ledger numerals keep their character.
+  const appFont = brandFont && GOOGLE_FONT_RE.test(brandFont) ? brandFont : null;
+  const fontHref = appFont
+    ? `https://fonts.googleapis.com/css2?family=${appFont.replace(/ /g, "+")}:wght@400;500;600;700&display=swap`
+    : null;
+  const fontVars = appFont
+    ? ({
+        "--font-body": `"${appFont}", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif`,
+        "--font-sans": `"${appFont}", "Oxanium", sans-serif`,
+      } as React.CSSProperties)
+    : undefined;
+
   return (
     <div
       className="app-ui flex h-screen bg-paper-plain overflow-hidden"
-      style={{ ...(mobileAccentVars ?? {}), ...(primaryVars ?? {}), ...sectionVars } as React.CSSProperties}
+      style={{ ...(mobileAccentVars ?? {}), ...(primaryVars ?? {}), ...sectionVars, ...(fontVars ?? {}) } as React.CSSProperties}
     >
+      {fontHref && (
+        <>
+          {/* eslint-disable-next-line @next/next/no-page-custom-font */}
+          <link rel="stylesheet" href={fontHref} />
+        </>
+      )}
       {/* ── Desktop sidebar ──────────────────────────────────────────────── */}
       <aside className={`hidden lg:flex flex-col w-[232px] shrink-0 rail-${rail}`}>
         {logo}

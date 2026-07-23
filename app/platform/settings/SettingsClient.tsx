@@ -9,6 +9,7 @@ import { resizeImageFile } from "@/lib/resize-image";
 import { INDUSTRIES } from "@/lib/pricebooks";
 import { DEFAULT_ON_MY_WAY_TEMPLATE, ON_MY_WAY_PLACEHOLDERS } from "@/lib/messaging";
 import { textOn } from "@/lib/branding";
+import { GOOGLE_FONT_RE } from "@/lib/booking-form";
 import { resolveWallpaper } from "@/lib/wallpapers";
 import { FilterChip } from "@/components/FilterChips";
 import {
@@ -25,6 +26,7 @@ type Company = {
   state: string | null; zip: string | null; website: string | null;
   logoUrl: string | null; brandColor: string | null; brandColorSecondary: string | null;
   documentColor: string | null;
+  brandFont: string | null;
   sectionColors: Record<string, string> | null;
   logoWallpaper: boolean; wallpaper: string | null;
   sidebarTheme: string; sidebarLogoColor: string | null;
@@ -489,6 +491,7 @@ export default function SettingsClient({
     brandColor: company.brandColor ?? "",
     brandColorSecondary: company.brandColorSecondary ?? "",
     documentColor: company.documentColor ?? "",
+    brandFont: company.brandFont ?? "",
     // Kept as a JSON string so the flat string-diff auto-save machinery works
     sectionColors: JSON.stringify(company.sectionColors ?? {}),
     surchargeEnabled: company.surchargeEnabled,
@@ -1046,6 +1049,39 @@ export default function SettingsClient({
               fallback={form.brandColor || "#0C0F0C"}
               onChange={(v) => set("documentColor", v)}
             />
+          </div>
+
+          {/* App font — same free-text Google Font convention as the form
+              builder; the shell refreshes with the new font as it saves */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">App font</label>
+            <input
+              type="text"
+              value={form.brandFont}
+              onChange={(e) => set("brandFont", e.target.value)}
+              placeholder="Default — or any Google Font name, e.g. Lexend"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+            />
+            <p className="text-xs text-gray-400 mt-1">
+              Changes the font across the whole app for your team. Ledger numerals
+              keep their stamped look. Quotes and invoices are not affected.
+            </p>
+            {form.brandFont.trim() && GOOGLE_FONT_RE.test(form.brandFont.trim()) && (
+              <>
+                {/* eslint-disable-next-line @next/next/no-page-custom-font */}
+                <link
+                  rel="stylesheet"
+                  href={`https://fonts.googleapis.com/css2?family=${form.brandFont.trim().replace(/ /g, "+")}:wght@400;600&display=swap`}
+                />
+                <p
+                  className="mt-2 text-sm text-gray-700"
+                  style={{ fontFamily: `"${form.brandFont.trim()}", sans-serif` }}
+                >
+                  The quick brown fox jumps over the lazy dog —{" "}
+                  <span className="font-semibold">{form.brandFont.trim()}</span>
+                </p>
+              </>
+            )}
           </div>
 
           {/* Advanced: the app's per-section color language */}

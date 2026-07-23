@@ -46,6 +46,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             sidebarLogoColor: true,
             brandColor: true,
             brandColorSecondary: true,
+            brandFont: true,
             sectionColors: true,
             assistantName: true,
             finixOnboardingState: true,
@@ -104,6 +105,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         sidebarLogoColor={company?.sidebarLogoColor}
         brandColor={company?.brandColor}
         brandColorSecondary={company?.brandColorSecondary}
+        brandFont={company?.brandFont}
         sectionColors={company?.sectionColors}
         teamCount={teamCount}
         needsTour={!!user && !user.tourCompletedAt}
