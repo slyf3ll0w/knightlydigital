@@ -262,6 +262,9 @@ FINIX_APPLICATION_ID=       # public (finix.js uses it client-side)
 QBO_CLIENT_ID=       # Intuit app keys from developer.intuit.com
 QBO_CLIENT_SECRET=
 QBO_ENVIRONMENT=sandbox  # "production" once Intuit grants production keys
+# Optional — per-company custom sending domains (lib/email-domains.ts). Needs a
+# paid Resend plan (extra domains); Settings card + API stay hidden until set.
+EMAIL_DOMAINS_ENABLED=   # "1" to enable
 ```
 
 ## Recurring subscriptions

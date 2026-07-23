@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
-import { Loader2, Check, Upload, Trash2, AlertTriangle, ChevronRight } from "lucide-react";
+import { Loader2, Check, Upload, Trash2, AlertTriangle, ChevronRight, Copy } from "lucide-react";
 import { resizeImageFile } from "@/lib/resize-image";
 import { INDUSTRIES } from "@/lib/pricebooks";
 import { DEFAULT_ON_MY_WAY_TEMPLATE, ON_MY_WAY_PLACEHOLDERS } from "@/lib/messaging";
@@ -310,6 +310,255 @@ function PaymentsOnlineCard({ isOwner }: { isOwner: boolean }) {
           </p>
         )
       )}
+    </div>
+  );
+}
+
+/**
+ * Custom sending domain (send client emails from you@yourdomain.com instead of
+ * the platform address). Backed by /api/app/settings/email-domain; that GET
+ * returns { available: false } while EMAIL_DOMAINS_ENABLED is off, and the
+ * card renders nothing — same hide-until-live pattern as PaymentsOnlineCard.
+ */
+function EmailDomainCard({ isOwner }: { isOwner: boolean }) {
+  type DnsRecord = {
+    record?: string;
+    name: string;
+    type: string;
+    value: string;
+    priority?: number;
+    status?: string;
+  };
+  type DomainState = {
+    available: boolean;
+    domain?: string | null;
+    status?: string | null;
+    records?: DnsRecord[];
+    fromLocal?: string;
+    fromAddress?: string | null;
+  };
+  const [state, setState] = useState<DomainState | null>(null);
+  const [domainInput, setDomainInput] = useState("");
+  const [localInput, setLocalInput] = useState("notifications");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [copiedValue, setCopiedValue] = useState("");
+
+  useEffect(() => {
+    fetch("/api/app/settings/email-domain")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d && setState(d))
+      .catch(() => {});
+  }, []);
+
+  async function call(init: RequestInit, fallbackError: string) {
+    setBusy(true);
+    setError("");
+    try {
+      const res = await fetch("/api/app/settings/email-domain", init);
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setError(data?.error ?? fallbackError);
+        return;
+      }
+      setState(data);
+    } catch {
+      setError("Couldn't reach the server. Check your connection and try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const connect = () =>
+    call(
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ domain: domainInput, fromLocal: localInput }),
+      },
+      "Couldn't register the domain. Please try again."
+    );
+  const checkDns = () =>
+    call(
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "verify" }),
+      },
+      "Couldn't check the DNS records. Please try again."
+    );
+  async function remove() {
+    if (!confirm("Remove this sending domain? Emails go back to the WorkBench address immediately.")) return;
+    setBusy(true);
+    setError("");
+    try {
+      const res = await fetch("/api/app/settings/email-domain", { method: "DELETE" });
+      if (res.ok) setState((s) => (s ? { ...s, domain: null, status: null, records: [], fromAddress: null } : s));
+      else setError("Couldn't remove the domain. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function copyValue(v: string) {
+    await navigator.clipboard.writeText(v);
+    setCopiedValue(v);
+    setTimeout(() => setCopiedValue(""), 1500);
+  }
+
+  // Feature off (or still loading) — say nothing rather than tease
+  if (!state?.available) return null;
+
+  const verified = state.status === "verified";
+
+  return (
+    <div className="card-ledger p-5 space-y-3">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+            Email Sending Domain
+          </h2>
+          <p className="text-xs text-gray-400 mt-0.5">
+            Send quotes, invoices, and reminders from your own email address instead of ours
+          </p>
+        </div>
+        {state.domain && (
+          <span
+            className={`shrink-0 text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded ${
+              verified
+                ? "bg-green-100 text-green-700"
+                : state.status === "failed"
+                  ? "bg-red-100 text-red-700"
+                  : "bg-amber-100 text-amber-700"
+            }`}
+          >
+            {verified ? "Verified" : state.status === "failed" ? "Failed" : "Pending DNS"}
+          </span>
+        )}
+      </div>
+
+      {!state.domain ? (
+        isOwner ? (
+          <div className="space-y-3">
+            <p className="text-sm text-gray-600">
+              You&apos;ll add a few DNS records at your domain host to prove you own the domain —
+              takes about 5 minutes. Emails keep sending from our address until it verifies, so
+              nothing breaks in the meantime.
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Your domain</label>
+                <input
+                  type="text"
+                  value={domainInput}
+                  onChange={(e) => setDomainInput(e.target.value)}
+                  placeholder="summitplumbing.com"
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Address prefix</label>
+                <input
+                  type="text"
+                  value={localInput}
+                  onChange={(e) => setLocalInput(e.target.value)}
+                  placeholder="notifications"
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  {(localInput || "notifications").trim()}@{domainInput.trim() || "yourdomain.com"}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={connect}
+              disabled={busy || !domainInput.trim()}
+              className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-xs font-semibold rounded-[10px] btn-tool transition-colors disabled:opacity-40"
+            >
+              {busy && <Loader2 size={11} className="animate-spin" />}
+              Connect domain
+            </button>
+          </div>
+        ) : (
+          <p className="text-xs text-gray-400">Only the account owner can set up a sending domain.</p>
+        )
+      ) : (
+        <div className="space-y-3">
+          {verified ? (
+            <div className="flex items-center gap-2 text-sm text-green-700">
+              <Check size={15} />
+              <span>
+                Client emails now send from{" "}
+                <span className="font-mono font-semibold">{state.fromAddress}</span>
+              </span>
+            </div>
+          ) : (
+            <p className="text-sm text-gray-600">
+              Add these records at your domain host (GoDaddy, Cloudflare, Namecheap…), then check
+              again. DNS changes can take up to an hour to propagate. Until it verifies, emails
+              keep sending from the WorkBench address.
+            </p>
+          )}
+
+          {!verified && (state.records?.length ?? 0) > 0 && (
+            <div className="overflow-x-auto rounded-lg border border-gray-200">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="bg-gray-50 text-left text-[10px] uppercase tracking-wide text-gray-500">
+                    <th className="px-3 py-2 font-semibold">Type</th>
+                    <th className="px-3 py-2 font-semibold">Name</th>
+                    <th className="px-3 py-2 font-semibold">Value</th>
+                    <th className="px-3 py-2" />
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {(state.records ?? []).map((r, i) => (
+                    <tr key={i} className={r.status === "verified" ? "text-green-700" : "text-gray-700"}>
+                      <td className="px-3 py-2 font-mono">{r.type}</td>
+                      <td className="px-3 py-2 font-mono break-all">{r.name}</td>
+                      <td className="px-3 py-2 font-mono break-all max-w-[280px]">{r.value}</td>
+                      <td className="px-3 py-2">
+                        <button
+                          onClick={() => copyValue(r.value)}
+                          title="Copy value"
+                          className="text-gray-400 hover:text-gray-600"
+                        >
+                          {copiedValue === r.value ? <Check size={13} className="text-green-600" /> : <Copy size={13} />}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {error && <p className="text-xs text-red-600">{error}</p>}
+
+          <div className="flex flex-wrap items-center gap-2">
+            {!verified && (
+              <button
+                onClick={checkDns}
+                disabled={busy}
+                className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-xs font-semibold rounded-[10px] btn-tool transition-colors disabled:opacity-40"
+              >
+                {busy && <Loader2 size={11} className="animate-spin" />}
+                Check DNS now
+              </button>
+            )}
+            {isOwner && (
+              <button
+                onClick={remove}
+                disabled={busy}
+                className="flex items-center gap-1.5 px-4 py-2 btn-tool-line bg-white text-red-600 hover:bg-red-50 text-xs font-semibold rounded-[10px] transition-colors disabled:opacity-40"
+              >
+                <Trash2 size={12} />
+                Remove domain
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+      {error && !state.domain && <p className="text-xs text-red-600">{error}</p>}
     </div>
   );
 }
@@ -881,6 +1130,9 @@ export default function SettingsClient({
           </div>
         </div>
         )}
+
+        {/* Custom sending domain — invisible until EMAIL_DOMAINS_ENABLED */}
+        {show("business") && <EmailDomainCard isOwner={isOwner} />}
 
         {/* Appearance — per-device light/dark (phones AND desktop; Automatic
             follows the OS setting either way) */}

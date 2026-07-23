@@ -18,7 +18,9 @@
  *                   accent as the document pages (brandAccent semantics).
  */
 
+import { prisma } from "@/lib/db";
 import { recordEmailSent } from "@/lib/usage";
+import { emailDomainsEnabled } from "@/lib/email-domains";
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const FROM = process.env.EMAIL_FROM ?? "WorkBench <notifications@workbenchfsm.com>";
@@ -259,7 +261,25 @@ ${html}
   // Company names are user input headed into an email header — strip anything
   // that could break out of the quoted display name.
   const cleanName = fromName?.replace(/[\r\n"<>]/g, "").trim();
-  const from = cleanName ? `"${cleanName}" <${FROM_ADDRESS}>` : FROM;
+  // Custom sending domain: a company with a VERIFIED domain (Settings → Email
+  // domain, lib/email-domains.ts) sends from its own address; every other
+  // state — pending DNS, failed, feature off — falls back to the platform
+  // address so a half-verified domain can never bounce a client email.
+  let fromAddress = FROM_ADDRESS;
+  if (companyId && emailDomainsEnabled()) {
+    try {
+      const custom = await prisma.company.findUnique({
+        where: { id: companyId },
+        select: { emailDomain: true, emailDomainStatus: true, emailFromLocal: true },
+      });
+      if (custom?.emailDomain && custom.emailDomainStatus === "verified") {
+        fromAddress = `${custom.emailFromLocal || "notifications"}@${custom.emailDomain}`;
+      }
+    } catch {
+      /* platform address fallback */
+    }
+  }
+  const from = cleanName ? `"${cleanName}" <${fromAddress}>` : fromAddress === FROM_ADDRESS ? FROM : fromAddress;
   try {
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
