@@ -64,7 +64,9 @@ export async function POST(
     companyName: contact.company.name,
     contactFirstName: contact.firstName,
     messageSubject: subject,
+    messageBody: body,
     readUrl: `${baseUrl}/message/${message.publicToken}`,
+    pixelUrl: `${baseUrl}/api/public/open/${message.publicToken}`,
   });
   const emailed = await sendEmail({
     companyId: actor.companyId,

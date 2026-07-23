@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { requirePageActor, canSell, viaContactScope } from "@/lib/permissions";
-import { shortDate } from "@/lib/statuses";
+import { shortDate, clientMessageStatus } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
 import ViewedFact from "@/components/ViewedFact";
 
@@ -37,7 +37,7 @@ export default async function MessageDetailPage({
         >
           <ArrowLeft size={18} />
         </Link>
-        <StatusChip kind="message" status={message.firstViewedAt ? "OPENED" : "SENT"} />
+        <StatusChip kind="message" status={clientMessageStatus(message)} />
       </div>
 
       <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
@@ -80,11 +80,29 @@ export default async function MessageDetailPage({
             <span className="text-gray-800">{message.sender.name}</span>
           </div>
         )}
+        <div>
+          <span className="text-xs uppercase font-semibold text-gray-400 block">Email opened</span>
+          {message.emailOpenedAt ? (
+            message.emailOpenKind === "confident" ? (
+              <span className="font-medium text-green-700">{shortDate(message.emailOpenedAt)}</span>
+            ) : (
+              <span
+                className="font-medium text-blue-700"
+                title="Their mail app auto-loaded the email's images (Apple Mail privacy proxy) — this usually means an open, but Apple makes prefetches look identical, so it isn't certain."
+              >
+                {shortDate(message.emailOpenedAt)} · likely
+              </span>
+            )
+          ) : (
+            <span className="text-gray-400">Not opened yet</span>
+          )}
+        </div>
         <ViewedFact
           firstViewedAt={message.firstViewedAt}
           lastViewedAt={message.lastViewedAt}
           viewCount={message.viewCount}
           sent
+          label="Viewed online"
         />
       </div>
 

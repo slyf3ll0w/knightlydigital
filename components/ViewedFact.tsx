@@ -12,16 +12,19 @@ export default function ViewedFact({
   lastViewedAt,
   viewCount,
   sent,
+  label = "Viewed",
 }: {
   firstViewedAt: Date | null;
   lastViewedAt: Date | null;
   viewCount: number;
   sent: boolean;
+  /** Fact heading — e.g. "Viewed online" where an email-open fact sits beside it */
+  label?: string;
 }) {
   if (!firstViewedAt && !sent) return null;
   return (
     <div>
-      <span className="text-xs uppercase font-semibold text-gray-400 block">Viewed</span>
+      <span className="text-xs uppercase font-semibold text-gray-400 block">{label}</span>
       {firstViewedAt ? (
         <span
           className="inline-flex items-center gap-1 font-medium text-green-700"

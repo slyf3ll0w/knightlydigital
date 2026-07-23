@@ -639,39 +639,41 @@ export function hubAccessEmail({
 
 /**
  * One-off professional message to a client (composed on the contact page).
- * The BODY deliberately lives on the /message/[token] page, not in the email —
- * the page's view beacon is the only reliable open signal (no tracking
- * pixels), and it keeps the email itself lean for spam filters. Replying to
- * the email reaches the company via Reply-To like every other client send.
+ * Reads like a normal email — the full body is inline. Opens are tracked two
+ * ways: the pixel (pixelUrl, classified/filtered by /api/public/open) and the
+ * quiet "view online" link to the /message page, whose view beacon is the
+ * certain signal. Replying to the email reaches the company via Reply-To.
  */
 export function clientMessageEmail({
   brand,
   companyName,
   contactFirstName,
   messageSubject,
+  messageBody,
   readUrl,
+  pixelUrl,
 }: {
   brand: EmailBrand;
   companyName: string;
   contactFirstName: string;
   messageSubject: string;
+  messageBody: string;
   readUrl: string;
+  pixelUrl: string;
 }): { subject: string; html: string } {
+  const bodyHtml = esc(messageBody).replace(/\r\n/g, "\n").replace(/\n/g, "<br />");
   const html = clientShell({
     brand,
     companyName,
-    context: "New message",
+    context: messageSubject,
     inner: `
-      <p style="margin:0 0 12px;color:#111827;font-size:15px;">Hi ${esc(contactFirstName)},</p>
-      <p style="margin:0;color:#374151;font-size:14px;">
-        ${esc(companyName)} sent you a message:
+      <p style="margin:0 0 14px;color:#111827;font-size:15px;">Hi ${esc(contactFirstName)},</p>
+      <p style="margin:0;color:#374151;font-size:14px;line-height:1.65;">${bodyHtml}</p>
+      <p style="margin:20px 0 0;color:#6b7280;font-size:12px;">
+        You can reply directly to this email to get back to us, or
+        <a href="${esc(readUrl)}" style="color:${linkColor(brand)};text-decoration:underline;">view this message online</a>.
       </p>
-      ${fieldLabel("Subject")}
-      <p style="margin:0;color:#111827;font-size:16px;font-weight:600;">${esc(messageSubject)}</p>
-      ${accentBtn(readUrl, "Read Message", brand)}
-      <p style="margin:16px 0 0;color:#6b7280;font-size:12px;">
-        You can reply directly to this email to get back to us.
-      </p>`,
+      <img src="${esc(pixelUrl)}" width="1" height="1" alt="" style="display:block;width:1px;height:1px;border:0;" />`,
   });
   return { subject: messageSubject, html };
 }

@@ -615,6 +615,15 @@ model ClientMessage {
   firstViewedAt DateTime?
   lastViewedAt  DateTime?
   viewCount     Int       @default(0)
+  // Email-open pixel (HubSpot-style, honestly labeled): first pixel load that
+  // survived scanner filtering. Kind "confident" = a real mail client fetched
+  // images (Gmail proxy, Outlook after download-images); "likely" = Apple's
+  // privacy proxy, which auto-loads images — may not be an actual read.
+  emailOpenedAt  DateTime?
+  emailOpenKind  String? // "confident" | "likely"
+  // The one open push per message has been sent (confident pixel OR page
+  // view, whichever lands first) — "likely" signals never push.
+  openNotifiedAt DateTime?
   createdAt     DateTime  @default(now())
 
   @@index([companyId])

@@ -120,6 +120,7 @@ export async function POST(req: NextRequest) {
           subject: true,
           senderId: true,
           firstViewedAt: true,
+          openNotifiedAt: true,
           contact: { select: { firstName: true, lastName: true, assignedToId: true } },
         },
       });
@@ -130,9 +131,13 @@ export async function POST(req: NextRequest) {
           viewCount: { increment: 1 },
           lastViewedAt: now,
           ...(message.firstViewedAt ? {} : { firstViewedAt: now }),
+          ...(message.openNotifiedAt ? {} : { openNotifiedAt: now }),
         },
       });
-      firstView = !message.firstViewedAt;
+      // Messages share ONE open push with the email pixel (openNotifiedAt) —
+      // a page view still pushes after a "likely" Apple-proxy open, but never
+      // after a confident open already announced it
+      firstView = !message.openNotifiedAt;
       companyId = message.companyId;
       // The person who wrote the message should hear about the open even if
       // they're not a manager or the contact's assigned rep

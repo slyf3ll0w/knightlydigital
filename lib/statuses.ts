@@ -77,12 +77,27 @@ export const contractStatusLabel: Record<string, string> = {
   VOID: "Void",
 };
 
-// Client emails (ClientMessage): derived, not stored — OPENED once
-// firstViewedAt is stamped by the view beacon
+// Client emails (ClientMessage): derived, not stored — see clientMessageStatus.
+// The ladder is honest about signal strength: LIKELY_OPENED = Apple's privacy
+// proxy auto-loaded the images (may not be a real read), OPENED = a real mail
+// client fetched images, VIEWED = they opened the online message page (certain).
 export const messageStatusLabel: Record<string, string> = {
   SENT: "Sent",
+  LIKELY_OPENED: "Likely opened",
   OPENED: "Opened",
+  VIEWED: "Viewed",
 };
+
+/** Strongest open signal wins: page view > confident pixel > Apple-proxy pixel. */
+export function clientMessageStatus(m: {
+  firstViewedAt: Date | string | null;
+  emailOpenKind: string | null;
+}): string {
+  if (m.firstViewedAt) return "VIEWED";
+  if (m.emailOpenKind === "confident") return "OPENED";
+  if (m.emailOpenKind === "likely") return "LIKELY_OPENED";
+  return "SENT";
+}
 
 export const statusLabels: Record<StatusKind, Record<string, string>> = {
   request: requestStatusLabel,
@@ -111,7 +126,7 @@ export const statusTones: Record<StatusKind, Record<string, StatusTone>> = {
   // blue = upcoming commitment (distinct from job-status greens/ambers)
   appointment: { SCHEDULED: "blue", COMPLETED: "green", CANCELLED: "gray", NO_SHOW: "red" },
   contract: { DRAFT: "gray", SENT: "amber", SIGNED: "green", VOID: "gray" },
-  message: { SENT: "amber", OPENED: "green" },
+  message: { SENT: "amber", LIKELY_OPENED: "blue", OPENED: "green", VIEWED: "green" },
 };
 
 export const paymentMethodLabel: Record<string, string> = {

@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { requirePageActor, canSell, contactScope, seesAllLeads, isManager } from "@/lib/permissions";
 import Link from "next/link";
 import { ArrowLeft, Phone, Mail, MapPin, ChevronRight, Pencil, Eye } from "lucide-react";
-import { money, shortDate, type StatusKind } from "@/lib/statuses";
+import { money, shortDate, clientMessageStatus, type StatusKind } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
 import ContactStatus from "@/components/ContactStatus";
 import CallTextButtons from "@/components/CallTextButtons";
@@ -162,9 +162,11 @@ export default async function ContactDetailPage({
       label: m.subject,
       date: m.createdAt,
       kind: "message" as StatusKind,
-      status: m.firstViewedAt ? "OPENED" : "SENT",
+      status: clientMessageStatus(m),
       amount: null as number | null,
-      viewed: m.firstViewedAt,
+      // "Seen" only for the certain signals — page view or confident pixel
+      viewed:
+        m.firstViewedAt ?? (m.emailOpenKind === "confident" ? m.emailOpenedAt : null),
     })),
   ].sort((a, b) => b.date.getTime() - a.date.getTime());
 
