@@ -56,7 +56,7 @@ export default function AskForReview({
           ? "Text the client your Google review link (opens your Messages app)"
           : "Set up your Google review link in Settings to use this"
       }
-      className="flex items-center gap-1.5 px-4 py-2 border border-gray-300 text-sm font-medium text-gray-700 rounded-[10px] hover:bg-gray-50 transition-colors"
+      className="flex items-center gap-1.5 px-4 py-2 btn-tool-line bg-white text-sm font-medium text-gray-700 rounded-[10px] hover:bg-gray-50 transition-colors"
     >
       <Star size={13} className={sent ? "text-green-600" : undefined} />
       Ask for Review{sent ? " ✓" : ""}

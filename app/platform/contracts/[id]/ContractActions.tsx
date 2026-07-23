@@ -99,7 +99,7 @@ export default function ContractActions({
           href={signUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="p-2 border border-gray-300 rounded-[10px] text-gray-500 hover:bg-gray-50"
+          className="p-2 btn-tool-line bg-white rounded-[10px] text-gray-500 hover:bg-gray-50"
           title="Open signing page"
         >
           <ExternalLink size={15} />
@@ -107,7 +107,7 @@ export default function ContractActions({
         {status !== "SIGNED" && (
           <button
             onClick={openEdit}
-            className="p-2 border border-gray-300 rounded-[10px] text-gray-500 hover:bg-gray-50"
+            className="p-2 btn-tool-line bg-white rounded-[10px] text-gray-500 hover:bg-gray-50"
             title="Edit contract"
           >
             <Pencil size={15} />
@@ -117,7 +117,7 @@ export default function ContractActions({
           <button
             onClick={() => patch({ status: status === "VOID" ? "SENT" : "VOID" })}
             disabled={busy}
-            className="px-3 py-2 border border-gray-300 rounded-[10px] text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            className="px-3 py-2 btn-tool-line bg-white rounded-[10px] text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
           >
             {busy ? <Loader2 size={13} className="animate-spin" /> : status === "VOID" ? "Reopen" : "Void"}
           </button>
@@ -126,7 +126,7 @@ export default function ContractActions({
           <button
             onClick={remove}
             disabled={busy}
-            className="p-2 border border-gray-300 rounded-[10px] text-gray-400 hover:text-red-600 hover:border-red-300 hover:bg-red-50"
+            className="p-2 btn-tool-line bg-white rounded-[10px] text-gray-400 hover:text-red-600 hover:border-red-300 hover:bg-red-50"
             title="Delete contract"
           >
             <Trash2 size={15} />

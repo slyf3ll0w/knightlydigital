@@ -792,10 +792,10 @@ export default function ScheduleClient({
             onClick={() => setDrawerOpen((o) => !o)}
             aria-label="Unscheduled jobs"
             title="Unscheduled"
-            className={`relative flex h-10 w-10 items-center justify-center gap-1.5 rounded-[10px] border text-sm font-semibold transition-colors md:w-auto md:px-4 ${
+            className={`relative flex h-10 w-10 items-center justify-center gap-1.5 rounded-[10px] text-sm font-semibold transition-colors md:w-auto md:px-4 ${
               drawerOpen
-                ? "border-green-500 bg-green-50 text-green-700"
-                : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                ? "chip-pressed bg-green-50 text-green-700"
+                : "btn-tool-line bg-white text-gray-700 hover:bg-gray-50"
             }`}
           >
             <CalendarDays size={16} />
@@ -810,7 +810,7 @@ export default function ScheduleClient({
             onClick={openBlockCreate}
             aria-label="Block off time"
             title="Block Time"
-            className="flex h-10 w-10 items-center justify-center gap-1.5 rounded-[10px] border border-gray-300 bg-white text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 md:w-auto md:px-4"
+            className="flex h-10 w-10 items-center justify-center gap-1.5 rounded-[10px] btn-tool-line bg-white text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 md:w-auto md:px-4"
           >
             <CalendarOff size={16} />
             <span className="hidden md:inline">Block Time</span>
@@ -820,7 +820,7 @@ export default function ScheduleClient({
               href="/app/appointments/new"
               aria-label="New appointment"
               title="New Appointment"
-              className="flex h-10 w-10 items-center justify-center gap-1.5 rounded-[10px] border border-blue-300 bg-blue-50 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-100 md:w-auto md:px-4"
+              className="flex h-10 w-10 items-center justify-center gap-1.5 rounded-[10px] btn-tool-line bg-blue-50 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-100 md:w-auto md:px-4"
             >
               <CalendarClock size={16} />
               <span className="hidden md:inline">New Appointment</span>
@@ -852,7 +852,7 @@ export default function ScheduleClient({
           </button>
           <button
             onClick={() => go({ date: new Date() })}
-            className="rounded-[10px] border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+            className="rounded-[10px] btn-tool-line bg-white px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
           >
             Today
           </button>
@@ -1147,7 +1147,7 @@ export default function ScheduleClient({
               <button
                 onClick={() => setBlockSheet(null)}
                 disabled={blockBusy}
-                className="rounded-[10px] border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50"
+                className="rounded-[10px] btn-tool-line bg-white px-4 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50"
               >
                 {blockSheet.canEdit ? "Cancel" : "Close"}
               </button>

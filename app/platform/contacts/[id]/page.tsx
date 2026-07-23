@@ -205,7 +205,7 @@ export default async function ContactDetailPage({
           {contact.phone && <CallTextButtons phone={contact.phone} />}
           <Link
             href={`/app/contacts/${contact.id}/edit`}
-            className="flex items-center gap-1.5 px-4 py-2 border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-sm font-semibold rounded-[10px] transition-colors"
+            className="flex items-center gap-1.5 px-4 py-2 btn-tool-line bg-white text-gray-700 hover:bg-gray-50 text-sm font-semibold rounded-[10px] transition-colors"
           >
             <Pencil size={14} />
             Edit

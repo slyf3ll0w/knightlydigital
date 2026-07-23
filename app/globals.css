@@ -87,6 +87,34 @@
     transform: translate(2px, 2px);
     box-shadow: 0 0 0 var(--tool-shadow, #0a1428);
   }
+
+  /* ── Outlined tool button — the secondary flavor of .btn-tool: a white
+     surface with the tool outline, same hard offset, same press-flat
+     behavior. Raised = clickable; the selected state is .chip-pressed. */
+  .btn-tool-line {
+    border: 1.5px solid var(--tool-line, #0a1428);
+    box-shadow: 2px 2px 0 var(--tool-shadow, #0a1428);
+    transition:
+      transform 0.13s ease,
+      box-shadow 0.13s ease,
+      background-color 0.15s ease;
+  }
+  .btn-tool-line:hover {
+    transform: translate(1px, 1px);
+    box-shadow: 1px 1px 0 var(--tool-shadow, #0a1428);
+  }
+  .btn-tool-line:active {
+    transform: translate(2px, 2px);
+    box-shadow: 0 0 0 var(--tool-shadow, #0a1428);
+  }
+
+  /* ── Pressed-in chip — the SELECTED state of a tool control: no offset,
+     an inset lip on the top-left instead, as if the button is being held
+     down. Distinguishes "where I am" from "what I can press". */
+  .chip-pressed {
+    border: 1.5px solid var(--tool-line, #0a1428);
+    box-shadow: inset 2px 2px 0 rgba(10, 20, 40, 0.22);
+  }
 }
 
 @layer utilities {
@@ -964,6 +992,25 @@ body {
      needs restating here. */
   html[data-mode="dark"] .app-ui .card-tool {
     background-color: var(--t-surface);
+  }
+  html[data-mode="dark"] .app-ui .chip-pressed {
+    box-shadow: inset 2px 2px 0 rgba(0, 0, 0, 0.45);
+  }
+  /* Sidebar rails go true dark with the rest of the frame — the console-navy
+     default (and the light white/gray themes) read as a stray bright panel
+     next to the near-black canvas. Same primary wash as dark .bg-chrome so
+     the top bar and rail meet as one chrome. */
+  html[data-mode="dark"] .app-ui .rail-black,
+  html[data-mode="dark"] .app-ui .rail-white,
+  html[data-mode="dark"] .app-ui .rail-gray {
+    --rail-bg: color-mix(in srgb, var(--wb-primary, #606673) 8%, #171717);
+    --rail-ink: #ffffff;
+    --rail-muted: #9ca3af;
+    --rail-faint: rgba(255, 255, 255, 0.4);
+    --rail-line: rgba(255, 255, 255, 0.1);
+    --rail-hover: rgba(255, 255, 255, 0.06);
+    --rail-chip: rgba(255, 255, 255, 0.1);
+    --rail-chip-ink: #d1d5db;
   }
 
   /* ── Ink ── */

@@ -214,7 +214,7 @@ export default function ExpensesClient({ expenses }: { expenses: Expense[] }) {
         </div>
         <button
           onClick={exportCsv}
-          className="flex items-center gap-1.5 px-4 py-2 border border-gray-300 rounded-[10px] text-sm font-medium text-gray-700 hover:bg-gray-50"
+          className="flex items-center gap-1.5 px-4 py-2 btn-tool-line bg-white rounded-[10px] text-sm font-medium text-gray-700 hover:bg-gray-50"
         >
           <Download size={14} />
           Export CSV

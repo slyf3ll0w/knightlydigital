@@ -327,7 +327,7 @@ function NewJobForm() {
           </button>
           <Link
             href="/app/jobs"
-            className="px-5 py-2.5 border border-gray-300 text-sm font-medium text-gray-600 rounded-[10px] hover:bg-gray-50 transition-colors"
+            className="px-5 py-2.5 btn-tool-line bg-white text-sm font-medium text-gray-600 rounded-[10px] hover:bg-gray-50 transition-colors"
           >
             Cancel
           </Link>

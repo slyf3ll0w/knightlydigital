@@ -131,7 +131,7 @@ function ProposalCard({
               type="button"
               disabled={p.state === "confirming"}
               onClick={onCancel}
-              className="rounded-[10px] border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-600 transition-colors hover:bg-gray-100 disabled:opacity-50"
+              className="rounded-[10px] btn-tool-line bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 transition-colors hover:bg-gray-100 disabled:opacity-50"
             >
               Cancel
             </button>

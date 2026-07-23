@@ -124,7 +124,7 @@ export default function JobActions({
       {status === "ARCHIVED" && (
         <button
           onClick={() => setStatus("ACTIVE")}
-          className="flex items-center gap-1.5 px-4 py-2 border border-gray-300 text-sm font-medium text-gray-700 rounded-[10px] hover:bg-gray-50 transition-colors"
+          className="flex items-center gap-1.5 px-4 py-2 btn-tool-line bg-white text-sm font-medium text-gray-700 rounded-[10px] hover:bg-gray-50 transition-colors"
         >
           <RotateCcw size={13} />
           Reopen Job
@@ -135,7 +135,7 @@ export default function JobActions({
         <div className="relative">
           <button
             onClick={() => setOpen((v) => !v)}
-            className="p-2 border border-gray-300 rounded-[10px] text-gray-600 hover:bg-gray-50 transition-colors"
+            className="p-2 btn-tool-line bg-white rounded-[10px] text-gray-600 hover:bg-gray-50 transition-colors"
           >
             <MoreHorizontal size={16} />
           </button>

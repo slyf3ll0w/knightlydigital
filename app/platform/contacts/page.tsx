@@ -86,7 +86,7 @@ export default async function ContactsPage({
                 href="/app/settings/client-fields"
                 aria-label="Custom Fields"
                 title="Custom Fields"
-                className="flex h-10 w-10 items-center justify-center gap-1.5 rounded-[10px] border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-sm font-semibold transition-colors sm:w-auto sm:px-4"
+                className="flex h-10 w-10 items-center justify-center gap-1.5 rounded-[10px] btn-tool-line bg-white text-gray-700 hover:bg-gray-50 text-sm font-semibold transition-colors sm:w-auto sm:px-4"
               >
                 <ListPlus size={15} />
                 <span className="hidden sm:inline">Custom Fields</span>
@@ -95,7 +95,7 @@ export default async function ContactsPage({
                 href="/app/settings/import"
                 aria-label="Import"
                 title="Import"
-                className="flex h-10 w-10 items-center justify-center gap-1.5 rounded-[10px] border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-sm font-semibold transition-colors sm:w-auto sm:px-4"
+                className="flex h-10 w-10 items-center justify-center gap-1.5 rounded-[10px] btn-tool-line bg-white text-gray-700 hover:bg-gray-50 text-sm font-semibold transition-colors sm:w-auto sm:px-4"
               >
                 <Upload size={15} />
                 <span className="hidden sm:inline">Import</span>

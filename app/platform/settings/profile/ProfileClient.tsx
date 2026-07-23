@@ -163,7 +163,7 @@ export default function ProfileClient({
               type="button"
               onClick={() => pickRef.current?.click()}
               disabled={avatarBusy}
-              className="flex items-center gap-1.5 rounded-[10px] border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50"
+              className="flex items-center gap-1.5 rounded-[10px] btn-tool-line bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50"
             >
               {avatarBusy ? <Loader2 size={14} className="animate-spin" /> : <ImagePlus size={14} />}
               Choose photo
@@ -173,7 +173,7 @@ export default function ProfileClient({
               type="button"
               onClick={() => (isIOS ? pickRef : cameraRef).current?.click()}
               disabled={avatarBusy}
-              className="flex items-center gap-1.5 rounded-[10px] border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50 lg:hidden"
+              className="flex items-center gap-1.5 rounded-[10px] btn-tool-line bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50 lg:hidden"
             >
               <Camera size={14} />
               Take photo
@@ -282,7 +282,7 @@ export default function ProfileClient({
         </div>
         <Link
           href="/app/dashboard?tour=1"
-          className="px-4 py-2 border border-gray-300 text-sm font-medium text-gray-700 rounded-[10px] hover:bg-gray-50 transition-colors shrink-0"
+          className="px-4 py-2 btn-tool-line bg-white text-sm font-medium text-gray-700 rounded-[10px] hover:bg-gray-50 transition-colors shrink-0"
         >
           Replay the tour
         </Link>

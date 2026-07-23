@@ -108,7 +108,7 @@ export default function RequestActions({
       <div className="relative">
         <button
           onClick={() => setOpen((v) => !v)}
-          className="p-2 border border-gray-300 rounded-[10px] text-gray-600 hover:bg-gray-50 transition-colors"
+          className="p-2 btn-tool-line bg-white rounded-[10px] text-gray-600 hover:bg-gray-50 transition-colors"
         >
           <MoreHorizontal size={16} />
         </button>

@@ -50,7 +50,7 @@ export default function OnMyWay({
           ? `Sent ${sent.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })} — opens Messages again`
           : "Text the client that you're on your way (opens your Messages app)"
       }
-      className="flex items-center gap-1.5 px-4 py-2 border border-gray-300 text-sm font-medium text-gray-700 rounded-[10px] hover:bg-gray-50 transition-colors"
+      className="flex items-center gap-1.5 px-4 py-2 btn-tool-line bg-white text-sm font-medium text-gray-700 rounded-[10px] hover:bg-gray-50 transition-colors"
     >
       <Navigation size={13} className={sent ? "text-green-600" : undefined} />
       On My Way{sent ? " ✓" : ""}

@@ -125,7 +125,7 @@ export default function ContactActionsMenu({
         <button
           onClick={() => setOpen((v) => !v)}
           title="Client actions"
-          className="p-2 border border-gray-300 rounded-[10px] text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-colors"
+          className="p-2 btn-tool-line bg-white rounded-[10px] text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-colors"
         >
           {busy ? <Loader2 size={16} className="animate-spin" /> : <MoreHorizontal size={16} />}
         </button>

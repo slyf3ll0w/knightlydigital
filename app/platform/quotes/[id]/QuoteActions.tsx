@@ -261,7 +261,7 @@ export default function QuoteActions({
       {status === "ARCHIVED" && (
         <button
           onClick={() => setStatus(wasSent ? "AWAITING_RESPONSE" : "DRAFT")}
-          className="flex items-center gap-1.5 px-4 py-2 border border-gray-300 text-sm font-medium text-gray-700 rounded-[10px] hover:bg-gray-50 transition-colors"
+          className="flex items-center gap-1.5 px-4 py-2 btn-tool-line bg-white text-sm font-medium text-gray-700 rounded-[10px] hover:bg-gray-50 transition-colors"
         >
           <RotateCcw size={13} />
           Reopen Quote
@@ -271,7 +271,7 @@ export default function QuoteActions({
       {editable && (
         <Link
           href={`/app/quotes/${quoteId}/edit`}
-          className="p-2 border border-gray-300 rounded-[10px] text-gray-600 hover:bg-gray-50 transition-colors"
+          className="p-2 btn-tool-line bg-white rounded-[10px] text-gray-600 hover:bg-gray-50 transition-colors"
           title="Edit quote"
         >
           <Pencil size={15} />
@@ -281,7 +281,7 @@ export default function QuoteActions({
       <div className="relative">
         <button
           onClick={() => setOpen((v) => !v)}
-          className="p-2 border border-gray-300 rounded-[10px] text-gray-600 hover:bg-gray-50 transition-colors"
+          className="p-2 btn-tool-line bg-white rounded-[10px] text-gray-600 hover:bg-gray-50 transition-colors"
         >
           <MoreHorizontal size={16} />
         </button>

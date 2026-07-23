@@ -462,7 +462,7 @@ export default function ProductsClient({
         </button>
         <button
           onClick={() => setEditingId(null)}
-          className="px-4 py-2 border border-gray-300 text-sm font-medium text-gray-600 rounded-[10px] hover:bg-gray-50 transition-colors"
+          className="px-4 py-2 btn-tool-line bg-white text-sm font-medium text-gray-600 rounded-[10px] hover:bg-gray-50 transition-colors"
         >
           Cancel
         </button>

@@ -168,7 +168,7 @@ export default function AppointmentActions({
         <div className="relative">
           <button
             onClick={() => setMenuOpen((v) => !v)}
-            className="p-2 border border-gray-300 rounded-[10px] text-gray-500 hover:bg-gray-50"
+            className="p-2 btn-tool-line bg-white rounded-[10px] text-gray-500 hover:bg-gray-50"
           >
             <MoreHorizontal size={16} />
           </button>

@@ -3,9 +3,10 @@ import { hueInk } from "@/lib/section-colors";
 
 /**
  * Filter rail + chips shared by every list page. One horizontal row that
- * scrolls edge-to-edge on phones (never wraps); the active filter is a solid
- * section-hue block on a hard navy offset — the marketing site's tool-button
- * language — while inactive chips stay flat outlined tools.
+ * scrolls edge-to-edge on phones (never wraps). Raised = clickable, pressed
+ * = selected: inactive chips sit proud on the hard tool offset like every
+ * other button, while the active filter is a solid section-hue block pushed
+ * flat with an inset lip (.chip-pressed).
  */
 
 export function FilterRow({ children }: { children: React.ReactNode }) {
@@ -35,10 +36,10 @@ export function FilterChip({
   children: React.ReactNode;
 }) {
   const base =
-    "flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[9px] border-[1.5px] px-3.5 py-1.5 text-sm transition-all";
+    "flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[9px] px-3.5 py-1.5 text-sm transition-all";
   const cls = active
-    ? `${base} chip-tool border-[color:var(--tool-line,#0A1428)] font-semibold`
-    : `${base} border-gray-300 bg-white font-medium text-gray-600 hover:border-gray-400 hover:text-gray-900`;
+    ? `${base} chip-pressed font-semibold`
+    : `${base} btn-tool-line bg-white font-medium text-gray-600 hover:text-gray-900`;
   const style = active ? { backgroundColor: hue, color: hueInk(hue) } : undefined;
 
   if (href) {

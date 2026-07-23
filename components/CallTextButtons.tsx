@@ -23,8 +23,8 @@ export default function CallTextButtons({
   useEffect(() => setSmsOk(canSendSms()), []);
 
   const cls = compact
-    ? "flex items-center justify-center gap-1.5 flex-1 px-3 py-1.5 border border-gray-300 text-xs font-medium text-gray-700 rounded-[10px] hover:bg-gray-50 transition-colors"
-    : "flex items-center gap-1.5 px-4 py-2 border border-gray-300 bg-white text-sm font-semibold text-gray-700 rounded-[10px] hover:bg-gray-50 transition-colors";
+    ? "flex items-center justify-center gap-1.5 flex-1 px-3 py-1.5 btn-tool-line bg-white text-xs font-medium text-gray-700 rounded-[10px] hover:bg-gray-50 transition-colors"
+    : "flex items-center gap-1.5 px-4 py-2 btn-tool-line bg-white text-sm font-semibold text-gray-700 rounded-[10px] hover:bg-gray-50 transition-colors";
   return (
     <>
       <a href={telHref(phone)} className={cls}>

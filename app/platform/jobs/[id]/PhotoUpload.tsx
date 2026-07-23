@@ -126,7 +126,7 @@ export default function PhotoUpload({ jobId, photos }: { jobId: string; photos: 
           type="button"
           onClick={() => inputRef.current?.click()}
           disabled={busy}
-          className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 rounded-[10px] text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+          className="flex items-center gap-1.5 px-3 py-1.5 btn-tool-line bg-white rounded-[10px] text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
         >
           {busy ? <Loader2 size={12} className="animate-spin" /> : <Camera size={12} />}
           Add photos

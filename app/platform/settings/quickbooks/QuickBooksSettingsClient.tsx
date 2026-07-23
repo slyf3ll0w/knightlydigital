@@ -282,7 +282,7 @@ export default function QuickBooksSettingsClient({ configured }: { configured: b
                 type="button"
                 onClick={disconnect}
                 disabled={disconnecting}
-                className="flex shrink-0 items-center gap-1.5 rounded-[10px] border border-gray-300 px-3.5 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-50"
+                className="flex shrink-0 items-center gap-1.5 rounded-[10px] btn-tool-line bg-white px-3.5 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-50"
               >
                 {disconnecting ? (
                   <Loader2 size={13} className="animate-spin" />

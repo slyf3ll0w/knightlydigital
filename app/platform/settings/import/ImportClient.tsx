@@ -282,7 +282,7 @@ export default function ImportClient({
             </div>
             <button
               onClick={downloadTemplate}
-              className="flex items-center gap-1.5 px-3 py-2 border border-gray-300 rounded-[10px] text-sm font-medium text-gray-700 hover:bg-gray-50"
+              className="flex items-center gap-1.5 px-3 py-2 btn-tool-line bg-white rounded-[10px] text-sm font-medium text-gray-700 hover:bg-gray-50"
             >
               <Download size={14} />
               Download template
@@ -439,7 +439,7 @@ export default function ImportClient({
               <button
                 onClick={undoImport}
                 disabled={undoing}
-                className="flex items-center gap-1.5 px-4 py-2.5 border border-gray-300 rounded-[10px] text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                className="flex items-center gap-1.5 px-4 py-2.5 btn-tool-line bg-white rounded-[10px] text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
               >
                 {undoing ? <Loader2 size={13} className="animate-spin" /> : <Undo2 size={13} />}
                 Undo this import
