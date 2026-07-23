@@ -34,6 +34,7 @@ export default async function PublicMessagePage({
     select: {
       subject: true,
       body: true,
+      signature: true,
       createdAt: true,
       contact: { select: { firstName: true } },
       company: {
@@ -106,6 +107,11 @@ export default async function PublicMessagePage({
             <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
               {message.body}
             </p>
+            {message.signature && (
+              <p className="mt-6 border-t border-gray-100 pt-4 text-sm text-gray-600 whitespace-pre-wrap leading-relaxed">
+                {message.signature}
+              </p>
+            )}
           </div>
           <div className="px-6 py-4 border-t border-gray-100 bg-gray-50">
             <ReplyBox

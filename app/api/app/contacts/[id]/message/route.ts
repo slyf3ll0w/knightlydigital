@@ -47,6 +47,22 @@ export async function POST(
     );
   }
 
+  // Sender's own signature, or a professional default from what we know
+  const sender = await prisma.user.findUnique({
+    where: { id: actor.id },
+    select: { name: true, emailSignature: true },
+  });
+  const signature =
+    sender?.emailSignature?.trim() ||
+    [
+      sender?.name,
+      contact.company.name,
+      contact.company.phone,
+      contact.company.website,
+    ]
+      .filter(Boolean)
+      .join("\n");
+
   const message = await prisma.clientMessage.create({
     data: {
       companyId: actor.companyId,
@@ -54,17 +70,16 @@ export async function POST(
       senderId: actor.id,
       subject,
       body,
+      signature,
     },
   });
 
   // Trailing slash on NEXTAUTH_URL would make a //message/... link
   const baseUrl = (process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com").replace(/\/+$/, "");
   const email = clientMessageEmail({
-    brand: contact.company,
-    companyName: contact.company.name,
-    contactFirstName: contact.firstName,
     messageSubject: subject,
     messageBody: body,
+    signature,
     readUrl: `${baseUrl}/message/${message.publicToken}`,
     pixelUrl: `${baseUrl}/api/public/open/${message.publicToken}`,
   });
@@ -75,6 +90,7 @@ export async function POST(
     html: email.html,
     replyTo: contact.company.email || undefined,
     fromName: contact.company.name,
+    pageBackground: "#ffffff",
   });
   if (!emailed) {
     // Never leave an unsent message looking sent on the timeline

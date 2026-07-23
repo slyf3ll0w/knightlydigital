@@ -110,7 +110,8 @@ export default function EmailClientButton({
                 className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-y"
               />
               <p className="text-xs text-gray-400 mt-1">
-                Sent with your branding — you&apos;ll get a notification when they open it.
+                Sent as a plain email with your signature (customize it in Settings → My
+                Profile) — you&apos;ll get a notification when they open it.
               </p>
             </div>
 

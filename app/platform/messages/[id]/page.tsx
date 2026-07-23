@@ -110,6 +110,11 @@ export default async function MessageDetailPage({
         <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
           {message.body}
         </p>
+        {message.signature && (
+          <p className="mt-6 border-t border-gray-100 pt-4 text-sm text-gray-600 whitespace-pre-wrap leading-relaxed">
+            {message.signature}
+          </p>
+        )}
       </div>
 
       <p className="mt-4 text-xs text-gray-400">

@@ -10,8 +10,26 @@ export default async function ProfilePage() {
 
   const user = await prisma.user.findUnique({
     where: { id: actor.id },
-    select: { name: true, email: true, phone: true, role: true, avatarMime: true },
+    select: {
+      name: true,
+      email: true,
+      phone: true,
+      role: true,
+      avatarMime: true,
+      emailSignature: true,
+      company: { select: { name: true, phone: true, website: true } },
+    },
   });
+
+  // What client emails fall back to while no custom signature is saved
+  const defaultSignature = [
+    user?.name,
+    user?.company?.name,
+    user?.company?.phone,
+    user?.company?.website,
+  ]
+    .filter(Boolean)
+    .join("\n");
 
   return (
     <ProfileClient
@@ -21,6 +39,8 @@ export default async function ProfilePage() {
       email={user?.email ?? ""}
       phone={user?.phone ?? ""}
       roleLabel={roleLabel[user?.role ?? ""] ?? user?.role ?? ""}
+      emailSignature={user?.emailSignature ?? ""}
+      defaultSignature={defaultSignature}
     />
   );
 }

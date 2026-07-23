@@ -230,6 +230,7 @@ export async function sendEmail({
   replyTo,
   fromName,
   companyId,
+  pageBackground = "#f3f4f6",
 }: {
   to: string;
   subject: string;
@@ -240,6 +241,9 @@ export async function sendEmail({
   /** Tenant to meter this send against (lib/usage.ts). Omitted → counted as
    *  platform overhead (password resets, portal logins). */
   companyId?: string | null;
+  /** Canvas behind the template — "#ffffff" for the plain personal-email
+   *  look (client messages), default gray for the card-on-canvas shells. */
+  pageBackground?: string;
 }): Promise<boolean> {
   if (!RESEND_API_KEY) return false;
   const text = htmlToText(html);
@@ -254,7 +258,7 @@ export async function sendEmail({
 <meta name="color-scheme" content="light only" />
 <meta name="supported-color-schemes" content="light" />
 </head>
-<body style="margin:0;padding:0;background-color:#f3f4f6;color-scheme:light only;" bgcolor="#f3f4f6">
+<body style="margin:0;padding:0;background-color:${pageBackground};color-scheme:light only;" bgcolor="${pageBackground}">
 ${html}
 </body>
 </html>`;
@@ -638,43 +642,39 @@ export function hubAccessEmail({
 }
 
 /**
- * One-off professional message to a client (composed on the contact page).
- * Reads like a normal email — the full body is inline. Opens are tracked two
- * ways: the pixel (pixelUrl, classified/filtered by /api/public/open) and the
- * quiet "view online" link to the /message page, whose view beacon is the
- * certain signal. Replying to the email reaches the company via Reply-To.
+ * One-off message to a client (composed on the contact page). Deliberately
+ * looks like a person wrote it in their mail app — plain white, no brand
+ * header, no card chrome, no auto-greeting (the sender writes their own).
+ * The signature block is the only footer. Tracking stays: the pixel
+ * (classified/filtered by /api/public/open) plus a whisper-quiet "view
+ * online" link whose page beacon is the certain open signal.
  */
 export function clientMessageEmail({
-  brand,
-  companyName,
-  contactFirstName,
   messageSubject,
   messageBody,
+  signature,
   readUrl,
   pixelUrl,
 }: {
-  brand: EmailBrand;
-  companyName: string;
-  contactFirstName: string;
   messageSubject: string;
   messageBody: string;
+  /** Plain-text signature (sender's own, or the generated default) */
+  signature: string;
   readUrl: string;
   pixelUrl: string;
 }): { subject: string; html: string } {
-  const bodyHtml = esc(messageBody).replace(/\r\n/g, "\n").replace(/\n/g, "<br />");
-  const html = clientShell({
-    brand,
-    companyName,
-    context: messageSubject,
-    inner: `
-      <p style="margin:0 0 14px;color:#111827;font-size:15px;">Hi ${esc(contactFirstName)},</p>
-      <p style="margin:0;color:#374151;font-size:14px;line-height:1.65;">${bodyHtml}</p>
-      <p style="margin:20px 0 0;color:#6b7280;font-size:12px;">
-        You can reply directly to this email to get back to us, or
-        <a href="${esc(readUrl)}" style="color:${linkColor(brand)};text-decoration:underline;">view this message online</a>.
-      </p>
-      <img src="${esc(pixelUrl)}" width="1" height="1" alt="" style="display:block;width:1px;height:1px;border:0;" />`,
-  });
+  const toHtml = (s: string) => esc(s).replace(/\r\n/g, "\n").replace(/\n/g, "<br />");
+  const html = `
+<div style="font-family:${FONT};background:#ffffff;padding:24px 20px;">
+  <div style="max-width:640px;">
+    <p style="margin:0;color:#111827;font-size:15px;line-height:1.65;">${toHtml(messageBody)}</p>
+    <p style="margin:24px 0 0;color:#374151;font-size:14px;line-height:1.6;">${toHtml(signature)}</p>
+    <p style="margin:32px 0 0;color:#b3b8c0;font-size:11px;">
+      <a href="${esc(readUrl)}" style="color:#b3b8c0;text-decoration:underline;">View this message online</a>
+    </p>
+    <img src="${esc(pixelUrl)}" width="1" height="1" alt="" style="display:block;width:1px;height:1px;border:0;" />
+  </div>
+</div>`;
   return { subject: messageSubject, html };
 }
 

@@ -167,6 +167,9 @@ model User {
   avatarUpdatedAt DateTime?
   // First-visit guided tour; null = hasn't seen it (fires on next dashboard visit)
   tourCompletedAt DateTime?
+  // Plain-text signature appended to client email messages (Settings → My
+  // Profile); null = auto-generated from name + company details at send time
+  emailSignature  String?  @db.Text
   // Team chat: last time this user opened the chat (drives the unread badge)
   chatLastSeenAt  DateTime?
   // Internal labor cost per hour — feeds job labor costing from time entries.
@@ -611,6 +614,9 @@ model ClientMessage {
   sender        User?     @relation(fields: [senderId], references: [id])
   subject       String
   body          String    @db.Text
+  // Signature as it went out (snapshot — later profile edits don't rewrite
+  // sent mail); shown under the body on the public message page too
+  signature     String?   @db.Text
   publicToken   String    @unique @default(cuid())
   firstViewedAt DateTime?
   lastViewedAt  DateTime?

@@ -37,6 +37,8 @@ export default function ProfileClient({
   email,
   phone: initialPhone,
   roleLabel,
+  emailSignature: initialSignature,
+  defaultSignature,
 }: {
   userId: string;
   hasAvatar: boolean;
@@ -44,10 +46,13 @@ export default function ProfileClient({
   email: string;
   phone: string;
   roleLabel: string;
+  emailSignature: string;
+  defaultSignature: string;
 }) {
   const router = useRouter();
   const [name, setName] = useState(initialName);
   const [phone, setPhone] = useState(initialPhone);
+  const [signature, setSignature] = useState(initialSignature);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -114,6 +119,20 @@ export default function ProfileClient({
     if (!ok) return setError(data?.error ?? GENERIC_ERROR);
     setSaved("profile");
     router.refresh();
+  }
+
+  async function saveSignature() {
+    setBusy(true);
+    setError("");
+    setSaved("");
+    const { ok, data } = await postJson(
+      "/api/app/profile",
+      { emailSignature: signature },
+      "PATCH"
+    );
+    setBusy(false);
+    if (!ok) return setError(data?.error ?? GENERIC_ERROR);
+    setSaved("signature");
   }
 
   async function changePassword() {
@@ -232,6 +251,35 @@ export default function ProfileClient({
         >
           {busy ? <Loader2 size={13} className="animate-spin" /> : saved === "profile" && <Check size={13} />}
           Save
+        </button>
+      </div>
+
+      {/* Email signature — appended to client email messages */}
+      <div className="card-ledger p-5 mb-5">
+        <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
+          Email signature
+        </h2>
+        <p className="text-sm text-gray-500 mb-3">
+          Added to the bottom of emails you send to clients from their page.
+        </p>
+        <textarea
+          value={signature}
+          onChange={(e) => setSignature(e.target.value)}
+          rows={4}
+          maxLength={1000}
+          placeholder={defaultSignature}
+          className={`${inputCls} resize-y font-normal`}
+        />
+        <p className="text-xs text-gray-400 mt-1 mb-3">
+          Plain text, one line per row. Leave blank to use the default shown above.
+        </p>
+        <button
+          onClick={saveSignature}
+          disabled={busy}
+          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors disabled:opacity-50"
+        >
+          {busy ? <Loader2 size={13} className="animate-spin" /> : saved === "signature" && <Check size={13} />}
+          Save Signature
         </button>
       </div>
 

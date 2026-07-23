@@ -19,6 +19,12 @@ export async function PATCH(req: NextRequest) {
     data.name = String(body.name).trim().slice(0, 100);
   }
   if (body.phone !== undefined) data.phone = body.phone ? String(body.phone).trim().slice(0, 30) : null;
+  // Plain text only — rendered escaped into client emails
+  if (body.emailSignature !== undefined) {
+    data.emailSignature = body.emailSignature
+      ? String(body.emailSignature).trim().slice(0, 1000)
+      : null;
+  }
 
   if (body.newPassword !== undefined) {
     if (String(body.newPassword).length < 8 || String(body.newPassword).length > 72) {
