@@ -189,6 +189,38 @@ function wbShell({
 /* Send                                                                */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Plain-text alternative derived from the template HTML. HTML-only email
+ * scores badly with phishing filters (Yahoo PH01 especially); every send
+ * carries a text part so the multipart looks like legitimate mail.
+ * Tuned to this file's markup — not a general HTML-to-text converter.
+ */
+function htmlToText(html: string): string {
+  return (
+    html
+      // Links become "label: url" so the text part carries the same CTAs
+      .replace(/<a\s[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi, (_m, href, label) => {
+        const text = label.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+        return text ? `${text}: ${href}` : href;
+      })
+      .replace(/<\/(p|div|h[1-6])>/gi, "\n")
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<[^>]+>/g, "")
+      .replace(/&nbsp;/g, " ")
+      .replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      // Collapse the indentation and blank-line noise left by the markup
+      .split("\n")
+      .map((line) => line.replace(/\s+/g, " ").trim())
+      .join("\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim()
+  );
+}
+
 export async function sendEmail({
   to,
   subject,
@@ -208,6 +240,7 @@ export async function sendEmail({
   companyId?: string | null;
 }): Promise<boolean> {
   if (!RESEND_API_KEY) return false;
+  const text = htmlToText(html);
   // Templates are bare <div>s with light backgrounds and near-black inline
   // text. Without an explicit light-only color-scheme, dark-mode email
   // clients (Outlook especially) darken the white card but keep the inline
@@ -239,6 +272,7 @@ ${html}
         to: [to],
         subject,
         html,
+        text,
         ...(replyTo ? { reply_to: [replyTo] } : {}),
       }),
     });
