@@ -36,11 +36,12 @@ export async function POST(req: NextRequest) {
 
   const baseUrl = process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com";
   const { subject, html } = hubAccessEmail({
+    brand: company,
     companyName: company.name,
     contactFirstName: contact.firstName,
     hubUrl: `${baseUrl}/hub/${contact.hubToken}`,
   });
-  await sendEmail({ companyId: company.id, to: contact.email, subject, html, fromName: company.name, brand: company });
+  await sendEmail({ companyId: company.id, to: contact.email, subject, html, fromName: company.name });
 
   return ok;
 }

@@ -41,6 +41,7 @@ export async function POST(
 
   const baseUrl = process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com";
   const { subject, html } = invoiceLinkEmail({
+    brand: invoice.company,
     companyName: invoice.company.name,
     invoiceNumber: invoice.invoiceNumber,
     total: Number(invoice.total),
@@ -55,7 +56,6 @@ export async function POST(
     html,
     replyTo: invoice.company.email || undefined,
     fromName: invoice.company.name,
-    brand: invoice.company,
   });
   if (!emailed) {
     return NextResponse.json(

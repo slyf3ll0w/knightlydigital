@@ -34,6 +34,7 @@ export async function POST(
 
   const baseUrl = process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com";
   const { subject, html } = hubAccessEmail({
+    brand: contact.company ?? {},
     companyName: contact.company?.name ?? "",
     contactFirstName: contact.firstName,
     hubUrl: `${baseUrl}/hub/${contact.hubToken}`,
@@ -44,7 +45,6 @@ export async function POST(
     subject,
     html,
     fromName: contact.company?.name,
-    brand: contact.company,
   });
   if (!sent) {
     return NextResponse.json(

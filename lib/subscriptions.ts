@@ -308,6 +308,7 @@ async function generateCycle(sub: DueSub, now: Date): Promise<"billed" | "drafte
     if (company) {
       const baseUrl = process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com";
       const { subject, html } = invoiceLinkEmail({
+        brand: company,
         companyName: company.name,
         invoiceNumber: cycle.invoiceNumber,
         total: lineTotal,
@@ -321,7 +322,6 @@ async function generateCycle(sub: DueSub, now: Date): Promise<"billed" | "drafte
         html,
         replyTo: company.email || undefined,
         fromName: company.name,
-        brand: company,
       });
     }
   }

@@ -53,6 +53,7 @@ export async function POST(
     depositValue: quote.depositValue == null ? null : Number(quote.depositValue),
   });
   const { subject, html } = quoteLinkEmail({
+    brand: quote.company,
     companyName: quote.company.name,
     quoteNumber: quote.quoteNumber,
     total: Number(quote.total),
@@ -71,7 +72,6 @@ export async function POST(
     html,
     replyTo: quote.company.email || undefined,
     fromName: quote.company.name,
-    brand: quote.company,
   });
   if (!emailed) {
     return NextResponse.json(

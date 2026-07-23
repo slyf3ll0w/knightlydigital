@@ -105,6 +105,7 @@ export async function POST(
     const { subject, html } =
       action === "accept" && windowLabel
         ? bookingConfirmedEmail({
+            brand: request.company,
             companyName: request.company.name,
             companyEmail: request.company.email,
             contactFirstName: request.contact.firstName,
@@ -113,6 +114,7 @@ export async function POST(
             address: tentative?.address,
           })
         : bookingDeclinedEmail({
+            brand: request.company,
             companyName: request.company.name,
             companyEmail: request.company.email,
             contactFirstName: request.contact.firstName,
@@ -129,7 +131,6 @@ export async function POST(
         html,
         replyTo: request.company.email || undefined,
         fromName: request.company.name,
-        brand: request.company,
       });
     }
   }

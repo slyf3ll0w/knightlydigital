@@ -114,6 +114,7 @@ export async function autoSendQuoteAgreements(
       if (quote.contact.email) {
         const baseUrl = process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com";
         const { subject, html } = contractSignEmail({
+          brand: company ?? {},
           companyName: company?.name ?? "",
           contactFirstName: quote.contact.firstName,
           title: template.name,
@@ -125,7 +126,6 @@ export async function autoSendQuoteAgreements(
           subject,
           html,
           fromName: company?.name,
-          brand: company,
         });
       }
     }

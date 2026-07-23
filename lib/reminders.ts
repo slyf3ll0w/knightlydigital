@@ -118,6 +118,7 @@ export async function runDueReminders(now: Date = new Date()): Promise<ReminderS
 
       const baseUrl = process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com";
       const { subject, html } = paymentReminderEmail({
+        brand: inv.company,
         companyName: inv.company.name,
         companyEmail: inv.company.email,
         invoiceNumber: inv.invoiceNumber,
@@ -133,7 +134,6 @@ export async function runDueReminders(now: Date = new Date()): Promise<ReminderS
         html,
         replyTo: inv.company.email || undefined,
         fromName: inv.company.name,
-        brand: inv.company,
       });
 
       if (ok) {
@@ -258,6 +258,7 @@ export async function runAppointmentReminders(
       let emailOk = false;
       if (canEmail && appt.contact.email) {
         const { subject, html } = appointmentReminderEmail({
+          brand: appt.company,
           companyName: appt.company.name,
           companyEmail: appt.company.email,
           contactFirstName: appt.contact.firstName,
@@ -273,7 +274,6 @@ export async function runAppointmentReminders(
           html,
           replyTo: appt.company.email || undefined,
           fromName: appt.company.name,
-          brand: appt.company,
         });
       }
 

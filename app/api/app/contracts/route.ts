@@ -83,12 +83,13 @@ export async function POST(req: NextRequest) {
   if (contact.email) {
     const baseUrl = process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com";
     const { subject, html } = contractSignEmail({
+      brand: company ?? {},
       companyName: company?.name ?? "",
       contactFirstName: contact.firstName,
       title,
       signUrl: `${baseUrl}/contract/${contract.publicToken}`,
     });
-    await sendEmail({ companyId, to: contact.email, subject, html, fromName: company?.name, brand: company });
+    await sendEmail({ companyId, to: contact.email, subject, html, fromName: company?.name });
   }
 
   return NextResponse.json(contract, { status: 201 });

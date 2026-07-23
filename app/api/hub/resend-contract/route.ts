@@ -45,6 +45,7 @@ export async function POST(req: NextRequest) {
 
   const baseUrl = process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com";
   const { subject, html } = contractSignEmail({
+    brand: contact.company ?? {},
     companyName: contact.company?.name ?? "",
     contactFirstName: contact.firstName,
     title: contract.title,
@@ -56,7 +57,6 @@ export async function POST(req: NextRequest) {
     subject,
     html,
     fromName: contact.company?.name,
-    brand: contact.company,
   });
   if (!sent) {
     return NextResponse.json({ error: "Couldn't send the email right now." }, { status: 400 });

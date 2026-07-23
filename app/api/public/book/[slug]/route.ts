@@ -489,6 +489,7 @@ export async function POST(
   if (result.quote && form.config.serviceRequest.quoteMode === "send" && email) {
     const baseUrl = process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com";
     const { subject, html } = quoteLinkEmail({
+      brand: company,
       companyName: company.name,
       quoteNumber: result.quote.quoteNumber,
       total: result.quote.total,
@@ -506,7 +507,6 @@ export async function POST(
       html,
       replyTo: company.email || undefined,
       fromName: company.name,
-      brand: company,
     });
   }
 
@@ -515,6 +515,7 @@ export async function POST(
   // owner's decision).
   if (booking && email && bookingWindow) {
     const { subject, html } = bookingReceivedEmail({
+      brand: company,
       companyName: company.name,
       contactFirstName: firstName,
       serviceName: booking.service.name,
@@ -528,7 +529,6 @@ export async function POST(
       html,
       replyTo: company.email || undefined,
       fromName: company.name,
-      brand: company,
     });
   }
 

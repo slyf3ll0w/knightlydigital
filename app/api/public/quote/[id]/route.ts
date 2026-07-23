@@ -122,6 +122,7 @@ export async function POST(
   if (deposit?.created && quote.contact.email) {
     const baseUrl = process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com";
     const { subject, html } = invoiceLinkEmail({
+      brand: quote.company,
       companyName: quote.company.name,
       invoiceNumber: deposit.invoice.invoiceNumber,
       total: deposit.amount,
@@ -135,7 +136,6 @@ export async function POST(
       html,
       replyTo: quote.company.email || undefined,
       fromName: quote.company.name,
-      brand: quote.company,
     });
   }
 

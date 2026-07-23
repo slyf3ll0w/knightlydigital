@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { sendEmail, contractSignedCopyEmail } from "@/lib/email";
+import { sendEmail, contractSignedCopyEmail, contractSignedNotifyEmail } from "@/lib/email";
 import { isContractLinkExpired } from "@/lib/agreements";
 
 /**
@@ -67,6 +67,7 @@ export async function POST(
   const signUrl = `${baseUrl}/contract/${contract.publicToken}`;
   if (contact?.email && company) {
     const { subject, html } = contractSignedCopyEmail({
+      brand: company,
       companyName: company.name,
       contactFirstName: contact.firstName,
       title: contract.title,
@@ -82,20 +83,21 @@ export async function POST(
       html,
       replyTo: company.email || undefined,
       fromName: company.name,
-      brand: company,
     });
   }
   if (company?.email) {
+    const notify = contractSignedNotifyEmail({
+      companyName: company.name,
+      contractId: contract.id,
+      title: contract.title,
+      signerName: contact ? `${contact.firstName} ${contact.lastName}` : "Your client",
+      signedAt,
+    });
     await sendEmail({
       companyId: contract.companyId,
       to: company.email,
-      subject: `Contract signed: ${contract.title}`,
-      html: `<p style="font-family:sans-serif;font-size:14px;color:#374151;">
-        <strong>${contact ? `${contact.firstName} ${contact.lastName}` : "Your client"}</strong>
-        signed "<strong>${contract.title.replace(/</g, "&lt;")}</strong>"
-        on ${signedAt.toLocaleString("en-US", { month: "long", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })}.
-        <a href="${baseUrl}/app/contracts/${contract.id}">View it in WorkBench</a>.
-      </p>`,
+      subject: notify.subject,
+      html: notify.html,
       replyTo: contact?.email ?? undefined,
     });
   }
