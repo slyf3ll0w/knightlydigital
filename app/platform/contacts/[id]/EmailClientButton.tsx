@@ -14,15 +14,23 @@ export default function EmailClientButton({
   contactId,
   contactName,
   contactEmail,
+  signature: defaultSignature,
+  hasLogo,
 }: {
   contactId: string;
   contactName: string;
   contactEmail: string;
+  /** Sender's saved signature (or the generated default) — editable per email */
+  signature: string;
+  /** Company has a logo to offer under the signature */
+  hasLogo: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
+  const [signature, setSignature] = useState(defaultSignature);
+  const [includeLogo, setIncludeLogo] = useState(hasLogo);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -39,7 +47,7 @@ export default function EmailClientButton({
       const res = await fetch(`/api/app/contacts/${contactId}/message`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ subject, body }),
+        body: JSON.stringify({ subject, body, signature, includeLogo }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
@@ -110,9 +118,39 @@ export default function EmailClientButton({
                 className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-y"
               />
               <p className="text-xs text-gray-400 mt-1">
-                Sent as a plain email with your signature (customize it in Settings → My
-                Profile) — you&apos;ll get a notification when they open it.
+                Sent as a plain email — you&apos;ll get a notification when they open it.
               </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Signature</label>
+              <textarea
+                value={signature}
+                onChange={(e) => setSignature(e.target.value)}
+                rows={3}
+                maxLength={1000}
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-y"
+              />
+              <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2">
+                {hasLogo ? (
+                  <label className="flex items-center gap-2 text-xs text-gray-600">
+                    <input
+                      type="checkbox"
+                      checked={includeLogo}
+                      onChange={(e) => setIncludeLogo(e.target.checked)}
+                      className="h-3.5 w-3.5 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                    />
+                    Include company logo under the signature
+                  </label>
+                ) : (
+                  <span className="text-xs text-gray-400">
+                    Add a logo in Settings → Branding to include it here.
+                  </span>
+                )}
+                <span className="text-xs text-gray-400">
+                  Save a default in Settings → My Profile
+                </span>
+              </div>
             </div>
 
             {error && <p className="text-xs text-red-600">{error}</p>}

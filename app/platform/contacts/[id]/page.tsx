@@ -31,10 +31,11 @@ export default async function ContactDetailPage({
 
   const canReassign = seesAllLeads(actor.role);
 
-  const [contact, teamUsers] = await Promise.all([
+  const [contact, teamUsers, senderUser] = await Promise.all([
     prisma.contact.findFirst({
       where: { id, companyId, ...contactScope(actor) },
       include: {
+        company: { select: { name: true, phone: true, website: true, logoUrl: true } },
         requests: { orderBy: { createdAt: "desc" } },
         appointments: { orderBy: { createdAt: "desc" } },
         contracts: { orderBy: { createdAt: "desc" } },
@@ -56,9 +57,20 @@ export default async function ContactDetailPage({
           orderBy: { name: "asc" },
         })
       : Promise.resolve([]),
+    prisma.user.findUnique({
+      where: { id: actor.id },
+      select: { name: true, emailSignature: true },
+    }),
   ]);
 
   if (!contact) notFound();
+
+  // Prefill for the compose modal's editable signature
+  const emailSignature =
+    senderUser?.emailSignature?.trim() ||
+    [senderUser?.name, contact.company.name, contact.company.phone, contact.company.website]
+      .filter(Boolean)
+      .join("\n");
 
   const fieldDefs = await getActiveFieldDefs(companyId);
 
@@ -229,6 +241,8 @@ export default async function ContactDetailPage({
               contactId={contact.id}
               contactName={`${contact.firstName} ${contact.lastName}`.trim()}
               contactEmail={contact.email}
+              signature={emailSignature}
+              hasLogo={!!contact.company.logoUrl}
             />
           )}
           <Link

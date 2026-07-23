@@ -34,6 +34,11 @@ export async function POST(
   const data = await req.json().catch(() => null);
   const subject = typeof data?.subject === "string" ? data.subject.trim() : "";
   const body = typeof data?.body === "string" ? data.body.trim() : "";
+  // Per-email signature override from the compose box; undefined = use the
+  // sender's saved/default signature. Explicit empty string = no signature.
+  const signatureOverride =
+    typeof data?.signature === "string" ? data.signature.trim().slice(0, 1000) : undefined;
+  const includeLogo = data?.includeLogo !== false; // logo rides along by default
   if (!subject || subject.length > 150) {
     return NextResponse.json(
       { error: "Add a subject (150 characters max)." },
@@ -47,21 +52,24 @@ export async function POST(
     );
   }
 
-  // Sender's own signature, or a professional default from what we know
+  // Compose-box override wins; then the sender's saved signature; then a
+  // professional default from what we know
   const sender = await prisma.user.findUnique({
     where: { id: actor.id },
     select: { name: true, emailSignature: true },
   });
   const signature =
-    sender?.emailSignature?.trim() ||
-    [
-      sender?.name,
-      contact.company.name,
-      contact.company.phone,
-      contact.company.website,
-    ]
-      .filter(Boolean)
-      .join("\n");
+    signatureOverride !== undefined
+      ? signatureOverride
+      : sender?.emailSignature?.trim() ||
+        [
+          sender?.name,
+          contact.company.name,
+          contact.company.phone,
+          contact.company.website,
+        ]
+          .filter(Boolean)
+          .join("\n");
 
   const message = await prisma.clientMessage.create({
     data: {
@@ -80,6 +88,7 @@ export async function POST(
     messageSubject: subject,
     messageBody: body,
     signature,
+    logoUrl: includeLogo ? contact.company.logoUrl : null,
     readUrl: `${baseUrl}/message/${message.publicToken}`,
     pixelUrl: `${baseUrl}/api/public/open/${message.publicToken}`,
   });

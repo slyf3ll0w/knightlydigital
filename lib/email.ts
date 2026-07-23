@@ -653,6 +653,7 @@ export function clientMessageEmail({
   messageSubject,
   messageBody,
   signature,
+  logoUrl,
   readUrl,
   pixelUrl,
 }: {
@@ -660,15 +661,21 @@ export function clientMessageEmail({
   messageBody: string;
   /** Plain-text signature (sender's own, or the generated default) */
   signature: string;
+  /** Company logo shown under the signature; null/undefined = text only */
+  logoUrl?: string | null;
   readUrl: string;
   pixelUrl: string;
 }): { subject: string; html: string } {
   const toHtml = (s: string) => esc(s).replace(/\r\n/g, "\n").replace(/\n/g, "<br />");
+  const logo = logoUrl
+    ? `<img src="${esc(absUrl(logoUrl))}" alt="" style="display:block;margin-top:14px;max-height:44px;max-width:180px;" />`
+    : "";
   const html = `
 <div style="font-family:${FONT};background:#ffffff;padding:24px 20px;">
   <div style="max-width:640px;">
     <p style="margin:0;color:#111827;font-size:15px;line-height:1.65;">${toHtml(messageBody)}</p>
     <p style="margin:24px 0 0;color:#374151;font-size:14px;line-height:1.6;">${toHtml(signature)}</p>
+    ${logo}
     <p style="margin:32px 0 0;color:#b3b8c0;font-size:11px;">
       <a href="${esc(readUrl)}" style="color:#b3b8c0;text-decoration:underline;">View this message online</a>
     </p>
