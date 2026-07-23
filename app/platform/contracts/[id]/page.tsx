@@ -3,7 +3,9 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { requirePageActor, canSell, isManager, viaContactScope } from "@/lib/permissions";
+import { shortDate } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
+import ViewedFact from "@/components/ViewedFact";
 import ContractActions from "./ContractActions";
 
 export default async function ContractDetailPage({
@@ -54,6 +56,23 @@ export default async function ContractDetailPage({
           body={contract.body}
         />
       </div>
+
+      {(contract.sentAt || contract.firstViewedAt) && (
+        <div className="flex flex-wrap gap-x-8 gap-y-2 px-5 py-4 card-ledger mb-6 text-sm">
+          {contract.sentAt && (
+            <div>
+              <span className="text-xs uppercase font-semibold text-gray-400 block">Sent</span>
+              <span className="text-gray-800">{shortDate(contract.sentAt)}</span>
+            </div>
+          )}
+          <ViewedFact
+            firstViewedAt={contract.firstViewedAt}
+            lastViewedAt={contract.lastViewedAt}
+            viewCount={contract.viewCount}
+            sent={!!contract.sentAt || contract.status !== "DRAFT"}
+          />
+        </div>
+      )}
 
       {contract.status === "SIGNED" && (
         <div className="mb-5 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">

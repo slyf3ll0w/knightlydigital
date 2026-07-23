@@ -4,6 +4,7 @@ import { companyMeta } from "@/lib/client-meta";
 import { getProcessor } from "@/lib/payments";
 import { recomputeDepositApplied } from "@/lib/deposits";
 import { finixApplicationId, finixEnvironment } from "@/lib/finix";
+import ViewBeacon from "@/components/ViewBeacon";
 import PayPage from "./PayPage";
 
 export async function generateMetadata({ params }: { params: Promise<{ token: string }> }) {
@@ -111,5 +112,10 @@ export default async function PublicPayPage({
     }
   }
 
-  return <PayPage invoice={JSON.parse(JSON.stringify(publicInvoice))} balance={balance} finix={finix} />;
+  return (
+    <>
+      <ViewBeacon kind="invoice" token={token} />
+      <PayPage invoice={JSON.parse(JSON.stringify(publicInvoice))} balance={balance} finix={finix} />
+    </>
+  );
 }

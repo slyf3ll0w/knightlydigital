@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requirePageActor, canSell, contactScope, seesAllLeads, isManager } from "@/lib/permissions";
 import Link from "next/link";
-import { ArrowLeft, Phone, Mail, MapPin, ChevronRight, Pencil } from "lucide-react";
+import { ArrowLeft, Phone, Mail, MapPin, ChevronRight, Pencil, Eye } from "lucide-react";
 import { money, shortDate, type StatusKind } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
 import ContactStatus from "@/components/ContactStatus";
@@ -96,6 +96,7 @@ export default async function ContactDetailPage({
       kind: "request" as StatusKind,
       status: r.status as string,
       amount: null as number | null,
+      viewed: null as Date | null,
     })),
     ...contact.appointments.map((a) => ({
       key: `a-${a.id}`,
@@ -106,6 +107,7 @@ export default async function ContactDetailPage({
       kind: "appointment" as StatusKind,
       status: a.status as string,
       amount: null as number | null,
+      viewed: null as Date | null,
     })),
     ...contact.contracts.map((ct) => ({
       key: `ct-${ct.id}`,
@@ -116,6 +118,7 @@ export default async function ContactDetailPage({
       kind: "contract" as StatusKind,
       status: ct.status as string,
       amount: null as number | null,
+      viewed: ct.firstViewedAt,
     })),
     ...contact.quotes.map((q) => ({
       key: `q-${q.id}`,
@@ -126,6 +129,7 @@ export default async function ContactDetailPage({
       kind: "quote" as StatusKind,
       status: q.status as string,
       amount: Number(q.total),
+      viewed: q.firstViewedAt,
     })),
     ...contact.jobs.map((j) => ({
       key: `j-${j.id}`,
@@ -136,6 +140,7 @@ export default async function ContactDetailPage({
       kind: "job" as StatusKind,
       status: j.status as string,
       amount: null as number | null,
+      viewed: null as Date | null,
     })),
     ...contact.invoices.map((inv) => ({
       key: `i-${inv.id}`,
@@ -146,6 +151,7 @@ export default async function ContactDetailPage({
       kind: "invoice" as StatusKind,
       status: inv.status as string,
       amount: Number(inv.total),
+      viewed: inv.firstViewedAt,
     })),
   ].sort((a, b) => b.date.getTime() - a.date.getTime());
 
@@ -260,7 +266,18 @@ export default async function ContactDetailPage({
                     <span className="hidden lg:block text-sm text-gray-500">
                       {shortDate(row.date)}
                     </span>
-                    <StatusChip kind={row.kind} status={row.status} />
+                    <span className="flex flex-col items-start gap-0.5">
+                      <StatusChip kind={row.kind} status={row.status} />
+                      {row.viewed && (
+                        <span
+                          className="hidden lg:inline-flex items-center gap-1 text-[10px] text-gray-400"
+                          title="Client opened this document"
+                        >
+                          <Eye size={10} />
+                          Seen {shortDate(row.viewed)}
+                        </span>
+                      )}
+                    </span>
                     <span className="text-sm font-semibold text-gray-900 lg:text-right">
                       {row.amount !== null ? money(row.amount) : "—"}
                     </span>
@@ -394,7 +411,12 @@ export default async function ContactDetailPage({
             </div>
           </div>
 
-          <PortalAccessCard contactId={contact.id} hubUrl={hubUrl} hasEmail={!!contact.email} />
+          <PortalAccessCard
+            contactId={contact.id}
+            hubUrl={hubUrl}
+            hasEmail={!!contact.email}
+            lastVisitLabel={contact.hubLastVisitAt ? shortDate(contact.hubLastVisitAt) : null}
+          />
         </div>
       </div>
     </div>

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { money, shortDate } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
+import ViewedFact from "@/components/ViewedFact";
 import InvoiceActions from "./InvoiceActions";
 import PaymentRow from "./PaymentRow";
 
@@ -121,6 +122,12 @@ export default async function InvoiceDetailPage({
           <span className="text-xs uppercase font-semibold text-gray-400 block">Due date</span>
           <span className="text-gray-800">{shortDate(invoice.dueDate)}</span>
         </div>
+        <ViewedFact
+          firstViewedAt={invoice.firstViewedAt}
+          lastViewedAt={invoice.lastViewedAt}
+          viewCount={invoice.viewCount}
+          sent={invoice.status !== "DRAFT"}
+        />
         {invoice.paidAt && (
           <div>
             <span className="text-xs uppercase font-semibold text-gray-400 block">Paid</span>

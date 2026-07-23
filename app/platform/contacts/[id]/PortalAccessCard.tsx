@@ -12,10 +12,13 @@ export default function PortalAccessCard({
   contactId,
   hubUrl,
   hasEmail,
+  lastVisitLabel,
 }: {
   contactId: string;
   hubUrl: string;
   hasEmail: boolean;
+  /** shortDate of Contact.hubLastVisitAt — null until the client first opens their hub */
+  lastVisitLabel?: string | null;
 }) {
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
@@ -53,6 +56,11 @@ export default function PortalAccessCard({
       <p className="text-xs text-gray-500 mb-3">
         The client can view quotes, approve work, see scheduled visits, and pay invoices from
         their portal.
+        {lastVisitLabel && (
+          <span className="mt-1 block font-medium text-green-700">
+            Last visited {lastVisitLabel}
+          </span>
+        )}
       </p>
       <div className="space-y-2">
         <a

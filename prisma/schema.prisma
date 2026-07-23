@@ -102,6 +102,15 @@ model Company {
   currentSoftware  String?
   topPriority      String?
   referralSource   String?
+  // Custom sending domain (Resend Domains API): client emails send from
+  // `${emailFromLocal}@${emailDomain}` once status is "verified"; every other
+  // state falls back to the platform EMAIL_FROM. Rails only until the Resend
+  // plan supports tenant domains — UI/API gate on EMAIL_DOMAINS_ENABLED.
+  emailDomain        String?  @unique // apex or subdomain the company verified (e.g. "summitplumbing.com")
+  emailDomainId      String? // Resend domain id — the handle for verify/status/delete
+  emailDomainStatus  String? // Resend status mirror: "pending" | "verified" | "failed" | "temporary_failure"
+  emailDomainRecords Json? // DNS records Resend wants ([{record,name,type,value,status}]) — shown in Settings
+  emailFromLocal     String? // local part of the From address; null = "notifications"
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -478,6 +487,9 @@ model Contact {
   // blocks at their edge; this flag keeps our senders honest and visible.
   smsOptOut        Boolean       @default(false)
   hubToken         String        @unique @default(cuid())
+  // Last time the client opened their hub (beacon-stamped, no push — shown on
+  // the contact page as "Portal · last visit")
+  hubLastVisitAt   DateTime?
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
 
@@ -628,6 +640,10 @@ model Contract {
   status        ContractStatus    @default(DRAFT)
   publicToken   String            @unique @default(cuid())
   sentAt        DateTime?
+  // Client opened the public /contract page (beacon-stamped — see /api/public/viewed)
+  firstViewedAt DateTime?
+  lastViewedAt  DateTime?
+  viewCount     Int               @default(0)
   signatureName String?
   signedAt      DateTime?
   signedFromIp  String?
@@ -1002,6 +1018,11 @@ model Quote {
   notes         String?
   validUntil    DateTime?
   sentAt        DateTime?
+  // Client opened the public /quote page (beacon-stamped, own-company previews
+  // excluded — see /api/public/viewed). First view pushes the team.
+  firstViewedAt DateTime?
+  lastViewedAt  DateTime?
+  viewCount     Int         @default(0)
   approvedAt    DateTime?
   signatureName String?
   changeRequest String?
@@ -1095,6 +1116,10 @@ model Invoice {
   issuedAt      DateTime?
   dueDate       DateTime?
   paidAt        DateTime?
+  // Client opened the public /pay page (beacon-stamped — see /api/public/viewed)
+  firstViewedAt DateTime?
+  lastViewedAt  DateTime?
+  viewCount     Int           @default(0)
   publicToken   String        @unique @default(cuid())
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt

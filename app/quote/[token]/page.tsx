@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { companyMeta } from "@/lib/client-meta";
+import ViewBeacon from "@/components/ViewBeacon";
 import QuoteAcceptPage from "./QuoteAcceptPage";
 
 export async function generateMetadata({ params }: { params: Promise<{ token: string }> }) {
@@ -73,5 +74,10 @@ export default async function PublicQuotePage({
 
   if (!quote) notFound();
 
-  return <QuoteAcceptPage quote={JSON.parse(JSON.stringify(quote))} preview={preview === "1"} />;
+  return (
+    <>
+      <ViewBeacon kind="quote" token={token} disabled={preview === "1"} />
+      <QuoteAcceptPage quote={JSON.parse(JSON.stringify(quote))} preview={preview === "1"} />
+    </>
+  );
 }

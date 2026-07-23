@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { companyMeta } from "@/lib/client-meta";
 import { isContractLinkExpired } from "@/lib/agreements";
+import ViewBeacon from "@/components/ViewBeacon";
 import ContractSignPage from "./ContractSignPage";
 
 export async function generateMetadata({ params }: { params: Promise<{ token: string }> }) {
@@ -27,7 +28,9 @@ export default async function PublicContractPage({
   if (!contract || contract.status === "VOID") notFound();
 
   return (
-    <ContractSignPage
+    <>
+      <ViewBeacon kind="contract" token={token} />
+      <ContractSignPage
       token={token}
       title={contract.title}
       body={contract.body}
@@ -39,6 +42,7 @@ export default async function PublicContractPage({
       companyName={contract.company.name}
       companyLogoUrl={contract.company.logoUrl}
       brandColor={contract.company.brandColorSecondary ?? contract.company.brandColor}
-    />
+      />
+    </>
   );
 }

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { money, shortDate, quoteDepositAmount } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
+import ViewedFact from "@/components/ViewedFact";
 import QuoteActions from "./QuoteActions";
 import CollectDepositNudge from "./CollectDepositNudge";
 
@@ -110,6 +111,12 @@ export default async function QuoteDetailPage({
           <span className="text-xs uppercase font-semibold text-gray-400 block">Created</span>
           <span className="text-gray-800">{shortDate(quote.createdAt)}</span>
         </div>
+        <ViewedFact
+          firstViewedAt={quote.firstViewedAt}
+          lastViewedAt={quote.lastViewedAt}
+          viewCount={quote.viewCount}
+          sent={!!quote.sentAt}
+        />
         {deposit > 0 && (
           <div>
             <span className="text-xs uppercase font-semibold text-gray-400 block">

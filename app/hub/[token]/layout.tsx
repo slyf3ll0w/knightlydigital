@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { brandHeader, shade, textOn } from "@/lib/branding";
 import { companyMeta } from "@/lib/client-meta";
 import ForceLightTheme from "@/components/ForceLightTheme";
+import ViewBeacon from "@/components/ViewBeacon";
 import HubNav from "./HubNav";
 
 export async function generateMetadata({ params }: { params: Promise<{ token: string }> }) {
@@ -39,6 +40,7 @@ export default async function HubLayout({
     <div className="app-ui min-h-screen bg-paper">
       {/* Client-facing: always light, never the operator's dark theme */}
       <ForceLightTheme />
+      <ViewBeacon kind="hub" token={token} />
       {/* Company-branded hero: gradient + subtle grain, greeting, underline tabs */}
       <header
         className="relative overflow-hidden"
