@@ -17,7 +17,8 @@ export type StatusKind =
   | "invoice"
   | "contact"
   | "appointment"
-  | "contract";
+  | "contract"
+  | "message";
 
 export const requestStatusLabel: Record<string, string> = {
   NEW: "New",
@@ -76,6 +77,13 @@ export const contractStatusLabel: Record<string, string> = {
   VOID: "Void",
 };
 
+// Client emails (ClientMessage): derived, not stored — OPENED once
+// firstViewedAt is stamped by the view beacon
+export const messageStatusLabel: Record<string, string> = {
+  SENT: "Sent",
+  OPENED: "Opened",
+};
+
 export const statusLabels: Record<StatusKind, Record<string, string>> = {
   request: requestStatusLabel,
   quote: quoteStatusLabel,
@@ -84,6 +92,7 @@ export const statusLabels: Record<StatusKind, Record<string, string>> = {
   contact: contactStatusLabel,
   appointment: appointmentStatusLabel,
   contract: contractStatusLabel,
+  message: messageStatusLabel,
 };
 
 export const statusTones: Record<StatusKind, Record<string, StatusTone>> = {
@@ -102,6 +111,7 @@ export const statusTones: Record<StatusKind, Record<string, StatusTone>> = {
   // blue = upcoming commitment (distinct from job-status greens/ambers)
   appointment: { SCHEDULED: "blue", COMPLETED: "green", CANCELLED: "gray", NO_SHOW: "red" },
   contract: { DRAFT: "gray", SENT: "amber", SIGNED: "green", VOID: "gray" },
+  message: { SENT: "amber", OPENED: "green" },
 };
 
 export const paymentMethodLabel: Record<string, string> = {

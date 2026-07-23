@@ -637,6 +637,45 @@ export function hubAccessEmail({
   return { subject: `Your ${companyName} client portal`, html };
 }
 
+/**
+ * One-off professional message to a client (composed on the contact page).
+ * The BODY deliberately lives on the /message/[token] page, not in the email —
+ * the page's view beacon is the only reliable open signal (no tracking
+ * pixels), and it keeps the email itself lean for spam filters. Replying to
+ * the email reaches the company via Reply-To like every other client send.
+ */
+export function clientMessageEmail({
+  brand,
+  companyName,
+  contactFirstName,
+  messageSubject,
+  readUrl,
+}: {
+  brand: EmailBrand;
+  companyName: string;
+  contactFirstName: string;
+  messageSubject: string;
+  readUrl: string;
+}): { subject: string; html: string } {
+  const html = clientShell({
+    brand,
+    companyName,
+    context: "New message",
+    inner: `
+      <p style="margin:0 0 12px;color:#111827;font-size:15px;">Hi ${esc(contactFirstName)},</p>
+      <p style="margin:0;color:#374151;font-size:14px;">
+        ${esc(companyName)} sent you a message:
+      </p>
+      ${fieldLabel("Subject")}
+      <p style="margin:0;color:#111827;font-size:16px;font-weight:600;">${esc(messageSubject)}</p>
+      ${accentBtn(readUrl, "Read Message", brand)}
+      <p style="margin:16px 0 0;color:#6b7280;font-size:12px;">
+        You can reply directly to this email to get back to us.
+      </p>`,
+  });
+  return { subject: messageSubject, html };
+}
+
 /** Signed copy back to the client (their record of the agreement). */
 export function contractSignedCopyEmail({
   brand,

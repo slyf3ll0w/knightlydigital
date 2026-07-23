@@ -139,6 +139,7 @@ model Company {
   locationPings     LocationPing[]
   quickBooks        QuickBooksConnection?
   inviteCode        InviteCode?
+  clientMessages    ClientMessage[]
 
   @@index([slug])
 }
@@ -177,6 +178,7 @@ model User {
   assignments      JobAssignment[]
   notes            JobNote[]
   contactNotes     ContactNote[]
+  clientMessages   ClientMessage[]
   assignedContacts Contact[]       @relation("AssignedContacts")
   appointments     Appointment[]   @relation("AppointmentAssignee")
   teamMessages     TeamMessage[]
@@ -504,6 +506,7 @@ model Contact {
   contracts       Contract[]
   contactNotes    ContactNote[]
   addresses       ContactAddress[]
+  clientMessages  ClientMessage[]
 
   @@index([companyId])
   @@index([companyId, status])
@@ -590,6 +593,31 @@ model ContactNote {
   body      String
   createdAt DateTime @default(now())
 
+  @@index([contactId])
+}
+
+// A one-off professional email to a client, composed on the contact page.
+// The email carries the subject plus a "Read message" button; the BODY lives
+// on the public /message/[token] page, so opens are tracked by the same view
+// beacon as quotes/invoices (no tracking pixels — deliverability). Replies
+// are ordinary email replies (Reply-To = the company inbox).
+model ClientMessage {
+  id            String    @id @default(cuid())
+  companyId     String
+  company       Company   @relation(fields: [companyId], references: [id])
+  contactId     String
+  contact       Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  senderId      String?
+  sender        User?     @relation(fields: [senderId], references: [id])
+  subject       String
+  body          String    @db.Text
+  publicToken   String    @unique @default(cuid())
+  firstViewedAt DateTime?
+  lastViewedAt  DateTime?
+  viewCount     Int       @default(0)
+  createdAt     DateTime  @default(now())
+
+  @@index([companyId])
   @@index([contactId])
 }
 

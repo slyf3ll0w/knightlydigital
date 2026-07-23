@@ -14,6 +14,7 @@ import CustomFieldsCard from "./CustomFieldsCard";
 import ContactNoteForm from "./ContactNoteForm";
 import ContactNoteItem from "./ContactNoteItem";
 import PortalAccessCard from "./PortalAccessCard";
+import EmailClientButton from "./EmailClientButton";
 import AddressesCard from "./AddressesCard";
 import PipelineCard from "./PipelineCard";
 import { getActiveFieldDefs } from "@/lib/contact-fields";
@@ -37,6 +38,7 @@ export default async function ContactDetailPage({
         requests: { orderBy: { createdAt: "desc" } },
         appointments: { orderBy: { createdAt: "desc" } },
         contracts: { orderBy: { createdAt: "desc" } },
+        clientMessages: { orderBy: { createdAt: "desc" } },
         contactNotes: { include: { user: true }, orderBy: { createdAt: "asc" } },
         quotes: { orderBy: { createdAt: "desc" } },
         jobs: { orderBy: { createdAt: "desc" } },
@@ -153,6 +155,17 @@ export default async function ContactDetailPage({
       amount: Number(inv.total),
       viewed: inv.firstViewedAt,
     })),
+    ...contact.clientMessages.map((m) => ({
+      key: `m-${m.id}`,
+      href: `/app/messages/${m.id}`,
+      type: "Email",
+      label: m.subject,
+      date: m.createdAt,
+      kind: "message" as StatusKind,
+      status: m.firstViewedAt ? "OPENED" : "SENT",
+      amount: null as number | null,
+      viewed: m.firstViewedAt,
+    })),
   ].sort((a, b) => b.date.getTime() - a.date.getTime());
 
   return (
@@ -209,6 +222,13 @@ export default async function ContactDetailPage({
         </div>
         <div className="flex items-center gap-2">
           {contact.phone && <CallTextButtons phone={contact.phone} />}
+          {contact.email && (
+            <EmailClientButton
+              contactId={contact.id}
+              contactName={`${contact.firstName} ${contact.lastName}`.trim()}
+              contactEmail={contact.email}
+            />
+          )}
           <Link
             href={`/app/contacts/${contact.id}/edit`}
             className="flex items-center gap-1.5 px-4 py-2 btn-tool-line bg-white text-gray-700 hover:bg-gray-50 text-sm font-semibold rounded-[10px] transition-colors"

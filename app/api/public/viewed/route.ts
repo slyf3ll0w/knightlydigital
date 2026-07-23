@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     /* fall through to the bland OK */
   }
   const ok = NextResponse.json({ ok: true });
-  if (!["quote", "invoice", "contract", "hub"].includes(kind)) return ok;
+  if (!["quote", "invoice", "contract", "hub", "message"].includes(kind)) return ok;
   if (!token || token.length > 64) return ok;
 
   // Staff previewing their own documents shouldn't read as a client open
@@ -50,6 +50,7 @@ export async function POST(req: NextRequest) {
     let firstView = false;
     let companyId = "";
     let assignedToId: string | null = null;
+    const extraNotifyIds: string[] = [];
     let push: PushPayload | null = null;
 
     if (kind === "quote") {
@@ -110,6 +111,45 @@ export async function POST(req: NextRequest) {
         url: `/app/invoices/${invoice.id}`,
         tag: `doc-view-invoice-${invoice.id}`,
       };
+    } else if (kind === "message") {
+      const message = await prisma.clientMessage.findUnique({
+        where: { publicToken: token },
+        select: {
+          id: true,
+          companyId: true,
+          subject: true,
+          senderId: true,
+          firstViewedAt: true,
+          contact: { select: { firstName: true, lastName: true, assignedToId: true } },
+        },
+      });
+      if (!message || actor?.companyId === message.companyId) return ok;
+      await prisma.clientMessage.update({
+        where: { id: message.id },
+        data: {
+          viewCount: { increment: 1 },
+          lastViewedAt: now,
+          ...(message.firstViewedAt ? {} : { firstViewedAt: now }),
+        },
+      });
+      firstView = !message.firstViewedAt;
+      companyId = message.companyId;
+      // The person who wrote the message should hear about the open even if
+      // they're not a manager or the contact's assigned rep
+      assignedToId = message.contact.assignedToId ?? message.senderId;
+      push = {
+        title: `${clientName(message.contact)} read "${message.subject}"`,
+        body: "Your message was opened just now.",
+        url: `/app/messages/${message.id}`,
+        tag: `doc-view-message-${message.id}`,
+      };
+      if (firstView && message.senderId && message.senderId !== assignedToId) {
+        const sender = await prisma.user.findFirst({
+          where: { id: message.senderId, companyId, isActive: true },
+          select: { id: true },
+        });
+        if (sender) extraNotifyIds.push(sender.id);
+      }
     } else {
       const contract = await prisma.contract.findUnique({
         where: { publicToken: token },
@@ -151,6 +191,7 @@ export async function POST(req: NextRequest) {
         });
         if (rep) ids.add(rep.id);
       }
+      for (const extra of extraNotifyIds) ids.add(extra);
       await notifyUsers([...ids], push);
     }
   } catch (err) {

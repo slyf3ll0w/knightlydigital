@@ -15,7 +15,7 @@ export default function ViewBeacon({
   token,
   disabled,
 }: {
-  kind: "quote" | "invoice" | "contract" | "hub";
+  kind: "quote" | "invoice" | "contract" | "hub" | "message";
   token: string;
   /** e.g. the quote page's ?preview=1 mode */
   disabled?: boolean;
