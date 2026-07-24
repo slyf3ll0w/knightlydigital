@@ -661,7 +661,7 @@ export default function AppShell({
   );
 
   // Tenant brand color → per-theme mobile accent tokens (globals.css holds
-  // the Streamflaire-green defaults; CSS resolves light vs dark, so the
+  // the WorkBench-blue defaults; CSS resolves light vs dark, so the
   // active tab / create button read on BOTH bars).
   const rawBrand = brandColorSecondary || brandColor || null;
   const lightAccent = rawBrand ? surfaceAccent(rawBrand) : null;

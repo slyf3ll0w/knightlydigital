@@ -112,7 +112,7 @@ function ChannelIcon({ channel, size = 40, meId }: { channel: Channel; size?: nu
   if (channel.kind === "everyone") {
     return (
       <span
-        className="flex shrink-0 items-center justify-center rounded-full bg-[#0C0F0C] text-green-400"
+        className="flex shrink-0 items-center justify-center rounded-full bg-[#0A1428] text-green-400"
         style={{ width: size, height: size }}
       >
         <UsersIcon size={size * 0.45} />

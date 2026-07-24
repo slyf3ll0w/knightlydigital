@@ -91,9 +91,8 @@ export default function ActivateClient({
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 px-5 py-10">
-      <p className="text-lg font-extrabold tracking-tight text-gray-900">
-        Work<span className="text-[#0B57D8]">Bench</span>
-      </p>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/workbench-logo.png" alt="WorkBench" className="h-7 w-auto" />
 
       <div className="mt-6 w-full max-w-lg rounded-3xl border border-gray-200 bg-white p-7 shadow-sm sm:p-10">
         {status === "activate" && (

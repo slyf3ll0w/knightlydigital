@@ -210,7 +210,7 @@ h1, h2, h3, h4, h5, h6, .font-display {
 }
 
 /* ── Mobile accent — resolves per theme so the active tab / create button
-   never blend into the bar. Defaults are Streamflaire green (deep on the
+   never blend into the bar. Defaults are WorkBench blue (deep on the
    white bar, bright on the dark bar); tenant brand colors override via the
    --mobile-accent-light/dark custom properties AppShell injects, each
    already luminance-guarded for its surface. ── */
@@ -515,7 +515,7 @@ body {
    theme sets the full ink ramp as vars; the rail markup reads only vars,
    so it's untouched by the dark-mode utility bridge (theme-fixed). ── */
 .rail-black {
-  --rail-bg: #0A1428;
+  --rail-bg: #121212;
   --rail-ink: #FFFFFF;
   --rail-muted: #9CA3AF;
   --rail-faint: rgba(255, 255, 255, 0.4);

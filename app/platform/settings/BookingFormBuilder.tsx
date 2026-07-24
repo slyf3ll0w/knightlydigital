@@ -861,7 +861,7 @@ export default function BookingFormBuilder({
             <div className="flex items-center gap-2">
               <input
                 type="color"
-                value={config.button.color ?? "#16A34A"}
+                value={config.button.color ?? "#0B57D8"}
                 onChange={(e) => setButton({ color: e.target.value })}
                 className="h-9 w-12 rounded-lg border border-gray-300 cursor-pointer p-1"
               />
