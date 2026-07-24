@@ -394,6 +394,9 @@ interface AppShellProps {
   aiEnabled?: boolean;
   assistantName?: string | null;
   userId?: string | null;
+  /** Pre-approval preview: Atlas is hidden entirely (every turn costs money);
+   *  the layout banner tells users AI unlocks at approval. */
+  previewMode?: boolean;
 }
 
 export default function AppShell({
@@ -415,7 +418,9 @@ export default function AppShell({
   aiEnabled = false,
   assistantName,
   userId,
+  previewMode = false,
 }: AppShellProps) {
+  const assistantAvailable = aiEnabled && !previewMode;
   const userRole = role ?? "OWNER";
   const manager = isManagerRole(userRole);
   // Tenant-selectable rail theme; unknown values fall back to black
@@ -439,7 +444,7 @@ export default function AppShell({
   const teaserKey = `sf-atlas-teaser:${userId ?? "shared"}`;
   const [teaserVisible, setTeaserVisible] = useState(false);
   useEffect(() => {
-    if (!aiEnabled || needsTour) return;
+    if (!assistantAvailable || needsTour) return;
     let last = 0;
     try {
       last = Number(localStorage.getItem(teaserKey)) || 0;
@@ -462,7 +467,7 @@ export default function AppShell({
       clearTimeout(hide);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aiEnabled, needsTour, teaserKey]);
+  }, [assistantAvailable, needsTour, teaserKey]);
   useEffect(() => {
     if (assistantOpen) setTeaserVisible(false);
   }, [assistantOpen]);
@@ -891,7 +896,7 @@ export default function AppShell({
         role={userRole}
         isActive={isActive}
         pastDue={counts.pastDue}
-        aiEnabled={aiEnabled}
+        aiEnabled={assistantAvailable}
         assistantName={assistantName || "Atlas"}
         assistantOpen={assistantOpen}
         openAssistant={() => setAssistantOpen(true)}
@@ -899,7 +904,7 @@ export default function AppShell({
       />
 
       {/* Assistant bubble — floats above the mobile tab bar, hides while open */}
-      {aiEnabled && !assistantOpen && (
+      {assistantAvailable && !assistantOpen && (
         <>
           {teaserVisible && (
             <div className="atlas-teaser-pop theme-fixed fixed bottom-[92px] right-6 z-40 hidden w-[264px] rounded-2xl rounded-br-md border border-gray-200 bg-white p-3.5 pr-8 shadow-xl lg:block">
@@ -943,7 +948,7 @@ export default function AppShell({
           </button>
         </>
       )}
-      {aiEnabled && (
+      {assistantAvailable && (
         <AssistantDrawer
           open={assistantOpen}
           onClose={() => setAssistantOpen(false)}

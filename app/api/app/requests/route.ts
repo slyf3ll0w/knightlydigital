@@ -3,12 +3,17 @@ import { prisma } from "@/lib/db";
 import { getActor, canSell, contactScope } from "@/lib/permissions";
 import { enterPipeline, autoAdvance } from "@/lib/pipeline";
 import { withRequestNumberRetry } from "@/lib/request-number";
+import { inPreview, PREVIEW_CAP, previewCapError } from "@/lib/preview";
 
 export async function POST(req: NextRequest) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!canSell(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const companyId = actor.companyId;
+  if (await inPreview(companyId)) {
+    const n = await prisma.request.count({ where: { companyId } });
+    if (n >= PREVIEW_CAP) return NextResponse.json(previewCapError("requests"), { status: 403 });
+  }
 
   const body = await req.json();
   const { contactId, title, details } = body;

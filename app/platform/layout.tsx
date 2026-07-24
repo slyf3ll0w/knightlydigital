@@ -85,9 +85,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       </>
     );
   }
-  if (gate === "activate" || gate === "rejected") {
+  if (gate === "rejected") {
     redirect("/app/activate");
   }
+  // Preview mode: invited companies explore everything free before Finix
+  // approval — record caps, no email/AI/CSV/public forms (lib/preview.ts).
+  const preview = gate === "activate" || gate === "pending";
 
   return (
     <>
@@ -112,7 +115,21 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         aiEnabled={Boolean(process.env.GEMINI_API_KEY)}
         assistantName={company?.assistantName}
         userId={session.user.id}
+        previewMode={preview}
       >
+        {gate === "activate" && (
+          <div className="mb-4 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+            <span className="font-semibold">Preview mode</span>
+            <span>
+              — set up your whole account now (team, prices, branding, forms). Saving is limited
+              and email, texting, AI, imports, and live booking forms stay locked until your
+              account is approved.
+            </span>
+            <Link href="/app/activate" className="font-bold underline">
+              Start verification
+            </Link>
+          </div>
+        )}
         {gate === "pending" &&
           (company?.finixOnboardingState === "UPDATE_REQUESTED" ? (
             <div className="mb-4 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
@@ -125,8 +142,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           ) : (
             <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
               <span className="font-semibold">Payment verification under review</span> — usually
-              done within a business day. Set up your account in the meantime; card and bank
-              payments switch on the moment you&apos;re approved.
+              done within a business day. Keep setting up in preview mode: saving is limited and
+              email, texting, AI, imports, and live booking forms unlock the moment you&apos;re
+              approved.
             </div>
           ))}
         {children}

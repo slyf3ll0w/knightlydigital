@@ -3,6 +3,7 @@ import { randomBytes } from "crypto";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, contactScope } from "@/lib/permissions";
 import { sendEmail, contractSignEmail } from "@/lib/email";
+import { inPreview, previewBlockedError } from "@/lib/preview";
 
 /**
  * POST — issue a contract to a client. Body text comes from a saved
@@ -13,6 +14,8 @@ import { sendEmail, contractSignEmail } from "@/lib/email";
 export async function POST(req: NextRequest) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (await inPreview(actor.companyId))
+    return NextResponse.json(previewBlockedError("Sending agreements to clients"), { status: 403 });
   if (!canSell(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const companyId = actor.companyId;
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
 import { defaultConfigForType, listWebForms, slugifyFormName } from "@/lib/web-forms";
+import { inPreview, PREVIEW_FORM_CAP, previewCapError } from "@/lib/preview";
 
 const validTypes = ["INQUIRY", "BOOKING", "SERVICE_REQUEST"];
 
@@ -30,6 +31,9 @@ export async function POST(req: NextRequest) {
   const count = await prisma.webForm.count({ where: { companyId: actor.companyId } });
   if (count >= 15) {
     return NextResponse.json({ error: "Limit of 15 forms reached." }, { status: 400 });
+  }
+  if (count >= PREVIEW_FORM_CAP && (await inPreview(actor.companyId))) {
+    return NextResponse.json(previewCapError("forms", PREVIEW_FORM_CAP), { status: 403 });
   }
 
   // unique slug per company

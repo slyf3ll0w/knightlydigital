@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, contactScope } from "@/lib/permissions";
 import { sendEmail, hubAccessEmail } from "@/lib/email";
+import { inPreview, previewBlockedError } from "@/lib/preview";
 
 /** Email a client their portal link (company-initiated portal access). */
 export async function POST(
@@ -10,6 +11,8 @@ export async function POST(
 ) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (await inPreview(actor.companyId))
+    return NextResponse.json(previewBlockedError("Inviting clients to their portal"), { status: 403 });
   if (!canSell(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { id } = await params;

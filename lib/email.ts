@@ -223,6 +223,22 @@ function htmlToText(html: string): string {
   );
 }
 
+/** Company email is off until Finix approval (mirrors lib/preview.ts without
+ *  importing the payments stack — this file must stay import-cycle-free). */
+async function companyEmailBlocked(companyId: string): Promise<boolean> {
+  if (process.env.PAYMENT_PROCESSOR !== "finix") return false;
+  try {
+    const c = await prisma.company.findUnique({
+      where: { id: companyId },
+      select: { paymentsWaived: true, finixOnboardingState: true },
+    });
+    if (!c || c.paymentsWaived) return false;
+    return c.finixOnboardingState !== "APPROVED";
+  } catch {
+    return false;
+  }
+}
+
 export async function sendEmail({
   to,
   subject,
@@ -246,6 +262,12 @@ export async function sendEmail({
   pageBackground?: string;
 }): Promise<boolean> {
   if (!RESEND_API_KEY) return false;
+  // Preview accounts (pre-Finix-approval) send no company email, period —
+  // this backstop covers every caller that carries a companyId (crons,
+  // subscriptions, agreements, portal logins) beyond the route-level 403s.
+  // Platform sends (no companyId: password resets, invites, feedback) and
+  // approved/waived companies pass straight through.
+  if (companyId && (await companyEmailBlocked(companyId))) return false;
   const text = htmlToText(html);
   // Templates are bare <div>s with light backgrounds and near-black inline
   // text. Without an explicit light-only color-scheme, dark-mode email

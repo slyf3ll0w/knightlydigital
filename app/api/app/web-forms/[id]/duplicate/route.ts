@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
 import { sanitizeBookingForm } from "@/lib/booking-form";
 import { slugifyFormName } from "@/lib/web-forms";
+import { inPreview, PREVIEW_FORM_CAP, previewCapError } from "@/lib/preview";
 
 /** POST — duplicate a form (config copied, never default, new slug). */
 export async function POST(
@@ -12,6 +13,11 @@ export async function POST(
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!isManager(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (await inPreview(actor.companyId)) {
+    const n = await prisma.webForm.count({ where: { companyId: actor.companyId } });
+    if (n >= PREVIEW_FORM_CAP)
+      return NextResponse.json(previewCapError("forms", PREVIEW_FORM_CAP), { status: 403 });
+  }
 
   const { id } = await params;
   const source = await prisma.webForm.findFirst({ where: { id, companyId: actor.companyId } });

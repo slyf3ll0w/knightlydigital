@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, isManager, jobScope, contactScope } from "@/lib/permissions";
 import { recordLeadWin } from "@/lib/pipeline";
+import { inPreview, PREVIEW_CAP, previewCapError } from "@/lib/preview";
 
 export async function GET() {
   const actor = await getActor();
@@ -23,6 +24,10 @@ export async function POST(req: NextRequest) {
   // quotes instead, pure techs only work assigned jobs.
   if (!isManager(actor.role) && actor.role !== "USER") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  if (await inPreview(actor.companyId)) {
+    const n = await prisma.job.count({ where: { companyId: actor.companyId } });
+    if (n >= PREVIEW_CAP) return NextResponse.json(previewCapError("jobs"), { status: 403 });
   }
   const companyId = actor.companyId;
 

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getActor, canSeeMoney, viaContactScope } from "@/lib/permissions";
 import { sendEmail, invoiceLinkEmail } from "@/lib/email";
 import { sendSms, invoiceLinkText } from "@/lib/sms";
+import { inPreview, previewBlockedError } from "@/lib/preview";
 
 /**
  * POST — email the client their invoice pay link and mark the invoice sent.
@@ -15,6 +16,8 @@ export async function POST(
 ) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (await inPreview(actor.companyId))
+    return NextResponse.json(previewBlockedError("Emailing invoices to clients"), { status: 403 });
   if (!canSeeMoney(actor)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const companyId = actor.companyId;
 

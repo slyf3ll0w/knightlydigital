@@ -3,6 +3,7 @@ import { getActor } from "@/lib/permissions";
 import { aiEnabled } from "@/lib/ai";
 import { limit } from "@/lib/rate-limit";
 import { runAssistant, type ChatMessage } from "@/lib/assistant";
+import { inPreview, previewBlockedError } from "@/lib/preview";
 
 /**
  * POST — one assistant turn (docs/plans/ai-assistant-plan.md). Read-only:
@@ -12,6 +13,8 @@ import { runAssistant, type ChatMessage } from "@/lib/assistant";
 export async function POST(req: NextRequest) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (await inPreview(actor.companyId))
+    return NextResponse.json(previewBlockedError("Atlas, your AI assistant,"), { status: 403 });
   if (!aiEnabled()) {
     return NextResponse.json({ error: "The assistant isn't available right now." }, { status: 503 });
   }

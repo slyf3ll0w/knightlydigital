@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { requirePageActor, isManager } from "@/lib/permissions";
 import { sanitizeBookingForm } from "@/lib/booking-form";
 import { getActiveFieldDefs } from "@/lib/contact-fields";
+import { inPreview } from "@/lib/preview";
 import WebFormEditor from "./WebFormEditor";
 
 export default async function WebFormEditorPage({
@@ -51,6 +52,7 @@ export default async function WebFormEditorPage({
         brandColor: company.brandColorSecondary ?? company.brandColor,
       }}
       baseUrl={baseUrl}
+      previewMode={await inPreview(actor.companyId)}
       contactFieldDefs={fieldDefs.map((d) => ({ id: d.id, label: d.label }))}
       priceBookItems={workItems.map((w) => ({
         id: w.id,

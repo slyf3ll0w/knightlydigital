@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getActor, canSell, viaContactScope } from "@/lib/permissions";
 import { createDepositInvoice } from "@/lib/deposits";
 import { sendEmail, invoiceLinkEmail } from "@/lib/email";
+import { inPreview, previewBlockedError } from "@/lib/preview";
 
 /**
  * POST — manually issue (or re-send) the deposit invoice for a quote. The
@@ -16,6 +17,8 @@ export async function POST(
 ) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (await inPreview(actor.companyId))
+    return NextResponse.json(previewBlockedError("Collecting deposits"), { status: 403 });
   if (!canSell(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const companyId = actor.companyId;
 

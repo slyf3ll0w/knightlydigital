@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { requirePageActor, isManager } from "@/lib/permissions";
 import { listWebForms } from "@/lib/web-forms";
 import { sanitizeBusinessHours } from "@/lib/business-hours";
+import { inPreview } from "@/lib/preview";
 import FormsListClient from "./FormsListClient";
 import SchedulingSettingsCard from "./SchedulingSettingsCard";
 
@@ -39,6 +40,7 @@ export default async function BookingFormsPage() {
     <FormsListClient
       companySlug={company.slug}
       baseUrl={baseUrl}
+      previewMode={await inPreview(companyId)}
       forms={forms.map((f) => ({
         id: f.id,
         name: f.name,

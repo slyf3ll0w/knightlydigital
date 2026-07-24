@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useUnsavedWarning } from "@/lib/use-unsaved-warning";
 import Link from "next/link";
-import { ArrowLeft, Check, Copy, ExternalLink, Loader2 } from "lucide-react";
+import { ArrowLeft, Check, Copy, ExternalLink, Loader2, Lock } from "lucide-react";
 import BookingFormBuilder from "../../BookingFormBuilder";
 import BookingForm from "@/app/book/[slug]/BookingForm";
 import {
@@ -39,11 +39,14 @@ export default function WebFormEditor({
   baseUrl,
   contactFieldDefs,
   priceBookItems = [],
+  previewMode = false,
 }: {
   form: FormMeta;
   company: { name: string; slug: string; brandColor: string | null };
   baseUrl: string;
   contactFieldDefs: { id: string; label: string }[];
+  /** Pre-approval accounts: build the form, but no link/embed until approved */
+  previewMode?: boolean;
   priceBookItems?: {
     id: string;
     name: string;
@@ -215,7 +218,40 @@ export default function WebFormEditor({
         </div>
       </div>
 
+      {/* Pre-approval: the form can be built but not published — no link, no
+          embed, no way for a real submission to arrive early. The card
+          explains where submissions WILL land once the account is approved. */}
+      {previewMode && (
+        <div className="card-ledger p-5 mt-6">
+          <div className="flex items-start gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-50">
+              <Lock size={16} className="text-amber-600" />
+            </div>
+            <div>
+              <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+                Link &amp; embedding unlock at approval
+              </h2>
+              <p className="mt-1 text-sm text-gray-600">
+                Build and style this form now — the public link and website embed code appear
+                here the moment your account is approved, so no submissions can come in before
+                then.
+              </p>
+              <p className="mt-3 text-sm text-gray-600">
+                <span className="font-semibold text-gray-800">Once live:</span>{" "}
+                {form.type === "INQUIRY" &&
+                  "every submission lands in your Requests section as a new inquiry, and the person appears on your Leads board ready to follow up."}
+                {form.type === "BOOKING" &&
+                  "every submission lands in your Requests section — and with self-scheduling on, clients pick a real arrival window that books straight onto your Schedule."}
+                {form.type === "SERVICE_REQUEST" &&
+                  "every submission lands in your Requests section with the service pre-selected, ready to turn into a quote or invoice in one click."}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Share link + embed */}
+      {!previewMode && (
       <div className="card-ledger p-5 mt-6">
         <div className="mb-3">
           <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Share This Form</h2>
@@ -263,6 +299,7 @@ export default function WebFormEditor({
           </a>
         </div>
       </div>
+      )}
     </div>
   );
 }

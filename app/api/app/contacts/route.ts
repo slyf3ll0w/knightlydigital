@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { getActor, canSell, contactScope, isManager } from "@/lib/permissions";
 import { getActiveFieldDefs, sanitizeCustomFields } from "@/lib/contact-fields";
 import { enterPipeline } from "@/lib/pipeline";
+import { inPreview, PREVIEW_CAP, previewCapError } from "@/lib/preview";
 
 export async function GET() {
   const actor = await getActor();
@@ -28,6 +29,12 @@ export async function POST(req: NextRequest) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!canSell(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  // One cap covers clients AND leads — leads are contacts on the pipeline
+  if (await inPreview(actor.companyId)) {
+    const n = await prisma.contact.count({ where: { companyId: actor.companyId } });
+    if (n >= PREVIEW_CAP)
+      return NextResponse.json(previewCapError("clients and leads"), { status: 403 });
+  }
 
   const body = await req.json();
   const { firstName, lastName, companyName, email, phone, address, city, state, zip, notes, leadSource } = body;

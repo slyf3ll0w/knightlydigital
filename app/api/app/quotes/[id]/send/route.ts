@@ -6,6 +6,7 @@ import { sendSms, quoteLinkText } from "@/lib/sms";
 import { quoteDepositAmount, money } from "@/lib/statuses";
 import { autoSendQuoteAgreements } from "@/lib/agreements";
 import { autoAdvance } from "@/lib/pipeline";
+import { inPreview, previewBlockedError } from "@/lib/preview";
 
 /**
  * POST — email the client their quote link and mark the quote sent.
@@ -19,6 +20,8 @@ export async function POST(
 ) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (await inPreview(actor.companyId))
+    return NextResponse.json(previewBlockedError("Emailing quotes to clients"), { status: 403 });
   if (!canSell(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const companyId = actor.companyId;
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, contactScope, isManager } from "@/lib/permissions";
 import { autoAdvance } from "@/lib/pipeline";
+import { inPreview, PREVIEW_CAP, previewCapError } from "@/lib/preview";
 
 const validTypes = ["PHONE_CALL", "VIDEO_CALL", "IN_PERSON"];
 
@@ -14,6 +15,10 @@ export async function POST(req: NextRequest) {
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!canSell(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const companyId = actor.companyId;
+  if (await inPreview(companyId)) {
+    const n = await prisma.appointment.count({ where: { companyId } });
+    if (n >= PREVIEW_CAP) return NextResponse.json(previewCapError("appointments"), { status: 403 });
+  }
 
   const body = await req.json();
   const { contactId, requestId, title, type, scheduledAt, scheduledEnd, scheduledAnytime, address, meetingLink, notes } = body;

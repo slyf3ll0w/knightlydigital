@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
 import { normalizePhone } from "@/lib/csv";
 import { getActiveFieldDefs, sanitizeCustomFields } from "@/lib/contact-fields";
+import { inPreview, previewBlockedError } from "@/lib/preview";
 
 /**
  * CSV client import (manager-only).
@@ -41,6 +42,8 @@ const trim = (v: unknown, max: number) => {
 export async function POST(req: NextRequest) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (await inPreview(actor.companyId))
+    return NextResponse.json(previewBlockedError("CSV import"), { status: 403 });
   if (!isManager(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const companyId = actor.companyId;
 

@@ -43,11 +43,14 @@ export default function FormsListClient({
   baseUrl,
   forms,
   schedulingCard,
+  previewMode = false,
 }: {
   companySlug: string;
   baseUrl: string;
   forms: FormRow[];
   schedulingCard?: React.ReactNode;
+  /** Pre-approval: form links stay hidden so nothing public can be shared */
+  previewMode?: boolean;
 }) {
   const router = useRouter();
   const [creating, setCreating] = useState(false);
@@ -200,24 +203,30 @@ export default function FormsListClient({
                   </p>
                   <p className="text-xs text-gray-500 truncate">
                     {meta.label} ·{" "}
-                    <a href={formUrl(f)} target="_blank" rel="noopener noreferrer" className="hover:underline">
-                      {formUrl(f).replace(/^https?:\/\//, "")}
-                    </a>
+                    {previewMode ? (
+                      <span className="text-gray-400">link unlocks at approval</span>
+                    ) : (
+                      <a href={formUrl(f)} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                        {formUrl(f).replace(/^https?:\/\//, "")}
+                      </a>
+                    )}
                   </p>
                 </div>
               </div>
 
               {/* Actions — their own row on phones, inline on desktop */}
               <div className="mt-3 flex flex-wrap items-center gap-1.5 sm:mt-0 sm:gap-2">
-                <a
-                  href={formUrl(f)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-full"
-                  title="Open form"
-                >
-                  <ExternalLink size={14} />
-                </a>
+                {!previewMode && (
+                  <a
+                    href={formUrl(f)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-full"
+                    title="Open form"
+                  >
+                    <ExternalLink size={14} />
+                  </a>
+                )}
                 {!f.isDefault && (
                   <button
                     onClick={() => patch(f.id, { isDefault: true })}

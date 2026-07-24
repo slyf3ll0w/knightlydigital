@@ -113,6 +113,12 @@ export async function resolveWebForm(
   // Suspended companies disappear from public booking entirely — the booking
   // page and its POST both resolve through here, so this is the one gate.
   if (company.suspendedAt) return null;
+  // Same for preview (pre-Finix-approval) companies: /book, /embed, the
+  // slots API, and the submit POST all resolve through here, so no real
+  // submission can arrive before the account is approved.
+  const { paymentsGateStatus } = await import("@/lib/payments-gate");
+  const gate = paymentsGateStatus(company);
+  if (gate === "activate" || gate === "pending" || gate === "rejected") return null;
 
   await ensureDefaultForm(company.id, company.bookingForm);
 
