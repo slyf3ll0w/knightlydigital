@@ -47,7 +47,7 @@ export default function BookingForm({
   formSlug = "",
   formType = "BOOKING",
   theme = "light",
-  accent = "#0B57D8",
+  accent = "#F86808",
   transparent = false,
   config = DEFAULT_BOOKING_FORM,
   initialService = "",

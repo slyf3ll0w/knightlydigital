@@ -130,6 +130,13 @@ function createCompany(
         // Default notification inbox: the owner's email, editable in Settings.
         email,
         industry: industry || null,
+        // WorkBench default branding, seeded as real values so every surface
+        // (app accent, client pages, emails) starts on-brand until the
+        // company customizes: blue primary, orange secondary, white docs.
+        brandColor: "#0B57D8",
+        brandColorSecondary: "#F86808",
+        documentColor: "#FFFFFF",
+        sidebarTheme: "white",
         users: {
           create: {
             email,

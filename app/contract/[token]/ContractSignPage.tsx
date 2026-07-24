@@ -34,7 +34,7 @@ export default function ContractSignPage({
   companyLogoUrl: string | null;
   brandColor: string | null;
 }) {
-  const accent = brandColor ?? "#0B57D8";
+  const accent = brandColor ?? "#F86808";
   const [name, setName] = useState("");
   const [agree, setAgree] = useState(false);
   const [busy, setBusy] = useState(false);

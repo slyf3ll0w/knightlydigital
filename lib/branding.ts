@@ -16,13 +16,14 @@ export type CompanyBrand = {
   documentColor?: string | null;
 };
 
-const DEFAULT_HEADER = "#0A1428";
-const DEFAULT_ACCENT = "#0B57D8"; // WorkBench blue
+const DEFAULT_DOCUMENT = "#FFFFFF"; // clean white quote/invoice/hub headers
+const DEFAULT_SURFACE = "#0A1428"; // console navy — dark in-app hero panels
+const DEFAULT_ACCENT = "#F86808"; // WorkBench orange
 
 /** Header background for branded client-page tops — the document color,
  *  falling back to the primary. */
 export function brandHeader(company: CompanyBrand): string {
-  return company.documentColor || company.brandColor || DEFAULT_HEADER;
+  return company.documentColor || company.brandColor || DEFAULT_DOCUMENT;
 }
 
 /** Accent for primary buttons / highlights (secondary color, falls back to primary). */
@@ -39,10 +40,10 @@ export function brandAccent(company: CompanyBrand): string {
 export function brandSurface(company: Pick<CompanyBrand, "brandColor">): string {
   const hex = company.brandColor;
   const m = hex ? /^#?([0-9a-f]{6})$/i.exec(hex) : null;
-  if (!m) return DEFAULT_HEADER;
+  if (!m) return DEFAULT_SURFACE;
   const n = parseInt(m[1], 16);
   const luminance = 0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255);
-  return luminance > 160 ? DEFAULT_HEADER : `#${m[1]}`;
+  return luminance > 160 ? DEFAULT_SURFACE : `#${m[1]}`;
 }
 
 /** Darken a hex color by 0–1 (gradient depth on branded portal headers). */

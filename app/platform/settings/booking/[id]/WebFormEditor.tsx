@@ -64,7 +64,7 @@ export default function WebFormEditor({
   const preview = useMemo(() => sanitizeBookingForm(config), [config]);
   const dark = preview.appearance.theme === "dark";
   const transparent = preview.appearance.theme === "transparent";
-  const accent = bookingAccent(preview, company.brandColor ?? "#0B57D8");
+  const accent = bookingAccent(preview, company.brandColor ?? "#F86808");
   const previewFont =
     preview.appearance.font && GOOGLE_FONT_RE.test(preview.appearance.font)
       ? preview.appearance.font

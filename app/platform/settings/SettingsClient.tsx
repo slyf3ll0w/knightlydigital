@@ -1284,21 +1284,21 @@ export default function SettingsClient({
               label="Primary color"
               hint="Your main brand color — the app's outlines, frame, and surfaces"
               value={form.brandColor}
-              fallback="#0A1428"
+              fallback="#0B57D8"
               onChange={(v) => set("brandColor", v)}
             />
             <ColorField
               label="Secondary color"
               hint="Buttons, links, and accents — defaults to your primary color"
               value={form.brandColorSecondary}
-              fallback={form.brandColor || "#0B57D8"}
+              fallback={form.brandColor || "#F86808"}
               onChange={(v) => set("brandColorSecondary", v)}
             />
             <ColorField
               label="Quotes & invoices color"
               hint="Headers on client-facing pages and emails — quotes, invoices, the client hub. Defaults to your primary color."
               value={form.documentColor}
-              fallback={form.brandColor || "#0A1428"}
+              fallback={form.brandColor || "#FFFFFF"}
               onChange={(v) => set("documentColor", v)}
             />
           </div>
@@ -1468,7 +1468,7 @@ export default function SettingsClient({
             {/* Client page header — the document color wins, like the live pages */}
             <div
               className="flex items-center gap-3 px-5 py-4"
-              style={{ backgroundColor: form.documentColor || form.brandColor || "#0A1428" }}
+              style={{ backgroundColor: form.documentColor || form.brandColor || "#FFFFFF" }}
             >
               {form.logoUrl && (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -1480,7 +1480,7 @@ export default function SettingsClient({
               )}
               <span
                 className="font-display font-bold text-[15px]"
-                style={{ color: textOn(form.documentColor || form.brandColor || "#0A1428") }}
+                style={{ color: textOn(form.documentColor || form.brandColor || "#FFFFFF") }}
               >
                 {form.name}
               </span>
@@ -1497,8 +1497,8 @@ export default function SettingsClient({
                 <span
                   className="rounded-full px-4 py-2 text-xs font-semibold"
                   style={{
-                    backgroundColor: form.brandColorSecondary || form.brandColor || "#0B57D8",
-                    color: textOn(form.brandColorSecondary || form.brandColor || "#0B57D8"),
+                    backgroundColor: form.brandColorSecondary || form.brandColor || "#F86808",
+                    color: textOn(form.brandColorSecondary || form.brandColor || "#F86808"),
                   }}
                 >
                   Approve Quote

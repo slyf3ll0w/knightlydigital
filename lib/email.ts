@@ -31,7 +31,7 @@ const APP_URL = process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com";
 
 const WB_NAVY = "#0A1428";
 const WB_BLUE = "#0B57D8";
-const WB_ORANGE = "#F97316";
+const WB_ORANGE = "#F86808"; // the logo's Bench orange
 const FONT = "-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif";
 
 /** Whether Resend is configured — without it every sendEmail is a no-op. */
@@ -61,11 +61,11 @@ const onColor = (bg: string) => (luminance(bg) > 160 ? "#111827" : "#ffffff");
 
 /** Header surface for client emails — same fallback chain as brandHeader(). */
 const headerColor = (brand: EmailBrand) =>
-  hex(brand.documentColor) ?? hex(brand.brandColor) ?? WB_NAVY;
+  hex(brand.documentColor) ?? hex(brand.brandColor) ?? "#FFFFFF";
 
 /** Button/accent color — same fallback chain as brandAccent() on the doc pages. */
 const accentColor = (brand: EmailBrand) =>
-  hex(brand.brandColorSecondary) ?? hex(brand.brandColor) ?? WB_BLUE;
+  hex(brand.brandColorSecondary) ?? hex(brand.brandColor) ?? WB_ORANGE;
 
 /** Inline text links sit on white — flip too-light accents back to blue. */
 const linkColor = (brand: EmailBrand) => {

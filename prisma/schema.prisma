@@ -41,7 +41,7 @@ model Company {
   // "blueprint" | "topo" | "pinstripe" (see WALLPAPERS in lib/wallpapers.ts).
   // Null = not chosen yet → falls back to logoWallpaper for pre-existing tenants.
   wallpaper        String?
-  sidebarTheme     String   @default("black") // desktop sidebar: "black" | "white" | "gray"
+  sidebarTheme     String   @default("white") // desktop sidebar: "black" | "white" | "gray"
   sidebarLogoColor String? // hex backdrop behind the sidebar logo panel; null = white
   timezone         String   @default("America/Chicago")
   surchargeEnabled Boolean  @default(false)
