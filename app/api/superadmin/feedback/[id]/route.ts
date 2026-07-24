@@ -62,6 +62,15 @@ export async function PATCH(
     return NextResponse.json({ ticket: updated });
   }
 
+  if (action === "reply") {
+    // Add/edit the reply on an already-decided ticket; empty clears it.
+    const updated = await prisma.feedbackTicket.update({
+      where: { id },
+      data: { response },
+    });
+    return NextResponse.json({ ticket: updated });
+  }
+
   if (action === "reopen") {
     // Deliberately leaves any posted board item in place — pull it from the
     // roadmap page if it shouldn't be public anymore.
