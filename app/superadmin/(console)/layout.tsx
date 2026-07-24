@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { prisma } from "@/lib/db";
 import { requireSuperadminPage } from "@/lib/superadmin";
 import SignOutButton from "./SignOutButton";
 
@@ -11,6 +12,7 @@ import SignOutButton from "./SignOutButton";
  */
 export default async function SuperadminLayout({ children }: { children: React.ReactNode }) {
   const user = await requireSuperadminPage();
+  const openFeedback = await prisma.feedbackTicket.count({ where: { status: "OPEN" } });
   return (
     <div className="wb-site min-h-screen bg-gray-50 text-gray-900">
       <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-xl">
@@ -53,6 +55,17 @@ export default async function SuperadminLayout({ children }: { children: React.R
                 className="wb-navlink text-[14px] font-semibold text-gray-600 transition-colors hover:text-gray-900"
               >
                 Invite codes
+              </Link>
+              <Link
+                href="/superadmin/feedback"
+                className="wb-navlink flex items-center gap-1.5 text-[14px] font-semibold text-gray-600 transition-colors hover:text-gray-900"
+              >
+                Feedback
+                {openFeedback > 0 && (
+                  <span className="rounded-full bg-[#F86A0A] px-1.5 py-0.5 text-[10px] font-bold leading-none text-white">
+                    {openFeedback > 99 ? "99+" : openFeedback}
+                  </span>
+                )}
               </Link>
               <Link
                 href="/superadmin/finix"

@@ -171,6 +171,18 @@ export default function RoadmapClient({
         </h1>
         <p className="text-sm text-gray-500 mb-6">
           What we&apos;re building next for WorkBench — and everything that&apos;s already shipped.
+          {app && (
+            <>
+              {" "}
+              Have an idea of your own?{" "}
+              <Link
+                href="/app/support?type=SUGGESTION"
+                className="font-semibold text-[#0B57D8] hover:underline"
+              >
+                Suggest a feature →
+              </Link>
+            </>
+          )}
         </p>
 
         {/* ── Tabs ── */}

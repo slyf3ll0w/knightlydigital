@@ -493,6 +493,37 @@ export function newApplicationEmail({
   return { subject: `New WorkBench application — ${companyName}`, html };
 }
 
+/** Platform notification — a tenant filed a bug report or suggestion. */
+export function newFeedbackEmail({
+  type,
+  title,
+  details,
+  pageUrl,
+  userName,
+  userEmail,
+  companyName,
+}: {
+  type: "BUG" | "SUGGESTION";
+  title: string;
+  details: string;
+  pageUrl: string | null;
+  userName: string;
+  userEmail: string;
+  companyName: string;
+}): { subject: string; html: string } {
+  const kind = type === "BUG" ? "Bug report" : "Suggestion";
+  const html = wbShell({
+    label: `New ${kind.toLowerCase()}`,
+    inner: `
+      ${fieldLabel(kind, 0)}<p style="margin:0 0 12px;color:#111827;font-size:15px;font-weight:700;">${esc(title)}</p>
+      ${fieldLabel("Details")}<p style="margin:0 0 12px;color:#111827;font-size:14px;white-space:pre-line;">${esc(details)}</p>
+      ${fieldLabel("From")}<p style="margin:0 0 12px;color:#111827;font-size:14px;">${esc(userName)} (${esc(userEmail)}) · ${esc(companyName)}</p>
+      ${pageUrl ? `${fieldLabel("Page")}<p style="margin:0 0 12px;color:#111827;font-size:14px;">${esc(pageUrl)}</p>` : ""}
+      ${wbBtn(`${APP_URL}/superadmin/feedback`, "Review Feedback")}`,
+  });
+  return { subject: `WorkBench ${kind.toLowerCase()} — ${title}`, html };
+}
+
 /** Invite code delivery — sent on application approval or a direct invite. */
 export function inviteCodeEmail({
   name,

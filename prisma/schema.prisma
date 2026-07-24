@@ -140,6 +140,7 @@ model Company {
   quickBooks        QuickBooksConnection?
   inviteCode        InviteCode?
   clientMessages    ClientMessage[]
+  feedbackTickets   FeedbackTicket[]
 
   @@index([slug])
 }
@@ -195,6 +196,7 @@ model User {
   timeEntries      TimeEntry[]
   locationPings    LocationPing[]
   checklistChecks  JobChecklistItem[]
+  feedbackTickets  FeedbackTicket[]
 
   @@index([companyId])
   @@index([role])
@@ -373,7 +375,50 @@ model RoadmapItem {
   createdAt    DateTime        @default(now())
   updatedAt    DateTime        @updatedAt
 
+  feedbackTickets FeedbackTicket[]
+
   @@index([category, shippedAt])
+}
+
+// ─── Support & suggestion tickets ────────────────────────────────────────────
+
+enum FeedbackType {
+  BUG
+  SUGGESTION
+}
+
+enum FeedbackStatus {
+  OPEN // awaiting platform review
+  PLANNED // approved → posted to the Upcoming Features board
+  RESOLVED // bug fixed / suggestion shipped, closed out
+  DECLINED // reviewed, not doing it
+}
+
+// In-app "Help & feedback" tickets from tenant users: bug reports and
+// feature/QOL suggestions. Reviewed in the superadmin console; approving one
+// posts an (editable) RoadmapItem onto the public Upcoming Features board.
+// The submitter follows status + the platform response on /app/support.
+model FeedbackTicket {
+  id        String         @id @default(cuid())
+  type      FeedbackType
+  status    FeedbackStatus @default(OPEN)
+  title     String
+  details   String         @db.Text
+  pageUrl   String? // in-app path the user filed it from
+  // Platform reply shown to the submitter on their tickets list
+  response  String?        @db.Text
+  companyId String
+  company   Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  userId    String?
+  user      User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  // Board item this ticket became when approved (approval snapshot lives there)
+  roadmapItemId String?
+  roadmapItem   RoadmapItem? @relation(fields: [roadmapItemId], references: [id], onDelete: SetNull)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@index([status, createdAt])
+  @@index([companyId, userId, createdAt])
 }
 
 // ─── Contacts (Clients) ──────────────────────────────────────────────────────

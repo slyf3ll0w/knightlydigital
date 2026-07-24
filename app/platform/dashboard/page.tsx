@@ -13,6 +13,7 @@ import {
   CheckCircle2,
   CalendarPlus,
   CalendarCheck,
+  LifeBuoy,
   Megaphone,
   Timer,
 } from "lucide-react";
@@ -749,14 +750,22 @@ export default async function DashboardPage() {
           )}
       </div>
 
-      {/* Quiet pointer to the roadmap — deliberately not in the sidebar */}
-      <div className="mt-10 pt-5 border-t border-gray-200 text-center">
+      {/* Quiet pointers to the roadmap + feedback — deliberately not in the sidebar */}
+      <div className="mt-10 pt-5 border-t border-gray-200 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-center">
         <Link
           href="/app/roadmap"
           className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-400 hover:text-green-700 transition-colors"
         >
           <Megaphone size={12} />
           See what&apos;s coming next — Upcoming Features
+          <ArrowRight size={11} />
+        </Link>
+        <Link
+          href="/app/support"
+          className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-400 hover:text-green-700 transition-colors"
+        >
+          <LifeBuoy size={12} />
+          Found a bug or have an idea? Tell us
           <ArrowRight size={11} />
         </Link>
       </div>

@@ -27,6 +27,7 @@ import {
   Repeat,
   ChevronsUpDown,
   CircleUserRound,
+  LifeBuoy,
   MessagesSquare,
   SquareKanban,
   Timer,
@@ -338,6 +339,14 @@ function UserMenu({
           >
             <CircleUserRound size={14} className="text-gray-400" />
             My Profile
+          </Link>
+          <Link
+            href="/app/support"
+            onClick={() => setOpen(false)}
+            className="flex items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            <LifeBuoy size={14} className="text-gray-400" />
+            Help &amp; Feedback
           </Link>
           <div className="my-1 border-t border-gray-100" />
           <button
@@ -1289,6 +1298,7 @@ function MoreSheet({
             .slice(1) // Home + Schedule already live on the tab bar
             .map((g) => group(g.label ?? null, forRole(g.items, role)))}
           {group(teamItems.length > 0 ? "Team" : null, teamItems)}
+          {group("Support", [{ href: "/app/support", label: "Help & Feedback", icon: LifeBuoy }])}
 
           {/* Sign out */}
           <div className="card-tool mt-4 overflow-hidden">
