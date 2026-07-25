@@ -232,11 +232,14 @@ const tourKeys: Record<string, string> = {
  * Global create menu (desktop sidebar). Self-contained state + ref — a shared
  * ref made the click-outside handler swallow item clicks.
  */
-function CreateMenu({ accent, role }: { accent: string; role: string }) {
+function CreateMenu({ accent, role, previewMode }: { accent: string; role: string; previewMode?: boolean }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  const items = forRole(createItems, role);
+  // Invoicing + payment recording are locked pre-approval — no dead doors
+  const items = forRole(createItems, role).filter(
+    (i) => !previewMode || (i.href !== "/app/invoices/new" && i.href !== "/app/payments/new")
+  );
 
   useEffect(() => {
     function onClick(e: MouseEvent) {
@@ -584,7 +587,7 @@ export default function AppShell({
 
   const sidebarInner = (
     <>
-      <CreateMenu accent={accent} role={userRole} />
+      <CreateMenu accent={accent} role={userRole} previewMode={previewMode} />
 
       {/* Nav groups — labeled sections instead of bare dividers */}
       <nav className="flex-1 px-3 py-4 overflow-y-auto">
@@ -901,6 +904,7 @@ export default function AppShell({
         assistantOpen={assistantOpen}
         openAssistant={() => setAssistantOpen(true)}
         openMore={() => setMoreOpen(true)}
+        previewMode={previewMode}
       />
 
       {/* Assistant bubble — floats above the mobile tab bar, hides while open */}
@@ -978,6 +982,7 @@ function MobileTabBar({
   assistantOpen,
   openAssistant,
   openMore,
+  previewMode,
 }: {
   role: string;
   isActive: (href: string) => boolean;
@@ -987,11 +992,14 @@ function MobileTabBar({
   assistantOpen: boolean;
   openAssistant: () => void;
   openMore: () => void;
+  previewMode?: boolean;
 }) {
   const pathname = usePathname();
   const [sheetOpen, setSheetOpen] = useState(false);
   const tabs = forRole(mobileNav, role);
-  const creates = forRole(createItems, role);
+  const creates = forRole(createItems, role).filter(
+    (i) => !previewMode || (i.href !== "/app/invoices/new" && i.href !== "/app/payments/new")
+  );
 
   useEffect(() => {
     setSheetOpen(false);

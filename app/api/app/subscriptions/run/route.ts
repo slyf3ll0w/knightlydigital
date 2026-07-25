@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getActor, isManager } from "@/lib/permissions";
 import { runDueSubscriptions, generateDueVisits } from "@/lib/subscriptions";
+import { inPreview, previewBlockedError } from "@/lib/preview";
 
 /**
  * POST — manually run all due subscriptions for this company (the "Run now"
@@ -10,6 +11,8 @@ import { runDueSubscriptions, generateDueVisits } from "@/lib/subscriptions";
 export async function POST() {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (await inPreview(actor.companyId))
+    return NextResponse.json(previewBlockedError("Subscription billing"), { status: 403 });
   if (!isManager(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const now = new Date();

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getActor, canSeeMoney, viaContactScope } from "@/lib/permissions";
 import { recordPayment } from "@/lib/payments";
 import type { PaymentMethod } from "@prisma/client";
+import { inPreview, previewBlockedError } from "@/lib/preview";
 
 const validMethods = [
   "CARD",
@@ -24,6 +25,8 @@ const validMethods = [
 export async function POST(req: NextRequest) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (await inPreview(actor.companyId))
+    return NextResponse.json(previewBlockedError("Recording payments"), { status: 403 });
   if (!canSeeMoney(actor)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const companyId = actor.companyId;
 

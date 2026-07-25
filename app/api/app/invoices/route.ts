@@ -7,17 +7,15 @@ import { recordLeadWin } from "@/lib/pipeline";
 import { ensureSubscriptionsForContact } from "@/lib/subscriptions";
 import { paidDepositTotal } from "@/lib/deposits";
 import { intQuantity } from "@/lib/work-items";
-import { inPreview, PREVIEW_CAP, previewCapError } from "@/lib/preview";
+import { inPreview, previewBlockedError } from "@/lib/preview";
 
 export async function POST(req: NextRequest) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!canSeeMoney(actor)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const companyId = actor.companyId;
-  if (await inPreview(companyId)) {
-    const n = await prisma.invoice.count({ where: { companyId } });
-    if (n >= PREVIEW_CAP) return NextResponse.json(previewCapError("invoices"), { status: 403 });
-  }
+  if (await inPreview(companyId))
+    return NextResponse.json(previewBlockedError("Invoicing"), { status: 403 });
 
   const body = await req.json();
   const { contactId, jobId, subject, lineItems, taxRate, notes, dueDate } = body;

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, jobScope } from "@/lib/permissions";
+import { inPreview, PREVIEW_CAP, previewCapError } from "@/lib/preview";
 
 // Client-side optimization shrinks uploads before they get here; this is a
 // generous backstop, not the user-facing limit.
@@ -21,6 +22,12 @@ export async function POST(
 ) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // Photos are DB-stored bytes (4MB each) — the one real storage cost a
+  // preview account could rack up, so the total is capped pre-approval.
+  if (await inPreview(actor.companyId)) {
+    const n = await prisma.jobPhoto.count({ where: { job: { companyId: actor.companyId } } });
+    if (n >= PREVIEW_CAP) return NextResponse.json(previewCapError("job photos"), { status: 403 });
+  }
   const companyId = actor.companyId;
 
   const { id: jobId } = await params;
