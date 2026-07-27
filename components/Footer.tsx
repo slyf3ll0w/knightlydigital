@@ -203,7 +203,7 @@ export function Footer() {
 
         {/* Bottom strip */}
         <div className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>
-          <p>© 2025 Streamflaire Media Group. All rights reserved.</p>
+          <p>© 2025 Streamflaire Group LLC. All rights reserved.</p>
           <Link href="/privacy" className="transition-colors hover:text-white/60">
             Privacy Policy
           </Link>

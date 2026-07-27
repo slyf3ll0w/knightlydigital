@@ -32,7 +32,7 @@ export default function HomePage() {
           <div className="anim-fade-up flex justify-center mb-12">
             <Image
               src="/logo.png"
-              alt="Streamflaire Media Group"
+              alt="Streamflaire Group LLC"
               width={340}
               height={68}
               priority

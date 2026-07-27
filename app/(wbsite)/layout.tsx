@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import WBNav from "@/components/wb/WBNav";
 import WBFooter from "@/components/wb/WBFooter";
 
-// Escape the agency-site "| Streamflaire Media Group" title template
+// Escape the agency-site "| Streamflaire Group LLC" title template
 export const metadata: Metadata = {
   title: { template: "%s", default: "WorkBench" },
 };

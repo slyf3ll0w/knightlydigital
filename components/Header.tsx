@@ -113,7 +113,7 @@ export function Header() {
             <Link href="/" className="flex-shrink-0">
               <Image
                 src="/logo.png"
-                alt="Streamflaire Media Group"
+                alt="Streamflaire Group LLC"
                 width={252}
                 height={27}
                 priority
