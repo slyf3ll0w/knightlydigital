@@ -972,6 +972,7 @@ export default function AppShell({
           enabled={mobileBack !== null}
           mainRef={mainRef}
           onBack={goBack}
+          onForward={() => router.forward()}
           pathname={pathname}
         />
       </div>
