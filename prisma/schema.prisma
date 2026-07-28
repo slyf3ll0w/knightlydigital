@@ -84,6 +84,15 @@ model Company {
   setupWizardAt    DateTime?
   // Display name for the in-app AI assistant; null = the default ("Atlas")
   assistantName    String?
+  // Atlas access (lib/assistant-access.ts). assistantEnabled is a superadmin
+  // override: true/false force it, null = default policy — off for companies
+  // that skipped real Finix underwriting (paymentsWaived or sandbox
+  // test-approve), on for everyone else. Every AI turn is real spend, so free
+  // riders don't get it by default.
+  assistantEnabled     Boolean?
+  // Stamped when the merchant came from the sandbox test-approve bypass
+  // instead of the hosted underwriting form (Settings → "test approval").
+  finixSandboxApproved Boolean @default(false)
   // Platform suspension (superadmin-only): set → the tenant app and public
   // booking/leads/payments are disabled, data stays intact until support
   // reinstates. Deletion is separate and permanent.

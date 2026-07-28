@@ -98,6 +98,8 @@ export async function POST(req: Request) {
           finixIdentityId: result.identityId,
           finixMerchantId: result.merchantId,
           finixOnboardingState: result.onboardingState,
+          // Bypassed real underwriting → Atlas defaults off (lib/assistant-access.ts)
+          finixSandboxApproved: true,
         },
       });
       return NextResponse.json({ testApproved: true, state: result.onboardingState });

@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
 import { getActor } from "@/lib/permissions";
 import { aiEnabled } from "@/lib/ai";
 import { limit } from "@/lib/rate-limit";
 import { runAssistant, type ChatMessage } from "@/lib/assistant";
+import { assistantAllowed } from "@/lib/assistant-access";
 import { inPreview, previewBlockedError } from "@/lib/preview";
 
 /**
@@ -17,6 +19,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(previewBlockedError("Atlas, your AI assistant,"), { status: 403 });
   if (!aiEnabled()) {
     return NextResponse.json({ error: "The assistant isn't available right now." }, { status: 503 });
+  }
+
+  // Account-level access (lib/assistant-access.ts): the layout also hides the
+  // bubble, but this is the enforcement point a direct request can't skip.
+  const company = await prisma.company.findUnique({
+    where: { id: actor.companyId },
+    select: { assistantEnabled: true, paymentsWaived: true, finixSandboxApproved: true },
+  });
+  if (!company || !assistantAllowed(company)) {
+    return NextResponse.json(
+      { error: "The AI assistant isn't included on this account." },
+      { status: 403 }
+    );
   }
 
   // burst + daily caps per company — every turn is a real AI spend — plus a

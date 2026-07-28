@@ -8,8 +8,9 @@ import { companyHasProtectedUser, deleteCompanyCascade } from "@/lib/company-del
 /**
  * Superadmin account controls.
  *
- * PATCH  — suspend / reinstate. Reversible: data untouched, the tenant app and
- *          public surfaces (booking, leads, /pay) go dark until reinstated.
+ * PATCH  — suspend / reinstate (reversible: data untouched, the tenant app and
+ *          public surfaces go dark until reinstated), payments-gate waiver, and
+ *          the Atlas assistant override (on / off / back to default policy).
  * DELETE — permanent removal behind the heaviest gate in the product: the
  *          exact slug retyped, the superadmin's own password re-verified, and
  *          for companies with real data ("large": any payments, or >25
@@ -46,7 +47,10 @@ export async function PATCH(
     action !== "suspend" &&
     action !== "reinstate" &&
     action !== "waive-payments" &&
-    action !== "require-payments"
+    action !== "require-payments" &&
+    action !== "assistant-on" &&
+    action !== "assistant-off" &&
+    action !== "assistant-default"
   ) {
     return NextResponse.json({ error: "Unknown action." }, { status: 400 });
   }
@@ -64,6 +68,18 @@ export async function PATCH(
     await prisma.company.update({ where: { id }, data: { paymentsWaived: waived } });
     console.warn(
       `[superadmin] payments gate ${waived ? "WAIVED" : "REQUIRED"} for "${company.name}" (${id}) by ${admin.email}`
+    );
+    return NextResponse.json({ success: true });
+  }
+
+  // Atlas override: force the assistant on/off for this company, or clear the
+  // override back to the default policy (lib/assistant-access.ts).
+  if (action === "assistant-on" || action === "assistant-off" || action === "assistant-default") {
+    const assistantEnabled =
+      action === "assistant-default" ? null : action === "assistant-on";
+    await prisma.company.update({ where: { id }, data: { assistantEnabled } });
+    console.warn(
+      `[superadmin] assistant ${assistantEnabled === null ? "reset to DEFAULT" : assistantEnabled ? "forced ON" : "forced OFF"} for "${company.name}" (${id}) by ${admin.email}`
     );
     return NextResponse.json({ success: true });
   }

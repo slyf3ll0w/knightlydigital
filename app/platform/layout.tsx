@@ -6,6 +6,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/db";
 import { paymentsGateStatus } from "@/lib/payments-gate";
+import { assistantAllowed } from "@/lib/assistant-access";
 import AppShell from "@/components/AppShell";
 import NativeShell from "@/components/NativeShell";
 import OfflineSupport from "@/components/OfflineSupport";
@@ -49,6 +50,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             brandFont: true,
             sectionColors: true,
             assistantName: true,
+            assistantEnabled: true,
+            finixSandboxApproved: true,
             finixOnboardingState: true,
             paymentsWaived: true,
             suspendedAt: true,
@@ -112,7 +115,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         sectionColors={company?.sectionColors}
         teamCount={teamCount}
         needsTour={!!user && !user.tourCompletedAt}
-        aiEnabled={Boolean(process.env.GEMINI_API_KEY)}
+        aiEnabled={Boolean(process.env.GEMINI_API_KEY) && !!company && assistantAllowed(company)}
         assistantName={company?.assistantName}
         userId={session.user.id}
         previewMode={preview}
