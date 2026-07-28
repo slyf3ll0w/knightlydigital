@@ -3,17 +3,23 @@
 import { useEffect, useRef } from "react";
 
 /**
- * iOS edge-swipe-back for the mobile shell. A drag starting within 24px of
- * the left edge tracks the finger — the app's <main> translates live with an
- * edge shadow — and past the commit threshold (or with enough velocity) pops
- * back through the same handler as the header's "‹ Section" control. Works
- * identically in Safari, the PWA, and the Capacitor App Store shell, so no
- * native rebuild is needed (and the WKWebView native gesture stays off to
- * avoid double-firing).
+ * iOS edge-swipe-back for the mobile shell. A drag starting on the invisible
+ * 20px strip pinned to the left edge tracks the finger — the app's <main>
+ * translates live with an edge shadow — and past the commit threshold (or
+ * with enough velocity) pops back through the same handler as the header's
+ * "‹ Section" control.
  *
- * Only active on subpages (enabled = the header shows a back control) and
- * only for touches that land inside <main> — sheets and drawers keep their
- * own gestures.
+ * The strip exists because WebKit decides whether a touch belongs to native
+ * scrolling within the first few moved pixels — before a document-level
+ * handler can claim it — so on real iPhones a late preventDefault is
+ * ignored. `touch-action: none` on the strip hands its touches to JS up
+ * front. Plain taps on the strip are forwarded to whatever sits underneath,
+ * so edge-adjacent buttons and list rows keep working.
+ *
+ * Only rendered on subpages (enabled = the header shows a back control) and
+ * sits at z-30, underneath sheet backdrops (z-40) — an open sheet blocks it.
+ * Works identically in Safari, the PWA, and the Capacitor App Store shell;
+ * no native rebuild needed.
  */
 export default function SwipeBack({
   enabled,
@@ -26,8 +32,7 @@ export default function SwipeBack({
   onBack: () => void;
   pathname: string;
 }) {
-  const enabledRef = useRef(enabled);
-  enabledRef.current = enabled;
+  const stripRef = useRef<HTMLDivElement>(null);
   const backRef = useRef(onBack);
   backRef.current = onBack;
 
@@ -43,11 +48,15 @@ export default function SwipeBack({
   }, [pathname, mainRef]);
 
   useEffect(() => {
+    const strip = stripRef.current;
+    if (!strip) return;
+
     const state = {
-      tracking: false,
+      active: false,
       dragging: false,
       startX: 0,
       startY: 0,
+      startT: 0,
       lastX: 0,
       lastT: 0,
       velocity: 0,
@@ -70,40 +79,38 @@ export default function SwipeBack({
     };
 
     const onTouchStart = (e: TouchEvent) => {
-      const el = mainRef.current;
-      if (!el || !enabledRef.current) return;
-      if (window.innerWidth >= 1024) return;
+      if (e.touches.length !== 1 || window.innerWidth >= 1024) return;
       const t = e.touches[0];
-      if (e.touches.length !== 1 || t.clientX > 24) return;
-      if (!(e.target instanceof Node) || !el.contains(e.target)) return;
-      state.tracking = true;
+      state.active = true;
       state.dragging = false;
       state.startX = t.clientX;
       state.startY = t.clientY;
+      state.startT = e.timeStamp;
       state.lastX = t.clientX;
       state.lastT = e.timeStamp;
       state.velocity = 0;
     };
 
     const onTouchMove = (e: TouchEvent) => {
-      if (!state.tracking) return;
+      if (!state.active) return;
       const el = mainRef.current;
       if (!el) return;
       const t = e.touches[0];
       const dx = t.clientX - state.startX;
       const dy = t.clientY - state.startY;
       if (!state.dragging) {
-        // Axis lock: clearly horizontal or we hand the touch back to scroll
-        if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
-        if (dx <= 0 || Math.abs(dx) < Math.abs(dy) * 1.2) {
-          state.tracking = false;
+        if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
+        // Mostly-vertical movement isn't a back swipe — let it die (the strip
+        // owns the touch either way; nothing scrolls under it).
+        if (dx <= 0 || Math.abs(dx) < Math.abs(dy)) {
+          state.active = false;
           return;
         }
         state.dragging = true;
         el.style.transition = "none";
         el.style.boxShadow = "-8px 0 24px rgba(0,0,0,0.14)";
       }
-      e.preventDefault();
+      if (e.cancelable) e.preventDefault();
       const x = Math.max(0, dx);
       const dt = Math.max(1, e.timeStamp - state.lastT);
       state.velocity = (t.clientX - state.lastX) / dt;
@@ -112,35 +119,55 @@ export default function SwipeBack({
       el.style.transform = `translateX(${x}px)`;
     };
 
-    const onTouchEnd = () => {
-      if (!state.tracking) return;
+    const onTouchEnd = (e: TouchEvent) => {
+      if (!state.active) return;
+      state.active = false;
       const el = mainRef.current;
-      state.tracking = false;
-      if (!el || !state.dragging) return;
-      state.dragging = false;
-      const dx = state.lastX - state.startX;
-      const commit = dx > Math.min(96, window.innerWidth * 0.3) || state.velocity > 0.55;
-      if (commit) {
-        el.style.transition = "transform 0.18s ease-out";
-        el.style.transform = `translateX(${window.innerWidth}px)`;
-        backRef.current();
-      } else {
-        reset(el, true);
+      if (state.dragging) {
+        state.dragging = false;
+        if (!el) return;
+        const dx = state.lastX - state.startX;
+        const commit = dx > Math.min(96, window.innerWidth * 0.3) || state.velocity > 0.55;
+        if (commit) {
+          el.style.transition = "transform 0.18s ease-out";
+          el.style.transform = `translateX(${window.innerWidth}px)`;
+          backRef.current();
+        } else {
+          reset(el, true);
+        }
+        return;
+      }
+      // No drag — it was a tap. Forward it to whatever the strip covers
+      // (back-control chevron, edge of a list row) so the edge stays tappable.
+      if (e.timeStamp - state.startT < 500) {
+        const touch = e.changedTouches[0];
+        if (!touch) return;
+        strip.style.pointerEvents = "none";
+        const under = document.elementFromPoint(touch.clientX, touch.clientY);
+        strip.style.pointerEvents = "";
+        if (under instanceof HTMLElement) under.click();
       }
     };
 
-    // touchmove must be non-passive to preventDefault mid-drag
-    document.addEventListener("touchstart", onTouchStart, { passive: true });
-    document.addEventListener("touchmove", onTouchMove, { passive: false });
-    document.addEventListener("touchend", onTouchEnd, { passive: true });
-    document.addEventListener("touchcancel", onTouchEnd, { passive: true });
+    strip.addEventListener("touchstart", onTouchStart, { passive: true });
+    strip.addEventListener("touchmove", onTouchMove, { passive: false });
+    strip.addEventListener("touchend", onTouchEnd, { passive: true });
+    strip.addEventListener("touchcancel", onTouchEnd, { passive: true });
     return () => {
-      document.removeEventListener("touchstart", onTouchStart);
-      document.removeEventListener("touchmove", onTouchMove);
-      document.removeEventListener("touchend", onTouchEnd);
-      document.removeEventListener("touchcancel", onTouchEnd);
+      strip.removeEventListener("touchstart", onTouchStart);
+      strip.removeEventListener("touchmove", onTouchMove);
+      strip.removeEventListener("touchend", onTouchEnd);
+      strip.removeEventListener("touchcancel", onTouchEnd);
     };
-  }, [mainRef]);
+  }, [mainRef, enabled]);
 
-  return null;
+  if (!enabled) return null;
+  return (
+    <div
+      ref={stripRef}
+      aria-hidden
+      className="fixed inset-y-0 left-0 z-30 w-5 lg:hidden"
+      style={{ touchAction: "none" }}
+    />
+  );
 }

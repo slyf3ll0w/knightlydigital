@@ -734,9 +734,13 @@ body {
     animation: pagePopIn 0.28s cubic-bezier(0.32, 0.72, 0, 1);
   }
   /* The slide briefly extends content past the right edge — don't let the
-     scroll container turn that into a horizontal scrollbar. */
+     scroll container turn that into a horizontal scrollbar. And keep iOS's
+     native rubber-band off the scroller: at scrollTop 0 WebKit would claim
+     the downward drag for its own bounce before pull-to-refresh can, making
+     the JS preventDefault a no-op. */
   .app-main {
     overflow-x: hidden;
+    overscroll-behavior-y: none;
   }
 }
 
