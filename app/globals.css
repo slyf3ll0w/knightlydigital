@@ -392,10 +392,13 @@ html[data-mode="dark"] .app-ui .bg-chrome {
   }
 }
 
-/* ── Action-sheet material — the translucent floating cards of the mobile
-   confirm sheet (components/ConfirmSheet.tsx), iOS's action-sheet look. ── */
+/* ── Glass material — the translucent blurred surface for everything that
+   FLOATS above content: action/create/More sheets, dropdown and context
+   menus, tapback pickers. Brand-tinted the same way .bg-chrome is, so it
+   follows any company color scheme in both themes. Content surfaces
+   (forms, cards, lists) stay solid — glass is for chrome only. ── */
 .app-ui .sheet-material {
-  background-color: rgba(255, 255, 255, 0.93);
+  background-color: color-mix(in srgb, var(--wb-primary, #0a1428) 4%, rgba(255, 255, 255, 0.9));
   -webkit-backdrop-filter: saturate(180%) blur(20px);
   backdrop-filter: saturate(180%) blur(20px);
 }
@@ -403,7 +406,7 @@ html[data-mode="dark"] .app-ui .bg-chrome {
   border-color: rgba(60, 60, 67, 0.29);
 }
 html[data-mode="dark"] .app-ui .sheet-material {
-  background-color: rgba(38, 38, 38, 0.93);
+  background-color: color-mix(in srgb, var(--wb-primary, #606673) 8%, rgba(35, 35, 35, 0.9));
 }
 html[data-mode="dark"] .app-ui .sheet-hairline {
   border-color: rgba(84, 84, 88, 0.5);

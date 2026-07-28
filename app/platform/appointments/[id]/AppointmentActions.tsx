@@ -182,7 +182,7 @@ export default function AppointmentActions({
             <MoreHorizontal size={16} />
           </button>
           {menuOpen && (
-            <div className="absolute right-0 top-full mt-1 z-20 w-44 bg-white rounded-lg shadow-xl ring-1 ring-black/5 py-1.5">
+            <div className="sheet-material absolute right-0 top-full mt-1 z-20 w-44 rounded-lg shadow-xl ring-1 ring-black/5 py-1.5">
               <button
                 onClick={openEdit}
                 className="flex w-full items-center gap-2 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"

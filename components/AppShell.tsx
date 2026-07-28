@@ -344,7 +344,7 @@ function UserMenu({
   return (
     <div className="relative" ref={ref}>
       {open && (
-        <div className="absolute bottom-full left-0 right-0 mb-1.5 z-50 bg-white rounded-lg shadow-xl ring-1 ring-black/5 py-1.5 overflow-hidden">
+        <div className="sheet-material absolute bottom-full left-0 right-0 mb-1.5 z-50 rounded-lg shadow-xl ring-1 ring-black/5 py-1.5 overflow-hidden">
           <Link
             href="/app/settings/profile"
             onClick={() => setOpen(false)}
@@ -1153,7 +1153,7 @@ function MobileTabBar({
       />
       {creates.length > 0 && (
         <div
-          className={`fixed inset-x-0 bottom-0 z-50 lg:hidden rounded-t-3xl bg-white shadow-[0_-8px_30px_rgba(28,25,23,0.18)] transition-transform duration-300 [transition-timing-function:cubic-bezier(0.32,0.72,0,1)] ${
+          className={`sheet-material fixed inset-x-0 bottom-0 z-50 lg:hidden rounded-t-3xl shadow-[0_-8px_30px_rgba(28,25,23,0.18)] transition-transform duration-300 [transition-timing-function:cubic-bezier(0.32,0.72,0,1)] ${
             sheetOpen ? "translate-y-0" : "translate-y-full pointer-events-none"
           }`}
         >
@@ -1373,7 +1373,7 @@ function MoreSheet({
         aria-hidden
       />
       <div
-        className={`fixed inset-x-0 bottom-0 z-50 lg:hidden flex max-h-[88dvh] flex-col rounded-t-3xl bg-paper-plain shadow-[0_-8px_30px_rgba(28,25,23,0.18)] transition-transform duration-300 [transition-timing-function:cubic-bezier(0.32,0.72,0,1)] ${
+        className={`sheet-material fixed inset-x-0 bottom-0 z-50 lg:hidden flex max-h-[88dvh] flex-col rounded-t-3xl shadow-[0_-8px_30px_rgba(28,25,23,0.18)] transition-transform duration-300 [transition-timing-function:cubic-bezier(0.32,0.72,0,1)] ${
           open ? "translate-y-0" : "translate-y-full pointer-events-none"
         }`}
       >

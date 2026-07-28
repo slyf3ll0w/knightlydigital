@@ -662,7 +662,7 @@ export default function ChatClient({
               <MoreVertical size={18} />
             </button>
             {menuOpen && (
-              <div className="absolute right-0 top-10 z-30 w-44 overflow-hidden rounded-xl border border-gray-200 bg-white py-1 shadow-lg">
+              <div className="sheet-material absolute right-0 top-10 z-30 w-44 overflow-hidden rounded-xl border border-gray-200 py-1 shadow-lg">
                 <button type="button" onClick={renameGroup} className="flex w-full items-center gap-2 px-3.5 py-2.5 text-sm text-gray-700 hover:bg-gray-50">
                   <Pencil size={14} /> Rename group
                 </button>
@@ -846,7 +846,7 @@ export default function ChatClient({
 
                     {/* Desktop inline tapback picker */}
                     {pickerFor === m.id && !m.deletedAt && (
-                      <div className={`absolute -top-11 z-20 flex items-center gap-0.5 rounded-full border border-gray-200 bg-white px-1.5 py-1 shadow-lg ${mine ? "right-0" : "left-0"}`}>
+                      <div className={`sheet-material absolute -top-11 z-20 flex items-center gap-0.5 rounded-full border border-gray-200 px-1.5 py-1 shadow-lg ${mine ? "right-0" : "left-0"}`}>
                         {TAPBACKS.map((emoji) => (
                           <button key={emoji} type="button" onClick={() => toggleReaction(m.id, emoji)} className="rounded-full p-1 text-base transition-transform hover:scale-125">
                             {emoji}
@@ -972,7 +972,7 @@ export default function ChatClient({
             onClick={(e) => e.stopPropagation()}
           >
             <div
-              className="flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2 py-1.5 shadow-xl"
+              className="sheet-material flex items-center gap-1 rounded-full border border-gray-200 px-2 py-1.5 shadow-xl"
               style={{ animation: "tile-in 200ms cubic-bezier(0.22,1,0.36,1) both" }}
             >
               {TAPBACKS.map((emoji, i) => (
@@ -988,7 +988,7 @@ export default function ChatClient({
               ))}
             </div>
             <div
-              className="mt-2 w-52 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl"
+              className="sheet-material mt-2 w-52 overflow-hidden rounded-2xl border border-gray-200 shadow-xl"
               style={{ animation: "tile-in 220ms cubic-bezier(0.22,1,0.36,1) both", animationDelay: "40ms", marginLeft: pressed.mine ? "auto" : undefined }}
             >
               <button

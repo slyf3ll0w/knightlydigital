@@ -118,7 +118,7 @@ export default function RequestActions({
           <MoreHorizontal size={16} />
         </button>
         {open && (
-          <div className="absolute right-0 top-full mt-1 z-30 w-52 bg-white rounded-lg shadow-xl border border-gray-200 py-1.5">
+          <div className="sheet-material absolute right-0 top-full mt-1 z-30 w-52 rounded-lg shadow-xl border border-gray-200 py-1.5">
             <button
               onClick={openEdit}
               className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"

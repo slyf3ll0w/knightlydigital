@@ -37,7 +37,7 @@ export default function ContactCreateMenu({ contactId }: { contactId: string }) 
         Create
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-1 z-30 w-44 bg-white rounded-lg shadow-xl border border-gray-200 py-1.5">
+        <div className="sheet-material absolute right-0 top-full mt-1 z-30 w-44 rounded-lg shadow-xl border border-gray-200 py-1.5">
           {items.map(({ href, label, icon: Icon }) => (
             <Link
               key={href}

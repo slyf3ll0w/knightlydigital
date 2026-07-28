@@ -296,7 +296,7 @@ export default function QuoteActions({
           <MoreHorizontal size={16} />
         </button>
         {open && (
-          <div className="absolute right-0 top-full mt-1 z-30 w-56 bg-white rounded-lg shadow-xl border border-gray-200 py-1.5">
+          <div className="sheet-material absolute right-0 top-full mt-1 z-30 w-56 rounded-lg shadow-xl border border-gray-200 py-1.5">
             <a
               href={`${publicUrl}?preview=1`}
               target="_blank"

@@ -144,7 +144,7 @@ export default function ContactActionsMenu({
           {busy ? <Loader2 size={16} className="animate-spin" /> : <MoreHorizontal size={16} />}
         </button>
         {open && (
-          <div className="absolute right-0 top-full mt-1 z-30 w-44 bg-white rounded-lg shadow-xl border border-gray-200 py-1.5">
+          <div className="sheet-material absolute right-0 top-full mt-1 z-30 w-44 rounded-lg shadow-xl border border-gray-200 py-1.5">
             <Link
               href={`/app/contacts/${contactId}/edit`}
               className="flex items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
