@@ -710,6 +710,36 @@ body {
   animation: pageEnterSettle 0.32s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+/* ── iOS stack transitions (phones only) — template.tsx adds .page-push /
+   .page-pop from the navigation direction. Push slides the new screen in
+   from the right edge; pop settles it in from the left like the underlying
+   screen of a popped stack. Defined after the section entrances so they win
+   the cascade below lg; above lg they don't exist. */
+@keyframes pagePushIn {
+  from {
+    transform: translateX(100%);
+  }
+}
+@keyframes pagePopIn {
+  from {
+    opacity: 0.55;
+    transform: translateX(-26%);
+  }
+}
+@media (max-width: 1023px) {
+  .page-push {
+    animation: pagePushIn 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  .page-pop {
+    animation: pagePopIn 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  /* The slide briefly extends content past the right edge — don't let the
+     scroll container turn that into a horizontal scrollbar. */
+  .app-main {
+    overflow-x: hidden;
+  }
+}
+
 /* ── Atlas intro teaser — speech bubble popping out of the assistant badge
    (bottom-right), so it grows from where the compass sits. */
 @keyframes atlasTeaserPop {
@@ -749,6 +779,8 @@ body {
   .page-enter-rise,
   .page-enter-sweep,
   .page-enter-settle,
+  .page-push,
+  .page-pop,
   .anim-portal,
   .anim-fade-up,
   .anim-create-pop,

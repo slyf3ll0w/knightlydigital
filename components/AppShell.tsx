@@ -36,6 +36,9 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import Avatar from "@/components/Avatar";
+import SwipeBack from "@/components/SwipeBack";
+import PullToRefresh from "@/components/PullToRefresh";
+import { mobileBackFor } from "@/lib/mobile-nav";
 import AtlasIcon, { AtlasMark } from "@/components/AtlasIcon";
 import TourGuide from "@/components/TourGuide";
 import AssistantDrawer from "@/components/AssistantDrawer";
@@ -217,41 +220,8 @@ const jobsTab: NavItem = { href: "/app/jobs", label: "Jobs", icon: Briefcase };
 
 // iOS back control: on subpages the mobile header swaps the settings gear for
 // a "‹ Section" control (the label names where you came from, like a native
-// nav bar). Longest prefix first so the settings sub-hubs win over /app/settings.
-// `to` is the no-history fallback — deep links and notification taps land with
-// nothing to pop, and some prefixes (appointments) have no list page of their own.
-const backRoots: { prefix: string; label: string; to: string }[] = [
-  { prefix: "/app/settings/products", label: "Services", to: "/app/settings/products" },
-  { prefix: "/app/settings/contracts", label: "Contracts", to: "/app/settings/contracts" },
-  { prefix: "/app/settings/booking", label: "Forms", to: "/app/settings/booking" },
-  { prefix: "/app/settings/team", label: "Team", to: "/app/settings/team" },
-  { prefix: "/app/settings", label: "Settings", to: "/app/settings" },
-  { prefix: "/app/contacts", label: "Clients", to: "/app/contacts" },
-  { prefix: "/app/requests", label: "Requests", to: "/app/requests" },
-  { prefix: "/app/leads", label: "Leads", to: "/app/leads" },
-  { prefix: "/app/quotes", label: "Quotes", to: "/app/quotes" },
-  { prefix: "/app/jobs", label: "Jobs", to: "/app/jobs" },
-  { prefix: "/app/appointments", label: "Schedule", to: "/app/schedule" },
-  { prefix: "/app/invoices", label: "Invoices", to: "/app/invoices" },
-  { prefix: "/app/payments", label: "Payments", to: "/app/payments" },
-  { prefix: "/app/subscriptions", label: "Subscriptions", to: "/app/subscriptions" },
-  { prefix: "/app/timesheets", label: "Timesheets", to: "/app/timesheets" },
-  // No /app/contracts index — agreements belong to a contact
-  { prefix: "/app/contracts", label: "Back", to: "/app/contacts" },
-  { prefix: "/app/business", label: "Business", to: "/app/business" },
-  { prefix: "/app/schedule", label: "Schedule", to: "/app/schedule" },
-  { prefix: "/app/chat", label: "Chat", to: "/app/chat" },
-];
-
-function mobileBackFor(pathname: string): { label: string; to: string } | null {
-  for (const r of backRoots) {
-    if (pathname !== r.prefix && pathname.startsWith(r.prefix + "/")) return r;
-  }
-  // Nested pages outside the map (e.g. /app/messages/[id]) still get a way out.
-  if (pathname.startsWith("/app/") && pathname.split("/").filter(Boolean).length > 2)
-    return { label: "Back", to: "/app/dashboard" };
-  return null;
-}
+// nav bar). Route map lives in lib/mobile-nav.ts — the edge-swipe-back
+// gesture (components/SwipeBack.tsx) shares it.
 
 const forRole = (items: NavItem[], role: string) =>
   items.filter((i) => !i.show || i.show(role));
@@ -477,6 +447,25 @@ export default function AppShell({
   const router = useRouter();
   const [moreOpen, setMoreOpen] = useState(false);
   const [assistantOpen, setAssistantOpen] = useState(false);
+  const mainRef = useRef<HTMLElement>(null);
+
+  // iOS large-title collapse: TitleSentinel (inside each PageTitle) reports
+  // when the big in-page title scrolls away; the header raises a small one.
+  const [headerTitle, setHeaderTitle] = useState<{ text: string; shown: boolean }>({
+    text: "",
+    shown: false,
+  });
+  useEffect(() => {
+    const onTitle = (e: Event) => {
+      const { title, hidden } = (e as CustomEvent<{ title: string; hidden: boolean }>).detail;
+      setHeaderTitle({ text: title, shown: hidden });
+    };
+    window.addEventListener("wb:pagetitle", onTitle);
+    return () => window.removeEventListener("wb:pagetitle", onTitle);
+  }, []);
+  useEffect(() => {
+    setHeaderTitle((t) => ({ ...t, shown: false }));
+  }, [pathname]);
 
   // Intro speech bubble on the assistant button — a compass alone doesn't
   // say "chat with me", so Atlas introduces himself. Reappears every few
@@ -563,6 +552,11 @@ export default function AppShell({
   }
 
   const mobileBack = mobileBackFor(pathname);
+  const goBack = () => {
+    if (!mobileBack) return;
+    if (window.history.length > 1) router.back();
+    else router.push(mobileBack.to);
+  };
 
   if (isAuthPage) return <>{children}</>;
 
@@ -865,8 +859,7 @@ export default function AppShell({
               type="button"
               onClick={() => {
                 hapticImpact("LIGHT");
-                if (window.history.length > 1) router.back();
-                else router.push(mobileBack.to);
+                goBack();
               }}
               aria-label={`Back to ${mobileBack.label}`}
               className="lg:hidden -ml-2 flex h-9 min-w-0 shrink items-center pr-1 text-[color:var(--mobile-accent)] active:opacity-50 transition-opacity"
@@ -946,10 +939,41 @@ export default function AppShell({
             <Settings size={17} />
           </Link>
           <Avatar name={userName} userId={userId} size={32} className="hidden sm:flex ring-gray-200" />
+
+          {/* Collapsed large title — fades up into the blurred bar once the
+              in-page title scrolls away (iOS nav-bar behavior). Bottom-anchored
+              so the safe-area inset above never offsets it. */}
+          <span
+            aria-hidden
+            className="lg:hidden pointer-events-none absolute inset-x-0 bottom-0 flex h-[57px] items-center justify-center"
+          >
+            <span
+              className={`max-w-[55%] truncate text-[16px] font-semibold text-gray-900 transition-all duration-200 ${
+                headerTitle.shown ? "translate-y-0 opacity-100" : "translate-y-1.5 opacity-0"
+              }`}
+            >
+              {headerTitle.text}
+            </span>
+          </span>
         </header>
 
+        {/* Pull-to-refresh spinner sits in the canvas gap that opens when
+            <main> is dragged down (main's background is transparent) */}
+        <PullToRefresh mainRef={mainRef} />
+
         {/* Scrollable content */}
-        <main className="app-main relative flex-1 overflow-y-auto pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-0">{children}</main>
+        <main
+          ref={mainRef}
+          className="app-main relative flex-1 overflow-y-auto pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-0"
+        >
+          {children}
+        </main>
+        <SwipeBack
+          enabled={mobileBack !== null}
+          mainRef={mainRef}
+          onBack={goBack}
+          pathname={pathname}
+        />
       </div>
 
       <MobileTabBar

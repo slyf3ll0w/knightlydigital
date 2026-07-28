@@ -30,8 +30,37 @@ const SECTION_ANIM: Record<string, string> = {
   chat: "page-enter-settle",
 };
 
+// Mobile gets iOS stack semantics on top of the section flavors: going
+// deeper in a section slides in from the right (push), coming back slides
+// in from the left (pop). Tab-style jumps between sections keep the section
+// entrance. The classes only exist under lg (globals.css), so desktop is
+// untouched. Module-level so it survives template re-mounts; the memo of the
+// last decision absorbs dev double-renders.
+let prevPath: string | null = null;
+let lastStack = "";
+
+function stackDirection(pathname: string): string {
+  if (prevPath === pathname) return lastStack;
+  const prev = prevPath;
+  prevPath = pathname;
+  const depth = pathname.split("/").length; // "/app/jobs" = 3, "/app/jobs/id" = 4
+  lastStack = "";
+  if (prev) {
+    if (prev.startsWith(pathname + "/")) lastStack = "page-pop"; // up to an ancestor
+    else if (pathname.startsWith(prev + "/")) lastStack = "page-push"; // down into it
+    else if (depth > 3) lastStack = "page-push"; // cross-section into a detail page
+    else if (prev.split("/").length > 3) lastStack = "page-pop"; // detail out to a list
+  }
+  return lastStack;
+}
+
 export default function Template({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const section = pathname.split("/")[2] ?? "";
-  return <div className={SECTION_ANIM[section] ?? "page-enter-rise"}>{children}</div>;
+  const stack = stackDirection(pathname);
+  return (
+    <div className={`${SECTION_ANIM[section] ?? "page-enter-rise"} ${stack}`.trim()}>
+      {children}
+    </div>
+  );
 }
