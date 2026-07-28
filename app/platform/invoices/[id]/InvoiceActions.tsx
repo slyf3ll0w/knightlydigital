@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { money } from "@/lib/statuses";
+import { confirmSheet } from "@/components/ConfirmSheet";
 
 export default function InvoiceActions({
   invoiceId,
@@ -113,11 +114,19 @@ export default function InvoiceActions({
     router.refresh();
   }
 
-  function onDeleteClick() {
+  async function onDeleteClick() {
     setOpen(false);
     setDeleteError("");
     if (paymentCount === 0) {
-      if (confirm("Permanently delete this invoice? This can't be undone.")) doDelete(false);
+      if (
+        await confirmSheet({
+          title: "Permanently delete this invoice?",
+          message: "This can't be undone.",
+          confirmLabel: "Delete Invoice",
+          destructive: true,
+        })
+      )
+        doDelete(false);
       return;
     }
     setConfirmText("");

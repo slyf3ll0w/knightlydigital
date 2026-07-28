@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Copy, ExternalLink, Loader2, Pencil, Trash2, X } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
+import { confirmSheet } from "@/components/ConfirmSheet";
 
 /** Contract controls: copy the signing link, edit while unsigned, void/reopen, delete. */
 export default function ContractActions({
@@ -71,7 +72,15 @@ export default function ContractActions({
   }
 
   async function remove() {
-    if (!confirm("Delete this contract? The signed record is destroyed with it. This can't be undone.")) return;
+    if (
+      !(await confirmSheet({
+        title: "Delete this contract?",
+        message: "The signed record is destroyed with it. This can't be undone.",
+        confirmLabel: "Delete Contract",
+        destructive: true,
+      }))
+    )
+      return;
     setBusy(true);
     const { ok, data } = await postJson(`/api/app/contracts/${contractId}`, undefined, "DELETE");
     setBusy(false);

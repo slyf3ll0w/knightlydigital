@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, CheckCircle2, Loader2, RefreshCw, Unplug, AlertTriangle } from "lucide-react";
+import { confirmSheet } from "@/components/ConfirmSheet";
 
 type Status = {
   configured: boolean;
@@ -92,9 +93,13 @@ export default function QuickBooksSettingsClient({ configured }: { configured: b
 
   async function disconnect() {
     if (
-      !confirm(
-        "Disconnect QuickBooks? Already-synced data stays in QuickBooks, but nothing new will sync until you reconnect."
-      )
+      !(await confirmSheet({
+        title: "Disconnect QuickBooks?",
+        message:
+          "Already-synced data stays in QuickBooks, but nothing new will sync until you reconnect.",
+        confirmLabel: "Disconnect",
+        destructive: true,
+      }))
     )
       return;
     setDisconnecting(true);

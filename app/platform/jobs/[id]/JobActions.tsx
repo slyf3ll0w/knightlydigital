@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { MoreHorizontal, CheckCircle, Receipt, Archive, RotateCcw, Trash2, Loader2, Pencil } from "lucide-react";
+import { confirmSheet } from "@/components/ConfirmSheet";
 
 export default function JobActions({
   jobId,
@@ -65,7 +66,13 @@ export default function JobActions({
         month: "short",
         day: "numeric",
       });
-      if (!confirm(`This job is scheduled for ${when} — complete it anyway?`)) return;
+      if (
+        !(await confirmSheet({
+          message: `This job is scheduled for ${when} — complete it anyway?`,
+          confirmLabel: "Complete Anyway",
+        }))
+      )
+        return;
     }
     if (hasInvoice) {
       await setStatus("ARCHIVED");
@@ -76,14 +83,22 @@ export default function JobActions({
 
   async function deleteJob() {
     const warning = [
-      "Permanently delete this job? Its notes, photos, and line items are deleted with it.",
+      "Its notes, photos, and line items are deleted with it.",
       hasInvoice && "The invoice created from it stays, but loses its job link.",
       hasQuote && "The quote it came from reopens as Approved.",
       "This cannot be undone.",
     ]
       .filter(Boolean)
       .join(" ");
-    if (!confirm(warning)) return;
+    if (
+      !(await confirmSheet({
+        title: "Permanently delete this job?",
+        message: warning,
+        confirmLabel: "Delete Job",
+        destructive: true,
+      }))
+    )
+      return;
     setOpen(false);
     setBusy(true);
     try {

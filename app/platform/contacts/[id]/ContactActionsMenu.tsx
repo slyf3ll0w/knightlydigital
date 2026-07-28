@@ -7,6 +7,7 @@ import {
   AlertTriangle, Archive, ArchiveRestore, Loader2, MoreHorizontal, Pencil, Trash2, X,
 } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
+import { confirmSheet } from "@/components/ConfirmSheet";
 
 /**
  * The client page's ⋯ menu: Edit / Archive ⇄ Reactivate / Delete.
@@ -75,7 +76,13 @@ export default function ContactActionsMenu({
     setOpen(false);
     if (
       next === "ARCHIVED" &&
-      !confirm("Archive this client? They'll be hidden from your client list, but all their quotes, jobs, and invoices stay.")
+      !(await confirmSheet({
+        title: "Archive this client?",
+        message:
+          "They'll be hidden from your client list, but all their quotes, jobs, and invoices stay.",
+        confirmLabel: "Archive Client",
+        destructive: true,
+      }))
     ) {
       return;
     }
@@ -106,11 +113,18 @@ export default function ContactActionsMenu({
     router.refresh();
   }
 
-  function onDeleteClick() {
+  async function onDeleteClick() {
     setOpen(false);
     setError("");
     if (!hasWork) {
-      if (confirm("Permanently delete this client and their requests? This can't be undone.")) {
+      if (
+        await confirmSheet({
+          title: "Permanently delete this client?",
+          message: "Their requests are deleted with them. This can't be undone.",
+          confirmLabel: "Delete Client",
+          destructive: true,
+        })
+      ) {
         doDelete(false);
       }
       return;

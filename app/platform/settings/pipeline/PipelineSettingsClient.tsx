@@ -15,6 +15,7 @@ import {
   Zap,
 } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
+import { confirmSheet } from "@/components/ConfirmSheet";
 
 type Stage = {
   id: string;
@@ -106,9 +107,12 @@ export default function PipelineSettingsClient({
 
   async function removeStage(stage: Stage) {
     if (
-      !window.confirm(
-        `Delete the "${stage.name}" stage? Any leads in it move to your first stage.`
-      )
+      !(await confirmSheet({
+        title: `Delete the "${stage.name}" stage?`,
+        message: "Any leads in it move to your first stage.",
+        confirmLabel: "Delete Stage",
+        destructive: true,
+      }))
     )
       return;
     setStages((s) => s.filter((st) => st.id !== stage.id));
@@ -372,11 +376,14 @@ export default function PipelineSettingsClient({
             </details>
             <div className="flex gap-2">
               <button
-                onClick={() => {
+                onClick={async () => {
                   if (
-                    window.confirm(
-                      "Rotate the webhook URL? Anything using the old URL stops working immediately."
-                    )
+                    await confirmSheet({
+                      title: "Rotate the webhook URL?",
+                      message: "Anything using the old URL stops working immediately.",
+                      confirmLabel: "Rotate URL",
+                      destructive: true,
+                    })
                   )
                     setWebhook(true);
                 }}
@@ -386,8 +393,15 @@ export default function PipelineSettingsClient({
                 Rotate URL
               </button>
               <button
-                onClick={() => {
-                  if (window.confirm("Turn off lead intake? The URL stops accepting leads."))
+                onClick={async () => {
+                  if (
+                    await confirmSheet({
+                      title: "Turn off lead intake?",
+                      message: "The URL stops accepting leads.",
+                      confirmLabel: "Turn Off",
+                      destructive: true,
+                    })
+                  )
                     setWebhook(false);
                 }}
                 disabled={saving}

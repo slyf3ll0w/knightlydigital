@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import { hapticImpact } from "@/lib/haptics";
+import { confirmSheet } from "@/components/ConfirmSheet";
 
 // Mirrors TAPBACKS in lib/chat.ts (server module)
 const TAPBACKS = ["👍", "❤️", "😂", "😮", "😢", "🎉"];
@@ -370,7 +371,15 @@ export default function ChatClient({
 
   async function deleteMessage(messageId: string) {
     setPressed(null);
-    if (!confirm("Delete this message? Everyone will see it was deleted.")) return;
+    if (
+      !(await confirmSheet({
+        title: "Delete this message?",
+        message: "Everyone will see it was deleted.",
+        confirmLabel: "Delete Message",
+        destructive: true,
+      }))
+    )
+      return;
     setMessages((prev) =>
       prev.map((m) =>
         m.id === messageId ? { ...m, body: "", deletedAt: new Date().toISOString(), reactions: [] } : m
@@ -458,7 +467,14 @@ export default function ChatClient({
   async function leaveGroup() {
     setMenuOpen(false);
     if (!active || active.kind !== "group") return;
-    if (!confirm(`Leave "${active.name}"?`)) return;
+    if (
+      !(await confirmSheet({
+        message: `Leave "${active.name}"?`,
+        confirmLabel: "Leave Group",
+        destructive: true,
+      }))
+    )
+      return;
     await fetch(`/api/app/chat/channels/${active.id}`, { method: "DELETE" }).catch(() => {});
     setMobileOpen(false);
     await openChannel(everyoneId);

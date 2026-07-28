@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { MapPin, Plus, Pencil, Trash2, Loader2 } from "lucide-react";
+import { confirmSheet } from "@/components/ConfirmSheet";
 
 type Addr = {
   id: string;
@@ -89,7 +90,14 @@ export default function AddressesCard({
   }
 
   async function remove(id: string) {
-    if (!confirm("Remove this address?")) return;
+    if (
+      !(await confirmSheet({
+        message: "Remove this address?",
+        confirmLabel: "Remove Address",
+        destructive: true,
+      }))
+    )
+      return;
     setBusy(true);
     try {
       await fetch(`/api/app/contacts/${contactId}/addresses/${id}`, { method: "DELETE" });

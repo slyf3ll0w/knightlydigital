@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Check, Repeat, Loader2, Pencil, Play, Pause, X, RotateCw } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
+import { confirmSheet } from "@/components/ConfirmSheet";
 
 type Frequency = "WEEKLY" | "BIWEEKLY" | "MONTHLY" | "QUARTERLY" | "ANNUALLY";
 
@@ -518,8 +519,17 @@ export default function SubscriptionsClient({
                         </button>
                       )}
                       <button
-                        onClick={() => {
-                          if (confirm("Cancel this subscription? It will stop billing.")) setStatus(s.id, "CANCELLED");
+                        onClick={async () => {
+                          if (
+                            await confirmSheet({
+                              title: "Cancel this subscription?",
+                              message: "It will stop billing.",
+                              confirmLabel: "Cancel Subscription",
+                              cancelLabel: "Keep It",
+                              destructive: true,
+                            })
+                          )
+                            setStatus(s.id, "CANCELLED");
                         }}
                         disabled={busyId === s.id}
                         className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"

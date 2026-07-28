@@ -38,6 +38,7 @@ import { useEffect, useRef, useState } from "react";
 import Avatar from "@/components/Avatar";
 import SwipeBack from "@/components/SwipeBack";
 import PullToRefresh from "@/components/PullToRefresh";
+import ConfirmSheetHost from "@/components/ConfirmSheet";
 import { mobileBackFor } from "@/lib/mobile-nav";
 import AtlasIcon, { AtlasMark } from "@/components/AtlasIcon";
 import TourGuide from "@/components/TourGuide";
@@ -976,6 +977,9 @@ export default function AppShell({
           pathname={pathname}
         />
       </div>
+
+      {/* Mobile confirm sheet — imperative host for confirmSheet() */}
+      <ConfirmSheetHost />
 
       <MobileTabBar
         role={userRole}

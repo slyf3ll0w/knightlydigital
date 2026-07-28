@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Star } from "lucide-react";
 import { smsHref, isApplePlatform, canSendSms } from "@/lib/messaging";
+import { confirmSheet } from "@/components/ConfirmSheet";
 
 /**
  * Texts the client a "leave us a review" message with the company's Google
@@ -30,12 +31,14 @@ export default function AskForReview({
   useEffect(() => setSupported(canSendSms()), []);
   if (!supported) return null;
 
-  function send() {
+  async function send() {
     if (!hasReviewLink) {
       if (
-        confirm(
-          "Add your Google review link first — it's what the text points your client to. Add it in Settings now?"
-        )
+        await confirmSheet({
+          title: "Add your Google review link first",
+          message: "It's what the text points your client to. Add it in Settings now?",
+          confirmLabel: "Open Settings",
+        })
       ) {
         router.push("/app/settings");
       }

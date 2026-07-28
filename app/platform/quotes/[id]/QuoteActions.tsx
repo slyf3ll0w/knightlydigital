@@ -19,6 +19,7 @@ import {
   Clock,
   DollarSign,
 } from "lucide-react";
+import { confirmSheet } from "@/components/ConfirmSheet";
 
 type AgreementState = {
   signed: boolean;
@@ -162,9 +163,17 @@ export default function QuoteActions({
   async function deleteQuote() {
     const warning =
       status === "CONVERTED"
-        ? "Delete this quote? The job it was converted into stays. This cannot be undone."
-        : "Delete this quote? This cannot be undone.";
-    if (!confirm(warning)) return;
+        ? "The job it was converted into stays. This cannot be undone."
+        : "This cannot be undone.";
+    if (
+      !(await confirmSheet({
+        title: "Delete this quote?",
+        message: warning,
+        confirmLabel: "Delete Quote",
+        destructive: true,
+      }))
+    )
+      return;
     setOpen(false);
     setBusy(true);
     try {

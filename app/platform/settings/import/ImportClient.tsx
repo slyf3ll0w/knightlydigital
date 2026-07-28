@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { parseCsv } from "@/lib/csv";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
+import { confirmSheet } from "@/components/ConfirmSheet";
 
 /**
  * CSV client importer: upload → map columns → import (chunked) → summary
@@ -216,7 +217,16 @@ export default function ImportClient({
   }
 
   async function undoImport() {
-    if (!confirm("Remove every client created by this import? Anyone who already has work attached is kept.")) return;
+    if (
+      !(await confirmSheet({
+        title: "Undo this import?",
+        message:
+          "Every client it created is removed — anyone who already has work attached is kept.",
+        confirmLabel: "Remove Clients",
+        destructive: true,
+      }))
+    )
+      return;
     setUndoing(true);
     const { ok, data } = await postJson<{ deleted: number; kept: number }>(
       `/api/app/contacts/import?batchId=${batchId}`,

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil, Trash2, X } from "lucide-react";
 import { localInputToISO } from "@/lib/statuses";
+import { confirmSheet } from "@/components/ConfirmSheet";
 
 /** ISO → datetime-local value in the browser's timezone. */
 function toLocalInput(iso: string | null): string {
@@ -50,7 +51,15 @@ export default function EntryActions({
   }
 
   async function remove() {
-    if (busy || !confirm("Delete this time entry?")) return;
+    if (busy) return;
+    if (
+      !(await confirmSheet({
+        message: "Delete this time entry?",
+        confirmLabel: "Delete Entry",
+        destructive: true,
+      }))
+    )
+      return;
     setBusy(true);
     await fetch(`/api/app/time-entries/${entry.id}`, { method: "DELETE" }).catch(() => null);
     setBusy(false);

@@ -16,6 +16,7 @@ import {
   X,
 } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
+import { confirmSheet } from "@/components/ConfirmSheet";
 
 /**
  * Your public forms: one default (answers the original /book and /embed
@@ -94,9 +95,17 @@ export default function FormsListClient({
 
   async function remove(f: FormRow) {
     const warning = f.isDefault
-      ? `Delete "${f.name}"? Everything it collected (clients, requests, invoices) is kept. Another form becomes the default and answers your original links.`
-      : `Delete "${f.name}"? Everything it collected (clients, requests, invoices) is kept, but links and embeds pointing at this form stop working.`;
-    if (!confirm(warning)) return;
+      ? "Everything it collected (clients, requests, invoices) is kept. Another form becomes the default and answers your original links."
+      : "Everything it collected (clients, requests, invoices) is kept, but links and embeds pointing at this form stop working.";
+    if (
+      !(await confirmSheet({
+        title: `Delete "${f.name}"?`,
+        message: warning,
+        confirmLabel: "Delete Form",
+        destructive: true,
+      }))
+    )
+      return;
     setBusy(true);
     const { ok, data } = await postJson(`/api/app/web-forms/${f.id}`, undefined, "DELETE");
     setBusy(false);

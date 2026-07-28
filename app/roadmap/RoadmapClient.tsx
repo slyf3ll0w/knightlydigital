@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { confirmSheet } from "@/components/ConfirmSheet";
 import Link from "next/link";
 import {
   Bug,
@@ -103,7 +104,14 @@ export default function RoadmapClient({
   }
 
   async function removeItem(item: Item) {
-    if (!confirm(`Delete "${item.title}" from the board?`)) return;
+    if (
+      !(await confirmSheet({
+        message: `Delete "${item.title}" from the board?`,
+        confirmLabel: "Delete Item",
+        destructive: true,
+      }))
+    )
+      return;
     setBusyId(item.id);
     const { ok } = await postJson(`/api/roadmap/${item.id}`, undefined, "DELETE");
     setBusyId(null);

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Check, Loader2, Pencil, Trash2, Undo2, X } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { paymentMethodLabel, money } from "@/lib/statuses";
+import { confirmSheet } from "@/components/ConfirmSheet";
 
 const METHODS = [
   "CASH", "CHECK", "CARD", "ACH", "CASH_APP", "PAYPAL", "VENMO", "ZELLE", "OTHER",
@@ -109,9 +110,12 @@ export default function PaymentRow({
 
   async function remove() {
     if (
-      !confirm(
-        `Delete this ${money(payment.amount)} payment record? The invoice balance and status update to match. This can't be undone.`
-      )
+      !(await confirmSheet({
+        title: `Delete this ${money(payment.amount)} payment record?`,
+        message: "The invoice balance and status update to match. This can't be undone.",
+        confirmLabel: "Delete Payment",
+        destructive: true,
+      }))
     ) {
       return;
     }

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ArrowLeft, Check, Download, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
 import { money } from "@/lib/statuses";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
+import { confirmSheet } from "@/components/ConfirmSheet";
 
 /** Business expense log (owners/admins): record transactions by date and
  *  export any period as CSV for the bookkeeper. */
@@ -99,7 +100,14 @@ export default function ExpensesClient({ expenses }: { expenses: Expense[] }) {
   }
 
   async function remove(id: string) {
-    if (!confirm("Delete this expense?")) return;
+    if (
+      !(await confirmSheet({
+        message: "Delete this expense?",
+        confirmLabel: "Delete Expense",
+        destructive: true,
+      }))
+    )
+      return;
     setBusy(true);
     const { ok, data } = await postJson(`/api/app/expenses/${id}`, undefined, "DELETE");
     setBusy(false);

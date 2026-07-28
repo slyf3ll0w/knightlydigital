@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Camera, Loader2, Trash2 } from "lucide-react";
 import { resizePhotoFile } from "@/lib/resize-image";
+import { confirmSheet } from "@/components/ConfirmSheet";
 
 type Photo = { id: string; url: string; caption: string | null; type: string };
 
@@ -55,7 +56,14 @@ export default function PhotoUpload({ jobId, photos }: { jobId: string; photos: 
   }
 
   async function removePhoto(photoId: string) {
-    if (!confirm("Remove this photo from the job?")) return;
+    if (
+      !(await confirmSheet({
+        message: "Remove this photo from the job?",
+        confirmLabel: "Remove Photo",
+        destructive: true,
+      }))
+    )
+      return;
     setBusy(true);
     try {
       await fetch(`/api/app/jobs/${jobId}/photos/${photoId}`, { method: "DELETE" });

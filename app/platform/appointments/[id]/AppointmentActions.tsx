@@ -8,6 +8,7 @@ import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { localInputToISO, appointmentTypeLabel } from "@/lib/statuses";
 import SlotTimePicker from "@/components/SlotTimePicker";
 import { addMinutesToLocalDateTime } from "@/lib/scheduling";
+import { confirmSheet } from "@/components/ConfirmSheet";
 
 /**
  * Appointment lifecycle controls: Complete (→ Create Quote CTA), No-show,
@@ -113,7 +114,15 @@ export default function AppointmentActions({
   }
 
   async function remove() {
-    if (!confirm("Delete this appointment? This can't be undone.")) return;
+    if (
+      !(await confirmSheet({
+        title: "Delete this appointment?",
+        message: "This can't be undone.",
+        confirmLabel: "Delete Appointment",
+        destructive: true,
+      }))
+    )
+      return;
     setBusy(true);
     const { ok, data } = await postJson(`/api/app/appointments/${appointmentId}`, {}, "DELETE");
     setBusy(false);

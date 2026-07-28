@@ -12,6 +12,7 @@ import { textOn } from "@/lib/branding";
 import { GOOGLE_FONT_RE } from "@/lib/booking-form";
 import { resolveWallpaper } from "@/lib/wallpapers";
 import { FilterChip } from "@/components/FilterChips";
+import { confirmSheet } from "@/components/ConfirmSheet";
 import {
   SECTION_HUES,
   SECTION_HUE_DEFAULTS,
@@ -388,7 +389,15 @@ function EmailDomainCard({ isOwner }: { isOwner: boolean }) {
       "Couldn't check the DNS records. Please try again."
     );
   async function remove() {
-    if (!confirm("Remove this sending domain? Emails go back to the WorkBench address immediately.")) return;
+    if (
+      !(await confirmSheet({
+        title: "Remove this sending domain?",
+        message: "Emails go back to the WorkBench address immediately.",
+        confirmLabel: "Remove Domain",
+        destructive: true,
+      }))
+    )
+      return;
     setBusy(true);
     setError("");
     try {

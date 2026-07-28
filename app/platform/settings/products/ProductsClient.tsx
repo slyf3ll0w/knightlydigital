@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Plus, Pencil, Trash2, Loader2, Package } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
+import { confirmSheet } from "@/components/ConfirmSheet";
 
 type RecurringInterval = "MONTHLY" | "QUARTERLY" | "SEMIANNUAL" | "ANNUAL";
 type DepositType = "NONE" | "PERCENT" | "FIXED" | "FULL";
@@ -171,7 +172,14 @@ export default function ProductsClient({
   }
 
   async function remove(id: string) {
-    if (!confirm("Delete this item from your price book?")) return;
+    if (
+      !(await confirmSheet({
+        message: "Delete this item from your price book?",
+        confirmLabel: "Delete Item",
+        destructive: true,
+      }))
+    )
+      return;
     const { ok } = await postJson(`/api/app/work-items/${id}`, undefined, "DELETE");
     if (ok) setItems((list) => list.filter((i) => i.id !== id));
   }

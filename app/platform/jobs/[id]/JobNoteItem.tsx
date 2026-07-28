@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Loader2, Pencil, Trash2, X } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
+import { confirmSheet } from "@/components/ConfirmSheet";
 
 /** One note bubble in the job's Notes & Activity feed, with inline
  * edit (author) and delete (author or manager) — mirrors ContactNoteItem. */
@@ -43,7 +44,14 @@ export default function JobNoteItem({
   }
 
   async function remove() {
-    if (!confirm("Delete this note?")) return;
+    if (
+      !(await confirmSheet({
+        message: "Delete this note?",
+        confirmLabel: "Delete Note",
+        destructive: true,
+      }))
+    )
+      return;
     setBusy(true);
     setError("");
     const { ok, data } = await postJson(

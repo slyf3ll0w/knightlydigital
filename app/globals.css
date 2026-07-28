@@ -392,6 +392,23 @@ html[data-mode="dark"] .app-ui .bg-chrome {
   }
 }
 
+/* ── Action-sheet material — the translucent floating cards of the mobile
+   confirm sheet (components/ConfirmSheet.tsx), iOS's action-sheet look. ── */
+.app-ui .sheet-material {
+  background-color: rgba(255, 255, 255, 0.93);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+}
+.app-ui .sheet-hairline {
+  border-color: rgba(60, 60, 67, 0.29);
+}
+html[data-mode="dark"] .app-ui .sheet-material {
+  background-color: rgba(38, 38, 38, 0.93);
+}
+html[data-mode="dark"] .app-ui .sheet-hairline {
+  border-color: rgba(84, 84, 88, 0.5);
+}
+
 /* ── Theme-guarded custom colors — the app-wide override rule for stored,
    user-picked colors (pipeline stages etc.). Components set the guarded
    halves via themedInkVars()/themedBgVars() (lib/section-colors.ts) and

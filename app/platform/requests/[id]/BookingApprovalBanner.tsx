@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CalendarCheck, Loader2 } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
+import { confirmSheet } from "@/components/ConfirmSheet";
 
 /**
  * Approval banner for self-scheduled online bookings: the client picked an
@@ -26,7 +27,12 @@ export default function BookingApprovalBanner({
   async function act(action: "accept" | "decline") {
     if (
       action === "decline" &&
-      !confirm("Decline this booking? The request is archived and the reserved time is freed.")
+      !(await confirmSheet({
+        title: "Decline this booking?",
+        message: "The request is archived and the reserved time is freed.",
+        confirmLabel: "Decline Booking",
+        destructive: true,
+      }))
     ) {
       return;
     }

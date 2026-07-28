@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Trophy, XCircle, SquareKanban } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
+import { confirmSheet } from "@/components/ConfirmSheet";
 
 /**
  * Right-rail pipeline card on the client page: which board stage the lead
@@ -68,8 +69,14 @@ export default function PipelineCard({
       </p>
       <div className="grid grid-cols-2 gap-2">
         <button
-          onClick={() => {
-            if (window.confirm(`Mark ${contactName} as won? They become an active client.`))
+          onClick={async () => {
+            if (
+              await confirmSheet({
+                title: `Mark ${contactName} as won?`,
+                message: "They become an active client.",
+                confirmLabel: "Mark as Won",
+              })
+            )
               send({ action: "won" });
           }}
           disabled={busy}

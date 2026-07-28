@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { MoreHorizontal, FileText, Briefcase, Archive, Trash2, Pencil, Loader2 } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
+import { confirmSheet } from "@/components/ConfirmSheet";
 
 export default function RequestActions({
   requestId,
@@ -78,9 +79,13 @@ export default function RequestActions({
   async function deleteRequest() {
     setOpen(false);
     if (
-      !confirm(
-        "Permanently delete this request? If it's the only thing on a lead's record (spam), the lead is deleted with it. This can't be undone."
-      )
+      !(await confirmSheet({
+        title: "Permanently delete this request?",
+        message:
+          "If it's the only thing on a lead's record (spam), the lead is deleted with it. This can't be undone.",
+        confirmLabel: "Delete Request",
+        destructive: true,
+      }))
     )
       return;
     const res = await fetch(`/api/app/requests/${requestId}`, { method: "DELETE" });
