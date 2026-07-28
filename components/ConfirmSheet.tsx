@@ -94,7 +94,8 @@ export default function ConfirmSheetHost() {
       />
       <div
         className={`absolute inset-x-0 bottom-0 px-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] transition-transform duration-300 [transition-timing-function:cubic-bezier(0.32,0.72,0,1)] ${
-          open ? "translate-y-0" : "translate-y-full"
+          /* open = NO transform so iOS renders the cards' backdrop blur */
+          open ? "" : "translate-y-full"
         }`}
       >
         <div className="sheet-material overflow-hidden rounded-[14px]">

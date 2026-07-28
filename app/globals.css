@@ -416,12 +416,13 @@ html[data-mode="dark"] .app-ui .sheet-hairline {
    become iOS bottom sheets under lg. Components add `modal-pop` to the fixed
    overlay and `modal-card` to the panel; the grabber bar comes free via
    ::before, so no markup changes beyond the two classes. ── */
+/* No `to` block on these entrance keyframes: the end state IS the natural
+   state, and leaving it implicit means fill-mode:both holds NO transform
+   after the animation — iOS Safari refuses to render backdrop-filter glass
+   on (or inside) anything that keeps a transform. */
 @keyframes sheetUp {
   from {
     transform: translateY(100%);
-  }
-  to {
-    transform: translateY(0);
   }
 }
 @media (max-width: 1023px) {
@@ -745,14 +746,12 @@ body {
 
 /* ── Create-sheet tiles — cascade in as the sheet springs up (AppShell
    applies per-tile animation-delay inline). ── */
+/* End state implicit (== natural) so fill:both never pins a transform —
+   the chat tapback pill is glass and iOS drops backdrop-filter otherwise. */
 @keyframes tile-in {
   from {
     opacity: 0;
     transform: translateY(10px) scale(0.96);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
   }
 }
 

@@ -1154,7 +1154,8 @@ function MobileTabBar({
       {creates.length > 0 && (
         <div
           className={`sheet-material fixed inset-x-0 bottom-0 z-50 lg:hidden rounded-t-3xl shadow-[0_-8px_30px_rgba(28,25,23,0.18)] transition-transform duration-300 [transition-timing-function:cubic-bezier(0.32,0.72,0,1)] ${
-            sheetOpen ? "translate-y-0" : "translate-y-full pointer-events-none"
+            /* open = NO transform: iOS kills backdrop-filter on transformed elements */
+            sheetOpen ? "" : "translate-y-full pointer-events-none"
           }`}
         >
           <div className="mx-auto mt-2.5 h-1 w-9 rounded-full bg-gray-200" />
@@ -1374,7 +1375,7 @@ function MoreSheet({
       />
       <div
         className={`sheet-material fixed inset-x-0 bottom-0 z-50 lg:hidden flex max-h-[88dvh] flex-col rounded-t-3xl shadow-[0_-8px_30px_rgba(28,25,23,0.18)] transition-transform duration-300 [transition-timing-function:cubic-bezier(0.32,0.72,0,1)] ${
-          open ? "translate-y-0" : "translate-y-full pointer-events-none"
+          open ? "" : "translate-y-full pointer-events-none"
         }`}
       >
         <div className="mx-auto mt-2.5 h-1 w-9 shrink-0 rounded-full bg-gray-300" />
