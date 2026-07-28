@@ -96,7 +96,7 @@ export default async function RequestDetailPage({
         <div className="space-y-5">
           {/* Service details */}
           <div className="card-ledger p-5">
-            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3">
+            <h2 className="text-sm font-semibold text-gray-700 mb-3">
               Service details
             </h2>
             <p className="text-sm text-gray-700 whitespace-pre-wrap">
@@ -107,7 +107,7 @@ export default async function RequestDetailPage({
           {/* Appointments (estimates / sales meetings) */}
           <div className="card-ledger p-5">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+              <h2 className="text-sm font-semibold text-gray-700">
                 Appointments
               </h2>
               <Link
@@ -161,7 +161,7 @@ export default async function RequestDetailPage({
           {/* Linked work */}
           {(request.quotes.length > 0 || request.jobs.length > 0) && (
             <div className="card-ledger p-5">
-              <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3">
+              <h2 className="text-sm font-semibold text-gray-700 mb-3">
                 Used for
               </h2>
               <div className="space-y-2">

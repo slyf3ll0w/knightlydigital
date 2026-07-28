@@ -50,7 +50,7 @@ export default function PortalAccessCard({
 
   return (
     <div className="card-ledger p-4">
-      <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+      <h2 className="text-[13px] font-semibold text-gray-500 mb-2">
         Client portal
       </h2>
       <p className="text-xs text-gray-500 mb-3">

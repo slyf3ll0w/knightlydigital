@@ -119,7 +119,7 @@ export default function SchedulingSettingsCard({
 
           {/* Business hours */}
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+            <p className="text-[13px] font-semibold text-gray-500 mb-2">
               Business hours
               <span className="font-normal normal-case text-gray-400">
                 {" "}

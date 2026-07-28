@@ -307,7 +307,7 @@ export default function ImportClient({
           </div>
 
           <div className="card-ledger overflow-hidden">
-            <div className="grid grid-cols-[1fr_1fr_1fr] gap-3 px-4 py-2 bg-gray-50 text-[11px] font-semibold uppercase tracking-wider text-gray-600">
+            <div className="grid grid-cols-[1fr_1fr_1fr] gap-3 px-4 py-2 bg-gray-50 text-xs font-medium text-gray-500">
               <span>Your column</span>
               <span>Example</span>
               <span>Imports as</span>

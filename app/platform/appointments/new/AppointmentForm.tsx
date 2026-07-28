@@ -141,7 +141,7 @@ export default function AppointmentForm({
 
       <form onSubmit={submit} className="space-y-5">
         <div className="card-ledger p-5 space-y-4">
-          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Who &amp; what</h2>
+          <h2 className="text-sm font-semibold text-gray-700">Who &amp; what</h2>
           <div>
             <label className="block text-xs text-gray-500 mb-1">Client *</label>
             <select value={contactId} onChange={(e) => pickContact(e.target.value)} className={inputCls}>
@@ -173,7 +173,7 @@ export default function AppointmentForm({
         </div>
 
         <div className="card-ledger p-5 space-y-4">
-          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">How</h2>
+          <h2 className="text-sm font-semibold text-gray-700">How</h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             {TYPES.map((t) => {
               const active = type === t.value;
@@ -250,7 +250,7 @@ export default function AppointmentForm({
         </div>
 
         <div className="card-ledger p-5 space-y-4">
-          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">When</h2>
+          <h2 className="text-sm font-semibold text-gray-700">When</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs text-gray-500 mb-1">{anytime ? "Date *" : "Start *"}</label>
@@ -298,7 +298,7 @@ export default function AppointmentForm({
         </div>
 
         <div className="card-ledger p-5 space-y-4">
-          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Details</h2>
+          <h2 className="text-sm font-semibold text-gray-700">Details</h2>
           {users.length > 1 && (
             <div>
               <label className="block text-xs text-gray-500 mb-1">Assigned to</label>

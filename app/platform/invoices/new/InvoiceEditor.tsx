@@ -304,7 +304,7 @@ export default function InvoiceEditor({
         {/* Line items */}
         <div className="card-ledger overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-100">
-            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Line Items</h2>
+            <h2 className="text-sm font-semibold text-gray-700">Line Items</h2>
           </div>
           <div className="p-5">
             <div className="space-y-3">

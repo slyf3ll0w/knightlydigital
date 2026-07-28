@@ -16,22 +16,13 @@
       0 2px 6px rgba(15, 23, 42, 0.03);
   }
 
-  /* Status stamp — a dot + uppercase Oxanium text, no box. Boxed tinted
-     pills crowd list rows and read as stock SaaS chrome; the dot carries
-     the color, the text carries the label (Amex/Outlook list pattern).
-     Callers pass only a text-* tone class; the dot inherits currentColor. */
+  /* Status stamp — a quiet tinted pill in sentence case (iOS/App Store
+     status language). The wash is mixed from currentColor, so callers keep
+     passing only a text-* tone class. No dot, no uppercase, no tracking —
+     the old dot+caps eyebrow read as generated chrome. */
   .stamp {
-    @apply inline-flex w-fit items-center gap-1.5 whitespace-nowrap text-[10px] font-bold uppercase tracking-[0.08em];
-    font-family: "Oxanium", var(--font-body);
-  }
-  .stamp::before {
-    content: "";
-    width: 6px;
-    height: 6px;
-    border-radius: 9999px;
-    background: currentColor;
-    opacity: 0.85;
-    flex: none;
+    @apply inline-flex w-fit items-center whitespace-nowrap rounded-full px-2 py-[3px] text-[11px] font-semibold leading-none;
+    background: color-mix(in srgb, currentColor 10%, transparent);
   }
 
   /* Big numerals (Oxanium) — dashboard counts and money figures. The squared
@@ -114,6 +105,53 @@
   .chip-pressed {
     border: 1.5px solid var(--tool-line, #0a1428);
     box-shadow: inset 2px 2px 0 rgba(10, 20, 40, 0.22);
+  }
+
+  /* ── Mobile: native hardware, not tool hardware ──
+     On phones the hard-offset "tool" language reads as a web page trying to
+     be playful; iOS surfaces are continuous-corner cards with hairlines and
+     soft depth. The desktop console keeps the offsets untouched. */
+  @media (max-width: 1023px) {
+    .card-tool {
+      border-radius: 16px;
+      border: 1px solid color-mix(in srgb, var(--tool-line, #0a1428) 14%, transparent);
+      box-shadow:
+        0 1px 2px rgba(15, 23, 42, 0.05),
+        0 4px 14px rgba(15, 23, 42, 0.05);
+    }
+    .card-ledger {
+      border-radius: 14px;
+    }
+    .chip-tool {
+      box-shadow: none;
+    }
+    .btn-tool,
+    .btn-tool-line {
+      box-shadow: none;
+      transition:
+        transform 0.13s ease,
+        opacity 0.13s ease,
+        background-color 0.15s ease;
+    }
+    .btn-tool:hover,
+    .btn-tool-line:hover {
+      transform: none;
+      box-shadow: none;
+    }
+    .btn-tool:active,
+    .btn-tool-line:active {
+      transform: scale(0.97);
+      box-shadow: none;
+      opacity: 0.9;
+    }
+    .btn-tool-line {
+      border-width: 1px;
+      border-color: color-mix(in srgb, var(--tool-line, #0a1428) 22%, transparent);
+    }
+    .chip-pressed {
+      border-width: 1px;
+      box-shadow: none;
+    }
   }
 }
 
@@ -340,6 +378,18 @@ html[data-mode="dark"] .app-ui {
 }
 html[data-mode="dark"] .app-ui .bg-chrome {
   background-color: color-mix(in srgb, var(--wb-primary, #606673) 8%, #171717);
+}
+/* Mobile: the chrome goes translucent + blurred so content sliding under the
+   tab bar reads through it — the iOS materials effect. Same brand tint. */
+@media (max-width: 1023px) {
+  .app-ui .bg-chrome {
+    background-color: color-mix(in srgb, var(--wb-primary, #0A1428) 4%, rgba(255, 255, 255, 0.88));
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    backdrop-filter: saturate(180%) blur(20px);
+  }
+  html[data-mode="dark"] .app-ui .bg-chrome {
+    background-color: color-mix(in srgb, var(--wb-primary, #606673) 8%, rgba(23, 23, 23, 0.82));
+  }
 }
 
 /* ── Theme-guarded custom colors — the app-wide override rule for stored,

@@ -293,7 +293,7 @@ export default function QuoteEditor({
         {/* Line items */}
         <div className="card-ledger overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-100">
-            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+            <h2 className="text-sm font-semibold text-gray-700">
               Product / Service
             </h2>
           </div>

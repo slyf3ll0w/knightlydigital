@@ -207,11 +207,11 @@ export default async function JobDetailPage({
       {/* Header facts with backlinks */}
       <div className="flex flex-wrap gap-x-8 gap-y-2 px-5 py-4 card-ledger mb-6 text-sm">
         <div>
-          <span className="text-xs uppercase font-semibold text-gray-400 block">Job #</span>
+          <span className="text-xs font-medium text-gray-500 block">Job #</span>
           <span className="text-gray-800">{job.jobNumber}</span>
         </div>
         <div className="min-w-0 max-sm:basis-full">
-          <span className="text-xs uppercase font-semibold text-gray-400 block">Scheduled</span>
+          <span className="text-xs font-medium text-gray-500 block">Scheduled</span>
           <ScheduleJob
             jobId={job.id}
             scheduledAt={job.scheduledAt?.toISOString() ?? null}
@@ -226,7 +226,7 @@ export default async function JobDetailPage({
         </div>
         {job.quote && (
           <div>
-            <span className="text-xs uppercase font-semibold text-gray-400 block">From quote</span>
+            <span className="text-xs font-medium text-gray-500 block">From quote</span>
             <Link href={`/app/quotes/${job.quote.id}`} className="text-green-700 hover:underline">
               Quote #{job.quote.quoteNumber} ({quoteStatusLabel[job.quote.status]})
             </Link>
@@ -234,7 +234,7 @@ export default async function JobDetailPage({
         )}
         {job.request && (
           <div>
-            <span className="text-xs uppercase font-semibold text-gray-400 block">From request</span>
+            <span className="text-xs font-medium text-gray-500 block">From request</span>
             <Link href={`/app/requests/${job.request.id}`} className="text-green-700 hover:underline">
               {job.request.title}
             </Link>
@@ -242,7 +242,7 @@ export default async function JobDetailPage({
         )}
         {job.subscription && (
           <div>
-            <span className="text-xs uppercase font-semibold text-gray-400 block">Recurring</span>
+            <span className="text-xs font-medium text-gray-500 block">Recurring</span>
             {showMoney ? (
               <Link href="/app/subscriptions" className="text-green-700 hover:underline">
                 {job.subscription.visitFrequency
@@ -260,7 +260,7 @@ export default async function JobDetailPage({
         )}
         {job.closedAt && (
           <div>
-            <span className="text-xs uppercase font-semibold text-gray-400 block">Closed</span>
+            <span className="text-xs font-medium text-gray-500 block">Closed</span>
             <span className="text-gray-800">{shortDate(job.closedAt)}</span>
           </div>
         )}
@@ -271,7 +271,7 @@ export default async function JobDetailPage({
         <div className="lg:col-span-2 space-y-4">
           {/* Schedule + details */}
           <div className="card-ledger p-5">
-            <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-4">
+            <h2 className="text-[13px] font-semibold text-gray-500 mb-4">
               Details
             </h2>
             <div className="space-y-3">
@@ -336,7 +336,7 @@ export default async function JobDetailPage({
           {job.lineItems.length > 0 && (
             <div className="card-ledger overflow-hidden">
               <div className="px-5 py-4 border-b border-gray-100">
-                <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                <h2 className="text-[13px] font-semibold text-gray-500">
                   Product / Service
                 </h2>
               </div>
@@ -344,18 +344,18 @@ export default async function JobDetailPage({
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-gray-100">
-                      <th className="text-left py-2 text-xs uppercase text-gray-500 font-semibold">
+                      <th className="text-left py-2 text-xs text-gray-500 font-semibold">
                         Line item
                       </th>
-                      <th className="text-right py-2 text-xs uppercase text-gray-500 font-semibold w-14">
+                      <th className="text-right py-2 text-xs text-gray-500 font-semibold w-14">
                         Qty
                       </th>
                       {showMoney && (
                         <>
-                          <th className="text-right py-2 text-xs uppercase text-gray-500 font-semibold w-24">
+                          <th className="text-right py-2 text-xs text-gray-500 font-semibold w-24">
                             Unit Price
                           </th>
-                          <th className="text-right py-2 text-xs uppercase text-gray-500 font-semibold w-24">
+                          <th className="text-right py-2 text-xs text-gray-500 font-semibold w-24">
                             Total
                           </th>
                         </>
@@ -407,7 +407,7 @@ export default async function JobDetailPage({
           {/* Notes */}
           <div className="card-ledger">
             <div className="px-5 py-4 border-b border-gray-100">
-              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+              <h2 className="text-[13px] font-semibold text-gray-500">
                 Notes &amp; Activity
               </h2>
             </div>
@@ -438,7 +438,7 @@ export default async function JobDetailPage({
           {/* Photos */}
           <div className="card-ledger">
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Photos</h2>
+              <h2 className="text-[13px] font-semibold text-gray-500">Photos</h2>
             </div>
             <PhotoUpload
               jobId={job.id}
@@ -489,7 +489,7 @@ export default async function JobDetailPage({
           {showMoney && (
           <div className="card-ledger p-4">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Billing</h2>
+              <h2 className="text-[13px] font-semibold text-gray-500">Billing</h2>
               {!job.invoice && (
                 <Link
                   href={`/app/invoices/new?jobId=${job.id}`}
@@ -520,7 +520,7 @@ export default async function JobDetailPage({
           {/* Profit (when costs are tracked) */}
           {showMoney && (lineCost > 0 || laborCost > 0) && (
             <div className="card-ledger p-4">
-              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+              <h2 className="text-[13px] font-semibold text-gray-500 mb-3">
                 Profit margin
               </h2>
               <div className="space-y-1.5 text-sm">
@@ -558,7 +558,7 @@ export default async function JobDetailPage({
 
           {/* Client */}
           <div className="card-ledger p-4">
-            <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+            <h2 className="text-[13px] font-semibold text-gray-500 mb-3">
               Client
             </h2>
             {(() => {

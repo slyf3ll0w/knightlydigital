@@ -103,7 +103,7 @@ export default function ClockCard({
   return (
     <div className="card-ledger p-4">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+        <h2 className="text-[13px] font-semibold text-gray-500">
           Time clock
         </h2>
         {loggedMs > 0 && (

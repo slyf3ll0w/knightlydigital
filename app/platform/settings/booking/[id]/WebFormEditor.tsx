@@ -168,7 +168,7 @@ export default function WebFormEditor({
         {/* Live preview */}
         <div className="lg:sticky lg:top-6">
           <div className="flex items-center justify-between mb-2 px-1">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+            <p className="text-[13px] font-semibold text-gray-500">
               Live preview
             </p>
             {transparent && (
@@ -228,7 +228,7 @@ export default function WebFormEditor({
               <Lock size={16} className="text-amber-600" />
             </div>
             <div>
-              <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+              <h2 className="text-sm font-semibold text-gray-700">
                 Link &amp; embedding unlock at approval
               </h2>
               <p className="mt-1 text-sm text-gray-600">
@@ -254,7 +254,7 @@ export default function WebFormEditor({
       {!previewMode && (
       <div className="card-ledger p-5 mt-6">
         <div className="mb-3">
-          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Share This Form</h2>
+          <h2 className="text-sm font-semibold text-gray-700">Share This Form</h2>
           <p className="text-xs text-gray-400 mt-0.5">Share this link on your website or Google profile</p>
         </div>
         <div className="flex items-center gap-2 p-3 bg-gray-50 border border-gray-200 rounded-lg">

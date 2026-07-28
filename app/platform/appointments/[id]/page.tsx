@@ -169,13 +169,13 @@ export default async function AppointmentDetailPage({
         )}
         {appt.request && (
           <div className="pt-2 border-t border-gray-100 text-sm">
-            <span className="text-xs uppercase font-semibold text-gray-400 block mb-0.5">From request</span>
+            <span className="text-xs font-medium text-gray-500 block mb-0.5">From request</span>
             <Link href={`/app/requests/${appt.request.id}`} className="text-green-700 hover:underline">
               {appt.request.title}
             </Link>
             {appt.request.quotes.length > 0 && (
               <div className="mt-2">
-                <span className="text-xs uppercase font-semibold text-gray-400 block mb-0.5">
+                <span className="text-xs font-medium text-gray-500 block mb-0.5">
                   Quoted as
                 </span>
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
@@ -199,7 +199,7 @@ export default async function AppointmentDetailPage({
 
       {appt.notes && (
         <div className="card-ledger p-5">
-          <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Notes</h2>
+          <h2 className="text-[13px] font-semibold text-gray-500 mb-2">Notes</h2>
           <p className="text-sm text-gray-700 whitespace-pre-wrap">{appt.notes}</p>
         </div>
       )}

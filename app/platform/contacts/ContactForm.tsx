@@ -197,7 +197,7 @@ export default function ContactForm({
         )}
 
         <div className="card-ledger p-5">
-          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-4">
+          <h2 className="text-sm font-semibold text-gray-700 mb-4">
             Contact Info
           </h2>
           <div className="grid grid-cols-2 gap-4">
@@ -253,7 +253,7 @@ export default function ContactForm({
         </div>
 
         <div className="card-ledger p-5">
-          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-4">
+          <h2 className="text-sm font-semibold text-gray-700 mb-4">
             Address
           </h2>
           <div className="space-y-3">
@@ -303,7 +303,7 @@ export default function ContactForm({
         </div>
 
         <div className="card-ledger p-5">
-          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-4">
+          <h2 className="text-sm font-semibold text-gray-700 mb-4">
             Client Details
           </h2>
           <div className="grid grid-cols-2 gap-4">
@@ -363,7 +363,7 @@ export default function ContactForm({
 
         {fieldDefs.length > 0 && (
           <div className="card-ledger p-5">
-            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-4">
+            <h2 className="text-sm font-semibold text-gray-700 mb-4">
               Custom Fields
             </h2>
             <div className="grid grid-cols-2 gap-4">
@@ -401,7 +401,7 @@ export default function ContactForm({
         )}
 
         <div className="card-ledger p-5">
-          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-4">Notes</h2>
+          <h2 className="text-sm font-semibold text-gray-700 mb-4">Notes</h2>
           <textarea
             value={form.notes}
             onChange={(e) => set("notes", e.target.value)}

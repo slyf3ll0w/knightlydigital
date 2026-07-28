@@ -68,14 +68,9 @@ function Sparkline({ values, className = "text-green-600" }: { values: number[];
   );
 }
 
-/** Section label with a ledger hairline running out to the right edge. */
+/** Section heading — bold sentence case, the iOS card-list pattern. */
 function RuledLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="mb-2.5 flex items-center gap-3">
-      <p className="text-xs font-semibold uppercase tracking-[0.1em] text-gray-500">{children}</p>
-      <div className="h-px flex-1 bg-gray-300/60" />
-    </div>
-  );
+  return <p className="mb-2.5 text-[17px] font-bold text-gray-900">{children}</p>;
 }
 
 export default async function DashboardPage() {
@@ -332,7 +327,7 @@ export default async function DashboardPage() {
     <div className="p-4 lg:p-8 max-w-7xl mx-auto">
       <div className="mb-7 anim-fade-up">
         {/* Mobile shows the date on the Today card instead */}
-        <p className="hidden lg:block text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">
+        <p className="hidden lg:block text-sm font-medium text-gray-500">
           {now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
         </p>
         {/* Two-tone greeting, like the marketing headline — the name carries
@@ -356,22 +351,17 @@ export default async function DashboardPage() {
           className="card-tool anim-fade-up anim-delay-1 mb-8 block overflow-hidden lg:hidden"
         >
           <div className="p-5 pb-4">
-            <span
-              className="mb-2.5 block h-[3px] w-7 rounded-full"
-              style={{ backgroundColor: "var(--wb-accent, #0B57D8)" }}
-              aria-hidden
-            />
-            <p className="stamp text-green-700">
-              Collected · {now.toLocaleDateString("en-US", { month: "long" })}
+            <p className="text-[13px] font-medium text-gray-500">
+              Collected in {now.toLocaleDateString("en-US", { month: "long" })}
             </p>
-            <p className="numeral-ledger mt-2 text-[34px] leading-none font-semibold text-gray-900">
+            <p className="numeral-ledger mt-1 text-[34px] leading-none font-semibold text-gray-900">
               {money(monthRevenue)}
             </p>
             {dailyRevenue.length > 1 && monthRevenue > 0 && <Sparkline values={dailyRevenue} />}
           </div>
-          <div className="flex divide-x divide-gray-100 border-t-2 border-double border-gray-300 bg-gray-50/60">
+          <div className="flex divide-x divide-gray-100 border-t border-gray-100 bg-gray-50/60">
             <div className="min-w-0 flex-1 px-5 py-3">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-gray-500">
+              <p className="text-xs font-medium text-gray-500">
                 Outstanding
               </p>
               <p
@@ -383,7 +373,7 @@ export default async function DashboardPage() {
               </p>
             </div>
             <div className="min-w-0 flex-1 px-5 py-3">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-gray-500">
+              <p className="text-xs font-medium text-gray-500">
                 Booked this week
               </p>
               <p className="numeral-ledger mt-0.5 truncate text-base leading-tight font-semibold text-gray-900">
@@ -399,7 +389,7 @@ export default async function DashboardPage() {
             href="/app/invoices"
             className="card-ledger block p-4 transition-shadow hover:shadow-md"
           >
-            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-gray-500">
+            <p className="text-xs font-medium text-gray-500">
               Collected
             </p>
             <p className="numeral-ledger mt-1 text-[24px] leading-none font-semibold text-green-700">
@@ -412,7 +402,7 @@ export default async function DashboardPage() {
             href="/app/invoices?status=AWAITING_PAYMENT"
             className="card-ledger block p-4 transition-shadow hover:shadow-md"
           >
-            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-gray-500">
+            <p className="text-xs font-medium text-gray-500">
               Outstanding
             </p>
             <p
@@ -430,7 +420,7 @@ export default async function DashboardPage() {
             href="/app/jobs"
             className="card-ledger col-span-2 block p-4 transition-shadow hover:shadow-md lg:col-span-1"
           >
-            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-gray-500">
+            <p className="text-xs font-medium text-gray-500">
               Booked this week
             </p>
             <p className="numeral-ledger mt-1 text-[24px] leading-none font-semibold text-gray-900">
@@ -603,22 +593,17 @@ export default async function DashboardPage() {
         className="card-tool anim-fade-up anim-delay-2 self-start overflow-hidden lg:hidden"
         data-tour="today"
       >
-        <div className="flex items-start justify-between border-b border-gray-100 px-4 pb-3 pt-4">
-          <div>
-            <span
-              className="mb-2 block h-[3px] w-7 rounded-full"
-              style={{ backgroundColor: "var(--wb-accent, #0B57D8)" }}
-              aria-hidden
-            />
-            <p className="stamp text-green-700">
-              Today ·{" "}
+        <div className="flex items-center justify-between border-b border-gray-100 px-4 pb-3 pt-4">
+          <p className="text-[17px] font-bold text-gray-900">
+            Today
+            <span className="ml-2 text-[13px] font-medium text-gray-500">
               {now.toLocaleDateString("en-US", {
                 weekday: "short",
                 month: "short",
                 day: "numeric",
               })}
-            </p>
-          </div>
+            </span>
+          </p>
           {todayItems.length > 0 && (
             <p className="numeral-ledger text-xl leading-none font-semibold text-gray-900">
               {todayItems.length}
@@ -678,7 +663,7 @@ export default async function DashboardPage() {
         )}
         <Link
           href="/app/schedule"
-          className="flex items-center justify-between border-t-2 border-double border-gray-300 bg-gray-50/60 px-4 py-2.5 text-xs font-semibold text-green-700"
+          className="flex items-center justify-between border-t border-gray-100 bg-gray-50/60 px-4 py-2.5 text-[13px] font-semibold text-green-700"
         >
           Open schedule
           <ArrowRight size={12} />
@@ -720,7 +705,7 @@ export default async function DashboardPage() {
                     href={item.href}
                     className="flex items-center gap-4 py-3 -mx-2 px-2 rounded-md hover:bg-gray-50 transition-colors"
                   >
-                    <span className="font-display w-12 shrink-0 text-right text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                    <span className="numeral-ledger w-12 shrink-0 text-right text-[11px] font-semibold text-gray-500">
                       {item.time}
                     </span>
                     <span

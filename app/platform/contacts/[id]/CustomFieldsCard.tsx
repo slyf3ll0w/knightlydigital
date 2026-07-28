@@ -54,7 +54,7 @@ export default function CustomFieldsCard({
   return (
     <div className="card-ledger p-4">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Details</h2>
+        <h2 className="text-[13px] font-semibold text-gray-500">Details</h2>
         {editing ? (
           <div className="flex items-center gap-1">
             <button

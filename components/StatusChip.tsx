@@ -2,9 +2,9 @@ import { statusLabels, statusTones, type StatusKind, type StatusTone } from "@/l
 
 /**
  * The one status indicator used everywhere — list rows, detail headers,
- * dashboard cards. A colored dot + uppercase Oxanium text (see .stamp in
- * globals.css) — no box; the dot carries the tone. Same tones on every
- * page so statuses scan identically app-wide.
+ * dashboard cards. A quiet tinted pill in sentence case (see .stamp in
+ * globals.css). Same tones on every page so statuses scan identically
+ * app-wide.
  */
 
 const toneClasses: Record<StatusTone, string> = {

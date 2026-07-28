@@ -147,7 +147,7 @@ export default function TeamClient({
       {/* Add member */}
       {showAdd && (
         <div className="card-ledger p-5 mb-6">
-          <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-4 flex items-center gap-1.5">
+          <h2 className="text-[13px] font-semibold text-gray-500 mb-4 flex items-center gap-1.5">
             <UserPlus size={13} />
             New team member
           </h2>
@@ -364,7 +364,7 @@ export default function TeamClient({
 
       {/* Policies */}
       <div className="card-ledger p-5 space-y-5">
-        <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+        <h2 className="text-[13px] font-semibold text-gray-500">
           Lead routing &amp; permissions
         </h2>
 

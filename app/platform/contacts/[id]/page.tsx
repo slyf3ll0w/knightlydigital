@@ -283,7 +283,7 @@ export default async function ContactDetailPage({
               </p>
             ) : (
               <div className="divide-y divide-gray-50">
-                <div className="hidden lg:grid grid-cols-[90px_1fr_110px_140px_90px_30px] gap-3 px-4 py-2 text-[11px] font-semibold text-gray-600 uppercase tracking-wider bg-gray-50">
+                <div className="hidden lg:grid grid-cols-[90px_1fr_110px_140px_90px_30px] gap-3 px-4 py-2 text-xs font-medium text-gray-500 bg-gray-50">
                   <span>Item</span>
                   <span></span>
                   <span>Date</span>
@@ -326,7 +326,7 @@ export default async function ContactDetailPage({
 
           {/* Contact info */}
           <div className="card-ledger p-4">
-            <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+            <h2 className="text-[13px] font-semibold text-gray-500 mb-3">
               Details
             </h2>
             <dl className="grid grid-cols-2 gap-3 text-sm">
@@ -367,7 +367,7 @@ export default async function ContactDetailPage({
           {/* Notes & activity (same pattern as job notes) */}
           <div className="card-ledger">
             <div className="px-5 py-4 border-b border-gray-100">
-              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+              <h2 className="text-[13px] font-semibold text-gray-500">
                 Notes &amp; Activity
               </h2>
             </div>
@@ -411,7 +411,7 @@ export default async function ContactDetailPage({
             />
           )}
           <div className="card-ledger p-4">
-            <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+            <h2 className="text-[13px] font-semibold text-gray-500 mb-2">
               Assigned to
             </h2>
             {canReassign ? (
@@ -432,7 +432,7 @@ export default async function ContactDetailPage({
           />
 
           <div className="card-ledger p-4">
-            <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+            <h2 className="text-[13px] font-semibold text-gray-500 mb-3">
               Overview
             </h2>
             <div className="space-y-3">

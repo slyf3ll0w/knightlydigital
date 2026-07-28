@@ -310,7 +310,7 @@ export default function SubscriptionsClient({
                     </div>
                     {/* Visit schedule — visit cadence decoupled from billing */}
                     <div className="pt-3 border-t border-gray-200">
-                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                      <p className="text-[13px] font-semibold text-gray-500 mb-2">
                         Visit schedule
                       </p>
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -537,7 +537,7 @@ export default function SubscriptionsClient({
 
           {cancelled.length > 0 && (
             <div>
-              <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">Cancelled</p>
+              <p className="text-xs font-medium text-gray-500 mb-2">Cancelled</p>
               <div className="card-ledger overflow-hidden opacity-70">
                 <div className="divide-y divide-gray-100">
                   {cancelled.map((s) => (

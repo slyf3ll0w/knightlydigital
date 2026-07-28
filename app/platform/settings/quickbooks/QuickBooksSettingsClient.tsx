@@ -138,7 +138,7 @@ export default function QuickBooksSettingsClient({ configured }: { configured: b
 
       {!configured ? (
         <div className="card-ledger p-5">
-          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+          <h2 className="text-sm font-semibold text-gray-700">
             Coming Soon
           </h2>
           <p className="text-sm text-gray-500 mt-2">
@@ -152,7 +152,7 @@ export default function QuickBooksSettingsClient({ configured }: { configured: b
       ) : !status?.connected ? (
         <div className="card-ledger p-5 space-y-4">
           <div>
-            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+            <h2 className="text-sm font-semibold text-gray-700">
               Connect Your QuickBooks
             </h2>
             <p className="text-sm text-gray-500 mt-1.5">
@@ -181,7 +181,7 @@ export default function QuickBooksSettingsClient({ configured }: { configured: b
           <div className="card-ledger p-5 space-y-4">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+                <h2 className="text-sm font-semibold text-gray-700">
                   Connected
                 </h2>
                 <p className="text-sm text-gray-600 mt-1">
@@ -245,7 +245,7 @@ export default function QuickBooksSettingsClient({ configured }: { configured: b
 
           {(status.counts?.errors ?? 0) > 0 && (
             <div className="card-ledger p-5 space-y-3">
-              <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+              <h2 className="text-sm font-semibold text-gray-700">
                 Sync Problems ({status.counts?.errors})
               </h2>
               <p className="text-xs text-gray-400">
@@ -271,7 +271,7 @@ export default function QuickBooksSettingsClient({ configured }: { configured: b
           <div className="rounded-lg border border-gray-200 p-5">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+                <h2 className="text-sm font-semibold text-gray-700">
                   Disconnect
                 </h2>
                 <p className="text-xs text-gray-400 mt-0.5">

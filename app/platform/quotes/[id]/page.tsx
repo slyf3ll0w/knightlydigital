@@ -104,11 +104,11 @@ export default async function QuoteDetailPage({
       {/* Header facts (Jobber-style definition list with backlinks) */}
       <div className="flex flex-wrap gap-x-8 gap-y-2 px-5 py-4 card-ledger mb-6 text-sm">
         <div>
-          <span className="text-xs uppercase font-semibold text-gray-400 block">Quote #</span>
+          <span className="text-xs font-medium text-gray-500 block">Quote #</span>
           <span className="text-gray-800">{quote.quoteNumber}</span>
         </div>
         <div>
-          <span className="text-xs uppercase font-semibold text-gray-400 block">Created</span>
+          <span className="text-xs font-medium text-gray-500 block">Created</span>
           <span className="text-gray-800">{shortDate(quote.createdAt)}</span>
         </div>
         <ViewedFact
@@ -119,7 +119,7 @@ export default async function QuoteDetailPage({
         />
         {deposit > 0 && (
           <div>
-            <span className="text-xs uppercase font-semibold text-gray-400 block">
+            <span className="text-xs font-medium text-gray-500 block">
               {depositInvoice ? "Deposit" : "Required deposit"}
             </span>
             {depositInvoice ? (
@@ -140,7 +140,7 @@ export default async function QuoteDetailPage({
         )}
         {needsAgreement && (
           <div>
-            <span className="text-xs uppercase font-semibold text-gray-400 block">Agreement</span>
+            <span className="text-xs font-medium text-gray-500 block">Agreement</span>
             <span
               className={`font-medium ${
                 agreementSigned ? "text-green-700" : agreementSent ? "text-amber-700" : "text-red-700"
@@ -156,7 +156,7 @@ export default async function QuoteDetailPage({
         )}
         {quote.request && (
           <div>
-            <span className="text-xs uppercase font-semibold text-gray-400 block">From request</span>
+            <span className="text-xs font-medium text-gray-500 block">From request</span>
             <Link
               href={`/app/requests/${quote.requestId}`}
               className="text-green-700 hover:underline"
@@ -167,7 +167,7 @@ export default async function QuoteDetailPage({
         )}
         {quote.job && (
           <div>
-            <span className="text-xs uppercase font-semibold text-gray-400 block">Used for</span>
+            <span className="text-xs font-medium text-gray-500 block">Used for</span>
             <Link href={`/app/jobs/${quote.jobId}`} className="text-green-700 hover:underline">
               Job #{quote.job.jobNumber}
             </Link>
@@ -175,7 +175,7 @@ export default async function QuoteDetailPage({
         )}
         {quote.approvedAt && (
           <div>
-            <span className="text-xs uppercase font-semibold text-gray-400 block">Approved</span>
+            <span className="text-xs font-medium text-gray-500 block">Approved</span>
             <span className="text-gray-800">
               {shortDate(quote.approvedAt)}
               {quote.signatureName ? ` by ${quote.signatureName}` : ""}
@@ -210,16 +210,16 @@ export default async function QuoteDetailPage({
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100">
-                <th className="text-left py-2 text-xs uppercase text-gray-500 font-semibold">
+                <th className="text-left py-2 text-xs text-gray-500 font-semibold">
                   Product / Service
                 </th>
-                <th className="text-right py-2 text-xs uppercase text-gray-500 font-semibold w-16">
+                <th className="text-right py-2 text-xs text-gray-500 font-semibold w-16">
                   Qty
                 </th>
-                <th className="text-right py-2 text-xs uppercase text-gray-500 font-semibold w-24">
+                <th className="text-right py-2 text-xs text-gray-500 font-semibold w-24">
                   Unit Price
                 </th>
-                <th className="text-right py-2 text-xs uppercase text-gray-500 font-semibold w-24">
+                <th className="text-right py-2 text-xs text-gray-500 font-semibold w-24">
                   Total
                 </th>
               </tr>
@@ -303,7 +303,7 @@ export default async function QuoteDetailPage({
         {/* Disclaimer */}
         {quote.disclaimer && (
           <div className="px-6 py-4 border-t border-gray-100">
-            <p className="text-xs font-semibold text-gray-400 uppercase mb-1">
+            <p className="text-xs font-medium text-gray-500 mb-1">
               Contract / Disclaimer
             </p>
             <p className="text-sm text-gray-700 whitespace-pre-wrap">{quote.disclaimer}</p>
@@ -313,7 +313,7 @@ export default async function QuoteDetailPage({
         {/* Internal notes */}
         {quote.notes && (
           <div className="px-6 py-4 border-t border-gray-100">
-            <p className="text-xs font-semibold text-gray-400 uppercase mb-1">Internal notes</p>
+            <p className="text-xs font-medium text-gray-500 mb-1">Internal notes</p>
             <p className="text-sm text-gray-700 whitespace-pre-wrap">{quote.notes}</p>
           </div>
         )}

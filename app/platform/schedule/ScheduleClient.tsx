@@ -676,7 +676,7 @@ export default function ScheduleClient({
             {/* Anytime row */}
             <div className={`grid border-b border-gray-200 ${gridCols}`}>
               <div className="flex items-start justify-end px-2 py-1.5">
-                <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Anytime</span>
+                <span className="text-[11px] font-medium text-gray-400">Anytime</span>
               </div>
               {days.map((day, i) => {
                 const key = `any-${i}`;

@@ -64,7 +64,7 @@ export default function JobChecklist({
   return (
     <div className="card-ledger p-5">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Checklist</h2>
+        <h2 className="text-[13px] font-semibold text-gray-500">Checklist</h2>
         <span
           className={`stamp ${resolved === items.length ? "text-green-700" : "text-gray-500"}`}
         >
@@ -80,7 +80,7 @@ export default function JobChecklist({
         {sources.map((source) => (
           <div key={source}>
             {sources.length > 1 && (
-              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">
+              <p className="text-xs font-medium text-gray-500 mb-1.5">
                 {source}
               </p>
             )}
@@ -136,7 +136,7 @@ export default function JobChecklist({
                           )}
                           {item.skipReason && (
                             <p className="text-[11px] text-amber-700">
-                              <span className="font-semibold uppercase">Not done</span> —{" "}
+                              <span className="font-semibold">Not done</span> —{" "}
                               {item.skipReason}
                             </p>
                           )}

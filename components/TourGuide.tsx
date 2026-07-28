@@ -209,7 +209,7 @@ export default function TourGuide({ role, needsTour }: { role: string; needsTour
         style={cardStyle}
       >
         <div className="flex items-start justify-between gap-3 mb-1.5">
-          <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-gray-400 pt-1">
+          <p className="text-[11px] font-semibold text-gray-400 pt-1">
             {idx + 1} of {steps.length}
           </p>
           <button

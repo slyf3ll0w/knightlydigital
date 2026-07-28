@@ -40,14 +40,9 @@ import {
  * unreachable.
  */
 
-/** Section label with a ledger hairline running out to the right edge. */
+/** Section heading — bold sentence case, the iOS card-list pattern. */
 function RuledLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="mb-2.5 flex items-center gap-3">
-      <p className="text-xs font-semibold uppercase tracking-[0.1em] text-gray-500">{children}</p>
-      <div className="h-px flex-1 bg-gray-300/60" />
-    </div>
-  );
+  return <p className="mb-2.5 text-[17px] font-bold text-gray-900">{children}</p>;
 }
 
 export default async function PaymentsDashboardPage() {
@@ -308,13 +303,8 @@ export default async function PaymentsDashboardPage() {
       {!online && (
         <div className="card-tool mb-6 overflow-hidden">
           <div className="p-5 sm:p-6">
-            <span
-              className="mb-2.5 block h-[3px] w-7 rounded-full"
-              style={{ backgroundColor: "var(--wb-accent, #0B57D8)" }}
-              aria-hidden
-            />
-            <p className="stamp text-green-700">Online payments</p>
-            <p className="numeral-ledger mt-2 text-2xl font-semibold leading-tight text-gray-900">
+            <p className="text-[13px] font-medium text-green-700">Online payments</p>
+            <p className="numeral-ledger mt-1 text-2xl font-semibold leading-tight text-gray-900">
               Get paid by card or bank
             </p>
             <p className="mt-2 max-w-md text-xs leading-relaxed text-gray-500">
@@ -322,7 +312,7 @@ export default async function PaymentsDashboardPage() {
               bank account, usually the next business day.
             </p>
           </div>
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t-2 border-double border-gray-300 bg-gray-50/60 px-5 py-3 sm:px-6">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 bg-gray-50/60 px-5 py-3 sm:px-6">
             <p className="text-xs text-gray-500">A short application in Settings starts it.</p>
             <Link
               href="/app/settings"
@@ -340,13 +330,8 @@ export default async function PaymentsDashboardPage() {
       {online && (
         <div className="card-tool mb-6 overflow-hidden">
           <div className="p-5 sm:p-6">
-            <span
-              className="mb-2.5 block h-[3px] w-7 rounded-full"
-              style={{ backgroundColor: "var(--wb-accent, #0B57D8)" }}
-              aria-hidden
-            />
-            <p className="stamp text-green-700">On its way to your bank</p>
-            <p className="numeral-ledger mt-2 text-[34px] sm:text-[38px] font-semibold leading-none text-gray-900">
+            <p className="text-[13px] font-medium text-gray-500">On its way to your bank</p>
+            <p className="numeral-ledger mt-1 text-[34px] sm:text-[38px] font-semibold leading-none text-gray-900">
               {signedMoney(onTheWay)}
             </p>
             <p className="mt-2.5 max-w-md text-xs leading-relaxed text-gray-500">
@@ -354,9 +339,9 @@ export default async function PaymentsDashboardPage() {
               automatically every business day.
             </p>
           </div>
-          <div className="flex flex-wrap items-center justify-between gap-x-10 gap-y-3 border-t-2 border-double border-gray-300 bg-gray-50/60 px-5 py-3 sm:px-6">
+          <div className="flex flex-wrap items-center justify-between gap-x-10 gap-y-3 border-t border-gray-100 bg-gray-50/60 px-5 py-3 sm:px-6">
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-gray-500">
+              <p className="text-xs font-medium text-gray-500">
                 Paid out to date
               </p>
               <p className="numeral-ledger mt-0.5 text-lg font-semibold leading-tight text-gray-900">
@@ -483,7 +468,7 @@ export default async function PaymentsDashboardPage() {
             ) : (
               <>
                 <div className="divide-y divide-gray-100">
-                  <div className="hidden lg:grid grid-cols-[110px_1fr_110px_110px_110px] gap-4 px-4 py-2 text-[11px] font-semibold text-gray-600 uppercase tracking-wider bg-gray-50">
+                  <div className="hidden lg:grid grid-cols-[110px_1fr_110px_110px_110px] gap-4 px-4 py-2 text-xs font-medium text-gray-500 bg-gray-50">
                     <span>Date</span>
                     <span>Status</span>
                     <span className="text-right">Gross</span>
@@ -517,7 +502,7 @@ export default async function PaymentsDashboardPage() {
                 </div>
                 {/* Ledger foot — running totals, double-ruled like a register */}
                 <div className="flex items-center justify-between gap-4 border-t-2 border-double border-gray-300 bg-gray-50/60 px-4 py-2.5 lg:grid lg:grid-cols-[110px_1fr_110px_110px_110px]">
-                  <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 lg:col-span-2">
+                  <span className="text-xs font-medium text-gray-500 lg:col-span-2">
                     {settlements.length} {settlements.length === 1 ? "payout" : "payouts"}
                   </span>
                   <span className="numeral-ledger hidden lg:block text-sm font-semibold text-gray-600 text-right">
@@ -556,7 +541,7 @@ export default async function PaymentsDashboardPage() {
           ) : (
             <>
               <div className="divide-y divide-gray-100">
-                <div className="hidden lg:grid grid-cols-[110px_1fr_90px_130px_110px_28px] gap-4 px-4 py-2 text-[11px] font-semibold text-gray-600 uppercase tracking-wider bg-gray-50">
+                <div className="hidden lg:grid grid-cols-[110px_1fr_90px_130px_110px_28px] gap-4 px-4 py-2 text-xs font-medium text-gray-500 bg-gray-50">
                   <span>Date</span>
                   <span>Client</span>
                   <span>Method</span>
@@ -598,7 +583,7 @@ export default async function PaymentsDashboardPage() {
               </div>
               {/* Ledger foot */}
               <div className="flex items-center justify-between gap-4 border-t-2 border-double border-gray-300 bg-gray-50/60 px-4 py-2.5 lg:grid lg:grid-cols-[110px_1fr_90px_130px_110px_28px]">
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 lg:col-span-4">
+                <span className="text-xs font-medium text-gray-500 lg:col-span-4">
                   {payments.length} {payments.length === 1 ? "payment" : "payments"}
                 </span>
                 <span className="numeral-ledger text-sm font-bold text-gray-900 text-right">

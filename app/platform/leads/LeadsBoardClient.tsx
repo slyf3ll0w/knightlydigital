@@ -855,7 +855,7 @@ function ActionSheet({
               />
               {s.name}
               {s.id === card.stageId && (
-                <span className="ml-auto text-[10px] uppercase tracking-wide text-gray-400">
+                <span className="ml-auto text-[10px] text-gray-400">
                   Current
                 </span>
               )}

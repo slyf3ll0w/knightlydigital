@@ -15,6 +15,7 @@ import {
   Settings,
   LogOut,
   MoreHorizontal,
+  ChevronLeft,
   ChevronRight,
   Plus,
   DollarSign,
@@ -213,6 +214,43 @@ const mobileNav: NavItem[] = [
 ];
 // Companies with the assistant disabled get Jobs in the Atlas slot.
 const jobsTab: NavItem = { href: "/app/jobs", label: "Jobs", icon: Briefcase };
+
+// iOS back control: on subpages the mobile header swaps the settings gear for
+// a "‹ Section" control (the label names where you came from, like a native
+// nav bar). Longest prefix first so the settings sub-hubs win over /app/settings.
+// `to` is the no-history fallback — deep links and notification taps land with
+// nothing to pop, and some prefixes (appointments) have no list page of their own.
+const backRoots: { prefix: string; label: string; to: string }[] = [
+  { prefix: "/app/settings/products", label: "Services", to: "/app/settings/products" },
+  { prefix: "/app/settings/contracts", label: "Contracts", to: "/app/settings/contracts" },
+  { prefix: "/app/settings/booking", label: "Forms", to: "/app/settings/booking" },
+  { prefix: "/app/settings/team", label: "Team", to: "/app/settings/team" },
+  { prefix: "/app/settings", label: "Settings", to: "/app/settings" },
+  { prefix: "/app/contacts", label: "Clients", to: "/app/contacts" },
+  { prefix: "/app/requests", label: "Requests", to: "/app/requests" },
+  { prefix: "/app/leads", label: "Leads", to: "/app/leads" },
+  { prefix: "/app/quotes", label: "Quotes", to: "/app/quotes" },
+  { prefix: "/app/jobs", label: "Jobs", to: "/app/jobs" },
+  { prefix: "/app/appointments", label: "Schedule", to: "/app/schedule" },
+  { prefix: "/app/invoices", label: "Invoices", to: "/app/invoices" },
+  { prefix: "/app/payments", label: "Payments", to: "/app/payments" },
+  { prefix: "/app/subscriptions", label: "Subscriptions", to: "/app/subscriptions" },
+  { prefix: "/app/timesheets", label: "Timesheets", to: "/app/timesheets" },
+  { prefix: "/app/contracts", label: "Contracts", to: "/app/contracts" },
+  { prefix: "/app/business", label: "Business", to: "/app/business" },
+  { prefix: "/app/schedule", label: "Schedule", to: "/app/schedule" },
+  { prefix: "/app/chat", label: "Chat", to: "/app/chat" },
+];
+
+function mobileBackFor(pathname: string): { label: string; to: string } | null {
+  for (const r of backRoots) {
+    if (pathname !== r.prefix && pathname.startsWith(r.prefix + "/")) return r;
+  }
+  // Nested pages outside the map (e.g. /app/messages/[id]) still get a way out.
+  if (pathname.startsWith("/app/") && pathname.split("/").filter(Boolean).length > 2)
+    return { label: "Back", to: "/app/dashboard" };
+  return null;
+}
 
 const forRole = (items: NavItem[], role: string) =>
   items.filter((i) => !i.show || i.show(role));
@@ -523,6 +561,8 @@ export default function AppShell({
     return pathname.startsWith(href);
   }
 
+  const mobileBack = mobileBackFor(pathname);
+
   if (isAuthPage) return <>{children}</>;
 
   function onSearch(e: React.FormEvent) {
@@ -815,18 +855,34 @@ export default function AppShell({
             className="pointer-events-none absolute inset-x-0 -bottom-px h-[2.5px]"
             style={{ background: "linear-gradient(90deg, var(--wb-primary), var(--wb-accent))" }}
           />
-          {/* Mobile header: settings on the left (the date it replaced now
-              lives on the dashboard Today card). Company identity lives in
-              the sidebar on desktop. The hamburger is retired — the More tab
-              opens the drawer. */}
-          <Link
-            href={manager ? "/app/settings" : "/app/settings/profile"}
-            onClick={() => hapticImpact("LIGHT")}
-            aria-label={manager ? "Settings" : "My Profile"}
-            className="lg:hidden -ml-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-500 active:bg-gray-100 transition-colors"
-          >
-            <Settings size={20} />
-          </Link>
+          {/* Mobile header, left slot: an iOS "‹ Section" back control on
+              subpages, the settings gear at the top level. Company identity
+              lives in the sidebar on desktop. The hamburger is retired — the
+              More tab opens the drawer. */}
+          {mobileBack ? (
+            <button
+              type="button"
+              onClick={() => {
+                hapticImpact("LIGHT");
+                if (window.history.length > 1) router.back();
+                else router.push(mobileBack.to);
+              }}
+              aria-label={`Back to ${mobileBack.label}`}
+              className="lg:hidden -ml-2 flex h-9 min-w-0 shrink items-center pr-1 text-[color:var(--mobile-accent)] active:opacity-50 transition-opacity"
+            >
+              <ChevronLeft size={27} strokeWidth={2.1} className="-mr-0.5 shrink-0" />
+              <span className="truncate text-[16px] font-medium">{mobileBack.label}</span>
+            </button>
+          ) : (
+            <Link
+              href={manager ? "/app/settings" : "/app/settings/profile"}
+              onClick={() => hapticImpact("LIGHT")}
+              aria-label={manager ? "Settings" : "My Profile"}
+              className="lg:hidden -ml-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-500 active:bg-gray-100 transition-colors"
+            >
+              <Settings size={20} />
+            </Link>
+          )}
 
           {/* Team chat, one tap from anywhere — red dot when messages wait */}
           <Link
@@ -1013,13 +1069,13 @@ function MobileTabBar({
         href={href}
         data-tour={tourKeys[href]}
         onClick={() => hapticImpact("LIGHT")}
-        className={`font-display flex-1 flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium transition-colors ${
+        className={`flex-1 flex flex-col items-center gap-1 pt-2 pb-2.5 text-[10px] font-medium transition-colors ${
           active
             ? "text-[color:var(--mobile-accent)] font-semibold"
             : "text-gray-400 hover:text-gray-600"
         }`}
       >
-        <Icon size={18} />
+        <Icon size={22} />
         {label}
       </Link>
     );
@@ -1038,14 +1094,14 @@ function MobileTabBar({
         hapticImpact("LIGHT");
         onPress();
       }}
-      className={`font-display flex-1 flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium transition-colors ${
+      className={`flex-1 flex flex-col items-center gap-1 pt-2 pb-2.5 text-[10px] font-medium transition-colors ${
         active
           ? "text-[color:var(--mobile-accent)] font-semibold"
           : "text-gray-400 hover:text-gray-600"
       }`}
     >
       <span className="relative">
-        <Icon size={18} />
+        <Icon size={22} />
         {badge && (
           <span className="absolute -top-1 -right-1.5 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />
         )}
@@ -1255,7 +1311,7 @@ function MoreSheet({
     return (
       <div key={label ?? "top"}>
         {label && (
-          <p className="font-display px-4 pb-1.5 pt-4 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-400">
+          <p className="px-4 pb-1.5 pt-4 text-[13px] font-semibold text-gray-500">
             {label}
           </p>
         )}

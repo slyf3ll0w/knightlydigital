@@ -168,7 +168,7 @@ export default async function ContactsPage({
         ) : (
           <>
             <div className="divide-y divide-gray-100">
-              <div className="hidden lg:grid grid-cols-[1fr_1fr_110px_120px_120px_40px] gap-4 px-4 py-2 text-[11px] font-semibold text-gray-600 uppercase tracking-wider bg-gray-50">
+              <div className="hidden lg:grid grid-cols-[1fr_1fr_110px_120px_120px_40px] gap-4 px-4 py-2 text-xs font-medium text-gray-500 bg-gray-50">
                 <span>Name</span>
                 <span>Address</span>
                 <span>Status</span>
@@ -208,7 +208,7 @@ export default async function ContactsPage({
             </div>
             {/* Ledger foot — entry count */}
             <div className="border-t-2 border-double border-gray-300 bg-gray-50/60 px-4 py-2.5">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">
+              <span className="text-xs font-medium text-gray-500">
                 {contacts.length} {contacts.length === 1 ? "client" : "clients"}
               </span>
             </div>

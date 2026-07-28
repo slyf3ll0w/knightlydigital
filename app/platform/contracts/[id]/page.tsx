@@ -61,7 +61,7 @@ export default async function ContractDetailPage({
         <div className="flex flex-wrap gap-x-8 gap-y-2 px-5 py-4 card-ledger mb-6 text-sm">
           {contract.sentAt && (
             <div>
-              <span className="text-xs uppercase font-semibold text-gray-400 block">Sent</span>
+              <span className="text-xs font-medium text-gray-500 block">Sent</span>
               <span className="text-gray-800">{shortDate(contract.sentAt)}</span>
             </div>
           )}

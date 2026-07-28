@@ -257,7 +257,7 @@ export default function SupportClient({
 
       {/* ── My tickets ── */}
       <div className="card-ledger">
-        <div className="px-4 py-2.5 text-xs font-bold uppercase tracking-widest border-b border-gray-200 text-gray-500 font-display">
+        <div className="px-4 py-2.5 text-[13px] font-semibold border-b border-gray-200 text-gray-500">
           My tickets
         </div>
         <ul className="divide-y divide-gray-100">

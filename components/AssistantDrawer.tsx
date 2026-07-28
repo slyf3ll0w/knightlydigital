@@ -365,7 +365,7 @@ export default function AssistantDrawer({
                   invoices, jobs, payments, your team, and your settings.
                 </p>
               </div>
-              <p className="mb-2 px-0.5 text-[10px] font-bold uppercase tracking-widest text-gray-400">
+              <p className="mb-2 px-0.5 text-[11px] font-semibold text-gray-400">
                 Try asking
               </p>
               <div className="space-y-2">

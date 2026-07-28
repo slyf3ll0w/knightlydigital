@@ -70,7 +70,7 @@ function NewRequestForm() {
         )}
 
         <div className="card-ledger p-5 space-y-4">
-          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Overview</h2>
+          <h2 className="text-sm font-semibold text-gray-700">Overview</h2>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Client *</label>

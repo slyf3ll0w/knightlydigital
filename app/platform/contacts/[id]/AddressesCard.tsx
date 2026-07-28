@@ -105,7 +105,7 @@ export default function AddressesCard({
   return (
     <div className="card-ledger p-4">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Addresses</h2>
+        <h2 className="text-[13px] font-semibold text-gray-500">Addresses</h2>
         {editing === null && (
           <button
             onClick={startNew}

@@ -124,7 +124,7 @@ export default async function JobsPage({
         ) : (
           <>
             <div className="divide-y divide-gray-100">
-              <div className="hidden lg:grid grid-cols-[1fr_70px_150px_160px_100px_40px] gap-4 px-4 py-2 text-[11px] font-semibold text-gray-600 uppercase tracking-wider bg-gray-50">
+              <div className="hidden lg:grid grid-cols-[1fr_70px_150px_160px_100px_40px] gap-4 px-4 py-2 text-xs font-medium text-gray-500 bg-gray-50">
                 <span>Client</span>
                 <span>#</span>
                 <span>Schedule</span>
@@ -185,7 +185,7 @@ export default async function JobsPage({
             </div>
             {/* Ledger foot */}
             <div className="flex items-center justify-between gap-4 border-t-2 border-double border-gray-300 bg-gray-50/60 px-4 py-2.5 lg:grid lg:grid-cols-[1fr_70px_150px_160px_100px_40px]">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">
+              <span className="text-xs font-medium text-gray-500">
                 {jobs.length} {jobs.length === 1 ? "job" : "jobs"}
               </span>
               <span className="hidden lg:block" />

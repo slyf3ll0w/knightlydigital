@@ -24,7 +24,7 @@ export default function ViewedFact({
   if (!firstViewedAt && !sent) return null;
   return (
     <div>
-      <span className="text-xs uppercase font-semibold text-gray-400 block">{label}</span>
+      <span className="text-xs font-medium text-gray-500 block">{label}</span>
       {firstViewedAt ? (
         <span
           className="inline-flex items-center gap-1 font-medium text-green-700"

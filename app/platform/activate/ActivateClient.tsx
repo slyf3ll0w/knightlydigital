@@ -257,7 +257,7 @@ export default function ActivateClient({
 
         {sandbox && status !== "rejected" && isOwner && (
           <div className="mt-6 rounded-lg border border-dashed border-gray-300 px-4 py-3">
-            <p className="text-[12px] font-bold uppercase tracking-wide text-gray-400">
+            <p className="text-[13px] font-semibold text-gray-500">
               Sandbox tools
             </p>
             <div className="mt-2 flex flex-wrap gap-2">

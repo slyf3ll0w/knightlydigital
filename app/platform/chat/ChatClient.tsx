@@ -640,7 +640,7 @@ export default function ChatClient({
             <div key={m.id}>
               {newDay && (
                 <div className="my-3 flex items-center justify-center">
-                  <span className="rounded-full bg-gray-100 px-3 py-1 font-display text-[10px] font-semibold uppercase tracking-[0.1em] text-gray-500">
+                  <span className="rounded-full bg-gray-100 px-3 py-1 text-[11px] font-semibold text-gray-500">
                     {dayLabel(m.createdAt)}
                   </span>
                 </div>

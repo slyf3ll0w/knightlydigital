@@ -17,7 +17,7 @@ export default function PageTitle({
 }) {
   const hue = SECTION_HUES[section];
   return (
-    <h1 className="numeral-ledger flex items-center gap-3 text-2xl font-semibold text-gray-900">
+    <h1 className="numeral-ledger flex items-center gap-3 text-[26px] font-bold text-gray-900 lg:text-2xl lg:font-semibold">
       <span
         className="chip-tool flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px]"
         style={{ backgroundColor: hue, color: hueInk(hue) }}

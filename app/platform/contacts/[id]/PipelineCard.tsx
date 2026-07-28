@@ -46,7 +46,7 @@ export default function PipelineCard({
   return (
     <div className="card-ledger p-4">
       <div className="flex items-center justify-between mb-2">
-        <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Pipeline</h2>
+        <h2 className="text-[13px] font-semibold text-gray-500">Pipeline</h2>
         <Link href="/app/leads" className="text-gray-400 hover:text-gray-600" title="Open the board">
           <SquareKanban size={14} />
         </Link>

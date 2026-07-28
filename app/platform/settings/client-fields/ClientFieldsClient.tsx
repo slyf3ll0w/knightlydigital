@@ -230,7 +230,7 @@ export default function ClientFieldsClient({ defs }: { defs: Def[] }) {
 
       {archived.length > 0 && (
         <div>
-          <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+          <h2 className="text-[13px] font-semibold text-gray-500 mb-2">
             Archived (values are kept)
           </h2>
           <div className="card-ledger divide-y divide-gray-100">

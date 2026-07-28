@@ -512,7 +512,7 @@ export default function ProductsClient({
             </div>
           ) : (
             <div className="divide-y divide-gray-100">
-              <div className="hidden sm:grid grid-cols-[1fr_90px_100px_100px_70px] gap-4 px-5 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide bg-gray-50">
+              <div className="hidden sm:grid grid-cols-[1fr_90px_100px_100px_70px] gap-4 px-5 py-3 text-xs font-medium text-gray-500 bg-gray-50">
                 <span>Name</span>
                 <span>Type</span>
                 <span className="text-right">Price</span>

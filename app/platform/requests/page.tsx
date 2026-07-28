@@ -141,7 +141,7 @@ export default async function RequestsPage({
           />
         ) : (
           <div className="divide-y divide-gray-100">
-            <div className="hidden lg:grid grid-cols-[1fr_1fr_140px_130px_40px] gap-4 px-4 py-2 text-[11px] font-semibold text-gray-600 uppercase tracking-wider bg-gray-50">
+            <div className="hidden lg:grid grid-cols-[1fr_1fr_140px_130px_40px] gap-4 px-4 py-2 text-xs font-medium text-gray-500 bg-gray-50">
               <span>Client</span>
               <span>Title</span>
               <span>Requested</span>

@@ -72,7 +72,7 @@ export default function AddEntry({
 
   return (
     <div className="card-ledger p-5 mb-5 space-y-3">
-      <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+      <h2 className="text-[13px] font-semibold text-gray-500">
         Add time entry
       </h2>
       <div className="grid sm:grid-cols-2 gap-3">

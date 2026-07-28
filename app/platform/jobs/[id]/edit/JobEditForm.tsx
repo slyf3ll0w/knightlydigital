@@ -160,7 +160,7 @@ export default function JobEditForm({
         )}
 
         <div className="card-ledger p-5 space-y-4">
-          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Job Details</h2>
+          <h2 className="text-sm font-semibold text-gray-700">Job Details</h2>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Customer</label>
@@ -227,7 +227,7 @@ export default function JobEditForm({
         {/* Line items */}
         <div className="card-ledger overflow-hidden">
             <div className="px-5 py-4 border-b border-gray-100">
-              <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+              <h2 className="text-sm font-semibold text-gray-700">
                 Product / Service
               </h2>
             </div>

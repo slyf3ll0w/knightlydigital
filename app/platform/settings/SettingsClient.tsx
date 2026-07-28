@@ -228,7 +228,7 @@ function PaymentsOnlineCard({ isOwner }: { isOwner: boolean }) {
     <div className="card-ledger p-5 space-y-3">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+          <h2 className="text-sm font-semibold text-gray-700">
             Online Payments
           </h2>
           <p className="text-xs text-gray-400 mt-0.5">
@@ -236,7 +236,7 @@ function PaymentsOnlineCard({ isOwner }: { isOwner: boolean }) {
           </p>
         </div>
         {status.environment === "sandbox" && (
-          <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">
+          <span className="shrink-0 text-[11px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">
             Test mode
           </span>
         )}
@@ -414,7 +414,7 @@ function EmailDomainCard({ isOwner }: { isOwner: boolean }) {
     <div className="card-ledger p-5 space-y-3">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+          <h2 className="text-sm font-semibold text-gray-700">
             Email Sending Domain
           </h2>
           <p className="text-xs text-gray-400 mt-0.5">
@@ -423,7 +423,7 @@ function EmailDomainCard({ isOwner }: { isOwner: boolean }) {
         </div>
         {state.domain && (
           <span
-            className={`shrink-0 text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded ${
+            className={`shrink-0 text-[11px] font-semibold px-1.5 py-0.5 rounded-full ${
               verified
                 ? "bg-green-100 text-green-700"
                 : state.status === "failed"
@@ -503,7 +503,7 @@ function EmailDomainCard({ isOwner }: { isOwner: boolean }) {
             <div className="overflow-x-auto rounded-lg border border-gray-200">
               <table className="w-full text-xs">
                 <thead>
-                  <tr className="bg-gray-50 text-left text-[10px] uppercase tracking-wide text-gray-500">
+                  <tr className="bg-gray-50 text-left text-[11px] text-gray-500">
                     <th className="px-3 py-2 font-semibold">Type</th>
                     <th className="px-3 py-2 font-semibold">Name</th>
                     <th className="px-3 py-2 font-semibold">Value</th>
@@ -568,7 +568,7 @@ function PortalLinkCard({ slug }: { slug: string }) {
   return (
     <div className="flex items-center justify-between gap-4 card-ledger p-5 mb-6">
       <div className="min-w-0">
-        <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+        <h2 className="text-sm font-semibold text-gray-700">
           Client Portal Sign-In
         </h2>
         <p className="text-xs text-gray-400 mt-0.5">
@@ -627,7 +627,7 @@ function DangerZone({ companyName }: { companyName: string }) {
     <div className="mt-10 rounded-lg border border-red-200 bg-red-50/40 p-5">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-red-700">
+          <h2 className="flex items-center gap-2 text-sm font-semibold text-red-700">
             <AlertTriangle size={14} />
             Danger Zone
           </h2>
@@ -973,7 +973,7 @@ export default function SettingsClient({
         className="flex items-center justify-between card-ledger p-5 mb-6 hover:shadow-sm transition-shadow"
       >
         <div>
-          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+          <h2 className="text-sm font-semibold text-gray-700">
             Products &amp; Services
           </h2>
           <p className="text-xs text-gray-400 mt-0.5">
@@ -989,7 +989,7 @@ export default function SettingsClient({
         className="flex items-center justify-between card-ledger p-5 mb-6 hover:shadow-sm transition-shadow"
       >
         <div>
-          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+          <h2 className="text-sm font-semibold text-gray-700">
             Contract Templates
           </h2>
           <p className="text-xs text-gray-400 mt-0.5">
@@ -1005,7 +1005,7 @@ export default function SettingsClient({
         className="flex items-center justify-between card-ledger p-5 mb-6 hover:shadow-sm transition-shadow"
       >
         <div>
-          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+          <h2 className="text-sm font-semibold text-gray-700">
             Lead Pipeline
           </h2>
           <p className="text-xs text-gray-400 mt-0.5">
@@ -1021,7 +1021,7 @@ export default function SettingsClient({
         className="flex items-center justify-between card-ledger p-5 mb-6 hover:shadow-sm transition-shadow"
       >
         <div>
-          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+          <h2 className="text-sm font-semibold text-gray-700">
             Booking Form
           </h2>
           <p className="text-xs text-gray-400 mt-0.5">
@@ -1039,7 +1039,7 @@ export default function SettingsClient({
         {/* Business info */}
         {show("business") && (
         <div className="card-ledger p-5 space-y-4">
-          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Business Info</h2>
+          <h2 className="text-sm font-semibold text-gray-700">Business Info</h2>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Business name *</label>
             <input type="text" value={form.name} onChange={(e) => set("name", e.target.value)}
@@ -1139,7 +1139,7 @@ export default function SettingsClient({
         {show("customization") && (
         <div className="card-ledger p-5 space-y-4">
           <div>
-            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Appearance</h2>
+            <h2 className="text-sm font-semibold text-gray-700">Appearance</h2>
             <p className="text-xs text-gray-400 mt-0.5">
               Light or dark for this device — Automatic follows your device&apos;s setting
             </p>
@@ -1173,7 +1173,7 @@ export default function SettingsClient({
         {show("customization") && (
         <div className="card-ledger p-5 space-y-4">
           <div>
-            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Branding</h2>
+            <h2 className="text-sm font-semibold text-gray-700">Branding</h2>
             <p className="text-xs text-gray-400 mt-0.5">
               Shown on everything your clients see — quotes, invoices, the client hub, and booking forms
             </p>
@@ -1402,7 +1402,7 @@ export default function SettingsClient({
         {show("customization") && (
         <div className="hidden lg:block card-ledger p-5 space-y-4">
           <div>
-            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Sidebar</h2>
+            <h2 className="text-sm font-semibold text-gray-700">Sidebar</h2>
             <p className="text-xs text-gray-400 mt-0.5">
               How the desktop navigation rail looks for your whole team
             </p>
@@ -1457,7 +1457,7 @@ export default function SettingsClient({
         {show("customization") && (
         <div className="hidden lg:block card-ledger p-5 space-y-4">
           <div>
-            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+            <h2 className="text-sm font-semibold text-gray-700">
               What Your Clients See
             </h2>
             <p className="text-xs text-gray-400 mt-0.5">
@@ -1537,7 +1537,7 @@ export default function SettingsClient({
           className="flex items-center justify-between card-ledger p-5 hover:shadow-sm transition-shadow"
         >
           <div>
-            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+            <h2 className="text-sm font-semibold text-gray-700">
               QuickBooks Online
             </h2>
             <p className="text-xs text-gray-400 mt-0.5">
@@ -1552,7 +1552,7 @@ export default function SettingsClient({
         {show("payments") && (
         <div className="card-ledger p-5 space-y-4">
           <div>
-            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Card Surcharging</h2>
+            <h2 className="text-sm font-semibold text-gray-700">Card Surcharging</h2>
             <p className="text-xs text-gray-400 mt-0.5">Pass card processing fees to your customer</p>
           </div>
           <label className="flex items-center gap-3 cursor-pointer">
@@ -1591,7 +1591,7 @@ export default function SettingsClient({
         {show("payments") && (
         <div className="card-ledger p-5 space-y-4">
           <div>
-            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Default Deposit</h2>
+            <h2 className="text-sm font-semibold text-gray-700">Default Deposit</h2>
             <p className="text-xs text-gray-400 mt-0.5">
               Applied to quotes when a service has no deposit of its own. Set per-service deposits in
               Products &amp; Services.
@@ -1640,7 +1640,7 @@ export default function SettingsClient({
         {show("features") && (
         <div className="card-ledger p-5 space-y-4">
           <div>
-            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">AI Assistant</h2>
+            <h2 className="text-sm font-semibold text-gray-700">AI Assistant</h2>
             <p className="text-xs text-gray-400 mt-0.5">The chat helper in the corner of every page</p>
           </div>
           <div>
@@ -1657,7 +1657,7 @@ export default function SettingsClient({
         {show("features") && (
         <div className="card-ledger p-5 space-y-4">
           <div>
-            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+            <h2 className="text-sm font-semibold text-gray-700">
               &ldquo;On My Way&rdquo; Texts
             </h2>
             <p className="text-xs text-gray-400 mt-0.5">
@@ -1692,7 +1692,7 @@ export default function SettingsClient({
         {show("features") && (
         <div className="card-ledger p-5 space-y-4">
           <div>
-            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Review Requests</h2>
+            <h2 className="text-sm font-semibold text-gray-700">Review Requests</h2>
             <p className="text-xs text-gray-400 mt-0.5">Automatically ask for a Google review after payment</p>
           </div>
           <div>

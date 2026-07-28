@@ -65,23 +65,23 @@ export default async function MessageDetailPage({
 
       <div className="flex flex-wrap gap-x-8 gap-y-2 px-5 py-4 card-ledger mb-6 text-sm">
         <div>
-          <span className="text-xs uppercase font-semibold text-gray-400 block">Sent</span>
+          <span className="text-xs font-medium text-gray-500 block">Sent</span>
           <span className="text-gray-800">{shortDate(message.createdAt)}</span>
         </div>
         {message.contact.email && (
           <div>
-            <span className="text-xs uppercase font-semibold text-gray-400 block">To</span>
+            <span className="text-xs font-medium text-gray-500 block">To</span>
             <span className="text-gray-800">{message.contact.email}</span>
           </div>
         )}
         {message.sender && (
           <div>
-            <span className="text-xs uppercase font-semibold text-gray-400 block">Sent by</span>
+            <span className="text-xs font-medium text-gray-500 block">Sent by</span>
             <span className="text-gray-800">{message.sender.name}</span>
           </div>
         )}
         <div>
-          <span className="text-xs uppercase font-semibold text-gray-400 block">Email opened</span>
+          <span className="text-xs font-medium text-gray-500 block">Email opened</span>
           {message.emailOpenedAt ? (
             message.emailOpenKind === "confident" ? (
               <span className="font-medium text-green-700">{shortDate(message.emailOpenedAt)}</span>

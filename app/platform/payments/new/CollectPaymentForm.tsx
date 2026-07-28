@@ -123,7 +123,7 @@ export default function CollectPaymentForm({
 
         {/* Payment details */}
         <div className="card-ledger p-5 space-y-4">
-          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+          <h2 className="text-sm font-semibold text-gray-700">
             Payment details
           </h2>
           <div className="grid grid-cols-2 gap-4">
@@ -197,7 +197,7 @@ export default function CollectPaymentForm({
         {/* Outstanding invoices */}
         <div className="card-ledger overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-100">
-            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+            <h2 className="text-sm font-semibold text-gray-700">
               Outstanding invoices
             </h2>
             <p className="text-xs text-gray-500 mt-0.5">
@@ -210,7 +210,7 @@ export default function CollectPaymentForm({
             </div>
           ) : (
             <div className="divide-y divide-gray-100">
-              <div className="hidden lg:grid grid-cols-[28px_1fr_120px_90px_90px] gap-3 px-5 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-wide bg-gray-50">
+              <div className="hidden lg:grid grid-cols-[28px_1fr_120px_90px_90px] gap-3 px-5 py-2.5 text-xs font-medium text-gray-500 bg-gray-50">
                 <span></span>
                 <span>Invoice</span>
                 <span>Due date</span>

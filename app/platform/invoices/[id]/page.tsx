@@ -95,12 +95,12 @@ export default async function InvoiceDetailPage({
       {/* Header facts */}
       <div className="flex flex-wrap gap-x-8 gap-y-2 px-5 py-4 card-ledger mb-6 text-sm">
         <div>
-          <span className="text-xs uppercase font-semibold text-gray-400 block">Invoice #</span>
+          <span className="text-xs font-medium text-gray-500 block">Invoice #</span>
           <span className="text-gray-800">{invoice.invoiceNumber}</span>
         </div>
         {invoice.job && (
           <div>
-            <span className="text-xs uppercase font-semibold text-gray-400 block">Invoice for</span>
+            <span className="text-xs font-medium text-gray-500 block">Invoice for</span>
             <Link href={`/app/jobs/${invoice.job.id}`} className="text-green-700 hover:underline">
               Job #{invoice.job.jobNumber}
             </Link>
@@ -108,18 +108,18 @@ export default async function InvoiceDetailPage({
         )}
         {sourceQuote && (
           <div>
-            <span className="text-xs uppercase font-semibold text-gray-400 block">From quote</span>
+            <span className="text-xs font-medium text-gray-500 block">From quote</span>
             <Link href={`/app/quotes/${sourceQuote.id}`} className="text-green-700 hover:underline">
               Quote #{sourceQuote.quoteNumber}
             </Link>
           </div>
         )}
         <div>
-          <span className="text-xs uppercase font-semibold text-gray-400 block">Issued</span>
+          <span className="text-xs font-medium text-gray-500 block">Issued</span>
           <span className="text-gray-800">{shortDate(invoice.issuedAt ?? invoice.createdAt)}</span>
         </div>
         <div>
-          <span className="text-xs uppercase font-semibold text-gray-400 block">Due date</span>
+          <span className="text-xs font-medium text-gray-500 block">Due date</span>
           <span className="text-gray-800">{shortDate(invoice.dueDate)}</span>
         </div>
         <ViewedFact
@@ -130,7 +130,7 @@ export default async function InvoiceDetailPage({
         />
         {invoice.paidAt && (
           <div>
-            <span className="text-xs uppercase font-semibold text-gray-400 block">Paid</span>
+            <span className="text-xs font-medium text-gray-500 block">Paid</span>
             <span className="text-gray-800">{shortDate(invoice.paidAt)}</span>
           </div>
         )}
@@ -142,16 +142,16 @@ export default async function InvoiceDetailPage({
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100">
-                <th className="text-left py-2 text-xs uppercase text-gray-500 font-semibold">
+                <th className="text-left py-2 text-xs text-gray-500 font-semibold">
                   Line item
                 </th>
-                <th className="text-right py-2 text-xs uppercase text-gray-500 font-semibold w-16">
+                <th className="text-right py-2 text-xs text-gray-500 font-semibold w-16">
                   Qty
                 </th>
-                <th className="text-right py-2 text-xs uppercase text-gray-500 font-semibold w-24">
+                <th className="text-right py-2 text-xs text-gray-500 font-semibold w-24">
                   Unit Price
                 </th>
-                <th className="text-right py-2 text-xs uppercase text-gray-500 font-semibold w-24">
+                <th className="text-right py-2 text-xs text-gray-500 font-semibold w-24">
                   Total
                 </th>
               </tr>
@@ -239,7 +239,7 @@ export default async function InvoiceDetailPage({
 
         {invoice.notes && (
           <div className="px-6 py-4 border-t border-gray-100">
-            <p className="text-xs font-semibold text-gray-400 uppercase mb-1">Notes</p>
+            <p className="text-xs font-medium text-gray-500 mb-1">Notes</p>
             <p className="text-sm text-gray-700 whitespace-pre-wrap">{invoice.notes}</p>
           </div>
         )}
@@ -248,7 +248,7 @@ export default async function InvoiceDetailPage({
       {/* Payments */}
       <div className="card-ledger overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Payments</h2>
+          <h2 className="text-sm font-semibold text-gray-700">Payments</h2>
           {balance > 0 && (
             <Link
               href={`/app/payments/new?invoiceId=${invoice.id}`}

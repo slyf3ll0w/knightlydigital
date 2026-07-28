@@ -166,7 +166,7 @@ export default function ContractTemplatesClient({ templates }: { templates: Temp
 
       {archived.length > 0 && (
         <div>
-          <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Archived</h2>
+          <h2 className="text-[13px] font-semibold text-gray-500 mb-2">Archived</h2>
           <div className="card-ledger divide-y divide-gray-100">
             {archived.map((t) => (
               <div key={t.id} className="flex items-center justify-between px-4 py-2.5 opacity-70">

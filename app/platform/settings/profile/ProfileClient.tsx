@@ -166,7 +166,7 @@ export default function ProfileClient({
 
       {/* Profile picture */}
       <div className="card-ledger p-5 mb-5">
-        <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-4">
+        <h2 className="text-[13px] font-semibold text-gray-500 mb-4">
           Profile picture
         </h2>
         <div className="flex flex-wrap items-center gap-4">
@@ -231,7 +231,7 @@ export default function ProfileClient({
       </div>
 
       <div className="card-ledger p-5 mb-5">
-        <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-4">
+        <h2 className="text-[13px] font-semibold text-gray-500 mb-4">
           Your info
         </h2>
         <div className="grid sm:grid-cols-2 gap-3 mb-4">
@@ -256,7 +256,7 @@ export default function ProfileClient({
 
       {/* Email signature — appended to client email messages */}
       <div className="card-ledger p-5 mb-5">
-        <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
+        <h2 className="text-[13px] font-semibold text-gray-500 mb-1">
           Email signature
         </h2>
         <p className="text-sm text-gray-500 mb-3">
@@ -284,7 +284,7 @@ export default function ProfileClient({
       </div>
 
       <div className="card-ledger p-5">
-        <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-4">
+        <h2 className="text-[13px] font-semibold text-gray-500 mb-4">
           Change password
         </h2>
         <div className="grid sm:grid-cols-2 gap-3 mb-4">
@@ -321,7 +321,7 @@ export default function ProfileClient({
 
       <div className="card-ledger p-5 mt-5 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
+          <h2 className="text-[13px] font-semibold text-gray-500 mb-1">
             Welcome tour
           </h2>
           <p className="text-sm text-gray-600">
