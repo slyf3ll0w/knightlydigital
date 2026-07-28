@@ -56,7 +56,7 @@ function NewRequestForm() {
   return (
     <div className="p-4 lg:p-8 max-w-2xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
-        <Link href="/app/requests" className="text-gray-400 hover:text-gray-600">
+        <Link href="/app/requests" className="hidden lg:block text-gray-400 hover:text-gray-600">
           <ArrowLeft size={18} />
         </Link>
         <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">New Request</h1>

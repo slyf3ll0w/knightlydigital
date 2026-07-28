@@ -233,7 +233,7 @@ export default function QuoteEditor({
       <div className="flex items-center gap-3 mb-6">
         <Link
           href={editing ? `/app/quotes/${existingQuote!.id}` : "/app/quotes"}
-          className="text-gray-400 hover:text-gray-600"
+          className="hidden lg:block text-gray-400 hover:text-gray-600"
         >
           <ArrowLeft size={18} />
         </Link>

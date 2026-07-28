@@ -30,7 +30,7 @@ export default async function ContractDetailPage({
       <div className="flex items-center gap-3 mb-4">
         <Link
           href={`/app/contacts/${contract.contactId}`}
-          className="text-gray-400 hover:text-gray-600"
+          className="hidden lg:block text-gray-400 hover:text-gray-600"
         >
           <ArrowLeft size={18} />
         </Link>

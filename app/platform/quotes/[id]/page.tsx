@@ -59,7 +59,7 @@ export default async function QuoteDetailPage({
   return (
     <div className="p-4 lg:p-8 max-w-4xl mx-auto">
       <div className="flex items-center gap-3 mb-4">
-        <Link href="/app/quotes" className="text-gray-400 hover:text-gray-600">
+        <Link href="/app/quotes" className="hidden lg:block text-gray-400 hover:text-gray-600">
           <ArrowLeft size={18} />
         </Link>
         <StatusChip kind="quote" status={quote.status} />

@@ -398,7 +398,9 @@ export default async function PaymentsDashboardPage() {
                 return (
                   <div key={d.id} className="px-4 py-3">
                     <div className="flex items-center gap-3">
-                      <span className="stamp text-red-700 w-24 shrink-0">{d.state ?? "Open"}</span>
+                      <span className="stamp text-red-700 shrink-0 capitalize">
+                        {(d.state ?? "Open").replaceAll("_", " ").toLowerCase()}
+                      </span>
                       <span className="flex-1 min-w-0 text-sm">
                         <span className="font-medium text-gray-900 capitalize">
                           {(d.reason ?? "Dispute").replaceAll("_", " ").toLowerCase()}

@@ -33,7 +33,7 @@ export default async function MessageDetailPage({
       <div className="flex items-center gap-3 mb-4">
         <Link
           href={`/app/contacts/${message.contact.id}`}
-          className="text-gray-400 hover:text-gray-600"
+          className="hidden lg:block text-gray-400 hover:text-gray-600"
         >
           <ArrowLeft size={18} />
         </Link>

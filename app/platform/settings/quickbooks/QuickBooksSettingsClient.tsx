@@ -109,7 +109,7 @@ export default function QuickBooksSettingsClient({ configured }: { configured: b
     <div className="p-4 lg:p-8 max-w-3xl mx-auto">
       <Link
         href="/app/settings"
-        className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-4"
+        className="hidden lg:inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-4"
       >
         <ArrowLeft size={14} />
         Settings

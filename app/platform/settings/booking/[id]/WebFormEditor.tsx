@@ -126,7 +126,7 @@ export default function WebFormEditor({
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>
           <div className="flex items-center gap-3">
-            <Link href="/app/settings/booking" className="text-gray-400 hover:text-gray-600">
+            <Link href="/app/settings/booking" className="hidden lg:block text-gray-400 hover:text-gray-600">
               <ArrowLeft size={18} />
             </Link>
             <input

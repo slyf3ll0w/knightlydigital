@@ -236,7 +236,8 @@ const backRoots: { prefix: string; label: string; to: string }[] = [
   { prefix: "/app/payments", label: "Payments", to: "/app/payments" },
   { prefix: "/app/subscriptions", label: "Subscriptions", to: "/app/subscriptions" },
   { prefix: "/app/timesheets", label: "Timesheets", to: "/app/timesheets" },
-  { prefix: "/app/contracts", label: "Contracts", to: "/app/contracts" },
+  // No /app/contracts index — agreements belong to a contact
+  { prefix: "/app/contracts", label: "Back", to: "/app/contacts" },
   { prefix: "/app/business", label: "Business", to: "/app/business" },
   { prefix: "/app/schedule", label: "Schedule", to: "/app/schedule" },
   { prefix: "/app/chat", label: "Chat", to: "/app/chat" },

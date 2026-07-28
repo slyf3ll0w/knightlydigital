@@ -65,7 +65,7 @@ export default async function AppointmentDetailPage({
   return (
     <div className="p-4 lg:p-8 max-w-3xl mx-auto">
       <div className="flex items-center gap-3 mb-4">
-        <Link href="/app/schedule" className="text-gray-400 hover:text-gray-600">
+        <Link href="/app/schedule" className="hidden lg:block text-gray-400 hover:text-gray-600">
           <ArrowLeft size={18} />
         </Link>
         <StatusChip kind="appointment" status={appt.status} />
