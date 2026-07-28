@@ -153,11 +153,11 @@ export default function ContractActions({
 
       {editing && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4"
+          className="modal-pop fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4"
           onClick={() => !busy && setEditing(false)}
         >
           <div
-            className="w-full max-w-2xl bg-white rounded-lg shadow-xl p-5 space-y-3 text-left"
+            className="modal-card w-full max-w-2xl bg-white rounded-lg shadow-xl p-5 space-y-3 text-left"
             onClick={(e) => e.stopPropagation()}
           >
             <h2 className="text-base font-semibold text-gray-900">Edit Contract</h2>

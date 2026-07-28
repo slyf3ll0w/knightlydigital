@@ -11,6 +11,7 @@ import {
   Pencil,
   Phone,
   Plus,
+  RotateCcw,
   SendHorizonal,
   SmilePlus,
   Trash2,
@@ -35,6 +36,9 @@ type Message = {
   userId: string;
   userName: string;
   reactions: Reaction[];
+  // Client-only: optimistic sends waiting on / rejected by the server
+  pending?: boolean;
+  failed?: boolean;
 };
 
 type Member = { id: string; name: string; role: string; phone: string | null };
@@ -162,7 +166,6 @@ export default function ChatClient({
   const [loadingThread, setLoadingThread] = useState(false);
   const [typers, setTypers] = useState<string[]>([]);
   const [draft, setDraft] = useState("");
-  const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState("");
@@ -170,6 +173,8 @@ export default function ChatClient({
   // iMessage-style long-press sheet: the message + its bubble's viewport rect
   const [pressed, setPressed] = useState<{ msg: Message; rect: DOMRect; mine: boolean } | null>(null);
   const [showNewChat, setShowNewChat] = useState<false | "create" | "add">(false);
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [renameDraft, setRenameDraft] = useState("");
   const [picked, setPicked] = useState<string[]>([]);
   const [groupName, setGroupName] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
@@ -181,6 +186,13 @@ export default function ChatClient({
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const stickToBottomRef = useRef(true);
+  // First pin after opening a thread jumps; later arrivals glide (iMessage)
+  const instantPinRef = useRef(true);
+  // Last-seen messages per channel — threads open instantly from cache while
+  // the fresh copy loads, instead of flashing blank
+  const msgCacheRef = useRef(new Map<string, Message[]>());
+  // Ids already rendered once — anything newer animates in
+  const seenRef = useRef<Set<string>>(new Set(initialMessages.map((m) => m.id)));
   const activeRef = useRef(activeId);
   activeRef.current = activeId;
   const lastTypingPingRef = useRef(0);
@@ -201,8 +213,15 @@ export default function ChatClient({
       const data = await res.json();
       if (Array.isArray(data.channels)) setChannels(data.channels);
       if (Array.isArray(data.team)) setRoster(data.team);
+      if (Array.isArray(data.messages)) msgCacheRef.current.set(forChannel, data.messages);
       if (activeRef.current !== forChannel) return; // user switched mid-flight
-      if (Array.isArray(data.messages)) setMessages(data.messages);
+      if (Array.isArray(data.messages)) {
+        // Keep optimistic sends that haven't been confirmed yet
+        setMessages((prev) => [
+          ...data.messages,
+          ...prev.filter((m: Message) => m.id.startsWith("tmp-")),
+        ]);
+      }
       if (Array.isArray(data.typers)) setTypers(data.typers);
     } catch {
       /* transient network error — next tick retries */
@@ -226,22 +245,31 @@ export default function ChatClient({
     if (id === activeId) return;
     setActiveId(id);
     activeRef.current = id;
-    setMessages([]);
+    const cached = msgCacheRef.current.get(id);
+    cached?.forEach((m) => seenRef.current.add(m.id));
+    setMessages(cached ?? []);
     setTypers([]);
     setEditingId(null);
     setPickerFor(null);
     setPressed(null);
     setError("");
     stickToBottomRef.current = true;
-    setLoadingThread(true);
+    instantPinRef.current = true;
+    setLoadingThread(!cached);
     await refresh(id);
     setLoadingThread(false);
   }
 
-  // Keep the view pinned to the newest message unless the user scrolled up
+  // Keep the view pinned to the newest message unless the user scrolled up.
+  // Thread open = jump straight to the bottom; new arrivals glide down.
   useEffect(() => {
-    if (stickToBottomRef.current && scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    const el = scrollRef.current;
+    if (!el || !stickToBottomRef.current) return;
+    if (instantPinRef.current) {
+      el.scrollTop = el.scrollHeight;
+      instantPinRef.current = false;
+    } else {
+      el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
     }
   }, [messages, typers, mobileOpen]);
 
@@ -302,32 +330,61 @@ export default function ChatClient({
     el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
   }
 
-  async function send(e?: React.FormEvent) {
-    e?.preventDefault();
-    const text = draft.trim();
-    if (!text || sending) return;
-    setSending(true);
-    setError("");
+  // Optimistic send: the bubble appears the moment you hit send, the POST
+  // settles in the background. Failure marks the bubble "not delivered" with
+  // a tap-to-retry instead of blocking the composer.
+  async function postMessage(text: string) {
+    const channelId = activeRef.current;
+    const temp: Message = {
+      id: `tmp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      body: text,
+      createdAt: new Date().toISOString(),
+      editedAt: null,
+      deletedAt: null,
+      userId: meId,
+      userName: memberById.get(meId)?.name ?? "You",
+      reactions: [],
+      pending: true,
+    };
+    stickToBottomRef.current = true;
+    setMessages((prev) => [...prev, temp]);
     try {
       const res = await fetch("/api/app/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ channel: activeId, body: text }),
+        body: JSON.stringify({ channel: channelId, body: text }),
       });
       const data = await res.json().catch(() => null);
-      if (!res.ok) {
-        setError(data?.error ?? "Couldn't send — try again.");
-        return;
-      }
-      stickToBottomRef.current = true;
-      setMessages((prev) => (prev.some((m) => m.id === data.id) ? prev : [...prev, data]));
-      setDraft("");
-      requestAnimationFrame(autoGrow);
+      if (!res.ok || !data?.id) throw new Error();
+      if (activeRef.current !== channelId) return; // switched threads mid-send
+      seenRef.current.add(data.id);
+      setMessages((prev) =>
+        prev.some((m) => m.id === data.id)
+          ? prev.filter((m) => m.id !== temp.id)
+          : prev.map((m) => (m.id === temp.id ? data : m))
+      );
     } catch {
-      setError("Couldn't send — check your connection and try again.");
-    } finally {
-      setSending(false);
+      if (activeRef.current !== channelId) return;
+      setMessages((prev) =>
+        prev.map((m) => (m.id === temp.id ? { ...m, pending: false, failed: true } : m))
+      );
     }
+  }
+
+  function send(e?: React.FormEvent) {
+    e?.preventDefault();
+    const text = draft.trim();
+    if (!text) return;
+    setError("");
+    setDraft("");
+    requestAnimationFrame(autoGrow);
+    hapticImpact("LIGHT");
+    void postMessage(text);
+  }
+
+  function retrySend(m: Message) {
+    setMessages((prev) => prev.filter((x) => x.id !== m.id));
+    void postMessage(m.body);
   }
 
   async function toggleReaction(messageId: string, emoji: string) {
@@ -393,7 +450,7 @@ export default function ChatClient({
   function pressHandlers(m: Message, mine: boolean) {
     return {
       onTouchStart: (e: React.TouchEvent) => {
-        if (m.deletedAt) return;
+        if (m.deletedAt || m.pending || m.failed) return;
         const t = e.touches[0];
         pressStart.current = { x: t.clientX, y: t.clientY };
         const target = e.currentTarget as HTMLElement;
@@ -451,11 +508,17 @@ export default function ChatClient({
     }
   }
 
-  async function renameGroup() {
+  function renameGroup() {
     setMenuOpen(false);
     if (!active || active.kind !== "group") return;
-    const name = prompt("Group name:", active.name);
-    if (name === null) return;
+    setRenameDraft(active.name);
+    setRenameOpen(true);
+  }
+
+  async function saveRename() {
+    const name = renameDraft.trim();
+    setRenameOpen(false);
+    if (!active || !name || name === active.name) return;
     await fetch(`/api/app/chat/channels/${active.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -624,7 +687,7 @@ export default function ChatClient({
       </div>
 
       {/* Messages */}
-      <div ref={scrollRef} onScroll={onScroll} className="min-h-0 flex-1 space-y-0.5 overflow-y-auto px-3 py-3 lg:px-4">
+      <div ref={scrollRef} onScroll={onScroll} className="min-h-0 flex-1 space-y-0.5 overflow-y-auto overscroll-y-contain px-3 py-3 lg:px-4">
         {loadingThread && (
           <p className="py-10 text-center text-sm text-gray-400">
             <Loader2 size={16} className="mr-1.5 inline animate-spin" />
@@ -652,6 +715,11 @@ export default function ChatClient({
               return acc;
             }, {})
           );
+          // Spring-in for messages that appear while the thread is on screen
+          const entering =
+            !seenRef.current.has(m.id) &&
+            Date.now() - new Date(m.createdAt).getTime() < 10_000;
+          seenRef.current.add(m.id);
           return (
             <div key={m.id}>
               {newDay && (
@@ -661,7 +729,7 @@ export default function ChatClient({
                   </span>
                 </div>
               )}
-              <div className={`group flex ${mine ? "justify-end" : "justify-start"} ${firstOfRun ? "mt-2.5" : "mt-0.5"} ${reactionGroups.length > 0 ? "mb-3.5" : ""}`}>
+              <div className={`group flex ${entering ? "msg-enter" : ""} ${mine ? "justify-end" : "justify-start"} ${firstOfRun ? "mt-2.5" : "mt-0.5"} ${reactionGroups.length > 0 ? "mb-3.5" : ""}`}>
                 <div className={`flex max-w-[82%] items-end gap-1.5 lg:max-w-[70%] ${mine ? "flex-row-reverse" : ""}`}>
                   {showMeta && (
                     <span className="w-[26px] shrink-0 self-end pb-0.5">
@@ -701,7 +769,7 @@ export default function ChatClient({
                     ) : (
                       <div
                         {...pressHandlers(m, mine)}
-                        className={`select-none whitespace-pre-wrap break-words px-3.5 py-2 text-[15px] leading-snug lg:select-text ${
+                        className={`select-none whitespace-pre-wrap break-words px-3.5 py-2 text-[15px] leading-snug lg:select-text ${m.pending ? "opacity-60" : ""} ${
                           mine
                             ? `bg-green-600 text-white ${firstOfRun ? "rounded-2xl rounded-br-md" : lastOfRun ? "rounded-2xl rounded-tr-md" : "rounded-2xl rounded-r-md"}`
                             : `bg-gray-100 text-gray-900 ${firstOfRun ? "rounded-2xl rounded-bl-md" : lastOfRun ? "rounded-2xl rounded-tl-md" : "rounded-2xl rounded-l-md"}`
@@ -713,6 +781,16 @@ export default function ChatClient({
                           {timeLabel(m.createdAt)}
                         </span>
                       </div>
+                    )}
+
+                    {m.failed && (
+                      <button
+                        type="button"
+                        onClick={() => retrySend(m)}
+                        className="mt-0.5 flex w-full items-center justify-end gap-1 text-[11px] font-medium text-red-500"
+                      >
+                        <RotateCcw size={11} /> Not delivered — tap to retry
+                      </button>
                     )}
 
                     {/* Reaction chips — overlap the bubble corner, iMessage style */}
@@ -735,7 +813,7 @@ export default function ChatClient({
                     )}
 
                     {/* Desktop hover actions */}
-                    {editingId !== m.id && !m.deletedAt && (
+                    {editingId !== m.id && !m.deletedAt && !m.pending && !m.failed && (
                       <div
                         className={`absolute top-1/2 z-10 hidden -translate-y-1/2 items-center gap-0.5 rounded-full border border-gray-200 bg-white px-1 py-0.5 shadow-sm lg:group-hover:flex ${
                           mine ? "left-0 -translate-x-full" : "right-0 translate-x-full"
@@ -839,11 +917,11 @@ export default function ChatClient({
           />
           <button
             type="submit"
-            disabled={sending || !draft.trim()}
+            disabled={!draft.trim()}
             aria-label="Send"
             className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-full bg-green-500 text-white transition-all hover:bg-green-600 active:scale-95 active:bg-green-700 disabled:opacity-40"
           >
-            {sending ? <Loader2 size={18} className="animate-spin" /> : <SendHorizonal size={18} />}
+            <SendHorizonal size={18} />
           </button>
         </div>
       </form>
@@ -868,7 +946,10 @@ export default function ChatClient({
           className={`fixed inset-x-0 z-[60] flex flex-col bg-white lg:hidden ${
             vvBox ? "" : "top-0 h-[100dvh] pt-[env(safe-area-inset-top)]"
           }`}
-          style={vvBox ? { top: vvBox.top, height: vvBox.height } : undefined}
+          style={{
+            ...(vvBox ? { top: vvBox.top, height: vvBox.height } : {}),
+            animation: "pagePushIn 0.3s cubic-bezier(0.32, 0.72, 0, 1) both",
+          }}
         >
           {conversation}
         </div>
@@ -944,6 +1025,40 @@ export default function ChatClient({
               )}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Rename group sheet */}
+      {renameOpen && (
+        <div
+          className="fixed inset-0 z-[70] flex items-end bg-black/40 lg:items-center lg:justify-center"
+          onClick={() => setRenameOpen(false)}
+        >
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              saveRename();
+            }}
+            className="w-full rounded-t-3xl bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:max-w-md lg:rounded-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mx-auto mb-3 h-1 w-9 rounded-full bg-gray-200 lg:hidden" />
+            <h2 className="mb-3 text-base font-semibold text-gray-900">Rename group</h2>
+            <input
+              value={renameDraft}
+              onChange={(e) => setRenameDraft(e.target.value)}
+              maxLength={60}
+              autoFocus
+              className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-[15px] focus:border-green-400 focus:outline-none"
+            />
+            <button
+              type="submit"
+              disabled={!renameDraft.trim()}
+              className="mt-4 w-full rounded-[10px] btn-tool bg-green-500 py-3 text-sm font-bold text-white transition-colors hover:bg-green-600 disabled:opacity-40"
+            >
+              Save
+            </button>
+          </form>
         </div>
       )}
 

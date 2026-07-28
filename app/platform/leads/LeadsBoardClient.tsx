@@ -596,10 +596,10 @@ export default function LeadsBoardClient({
       {/* Lost reason */}
       {lostCard && (
         <div
-          className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4"
+          className="modal-pop fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4"
           onClick={() => setLostCard(null)}
         >
-          <div className="card-ledger w-full max-w-sm p-5" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-card card-ledger w-full max-w-sm p-5" onClick={(e) => e.stopPropagation()}>
             <h2 className="text-base font-semibold text-gray-900 mb-1">
               Mark {lostCard.name} as lost?
             </h2>

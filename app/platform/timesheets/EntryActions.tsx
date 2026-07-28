@@ -80,8 +80,8 @@ export default function EntryActions({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/30 p-4">
-      <div className="w-full max-w-sm card-ledger bg-white p-5 space-y-3">
+    <div className="modal-pop fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+      <div className="modal-card w-full max-w-sm card-ledger bg-white p-5 space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-gray-900">Edit time entry</h3>
           <button onClick={() => setEditing(false)} className="text-gray-400 hover:text-gray-600">

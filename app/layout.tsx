@@ -4,6 +4,9 @@ import "./globals.css";
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  // iOS: stops the automatic page zoom when focusing inputs (pinch zoom
+  // still works — Safari ignores this for user gestures since iOS 10)
+  maximumScale: 1,
   viewportFit: "cover",
   // Keyboard shrinks the layout instead of scrolling over it (Android/Chrome)
   interactiveWidget: "resizes-content",

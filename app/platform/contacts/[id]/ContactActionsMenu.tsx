@@ -186,9 +186,9 @@ export default function ContactActionsMenu({
       </div>
 
       {deleteOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="modal-pop fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/40" onClick={() => !busy && setDeleteOpen(false)} />
-          <div className="relative w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+          <div className="modal-card relative w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
             <div className="flex items-start justify-between mb-3">
               <span className="flex h-9 w-9 items-center justify-center rounded-full bg-red-100">
                 <AlertTriangle size={17} className="text-red-600" />

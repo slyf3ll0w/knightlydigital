@@ -7,28 +7,10 @@ import { Camera, Check, ImagePlus, Loader2, Trash2 } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { PushToggleCard } from "@/components/PushNotifications";
 import Avatar from "@/components/Avatar";
+import AvatarCropModal from "@/components/AvatarCropModal";
 
 const inputCls =
   "w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500";
-
-/** Center-crop to a square and downscale — profile photos ship tiny. */
-async function processAvatarFile(file: File): Promise<Blob> {
-  const bitmap = await createImageBitmap(file);
-  const side = Math.min(bitmap.width, bitmap.height);
-  const sx = (bitmap.width - side) / 2;
-  const sy = (bitmap.height - side) / 2;
-  const out = 256;
-  const canvas = document.createElement("canvas");
-  canvas.width = out;
-  canvas.height = out;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("Canvas not supported");
-  ctx.drawImage(bitmap, sx, sy, side, side, 0, 0, out, out);
-  bitmap.close();
-  return new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("Image processing failed"))), "image/jpeg", 0.85);
-  });
-}
 
 export default function ProfileClient({
   userId,
@@ -75,12 +57,21 @@ export default function ProfileClient({
     );
   }, []);
 
-  async function uploadAvatar(file: File | null | undefined) {
+  // Picking a photo opens the crop dialog; the upload happens on Save there.
+  const [cropFile, setCropFile] = useState<File | null>(null);
+
+  function pickAvatar(file: File | null | undefined) {
     if (!file) return;
+    setError("");
+    setCropFile(file);
+    if (pickRef.current) pickRef.current.value = "";
+    if (cameraRef.current) cameraRef.current.value = "";
+  }
+
+  async function uploadAvatar(blob: Blob) {
     setAvatarBusy(true);
     setError("");
     try {
-      const blob = await processAvatarFile(file);
       const fd = new FormData();
       fd.append("file", new File([blob], "avatar.jpg", { type: "image/jpeg" }));
       const res = await fetch("/api/app/profile/avatar", { method: "POST", body: fd });
@@ -96,8 +87,7 @@ export default function ProfileClient({
       setError("Couldn't read that image — try a different one.");
     } finally {
       setAvatarBusy(false);
-      if (pickRef.current) pickRef.current.value = "";
-      if (cameraRef.current) cameraRef.current.value = "";
+      setCropFile(null);
     }
   }
 
@@ -218,7 +208,7 @@ export default function ProfileClient({
           type="file"
           accept="image/jpeg,image/png,image/webp"
           className="hidden"
-          onChange={(e) => uploadAvatar(e.target.files?.[0])}
+          onChange={(e) => pickAvatar(e.target.files?.[0])}
         />
         <input
           ref={cameraRef}
@@ -226,8 +216,16 @@ export default function ProfileClient({
           accept="image/*"
           capture="user"
           className="hidden"
-          onChange={(e) => uploadAvatar(e.target.files?.[0])}
+          onChange={(e) => pickAvatar(e.target.files?.[0])}
         />
+        {cropFile && (
+          <AvatarCropModal
+            file={cropFile}
+            busy={avatarBusy}
+            onCancel={() => !avatarBusy && setCropFile(null)}
+            onSave={uploadAvatar}
+          />
+        )}
       </div>
 
       <div className="card-ledger p-5 mb-5">

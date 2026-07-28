@@ -924,7 +924,8 @@ export default function ScheduleClient({
 
         {/* Unscheduled drawer */}
         {drawerOpen && (
-          <aside className="sticky top-4 w-72 shrink-0 rounded-lg border border-gray-200 bg-white max-lg:fixed max-lg:inset-y-0 max-lg:right-0 max-lg:z-40 max-lg:w-80 max-lg:max-w-[85vw] max-lg:overflow-y-auto max-lg:rounded-none max-lg:border-l max-lg:shadow-xl">
+          <aside className="sheet-rise sticky top-4 w-72 shrink-0 rounded-lg border border-gray-200 bg-white max-lg:fixed max-lg:inset-x-0 max-lg:bottom-0 max-lg:top-auto max-lg:z-40 max-lg:max-h-[70dvh] max-lg:w-full max-lg:overflow-y-auto max-lg:overscroll-y-contain max-lg:rounded-t-2xl max-lg:rounded-b-none max-lg:border-x-0 max-lg:border-b-0 max-lg:pb-[env(safe-area-inset-bottom)] max-lg:shadow-[0_-8px_30px_rgba(28,25,23,0.18)]">
+            <div className="mx-auto mt-2 h-1 w-9 rounded-full bg-gray-200 lg:hidden" />
             <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
               <h3 className="text-sm font-semibold text-gray-900">
                 Unscheduled jobs{unscheduled.length > 0 && ` (${unscheduled.length})`}
@@ -974,11 +975,11 @@ export default function ScheduleClient({
       {/* Block-off-time sheet (create + edit; read-only when not yours) */}
       {blockSheet && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4"
+          className="modal-pop fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4"
           onClick={() => !blockBusy && setBlockSheet(null)}
         >
           <div
-            className="w-full max-w-md space-y-3 rounded-lg bg-white p-5 text-left shadow-xl"
+            className="modal-card w-full max-w-md space-y-3 rounded-lg bg-white p-5 text-left shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
             <h2 className="text-base font-semibold text-gray-900">

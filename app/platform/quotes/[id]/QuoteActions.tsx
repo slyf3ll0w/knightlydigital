@@ -403,12 +403,12 @@ export default function QuoteActions({
       {/* Send-agreement modal: pick a template, signing link goes to the
           client's inbox; the quote unlocks once they sign */}
       {agreementOpen && agreement && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="modal-pop fixed inset-0 z-50 flex items-center justify-center p-4">
           <div
             className="absolute inset-0 bg-black/40"
             onClick={() => !busy && setAgreementOpen(false)}
           />
-          <div className="relative w-full max-w-md card-ledger bg-white p-6 shadow-xl">
+          <div className="modal-card relative w-full max-w-md card-ledger bg-white p-6 shadow-xl">
             <h2 className="text-lg font-bold text-gray-900 mb-1">Send agreement</h2>
             <p className="text-sm text-gray-600 mb-4">
               This quote includes services that require a signed agreement before work starts.

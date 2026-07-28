@@ -409,6 +409,73 @@ html[data-mode="dark"] .app-ui .sheet-hairline {
   border-color: rgba(84, 84, 88, 0.5);
 }
 
+/* ── Mobile modal presentation — dialogs that are centered cards on desktop
+   become iOS bottom sheets under lg. Components add `modal-pop` to the fixed
+   overlay and `modal-card` to the panel; the grabber bar comes free via
+   ::before, so no markup changes beyond the two classes. ── */
+@keyframes sheetUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+@media (max-width: 1023px) {
+  .app-ui .modal-pop {
+    align-items: flex-end;
+    justify-content: stretch;
+    padding: 0;
+  }
+  .app-ui .modal-pop > .modal-card {
+    width: 100%;
+    max-width: none;
+    max-height: 85dvh;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    border-radius: 20px 20px 0 0;
+    padding-bottom: calc(1.25rem + env(safe-area-inset-bottom));
+    animation: sheetUp 0.34s cubic-bezier(0.32, 0.72, 0, 1) both;
+  }
+  .app-ui .modal-pop > .modal-card::before {
+    content: "";
+    display: block;
+    margin: -6px auto 10px;
+    height: 5px;
+    width: 36px;
+    border-radius: 999px;
+    background: color-mix(in srgb, currentColor 18%, transparent);
+  }
+  /* Side drawers / panels that become bottom sheets get the same rise. */
+  .app-ui .sheet-rise {
+    animation: sheetUp 0.34s cubic-bezier(0.32, 0.72, 0, 1) both;
+  }
+  /* iOS zooms the whole page when focusing any control below 16px — the
+     single biggest "keyboard feels janky" cause. Pin form controls to 16px
+     on phones; desktop keeps the compact sizes. */
+  .app-ui input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+  .app-ui select,
+  .app-ui textarea {
+    font-size: 16px;
+  }
+}
+
+/* ── Chat: new bubbles spring in (iMessage feel). Applied only to messages
+   that arrive after the thread is on screen, never on thread open. ── */
+@keyframes msgIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.msg-enter {
+  animation: msgIn 0.26s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 /* ── Theme-guarded custom colors — the app-wide override rule for stored,
    user-picked colors (pipeline stages etc.). Components set the guarded
    halves via themedInkVars()/themedBgVars() (lib/section-colors.ts) and
