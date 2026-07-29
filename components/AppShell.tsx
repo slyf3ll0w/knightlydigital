@@ -1143,9 +1143,10 @@ function MobileTabBar({
   return (
     <>
       {/* Create sheet — backdrop fades, sheet springs up (iOS curve), tiles
-          cascade in. Icons ride console-ink tiles like the Atlas mark. */}
+          cascade in. Icons ride console-ink tiles like the Atlas mark.
+          Light dim only: the glass sheet needs content behind it to frost. */}
       <div
-        className={`fixed inset-0 z-40 bg-black/50 lg:hidden transition-opacity duration-300 ${
+        className={`fixed inset-0 z-40 bg-black/30 lg:hidden transition-opacity duration-300 ${
           sheetOpen ? "opacity-100" : "opacity-0 pointer-events-none"
         }`}
         onClick={() => setSheetOpen(false)}
@@ -1367,7 +1368,7 @@ function MoreSheet({
   return (
     <>
       <div
-        className={`fixed inset-0 z-40 bg-black/50 lg:hidden transition-opacity duration-300 ${
+        className={`fixed inset-0 z-40 bg-black/30 lg:hidden transition-opacity duration-300 ${
           open ? "opacity-100" : "opacity-0 pointer-events-none"
         }`}
         onClick={onClose}
