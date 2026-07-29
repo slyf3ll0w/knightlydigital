@@ -398,17 +398,17 @@ html[data-mode="dark"] .app-ui .bg-chrome {
    follows any company color scheme in both themes. Content surfaces
    (forms, cards, lists) stay solid — glass is for chrome only. ── */
 .app-ui .sheet-material {
-  /* ~72% opacity is where the frost actually READS as glass — at 90% the
-     surface is indistinguishable from solid white. Blur carries legibility. */
-  background-color: color-mix(in srgb, var(--wb-primary, #0a1428) 5%, rgba(255, 255, 255, 0.72));
-  -webkit-backdrop-filter: saturate(190%) blur(24px);
-  backdrop-filter: saturate(190%) blur(24px);
+  /* ~55% opacity so the frost unmistakably READS as glass — above ~72% the
+     surface starts passing for solid white. Blur carries legibility. */
+  background-color: color-mix(in srgb, var(--wb-primary, #0a1428) 5%, rgba(255, 255, 255, 0.55));
+  -webkit-backdrop-filter: saturate(190%) blur(28px);
+  backdrop-filter: saturate(190%) blur(28px);
 }
 .app-ui .sheet-hairline {
   border-color: rgba(60, 60, 67, 0.29);
 }
 html[data-mode="dark"] .app-ui .sheet-material {
-  background-color: color-mix(in srgb, var(--wb-primary, #606673) 10%, rgba(30, 30, 30, 0.75));
+  background-color: color-mix(in srgb, var(--wb-primary, #606673) 10%, rgba(30, 30, 30, 0.6));
 }
 html[data-mode="dark"] .app-ui .sheet-hairline {
   border-color: rgba(84, 84, 88, 0.5);
