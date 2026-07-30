@@ -99,11 +99,16 @@ export function recordSmsSent(companyId: string | null | undefined, segments: nu
 }
 
 /**
- * Nightly per-company storage snapshot — all binary data lives as Bytes
- * columns in Postgres (Company.logoData, User.avatarData, JobPhoto.data), so
- * a byte sum per tenant IS the storage footprint. Written onto today's usage
- * row as a point-in-time level (overwritten, never incremented). Called from
- * the daily cron.
+ * Nightly per-company storage snapshot. Logos and avatars are still Bytes
+ * columns in Postgres; job photos are either a Bytes column or an object in
+ * R2, so their size comes from `sizeBytes` (recorded on upload regardless of
+ * where the bytes went) and falls back to measuring the column for rows that
+ * predate it. Counting only `octet_length(data)` would make a company's
+ * footprint appear to collapse the moment its photos moved to R2 — the bytes
+ * are still theirs, and still billable, just not in Postgres.
+ *
+ * Written onto today's usage row as a point-in-time level (overwritten, never
+ * incremented). Called from the daily cron.
  */
 export async function rollupStorageSnapshots(): Promise<number> {
   const day = usageDay();
@@ -118,9 +123,10 @@ export async function rollupStorageSnapshots(): Promise<number> {
       FROM "User" WHERE "avatarData" IS NOT NULL GROUP BY "companyId"
     ) u ON u."companyId" = c.id
     LEFT JOIN (
-      SELECT j."companyId", SUM(octet_length(jp."data")) AS bytes
+      SELECT j."companyId",
+             SUM(COALESCE(jp."sizeBytes", octet_length(jp."data"), 0)) AS bytes
       FROM "JobPhoto" jp JOIN "Job" j ON j.id = jp."jobId"
-      WHERE jp."data" IS NOT NULL GROUP BY j."companyId"
+      GROUP BY j."companyId"
     ) p ON p."companyId" = c.id
   `;
   for (const r of rows) {

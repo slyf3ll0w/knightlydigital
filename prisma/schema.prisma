@@ -1060,11 +1060,16 @@ model JobPhoto {
   url       String
   caption   String?
   type      PhotoType @default(GENERAL)
-  // Uploaded photo bytes served via /api/job-photos/[id] (client-side resized
-  // JPEG, same pattern as Company.logoData; move both to R2 when volume grows)
-  data      Bytes?
-  mimeType  String?
-  createdAt DateTime  @default(now())
+  // Bytes live in R2 when object storage is configured (storageKey set, data
+  // null); otherwise they fall back to the `data` column, which is how every
+  // photo was stored before R2. Both are served through /api/job-photos/[id].
+  // sizeBytes is recorded either way so the nightly storage rollup can still
+  // measure a company's footprint once the bytes leave Postgres.
+  data       Bytes?
+  storageKey String?
+  sizeBytes  Int?
+  mimeType   String?
+  createdAt  DateTime @default(now())
 
   @@index([jobId])
 }
