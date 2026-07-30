@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getMerchant, getTransfer, finixConfigured } from "@/lib/finix";
-import { recomputeInvoiceStatus } from "@/lib/payments";
+import { recomputeInvoiceStatus, sendReviewRequest } from "@/lib/payments";
 import { notifyUsers } from "@/lib/push";
 
 /**
@@ -84,8 +84,44 @@ async function handleMerchant(merchantId: string) {
   }
 }
 
+/**
+ * An ACH debit we accepted optimistically has actually settled. The payment
+ * row and the invoice's PAID status were written at accept time, so no money
+ * moves here — this is just the first moment it's safe to ask the client for
+ * a review, which the pay route deliberately skips while a debit is pending
+ * (it can still bounce, and thanking someone whose money comes back is worse
+ * than asking a few days late).
+ */
+async function handleTransferSettled(transferId: string) {
+  const payment = await prisma.payment.findFirst({
+    where: { processorRef: transferId },
+    select: {
+      companyId: true,
+      invoice: {
+        select: {
+          status: true,
+          jobId: true,
+          contactId: true,
+          contact: { select: { firstName: true, email: true } },
+        },
+      },
+    },
+  });
+  const contact = payment?.invoice?.contact;
+  if (!payment || payment.invoice?.status !== "PAID" || !contact?.email) return;
+
+  await sendReviewRequest({
+    companyId: payment.companyId,
+    contactId: payment.invoice.contactId,
+    jobId: payment.invoice.jobId,
+    email: contact.email,
+    contactFirstName: contact.firstName,
+  }).catch((e) => console.error("[finix webhook] review request failed", e));
+}
+
 async function handleTransfer(transferId: string) {
   const transfer = await getTransfer(transferId); // re-fetch = verification
+  if (transfer.state === "SUCCEEDED") return handleTransferSettled(transfer.id);
   if (transfer.state !== "FAILED" && transfer.state !== "CANCELED") return;
 
   // An accepted ACH debit we recorded can fail days later (insufficient funds,

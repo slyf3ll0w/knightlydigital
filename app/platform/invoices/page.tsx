@@ -6,6 +6,7 @@ import PageTitle from "@/components/PageTitle";
 import { FilterRow, FilterChip } from "@/components/FilterChips";
 import { SECTION_HUES } from "@/lib/section-colors";
 import { money, shortDate } from "@/lib/statuses";
+import { pastDueFilter } from "@/lib/due-dates";
 import StatusChip from "@/components/StatusChip";
 import EmptyState from "@/components/EmptyState";
 import KpiStrip from "@/components/KpiStrip";
@@ -33,9 +34,10 @@ export default async function InvoicesPage({
     ? (status as InvoiceStatus)
     : undefined;
 
-  // Surface past-due invoices automatically (awaiting payment + due date passed)
+  // Surface past-due invoices automatically (awaiting payment + the whole due
+  // day has passed — an invoice due today isn't late yet)
   await prisma.invoice.updateMany({
-    where: { companyId, status: "AWAITING_PAYMENT", dueDate: { lt: new Date() } },
+    where: { companyId, status: "AWAITING_PAYMENT", dueDate: pastDueFilter() },
     data: { status: "PAST_DUE" },
   });
 

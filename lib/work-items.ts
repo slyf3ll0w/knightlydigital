@@ -30,6 +30,22 @@ export function intQuantity(v: unknown): number {
   return Number.isFinite(n) && n > 0 ? Math.min(n, 999999) : 1;
 }
 
+/**
+ * Line-item price from request input, in the same forgiving spirit as
+ * intQuantity: junk and negatives land on 0 rather than erroring.
+ *
+ * Money on a document is never negative — quotes and invoices carry their own
+ * discount field for taking money off. A negative line instead drags the
+ * subtotal, the tax, any derived deposit and the payable balance below zero,
+ * where nothing downstream expects it. Zero is at least visible to whoever is
+ * looking at the document.
+ */
+export function unitPriceValue(v: unknown): number {
+  const n = Number(v);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return Math.min(Math.round(n * 100) / 100, 9_999_999);
+}
+
 /** On-site duration for online booking: 15 min – 8 h, else "not bookable" (null). */
 export function sanitizeDuration(v: unknown): number | null {
   const n = Number(v);

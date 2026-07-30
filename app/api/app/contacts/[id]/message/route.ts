@@ -4,12 +4,20 @@ import { getActor, canSell, contactScope } from "@/lib/permissions";
 import { sendEmail, clientMessageEmail } from "@/lib/email";
 import { inPreview, previewBlockedError } from "@/lib/preview";
 
+// Sending caps. Every one of these goes out on the shared Resend domain, so
+// one company blasting its client list (or a compromised login doing it on
+// purpose) costs deliverability for every company on the platform. Counted
+// from ClientMessage rows, which only exist for sends that actually
+// succeeded — a failed send deletes its row below.
+const MAX_MESSAGES_PER_COMPANY_PER_DAY = 200;
+const MAX_MESSAGES_PER_CONTACT_PER_DAY = 10;
+
 /**
  * POST — email the client a one-off professional message ({ subject, body }).
- * The email carries the subject + a "Read message" button; the body lives on
- * the public /message/[token] page so the open is tracked by the view beacon
- * (and pushes the team) exactly like quotes. Replies come back to the
- * company inbox via Reply-To.
+ * The email carries the full message inline (body, signature, optional logo)
+ * plus a quiet "View this message online" link to /message/[token] and a
+ * tracking pixel, so opens land on the timeline and push the team. Replies
+ * come back to the company inbox via Reply-To.
  */
 export async function POST(
   req: NextRequest,
@@ -52,6 +60,32 @@ export async function POST(
     return NextResponse.json(
       { error: "Write a message (10,000 characters max)." },
       { status: 400 }
+    );
+  }
+
+  const since = new Date(Date.now() - 86400_000);
+  const [sentToday, sentToContact] = await Promise.all([
+    prisma.clientMessage.count({
+      where: { companyId: actor.companyId, createdAt: { gte: since } },
+    }),
+    prisma.clientMessage.count({
+      where: { companyId: actor.companyId, contactId: contact.id, createdAt: { gte: since } },
+    }),
+  ]);
+  if (sentToday >= MAX_MESSAGES_PER_COMPANY_PER_DAY) {
+    return NextResponse.json(
+      {
+        error: `That's ${MAX_MESSAGES_PER_COMPANY_PER_DAY} client emails in 24 hours — the daily limit. It resets on a rolling basis, so try again shortly.`,
+      },
+      { status: 429 }
+    );
+  }
+  if (sentToContact >= MAX_MESSAGES_PER_CONTACT_PER_DAY) {
+    return NextResponse.json(
+      {
+        error: `You've emailed ${contact.firstName} ${MAX_MESSAGES_PER_CONTACT_PER_DAY} times today — give them a chance to reply before sending more.`,
+      },
+      { status: 429 }
     );
   }
 

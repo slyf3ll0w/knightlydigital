@@ -128,12 +128,19 @@ export async function POST(
     });
   }
 
-  if (fullyPaid && invoice.company.reviewLink) {
+  // Paid in full → ask for a review. A pending ACH debit hasn't settled yet
+  // (it can still bounce), so that one waits for the webhook rather than
+  // thanking someone whose money may come back. Never allowed to fail the
+  // payment: the client's card is already charged by this point.
+  if (fullyPaid && !result.pending && invoice.contact?.email) {
     await sendReviewRequest({
-      companyName: invoice.company.name,
-      reviewLink: invoice.company.reviewLink,
-      email: invoice.contact?.email ?? undefined,
-    }).catch(() => {});
+      companyId: invoice.companyId,
+      contactId: invoice.contactId,
+      jobId: invoice.jobId,
+      email: invoice.contact.email,
+      contactFirstName: invoice.contact.firstName,
+      jobTitle: null,
+    }).catch((e) => console.error("[pay] review request failed", e));
   }
 
   return NextResponse.json({ success: true, pending: result.pending ?? false });

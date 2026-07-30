@@ -20,6 +20,7 @@ import { sendEmail, emailEnabled, paymentReminderEmail, appointmentReminderEmail
 import { sendSms, smsEnabled, appointmentReminderText } from "@/lib/sms";
 import { notifyUser } from "@/lib/push";
 import { slotLabel } from "@/lib/booking-availability";
+import { pastDueFilter } from "@/lib/due-dates";
 
 const DAY = 86400000;
 
@@ -41,11 +42,12 @@ export interface ReminderSummary {
 }
 
 export async function runDueReminders(now: Date = new Date()): Promise<ReminderSummary> {
-  // Flip awaiting invoices whose due date has passed to PAST_DUE (the invoices
-  // list does this lazily on view; here we do it globally so statuses are right
-  // even for companies no one has opened today).
+  // Flip awaiting invoices whose due day has fully passed to PAST_DUE (the
+  // invoices list does this lazily on view; here we do it globally so statuses
+  // are right even for companies no one has opened today). An invoice due
+  // today is not late — see lib/due-dates.ts.
   const flipped = await prisma.invoice.updateMany({
-    where: { status: "AWAITING_PAYMENT", dueDate: { lt: now } },
+    where: { status: "AWAITING_PAYMENT", dueDate: pastDueFilter(now) },
     data: { status: "PAST_DUE" },
   });
 

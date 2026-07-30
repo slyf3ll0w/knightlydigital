@@ -3,7 +3,12 @@ import { randomBytes } from "crypto";
 import type { RecurringInterval } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, contactScope } from "@/lib/permissions";
-import { backfillLineItemCosts, deriveLineItemAgreements, intQuantity } from "@/lib/work-items";
+import {
+  backfillLineItemCosts,
+  deriveLineItemAgreements,
+  intQuantity,
+  unitPriceValue,
+} from "@/lib/work-items";
 import { computeQuoteTotals } from "@/lib/quote-totals";
 import { inPreview, PREVIEW_CAP, previewCapError } from "@/lib/preview";
 import { withDocNumberRetry } from "@/lib/doc-numbers";
@@ -39,7 +44,10 @@ export async function POST(req: NextRequest) {
       { status: 400 }
     );
   }
-  for (const li of lineItems) li.quantity = intQuantity(li.quantity);
+  for (const li of lineItems) {
+    li.quantity = intQuantity(li.quantity);
+    li.unitPrice = unitPriceValue(li.unitPrice);
+  }
 
   const contact = await prisma.contact.findFirst({
     where: { id: contactId, companyId, ...contactScope(actor) },

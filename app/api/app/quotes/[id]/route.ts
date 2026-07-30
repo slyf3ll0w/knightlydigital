@@ -3,7 +3,12 @@ import type { RecurringInterval } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, isManager, viaContactScope } from "@/lib/permissions";
 import { autoSendQuoteAgreements } from "@/lib/agreements";
-import { backfillLineItemCosts, deriveLineItemAgreements, intQuantity } from "@/lib/work-items";
+import {
+  backfillLineItemCosts,
+  deriveLineItemAgreements,
+  intQuantity,
+  unitPriceValue,
+} from "@/lib/work-items";
 import { computeQuoteTotals } from "@/lib/quote-totals";
 import { autoAdvance, recordLeadWin } from "@/lib/pipeline";
 
@@ -82,7 +87,10 @@ export async function PATCH(
       recurringInterval?: RecurringInterval | null;
       sortOrder?: number;
     }[];
-    for (const li of rawLineItems) li.quantity = intQuantity(li.quantity);
+    for (const li of rawLineItems) {
+      li.quantity = intQuantity(li.quantity);
+      li.unitPrice = unitPriceValue(li.unitPrice);
+    }
     // Hand-typed items matching a price-book name inherit its cost (margins)
     const lineItems = await deriveLineItemAgreements(
       companyId,

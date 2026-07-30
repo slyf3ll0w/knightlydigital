@@ -12,6 +12,7 @@
 import { randomBytes } from "crypto";
 import type { DepositType, Prisma, PrismaClient } from "@prisma/client";
 import { quoteDepositAmount } from "@/lib/statuses";
+import { isPastDue } from "@/lib/due-dates";
 
 type Tx = Prisma.TransactionClient | PrismaClient;
 
@@ -171,8 +172,7 @@ export async function recomputeDepositApplied(tx: Tx, quoteId: string): Promise<
         : {}),
       ...(!fullyPaid && final.status === "PAID"
         ? {
-            status:
-              final.dueDate && final.dueDate < new Date() ? "PAST_DUE" : "AWAITING_PAYMENT",
+            status: isPastDue(final.dueDate) ? "PAST_DUE" : "AWAITING_PAYMENT",
             paidAt: null,
           }
         : {}),

@@ -16,6 +16,19 @@ function parseDay(s: string | null, end = false): Date | null {
 
 const csvCell = (v: string) => `"${v.replace(/"/g, '""')}"`;
 
+/**
+ * Same, for cells whose content someone typed into the app.
+ *
+ * Excel and Sheets evaluate a cell starting with = + - @ (or a tab/CR) as a
+ * formula, and quoting doesn't help — the spreadsheet parses after unquoting.
+ * So an expense described as "=HYPERLINK(...)" runs on whoever opens the
+ * export, which for a bookkeeping file is usually the owner or their
+ * accountant. A leading apostrophe forces it to stay text; spreadsheets hide
+ * it. Only text columns go through this — a negative amount is a real number,
+ * not an injection, and must not be turned into a string.
+ */
+const csvText = (v: string) => csvCell(/^[=+\-@\t\r]/.test(v) ? `'${v}` : v);
+
 export async function GET(req: NextRequest) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -36,16 +49,17 @@ export async function GET(req: NextRequest) {
   });
 
   if (req.nextUrl.searchParams.get("format") === "csv") {
-    const rows = [
-      ["Date", "Description", "Category", "Amount"],
-      ...expenses.map((e) => [
-        e.incurredAt.toISOString().slice(0, 10),
-        e.description,
-        e.category ?? "",
-        Number(e.amount).toFixed(2),
-      ]),
-    ];
-    const csv = rows.map((r) => r.map(csvCell).join(",")).join("\n");
+    const csv = [
+      ["Date", "Description", "Category", "Amount"].map(csvCell).join(","),
+      ...expenses.map((e) =>
+        [
+          csvCell(e.incurredAt.toISOString().slice(0, 10)),
+          csvText(e.description),
+          csvText(e.category ?? ""),
+          csvCell(Number(e.amount).toFixed(2)),
+        ].join(",")
+      ),
+    ].join("\n");
     return new NextResponse(csv, {
       headers: {
         "Content-Type": "text/csv",

@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import type { InvoiceStatus, RecurringInterval } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getActor, isManager, canSeeMoney, viaContactScope } from "@/lib/permissions";
-import { intQuantity } from "@/lib/work-items";
+import { intQuantity, unitPriceValue } from "@/lib/work-items";
 import { paidDepositTotal } from "@/lib/deposits";
+import { inPreview, previewBlockedError } from "@/lib/preview";
+import { isPastDue } from "@/lib/due-dates";
 
 /**
  * PATCH — full-document invoice edit (subject, line items, discount, tax,
@@ -24,6 +26,11 @@ export async function PATCH(
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!canSeeMoney(actor)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const companyId = actor.companyId;
+  // Same gate POST has. Creating invoices is shut in preview, but a deposit
+  // invoice can still be minted by approving a quote, so the edit path needs
+  // the check too or that one invoice stays fully editable pre-approval.
+  if (await inPreview(companyId))
+    return NextResponse.json(previewBlockedError("Invoicing"), { status: 403 });
 
   const { id } = await params;
   const invoice = await prisma.invoice.findFirst({
@@ -54,7 +61,10 @@ export async function PATCH(
     recurringInterval?: RecurringInterval | null;
     sortOrder?: number;
   }[];
-  for (const li of lineItems) li.quantity = intQuantity(li.quantity);
+  for (const li of lineItems) {
+    li.quantity = intQuantity(li.quantity);
+    li.unitPrice = unitPriceValue(li.unitPrice);
+  }
 
   const subtotal = lineItems.reduce((s, li) => s + (li.quantity || 0) * (li.unitPrice || 0), 0);
   const discountType =
@@ -114,7 +124,7 @@ export async function PATCH(
   if (fullyPaid) {
     status = "PAID";
   } else if (invoice.status !== "DRAFT") {
-    status = due && due < new Date() ? "PAST_DUE" : "AWAITING_PAYMENT";
+    status = isPastDue(due) ? "PAST_DUE" : "AWAITING_PAYMENT";
   }
   const lastPaidAt = invoice.payments.reduce<Date | null>(
     (latest, p) => (!latest || p.paidAt > latest ? p.paidAt : latest),

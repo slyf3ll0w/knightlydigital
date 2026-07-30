@@ -598,7 +598,11 @@ export function superadminLoginCodeEmail({ code }: { code: string }): {
 /* Client-facing emails (company-branded like the documents)           */
 /* ------------------------------------------------------------------ */
 
-/** "How did we do?" email with the company's Google review link, sent when a job completes. */
+/**
+ * "How did we do?" email with the company's Google review link. Sent when a
+ * job completes, and when an invoice with no job behind it is paid off — that
+ * second case has no work to name, so the copy drops the job line.
+ */
 export function reviewRequestEmail({
   brand,
   companyName,
@@ -610,7 +614,7 @@ export function reviewRequestEmail({
   companyName: string;
   contactFirstName: string;
   reviewLink: string;
-  jobTitle: string;
+  jobTitle?: string | null;
 }): { subject: string; html: string } {
   const html = clientShell({
     brand,
@@ -619,8 +623,12 @@ export function reviewRequestEmail({
     inner: `
       <p style="margin:0 0 12px;color:#111827;font-size:15px;">Hi ${esc(contactFirstName)},</p>
       <p style="margin:0 0 12px;color:#374151;font-size:14px;">
-        Thanks for choosing ${esc(companyName)} — we just wrapped up
-        <strong>${esc(jobTitle)}</strong> and hope everything looks great.
+        ${
+          jobTitle
+            ? `Thanks for choosing ${esc(companyName)} — we just wrapped up
+        <strong>${esc(jobTitle)}</strong> and hope everything looks great.`
+            : `Thanks for choosing ${esc(companyName)} — we hope everything looks great.`
+        }
       </p>
       <p style="margin:0;color:#374151;font-size:14px;">
         If you have a minute, a quick Google review helps our small business more than you know.

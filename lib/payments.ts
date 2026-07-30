@@ -19,6 +19,8 @@ import * as finix from "@/lib/finix";
 import { estimateProcessingCostCents } from "@/lib/platform-costs";
 import { notifyUsers } from "@/lib/push";
 import { queueQuickBooksPaymentSync } from "@/lib/quickbooks";
+import { sendEmail, reviewRequestEmail } from "@/lib/email";
+import { isPastDue } from "@/lib/due-dates";
 import type { PaymentMethod, Prisma } from "@prisma/client";
 
 // ─── Processor interface ─────────────────────────────────────────────────────
@@ -425,8 +427,7 @@ export async function recomputeInvoiceStatus(
     await tx.invoice.update({
       where: { id: invoiceId },
       data: {
-        status:
-          invoice.dueDate && invoice.dueDate < new Date() ? "PAST_DUE" : "AWAITING_PAYMENT",
+        status: isPastDue(invoice.dueDate) ? "PAST_DUE" : "AWAITING_PAYMENT",
         paidAt: null,
       },
     });
@@ -479,25 +480,88 @@ export function feeRateLabel(bps: number, fixedCents: number): string {
   return fixedCents > 0 ? `${pct} + ${fixedCents}¢` : pct;
 }
 
-/** Send a payment reminder via email/SMS (stub — wire to Resend/Twilio). */
-export async function sendPaymentReminder(_params: {
-  invoiceId: string;
-  email?: string;
-  phone?: string;
-  amount: number;
-  dueDate?: Date;
+/**
+ * "How did we do?" email once an invoice is paid off, using the company's
+ * configured review link.
+ *
+ * Deduped against the job-completion path (app/api/app/jobs/[id]/status),
+ * which records a ReviewRequest row per job: a client who already got the ask
+ * when the work was marked complete doesn't get a second one when they pay.
+ * Invoices with no job behind them fall back to one ask per client per 60
+ * days, so a repeat customer on a monthly plan isn't nagged every cycle.
+ *
+ * Silent no-op when the company hasn't set a review link, the client has no
+ * email, or Resend isn't configured — this fires from the client's payment
+ * request and must never fail it.
+ */
+export async function sendReviewRequest(params: {
+  companyId: string;
+  contactId?: string | null;
+  jobId?: string | null;
+  email: string;
+  contactFirstName: string;
+  jobTitle?: string | null;
 }): Promise<void> {
-  // TODO: integrate email (Resend) and SMS (Twilio)
-  console.log("[payments] reminder sent for invoice", _params.invoiceId);
-}
+  const { companyId, contactId, jobId, email, contactFirstName, jobTitle } = params;
 
-/** Fire a review request after payment (stub — wire to email/SMS). */
-export async function sendReviewRequest(_params: {
-  companyName: string;
-  reviewLink: string;
-  email?: string;
-  phone?: string;
-}): Promise<void> {
-  // TODO: integrate email (Resend) and SMS (Twilio)
-  console.log("[payments] review request sent");
+  const company = await prisma.company.findUnique({
+    where: { id: companyId },
+    select: {
+      name: true,
+      reviewLink: true,
+      brandColor: true,
+      documentColor: true,
+      brandColorSecondary: true,
+      logoUrl: true,
+    },
+  });
+  if (!company?.reviewLink) return;
+
+  const alreadySent = jobId
+    ? await prisma.reviewRequest.findFirst({ where: { companyId, jobId } })
+    : contactId
+      ? await prisma.reviewRequest.findFirst({
+          where: {
+            companyId,
+            contactId,
+            sentAt: { gte: new Date(Date.now() - 60 * 86400_000) },
+          },
+        })
+      : null;
+  if (alreadySent) return;
+
+  // Name the work when we can — an invoice raised straight off a job knows it
+  // even though the caller doesn't.
+  const title =
+    jobTitle ??
+    (jobId
+      ? (await prisma.job.findUnique({ where: { id: jobId }, select: { title: true } }))?.title
+      : null);
+
+  const { subject, html } = reviewRequestEmail({
+    brand: company,
+    companyName: company.name,
+    contactFirstName,
+    reviewLink: company.reviewLink,
+    jobTitle: title,
+  });
+  const sent = await sendEmail({
+    companyId,
+    to: email,
+    subject,
+    html,
+    fromName: company.name,
+  });
+  if (!sent) return;
+
+  await prisma.reviewRequest.create({
+    data: {
+      companyId,
+      contactId: contactId ?? null,
+      jobId: jobId ?? null,
+      email,
+      sentAt: new Date(),
+      method: "email",
+    },
+  });
 }

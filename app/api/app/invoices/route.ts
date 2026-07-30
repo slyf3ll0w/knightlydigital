@@ -6,7 +6,7 @@ import { getActor, canSeeMoney, contactScope } from "@/lib/permissions";
 import { recordLeadWin } from "@/lib/pipeline";
 import { ensureSubscriptionsForContact } from "@/lib/subscriptions";
 import { paidDepositTotal } from "@/lib/deposits";
-import { intQuantity } from "@/lib/work-items";
+import { intQuantity, unitPriceValue } from "@/lib/work-items";
 import { inPreview, previewBlockedError } from "@/lib/preview";
 import { withDocNumberRetry } from "@/lib/doc-numbers";
 
@@ -24,7 +24,10 @@ export async function POST(req: NextRequest) {
   if (!lineItems?.length) {
     return NextResponse.json({ error: "At least one line item is required." }, { status: 400 });
   }
-  for (const li of lineItems) li.quantity = intQuantity(li.quantity);
+  for (const li of lineItems) {
+    li.quantity = intQuantity(li.quantity);
+    li.unitPrice = unitPriceValue(li.unitPrice);
+  }
 
   const contact = contactId
     ? await prisma.contact.findFirst({ where: { id: contactId, companyId, ...contactScope(actor) } })

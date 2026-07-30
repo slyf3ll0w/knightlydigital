@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, jobScope } from "@/lib/permissions";
-import { sendEmail, reviewRequestEmail } from "@/lib/email";
+import { sendReviewRequest } from "@/lib/payments";
 import { syncJobChecklist, countOpenChecklistItems } from "@/lib/job-checklist";
 
 export async function PATCH(
@@ -51,46 +51,23 @@ export async function PATCH(
 
   await prisma.job.update({ where: { id }, data: { status, ...extra } });
 
-  // Completed job + configured Google review link → ask the client for a
-  // review (once per job; silent no-op without RESEND_API_KEY)
+  // Completed job + configured review link → ask the client for a review.
+  // sendReviewRequest owns the dedupe (once per job), so the same client
+  // paying that job's invoice later doesn't get asked a second time.
   if (status === "REQUIRES_INVOICING") {
-    const [company, contact, alreadySent] = await Promise.all([
-      prisma.company.findUnique({
-        where: { id: companyId },
-        select: {
-          name: true,
-          reviewLink: true,
-          brandColor: true,
-          documentColor: true,
-          brandColorSecondary: true,
-          logoUrl: true,
-        },
-      }),
-      prisma.contact.findUnique({
-        where: { id: job.contactId },
-        select: { firstName: true, email: true },
-      }),
-      prisma.reviewRequest.findFirst({ where: { companyId, jobId: id } }),
-    ]);
-    if (company?.reviewLink && contact?.email && !alreadySent) {
-      const { subject, html } = reviewRequestEmail({
-        brand: company,
-        companyName: company.name,
+    const contact = await prisma.contact.findUnique({
+      where: { id: job.contactId },
+      select: { firstName: true, email: true },
+    });
+    if (contact?.email) {
+      await sendReviewRequest({
+        companyId,
+        contactId: job.contactId,
+        jobId: id,
+        email: contact.email,
         contactFirstName: contact.firstName,
-        reviewLink: company.reviewLink,
         jobTitle: job.title,
-      });
-      await sendEmail({ companyId, to: contact.email, subject, html, fromName: company.name });
-      await prisma.reviewRequest.create({
-        data: {
-          companyId,
-          contactId: job.contactId,
-          jobId: id,
-          email: contact.email,
-          sentAt: new Date(),
-          method: "email",
-        },
-      });
+      }).catch((e) => console.error("[jobs] review request failed", e));
     }
   }
 

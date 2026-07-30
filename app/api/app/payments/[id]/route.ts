@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { PaymentMethod, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getActor, canSeeMoney, isManager, viaContactScope } from "@/lib/permissions";
+import { isPastDue } from "@/lib/due-dates";
 
 const validMethods = [
   "CARD", "ACH", "CASH", "CHECK", "CASH_APP", "PAYPAL", "VENMO", "ZELLE", "OTHER",
@@ -35,8 +36,7 @@ async function recomputeInvoiceStatus(tx: Prisma.TransactionClient, invoiceId: s
     await tx.invoice.update({
       where: { id: invoiceId },
       data: {
-        status:
-          invoice.dueDate && invoice.dueDate < new Date() ? "PAST_DUE" : "AWAITING_PAYMENT",
+        status: isPastDue(invoice.dueDate) ? "PAST_DUE" : "AWAITING_PAYMENT",
         paidAt: null,
       },
     });
