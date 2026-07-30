@@ -20,6 +20,7 @@ export default function PaymentRow({
   payment,
   canDelete,
   canRefund = false,
+  isOnline = false,
 }: {
   payment: {
     id: string;
@@ -33,6 +34,12 @@ export default function PaymentRow({
   canDelete: boolean;
   /** Online (processor) payments only — sends money back via the processor. */
   canRefund?: boolean;
+  /**
+   * Charged through the processor. Amount, method and date are whatever
+   * actually settled, so the API won't let them be edited (and won't let the
+   * record be deleted) — only the reference/notes are the shop's to change.
+   */
+  isOnline?: boolean;
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
@@ -60,7 +67,7 @@ export default function PaymentRow({
 
   async function save() {
     const amount = parseFloat(form.amount);
-    if (!amount || amount <= 0) {
+    if (!isOnline && (!amount || amount <= 0)) {
       setError("Amount must be greater than zero.");
       return;
     }
@@ -69,9 +76,11 @@ export default function PaymentRow({
     const { ok, data } = await postJson(
       `/api/app/payments/${payment.id}`,
       {
-        amount,
-        method: form.method,
-        paidAt: form.paidAt || undefined,
+        // Sending amount/method/paidAt on a processor charge is rejected by
+        // the API — only the reference and notes are editable there.
+        ...(isOnline
+          ? {}
+          : { amount, method: form.method, paidAt: form.paidAt || undefined }),
         referenceNumber: form.referenceNumber,
         details: form.details,
       },
@@ -133,41 +142,52 @@ export default function PaymentRow({
   if (editing) {
     return (
       <div className="px-5 py-3 bg-gray-50/70">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2">
-          <div>
-            <label className="block text-xs text-gray-500 mb-0.5">Amount</label>
-            <input
-              type="number"
-              min="0.01"
-              step="0.01"
-              value={form.amount}
-              onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
-              className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-gray-500 mb-0.5">Method</label>
-            <select
-              value={form.method}
-              onChange={(e) => setForm((f) => ({ ...f, method: e.target.value }))}
-              className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
-            >
-              {METHODS.map((m) => (
-                <option key={m} value={m}>
-                  {paymentMethodLabel[m] ?? m}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs text-gray-500 mb-0.5">Date</label>
-            <input
-              type="date"
-              value={form.paidAt}
-              onChange={(e) => setForm((f) => ({ ...f, paidAt: e.target.value }))}
-              className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-            />
-          </div>
+        {isOnline && (
+          <p className="mb-2 text-xs text-gray-500">
+            {money(payment.amount)} · {paymentMethodLabel[payment.method] ?? payment.method} ·{" "}
+            {payment.paidAtLabel} — locked to what settled online.
+            {canRefund && payment.amount > 0 && " Refund to send money back."}
+          </p>
+        )}
+        <div className={`grid gap-2 mb-2 ${isOnline ? "grid-cols-1" : "grid-cols-2 sm:grid-cols-4"}`}>
+          {!isOnline && (
+            <>
+              <div>
+                <label className="block text-xs text-gray-500 mb-0.5">Amount</label>
+                <input
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  value={form.amount}
+                  onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
+                  className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-0.5">Method</label>
+                <select
+                  value={form.method}
+                  onChange={(e) => setForm((f) => ({ ...f, method: e.target.value }))}
+                  className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                >
+                  {METHODS.map((m) => (
+                    <option key={m} value={m}>
+                      {paymentMethodLabel[m] ?? m}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-0.5">Date</label>
+                <input
+                  type="date"
+                  value={form.paidAt}
+                  onChange={(e) => setForm((f) => ({ ...f, paidAt: e.target.value }))}
+                  className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                />
+              </div>
+            </>
+          )}
           <div>
             <label className="block text-xs text-gray-500 mb-0.5">Reference #</label>
             <input

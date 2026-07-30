@@ -465,12 +465,22 @@ export const moneyTools: Tool[] = [
       const payment = await prisma.payment.findFirst({
         where: { id: str(args.paymentId, 40), companyId: actor.companyId },
         select: {
-          id: true, amount: true, method: true,
+          id: true, amount: true, method: true, processorRef: true,
           invoice: { select: { invoiceNumber: true } },
           contact: { select: { firstName: true, lastName: true, companyName: true } },
         },
       });
       if (!payment) return { error: "No payment with that id — check list_money (kind: payments)." };
+      // The API refuses amount/method/date edits on processor charges (they'd
+      // drift from what actually settled) — don't stage a card that will fail.
+      if (payment.processorRef?.startsWith("TR")) {
+        return {
+          error:
+            "That payment was processed online, so its amount, method and date can't be edited — they have to match what actually settled. For a partial refund, tell the user to use the refund button on invoice #" +
+            payment.invoice.invoiceNumber +
+            " (/app/invoices), which sends the money back and adjusts the record.",
+        };
+      }
       const payload: Record<string, unknown> = {};
       const lines: string[] = [];
       const amount = num(args.amount);

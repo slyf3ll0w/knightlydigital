@@ -220,12 +220,23 @@ export const deleteTools: Tool[] = [
           const p = await prisma.payment.findFirst({
             where: { id: idArg, companyId },
             select: {
-              id: true, amount: true, method: true, paidAt: true,
+              id: true, amount: true, method: true, paidAt: true, processorRef: true,
               invoice: { select: { invoiceNumber: true } },
               contact: { select: { firstName: true, lastName: true, companyName: true } },
             },
           });
           if (!p) return { error: "No payment with that id — check list_money (kind: payments)." };
+          // An online charge still holding money is refunded, not deleted —
+          // the API refuses it, so don't put a card in front of the user that
+          // can't go through. (Once refunded to zero, deleting is allowed.)
+          if (p.processorRef?.startsWith("TR") && Number(p.amount) > 0.005) {
+            return {
+              error:
+                "That payment was processed online, so deleting it would erase the charge record without returning the client's money. Tell the user to refund it from invoice #" +
+                p.invoice.invoiceNumber +
+                " (/app/invoices) — the refund button sends the money back to their card or bank.",
+            };
+          }
           return stage(ctx, {
             kind: "delete_payment",
             title: `Remove ${money(p.amount)} ${p.method.replace("_", " ")} payment from invoice #${p.invoice.invoiceNumber}`,

@@ -7,6 +7,7 @@ import { sendEmail, invoiceLinkEmail } from "@/lib/email";
 import { recordLeadWin } from "@/lib/pipeline";
 import { signatureMatchesName } from "@/lib/signature";
 import { withDocNumberRetry } from "@/lib/doc-numbers";
+import { suspendedResponse } from "@/lib/suspension";
 
 /**
  * Public quote response endpoint (client-facing, no auth — the [id] segment
@@ -39,6 +40,13 @@ export async function POST(
     include: { lineItems: true, contact: true, company: true },
   });
   if (!quote) return NextResponse.json({ error: "Quote not found." }, { status: 404 });
+  if (quote.company.suspendedAt) {
+    // Paused account: approving mints a deposit invoice and starts work the
+    // business can't currently bill for. The quote stays readable.
+    return suspendedResponse(
+      "This quote can't be accepted online right now. Please contact the business directly to move forward."
+    );
+  }
 
   if (!["AWAITING_RESPONSE", "CHANGES_REQUESTED", "DRAFT"].includes(quote.status)) {
     return NextResponse.json({ error: "Quote is not in a reviewable state." }, { status: 400 });

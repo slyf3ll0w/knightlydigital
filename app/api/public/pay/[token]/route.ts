@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getProcessor, recordPayment, calculateSurcharge, sendReviewRequest } from "@/lib/payments";
 import { recomputeDepositApplied } from "@/lib/deposits";
+import { suspendedResponse } from "@/lib/suspension";
 
 /**
  * Public online payment endpoint. Routes through the active payment processor;
@@ -39,9 +40,8 @@ export async function POST(
   if (!invoice) return NextResponse.json({ error: "Invoice not found." }, { status: 404 });
   if (invoice.company.suspendedAt) {
     // Suspended merchants can't move money through the platform.
-    return NextResponse.json(
-      { error: "Online payments are unavailable for this business. Please contact them directly to arrange payment." },
-      { status: 503 }
+    return suspendedResponse(
+      "Online payments are unavailable for this business. Please contact them directly to arrange payment."
     );
   }
   if (invoice.status === "PAID") {

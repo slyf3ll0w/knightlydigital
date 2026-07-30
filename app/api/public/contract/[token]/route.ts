@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { sendEmail, contractSignedCopyEmail, contractSignedNotifyEmail } from "@/lib/email";
 import { isContractLinkExpired } from "@/lib/agreements";
+import { suspendedResponse } from "@/lib/suspension";
 
 /**
  * POST — client signs a contract with a typed signature (same e-sign
@@ -19,9 +20,19 @@ export async function POST(
     return NextResponse.json({ error: "Type your full name to sign." }, { status: 400 });
   }
 
-  const contract = await prisma.contract.findUnique({ where: { publicToken: token } });
+  const contract = await prisma.contract.findUnique({
+    where: { publicToken: token },
+    include: { company: { select: { suspendedAt: true } } },
+  });
   if (!contract || contract.status === "VOID") {
     return NextResponse.json({ error: "This contract is no longer available." }, { status: 404 });
+  }
+  if (contract.company.suspendedAt) {
+    // Paused account: a signature binds both sides, so it doesn't get
+    // collected while the business is suspended. The agreement stays readable.
+    return suspendedResponse(
+      "This agreement can't be signed online right now. Please contact the business directly."
+    );
   }
   if (contract.status === "SIGNED") {
     return NextResponse.json({ error: "This contract has already been signed." }, { status: 400 });

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { sendEmail, contractSignEmail } from "@/lib/email";
+import { suspendedResponse } from "@/lib/suspension";
 
 /**
  * Public (hub-token auth): re-send a pending agreement's signing link to the
@@ -22,11 +23,18 @@ export async function POST(req: NextRequest) {
       firstName: true,
       companyId: true,
       company: {
-        select: { name: true, brandColor: true, documentColor: true, brandColorSecondary: true, logoUrl: true },
+        select: { name: true, brandColor: true, documentColor: true, brandColorSecondary: true, logoUrl: true, suspendedAt: true },
       },
     },
   });
   if (!contact) return NextResponse.json({ error: "Hub not found." }, { status: 404 });
+  if (contact.company?.suspendedAt) {
+    // Paused account: no new signing links go out (and the link they'd get
+    // wouldn't sign anyway — see app/api/public/contract/[token]).
+    return suspendedResponse(
+      "This business isn't sending agreements online right now. Please contact them directly."
+    );
+  }
   if (!contact.email) {
     return NextResponse.json({ error: "No email address on file." }, { status: 400 });
   }

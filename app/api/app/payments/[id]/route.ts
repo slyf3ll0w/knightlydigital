@@ -119,6 +119,23 @@ export async function DELETE(
   });
   if (!payment) return NextResponse.json({ error: "Payment not found." }, { status: 404 });
 
+  // An online payment still holding money is real money that already moved.
+  // Deleting the row doesn't give it back — it just erases the charge id we'd
+  // need to reconcile against the processor, and leaves the client charged
+  // with nothing on the invoice to show for it. PATCH already refuses to edit
+  // these for the same reason; refund is the path that actually returns money.
+  // A fully-refunded row (amount zeroed by the refund) is only bookkeeping at
+  // that point, so a manager may still clear it.
+  if (payment.processorRef?.startsWith("TR") && Number(payment.amount) > 0.005) {
+    return NextResponse.json(
+      {
+        error:
+          "This payment was processed online — refund it instead of deleting it. Deleting the record wouldn't return the client's money.",
+      },
+      { status: 400 }
+    );
+  }
+
   await prisma.$transaction(async (tx) => {
     await tx.payment.delete({ where: { id } });
     await recomputeInvoiceStatus(tx, payment.invoiceId);

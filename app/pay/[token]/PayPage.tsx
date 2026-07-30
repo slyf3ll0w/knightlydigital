@@ -149,7 +149,11 @@ export default function PayPage({ invoice, balance, finix }: { invoice: Invoice;
 
     if (!res.ok) {
       const data = await res.json().catch(() => null);
-      if (res.status === 503) {
+      // 503 = no money can move. The processor-not-enabled case (identified by
+      // the processorLive field) gets the "coming soon" copy with the
+      // business's contact details; anything else — a paused account, say —
+      // already sends copy that fits, so show that instead of overriding it.
+      if (res.status === 503 && data && "processorLive" in data) {
         const contactBits = [invoice.company.phone, invoice.company.email]
           .filter(Boolean)
           .join(" or ");

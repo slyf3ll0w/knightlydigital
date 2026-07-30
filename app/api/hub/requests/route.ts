@@ -4,6 +4,7 @@ import { sendEmail, newRequestEmail } from "@/lib/email";
 import { companyNotifyAddress } from "@/lib/notify";
 import { notifyUsers, requestNotifyUserIds } from "@/lib/push";
 import { withDocNumberRetry } from "@/lib/doc-numbers";
+import { suspendedResponse } from "@/lib/suspension";
 
 /**
  * Public: a client submits a work request from their hub ("Request more work").
@@ -29,9 +30,8 @@ export async function POST(req: NextRequest) {
   if (!contact) return NextResponse.json({ error: "Hub not found." }, { status: 404 });
   if (contact.company.suspendedAt) {
     // Paused account: nothing new comes in until support reinstates it.
-    return NextResponse.json(
-      { error: "This business isn't accepting requests online right now. Please contact them directly." },
-      { status: 503 }
+    return suspendedResponse(
+      "This business isn't accepting requests online right now. Please contact them directly."
     );
   }
 

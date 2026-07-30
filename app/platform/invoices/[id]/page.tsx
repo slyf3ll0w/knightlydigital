@@ -262,22 +262,31 @@ export default async function InvoiceDetailPage({
           <p className="px-5 py-8 text-center text-sm text-gray-400">No payments recorded yet.</p>
         ) : (
           <div className="divide-y divide-gray-50">
-            {invoice.payments.map((p) => (
-              <PaymentRow
-                key={p.id}
-                payment={{
-                  id: p.id,
-                  amount: Number(p.amount),
-                  method: p.method,
-                  paidAtDate: p.paidAt.toISOString().slice(0, 10),
-                  paidAtLabel: shortDate(p.paidAt),
-                  referenceNumber: p.referenceNumber ?? "",
-                  details: p.details ?? "",
-                }}
-                canDelete={isManager(actor.role)}
-                canRefund={isManager(actor.role) && (p.processorRef?.startsWith("TR") ?? false)}
-              />
-            ))}
+            {invoice.payments.map((p) => {
+              // Money sitting on a processor charge is refunded, not deleted —
+              // the API refuses that delete, so refund takes its place here.
+              // Once it's been refunded to zero the row is just bookkeeping
+              // again and a manager can clear it.
+              const online = p.processorRef?.startsWith("TR") ?? false;
+              const holdsMoney = online && Number(p.amount) > 0.005;
+              return (
+                <PaymentRow
+                  key={p.id}
+                  payment={{
+                    id: p.id,
+                    amount: Number(p.amount),
+                    method: p.method,
+                    paidAtDate: p.paidAt.toISOString().slice(0, 10),
+                    paidAtLabel: shortDate(p.paidAt),
+                    referenceNumber: p.referenceNumber ?? "",
+                    details: p.details ?? "",
+                  }}
+                  canDelete={isManager(actor.role) && !holdsMoney}
+                  canRefund={isManager(actor.role) && online}
+                  isOnline={online}
+                />
+              );
+            })}
           </div>
         )}
       </div>

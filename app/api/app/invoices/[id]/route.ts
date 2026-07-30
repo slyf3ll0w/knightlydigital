@@ -177,13 +177,27 @@ export async function DELETE(
 
   const invoice = await prisma.invoice.findFirst({
     where: { id, companyId: actor.companyId },
-    include: { _count: { select: { payments: true } } },
+    include: { payments: { select: { processorRef: true, amount: true } } },
   });
   if (!invoice) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  if (invoice._count.payments > 0 && !force) {
+  if (invoice.payments.length > 0 && !force) {
     return NextResponse.json(
       { error: "This invoice has recorded payments — deleting it removes them too." },
+      { status: 400 }
+    );
+  }
+
+  // force=1 covers manual payment records (bookkeeping the manager can redo).
+  // It does NOT cover money still sitting on a processor charge: deleting that
+  // leaves the client charged with no invoice to show for it. Refund first,
+  // then delete — a refunded charge (amount zeroed) no longer blocks.
+  if (invoice.payments.some((p) => p.processorRef?.startsWith("TR") && Number(p.amount) > 0.005)) {
+    return NextResponse.json(
+      {
+        error:
+          "This invoice has a payment that was processed online. Refund it first — deleting the invoice wouldn't return the client's money.",
+      },
       { status: 400 }
     );
   }
