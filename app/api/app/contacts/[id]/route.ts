@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getActor, canSell, contactScope, isManager } from "@/lib/permissions";
 import { getActiveFieldDefs, sanitizeCustomFields } from "@/lib/contact-fields";
 import { enterPipeline } from "@/lib/pipeline";
+import { queueQuickBooksInvoiceUnwind } from "@/lib/quickbooks";
 
 export async function PATCH(
   req: NextRequest,
@@ -176,6 +177,16 @@ export async function DELETE(
     );
   }
 
+  // Read the billing rows before the wipe — once they're gone we can't tell
+  // QuickBooks which entities to take down with them.
+  const [billedInvoices, billedPayments] = await Promise.all([
+    prisma.invoice.findMany({ where: { contactId: id, companyId }, select: { id: true } }),
+    prisma.payment.findMany({
+      where: { companyId, OR: [{ contactId: id }, { invoice: { contactId: id } }] },
+      select: { id: true, invoiceId: true },
+    }),
+  ]);
+
   // FK-safe order: quotes/invoices/appointments reference jobs/requests, so
   // they go first; line items, payments, assignments etc. cascade. Records
   // belonging to OTHER clients can reference this client's requests/jobs
@@ -238,6 +249,18 @@ export async function DELETE(
       { error: "Couldn't delete this client — some of their records are linked in an unexpected way. Please try again or contact support." },
       { status: 500 }
     );
+  }
+
+  // Take their billing history out of QuickBooks too, invoice by invoice so
+  // each one's payments come off first. The customer record itself stays: QBO
+  // won't delete a customer with transaction history, and an accountant
+  // generally wants the name to survive anyway.
+  for (const inv of billedInvoices) {
+    queueQuickBooksInvoiceUnwind({
+      companyId,
+      invoiceId: inv.id,
+      paymentIds: billedPayments.filter((p) => p.invoiceId === inv.id).map((p) => p.id),
+    });
   }
 
   return NextResponse.json({ success: true });

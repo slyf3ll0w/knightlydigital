@@ -3,6 +3,7 @@ import type { PaymentMethod, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getActor, canSeeMoney, isManager, viaContactScope } from "@/lib/permissions";
 import { isPastDue } from "@/lib/due-dates";
+import { queueQuickBooksUnwind } from "@/lib/quickbooks";
 
 const validMethods = [
   "CARD", "ACH", "CASH", "CHECK", "CASH_APP", "PAYPAL", "VENMO", "ZELLE", "OTHER",
@@ -140,6 +141,10 @@ export async function DELETE(
     await tx.payment.delete({ where: { id } });
     await recomputeInvoiceStatus(tx, payment.invoiceId);
   });
+
+  // The money is off the books here, so take it off the books in QuickBooks
+  // too — otherwise QBO keeps showing the invoice paid.
+  queueQuickBooksUnwind({ companyId: actor.companyId, entityType: "PAYMENT", localId: id });
 
   return NextResponse.json({ success: true });
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getMerchant, getTransfer, finixConfigured } from "@/lib/finix";
 import { recomputeInvoiceStatus, sendReviewRequest } from "@/lib/payments";
+import { queueQuickBooksUnwind } from "@/lib/quickbooks";
 import { notifyUsers } from "@/lib/push";
 
 /**
@@ -135,6 +136,14 @@ async function handleTransfer(transferId: string) {
   await prisma.$transaction(async (tx) => {
     await tx.payment.delete({ where: { id: payment.id } });
     await recomputeInvoiceStatus(tx, payment.invoiceId);
+  });
+
+  // A bounced debit never really paid anything, so QuickBooks can't go on
+  // showing it as received.
+  queueQuickBooksUnwind({
+    companyId: payment.companyId,
+    entityType: "PAYMENT",
+    localId: payment.id,
   });
 
   const owners = await prisma.user.findMany({

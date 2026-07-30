@@ -6,6 +6,7 @@ import { intQuantity, unitPriceValue } from "@/lib/work-items";
 import { paidDepositTotal } from "@/lib/deposits";
 import { inPreview, previewBlockedError } from "@/lib/preview";
 import { isPastDue } from "@/lib/due-dates";
+import { queueQuickBooksInvoiceUnwind } from "@/lib/quickbooks";
 
 /**
  * PATCH — full-document invoice edit (subject, line items, discount, tax,
@@ -187,7 +188,7 @@ export async function DELETE(
 
   const invoice = await prisma.invoice.findFirst({
     where: { id, companyId: actor.companyId },
-    include: { payments: { select: { processorRef: true, amount: true } } },
+    include: { payments: { select: { id: true, processorRef: true, amount: true } } },
   });
   if (!invoice) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
@@ -214,6 +215,7 @@ export async function DELETE(
 
   // line items + reminders cascade; payments deliberately don't (money
   // records never vanish implicitly) — remove them explicitly
+  const paymentIds = invoice.payments.map((p) => p.id);
   try {
     await prisma.$transaction([
       prisma.payment.deleteMany({ where: { invoiceId: invoice.id } }),
@@ -223,5 +225,13 @@ export async function DELETE(
     console.error("[invoice delete] failed", { invoiceId: invoice.id, error: e });
     return NextResponse.json({ error: "Couldn't delete this invoice. Please try again." }, { status: 500 });
   }
+
+  // Mirror the removal into QuickBooks (payments first — see the helper).
+  queueQuickBooksInvoiceUnwind({
+    companyId: actor.companyId,
+    invoiceId: invoice.id,
+    paymentIds,
+  });
+
   return NextResponse.json({ success: true });
 }

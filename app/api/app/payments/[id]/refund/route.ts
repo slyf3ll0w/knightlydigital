@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
 import { recomputeInvoiceStatus } from "@/lib/payments";
 import { reverseTransfer, toCents, FinixError } from "@/lib/finix";
+import { queueQuickBooksPaymentRefresh } from "@/lib/quickbooks";
 
 /**
  * POST — refund an online (Finix) payment, full or partial. Managers only.
@@ -84,6 +85,11 @@ export async function POST(
       await recomputeInvoiceStatus(tx, payment.invoiceId);
       return p;
     });
+
+    // QuickBooks still has the pre-refund amount. Payments carry no updatedAt,
+    // so the nightly sweep can't spot this on its own — push the corrected
+    // amount now (or remove the payment entirely if it refunded to zero).
+    queueQuickBooksPaymentRefresh({ companyId: actor.companyId, paymentId: id });
 
     return NextResponse.json({ success: true, payment: updated, reversalId: reversal.id });
   } catch (err) {

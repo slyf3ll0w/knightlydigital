@@ -8,6 +8,22 @@
  *    `queueQuickBooksPaymentSync()` right after a payment is recorded.
  *  - One-way only: nothing in QuickBooks writes back into the Hub.
  *
+ * What UNSYNCS, and when. Pushing alone leaves the books diverging the moment
+ * money stops existing here — a refunded, bounced or deleted payment used to
+ * sit in QuickBooks forever, so QBO called an invoice paid while WorkBench
+ * called it open, and nobody found out until a reconciliation:
+ *  - payment deleted, or an ACH debit returned by the bank → the QBO payment
+ *    is deleted (`queueQuickBooksUnwind`)
+ *  - invoice deleted, or a client force-deleted with their billing history →
+ *    its payments come off first, then the invoice
+ *    (`queueQuickBooksInvoiceUnwind`); the QBO customer stays, since QBO
+ *    won't delete a customer with history and accountants want the name
+ *  - payment refunded → the QBO payment is rewritten with the reduced amount,
+ *    or deleted if it refunded to zero (`queueQuickBooksPaymentRefresh`)
+ * All of these are fire-and-forget and never block (or fail) the user's
+ * action; failures are logged and the record simply stays in QuickBooks.
+ * Deleting rather than voiding mirrors what the user did here.
+ *
  * Connection lifecycle: OAuth2 against Intuit. Access tokens last 1 hour
  * (auto-refreshed here), refresh tokens roll for ~100 days — an idle
  * connection past that must be reconnected from Settings. Tokens are
@@ -241,7 +257,31 @@ async function freshAccessToken(connection: QuickBooksConnection): Promise<strin
   }
   const data = tokenDataFromResponse(tokens);
   Object.assign(connection, data);
-  await prisma.quickBooksConnection.update({ where: { id: connection.id }, data });
+
+  // Intuit ROTATES the refresh token on use: the one we just spent is dead
+  // the moment the call above succeeds, so failing to store the replacement
+  // permanently breaks the connection — the only recovery is the owner
+  // reconnecting from Settings. A transient database blip is not a good
+  // enough reason to cost someone their QuickBooks integration, so retry the
+  // write, and if it still won't land, say exactly what happened instead of
+  // surfacing a raw database error.
+  for (let attempt = 0; ; attempt++) {
+    try {
+      await prisma.quickBooksConnection.update({ where: { id: connection.id }, data });
+      break;
+    } catch (err) {
+      if (attempt >= 2) {
+        console.error(
+          "[quickbooks] CRITICAL: refreshed token could not be saved — this connection now needs reconnecting",
+          { companyId: connection.companyId, error: err }
+        );
+        throw new Error(
+          "QuickBooks session couldn't be saved — reconnect from Settings → QuickBooks."
+        );
+      }
+      await new Promise((resolve) => setTimeout(resolve, 200 * (attempt + 1)));
+    }
+  }
   return tokens.access_token;
 }
 
@@ -291,6 +331,45 @@ function qboGet(connection: QuickBooksConnection, path: string) {
 function qboPost(connection: QuickBooksConnection, path: string, body: unknown) {
   return qboRequest(connection, "POST", path, body);
 }
+
+/**
+ * Read one QBO entity by id. Returns null when QBO no longer has it (deleted
+ * over there, or never really created) — the caller treats that as "already
+ * gone" rather than an error, which is what makes unwinding idempotent.
+ */
+export async function fetchQboEntity(
+  connection: QuickBooksConnection,
+  entity: string,
+  qboId: string
+): Promise<QboEntity | null> {
+  try {
+    const data = await qboGet(connection, `${entity}/${encodeURIComponent(qboId)}`);
+    const key = entity.charAt(0).toUpperCase() + entity.slice(1);
+    return (data[key] as QboEntity | undefined) ?? null;
+  } catch (err) {
+    if (err instanceof QboApiError && (err.status === 400 || err.status === 404)) return null;
+    throw err;
+  }
+}
+
+/**
+ * Delete a QBO entity. QBO requires the current SyncToken (its optimistic
+ * lock), and ours can be stale if anyone touched the record in QuickBooks, so
+ * the caller passes one freshly read via fetchQboEntity.
+ */
+function qboDelete(connection: QuickBooksConnection, entity: string, id: string, syncToken: string) {
+  return qboRequest(connection, "POST", `${entity}?operation=delete`, {
+    Id: id,
+    SyncToken: syncToken,
+  });
+}
+
+/** QBO's URL path for each entity type we map. */
+const QBO_ENTITY_PATH: Record<QuickBooksEntityType, string> = {
+  CUSTOMER: "customer",
+  INVOICE: "invoice",
+  PAYMENT: "payment",
+};
 
 /** Run a QBO SQL-ish query; returns the entity array (possibly empty). */
 async function qboQuery(
@@ -641,12 +720,17 @@ export async function pushInvoice(
 // ─── Entity push: Payment ────────────────────────────────────────────────────
 
 /**
- * Push one payment, applied against its (already synced) invoice. Payments
- * are immutable here, so an existing SYNCED record short-circuits.
+ * Push one payment, applied against its (already synced) invoice.
+ *
+ * Payments have no updatedAt, so a synced record short-circuits — the sweep
+ * has no way to notice a change on its own. The one thing that DOES change a
+ * payment is a refund, and that path calls in here with force:true to rewrite
+ * the QBO payment with the reduced amount (see queueQuickBooksPaymentRefresh).
  */
 export async function pushPayment(
   connection: QuickBooksConnection,
-  paymentId: string
+  paymentId: string,
+  opts: { force?: boolean } = {}
 ): Promise<string | null> {
   const payment = await prisma.payment.findFirst({
     where: { id: paymentId, companyId: connection.companyId },
@@ -655,7 +739,18 @@ export async function pushPayment(
   if (!payment) throw new Error("Payment not found");
 
   const record = await getSyncRecord(connection.companyId, "PAYMENT", paymentId);
-  if (record?.qboId && record.status === "SYNCED") return record.qboId;
+  if (record?.qboId && record.status === "SYNCED" && !opts.force) return record.qboId;
+
+  // Updating an existing QBO payment needs its current SyncToken; ours goes
+  // stale the moment anyone edits it in QuickBooks, so read it back first. If
+  // QBO no longer has the payment, fall through and create it again.
+  let existing: { Id: string; SyncToken: string } | null = null;
+  if (record?.qboId) {
+    const remote = await fetchQboEntity(connection, "payment", record.qboId);
+    if (remote) {
+      existing = { Id: record.qboId, SyncToken: String(remote.SyncToken ?? record.qboSyncToken ?? "0") };
+    }
+  }
 
   const qboInvoiceId = await pushInvoice(connection, payment.invoice.id);
   if (!qboInvoiceId || !payment.invoice.contactId) return null;
@@ -670,6 +765,7 @@ export async function pushPayment(
   ].filter(Boolean);
 
   const result = await qboPost(connection, "payment", {
+    ...(existing ?? {}),
     CustomerRef: { value: customerId },
     TotalAmt: money(payment.amount),
     TxnDate: dateOnly(payment.paidAt),
@@ -693,6 +789,140 @@ export async function pushPayment(
     localUpdatedAt: payment.createdAt,
   });
   return qboPayment.Id;
+}
+
+// ─── Unwind: money that stopped existing here has to stop existing there ─────
+
+/**
+ * Remove the QBO counterpart of a local row that was deleted or reversed.
+ *
+ * The sync is push-only, which was fine while records only ever appeared —
+ * but a refunded, bounced or deleted payment used to just stay in QuickBooks
+ * forever. The books then disagree silently: QBO says the invoice was paid,
+ * WorkBench says it's open, and nobody finds out until a reconciliation.
+ *
+ * We delete rather than void, mirroring what the user did here — they removed
+ * the record in WorkBench, so leaving a zeroed ghost in QuickBooks they never
+ * asked for would be its own kind of surprise. A refund that only reduces a
+ * payment is NOT a delete; that goes through pushPayment's update path.
+ *
+ * Idempotent: no sync record, no qboId, or an entity QBO no longer has all
+ * count as done. Returns what happened, for logging.
+ */
+export async function unwindQboEntity(
+  connection: QuickBooksConnection,
+  entityType: QuickBooksEntityType,
+  localId: string
+): Promise<"deleted" | "already-gone" | "not-synced"> {
+  const record = await getSyncRecord(connection.companyId, entityType, localId);
+  if (!record?.qboId) {
+    // Never made it to QuickBooks; drop any error record so it isn't retried.
+    if (record) await prisma.quickBooksSyncRecord.delete({ where: { id: record.id } }).catch(() => {});
+    return "not-synced";
+  }
+
+  const path = QBO_ENTITY_PATH[entityType];
+  const remote = await fetchQboEntity(connection, path, record.qboId);
+  if (!remote) {
+    await prisma.quickBooksSyncRecord.delete({ where: { id: record.id } }).catch(() => {});
+    return "already-gone";
+  }
+
+  await qboDelete(connection, path, record.qboId, String(remote.SyncToken ?? record.qboSyncToken ?? "0"));
+  await prisma.quickBooksSyncRecord.delete({ where: { id: record.id } }).catch(() => {});
+  return "deleted";
+}
+
+/**
+ * Fire-and-forget unwind, for the request paths that delete money records.
+ * Never throws and never blocks the delete itself — a failure lands in the
+ * log and the record stays in QuickBooks until someone reconciles, which is
+ * strictly better than failing the user's delete.
+ */
+export function queueQuickBooksUnwind(params: {
+  companyId: string;
+  entityType: QuickBooksEntityType;
+  localId: string;
+}): void {
+  void (async () => {
+    try {
+      const connection = await prisma.quickBooksConnection.findUnique({
+        where: { companyId: params.companyId },
+      });
+      if (!connection || !connection.autoSync) return;
+      const outcome = await unwindQboEntity(connection, params.entityType, params.localId);
+      if (outcome === "deleted") {
+        console.log(`[quickbooks] removed ${params.entityType} ${params.localId} from QuickBooks`);
+      }
+    } catch (err) {
+      console.error("[quickbooks] unwind failed", params, err);
+    }
+  })();
+}
+
+/**
+ * Unwind a deleted invoice and the payments that went with it.
+ *
+ * Order matters and concurrency would break it: QuickBooks refuses to delete
+ * an invoice while a payment is still applied to it, so the payments have to
+ * come off first. One queued task doing them in sequence, rather than N
+ * independent ones racing.
+ */
+export function queueQuickBooksInvoiceUnwind(params: {
+  companyId: string;
+  invoiceId: string;
+  paymentIds: string[];
+}): void {
+  void (async () => {
+    try {
+      const connection = await prisma.quickBooksConnection.findUnique({
+        where: { companyId: params.companyId },
+      });
+      if (!connection || !connection.autoSync) return;
+      for (const paymentId of params.paymentIds) {
+        await unwindQboEntity(connection, "PAYMENT", paymentId);
+      }
+      await unwindQboEntity(connection, "INVOICE", params.invoiceId);
+    } catch (err) {
+      console.error("[quickbooks] invoice unwind failed", params, err);
+    }
+  })();
+}
+
+/**
+ * A payment's amount changed here (a refund) — make QuickBooks agree.
+ *
+ * Payments carry no updatedAt, so the nightly sweep can't notice this on its
+ * own; the refund route calls it directly. A payment refunded to zero is
+ * removed outright, since QBO rejects a zero-amount payment and a $0 payment
+ * wouldn't mean anything anyway.
+ */
+export function queueQuickBooksPaymentRefresh(params: {
+  companyId: string;
+  paymentId: string;
+}): void {
+  void (async () => {
+    try {
+      const connection = await prisma.quickBooksConnection.findUnique({
+        where: { companyId: params.companyId },
+      });
+      if (!connection || !connection.autoSync) return;
+
+      const payment = await prisma.payment.findFirst({
+        where: { id: params.paymentId, companyId: params.companyId },
+        select: { amount: true },
+      });
+      if (!payment) return;
+
+      if (money(payment.amount) <= 0) {
+        await unwindQboEntity(connection, "PAYMENT", params.paymentId);
+      } else {
+        await pushPayment(connection, params.paymentId, { force: true });
+      }
+    } catch (err) {
+      console.error("[quickbooks] payment refresh failed", params, err);
+    }
+  })();
 }
 
 // ─── Full-company sync sweep ─────────────────────────────────────────────────
