@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createHash, randomBytes } from "crypto";
 import { prisma } from "@/lib/db";
 import { sendEmail, passwordResetEmail } from "@/lib/email";
+import { emailWhere, normalizeEmail } from "@/lib/user-email";
 
 /**
  * POST { email } — start a password reset. Anti-enumeration: always responds
@@ -11,14 +12,17 @@ import { sendEmail, passwordResetEmail } from "@/lib/email";
  */
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
-  const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
+  const email = normalizeEmail(body?.email);
 
   // Always the same response — never reveal whether an account exists.
   const ok = NextResponse.json({ success: true });
   if (!email || email.length > 200) return ok;
 
-  const user = await prisma.user.findUnique({
-    where: { email },
+  // Case-insensitive so accounts stored with the casing the owner typed at
+  // signup can still be reset (see lib/user-email.ts).
+  const user = await prisma.user.findFirst({
+    where: emailWhere(email),
+    orderBy: { createdAt: "asc" },
     select: { id: true, name: true, email: true, isActive: true },
   });
   if (!user || !user.isActive) return ok;

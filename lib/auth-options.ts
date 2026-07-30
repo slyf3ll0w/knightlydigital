@@ -3,6 +3,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { verifyCaptcha } from "@/lib/captcha";
+import { emailWhere, normalizeEmail } from "@/lib/user-email";
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -16,8 +17,13 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
 
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
+        // Case-insensitive: whatever casing they type must reach the same
+        // account the address was registered with (see lib/user-email.ts).
+        const email = normalizeEmail(credentials.email);
+        if (!email) return null;
+        const user = await prisma.user.findFirst({
+          where: emailWhere(email),
+          orderBy: { createdAt: "asc" },
           include: { company: { select: { name: true } } },
         });
         if (!user || !user.isActive) return null;

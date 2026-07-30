@@ -128,6 +128,11 @@ Stages are per-company (`PipelineStage`, seeded on first visit, customizable at
   `wonAt`, makes them ACTIVE.
 - ACTIVE clients re-enter on a new request as repeat business (Repeat badge);
   losing them just leaves the board. Lost LEADs archive with `lostReason`.
+- **Exception — the client hub never puts anyone on the board.** "Request more
+  work" (`/api/hub/requests`) creates the Request and notifies the team, and
+  that's all: an existing client asking for more work is repeat business, not a
+  lead to re-sell. Only cold intake (web forms, the lead webhook, manual
+  creates) calls `enterPipeline`/`autoAdvance`.
 - Deleting a spam request also deletes its lead when that request was the
   lead's only footprint (see requests/[id] DELETE).
 - External intake: `POST /api/public/leads/[Company.leadWebhookToken]` —

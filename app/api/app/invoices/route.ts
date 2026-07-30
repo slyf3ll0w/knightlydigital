@@ -8,6 +8,7 @@ import { ensureSubscriptionsForContact } from "@/lib/subscriptions";
 import { paidDepositTotal } from "@/lib/deposits";
 import { intQuantity } from "@/lib/work-items";
 import { inPreview, previewBlockedError } from "@/lib/preview";
+import { withDocNumberRetry } from "@/lib/doc-numbers";
 
 export async function POST(req: NextRequest) {
   const actor = await getActor();
@@ -32,8 +33,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Contact not found." }, { status: 404 });
   }
   if (jobId) {
-    const job = await prisma.job.findFirst({ where: { id: jobId, companyId }, select: { id: true } });
+    const job = await prisma.job.findFirst({
+      where: { id: jobId, companyId },
+      select: { id: true, jobNumber: true, invoice: { select: { invoiceNumber: true } } },
+    });
     if (!job) return NextResponse.json({ error: "Job not found." }, { status: 404 });
+    // One invoice per job (Invoice.jobId is unique) — say so instead of
+    // letting the create fail with a bare 500 and lose the typed line items.
+    if (job.invoice) {
+      return NextResponse.json(
+        {
+          error: `Job #${job.jobNumber} is already invoiced (invoice #${job.invoice.invoiceNumber}). Edit that invoice instead of creating a second one.`,
+        },
+        { status: 409 }
+      );
+    }
   }
 
   const subtotal = lineItems.reduce(
@@ -63,7 +77,9 @@ export async function POST(req: NextRequest) {
       ? new Date(issuedAt.getTime() + contact.paymentTermsDays * 86400000)
       : null;
 
-  const invoice = await prisma.$transaction(async (tx) => {
+  // Wrapped so a concurrent invoice create in the same company re-derives the
+  // number instead of 500ing and losing everything the user typed.
+  const invoice = await withDocNumberRetry(() => prisma.$transaction(async (tx) => {
     const last = await tx.invoice.findFirst({
       where: { companyId },
       orderBy: { invoiceNumber: "desc" },
@@ -171,7 +187,7 @@ export async function POST(req: NextRequest) {
     }
 
     return created;
-  });
+  }));
 
   return NextResponse.json(invoice, { status: 201 });
 }

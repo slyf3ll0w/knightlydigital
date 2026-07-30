@@ -7,7 +7,7 @@ import { companyNotifyAddress } from "@/lib/notify";
 import { notifyUsers, requestNotifyUserIds } from "@/lib/push";
 import { enterPipeline, autoAdvance } from "@/lib/pipeline";
 import { limit } from "@/lib/rate-limit";
-import { withRequestNumberRetry } from "@/lib/request-number";
+import { withDocNumberRetry } from "@/lib/doc-numbers";
 
 // Webhook leads get their own daily cap (counted by source, so a leaky
 // integration can't eat the booking forms' backstop) plus an hourly limiter.
@@ -96,7 +96,7 @@ export async function POST(
   const address = s(body.address, 300) || null;
   const assignedToId = await defaultLeadAssignee(company.id);
 
-  const result = await withRequestNumberRetry(() =>
+  const result = await withDocNumberRetry(() =>
     prisma.$transaction(async (tx) => {
       // Same dedupe as the public booking forms: match by phone or email
       let contact = await tx.contact.findFirst({

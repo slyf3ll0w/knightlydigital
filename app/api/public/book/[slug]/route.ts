@@ -19,7 +19,7 @@ import {
 } from "@/lib/booking-availability";
 import { Prisma } from "@prisma/client";
 import { enterPipeline, autoAdvance } from "@/lib/pipeline";
-import { withRequestNumberRetry } from "@/lib/request-number";
+import { withDocNumberRetry } from "@/lib/doc-numbers";
 
 // Submit-time double-booking race: thrown inside the transaction when the
 // picked slot is no longer free, mapped to a 409 the form handles by
@@ -229,7 +229,7 @@ export async function POST(
       ? new Date(`${preferredDate}T12:00:00`)
       : null;
 
-  const result = await withRequestNumberRetry(() =>
+  const result = await withDocNumberRetry(() =>
     prisma.$transaction(async (tx) => {
       // Match an existing contact by phone or email; otherwise create a lead
       let contact = await tx.contact.findFirst({

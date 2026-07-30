@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getActor, canSell, viaContactScope } from "@/lib/permissions";
 import { ensureSubscriptionsForContact } from "@/lib/subscriptions";
 import { recordLeadWin } from "@/lib/pipeline";
+import { withDocNumberRetry } from "@/lib/doc-numbers";
 
 /**
  * POST — convert an approved quote into a job (Jobber's "Convert to Job").
@@ -63,7 +64,7 @@ export async function POST(
     );
   }
 
-  const job = await prisma.$transaction(async (tx) => {
+  const job = await withDocNumberRetry(() => prisma.$transaction(async (tx) => {
     const last = await tx.job.findFirst({
       where: { companyId },
       orderBy: { jobNumber: "desc" },
@@ -113,7 +114,7 @@ export async function POST(
     await recordLeadWin(tx, companyId, quote.contact);
 
     return created;
-  });
+  }));
 
   return NextResponse.json(job, { status: 201 });
 }

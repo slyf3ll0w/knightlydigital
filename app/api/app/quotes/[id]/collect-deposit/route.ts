@@ -4,6 +4,7 @@ import { getActor, canSell, viaContactScope } from "@/lib/permissions";
 import { createDepositInvoice } from "@/lib/deposits";
 import { sendEmail, invoiceLinkEmail } from "@/lib/email";
 import { inPreview, previewBlockedError } from "@/lib/preview";
+import { withDocNumberRetry } from "@/lib/doc-numbers";
 
 /**
  * POST — manually issue (or re-send) the deposit invoice for a quote. The
@@ -32,7 +33,9 @@ export async function POST(
     return NextResponse.json({ error: "This quote is archived." }, { status: 400 });
   }
 
-  const deposit = await prisma.$transaction((tx) =>
+  // createDepositInvoice derives an invoice number, so the retry has to live
+  // out here — a constraint violation aborts the transaction it runs in.
+  const deposit = await withDocNumberRetry(() => prisma.$transaction((tx) =>
     createDepositInvoice(tx, {
       id: quote.id,
       companyId: quote.companyId,
@@ -42,7 +45,7 @@ export async function POST(
       depositType: quote.depositType,
       depositValue: quote.depositValue == null ? null : Number(quote.depositValue),
     })
-  );
+  ));
 
   if (!deposit) {
     return NextResponse.json({ error: "This quote has no deposit set." }, { status: 400 });

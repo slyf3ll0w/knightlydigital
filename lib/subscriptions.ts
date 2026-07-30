@@ -20,6 +20,7 @@ import { prisma } from "@/lib/db";
 import { getProcessor, recordPayment } from "@/lib/payments";
 import { sendEmail, invoiceLinkEmail } from "@/lib/email";
 import { localDayParts, wallTimeToUtc } from "@/lib/booking-slots";
+import { withDocNumberRetry } from "@/lib/doc-numbers";
 
 type Tx = Prisma.TransactionClient | PrismaClient;
 
@@ -168,7 +169,10 @@ type DueSub = Prisma.SubscriptionGetPayload<{ include: { contact: true } }>;
 async function generateCycle(sub: DueSub, now: Date): Promise<"billed" | "drafted" | "charged"> {
   const lineTotal = Number(sub.unitPrice) * Number(sub.quantity);
 
-  const cycle = await prisma.$transaction(async (tx) => {
+  // Retried as a whole: the cron can overlap a staff member creating an
+  // invoice or job in the same company, and the optimistic claim inside is
+  // re-read on each attempt, so a retry can't double-bill a cycle.
+  const cycle = await withDocNumberRetry(() => prisma.$transaction(async (tx) => {
     // Idempotency: bail if another run already advanced this subscription past
     // the due date we picked it up for.
     const fresh = await tx.subscription.findUnique({
@@ -263,7 +267,7 @@ async function generateCycle(sub: DueSub, now: Date): Promise<"billed" | "drafte
       publicToken: invoice.publicToken,
       send,
     };
-  });
+  }));
 
   if (!cycle) return "drafted";
 
@@ -397,7 +401,7 @@ export async function generateDueVisits(
   const summary: VisitRunSummary = { subscriptions: 0, visitsCreated: 0, errors: 0 };
   for (const sub of due) {
     try {
-      const created = await prisma.$transaction(async (tx) => {
+      const created = await withDocNumberRetry(() => prisma.$transaction(async (tx) => {
         // Re-read inside the transaction so overlapping sweeps can't both
         // materialize the same dates.
         const fresh = await tx.subscription.findUnique({
@@ -497,7 +501,7 @@ export async function generateDueVisits(
           data: { nextVisitDate: cursor, lastVisitGeneratedAt: now },
         });
         return count;
-      });
+      }));
       summary.subscriptions++;
       summary.visitsCreated += created;
     } catch (err) {

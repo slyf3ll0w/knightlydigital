@@ -6,6 +6,7 @@ import { computeQuoteTotals } from "@/lib/quote-totals";
 import { sendEmail, invoiceLinkEmail } from "@/lib/email";
 import { recordLeadWin } from "@/lib/pipeline";
 import { signatureMatchesName } from "@/lib/signature";
+import { withDocNumberRetry } from "@/lib/doc-numbers";
 
 /**
  * Public quote response endpoint (client-facing, no auth — the [id] segment
@@ -96,7 +97,9 @@ export async function POST(
     taxRate: quote.taxRate == null ? null : Number(quote.taxRate),
   });
 
-  const deposit: DepositInvoiceResult | null = await prisma.$transaction(async (tx) => {
+  // Retried from out here because the deposit invoice derives an invoice
+  // number; the writes inside are idempotent, so a second attempt is safe.
+  const deposit: DepositInvoiceResult | null = await withDocNumberRetry(() => prisma.$transaction(async (tx) => {
     if (validOptOuts.length > 0) {
       await tx.quoteLineItem.updateMany({
         where: { id: { in: validOptOuts } },
@@ -126,7 +129,7 @@ export async function POST(
       depositType: quote.depositType,
       depositValue: quote.depositValue == null ? null : Number(quote.depositValue),
     });
-  });
+  }));
 
   // Approval issues any attached agreements set to "on approval"
   await autoSendQuoteAgreements(quote.id, "ON_APPROVAL");

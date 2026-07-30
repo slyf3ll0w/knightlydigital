@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { verifyCaptcha } from "@/lib/captcha";
 import { issueSuperadminLoginCode } from "@/lib/superadmin-otp";
 import { emailEnabled, sendEmail, superadminLoginCodeEmail } from "@/lib/email";
+import { emailWhere, normalizeEmail } from "@/lib/user-email";
 
 /**
  * Step 1 of /superadmin/login: verify email + password, then email a 6-digit
@@ -26,7 +27,10 @@ export async function POST(req: NextRequest) {
   const invalid = NextResponse.json({ error: "Invalid email or password." }, { status: 401 });
   if (typeof email !== "string" || typeof password !== "string") return invalid;
 
-  const user = await prisma.user.findUnique({ where: { email } });
+  const user = await prisma.user.findFirst({
+    where: emailWhere(normalizeEmail(email)),
+    orderBy: { createdAt: "asc" },
+  });
   if (!user || !user.isActive || user.role !== "SUPERADMIN") return invalid;
   if (!(await bcrypt.compare(password, user.passwordHash))) return invalid;
 

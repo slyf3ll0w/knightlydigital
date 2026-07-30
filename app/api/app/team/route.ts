@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { getActor, isManager, canManageRole, type Role } from "@/lib/permissions";
+import { emailWhere, normalizeEmail } from "@/lib/user-email";
 
 export async function GET() {
   const actor = await getActor();
@@ -24,12 +25,13 @@ export async function POST(req: NextRequest) {
   if (!isManager(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const body = await req.json();
-  const { name, email, phone, role, password } = body;
+  const { name, phone, role, password } = body;
+  const email = normalizeEmail(body.email);
 
-  if (!name?.trim() || !email?.trim() || !role || !password) {
+  if (!name?.trim() || !email || !role || !password) {
     return NextResponse.json({ error: "Name, email, role, and a starting password are required." }, { status: 400 });
   }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || String(email).length > 254) {
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || String(body.email ?? "").length > 254) {
     return NextResponse.json({ error: "Enter a valid email address." }, { status: 400 });
   }
   if (String(password).length < 8 || String(password).length > 72) {
@@ -42,7 +44,9 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const existing = await prisma.user.findUnique({ where: { email } });
+  // Case-insensitive: the raw-email check used to miss a legacy mixed-case
+  // account and let the create fail with a bare 500 instead of this 409.
+  const existing = await prisma.user.findFirst({ where: emailWhere(email), select: { id: true } });
   if (existing) {
     return NextResponse.json({ error: "An account with that email already exists." }, { status: 409 });
   }
@@ -51,7 +55,7 @@ export async function POST(req: NextRequest) {
     data: {
       companyId: actor.companyId,
       name: String(name).trim().slice(0, 100),
-      email: String(email).trim().toLowerCase(),
+      email,
       phone: phone ? String(phone).trim().slice(0, 30) : null,
       role,
       passwordHash: await bcrypt.hash(password, 12),

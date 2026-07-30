@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { pricebookForIndustry } from "@/lib/pricebooks";
 import { verifyCaptcha } from "@/lib/captcha";
 import { checkInviteCode } from "@/lib/invites";
+import { emailWhere, normalizeEmail } from "@/lib/user-email";
 
 // Thrown when the transaction finds the invite already claimed — the check
 // above it raced another signup using the same code.
@@ -29,7 +30,10 @@ async function uniqueSlug(base: string) {
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { companyName, yourName, email, password, captchaToken } = body;
+  const { companyName, yourName, password, captchaToken } = body;
+  // Stored lowercased so the address they type at sign-in (and at password
+  // reset, which also normalizes) always finds this account.
+  const email = normalizeEmail(body.email);
   // Optional — seeds the starter price book; signup never hard-fails on it
   const { industry } = body;
 
@@ -47,7 +51,7 @@ export async function POST(req: NextRequest) {
   if (
     String(companyName).length > 120 ||
     String(yourName).length > 120 ||
-    String(email).length > 254 ||
+    String(body.email ?? "").length > 254 ||
     String(industry ?? "").length > 80
   ) {
     return NextResponse.json({ error: "Input too long." }, { status: 400 });
@@ -63,7 +67,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: invite.reason }, { status: 403 });
   }
 
-  const existing = await prisma.user.findUnique({ where: { email } });
+  // Case-insensitive so a legacy mixed-case account still blocks a duplicate
+  const existing = await prisma.user.findFirst({ where: emailWhere(email), select: { id: true } });
   if (existing) {
     return NextResponse.json(
       { error: "Unable to register. Please try again, or sign in if you already have an account." },
@@ -82,7 +87,7 @@ export async function POST(req: NextRequest) {
       attempt === 0 ? slugify(companyName) : `${slugify(companyName)}-${attempt}`
     );
     try {
-      company = await createCompany(companyName, slug, hash, body, invite.id);
+      company = await createCompany(companyName, slug, hash, { ...body, email }, invite.id);
       break;
     } catch (e) {
       if (e instanceof InviteClaimedError) {

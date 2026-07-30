@@ -7,6 +7,7 @@ import {
   SUPERADMIN_SESSION_TTL_MS,
   createSuperadminSessionToken,
 } from "@/lib/superadmin-session";
+import { emailWhere, normalizeEmail } from "@/lib/user-email";
 
 const cookieOptions = {
   httpOnly: true,
@@ -32,7 +33,10 @@ export async function POST(req: NextRequest) {
   if (typeof email !== "string" || typeof password !== "string" || typeof code !== "string")
     return invalid;
 
-  const user = await prisma.user.findUnique({ where: { email } });
+  const user = await prisma.user.findFirst({
+    where: emailWhere(normalizeEmail(email)),
+    orderBy: { createdAt: "asc" },
+  });
   if (!user || !user.isActive || user.role !== "SUPERADMIN") return invalid;
   if (!(await bcrypt.compare(password, user.passwordHash))) return invalid;
   if (!(await verifySuperadminLoginCode(user.id, code)))

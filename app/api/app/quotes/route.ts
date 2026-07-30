@@ -6,6 +6,7 @@ import { getActor, canSell, contactScope } from "@/lib/permissions";
 import { backfillLineItemCosts, deriveLineItemAgreements, intQuantity } from "@/lib/work-items";
 import { computeQuoteTotals } from "@/lib/quote-totals";
 import { inPreview, PREVIEW_CAP, previewCapError } from "@/lib/preview";
+import { withDocNumberRetry } from "@/lib/doc-numbers";
 
 export async function POST(req: NextRequest) {
   const actor = await getActor();
@@ -50,12 +51,6 @@ export async function POST(req: NextRequest) {
     if (!request) return NextResponse.json({ error: "Request not found." }, { status: 404 });
   }
 
-  const last = await prisma.quote.findFirst({
-    where: { companyId },
-    orderBy: { quoteNumber: "desc" },
-  });
-  const quoteNumber = (last?.quoteNumber ?? 0) + 1;
-
   // Hand-typed line items matching a price-book name inherit its cost so
   // profit margins stay honest (picker-selected items already carry it)
   type QuoteLineInput = {
@@ -90,14 +85,22 @@ export async function POST(req: NextRequest) {
     taxRate: taxRate || null,
   });
 
-  const quote = await prisma.$transaction(async (tx) => {
+  // Number derived inside the retried transaction so two people quoting at
+  // the same time both succeed instead of one hitting a unique violation.
+  const quote = await withDocNumberRetry(() => prisma.$transaction(async (tx) => {
+    const last = await tx.quote.findFirst({
+      where: { companyId },
+      orderBy: { quoteNumber: "desc" },
+      select: { quoteNumber: true },
+    });
+
     const created = await tx.quote.create({
       data: {
         companyId,
         contactId,
         requestId: requestId || null,
         publicToken: randomBytes(24).toString("hex"),
-        quoteNumber,
+        quoteNumber: (last?.quoteNumber ?? 0) + 1,
         title: title || null,
         subtotal,
         discountType,
@@ -141,7 +144,7 @@ export async function POST(req: NextRequest) {
     }
 
     return created;
-  });
+  }));
 
   return NextResponse.json(quote, { status: 201 });
 }

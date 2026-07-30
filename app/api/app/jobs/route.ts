@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, isManager, jobScope, contactScope } from "@/lib/permissions";
 import { recordLeadWin } from "@/lib/pipeline";
+import { withDocNumberRetry } from "@/lib/doc-numbers";
 import { inPreview, PREVIEW_CAP, previewCapError } from "@/lib/preview";
 
 export async function GET() {
@@ -60,7 +61,8 @@ export async function POST(req: NextRequest) {
         })
       : [];
 
-  const job = await prisma.$transaction(async (tx) => {
+  // Wrapped so two dispatchers creating jobs at once both succeed
+  const job = await withDocNumberRetry(() => prisma.$transaction(async (tx) => {
     const last = await tx.job.findFirst({
       where: { companyId },
       orderBy: { jobNumber: "desc" },
@@ -94,7 +96,7 @@ export async function POST(req: NextRequest) {
     await recordLeadWin(tx, companyId, contact);
 
     return created;
-  });
+  }));
 
   return NextResponse.json(job, { status: 201 });
 }

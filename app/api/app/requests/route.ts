@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, contactScope } from "@/lib/permissions";
 import { enterPipeline, autoAdvance } from "@/lib/pipeline";
-import { withRequestNumberRetry } from "@/lib/request-number";
+import { withDocNumberRetry } from "@/lib/doc-numbers";
 import { inPreview, PREVIEW_CAP, previewCapError } from "@/lib/preview";
 
 export async function POST(req: NextRequest) {
@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
   });
   if (!contact) return NextResponse.json({ error: "Client not found." }, { status: 404 });
 
-  const request = await withRequestNumberRetry(async () => {
+  const request = await withDocNumberRetry(async () => {
     const last = await prisma.request.findFirst({
       where: { companyId },
       orderBy: { requestNumber: "desc" },

@@ -49,8 +49,48 @@ const rateLimits: { match: (path: string) => boolean; max: number; windowMs: num
     name: "webhooks",
   },
   {
-    // Public client-facing writes: booking form, quote responses, payments
-    match: (p) => p.startsWith("/api/public/") || p.startsWith("/api/hub/"),
+    // The document view beacon fires on every open of a quote/invoice/
+    // contract/hub/message page. It MUST NOT share a bucket with the actions
+    // those same pages perform — a client who reloads their invoice a few
+    // times would otherwise burn the allowance the Pay button needs.
+    match: (p) => p === "/api/public/viewed",
+    max: 120,
+    windowMs: 60 * 60_000,
+    name: "view-beacon",
+  },
+  {
+    // Paying an invoice: room for a mistyped card, a retry, and a whole
+    // office behind one NAT'd IP — tight enough that a leaked pay link is
+    // still useless for card testing.
+    match: (p) => p.startsWith("/api/public/pay/"),
+    max: 20,
+    windowMs: 60 * 60_000,
+    name: "pay",
+  },
+  {
+    // Responding to a document we sent them (approve, request changes, sign)
+    // and the client hub's own actions — ordinary client behavior that can
+    // legitimately repeat within a session.
+    match: (p) =>
+      p.startsWith("/api/public/quote/") ||
+      p.startsWith("/api/public/contract/") ||
+      p.startsWith("/api/hub/"),
+    max: 30,
+    windowMs: 60 * 60_000,
+    name: "client-docs",
+  },
+  {
+    // Endpoints that email an address the caller supplies — the tightest
+    // bucket, so neither can be used to mailbomb a client or probe accounts.
+    match: (p) =>
+      p.startsWith("/api/public/portal-login") || p.startsWith("/api/public/forgot-password"),
+    max: 5,
+    windowMs: 60 * 60_000,
+    name: "magic-link",
+  },
+  {
+    // Cold inbound from strangers: booking forms, lead webhooks, applications
+    match: (p) => p.startsWith("/api/public/"),
     max: 10,
     windowMs: 60 * 60_000,
     name: "public",
