@@ -20,8 +20,8 @@ import {
   X,
 } from "lucide-react";
 import PageTitle from "@/components/PageTitle";
-import { SECTION_HUES } from "@/lib/section-colors";
-import { FilterChip } from "@/components/FilterChips";
+import { SECTION_HUES, hueInk, hueTint } from "@/lib/section-colors";
+import { FilterChip, FilterRow } from "@/components/FilterChips";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 
 /**
@@ -512,14 +512,22 @@ export default function ScheduleClient({
   }
 
   // ── Header label ──────────────────────────────────────────────────────────
+  // Two lengths: the full range for the desktop bar, and a short one for the
+  // phone header, where "Wednesday, July 29, 2026" ran off both edges.
   let rangeLabel: string;
+  let shortLabel: string;
   if (view === "month") {
     rangeLabel = `${MONTHS[anchor.getMonth()]} ${anchor.getFullYear()}`;
+    shortLabel =
+      anchor.getFullYear() === today.getFullYear()
+        ? MONTHS[anchor.getMonth()]
+        : `${MONTHS[anchor.getMonth()].slice(0, 3)} ${anchor.getFullYear()}`;
   } else if (view === "week") {
     const ws = addDays(anchor, -anchor.getDay());
     const we = addDays(ws, 6);
     const fmt = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
     rangeLabel = `${fmt(ws)} – ${fmt(we)}, ${we.getFullYear()}`;
+    shortLabel = `${fmt(ws)} – ${fmt(we)}`;
   } else {
     rangeLabel = anchor.toLocaleDateString("en-US", {
       weekday: "long",
@@ -527,6 +535,9 @@ export default function ScheduleClient({
       day: "numeric",
       year: "numeric",
     });
+    shortLabel = sameDay(anchor, today)
+      ? "Today"
+      : anchor.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
   }
 
   const weekDays =
@@ -778,6 +789,273 @@ export default function ScheduleClient({
     );
   }
 
+  // ── Mobile renderers ──────────────────────────────────────────────────────
+  // Phones get a different calendar entirely. A 24-hour time grid asks you to
+  // scroll a mostly-empty column to find two jobs, and month cells at 375px
+  // truncate every chip to a few letters — so under lg the day/week views are
+  // agendas and the month view is a dot grid, both tap-through to a day.
+
+  const hue = SECTION_HUES.schedule;
+
+  /** Items on a given day, Anytime first, then in clock order. */
+  function itemsOn(day: Date): ScheduleJobDTO[] {
+    return jobs
+      .filter((j) => j.scheduledAt && sameDay(new Date(j.scheduledAt), day))
+      .sort((a, b) => {
+        if (a.scheduledAnytime !== b.scheduledAnytime) return a.scheduledAnytime ? -1 : 1;
+        return new Date(a.scheduledAt!).getTime() - new Date(b.scheduledAt!).getTime();
+      });
+  }
+
+  /** Week-at-a-glance date picker above the day agenda (iOS Calendar). */
+  function renderDateStrip() {
+    const days = Array.from({ length: 7 }, (_, i) => addDays(addDays(anchor, -anchor.getDay()), i));
+    return (
+      <div className="card-tool mb-3 flex overflow-hidden lg:hidden">
+        {days.map((d, i) => {
+          const selected = sameDay(d, anchor);
+          const isToday = sameDay(d, today);
+          const count = itemsOn(d).length;
+          return (
+            <button
+              key={i}
+              onClick={() => go({ view: "day", date: d })}
+              aria-current={selected ? "date" : undefined}
+              className="flex min-w-0 flex-1 flex-col items-center gap-1 py-2 transition-colors active:bg-gray-50"
+            >
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                {DAY_NAMES[d.getDay()][0]}
+              </span>
+              <span
+                className="flex h-8 w-8 items-center justify-center rounded-full text-[15px] font-semibold"
+                style={
+                  selected
+                    ? { backgroundColor: hue, color: hueInk(hue) }
+                    : isToday
+                      ? { backgroundColor: hueTint(hue, 0.14), color: "var(--wb-ink)" }
+                      : undefined
+                }
+              >
+                {d.getDate()}
+              </span>
+              {/* One dot per item, capped at three — "is there work here?" */}
+              <span className="flex h-1.5 items-center gap-[3px]">
+                {Array.from({ length: Math.min(count, 3) }, (_, k) => (
+                  <span
+                    key={k}
+                    className="h-1.5 w-1.5 rounded-full"
+                    style={{ backgroundColor: selected ? hue : "#D1D5DB" }}
+                  />
+                ))}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
+
+  function agendaRow(it: ScheduleJobDTO) {
+    const start = new Date(it.scheduledAt!);
+    const end = it.scheduledEnd ? new Date(it.scheduledEnd) : null;
+    const isBlock = it.kind === "block";
+    return (
+      <li key={it.id}>
+        <button
+          type="button"
+          onClick={() => openItem(it)}
+          className="flex w-full items-stretch gap-2.5 text-left transition-transform active:scale-[0.99]"
+        >
+          {/* Time rail, like a printed day sheet */}
+          <span className="w-[56px] shrink-0 pt-2 text-right">
+            {it.scheduledAnytime ? (
+              <span className="text-[11px] font-semibold text-gray-400">Anytime</span>
+            ) : (
+              <>
+                <span className="numeral-ledger block text-[13px] font-semibold text-gray-900">
+                  {fmtTime(start)}
+                </span>
+                {end && (
+                  <span className="numeral-ledger block text-[11px] text-gray-400">
+                    {fmtTime(end)}
+                  </span>
+                )}
+              </>
+            )}
+          </span>
+          <span
+            className={`min-w-0 flex-1 rounded-[14px] border-l-[3px] px-3 py-2.5 ${itemTone(it)}`}
+          >
+            <span className="flex items-center gap-1.5 text-[15px] font-semibold">
+              <TypeGlyph apptType={it.apptType} recurring={it.recurring} size={13} />
+              <span className="truncate">
+                {isBlock ? it.title || "Blocked off" : it.contactName}
+              </span>
+            </span>
+            <span className="mt-0.5 block truncate text-[13px] opacity-80">
+              {isBlock
+                ? it.contactName === "Everyone"
+                  ? "Whole team"
+                  : it.contactName
+                : it.title}
+              {!isBlock && it.jobNumber ? ` · #${it.jobNumber}` : ""}
+            </span>
+            {it.tentative && (
+              <span className="stamp mt-1.5 text-blue-800">Awaiting approval</span>
+            )}
+          </span>
+        </button>
+      </li>
+    );
+  }
+
+  function renderAgenda(days: Date[]) {
+    const nowMs = today.getTime();
+    return (
+      <div className="lg:hidden">
+        {days.map((day, di) => {
+          const items = itemsOn(day);
+          const isToday = sameDay(day, today);
+          // Where "now" falls in today's list — the red line native calendars draw
+          const nowIdx =
+            isToday && mounted
+              ? items.findIndex(
+                  (it) => !it.scheduledAnytime && new Date(it.scheduledAt!).getTime() > nowMs
+                )
+              : -1;
+          return (
+            <section key={di} className={di > 0 ? "mt-5" : ""}>
+              {days.length > 1 && (
+                <div className="mb-2 flex items-center gap-2 px-0.5">
+                  <h3
+                    className={`text-[13px] font-semibold ${
+                      isToday ? "text-gray-900" : "text-gray-500"
+                    }`}
+                  >
+                    {day.toLocaleDateString("en-US", {
+                      weekday: "long",
+                      month: "short",
+                      day: "numeric",
+                    })}
+                  </h3>
+                  {isToday && (
+                    <span className="stamp" style={{ color: "var(--wb-ink)" }}>
+                      Today
+                    </span>
+                  )}
+                  <span className="h-px flex-1 bg-gray-200" aria-hidden />
+                </div>
+              )}
+              {items.length === 0 ? (
+                days.length > 1 ? (
+                  // In a week, empty days stay a quiet line — seven "Nothing
+                  // scheduled" cards buried the days that had work.
+                  <p className="px-0.5 pb-1 text-[13px] text-gray-400">Nothing scheduled</p>
+                ) : (
+                  <div className="card-tool px-4 py-7 text-center">
+                    <p className="text-sm font-medium text-gray-500">Nothing scheduled</p>
+                    <p className="mt-0.5 text-xs text-gray-400">
+                      {unscheduled.length > 0
+                        ? `${unscheduled.length} job${unscheduled.length === 1 ? "" : "s"} waiting to be scheduled`
+                        : "Free day."}
+                    </p>
+                  </div>
+                )
+              ) : (
+                <ul className="space-y-2">
+                  {items.flatMap((it, i) =>
+                    i === nowIdx
+                      ? [
+                          <li
+                            key={`now-${di}`}
+                            aria-hidden
+                            className="flex items-center gap-2 py-0.5 pl-[46px]"
+                          >
+                            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-red-500" />
+                            <span className="h-px flex-1 bg-red-400" />
+                          </li>,
+                          agendaRow(it),
+                        ]
+                      : [agendaRow(it)]
+                  )}
+                </ul>
+              )}
+            </section>
+          );
+        })}
+      </div>
+    );
+  }
+
+  /** Month as a dot grid — readable at 375px, taps into the day agenda. */
+  function renderMonthCompact() {
+    const y = anchor.getFullYear();
+    const m = anchor.getMonth();
+    const firstDow = new Date(y, m, 1).getDay();
+    const daysInMonth = new Date(y, m + 1, 0).getDate();
+
+    const byDay: Record<number, ScheduleJobDTO[]> = {};
+    for (const job of jobs) {
+      if (!job.scheduledAt) continue;
+      const d = new Date(job.scheduledAt);
+      if (d.getMonth() !== m || d.getFullYear() !== y) continue;
+      (byDay[d.getDate()] ??= []).push(job);
+    }
+
+    return (
+      <div className="card-tool overflow-hidden lg:hidden">
+        <div className="grid grid-cols-7 border-b border-gray-100 py-1.5">
+          {DAY_NAMES.map((d) => (
+            <div key={d} className="text-center text-[10px] font-semibold uppercase text-gray-400">
+              {d[0]}
+            </div>
+          ))}
+        </div>
+        <div className="grid grid-cols-7 gap-y-0.5 px-1 py-2">
+          {Array.from({ length: firstDow }, (_, i) => (
+            <div key={`e-${i}`} />
+          ))}
+          {Array.from({ length: daysInMonth }, (_, i) => {
+            const d = i + 1;
+            const cellDate = new Date(y, m, d);
+            const isToday = sameDay(cellDate, today);
+            const dayItems = byDay[d] ?? [];
+            return (
+              <button
+                key={d}
+                onClick={() => go({ view: "day", date: cellDate })}
+                className="flex flex-col items-center gap-1 rounded-xl py-1.5 transition-colors active:bg-gray-50"
+              >
+                <span
+                  className="flex h-8 w-8 items-center justify-center rounded-full text-[15px] font-medium"
+                  style={
+                    isToday ? { backgroundColor: hue, color: hueInk(hue) } : { color: "#111827" }
+                  }
+                >
+                  {d}
+                </span>
+                {/* One dot per item (capped), all one color: the lifecycle
+                    tones a legend would decode collapse into near-identical
+                    blues once a tenant's accent replaces the stock green, so
+                    the dots only claim "there's work here" — the day agenda
+                    one tap away carries the detail. */}
+                <span className="flex h-1.5 items-center gap-[3px]">
+                  {dayItems.slice(0, 3).map((it) => (
+                    <span
+                      key={it.id}
+                      className="h-1.5 w-1.5 rounded-full"
+                      style={{ backgroundColor: isToday ? hue : "#9CA3AF" }}
+                    />
+                  ))}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
   // ── Page ──────────────────────────────────────────────────────────────────
   return (
     <div className="mx-auto max-w-7xl p-4 lg:p-8">
@@ -815,15 +1093,16 @@ export default function ScheduleClient({
             <CalendarOff size={16} />
             <span className="hidden md:inline">Block Time</span>
           </button>
+          {/* Phones create appointments from the tab-bar FAB's Create sheet */}
           {canCreateAppointment && (
             <Link
               href="/app/appointments/new"
               aria-label="New appointment"
               title="New Appointment"
-              className="flex h-10 w-10 items-center justify-center gap-1.5 rounded-[10px] btn-tool-line bg-blue-50 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-100 md:w-auto md:px-4"
+              className="hidden h-10 items-center justify-center gap-1.5 rounded-[10px] btn-tool-line bg-blue-50 px-4 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-100 md:flex"
             >
               <CalendarClock size={16} />
-              <span className="hidden md:inline">New Appointment</span>
+              New Appointment
             </Link>
           )}
           {/* Phones create from the tab-bar FAB */}
@@ -839,10 +1118,71 @@ export default function ScheduleClient({
         </div>
       </div>
 
-      {/* Controls — two rows on phones (nav + label, then view chips + team),
-          one row on desktop. The old single flex row clipped the view
-          switcher off the right edge at phone widths. */}
-      <div className="mb-4 flex flex-wrap items-center gap-x-2 gap-y-2">
+      {/* ── Mobile controls: a centered date title flanked by chevrons (the
+             native calendar header), then one scrolling chip rail. The old
+             wrapping flex row stacked three lines of chrome above the
+             calendar and pushed the day itself below the fold. ── */}
+      <div className="mb-2.5 flex items-center gap-1 lg:hidden">
+        <button
+          onClick={() => step(-1)}
+          className="-ml-1.5 shrink-0 rounded-full p-2 transition-colors active:bg-gray-100"
+          aria-label="Previous"
+        >
+          <ChevronLeft size={20} className="text-gray-500" />
+        </button>
+        <h2 className="min-w-0 flex-1 truncate text-center text-[17px] font-bold text-gray-900">
+          {shortLabel}
+        </h2>
+        <button
+          onClick={() => step(1)}
+          className="shrink-0 rounded-full p-2 transition-colors active:bg-gray-100"
+          aria-label="Next"
+        >
+          <ChevronRight size={20} className="text-gray-500" />
+        </button>
+        {/* Redundant while the title already says "Today" */}
+        {!sameDay(anchor, today) && (
+          <button
+            onClick={() => go({ date: new Date() })}
+            className="shrink-0 rounded-[10px] btn-tool-line bg-white px-2.5 py-1.5 text-[13px] font-semibold text-gray-700"
+          >
+            Today
+          </button>
+        )}
+      </div>
+      <div className="lg:hidden">
+        <FilterRow>
+          {(["day", "week", "month"] as View[]).map((v) => (
+            <FilterChip key={v} hue={hue} active={view === v} onClick={() => go({ view: v })}>
+              <span className="capitalize">{v}</span>
+            </FilterChip>
+          ))}
+          {users.length > 1 && (
+            <>
+              <span className="mx-0.5 h-5 w-px shrink-0 bg-gray-200" aria-hidden />
+              <select
+                value={team}
+                onChange={(e) => go({ team: e.target.value })}
+                aria-label="Team member"
+                className="shrink-0 rounded-[9px] border border-gray-200 bg-white py-1.5 pl-3 pr-2 text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+              >
+                <option value="">Everyone</option>
+                {users.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.name}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
+          {(saving || isPending) && (
+            <Loader2 size={15} className="shrink-0 animate-spin text-gray-400" />
+          )}
+        </FilterRow>
+      </div>
+
+      {/* ── Desktop controls ── */}
+      <div className="mb-4 hidden flex-wrap items-center gap-x-2 gap-y-2 lg:flex">
         <div className="flex items-center gap-1">
           <button onClick={() => step(-1)} className="rounded-full p-2 transition-colors hover:bg-gray-100" aria-label="Previous">
             <ChevronLeft size={18} className="text-gray-600" />
@@ -861,15 +1201,10 @@ export default function ScheduleClient({
         <h2 className="text-base font-bold text-gray-900 lg:text-lg">{rangeLabel}</h2>
         {(saving || isPending) && <Loader2 size={15} className="animate-spin text-gray-400" />}
 
-        <div className="flex w-full items-center gap-2 py-1 lg:ml-auto lg:w-auto lg:py-0">
+        <div className="ml-auto flex items-center gap-2">
           <div className="flex shrink-0 items-center gap-1.5">
             {(["month", "week", "day"] as View[]).map((v) => (
-              <FilterChip
-                key={v}
-                hue={SECTION_HUES.schedule}
-                active={view === v}
-                onClick={() => go({ view: v })}
-              >
+              <FilterChip key={v} hue={hue} active={view === v} onClick={() => go({ view: v })}>
                 <span className="capitalize">{v}</span>
               </FilterChip>
             ))}
@@ -878,7 +1213,7 @@ export default function ScheduleClient({
             <select
               value={team}
               onChange={(e) => go({ team: e.target.value })}
-              className="ml-auto min-w-0 rounded-[10px] border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500 lg:ml-0"
+              className="min-w-0 rounded-[10px] border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500"
             >
               <option value="">All team members</option>
               {users.map((u) => (
@@ -903,10 +1238,24 @@ export default function ScheduleClient({
       {/* Calendar + drawer */}
       <div className="flex items-start gap-4">
         <div className={`min-w-0 flex-1 ${isPending ? "opacity-60" : ""}`}>
-          {view === "month" ? renderMonth() : renderTimeGrid()}
+          {/* Phones: date strip + agenda, or the month dot grid */}
+          {view === "month" ? (
+            renderMonthCompact()
+          ) : (
+            <>
+              {view === "day" && renderDateStrip()}
+              {renderAgenda(weekDays)}
+            </>
+          )}
 
-          {/* Legend */}
-          <div className="mt-4 flex flex-wrap gap-3">
+          {/* Desktop: the full month grid / hour grid */}
+          <div className="hidden lg:block">
+            {view === "month" ? renderMonth() : renderTimeGrid()}
+          </div>
+
+          {/* Legend — desktop only: the agenda's rows name themselves, and the
+              month dots are deliberately single-colored. */}
+          <div className="mt-4 hidden flex-wrap gap-3 lg:flex">
             {[
               ["bg-green-500", "Active job"],
               ["bg-amber-500", "Requires invoicing"],
@@ -943,23 +1292,31 @@ export default function ScheduleClient({
                 <p className="px-4 pt-3 text-xs text-gray-400 max-lg:hidden">
                   Drag a job onto the calendar to schedule it.
                 </p>
+                {/* Touch has no drag-and-drop — on phones the row opens the
+                    job, where the date lives. */}
+                <p className="px-4 pt-2.5 text-xs text-gray-400 lg:hidden">
+                  Tap a job to open it and give it a date.
+                </p>
                 <ul className="space-y-2 p-3">
                   {unscheduled.map((job) => (
                     <li
                       key={job.id}
                       {...dragProps(job)}
                       onClick={() => openItem(job)}
-                      className={`flex cursor-pointer items-start gap-2 rounded-full border border-gray-200 bg-white p-2.5 transition-colors hover:border-green-300 hover:bg-green-50/50 ${
+                      className={`flex cursor-pointer items-center gap-2.5 rounded-[12px] border border-gray-200 bg-white p-3 transition-colors hover:border-green-300 hover:bg-green-50/50 active:bg-gray-50 lg:p-2.5 ${
                         dragId === job.id ? "opacity-50" : ""
                       }`}
                     >
-                      <GripVertical size={14} className="mt-0.5 shrink-0 text-gray-300" />
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-medium text-gray-900">{job.title}</p>
+                      <GripVertical size={14} className="shrink-0 text-gray-300 max-lg:hidden" />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[15px] font-medium text-gray-900 lg:text-sm">
+                          {job.title}
+                        </p>
                         <p className="truncate text-xs text-gray-500">
                           {job.contactName} · Job #{job.jobNumber}
                         </p>
                       </div>
+                      <ChevronRight size={16} className="shrink-0 text-gray-300 lg:hidden" />
                     </li>
                   ))}
                 </ul>

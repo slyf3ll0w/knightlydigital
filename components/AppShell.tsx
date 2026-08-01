@@ -223,6 +223,21 @@ const jobsTab: NavItem = { href: "/app/jobs", label: "Jobs", icon: Briefcase };
 // a "‹ Section" control (the label names where you came from, like a native
 // nav bar). Route map lives in lib/mobile-nav.ts — the edge-swipe-back
 // gesture (components/SwipeBack.tsx) shares it.
+//
+// Naming it needs the route we arrived FROM, so the shell remembers the last
+// pathname it rendered. Module-level (like the template's push/pop tracker)
+// so it survives a shell remount, and guarded on equality so React's double
+// render in dev doesn't shift the pair.
+let lastPath: string | null = null;
+let priorPath: string | null = null;
+
+function trackPath(pathname: string): string | null {
+  if (lastPath !== pathname) {
+    priorPath = lastPath;
+    lastPath = pathname;
+  }
+  return priorPath;
+}
 
 const forRole = (items: NavItem[], role: string) =>
   items.filter((i) => !i.show || i.show(role));
@@ -552,7 +567,7 @@ export default function AppShell({
     return pathname.startsWith(href);
   }
 
-  const mobileBack = mobileBackFor(pathname);
+  const mobileBack = mobileBackFor(pathname, trackPath(pathname));
   const goBack = () => {
     if (!mobileBack) return;
     if (window.history.length > 1) router.back();

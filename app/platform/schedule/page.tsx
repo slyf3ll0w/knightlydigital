@@ -175,9 +175,14 @@ export default async function SchedulePage({
     end.setDate(end.getDate() + 6);
     end.setHours(23, 59, 59, 999);
   } else {
+    // Day view loads the whole surrounding week: the phone agenda's date
+    // strip marks which nearby days have work, and the renderers already
+    // discard anything outside the visible day.
     start = new Date(anchor);
+    start.setDate(start.getDate() - start.getDay());
     start.setHours(0, 0, 0, 0);
-    end = new Date(anchor);
+    end = new Date(start);
+    end.setDate(end.getDate() + 6);
     end.setHours(23, 59, 59, 999);
   }
 
