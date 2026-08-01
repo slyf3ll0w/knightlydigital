@@ -21,6 +21,7 @@ export default function ProfileClient({
   roleLabel,
   emailSignature: initialSignature,
   defaultSignature,
+  pendingEmail: initialPendingEmail,
 }: {
   userId: string;
   hasAvatar: boolean;
@@ -30,6 +31,8 @@ export default function ProfileClient({
   roleLabel: string;
   emailSignature: string;
   defaultSignature: string;
+  /** An email change already sent and waiting on the new address, if any. */
+  pendingEmail: string | null;
 }) {
   const router = useRouter();
   const [name, setName] = useState(initialName);
@@ -37,6 +40,9 @@ export default function ProfileClient({
   const [signature, setSignature] = useState(initialSignature);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [newEmail, setNewEmail] = useState("");
+  const [emailPassword, setEmailPassword] = useState("");
+  const [pendingEmail, setPendingEmail] = useState(initialPendingEmail);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [saved, setSaved] = useState("");
@@ -139,6 +145,32 @@ export default function ProfileClient({
     setCurrentPassword("");
     setNewPassword("");
     setSaved("password");
+  }
+
+  async function changeEmail() {
+    setBusy(true);
+    setError("");
+    setSaved("");
+    const { ok, data } = await postJson<{ sentTo: string; error?: string }>(
+      "/api/app/profile/email",
+      { newEmail, currentPassword: emailPassword }
+    );
+    setBusy(false);
+    if (!ok || !data?.sentTo) return setError(data?.error ?? GENERIC_ERROR);
+    // The address isn't ours yet — it's pending until that inbox confirms.
+    setPendingEmail(data.sentTo);
+    setNewEmail("");
+    setEmailPassword("");
+    setSaved("email");
+  }
+
+  async function cancelEmailChange() {
+    setBusy(true);
+    setError("");
+    const { ok, data } = await postJson("/api/app/profile/email", undefined, "DELETE");
+    setBusy(false);
+    if (!ok) return setError(data?.error ?? GENERIC_ERROR);
+    setPendingEmail(null);
   }
 
   return (
@@ -279,6 +311,70 @@ export default function ProfileClient({
           {busy ? <Loader2 size={13} className="animate-spin" /> : saved === "signature" && <Check size={13} />}
           Save Signature
         </button>
+      </div>
+
+      {/* Change email — nothing moves until the new address confirms it, so a
+          typo can't lock someone out of their own account. */}
+      <div className="card-ledger p-5">
+        <h2 className="text-[13px] font-semibold text-gray-500 mb-1">Sign-in email</h2>
+        <p className="text-xs text-gray-500 mb-4">
+          Currently <span className="font-medium text-gray-700">{email}</span>. Changing it sends a
+          confirmation link to the new address — it only takes effect once you open that link.
+        </p>
+
+        {pendingEmail ? (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5">
+            <p className="text-sm text-amber-800">
+              Waiting for <span className="font-semibold">{pendingEmail}</span> to confirm. Check
+              that inbox — the link expires an hour after it was sent.
+            </p>
+            <button
+              onClick={cancelEmailChange}
+              disabled={busy}
+              className="mt-1.5 text-xs font-medium text-amber-900 underline hover:no-underline disabled:opacity-50"
+            >
+              Cancel this change
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="grid sm:grid-cols-2 gap-3 mb-4">
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">New email</label>
+                <input
+                  type="email"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  autoComplete="off"
+                  className={inputCls}
+                  placeholder="you@company.com"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Current password</label>
+                <input
+                  type="password"
+                  value={emailPassword}
+                  onChange={(e) => setEmailPassword(e.target.value)}
+                  autoComplete="current-password"
+                  className={inputCls}
+                />
+              </div>
+            </div>
+            <button
+              onClick={changeEmail}
+              disabled={busy || !newEmail.trim() || !emailPassword}
+              className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors disabled:opacity-50"
+            >
+              {busy ? (
+                <Loader2 size={13} className="animate-spin" />
+              ) : (
+                saved === "email" && <Check size={13} />
+              )}
+              Send Confirmation Link
+            </button>
+          </>
+        )}
       </div>
 
       <div className="card-ledger p-5">

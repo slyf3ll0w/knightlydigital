@@ -149,21 +149,32 @@ export default function RegisterPage() {
                   placeholder="Acme HVAC & Cooling"
                 />
               </div>
+              {/* autocomplete="username" (not "email") — this is the account
+                  identifier the new password gets stored against, and password
+                  managers won't offer to save a signup without one. */}
               <div>
-                <label className={labelClass}>Email</label>
+                <label htmlFor="signup-email" className={labelClass}>
+                  Email
+                </label>
                 <input
+                  id="signup-email"
+                  name="username"
                   type="email"
                   value={form.email}
                   onChange={(e) => set("email", e.target.value)}
                   required
-                  autoComplete="email"
+                  autoComplete="username"
                   className={inputClass}
                   placeholder="you@acmehvac.com"
                 />
               </div>
               <div>
-                <label className={labelClass}>Password</label>
+                <label htmlFor="signup-password" className={labelClass}>
+                  Password
+                </label>
                 <input
+                  id="signup-password"
+                  name="password"
                   type="password"
                   value={form.password}
                   onChange={(e) => set("password", e.target.value)}

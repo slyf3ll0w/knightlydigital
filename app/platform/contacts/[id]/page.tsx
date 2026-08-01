@@ -16,6 +16,7 @@ import ContactNoteItem from "./ContactNoteItem";
 import PortalAccessCard from "./PortalAccessCard";
 import EmailClientButton from "./EmailClientButton";
 import AddressesCard from "./AddressesCard";
+import PeopleCard from "./PeopleCard";
 import PipelineCard from "./PipelineCard";
 import { getActiveFieldDefs } from "@/lib/contact-fields";
 
@@ -48,6 +49,7 @@ export default async function ContactDetailPage({
         assignedTo: { select: { id: true, name: true } },
         pipelineStage: { select: { isConverted: true } },
         addresses: { orderBy: { createdAt: "asc" } },
+        people: { orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] },
       },
     }),
     canReassign
@@ -361,6 +363,21 @@ export default async function ContactDetailPage({
               city: a.city,
               state: a.state,
               zip: a.zip,
+            }))}
+          />
+
+          <PeopleCard
+            contactId={contact.id}
+            primaryName={`${contact.firstName} ${contact.lastName}`.trim()}
+            primaryRole={contact.companyName}
+            people={contact.people.map((p) => ({
+              id: p.id,
+              firstName: p.firstName,
+              lastName: p.lastName,
+              role: p.role,
+              email: p.email,
+              phone: p.phone,
+              notes: p.notes,
             }))}
           />
 

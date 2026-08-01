@@ -200,6 +200,7 @@ model User {
   chatChannelMembers ChatChannelMember[]
   pushSubscriptions PushSubscription[]
   passwordResetTokens PasswordResetToken[]
+  emailChangeTokens   EmailChangeToken[]
   superadminLoginCodes SuperadminLoginCode[]
   timeBlocks       TimeBlock[]     @relation("TimeBlockUser")
   timeEntries      TimeEntry[]
@@ -218,6 +219,24 @@ model PasswordResetToken {
   id        String    @id @default(cuid())
   userId    String
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+// A requested — not yet applied — change of sign-in address. The new address
+// only becomes real once its owner clicks the link from that inbox, so a typo
+// can't lock someone out of their own account and a borrowed session can't
+// quietly move the account somewhere else. One live request per user; issuing
+// a new one replaces it.
+model EmailChangeToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  newEmail  String
   tokenHash String    @unique
   expiresAt DateTime
   usedAt    DateTime?
@@ -563,6 +582,7 @@ model Contact {
   contracts       Contract[]
   contactNotes    ContactNote[]
   addresses       ContactAddress[]
+  people          ContactPerson[]
   clientMessages  ClientMessage[]
 
   @@index([companyId])
@@ -586,6 +606,28 @@ model ContactAddress {
   state     String?
   zip       String?
   createdAt DateTime @default(now())
+
+  @@index([contactId])
+}
+
+// Other people who belong to the same client: a second decision-maker at a
+// business, or a spouse on a residential account. They are NOT their own
+// client — one record still owns all the work, quotes and invoices, so the
+// history stays in one place. The Contact's own name/email/phone remain the
+// primary; these are the extra people you'd also call or email.
+model ContactPerson {
+  id        String   @id @default(cuid())
+  contactId String
+  contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  firstName String
+  lastName  String
+  role      String? // "Office manager", "Spouse", "Property manager", ...
+  email     String?
+  phone     String?
+  notes     String?
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([contactId])
 }

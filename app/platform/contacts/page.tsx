@@ -8,6 +8,7 @@ import { shortDate } from "@/lib/statuses";
 import ContactStatus from "@/components/ContactStatus";
 import EmptyState from "@/components/EmptyState";
 import { requirePageActor, canSell, contactScope, seesAllLeads, isManager } from "@/lib/permissions";
+import { contactSearchWhere } from "@/lib/contact-search";
 
 // Leads live on the Leads board now — this page is clients (searching still
 // finds leads so the header search never dead-ends).
@@ -33,6 +34,10 @@ export default async function ContactsPage({
   const showAll = seesAllLeads(actor.role);
   const mineOnly = showAll && assignee === "me";
 
+  // Covers the built-in columns and the company's own custom fields — see
+  // lib/contact-search.ts.
+  const search = await contactSearchWhere(companyId, q);
+
   const contacts = await prisma.contact.findMany({
     where: {
       companyId,
@@ -41,16 +46,7 @@ export default async function ContactsPage({
       // A search sweeps every status (so leads are still findable here);
       // otherwise the list is active clients, or the Archived tab
       status: validStatus ? validStatus : q ? undefined : "ACTIVE",
-      ...(q
-        ? {
-            OR: [
-              { firstName: { contains: q, mode: "insensitive" } },
-              { lastName: { contains: q, mode: "insensitive" } },
-              { email: { contains: q, mode: "insensitive" } },
-              { phone: { contains: q } },
-            ],
-          }
-        : {}),
+      ...(search ?? {}),
     },
     include: { assignedTo: { select: { name: true } } },
     orderBy: { updatedAt: "desc" },
@@ -119,7 +115,7 @@ export default async function ContactsPage({
           type="text"
           name="q"
           defaultValue={q ?? ""}
-          placeholder="Search clients..."
+          placeholder="Search name, company, address, custom fields…"
           className="w-full max-w-sm rounded-[10px] border border-gray-300 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
         />
         {validStatus && <input type="hidden" name="status" value={validStatus} />}

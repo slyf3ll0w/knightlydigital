@@ -11,6 +11,7 @@ import {
   Loader2,
   Undo2,
   Upload,
+  Users,
   X,
 } from "lucide-react";
 import { parseCsv } from "@/lib/csv";
@@ -63,8 +64,52 @@ const TEMPLATE_CSV =
 
 const CHUNK_SIZE = 200;
 
-type Step = "upload" | "map" | "importing" | "done";
+type Step = "upload" | "map" | "combine" | "importing" | "done";
 type Summary = { created: number; updated: number; skippedDuplicates: number; errors: { row: number; reason: string }[] };
+
+/** A column mapped to CREATE_FIELD becomes a new custom field named after its
+ *  own header — the escape hatch for "my list has a Date Added column and
+ *  yours doesn't". */
+const CREATE_FIELD = "new";
+
+/**
+ * What kind of custom field a column should become, read off its own values.
+ * A "Date Added" column is worth storing as a date rather than loose text,
+ * and the importer already has the samples to tell.
+ */
+function guessFieldType(samples: string[]): "TEXT" | "NUMBER" | "DATE" {
+  const vals = samples.filter(Boolean).slice(0, 25);
+  if (vals.length === 0) return "TEXT";
+  // Bare 4-digit years and ZIPs parse as dates in most engines, so a value
+  // only counts as a date if it carries a separator a date would have.
+  const dateish = vals.filter(
+    (v) => /[/-]/.test(v) && !Number.isNaN(Date.parse(v))
+  ).length;
+  if (dateish >= vals.length * 0.8) return "DATE";
+  const numeric = vals.filter((v) => v !== "" && !Number.isNaN(Number(v))).length;
+  if (numeric === vals.length) return "NUMBER";
+  return "TEXT";
+}
+
+const TYPE_LABEL: Record<string, string> = { TEXT: "Text", NUMBER: "Number", DATE: "Date" };
+
+/** Rows the wizard thinks belong to one client. */
+type Group = {
+  key: string;
+  kind: "company" | "household";
+  title: string;
+  rowIdxs: number[];
+  primaryIdx: number;
+  combine: boolean;
+};
+
+const norm = (s: unknown) =>
+  typeof s === "string" ? s.trim().toLowerCase().replace(/\s+/g, " ") : "";
+
+// The import API keeps at most 50 additional people per client (same ceiling
+// as the contact page). A bigger group is offered but not pre-checked, so we
+// never silently drop the overflow on the user's behalf.
+const MAX_COMBINE_ROWS = 51;
 
 const inputCls =
   "px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500";
@@ -111,6 +156,8 @@ export default function ImportClient({
   const [error, setError] = useState("");
   const [progress, setProgress] = useState(0);
   const [summary, setSummary] = useState<Summary | null>(null);
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [busyPreparing, setBusyPreparing] = useState(false);
   const [batchId, setBatchId] = useState("");
   const [undone, setUndone] = useState<{ deleted: number; kept: number } | null>(null);
   const [undoing, setUndoing] = useState(false);
@@ -144,12 +191,15 @@ export default function ImportClient({
     reader.readAsText(file);
   }
 
-  function buildRow(cells: string[]): Record<string, unknown> {
+  // `map` is a parameter because the mapping changes mid-flow: columns set to
+  // CREATE_FIELD become real cf: ids only once their fields exist, and React
+  // state won't have caught up in the same tick.
+  function buildRow(cells: string[], map: string[] = mapping): Record<string, unknown> {
     const out: Record<string, string> = {};
     const customFields: Record<string, string> = {};
-    mapping.forEach((target, i) => {
+    map.forEach((target, i) => {
       const value = (cells[i] ?? "").trim();
-      if (!target || !value) return;
+      if (!target || target === CREATE_FIELD || !value) return;
       if (target.startsWith("cf:")) {
         customFields[target.slice(3)] = value;
         return;
@@ -168,6 +218,106 @@ export default function ImportClient({
     return Object.keys(customFields).length > 0 ? { ...out, customFields } : out;
   }
 
+  /**
+   * Rows that look like the same client: two people at one business, or two
+   * names at one address. CRM exports are full of these — one row per person —
+   * and importing them straight through scatters a single customer's history
+   * across three records. We group them and let the user decide.
+   */
+  function findGroups(mapped: Record<string, unknown>[]): Group[] {
+    const buckets = new Map<string, number[]>();
+    mapped.forEach((m, i) => {
+      // Someone with no personal name is just the business itself; there's no
+      // second person to keep, so nothing to combine.
+      if (!m.firstName && !m.lastName) return;
+      const company = norm(m.companyName);
+      const last = norm(m.lastName);
+      const address = norm(m.address);
+      const key = company
+        ? `c:${company}`
+        : last && address
+          ? `h:${last}|${address}`
+          : null;
+      if (!key) return;
+      const list = buckets.get(key);
+      if (list) list.push(i);
+      else buckets.set(key, [i]);
+    });
+
+    const out: Group[] = [];
+    for (const [key, rowIdxs] of buckets) {
+      if (rowIdxs.length < 2) continue;
+      // Identical names aren't two people — that's a duplicate row, and the
+      // duplicate rule on the previous step already covers it.
+      const names = new Set(
+        rowIdxs.map((i) => `${norm(mapped[i].firstName)} ${norm(mapped[i].lastName)}`.trim())
+      );
+      if (names.size < 2) continue;
+      const first = mapped[rowIdxs[0]];
+      out.push({
+        key,
+        kind: key.startsWith("c:") ? "company" : "household",
+        title: key.startsWith("c:")
+          ? String(first.companyName ?? "")
+          : `${first.lastName ?? ""} household — ${first.address ?? ""}`,
+        rowIdxs,
+        primaryIdx: rowIdxs[0],
+        combine: rowIdxs.length <= MAX_COMBINE_ROWS,
+      });
+    }
+    return out.sort((a, b) => b.rowIdxs.length - a.rowIdxs.length);
+  }
+
+  /**
+   * The rows we actually POST. Combined groups collapse to their primary row
+   * carrying the rest as `people`; every other row passes through. `lines`
+   * tracks the CSV line each payload row came from so the summary can still
+   * point at a real row number after the collapse.
+   */
+  function buildPayload(
+    map: string[],
+    combineGroups: Group[]
+  ): { rows: Record<string, unknown>[]; lines: number[] } {
+    const mapped = rows.map((r) => buildRow(r, map));
+    // Which rows are folded into which primary
+    const folded = new Map<number, number[]>();
+    const absorbed = new Set<number>();
+    for (const g of combineGroups) {
+      if (!g.combine) continue;
+      // Past the ceiling the API would drop the tail, so keep only what fits
+      // and let the remainder import as ordinary clients — over-combining
+      // must never mean losing rows.
+      const others = g.rowIdxs
+        .filter((i) => i !== g.primaryIdx)
+        .slice(0, MAX_COMBINE_ROWS - 1);
+      if (others.length === 0) continue;
+      folded.set(g.primaryIdx, others);
+      others.forEach((i) => absorbed.add(i));
+    }
+
+    const out: Record<string, unknown>[] = [];
+    const lines: number[] = [];
+    mapped.forEach((m, i) => {
+      if (absorbed.has(i)) return;
+      const others = folded.get(i);
+      if (others?.length) {
+        out.push({
+          ...m,
+          people: others.map((j) => ({
+            firstName: mapped[j].firstName ?? "",
+            lastName: mapped[j].lastName ?? "",
+            email: mapped[j].email ?? "",
+            phone: mapped[j].phone ?? "",
+          })),
+        });
+      } else {
+        out.push(m);
+      }
+      lines.push(i + 2); // +2: header row, and CSV rows are 1-based
+    });
+    return { rows: out, lines };
+  }
+
   const mappedTargets = new Set(mapping.filter(Boolean));
   const hasNameMapping =
     mappedTargets.has("fullName") || mappedTargets.has("firstName") ||
@@ -177,18 +327,63 @@ export default function ImportClient({
     return m.firstName || m.lastName || m.companyName;
   }).length;
 
-  async function runImport() {
+  /**
+   * Leaving the mapping step: create any custom fields the user asked for,
+   * then look for rows that belong to the same client. Only stops to ask
+   * about combining when there's actually something to combine.
+   */
+  async function prepare() {
     if (!hasNameMapping) {
       setError("Map at least one name column (full name, first/last, or company).");
       return;
     }
+    setError("");
+
+    let effective = mapping;
+    const toCreate = mapping
+      .map((t, i) => (t === CREATE_FIELD ? i : -1))
+      .filter((i) => i >= 0);
+
+    if (toCreate.length > 0) {
+      setBusyPreparing(true);
+      const next = [...mapping];
+      for (const i of toCreate) {
+        const label = (headers[i] || `Column ${i + 1}`).slice(0, 80);
+        const samples = rows.map((r) => (r[i] ?? "").trim());
+        const { ok, data } = await postJson<{ id: string; error?: string }>(
+          "/api/app/contact-fields",
+          { label, type: guessFieldType(samples) }
+        );
+        if (!ok || !data?.id) {
+          setBusyPreparing(false);
+          setError(data?.error ?? `Couldn't create the custom field "${label}".`);
+          return;
+        }
+        next[i] = `cf:${data.id}`;
+      }
+      setBusyPreparing(false);
+      setMapping(next);
+      effective = next;
+    }
+
+    const mapped = rows.map((r) => buildRow(r, effective));
+    const found = findGroups(mapped);
+    if (found.length > 0) {
+      setGroups(found);
+      setStep("combine");
+      return;
+    }
+    await runImport(effective, []);
+  }
+
+  async function runImport(map: string[], combineGroups: Group[]) {
     setError("");
     setStep("importing");
     setProgress(0);
 
     const id = crypto.randomUUID();
     setBatchId(id);
-    const mapped = rows.map(buildRow);
+    const { rows: mapped, lines } = buildPayload(map, combineGroups);
     const totals: Summary = { created: 0, updated: 0, skippedDuplicates: 0, errors: [] };
 
     for (let i = 0; i < mapped.length; i += CHUNK_SIZE) {
@@ -208,7 +403,9 @@ export default function ImportClient({
       totals.created += data.created;
       totals.updated += data.updated;
       totals.skippedDuplicates += data.skippedDuplicates;
-      totals.errors.push(...data.errors.map((e) => ({ ...e, row: e.row + i + 2 }))); // +2: header + 1-based
+      // Combining collapses rows, so the chunk index isn't the CSV line — map
+      // back through the line table built alongside the payload.
+      totals.errors.push(...data.errors.map((e) => ({ ...e, row: lines[e.row + i] ?? e.row + i + 2 })));
       setProgress(Math.min(100, Math.round(((i + chunk.length) / mapped.length) * 100)));
     }
 
@@ -325,21 +522,34 @@ export default function ImportClient({
             <div className="divide-y divide-gray-100">
               {headers.map((h, i) => {
                 const sample = rows.find((r) => (r[i] ?? "").trim())?.[i] ?? "";
+                const label = h || `Column ${i + 1}`;
+                const newType = guessFieldType(rows.map((r) => (r[i] ?? "").trim()));
                 return (
-                  <div key={i} className="grid grid-cols-[1fr_1fr_1fr] items-center gap-3 px-4 py-2">
-                    <span className="text-sm font-medium text-gray-900 truncate">{h || `Column ${i + 1}`}</span>
-                    <span className="text-xs text-gray-500 truncate">{sample}</span>
-                    <select
-                      value={mapping[i]}
-                      onChange={(e) => setMapping(mapping.map((m, j) => (j === i ? e.target.value : m)))}
-                      className={`${inputCls} w-full ${mapping[i] ? "" : "text-gray-400"}`}
-                    >
-                      {allTargets.map((t) => (
-                        <option key={t.key} value={t.key}>
-                          {t.label}
-                        </option>
-                      ))}
-                    </select>
+                  <div key={i} className="grid grid-cols-[1fr_1fr_1fr] items-start gap-3 px-4 py-2">
+                    <span className="text-sm font-medium text-gray-900 truncate pt-2">{label}</span>
+                    <span className="text-xs text-gray-500 truncate pt-2.5">{sample}</span>
+                    <div>
+                      <select
+                        value={mapping[i]}
+                        onChange={(e) => setMapping(mapping.map((m, j) => (j === i ? e.target.value : m)))}
+                        className={`${inputCls} w-full ${mapping[i] ? "" : "text-gray-400"}`}
+                      >
+                        {allTargets.map((t) => (
+                          <option key={t.key} value={t.key}>
+                            {t.label}
+                          </option>
+                        ))}
+                        {/* Their column, their field name — the way a "Date
+                            added" column gets a home without leaving here. */}
+                        <option value={CREATE_FIELD}>+ Create custom field…</option>
+                      </select>
+                      {mapping[i] === CREATE_FIELD && (
+                        <p className="mt-1 text-[11px] text-green-700">
+                          Creates a {TYPE_LABEL[newType]} field called{" "}
+                          <span className="font-semibold">{label}</span>
+                        </p>
+                      )}
+                    </div>
                   </div>
                 );
               })}
@@ -379,11 +589,118 @@ export default function ImportClient({
               {readyRows < rows.length && <span className="text-gray-400"> (rest have no name)</span>}
             </p>
             <button
-              onClick={runImport}
-              disabled={readyRows === 0}
+              onClick={prepare}
+              disabled={readyRows === 0 || busyPreparing}
               className="flex items-center gap-1.5 px-5 py-2.5 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors disabled:opacity-50"
             >
+              {busyPreparing && <Loader2 size={13} className="animate-spin" />}
               Import {readyRows} Clients
+              <ArrowRight size={14} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Step 2b: combine people who share a client ── */}
+      {step === "combine" && (
+        <div className="space-y-5">
+          <div className="card-ledger p-4">
+            <div className="flex items-start gap-2.5">
+              <Users size={16} className="mt-0.5 shrink-0 text-green-600" />
+              <div>
+                <p className="text-sm font-semibold text-gray-900">
+                  {groups.length === 1
+                    ? "One set of rows looks like the same client"
+                    : `${groups.length} sets of rows look like the same client`}
+                </p>
+                <p className="mt-0.5 text-xs text-gray-500">
+                  Combining keeps every name — one becomes the client, the rest become
+                  contacts on that client, so their quotes, jobs and invoices all live in one
+                  history. Leave a set unchecked to import those rows as separate clients.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            {groups.map((g, gi) => {
+              const set = (patch: Partial<Group>) =>
+                setGroups(groups.map((x, j) => (j === gi ? { ...x, ...patch } : x)));
+              return (
+                <div key={g.key} className="card-ledger overflow-hidden">
+                  <label className="flex cursor-pointer items-center gap-2.5 border-b border-gray-100 bg-gray-50 px-4 py-2.5">
+                    <input
+                      type="checkbox"
+                      checked={g.combine}
+                      onChange={(e) => set({ combine: e.target.checked })}
+                      className="h-4 w-4 accent-green-600"
+                    />
+                    <span className="min-w-0 flex-1 truncate text-sm font-semibold text-gray-900">
+                      {g.title}
+                    </span>
+                    <span className="shrink-0 text-xs text-gray-500">
+                      {g.rowIdxs.length} rows
+                    </span>
+                  </label>
+                  {g.rowIdxs.length > MAX_COMBINE_ROWS && (
+                    <p className="border-b border-gray-100 bg-amber-50 px-4 py-2 text-[11px] text-amber-800">
+                      Too many to combine — a client holds {MAX_COMBINE_ROWS - 1} extra contacts.
+                      Left unchecked, these import as separate clients so nothing is lost.
+                    </p>
+                  )}
+                  <div className="divide-y divide-gray-100">
+                    {g.rowIdxs.map((ri) => {
+                      const m = buildRow(rows[ri], mapping);
+                      const name =
+                        `${m.firstName ?? ""} ${m.lastName ?? ""}`.trim() || `Row ${ri + 2}`;
+                      const isPrimary = g.primaryIdx === ri;
+                      return (
+                        <label
+                          key={ri}
+                          className={`flex items-center gap-2.5 px-4 py-2 ${
+                            g.combine ? "cursor-pointer" : "opacity-60"
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name={`primary-${g.key}`}
+                            checked={isPrimary}
+                            disabled={!g.combine}
+                            onChange={() => set({ primaryIdx: ri })}
+                            className="h-3.5 w-3.5 accent-green-600"
+                          />
+                          <span className="min-w-0 flex-1 truncate text-sm text-gray-800">
+                            {name}
+                          </span>
+                          <span className="hidden shrink-0 text-xs text-gray-500 sm:block">
+                            {String(m.email ?? m.phone ?? "")}
+                          </span>
+                          {g.combine && (
+                            <span className="shrink-0 text-[11px] font-medium text-gray-400">
+                              {isPrimary ? "Client" : "Contact"}
+                            </span>
+                          )}
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => setStep("map")}
+              className="text-sm text-gray-500 hover:text-gray-700 underline"
+            >
+              Back to columns
+            </button>
+            <button
+              onClick={() => runImport(mapping, groups)}
+              className="flex items-center gap-1.5 px-5 py-2.5 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors"
+            >
+              Import
               <ArrowRight size={14} />
             </button>
           </div>

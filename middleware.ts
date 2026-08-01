@@ -83,7 +83,11 @@ const rateLimits: { match: (path: string) => boolean; max: number; windowMs: num
     // Endpoints that email an address the caller supplies — the tightest
     // bucket, so neither can be used to mailbomb a client or probe accounts.
     match: (p) =>
-      p.startsWith("/api/public/portal-login") || p.startsWith("/api/public/forgot-password"),
+      p.startsWith("/api/public/portal-login") ||
+      p.startsWith("/api/public/forgot-password") ||
+      // Signed-in, but it still emails an address the caller typed — same
+      // bucket so it can't be used to mailbomb someone or probe for accounts.
+      p.startsWith("/api/app/profile/email"),
     max: 5,
     windowMs: 60 * 60_000,
     name: "magic-link",
@@ -123,6 +127,14 @@ export async function middleware(req: NextRequest) {
   }
   if (path in agencyMoved) {
     return NextResponse.redirect(new URL(agencyMoved[path], req.url), 308);
+  }
+
+  // The well-known change-password URL (w3c/webappsec-change-password-url).
+  // Chrome, Safari and iOS Passwords deep-link here when they flag a weak or
+  // breached credential; a 404 dead-ends that flow. Lives in middleware
+  // because Next's router skips dot-directories under app/.
+  if (path === "/.well-known/change-password") {
+    return NextResponse.redirect(new URL("/app/settings/profile", req.url), 302);
   }
 
   // ── Rate limiting (POST-like methods only) ─────────────────────────────────
@@ -167,7 +179,10 @@ export async function middleware(req: NextRequest) {
     path.startsWith("/app/login") ||
     path.startsWith("/app/register") ||
     path.startsWith("/app/forgot-password") ||
-    path.startsWith("/app/reset-password");
+    path.startsWith("/app/reset-password") ||
+    // The confirm link is opened from whatever mail app holds the NEW
+    // address — often another device, never carrying the app session.
+    path.startsWith("/app/verify-email");
   if (isPublic) return NextResponse.next();
 
   const token = await getToken({ req, secret: process.env.AUTH_SECRET });
@@ -192,6 +207,7 @@ export const config = {
   matcher: [
     "/",
     "/wb",
+    "/.well-known/change-password",
     "/about",
     "/services",
     "/custom-web-design",
@@ -204,6 +220,7 @@ export const config = {
     "/api/auth/callback/credentials",
     "/api/app/register",
     "/api/app/invite-check",
+    "/api/app/profile/email",
     "/api/superadmin/login-code",
     "/api/superadmin/session",
     "/api/public/:path*",

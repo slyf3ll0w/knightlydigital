@@ -102,22 +102,39 @@ export default function AppLoginPage() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Password managers classify a form by its field metadata, so the
+              names, ids and autocomplete tokens here are load-bearing — not
+              decoration. The identifier field must be autocomplete="username"
+              (NOT "email", which marks a newsletter-style address field and
+              leaves the form with no account identifier to pair the password
+              with), and both fields need a stable name/id or the form has no
+              signature to remember. Without these, Chrome and Safari never
+              offer to save. */}
+          <form onSubmit={handleSubmit} id="signin-form" className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <label htmlFor="signin-email" className="block text-sm font-medium text-gray-700 mb-1">
+                Email
+              </label>
               <input
+                id="signin-email"
+                name="username"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                autoComplete="email"
+                autoComplete="username"
                 className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
                 placeholder="you@company.com"
               />
             </div>
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="block text-sm font-medium text-gray-700">Password</label>
+                <label
+                  htmlFor="signin-password"
+                  className="block text-sm font-medium text-gray-700"
+                >
+                  Password
+                </label>
                 <Link
                   href="/app/forgot-password"
                   className="text-xs font-medium text-green-600 hover:underline"
@@ -127,6 +144,8 @@ export default function AppLoginPage() {
               </div>
               <div className="relative">
                 <input
+                  id="signin-password"
+                  name="password"
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}

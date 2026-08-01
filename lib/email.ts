@@ -454,6 +454,65 @@ export function passwordResetEmail({
   return { subject: "Reset your WorkBench password", html };
 }
 
+/**
+ * Confirm a new sign-in address. Goes TO the new address — clicking the link
+ * is what proves the person asking actually owns that inbox.
+ */
+export function emailChangeVerifyEmail({
+  name,
+  newEmail,
+  verifyUrl,
+}: {
+  name: string;
+  newEmail: string;
+  verifyUrl: string;
+}): { subject: string; html: string } {
+  const html = wbShell({
+    label: "Confirm your email",
+    inner: `
+      <p style="margin:0 0 12px;color:#111827;font-size:15px;">Hi ${esc(name)},</p>
+      <p style="margin:0 0 16px;color:#374151;font-size:14px;">
+        Someone asked to change the WorkBench sign-in email to
+        <strong>${esc(newEmail)}</strong>. Confirm below and this becomes the
+        address you sign in with. The link expires in 1 hour and works once.
+      </p>
+      ${wbBtn(verifyUrl, "Confirm This Email")}
+      <p style="margin:16px 0 0;color:#6b7280;font-size:12px;">
+        If this wasn't you, ignore this email — nothing changes until the link
+        is opened, and the old address keeps working.
+      </p>`,
+  });
+  return { subject: "Confirm your new WorkBench email", html };
+}
+
+/**
+ * Heads-up to the address being moved AWAY from. The old inbox is the one
+ * that would notice a takeover, so it gets told before anything happens.
+ */
+export function emailChangeNoticeEmail({
+  name,
+  newEmail,
+}: {
+  name: string;
+  newEmail: string;
+}): { subject: string; html: string } {
+  const html = wbShell({
+    label: "Email change requested",
+    inner: `
+      <p style="margin:0 0 12px;color:#111827;font-size:15px;">Hi ${esc(name)},</p>
+      <p style="margin:0 0 16px;color:#374151;font-size:14px;">
+        A request was made to change your WorkBench sign-in email to
+        <strong>${esc(newEmail)}</strong>. It only takes effect once that
+        address confirms it — until then you keep signing in here.
+      </p>
+      <p style="margin:0;color:#6b7280;font-size:12px;">
+        Didn't ask for this? Change your password now and contact us — whoever
+        made the request was signed in as you.
+      </p>`,
+  });
+  return { subject: "Someone requested an email change on your WorkBench account", html };
+}
+
 /** "New access application" notification to the WorkBench admin inbox. */
 export function newApplicationEmail({
   name,

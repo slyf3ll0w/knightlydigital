@@ -19,6 +19,14 @@ import { inPreview, previewBlockedError } from "@/lib/preview";
 
 const MAX_ROWS_PER_CHUNK = 200;
 
+type ImportPerson = {
+  firstName?: string;
+  lastName?: string;
+  role?: string;
+  email?: string;
+  phone?: string;
+};
+
 type ImportRow = {
   firstName?: string;
   lastName?: string;
@@ -32,12 +40,33 @@ type ImportRow = {
   notes?: string;
   leadSource?: string;
   customFields?: Record<string, string>;
+  // Rows the importer folded into this one — separate people at the same
+  // business or household, kept by name instead of becoming their own
+  // clients. The wizard groups them; we just persist what it decided.
+  people?: ImportPerson[];
 };
 
 const trim = (v: unknown, max: number) => {
   const s = typeof v === "string" ? v.trim() : "";
   return s ? s.slice(0, max) : null;
 };
+
+// Same ceiling as the contact page's own Add-contact route.
+const MAX_PEOPLE = 50;
+
+function cleanPeople(raw: unknown): { firstName: string; lastName: string; role: string | null; email: string | null; phone: string | null }[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .slice(0, MAX_PEOPLE)
+    .map((p: ImportPerson) => ({
+      firstName: trim(p?.firstName, 80) ?? "",
+      lastName: trim(p?.lastName, 80) ?? "",
+      role: trim(p?.role, 80),
+      email: trim(p?.email, 254)?.toLowerCase() ?? null,
+      phone: trim(p?.phone, 30),
+    }))
+    .filter((p) => p.firstName || p.lastName);
+}
 
 export async function POST(req: NextRequest) {
   const actor = await getActor();
@@ -117,6 +146,7 @@ export async function POST(req: NextRequest) {
       leadSource: leadSource ?? "Imported",
     };
     const customFields = sanitizeCustomFields(r.customFields, fieldDefs);
+    const people = cleanPeople(r.people);
 
     const matchId =
       (email && byEmail.get(email)) || (normPhone.length >= 7 && byPhone.get(normPhone)) || null;
@@ -144,6 +174,28 @@ export async function POST(req: NextRequest) {
           };
         }
         await prisma.contact.update({ where: { id: matchId }, data: patch });
+        // Re-running an import must not stack duplicate people onto a client,
+        // so match what's already there by email first, then by name.
+        if (people.length > 0) {
+          const have = await prisma.contactPerson.findMany({
+            where: { contactId: matchId },
+            select: { firstName: true, lastName: true, email: true },
+          });
+          const haveEmails = new Set(have.map((p) => p.email).filter(Boolean) as string[]);
+          const haveNames = new Set(
+            have.map((p) => `${p.firstName} ${p.lastName}`.trim().toLowerCase())
+          );
+          const fresh = people.filter(
+            (p) =>
+              !(p.email && haveEmails.has(p.email)) &&
+              !haveNames.has(`${p.firstName} ${p.lastName}`.trim().toLowerCase())
+          );
+          if (fresh.length > 0) {
+            await prisma.contactPerson.createMany({
+              data: fresh.map((p, n) => ({ ...p, contactId: matchId, sortOrder: have.length + n })),
+            });
+          }
+        }
         updated++;
       } else {
         const contact = await prisma.contact.create({
@@ -155,6 +207,10 @@ export async function POST(req: NextRequest) {
             status: statusForNew,
             assignedToId,
             importBatchId: batchId,
+            people:
+              people.length > 0
+                ? { create: people.map((p, n) => ({ ...p, sortOrder: n })) }
+                : undefined,
           },
         });
         if (email) byEmail.set(email, contact.id);

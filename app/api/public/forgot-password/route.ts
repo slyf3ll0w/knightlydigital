@@ -43,7 +43,11 @@ export async function POST(req: NextRequest) {
   });
 
   const base = process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com";
-  const resetUrl = `${base}/app/reset-password?token=${token}`;
+  // The email rides along so the reset form can name the account in its hidden
+  // username field — password managers need an identifier to file the new
+  // password under. It grants nothing on its own; the token is the credential,
+  // and the link only ever lands in this address's own inbox.
+  const resetUrl = `${base}/app/reset-password?token=${token}&email=${encodeURIComponent(user.email)}`;
   const { subject, html } = passwordResetEmail({ name: user.name, resetUrl });
   await sendEmail({ to: user.email, subject, html });
 

@@ -8,6 +8,10 @@ import { Loader2, CheckCircle } from "lucide-react";
 function ResetPasswordForm() {
   const searchParams = useSearchParams();
   const token = searchParams.get("token") ?? "";
+  // Carried on the reset link purely so the hidden username field below has a
+  // value. It never authenticates anything — the token does that — and the
+  // link only ever reaches the address it names.
+  const email = searchParams.get("email") ?? "";
 
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -84,9 +88,26 @@ function ResetPasswordForm() {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
+        {/* A change-password form with no identifier leaves password managers
+            nothing to file the new password under, so they save nothing and
+            the old one stays. Hidden but present, per the WHATWG guidance. */}
+        <input
+          type="text"
+          name="username"
+          autoComplete="username"
+          value={email}
+          readOnly
+          hidden
+          aria-hidden="true"
+          tabIndex={-1}
+        />
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">New password</label>
+          <label htmlFor="new-password" className="block text-sm font-medium text-gray-700 mb-1">
+            New password
+          </label>
           <input
+            id="new-password"
+            name="new-password"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -97,8 +118,15 @@ function ResetPasswordForm() {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Confirm password</label>
+          <label
+            htmlFor="confirm-password"
+            className="block text-sm font-medium text-gray-700 mb-1"
+          >
+            Confirm password
+          </label>
           <input
+            id="confirm-password"
+            name="confirm-password"
             type="password"
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}

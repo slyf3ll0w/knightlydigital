@@ -45,6 +45,9 @@ export type BoardCard = {
   assignedTo: { id: string; name: string } | null;
   openRequestId: string | null;
   counts: { requests: number; quotes: number; appointments: number };
+  /** Lowercased address, notes and custom field values, joined server-side so
+   *  the board can search them without shipping the raw Json down. */
+  searchBlob: string;
 };
 
 type UndoPayload = {
@@ -130,10 +133,16 @@ export default function LeadsBoardClient({
     return board.filter((c) => {
       if (assignee && c.assignedTo?.id !== assignee) return false;
       if (!q) return true;
-      return [c.name, c.companyName ?? "", c.leadSource ?? "", c.email ?? "", c.phone ?? ""]
-        .join(" ")
-        .toLowerCase()
-        .includes(q);
+      return (
+        [c.name, c.companyName ?? "", c.leadSource ?? "", c.email ?? "", c.phone ?? ""]
+          .join(" ")
+          .toLowerCase()
+          .includes(q) ||
+        c.searchBlob.includes(q) ||
+        // Digits-only, so "(214) 555" finds a lead stored as 214-555-0142
+        (q.replace(/\D/g, "").length >= 3 &&
+          (c.phone ?? "").replace(/\D/g, "").includes(q.replace(/\D/g, "")))
+      );
     });
   }, [board, query, assignee]);
 
@@ -334,7 +343,7 @@ export default function LeadsBoardClient({
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search leads…"
+            placeholder="Search name, company, address, custom fields…"
             className="pl-8 pr-3 py-1.5 w-56 max-w-full text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-green-500/30 focus:border-green-500"
           />
         </div>

@@ -93,6 +93,13 @@ const contactCardSelect = {
   phone: true,
   status: true,
   leadSource: true,
+  // Searchable on the board, not shown on the card
+  address: true,
+  city: true,
+  state: true,
+  zip: true,
+  notes: true,
+  customFields: true,
   pipelineStageId: true,
   stageChangedAt: true,
   wonAt: true,
@@ -127,6 +134,12 @@ type CardRow = {
   phone: string | null;
   status: string;
   leadSource: string | null;
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  zip: string | null;
+  notes: string | null;
+  customFields: unknown;
   pipelineStageId: string | null;
   stageChangedAt: Date | null;
   wonAt: Date | null;
@@ -137,6 +150,21 @@ type CardRow = {
   requests: { id: string }[];
   _count: { requests: number; quotes: number; appointments: number };
 };
+
+/** Everything searchable that the card itself doesn't show — flattened once
+ *  here so the board's filter stays a substring test. */
+function searchBlob(c: CardRow): string {
+  const custom =
+    c.customFields && typeof c.customFields === "object" && !Array.isArray(c.customFields)
+      ? Object.values(c.customFields as Record<string, unknown>).filter(
+          (v): v is string => typeof v === "string"
+        )
+      : [];
+  return [c.address, c.city, c.state, c.zip, c.notes, ...custom]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
 
 function toCard(c: CardRow, inConverted: boolean): BoardCard {
   return {
@@ -155,6 +183,7 @@ function toCard(c: CardRow, inConverted: boolean): BoardCard {
     value: c.quotes.reduce((s, q) => s + Number(q.total), 0),
     assignedTo: c.assignedTo,
     openRequestId: c.requests[0]?.id ?? null,
+    searchBlob: searchBlob(c),
     counts: {
       requests: c._count.requests,
       quotes: c._count.quotes,
