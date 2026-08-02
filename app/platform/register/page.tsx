@@ -6,6 +6,7 @@ import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import TurnstileWidget, { TurnstileHandle } from "@/components/TurnstileWidget";
 import { INDUSTRIES } from "@/lib/pricebooks";
+import { saveCredential } from "@/lib/save-credential";
 
 /**
  * Single-page signup: just the account essentials plus industry, which seeds
@@ -76,6 +77,10 @@ export default function RegisterPage() {
       password: form.password,
       redirect: false,
     });
+
+    // Signup is the one moment a password manager most wants to hear from us —
+    // a brand-new credential nothing else will ever offer to store.
+    await saveCredential(form.email, form.password);
 
     window.location.href = "/app/dashboard";
   }

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 import TurnstileWidget, { TurnstileHandle } from "@/components/TurnstileWidget";
+import { saveCredential } from "@/lib/save-credential";
 
 export default function AppLoginPage() {
   const router = useRouter();
@@ -60,6 +61,10 @@ export default function AppLoginPage() {
       // Turnstile tokens are single-use; the failed attempt consumed this one
       captchaRef.current?.reset();
     } else {
+      // Offer the credential to the password manager before navigating away —
+      // the sign-in was an XHR, so nothing else here tells the browser a login
+      // just succeeded.
+      await saveCredential(email, password);
       // Full page load so the app layout re-renders with the new session
       // (client-side navigation would reuse the signed-out layout — no sidebar)
       redirected.current = true;

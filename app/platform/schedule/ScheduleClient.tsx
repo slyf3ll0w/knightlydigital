@@ -1026,11 +1026,15 @@ export default function ScheduleClient({
                 onClick={() => go({ view: "day", date: cellDate })}
                 className="flex flex-col items-center gap-1 rounded-xl py-1.5 transition-colors active:bg-gray-50"
               >
+                {/* Plain days take their ink from the class, never an inline
+                    color: inline styles outrank the dark-theme bridge in
+                    globals.css, so a hardcoded gray-900 stayed near-black on
+                    the dark card and every day but today read as blank. */}
                 <span
-                  className="flex h-8 w-8 items-center justify-center rounded-full text-[15px] font-medium"
-                  style={
-                    isToday ? { backgroundColor: hue, color: hueInk(hue) } : { color: "#111827" }
-                  }
+                  className={`flex h-8 w-8 items-center justify-center rounded-full text-[15px] font-medium ${
+                    isToday ? "" : "text-gray-900"
+                  }`}
+                  style={isToday ? { backgroundColor: hue, color: hueInk(hue) } : undefined}
                 >
                   {d}
                 </span>

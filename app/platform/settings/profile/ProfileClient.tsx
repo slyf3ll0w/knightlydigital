@@ -8,6 +8,7 @@ import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { PushToggleCard } from "@/components/PushNotifications";
 import Avatar from "@/components/Avatar";
 import AvatarCropModal from "@/components/AvatarCropModal";
+import { saveCredential } from "@/lib/save-credential";
 
 const inputCls =
   "w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500";
@@ -142,6 +143,11 @@ export default function ProfileClient({
     );
     setBusy(false);
     if (!ok) return setError(data?.error ?? GENERIC_ERROR);
+    // Browsers routed here by /.well-known/change-password expect this form to
+    // hand the updated credential back. Nothing navigates on success, so there
+    // is no submission for them to notice — offer it outright, or the manager
+    // keeps serving the password we just retired.
+    await saveCredential(email, newPassword);
     setCurrentPassword("");
     setNewPassword("");
     setSaved("password");
@@ -381,22 +387,45 @@ export default function ProfileClient({
         <h2 className="text-[13px] font-semibold text-gray-500 mb-4">
           Change password
         </h2>
+        {/* A change-password form needs to name the account it belongs to, or
+            the manager has a new password and nothing to file it under. The
+            field is inert — it exists purely as that label. */}
+        <input
+          type="text"
+          name="username"
+          autoComplete="username"
+          value={email}
+          readOnly
+          hidden
+          aria-hidden="true"
+          tabIndex={-1}
+        />
         <div className="grid sm:grid-cols-2 gap-3 mb-4">
           <div>
-            <label className="block text-xs text-gray-500 mb-1">Current password</label>
+            <label htmlFor="pw-current" className="block text-xs text-gray-500 mb-1">
+              Current password
+            </label>
             <input
+              id="pw-current"
+              name="current-password"
               type="password"
               value={currentPassword}
               onChange={(e) => setCurrentPassword(e.target.value)}
+              autoComplete="current-password"
               className={inputCls}
             />
           </div>
           <div>
-            <label className="block text-xs text-gray-500 mb-1">New password (8+ characters)</label>
+            <label htmlFor="pw-new" className="block text-xs text-gray-500 mb-1">
+              New password (8+ characters)
+            </label>
             <input
+              id="pw-new"
+              name="new-password"
               type="password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
+              autoComplete="new-password"
               className={inputCls}
             />
           </div>

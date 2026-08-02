@@ -4,6 +4,7 @@ import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Loader2, CheckCircle } from "lucide-react";
+import { saveCredential } from "@/lib/save-credential";
 
 function ResetPasswordForm() {
   const searchParams = useSearchParams();
@@ -38,6 +39,11 @@ function ResetPasswordForm() {
         body: JSON.stringify({ token, password }),
       });
       if (res.ok) {
+        // This page never navigates — it swaps to a success card in place — so
+        // a password manager watching for a form submission sees nothing at
+        // all, and the manager is left holding the password the user just
+        // replaced. Offer the new one explicitly.
+        if (email) await saveCredential(email, password);
         setDone(true);
       } else {
         const data = await res.json().catch(() => null);
