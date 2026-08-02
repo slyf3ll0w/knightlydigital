@@ -137,6 +137,22 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL("/app/settings/profile", req.url), 302);
   }
 
+  // Apple's Associated Domains file — same reason for living in middleware.
+  // The native shell is a WKWebView, and iOS only lets a webview save or fill
+  // a password for a domain the app is formally associated with; without this
+  // pairing it silently never offers, no matter what the page markup says.
+  // Needs the matching `webcredentials:workbenchfsm.com` entitlement on the
+  // app side and a new store build, so it stays a 404 until APPLE_TEAM_ID is
+  // set — a half-configured association is worse than none.
+  if (path === "/.well-known/apple-app-site-association") {
+    const teamId = process.env.APPLE_TEAM_ID;
+    if (!teamId) return new NextResponse("Not found", { status: 404 });
+    // Apple requires this served as JSON over HTTPS with no redirects
+    return NextResponse.json({
+      webcredentials: { apps: [`${teamId}.com.streamflaire.hub`] },
+    });
+  }
+
   // ── Rate limiting (POST-like methods only) ─────────────────────────────────
   if (req.method !== "GET" && req.method !== "HEAD") {
     for (const rule of rateLimits) {
@@ -208,6 +224,7 @@ export const config = {
     "/",
     "/wb",
     "/.well-known/change-password",
+    "/.well-known/apple-app-site-association",
     "/about",
     "/services",
     "/custom-web-design",

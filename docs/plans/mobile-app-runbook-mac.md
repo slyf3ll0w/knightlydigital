@@ -154,3 +154,44 @@ plugin — haptics just no-op until the app is rebuilt. To activate:
   main) or point `server.url` at a dev tunnel temporarily (never commit that).
 - Never run `prisma db push` without the Railway DATABASE_PUBLIC_URL pattern
   documented in CLAUDE.md; schema for push is already applied in prod.
+
+## Password saving in the native shell (added 2026-08-01)
+
+The shell is a WKWebView, and iOS treats a webview's saved passwords as
+belonging to the *app*, not to whatever site it happens to be showing. Until
+the app and the domain are formally associated, iOS never offers to save or
+fill a credential there — the web page's form markup is irrelevant to this.
+Correct `autocomplete` tokens and the Credential Management API both do
+nothing inside the shell.
+
+Server half is already shipped: middleware serves
+`/.well-known/apple-app-site-association` with a `webcredentials` entry, gated
+on the `APPLE_TEAM_ID` env var. It 404s until that variable is set, because a
+half-configured association fails in confusing ways.
+
+To finish it (all three are required, in this order):
+
+1. **Railway** → set `APPLE_TEAM_ID` to the 10-character Team ID from
+   developer.apple.com → Membership. Redeploy, then confirm
+   `curl https://workbenchfsm.com/.well-known/apple-app-site-association`
+   returns JSON, `content-type: application/json`, and no redirect — iOS
+   refuses to follow one.
+2. **Apple Developer portal** → Certificates, Identifiers & Profiles → the
+   `com.streamflaire.hub` identifier → enable the **Associated Domains**
+   capability, then regenerate the provisioning profile.
+3. **Xcode** → add to `ios/App/App/App.entitlements`:
+
+   ```xml
+   <key>com.apple.developer.associated-domains</key>
+   <array>
+     <string>webcredentials:workbenchfsm.com</string>
+   </array>
+   ```
+
+   Do step 2 first — signing fails with an entitlement the profile doesn't
+   carry. This is a native change, so it needs a new store build; it cannot
+   ride a web deploy like everything else in the thin shell.
+
+Note `limitsNavigationsToAppBoundDomains` in `capacitor.config.ts` is a
+separate mechanism (it buys service workers for the offline cache) and does not
+substitute for Associated Domains.
