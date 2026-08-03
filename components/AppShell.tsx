@@ -1201,9 +1201,15 @@ function MobileTabBar({
                   }
                   className={`col-span-2 ${placement} flex flex-col items-center gap-2 rounded-2xl px-1 py-3.5 transition-transform active:scale-95`}
                 >
-                  {/* Accent-tinted tile — one color across the grid; the label
-                      does the wayfinding (the hue rainbow read as a toy) */}
-                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[14px] bg-green-100 text-green-700">
+                  {/* Solid hue tile — the create grid scans by color (one hue
+                      per entity, tenant-repaintable via Settings → Branding) */}
+                  <span
+                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[14px]"
+                    style={{
+                      backgroundColor: createTints[href] ?? "#0A1428",
+                      color: hueInk(createTints[href] ?? "#0A1428"),
+                    }}
+                  >
                     <Icon size={19} strokeWidth={2.25} />
                   </span>
                   <span className="font-display text-[11px] font-semibold text-gray-800">
@@ -1307,6 +1313,12 @@ function MoreSheet({
   const row = ({ href, label, icon: Icon }: NavItem, i: number, total: number) => {
     const badge = badgeFor(href);
     const active = isActive(href);
+    // Section hue on the icon tile — with this many destinations the color
+    // is wayfinding: a quick glance finds Jobs orange / Invoices sky without
+    // reading labels. (Tenants can repaint these in Settings → Branding.)
+    // The hue rainbow stays CONFINED to the two nav sheets — lists, tiles,
+    // and chips elsewhere on phones hold the one-accent discipline.
+    const tint = sectionTints[href];
     return (
       <Link
         key={href}
@@ -1321,10 +1333,12 @@ function MoreSheet({
             : undefined
         }
       >
-        {/* One accent, quiet tint — a rainbow of solid hue tiles read as a
-            consumer toy next to Jobber/HCP; the tenant color carries the
-            whole sheet (green utilities bridge to the brand accent) */}
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] bg-green-100 text-green-700">
+        <span
+          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] ${
+            tint ? "" : "bg-[color:var(--mobile-accent)] text-[color:var(--mobile-on-accent)]"
+          }`}
+          style={tint ? { backgroundColor: tint, color: hueInk(tint) } : undefined}
+        >
           <Icon size={16} strokeWidth={2.25} />
         </span>
         <span className="flex-1 text-[15px] font-medium text-gray-900">{label}</span>
