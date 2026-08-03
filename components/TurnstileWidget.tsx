@@ -24,27 +24,60 @@ export type TurnstileHandle = {
  * NEXT_PUBLIC_TURNSTILE_SITE_KEY is configured, so forms work unchanged
  * before the captcha is activated.
  *
- * The challenge can run fully invisibly, which means a crashed challenge is
+ * The challenge can run fully invisibly, which means a stuck challenge is
  * indistinguishable from "no captcha here" — the server then rejects the
- * sign-in and the user is stuck with nothing on screen to complete. So a
- * failed challenge quietly retries twice, and only if Turnstile stays down
- * does a visible "try again" fallback appear.
+ * sign-in and the user is stuck with nothing on screen to complete. Two
+ * distinct failure shapes need catching:
+ *
+ *  - the challenge ERRORS: retry: "never" makes Turnstile report it to
+ *    error-callback instead of retrying silently forever; we retry twice
+ *    with backoff, then surface the fallback.
+ *  - the challenge HANGS with no error at all — observed on IPv4-only
+ *    networks, where a challenge asset (an IPv6-only hostname) never
+ *    resolves. Only a deadline catches this: no token within WATCHDOG_MS
+ *    and no visible challenge on screen → fallback.
  */
+const WATCHDOG_MS = 20_000;
+
 const TurnstileWidget = forwardRef<TurnstileHandle, { onToken: (token: string) => void }>(
   function TurnstileWidget({ onToken }, handle) {
     const ref = useRef<HTMLDivElement>(null);
     const widgetId = useRef<string | null>(null);
     const retries = useRef(0);
     const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const watchdog = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [failed, setFailed] = useState(false);
     const onTokenRef = useRef(onToken);
     onTokenRef.current = onToken;
+
+    function disarmWatchdog() {
+      if (watchdog.current) {
+        clearTimeout(watchdog.current);
+        watchdog.current = null;
+      }
+    }
+
+    function armWatchdog() {
+      disarmWatchdog();
+      watchdog.current = setTimeout(() => {
+        // A visible challenge means Turnstile is waiting on the user, not
+        // stuck — give it another window rather than declaring failure.
+        const iframe = ref.current?.querySelector("iframe");
+        if (iframe && iframe.offsetHeight > 0) {
+          armWatchdog();
+          return;
+        }
+        onTokenRef.current("");
+        setFailed(true);
+      }, WATCHDOG_MS);
+    }
 
     function resetWidget() {
       onTokenRef.current("");
       setFailed(false);
       if (widgetId.current && window.turnstile) {
         window.turnstile.reset(widgetId.current);
+        armWatchdog();
       }
     }
 
@@ -61,6 +94,7 @@ const TurnstileWidget = forwardRef<TurnstileHandle, { onToken: (token: string) =
           sitekey: SITE_KEY,
           callback: (token: string) => {
             retries.current = 0;
+            disarmWatchdog();
             setFailed(false);
             onTokenRef.current(token);
           },
@@ -72,17 +106,21 @@ const TurnstileWidget = forwardRef<TurnstileHandle, { onToken: (token: string) =
               retryTimer.current = setTimeout(() => {
                 if (widgetId.current && window.turnstile) {
                   window.turnstile.reset(widgetId.current);
+                  armWatchdog();
                 }
               }, 1000 * retries.current);
             } else {
+              disarmWatchdog();
               setFailed(true);
             }
             // Handled — keep Turnstile from also logging its own error
             return true;
           },
+          retry: "never",
           "refresh-expired": "auto",
           theme: "light",
         });
+        armWatchdog();
       }
 
       if (window.turnstile) {
@@ -97,6 +135,7 @@ const TurnstileWidget = forwardRef<TurnstileHandle, { onToken: (token: string) =
 
       return () => {
         if (retryTimer.current) clearTimeout(retryTimer.current);
+        disarmWatchdog();
         if (widgetId.current && window.turnstile) {
           window.turnstile.remove(widgetId.current);
           widgetId.current = null;
