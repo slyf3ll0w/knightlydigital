@@ -55,7 +55,7 @@ export default function AppLoginPage() {
     if (res?.error) {
       setError(
         res.error === "captcha"
-          ? "Verification failed — please complete the check below and try again."
+          ? "Security check didn't go through — give it a moment, then try again."
           : "Invalid email or password."
       );
       // Turnstile tokens are single-use; the failed attempt consumed this one
