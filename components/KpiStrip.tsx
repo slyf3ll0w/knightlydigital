@@ -98,20 +98,54 @@ export default function KpiStrip({
   const visible = kpis.filter((k) => !k.zero);
   return (
     <>
-      {visible.length > 0 && (
+      {/* Phone strip: plain quiet labels (no hue dots — status color is
+          reserved for statuses on phones). A lone stat renders as one
+          label/value row instead of a lonely half-empty card. */}
+      {visible.length === 1 &&
+        (() => {
+          const k = visible[0];
+          const cell = (
+            <>
+              <p
+                className={`truncate text-[13px] font-medium ${
+                  k.tone === "danger" ? "text-red-600" : "text-gray-500"
+                }`}
+              >
+                {k.mobileLabel ?? k.label}
+              </p>
+              <p
+                className={`numeral-ledger shrink-0 text-base font-semibold ${
+                  k.tone === "danger" ? "text-red-700" : "text-gray-900"
+                }`}
+              >
+                {k.value}
+              </p>
+            </>
+          );
+          const cls =
+            "card-tool mb-4 flex items-center justify-between gap-3 px-4 py-3 transition-colors active:bg-gray-50 lg:hidden";
+          return k.href ? (
+            <Link key={k.label} href={k.href} className={cls}>
+              {cell}
+            </Link>
+          ) : (
+            <div key={k.label} className={cls}>
+              {cell}
+            </div>
+          );
+        })()}
+      {visible.length > 1 && (
         <div className="card-tool mb-4 flex divide-x divide-gray-100 overflow-hidden lg:hidden">
           {visible.map((k) => {
             const cell = (
               <>
-                <DotLabel
-                  hue={hue}
-                  danger={k.tone === "danger"}
+                <p
                   className={`truncate text-[11px] font-medium ${
                     k.tone === "danger" ? "text-red-600" : "text-gray-500"
                   }`}
                 >
                   {k.mobileLabel ?? k.label}
-                </DotLabel>
+                </p>
                 <p
                   className={`numeral-ledger truncate text-base font-semibold ${
                     k.tone === "danger" ? "text-red-700" : "text-gray-900"

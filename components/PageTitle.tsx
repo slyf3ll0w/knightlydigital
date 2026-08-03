@@ -30,8 +30,10 @@ export default function PageTitle({
   return (
     <h1 className="numeral-ledger relative flex items-center gap-3 text-[26px] font-bold text-gray-900 lg:text-2xl lg:font-semibold">
       {text && <TitleSentinel title={text} />}
+      {/* Section-hue tile is desktop wayfinding; the mobile large title is
+          pure bold text like a native iOS nav title */}
       <span
-        className="chip-tool flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px]"
+        className="chip-tool hidden lg:flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px]"
         style={{ backgroundColor: hue, color: hueInk(hue) }}
         aria-hidden
       >

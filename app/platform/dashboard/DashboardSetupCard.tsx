@@ -22,8 +22,11 @@ export default function DashboardSetupCard() {
   }
 
   if (hidden) return null;
+  // Phones stack (icon+text row, then the button); flex-wrap at 390px used
+  // to squeeze the copy into a broken three-line sliver between the icon
+  // and the button. Desktop keeps the one-row layout.
   return (
-    <div className="anim-fade-up card-ledger relative mb-8 flex flex-wrap items-center gap-4 border-green-600/25 bg-green-50/40 p-5">
+    <div className="anim-fade-up card-ledger relative mb-8 flex flex-col gap-3 border-green-600/25 bg-green-50/40 p-4 pr-10 lg:flex-row lg:items-center lg:gap-4 lg:p-5 lg:pr-10">
       <button
         type="button"
         onClick={dismiss}
@@ -32,19 +35,21 @@ export default function DashboardSetupCard() {
       >
         <X size={15} />
       </button>
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green-100">
-        <BookOpen size={19} className="text-green-700" />
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold text-gray-900">Your price book is ready</p>
-        <p className="text-xs text-gray-500">
-          We pre-loaded services for your industry. Set your prices once and quotes, jobs, and
-          invoices fill themselves in.
-        </p>
+      <div className="flex min-w-0 items-center gap-3 lg:flex-1 lg:gap-4">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green-100">
+          <BookOpen size={19} className="text-green-700" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-gray-900">Your price book is ready</p>
+          <p className="text-xs text-gray-500">
+            We pre-loaded services for your industry. Set your prices once and quotes, jobs, and
+            invoices fill themselves in.
+          </p>
+        </div>
       </div>
       <Link
         href="/app/settings/products"
-        className="flex shrink-0 items-center gap-1.5 rounded-[10px] btn-tool bg-green-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-600"
+        className="flex shrink-0 items-center gap-1.5 self-start rounded-[10px] btn-tool bg-green-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-600 max-lg:ml-[52px] lg:self-auto"
       >
         Review prices <ArrowRight size={14} />
       </Link>

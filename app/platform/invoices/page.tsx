@@ -10,6 +10,7 @@ import { pastDueFilter } from "@/lib/due-dates";
 import StatusChip from "@/components/StatusChip";
 import EmptyState from "@/components/EmptyState";
 import KpiStrip from "@/components/KpiStrip";
+import MobileSearch from "@/components/MobileSearch";
 import type { InvoiceStatus } from "@prisma/client";
 
 const statusFilters = [
@@ -23,16 +24,35 @@ const statusFilters = [
 export default async function InvoicesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ status?: string; q?: string }>;
 }) {
   const actor = await requirePageActor(canSeeMoney);
   const companyId = actor.companyId;
   const scope = viaContactScope(actor);
 
-  const { status } = await searchParams;
+  const { status, q } = await searchParams;
   const validStatus = ["DRAFT", "AWAITING_PAYMENT", "PAST_DUE", "PAID"].includes(status ?? "")
     ? (status as InvoiceStatus)
     : undefined;
+  const query = q?.trim() || undefined;
+  const search = query
+    ? {
+        OR: [
+          { subject: { contains: query, mode: "insensitive" as const } },
+          ...(Number.isInteger(Number(query)) && query !== ""
+            ? [{ invoiceNumber: Number(query) }]
+            : []),
+          {
+            contact: {
+              OR: [
+                { firstName: { contains: query, mode: "insensitive" as const } },
+                { lastName: { contains: query, mode: "insensitive" as const } },
+              ],
+            },
+          },
+        ],
+      }
+    : {};
 
   // Surface past-due invoices automatically (awaiting payment + the whole due
   // day has passed — an invoice due today isn't late yet)
@@ -43,7 +63,7 @@ export default async function InvoicesPage({
 
   const [invoices, pastDue, awaiting, draft] = await Promise.all([
     prisma.invoice.findMany({
-      where: { companyId, ...scope, ...(validStatus ? { status: validStatus } : {}) },
+      where: { companyId, ...scope, ...(validStatus ? { status: validStatus } : {}), ...search },
       include: { contact: true, payments: true },
       orderBy: { createdAt: "desc" },
     }),
@@ -122,6 +142,13 @@ export default async function InvoicesPage({
         </div>
       </div>
 
+      <MobileSearch
+        action="/app/invoices"
+        placeholder="Search invoices, clients…"
+        defaultValue={query}
+        params={{ status: validStatus }}
+      />
+
       <KpiStrip kpis={kpis} desktopCols={3} hue={SECTION_HUES.invoices} />
 
       {/* Filter tabs */}
@@ -188,7 +215,9 @@ export default async function InvoicesPage({
                       <div className="mt-1 flex items-center justify-between gap-3">
                         <p className="min-w-0 flex-1 truncate text-xs text-gray-500">
                           #{inv.invoiceNumber}
-                          {balance > 0 ? ` · Due ${shortDate(inv.dueDate)}` : ""}
+                          {/* A dash for a missing due date reads like a glitch —
+                              say nothing instead */}
+                          {balance > 0 && inv.dueDate ? ` · Due ${shortDate(inv.dueDate)}` : ""}
                           {inv.subject ? ` · ${inv.subject}` : ""}
                         </p>
                         <StatusChip kind="invoice" status={inv.status} className="shrink-0" />

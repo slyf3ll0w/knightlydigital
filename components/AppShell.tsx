@@ -1117,7 +1117,7 @@ function MobileTabBar({
         className={`flex-1 flex flex-col items-center gap-1 pt-2 pb-2.5 text-[10px] font-medium transition-colors ${
           active
             ? "text-[color:var(--mobile-accent)] font-semibold"
-            : "text-gray-400 hover:text-gray-600"
+            : "text-gray-500 hover:text-gray-700"
         }`}
       >
         <Icon size={22} />
@@ -1142,7 +1142,7 @@ function MobileTabBar({
       className={`flex-1 flex flex-col items-center gap-1 pt-2 pb-2.5 text-[10px] font-medium transition-colors ${
         active
           ? "text-[color:var(--mobile-accent)] font-semibold"
-          : "text-gray-400 hover:text-gray-600"
+          : "text-gray-500 hover:text-gray-700"
       }`}
     >
       <span className="relative">
@@ -1201,14 +1201,9 @@ function MobileTabBar({
                   }
                   className={`col-span-2 ${placement} flex flex-col items-center gap-2 rounded-2xl px-1 py-3.5 transition-transform active:scale-95`}
                 >
-                  {/* Solid hue tool tile — same chrome as the page-title tiles */}
-                  <span
-                    className="chip-tool flex h-12 w-12 shrink-0 items-center justify-center rounded-[12px] border-[1.5px] border-[color:var(--tool-line,#0A1428)]"
-                    style={{
-                      backgroundColor: createTints[href] ?? "#0A1428",
-                      color: hueInk(createTints[href] ?? "#0A1428"),
-                    }}
-                  >
+                  {/* Accent-tinted tile — one color across the grid; the label
+                      does the wayfinding (the hue rainbow read as a toy) */}
+                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[14px] bg-green-100 text-green-700">
                     <Icon size={19} strokeWidth={2.25} />
                   </span>
                   <span className="font-display text-[11px] font-semibold text-gray-800">
@@ -1312,9 +1307,6 @@ function MoreSheet({
   const row = ({ href, label, icon: Icon }: NavItem, i: number, total: number) => {
     const badge = badgeFor(href);
     const active = isActive(href);
-    // Section hue on the icon tile — the list scans by color, like the
-    // create sheet. Unmapped rows keep the tenant accent.
-    const tint = sectionTints[href];
     return (
       <Link
         key={href}
@@ -1329,13 +1321,10 @@ function MoreSheet({
             : undefined
         }
       >
-        {/* Solid hue tiles — the sheet scans as a toolbox, not a tint chart */}
-        <span
-          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] ${
-            tint ? "" : "bg-[color:var(--mobile-accent)] text-[color:var(--mobile-on-accent)]"
-          }`}
-          style={tint ? { backgroundColor: tint, color: hueInk(tint) } : undefined}
-        >
+        {/* One accent, quiet tint — a rainbow of solid hue tiles read as a
+            consumer toy next to Jobber/HCP; the tenant color carries the
+            whole sheet (green utilities bridge to the brand accent) */}
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] bg-green-100 text-green-700">
           <Icon size={16} strokeWidth={2.25} />
         </span>
         <span className="flex-1 text-[15px] font-medium text-gray-900">{label}</span>

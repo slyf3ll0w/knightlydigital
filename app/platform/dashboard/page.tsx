@@ -18,7 +18,7 @@ import {
   Timer,
 } from "lucide-react";
 import { money, appointmentTypeLabel } from "@/lib/statuses";
-import { SECTION_HUES, hueTint } from "@/lib/section-colors";
+import { SECTION_HUES } from "@/lib/section-colors";
 import { formatDuration, mapsHref } from "@/lib/time-entries";
 import EmptyState from "@/components/EmptyState";
 import DashboardSetupCard from "./DashboardSetupCard";
@@ -302,6 +302,14 @@ export default async function DashboardPage() {
         job.scheduledAt && !job.scheduledAnytime ? fmtTime(new Date(job.scheduledAt)) : "Anytime",
       primary: `${job.contact.firstName} ${job.contact.lastName} — ${job.title}`,
       detail: job.assignments.map((a) => a.user.name).join(", ") || null,
+      // Phone card splits the line: the JOB leads, the client supports
+      title: job.title,
+      sub: [
+        `${job.contact.firstName} ${job.contact.lastName}`,
+        job.assignments.map((a) => a.user.name).join(", ") || null,
+      ]
+        .filter(Boolean)
+        .join(" · "),
       value: job.lineItems.reduce((s, li) => s + Number(li.total), 0),
       sort: job.scheduledAnytime ? 0 : new Date(job.scheduledAt!).getTime(),
     })),
@@ -314,6 +322,10 @@ export default async function DashboardPage() {
       detail: [appointmentTypeLabel[a.type], a.assignedTo?.name ?? null]
         .filter(Boolean)
         .join(" · "),
+      title: a.title,
+      sub: [`${a.contact.firstName} ${a.contact.lastName}`, appointmentTypeLabel[a.type]]
+        .filter(Boolean)
+        .join(" · "),
       value: 0,
       sort: a.scheduledAnytime ? 0 : new Date(a.scheduledAt).getTime(),
     })),
@@ -324,8 +336,11 @@ export default async function DashboardPage() {
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
   return (
-    <div className="p-4 lg:p-8 max-w-7xl mx-auto">
-      <div className="mb-7 anim-fade-up">
+    // Phones read this as a day-planner: Today's route first, then the to-do
+    // list, then money. Desktop keeps its own order (lg:block ignores the
+    // flex order classes entirely).
+    <div className="p-4 lg:p-8 max-w-7xl mx-auto flex flex-col lg:block">
+      <div className="mb-7 anim-fade-up order-1">
         {/* Mobile shows the date on the Today card instead */}
         <p className="hidden lg:block text-sm font-medium text-gray-500">
           {now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
@@ -337,8 +352,15 @@ export default async function DashboardPage() {
         </h1>
       </div>
 
-      {showSetupCard && <DashboardSetupCard />}
-      <PushNudge />
+      {/* Nudges ride below the day's actual work on phones */}
+      {showSetupCard && (
+        <div className="order-6">
+          <DashboardSetupCard />
+        </div>
+      )}
+      <div className="order-7">
+        <PushNudge />
+      </div>
 
       {/* ── Money first (Amex pattern): collected in green, owed in red ────── */}
       {/* Phone: one ledger "statement" instead of three stacked white cards —
@@ -348,7 +370,7 @@ export default async function DashboardPage() {
       {seePerformance && (
         <Link
           href="/app/invoices"
-          className="card-tool anim-fade-up anim-delay-1 mb-8 block overflow-hidden lg:hidden"
+          className="card-tool anim-fade-up anim-delay-1 mb-8 order-4 block overflow-hidden lg:hidden"
         >
           <div className="p-5 pb-4">
             <p className="text-[13px] font-medium text-gray-500">
@@ -435,7 +457,7 @@ export default async function DashboardPage() {
 
       {/* ── On the clock — who's working right now (owners/admins) ─────────── */}
       {isManager(actor.role) && onClock.length > 0 && (
-        <div className="anim-fade-up anim-delay-1 mb-8">
+        <div className="anim-fade-up anim-delay-1 mb-8 order-5">
           <RuledLabel>On the clock</RuledLabel>
           <div className="card-ledger divide-y divide-gray-50">
             {onClock.map((e) => (
@@ -502,7 +524,7 @@ export default async function DashboardPage() {
       )}
 
       {/* ── Needs you ──────────────────────────────────────────────────────── */}
-      <div className="anim-fade-up anim-delay-1 mb-8" data-tour="workflow">
+      <div className="anim-fade-up anim-delay-1 mb-8 order-3" data-tour="workflow">
         <RuledLabel>Needs you</RuledLabel>
         {needs.length === 0 ? (
           <div className="card-ledger flex items-center gap-3 px-5 py-4">
@@ -516,38 +538,39 @@ export default async function DashboardPage() {
           <>
           {/* Phone: one prioritized list — each row is a task with its section
               hue, not a wall of 2-up number cards */}
+          {/* One accent + red-for-urgent — the per-section hue tiles made the
+              list read like a sticker sheet on phones */}
           <div className="card-tool divide-y divide-gray-100 overflow-hidden lg:hidden">
-            {needs.map((n) => {
-              const ink = n.urgent ? "#DC2626" : n.hue ?? SECTION_HUES.invoices;
-              return (
-                <Link
-                  key={n.href}
-                  href={n.href}
-                  className="flex items-center gap-3 px-4 py-3 transition-colors active:bg-gray-100"
+            {needs.map((n) => (
+              <Link
+                key={n.href}
+                href={n.href}
+                className="flex items-center gap-3 px-4 py-3 transition-colors active:bg-gray-100"
+              >
+                <span
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] ${
+                    n.urgent ? "bg-red-50 text-red-600" : "bg-green-100 text-green-700"
+                  }`}
                 >
-                  <span
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px]"
-                    style={{ backgroundColor: hueTint(ink, 0.1), color: ink }}
-                  >
-                    <n.icon size={15} />
+                  <n.icon size={15} />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-center gap-2">
+                    <span className="truncate text-sm font-semibold text-gray-900">{n.title}</span>
+                    {n.urgent && <span className="stamp shrink-0 text-red-600">Overdue</span>}
                   </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="flex items-center gap-2">
-                      <span className="truncate text-sm font-semibold text-gray-900">{n.title}</span>
-                      {n.urgent && <span className="stamp shrink-0 text-red-600">Overdue</span>}
-                    </span>
-                    <span className="block truncate text-xs text-gray-500">{n.action}</span>
-                  </span>
-                  <span
-                    className="numeral-ledger shrink-0 text-lg font-semibold"
-                    style={{ color: ink }}
-                  >
-                    {n.count}
-                  </span>
-                  <ChevronRight size={14} className="shrink-0 text-gray-400" />
-                </Link>
-              );
-            })}
+                  <span className="block truncate text-xs text-gray-500">{n.action}</span>
+                </span>
+                <span
+                  className={`numeral-ledger shrink-0 text-lg font-semibold ${
+                    n.urgent ? "text-red-600" : "text-green-700"
+                  }`}
+                >
+                  {n.count}
+                </span>
+                <ChevronRight size={14} className="shrink-0 text-gray-400" />
+              </Link>
+            ))}
           </div>
           <div className="hidden lg:grid lg:grid-cols-4 gap-3">
             {needs.map((n) => (
@@ -590,7 +613,7 @@ export default async function DashboardPage() {
       {/* Phone: tool-card day sheet — stamp header, hue-tiled stops (jobs vs
           appointments carry their section hue), ledger foot to the schedule. */}
       <div
-        className="card-tool anim-fade-up anim-delay-2 self-start overflow-hidden lg:hidden"
+        className="card-tool anim-fade-up anim-delay-2 order-2 mb-8 overflow-hidden lg:hidden"
         data-tour="today"
       >
         <div className="flex items-center justify-between border-b border-gray-100 px-4 pb-3 pt-4">
@@ -624,41 +647,36 @@ export default async function DashboardPage() {
             showPlusIcon={false}
           />
         ) : (
+          /* Agenda rows: time rail on the left (dispatch-board reading), a
+             slim tone bar — accent for jobs, blue for sales appointments —
+             then the job first and the client under it. */
           <div className="divide-y divide-gray-100">
-            {todayItems.map((item) => {
-              const Icon = item.apptType
-                ? apptIcons[item.apptType as keyof typeof apptIcons]
-                : Briefcase;
-              const hue = item.apptType ? SECTION_HUES.schedule : SECTION_HUES.jobs;
-              return (
-                <Link
-                  key={item.id}
-                  href={item.href}
-                  className="flex items-center gap-3 px-4 py-3 transition-colors active:bg-gray-50"
-                >
-                  <span
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px]"
-                    style={{ backgroundColor: hueTint(hue, 0.1), color: hue }}
-                  >
-                    <Icon size={15} strokeWidth={2.25} />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-gray-900">{item.primary}</p>
-                    {item.detail && (
-                      <p className="truncate text-xs text-gray-500">{item.detail}</p>
-                    )}
-                  </div>
-                  <div className="shrink-0 text-right">
-                    <p className="numeral-ledger text-[13px] font-semibold text-gray-900">
-                      {item.time}
-                    </p>
-                    {seePrices && item.value > 0 && (
-                      <p className="text-xs font-medium text-gray-500">{money(item.value)}</p>
-                    )}
-                  </div>
-                </Link>
-              );
-            })}
+            {todayItems.map((item) => (
+              <Link
+                key={item.id}
+                href={item.href}
+                className="flex items-center gap-3 px-4 py-3 transition-colors active:bg-gray-50"
+              >
+                <span className="numeral-ledger w-[52px] shrink-0 text-[13px] font-semibold text-gray-700">
+                  {item.time}
+                </span>
+                <span
+                  className={`h-9 w-[3px] shrink-0 rounded-full ${
+                    item.apptType ? "bg-blue-400" : "bg-green-500"
+                  }`}
+                  aria-hidden
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-gray-900">{item.title}</p>
+                  {item.sub && <p className="truncate text-xs text-gray-500">{item.sub}</p>}
+                </div>
+                {seePrices && item.value > 0 && (
+                  <p className="numeral-ledger shrink-0 text-[13px] font-semibold text-gray-900">
+                    {money(item.value)}
+                  </p>
+                )}
+              </Link>
+            ))}
           </div>
         )}
         <Link
@@ -736,7 +754,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* Quiet pointers to the roadmap + feedback — deliberately not in the sidebar */}
-      <div className="mt-10 pt-5 border-t border-gray-200 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-center">
+      <div className="order-last mt-10 pt-5 border-t border-gray-200 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-center">
         <Link
           href="/app/roadmap"
           className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-400 hover:text-green-700 transition-colors"

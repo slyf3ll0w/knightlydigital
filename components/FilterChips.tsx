@@ -12,7 +12,7 @@ import { hueInk } from "@/lib/section-colors";
 export function FilterRow({ children }: { children: React.ReactNode }) {
   // py-1 keeps the 2px offset shadow from being clipped by overflow-x
   return (
-    <div className="no-scrollbar -mx-4 mb-4 flex items-center gap-2 overflow-x-auto px-4 py-1 lg:mx-0 lg:px-0">
+    <div className="no-scrollbar scroll-fade-x -mx-4 mb-4 flex items-center gap-2 overflow-x-auto px-4 py-1 lg:mx-0 lg:px-0">
       {children}
     </div>
   );

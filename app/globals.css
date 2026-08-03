@@ -151,6 +151,31 @@
     .chip-pressed {
       border-width: 1px;
       box-shadow: none;
+      /* One accent, not one hue per section: the selected chip takes the
+         tenant color (render sites pass a section hue inline — override it).
+         Desktop keeps the per-section hue language untouched. */
+      background: var(--wb-accent, #0b57d8) !important;
+      color: var(--wb-on-accent, #ffffff) !important;
+      border-color: transparent;
+    }
+
+    /* Status = a quiet dot + colored sentence-case text, no box. The tinted
+       pill read as generated chrome next to names in lists (and legacy FSM
+       apps all use plain colored status text). Desktop keeps the pill. */
+    .stamp {
+      background: none;
+      padding: 0;
+      border-radius: 0;
+      font-size: 12px;
+      gap: 5px;
+    }
+    .stamp::before {
+      content: "";
+      width: 5px;
+      height: 5px;
+      border-radius: 9999px;
+      background: currentColor;
+      flex-shrink: 0;
     }
   }
 }
@@ -163,6 +188,20 @@
   }
   .no-scrollbar::-webkit-scrollbar {
     display: none;
+  }
+
+  /* Horizontal chip rows on phones: fade the clipped edge so a cut-off chip
+     reads as "more to scroll", not a rendering bug. Desktop rows fit. */
+  @media (max-width: 1023px) {
+    .scroll-fade-x {
+      -webkit-mask-image: linear-gradient(
+        90deg,
+        #000 0,
+        #000 calc(100% - 28px),
+        transparent 100%
+      );
+      mask-image: linear-gradient(90deg, #000 0, #000 calc(100% - 28px), transparent 100%);
+    }
   }
 
   /* iOS WebView (viewport-fit=cover): 100vh overshoots the visible viewport,

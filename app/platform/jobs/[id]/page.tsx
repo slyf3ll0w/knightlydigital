@@ -5,6 +5,7 @@ import { ArrowLeft, MapPin, CalendarDays, User } from "lucide-react";
 import { quoteStatusLabel, money, shortDate } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
 import CallTextButtons from "@/components/CallTextButtons";
+import JobActionRow from "@/components/JobActionRow";
 import { requirePageActor, jobScope, canSeePricing, canSell, isManager } from "@/lib/permissions";
 import { resolveSlotInterval } from "@/lib/scheduling";
 import { earliestOpenMinutes, sanitizeBusinessHours } from "@/lib/business-hours";
@@ -204,6 +205,12 @@ export default async function JobDetailPage({
         )}
       </div>
 
+      {/* Phone quick actions — call / text / directions, one tap from the job */}
+      <JobActionRow
+        phone={job.contact.phone}
+        address={job.address ?? job.contact.address}
+      />
+
       {/* Header facts with backlinks */}
       <div className="flex flex-wrap gap-x-8 gap-y-2 px-5 py-4 card-ledger mb-6 text-sm">
         <div>
@@ -275,8 +282,10 @@ export default async function JobDetailPage({
               Details
             </h2>
             <div className="space-y-3">
+              {/* Phones already show the schedule in the facts card above —
+                  repeating it here made the page read as filler cards */}
               {job.scheduledAt && (
-                <div className="flex items-start gap-3">
+                <div className="flex items-start gap-3 max-lg:hidden">
                   <CalendarDays size={15} className="text-gray-400 mt-0.5 shrink-0" />
                   <p className="text-sm text-gray-800">
                     {new Date(job.scheduledAt).toLocaleDateString("en-US", {
