@@ -6,8 +6,11 @@ import { encode } from "next-auth/jwt";
 
 const email = process.argv[2] ?? "demo@streamflaremedia.com";
 const prisma = new PrismaClient();
-const user = await prisma.user.findUnique({
-  where: { email },
+// email alone stopped being unique when multi-company memberships landed
+// (email_companyId compound) — take the oldest active membership.
+const user = await prisma.user.findFirst({
+  where: { email, isActive: true },
+  orderBy: { createdAt: "asc" },
   select: { id: true, name: true, email: true, role: true, companyId: true },
 });
 if (!user) {

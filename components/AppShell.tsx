@@ -463,7 +463,7 @@ function CompanyDot({ name, logoUrl }: { name: string; logoUrl?: string | null }
         <img
           src={logoUrl}
           alt=""
-          className="absolute inset-0 h-full w-full bg-white object-contain p-0.5"
+          className="theme-fixed absolute inset-0 h-full w-full bg-white object-contain p-0.5"
         />
       )}
     </span>
