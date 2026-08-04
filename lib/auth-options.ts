@@ -90,5 +90,10 @@ export const authOptions: NextAuthOptions = {
   },
   pages: {
     signIn: "/app/login",
+    // The login form is a native POST to the credentials callback (so the
+    // browser witnesses a real submission and offers to save the password).
+    // Errors thrown from authorize (e.g. "captcha") redirect to the error
+    // page — send them back to the login form, which reads ?error=.
+    error: "/app/login",
   },
 };

@@ -1,28 +1,41 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { signIn, signOut, useSession } from "next-auth/react";
+import { signOut, useSession, getCsrfToken } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 import TurnstileWidget, { TurnstileHandle } from "@/components/TurnstileWidget";
-import { saveCredential } from "@/lib/save-credential";
+
+// Human-readable copy for the ?error= code NextAuth redirects back with.
+function errorMessage(code: string): string {
+  if (code === "captcha") return "Security check didn't go through — give it a moment, then try again.";
+  if (code === "CredentialsSignin") return "Invalid email or password.";
+  return "Sign-in failed — please try again.";
+}
 
 export default function AppLoginPage() {
   const router = useRouter();
   const { data: session, status } = useSession();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [csrfToken, setCsrfToken] = useState("");
   const [captchaToken, setCaptchaToken] = useState("");
   const captchaRef = useRef<TurnstileHandle>(null);
-  // Guards the double redirect after sign-in: signIn() updates the session,
-  // so the effect below would race router.replace against the submit
-  // handler's full-page navigation — the loser cancels the winner, which the
-  // native shell surfaces as a load failure (NSURLError -999).
+  const passwordRef = useRef<HTMLInputElement>(null);
+  // Guards the double redirect for already-signed-in visitors: the effect
+  // below must never race a navigation the browser is already committed to —
+  // the loser cancels the winner, which the native shell surfaces as a load
+  // failure (NSURLError -999).
   const redirected = useRef(false);
+
+  // This form is a REAL form: it POSTs to NextAuth's credentials callback and
+  // the browser performs the navigation itself (302 → /app/dashboard). That
+  // native submit-then-navigate is the one signal every password manager
+  // (Chrome, Edge, Safari, Firefox, 1Password, …) reliably prompts on. The
+  // previous XHR sign-in + Credential Management API + programmatic redirect
+  // never produced a save prompt on most setups — do not regress to it.
 
   // Already signed in with a company — go straight to the dashboard.
   // Sessions WITHOUT a company (e.g. a deleted test company) must stay here,
@@ -36,40 +49,31 @@ export default function AppLoginPage() {
     }
   }, [status, session, router]);
 
+  // The CSRF token NextAuth requires in the POST body, and the error code a
+  // failed attempt comes back with (read once, then scrubbed from the URL so
+  // a refresh doesn't resurrect a stale error).
+  useEffect(() => {
+    getCsrfToken().then((t) => setCsrfToken(t ?? ""));
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("error");
+    if (code) {
+      setError(errorMessage(code));
+      params.delete("error");
+      const rest = params.toString();
+      window.history.replaceState(null, "", window.location.pathname + (rest ? `?${rest}` : ""));
+    }
+  }, []);
+
   const staleSession = status === "authenticated" && !session?.user?.companyId;
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError("");
+  function handleSubmit() {
+    // The eye toggle may have flipped the field to type="text"; put it back
+    // synchronously so the browser serializes a password field, or password
+    // managers won't recognize the login. (React state updates land too late
+    // for the native submission that follows this handler.)
+    if (passwordRef.current) passwordRef.current.type = "password";
     setLoading(true);
-
-    const res = await signIn("credentials", {
-      email,
-      password,
-      captchaToken,
-      redirect: false,
-    });
-
-    setLoading(false);
-
-    if (res?.error) {
-      setError(
-        res.error === "captcha"
-          ? "Security check didn't go through — give it a moment, then try again."
-          : "Invalid email or password."
-      );
-      // Turnstile tokens are single-use; the failed attempt consumed this one
-      captchaRef.current?.reset();
-    } else {
-      // Offer the credential to the password manager before navigating away —
-      // the sign-in was an XHR, so nothing else here tells the browser a login
-      // just succeeded.
-      await saveCredential(email, password);
-      // Full page load so the app layout re-renders with the new session
-      // (client-side navigation would reuse the signed-out layout — no sidebar)
-      redirected.current = true;
-      window.location.href = "/app/dashboard";
-    }
+    // No preventDefault: the browser submits and navigates natively.
   }
 
   return (
@@ -113,19 +117,27 @@ export default function AppLoginPage() {
               (NOT "email", which marks a newsletter-style address field and
               leaves the form with no account identifier to pair the password
               with), and both fields need a stable name/id or the form has no
-              signature to remember. Without these, Chrome and Safari never
-              offer to save. */}
-          <form onSubmit={handleSubmit} id="signin-form" className="space-y-4">
+              signature to remember. The name attributes double as NextAuth's
+              credential field names — the callback reads `email`, `password`
+              and `captchaToken` from the POST body. */}
+          <form
+            method="post"
+            action="/api/auth/callback/credentials"
+            onSubmit={handleSubmit}
+            id="signin-form"
+            className="space-y-4"
+          >
+            <input type="hidden" name="csrfToken" value={csrfToken} />
+            <input type="hidden" name="callbackUrl" value="/app/dashboard" />
+            <input type="hidden" name="captchaToken" value={captchaToken} />
             <div>
               <label htmlFor="signin-email" className="block text-sm font-medium text-gray-700 mb-1">
                 Email
               </label>
               <input
                 id="signin-email"
-                name="username"
+                name="email"
                 type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
                 required
                 autoComplete="username"
                 className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
@@ -149,11 +161,10 @@ export default function AppLoginPage() {
               </div>
               <div className="relative">
                 <input
+                  ref={passwordRef}
                   id="signin-password"
                   name="password"
                   type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
                   required
                   autoComplete="current-password"
                   className="w-full px-3 py-2.5 pr-10 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
@@ -173,7 +184,7 @@ export default function AppLoginPage() {
             <TurnstileWidget ref={captchaRef} onToken={setCaptchaToken} />
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !csrfToken}
               className="w-full py-2.5 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white font-semibold text-sm rounded-[10px] btn-tool transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {loading && <Loader2 size={14} className="animate-spin" />}
