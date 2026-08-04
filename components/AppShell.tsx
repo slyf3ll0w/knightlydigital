@@ -43,7 +43,7 @@ import SwipeBack from "@/components/SwipeBack";
 import PullToRefresh from "@/components/PullToRefresh";
 import ConfirmSheetHost from "@/components/ConfirmSheet";
 import NotificationsSheet from "@/components/NotificationsSheet";
-import { HomeFill, ScheduleFill, ChatFill } from "@/components/TabIcons";
+import { HomeFill, ScheduleFill, ChatFill, MoreFill } from "@/components/TabIcons";
 import { mobileBackFor } from "@/lib/mobile-nav";
 import { AtlasMark } from "@/components/AtlasIcon";
 import TourGuide from "@/components/TourGuide";
@@ -794,6 +794,49 @@ export default function AppShell({
   const [search, setSearch] = useState("");
   const [counts, setCounts] = useState({ requests: 0, pastDue: 0, chat: 0, leads: 0 });
 
+  // Bell-dot memory: "Clear all" in the notifications sheet snapshots the
+  // badge counts, and the dot only returns when a count grows PAST its
+  // snapshot (something genuinely new arrived). Counts that shrink ratchet
+  // the snapshot down so the next new item still fires the dot.
+  const bellSnapKey = `wb-bell-snap:${userId ?? "shared"}`;
+  const [bellSnap, setBellSnap] = useState<{ r: number; p: number; l: number } | null>(null);
+  useEffect(() => {
+    try {
+      setBellSnap(JSON.parse(localStorage.getItem(bellSnapKey) ?? "null"));
+    } catch {
+      setBellSnap(null);
+    }
+  }, [bellSnapKey]);
+  useEffect(() => {
+    if (!bellSnap) return;
+    const next = {
+      r: Math.min(bellSnap.r, counts.requests),
+      p: Math.min(bellSnap.p, counts.pastDue),
+      l: Math.min(bellSnap.l, counts.leads),
+    };
+    if (next.r !== bellSnap.r || next.p !== bellSnap.p || next.l !== bellSnap.l) {
+      setBellSnap(next);
+      try {
+        localStorage.setItem(bellSnapKey, JSON.stringify(next));
+      } catch {
+        // storage blocked — the dot just stays live
+      }
+    }
+  }, [counts, bellSnap, bellSnapKey]);
+  const bellDot =
+    counts.requests > (bellSnap?.r ?? 0) ||
+    counts.pastDue > (bellSnap?.p ?? 0) ||
+    counts.leads > (bellSnap?.l ?? 0);
+  const snapshotBell = () => {
+    const snap = { r: counts.requests, p: counts.pastDue, l: counts.leads };
+    setBellSnap(snap);
+    try {
+      localStorage.setItem(bellSnapKey, JSON.stringify(snap));
+    } catch {
+      // ignore
+    }
+  };
+
   // Auth pages render standalone even when a session cookie exists
   const isAuthPage = pathname.startsWith("/app/login") || pathname.startsWith("/app/register");
 
@@ -1136,12 +1179,13 @@ export default function AppShell({
           <div aria-hidden className={`wp-layer wp-${wallpaper} pointer-events-none absolute inset-0`} />
         )}
         {/* Top bar */}
-        <header className="relative flex items-center gap-4 px-4 lg:px-6 min-h-[57px] pt-[env(safe-area-inset-top)] border-b border-gray-200 bg-chrome shrink-0">
+        <header className="app-header relative flex items-center gap-4 px-4 lg:px-6 min-h-[57px] pt-[env(safe-area-inset-top)] border-b border-gray-200 bg-chrome shrink-0">
           {/* Ledger margin rule — both brand colors meet on the app frame:
-              primary (structure) running into secondary (accent) */}
+              primary (structure) running into secondary (accent). Desktop
+              only: the phone header is clear, no line. */}
           <span
             aria-hidden
-            className="pointer-events-none absolute inset-x-0 -bottom-px h-[2.5px]"
+            className="pointer-events-none absolute inset-x-0 -bottom-px hidden h-[2.5px] lg:block"
             style={{ background: "linear-gradient(90deg, var(--wb-primary), var(--wb-accent))" }}
           />
           {/* Mobile header, left slot: an iOS "‹ Section" back control on
@@ -1192,7 +1236,7 @@ export default function AppShell({
             className="lg:hidden ml-auto relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-600 active:bg-gray-100 transition-colors"
           >
             <Bell size={21} />
-            {(counts.requests > 0 || counts.pastDue > 0 || counts.leads > 0) && (
+            {bellDot && (
               <span className="absolute right-1 top-0.5 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white" />
             )}
           </button>
@@ -1303,15 +1347,18 @@ export default function AppShell({
       <CompanySwitcherSheet open={companySheetOpen} onClose={() => setCompanySheetOpen(false)} />
 
       {/* Recent notifications — behind the header bell */}
-      <NotificationsSheet open={notifsOpen} onClose={() => setNotifsOpen(false)} />
+      <NotificationsSheet
+        open={notifsOpen}
+        onClose={() => setNotifsOpen(false)}
+        userId={userId}
+        onClearAll={snapshotBell}
+      />
 
       <MobileTabBar
         role={userRole}
         isActive={isActive}
         pastDue={counts.pastDue}
         chatUnread={counts.chat}
-        userName={userName}
-        userId={userId}
         openMore={() => setMoreOpen(true)}
         previewMode={previewMode}
       />
@@ -1389,8 +1436,6 @@ function MobileTabBar({
   isActive,
   pastDue,
   chatUnread,
-  userName,
-  userId,
   openMore,
   previewMode,
 }: {
@@ -1398,8 +1443,6 @@ function MobileTabBar({
   isActive: (href: string) => boolean;
   pastDue: number;
   chatUnread: number;
-  userName?: string | null;
-  userId?: string | null;
   openMore: () => void;
   previewMode?: boolean;
 }) {
@@ -1563,7 +1606,7 @@ function MobileTabBar({
           className={tabClass(false)}
         >
           <span className="relative">
-            <Avatar name={userName} userId={userId} size={24} />
+            <MoreFill size={24} />
             {pastDue > 0 && (
               <span className="absolute -right-1 -top-0.5 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-[color:var(--fab-ring)]" />
             )}

@@ -32,6 +32,17 @@ export function ScheduleFill({ size = 24, className }: GlyphProps) {
   );
 }
 
+export function MoreFill({ size = 24, className }: GlyphProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" className={className} aria-hidden>
+      <path
+        fill="currentColor"
+        d="M6.6 4.2h2.3a2.4 2.4 0 0 1 2.4 2.4v2.3a2.4 2.4 0 0 1-2.4 2.4H6.6a2.4 2.4 0 0 1-2.4-2.4V6.6a2.4 2.4 0 0 1 2.4-2.4Zm8.5 0h2.3a2.4 2.4 0 0 1 2.4 2.4v2.3a2.4 2.4 0 0 1-2.4 2.4h-2.3a2.4 2.4 0 0 1-2.4-2.4V6.6a2.4 2.4 0 0 1 2.4-2.4Zm-8.5 8.5h2.3a2.4 2.4 0 0 1 2.4 2.4v2.3a2.4 2.4 0 0 1-2.4 2.4H6.6a2.4 2.4 0 0 1-2.4-2.4v-2.3a2.4 2.4 0 0 1 2.4-2.4Zm8.5 0h2.3a2.4 2.4 0 0 1 2.4 2.4v2.3a2.4 2.4 0 0 1-2.4 2.4h-2.3a2.4 2.4 0 0 1-2.4-2.4v-2.3a2.4 2.4 0 0 1 2.4-2.4Z"
+      />
+    </svg>
+  );
+}
+
 export function ChatFill({ size = 24, className }: GlyphProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" className={className} aria-hidden>

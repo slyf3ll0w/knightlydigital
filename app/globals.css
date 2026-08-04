@@ -445,6 +445,16 @@ html[data-mode="dark"] .app-ui .bg-chrome {
   html[data-mode="dark"] .app-ui .bg-chrome {
     background-color: color-mix(in srgb, var(--wb-primary, #606673) 8%, rgba(23, 23, 23, 0.82));
   }
+  /* The phone TOP bar sheds its material entirely — no wash, no hairline,
+     no blur; the header sits directly on the page (the tab bar keeps its
+     chrome). Wins over .bg-chrome by coming later at equal specificity. */
+  .app-ui .app-header,
+  html[data-mode="dark"] .app-ui .app-header {
+    background-color: transparent;
+    border-color: transparent;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
 }
 
 /* ── Glass material — the translucent blurred surface for everything that
@@ -1395,6 +1405,13 @@ body {
   /* Chrome + floating glass take the dusk slate too */
   html[data-mode="dark"] .app-ui .bg-chrome {
     background-color: color-mix(in srgb, var(--wb-primary, #606673) 8%, rgba(31, 37, 46, 0.85));
+  }
+  /* ...except the top bar, which is clear on phones in both themes */
+  html[data-mode="dark"] .app-ui .app-header {
+    background-color: transparent;
+    border-color: transparent;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
   }
   html[data-mode="dark"] .app-ui .sheet-material {
     background-color: color-mix(in srgb, var(--wb-primary, #606673) 10%, rgba(42, 50, 61, 0.62));

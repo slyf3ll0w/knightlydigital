@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Bell,
   CalendarClock,
@@ -16,8 +16,9 @@ import { hapticImpact } from "@/lib/haptics";
 /**
  * Recent-activity bottom sheet behind the mobile header bell. Reads the
  * aggregate feed (/api/app/notifications) on each open — the feed is built
- * from live records, so there's no read/unread state to reconcile; the bell
- * dot upstream keys off the nav badge counts.
+ * from live records, so there's nothing server-side to reconcile. Dismissal
+ * is per-device: swiping a row right (or Clear all) records it in
+ * localStorage and it stops rendering; the underlying record is untouched.
  */
 
 type Item = {
@@ -51,14 +52,143 @@ function ago(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
+type Dismissed = { ids: string[]; before: string | null };
+
+function loadDismissed(key: string): Dismissed {
+  try {
+    const v = JSON.parse(localStorage.getItem(key) ?? "null");
+    if (v && Array.isArray(v.ids)) return { ids: v.ids, before: v.before ?? null };
+  } catch {
+    // fall through
+  }
+  return { ids: [], before: null };
+}
+
+function saveDismissed(key: string, d: Dismissed) {
+  try {
+    // Cap the id list — the `before` cutoff makes old ids redundant anyway
+    localStorage.setItem(key, JSON.stringify({ ...d, ids: d.ids.slice(-100) }));
+  } catch {
+    // storage blocked — dismissals just don't persist
+  }
+}
+
+/** One feed row: tap navigates, swiping right past the threshold dismisses. */
+function NotifRow({
+  item,
+  last,
+  onOpen,
+  onDismiss,
+}: {
+  item: Item;
+  last: boolean;
+  onOpen: () => void;
+  onDismiss: () => void;
+}) {
+  const [dx, setDx] = useState(0);
+  const [leaving, setLeaving] = useState(false);
+  const touch = useRef<{ x: number; y: number; swiping: boolean } | null>(null);
+  const THRESHOLD = 96;
+
+  const meta = KIND_META[item.kind] ?? KIND_META.request;
+  const Icon = meta.icon;
+
+  return (
+    <div className={`relative overflow-hidden ${last ? "" : "border-b border-gray-100"}`}>
+      {/* The reveal under the sliding row — reads as "swipe to clear" */}
+      <span
+        aria-hidden
+        className="absolute inset-y-0 left-0 flex items-center pl-4 text-[12px] font-semibold text-gray-400 transition-opacity"
+        style={{ opacity: dx > 12 ? Math.min(1, dx / THRESHOLD) : 0 }}
+      >
+        Clear
+      </span>
+      <Link
+        href={item.href}
+        onClick={(e) => {
+          if (dx !== 0 || leaving) {
+            e.preventDefault();
+            return;
+          }
+          hapticImpact("LIGHT");
+          onOpen();
+        }}
+        onTouchStart={(e) => {
+          const t = e.touches[0];
+          touch.current = { x: t.clientX, y: t.clientY, swiping: false };
+        }}
+        onTouchMove={(e) => {
+          const s = touch.current;
+          if (!s) return;
+          const t = e.touches[0];
+          const moveX = t.clientX - s.x;
+          const moveY = t.clientY - s.y;
+          if (!s.swiping) {
+            // Claim the gesture only for a clearly horizontal rightward drag
+            if (moveX > 10 && Math.abs(moveX) > Math.abs(moveY) * 1.4) s.swiping = true;
+            else return;
+          }
+          setDx(Math.max(0, moveX));
+        }}
+        onTouchEnd={() => {
+          const s = touch.current;
+          touch.current = null;
+          if (!s?.swiping) return;
+          if (dx >= THRESHOLD) {
+            hapticImpact("MEDIUM");
+            setLeaving(true);
+            setDx(window.innerWidth);
+            setTimeout(onDismiss, 180);
+          } else {
+            setDx(0);
+          }
+        }}
+        className={`relative flex items-center gap-3 bg-transparent px-4 py-3 transition-colors active:bg-gray-50 ${
+          leaving ? "opacity-0" : ""
+        }`}
+        style={{
+          transform: dx ? `translateX(${dx}px)` : undefined,
+          transition: touch.current?.swiping
+            ? "none"
+            : "transform 0.18s ease, opacity 0.18s ease",
+        }}
+      >
+        <span
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px]"
+          style={{
+            backgroundColor: `var(--sh-${meta.hue})`,
+            color: `var(--sh-${meta.hue}-on)`,
+          }}
+        >
+          <Icon size={16} strokeWidth={2.25} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[14.5px] font-semibold text-gray-900">
+            {item.title}
+          </span>
+          {item.sub && (
+            <span className="block truncate text-[12.5px] text-gray-500">{item.sub}</span>
+          )}
+        </span>
+        <span className="shrink-0 text-[11.5px] tabular-nums text-gray-400">{ago(item.at)}</span>
+      </Link>
+    </div>
+  );
+}
+
 export default function NotificationsSheet({
   open,
   onClose,
+  userId,
+  onClearAll,
 }: {
   open: boolean;
   onClose: () => void;
+  userId?: string | null;
+  onClearAll?: () => void;
 }) {
   const [items, setItems] = useState<Item[] | null>(null);
+  const storageKey = `wb-notifs-dismissed:${userId ?? "shared"}`;
 
   // Refetch on every open — events arrive constantly and the sheet is cheap
   useEffect(() => {
@@ -68,7 +198,16 @@ export default function NotificationsSheet({
     fetch("/api/app/notifications")
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
-        if (!cancelled) setItems((d?.items as Item[]) ?? []);
+        if (cancelled) return;
+        const all = (d?.items as Item[]) ?? [];
+        const dismissed = loadDismissed(storageKey);
+        setItems(
+          all.filter(
+            (it) =>
+              !dismissed.ids.includes(it.id) &&
+              (!dismissed.before || it.at > dismissed.before)
+          )
+        );
       })
       .catch(() => {
         if (!cancelled) setItems([]);
@@ -76,7 +215,21 @@ export default function NotificationsSheet({
     return () => {
       cancelled = true;
     };
-  }, [open]);
+  }, [open, storageKey]);
+
+  function dismissOne(id: string) {
+    const d = loadDismissed(storageKey);
+    saveDismissed(storageKey, { ...d, ids: [...d.ids, id] });
+    setItems((prev) => (prev ? prev.filter((it) => it.id !== id) : prev));
+  }
+
+  function clearAll() {
+    hapticImpact("MEDIUM");
+    // The cutoff supersedes every individually-dismissed id
+    saveDismissed(storageKey, { ids: [], before: new Date().toISOString() });
+    setItems([]);
+    onClearAll?.();
+  }
 
   return (
     <>
@@ -93,9 +246,18 @@ export default function NotificationsSheet({
         }`}
       >
         <div className="mx-auto mt-2.5 h-1 w-9 shrink-0 rounded-full bg-gray-300" />
-        <p className="font-display px-5 pb-2.5 pt-3.5 text-[16px] font-bold text-gray-900">
-          Notifications
-        </p>
+        <div className="flex items-baseline justify-between px-5 pb-2.5 pt-3.5">
+          <p className="font-display text-[16px] font-bold text-gray-900">Notifications</p>
+          {items && items.length > 0 && (
+            <button
+              type="button"
+              onClick={clearAll}
+              className="text-[13px] font-semibold text-[color:var(--wb-ink)] active:opacity-60"
+            >
+              Clear all
+            </button>
+          )}
+        </div>
         <div className="overflow-y-auto px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
           {items === null && (
             <div className="flex items-center justify-center gap-2.5 py-10 text-sm text-gray-400">
@@ -116,45 +278,21 @@ export default function NotificationsSheet({
           )}
           {items && items.length > 0 && (
             <div className="card-tool overflow-hidden">
-              {items.map((item, i) => {
-                const meta = KIND_META[item.kind] ?? KIND_META.request;
-                const Icon = meta.icon;
-                return (
-                  <Link
-                    key={item.id}
-                    href={item.href}
-                    onClick={() => {
-                      hapticImpact("LIGHT");
-                      onClose();
-                    }}
-                    className={`flex items-center gap-3 px-4 py-3 transition-colors active:bg-gray-50 ${
-                      i < items.length - 1 ? "border-b border-gray-100" : ""
-                    }`}
-                  >
-                    <span
-                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px]"
-                      style={{
-                        backgroundColor: `var(--sh-${meta.hue})`,
-                        color: `var(--sh-${meta.hue}-on)`,
-                      }}
-                    >
-                      <Icon size={16} strokeWidth={2.25} />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[14.5px] font-semibold text-gray-900">
-                        {item.title}
-                      </span>
-                      {item.sub && (
-                        <span className="block truncate text-[12.5px] text-gray-500">{item.sub}</span>
-                      )}
-                    </span>
-                    <span className="shrink-0 text-[11.5px] tabular-nums text-gray-400">
-                      {ago(item.at)}
-                    </span>
-                  </Link>
-                );
-              })}
+              {items.map((item, i) => (
+                <NotifRow
+                  key={item.id}
+                  item={item}
+                  last={i === items.length - 1}
+                  onOpen={onClose}
+                  onDismiss={() => dismissOne(item.id)}
+                />
+              ))}
             </div>
+          )}
+          {items && items.length > 0 && (
+            <p className="pt-2.5 text-center text-[11px] text-gray-400">
+              Swipe a notification right to clear it
+            </p>
           )}
         </div>
       </div>

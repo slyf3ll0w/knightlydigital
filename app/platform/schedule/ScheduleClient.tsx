@@ -897,7 +897,7 @@ export default function ScheduleClient({
             )}
           </span>
           <span
-            className={`flex min-w-0 flex-1 items-center gap-2 rounded-[14px] border-l-[3px] px-3 py-2.5 ${itemTone(it)}`}
+            className={`flex min-w-0 flex-1 items-center gap-2 rounded-[16px] border-l-[3px] px-3 py-2.5 shadow-[0_1px_2px_rgba(9,13,19,0.08)] ${itemTone(it)}`}
           >
             <span className="min-w-0 flex-1">
               <span className="flex items-center gap-1.5 text-[15px] font-semibold">
@@ -1016,10 +1016,25 @@ export default function ScheduleClient({
                           <li
                             key={`now-${di}`}
                             aria-hidden
-                            className="flex items-center gap-2 py-0.5 pl-[46px]"
+                            className="flex items-center gap-2 py-1"
                           >
-                            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-red-500" />
-                            <span className="h-px flex-1 bg-red-400" />
+                            {/* Now — the concept's orange line, stamped with
+                                the actual time in the rail (mounted-only, so
+                                no hydration drift) */}
+                            <span
+                              className="numeral-ledger w-[56px] shrink-0 text-right text-[11px] font-bold"
+                              style={{ color: "#F86A0A" }}
+                            >
+                              {fmtTime(new Date())}
+                            </span>
+                            <span
+                              className="h-2 w-2 shrink-0 rounded-full"
+                              style={{ backgroundColor: "#F86A0A" }}
+                            />
+                            <span
+                              className="h-[2px] flex-1 rounded-full"
+                              style={{ backgroundColor: "#F86A0A" }}
+                            />
                           </li>,
                           agendaRow(it),
                         ]
