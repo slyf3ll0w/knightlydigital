@@ -46,7 +46,7 @@ export async function PATCH(
     data: {
       status,
       ...(status === "AWAITING_PAYMENT" && !invoice.issuedAt && { issuedAt: new Date() }),
-      ...(status === "PAID" ? { paidAt: new Date() } : { paidAt: null }),
+      ...(status === "PAID" ? { paidAt: new Date() } : { paidAt: null, paidCelebratedAt: null }),
     },
   });
 

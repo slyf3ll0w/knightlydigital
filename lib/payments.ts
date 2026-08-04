@@ -429,6 +429,7 @@ export async function recomputeInvoiceStatus(
       data: {
         status: isPastDue(invoice.dueDate) ? "PAST_DUE" : "AWAITING_PAYMENT",
         paidAt: null,
+        paidCelebratedAt: null,
       },
     });
   }

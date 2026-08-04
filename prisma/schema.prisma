@@ -1289,6 +1289,10 @@ model Invoice {
   issuedAt      DateTime?
   dueDate       DateTime?
   paidAt        DateTime?
+  // First staff open after an online (card/ACH) payment marked it PAID —
+  // one-shot confetti on the invoice page. Cleared if the invoice reopens
+  // (refund / bounced ACH) so a genuine re-payment celebrates again.
+  paidCelebratedAt DateTime?
   // Client opened the public /pay page (beacon-stamped — see /api/public/viewed)
   firstViewedAt DateTime?
   lastViewedAt  DateTime?
