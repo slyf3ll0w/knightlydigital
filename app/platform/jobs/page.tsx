@@ -175,7 +175,6 @@ export default async function JobsPage({
               </div>
               {jobs.map((j) => {
                 const total = j.lineItems.reduce((s, li) => s + Number(li.total), 0);
-                const address = j.address ?? j.contact.address;
                 const when = j.scheduledAt
                   ? j.scheduledAnytime
                     ? `${shortDate(j.scheduledAt)} · Anytime`
@@ -190,31 +189,22 @@ export default async function JobsPage({
                     href={`/app/jobs/${j.id}`}
                     className="block lg:grid lg:grid-cols-[1fr_70px_150px_160px_100px_40px] lg:gap-4 lg:items-center px-4 py-3 lg:py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
                   >
-                    {/* Phone card: client monogram anchors the row, the JOB
-                        leads (title/time), the client is supporting detail —
-                        a tech glances and goes. Legacy apps (Jobber/HCP)
-                        order it the same way. */}
+                    {/* Phone card: two lines only — glance and go. Address,
+                        totals, and the rest live on the job page (David:
+                        "users should just click on the jobs if they want to
+                        learn more"). */}
                     <div className="lg:hidden flex min-w-0 items-center gap-3">
                       <Monogram name={`${j.contact.firstName} ${j.contact.lastName}`} size={40} />
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-baseline justify-between gap-3">
+                        <div className="flex items-center justify-between gap-3">
                           <p className="min-w-0 flex-1 truncate text-[15.5px] font-semibold text-gray-900">
                             {j.title}
                           </p>
-                          {showMoney && total > 0 && (
-                            <p className="numeral-ledger shrink-0 text-sm font-semibold text-gray-900">
-                              {money(total)}
-                            </p>
-                          )}
-                        </div>
-                        <p className="mt-0.5 truncate text-[13px] text-gray-600">
-                          {j.contact.firstName} {j.contact.lastName}
-                          {address ? ` · ${address}` : ""}
-                        </p>
-                        <div className="mt-1 flex items-center justify-between gap-3">
-                          <p className="min-w-0 flex-1 truncate text-xs text-gray-500">{when}</p>
                           <StatusChip kind="job" status={j.status} className="shrink-0" />
                         </div>
+                        <p className="mt-0.5 truncate text-[13px] text-gray-500">
+                          {j.contact.firstName} {j.contact.lastName} · {when}
+                        </p>
                       </div>
                     </div>
                     <div className="hidden lg:block min-w-0">

@@ -3,7 +3,7 @@ import { requirePageActor, canSell, viaContactScope } from "@/lib/permissions";
 import Link from "next/link";
 import { Plus, ChevronRight, FileText } from "lucide-react";
 import PageTitle from "@/components/PageTitle";
-import { FilterRow, FilterChip } from "@/components/FilterChips";
+import { FilterRow, FilterChip, SegmentedRow, Segment } from "@/components/FilterChips";
 import { SECTION_HUES } from "@/lib/section-colors";
 import { money, shortDate } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
@@ -13,13 +13,13 @@ import Monogram from "@/components/Monogram";
 import type { QuoteStatus } from "@prisma/client";
 
 const statusFilters = [
-  { value: "", label: "All" },
-  { value: "DRAFT", label: "Draft" },
-  { value: "AWAITING_RESPONSE", label: "Awaiting Response" },
-  { value: "APPROVED", label: "Approved" },
-  { value: "CHANGES_REQUESTED", label: "Changes Requested" },
-  { value: "CONVERTED", label: "Converted" },
-  { value: "ARCHIVED", label: "Archived" },
+  { value: "", label: "All", mobile: "All" },
+  { value: "DRAFT", label: "Draft", mobile: "Draft" },
+  { value: "AWAITING_RESPONSE", label: "Awaiting Response", mobile: "Awaiting" },
+  { value: "APPROVED", label: "Approved", mobile: "Approved" },
+  { value: "CHANGES_REQUESTED", label: "Changes Requested", mobile: "Changes" },
+  { value: "CONVERTED", label: "Converted", mobile: "Converted" },
+  { value: "ARCHIVED", label: "Archived", mobile: "Archived" },
 ];
 
 const validValues = statusFilters.map((f) => f.value).filter(Boolean);
@@ -107,19 +107,34 @@ export default async function QuotesPage({
 
       <KpiStrip kpis={kpis} desktopCols={4} hue={SECTION_HUES.quotes} />
 
-      {/* Filter tabs */}
-      <FilterRow>
+      {/* Filter tabs — seven statuses wrap onto a two-row segmented grid on
+          phones (everything visible, no sideways scrolling); desktop keeps
+          the chip rail */}
+      <SegmentedRow className="mb-4 lg:hidden" cols={4}>
         {statusFilters.map((f) => (
-          <FilterChip
+          <Segment
             key={f.value}
-            hue={SECTION_HUES.quotes}
             active={(validStatus ?? "") === f.value}
             href={f.value ? `/app/quotes?status=${f.value}` : "/app/quotes"}
           >
-            {f.label}
-          </FilterChip>
+            {f.mobile}
+          </Segment>
         ))}
-      </FilterRow>
+      </SegmentedRow>
+      <div className="hidden lg:block">
+        <FilterRow>
+          {statusFilters.map((f) => (
+            <FilterChip
+              key={f.value}
+              hue={SECTION_HUES.quotes}
+              active={(validStatus ?? "") === f.value}
+              href={f.value ? `/app/quotes?status=${f.value}` : "/app/quotes"}
+            >
+              {f.label}
+            </FilterChip>
+          ))}
+        </FilterRow>
+      </div>
 
       <div className="card-ledger overflow-hidden">
         {quotes.length === 0 ? (

@@ -23,6 +23,7 @@ import ScheduleJob from "./ScheduleJob";
 import AssignTeam from "./AssignTeam";
 import PhotoUpload from "./PhotoUpload";
 import JobChecklist from "./JobChecklist";
+import Fold from "@/components/Fold";
 
 export default async function JobDetailPage({
   params,
@@ -149,7 +150,9 @@ export default async function JobDetailPage({
   );
 
   return (
-    <div className="p-4 lg:p-8 max-w-5xl mx-auto">
+    // pb-20: phone bottom padding so the docked action pill never covers the
+    // last card
+    <div className="p-4 pb-20 lg:p-8 max-w-5xl mx-auto">
       {/* Header */}
       <div className="flex items-center gap-3 mb-4">
         <Link href="/app/jobs" className="hidden lg:block text-gray-400 hover:text-gray-600">
@@ -341,14 +344,12 @@ export default async function JobDetailPage({
             />
           )}
 
-          {/* Line items */}
+          {/* Line items — folded on phones, the total answers the glance */}
           {job.lineItems.length > 0 && (
-            <div className="card-ledger overflow-hidden">
-              <div className="px-5 py-4 border-b border-gray-100">
-                <h2 className="text-[13px] font-semibold text-gray-500">
-                  Product / Service
-                </h2>
-              </div>
+            <Fold
+              title="Product / Service"
+              meta={showMoney ? money(lineTotal) : `${job.lineItems.length}`}
+            >
               <div className="px-5 py-3">
                 <table className="w-full text-sm">
                   <thead>
@@ -410,16 +411,14 @@ export default async function JobDetailPage({
                   </div>
                 </div>
               )}
-            </div>
+            </Fold>
           )}
 
           {/* Notes */}
-          <div className="card-ledger">
-            <div className="px-5 py-4 border-b border-gray-100">
-              <h2 className="text-[13px] font-semibold text-gray-500">
-                Notes &amp; Activity
-              </h2>
-            </div>
+          <Fold
+            title="Notes & Activity"
+            meta={job.notes.length > 0 ? `${job.notes.length}` : "Add"}
+          >
             <div className="p-4 space-y-3">
               {job.notes.map((note) => (
                 <JobNoteItem
@@ -442,13 +441,13 @@ export default async function JobDetailPage({
               ))}
               <NoteForm jobId={job.id} />
             </div>
-          </div>
+          </Fold>
 
           {/* Photos */}
-          <div className="card-ledger">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-              <h2 className="text-[13px] font-semibold text-gray-500">Photos</h2>
-            </div>
+          <Fold
+            title="Photos"
+            meta={job.photos.length > 0 ? `${job.photos.length}` : "Add"}
+          >
             <PhotoUpload
               jobId={job.id}
               photos={job.photos.map((p) => ({
@@ -458,7 +457,7 @@ export default async function JobDetailPage({
                 type: p.type,
               }))}
             />
-          </div>
+          </Fold>
         </div>
 
         {/* Sidebar */}

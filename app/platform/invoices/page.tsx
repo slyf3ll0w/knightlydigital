@@ -3,7 +3,7 @@ import { requirePageActor, canSeeMoney, viaContactScope } from "@/lib/permission
 import Link from "next/link";
 import { Plus, ChevronRight, DollarSign, Receipt } from "lucide-react";
 import PageTitle from "@/components/PageTitle";
-import { FilterRow, FilterChip } from "@/components/FilterChips";
+import { FilterRow, FilterChip, SegmentedRow, Segment } from "@/components/FilterChips";
 import { SECTION_HUES } from "@/lib/section-colors";
 import { money, shortDate } from "@/lib/statuses";
 import { pastDueFilter } from "@/lib/due-dates";
@@ -15,11 +15,11 @@ import Monogram from "@/components/Monogram";
 import type { InvoiceStatus } from "@prisma/client";
 
 const statusFilters = [
-  { value: "", label: "All" },
-  { value: "DRAFT", label: "Draft" },
-  { value: "AWAITING_PAYMENT", label: "Awaiting Payment" },
-  { value: "PAST_DUE", label: "Past Due" },
-  { value: "PAID", label: "Paid" },
+  { value: "", label: "All", mobile: "All" },
+  { value: "DRAFT", label: "Draft", mobile: "Draft" },
+  { value: "AWAITING_PAYMENT", label: "Awaiting Payment", mobile: "Awaiting" },
+  { value: "PAST_DUE", label: "Past Due", mobile: "Past due" },
+  { value: "PAID", label: "Paid", mobile: "Paid" },
 ];
 
 export default async function InvoicesPage({
@@ -152,19 +152,33 @@ export default async function InvoicesPage({
 
       <KpiStrip kpis={kpis} desktopCols={3} hue={SECTION_HUES.invoices} />
 
-      {/* Filter tabs */}
-      <FilterRow>
+      {/* Filter tabs — phones get the segmented control, desktop keeps the
+          chip rail */}
+      <SegmentedRow className="mb-4 lg:hidden">
         {statusFilters.map((f) => (
-          <FilterChip
+          <Segment
             key={f.value}
-            hue={SECTION_HUES.invoices}
             active={(validStatus ?? "") === f.value}
             href={f.value ? `/app/invoices?status=${f.value}` : "/app/invoices"}
           >
-            {f.label}
-          </FilterChip>
+            {f.mobile}
+          </Segment>
         ))}
-      </FilterRow>
+      </SegmentedRow>
+      <div className="hidden lg:block">
+        <FilterRow>
+          {statusFilters.map((f) => (
+            <FilterChip
+              key={f.value}
+              hue={SECTION_HUES.invoices}
+              active={(validStatus ?? "") === f.value}
+              href={f.value ? `/app/invoices?status=${f.value}` : "/app/invoices"}
+            >
+              {f.label}
+            </FilterChip>
+          ))}
+        </FilterRow>
+      </div>
 
       <div className="card-ledger overflow-hidden">
         {invoices.length === 0 ? (

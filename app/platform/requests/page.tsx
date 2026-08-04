@@ -2,7 +2,7 @@ import { prisma } from "@/lib/db";
 import Link from "next/link";
 import { Plus, ChevronRight, UserCheck, Inbox } from "lucide-react";
 import PageTitle from "@/components/PageTitle";
-import { FilterRow, FilterChip, FilterDivider } from "@/components/FilterChips";
+import { FilterRow, FilterChip, FilterDivider, SegmentedRow, Segment } from "@/components/FilterChips";
 import { SECTION_HUES } from "@/lib/section-colors";
 import { shortDate } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
@@ -13,12 +13,12 @@ import Monogram from "@/components/Monogram";
 import { requirePageActor, canSell, viaContactScope, seesAllLeads } from "@/lib/permissions";
 import type { RequestStatus } from "@prisma/client";
 
-const statusFilters: { value: string; label: string }[] = [
-  { value: "", label: "All" },
-  { value: "NEEDS_APPROVAL", label: "Needs approval" },
-  { value: "NEW", label: "New" },
-  { value: "CONVERTED", label: "Converted" },
-  { value: "ARCHIVED", label: "Archived" },
+const statusFilters: { value: string; label: string; mobile: string }[] = [
+  { value: "", label: "All", mobile: "All" },
+  { value: "NEEDS_APPROVAL", label: "Needs approval", mobile: "To approve" },
+  { value: "NEW", label: "New", mobile: "New" },
+  { value: "CONVERTED", label: "Converted", mobile: "Converted" },
+  { value: "ARCHIVED", label: "Archived", mobile: "Archived" },
 ];
 
 export default async function RequestsPage({
@@ -123,32 +123,59 @@ export default async function RequestsPage({
         ]}
       />
 
-      {/* Filter tabs */}
-      <FilterRow>
+      {/* Filter tabs — phones get the segmented control (12px so five
+          segments fit a 390 screen); the My-leads scope toggle stays a chip
+          below it. Desktop keeps the chip rail. */}
+      <SegmentedRow className="mb-4 text-[12px] lg:hidden">
         {statusFilters.map((f) => (
-          <FilterChip
+          <Segment
             key={f.value}
-            hue={SECTION_HUES.requests}
             active={(validStatus ?? "") === f.value}
             href={qs({ status: f.value })}
           >
-            {f.label}
-          </FilterChip>
+            {f.mobile}
+          </Segment>
         ))}
-        {showAll && (
-          <>
-            <FilterDivider />
+      </SegmentedRow>
+      {showAll && (
+        <div className="-mt-1 mb-4 flex lg:hidden">
+          <FilterChip
+            hue={SECTION_HUES.requests}
+            active={mineOnly}
+            href={qs({ mine: !mineOnly })}
+          >
+            <UserCheck size={13} />
+            My leads
+          </FilterChip>
+        </div>
+      )}
+      <div className="hidden lg:block">
+        <FilterRow>
+          {statusFilters.map((f) => (
             <FilterChip
+              key={f.value}
               hue={SECTION_HUES.requests}
-              active={mineOnly}
-              href={qs({ mine: !mineOnly })}
+              active={(validStatus ?? "") === f.value}
+              href={qs({ status: f.value })}
             >
-              <UserCheck size={13} />
-              My leads
+              {f.label}
             </FilterChip>
-          </>
-        )}
-      </FilterRow>
+          ))}
+          {showAll && (
+            <>
+              <FilterDivider />
+              <FilterChip
+                hue={SECTION_HUES.requests}
+                active={mineOnly}
+                href={qs({ mine: !mineOnly })}
+              >
+                <UserCheck size={13} />
+                My leads
+              </FilterChip>
+            </>
+          )}
+        </FilterRow>
+      </div>
 
       <div className="card-ledger overflow-hidden">
         {requests.length === 0 ? (
