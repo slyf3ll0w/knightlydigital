@@ -34,6 +34,11 @@ self.addEventListener("install", (event) => {
     caches
       .open(STATIC_CACHE)
       .then((cache) => cache.addAll([OFFLINE_URL]))
+      // Cache storage can be broken machine-wide (observed: every write
+      // rejecting "Entry already exists"). A failed precache must not fail
+      // the install — this worker also carries web push, which would
+      // otherwise die with it. Offline mode just degrades on that machine.
+      .catch(() => {})
       .then(() => self.skipWaiting())
   );
 });
@@ -41,12 +46,16 @@ self.addEventListener("install", (event) => {
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     (async () => {
-      const names = await caches.keys();
-      await Promise.all(
-        names
-          .filter((n) => n.startsWith("sfh-") && !n.endsWith(`-${VERSION}`))
-          .map((n) => caches.delete(n))
-      );
+      try {
+        const names = await caches.keys();
+        await Promise.all(
+          names
+            .filter((n) => n.startsWith("sfh-") && !n.endsWith(`-${VERSION}`))
+            .map((n) => caches.delete(n))
+        );
+      } catch {
+        /* broken cache storage — claim clients anyway */
+      }
       await self.clients.claim();
     })()
   );
@@ -87,7 +96,20 @@ async function putCapped(cacheName, request, response, max) {
 }
 
 async function clearSnapshot() {
-  await Promise.all([caches.delete(PAGES_CACHE), caches.delete(MEDIA_CACHE)]);
+  try {
+    await Promise.all([caches.delete(PAGES_CACHE), caches.delete(MEDIA_CACHE)]);
+  } catch {
+    /* broken cache storage — nothing to clear */
+  }
+}
+
+/** caches.match that treats broken cache storage as a miss. */
+async function safeMatch(request, options) {
+  try {
+    return await caches.match(request, options);
+  } catch {
+    return undefined;
+  }
 }
 
 function isAppPath(pathname) {
@@ -119,20 +141,19 @@ async function handleNavigation(event, request) {
     }
     return response;
   } catch {
-    const cache = await caches.open(PAGES_CACHE);
-    const exact = await cache.match(request, { ignoreVary: true });
+    const exact = await safeMatch(request, { ignoreVary: true });
     if (exact) return exact;
     // e.g. /app/jobs?status=ACTIVE falls back to the cached /app/jobs
-    const loose = await cache.match(request, { ignoreSearch: true, ignoreVary: true });
+    const loose = await safeMatch(request, { ignoreSearch: true, ignoreVary: true });
     if (loose) return loose;
-    const offline = await caches.match(OFFLINE_URL);
+    const offline = await safeMatch(OFFLINE_URL);
     if (offline) return offline;
     throw new Error("offline and no cached copy");
   }
 }
 
 async function cacheFirst(request, cacheName, max) {
-  const cached = await caches.match(request, { ignoreVary: true });
+  const cached = await safeMatch(request, { ignoreVary: true });
   if (cached) return cached;
   const response = await fetch(request);
   if (response.ok || response.type === "opaque") {
@@ -142,7 +163,7 @@ async function cacheFirst(request, cacheName, max) {
 }
 
 async function staleWhileRevalidate(request, cacheName, max) {
-  const cached = await caches.match(request, { ignoreVary: true });
+  const cached = await safeMatch(request, { ignoreVary: true });
   const network = fetch(request).then((response) => {
     if (response.ok) putCapped(cacheName, request, response.clone(), max);
     return response;
