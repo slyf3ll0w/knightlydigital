@@ -9,6 +9,7 @@ import { money, shortDate } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
 import EmptyState from "@/components/EmptyState";
 import KpiStrip from "@/components/KpiStrip";
+import Monogram from "@/components/Monogram";
 import type { QuoteStatus } from "@prisma/client";
 
 const statusFilters = [
@@ -151,22 +152,29 @@ export default async function QuotesPage({
                   href={`/app/quotes/${q.id}`}
                   className="block lg:grid lg:grid-cols-[1fr_70px_140px_150px_100px_40px] lg:gap-4 lg:items-center px-4 py-3 lg:py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
                 >
-                  {/* Phone row: name + total, then #/title + status */}
-                  <div className="lg:hidden min-w-0">
-                    <div className="flex items-baseline justify-between gap-3">
-                      <p className="min-w-0 flex-1 truncate text-sm font-medium text-gray-900">
-                        {q.contact.firstName} {q.contact.lastName}
-                      </p>
-                      <p className="numeral-ledger shrink-0 text-sm font-semibold text-gray-900">
-                        {money(q.total)}
-                      </p>
-                    </div>
-                    <div className="mt-1 flex items-center justify-between gap-3">
-                      <p className="min-w-0 flex-1 truncate text-xs text-gray-500">
-                        #{q.quoteNumber}
-                        {q.title ? ` · ${q.title}` : ""}
-                      </p>
-                      <StatusChip kind="quote" status={q.status} className="shrink-0" />
+                  {/* Phone row: monogram anchor, name + total, then
+                      #/title + status */}
+                  <div className="lg:hidden flex min-w-0 items-center gap-3">
+                    <Monogram
+                      name={`${q.contact.firstName} ${q.contact.lastName}`}
+                      size={40}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-baseline justify-between gap-3">
+                        <p className="min-w-0 flex-1 truncate text-[15.5px] font-semibold text-gray-900">
+                          {q.contact.firstName} {q.contact.lastName}
+                        </p>
+                        <p className="numeral-ledger shrink-0 text-sm font-semibold text-gray-900">
+                          {money(q.total)}
+                        </p>
+                      </div>
+                      <div className="mt-1 flex items-center justify-between gap-3">
+                        <p className="min-w-0 flex-1 truncate text-xs text-gray-500">
+                          #{q.quoteNumber}
+                          {q.title ? ` · ${q.title}` : ""}
+                        </p>
+                        <StatusChip kind="quote" status={q.status} className="shrink-0" />
+                      </div>
                     </div>
                   </div>
                   <div className="hidden lg:block min-w-0">

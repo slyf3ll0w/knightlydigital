@@ -116,8 +116,8 @@ function ProposalCard({
               type="button"
               disabled={p.state === "confirming" || !armed}
               onClick={onConfirm}
-              className={`flex items-center gap-1.5 rounded-[10px] px-3 py-1.5 text-xs font-semibold text-white transition-colors disabled:opacity-50 ${
-                p.danger ? "bg-red-600 hover:bg-red-700" : "bg-green-500 hover:bg-green-600"
+              className={`flex items-center gap-1.5 rounded-[10px] px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-50 ${
+                p.danger ? "bg-red-600 hover:bg-red-700 text-white" : "bg-green-500 hover:bg-green-600"
               }`}
             >
               {p.state === "confirming" ? (
@@ -388,7 +388,10 @@ export default function AssistantDrawer({
                 key={i}
                 className="ml-auto w-fit max-w-[85%] rounded-2xl rounded-br-md bg-green-600 px-3.5 py-2"
               >
-                <p className="whitespace-pre-wrap text-sm font-medium text-white">{m.content}</p>
+                {/* No text-white here — the accent bridge puts the readable
+                    on-accent ink on bg-green-600 (light brand colors get dark
+                    ink); hardcoding white broke light-brand companies */}
+                <p className="whitespace-pre-wrap text-sm font-medium">{m.content}</p>
               </div>
             ) : (
               <div key={i} className="mr-4 space-y-2">
@@ -403,7 +406,7 @@ export default function AssistantDrawer({
                   <button
                     type="button"
                     onClick={() => confirmAll(i, m.proposals ?? [])}
-                    className="flex items-center gap-1.5 rounded-[10px] btn-tool bg-green-500 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-green-600"
+                    className="flex items-center gap-1.5 rounded-[10px] btn-tool bg-green-500 px-3 py-1.5 text-xs font-semibold transition-colors hover:bg-green-600"
                   >
                     <Check size={12} />
                     Confirm all ({m.proposals!.filter((p) => p.state === "pending" && !p.danger).length})
@@ -462,7 +465,7 @@ export default function AssistantDrawer({
               }}
               disabled={loading || !input.trim()}
               aria-label="Send"
-              className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-full bg-green-600 text-white transition-colors hover:bg-green-500 disabled:opacity-40"
+              className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-full bg-green-600 transition-colors hover:bg-green-500 disabled:opacity-40"
             >
               <ArrowUp size={17} strokeWidth={2.4} />
             </button>

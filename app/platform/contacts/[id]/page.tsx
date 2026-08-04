@@ -7,6 +7,7 @@ import { money, shortDate, clientMessageStatus, type StatusKind } from "@/lib/st
 import StatusChip from "@/components/StatusChip";
 import ContactStatus from "@/components/ContactStatus";
 import CallTextButtons from "@/components/CallTextButtons";
+import JobActionRow from "@/components/JobActionRow";
 import ContactCreateMenu from "./ContactCreateMenu";
 import ContactActionsMenu from "./ContactActionsMenu";
 import AssignLead from "./AssignLead";
@@ -237,7 +238,12 @@ export default async function ContactDetailPage({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {contact.phone && <CallTextButtons phone={contact.phone} />}
+          {/* Phones get the 52px action circles below instead */}
+          {contact.phone && (
+            <div className="hidden lg:flex items-center gap-2">
+              <CallTextButtons phone={contact.phone} />
+            </div>
+          )}
           {contact.email && (
             <EmailClientButton
               contactId={contact.id}
@@ -271,6 +277,17 @@ export default async function ContactDetailPage({
           <ContactCreateMenu contactId={contact.id} />
         </div>
       </div>
+
+      {/* Phone quick actions — the contact-card circle treatment (lg:hidden
+          inside the component) */}
+      <JobActionRow
+        phone={contact.phone}
+        address={
+          [contact.address, contact.city, contact.state, contact.zip]
+            .filter(Boolean)
+            .join(", ") || null
+        }
+      />
 
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Main: work overview */}

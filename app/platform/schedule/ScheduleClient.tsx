@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import PageTitle from "@/components/PageTitle";
 import { SECTION_HUES } from "@/lib/section-colors";
-import { FilterChip, FilterRow } from "@/components/FilterChips";
+import { FilterChip, SegmentedRow, Segment } from "@/components/FilterChips";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 
 /**
@@ -1234,35 +1234,34 @@ export default function ScheduleClient({
           </button>
         )}
       </div>
-      <div className="lg:hidden">
-        <FilterRow>
+      {/* One fixed row — segmented view control + team picker, everything
+          visible without sideways scrolling */}
+      <div className="mb-4 flex items-center gap-2 lg:hidden">
+        <SegmentedRow className="min-w-0 flex-1">
           {(["day", "week", "month"] as View[]).map((v) => (
-            <FilterChip key={v} hue={hue} active={view === v} onClick={() => go({ view: v })}>
+            <Segment key={v} active={view === v} onClick={() => go({ view: v })}>
               <span className="capitalize">{v}</span>
-            </FilterChip>
+            </Segment>
           ))}
-          {users.length > 1 && (
-            <>
-              <span className="mx-0.5 h-5 w-px shrink-0 bg-gray-200" aria-hidden />
-              <select
-                value={team}
-                onChange={(e) => go({ team: e.target.value })}
-                aria-label="Team member"
-                className="shrink-0 rounded-[9px] border border-gray-200 bg-white py-1.5 pl-3 pr-2 text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500"
-              >
-                <option value="">Everyone</option>
-                {users.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.name}
-                  </option>
-                ))}
-              </select>
-            </>
-          )}
-          {(saving || isPending) && (
-            <Loader2 size={15} className="shrink-0 animate-spin text-gray-400" />
-          )}
-        </FilterRow>
+        </SegmentedRow>
+        {users.length > 1 && (
+          <select
+            value={team}
+            onChange={(e) => go({ team: e.target.value })}
+            aria-label="Team member"
+            className="max-w-[128px] shrink-0 rounded-[10px] border border-gray-200 bg-white py-2 pl-3 pr-2 text-[13px] font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+          >
+            <option value="">Everyone</option>
+            {users.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.name}
+              </option>
+            ))}
+          </select>
+        )}
+        {(saving || isPending) && (
+          <Loader2 size={15} className="shrink-0 animate-spin text-gray-400" />
+        )}
       </div>
 
       {/* ── Desktop controls ── */}

@@ -10,14 +10,14 @@ import EmptyState from "@/components/EmptyState";
 import KpiStrip from "@/components/KpiStrip";
 import MobileSearch from "@/components/MobileSearch";
 import Monogram from "@/components/Monogram";
-import { FilterRow, FilterChip } from "@/components/FilterChips";
+import { FilterRow, FilterChip, SegmentedRow, Segment } from "@/components/FilterChips";
 import type { JobStatus } from "@prisma/client";
 
 const statusFilters = [
-  { value: "", label: "All" },
-  { value: "ACTIVE", label: "Active" },
-  { value: "REQUIRES_INVOICING", label: "Requires Invoicing" },
-  { value: "ARCHIVED", label: "Closed" },
+  { value: "", label: "All", mobile: "All" },
+  { value: "ACTIVE", label: "Active", mobile: "Active" },
+  { value: "REQUIRES_INVOICING", label: "Requires Invoicing", mobile: "To invoice" },
+  { value: "ARCHIVED", label: "Closed", mobile: "Closed" },
 ];
 
 export default async function JobsPage({
@@ -120,19 +120,33 @@ export default async function JobsPage({
 
       <KpiStrip kpis={kpis} desktopCols={3} hue={SECTION_HUES.jobs} />
 
-      {/* Filter tabs */}
-      <FilterRow>
+      {/* Filter tabs — phones get a segmented control (all options visible,
+          nothing scrolled off-screen); desktop keeps the chip rail */}
+      <SegmentedRow className="mb-4 lg:hidden">
         {statusFilters.map((f) => (
-          <FilterChip
+          <Segment
             key={f.value}
-            hue={SECTION_HUES.jobs}
             active={(validStatus ?? "") === f.value && !unscheduled}
             href={f.value ? `/app/jobs?status=${f.value}` : "/app/jobs"}
           >
-            {f.label}
-          </FilterChip>
+            {f.mobile}
+          </Segment>
         ))}
-      </FilterRow>
+      </SegmentedRow>
+      <div className="hidden lg:block">
+        <FilterRow>
+          {statusFilters.map((f) => (
+            <FilterChip
+              key={f.value}
+              hue={SECTION_HUES.jobs}
+              active={(validStatus ?? "") === f.value && !unscheduled}
+              href={f.value ? `/app/jobs?status=${f.value}` : "/app/jobs"}
+            >
+              {f.label}
+            </FilterChip>
+          ))}
+        </FilterRow>
+      </div>
 
       <div className="card-ledger overflow-hidden">
         {jobs.length === 0 ? (

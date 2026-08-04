@@ -155,7 +155,7 @@ export default function JobActions({
             <MoreHorizontal size={16} />
           </button>
           {open && (
-            <div className="sheet-material absolute right-0 top-full mt-1 z-30 w-56 rounded-lg shadow-xl border border-gray-200 py-1.5">
+            <div className="sheet-material absolute right-0 top-full mt-1 z-30 w-max min-w-[13rem] whitespace-nowrap rounded-lg shadow-xl border border-gray-200 py-1.5">
               {canEdit && status !== "ARCHIVED" && (
                 <button
                   onClick={() => router.push(`/app/jobs/${jobId}/edit`)}
