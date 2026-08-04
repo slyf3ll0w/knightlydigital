@@ -6,6 +6,7 @@ import { signOut, useSession } from "next-auth/react";
 import {
   Home,
   Briefcase,
+  Bell,
   CalendarClock,
   CalendarDays,
   Users,
@@ -14,7 +15,7 @@ import {
   Receipt,
   Settings,
   LogOut,
-  MoreHorizontal,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Plus,
@@ -41,8 +42,10 @@ import Avatar from "@/components/Avatar";
 import SwipeBack from "@/components/SwipeBack";
 import PullToRefresh from "@/components/PullToRefresh";
 import ConfirmSheetHost from "@/components/ConfirmSheet";
+import NotificationsSheet from "@/components/NotificationsSheet";
+import { HomeFill, ScheduleFill, ChatFill } from "@/components/TabIcons";
 import { mobileBackFor } from "@/lib/mobile-nav";
-import AtlasIcon, { AtlasMark } from "@/components/AtlasIcon";
+import { AtlasMark } from "@/components/AtlasIcon";
 import TourGuide from "@/components/TourGuide";
 import AssistantDrawer from "@/components/AssistantDrawer";
 import { shade, textOn } from "@/lib/branding";
@@ -213,14 +216,10 @@ const sectionTints: Record<string, string> = {
   "/app/settings/team": SECTION_HUES.team,
 };
 
-// Tab bar: Home · Schedule · [create] · Atlas · More. Everything else lives
-// in the More drawer — the hamburger pattern is retired on mobile.
-const mobileNav: NavItem[] = [
-  { href: "/app/dashboard", label: "Home", icon: Home },
-  { href: "/app/schedule", label: "Schedule", icon: CalendarDays },
-];
-// Companies with the assistant disabled get Jobs in the Atlas slot.
-const jobsTab: NavItem = { href: "/app/jobs", label: "Jobs", icon: Briefcase };
+// Tab bar: Home · Schedule · [create] · Chat · More. Everything else lives
+// in the More drawer — the hamburger pattern is retired on mobile, and the
+// assistant moved to a headline row in the More sheet when Chat took its
+// tab (Daylight & Dusk chrome).
 
 // iOS back control: on subpages the mobile header swaps the settings gear for
 // a "‹ Section" control (the label names where you came from, like a native
@@ -452,6 +451,25 @@ function useMemberships(open: boolean) {
   return { memberships, switching, switchTo };
 }
 
+/** Round company mark for the mobile header — the uploaded logo in a
+ *  circle, monogram on the brand accent as fallback. theme-fixed: the white
+ *  logo plate must not invert in dark mode. */
+function CompanyDot({ name, logoUrl }: { name: string; logoUrl?: string | null }) {
+  return (
+    <span className="theme-fixed relative flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[color:var(--mobile-accent)] text-[13px] font-bold text-[color:var(--mobile-on-accent)] ring-1 ring-black/10">
+      {(name.trim()[0] ?? "W").toUpperCase()}
+      {logoUrl && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={logoUrl}
+          alt=""
+          className="absolute inset-0 h-full w-full bg-white object-contain p-0.5"
+        />
+      )}
+    </span>
+  );
+}
+
 /** Square logo tile with the company initial underneath as fallback. */
 function CompanyTile({ name, logoUrl, size = 36 }: { name: string; logoUrl: string | null; size?: number }) {
   return (
@@ -588,7 +606,9 @@ function CompanySwitcher({
   }, [pathname]);
 
   return (
-    <div className="relative" ref={ref}>
+    // Desktop only — on phones the header's company-name button opens the
+    // switcher sheet directly (the Daylight & Dusk header owns that slot).
+    <div className="relative hidden lg:block" ref={ref}>
       <button
         type="button"
         onClick={() => {
@@ -626,14 +646,14 @@ function CompanySwitcherSheet({ open, onClose }: { open: boolean; onClose: () =>
   return (
     <>
       <div
-        className={`fixed inset-0 z-40 bg-black/30 sm:hidden transition-opacity duration-300 ${
+        className={`fixed inset-0 z-40 bg-black/30 lg:hidden transition-opacity duration-300 ${
           open ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
         onClick={onClose}
         aria-hidden
       />
       <div
-        className={`sheet-material fixed inset-x-0 bottom-0 z-50 flex max-h-[75dvh] flex-col rounded-t-3xl shadow-[0_-8px_30px_rgba(28,25,23,0.18)] transition-transform duration-300 [transition-timing-function:cubic-bezier(0.32,0.72,0,1)] sm:hidden ${
+        className={`sheet-material fixed inset-x-0 bottom-0 z-50 flex max-h-[75dvh] flex-col rounded-t-3xl shadow-[0_-8px_30px_rgba(28,25,23,0.18)] transition-transform duration-300 [transition-timing-function:cubic-bezier(0.32,0.72,0,1)] lg:hidden ${
           open ? "" : "pointer-events-none translate-y-full"
         }`}
       >
@@ -714,6 +734,7 @@ export default function AppShell({
   const router = useRouter();
   const [moreOpen, setMoreOpen] = useState(false);
   const [companySheetOpen, setCompanySheetOpen] = useState(false);
+  const [notifsOpen, setNotifsOpen] = useState(false);
   const [assistantOpen, setAssistantOpen] = useState(false);
   const mainRef = useRef<HTMLElement>(null);
 
@@ -778,6 +799,7 @@ export default function AppShell({
 
   useEffect(() => {
     setMoreOpen(false);
+    setNotifsOpen(false);
   }, [pathname]);
 
   // Nav badges (new requests, past-due invoices) — refreshed on every
@@ -1082,6 +1104,10 @@ export default function AppShell({
         userEmail={userEmail}
         userId={userId}
         isActive={isActive}
+        aiEnabled={assistantAvailable}
+        assistantName={assistantName || "Atlas"}
+        assistantAccent={brandColorSecondary || brandColor || undefined}
+        openAssistant={() => setAssistantOpen(true)}
       />
 
       {/* ── Main content area ─────────────────────────────────────────────── */}
@@ -1119,9 +1145,9 @@ export default function AppShell({
             style={{ background: "linear-gradient(90deg, var(--wb-primary), var(--wb-accent))" }}
           />
           {/* Mobile header, left slot: an iOS "‹ Section" back control on
-              subpages, the settings gear at the top level. Company identity
-              lives in the sidebar on desktop. The hamburger is retired — the
-              More tab opens the drawer. */}
+              subpages; at the top level it's the company's identity — round
+              logo, name, and a switcher chevron (the ClickWise header). The
+              hamburger is retired — the More tab opens the drawer. */}
           {mobileBack ? (
             <button
               type="button"
@@ -1136,27 +1162,47 @@ export default function AppShell({
               <span className="truncate text-[16px] font-medium">{mobileBack.label}</span>
             </button>
           ) : (
-            <Link
-              href={manager ? "/app/settings" : "/app/settings/profile"}
-              onClick={() => hapticImpact("LIGHT")}
-              aria-label={manager ? "Settings" : "My Profile"}
-              className="lg:hidden -ml-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-500 active:bg-gray-100 transition-colors"
+            <button
+              type="button"
+              onClick={() => {
+                hapticImpact("LIGHT");
+                setCompanySheetOpen(true);
+              }}
+              aria-label="Switch company"
+              className="lg:hidden -ml-0.5 flex h-10 min-w-0 max-w-[52%] shrink items-center gap-2.5 active:opacity-60 transition-opacity"
             >
-              <Settings size={20} />
-            </Link>
+              <CompanyDot name={companyName ?? "WorkBench"} logoUrl={companyLogoUrl} />
+              <span className="truncate text-[16px] font-bold tracking-tight text-gray-900">
+                {companyName ?? "WorkBench"}
+              </span>
+              <ChevronDown size={15} strokeWidth={2.6} className="shrink-0 text-gray-400" />
+            </button>
           )}
 
-          {/* Team chat, one tap from anywhere — red dot when messages wait */}
-          <Link
-            href="/app/chat"
-            onClick={() => hapticImpact("LIGHT")}
-            aria-label="Team chat"
-            className="lg:hidden ml-auto relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-500 active:bg-gray-100 transition-colors"
+          {/* Recent notifications — bare bell icon, red dot when anything
+              needs a look (requests / past-due / new leads). Chat moved to
+              the tab bar; settings keep their gear next door. */}
+          <button
+            type="button"
+            onClick={() => {
+              hapticImpact("LIGHT");
+              setNotifsOpen(true);
+            }}
+            aria-label="Notifications"
+            className="lg:hidden ml-auto relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-600 active:bg-gray-100 transition-colors"
           >
-            <MessagesSquare size={20} />
-            {counts.chat > 0 && (
-              <span className="absolute right-1 top-1 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white" />
+            <Bell size={21} />
+            {(counts.requests > 0 || counts.pastDue > 0 || counts.leads > 0) && (
+              <span className="absolute right-1 top-0.5 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white" />
             )}
+          </button>
+          <Link
+            href={manager ? "/app/settings" : "/app/settings/profile"}
+            onClick={() => hapticImpact("LIGHT")}
+            aria-label={manager ? "Settings" : "My Profile"}
+            className="lg:hidden -ml-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-600 active:bg-gray-100 transition-colors"
+          >
+            <Settings size={21} />
           </Link>
 
           <form
@@ -1201,7 +1247,7 @@ export default function AppShell({
 
           <Link
             href={manager ? "/app/settings" : "/app/settings/profile"}
-            className="hidden sm:flex p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+            className="hidden lg:flex p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
             title={manager ? "Settings" : "My Profile"}
           >
             <Settings size={17} />
@@ -1256,14 +1302,16 @@ export default function AppShell({
           would otherwise trap this fixed sheet) */}
       <CompanySwitcherSheet open={companySheetOpen} onClose={() => setCompanySheetOpen(false)} />
 
+      {/* Recent notifications — behind the header bell */}
+      <NotificationsSheet open={notifsOpen} onClose={() => setNotifsOpen(false)} />
+
       <MobileTabBar
         role={userRole}
         isActive={isActive}
         pastDue={counts.pastDue}
-        aiEnabled={assistantAvailable}
-        assistantName={assistantName || "Atlas"}
-        assistantOpen={assistantOpen}
-        openAssistant={() => setAssistantOpen(true)}
+        chatUnread={counts.chat}
+        userName={userName}
+        userId={userId}
         openMore={() => setMoreOpen(true)}
         previewMode={previewMode}
       />
@@ -1329,35 +1377,34 @@ export default function AppShell({
 }
 
 /**
- * Mobile bottom tab bar with a raised center create button. The button opens
- * a bottom sheet listing the same create actions as the sidebar menu — on
- * phones the sidebar is buried behind the hamburger, so creating anything
- * used to take three taps.
+ * Mobile bottom tab bar with a raised center create button. Daylight & Dusk
+ * chrome: every tab is tinted in the brand color (the active one at full
+ * strength — the Venmo read), icons are filled silhouettes, the create
+ * button rides proud of the bar on a chrome-colored ring, and More wears
+ * the user's avatar like a "Me" tab. Chat holds the fourth slot with a red
+ * dot when messages wait.
  */
 function MobileTabBar({
   role,
   isActive,
   pastDue,
-  aiEnabled,
-  assistantName,
-  assistantOpen,
-  openAssistant,
+  chatUnread,
+  userName,
+  userId,
   openMore,
   previewMode,
 }: {
   role: string;
   isActive: (href: string) => boolean;
   pastDue: number;
-  aiEnabled: boolean;
-  assistantName: string;
-  assistantOpen: boolean;
-  openAssistant: () => void;
+  chatUnread: number;
+  userName?: string | null;
+  userId?: string | null;
   openMore: () => void;
   previewMode?: boolean;
 }) {
   const pathname = usePathname();
   const [sheetOpen, setSheetOpen] = useState(false);
-  const tabs = forRole(mobileNav, role);
   const creates = forRole(createItems, role).filter(
     (i) => !previewMode || (i.href !== "/app/invoices/new" && i.href !== "/app/payments/new")
   );
@@ -1366,7 +1413,17 @@ function MobileTabBar({
     setSheetOpen(false);
   }, [pathname]);
 
-  const tabLink = ({ href, label, icon: Icon }: NavItem) => {
+  const tabClass = (active: boolean) =>
+    `flex-1 flex flex-col items-center gap-1 pt-2 pb-2.5 text-[10.5px] transition-colors ${
+      active ? "tab-ink-on font-semibold" : "tab-ink font-medium"
+    }`;
+
+  const tabLink = (
+    href: string,
+    label: string,
+    Icon: React.ComponentType<{ size?: number; className?: string }>,
+    dot = false
+  ) => {
     const active = isActive(href);
     return (
       <Link
@@ -1374,46 +1431,18 @@ function MobileTabBar({
         href={href}
         data-tour={tourKeys[href]}
         onClick={() => hapticImpact("LIGHT")}
-        className={`flex-1 flex flex-col items-center gap-1 pt-2 pb-2.5 text-[10px] font-medium transition-colors ${
-          active
-            ? "text-[color:var(--mobile-accent)] font-semibold"
-            : "text-gray-500 hover:text-gray-700"
-        }`}
+        className={tabClass(active)}
       >
-        <Icon size={22} />
+        <span className="relative">
+          <Icon size={24} />
+          {dot && (
+            <span className="absolute -right-1 -top-0.5 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-[color:var(--fab-ring)]" />
+          )}
+        </span>
         {label}
       </Link>
     );
   };
-
-  const tabButton = (
-    label: string,
-    Icon: React.ComponentType<{ size?: number }>,
-    onPress: () => void,
-    active: boolean,
-    badge = false
-  ) => (
-    <button
-      type="button"
-      onClick={() => {
-        hapticImpact("LIGHT");
-        onPress();
-      }}
-      className={`flex-1 flex flex-col items-center gap-1 pt-2 pb-2.5 text-[10px] font-medium transition-colors ${
-        active
-          ? "text-[color:var(--mobile-accent)] font-semibold"
-          : "text-gray-500 hover:text-gray-700"
-      }`}
-    >
-      <span className="relative">
-        <Icon size={22} />
-        {badge && (
-          <span className="absolute -top-1 -right-1.5 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />
-        )}
-      </span>
-      {label}
-    </button>
-  );
 
   return (
     <>
@@ -1499,9 +1528,10 @@ function MobileTabBar({
 
       {/* ── Mobile bottom tab bar ─────────────────────────────────────────── */}
       <nav className="mobile-tab-bar lg:hidden fixed bottom-0 inset-x-0 z-30 bg-chrome border-t border-gray-200 flex items-stretch pb-[env(safe-area-inset-bottom)]">
-        {tabs.map(tabLink)}
+        {tabLink("/app/dashboard", "Home", HomeFill)}
+        {tabLink("/app/schedule", "Schedule", ScheduleFill)}
         {creates.length > 0 && (
-          <div className="relative w-16 shrink-0">
+          <div className="relative w-[72px] shrink-0">
             <button
               onClick={() => {
                 setSheetOpen((v) => {
@@ -1511,10 +1541,10 @@ function MobileTabBar({
               }}
               aria-label="Create"
               data-tour="create"
-              className="absolute left-1/2 -translate-x-1/2 -top-4 flex h-12 w-12 items-center justify-center rounded-full bg-[color:var(--mobile-accent)] text-[color:var(--mobile-on-accent)] chip-tool active:scale-95 transition-transform"
+              className="absolute left-1/2 -translate-x-1/2 -top-6 flex h-14 w-14 items-center justify-center rounded-full border-4 border-[color:var(--fab-ring)] bg-[color:var(--mobile-accent)] text-[color:var(--mobile-on-accent)] shadow-[0_6px_16px_rgba(10,20,40,0.24)] active:scale-95 transition-transform"
             >
               <Plus
-                size={22}
+                size={24}
                 strokeWidth={2.5}
                 className={`transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
                   sheetOpen ? "rotate-[135deg]" : ""
@@ -1523,10 +1553,23 @@ function MobileTabBar({
             </button>
           </div>
         )}
-        {aiEnabled
-          ? tabButton(assistantName, AtlasIcon, openAssistant, assistantOpen)
-          : tabLink(jobsTab)}
-        {tabButton("More", MoreHorizontal, openMore, false, pastDue > 0)}
+        {tabLink("/app/chat", "Chat", ChatFill, chatUnread > 0)}
+        <button
+          type="button"
+          onClick={() => {
+            hapticImpact("LIGHT");
+            openMore();
+          }}
+          className={tabClass(false)}
+        >
+          <span className="relative">
+            <Avatar name={userName} userId={userId} size={24} />
+            {pastDue > 0 && (
+              <span className="absolute -right-1 -top-0.5 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-[color:var(--fab-ring)]" />
+            )}
+          </span>
+          More
+        </button>
       </nav>
     </>
   );
@@ -1548,6 +1591,10 @@ function MoreSheet({
   userEmail,
   userId,
   isActive,
+  aiEnabled,
+  assistantName,
+  assistantAccent,
+  openAssistant,
 }: {
   open: boolean;
   onClose: () => void;
@@ -1558,6 +1605,10 @@ function MoreSheet({
   userEmail?: string | null;
   userId?: string | null;
   isActive: (href: string) => boolean;
+  aiEnabled: boolean;
+  assistantName: string;
+  assistantAccent?: string;
+  openAssistant: () => void;
 }) {
   const manager = isManagerRole(role);
 
@@ -1672,6 +1723,31 @@ function MoreSheet({
             </div>
             <ChevronRight size={16} className="text-gray-300 shrink-0" />
           </Link>
+
+          {/* The assistant's seat since Chat took its tab — a headline row,
+              not a buried list item. */}
+          {aiEnabled && (
+            <button
+              type="button"
+              onClick={() => {
+                hapticImpact("LIGHT");
+                onClose();
+                openAssistant();
+              }}
+              className="card-tool mt-3 flex w-full items-center gap-3 px-4 py-3 text-left active:bg-gray-50 transition-colors"
+            >
+              <AtlasMark size={36} accent={assistantAccent} className="shrink-0 rounded-[10px]" />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[15px] font-semibold text-gray-900">
+                  {assistantName}
+                </span>
+                <span className="block truncate text-xs text-gray-500">
+                  Ask anything — or hand off a task
+                </span>
+              </span>
+              <ChevronRight size={16} className="text-gray-300 shrink-0" />
+            </button>
+          )}
 
           {navGroups
             .slice(1) // Home + Schedule already live on the tab bar

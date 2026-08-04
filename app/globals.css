@@ -125,7 +125,25 @@
     .chip-tool {
       box-shadow: none;
     }
-    .btn-tool,
+    /* Solid primaries keep the signature: a subtle hard offset that presses
+       flat under the thumb (the Daylight & Dusk button). No hover states on
+       touch — just raised → flat. */
+    .btn-tool {
+      box-shadow: 2px 2px 0 var(--tool-shadow, #0a1428);
+      transition:
+        transform 0.09s ease,
+        box-shadow 0.09s ease,
+        background-color 0.15s ease;
+    }
+    .btn-tool:hover {
+      transform: none;
+      box-shadow: 2px 2px 0 var(--tool-shadow, #0a1428);
+    }
+    .btn-tool:active {
+      transform: translate(2px, 2px);
+      box-shadow: 0 0 0 var(--tool-shadow, #0a1428);
+    }
+    /* Secondary/outlined buttons stay soft — one signature per screen */
     .btn-tool-line {
       box-shadow: none;
       transition:
@@ -133,12 +151,10 @@
         opacity 0.13s ease,
         background-color 0.15s ease;
     }
-    .btn-tool:hover,
     .btn-tool-line:hover {
       transform: none;
       box-shadow: none;
     }
-    .btn-tool:active,
     .btn-tool-line:active {
       transform: scale(0.97);
       box-shadow: none;
@@ -1326,4 +1342,69 @@ body {
     border: 2px solid transparent;
     background-clip: padding-box;
   }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   DUSK — the mobile dark theme (Daylight & Dusk redesign, phase 1). On
+   phones the near-black ground lifts to a slate about twice as bright, and
+   surfaces step ground → card → raised so depth reads without straining.
+   Everything derives from the --t-* tokens plus a handful of slate-tinted
+   neutrals; desktop dark keeps the near-black console palette untouched.
+   Must sit AFTER the dark bridge — same specificity, later wins.
+   ═══════════════════════════════════════════════════════════════════════ */
+@media (max-width: 1023px) {
+  /* Ring around the raised create button — solid, matched to the chrome it
+     pokes through (Venmo's notch effect without a real notch). */
+  .app-ui {
+    --fab-ring: color-mix(in srgb, var(--wb-primary, #0A1428) 4%, #ffffff);
+  }
+  html[data-mode="dark"] .app-ui {
+    --fab-ring: color-mix(in srgb, var(--wb-primary, #606673) 8%, #1F252E);
+  }
+  /* Tab-bar ink: every tab is tinted in the brand accent, the active one at
+     full strength (the Venmo read) — gray tabs read as generated chrome. */
+  .app-ui .tab-ink {
+    color: color-mix(in srgb, var(--mobile-accent, #0b57d8) 52%, #8a94a1);
+  }
+  .app-ui .tab-ink-on {
+    color: var(--mobile-accent, #0b57d8);
+  }
+  html[data-mode="dark"] .app-ui .tab-ink {
+    color: color-mix(in srgb, var(--mobile-accent, #3b82f6) 50%, #77828f);
+  }
+  html[data-mode="dark"] .app-ui {
+    --t-ground: color-mix(in srgb, var(--wb-accent, #0B57D8) 5%, #191E26);
+    --t-surface: #262E38;
+    --t-raised: #313A46;
+    --t-lifted: #3B4552;
+    --t-ink: #EDF1F6;
+    --t-line: rgba(255, 255, 255, 0.1);
+  }
+  /* Neutral grays go slate so text and fills sit in the same temperature
+     as the dusk ground instead of floating gray on blue-slate. */
+  html[data-mode="dark"] .app-ui .text-gray-700 { color: #C6CFD9; }
+  html[data-mode="dark"] .app-ui .text-gray-600 { color: #A2ADBA; }
+  html[data-mode="dark"] .app-ui .text-gray-500 { color: #93A0AF; }
+  html[data-mode="dark"] .app-ui .text-gray-400,
+  html[data-mode="dark"] .app-ui .disabled\:text-gray-400:disabled { color: #77828F; }
+  html[data-mode="dark"] .app-ui .bg-gray-200,
+  html[data-mode="dark"] .app-ui .hover\:bg-gray-200:hover { background-color: #3B4552; }
+  html[data-mode="dark"] .app-ui .bg-gray-300 { background-color: #46515F; }
+  html[data-mode="dark"] .app-ui .bg-gray-800,
+  html[data-mode="dark"] .app-ui .hover\:bg-gray-700:hover { background-color: #414C5A; }
+  html[data-mode="dark"] .app-ui .bg-gray-900 { background-color: #3B4552; }
+  /* Chrome + floating glass take the dusk slate too */
+  html[data-mode="dark"] .app-ui .bg-chrome {
+    background-color: color-mix(in srgb, var(--wb-primary, #606673) 8%, rgba(31, 37, 46, 0.85));
+  }
+  html[data-mode="dark"] .app-ui .sheet-material {
+    background-color: color-mix(in srgb, var(--wb-primary, #606673) 10%, rgba(42, 50, 61, 0.62));
+  }
+  /* Cards ride slightly stronger shadows — dusk's lighter ground needs a
+     touch more separation than near-black did. */
+  html[data-mode="dark"] .app-ui .card-ledger {
+    box-shadow:
+      0 1px 2px rgba(9, 13, 19, 0.5),
+      0 4px 14px rgba(9, 13, 19, 0.32);
+  }
+}
 

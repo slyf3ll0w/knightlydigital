@@ -34,6 +34,7 @@ type JobWithContact = {
   scheduledAnytime: boolean;
   subscriptionId: string | null;
   contact: { firstName: string; lastName: string };
+  assignments?: { user: { name: string | null } }[];
 };
 
 function toDTO(j: JobWithContact): ScheduleJobDTO {
@@ -49,6 +50,9 @@ function toDTO(j: JobWithContact): ScheduleJobDTO {
     scheduledAnytime: j.scheduledAnytime,
     contactName: `${j.contact.firstName} ${j.contact.lastName}`.trim(),
     recurring: !!j.subscriptionId,
+    assignees: (j.assignments ?? [])
+      .map((a) => a.user.name?.trim() ?? "")
+      .filter(Boolean),
   };
 }
 
@@ -62,6 +66,7 @@ type ApptWithContact = {
   scheduledAnytime: boolean;
   tentative: boolean;
   contact: { firstName: string; lastName: string };
+  assignedTo?: { name: string | null } | null;
 };
 
 function apptToDTO(a: ApptWithContact): ScheduleJobDTO {
@@ -77,6 +82,7 @@ function apptToDTO(a: ApptWithContact): ScheduleJobDTO {
     scheduledAnytime: a.scheduledAnytime,
     contactName: `${a.contact.firstName} ${a.contact.lastName}`.trim(),
     tentative: a.tentative,
+    assignees: a.assignedTo?.name?.trim() ? [a.assignedTo.name.trim()] : [],
   };
 }
 
@@ -210,7 +216,12 @@ export default async function SchedulePage({
   const [jobs, appointments, unscheduled, users, blocks] = await Promise.all([
     prisma.job.findMany({
       where: { companyId, ...scope, scheduledAt: { gte: fetchStart, lte: fetchEnd }, ...teamWhere },
-      include: { contact: { select: { firstName: true, lastName: true } } },
+      include: {
+        contact: { select: { firstName: true, lastName: true } },
+        // Who's on it — the phone agenda shows initials so the company-wide
+        // view answers "whose day is this?" without the team filter
+        assignments: { select: { user: { select: { name: true } } } },
+      },
       orderBy: { scheduledAt: "asc" },
     }),
     showAppointments
@@ -222,7 +233,10 @@ export default async function SchedulePage({
             scheduledAt: { gte: fetchStart, lte: fetchEnd },
             ...(team ? { assignedToId: team } : {}),
           },
-          include: { contact: { select: { firstName: true, lastName: true } } },
+          include: {
+            contact: { select: { firstName: true, lastName: true } },
+            assignedTo: { select: { name: true } },
+          },
           orderBy: { scheduledAt: "asc" },
         })
       : Promise.resolve([]),
