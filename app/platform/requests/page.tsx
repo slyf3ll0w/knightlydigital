@@ -9,6 +9,7 @@ import StatusChip from "@/components/StatusChip";
 import EmptyState from "@/components/EmptyState";
 import KpiStrip from "@/components/KpiStrip";
 import MobileSearch from "@/components/MobileSearch";
+import Monogram from "@/components/Monogram";
 import { requirePageActor, canSell, viaContactScope, seesAllLeads } from "@/lib/permissions";
 import type { RequestStatus } from "@prisma/client";
 
@@ -178,19 +179,26 @@ export default async function RequestsPage({
                 href={`/app/requests/${r.id}`}
                 className="block lg:grid lg:grid-cols-[1fr_1fr_140px_130px_40px] lg:gap-4 lg:items-center px-4 py-3 lg:py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
               >
-                {/* Phone row: the work leads, the client supports */}
-                <div className="lg:hidden min-w-0">
-                  <div className="flex items-baseline justify-between gap-3">
-                    <p className="min-w-0 flex-1 truncate text-[15px] font-semibold text-gray-900">
-                      {r.title}
-                    </p>
-                    <p className="shrink-0 text-xs text-gray-500">{shortDate(r.createdAt)}</p>
-                  </div>
-                  <div className="mt-0.5 flex items-center justify-between gap-3">
-                    <p className="min-w-0 flex-1 truncate text-[13px] text-gray-600">
-                      {r.contact.firstName} {r.contact.lastName}
-                    </p>
-                    <StatusChip kind="request" status={r.status} className="shrink-0" />
+                {/* Phone row: monogram anchor, the work leads, the client
+                    supports */}
+                <div className="lg:hidden flex min-w-0 items-center gap-3">
+                  <Monogram
+                    name={`${r.contact.firstName} ${r.contact.lastName}`}
+                    size={40}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <p className="min-w-0 flex-1 truncate text-[15.5px] font-semibold text-gray-900">
+                        {r.title}
+                      </p>
+                      <p className="shrink-0 text-xs text-gray-500">{shortDate(r.createdAt)}</p>
+                    </div>
+                    <div className="mt-0.5 flex items-center justify-between gap-3">
+                      <p className="min-w-0 flex-1 truncate text-[13px] text-gray-600">
+                        {r.contact.firstName} {r.contact.lastName}
+                      </p>
+                      <StatusChip kind="request" status={r.status} className="shrink-0" />
+                    </div>
                   </div>
                 </div>
                 <span className="hidden lg:block text-sm font-medium text-gray-900">

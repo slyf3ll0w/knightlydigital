@@ -11,6 +11,7 @@ import StatusChip from "@/components/StatusChip";
 import EmptyState from "@/components/EmptyState";
 import KpiStrip from "@/components/KpiStrip";
 import MobileSearch from "@/components/MobileSearch";
+import Monogram from "@/components/Monogram";
 import type { InvoiceStatus } from "@prisma/client";
 
 const statusFilters = [
@@ -200,27 +201,36 @@ export default async function InvoicesPage({
                     href={`/app/invoices/${inv.id}`}
                     className="block lg:grid lg:grid-cols-[1fr_70px_130px_150px_100px_100px_40px] lg:gap-4 lg:items-center px-4 py-3 lg:py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
                   >
-                    {/* Phone row: name + the amount that matters (balance while
-                        anything is owed, else the total), then #/due + status.
-                        Two unlabeled amounts side by side read as a typo. */}
-                    <div className="lg:hidden min-w-0">
-                      <div className="flex items-baseline justify-between gap-3">
-                        <p className="min-w-0 flex-1 truncate text-sm font-medium text-gray-900">
-                          {inv.contact ? `${inv.contact.firstName} ${inv.contact.lastName}` : "—"}
-                        </p>
-                        <p className="numeral-ledger shrink-0 text-sm font-semibold text-gray-900">
-                          {money(balance > 0 ? balance : inv.total)}
-                        </p>
-                      </div>
-                      <div className="mt-1 flex items-center justify-between gap-3">
-                        <p className="min-w-0 flex-1 truncate text-xs text-gray-500">
-                          #{inv.invoiceNumber}
-                          {/* A dash for a missing due date reads like a glitch —
-                              say nothing instead */}
-                          {balance > 0 && inv.dueDate ? ` · Due ${shortDate(inv.dueDate)}` : ""}
-                          {inv.subject ? ` · ${inv.subject}` : ""}
-                        </p>
-                        <StatusChip kind="invoice" status={inv.status} className="shrink-0" />
+                    {/* Phone row: monogram anchor, name + the amount that
+                        matters (balance while anything is owed, else the
+                        total), then #/due + status. Two unlabeled amounts
+                        side by side read as a typo. */}
+                    <div className="lg:hidden flex min-w-0 items-center gap-3">
+                      {inv.contact && (
+                        <Monogram
+                          name={`${inv.contact.firstName} ${inv.contact.lastName}`}
+                          size={40}
+                        />
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-baseline justify-between gap-3">
+                          <p className="min-w-0 flex-1 truncate text-[15.5px] font-semibold text-gray-900">
+                            {inv.contact ? `${inv.contact.firstName} ${inv.contact.lastName}` : "—"}
+                          </p>
+                          <p className="numeral-ledger shrink-0 text-sm font-semibold text-gray-900">
+                            {money(balance > 0 ? balance : inv.total)}
+                          </p>
+                        </div>
+                        <div className="mt-1 flex items-center justify-between gap-3">
+                          <p className="min-w-0 flex-1 truncate text-xs text-gray-500">
+                            #{inv.invoiceNumber}
+                            {/* A dash for a missing due date reads like a glitch —
+                                say nothing instead */}
+                            {balance > 0 && inv.dueDate ? ` · Due ${shortDate(inv.dueDate)}` : ""}
+                            {inv.subject ? ` · ${inv.subject}` : ""}
+                          </p>
+                          <StatusChip kind="invoice" status={inv.status} className="shrink-0" />
+                        </div>
                       </div>
                     </div>
                     <div className="hidden lg:block min-w-0">

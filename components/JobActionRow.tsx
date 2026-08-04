@@ -44,10 +44,10 @@ export default function JobActionRow({
   if (actions.length === 0) return null;
 
   return (
-    <div
-      className="mb-5 grid gap-2 lg:hidden"
-      style={{ gridTemplateColumns: `repeat(${actions.length}, minmax(0, 1fr))` }}
-    >
+    // 52px action circles (the Daylight & Dusk contact treatment) — round
+    // accent-soft targets with the label underneath, like the phone's own
+    // contact card. The green utilities bridge to the tenant accent.
+    <div className="mb-5 flex justify-around lg:hidden">
       {actions.map(({ href, icon: Icon, label, ...rest }) => (
         <a
           key={label}
@@ -55,10 +55,12 @@ export default function JobActionRow({
           {...("external" in rest && rest.external
             ? { target: "_blank", rel: "noopener noreferrer" }
             : {})}
-          className="flex flex-col items-center gap-1 rounded-[14px] bg-green-100 py-2.5 text-green-700 transition-transform active:scale-95"
+          className="flex flex-col items-center gap-1.5 text-[12px] font-semibold text-green-700 active:opacity-70"
         >
-          <Icon size={18} strokeWidth={2.1} />
-          <span className="text-[11px] font-semibold">{label}</span>
+          <span className="flex h-[52px] w-[52px] items-center justify-center rounded-full bg-green-100 transition-transform active:scale-95">
+            <Icon size={22} strokeWidth={2.1} />
+          </span>
+          {label}
         </a>
       ))}
     </div>

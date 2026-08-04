@@ -9,6 +9,7 @@ import ContactStatus from "@/components/ContactStatus";
 import EmptyState from "@/components/EmptyState";
 import { requirePageActor, canSell, contactScope, seesAllLeads, isManager } from "@/lib/permissions";
 import { contactSearchWhere } from "@/lib/contact-search";
+import Monogram from "@/components/Monogram";
 
 // Leads live on the Leads board now — this page is clients (searching still
 // finds leads so the header search never dead-ends).
@@ -176,14 +177,21 @@ export default async function ContactsPage({
                 <Link
                   key={c.id}
                   href={`/app/contacts/${c.id}`}
-                  className="flex lg:grid lg:grid-cols-[1fr_1fr_110px_120px_120px_40px] gap-4 items-center px-4 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
+                  className="flex lg:grid lg:grid-cols-[1fr_1fr_110px_120px_120px_40px] gap-3 lg:gap-4 items-center px-4 py-3 lg:py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
                 >
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">
+                  {/* Monogram anchors the phone row (identity color, not a
+                      section hue) — desktop keeps the dense ledger grid */}
+                  <Monogram
+                    name={`${c.firstName} ${c.lastName}`}
+                    size={40}
+                    className="lg:hidden"
+                  />
+                  <div className="min-w-0 flex-1 lg:flex-none">
+                    <p className="text-[15.5px] lg:text-sm font-semibold lg:font-medium text-gray-900 truncate">
                       {c.firstName} {c.lastName}
                     </p>
                     {(c.companyName || c.phone || c.email) && (
-                      <p className="text-xs text-gray-500 truncate">
+                      <p className="text-[13px] lg:text-xs text-gray-500 truncate">
                         {[c.companyName, c.phone || c.email].filter(Boolean).join(" · ")}
                       </p>
                     )}
