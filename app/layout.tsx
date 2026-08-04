@@ -32,7 +32,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    // suppressHydrationWarning: the theme stamp below adds data-mode to <html>
+    // before hydration; without this React 19 flags the mismatch (#418) and
+    // "repairs" the element — wiping data-mode and kicking the app back to
+    // light theme. Attribute-level suppression, children still validated.
+    <html lang="en" suppressHydrationWarning>
       <head>
         <meta name="theme-color" content="#0A1428" />
         {/* Theme stamp — runs before paint so there's no light/dark flash.
