@@ -156,14 +156,39 @@ model Company {
 
 // ─── Users ───────────────────────────────────────────────────────────────────
 
+// One login per email address. An Account can hold memberships at several
+// companies — each membership is a User row (which keeps its role, hourly
+// cost, assignments, time entries, etc. scoped to that company). The session
+// always points at ONE User row (the "active company"); switching companies
+// re-points it. Identity (name, avatar, email, password) is account-level and
+// fanned out to the member rows so every existing per-row read keeps working.
+model Account {
+  id           String   @id @default(cuid())
+  email        String   @unique // always stored lowercased (lib/user-email.ts)
+  passwordHash String
+  // The User row (membership) the last session used — sign-in lands here.
+  // Plain string on purpose: memberships get deleted with their company, and
+  // login falls back to the oldest active membership when this row is gone.
+  lastActiveUserId String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  users               User[]
+}
+
 model User {
   id           String   @id @default(cuid())
-  email        String   @unique
+  email        String
   name         String
-  passwordHash String
+  // Legacy (pre-Account) login hash — Account.passwordHash is authoritative.
+  // Kept nullable so old rows keep signing in until the backfill/first-login
+  // lazily creates their Account (lib/account.ts).
+  passwordHash String?
   role         Role     @default(TECH)
   companyId    String?
   company      Company? @relation(fields: [companyId], references: [id])
+  accountId    String?
+  account      Account? @relation(fields: [accountId], references: [id])
   phone        String?
   isActive     Boolean  @default(true)
   // Accepts online-booking slots: this user's free time feeds the public slot
@@ -208,8 +233,12 @@ model User {
   checklistChecks  JobChecklistItem[]
   feedbackTickets  FeedbackTicket[]
 
+  // Same address may exist at several companies (one row per membership),
+  // but only once within a company.
+  @@unique([email, companyId])
   @@index([companyId])
   @@index([role])
+  @@index([accountId])
 }
 
 // Self-serve password reset. We store only a SHA-256 hash of the emailed token,

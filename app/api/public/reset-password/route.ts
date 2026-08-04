@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHash } from "crypto";
-import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
+import { setPasswordForUser } from "@/lib/account";
 
 /**
  * POST { token, password } — complete a password reset. Validates the token by
@@ -33,11 +33,11 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const passwordHash = await bcrypt.hash(password, 12);
-  // Set the password and consume the token together; also drop any other
-  // outstanding reset tokens for this user.
+  // The new password lands on the Account — one login across every company
+  // this person belongs to (lib/account.ts) — then the token is consumed and
+  // any other outstanding reset tokens dropped.
+  await setPasswordForUser(record.userId, password);
   await prisma.$transaction([
-    prisma.user.update({ where: { id: record.userId }, data: { passwordHash } }),
     prisma.passwordResetToken.update({ where: { id: record.id }, data: { usedAt: new Date() } }),
     prisma.passwordResetToken.deleteMany({
       where: { userId: record.userId, usedAt: null, id: { not: record.id } },

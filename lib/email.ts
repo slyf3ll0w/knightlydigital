@@ -455,6 +455,40 @@ export function passwordResetEmail({
 }
 
 /**
+ * Heads-up when an existing WorkBench login gets added to another company's
+ * team (multi-company accounts). Nothing to accept — the membership is live;
+ * they switch companies from their profile picture. Hub-branded.
+ */
+export function teamAddedEmail({
+  name,
+  companyName,
+  roleLabel,
+}: {
+  name: string;
+  companyName: string;
+  roleLabel: string;
+}): { subject: string; html: string } {
+  const base = process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com";
+  const html = wbShell({
+    label: "Team update",
+    inner: `
+      <p style="margin:0 0 12px;color:#111827;font-size:15px;">Hi ${esc(name)},</p>
+      <p style="margin:0 0 16px;color:#374151;font-size:14px;">
+        <strong>${esc(companyName)}</strong> just added you to their team on
+        WorkBench as <strong>${esc(roleLabel)}</strong>. Your sign-in stays the
+        same — after signing in, tap your profile picture to switch between
+        your companies.
+      </p>
+      ${wbBtn(`${base}/app/dashboard`, "Open WorkBench")}
+      <p style="margin:16px 0 0;color:#6b7280;font-size:12px;">
+        Not expecting this? Ask ${esc(companyName)} to remove you from their
+        team, or contact support.
+      </p>`,
+  });
+  return { subject: `${companyName} added you to their team on WorkBench`, html };
+}
+
+/**
  * Confirm a new sign-in address. Goes TO the new address — clicking the link
  * is what proves the person asking actually owns that inbox.
  */

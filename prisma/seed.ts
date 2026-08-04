@@ -12,18 +12,31 @@ async function main() {
     console.log("Seed: SUPERADMIN_PASSWORD not set — superadmin unchanged.");
     return;
   }
-  const email = process.env.SUPERADMIN_EMAIL ?? "info@streamflaire.com";
+  const email = (process.env.SUPERADMIN_EMAIL ?? "info@streamflaire.com").trim().toLowerCase();
   const hash = await bcrypt.hash(password, 12);
-  const admin = await prisma.user.upsert({
+  // The login lives on the Account (multi-company model); the SUPERADMIN User
+  // row is the console membership hanging off it.
+  const account = await prisma.account.upsert({
     where: { email },
-    update: { passwordHash: hash, role: "SUPERADMIN", isActive: true },
-    create: {
-      email,
-      name: "Workbench Admin",
-      passwordHash: hash,
-      role: "SUPERADMIN",
-    },
+    update: { passwordHash: hash },
+    create: { email, passwordHash: hash },
   });
+  const existing = await prisma.user.findFirst({
+    where: { email: { equals: email, mode: "insensitive" }, role: "SUPERADMIN" },
+  });
+  const admin = existing
+    ? await prisma.user.update({
+        where: { id: existing.id },
+        data: { passwordHash: null, isActive: true, accountId: account.id },
+      })
+    : await prisma.user.create({
+        data: {
+          email,
+          name: "Workbench Admin",
+          role: "SUPERADMIN",
+          accountId: account.id,
+        },
+      });
   console.log("Seed complete. Superadmin:", email, "id:", admin.id);
 }
 

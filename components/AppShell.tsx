@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { signOut } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 import {
   Home,
   Briefcase,
@@ -33,6 +33,8 @@ import {
   SquareKanban,
   Timer,
   X,
+  Check,
+  Loader2,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import Avatar from "@/components/Avatar";
@@ -52,6 +54,7 @@ import {
   sectionColorVars,
 } from "@/lib/section-colors";
 import { hapticImpact } from "@/lib/haptics";
+import { switchToMembership } from "@/lib/company-switch";
 import { WALLPAPER_PATTERNS } from "@/lib/wallpapers";
 import { GOOGLE_FONT_RE } from "@/lib/booking-form";
 
@@ -401,6 +404,235 @@ function UserMenu({
   );
 }
 
+// ── Company switcher ─────────────────────────────────────────────────────────
+// One login can belong to several companies (multi-company accounts). The
+// top-bar profile picture opens this: a bottom sheet on phones, an anchored
+// dropdown on larger screens. Switching re-points the session at the chosen
+// membership and hard-reloads into its dashboard (lib/company-switch.ts).
+
+type MembershipEntry = {
+  userId: string;
+  companyId: string;
+  companyName: string;
+  companyLogoUrl: string | null;
+  role: string;
+  roleLabel: string;
+  current: boolean;
+};
+
+/** Lazy-loads memberships the first time the switcher opens. */
+function useMemberships(open: boolean) {
+  const { update } = useSession();
+  const [memberships, setMemberships] = useState<MembershipEntry[] | null>(null);
+  const [switching, setSwitching] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open || memberships !== null) return;
+    let cancelled = false;
+    fetch("/api/app/account/companies")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!cancelled) setMemberships((d?.companies as MembershipEntry[]) ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setMemberships([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, memberships]);
+
+  async function switchTo(m: MembershipEntry) {
+    if (m.current || switching) return;
+    setSwitching(m.userId);
+    hapticImpact("MEDIUM");
+    await switchToMembership(update, m.userId);
+  }
+
+  return { memberships, switching, switchTo };
+}
+
+/** Square logo tile with the company initial underneath as fallback. */
+function CompanyTile({ name, logoUrl, size = 36 }: { name: string; logoUrl: string | null; size?: number }) {
+  return (
+    <span
+      className="relative flex shrink-0 items-center justify-center overflow-hidden rounded-[10px] bg-gray-900 font-semibold text-white"
+      style={{ width: size, height: size, fontSize: Math.round(size * 0.42) }}
+    >
+      {(name.trim()[0] ?? "?").toUpperCase()}
+      {logoUrl && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={logoUrl} alt="" className="absolute inset-0 h-full w-full bg-white object-contain" />
+      )}
+    </span>
+  );
+}
+
+function MembershipRows({
+  memberships,
+  switching,
+  switchTo,
+  onClose,
+  compact,
+}: {
+  memberships: MembershipEntry[] | null;
+  switching: string | null;
+  switchTo: (m: MembershipEntry) => void;
+  onClose: () => void;
+  compact?: boolean;
+}) {
+  const pad = compact ? "px-3.5 py-2" : "px-4 py-3";
+  return (
+    <>
+      {memberships === null && (
+        <div className={`flex items-center gap-2.5 ${pad} text-sm text-gray-400`}>
+          <Loader2 size={15} className="animate-spin" />
+          Loading your companies…
+        </div>
+      )}
+      {memberships?.map((m) => (
+        <button
+          key={m.userId}
+          onClick={() => switchTo(m)}
+          disabled={Boolean(switching)}
+          className={`flex w-full items-center gap-3 ${pad} text-left transition-colors ${
+            m.current ? "" : "hover:bg-gray-50 active:bg-gray-50"
+          } disabled:opacity-60`}
+        >
+          <CompanyTile name={m.companyName} logoUrl={m.companyLogoUrl} size={compact ? 30 : 36} />
+          <span className="min-w-0 flex-1">
+            <span className={`block truncate font-semibold text-gray-900 ${compact ? "text-sm" : "text-[15px]"}`}>
+              {m.companyName}
+            </span>
+            <span className="block truncate text-xs text-gray-500">{m.roleLabel}</span>
+          </span>
+          {switching === m.userId ? (
+            <Loader2 size={16} className="shrink-0 animate-spin text-gray-400" />
+          ) : m.current ? (
+            <Check size={16} className="shrink-0 text-green-600" strokeWidth={2.5} />
+          ) : null}
+        </button>
+      ))}
+      <div className="my-1 border-t border-gray-100" />
+      <Link
+        href="/app/register"
+        onClick={() => {
+          hapticImpact("LIGHT");
+          onClose();
+        }}
+        className={`flex items-center gap-3 ${pad} transition-colors hover:bg-gray-50 active:bg-gray-50`}
+      >
+        <span
+          className="flex shrink-0 items-center justify-center rounded-[10px] border-[1.5px] border-dashed border-gray-300 text-gray-400"
+          style={{ width: compact ? 30 : 36, height: compact ? 30 : 36 }}
+        >
+          <Plus size={16} />
+        </span>
+        <span className={`font-medium text-gray-700 ${compact ? "text-sm" : "text-[15px]"}`}>
+          New company
+        </span>
+      </Link>
+    </>
+  );
+}
+
+/**
+ * The top-bar avatar button. Opens an anchored dropdown on sm+ screens; on
+ * phones it defers to the bottom sheet (CompanySwitcherSheet), which must be
+ * rendered OUTSIDE the header — the header's backdrop-filter makes it the
+ * containing block for fixed descendants, which would trap the sheet.
+ */
+function CompanySwitcher({
+  userName,
+  userId,
+  onOpenSheet,
+}: {
+  userName?: string | null;
+  userId?: string | null;
+  onOpenSheet: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const pathname = usePathname();
+  const { memberships, switching, switchTo } = useMemberships(open);
+
+  useEffect(() => {
+    function onClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, []);
+
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => {
+          hapticImpact("LIGHT");
+          if (window.matchMedia("(min-width: 640px)").matches) setOpen((v) => !v);
+          else onOpenSheet();
+        }}
+        aria-label="Switch company"
+        className="flex h-9 w-9 items-center justify-center rounded-full active:bg-gray-100 transition-colors"
+      >
+        <Avatar name={userName} userId={userId} size={32} className="ring-gray-200" />
+      </button>
+
+      {open && (
+        <div className="anim-create-pop absolute right-0 top-full z-50 mt-1.5 hidden w-72 overflow-hidden card-tool py-1.5 sm:block">
+          <p className="px-3.5 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+            Your companies
+          </p>
+          <MembershipRows
+            memberships={memberships}
+            switching={switching}
+            switchTo={switchTo}
+            onClose={() => setOpen(false)}
+            compact
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Phone bottom sheet for the switcher — same material as the More sheet. */
+function CompanySwitcherSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { memberships, switching, switchTo } = useMemberships(open);
+  return (
+    <>
+      <div
+        className={`fixed inset-0 z-40 bg-black/30 sm:hidden transition-opacity duration-300 ${
+          open ? "opacity-100" : "pointer-events-none opacity-0"
+        }`}
+        onClick={onClose}
+        aria-hidden
+      />
+      <div
+        className={`sheet-material fixed inset-x-0 bottom-0 z-50 flex max-h-[75dvh] flex-col rounded-t-3xl shadow-[0_-8px_30px_rgba(28,25,23,0.18)] transition-transform duration-300 [transition-timing-function:cubic-bezier(0.32,0.72,0,1)] sm:hidden ${
+          open ? "" : "pointer-events-none translate-y-full"
+        }`}
+      >
+        <div className="mx-auto mt-2.5 h-1 w-9 shrink-0 rounded-full bg-gray-300" />
+        <p className="px-5 pb-1 pt-3 text-[13px] font-semibold text-gray-500">Your companies</p>
+        <div className="overflow-y-auto px-1.5 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+          <MembershipRows
+            memberships={memberships}
+            switching={switching}
+            switchTo={switchTo}
+            onClose={onClose}
+          />
+        </div>
+      </div>
+    </>
+  );
+}
+
 interface AppShellProps {
   children: React.ReactNode;
   userName?: string | null;
@@ -462,6 +694,7 @@ export default function AppShell({
   const pathname = usePathname();
   const router = useRouter();
   const [moreOpen, setMoreOpen] = useState(false);
+  const [companySheetOpen, setCompanySheetOpen] = useState(false);
   const [assistantOpen, setAssistantOpen] = useState(false);
   const mainRef = useRef<HTMLElement>(null);
 
@@ -954,7 +1187,11 @@ export default function AppShell({
           >
             <Settings size={17} />
           </Link>
-          <Avatar name={userName} userId={userId} size={32} className="hidden sm:flex ring-gray-200" />
+          <CompanySwitcher
+            userName={userName}
+            userId={userId}
+            onOpenSheet={() => setCompanySheetOpen(true)}
+          />
 
           {/* Collapsed large title — fades up into the blurred bar once the
               in-page title scrolls away (iOS nav-bar behavior). Bottom-anchored
@@ -995,6 +1232,10 @@ export default function AppShell({
 
       {/* Mobile confirm sheet — imperative host for confirmSheet() */}
       <ConfirmSheetHost />
+
+      {/* Phone company switcher — outside the header (its backdrop-filter
+          would otherwise trap this fixed sheet) */}
+      <CompanySwitcherSheet open={companySheetOpen} onClose={() => setCompanySheetOpen(false)} />
 
       <MobileTabBar
         role={userRole}

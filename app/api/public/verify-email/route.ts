@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHash } from "crypto";
 import { prisma } from "@/lib/db";
-import { emailWhere } from "@/lib/user-email";
+import { emailInUseByOther, ensureAccountForUser } from "@/lib/account";
 
 /**
  * POST { token } — finish a change of sign-in address.
@@ -21,7 +21,11 @@ export async function POST(req: NextRequest) {
   const tokenHash = createHash("sha256").update(token).digest("hex");
   const record = await prisma.emailChangeToken.findUnique({
     where: { tokenHash },
-    include: { user: { select: { id: true, name: true, isActive: true } } },
+    include: {
+      user: {
+        select: { id: true, name: true, isActive: true, email: true, passwordHash: true, accountId: true },
+      },
+    },
   });
 
   if (!record || record.usedAt || record.expiresAt < new Date()) {
@@ -34,13 +38,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "This account is no longer active." }, { status: 400 });
   }
 
+  // The address is the LOGIN — moving it moves the Account and every company
+  // membership hanging off it, so all of them (and the Account row) update
+  // together below.
+  const account = await ensureAccountForUser(record.user);
+
   // Re-check: the address was free when the link was sent, but someone else
   // could have claimed it in the hour since.
-  const taken = await prisma.user.findFirst({
-    where: { ...emailWhere(record.newEmail), NOT: { id: record.userId } },
-    select: { id: true },
-  });
-  if (taken) {
+  if (await emailInUseByOther(record.newEmail, account?.id ?? null)) {
     return NextResponse.json(
       { error: "That email is now in use by another account." },
       { status: 400 }
@@ -50,16 +55,24 @@ export async function POST(req: NextRequest) {
   // Consume the token and move the address together — a failure on either
   // half must not leave a live token or a half-applied change. Any other
   // pending requests for this user die with it.
-  await prisma.$transaction([
-    prisma.user.update({ where: { id: record.userId }, data: { email: record.newEmail } }),
-    prisma.emailChangeToken.update({
+  await prisma.$transaction(async (tx) => {
+    if (account) {
+      await tx.account.update({ where: { id: account.id }, data: { email: record.newEmail } });
+      await tx.user.updateMany({
+        where: { accountId: account.id },
+        data: { email: record.newEmail },
+      });
+    } else {
+      await tx.user.update({ where: { id: record.userId }, data: { email: record.newEmail } });
+    }
+    await tx.emailChangeToken.update({
       where: { id: record.id },
       data: { usedAt: new Date() },
-    }),
-    prisma.emailChangeToken.deleteMany({
+    });
+    await tx.emailChangeToken.deleteMany({
       where: { userId: record.userId, usedAt: null },
-    }),
-  ]);
+    });
+  });
 
   return NextResponse.json({ success: true, email: record.newEmail });
 }

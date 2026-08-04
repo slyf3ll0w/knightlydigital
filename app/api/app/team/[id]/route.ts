@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { getActor, isManager, canManageRole, type Role } from "@/lib/permissions";
+import { ensureAccountForUser, setPasswordForUser } from "@/lib/account";
 
 /**
  * PATCH — edit a team member: role, active toggle, password reset, name/phone.
@@ -63,11 +63,31 @@ export async function PATCH(
     data.isActive = Boolean(body.isActive);
   }
 
+  let passwordToSet: string | null = null;
   if (body.password !== undefined) {
     if (String(body.password).length < 8 || String(body.password).length > 72) {
       return NextResponse.json({ error: "Password must be 8–72 characters." }, { status: 400 });
     }
-    data.passwordHash = await bcrypt.hash(body.password, 12);
+    // The password belongs to the PERSON, not the company. A manager may only
+    // reset it while this company is the login's sole membership — someone
+    // who also works elsewhere manages their own password (profile page or
+    // the Forgot password link).
+    const account = await ensureAccountForUser(target);
+    if (account) {
+      const siblings = await prisma.user.count({
+        where: { accountId: account.id, id: { not: target.id } },
+      });
+      if (siblings > 0) {
+        return NextResponse.json(
+          {
+            error:
+              "This member's login spans multiple companies, so only they can change its password (from their profile, or the Forgot password link).",
+          },
+          { status: 400 }
+        );
+      }
+    }
+    passwordToSet = String(body.password);
   }
 
   // Keep at least one active owner standing
@@ -88,6 +108,10 @@ export async function PATCH(
     data,
     select: { id: true, name: true, email: true, phone: true, role: true, isActive: true, bookable: true, hourlyCost: true },
   });
+
+  if (passwordToSet !== null) {
+    await setPasswordForUser(target.id, passwordToSet);
+  }
 
   return NextResponse.json(updated);
 }

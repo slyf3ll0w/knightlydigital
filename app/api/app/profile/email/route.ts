@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import bcrypt from "bcryptjs";
 import { createHash, randomBytes } from "crypto";
 import { prisma } from "@/lib/db";
 import { getActor } from "@/lib/permissions";
-import { emailWhere, normalizeEmail } from "@/lib/user-email";
+import { normalizeEmail } from "@/lib/user-email";
 import { sendEmail, emailChangeVerifyEmail, emailChangeNoticeEmail } from "@/lib/email";
+import { emailInUseByOther, ensureAccountForUser, verifyPasswordForUser } from "@/lib/account";
 
 /**
  * POST { newEmail, currentPassword } — start a change of sign-in address.
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
   const user = await prisma.user.findUnique({ where: { id: actor.id } });
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+  const valid = await verifyPasswordForUser(actor.id, currentPassword);
   if (!valid) {
     return NextResponse.json({ error: "Current password is incorrect." }, { status: 400 });
   }
@@ -40,11 +40,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "That's already your email address." }, { status: 400 });
   }
 
-  // Case-insensitive, because User.email's unique index is not — see
-  // lib/user-email.ts. Checked here for a clean message and again at
-  // verification time, since someone else could claim it in between.
-  const taken = await prisma.user.findFirst({ where: emailWhere(newEmail), select: { id: true } });
-  if (taken) {
+  // The address moves the whole LOGIN (every company membership with it), so
+  // it must not collide with any other person's login or membership. Checked
+  // here for a clean message and again at verification time, since someone
+  // else could claim it in between.
+  const account = await ensureAccountForUser(user);
+  if (await emailInUseByOther(newEmail, account?.id ?? null)) {
     return NextResponse.json({ error: "That email is already in use." }, { status: 400 });
   }
 

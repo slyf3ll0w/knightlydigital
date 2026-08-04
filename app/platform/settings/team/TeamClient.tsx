@@ -194,7 +194,7 @@ export default function TeamClient({
               <p className="text-xs text-gray-400 mt-1">{roleDescriptions[form.role]}</p>
             </div>
             <div className="sm:col-span-2">
-              <label className="block text-xs text-gray-500 mb-1">Starting password *</label>
+              <label className="block text-xs text-gray-500 mb-1">Starting password</label>
               <input
                 type="text"
                 value={form.password}
@@ -202,6 +202,11 @@ export default function TeamClient({
                 placeholder="At least 8 characters — share it with them; they can change it later"
                 className={inputCls}
               />
+              <p className="text-xs text-gray-400 mt-1">
+                Only for people new to WorkBench. If this email already has a WorkBench login,
+                they join your team under it and keep their own password — we&apos;ll email them
+                a heads-up.
+              </p>
             </div>
           </div>
           <div className="flex gap-2 mt-4">

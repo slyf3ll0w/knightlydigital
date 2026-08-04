@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor } from "@/lib/permissions";
+import { accountUserIdsFor } from "@/lib/account";
 
 const ALLOWED = ["image/jpeg", "image/png", "image/webp"];
 const MAX_BYTES = 2 * 1024 * 1024; // client resizes to a small square first
@@ -22,9 +23,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "That image is too large." }, { status: 400 });
   }
 
+  // Account-level identity: the photo follows the person to every company
+  // they're a member of (each row keeps a copy so /api/avatars/[userId]
+  // serving stays a single-row read).
   const bytes = Buffer.from(await file.arrayBuffer());
-  await prisma.user.update({
-    where: { id: actor.id },
+  await prisma.user.updateMany({
+    where: { id: { in: await accountUserIdsFor(actor.id) } },
     data: { avatarData: bytes, avatarMime: file.type, avatarUpdatedAt: new Date() },
   });
   return NextResponse.json({ success: true });
@@ -34,8 +38,8 @@ export async function DELETE() {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  await prisma.user.update({
-    where: { id: actor.id },
+  await prisma.user.updateMany({
+    where: { id: { in: await accountUserIdsFor(actor.id) } },
     data: { avatarData: null, avatarMime: null, avatarUpdatedAt: new Date() },
   });
   return NextResponse.json({ success: true });

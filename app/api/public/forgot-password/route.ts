@@ -19,13 +19,15 @@ export async function POST(req: NextRequest) {
   if (!email || email.length > 200) return ok;
 
   // Case-insensitive so accounts stored with the casing the owner typed at
-  // signup can still be reset (see lib/user-email.ts).
+  // signup can still be reset (see lib/user-email.ts). Any ACTIVE membership
+  // row will do — the reset itself lands on the Account (one password across
+  // all of this person's companies, lib/account.ts).
   const user = await prisma.user.findFirst({
-    where: emailWhere(email),
+    where: { ...emailWhere(email), isActive: true },
     orderBy: { createdAt: "asc" },
-    select: { id: true, name: true, email: true, isActive: true },
+    select: { id: true, name: true, email: true },
   });
-  if (!user || !user.isActive) return ok;
+  if (!user) return ok;
 
   // Invalidate any still-live tokens for this user before issuing a new one.
   await prisma.passwordResetToken.deleteMany({

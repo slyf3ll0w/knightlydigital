@@ -1,24 +1,32 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { signIn } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import TurnstileWidget, { TurnstileHandle } from "@/components/TurnstileWidget";
 import { INDUSTRIES } from "@/lib/pricebooks";
 import { saveCredential } from "@/lib/save-credential";
+import { switchToMembership } from "@/lib/company-switch";
 
 /**
  * Single-page signup: just the account essentials plus industry, which seeds
  * the starter price book. Everything else (hours, service area, branding,
  * booking form) lives in Settings — signup shouldn't ask for what the app
  * can't use on day one.
+ *
+ * Signed-in visitors (switcher → "New company") get the attach mode: the new
+ * company lands on their existing login, so name/email/password disappear and
+ * a successful create switches the session straight into it.
  */
 
 const STOCK_IMAGE =
   "https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&w=1600&q=80";
 
 export default function RegisterPage() {
+  const { data: session, update } = useSession();
+  // Attach mode: a signed-in user adding a company to their existing login
+  const attachMode = Boolean(session?.user?.id);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [captchaToken, setCaptchaToken] = useState("");
@@ -70,6 +78,13 @@ export default function RegisterPage() {
       return;
     }
 
+    if (attachMode) {
+      // Already signed in — re-point the session at the new company's
+      // membership and land on its (empty) dashboard.
+      await switchToMembership(update, data.userId);
+      return;
+    }
+
     // Auto sign in after registration, then do a full page load so the app
     // layout re-renders with the new session (sidebar included).
     await signIn("credentials", {
@@ -99,10 +114,12 @@ export default function RegisterPage() {
             <img src="/workbench-logo.png" alt="WorkBench" className="h-6 w-auto mb-8" />
 
             <h1 className="numeral-ledger text-2xl font-semibold text-gray-900 mb-1">
-              Create your account
+              {attachMode ? "Add another company" : "Create your account"}
             </h1>
             <p className="text-sm text-gray-500 mb-6">
-              Free forever — we make money when you get paid, not before.
+              {attachMode
+                ? "It joins your existing sign-in — switch between companies from your profile picture."
+                : "Free forever — we make money when you get paid, not before."}
             </p>
 
             {error && (
@@ -132,17 +149,19 @@ export default function RegisterPage() {
                   </Link>
                 </p>
               </div>
-              <div>
-                <label className={labelClass}>Your name</label>
-                <input
-                  type="text"
-                  value={form.yourName}
-                  onChange={(e) => set("yourName", e.target.value)}
-                  required
-                  className={inputClass}
-                  placeholder="Jane Smith"
-                />
-              </div>
+              {!attachMode && (
+                <div>
+                  <label className={labelClass}>Your name</label>
+                  <input
+                    type="text"
+                    value={form.yourName}
+                    onChange={(e) => set("yourName", e.target.value)}
+                    required
+                    className={inputClass}
+                    placeholder="Jane Smith"
+                  />
+                </div>
+              )}
               <div>
                 <label className={labelClass}>Business name</label>
                 <input
@@ -157,40 +176,44 @@ export default function RegisterPage() {
               {/* autocomplete="username" (not "email") — this is the account
                   identifier the new password gets stored against, and password
                   managers won't offer to save a signup without one. */}
-              <div>
-                <label htmlFor="signup-email" className={labelClass}>
-                  Email
-                </label>
-                <input
-                  id="signup-email"
-                  name="username"
-                  type="email"
-                  value={form.email}
-                  onChange={(e) => set("email", e.target.value)}
-                  required
-                  autoComplete="username"
-                  className={inputClass}
-                  placeholder="you@acmehvac.com"
-                />
-              </div>
-              <div>
-                <label htmlFor="signup-password" className={labelClass}>
-                  Password
-                </label>
-                <input
-                  id="signup-password"
-                  name="password"
-                  type="password"
-                  value={form.password}
-                  onChange={(e) => set("password", e.target.value)}
-                  required
-                  minLength={8}
-                  maxLength={72}
-                  autoComplete="new-password"
-                  className={inputClass}
-                  placeholder="Min. 8 characters"
-                />
-              </div>
+              {!attachMode && (
+                <>
+                  <div>
+                    <label htmlFor="signup-email" className={labelClass}>
+                      Email
+                    </label>
+                    <input
+                      id="signup-email"
+                      name="username"
+                      type="email"
+                      value={form.email}
+                      onChange={(e) => set("email", e.target.value)}
+                      required
+                      autoComplete="username"
+                      className={inputClass}
+                      placeholder="you@acmehvac.com"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="signup-password" className={labelClass}>
+                      Password
+                    </label>
+                    <input
+                      id="signup-password"
+                      name="password"
+                      type="password"
+                      value={form.password}
+                      onChange={(e) => set("password", e.target.value)}
+                      required
+                      minLength={8}
+                      maxLength={72}
+                      autoComplete="new-password"
+                      className={inputClass}
+                      placeholder="Min. 8 characters"
+                    />
+                  </div>
+                </>
+              )}
               <div>
                 <label className={labelClass}>What kind of work do you do?</label>
                 <select
@@ -238,19 +261,23 @@ export default function RegisterPage() {
                 className="w-full py-3 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white font-semibold text-sm rounded-[10px] btn-tool transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 {loading && <Loader2 size={14} className="animate-spin" />}
-                Create my free account
+                {attachMode ? "Create this company" : "Create my free account"}
               </button>
             </form>
 
-            <p className="text-sm text-gray-500 text-center mt-4">
-              Have an account?{" "}
-              <Link href="/app/login" className="text-green-600 hover:underline font-medium">
-                Sign in
-              </Link>
-            </p>
-            <p className="text-xs text-gray-400 text-center mt-2">
-              No credit card required. Free forever.
-            </p>
+            {!attachMode && (
+              <>
+                <p className="text-sm text-gray-500 text-center mt-4">
+                  Have an account?{" "}
+                  <Link href="/app/login" className="text-green-600 hover:underline font-medium">
+                    Sign in
+                  </Link>
+                </p>
+                <p className="text-xs text-gray-400 text-center mt-2">
+                  No credit card required. Free forever.
+                </p>
+              </>
+            )}
           </div>
         </div>
       </div>

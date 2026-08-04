@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
+import { verifyPasswordForUser } from "@/lib/account";
 import { verifySuperadminLoginCode } from "@/lib/superadmin-otp";
 import {
   SUPERADMIN_COOKIE,
@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
     orderBy: { createdAt: "asc" },
   });
   if (!user || !user.isActive || user.role !== "SUPERADMIN") return invalid;
-  if (!(await bcrypt.compare(password, user.passwordHash))) return invalid;
+  if (!(await verifyPasswordForUser(user.id, password))) return invalid;
   if (!(await verifySuperadminLoginCode(user.id, code)))
     return NextResponse.json({ error: "code" }, { status: 401 });
 

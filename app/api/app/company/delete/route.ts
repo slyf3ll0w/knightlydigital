@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { getActor } from "@/lib/permissions";
 import { limit } from "@/lib/rate-limit";
+import { verifyPasswordForUser } from "@/lib/account";
 import { deleteCompanyCascade, PROTECTED_EMAILS } from "@/lib/company-delete";
 
 /**
@@ -31,14 +31,11 @@ export async function POST(req: NextRequest) {
   const confirmName = typeof body.confirmName === "string" ? body.confirmName.trim() : "";
   const password = typeof body.password === "string" ? body.password : "";
 
-  const [company, user] = await Promise.all([
-    prisma.company.findUnique({
-      where: { id: companyId },
-      select: { name: true, users: { select: { email: true } } },
-    }),
-    prisma.user.findUnique({ where: { id: actor.id }, select: { passwordHash: true } }),
-  ]);
-  if (!company || !user) {
+  const company = await prisma.company.findUnique({
+    where: { id: companyId },
+    select: { name: true, users: { select: { email: true } } },
+  });
+  if (!company) {
     return NextResponse.json({ error: "Account not found." }, { status: 404 });
   }
   if (company.users.some((u) => PROTECTED_EMAILS.includes(u.email.toLowerCase()))) {
@@ -50,7 +47,7 @@ export async function POST(req: NextRequest) {
       { status: 400 }
     );
   }
-  if (!password || !(await bcrypt.compare(password, user.passwordHash))) {
+  if (!password || !(await verifyPasswordForUser(actor.id, password))) {
     return NextResponse.json({ error: "Incorrect password." }, { status: 403 });
   }
 

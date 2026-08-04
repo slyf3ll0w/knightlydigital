@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
+import { verifyPasswordForUser } from "@/lib/account";
 import { getSuperadmin } from "@/lib/superadmin";
 import { limit } from "@/lib/rate-limit";
 import { companyHasProtectedUser, deleteCompanyCascade } from "@/lib/company-delete";
@@ -125,11 +125,11 @@ export async function DELETE(
   const password = typeof body.password === "string" ? body.password : "";
   const phrase = typeof body.phrase === "string" ? body.phrase.trim() : "";
 
-  const [company, adminUser] = await Promise.all([
-    prisma.company.findUnique({ where: { id }, select: { id: true, name: true, slug: true } }),
-    prisma.user.findUnique({ where: { id: admin.id }, select: { passwordHash: true } }),
-  ]);
-  if (!company || !adminUser) {
+  const company = await prisma.company.findUnique({
+    where: { id },
+    select: { id: true, name: true, slug: true },
+  });
+  if (!company) {
     return NextResponse.json({ error: "Company not found." }, { status: 404 });
   }
   if (await companyHasProtectedUser(id)) {
@@ -141,7 +141,7 @@ export async function DELETE(
       { status: 400 }
     );
   }
-  if (!password || !(await bcrypt.compare(password, adminUser.passwordHash))) {
+  if (!password || !(await verifyPasswordForUser(admin.id, password))) {
     return NextResponse.json({ error: "Incorrect password." }, { status: 403 });
   }
   const footprint = await dataFootprint(id);
