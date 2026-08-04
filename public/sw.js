@@ -16,7 +16,7 @@
  * Bump VERSION to drop every cache wholesale on the next deploy.
  */
 
-const VERSION = "v1";
+const VERSION = "v2";
 const STATIC_CACHE = `sfh-static-${VERSION}`;
 const PAGES_CACHE = `sfh-pages-${VERSION}`;
 const MEDIA_CACHE = `sfh-media-${VERSION}`;

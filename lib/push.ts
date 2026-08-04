@@ -134,30 +134,79 @@ export interface PushPayload {
 /**
  * Send a push to every device each of these users has subscribed. Never
  * throws — push is best-effort on top of the email/in-app paths.
+ *
+ * Multi-company accounts: a person's devices are subscribed under whichever
+ * membership was active when they enabled notifications, so delivery targets
+ * every device on the target's ACCOUNT, not just the target row. Taps route
+ * through /app/open, which switches the session to the target membership
+ * before following the deep link — otherwise a company-B notification tapped
+ * while signed into company A would dead-end on a scoped 404. Multi-company
+ * people also get the company name prefixed so they know who's talking.
  */
 export async function notifyUsers(userIds: string[], payload: PushPayload): Promise<void> {
   if ((!configured && !fcmAccount) || userIds.length === 0) return;
   try {
+    const targets = await prisma.user.findMany({
+      where: { id: { in: userIds } },
+      select: { id: true, accountId: true, company: { select: { name: true } } },
+    });
+    if (targets.length === 0) return;
+
+    const accountIds = [
+      ...new Set(targets.map((t) => t.accountId).filter((a): a is string => Boolean(a))),
+    ];
+    const siblingRows = accountIds.length
+      ? await prisma.user.findMany({
+          where: { accountId: { in: accountIds } },
+          select: { id: true, accountId: true },
+        })
+      : [];
+    const rowAccount = new Map(siblingRows.map((r) => [r.id, r.accountId as string]));
+
     const subs = await prisma.pushSubscription.findMany({
-      where: { userId: { in: userIds } },
+      where: { userId: { in: [...new Set([...userIds, ...siblingRows.map((r) => r.id)])] } },
     });
     if (subs.length === 0) return;
 
-    const json = JSON.stringify(payload);
+    const jobs: { sub: (typeof subs)[number]; body: PushPayload }[] = [];
+    const seen = new Set<string>(); // endpoint|target — one send per device per target
+    for (const t of targets) {
+      const deviceSubs = subs.filter(
+        (s) => s.userId === t.id || (t.accountId && rowAccount.get(s.userId) === t.accountId)
+      );
+      const multiCompany = t.accountId
+        ? siblingRows.filter((r) => r.accountId === t.accountId).length > 1
+        : false;
+      const body: PushPayload = {
+        ...payload,
+        title:
+          multiCompany && t.company ? `${t.company.name} · ${payload.title}` : payload.title,
+        url: payload.url
+          ? `/app/open?u=${t.id}&to=${encodeURIComponent(payload.url)}`
+          : payload.url,
+      };
+      for (const sub of deviceSubs) {
+        const key = `${sub.endpoint}|${t.id}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        jobs.push({ sub, body });
+      }
+    }
+
     const dead: string[] = [];
     await Promise.all(
-      subs.map(async (sub) => {
+      jobs.map(async ({ sub, body }) => {
         try {
           if (sub.platform === "web") {
             if (!configured || !sub.p256dh || !sub.auth) return;
             await webpush.sendNotification(
               { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-              json,
+              JSON.stringify(body),
               { TTL: 3600, urgency: "normal" }
             );
           } else {
             if (!fcmAccount) return;
-            if ((await sendFcm(fcmAccount, sub.endpoint, payload)) === "dead") dead.push(sub.id);
+            if ((await sendFcm(fcmAccount, sub.endpoint, body)) === "dead") dead.push(sub.id);
           }
         } catch (err) {
           const status = (err as { statusCode?: number }).statusCode;

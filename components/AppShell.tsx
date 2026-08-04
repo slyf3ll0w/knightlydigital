@@ -532,6 +532,25 @@ function MembershipRows({
           New company
         </span>
       </Link>
+      <div className="my-1 border-t border-gray-100" />
+      <Link
+        href="/app/settings/profile"
+        onClick={() => {
+          hapticImpact("LIGHT");
+          onClose();
+        }}
+        className={`flex items-center gap-3 ${pad} transition-colors hover:bg-gray-50 active:bg-gray-50`}
+      >
+        <span
+          className="flex shrink-0 items-center justify-center rounded-[10px] bg-gray-100 text-gray-500"
+          style={{ width: compact ? 30 : 36, height: compact ? 30 : 36 }}
+        >
+          <CircleUserRound size={16} />
+        </span>
+        <span className={`font-medium text-gray-700 ${compact ? "text-sm" : "text-[15px]"}`}>
+          My Profile
+        </span>
+      </Link>
     </>
   );
 }
