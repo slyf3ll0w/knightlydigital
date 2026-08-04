@@ -20,7 +20,7 @@ import {
   X,
 } from "lucide-react";
 import PageTitle from "@/components/PageTitle";
-import { SECTION_HUES, hueInk, hueTint } from "@/lib/section-colors";
+import { SECTION_HUES } from "@/lib/section-colors";
 import { FilterChip, FilterRow } from "@/components/FilterChips";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 
@@ -830,10 +830,19 @@ export default function ScheduleClient({
               <span
                 className="flex h-8 w-8 items-center justify-center rounded-full text-[15px] font-semibold"
                 style={
+                  // Brand accent, not the section hue — section color stays
+                  // confined to the Create/More tiles (David's rule)
                   selected
-                    ? { backgroundColor: hue, color: hueInk(hue) }
+                    ? {
+                        backgroundColor: "var(--mobile-accent)",
+                        color: "var(--mobile-on-accent)",
+                      }
                     : isToday
-                      ? { backgroundColor: hueTint(hue, 0.14), color: "var(--wb-ink)" }
+                      ? {
+                          backgroundColor:
+                            "color-mix(in srgb, var(--mobile-accent) 14%, transparent)",
+                          color: "var(--wb-ink)",
+                        }
                       : undefined
                 }
               >
@@ -845,7 +854,7 @@ export default function ScheduleClient({
                   <span
                     key={k}
                     className="h-1.5 w-1.5 rounded-full"
-                    style={{ backgroundColor: selected ? hue : "#D1D5DB" }}
+                    style={{ backgroundColor: selected ? "var(--mobile-accent)" : "#D1D5DB" }}
                   />
                 ))}
               </span>
@@ -1096,7 +1105,14 @@ export default function ScheduleClient({
                   className={`flex h-8 w-8 items-center justify-center rounded-full text-[15px] font-medium ${
                     isToday ? "" : "text-gray-900"
                   }`}
-                  style={isToday ? { backgroundColor: hue, color: hueInk(hue) } : undefined}
+                  style={
+                    isToday
+                      ? {
+                          backgroundColor: "var(--mobile-accent)",
+                          color: "var(--mobile-on-accent)",
+                        }
+                      : undefined
+                  }
                 >
                   {d}
                 </span>
@@ -1110,7 +1126,9 @@ export default function ScheduleClient({
                     <span
                       key={it.id}
                       className="h-1.5 w-1.5 rounded-full"
-                      style={{ backgroundColor: isToday ? hue : "#9CA3AF" }}
+                      style={{
+                        backgroundColor: isToday ? "var(--mobile-accent)" : "#9CA3AF",
+                      }}
                     />
                   ))}
                 </span>

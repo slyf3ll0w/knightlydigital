@@ -30,14 +30,16 @@ type Item = {
   href: string;
 };
 
-// Same entity → hue mapping as the Create/More sheets (tenant-repaintable
-// via the --sh-* vars), so the feed scans by color like the rest of the nav.
-const KIND_META: Record<Item["kind"], { icon: typeof Inbox; hue: string }> = {
-  request: { icon: Inbox, hue: "requests" },
-  lead: { icon: SquareKanban, hue: "leads" },
-  booking: { icon: CalendarClock, hue: "schedule" },
-  payment: { icon: DollarSign, hue: "payments" },
-  invoice: { icon: Receipt, hue: "invoices" },
+// Brand colors only — section hues stay confined to the Create/More tiles.
+// Allocation: things that ask for action (requests, bookings, leads) wear
+// the SECONDARY accent — the app's action color; money records (payments,
+// past-due invoices) wear the PRIMARY — the structural/ledger ink.
+const KIND_META: Record<Item["kind"], { icon: typeof Inbox; primary: boolean }> = {
+  request: { icon: Inbox, primary: false },
+  lead: { icon: SquareKanban, primary: false },
+  booking: { icon: CalendarClock, primary: false },
+  payment: { icon: DollarSign, primary: true },
+  invoice: { icon: Receipt, primary: true },
 };
 
 function ago(iso: string): string {
@@ -155,10 +157,14 @@ function NotifRow({
       >
         <span
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px]"
-          style={{
-            backgroundColor: `var(--sh-${meta.hue})`,
-            color: `var(--sh-${meta.hue}-on)`,
-          }}
+          style={
+            meta.primary
+              ? { backgroundColor: "var(--wb-primary)", color: "#FFFFFF" }
+              : {
+                  backgroundColor: "var(--mobile-accent)",
+                  color: "var(--mobile-on-accent)",
+                }
+          }
         >
           <Icon size={16} strokeWidth={2.25} />
         </span>
