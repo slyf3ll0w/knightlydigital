@@ -4,7 +4,20 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
-import { Loader2, Check, Upload, Trash2, AlertTriangle, ChevronRight, Copy } from "lucide-react";
+import {
+  Loader2,
+  Check,
+  Upload,
+  Trash2,
+  AlertTriangle,
+  ChevronRight,
+  Copy,
+  Package,
+  FileSignature,
+  Filter,
+  Globe,
+  RefreshCw,
+} from "lucide-react";
 import { resizeImageFile } from "@/lib/resize-image";
 import { INDUSTRIES } from "@/lib/pricebooks";
 import { DEFAULT_ON_MY_WAY_TEMPLATE, ON_MY_WAY_PLACEHOLDERS } from "@/lib/messaging";
@@ -18,6 +31,7 @@ import {
   SECTION_HUE_DEFAULTS,
   SECTION_KEYS,
   SECTION_LABELS,
+  hueInk,
   type SectionKey,
 } from "@/lib/section-colors";
 
@@ -114,6 +128,44 @@ function ColorField({
         {invalid ? "Use a 6-digit hex code like #0B57D8" : hint}
       </p>
     </div>
+  );
+}
+
+/**
+ * Phone drill-in row — the iOS grouped-list idiom the More sheet uses:
+ * section-hue icon tile, label + hint, right chevron. Rows stack inside one
+ * card-ledger group per bucket; desktop keeps the classic "Manage →" cards.
+ */
+function SettingsLinkRow({
+  href,
+  label,
+  sub,
+  hue,
+  icon: Icon,
+}: {
+  href: string;
+  label: string;
+  sub: string;
+  hue: string;
+  icon: typeof Package;
+}) {
+  return (
+    <Link
+      href={href}
+      className="flex items-center gap-3 px-4 py-3 transition-colors active:bg-gray-100"
+    >
+      <span
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px]"
+        style={{ backgroundColor: hue, color: hueInk(hue) }}
+      >
+        <Icon size={17} strokeWidth={2.25} />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[15px] font-medium text-gray-900">{label}</span>
+        <span className="block truncate text-xs text-gray-500">{sub}</span>
+      </span>
+      <ChevronRight size={16} className="shrink-0 text-gray-300" />
+    </Link>
   );
 }
 
@@ -509,7 +561,48 @@ function EmailDomainCard({ isOwner }: { isOwner: boolean }) {
           )}
 
           {!verified && (state.records?.length ?? 0) > 0 && (
-            <div className="overflow-x-auto rounded-lg border border-gray-200">
+            <>
+              {/* Phones: each DNS record as a small stacked card */}
+              <div className="lg:hidden space-y-2">
+                {(state.records ?? []).map((r, i) => (
+                  <div
+                    key={i}
+                    className={`rounded-lg border border-gray-200 p-3 ${
+                      r.status === "verified" ? "text-green-700" : "text-gray-700"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                        {r.type}
+                      </span>
+                      <button
+                        onClick={() => copyValue(r.value)}
+                        className="flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-semibold text-gray-600 transition-colors active:bg-gray-200"
+                      >
+                        {copiedValue === r.value ? (
+                          <>
+                            <Check size={12} className="text-green-600" /> Copied
+                          </>
+                        ) : (
+                          <>
+                            <Copy size={12} /> Copy value
+                          </>
+                        )}
+                      </button>
+                    </div>
+                    <p className="mt-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                      Name
+                    </p>
+                    <p className="font-mono text-xs break-all">{r.name}</p>
+                    <p className="mt-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                      Value
+                    </p>
+                    <p className="font-mono text-xs break-all">{r.value}</p>
+                  </div>
+                ))}
+              </div>
+              {/* Desktop keeps the table */}
+              <div className="hidden lg:block overflow-x-auto rounded-lg border border-gray-200">
               <table className="w-full text-xs">
                 <thead>
                   <tr className="bg-gray-50 text-left text-[11px] text-gray-500">
@@ -538,7 +631,8 @@ function EmailDomainCard({ isOwner }: { isOwner: boolean }) {
                   ))}
                 </tbody>
               </table>
-            </div>
+              </div>
+            </>
           )}
 
           {error && <p className="text-xs text-red-600">{error}</p>}
@@ -977,10 +1071,42 @@ export default function SettingsClient({
 
       {show("features") && (
       <>
+      {/* Phones: the drill-ins as one iOS grouped list */}
+      <div className="lg:hidden card-ledger mb-6 divide-y divide-gray-100 overflow-hidden">
+        <SettingsLinkRow
+          href="/app/settings/products"
+          label="Products & Services"
+          sub="Your price book — items autocomplete on quotes and invoices"
+          hue={SECTION_HUES.services}
+          icon={Package}
+        />
+        <SettingsLinkRow
+          href="/app/settings/contracts"
+          label="Contract Templates"
+          sub="Reusable service agreements clients e-sign from a link"
+          hue={SECTION_HUES.contracts}
+          icon={FileSignature}
+        />
+        <SettingsLinkRow
+          href="/app/settings/pipeline"
+          label="Lead Pipeline"
+          sub="Leads board stages and the ad-platform lead webhook"
+          hue={SECTION_HUES.leads}
+          icon={Filter}
+        />
+        <SettingsLinkRow
+          href="/app/settings/booking"
+          label="Booking Form"
+          sub="Customize your request form and get the embed code"
+          hue={SECTION_HUES.forms}
+          icon={Globe}
+        />
+      </div>
+
       {/* Price book */}
       <Link
         href="/app/settings/products"
-        className="flex items-center justify-between card-ledger p-5 mb-6 hover:shadow-sm transition-shadow"
+        className="hidden lg:flex items-center justify-between card-ledger p-5 mb-6 hover:shadow-sm transition-shadow"
       >
         <div>
           <h2 className="text-sm font-semibold text-gray-700">
@@ -996,7 +1122,7 @@ export default function SettingsClient({
       {/* Contract templates */}
       <Link
         href="/app/settings/contracts"
-        className="flex items-center justify-between card-ledger p-5 mb-6 hover:shadow-sm transition-shadow"
+        className="hidden lg:flex items-center justify-between card-ledger p-5 mb-6 hover:shadow-sm transition-shadow"
       >
         <div>
           <h2 className="text-sm font-semibold text-gray-700">
@@ -1012,7 +1138,7 @@ export default function SettingsClient({
       {/* Lead pipeline */}
       <Link
         href="/app/settings/pipeline"
-        className="flex items-center justify-between card-ledger p-5 mb-6 hover:shadow-sm transition-shadow"
+        className="hidden lg:flex items-center justify-between card-ledger p-5 mb-6 hover:shadow-sm transition-shadow"
       >
         <div>
           <h2 className="text-sm font-semibold text-gray-700">
@@ -1028,7 +1154,7 @@ export default function SettingsClient({
       {/* Booking form */}
       <Link
         href="/app/settings/booking"
-        className="flex items-center justify-between card-ledger p-5 mb-6 hover:shadow-sm transition-shadow"
+        className="hidden lg:flex items-center justify-between card-ledger p-5 mb-6 hover:shadow-sm transition-shadow"
       >
         <div>
           <h2 className="text-sm font-semibold text-gray-700">
@@ -1056,7 +1182,7 @@ export default function SettingsClient({
               required
               className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
               <input type="tel" value={form.phone} onChange={(e) => set("phone", e.target.value)}
@@ -1368,7 +1494,7 @@ export default function SettingsClient({
                   the light theme or too dark for the dark theme are automatically
                   adjusted so they always stay readable.
                 </p>
-                <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2.5 sm:grid-cols-3">
+                <div className="mt-3 grid gap-x-4 gap-y-2.5 sm:grid-cols-3">
                   {SECTION_KEYS.map((k) => (
                     <div key={k} className="flex items-center gap-2">
                       <input
@@ -1542,9 +1668,20 @@ export default function SettingsClient({
 
         {/* QuickBooks */}
         {show("payments") && (
+        <>
+        {/* Phones: iOS list row */}
+        <div className="lg:hidden card-ledger divide-y divide-gray-100 overflow-hidden">
+          <SettingsLinkRow
+            href="/app/settings/quickbooks"
+            label="QuickBooks Online"
+            sub="Sync clients, invoices, and payments into QuickBooks automatically"
+            hue={SECTION_HUES.payments}
+            icon={RefreshCw}
+          />
+        </div>
         <Link
           href="/app/settings/quickbooks"
-          className="flex items-center justify-between card-ledger p-5 hover:shadow-sm transition-shadow"
+          className="hidden lg:flex items-center justify-between card-ledger p-5 hover:shadow-sm transition-shadow"
         >
           <div>
             <h2 className="text-sm font-semibold text-gray-700">
@@ -1556,6 +1693,7 @@ export default function SettingsClient({
           </div>
           <span className="text-sm font-medium text-green-600">Manage →</span>
         </Link>
+        </>
         )}
 
         {/* Surcharging */}

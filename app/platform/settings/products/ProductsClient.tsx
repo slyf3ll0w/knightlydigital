@@ -486,7 +486,7 @@ export default function ProductsClient({
         </Link>
         <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">Products &amp; Services</h1>
       </div>
-      <p className="text-sm text-gray-500 mb-6 ml-8">
+      <p className="text-sm text-gray-500 mb-6 lg:ml-8">
         Your price book. These items autocomplete on quotes and invoices.
       </p>
 
@@ -533,10 +533,87 @@ export default function ProductsClient({
                     {editorRow}
                   </div>
                 ) : (
-                  <div
-                    key={item.id}
-                    className="grid sm:grid-cols-[1fr_90px_100px_100px_70px] gap-2 sm:gap-4 items-center px-5 py-3.5"
-                  >
+                  <div key={item.id}>
+                    {/* Phones: stacked row — name + badges left, price + actions right */}
+                    <div className="flex items-start justify-between gap-3 px-4 py-3.5 sm:hidden">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[15px] font-medium text-gray-900">{item.name}</p>
+                        <div className="mt-1 flex flex-wrap gap-1.5">
+                          <span className="stamp text-gray-500">
+                            {item.type === "SERVICE" ? "Service" : "Product"}
+                          </span>
+                          {item.recurringInterval && (
+                            <span className="stamp text-green-700">
+                              Recurring · {INTERVAL_LABEL[item.recurringInterval]}
+                            </span>
+                          )}
+                          {item.requiresAgreement && (
+                            <span className="stamp text-blue-700">Agreement</span>
+                          )}
+                          {item.durationMinutes !== null && (
+                            <span className="stamp text-purple-700">
+                              Bookable ·{" "}
+                              {item.durationMinutes % 60 === 0
+                                ? `${item.durationMinutes / 60}h`
+                                : `${item.durationMinutes}m`}
+                            </span>
+                          )}
+                          {Array.isArray(item.checklist) && item.checklist.length > 0 && (
+                            <span className="stamp text-teal-700">
+                              Checklist · {item.checklist.length}
+                            </span>
+                          )}
+                          {item.depositType && item.depositType !== "NONE" && (
+                            <span className="stamp text-amber-700">
+                              {item.depositType === "FULL"
+                                ? "Paid upfront"
+                                : item.depositType === "PERCENT"
+                                  ? `Deposit ${Number(item.depositValue ?? 0)}%`
+                                  : `Deposit ${money(item.depositValue)}`}
+                            </span>
+                          )}
+                        </div>
+                        {item.description && (
+                          <p className="mt-1 text-xs text-gray-500">{item.description}</p>
+                        )}
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <p className="numeral-ledger text-[15px] font-semibold text-gray-900">
+                          {money(item.unitPrice)}
+                        </p>
+                        {item.priceDisplay === "STARTING_AT" && (
+                          <p className="text-[10px] text-gray-400">starting at</p>
+                        )}
+                        {item.priceDisplay === "HOURLY" && (
+                          <p className="text-[10px] text-gray-400">per hour</p>
+                        )}
+                        {item.priceDisplay === "QUOTE" && (
+                          <p className="text-[10px] text-gray-400">hidden — quote</p>
+                        )}
+                        {item.unitCost !== null && (
+                          <p className="text-[10px] text-gray-400">cost {money(item.unitCost)}</p>
+                        )}
+                        <div className="mt-2 flex justify-end gap-1.5">
+                          <button
+                            onClick={() => startEdit(item)}
+                            className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-gray-600 transition-colors active:bg-gray-200"
+                            aria-label={`Edit ${item.name}`}
+                          >
+                            <Pencil size={14} />
+                          </button>
+                          <button
+                            onClick={() => remove(item.id)}
+                            className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-gray-500 transition-colors active:bg-red-50 active:text-red-600"
+                            aria-label={`Delete ${item.name}`}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Desktop: the classic columns */}
+                    <div className="hidden sm:grid grid-cols-[1fr_90px_100px_100px_70px] gap-4 items-center px-5 py-3.5">
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-gray-900">
                         {item.name}
@@ -610,6 +687,7 @@ export default function ProductsClient({
                       >
                         <Trash2 size={14} />
                       </button>
+                    </div>
                     </div>
                   </div>
                 )

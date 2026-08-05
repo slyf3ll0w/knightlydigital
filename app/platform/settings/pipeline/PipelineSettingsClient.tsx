@@ -254,7 +254,7 @@ export default function PipelineSettingsClient({
                   if (v && v !== stage.name) patchStage(stage.id, { name: v });
                   else e.target.value = stage.name;
                 }}
-                className="flex-1 min-w-[120px] px-2.5 py-1.5 text-sm font-medium border border-transparent hover:border-gray-200 focus:border-gray-300 rounded-lg focus:outline-none"
+                className="flex-1 min-w-[120px] px-2.5 py-1.5 text-sm font-medium border border-gray-200 lg:border-transparent lg:hover:border-gray-200 focus:border-gray-300 rounded-lg focus:outline-none"
               />
 
               <div className="flex items-center gap-1.5">
@@ -306,7 +306,7 @@ export default function PipelineSettingsClient({
                   if (v && v !== convertedStage.name) patchStage(convertedStage.id, { name: v });
                   else e.target.value = convertedStage.name;
                 }}
-                className="flex-1 min-w-[120px] px-2.5 py-1.5 text-sm font-medium border border-transparent hover:border-gray-200 focus:border-gray-300 rounded-lg focus:outline-none bg-transparent"
+                className="flex-1 min-w-[120px] px-2.5 py-1.5 text-sm font-medium border border-green-200 lg:border-transparent lg:hover:border-gray-200 focus:border-gray-300 rounded-lg focus:outline-none bg-transparent"
               />
               <span className="text-[11px] text-gray-500">
                 Always last — approved quotes and first jobs land leads here as clients

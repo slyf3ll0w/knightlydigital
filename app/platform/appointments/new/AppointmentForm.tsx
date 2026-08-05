@@ -7,6 +7,7 @@ import { ArrowLeft, Loader2, MapPin, Phone, Video } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { localInputToISO } from "@/lib/statuses";
 import SlotTimePicker from "@/components/SlotTimePicker";
+import ContactPicker from "@/components/ContactPicker";
 import { addMinutesToLocalDateTime } from "@/lib/scheduling";
 
 /**
@@ -144,14 +145,7 @@ export default function AppointmentForm({
           <h2 className="text-sm font-semibold text-gray-700">Who &amp; what</h2>
           <div>
             <label className="block text-xs text-gray-500 mb-1">Client *</label>
-            <select value={contactId} onChange={(e) => pickContact(e.target.value)} className={inputCls}>
-              <option value="">Select a client...</option>
-              {contacts.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.firstName} {c.lastName}
-                </option>
-              ))}
-            </select>
+            <ContactPicker contacts={contacts} value={contactId} onChange={pickContact} />
             <Link href="/app/contacts/new" className="text-xs text-green-600 hover:underline mt-1 inline-block">
               + Add new client
             </Link>

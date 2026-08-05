@@ -446,7 +446,7 @@ export default function ImportClient({
         </Link>
         <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">Import Clients</h1>
       </div>
-      <p className="text-sm text-gray-500 mb-6 ml-8">
+      <p className="text-sm text-gray-500 mb-6 lg:ml-8">
         Bring your client list over from a spreadsheet or another CRM — Jobber and Housecall Pro
         exports are recognized automatically.
       </p>
@@ -514,7 +514,7 @@ export default function ImportClient({
           </div>
 
           <div className="card-ledger overflow-hidden">
-            <div className="grid grid-cols-[1fr_1fr_1fr] gap-3 px-4 py-2 bg-gray-50 text-xs font-medium text-gray-500">
+            <div className="hidden sm:grid grid-cols-[1fr_1fr_1fr] gap-3 px-4 py-2 bg-gray-50 text-xs font-medium text-gray-500">
               <span>Your column</span>
               <span>Example</span>
               <span>Imports as</span>
@@ -525,9 +525,12 @@ export default function ImportClient({
                 const label = h || `Column ${i + 1}`;
                 const newType = guessFieldType(rows.map((r) => (r[i] ?? "").trim()));
                 return (
-                  <div key={i} className="grid grid-cols-[1fr_1fr_1fr] items-start gap-3 px-4 py-2">
-                    <span className="text-sm font-medium text-gray-900 truncate pt-2">{label}</span>
-                    <span className="text-xs text-gray-500 truncate pt-2.5">{sample}</span>
+                  <div
+                    key={i}
+                    className="grid gap-1 px-4 py-3 sm:grid-cols-[1fr_1fr_1fr] sm:items-start sm:gap-3 sm:py-2"
+                  >
+                    <span className="text-sm font-medium text-gray-900 truncate sm:pt-2">{label}</span>
+                    <span className="text-xs text-gray-500 truncate sm:pt-2.5">{sample}</span>
                     <div>
                       <select
                         value={mapping[i]}
@@ -583,7 +586,7 @@ export default function ImportClient({
             </div>
           </div>
 
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-gray-600">
               <span className="font-semibold text-gray-900">{readyRows}</span> of {rows.length} rows ready
               {readyRows < rows.length && <span className="text-gray-400"> (rest have no name)</span>}

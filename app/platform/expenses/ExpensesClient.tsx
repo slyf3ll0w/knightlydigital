@@ -298,37 +298,80 @@ export default function ExpensesClient({ expenses }: { expenses: Expense[] }) {
                 </div>
               </div>
             ) : (
-            <div key={e.id} className="flex items-center gap-3 px-4 py-2.5 group">
-              <span className="w-24 shrink-0 text-sm text-gray-500">
-                {new Date(`${e.incurredAt}T12:00:00`).toLocaleDateString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                  year: "numeric",
-                })}
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-gray-900 truncate">{e.description}</p>
-                {e.category && <p className="text-xs text-gray-500">{e.category}</p>}
+            <div key={e.id} className="px-4 py-3 lg:py-2.5 group">
+              {/* Phone row: title + date/category sub-line, amount with
+                  always-visible edit/delete on the right */}
+              <div className="lg:hidden flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-[15.5px] font-semibold text-gray-900 truncate">
+                    {e.description}
+                  </p>
+                  <p className="mt-0.5 text-xs text-gray-500 truncate">
+                    {new Date(`${e.incurredAt}T12:00:00`).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
+                    {e.category ? ` · ${e.category}` : ""}
+                  </p>
+                </div>
+                <div className="flex shrink-0 flex-col items-end">
+                  <span className="numeral-ledger text-sm font-semibold text-gray-900">
+                    {money(e.amount)}
+                  </span>
+                  <div className="mt-1 flex items-center gap-1">
+                    <button
+                      onClick={() => openEdit(e)}
+                      disabled={busy}
+                      className="flex h-10 w-10 items-center justify-center rounded-full text-gray-400 active:bg-gray-100 transition-colors"
+                      title="Edit expense"
+                    >
+                      <Pencil size={15} />
+                    </button>
+                    <button
+                      onClick={() => remove(e.id)}
+                      disabled={busy}
+                      className="flex h-10 w-10 items-center justify-center rounded-full text-gray-400 active:bg-red-50 active:text-red-600 transition-colors"
+                      title="Delete expense"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                </div>
               </div>
-              <span className="text-sm font-semibold text-gray-900">{money(e.amount)}</span>
-              <span className="flex items-center gap-0.5">
-                <button
-                  onClick={() => openEdit(e)}
-                  disabled={busy}
-                  className="p-1.5 text-gray-300 hover:text-gray-600 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                  title="Edit expense"
-                >
-                  <Pencil size={13} />
-                </button>
-                <button
-                  onClick={() => remove(e.id)}
-                  disabled={busy}
-                  className="p-1.5 text-gray-300 hover:text-red-600 rounded-full"
-                  title="Delete expense"
-                >
-                  <Trash2 size={13} />
-                </button>
-              </span>
+              {/* Desktop row (unchanged) */}
+              <div className="hidden lg:flex items-center gap-3">
+                <span className="w-24 shrink-0 text-sm text-gray-500">
+                  {new Date(`${e.incurredAt}T12:00:00`).toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  })}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-gray-900 truncate">{e.description}</p>
+                  {e.category && <p className="text-xs text-gray-500">{e.category}</p>}
+                </div>
+                <span className="text-sm font-semibold text-gray-900">{money(e.amount)}</span>
+                <span className="flex items-center gap-0.5">
+                  <button
+                    onClick={() => openEdit(e)}
+                    disabled={busy}
+                    className="p-1.5 text-gray-300 hover:text-gray-600 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                    title="Edit expense"
+                  >
+                    <Pencil size={13} />
+                  </button>
+                  <button
+                    onClick={() => remove(e.id)}
+                    disabled={busy}
+                    className="p-1.5 text-gray-300 hover:text-red-600 rounded-full"
+                    title="Delete expense"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </span>
+              </div>
             </div>
             )
           )

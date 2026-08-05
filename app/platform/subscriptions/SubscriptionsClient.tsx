@@ -250,7 +250,7 @@ export default function SubscriptionsClient({
             <div className="divide-y divide-gray-100">
               {active.map((s) =>
                 editId === s.id ? (
-                  <div key={s.id} className="px-5 py-4 bg-gray-50/70 space-y-3">
+                  <div key={s.id} className="px-4 lg:px-5 py-4 bg-gray-50/70 space-y-3">
                     <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                       <div className="col-span-2 sm:col-span-2">
                         <label className="block text-xs text-gray-500 mb-0.5">Name</label>
@@ -315,7 +315,7 @@ export default function SubscriptionsClient({
                         Visit schedule
                       </p>
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                        <div>
+                        <div className="col-span-2 sm:col-span-1">
                           <label className="block text-xs text-gray-500 mb-0.5">Repeats</label>
                           <select
                             value={editForm.visitFrequency}
@@ -427,7 +427,7 @@ export default function SubscriptionsClient({
                       <button
                         onClick={() => saveEdit(s.id)}
                         disabled={busyId === s.id}
-                        className="flex items-center gap-1 px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-semibold rounded-[10px] btn-tool transition-colors disabled:opacity-40"
+                        className="flex items-center gap-1 px-4 py-2.5 lg:px-3 lg:py-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-semibold rounded-[10px] btn-tool transition-colors disabled:opacity-40"
                       >
                         {busyId === s.id ? (
                           <Loader2 size={11} className="animate-spin" />
@@ -439,7 +439,7 @@ export default function SubscriptionsClient({
                       <button
                         onClick={() => setEditId(null)}
                         disabled={busyId === s.id}
-                        className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-gray-500 hover:bg-gray-100 rounded-full"
+                        className="flex items-center gap-1 px-4 py-2.5 lg:px-3 lg:py-1.5 text-xs font-medium text-gray-500 hover:bg-gray-100 active:bg-gray-100 rounded-full"
                       >
                         <X size={11} />
                         Cancel
@@ -447,98 +447,202 @@ export default function SubscriptionsClient({
                     </div>
                   </div>
                 ) : (
-                <div key={s.id} className="px-5 py-4 flex flex-wrap items-center gap-x-4 gap-y-2">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-gray-900 flex items-center gap-2">
-                      {s.name}
-                      {s.status === "PAUSED" && (
-                        <span className="stamp text-amber-700">Paused</span>
-                      )}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      <Link href={`/app/contacts/${s.contact.id}`} className="hover:underline">
-                        {s.contact.firstName} {s.contact.lastName}
-                      </Link>
-                      {" · "}
-                      {INTERVAL_LABEL[s.interval]} · {money(Number(s.unitPrice) * Number(s.quantity))}
-                      {s.visitFrequency && (
-                        <span className="text-green-700">
-                          {" · "}visits {FREQ_LABEL[s.visitFrequency].toLowerCase()}
-                        </span>
-                      )}
-                      {!s.visitFrequency && s.createsJob && " · creates a job"}
-                      {s.invoiceMode === "DRAFT" && " · drafts only"}
-                    </p>
-                  </div>
-                  <div className="text-xs text-gray-500 whitespace-nowrap text-right">
-                    <div>
-                      Bills: <span className="font-medium text-gray-700">{fmtDate(s.nextRunDate)}</span>
+                <div key={s.id} className="px-4 py-3 lg:px-5 lg:py-4">
+                  {/* Phone row: name + amount, client/plan sub-line, dates,
+                      then wrap-friendly 40px action buttons */}
+                  <div className="lg:hidden">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <p className="min-w-0 flex-1 truncate text-[15.5px] font-semibold text-gray-900">
+                        {s.name}
+                      </p>
+                      <p className="numeral-ledger shrink-0 text-sm font-semibold text-gray-900">
+                        {money(Number(s.unitPrice) * Number(s.quantity))}
+                      </p>
                     </div>
-                    {s.visitFrequency && s.nextVisitDate && (
-                      <div>
-                        Next visit:{" "}
-                        <span className="font-medium text-gray-700">{fmtDate(s.nextVisitDate)}</span>
+                    <div className="mt-1 flex items-center justify-between gap-3">
+                      <p className="min-w-0 flex-1 truncate text-xs text-gray-500">
+                        <Link href={`/app/contacts/${s.contact.id}`} className="hover:underline">
+                          {s.contact.firstName} {s.contact.lastName}
+                        </Link>
+                        {" · "}
+                        {INTERVAL_LABEL[s.interval]}
+                        {s.visitFrequency && (
+                          <span className="text-green-700">
+                            {" · "}visits {FREQ_LABEL[s.visitFrequency].toLowerCase()}
+                          </span>
+                        )}
+                        {!s.visitFrequency && s.createsJob && " · creates a job"}
+                        {s.invoiceMode === "DRAFT" && " · drafts only"}
+                      </p>
+                      {s.status === "PAUSED" && (
+                        <span className="stamp shrink-0 text-amber-700">Paused</span>
+                      )}
+                    </div>
+                    <p className="mt-0.5 text-xs text-gray-500">
+                      Bills <span className="font-medium text-gray-700">{fmtDate(s.nextRunDate)}</span>
+                      {s.visitFrequency && s.nextVisitDate && (
+                        <>
+                          {" · "}Next visit{" "}
+                          <span className="font-medium text-gray-700">{fmtDate(s.nextVisitDate)}</span>
+                        </>
+                      )}
+                    </p>
+                    {canManage && (
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <button
+                          onClick={() => openEdit(s)}
+                          disabled={busyId === s.id}
+                          className="flex h-10 items-center gap-1.5 rounded-[10px] border border-gray-200 bg-white px-3 text-xs font-medium text-gray-600 active:bg-gray-100 transition-colors disabled:opacity-40"
+                          title="Edit subscription"
+                        >
+                          <Pencil size={13} />
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => billNow(s.id)}
+                          disabled={busyId === s.id || s.status !== "ACTIVE"}
+                          className="flex h-10 items-center rounded-[10px] bg-green-50 px-3 text-xs font-medium text-green-700 active:bg-green-100 transition-colors disabled:opacity-40"
+                          title="Generate this subscription's next invoice now"
+                        >
+                          {busyId === s.id ? <Loader2 size={13} className="animate-spin" /> : "Bill now"}
+                        </button>
+                        {s.status === "ACTIVE" ? (
+                          <button
+                            onClick={() => setStatus(s.id, "PAUSED")}
+                            disabled={busyId === s.id}
+                            className="flex h-10 items-center gap-1.5 rounded-[10px] border border-gray-200 bg-white px-3 text-xs font-medium text-gray-600 active:bg-amber-50 active:text-amber-700 transition-colors disabled:opacity-40"
+                            title="Pause"
+                          >
+                            <Pause size={13} />
+                            Pause
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => setStatus(s.id, "ACTIVE")}
+                            disabled={busyId === s.id}
+                            className="flex h-10 items-center gap-1.5 rounded-[10px] border border-gray-200 bg-white px-3 text-xs font-medium text-gray-600 active:bg-green-50 active:text-green-700 transition-colors disabled:opacity-40"
+                            title="Resume"
+                          >
+                            <Play size={13} />
+                            Resume
+                          </button>
+                        )}
+                        <button
+                          onClick={async () => {
+                            if (
+                              await confirmSheet({
+                                title: "Cancel this subscription?",
+                                message: "It will stop billing.",
+                                confirmLabel: "Cancel Subscription",
+                                cancelLabel: "Keep It",
+                                destructive: true,
+                              })
+                            )
+                              setStatus(s.id, "CANCELLED");
+                          }}
+                          disabled={busyId === s.id}
+                          className="flex h-10 w-10 items-center justify-center rounded-full text-gray-400 active:bg-red-50 active:text-red-500 transition-colors disabled:opacity-40"
+                          title="Cancel"
+                        >
+                          <X size={16} />
+                        </button>
                       </div>
                     )}
                   </div>
-                  {canManage && (
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => openEdit(s)}
-                        disabled={busyId === s.id}
-                        className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
-                        title="Edit subscription"
-                      >
-                        <Pencil size={14} />
-                      </button>
-                      <button
-                        onClick={() => billNow(s.id)}
-                        disabled={busyId === s.id || s.status !== "ACTIVE"}
-                        className="px-2.5 py-1.5 text-xs font-medium text-green-700 bg-green-50 hover:bg-green-100 rounded-lg transition-colors disabled:opacity-40"
-                        title="Generate this subscription's next invoice now"
-                      >
-                        {busyId === s.id ? <Loader2 size={13} className="animate-spin" /> : "Bill now"}
-                      </button>
-                      {s.status === "ACTIVE" ? (
-                        <button
-                          onClick={() => setStatus(s.id, "PAUSED")}
-                          disabled={busyId === s.id}
-                          className="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-full transition-colors"
-                          title="Pause"
-                        >
-                          <Pause size={14} />
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => setStatus(s.id, "ACTIVE")}
-                          disabled={busyId === s.id}
-                          className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-full transition-colors"
-                          title="Resume"
-                        >
-                          <Play size={14} />
-                        </button>
-                      )}
-                      <button
-                        onClick={async () => {
-                          if (
-                            await confirmSheet({
-                              title: "Cancel this subscription?",
-                              message: "It will stop billing.",
-                              confirmLabel: "Cancel Subscription",
-                              cancelLabel: "Keep It",
-                              destructive: true,
-                            })
-                          )
-                            setStatus(s.id, "CANCELLED");
-                        }}
-                        disabled={busyId === s.id}
-                        className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
-                        title="Cancel"
-                      >
-                        <X size={14} />
-                      </button>
+                  {/* Desktop row (unchanged) */}
+                  <div className="hidden lg:flex flex-wrap items-center gap-x-4 gap-y-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-gray-900 flex items-center gap-2">
+                        {s.name}
+                        {s.status === "PAUSED" && (
+                          <span className="stamp text-amber-700">Paused</span>
+                        )}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        <Link href={`/app/contacts/${s.contact.id}`} className="hover:underline">
+                          {s.contact.firstName} {s.contact.lastName}
+                        </Link>
+                        {" · "}
+                        {INTERVAL_LABEL[s.interval]} · {money(Number(s.unitPrice) * Number(s.quantity))}
+                        {s.visitFrequency && (
+                          <span className="text-green-700">
+                            {" · "}visits {FREQ_LABEL[s.visitFrequency].toLowerCase()}
+                          </span>
+                        )}
+                        {!s.visitFrequency && s.createsJob && " · creates a job"}
+                        {s.invoiceMode === "DRAFT" && " · drafts only"}
+                      </p>
                     </div>
-                  )}
+                    <div className="text-xs text-gray-500 whitespace-nowrap text-right">
+                      <div>
+                        Bills: <span className="font-medium text-gray-700">{fmtDate(s.nextRunDate)}</span>
+                      </div>
+                      {s.visitFrequency && s.nextVisitDate && (
+                        <div>
+                          Next visit:{" "}
+                          <span className="font-medium text-gray-700">{fmtDate(s.nextVisitDate)}</span>
+                        </div>
+                      )}
+                    </div>
+                    {canManage && (
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => openEdit(s)}
+                          disabled={busyId === s.id}
+                          className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
+                          title="Edit subscription"
+                        >
+                          <Pencil size={14} />
+                        </button>
+                        <button
+                          onClick={() => billNow(s.id)}
+                          disabled={busyId === s.id || s.status !== "ACTIVE"}
+                          className="px-2.5 py-1.5 text-xs font-medium text-green-700 bg-green-50 hover:bg-green-100 rounded-lg transition-colors disabled:opacity-40"
+                          title="Generate this subscription's next invoice now"
+                        >
+                          {busyId === s.id ? <Loader2 size={13} className="animate-spin" /> : "Bill now"}
+                        </button>
+                        {s.status === "ACTIVE" ? (
+                          <button
+                            onClick={() => setStatus(s.id, "PAUSED")}
+                            disabled={busyId === s.id}
+                            className="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-full transition-colors"
+                            title="Pause"
+                          >
+                            <Pause size={14} />
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => setStatus(s.id, "ACTIVE")}
+                            disabled={busyId === s.id}
+                            className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-full transition-colors"
+                            title="Resume"
+                          >
+                            <Play size={14} />
+                          </button>
+                        )}
+                        <button
+                          onClick={async () => {
+                            if (
+                              await confirmSheet({
+                                title: "Cancel this subscription?",
+                                message: "It will stop billing.",
+                                confirmLabel: "Cancel Subscription",
+                                cancelLabel: "Keep It",
+                                destructive: true,
+                              })
+                            )
+                              setStatus(s.id, "CANCELLED");
+                          }}
+                          disabled={busyId === s.id}
+                          className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
+                          title="Cancel"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
                 )
               )}

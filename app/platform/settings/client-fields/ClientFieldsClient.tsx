@@ -104,7 +104,7 @@ export default function ClientFieldsClient({ defs }: { defs: Def[] }) {
           Add Field
         </button>
       </div>
-      <p className="text-sm text-gray-500 mb-6 ml-8">
+      <p className="text-sm text-gray-500 mb-6 lg:ml-8">
         Custom fields show on every client — new-client form, client pages, and the CSV importer.
       </p>
 
@@ -188,14 +188,16 @@ export default function ClientFieldsClient({ defs }: { defs: Def[] }) {
               <button
                 onClick={() => move(d, -1)}
                 disabled={i === 0 || busy}
-                className="text-gray-300 hover:text-gray-600 disabled:opacity-30"
+                aria-label={`Move ${d.label} up`}
+                className="p-1 text-gray-300 hover:text-gray-600 active:text-gray-600 disabled:opacity-30"
               >
                 <ArrowUp size={12} />
               </button>
               <button
                 onClick={() => move(d, 1)}
                 disabled={i === active.length - 1 || busy}
-                className="text-gray-300 hover:text-gray-600 disabled:opacity-30"
+                aria-label={`Move ${d.label} down`}
+                className="p-1 text-gray-300 hover:text-gray-600 active:text-gray-600 disabled:opacity-30"
               >
                 <ArrowDown size={12} />
               </button>

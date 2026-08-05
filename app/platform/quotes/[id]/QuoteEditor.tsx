@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Loader2, Plus, Trash2, ArrowLeft } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import WorkItemPicker, { type PickerWorkItem } from "@/components/WorkItemPicker";
+import ContactPicker from "@/components/ContactPicker";
 
 type Contact = { id: string; firstName: string; lastName: string };
 
@@ -263,20 +264,13 @@ export default function QuoteEditor({
         <div className="card-ledger p-5 space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Client *</label>
-            <select
+            <ContactPicker
+              contacts={contacts}
               value={contactId}
-              onChange={(e) => setContactId(e.target.value)}
-              required
+              onChange={setContactId}
               disabled={editing}
-              className="w-full max-w-xs px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-50 disabled:text-gray-500"
-            >
-              <option value="">Select a client...</option>
-              {contacts.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.firstName} {c.lastName}
-                </option>
-              ))}
-            </select>
+              className="w-full sm:max-w-xs"
+            />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
@@ -290,8 +284,9 @@ export default function QuoteEditor({
           </div>
         </div>
 
-        {/* Line items */}
-        <div className="card-ledger overflow-hidden">
+        {/* Line items — no overflow-hidden: the price-book dropdown must be
+            able to spill past the card edge (it was getting clipped) */}
+        <div className="card-ledger">
           <div className="px-5 py-4 border-b border-gray-100">
             <h2 className="text-sm font-semibold text-gray-700">
               Product / Service
@@ -332,6 +327,7 @@ export default function QuoteEditor({
                     />
                     <input
                       type="number"
+                      inputMode="decimal"
                       placeholder="Unit price"
                       value={li.unitPrice}
                       onChange={(e) => updateLine(i, "unitPrice", e.target.value)}
@@ -370,7 +366,7 @@ export default function QuoteEditor({
           </div>
 
           {/* Totals + deposit */}
-          <div className="px-5 py-4 border-t border-gray-100 bg-gray-50 space-y-4">
+          <div className="px-5 py-4 border-t border-gray-100 bg-gray-50 space-y-4 rounded-b-[7px] max-lg:rounded-b-[13px]">
             <div className="flex items-start justify-between gap-4 flex-wrap">
               <div className="space-y-2">
                 <div className="flex items-center gap-2">

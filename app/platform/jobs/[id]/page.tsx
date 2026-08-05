@@ -350,7 +350,32 @@ export default async function JobDetailPage({
               title="Product / Service"
               meta={showMoney ? money(lineTotal) : `${job.lineItems.length}`}
             >
-              <div className="px-5 py-3">
+              {/* Line items — stacked rows on phones */}
+              <div className="lg:hidden divide-y divide-gray-100">
+                {job.lineItems.map((li) => (
+                  <div key={li.id} className="flex items-start justify-between gap-3 px-4 py-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[15.5px] font-semibold text-gray-900">{li.name}</p>
+                      {li.description && (
+                        <p className="text-xs text-gray-500 mt-0.5">{li.description}</p>
+                      )}
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {showMoney
+                          ? `${Number(li.quantity)} × ${money(li.unitPrice)}`
+                          : `Qty ${Number(li.quantity)}`}
+                      </p>
+                    </div>
+                    {showMoney && (
+                      <p className="numeral-ledger shrink-0 text-sm font-semibold text-gray-900">
+                        {money(li.total)}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Line items — desktop table */}
+              <div className="hidden lg:block px-5 py-3">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-gray-100">
@@ -396,8 +421,8 @@ export default async function JobDetailPage({
                 </table>
               </div>
               {showMoney && (
-                <div className="px-5 py-3 border-t border-gray-100 bg-gray-50">
-                  <div className="ml-auto w-56 space-y-1 text-sm">
+                <div className="px-4 lg:px-5 py-3 border-t border-gray-100 bg-gray-50">
+                  <div className="ml-auto w-full lg:w-56 space-y-1 text-sm">
                     {lineCost > 0 && (
                       <div className="flex justify-between">
                         <span className="text-gray-500">Total cost</span>

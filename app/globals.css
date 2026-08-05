@@ -942,6 +942,7 @@ body {
   .anim-fade-up,
   .anim-create-pop,
   .anim-create-item,
+  .anim-tile-pop,
   .anim-x-twirl {
     animation: none;
     opacity: 1;
@@ -969,15 +970,37 @@ body {
 @keyframes create-item {
   from {
     opacity: 0;
-    transform: translateX(-8px);
+    transform: translateY(6px) scale(0.92);
+  }
+  60% {
+    transform: translateY(-1px) scale(1.03);
   }
   to {
     opacity: 1;
-    transform: translateX(0);
+    transform: translateY(0) scale(1);
   }
 }
 .anim-create-item {
-  animation: create-item 0.22s ease-out both;
+  transform-origin: left center;
+  animation: create-item 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Create-sheet tiles — springy pop with a hint of overshoot, erupting from
+   the FAB (AppShell staggers delays by distance from bottom-center). End
+   state implicit so fill:both pins no transform — the sheet is glass and
+   iOS drops backdrop-filter on transformed subtrees. */
+@keyframes tile-pop {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.55);
+  }
+  62% {
+    opacity: 1;
+    transform: translateY(-2px) scale(1.06);
+  }
+}
+.anim-tile-pop {
+  animation: tile-pop 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 /* Create-sheet close button: the + twirls into an × as the sheet lands,

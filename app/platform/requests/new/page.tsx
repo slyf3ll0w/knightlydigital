@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Loader2, ArrowLeft } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
+import ContactPicker from "@/components/ContactPicker";
 
 type Contact = { id: string; firstName: string; lastName: string };
 
@@ -74,19 +75,11 @@ function NewRequestForm() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Client *</label>
-            <select
+            <ContactPicker
+              contacts={contacts}
               value={form.contactId}
-              onChange={(e) => set("contactId", e.target.value)}
-              required
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-            >
-              <option value="">Select a client...</option>
-              {contacts.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.firstName} {c.lastName}
-                </option>
-              ))}
-            </select>
+              onChange={(id) => set("contactId", id)}
+            />
             <Link
               href="/app/contacts/new"
               className="text-xs text-green-600 hover:underline mt-1 inline-block"

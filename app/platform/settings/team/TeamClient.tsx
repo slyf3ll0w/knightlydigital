@@ -233,17 +233,21 @@ export default function TeamClient({
         {users.map((m) => (
           <div key={m.id} className={`px-4 py-3 ${m.isActive ? "" : "opacity-60"}`}>
             <div className="flex flex-wrap items-center gap-3">
-              <Avatar name={m.name} userId={m.id} size={32} />
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-gray-900 truncate">
-                  {m.name}
-                  {m.id === actorId && <span className="text-xs text-gray-400"> (you)</span>}
-                  {!m.isActive && <span className="text-xs text-red-500"> · deactivated</span>}
-                </p>
-                <p className="text-xs text-gray-500 truncate">
-                  {m.email}
-                  {m.phone ? ` · ${m.phone}` : ""}
-                </p>
+              {/* Identity takes the full first line on phones so the controls
+                  wrap into their own tidy row underneath; desktop unchanged. */}
+              <div className="flex w-full min-w-0 items-center gap-3 sm:w-auto sm:flex-1">
+                <Avatar name={m.name} userId={m.id} size={32} />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-gray-900 truncate">
+                    {m.name}
+                    {m.id === actorId && <span className="text-xs text-gray-400"> (you)</span>}
+                    {!m.isActive && <span className="text-xs text-red-500"> · deactivated</span>}
+                  </p>
+                  <p className="text-xs text-gray-500 truncate">
+                    {m.email}
+                    {m.phone ? ` · ${m.phone}` : ""}
+                  </p>
+                </div>
               </div>
 
               {m.isActive && (canManage(m) || m.id === actorId) && (
@@ -314,7 +318,7 @@ export default function TeamClient({
                       setResetFor(resetFor === m.id ? null : m.id);
                       setResetPassword("");
                     }}
-                    className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-full"
+                    className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 active:bg-gray-100 rounded-full"
                     title="Reset password"
                   >
                     <KeyRound size={14} />
@@ -335,13 +339,13 @@ export default function TeamClient({
             </div>
 
             {resetFor === m.id && (
-              <div className="flex flex-wrap items-center gap-2 mt-3 pl-11">
+              <div className="flex flex-wrap items-center gap-2 mt-3 sm:pl-11">
                 <input
                   type="text"
                   value={resetPassword}
                   onChange={(e) => setResetPassword(e.target.value)}
                   placeholder="New password (8+ characters)"
-                  className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 w-64"
+                  className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 w-full sm:w-64"
                 />
                 <button
                   onClick={async () => {

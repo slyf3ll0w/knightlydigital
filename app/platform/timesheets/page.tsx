@@ -146,67 +146,139 @@ export default async function TimesheetsPage({
                   {g.entries.map((e) => {
                     const open = !e.endedAt;
                     return (
-                      <div key={e.id} className="flex items-center gap-3 px-5 py-2.5 text-sm">
-                        <span className="w-24 shrink-0 text-xs font-medium text-gray-500">
-                          {fmtDay(e.startedAt)}
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          {e.job ? (
-                            <Link
-                              href={`/app/jobs/${e.job.id}`}
-                              className="text-gray-900 font-medium hover:text-green-700 truncate block"
-                            >
-                              {e.job.title}
-                            </Link>
-                          ) : (
-                            <span className="text-gray-500">No job</span>
-                          )}
-                          <p className="text-xs text-gray-500">
-                            {fmtTime(e.startedAt)}
-                            {e.endedAt ? ` – ${fmtTime(e.endedAt)}` : ""}
-                            {e.source === "MANUAL" && (
-                              <span className="ml-1.5 stamp text-gray-500">Manual</span>
+                      <div key={e.id} className="px-4 py-3 lg:px-5 lg:py-2.5">
+                        {/* Phone row: job on top with duration right-aligned,
+                            day + time range sub-line beneath */}
+                        <div className="lg:hidden">
+                          <div className="flex items-baseline justify-between gap-3">
+                            {e.job ? (
+                              <Link
+                                href={`/app/jobs/${e.job.id}`}
+                                className="min-w-0 flex-1 truncate text-[15.5px] font-semibold text-gray-900 active:text-green-700"
+                              >
+                                {e.job.title}
+                              </Link>
+                            ) : (
+                              <span className="min-w-0 flex-1 truncate text-[15.5px] font-semibold text-gray-500">
+                                No job
+                              </span>
                             )}
-                            {e.source === "CLOCK" && e.editedById && (
-                              <span className="ml-1.5 stamp text-gray-500">Edited</span>
-                            )}
-                            {e.note && <span className="ml-1.5 text-gray-400">· {e.note}</span>}
-                          </p>
+                            <span className="flex shrink-0 items-center gap-1.5">
+                              {open && (
+                                <span className="relative flex h-2 w-2" title="On the clock">
+                                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-60" />
+                                  <span className="relative inline-flex h-2 w-2 rounded-full bg-green-500" />
+                                </span>
+                              )}
+                              <span
+                                className={`numeral-ledger text-sm font-semibold tabular-nums ${
+                                  open ? "text-green-700" : "text-gray-900"
+                                }`}
+                              >
+                                {open ? formatDuration(entryMs(e, now)) : formatDuration(entryMs(e))}
+                              </span>
+                            </span>
+                          </div>
+                          <div className="mt-0.5 flex items-center justify-between gap-3">
+                            <p className="min-w-0 flex-1 truncate text-xs text-gray-500">
+                              {fmtDay(e.startedAt)} · {fmtTime(e.startedAt)}
+                              {e.endedAt ? ` – ${fmtTime(e.endedAt)}` : ""}
+                              {e.source === "MANUAL" && (
+                                <span className="ml-1.5 stamp text-gray-500">Manual</span>
+                              )}
+                              {e.source === "CLOCK" && e.editedById && (
+                                <span className="ml-1.5 stamp text-gray-500">Edited</span>
+                              )}
+                              {e.note && <span className="ml-1.5 text-gray-400">· {e.note}</span>}
+                            </p>
+                            <span className="flex shrink-0 items-center gap-1">
+                              {e.startLat != null && e.startLng != null && (
+                                <a
+                                  href={mapsHref(e.startLat, e.startLng)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  title="Clock-in location"
+                                  className="p-2 text-gray-400 active:text-green-700"
+                                >
+                                  <MapPin size={15} />
+                                </a>
+                              )}
+                              {manager && (
+                                <EntryActions
+                                  entry={{
+                                    id: e.id,
+                                    startedAt: e.startedAt.toISOString(),
+                                    endedAt: e.endedAt ? e.endedAt.toISOString() : null,
+                                    note: e.note,
+                                  }}
+                                />
+                              )}
+                            </span>
+                          </div>
                         </div>
-                        {e.startLat != null && e.startLng != null && (
-                          <a
-                            href={mapsHref(e.startLat, e.startLng)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            title="Clock-in location"
-                            className="text-gray-400 hover:text-green-700 shrink-0"
-                          >
-                            <MapPin size={14} />
-                          </a>
-                        )}
-                        <span
-                          className={`numeral-ledger w-16 shrink-0 text-right font-semibold tabular-nums ${
-                            open ? "text-green-700" : "text-gray-900"
-                          }`}
-                        >
-                          {open ? formatDuration(entryMs(e, now)) : formatDuration(entryMs(e))}
-                        </span>
-                        {open && (
-                          <span className="relative flex h-2 w-2 shrink-0" title="On the clock">
-                            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-60" />
-                            <span className="relative inline-flex h-2 w-2 rounded-full bg-green-500" />
+                        {/* Desktop row (unchanged) */}
+                        <div className="hidden lg:flex items-center gap-3 text-sm">
+                          <span className="w-24 shrink-0 text-xs font-medium text-gray-500">
+                            {fmtDay(e.startedAt)}
                           </span>
-                        )}
-                        {manager && (
-                          <EntryActions
-                            entry={{
-                              id: e.id,
-                              startedAt: e.startedAt.toISOString(),
-                              endedAt: e.endedAt ? e.endedAt.toISOString() : null,
-                              note: e.note,
-                            }}
-                          />
-                        )}
+                          <div className="flex-1 min-w-0">
+                            {e.job ? (
+                              <Link
+                                href={`/app/jobs/${e.job.id}`}
+                                className="text-gray-900 font-medium hover:text-green-700 truncate block"
+                              >
+                                {e.job.title}
+                              </Link>
+                            ) : (
+                              <span className="text-gray-500">No job</span>
+                            )}
+                            <p className="text-xs text-gray-500">
+                              {fmtTime(e.startedAt)}
+                              {e.endedAt ? ` – ${fmtTime(e.endedAt)}` : ""}
+                              {e.source === "MANUAL" && (
+                                <span className="ml-1.5 stamp text-gray-500">Manual</span>
+                              )}
+                              {e.source === "CLOCK" && e.editedById && (
+                                <span className="ml-1.5 stamp text-gray-500">Edited</span>
+                              )}
+                              {e.note && <span className="ml-1.5 text-gray-400">· {e.note}</span>}
+                            </p>
+                          </div>
+                          {e.startLat != null && e.startLng != null && (
+                            <a
+                              href={mapsHref(e.startLat, e.startLng)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title="Clock-in location"
+                              className="text-gray-400 hover:text-green-700 shrink-0"
+                            >
+                              <MapPin size={14} />
+                            </a>
+                          )}
+                          <span
+                            className={`numeral-ledger w-16 shrink-0 text-right font-semibold tabular-nums ${
+                              open ? "text-green-700" : "text-gray-900"
+                            }`}
+                          >
+                            {open ? formatDuration(entryMs(e, now)) : formatDuration(entryMs(e))}
+                          </span>
+                          {open && (
+                            <span className="relative flex h-2 w-2 shrink-0" title="On the clock">
+                              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-60" />
+                              <span className="relative inline-flex h-2 w-2 rounded-full bg-green-500" />
+                            </span>
+                          )}
+                          {manager && (
+                            <EntryActions
+                              entry={{
+                                id: e.id,
+                                startedAt: e.startedAt.toISOString(),
+                                endedAt: e.endedAt ? e.endedAt.toISOString() : null,
+                                note: e.note,
+                              }}
+                            />
+                          )}
+                        </div>
                       </div>
                     );
                   })}

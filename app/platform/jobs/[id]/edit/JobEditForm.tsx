@@ -224,8 +224,9 @@ export default function JobEditForm({
           </div>
         </div>
 
-        {/* Line items */}
-        <div className="card-ledger overflow-hidden">
+        {/* Line items — no overflow-hidden: the price-book dropdown must be
+            able to spill past the card edge (it was getting clipped) */}
+        <div className="card-ledger">
             <div className="px-5 py-4 border-b border-gray-100">
               <h2 className="text-sm font-semibold text-gray-700">
                 Product / Service
@@ -257,6 +258,7 @@ export default function JobEditForm({
                         </button>
                         <input
                           type="number"
+                          inputMode="decimal"
                           placeholder="Qty"
                           value={li.quantity}
                           onChange={(e) => updateLine(i, "quantity", e.target.value)}
@@ -266,6 +268,7 @@ export default function JobEditForm({
                         />
                         <input
                           type="number"
+                          inputMode="decimal"
                           placeholder="Unit price"
                           value={li.unitPrice}
                           onChange={(e) => updateLine(i, "unitPrice", e.target.value)}
@@ -294,7 +297,7 @@ export default function JobEditForm({
                 Add line item
               </button>
             </div>
-            <div className="px-5 py-3 border-t border-gray-100 bg-gray-50">
+            <div className="px-5 py-3 border-t border-gray-100 bg-gray-50 rounded-b-[7px] max-lg:rounded-b-[13px]">
               <div className="ml-auto w-56 flex justify-between text-sm font-bold">
                 <span className="text-gray-900">Total price</span>
                 <span className="text-gray-900">${lineTotal.toFixed(2)}</span>

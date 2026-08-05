@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
+import ContactPicker from "@/components/ContactPicker";
 
 const inputCls =
   "w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500";
@@ -67,14 +68,7 @@ export default function NewContractForm({
         <div className="grid sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-xs text-gray-500 mb-1">Client *</label>
-            <select value={contactId} onChange={(e) => setContactId(e.target.value)} className={inputCls}>
-              <option value="">Select a client...</option>
-              {contacts.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.firstName} {c.lastName}
-                </option>
-              ))}
-            </select>
+            <ContactPicker contacts={contacts} value={contactId} onChange={setContactId} />
           </div>
           <div>
             <label className="block text-xs text-gray-500 mb-1">Start from template</label>

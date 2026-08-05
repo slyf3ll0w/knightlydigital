@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Loader2, Plus, Trash2, ArrowLeft } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import WorkItemPicker, { type PickerWorkItem } from "@/components/WorkItemPicker";
+import ContactPicker from "@/components/ContactPicker";
 
 type Contact = { id: string; firstName: string; lastName: string; paymentTermsDays?: number };
 type LineItem = {
@@ -262,7 +263,8 @@ export default function InvoiceEditor({
               className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
             />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          {/* Stacks on phones — two-up squeezed both fields on small screens */}
+          <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Customer *</label>
               {editInvoice ? (
@@ -270,20 +272,16 @@ export default function InvoiceEditor({
                   {editInvoice.contactName || "—"}
                 </p>
               ) : (
-                <select
+                <ContactPicker
+                  contacts={contacts}
                   value={contactId}
-                  onChange={(e) => {
-                    setContactId(e.target.value);
-                    if (!dueDateTouched) setDueDate(defaultDueFor(e.target.value));
+                  onChange={(id) => {
+                    setContactId(id);
+                    if (!dueDateTouched) setDueDate(defaultDueFor(id));
                   }}
-                  required
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-                >
-                  <option value="">Select...</option>
-                  {contacts.map((c) => (
-                    <option key={c.id} value={c.id}>{c.firstName} {c.lastName}</option>
-                  ))}
-                </select>
+                  placeholder="Select a customer..."
+                  title="Select a customer"
+                />
               )}
             </div>
             <div>
@@ -301,8 +299,9 @@ export default function InvoiceEditor({
           </div>
         </div>
 
-        {/* Line items */}
-        <div className="card-ledger overflow-hidden">
+        {/* Line items — no overflow-hidden: the price-book dropdown must be
+            able to spill past the card edge (it was getting clipped) */}
+        <div className="card-ledger">
           <div className="px-5 py-4 border-b border-gray-100">
             <h2 className="text-sm font-semibold text-gray-700">Line Items</h2>
           </div>
@@ -340,6 +339,7 @@ export default function InvoiceEditor({
                     />
                     <input
                       type="number"
+                      inputMode="decimal"
                       placeholder="Unit price"
                       value={li.unitPrice}
                       onChange={(e) => updateLine(i, "unitPrice", e.target.value)}
@@ -362,7 +362,7 @@ export default function InvoiceEditor({
               <Plus size={13} /> Add line item
             </button>
           </div>
-          <div className="px-5 py-4 border-t border-gray-100 bg-gray-50">
+          <div className="px-5 py-4 border-t border-gray-100 bg-gray-50 rounded-b-[7px] max-lg:rounded-b-[13px]">
             <div className="flex items-start justify-between gap-4 flex-wrap">
               <div className="space-y-2">
                 <div className="flex items-center gap-2">

@@ -114,8 +114,9 @@ export default async function QuoteDetailPage({
           <CollectDepositNudge quoteId={quote.id} amount={deposit} />
         )}
 
-      {/* Header facts (Jobber-style definition list with backlinks) */}
-      <div className="flex flex-wrap gap-x-8 gap-y-2 px-5 py-4 card-ledger mb-6 text-sm">
+      {/* Header facts (Jobber-style definition list with backlinks) —
+          2-col grid on phones, flowing definition list at a desk */}
+      <div className="grid grid-cols-2 gap-3 lg:flex lg:flex-wrap lg:gap-x-8 lg:gap-y-2 px-5 py-4 card-ledger mb-6 text-sm">
         <div>
           <span className="text-xs font-medium text-gray-500 block">Quote #</span>
           <span className="text-gray-800">{quote.quoteNumber}</span>
@@ -218,8 +219,49 @@ export default async function QuoteDetailPage({
           </div>
         )}
 
-        {/* Line items */}
-        <div className="px-6 py-4">
+        {/* Line items — stacked rows on phones */}
+        <div className="lg:hidden divide-y divide-gray-100">
+          {quote.lineItems.map((item) => (
+            <div
+              key={item.id}
+              className={`flex items-start justify-between gap-3 px-4 py-3 ${
+                item.isOptional && item.optedOut ? "opacity-40" : ""
+              }`}
+            >
+              <div className="min-w-0 flex-1">
+                <p className="text-[15.5px] font-semibold text-gray-900">
+                  {item.name || item.description}
+                  {/* explicit spaces — JSX drops line-break whitespace, and
+                      without them screen readers hear "ReplacementOptional" */}
+                  {item.isOptional && " "}
+                  {item.isOptional && (
+                    <span className="ml-2 text-xs font-medium px-1.5 py-0.5 rounded-lg bg-gray-100 text-gray-500">
+                      Optional{item.optedOut ? " — removed by client" : ""}
+                    </span>
+                  )}
+                  {item.recurringInterval && " "}
+                  {item.recurringInterval && (
+                    <span className="ml-2 text-xs font-medium px-1.5 py-0.5 rounded-lg bg-green-100 text-green-700">
+                      Recurring
+                    </span>
+                  )}
+                </p>
+                {item.name && item.description && (
+                  <p className="text-xs text-gray-500 mt-0.5">{item.description}</p>
+                )}
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {Number(item.quantity)} × {money(item.unitPrice)}
+                </p>
+              </div>
+              <p className="numeral-ledger shrink-0 text-sm font-semibold text-gray-900">
+                {money(item.total)}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        {/* Line items — desktop table */}
+        <div className="hidden lg:block px-6 py-4">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100">
@@ -271,9 +313,9 @@ export default async function QuoteDetailPage({
           </table>
         </div>
 
-        {/* Totals */}
-        <div className="px-6 py-4 border-t border-gray-100 bg-gray-50">
-          <div className="ml-auto w-64 space-y-1.5 text-sm">
+        {/* Totals — full-width rows on phones, right-hand column at a desk */}
+        <div className="px-4 lg:px-6 py-4 border-t border-gray-100 bg-gray-50">
+          <div className="ml-auto w-full lg:w-64 space-y-1.5 text-sm">
             <div className="flex justify-between">
               <span className="text-gray-500">Subtotal</span>
               <span className="text-gray-800">{money(quote.subtotal)}</span>

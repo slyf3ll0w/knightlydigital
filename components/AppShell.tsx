@@ -1527,17 +1527,22 @@ function MobileTabBar({
                   : rem === 2 && i === creates.length - 2
                     ? "col-start-2"
                     : "";
+              // Tiles erupt from the FAB: the bottom-center tile pops first,
+              // then the wave spreads up and outward (delay = grid distance
+              // from bottom-center, so it reads as bursting out of the +).
+              const rows = Math.ceil(creates.length / 3);
+              const rowFromBottom = rows - 1 - Math.floor(i / 3);
+              const colFromCenter = Math.abs((i % 3) - 1);
+              const delay = 60 + rowFromBottom * 60 + colFromCenter * 35;
               return (
                 <Link
                   key={href}
                   href={href}
                   onClick={() => setSheetOpen(false)}
-                  style={
-                    sheetOpen
-                      ? { animation: "tile-in 300ms cubic-bezier(0.22,1,0.36,1) both", animationDelay: `${70 + i * 28}ms` }
-                      : undefined
-                  }
-                  className={`col-span-2 ${placement} flex flex-col items-center gap-2 rounded-2xl px-1 py-3.5 transition-transform active:scale-95`}
+                  style={sheetOpen ? { animationDelay: `${delay}ms` } : undefined}
+                  className={`col-span-2 ${placement} flex flex-col items-center gap-2 rounded-2xl px-1 py-3.5 transition-transform active:scale-95 ${
+                    sheetOpen ? "anim-tile-pop" : ""
+                  }`}
                 >
                   {/* Solid hue tile — the create grid scans by color (one hue
                       per entity, tenant-repaintable via Settings → Branding) */}
