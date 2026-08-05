@@ -2,7 +2,8 @@ import { prisma } from "@/lib/db";
 import Link from "next/link";
 import { Plus, ChevronRight, UserCheck, Inbox } from "lucide-react";
 import PageTitle from "@/components/PageTitle";
-import { FilterRow, FilterChip, FilterDivider, SegmentedRow, Segment } from "@/components/FilterChips";
+import { FilterRow, FilterChip, FilterDivider } from "@/components/FilterChips";
+import FilterSelect from "@/components/FilterSelect";
 import { SECTION_HUES } from "@/lib/section-colors";
 import { shortDate } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
@@ -14,8 +15,8 @@ import { requirePageActor, canSell, viaContactScope, seesAllLeads } from "@/lib/
 import type { RequestStatus } from "@prisma/client";
 
 const statusFilters: { value: string; label: string; mobile: string }[] = [
-  { value: "", label: "All", mobile: "All" },
-  { value: "NEEDS_APPROVAL", label: "Needs approval", mobile: "To approve" },
+  { value: "", label: "All", mobile: "All requests" },
+  { value: "NEEDS_APPROVAL", label: "Needs approval", mobile: "Needs approval" },
   { value: "NEW", label: "New", mobile: "New" },
   { value: "CONVERTED", label: "Converted", mobile: "Converted" },
   { value: "ARCHIVED", label: "Archived", mobile: "Archived" },
@@ -123,22 +124,19 @@ export default async function RequestsPage({
         ]}
       />
 
-      {/* Filter tabs — phones get the segmented control (12px so five
-          segments fit a 390 screen); the My-leads scope toggle stays a chip
-          below it. Desktop keeps the chip rail. */}
-      <SegmentedRow className="mb-4 text-[12px] lg:hidden">
-        {statusFilters.map((f) => (
-          <Segment
-            key={f.value}
-            active={(validStatus ?? "") === f.value}
-            href={qs({ status: f.value })}
-          >
-            {f.mobile}
-          </Segment>
-        ))}
-      </SegmentedRow>
-      {showAll && (
-        <div className="-mt-1 mb-4 flex lg:hidden">
+      {/* Status filter — five options crowded the segmented row, so phones
+          get a compact dropdown (David's call) with the My-leads scope
+          toggle beside it. Desktop keeps the chip rail. */}
+      <div className="mb-4 flex items-center gap-2 lg:hidden">
+        <FilterSelect
+          value={validStatus ?? ""}
+          options={statusFilters.map((f) => ({
+            value: f.value,
+            label: f.mobile,
+            href: qs({ status: f.value }),
+          }))}
+        />
+        {showAll && (
           <FilterChip
             hue={SECTION_HUES.requests}
             active={mineOnly}
@@ -147,8 +145,8 @@ export default async function RequestsPage({
             <UserCheck size={13} />
             My leads
           </FilterChip>
-        </div>
-      )}
+        )}
+      </div>
       <div className="hidden lg:block">
         <FilterRow>
           {statusFilters.map((f) => (

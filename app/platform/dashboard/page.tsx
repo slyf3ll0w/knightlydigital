@@ -341,8 +341,8 @@ export default async function DashboardPage() {
     // flex order classes entirely).
     <div className="p-4 lg:p-8 max-w-7xl mx-auto flex flex-col lg:block">
       <div className="mb-7 anim-fade-up order-1">
-        {/* Mobile shows the date on the Today card instead */}
-        <p className="hidden lg:block text-sm font-medium text-gray-500">
+        {/* "Your day" hero — the date rides with the greeting on every screen */}
+        <p className="text-sm font-medium text-gray-500">
           {now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
         </p>
         {/* Two-tone greeting, like the marketing headline — the name carries
@@ -617,16 +617,7 @@ export default async function DashboardPage() {
         data-tour="today"
       >
         <div className="flex items-center justify-between border-b border-gray-100 px-4 pb-3 pt-4">
-          <p className="text-[17px] font-bold text-gray-900">
-            Today
-            <span className="ml-2 text-[13px] font-medium text-gray-500">
-              {now.toLocaleDateString("en-US", {
-                weekday: "short",
-                month: "short",
-                day: "numeric",
-              })}
-            </span>
-          </p>
+          <p className="text-[17px] font-bold text-gray-900">Today</p>
           {todayItems.length > 0 && (
             <p className="numeral-ledger text-xl leading-none font-semibold text-gray-900">
               {todayItems.length}

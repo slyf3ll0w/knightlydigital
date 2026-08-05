@@ -854,7 +854,11 @@ export default function ScheduleClient({
                   <span
                     key={k}
                     className="h-1.5 w-1.5 rounded-full"
-                    style={{ backgroundColor: selected ? "var(--mobile-accent)" : "#D1D5DB" }}
+                    style={{
+                      backgroundColor: selected
+                        ? "var(--mobile-accent)"
+                        : "color-mix(in srgb, var(--mobile-accent) 55%, transparent)",
+                    }}
                   />
                 ))}
               </span>
@@ -1058,7 +1062,9 @@ export default function ScheduleClient({
     );
   }
 
-  /** Month as a dot grid — readable at 375px, taps into the day agenda. */
+  /** Month grid + the selected day's agenda inline beneath it (the native
+      calendar-app pattern) — tapping a day answers "what's happening that
+      day" right there instead of yanking you into the day view. */
   function renderMonthCompact() {
     const y = anchor.getFullYear();
     const m = anchor.getMonth();
@@ -1074,68 +1080,106 @@ export default function ScheduleClient({
     }
 
     return (
-      <div className="card-tool overflow-hidden lg:hidden">
-        <div className="grid grid-cols-7 border-b border-gray-100 py-1.5">
-          {DAY_NAMES.map((d) => (
-            <div key={d} className="text-center text-[10px] font-semibold uppercase text-gray-400">
-              {d[0]}
-            </div>
-          ))}
-        </div>
-        <div className="grid grid-cols-7 gap-y-0.5 px-1 py-2">
-          {Array.from({ length: firstDow }, (_, i) => (
-            <div key={`e-${i}`} />
-          ))}
-          {Array.from({ length: daysInMonth }, (_, i) => {
-            const d = i + 1;
-            const cellDate = new Date(y, m, d);
-            const isToday = sameDay(cellDate, today);
-            const dayItems = byDay[d] ?? [];
-            return (
-              <button
-                key={d}
-                onClick={() => go({ view: "day", date: cellDate })}
-                className="flex flex-col items-center gap-1 rounded-xl py-1.5 transition-colors active:bg-gray-50"
-              >
-                {/* Plain days take their ink from the class, never an inline
-                    color: inline styles outrank the dark-theme bridge in
-                    globals.css, so a hardcoded gray-900 stayed near-black on
-                    the dark card and every day but today read as blank. */}
-                <span
-                  className={`flex h-8 w-8 items-center justify-center rounded-full text-[15px] font-medium ${
-                    isToday ? "" : "text-gray-900"
-                  }`}
-                  style={
-                    isToday
-                      ? {
-                          backgroundColor: "var(--mobile-accent)",
-                          color: "var(--mobile-on-accent)",
-                        }
-                      : undefined
-                  }
+      <div className="lg:hidden">
+        <div className="card-tool overflow-hidden">
+          <div className="grid grid-cols-7 border-b border-gray-100 py-1.5">
+            {DAY_NAMES.map((d) => (
+              <div key={d} className="text-center text-[10px] font-semibold uppercase text-gray-400">
+                {d[0]}
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-7 gap-y-0.5 px-1 py-2">
+            {Array.from({ length: firstDow }, (_, i) => (
+              <div key={`e-${i}`} />
+            ))}
+            {Array.from({ length: daysInMonth }, (_, i) => {
+              const d = i + 1;
+              const cellDate = new Date(y, m, d);
+              const isToday = sameDay(cellDate, today);
+              const selected = sameDay(cellDate, anchor);
+              const dayItems = byDay[d] ?? [];
+              return (
+                <button
+                  key={d}
+                  onClick={() => go({ date: cellDate })}
+                  aria-current={selected ? "date" : undefined}
+                  className="flex flex-col items-center gap-1 rounded-xl py-1.5 transition-colors active:bg-gray-50"
                 >
-                  {d}
-                </span>
-                {/* One dot per item (capped), all one color: the lifecycle
-                    tones a legend would decode collapse into near-identical
-                    blues once a tenant's accent replaces the stock green, so
-                    the dots only claim "there's work here" — the day agenda
-                    one tap away carries the detail. */}
-                <span className="flex h-1.5 items-center gap-[3px]">
-                  {dayItems.slice(0, 3).map((it) => (
-                    <span
-                      key={it.id}
-                      className="h-1.5 w-1.5 rounded-full"
-                      style={{
-                        backgroundColor: isToday ? "var(--mobile-accent)" : "#9CA3AF",
-                      }}
-                    />
-                  ))}
-                </span>
-              </button>
-            );
-          })}
+                  {/* Plain days take their ink from the class, never an inline
+                      color: inline styles outrank the dark-theme bridge in
+                      globals.css, so a hardcoded gray-900 stayed near-black on
+                      the dark card and every day but today read as blank.
+                      Selected = solid accent, today (unselected) = accent wash
+                      — same grammar as the day-view date strip. */}
+                  <span
+                    className={`flex h-8 w-8 items-center justify-center rounded-full text-[15px] font-medium ${
+                      selected || isToday ? "" : "text-gray-900"
+                    }`}
+                    style={
+                      selected
+                        ? {
+                            backgroundColor: "var(--mobile-accent)",
+                            color: "var(--mobile-on-accent)",
+                          }
+                        : isToday
+                          ? {
+                              backgroundColor:
+                                "color-mix(in srgb, var(--mobile-accent) 14%, transparent)",
+                              color: "var(--wb-ink)",
+                            }
+                          : undefined
+                    }
+                  >
+                    {d}
+                  </span>
+                  {/* One dot per item (capped) in a single accent tint: the
+                      lifecycle tones a legend would decode collapse into
+                      near-identical blues once a tenant's accent replaces the
+                      stock green, so the dots only claim "there's work here" —
+                      the agenda below carries the detail. */}
+                  <span className="flex h-1.5 items-center gap-[3px]">
+                    {dayItems.slice(0, 3).map((it) => (
+                      <span
+                        key={it.id}
+                        className="h-1.5 w-1.5 rounded-full"
+                        style={{
+                          backgroundColor: selected
+                            ? "var(--mobile-accent)"
+                            : "color-mix(in srgb, var(--mobile-accent) 55%, transparent)",
+                        }}
+                      />
+                    ))}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
+
+        {/* The selected day, right below the grid */}
+        <div className="mb-2 mt-4 flex items-center gap-2 px-0.5">
+          <h3 className="text-[13px] font-semibold text-gray-900">
+            {anchor.toLocaleDateString("en-US", {
+              weekday: "long",
+              month: "short",
+              day: "numeric",
+            })}
+          </h3>
+          {sameDay(anchor, today) && (
+            <span className="stamp" style={{ color: "var(--wb-ink)" }}>
+              Today
+            </span>
+          )}
+          <span className="h-px flex-1 bg-gray-200" aria-hidden />
+          <button
+            onClick={() => go({ view: "day" })}
+            className="text-[13px] font-semibold text-green-700"
+          >
+            Day view
+          </button>
+        </div>
+        {renderAgenda([anchor])}
       </div>
     );
   }

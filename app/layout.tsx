@@ -41,8 +41,11 @@ export default function RootLayout({
         <meta name="theme-color" content="#0A1428" />
         {/* Theme stamp — runs before paint so there's no light/dark flash.
             data-mode on <html> drives every dark-theme rule in globals.css;
-            "hub-theme" in localStorage ("light" | "dark") overrides the
-            system setting per device (set from Settings → Appearance).
+            "hub-theme" in localStorage ("light" | "dark" | "system") is the
+            per-device choice from Settings → Appearance. The app is LIGHT
+            unless the user explicitly chose Dark or Automatic — following the
+            device theme by default made the app flip to dark mid-session on
+            phones set to system dark, which read as a bug.
 
             Onboarding and client-facing routes are pinned to light regardless
             of device/system/localStorage — they must never inherit dark mode
@@ -55,7 +58,7 @@ var m=window.matchMedia("(prefers-color-scheme: dark)");
 var L=["/quote","/pay","/portal","/contract","/hub","/book","/embed","/app/register","/app/login","/app/forgot-password","/app/reset-password","/app/activate","/superadmin/login"];
 function forcedLight(){var p=location.pathname;for(var i=0;i<L.length;i++){if(p===L[i]||p.indexOf(L[i]+"/")===0)return true;}return false;}
 function apply(){var t=null;try{t=localStorage.getItem("hub-theme")}catch(e){}
-document.documentElement.dataset.mode=(!forcedLight()&&(t?t==="dark":m.matches))?"dark":"light";}
+document.documentElement.dataset.mode=(!forcedLight()&&(t==="dark"||(t==="system"&&m.matches)))?"dark":"light";}
 apply();m.addEventListener("change",apply);window.applyHubTheme=apply;
 }catch(e){}})();`,
           }}

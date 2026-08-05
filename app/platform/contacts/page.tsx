@@ -4,6 +4,7 @@ import { Plus, ChevronRight, UserCheck, Upload, ListPlus, Users } from "lucide-r
 import PageTitle from "@/components/PageTitle";
 import { SECTION_HUES } from "@/lib/section-colors";
 import { FilterRow, FilterChip, FilterDivider } from "@/components/FilterChips";
+import FilterSelect from "@/components/FilterSelect";
 import { shortDate } from "@/lib/statuses";
 import ContactStatus from "@/components/ContactStatus";
 import EmptyState from "@/components/EmptyState";
@@ -122,32 +123,54 @@ export default async function ContactsPage({
         {validStatus && <input type="hidden" name="status" value={validStatus} />}
       </form>
 
-      {/* Filter pills — scroll horizontally on phones instead of wrapping */}
-      <FilterRow>
-        {statusFilters.map((f) => (
-          <FilterChip
-            key={f.value}
-            hue={SECTION_HUES.clients}
-            active={(validStatus ?? "") === f.value}
-            href={statusQS(f.value)}
-          >
-            {f.label}
-          </FilterChip>
-        ))}
+      {/* Filters — phones get the compact dropdown + scope chips on one row
+          (the full-width chip rail crowded the screen); desktop keeps it */}
+      <div className="mb-4 flex items-center gap-2 lg:hidden">
+        <FilterSelect
+          value={validStatus ?? ""}
+          options={statusFilters.map((f) => ({
+            value: f.value,
+            label: f.label,
+            href: statusQS(f.value),
+          }))}
+        />
         {showAll && (
-          <>
-            <FilterDivider />
-            <FilterChip hue={SECTION_HUES.clients} active={mineOnly} href={assigneeQS(!mineOnly)}>
-              <UserCheck size={13} />
-              Mine
-            </FilterChip>
-          </>
+          <FilterChip hue={SECTION_HUES.clients} active={mineOnly} href={assigneeQS(!mineOnly)}>
+            <UserCheck size={13} />
+            Mine
+          </FilterChip>
         )}
-        <FilterDivider />
         <FilterChip hue={SECTION_HUES.clients} active={false} href="/app/leads">
           Leads board →
         </FilterChip>
-      </FilterRow>
+      </div>
+      <div className="hidden lg:block">
+        <FilterRow>
+          {statusFilters.map((f) => (
+            <FilterChip
+              key={f.value}
+              hue={SECTION_HUES.clients}
+              active={(validStatus ?? "") === f.value}
+              href={statusQS(f.value)}
+            >
+              {f.label}
+            </FilterChip>
+          ))}
+          {showAll && (
+            <>
+              <FilterDivider />
+              <FilterChip hue={SECTION_HUES.clients} active={mineOnly} href={assigneeQS(!mineOnly)}>
+                <UserCheck size={13} />
+                Mine
+              </FilterChip>
+            </>
+          )}
+          <FilterDivider />
+          <FilterChip hue={SECTION_HUES.clients} active={false} href="/app/leads">
+            Leads board →
+          </FilterChip>
+        </FilterRow>
+      </div>
 
       <div className="card-ledger overflow-hidden">
         {contacts.length === 0 ? (

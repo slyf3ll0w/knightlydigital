@@ -797,19 +797,20 @@ export default function SettingsClient({
   // Appearance is a per-DEVICE preference (localStorage, not the database):
   // field phones want their own light/dark choice, and it must apply with no
   // network round-trip. The head script in app/layout.tsx owns the stamping;
-  // applyHubTheme() re-reads localStorage + system setting.
-  const [appearance, setAppearance] = useState<"system" | "light" | "dark">("system");
+  // applyHubTheme() re-reads localStorage. Light is the default — Automatic
+  // (follow the device) is an explicit opt-in, otherwise phones set to system
+  // dark flip the app to dark mid-session, which reads as a bug.
+  const [appearance, setAppearance] = useState<"system" | "light" | "dark">("light");
   useEffect(() => {
     try {
       const t = localStorage.getItem("hub-theme");
-      if (t === "light" || t === "dark") setAppearance(t);
+      if (t === "light" || t === "dark" || t === "system") setAppearance(t);
     } catch {}
   }, []);
   function pickAppearance(v: "system" | "light" | "dark") {
     setAppearance(v);
     try {
-      if (v === "system") localStorage.removeItem("hub-theme");
-      else localStorage.setItem("hub-theme", v);
+      localStorage.setItem("hub-theme", v);
     } catch {}
     (window as unknown as { applyHubTheme?: () => void }).applyHubTheme?.();
   }
@@ -1143,8 +1144,8 @@ export default function SettingsClient({
         {/* Custom sending domain — invisible until EMAIL_DOMAINS_ENABLED */}
         {show("business") && <EmailDomainCard isOwner={isOwner} />}
 
-        {/* Appearance — per-device light/dark (phones AND desktop; Automatic
-            follows the OS setting either way) */}
+        {/* Appearance — per-device light/dark (phones AND desktop). Light is
+            the default; Automatic follows the OS setting only when chosen. */}
         {show("customization") && (
         <div className="card-ledger p-5 space-y-4">
           <div>
@@ -1156,9 +1157,9 @@ export default function SettingsClient({
           <div className="flex flex-wrap gap-2">
             {(
               [
-                ["system", "Automatic"],
                 ["light", "Light"],
                 ["dark", "Dark"],
+                ["system", "Automatic"],
               ] as const
             ).map(([value, label]) => (
               <button

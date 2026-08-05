@@ -3,7 +3,8 @@ import { requirePageActor, canSell, viaContactScope } from "@/lib/permissions";
 import Link from "next/link";
 import { Plus, ChevronRight, FileText } from "lucide-react";
 import PageTitle from "@/components/PageTitle";
-import { FilterRow, FilterChip, SegmentedRow, Segment } from "@/components/FilterChips";
+import { FilterRow, FilterChip } from "@/components/FilterChips";
+import FilterSelect from "@/components/FilterSelect";
 import { SECTION_HUES } from "@/lib/section-colors";
 import { money, shortDate } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
@@ -13,11 +14,11 @@ import Monogram from "@/components/Monogram";
 import type { QuoteStatus } from "@prisma/client";
 
 const statusFilters = [
-  { value: "", label: "All", mobile: "All" },
+  { value: "", label: "All", mobile: "All quotes" },
   { value: "DRAFT", label: "Draft", mobile: "Draft" },
-  { value: "AWAITING_RESPONSE", label: "Awaiting Response", mobile: "Awaiting" },
+  { value: "AWAITING_RESPONSE", label: "Awaiting Response", mobile: "Awaiting response" },
   { value: "APPROVED", label: "Approved", mobile: "Approved" },
-  { value: "CHANGES_REQUESTED", label: "Changes Requested", mobile: "Changes" },
+  { value: "CHANGES_REQUESTED", label: "Changes Requested", mobile: "Changes requested" },
   { value: "CONVERTED", label: "Converted", mobile: "Converted" },
   { value: "ARCHIVED", label: "Archived", mobile: "Archived" },
 ];
@@ -107,20 +108,19 @@ export default async function QuotesPage({
 
       <KpiStrip kpis={kpis} desktopCols={4} hue={SECTION_HUES.quotes} />
 
-      {/* Filter tabs — seven statuses wrap onto a two-row segmented grid on
-          phones (everything visible, no sideways scrolling); desktop keeps
-          the chip rail */}
-      <SegmentedRow className="mb-4 lg:hidden" cols={4}>
-        {statusFilters.map((f) => (
-          <Segment
-            key={f.value}
-            active={(validStatus ?? "") === f.value}
-            href={f.value ? `/app/quotes?status=${f.value}` : "/app/quotes"}
-          >
-            {f.mobile}
-          </Segment>
-        ))}
-      </SegmentedRow>
+      {/* Status filter — seven statuses are too many for a segmented row, so
+          phones get a compact dropdown (David's call); desktop keeps the
+          chip rail */}
+      <div className="mb-4 flex lg:hidden">
+        <FilterSelect
+          value={validStatus ?? ""}
+          options={statusFilters.map((f) => ({
+            value: f.value,
+            label: f.mobile,
+            href: f.value ? `/app/quotes?status=${f.value}` : "/app/quotes",
+          }))}
+        />
+      </div>
       <div className="hidden lg:block">
         <FilterRow>
           {statusFilters.map((f) => (
