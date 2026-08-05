@@ -56,6 +56,14 @@ export default function InvoiceActions({
     return () => document.removeEventListener("mousedown", onClick);
   }, []);
 
+  // Sent confirmation auto-dismisses — on mobile it floats as a pill above
+  // the tab bar instead of crowding the action row
+  useEffect(() => {
+    if (!sentTo) return;
+    const t = setTimeout(() => setSentTo(""), 6000);
+    return () => clearTimeout(t);
+  }, [sentTo]);
+
   async function setStatus(newStatus: string) {
     setOpen(false);
     setBusy(true);
@@ -144,7 +152,9 @@ export default function InvoiceActions({
       {busy && <Loader2 size={16} className="animate-spin text-gray-400" />}
 
       {sentTo && (
-        <span className="text-xs text-green-700 font-medium">Emailed to {sentTo}</span>
+        <span className="fixed left-1/2 -translate-x-1/2 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-40 max-w-[calc(100vw-2rem)] truncate rounded-full bg-gray-900/95 px-4 py-2 text-xs font-medium text-white shadow-lg lg:static lg:left-auto lg:bottom-auto lg:z-auto lg:max-w-none lg:translate-x-0 lg:rounded-none lg:bg-transparent lg:p-0 lg:text-green-700 lg:shadow-none">
+          Emailed to {sentTo}
+        </span>
       )}
 
       {status === "DRAFT" &&

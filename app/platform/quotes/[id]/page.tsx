@@ -58,12 +58,11 @@ export default async function QuoteDetailPage({
   const deposit = quoteDepositAmount(quote);
   const depositInvoice = quote.invoices[0] ?? null;
 
-  // One-shot confetti (per user) the first time each teammate opens a quote
-  // the client approved themselves (signature present) — staff hand-marking a
-  // quote approved doesn't celebrate, same as manual payment entries.
+  // One-shot confetti (per user) the first time each teammate opens an
+  // approved quote — client-approved online or hand-marked after a verbal
+  // yes; either way the sale is won.
   const celebrateApproved =
     (quote.status === "APPROVED" || quote.status === "CONVERTED") &&
-    !!quote.signatureName &&
     (await shouldCelebrate(actor.id, "QUOTE_APPROVED", quote.id, quote.approvedAt));
 
   return (
