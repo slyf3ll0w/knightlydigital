@@ -8,6 +8,8 @@ import StatusChip from "@/components/StatusChip";
 import ViewedFact from "@/components/ViewedFact";
 import QuoteActions from "./QuoteActions";
 import CollectDepositNudge from "./CollectDepositNudge";
+import Celebration from "@/components/Celebration";
+import { shouldCelebrate } from "@/lib/celebrations";
 
 export default async function QuoteDetailPage({
   params,
@@ -56,8 +58,20 @@ export default async function QuoteDetailPage({
   const deposit = quoteDepositAmount(quote);
   const depositInvoice = quote.invoices[0] ?? null;
 
+  // One-shot confetti (per user) the first time each teammate opens a quote
+  // the client approved themselves (signature present) — staff hand-marking a
+  // quote approved doesn't celebrate, same as manual payment entries.
+  const celebrateApproved =
+    (quote.status === "APPROVED" || quote.status === "CONVERTED") &&
+    !!quote.signatureName &&
+    (await shouldCelebrate(actor.id, "QUOTE_APPROVED", quote.id, quote.approvedAt));
+
   return (
     <div className="p-4 lg:p-8 max-w-4xl mx-auto">
+      <Celebration
+        endpoint={`/api/app/quotes/${quote.id}/celebrated`}
+        celebrate={celebrateApproved}
+      />
       <div className="flex items-center gap-3 mb-4">
         <Link href="/app/quotes" className="hidden lg:block text-gray-400 hover:text-gray-600">
           <ArrowLeft size={18} />

@@ -46,9 +46,16 @@ export async function PATCH(
     data: {
       status,
       ...(status === "AWAITING_PAYMENT" && !invoice.issuedAt && { issuedAt: new Date() }),
-      ...(status === "PAID" ? { paidAt: new Date() } : { paidAt: null, paidCelebratedAt: null }),
+      ...(status === "PAID" ? { paidAt: new Date() } : { paidAt: null }),
     },
   });
+  if (status !== "PAID") {
+    // Un-paying clears everyone's seen-it rows so a genuine re-payment
+    // celebrates again for the whole team
+    await prisma.celebrationSeen.deleteMany({
+      where: { kind: "INVOICE_PAID", entityId: id },
+    });
+  }
 
   return NextResponse.json({ success: true });
 }

@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getActor, canSeeMoney, viaContactScope } from "@/lib/permissions";
+import { getActor, canSell, viaContactScope } from "@/lib/permissions";
 
 /**
- * Stamps this user's one-shot paid-celebration row (fired by Celebration
- * after the confetti runs). Per-user: each teammate sees the moment once.
- * The scoped findFirst doubles as the access check.
+ * Stamps this user's one-shot quote-approved celebration row (fired by
+ * Celebration after the confetti runs). Per-user: each teammate sees the
+ * moment once. The scoped findFirst doubles as the access check.
  */
 export async function POST(
   _req: NextRequest,
@@ -13,29 +13,29 @@ export async function POST(
 ) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!canSeeMoney(actor)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!canSell(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { id } = await params;
 
-  const invoice = await prisma.invoice.findFirst({
+  const quote = await prisma.quote.findFirst({
     where: {
       id,
       companyId: actor.companyId,
       ...viaContactScope(actor),
-      status: "PAID",
+      status: { in: ["APPROVED", "CONVERTED"] },
     },
     select: { id: true },
   });
-  if (invoice) {
+  if (quote) {
     await prisma.celebrationSeen.upsert({
       where: {
         userId_kind_entityId: {
           userId: actor.id,
-          kind: "INVOICE_PAID",
-          entityId: invoice.id,
+          kind: "QUOTE_APPROVED",
+          entityId: quote.id,
         },
       },
-      create: { userId: actor.id, kind: "INVOICE_PAID", entityId: invoice.id },
+      create: { userId: actor.id, kind: "QUOTE_APPROVED", entityId: quote.id },
       update: {},
     });
   }

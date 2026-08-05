@@ -4,21 +4,20 @@ import { useEffect } from "react";
 import { hapticNotify } from "@/lib/haptics";
 
 /**
- * One-shot confetti + success haptic the first time a staff member opens an
- * invoice after an online (card/ACH) payment marked it PAID. The server page
- * decides eligibility (`celebrate` prop = PAID + processor payment +
- * paidCelebratedAt still null); this fires the moment, then stamps the flag
- * via the celebrated endpoint so it never plays twice. Same visibility-delay
- * beacon shape as components/ViewBeacon.tsx.
+ * One-shot confetti + success haptic for a win moment (invoice paid online,
+ * quote approved by the client). The server page decides eligibility per user
+ * (see lib/celebrations.ts `shouldCelebrate`); this fires the moment, then
+ * POSTs `endpoint` to stamp the CelebrationSeen row so this user never sees
+ * it twice. Same visibility-delay beacon shape as components/ViewBeacon.tsx.
  */
 
 const COLORS = ["#22C55E", "#16A34A", "#4ADE80", "#FBBF24", "#0C0F0C"];
 
-export default function PaidCelebration({
-  invoiceId,
+export default function Celebration({
+  endpoint,
   celebrate,
 }: {
-  invoiceId: string;
+  endpoint: string;
   celebrate: boolean;
 }) {
   useEffect(() => {
@@ -34,7 +33,7 @@ export default function PaidCelebration({
       if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
         stopConfetti = runConfetti();
       }
-      fetch(`/api/app/invoices/${invoiceId}/celebrated`, {
+      fetch(endpoint, {
         method: "POST",
         keepalive: true,
       }).catch(() => {});
@@ -56,7 +55,7 @@ export default function PaidCelebration({
       if (timer) clearTimeout(timer);
       stopConfetti?.();
     };
-  }, [celebrate, invoiceId]);
+  }, [celebrate, endpoint]);
 
   return null;
 }

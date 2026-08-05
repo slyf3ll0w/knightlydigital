@@ -8,7 +8,8 @@ import StatusChip from "@/components/StatusChip";
 import ViewedFact from "@/components/ViewedFact";
 import InvoiceActions from "./InvoiceActions";
 import PaymentRow from "./PaymentRow";
-import PaidCelebration from "./PaidCelebration";
+import Celebration from "@/components/Celebration";
+import { shouldCelebrate } from "@/lib/celebrations";
 
 export default async function InvoiceDetailPage({
   params,
@@ -46,17 +47,22 @@ export default async function InvoiceDetailPage({
   const showCloseJobNudge =
     invoice.status === "PAID" && invoice.job && invoice.job.status !== "ARCHIVED";
 
-  // One-shot confetti on the first open after a processor-verified (card/ACH)
-  // payment marked it PAID — manual cash/check entries don't celebrate.
+  // One-shot confetti (per user) on the first open after a processor-verified
+  // (card/ACH) payment marked it PAID — manual cash/check entries don't celebrate.
   const hasOnlinePayment = invoice.payments.some(
     (p) => p.processorRef && (p.method === "CARD" || p.method === "ACH")
   );
   const celebratePaid =
-    invoice.status === "PAID" && !invoice.paidCelebratedAt && hasOnlinePayment;
+    invoice.status === "PAID" &&
+    hasOnlinePayment &&
+    (await shouldCelebrate(actor.id, "INVOICE_PAID", invoice.id, invoice.paidAt));
 
   return (
     <div className="p-4 lg:p-8 max-w-4xl mx-auto">
-      <PaidCelebration invoiceId={invoice.id} celebrate={celebratePaid} />
+      <Celebration
+        endpoint={`/api/app/invoices/${invoice.id}/celebrated`}
+        celebrate={celebratePaid}
+      />
       <div className="flex items-center gap-3 mb-4">
         <Link href="/app/invoices" className="hidden lg:block text-gray-400 hover:text-gray-600">
           <ArrowLeft size={18} />

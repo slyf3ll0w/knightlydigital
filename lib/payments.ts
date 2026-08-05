@@ -429,8 +429,12 @@ export async function recomputeInvoiceStatus(
       data: {
         status: isPastDue(invoice.dueDate) ? "PAST_DUE" : "AWAITING_PAYMENT",
         paidAt: null,
-        paidCelebratedAt: null,
       },
+    });
+    // Reopening clears everyone's seen-it rows so a genuine re-payment
+    // celebrates again for the whole team
+    await tx.celebrationSeen.deleteMany({
+      where: { kind: "INVOICE_PAID", entityId: invoiceId },
     });
   }
 

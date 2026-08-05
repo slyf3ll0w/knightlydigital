@@ -235,6 +235,7 @@ model User {
   checklistChecks  JobChecklistItem[]
   feedbackTickets  FeedbackTicket[]
   portalMessages   PortalMessage[]
+  celebrationsSeen CelebrationSeen[]
 
   // Same address may exist at several companies (one row per membership),
   // but only once within a company.
@@ -1346,10 +1347,6 @@ model Invoice {
   issuedAt      DateTime?
   dueDate       DateTime?
   paidAt        DateTime?
-  // First staff open after an online (card/ACH) payment marked it PAID —
-  // one-shot confetti on the invoice page. Cleared if the invoice reopens
-  // (refund / bounced ACH) so a genuine re-payment celebrates again.
-  paidCelebratedAt DateTime?
   // Client opened the public /pay page (beacon-stamped — see /api/public/viewed)
   firstViewedAt DateTime?
   lastViewedAt  DateTime?
@@ -1366,6 +1363,29 @@ model Invoice {
   @@index([companyId])
   @@index([companyId, status])
   @@index([quoteId])
+}
+
+// ─── Celebrations ─────────────────────────────────────────────────────────────
+
+enum CelebrationKind {
+  INVOICE_PAID
+  QUOTE_APPROVED
+}
+
+// Per-user one-shot confetti flags: each staff member sees the moment once
+// (invoice paid online / quote approved by the client). Rows for an invoice
+// are deleted when it reopens (refund / bounced ACH / manual un-pay) so a
+// genuine re-payment celebrates again for everyone.
+model CelebrationSeen {
+  id       String          @id @default(cuid())
+  userId   String
+  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind     CelebrationKind
+  entityId String // Invoice.id or Quote.id, per kind
+  seenAt   DateTime        @default(now())
+
+  @@unique([userId, kind, entityId])
+  @@index([kind, entityId])
 }
 
 model InvoiceLineItem {
