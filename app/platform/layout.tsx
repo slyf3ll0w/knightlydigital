@@ -10,6 +10,7 @@ import { assistantAllowed } from "@/lib/assistant-access";
 import AppShell from "@/components/AppShell";
 import NativeShell from "@/components/NativeShell";
 import OfflineSupport from "@/components/OfflineSupport";
+import ForegroundRefresh from "@/components/ForegroundRefresh";
 import TeamLocationReporter from "@/components/TeamLocationReporter";
 import { resolveWallpaper } from "@/lib/wallpapers";
 
@@ -99,6 +100,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <>
       <NativeShell />
       <OfflineSupport />
+      <ForegroundRefresh />
       <TeamLocationReporter />
       <AppShell
         userName={user?.name ?? session.user.name}

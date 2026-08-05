@@ -3,6 +3,7 @@ import { requirePageActor, canSeeMoney, isManager } from "@/lib/permissions";
 import Link from "next/link";
 import DisputeEvidence from "./DisputeEvidence";
 import PayoutButton from "./PayoutButton";
+import RefundAction from "./RefundAction";
 import { Plus, ArrowUpRight, ChevronRight, DollarSign } from "lucide-react";
 import { money, shortDate } from "@/lib/statuses";
 import EmptyState from "@/components/EmptyState";
@@ -74,6 +75,7 @@ export default async function PaymentsDashboardPage() {
     include: {
       invoice: { select: { id: true, invoiceNumber: true } },
       contact: { select: { firstName: true, lastName: true } },
+      refunds: { select: { id: true } },
     },
   });
 
@@ -555,7 +557,7 @@ export default async function PaymentsDashboardPage() {
                   <Link
                     key={p.id}
                     href={`/app/invoices/${p.invoiceId}`}
-                    className="flex lg:grid lg:grid-cols-[110px_1fr_90px_130px_110px_28px] gap-4 items-center px-4 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
+                    className="flex lg:grid lg:grid-cols-[110px_1fr_90px_130px_110px_56px] gap-4 items-center px-4 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
                   >
                     <span className="text-sm text-gray-500 w-20 lg:w-auto shrink-0">
                       {shortDate(p.paidAt)}
@@ -567,7 +569,7 @@ export default async function PaymentsDashboardPage() {
                       <p className="text-xs text-gray-500 truncate">
                         Invoice #{p.invoice?.invoiceNumber}
                         <span className="lg:hidden"> · {p.method === "ACH" ? "Bank" : "Card"}</span>
-                        {p.details?.includes("Refunded") && (
+                        {p.refunds.length > 0 && (
                           <span className="text-amber-600"> · refunded</span>
                         )}
                       </p>
@@ -579,12 +581,19 @@ export default async function PaymentsDashboardPage() {
                     <span className="numeral-ledger text-sm font-semibold text-gray-900 text-right">
                       {money(Number(p.amount))}
                     </span>
-                    <ChevronRight size={14} className="text-gray-400 shrink-0 hidden lg:block" />
+                    <span className="flex shrink-0 items-center justify-end gap-0.5">
+                      {isManager(actor.role) &&
+                        p.processorRef?.startsWith("TR") &&
+                        Number(p.amount) > 0 && (
+                          <RefundAction paymentId={p.id} amount={Number(p.amount)} />
+                        )}
+                      <ChevronRight size={14} className="text-gray-400 shrink-0 hidden lg:block" />
+                    </span>
                   </Link>
                 ))}
               </div>
               {/* Ledger foot */}
-              <div className="flex items-center justify-between gap-4 border-t-2 border-double border-gray-300 bg-gray-50/60 px-4 py-2.5 lg:grid lg:grid-cols-[110px_1fr_90px_130px_110px_28px]">
+              <div className="flex items-center justify-between gap-4 border-t-2 border-double border-gray-300 bg-gray-50/60 px-4 py-2.5 lg:grid lg:grid-cols-[110px_1fr_90px_130px_110px_56px]">
                 <span className="text-xs font-medium text-gray-500 lg:col-span-4">
                   {payments.length} {payments.length === 1 ? "payment" : "payments"}
                 </span>

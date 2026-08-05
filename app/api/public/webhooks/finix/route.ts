@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getMerchant, getTransfer, finixConfigured } from "@/lib/finix";
-import { recomputeInvoiceStatus, sendReviewRequest } from "@/lib/payments";
-import { queueQuickBooksUnwind } from "@/lib/quickbooks";
+import {
+  recomputeInvoiceStatus,
+  sendReviewRequest,
+  estimateFeeCents,
+} from "@/lib/payments";
+import { estimateProcessingCostCents } from "@/lib/platform-costs";
+import { queueQuickBooksUnwind, queueQuickBooksPaymentRefresh } from "@/lib/quickbooks";
 import { notifyUsers } from "@/lib/push";
+import type { Refund } from "@prisma/client";
 
 /**
  * Finix webhook receiver. Register once per environment with
@@ -18,6 +24,8 @@ import { notifyUsers } from "@/lib/push";
  * Handled:
  *  - merchant created/updated  → sync Company.finixOnboardingState (+ owner push on approval)
  *  - transfer updated → FAILED → remove the recorded payment (late ACH returns)
+ *  - reversal updated → FAILED → restore the refunded amount (the refund route
+ *    already shrank the payment; the money never actually went back)
  */
 export async function POST(req: NextRequest) {
   if (!finixConfigured()) return NextResponse.json({ received: true });
@@ -125,6 +133,14 @@ async function handleTransfer(transferId: string) {
   if (transfer.state === "SUCCEEDED") return handleTransferSettled(transfer.id);
   if (transfer.state !== "FAILED" && transfer.state !== "CANCELED") return;
 
+  // A reversal we issued can die after the refund route already recorded it
+  // (bank rejects the credit, processor cancels). The refund shrank the
+  // payment but the money never went back — undo the bookkeeping.
+  const refund = await prisma.refund.findFirst({
+    where: { reversalRef: transfer.id },
+  });
+  if (refund) return handleReversalFailed(refund);
+
   // An accepted ACH debit we recorded can fail days later (insufficient funds,
   // closed account). Pull the payment record back out so the invoice reopens.
   const payment = await prisma.payment.findFirst({
@@ -157,6 +173,73 @@ async function handleTransfer(transferId: string) {
       body: `A $${Number(payment.amount).toFixed(2)} online payment was returned by the bank. The invoice is open again.`,
       url: `/app/invoices/${payment.invoiceId}`,
       tag: `payment-failed-${payment.invoiceId}`,
+    }
+  );
+}
+
+/**
+ * A refund's reversal FAILED/CANCELED at the processor. Restore the payment
+ * amount, drop the Refund row (surviving rows = money that actually moved),
+ * and put the invoice/QuickBooks/fee estimates back the way they were.
+ * Idempotent under webhook retries: the row delete is inside the transaction,
+ * so a concurrent duplicate rolls back on the missing row.
+ */
+async function handleReversalFailed(refund: Refund) {
+  const payment = await prisma.payment.findUnique({
+    where: { id: refund.paymentId },
+    include: { invoice: { select: { invoiceNumber: true } } },
+  });
+  if (!payment) return; // payment gone (cascade already removed the refund)
+
+  const refundAmount = Number(refund.amount);
+  const restored = Math.round((Number(payment.amount) + refundAmount) * 100) / 100;
+  const restoredCents = Math.round(restored * 100);
+  const method = payment.method === "ACH" ? "ACH" : "CARD";
+  const note = `Refund of $${refundAmount.toFixed(2)} failed — payment restored`;
+
+  await prisma.$transaction(async (tx) => {
+    await tx.refund.delete({ where: { id: refund.id } });
+    await tx.payment.update({
+      where: { id: payment.id },
+      data: {
+        amount: restored,
+        details: payment.details ? `${payment.details} · ${note}` : note,
+        ...(payment.feeCents == null
+          ? {}
+          : { feeCents: estimateFeeCents(restoredCents, method) }),
+        ...(payment.estCostCents == null
+          ? {}
+          : {
+              estCostCents: estimateProcessingCostCents({
+                amountCents: restoredCents,
+                method,
+                cardBrand: payment.cardBrand,
+                cardType: payment.cardType,
+              }),
+            }),
+      },
+    });
+    await recomputeInvoiceStatus(tx, payment.invoiceId);
+  });
+
+  // QuickBooks got the reduced amount when the refund was recorded — push the
+  // restored figure the same way.
+  queueQuickBooksPaymentRefresh({
+    companyId: payment.companyId,
+    paymentId: payment.id,
+  });
+
+  const owners = await prisma.user.findMany({
+    where: { companyId: payment.companyId, role: "OWNER", isActive: true },
+    select: { id: true },
+  });
+  await notifyUsers(
+    owners.map((o) => o.id),
+    {
+      title: `Refund failed — invoice #${payment.invoice?.invoiceNumber ?? ""}`,
+      body: `A $${refundAmount.toFixed(2)} refund couldn't be completed, so the payment was restored. Try the refund again.`,
+      url: `/app/invoices/${payment.invoiceId}`,
+      tag: `refund-failed-${payment.id}`,
     }
   );
 }

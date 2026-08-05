@@ -234,7 +234,7 @@ export const deleteTools: Tool[] = [
               error:
                 "That payment was processed online, so deleting it would erase the charge record without returning the client's money. Tell the user to refund it from invoice #" +
                 p.invoice.invoiceNumber +
-                " (/app/invoices) — the refund button sends the money back to their card or bank.",
+                " (/app/invoices) or the Payments page (/app/payments) — the refund button sends the money back to their card or bank.",
             };
           }
           return stage(ctx, {

@@ -478,7 +478,7 @@ export const moneyTools: Tool[] = [
           error:
             "That payment was processed online, so its amount, method and date can't be edited — they have to match what actually settled. For a partial refund, tell the user to use the refund button on invoice #" +
             payment.invoice.invoiceNumber +
-            " (/app/invoices), which sends the money back and adjusts the record.",
+            " (/app/invoices) or on the Payments page (/app/payments), which sends the money back and adjusts the record.",
         };
       }
       const payload: Record<string, unknown> = {};

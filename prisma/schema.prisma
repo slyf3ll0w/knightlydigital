@@ -130,6 +130,7 @@ model Company {
   quotes          Quote[]
   invoices        Invoice[]
   payments        Payment[]
+  refunds         Refund[]
   workItems       WorkItem[]
   subscriptions   Subscription[]
   bookingRequests BookingRequest[]
@@ -1365,9 +1366,32 @@ model Payment {
   paidAt          DateTime      @default(now())
   createdAt       DateTime      @default(now())
 
+  refunds Refund[]
+
   @@index([companyId])
   @@index([invoiceId])
   @@index([contactId])
+}
+
+// One processor reversal (full or partial) against a Payment. The Payment's
+// `amount` is decremented in place when a refund lands — every balance/status
+// computation keys off it — so this row is the durable record: what came back,
+// when, and under which Finix reversal id. Original charge = amount + Σrefunds.
+// A reversal that later FAILS at the processor deletes its row and restores
+// the amount (see the Finix webhook), so surviving rows are money that moved.
+model Refund {
+  id          String   @id @default(cuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id])
+  paymentId   String
+  payment     Payment  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  amount      Decimal  @db.Decimal(10, 2)
+  reversalRef String? // Finix reversal transfer id
+  createdAt   DateTime @default(now())
+
+  @@index([companyId])
+  @@index([paymentId])
+  @@index([reversalRef])
 }
 
 model PaymentReminder {

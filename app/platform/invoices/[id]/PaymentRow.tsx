@@ -6,6 +6,7 @@ import { Check, Loader2, Pencil, Trash2, Undo2, X } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { paymentMethodLabel, money } from "@/lib/statuses";
 import { confirmSheet } from "@/components/ConfirmSheet";
+import RefundDialog from "@/components/RefundDialog";
 
 const METHODS = [
   "CASH", "CHECK", "CARD", "ACH", "CASH_APP", "PAYPAL", "VENMO", "ZELLE", "OTHER",
@@ -43,6 +44,7 @@ export default function PaymentRow({
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
+  const [refunding, setRefunding] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [form, setForm] = useState({
@@ -92,28 +94,6 @@ export default function PaymentRow({
       return;
     }
     setEditing(false);
-    router.refresh();
-  }
-
-  async function refund() {
-    const raw = prompt(
-      `Refund how much of this ${money(payment.amount)} payment? The money goes back to the client's card or bank.`,
-      String(payment.amount)
-    );
-    if (raw == null) return;
-    const amount = parseFloat(raw);
-    if (!amount || amount <= 0 || amount > payment.amount) {
-      setError(`Enter a refund between $0.01 and ${money(payment.amount)}.`);
-      return;
-    }
-    setBusy(true);
-    setError("");
-    const { ok, data } = await postJson(`/api/app/payments/${payment.id}/refund`, { amount });
-    setBusy(false);
-    if (!ok) {
-      setError(data?.error ?? GENERIC_ERROR);
-      return;
-    }
     router.refresh();
   }
 
@@ -233,10 +213,12 @@ export default function PaymentRow({
         </p>
         {error && <p className="text-xs text-red-600 mt-0.5">{error}</p>}
       </div>
-      <span className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+      {/* Hover-revealed at a desk, always visible on touch — phones have no
+          hover, so hiding these made refund/edit/delete unreachable there. */}
+      <span className="flex items-center gap-0.5 transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100">
         {canRefund && payment.amount > 0 && (
           <button
-            onClick={refund}
+            onClick={() => setRefunding(true)}
             disabled={busy}
             title="Refund payment"
             className="p-1.5 text-gray-400 hover:text-amber-600 rounded-full"
@@ -263,6 +245,12 @@ export default function PaymentRow({
         )}
       </span>
       <span className="font-semibold text-gray-900">{money(payment.amount)}</span>
+      <RefundDialog
+        paymentId={payment.id}
+        maxAmount={payment.amount}
+        open={refunding}
+        onClose={() => setRefunding(false)}
+      />
     </div>
   );
 }

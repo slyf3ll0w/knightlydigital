@@ -93,7 +93,7 @@ All job manager API routes are scoped to `session.user.companyId` for multi-tena
 
 **`lib/db.ts`** — Prisma client singleton.
 **`lib/auth-options.ts`** — NextAuth v4 config. JWT includes `id`, `role`, `companyId`.
-**`lib/payments.ts`** — Payment processor stub. Swap functions here when integrating Stripe/Finix/Square.
+**`lib/payments.ts`** — Payment processing layer: `PaymentProcessor` seam (manual/finix, picked by PAYMENT_PROCESSOR), `recordPayment()` single write path, `recomputeInvoiceStatus()`, fee estimators. See "Payment processor (Finix)" below.
 **`lib/cities.ts`** — 21 DFW cities.
 **`lib/services.ts`** — 2 Streamflare services (custom software, custom web design). Marketing services retired 2026-07.
 
@@ -165,6 +165,10 @@ still online-only. Four pieces:
   `/api/app/offline`.
 - **`/api/app/offline`** — role-scoped warm list: core pages + today's/
   tomorrow's + recently active job detail pages.
+- **`components/ForegroundRefresh.tsx`** (platform layout, signed-in) —
+  `router.refresh()` when the app returns to the foreground after ≥15s away
+  (and on Safari bfcache restores), so a phone that sat in a pocket doesn't
+  keep showing pre-refund/pre-payment data. Skips while offline.
 - **iOS shell**: service workers in WKWebView require App-Bound Domains —
   `WKAppBoundDomains` in `ios/App/App/Info.plist` +
   `ios.limitsNavigationsToAppBoundDomains` in `capacitor.config.ts`. Changing
@@ -227,10 +231,18 @@ How the Finix flow hangs together:
   `scripts/finix-register-webhook.mjs`). Payloads are hints only — the handler
   re-fetches the resource from Finix before acting, so forged posts are inert.
   Not required for correctness: settings-load re-sync self-heals missed events.
-- **Refunds:** payment row ↺ button (managers) → `POST
-  /api/app/payments/[id]/refund` → Finix reversal, then the payment amount
-  drops and invoice status recomputes. Manual payments have nothing to
-  reverse — edit/delete the record instead.
+- **Refunds:** ↺ button on invoice payment rows AND /app/payments rows
+  (managers; buttons always visible on touch, hover-revealed at a desk) →
+  RefundDialog (components/RefundDialog.tsx) → `POST
+  /api/app/payments/[id]/refund` → Finix reversal. The Payment's `amount`
+  drops in place (every balance/status computation keys off it), a `Refund`
+  row records what moved (amount + reversalRef; original charge = amount +
+  Σrefunds), fee estimates (feeCents/estCostCents) recompute from the
+  remaining amount, and invoice status recomputes. A reversal that later
+  FAILS at the processor is unwound by the webhook: amount restored, Refund
+  row deleted, owners notified. Manual payments have nothing to reverse —
+  edit/delete the record instead. (scripts/backfill-refunds.mjs backfilled
+  Refund rows from the legacy "Refunded $X (id)" details notes.)
 - **Fees:** our take (card 2.9% + 30¢, ACH 0.75%; `WORKBENCH_*_FEE_*` env
   overrides in `processingFees()`) is deducted at settlement by a Finix **fee
   profile** — configured in the Finix dashboard, NOT the API (`POST

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
-import { recomputeInvoiceStatus } from "@/lib/payments";
+import { recomputeInvoiceStatus, estimateFeeCents } from "@/lib/payments";
+import { estimateProcessingCostCents } from "@/lib/platform-costs";
 import { reverseTransfer, toCents, FinixError } from "@/lib/finix";
 import { queueQuickBooksPaymentRefresh } from "@/lib/quickbooks";
 
@@ -73,6 +74,29 @@ export async function POST(
 
     const note = `Refunded $${refundAmount.toFixed(2)} (${reversal.id})`;
 
+    // The platform-economics estimates track the money still held, so they
+    // shrink with the refund (0 once fully refunded). Settlements and the
+    // monthly FinixCostSnapshot true-up carry the real numbers.
+    const remainingCents = Math.round(remaining * 100);
+    const method = payment.method === "ACH" ? "ACH" : "CARD";
+    const feeCents =
+      payment.feeCents == null
+        ? undefined
+        : remainingCents === 0
+          ? 0
+          : estimateFeeCents(remainingCents, method);
+    const estCostCents =
+      payment.estCostCents == null
+        ? undefined
+        : remainingCents === 0
+          ? 0
+          : estimateProcessingCostCents({
+              amountCents: remainingCents,
+              method,
+              cardBrand: payment.cardBrand,
+              cardType: payment.cardType,
+            });
+
     const updated = await prisma.$transaction(async (tx) => {
       // Full refund keeps the row (audit trail of the charge + reversal ids)
       // with the amount zeroed out — deleting would erase that history.
@@ -80,6 +104,19 @@ export async function POST(
         where: { id },
         data: {
           details: payment.details ? `${payment.details} · ${note}` : note,
+          ...(feeCents !== undefined ? { feeCents } : {}),
+          ...(estCostCents !== undefined ? { estCostCents } : {}),
+        },
+      });
+      // The durable refund record — the amount decrement above is what every
+      // balance computation reads, but this row is what reporting queries and
+      // the webhook's failed-reversal unwind key off.
+      await tx.refund.create({
+        data: {
+          companyId: actor.companyId,
+          paymentId: id,
+          amount: refundAmount,
+          reversalRef: reversal.id,
         },
       });
       await recomputeInvoiceStatus(tx, payment.invoiceId);
