@@ -1347,6 +1347,9 @@ model Invoice {
   issuedAt      DateTime?
   dueDate       DateTime?
   paidAt        DateTime?
+  // DEPRECATED — replaced by the per-user CelebrationSeen table; nothing reads
+  // this anymore. Kept only so db push stays additive; drop in a later cleanup.
+  paidCelebratedAt DateTime?
   // Client opened the public /pay page (beacon-stamped — see /api/public/viewed)
   firstViewedAt DateTime?
   lastViewedAt  DateTime?
