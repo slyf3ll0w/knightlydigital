@@ -20,6 +20,8 @@ import {
   DollarSign,
 } from "lucide-react";
 import { confirmSheet } from "@/components/ConfirmSheet";
+import { launchSendPlane, launchPointFrom } from "@/lib/send-plane";
+import { hapticImpact } from "@/lib/haptics";
 
 type AgreementState = {
   signed: boolean;
@@ -84,7 +86,9 @@ export default function QuoteActions({
   }
 
   // Email the client their approval link (marks the quote sent on success)
-  async function emailToClient() {
+  async function emailToClient(e?: React.MouseEvent<HTMLElement>) {
+    // Launch point grabbed now — the button unmounts before the send resolves
+    const from = launchPointFrom(e?.currentTarget ?? null);
     setOpen(false);
     setBusy(true);
     try {
@@ -95,6 +99,8 @@ export default function QuoteActions({
         return;
       }
       setSentTo(data?.to ?? contactEmail);
+      hapticImpact("LIGHT");
+      launchSendPlane(from);
     } finally {
       setBusy(false);
       router.refresh();

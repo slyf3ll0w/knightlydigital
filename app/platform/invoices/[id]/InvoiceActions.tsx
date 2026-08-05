@@ -18,6 +18,8 @@ import {
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { money } from "@/lib/statuses";
 import { confirmSheet } from "@/components/ConfirmSheet";
+import { launchSendPlane, launchPointFrom } from "@/lib/send-plane";
+import { hapticImpact } from "@/lib/haptics";
 
 export default function InvoiceActions({
   invoiceId,
@@ -80,7 +82,9 @@ export default function InvoiceActions({
   }
 
   // Email the client their pay link (DRAFT invoices move to Awaiting Payment)
-  async function emailToClient() {
+  async function emailToClient(e?: React.MouseEvent<HTMLElement>) {
+    // Launch point grabbed now — the button unmounts before the send resolves
+    const from = launchPointFrom(e?.currentTarget ?? null);
     setOpen(false);
     setBusy(true);
     try {
@@ -91,6 +95,8 @@ export default function InvoiceActions({
         return;
       }
       setSentTo(data?.to ?? contactEmail);
+      hapticImpact("LIGHT");
+      launchSendPlane(from);
     } finally {
       setBusy(false);
       router.refresh();
