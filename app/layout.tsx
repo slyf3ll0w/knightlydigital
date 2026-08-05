@@ -50,7 +50,14 @@ export default function RootLayout({
             Onboarding and client-facing routes are pinned to light regardless
             of device/system/localStorage — they must never inherit dark mode
             (kept in sync with the ForceLightTheme component, which also covers
-            client-side navigation into these pages). */}
+            client-side navigation into these pages).
+
+            The MutationObserver guards the stamp: hydration mismatches
+            elsewhere in the tree make React 19 regenerate and re-render
+            <html> WITHOUT data-mode (suppressHydrationWarning only silences
+            the attribute diff), which wiped the chosen theme on some page
+            loads — if anything removes the attribute, re-apply it. apply()
+            always sets data-mode, so the observer never loops. */}
         <script
           dangerouslySetInnerHTML={{
             __html: `(function(){try{
@@ -60,6 +67,7 @@ function forcedLight(){var p=location.pathname;for(var i=0;i<L.length;i++){if(p=
 function apply(){var t=null;try{t=localStorage.getItem("hub-theme")}catch(e){}
 document.documentElement.dataset.mode=(!forcedLight()&&(t==="dark"||(t==="system"&&m.matches)))?"dark":"light";}
 apply();m.addEventListener("change",apply);window.applyHubTheme=apply;
+new MutationObserver(function(){if(!document.documentElement.dataset.mode)apply();}).observe(document.documentElement,{attributes:true,attributeFilter:["data-mode"]});
 }catch(e){}})();`,
           }}
         />
