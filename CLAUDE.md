@@ -204,6 +204,29 @@ open entry per user, auto-closed on the next clock-in). Engine bits:
   `NSLocationWhenInUseUsageDescription` (already in Info.plist) — ships with
   the next store build.
 
+## Portal messaging (client ↔ company thread)
+
+Two-way chat per contact (`PortalMessage`, INBOUND = from client, `via`
+portal|sms), distinct from `ClientMessage` (one-off tracked emails). Client
+side: hub Messages tab (`/hub/[token]/messages`, unread badge in HubNav,
+polls while open) posting via `/api/hub/messages`. Team side: `/app/messages`
+inbox (one row per conversation, unread counts, sidebar badge via
+nav-counts) + `/app/messages/thread/[contactId]`, replies via
+`/api/app/messages/[contactId]`. Notification fan-out lives in
+`lib/portal-messages.ts`: client message → team push + company email
+(first-unread-only throttle); team reply → client web push
+(`ContactPushSubscription` + `notifyContact` in lib/push.ts, subscribe at
+`/api/hub/push`) + SMS mirror when Telnyx is live + email fallback. Inbound
+conversational texts land in the thread through the Telnyx webhook (contact
+matched by phone digits; multi-match prefers latest thread activity).
+
+**Hub PWA:** per-company manifest at `/hub/[token]/manifest.webmanifest`
+(company name + brand color, scope /hub/[token], generic icons until a
+server-side logo resizer exists); `components/HubPwa.tsx` registers /sw.js
+on hub pages; the messages page carries the notifications/install nudge
+(iOS needs Add to Home Screen first). sw.js honors `payload.icon` and
+routes notification clicks to the matching surface (/app vs /hub/<token>).
+
 ## Payment processor (Finix)
 
 Two processors implement the `PaymentProcessor` seam in `lib/payments.ts`,

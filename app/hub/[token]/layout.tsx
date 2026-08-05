@@ -4,6 +4,7 @@ import { brandHeader, shade, textOn } from "@/lib/branding";
 import { companyMeta } from "@/lib/client-meta";
 import ForceLightTheme from "@/components/ForceLightTheme";
 import ViewBeacon from "@/components/ViewBeacon";
+import HubPwa from "@/components/HubPwa";
 import HubNav from "./HubNav";
 
 export async function generateMetadata({ params }: { params: Promise<{ token: string }> }) {
@@ -12,7 +13,17 @@ export async function generateMetadata({ params }: { params: Promise<{ token: st
     where: { hubToken: token },
     select: { company: { select: { name: true, logoUrl: true } } },
   });
-  return companyMeta(contact?.company, "Client Hub");
+  return {
+    ...companyMeta(contact?.company, "Client Hub"),
+    // Installable PWA: per-company manifest (company name + brand color,
+    // scoped to this hub) + iOS standalone metadata
+    manifest: `/hub/${token}/manifest.webmanifest`,
+    appleWebApp: {
+      capable: true,
+      statusBarStyle: "default" as const,
+      title: contact?.company.name ?? "Client Portal",
+    },
+  };
 }
 
 export default async function HubLayout({
@@ -32,6 +43,10 @@ export default async function HubLayout({
   });
   if (!contact) notFound();
 
+  const unreadMessages = await prisma.portalMessage.count({
+    where: { contactId: contact.id, direction: "OUTBOUND", readByClientAt: null },
+  });
+
   const base = `/hub/${token}`;
   const headerBg = brandHeader(contact.company);
   const headerText = textOn(headerBg);
@@ -41,6 +56,7 @@ export default async function HubLayout({
       {/* Client-facing: always light, never the operator's dark theme */}
       <ForceLightTheme />
       <ViewBeacon kind="hub" token={token} />
+      <HubPwa />
       {/* Company-branded hero: gradient + subtle grain, greeting, underline tabs */}
       <header
         className="relative overflow-hidden"
@@ -82,7 +98,12 @@ export default async function HubLayout({
             </p>
           </div>
           <div className="anim-portal anim-delay-2 mt-6">
-            <HubNav base={base} color={headerText} />
+            <HubNav
+              base={base}
+              color={headerText}
+              badgeTextColor={headerBg}
+              unreadMessages={unreadMessages}
+            />
           </div>
         </div>
       </header>

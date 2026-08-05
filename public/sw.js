@@ -16,7 +16,7 @@
  * Bump VERSION to drop every cache wholesale on the next deploy.
  */
 
-const VERSION = "v2";
+const VERSION = "v3";
 const STATIC_CACHE = `sfh-static-${VERSION}`;
 const PAGES_CACHE = `sfh-pages-${VERSION}`;
 const MEDIA_CACHE = `sfh-media-${VERSION}`;
@@ -277,7 +277,9 @@ self.addEventListener("push", (event) => {
   event.waitUntil(
     self.registration.showNotification(title, {
       body: data.body || "",
-      icon: "/pwa/icon-192.png",
+      // Client-facing pushes (hub messages) carry the company logo; the
+      // WorkBench icon is the operator-app fallback
+      icon: data.icon || "/pwa/icon-192.png",
       badge: "/pwa/icon-192.png",
       tag: data.tag || undefined,
       data: { url: data.url || "/app/dashboard" },
@@ -288,11 +290,15 @@ self.addEventListener("push", (event) => {
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   const url = (event.notification.data && event.notification.data.url) || "/app/dashboard";
+  // Focus a window from the same surface as the target: an /app notification
+  // should reuse an /app tab, a /hub/... one should reuse that client's hub
+  // (never someone's operator tab, and vice versa).
+  const section = url.startsWith("/hub/") ? url.split("/").slice(0, 3).join("/") : "/app";
   event.waitUntil(
     (async () => {
       const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
       for (const client of windows) {
-        if (new URL(client.url).pathname.startsWith("/app")) {
+        if (new URL(client.url).pathname.startsWith(section)) {
           try {
             await client.focus();
             if ("navigate" in client) await client.navigate(url);

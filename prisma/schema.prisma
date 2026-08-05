@@ -151,6 +151,7 @@ model Company {
   inviteCode        InviteCode?
   clientMessages    ClientMessage[]
   feedbackTickets   FeedbackTicket[]
+  portalMessages    PortalMessage[]
 
   @@index([slug])
 }
@@ -233,6 +234,7 @@ model User {
   locationPings    LocationPing[]
   checklistChecks  JobChecklistItem[]
   feedbackTickets  FeedbackTicket[]
+  portalMessages   PortalMessage[]
 
   // Same address may exist at several companies (one row per membership),
   // but only once within a company.
@@ -614,6 +616,8 @@ model Contact {
   addresses       ContactAddress[]
   people          ContactPerson[]
   clientMessages  ClientMessage[]
+  portalMessages  PortalMessage[]
+  pushSubscriptions ContactPushSubscription[]
 
   @@index([companyId])
   @@index([companyId, status])
@@ -759,6 +763,58 @@ model ClientMessage {
   createdAt     DateTime  @default(now())
 
   @@index([companyId])
+  @@index([contactId])
+}
+
+// ─── Portal messaging (two-way client ↔ company thread) ──────────────────────
+
+enum PortalMessageDirection {
+  INBOUND // from the client (hub composer or an inbound SMS)
+  OUTBOUND // from the company (team inbox reply)
+}
+
+// One chat-style thread per contact. Distinct from ClientMessage (one-off
+// professional EMAILS with open tracking) — these are short back-and-forth
+// messages surfaced in the client hub's Messages tab and the team's
+// /app/messages inbox. `via` records the transport the message arrived on;
+// outbound messages always originate in the app (the SMS/email/push copies
+// are notifications pointing back at the thread, not separate messages).
+model PortalMessage {
+  id        String                 @id @default(cuid())
+  companyId String
+  company   Company                @relation(fields: [companyId], references: [id])
+  contactId String
+  contact   Contact                @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  direction PortalMessageDirection
+  // Team user who sent an OUTBOUND message; null for INBOUND
+  senderId  String?
+  sender    User?                  @relation(fields: [senderId], references: [id])
+  body      String                 @db.Text
+  via       String                 @default("portal") // "portal" | "sms"
+  // Read state, one side each: INBOUND rows get readByTeamAt when the team
+  // opens the thread; OUTBOUND rows get readByClientAt when the hub loads it
+  readByTeamAt   DateTime?
+  readByClientAt DateTime?
+  createdAt      DateTime          @default(now())
+
+  @@index([companyId, createdAt])
+  @@index([companyId, direction, readByTeamAt])
+  @@index([contactId, createdAt])
+}
+
+// Web-push subscriptions for CLIENTS (contacts) — the hub counterpart of
+// PushSubscription (which targets team users). One row per browser/device the
+// client turned notifications on for; dead endpoints pruned on send.
+model ContactPushSubscription {
+  id        String   @id @default(cuid())
+  contactId String
+  contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?
+  createdAt DateTime @default(now())
+
   @@index([contactId])
 }
 

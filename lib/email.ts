@@ -839,6 +839,77 @@ export function clientMessageEmail({
   return { subject: messageSubject, html };
 }
 
+/**
+ * "You have a new message" ping to a CLIENT — portal messaging thread. The
+ * body rides along (it's their message), with a button into the hub thread
+ * where they can reply. Company-branded like the other client-facing mail.
+ */
+export function portalMessageEmail({
+  brand,
+  companyName,
+  contactFirstName,
+  messageBody,
+  messagesUrl,
+}: {
+  brand: EmailBrand;
+  companyName: string;
+  contactFirstName: string;
+  messageBody: string;
+  messagesUrl: string;
+}): { subject: string; html: string } {
+  const toHtml = (s: string) => esc(s).replace(/\r\n/g, "\n").replace(/\n/g, "<br />");
+  const html = clientShell({
+    brand,
+    companyName,
+    context: "New message",
+    inner: `
+      <p style="margin:0 0 12px;color:#111827;font-size:15px;">Hi ${esc(contactFirstName)},</p>
+      <p style="margin:0 0 12px;color:#374151;font-size:14px;">${esc(companyName)} sent you a message:</p>
+      <div style="margin:0 0 4px;padding:12px 14px;background:#f9fafb;border-left:3px solid #d1d5db;border-radius:0 8px 8px 0;">
+        <p style="margin:0;color:#111827;font-size:14px;line-height:1.6;">${toHtml(messageBody)}</p>
+      </div>
+      ${accentBtn(messagesUrl, "Reply in Your Portal", brand)}
+      <p style="margin:16px 0 0;color:#6b7280;font-size:12px;">
+        Your conversation history lives in your client portal — the button
+        above takes you straight to it.
+      </p>`,
+  });
+  return { subject: `New message from ${companyName}`, html };
+}
+
+/**
+ * "A client messaged you" ping to the COMPANY inbox — sent for the first
+ * unread message in a thread (rapid follow-ups collapse into it).
+ */
+export function portalMessageTeamEmail({
+  companyName,
+  contactId,
+  contactName,
+  messageBody,
+  via,
+}: {
+  companyName: string;
+  contactId: string;
+  contactName: string;
+  messageBody: string;
+  via: string;
+}): { subject: string; html: string } {
+  const toHtml = (s: string) => esc(s).replace(/\r\n/g, "\n").replace(/\n/g, "<br />");
+  const html = wbShell({
+    label: "New client message",
+    footNote: `Sent to ${esc(companyName)} by WorkBench`,
+    inner: `
+      <p style="margin:0 0 16px;color:#111827;font-size:15px;">
+        ${esc(contactName)} sent you a message${via === "sms" ? " by text" : " from their client portal"}.
+      </p>
+      <div style="margin:0 0 4px;padding:12px 14px;background:#f9fafb;border-left:3px solid #d1d5db;border-radius:0 8px 8px 0;">
+        <p style="margin:0;color:#111827;font-size:14px;line-height:1.6;">${toHtml(messageBody)}</p>
+      </div>
+      ${wbBtn(`${APP_URL}/app/messages/thread/${contactId}`, "Open Conversation")}`,
+  });
+  return { subject: `New message from ${contactName}`, html };
+}
+
 /** Signed copy back to the client (their record of the agreement). */
 export function contractSignedCopyEmail({
   brand,

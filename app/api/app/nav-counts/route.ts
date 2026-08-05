@@ -13,7 +13,7 @@ export async function GET() {
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const scope = viaContactScope(actor);
-  const [requests, pastDue, chat, leads] = await Promise.all([
+  const [requests, pastDue, chat, leads, messages] = await Promise.all([
     canSell(actor.role)
       ? prisma.request.count({
           where: { companyId: actor.companyId, status: "NEW", ...scope },
@@ -54,7 +54,18 @@ export async function GET() {
             })
           )
       : Promise.resolve(0),
+    // Client messages the team hasn't opened (portal thread inbox)
+    canSell(actor.role)
+      ? prisma.portalMessage.count({
+          where: {
+            companyId: actor.companyId,
+            direction: "INBOUND",
+            readByTeamAt: null,
+            ...scope,
+          },
+        })
+      : Promise.resolve(0),
   ]);
 
-  return NextResponse.json({ requests, pastDue, chat, leads });
+  return NextResponse.json({ requests, pastDue, chat, leads, messages });
 }

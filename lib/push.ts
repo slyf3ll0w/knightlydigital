@@ -129,6 +129,9 @@ export interface PushPayload {
   url?: string;
   /** Same tag = later notifications replace earlier ones (per chat thread). */
   tag?: string;
+  /** Notification icon URL — company logo on client-facing pushes; the
+   *  service worker falls back to the WorkBench icon when absent. */
+  icon?: string;
 }
 
 /**
@@ -225,6 +228,41 @@ export async function notifyUsers(userIds: string[], payload: PushPayload): Prom
 
 export async function notifyUser(userId: string, payload: PushPayload): Promise<void> {
   return notifyUsers([userId], payload);
+}
+
+/**
+ * Send a web push to every device a CLIENT (contact) has subscribed from
+ * their hub — the client-side counterpart of notifyUsers. Web-only (no FCM;
+ * clients install the hub as a PWA, not the native shell). Never throws;
+ * dead endpoints are pruned like the user path.
+ */
+export async function notifyContact(contactId: string, payload: PushPayload): Promise<void> {
+  if (!configured) return;
+  try {
+    const subs = await prisma.contactPushSubscription.findMany({ where: { contactId } });
+    if (subs.length === 0) return;
+    const dead: string[] = [];
+    await Promise.all(
+      subs.map(async (sub) => {
+        try {
+          await webpush.sendNotification(
+            { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+            JSON.stringify(payload),
+            { TTL: 3600, urgency: "normal" }
+          );
+        } catch (err) {
+          const status = (err as { statusCode?: number }).statusCode;
+          if (status === 404 || status === 410) dead.push(sub.id);
+          else console.error("[push] contact send failed:", status ?? err);
+        }
+      })
+    );
+    if (dead.length > 0) {
+      await prisma.contactPushSubscription.deleteMany({ where: { id: { in: dead } } });
+    }
+  } catch (err) {
+    console.error("[push] notifyContact threw:", err);
+  }
 }
 
 /** Active OWNER + ADMIN user ids — the "managers" audience for approvals/money. */

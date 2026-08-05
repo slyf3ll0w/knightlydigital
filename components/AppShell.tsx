@@ -30,6 +30,7 @@ import {
   ChevronsUpDown,
   CircleUserRound,
   LifeBuoy,
+  MessageSquare,
   MessagesSquare,
   SquareKanban,
   Timer,
@@ -148,6 +149,7 @@ const navGroups: { label?: string; items: NavItem[] }[] = [
     items: [
       { href: "/app/contacts", label: "Clients", icon: Users, show: sellRoles },
       { href: "/app/requests", label: "Requests", icon: Inbox, show: sellRoles },
+      { href: "/app/messages", label: "Messages", icon: MessageSquare, show: sellRoles },
       { href: "/app/leads", label: "Leads", icon: SquareKanban, show: sellRoles },
       { href: "/app/quotes", label: "Quotes", icon: FileText, show: sellRoles },
       { href: "/app/jobs", label: "Jobs", icon: Briefcase },
@@ -212,6 +214,7 @@ const sectionTints: Record<string, string> = {
   "/app/settings/products": SECTION_HUES.services,
   "/app/settings/contracts": SECTION_HUES.contracts,
   "/app/chat": SECTION_HUES.chat,
+  "/app/messages": SECTION_HUES.chat,
   "/app/settings/booking": SECTION_HUES.forms,
   "/app/settings/team": SECTION_HUES.team,
 };
@@ -792,7 +795,7 @@ export default function AppShell({
     if (assistantOpen) setTeaserVisible(false);
   }, [assistantOpen]);
   const [search, setSearch] = useState("");
-  const [counts, setCounts] = useState({ requests: 0, pastDue: 0, chat: 0, leads: 0 });
+  const [counts, setCounts] = useState({ requests: 0, pastDue: 0, chat: 0, leads: 0, messages: 0 });
 
   // Bell-dot memory: "Clear all" in the notifications sheet snapshots the
   // badge counts, and the dot only returns when a count grows PAST its
@@ -859,6 +862,7 @@ export default function AppShell({
             pastDue: d.pastDue ?? 0,
             chat: d.chat ?? 0,
             leads: d.leads ?? 0,
+            messages: d.messages ?? 0,
           });
       })
       .catch(() => {});
@@ -912,7 +916,9 @@ export default function AppShell({
             ? counts.chat
             : href === "/app/leads"
               ? counts.leads
-              : 0;
+              : href === "/app/messages"
+                ? counts.messages
+                : 0;
     return (
       <Link
         key={href}
