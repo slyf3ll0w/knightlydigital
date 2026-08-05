@@ -251,8 +251,29 @@ async function freshAccessToken(connection: QuickBooksConnection): Promise<strin
       })
     );
   } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    // Intuit answers `invalid_grant` (a 400) when the refresh token itself is
+    // dead — the owner disconnected us from inside QuickBooks, or the token
+    // idled past ~100 days. Nothing here ever gets told about a QuickBooks-side
+    // disconnect (Intuit's Disconnect URL is just a browser landing page), so
+    // this failure IS the notification. Expire the connection so the settings
+    // page flips to its "reconnect" banner instead of looking healthy while
+    // every sync quietly fails. Transient failures (5xx, network) fall through
+    // untouched — they don't cost anyone their connection.
+    if (/invalid_grant/i.test(message)) {
+      await prisma.quickBooksConnection
+        .update({
+          where: { id: connection.id },
+          data: {
+            refreshTokenExpiresAt: new Date(),
+            lastSyncError:
+              "QuickBooks revoked this connection (disconnected from the QuickBooks side, or idle too long).",
+          },
+        })
+        .catch(() => {});
+    }
     throw new Error(
-      `QuickBooks session expired — reconnect from Settings → QuickBooks. (${err instanceof Error ? err.message : err})`
+      `QuickBooks session expired — reconnect from Settings → QuickBooks. (${message})`
     );
   }
   const data = tokenDataFromResponse(tokens);
