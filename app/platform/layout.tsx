@@ -9,6 +9,7 @@ import { paymentsGateStatus } from "@/lib/payments-gate";
 import { assistantAllowed } from "@/lib/assistant-access";
 import AppShell from "@/components/AppShell";
 import NativeShell from "@/components/NativeShell";
+import AppLock from "@/components/AppLock";
 import OfflineSupport from "@/components/OfflineSupport";
 import ForegroundRefresh from "@/components/ForegroundRefresh";
 import TeamLocationReporter from "@/components/TeamLocationReporter";
@@ -30,6 +31,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     return (
       <>
         <NativeShell />
+        <AppLock />
         {children}
       </>
     );
@@ -85,6 +87,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     return (
       <>
         <NativeShell />
+        <AppLock />
         {children}
       </>
     );
@@ -99,6 +102,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <>
       <NativeShell />
+      <AppLock />
       <OfflineSupport />
       <ForegroundRefresh />
       <TeamLocationReporter />

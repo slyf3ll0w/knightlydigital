@@ -47,7 +47,8 @@ export default function NativeShell() {
     const cap = getCapacitor();
     if (!cap?.Plugins) return;
 
-    const { StatusBar, App: CapApp, Browser, PushNotifications, Keyboard } = cap.Plugins;
+    const { StatusBar, App: CapApp, Browser, PushNotifications, Keyboard, AppShortcuts } =
+      cap.Plugins;
 
     // Kill the "< > Done" browser accessory bar above the iOS keyboard —
     // the loudest "this is a website" tell. No-ops in shells built before
@@ -127,6 +128,29 @@ export default function NativeShell() {
       (h) => (backHandle = h)
     );
 
+    // Long-press the app icon → quick actions. Registered every launch so
+    // the list stays current; no-ops in shells built before the plugin was
+    // added. iOS requires description alongside iosIcon (SF Symbol names);
+    // Android falls back to its default shortcut icon.
+    const SHORTCUTS: { id: string; title: string; description: string; iosIcon: string; url: string }[] = [
+      { id: "new-job", title: "New Job", description: "Create a job", iosIcon: "plus.circle.fill", url: "/app/jobs/new" },
+      { id: "schedule", title: "Schedule", description: "Today's schedule", iosIcon: "calendar", url: "/app/schedule" },
+      { id: "chat", title: "Team Chat", description: "Open team chat", iosIcon: "bubble.left.and.bubble.right.fill", url: "/app/chat" },
+    ];
+    AppShortcuts?.set?.({
+      shortcuts: SHORTCUTS.map(({ id, title, description, iosIcon }) => ({ id, title, description, iosIcon })),
+    })?.catch?.(() => {});
+    let shortcutHandle: Handle | undefined;
+    listen(
+      AppShortcuts,
+      "click",
+      ({ shortcutId }: { shortcutId?: string }) => {
+        const target = SHORTCUTS.find((s) => s.id === shortcutId);
+        if (target) window.location.assign(target.url);
+      },
+      (h) => (shortcutHandle = h)
+    );
+
     // Tapping a notification opens the path the server put in data.url
     // (mirrors sw.js notificationclick on the web).
     let tapHandle: Handle | undefined;
@@ -166,6 +190,7 @@ export default function NativeShell() {
     return () => {
       backHandle?.remove();
       tapHandle?.remove();
+      shortcutHandle?.remove();
       kbHandles.forEach((h) => h.remove());
       document.documentElement.classList.remove("kb-open");
       modeObserver.disconnect();

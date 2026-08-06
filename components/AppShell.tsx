@@ -58,6 +58,7 @@ import {
   sectionColorVars,
 } from "@/lib/section-colors";
 import { hapticImpact } from "@/lib/haptics";
+import { syncAppBadge } from "@/lib/badge";
 import { switchToMembership } from "@/lib/company-switch";
 import { WALLPAPER_PATTERNS } from "@/lib/wallpapers";
 import { GOOGLE_FONT_RE } from "@/lib/booking-form";
@@ -856,7 +857,7 @@ export default function AppShell({
     fetch("/api/app/nav-counts")
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
-        if (d && !cancelled)
+        if (d && !cancelled) {
           setCounts({
             requests: d.requests ?? 0,
             pastDue: d.pastDue ?? 0,
@@ -864,6 +865,9 @@ export default function AppShell({
             leads: d.leads ?? 0,
             messages: d.messages ?? 0,
           });
+          // Native shell: mirror the actionable unreads onto the app icon
+          syncAppBadge((d.requests ?? 0) + (d.chat ?? 0) + (d.messages ?? 0));
+        }
       })
       .catch(() => {});
     return () => {

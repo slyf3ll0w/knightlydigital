@@ -30,6 +30,8 @@
 	<string>WorkBench accesses your photo library so you can attach existing photos to jobs.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>WorkBench can save job photos to your photo library.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>WorkBench uses Face ID to unlock the app when App Lock is turned on.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>WorkBench records your location only when you clock in or out and while you're on the clock, so your team can see where work is happening. It is never tracked off the clock.</string>
 	<key>UILaunchStoryboardName</key>

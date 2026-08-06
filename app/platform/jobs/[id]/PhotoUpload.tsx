@@ -1,10 +1,11 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Camera, Loader2, Trash2 } from "lucide-react";
+import { Camera, ImagePlus, Loader2, Trash2 } from "lucide-react";
 import { resizePhotoFile } from "@/lib/resize-image";
 import { confirmSheet } from "@/components/ConfirmSheet";
+import { getCapacitor, nativePlatform } from "@/components/NativeShell";
 
 type Photo = { id: string; url: string; caption: string | null; type: string };
 
@@ -26,7 +27,41 @@ export default function PhotoUpload({ jobId, photos }: { jobId: string; photos: 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
-  async function onFiles(files: FileList | null) {
+  // In the native shell the Camera plugin gives a straight-to-camera button
+  // (no chooser sheet). The file input stays for "from library" — WKWebView
+  // already presents the native multi-select picker for it.
+  const [native, setNative] = useState(false);
+  useEffect(() => {
+    setNative(!!nativePlatform() && !!getCapacitor()?.Plugins?.Camera);
+  }, []);
+
+  async function takePhoto() {
+    const camera = getCapacitor()?.Plugins?.Camera;
+    if (!camera) return inputRef.current?.click();
+    let photo: { base64String?: string; format?: string } | null = null;
+    try {
+      // base64, not uri: in remote-URL mode the page origin is the live site,
+      // so capacitor:// file URLs aren't fetchable — bytes over the bridge are.
+      photo = await camera.getPhoto({
+        resultType: "base64",
+        source: "CAMERA",
+        quality: 90,
+        correctOrientation: true,
+      });
+    } catch {
+      return; // cancelled or permission denied — the button remains
+    }
+    if (!photo?.base64String) return;
+    const raw = atob(photo.base64String);
+    const bytes = new Uint8Array(raw.length);
+    for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+    const ext = photo.format ?? "jpeg";
+    await onFiles([
+      new File([bytes], `job-photo.${ext}`, { type: `image/${ext === "jpg" ? "jpeg" : ext}` }),
+    ]);
+  }
+
+  async function onFiles(files: FileList | File[] | null) {
     if (!files || files.length === 0) return;
     setBusy(true);
     setError("");
@@ -130,13 +165,24 @@ export default function PhotoUpload({ jobId, photos }: { jobId: string; photos: 
           <option value="BEFORE">Before</option>
           <option value="AFTER">After</option>
         </select>
+        {native && (
+          <button
+            type="button"
+            onClick={() => void takePhoto()}
+            disabled={busy}
+            className="flex items-center gap-1.5 px-3 py-1.5 btn-tool-line bg-white rounded-[10px] text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+          >
+            {busy ? <Loader2 size={12} className="animate-spin" /> : <Camera size={12} />}
+            Take photo
+          </button>
+        )}
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
           disabled={busy}
           className="flex items-center gap-1.5 px-3 py-1.5 btn-tool-line bg-white rounded-[10px] text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
         >
-          {busy ? <Loader2 size={12} className="animate-spin" /> : <Camera size={12} />}
+          {busy ? <Loader2 size={12} className="animate-spin" /> : native ? <ImagePlus size={12} /> : <Camera size={12} />}
           Add photos
         </button>
         {error && <p className="text-xs text-red-600 w-full">{error}</p>}

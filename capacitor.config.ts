@@ -46,6 +46,13 @@ const config: CapacitorConfig = {
     PushNotifications: {
       presentationOptions: ['badge', 'sound', 'alert'],
     },
+    // App-icon badge (lib/badge.ts syncs it to the nav unread counts).
+    // persist keeps the count across launches; autoClear off because the
+    // count reflects server-side unreads, not "app was opened".
+    Badge: {
+      persist: true,
+      autoClear: false,
+    },
   },
 };
 

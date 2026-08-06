@@ -53,6 +53,73 @@ Project exists: **streamflaire-hub**.
    the Apple dev portal → upload to Firebase → Cloud Messaging → Apple app
    config. Until then iOS push will not deliver (Android is unaffected).
 
+## RELEASE 1.2 — 2026-08-05 (do this batch first; it supersedes A0/A0b)
+
+All Windows-side work is DONE and committed: iOS 1.2 (build 5) / Android
+versionCode 2 ("1.2"), three new plugins in package.json
+(`@aparajita/capacitor-biometric-auth` 10, `@capawesome/capacitor-badge` 8,
+`@capawesome/capacitor-app-shortcuts` 8), `npx cap sync android` already run
+(11 android plugins), NSFaceIDUsageDescription + USE_BIOMETRIC permission
+committed. Web features ship on Railway deploy and no-op in old shells:
+
+- **App lock** — `components/AppLock.tsx` + `lib/biometric.ts`: per-device
+  Face ID/Touch ID lock. Toggle card in My Profile (only visible in the
+  shell), opaque overlay on cold start + after >30s backgrounded.
+- **App icon badge** — `lib/badge.ts`, synced from AppShell's nav-counts
+  (requests + chat + client messages). Badge config in capacitor.config.ts.
+- **App shortcuts** — NativeShell registers New Job / Schedule / Team Chat
+  long-press icon actions and handles the click event.
+- **Native camera** — job PhotoUpload gets a straight-to-camera "Take photo"
+  button in the shell (base64 over the bridge — file URLs aren't fetchable in
+  remote-URL mode). Library button = existing input (native picker already).
+- **AASA now also serves `applinks`** for /app/* universal links (same
+  APPLE_TEAM_ID gate as webcredentials).
+
+### Mac steps, in order
+
+1. `git pull` → `npm install` → `npx cap sync` (expect **11** plugins on BOTH
+   platforms; it rewrites `ios/App/CapApp-SPM/Package.swift` on the Mac with
+   correct forward-slash paths — commit whatever it writes).
+2. **Paid Apple Developer program is REQUIRED for this release** (Associated
+   Domains + push entitlements don't exist on the free personal team). Team ID
+   is **7SLBAFUG62** (from DEVELOPMENT_TEAM in the pbxproj — confirm it's the
+   paid team's ID at developer.apple.com → Membership, not a personal team).
+3. **Railway**: set `APPLE_TEAM_ID` (see step 2). Redeploy, then
+   `curl https://workbenchfsm.com/.well-known/apple-app-site-association` —
+   must be JSON, `content-type: application/json`, no redirect, containing
+   BOTH `webcredentials` and `applinks`.
+4. **Apple dev portal**: identifier `com.streamflaire.hub` → enable
+   **Associated Domains** + **Push Notifications** capabilities, regenerate
+   the provisioning profile.
+5. **Xcode** (`npx cap open ios`):
+   - App target → Signing & Capabilities → add **Associated Domains** with
+     `webcredentials:workbenchfsm.com` and `applinks:workbenchfsm.com`
+     (writes App.entitlements) → add **Push Notifications** + **Background
+     Modes → Remote notifications**.
+   - Firebase: tick GoogleService-Info.plist's App target membership (§Firebase
+     above), add firebase-ios-sdk via SPM (FirebaseMessaging), APNs-token →
+     FCM-token exchange in AppDelegate (Capacitor push guide, Firebase
+     section). APNs auth key (.p8) → Firebase Cloud Messaging config.
+6. Build to David's iPhone, verify (each needs the NEW build):
+   - Login form → iOS offers to SAVE the password; next launch offers to fill.
+   - My Profile → App lock card appears → enable (Face ID prompt) → relaunch
+     app → lock screen → Face ID unlocks. Background >30s → re-locks.
+   - Long-press app icon → 3 shortcuts; each opens the right page.
+   - Enable notifications in My Profile → PushSubscription row (platform
+     "ios", FCM token) → send a chat message from another account →
+     notification arrives; badge count appears on the icon; tapping opens
+     /app/chat.
+   - Job detail → Photos → "Take photo" opens the camera directly; photo
+     uploads.
+   - Tap a `https://workbenchfsm.com/app/...` link (e.g. from Notes) → opens
+     the app, not Safari.
+7. Android: `npx cap open android` → emulator; verify app lock (device PIN
+   path), shortcuts, badge (launcher-dependent), camera.
+8. Store: **the July binary still pinned to streamflaire.com must not ship** —
+   if it's still sitting in review/pending release, cancel/replace it with
+   this build. TestFlight first, then submit. Play Console: closed testing
+   with versionCode 2.
+
 ## Mac work list
 
 ### A0b. 2026-07-10 (later) — Keyboard plugin too
@@ -156,6 +223,9 @@ plugin — haptics just no-op until the app is rebuilt. To activate:
   documented in CLAUDE.md; schema for push is already applied in prod.
 
 ## Password saving in the native shell (added 2026-08-01)
+
+> **2026-08-05: superseded by the RELEASE 1.2 checklist above**, which folds
+> these steps in (and adds `applinks`). Kept for the background explanation.
 
 The shell is a WKWebView, and iOS treats a webview's saved passwords as
 belonging to the *app*, not to whatever site it happens to be showing. Until

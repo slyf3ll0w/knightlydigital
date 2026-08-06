@@ -147,9 +147,18 @@ export async function middleware(req: NextRequest) {
   if (path === "/.well-known/apple-app-site-association") {
     const teamId = process.env.APPLE_TEAM_ID;
     if (!teamId) return new NextResponse("Not found", { status: 404 });
+    const appId = `${teamId}.com.streamflaire.hub`;
     // Apple requires this served as JSON over HTTPS with no redirects
     return NextResponse.json({
-      webcredentials: { apps: [`${teamId}.com.streamflaire.hub`] },
+      webcredentials: { apps: [appId] },
+      // Universal links: /app/* URLs (emails, shared links) open the native
+      // app when installed. Only the job-manager paths — client-facing pages
+      // (/hub /quote /pay ...) must keep opening in the browser, matching the
+      // shell's own external-link rule in NativeShell.tsx. Requires the
+      // matching `applinks:workbenchfsm.com` entitlement in the app build.
+      applinks: {
+        details: [{ appIDs: [appId], components: [{ "/": "/app" }, { "/": "/app/*" }] }],
+      },
     });
   }
 
