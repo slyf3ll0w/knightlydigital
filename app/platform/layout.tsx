@@ -102,7 +102,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <>
       <NativeShell />
-      <AppLock />
+      <AppLock offerSetup />
       <OfflineSupport />
       <ForegroundRefresh />
       <TeamLocationReporter />

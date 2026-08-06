@@ -82,7 +82,30 @@ export function setAppLockEnabled(on: boolean) {
   try {
     if (on) localStorage.setItem(LOCK_KEY, "1");
     else localStorage.removeItem(LOCK_KEY);
+    // Either way the user has made an explicit choice — the post-sign-in
+    // offer sheet shouldn't ask again on this device.
+    localStorage.setItem(OFFER_KEY, "1");
   } catch {
     // storage blocked — the toggle just won't stick
+  }
+}
+
+// One-shot "enable Face ID?" offer after sign-in (AppLock's offer sheet).
+// Per-device like the lock flag itself; My Profile remains the way back in.
+const OFFER_KEY = "wb-app-lock-offered";
+
+export function appLockOfferSeen(): boolean {
+  try {
+    return localStorage.getItem(OFFER_KEY) === "1";
+  } catch {
+    return true; // storage blocked — never nag
+  }
+}
+
+export function markAppLockOfferSeen() {
+  try {
+    localStorage.setItem(OFFER_KEY, "1");
+  } catch {
+    // storage blocked
   }
 }
