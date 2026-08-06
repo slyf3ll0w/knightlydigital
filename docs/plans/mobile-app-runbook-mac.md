@@ -84,10 +84,9 @@ committed. Web features ship on Railway deploy and no-op in old shells:
    Domains + push entitlements don't exist on the free personal team). Team ID
    is **7SLBAFUG62** (from DEVELOPMENT_TEAM in the pbxproj — confirm it's the
    paid team's ID at developer.apple.com → Membership, not a personal team).
-3. **Railway**: set `APPLE_TEAM_ID` (see step 2). Redeploy, then
-   `curl https://workbenchfsm.com/.well-known/apple-app-site-association` —
-   must be JSON, `content-type: application/json`, no redirect, containing
-   BOTH `webcredentials` and `applinks`.
+3. ✅ **Railway `APPLE_TEAM_ID` — ALREADY SET (7SLBAFUG62) and live-verified
+   2026-08-05**: the AASA endpoint serves both `webcredentials` and
+   `applinks`, `content-type: application/json`, no redirect. Nothing to do.
 4. **Apple dev portal**: identifier `com.streamflaire.hub` → enable
    **Associated Domains** + **Push Notifications** capabilities, regenerate
    the provisioning profile.
