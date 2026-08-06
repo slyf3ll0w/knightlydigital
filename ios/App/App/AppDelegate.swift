@@ -1,6 +1,6 @@
 import UIKit
 import Capacitor
-import CapawesomeCapacitorAppShortcuts
+import AppShortcutsPlugin
 import FirebaseCore
 import FirebaseMessaging
 
