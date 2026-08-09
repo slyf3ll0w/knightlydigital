@@ -79,6 +79,36 @@ function money(n: number | string | null) {
   return `$${Number(n ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
+/**
+ * The item's traits as one quiet "a · b · c" line instead of a row of
+ * colored badges — the badge pile-up read as generated chrome. The type
+ * itself is included only where there's no Type column (phones).
+ */
+function itemTraits(item: WorkItem): string[] {
+  const parts: string[] = [];
+  if (item.recurringInterval) parts.push(`Bills every ${INTERVAL_LABEL[item.recurringInterval]}`);
+  if (item.requiresAgreement) parts.push("Agreement");
+  if (item.durationMinutes !== null)
+    parts.push(
+      `Bookable, ${
+        item.durationMinutes % 60 === 0
+          ? `${item.durationMinutes / 60}h`
+          : `${item.durationMinutes}m`
+      }`
+    );
+  if (Array.isArray(item.checklist) && item.checklist.length > 0)
+    parts.push(`${item.checklist.length}-task checklist`);
+  if (item.depositType && item.depositType !== "NONE")
+    parts.push(
+      item.depositType === "FULL"
+        ? "Paid upfront"
+        : item.depositType === "PERCENT"
+          ? `${Number(item.depositValue ?? 0)}% deposit`
+          : `${money(item.depositValue)} deposit`
+    );
+  return parts;
+}
+
 export default function ProductsClient({
   initialItems,
   templates,
@@ -538,43 +568,13 @@ export default function ProductsClient({
                     <div className="flex items-start justify-between gap-3 px-4 py-3.5 sm:hidden">
                       <div className="min-w-0 flex-1">
                         <p className="text-[15px] font-medium text-gray-900">{item.name}</p>
-                        <div className="mt-1 flex flex-wrap gap-1.5">
-                          <span className="stamp text-gray-500">
-                            {item.type === "SERVICE" ? "Service" : "Product"}
-                          </span>
-                          {item.recurringInterval && (
-                            <span className="stamp text-green-700">
-                              Recurring · {INTERVAL_LABEL[item.recurringInterval]}
-                            </span>
+                        <p className="mt-0.5 text-xs text-gray-500">
+                          {[item.type === "SERVICE" ? "Service" : "Product", ...itemTraits(item)].join(
+                            " · "
                           )}
-                          {item.requiresAgreement && (
-                            <span className="stamp text-blue-700">Agreement</span>
-                          )}
-                          {item.durationMinutes !== null && (
-                            <span className="stamp text-purple-700">
-                              Bookable ·{" "}
-                              {item.durationMinutes % 60 === 0
-                                ? `${item.durationMinutes / 60}h`
-                                : `${item.durationMinutes}m`}
-                            </span>
-                          )}
-                          {Array.isArray(item.checklist) && item.checklist.length > 0 && (
-                            <span className="stamp text-teal-700">
-                              Checklist · {item.checklist.length}
-                            </span>
-                          )}
-                          {item.depositType && item.depositType !== "NONE" && (
-                            <span className="stamp text-amber-700">
-                              {item.depositType === "FULL"
-                                ? "Paid upfront"
-                                : item.depositType === "PERCENT"
-                                  ? `Deposit ${Number(item.depositValue ?? 0)}%`
-                                  : `Deposit ${money(item.depositValue)}`}
-                            </span>
-                          )}
-                        </div>
+                        </p>
                         {item.description && (
-                          <p className="mt-1 text-xs text-gray-500">{item.description}</p>
+                          <p className="mt-1 text-xs text-gray-400">{item.description}</p>
                         )}
                       </div>
                       <div className="shrink-0 text-right">
@@ -615,43 +615,14 @@ export default function ProductsClient({
                     {/* Desktop: the classic columns */}
                     <div className="hidden sm:grid grid-cols-[1fr_90px_100px_100px_70px] gap-4 items-center px-5 py-3.5">
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-gray-900">
-                        {item.name}
-                        {item.recurringInterval && (
-                          <span className="ml-2 stamp text-green-700">
-                            Recurring · {INTERVAL_LABEL[item.recurringInterval]}
-                          </span>
-                        )}
-                        {item.requiresAgreement && (
-                          <span className="ml-2 stamp text-blue-700">
-                            Agreement
-                          </span>
-                        )}
-                        {item.durationMinutes !== null && (
-                          <span className="ml-2 stamp text-purple-700">
-                            Bookable ·{" "}
-                            {item.durationMinutes % 60 === 0
-                              ? `${item.durationMinutes / 60}h`
-                              : `${item.durationMinutes}m`}
-                          </span>
-                        )}
-                        {Array.isArray(item.checklist) && item.checklist.length > 0 && (
-                          <span className="ml-2 stamp text-teal-700">
-                            Checklist · {item.checklist.length}
-                          </span>
-                        )}
-                        {item.depositType && item.depositType !== "NONE" && (
-                          <span className="ml-2 stamp text-amber-700">
-                            {item.depositType === "FULL"
-                              ? "Paid upfront"
-                              : item.depositType === "PERCENT"
-                                ? `Deposit ${Number(item.depositValue ?? 0)}%`
-                                : `Deposit ${money(item.depositValue)}`}
-                          </span>
-                        )}
-                      </p>
+                      <p className="text-sm font-medium text-gray-900 truncate">{item.name}</p>
+                      {itemTraits(item).length > 0 && (
+                        <p className="text-xs text-gray-500 truncate">
+                          {itemTraits(item).join(" · ")}
+                        </p>
+                      )}
                       {item.description && (
-                        <p className="text-xs text-gray-500 truncate">{item.description}</p>
+                        <p className="text-xs text-gray-400 truncate">{item.description}</p>
                       )}
                     </div>
                     <span className="text-xs font-medium px-2 py-0.5 rounded-lg bg-gray-100 text-gray-600 w-fit">

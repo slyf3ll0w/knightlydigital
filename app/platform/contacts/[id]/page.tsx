@@ -314,14 +314,30 @@ export default async function ContactDetailPage({
                   <Link
                     key={row.key}
                     href={row.href}
-                    className="flex lg:grid lg:grid-cols-[90px_1fr_110px_140px_90px_30px] gap-3 items-center px-4 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
+                    className="block px-4 py-3 lg:py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors lg:grid lg:grid-cols-[90px_1fr_110px_140px_90px_30px] lg:items-center lg:gap-3"
                   >
-                    <span className="text-xs font-semibold text-gray-500">{row.type}</span>
-                    <span className="text-sm font-medium text-gray-900 truncate">{row.label}</span>
+                    {/* Phones: name + amount on the first line, then a quiet
+                        "Type · date" meta line with the status pill. */}
+                    <span className="hidden text-xs font-semibold text-gray-500 lg:block">
+                      {row.type}
+                    </span>
+                    <span className="flex items-baseline justify-between gap-3 lg:block lg:min-w-0">
+                      <span className="min-w-0 truncate text-sm font-medium text-gray-900 lg:block lg:truncate">
+                        {row.label}
+                      </span>
+                      {row.amount !== null && (
+                        <span className="numeral-ledger shrink-0 text-sm font-semibold text-gray-900 lg:hidden">
+                          {money(row.amount)}
+                        </span>
+                      )}
+                    </span>
                     <span className="hidden lg:block text-sm text-gray-500">
                       {shortDate(row.date)}
                     </span>
-                    <span className="flex flex-col items-start gap-0.5">
+                    <span className="mt-1 flex items-center gap-2 lg:mt-0 lg:flex-col lg:items-start lg:gap-0.5">
+                      <span className="text-xs text-gray-500 lg:hidden">
+                        {row.type} · {shortDate(row.date)}
+                      </span>
                       <StatusChip kind={row.kind} status={row.status} />
                       {row.viewed && (
                         <span
@@ -333,7 +349,7 @@ export default async function ContactDetailPage({
                         </span>
                       )}
                     </span>
-                    <span className="text-sm font-semibold text-gray-900 lg:text-right">
+                    <span className="hidden text-sm font-semibold text-gray-900 lg:block lg:text-right">
                       {row.amount !== null ? money(row.amount) : "—"}
                     </span>
                     <ChevronRight size={13} className="text-gray-300 hidden lg:block" />

@@ -217,44 +217,47 @@ export default function CollectPaymentForm({
                 <span className="text-right">Total</span>
                 <span className="text-right">Balance</span>
               </div>
-              {invoices.map((inv) => (
-                <label
-                  key={inv.id}
-                  className={`grid grid-cols-[28px_1fr_120px_90px_90px] gap-3 items-center px-5 py-3 cursor-pointer transition-colors ${
-                    invoiceId === inv.id ? "bg-green-50" : "hover:bg-gray-50"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="invoice"
-                    checked={invoiceId === inv.id}
-                    onChange={() => selectInvoice(inv.id)}
-                    className="text-green-600 focus:ring-green-500"
-                  />
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-900">
-                      #{inv.invoiceNumber}
-                      {inv.subject ? ` — ${inv.subject}` : ""}
-                    </p>
-                    <p className="text-xs text-gray-500">{inv.contactName}</p>
-                  </div>
-                  <span className="hidden lg:block text-sm text-gray-500">
-                    {inv.dueDate
-                      ? new Date(inv.dueDate).toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                          year: "numeric",
-                        })
-                      : "—"}
-                  </span>
-                  <span className="hidden lg:block text-sm text-gray-700 text-right">
-                    {money(inv.total)}
-                  </span>
-                  <span className="text-sm font-semibold text-gray-900 text-right">
-                    {money(inv.balance)}
-                  </span>
-                </label>
-              ))}
+              {invoices.map((inv) => {
+                const due = inv.dueDate
+                  ? new Date(inv.dueDate).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })
+                  : null;
+                return (
+                  <label
+                    key={inv.id}
+                    className={`flex lg:grid lg:grid-cols-[28px_1fr_120px_90px_90px] gap-3 items-center px-4 lg:px-5 py-3 cursor-pointer transition-colors ${
+                      invoiceId === inv.id ? "bg-green-50" : "hover:bg-gray-50"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="invoice"
+                      checked={invoiceId === inv.id}
+                      onChange={() => selectInvoice(inv.id)}
+                      className="shrink-0 text-green-600 focus:ring-green-500"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-gray-900">
+                        {inv.subject || `Invoice #${inv.invoiceNumber}`}
+                      </p>
+                      <p className="truncate text-xs text-gray-500">
+                        #{inv.invoiceNumber} · {inv.contactName}
+                        <span className="lg:hidden">{due ? ` · Due ${due}` : ""}</span>
+                      </p>
+                    </div>
+                    <span className="hidden lg:block text-sm text-gray-500">{due ?? "—"}</span>
+                    <span className="hidden lg:block text-sm text-gray-700 text-right">
+                      {money(inv.total)}
+                    </span>
+                    <span className="numeral-ledger shrink-0 text-sm font-semibold text-gray-900 text-right">
+                      {money(inv.balance)}
+                    </span>
+                  </label>
+                );
+              })}
             </div>
           )}
         </div>

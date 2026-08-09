@@ -10,13 +10,21 @@ import {
   Upload,
   Trash2,
   AlertTriangle,
+  Building2,
+  ChevronLeft,
   ChevronRight,
   Copy,
+  CreditCard,
   Package,
+  Palette,
   FileSignature,
   Filter,
   Globe,
   RefreshCw,
+  Tags,
+  UserRound,
+  Users,
+  Zap,
 } from "lucide-react";
 import { resizeImageFile } from "@/lib/resize-image";
 import { INDUSTRIES } from "@/lib/pricebooks";
@@ -24,7 +32,6 @@ import { DEFAULT_ON_MY_WAY_TEMPLATE, ON_MY_WAY_PLACEHOLDERS } from "@/lib/messag
 import { textOn } from "@/lib/branding";
 import { GOOGLE_FONT_RE } from "@/lib/booking-form";
 import { resolveWallpaper } from "@/lib/wallpapers";
-import { FilterChip } from "@/components/FilterChips";
 import { confirmSheet } from "@/components/ConfirmSheet";
 import {
   SECTION_HUES,
@@ -169,15 +176,115 @@ function SettingsLinkRow({
   );
 }
 
-// Section filter for the settings page — every card belongs to one bucket
-const SECTION_TABS = [
-  ["all", "All"],
-  ["business", "Business"],
-  ["customization", "Customization"],
-  ["payments", "Payments"],
-  ["features", "Features"],
+/**
+ * Settings IA — the pattern every mature product settles on:
+ *  - Desktop: a left nav rail (Stripe/Linear style) that switches one
+ *    section panel at a time. No more "everything stacked" scroll.
+ *  - Phones: an index screen of grouped rows (the iOS Settings idiom) that
+ *    pushes into one section at a time, with an in-page back control.
+ * The open section rides in the URL (?s=…) so browser/edge back works and
+ * sections are linkable.
+ */
+const SETTINGS_SECTIONS = [
+  {
+    key: "business",
+    label: "Business",
+    sub: "Company info, portal link, timezone",
+    icon: Building2,
+  },
+  {
+    key: "customization",
+    label: "Appearance & Branding",
+    sub: "Theme, logo, colors, wallpaper",
+    icon: Palette,
+  },
+  {
+    key: "payments",
+    label: "Payments",
+    sub: "Online payments, deposits, surcharging",
+    icon: CreditCard,
+  },
+  {
+    key: "features",
+    label: "Automations & AI",
+    sub: "Assistant, texts, review requests",
+    icon: Zap,
+  },
 ] as const;
-type Section = (typeof SECTION_TABS)[number][0];
+type SectionId = (typeof SETTINGS_SECTIONS)[number]["key"];
+type Section = SectionId | "home";
+
+const SECTION_IDS = SETTINGS_SECTIONS.map((s) => s.key) as readonly SectionId[];
+
+// Deeper setup lives on its own pages — the nav links straight to them
+const SETUP_LINKS = [
+  {
+    href: "/app/settings/products",
+    label: "Products & Services",
+    sub: "Your price book — items autocomplete on quotes and invoices",
+    hueKey: "services",
+    icon: Package,
+  },
+  {
+    href: "/app/settings/contracts",
+    label: "Contract Templates",
+    sub: "Reusable service agreements clients e-sign from a link",
+    hueKey: "contracts",
+    icon: FileSignature,
+  },
+  {
+    href: "/app/settings/pipeline",
+    label: "Lead Pipeline",
+    sub: "Leads board stages and the ad-platform lead webhook",
+    hueKey: "leads",
+    icon: Filter,
+  },
+  {
+    href: "/app/settings/booking",
+    label: "Booking Forms",
+    sub: "Public forms for your website, each with its own link",
+    hueKey: "forms",
+    icon: Globe,
+  },
+  {
+    href: "/app/settings/quickbooks",
+    label: "QuickBooks Online",
+    sub: "Sync clients, invoices, and payments automatically",
+    hueKey: "payments",
+    icon: RefreshCw,
+  },
+] as const;
+
+const WORKSPACE_LINKS = [
+  {
+    href: "/app/settings/team",
+    label: "Team",
+    sub: "Invite your crew and set what each role can see",
+    hueKey: "team",
+    icon: Users,
+  },
+  {
+    href: "/app/settings/client-fields",
+    label: "Client Custom Fields",
+    sub: "Extra fields every client record carries",
+    hueKey: "clients",
+    icon: Tags,
+  },
+  {
+    href: "/app/settings/import",
+    label: "Import Clients",
+    sub: "Bring your client list in from a CSV",
+    hueKey: "clients",
+    icon: Upload,
+  },
+  {
+    href: "/app/settings/profile",
+    label: "My Profile",
+    sub: "Your name, password, and email signature",
+    hueKey: "business",
+    icon: UserRound,
+  },
+] as const;
 
 const TIMEZONES = [
   { value: "America/New_York", label: "Eastern (New York)" },
@@ -812,9 +919,11 @@ function DangerZone({ companyName }: { companyName: string }) {
 export default function SettingsClient({
   company,
   isOwner = false,
+  initialSection,
 }: {
   company: Company;
   isOwner?: boolean;
+  initialSection?: string;
 }) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
@@ -824,8 +933,23 @@ export default function SettingsClient({
   const [logoError, setLogoError] = useState("");
   const [logoDragOver, setLogoDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [section, setSection] = useState<Section>("all");
-  const show = (s: Section) => section === "all" || section === s;
+
+  // The open section mirrors the URL (?s=…) so back/edge-swipe and deep
+  // links work; local state keeps the switch instant while the route settles.
+  const normalizedSection: Section = (SECTION_IDS as readonly string[]).includes(
+    initialSection ?? ""
+  )
+    ? (initialSection as SectionId)
+    : "home";
+  const [section, setSection] = useState<Section>(normalizedSection);
+  useEffect(() => setSection(normalizedSection), [normalizedSection]);
+  // Desktop always shows a panel — "home" (the phone index) reads as Business
+  const active: SectionId = section === "home" ? "business" : section;
+  const show = (s: SectionId) => active === s;
+  function goSection(s: Section) {
+    setSection(s);
+    router.push(s === "home" ? "/app/settings" : `/app/settings?s=${s}`);
+  }
   const [form, setForm] = useState({
     name: company.name,
     phone: company.phone ?? "",
@@ -1030,13 +1154,33 @@ export default function SettingsClient({
   }
 
   return (
-    <div className="p-4 lg:p-8 max-w-3xl mx-auto">
+    <div className="p-4 lg:p-8 max-w-5xl mx-auto">
+      {/* Header — on phones inside a section, the back control and the
+          section's own title take the h1's place (the h1 belongs to the
+          index screen and to desktop). */}
       <div className="mb-6 flex items-start justify-between gap-4">
-        <div>
-          <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">Settings</h1>
-          <p className="text-sm text-gray-500">
-            Manage your business profile — changes save automatically
-          </p>
+        <div className="min-w-0">
+          <div className={section === "home" ? "" : "hidden lg:block"}>
+            <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">Settings</h1>
+            <p className="text-sm text-gray-500">
+              Manage your business profile — changes save automatically
+            </p>
+          </div>
+          {section !== "home" && (
+            <div className="lg:hidden">
+              <button
+                type="button"
+                onClick={() => goSection("home")}
+                className="-ml-1.5 flex items-center gap-0.5 text-[15px] font-medium text-green-700"
+              >
+                <ChevronLeft size={19} />
+                Settings
+              </button>
+              <h2 className="mt-1 text-[22px] font-bold text-gray-900">
+                {SETTINGS_SECTIONS.find((s) => s.key === section)?.label}
+              </h2>
+            </div>
+          )}
           {saveError && <p className="mt-1 text-sm text-red-600">{saveError}</p>}
         </div>
         <span
@@ -1055,120 +1199,111 @@ export default function SettingsClient({
         </span>
       </div>
 
-      {/* Section filter — the page got crowded; pills narrow it down */}
-      <div className="no-scrollbar -mx-4 mb-5 flex gap-2 overflow-x-auto px-4 py-1 lg:mx-0 lg:px-0">
-        {SECTION_TABS.map(([key, label]) => (
-          <FilterChip
-            key={key}
-            hue={SECTION_HUES.business}
-            active={section === key}
-            onClick={() => setSection(key)}
-          >
-            {label}
-          </FilterChip>
-        ))}
-      </div>
+      <div className="lg:grid lg:grid-cols-[230px_minmax(0,1fr)] lg:items-start lg:gap-10">
+        {/* Desktop: the settings nav rail */}
+        <nav className="sticky top-8 hidden lg:block">
+          <div className="space-y-0.5">
+            {SETTINGS_SECTIONS.map((s) => (
+              <button
+                key={s.key}
+                type="button"
+                onClick={() => goSection(s.key)}
+                className={`flex w-full items-center gap-2.5 rounded-[10px] px-3 py-2 text-left text-sm transition-colors ${
+                  active === s.key
+                    ? "bg-green-500/10 font-semibold text-green-700"
+                    : "font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                }`}
+              >
+                <s.icon size={16} className={active === s.key ? undefined : "text-gray-400"} />
+                {s.label}
+              </button>
+            ))}
+          </div>
+          <p className="mb-1 mt-6 px-3 text-xs font-semibold text-gray-400">Setup</p>
+          <div className="space-y-0.5">
+            {SETUP_LINKS.map((l) => (
+              <Link
+                key={l.href}
+                href={l.href}
+                className="flex w-full items-center gap-2.5 rounded-[10px] px-3 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-900"
+              >
+                <l.icon size={16} style={{ color: SECTION_HUES[l.hueKey] }} />
+                {l.label}
+              </Link>
+            ))}
+          </div>
+          <p className="mb-1 mt-6 px-3 text-xs font-semibold text-gray-400">Workspace</p>
+          <div className="space-y-0.5">
+            {WORKSPACE_LINKS.map((l) => (
+              <Link
+                key={l.href}
+                href={l.href}
+                className="flex w-full items-center gap-2.5 rounded-[10px] px-3 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-900"
+              >
+                <l.icon size={16} style={{ color: SECTION_HUES[l.hueKey] }} />
+                {l.label}
+              </Link>
+            ))}
+          </div>
+        </nav>
 
-      {show("features") && (
-      <>
-      {/* Phones: the drill-ins as one iOS grouped list */}
-      <div className="lg:hidden card-ledger mb-6 divide-y divide-gray-100 overflow-hidden">
-        <SettingsLinkRow
-          href="/app/settings/products"
-          label="Products & Services"
-          sub="Your price book — items autocomplete on quotes and invoices"
-          hue={SECTION_HUES.services}
-          icon={Package}
-        />
-        <SettingsLinkRow
-          href="/app/settings/contracts"
-          label="Contract Templates"
-          sub="Reusable service agreements clients e-sign from a link"
-          hue={SECTION_HUES.contracts}
-          icon={FileSignature}
-        />
-        <SettingsLinkRow
-          href="/app/settings/pipeline"
-          label="Lead Pipeline"
-          sub="Leads board stages and the ad-platform lead webhook"
-          hue={SECTION_HUES.leads}
-          icon={Filter}
-        />
-        <SettingsLinkRow
-          href="/app/settings/booking"
-          label="Booking Form"
-          sub="Customize your request form and get the embed code"
-          hue={SECTION_HUES.forms}
-          icon={Globe}
-        />
-      </div>
+        {/* Phones: the settings index — grouped rows, the iOS Settings idiom */}
+        {section === "home" && (
+          <div className="space-y-6 lg:hidden">
+            <div className="card-ledger divide-y divide-gray-100 overflow-hidden">
+              {SETTINGS_SECTIONS.map((s) => (
+                <button
+                  key={s.key}
+                  type="button"
+                  onClick={() => goSection(s.key)}
+                  className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors active:bg-gray-100"
+                >
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-green-500/10 text-green-700">
+                    <s.icon size={17} strokeWidth={2.25} />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[15px] font-medium text-gray-900">{s.label}</span>
+                    <span className="block truncate text-xs text-gray-500">{s.sub}</span>
+                  </span>
+                  <ChevronRight size={16} className="shrink-0 text-gray-300" />
+                </button>
+              ))}
+            </div>
+            <div>
+              <p className="mb-2 px-1 text-[13px] font-semibold text-gray-500">Setup</p>
+              <div className="card-ledger divide-y divide-gray-100 overflow-hidden">
+                {SETUP_LINKS.map((l) => (
+                  <SettingsLinkRow
+                    key={l.href}
+                    href={l.href}
+                    label={l.label}
+                    sub={l.sub}
+                    hue={SECTION_HUES[l.hueKey]}
+                    icon={l.icon}
+                  />
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="mb-2 px-1 text-[13px] font-semibold text-gray-500">Workspace</p>
+              <div className="card-ledger divide-y divide-gray-100 overflow-hidden">
+                {WORKSPACE_LINKS.map((l) => (
+                  <SettingsLinkRow
+                    key={l.href}
+                    href={l.href}
+                    label={l.label}
+                    sub={l.sub}
+                    hue={SECTION_HUES[l.hueKey]}
+                    icon={l.icon}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
-      {/* Price book */}
-      <Link
-        href="/app/settings/products"
-        className="hidden lg:flex items-center justify-between card-ledger p-5 mb-6 hover:shadow-sm transition-shadow"
-      >
-        <div>
-          <h2 className="text-sm font-semibold text-gray-700">
-            Products &amp; Services
-          </h2>
-          <p className="text-xs text-gray-400 mt-0.5">
-            Your price book — items autocomplete on quotes and invoices
-          </p>
-        </div>
-        <span className="text-sm font-medium text-green-600">Manage →</span>
-      </Link>
-
-      {/* Contract templates */}
-      <Link
-        href="/app/settings/contracts"
-        className="hidden lg:flex items-center justify-between card-ledger p-5 mb-6 hover:shadow-sm transition-shadow"
-      >
-        <div>
-          <h2 className="text-sm font-semibold text-gray-700">
-            Contract Templates
-          </h2>
-          <p className="text-xs text-gray-400 mt-0.5">
-            Reusable service agreements clients e-sign from a link
-          </p>
-        </div>
-        <span className="text-sm font-medium text-green-600">Manage →</span>
-      </Link>
-
-      {/* Lead pipeline */}
-      <Link
-        href="/app/settings/pipeline"
-        className="hidden lg:flex items-center justify-between card-ledger p-5 mb-6 hover:shadow-sm transition-shadow"
-      >
-        <div>
-          <h2 className="text-sm font-semibold text-gray-700">
-            Lead Pipeline
-          </h2>
-          <p className="text-xs text-gray-400 mt-0.5">
-            Customize your Leads board stages and connect ad platforms via the lead webhook
-          </p>
-        </div>
-        <span className="text-sm font-medium text-green-600">Manage →</span>
-      </Link>
-
-      {/* Booking form */}
-      <Link
-        href="/app/settings/booking"
-        className="hidden lg:flex items-center justify-between card-ledger p-5 mb-6 hover:shadow-sm transition-shadow"
-      >
-        <div>
-          <h2 className="text-sm font-semibold text-gray-700">
-            Booking Form
-          </h2>
-          <p className="text-xs text-gray-400 mt-0.5">
-            Customize your request form and get the embed code for your website
-          </p>
-        </div>
-        <span className="text-sm font-medium text-green-600">Manage →</span>
-      </Link>
-      </>
-      )}
-
+        {/* The open section's cards — hidden on phones while the index shows */}
+        <div className={section === "home" ? "hidden lg:block" : ""}>
       {show("business") && <PortalLinkCard slug={company.slug} />}
 
       <div className="space-y-6">
@@ -1666,36 +1801,6 @@ export default function SettingsClient({
         {/* Online payments (Finix) */}
         {show("payments") && <PaymentsOnlineCard isOwner={isOwner} />}
 
-        {/* QuickBooks */}
-        {show("payments") && (
-        <>
-        {/* Phones: iOS list row */}
-        <div className="lg:hidden card-ledger divide-y divide-gray-100 overflow-hidden">
-          <SettingsLinkRow
-            href="/app/settings/quickbooks"
-            label="QuickBooks Online"
-            sub="Sync clients, invoices, and payments into QuickBooks automatically"
-            hue={SECTION_HUES.payments}
-            icon={RefreshCw}
-          />
-        </div>
-        <Link
-          href="/app/settings/quickbooks"
-          className="hidden lg:flex items-center justify-between card-ledger p-5 hover:shadow-sm transition-shadow"
-        >
-          <div>
-            <h2 className="text-sm font-semibold text-gray-700">
-              QuickBooks Online
-            </h2>
-            <p className="text-xs text-gray-400 mt-0.5">
-              Sync clients, invoices, and payments into QuickBooks automatically
-            </p>
-          </div>
-          <span className="text-sm font-medium text-green-600">Manage →</span>
-        </Link>
-        </>
-        )}
-
         {/* Surcharging */}
         {show("payments") && (
         <div className="card-ledger p-5 space-y-4">
@@ -1855,6 +1960,8 @@ export default function SettingsClient({
       </div>
 
       {isOwner && show("business") && <DangerZone companyName={company.name} />}
+        </div>
+      </div>
     </div>
   );
 }

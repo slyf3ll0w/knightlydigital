@@ -362,43 +362,59 @@ export default async function DashboardPage() {
         <PushNudge />
       </div>
 
-      {/* ── Money first (Amex pattern): collected in green, owed in red ────── */}
-      {/* Phone: one ledger "statement" instead of three stacked white cards —
-          stamp label, big numeral, then a double-rule foot exactly like the
-          list-page ledger feet, so the money card speaks the product's own
-          receipt language. */}
+      {/* ── The money masthead (phones) — a solid brand-color "bank card"
+          right under the greeting: collected this month as the hero numeral
+          over a soft light sweep, sparkline in the same ink, then a hairline
+          foot with the two numbers an owner checks next. The one saturated
+          surface on the page, so opening the app leads with the business's
+          pulse instead of a stack of white cards. */}
       {seePerformance && (
         <Link
           href="/app/invoices"
-          className="card-tool anim-fade-up anim-delay-1 mb-8 order-4 block overflow-hidden lg:hidden"
+          className="chamfer anim-fade-up anim-delay-1 order-2 mb-8 block overflow-hidden rounded-2xl active:opacity-95 lg:hidden"
+          style={{
+            background:
+              "linear-gradient(135deg, var(--wb-accent-bright, #2E6FF2), var(--wb-accent-strong, #0A4CBB))",
+            color: "var(--wb-on-accent, #ffffff)",
+          }}
         >
-          <div className="p-5 pb-4">
-            <p className="text-[13px] font-medium text-gray-500">
+          <div className="relative p-5 pb-4">
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-0"
+              style={{
+                background:
+                  "radial-gradient(130% 90% at 100% 0%, color-mix(in srgb, currentColor 14%, transparent), transparent 60%)",
+              }}
+            />
+            <p className="relative text-[13px] font-medium opacity-80">
               Collected in {now.toLocaleDateString("en-US", { month: "long" })}
             </p>
-            <p className="numeral-ledger mt-1 text-[34px] leading-none font-semibold text-gray-900">
+            <p className="numeral-ledger relative mt-1 text-[36px] leading-none font-semibold">
               {money(monthRevenue)}
             </p>
-            {dailyRevenue.length > 1 && monthRevenue > 0 && <Sparkline values={dailyRevenue} />}
+            {dailyRevenue.length > 1 && monthRevenue > 0 && (
+              <Sparkline values={dailyRevenue} className="relative opacity-90" />
+            )}
           </div>
-          <div className="flex divide-x divide-gray-100 border-t border-gray-100 bg-gray-50/60">
-            <div className="min-w-0 flex-1 px-5 py-3">
-              <p className="text-xs font-medium text-gray-500">
-                Outstanding
-              </p>
-              <p
-                className={`numeral-ledger mt-0.5 truncate text-base leading-tight font-semibold ${
-                  receivableTotal > 0 ? "text-red-600" : "text-gray-900"
-                }`}
-              >
+          <div
+            className="grid grid-cols-2 border-t"
+            style={{ borderColor: "color-mix(in srgb, currentColor 25%, transparent)" }}
+          >
+            <div className="min-w-0 px-5 py-3">
+              <p className="text-xs font-medium opacity-75">Outstanding</p>
+              <p className="numeral-ledger mt-0.5 truncate text-base leading-tight font-semibold">
                 {receivableTotal > 0 ? money(receivableTotal) : "—"}
               </p>
             </div>
-            <div className="min-w-0 flex-1 px-5 py-3">
-              <p className="text-xs font-medium text-gray-500">
-                Booked this week
-              </p>
-              <p className="numeral-ledger mt-0.5 truncate text-base leading-tight font-semibold text-gray-900">
+            <div
+              className="min-w-0 px-5 py-3"
+              style={{
+                borderLeft: "1px solid color-mix(in srgb, currentColor 25%, transparent)",
+              }}
+            >
+              <p className="text-xs font-medium opacity-75">Booked this week</p>
+              <p className="numeral-ledger mt-0.5 truncate text-base leading-tight font-semibold">
                 {upcomingJobsWeek.length > 0 ? money(weekRevenue) : "—"}
               </p>
             </div>
@@ -524,7 +540,7 @@ export default async function DashboardPage() {
       )}
 
       {/* ── Needs you ──────────────────────────────────────────────────────── */}
-      <div className="anim-fade-up anim-delay-1 mb-8 order-3" data-tour="workflow">
+      <div className="anim-fade-up anim-delay-1 mb-8 order-4" data-tour="workflow">
         <RuledLabel>Needs you</RuledLabel>
         {needs.length === 0 ? (
           <div className="card-ledger flex items-center gap-3 px-5 py-4">
@@ -536,10 +552,10 @@ export default async function DashboardPage() {
           </div>
         ) : (
           <>
-          {/* Phone: one prioritized list — each row is a task with its section
-              hue, not a wall of 2-up number cards */}
-          {/* One accent + red-for-urgent — the per-section hue tiles made the
-              list read like a sticker sheet on phones */}
+          {/* Phone: the punch list — the count leads each row in the same
+              left rail the Today card uses for times, so the two cards read
+              as one system. One accent + red-for-urgent (per-section hue
+              tiles read like a sticker sheet here). */}
           <div className="card-tool divide-y divide-gray-100 overflow-hidden lg:hidden">
             {needs.map((n) => (
               <Link
@@ -548,11 +564,11 @@ export default async function DashboardPage() {
                 className="flex items-center gap-3 px-4 py-3 transition-colors active:bg-gray-100"
               >
                 <span
-                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] ${
-                    n.urgent ? "bg-red-50 text-red-600" : "bg-green-100 text-green-700"
+                  className={`numeral-ledger w-[52px] shrink-0 text-[22px] leading-none font-semibold ${
+                    n.urgent ? "text-red-600" : "text-green-700"
                   }`}
                 >
-                  <n.icon size={15} />
+                  {n.count}
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-2">
@@ -560,13 +576,6 @@ export default async function DashboardPage() {
                     {n.urgent && <span className="stamp shrink-0 text-red-600">Overdue</span>}
                   </span>
                   <span className="block truncate text-xs text-gray-500">{n.action}</span>
-                </span>
-                <span
-                  className={`numeral-ledger shrink-0 text-lg font-semibold ${
-                    n.urgent ? "text-red-600" : "text-green-700"
-                  }`}
-                >
-                  {n.count}
                 </span>
                 <ChevronRight size={14} className="shrink-0 text-gray-400" />
               </Link>
@@ -610,10 +619,11 @@ export default async function DashboardPage() {
       </div>
 
       {/* ── Today's appointments ──────────────────────────────────────────── */}
-      {/* Phone: tool-card day sheet — stamp header, hue-tiled stops (jobs vs
-          appointments carry their section hue), ledger foot to the schedule. */}
+      {/* Phone: the day sheet — a dispatch timeline with a time rail and stop
+          markers (jobs solid, sales appointments blue), ledger foot to the
+          schedule. */}
       <div
-        className="card-tool anim-fade-up anim-delay-2 order-2 mb-8 overflow-hidden lg:hidden"
+        className="card-tool anim-fade-up anim-delay-2 order-3 mb-8 overflow-hidden lg:hidden"
         data-tour="today"
       >
         <div className="flex items-center justify-between border-b border-gray-100 px-4 pb-3 pt-4">
@@ -638,21 +648,26 @@ export default async function DashboardPage() {
             showPlusIcon={false}
           />
         ) : (
-          /* Agenda rows: time rail on the left (dispatch-board reading), a
-             slim tone bar — accent for jobs, blue for sales appointments —
-             then the job first and the client under it. */
-          <div className="divide-y divide-gray-100">
+          /* Agenda rows on a continuous timeline: time in the left rail, a
+             stop marker on a vertical hairline (solid accent = job, blue =
+             sales appointment), the job first and the client under it. */
+          <div className="relative py-1">
+            {/* the rail: runs behind the stop markers, trimmed at both ends */}
+            <div
+              className="absolute left-[84px] top-4 bottom-4 w-px bg-gray-200"
+              aria-hidden
+            />
             {todayItems.map((item) => (
               <Link
                 key={item.id}
                 href={item.href}
-                className="flex items-center gap-3 px-4 py-3 transition-colors active:bg-gray-50"
+                className="flex items-center gap-3 px-4 py-2.5 transition-colors active:bg-gray-50"
               >
                 <span className="numeral-ledger w-[52px] shrink-0 text-[13px] font-semibold text-gray-700">
                   {item.time}
                 </span>
                 <span
-                  className={`h-9 w-[3px] shrink-0 rounded-full ${
+                  className={`relative z-10 h-2.5 w-2.5 shrink-0 rounded-full ${
                     item.apptType ? "bg-blue-400" : "bg-green-500"
                   }`}
                   aria-hidden

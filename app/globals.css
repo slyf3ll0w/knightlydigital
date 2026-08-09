@@ -21,7 +21,7 @@
      passing only a text-* tone class. No dot, no uppercase, no tracking —
      the old dot+caps eyebrow read as generated chrome. */
   .stamp {
-    @apply inline-flex w-fit items-center whitespace-nowrap rounded-full px-2 py-[3px] text-[11px] font-semibold leading-none;
+    @apply inline-flex w-fit items-center gap-1 whitespace-nowrap rounded-full px-2 py-[3px] text-[11px] font-semibold leading-none;
     background: color-mix(in srgb, currentColor 10%, transparent);
   }
 
@@ -175,23 +175,11 @@
       border-color: transparent;
     }
 
-    /* Status = a quiet dot + colored sentence-case text, no box. The tinted
-       pill read as generated chrome next to names in lists (and legacy FSM
-       apps all use plain colored status text). Desktop keeps the pill. */
+    /* Status pills stay pills on phones too — the dot-plus-colored-text
+       treatment read as generated filler. Slightly deeper tint than desktop
+       so the pill still reads as a made thing at phone contrast. */
     .stamp {
-      background: none;
-      padding: 0;
-      border-radius: 0;
-      font-size: 12px;
-      gap: 5px;
-    }
-    .stamp::before {
-      content: "";
-      width: 5px;
-      height: 5px;
-      border-radius: 9999px;
-      background: currentColor;
-      flex-shrink: 0;
+      background: color-mix(in srgb, currentColor 12%, transparent);
     }
   }
 }

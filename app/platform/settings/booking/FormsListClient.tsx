@@ -238,7 +238,8 @@ export default function FormsListClient({
                       <span className="truncate">{f.name}</span>
                       {f.isDefault && (
                         <span className="stamp text-amber-700">
-                          <Star size={9} className="mr-1" /> Default
+                          <Star size={9} fill="currentColor" strokeWidth={0} />
+                          Default
                         </span>
                       )}
                       {!f.isActive && <span className="stamp text-gray-500">Off</span>}
