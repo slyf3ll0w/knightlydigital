@@ -234,6 +234,8 @@ export default function ScheduleClient({
   const [hoverKey, setHoverKey] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  // Overlap warnings from the last schedule save (non-blocking, dismissible)
+  const [conflicts, setConflicts] = useState<string[]>([]);
   const [mounted, setMounted] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -389,6 +391,8 @@ export default function ScheduleClient({
       setError(data?.error ?? GENERIC_ERROR);
       return;
     }
+    const warned = (data as { conflicts?: string[] } | null)?.conflicts;
+    setConflicts(Array.isArray(warned) ? warned : []);
     startTransition(() => router.refresh());
   }
 
@@ -495,6 +499,8 @@ export default function ScheduleClient({
       setDropErr(data?.error ?? GENERIC_ERROR);
       return;
     }
+    const warned = (data as { conflicts?: string[] } | null)?.conflicts;
+    setConflicts(Array.isArray(warned) ? warned : []);
     setDropSheet(null);
     startTransition(() => router.refresh());
   }
@@ -1447,6 +1453,22 @@ export default function ScheduleClient({
         <div className="mb-3 flex items-center justify-between rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
           {error}
           <button onClick={() => setError("")} className="p-0.5 text-red-400 hover:text-red-600">
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
+      {/* Double-booking heads-up — the move already saved; this is a warning,
+          not a block (two techs on one site is often intentional) */}
+      {conflicts.length > 0 && (
+        <div className="mb-3 flex items-start justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          <div>
+            <p className="font-semibold">Heads up — this overlaps:</p>
+            {conflicts.map((c) => (
+              <p key={c} className="text-xs mt-0.5">{c}</p>
+            ))}
+          </div>
+          <button onClick={() => setConflicts([])} className="p-0.5 text-amber-400 hover:text-amber-600">
             <X size={14} />
           </button>
         </div>

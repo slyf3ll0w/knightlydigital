@@ -260,14 +260,15 @@ export async function runQuoteFollowUps(
 }
 
 /**
- * Client reminders for ONLINE-BOOKED appointments: the day before (fires in
- * the 2–26h window) and again about an hour out (needs the cron to run
- * hourly to actually catch it; on a daily cron only the day reminder lands).
- * Scoped to confirmed appointments whose request came from a booking form —
- * manually created appointments never email clients unprompted. Each stage
- * fires once (reminderDaySentAt / reminderHourSentAt), claimed atomically
- * before sending; stages are only claimed when at least one channel can
- * actually send, so an unconfigured Resend/Telnyx doesn't burn the stage.
+ * Client appointment reminders: the day before (fires in the 2–26h window)
+ * and again about an hour out (needs the cron to run hourly to actually catch
+ * it; on a daily cron only the day reminder lands). Covers every confirmed
+ * appointment with a reachable client — online-booked and manually created —
+ * unless the appointment opted out (Appointment.remindClient=false). Each
+ * stage fires once (reminderDaySentAt / reminderHourSentAt), claimed
+ * atomically before sending; stages are only claimed when at least one
+ * channel can actually send, so an unconfigured Resend/Telnyx doesn't burn
+ * the stage.
  */
 export interface AppointmentReminderSummary {
   checked: number;
@@ -284,9 +285,9 @@ export async function runAppointmentReminders(
       status: "SCHEDULED",
       tentative: false,
       scheduledAnytime: false,
+      remindClient: true,
       scheduledAt: { gt: now, lte: new Date(now.getTime() + 26 * HOUR) },
       contact: { is: { OR: [{ email: { not: null } }, { phone: { not: null } }] } },
-      request: { is: { source: "booking_form" } },
       company: { is: { suspendedAt: null } },
       OR: [{ reminderDaySentAt: null }, { reminderHourSentAt: null }],
     },

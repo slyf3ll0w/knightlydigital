@@ -80,6 +80,7 @@ export default function AppointmentForm({
   const [meetingLink, setMeetingLink] = useState("");
   const [assignedToId, setAssignedToId] = useState(actorId);
   const [notes, setNotes] = useState("");
+  const [remindClient, setRemindClient] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -122,6 +123,7 @@ export default function AppointmentForm({
       meetingLink: type === "VIDEO_CALL" ? meetingLink : null,
       assignedToId,
       notes,
+      remindClient,
     });
     setLoading(false);
     if (!ok || !data?.id) {
@@ -315,6 +317,20 @@ export default function AppointmentForm({
               className={inputCls}
             />
           </div>
+          <label className="flex items-start gap-2 text-sm text-gray-700 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={remindClient}
+              onChange={(e) => setRemindClient(e.target.checked)}
+              className="mt-0.5 accent-green-600"
+            />
+            <span>
+              Send the client automatic reminders
+              <span className="block text-xs text-gray-400">
+                Email/text the day before and about an hour out
+              </span>
+            </span>
+          </label>
         </div>
 
         {error && <p className="text-sm text-red-600">{error}</p>}

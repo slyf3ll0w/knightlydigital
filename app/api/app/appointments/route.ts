@@ -76,6 +76,8 @@ export async function POST(req: NextRequest) {
       address: type === "IN_PERSON" ? address.trim().slice(0, 300) : null,
       meetingLink: type === "VIDEO_CALL" && meetingLink?.trim() ? meetingLink.trim().slice(0, 500) : null,
       notes: notes?.trim() ? notes.trim().slice(0, 2000) : null,
+      // Automatic client reminders default on; the form can opt one out
+      remindClient: body.remindClient !== false,
     },
   });
 

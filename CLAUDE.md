@@ -330,20 +330,24 @@ has a visit series, the billing cycle's `createsJob` path is skipped — the
 visit engine owns job creation. (The old dormant `ServicePlan` model was
 removed in favor of this.)
 
-**The engine needs a daily trigger.** `POST /api/cron/recurring` runs two sweeps —
-(1) generate due subscription cycles, and (2) send escalating payment reminders for
-unpaid/overdue invoices (on the due date, then 3/7/14 days overdue; one email per
-stage via `PaymentReminder`, stops when paid; reminders are Resend-gated and cover
-both subscription and one-off invoices — see `lib/reminders.ts`). It's authed by
-`Authorization: Bearer ${CRON_SECRET}`. Wire it up one of two ways:
+**The engine needs an HOURLY trigger.** `POST /api/cron/recurring` sweeps:
+(1) due subscription cycles, (2) visit-series job generation, (3) escalating payment
+reminders for unpaid/overdue invoices (due date, then 3/7/14 days; one email per stage
+via `PaymentReminder`, stops when paid), (4) quote follow-ups (3/7 days after send via
+`QuoteReminder`), (5) appointment reminders (day-before AND ~1 hour out — **the 1-hour
+stage only fires if this cron runs hourly**; on a daily cron it never lands), plus QBO
+nightly sync, location-ping pruning, and storage rollups — see `lib/reminders.ts` /
+`lib/subscriptions.ts`. It's authed by `Authorization: Bearer ${CRON_SECRET}`. Wire it
+up one of two ways:
 
 - **Railway cron service (recommended):** add a new service in the Railway project
-  with a cron schedule (e.g. `0 8 * * *`) whose command is:
+  with an hourly cron schedule (`0 * * * *`) whose command is:
   `curl -fsS -X POST "$NEXTAUTH_URL/api/cron/recurring" -H "Authorization: Bearer $CRON_SECRET"`
-- **External pinger:** point cron-job.org (or a GitHub Action) at the same URL/header daily.
+- **External pinger:** point cron-job.org (or a GitHub Action) at the same URL/header hourly.
 
-Until a trigger is set up, owners can use the **Run due now** button on the
-Subscriptions page. The endpoint is idempotent — running twice a day won't double-bill.
+Everything is idempotent — hourly runs won't double-bill, double-remind, or
+double-generate (each sweep claims its work atomically). Until a trigger is set up,
+owners can use the **Run due now** button on the Subscriptions page.
 
 **Auto-charge:** billing is built against the `PaymentProcessor` seam in
 `lib/payments.ts`. When a processor is `live` AND the client has a saved card

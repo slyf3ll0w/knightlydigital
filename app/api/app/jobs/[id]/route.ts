@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { RecurringInterval } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getActor, isManager, jobScope } from "@/lib/permissions";
+import { findScheduleConflicts } from "@/lib/schedule-conflicts";
 
 export async function PATCH(
   req: NextRequest,
@@ -87,7 +88,35 @@ export async function PATCH(
     ]);
   }
 
-  return NextResponse.json({ success: true });
+  // Non-blocking double-booking check when the schedule (or crew) changed —
+  // the save already happened; the UI shows these as a heads-up.
+  let conflicts: string[] = [];
+  if (
+    body.scheduledAt !== undefined ||
+    body.scheduledEnd !== undefined ||
+    Array.isArray(body.assigneeIds)
+  ) {
+    const fresh = await prisma.job.findUnique({
+      where: { id: job.id },
+      select: {
+        scheduledAt: true,
+        scheduledEnd: true,
+        scheduledAnytime: true,
+        assignments: { select: { userId: true } },
+      },
+    });
+    if (fresh?.scheduledAt && !fresh.scheduledAnytime) {
+      conflicts = await findScheduleConflicts({
+        companyId: actor.companyId,
+        start: fresh.scheduledAt,
+        end: fresh.scheduledEnd ?? new Date(fresh.scheduledAt.getTime() + 3600_000),
+        userIds: fresh.assignments.map((a) => a.userId),
+        excludeJobId: job.id,
+      }).catch(() => []);
+    }
+  }
+
+  return NextResponse.json({ success: true, conflicts });
 }
 
 /**
