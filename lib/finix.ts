@@ -295,6 +295,9 @@ export interface FinixPaymentInstrument {
   instrument_type?: string; // PAYMENT_CARD | BANK_ACCOUNT
   brand?: string | null; // VISA / MASTERCARD / AMERICAN_EXPRESS / DISCOVER ...
   card_type?: string | null; // CREDIT / DEBIT / UNKNOWN
+  last_four?: string | null;
+  expiration_month?: number | null;
+  expiration_year?: number | null;
 }
 
 /** Exchange a finix.js token (TKxxx, 30-min TTL) for a Payment Instrument (PIxxx). */

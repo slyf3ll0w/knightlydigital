@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import Link from "next/link";
-import { Receipt, ChevronRight } from "lucide-react";
+import { Receipt, ChevronRight, CreditCard } from "lucide-react";
 import { money, shortDate } from "@/lib/statuses";
 
 export default async function HubInvoicesPage({
@@ -22,6 +22,24 @@ export default async function HubInvoicesPage({
     },
   });
   if (!contact) notFound();
+
+  const paymentMethodCard = (
+    <Link
+      href={`/hub/${token}/payment-method`}
+      className="flex items-center gap-3 card-ledger p-4 hover:shadow-sm transition-shadow"
+    >
+      <CreditCard size={18} className="text-gray-400 shrink-0" />
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-gray-900">
+          {contact.savedCardLabel ? "Card on file" : "Save a card for faster payments"}
+        </p>
+        <p className="text-xs text-gray-500">
+          {contact.savedCardLabel ?? "Add a payment method once — pay invoices in a tap."}
+        </p>
+      </div>
+      <ChevronRight size={15} className="text-gray-300" />
+    </Link>
+  );
 
   const open = contact.invoices.filter((i) => i.status !== "PAID");
   const paid = contact.invoices.filter((i) => i.status === "PAID");
@@ -96,6 +114,7 @@ export default async function HubInvoicesPage({
           {section("Paid", paid)}
         </>
       )}
+      <div className="mt-6">{paymentMethodCard}</div>
     </div>
   );
 }

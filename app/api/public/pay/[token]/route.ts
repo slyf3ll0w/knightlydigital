@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getProcessor, recordPayment, calculateSurcharge, sendReviewRequest } from "@/lib/payments";
+import { getProcessor, recordPayment, calculateSurcharge, sendReviewRequest, savedCardLabel } from "@/lib/payments";
 import { recomputeDepositApplied } from "@/lib/deposits";
 import { suspendedResponse } from "@/lib/suspension";
 
@@ -16,7 +16,7 @@ export async function POST(
   { params }: { params: Promise<{ token: string }> }
 ) {
   const { token } = await params;
-  const { method, paymentToken } = await req.json();
+  const { method, paymentToken, saveCard, amount: requestedAmount } = await req.json();
 
   // Re-derive any deposit credit on a final invoice before computing the
   // balance, so the charge reflects deposits paid (or bounced) since creation.
@@ -52,9 +52,23 @@ export async function POST(
   const balance = Math.round((Number(invoice.total) - paid) * 100) / 100;
   if (balance <= 0) return NextResponse.json({ error: "Nothing left to pay." }, { status: 400 });
 
+  // Partial payments: the client may pay any amount from $1 up to the balance.
+  // Omitted/invalid amount = the full balance (the original behavior, and what
+  // stale pay pages send). Clamp to cents so float math can't overshoot.
+  let payAmount = balance;
+  if (typeof requestedAmount === "number" && isFinite(requestedAmount)) {
+    payAmount = Math.round(requestedAmount * 100) / 100;
+    if (payAmount < 1 || payAmount > balance) {
+      return NextResponse.json(
+        { error: `Enter an amount between $1.00 and the balance ($${balance.toFixed(2)}).` },
+        { status: 400 }
+      );
+    }
+  }
+
   let surchargeAmount = 0;
   if (method === "CARD" && invoice.company.surchargeEnabled) {
-    surchargeAmount = calculateSurcharge(balance, Number(invoice.company.surchargeRate));
+    surchargeAmount = calculateSurcharge(payAmount, Number(invoice.company.surchargeRate));
   }
 
   const processor = getProcessor();
@@ -68,7 +82,7 @@ export async function POST(
         // onboarding — same manual-payment fallback as the pre-launch stub.
         { success: false as const, error: "Online payments are not enabled yet. Record this payment manually." }
       : await processor.charge({
-          amount: balance + surchargeAmount,
+          amount: payAmount + surchargeAmount,
           method: method === "CARD" ? "card" : "ach",
           surcharge: surchargeAmount,
           description: `Invoice #${invoice.invoiceNumber} — ${invoice.company.name}`,
@@ -109,16 +123,34 @@ export async function POST(
       .catch(() => {});
   }
 
+  // Client asked to keep this card on file: the charge already vaulted the
+  // instrument at Finix, so persisting the ref is all "saving" means. Enables
+  // subscription auto-charge and staff "charge card on file". Never fails the
+  // payment. Cards only — ACH debits can bounce days later.
+  if (saveCard === true && method === "CARD" && result.instrumentRef && invoice.contact) {
+    await prisma.contact
+      .update({
+        where: { id: invoice.contact.id },
+        data: {
+          processorCustomerRef: result.instrumentRef,
+          savedCardLabel: savedCardLabel(result),
+          savedCardAt: new Date(),
+        },
+      })
+      .catch((e) => console.error("[pay] save card failed", e));
+  }
+
   const { fullyPaid } = await recordPayment({
     companyId: invoice.companyId,
     invoiceId: invoice.id,
-    amount: balance + surchargeAmount,
+    amount: payAmount + surchargeAmount,
     method: method === "CARD" ? "CARD" : "ACH",
     processorRef: result.transactionId,
     surchargeAmount: surchargeAmount > 0 ? surchargeAmount : null,
     cardBrand: result.cardBrand,
     cardType: result.cardType,
     details: result.pending ? "Online payment — ACH processing" : "Online payment",
+    receiptPending: result.pending,
   });
 
   if (surchargeAmount > 0) {
@@ -143,5 +175,9 @@ export async function POST(
     }).catch((e) => console.error("[pay] review request failed", e));
   }
 
-  return NextResponse.json({ success: true, pending: result.pending ?? false });
+  return NextResponse.json({
+    success: true,
+    pending: result.pending ?? false,
+    remaining: Math.max(0, Math.round((balance - payAmount) * 100) / 100),
+  });
 }

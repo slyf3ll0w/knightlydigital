@@ -29,6 +29,7 @@
     "@capawesome/capacitor-app-shortcuts": "^8.0.1",
     "@capawesome/capacitor-badge": "^8.0.2",
     "@prisma/client": "^5.22.0",
+    "@react-pdf/renderer": "^4.6.0",
     "@types/bcryptjs": "^2.4.6",
     "autoprefixer": "^10",
     "aws4fetch": "^1.0.20",

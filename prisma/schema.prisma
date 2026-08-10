@@ -586,12 +586,18 @@ model Contact {
   // Values for the company's ContactFieldDef custom fields: { [defId]: value }
   customFields     Json?
   paymentTermsDays Int           @default(30)
-  // Payment processor's customer/vault token — populated once a card is saved
-  // on file (processor goes live). Recurring billing auto-charges when set.
+  // Payment processor's vaulted card (Finix payment instrument, PIxxx) —
+  // set when the client checks "save this card" on /pay or adds a card in the
+  // client hub. Recurring billing auto-charges when set; staff can charge it
+  // from an invoice ("Charge card on file").
   processorCustomerRef String?
+  // Display-only metadata for the saved card ("Visa •••• 4242 · exp 12/27")
+  // and when it was saved — never used for charging.
+  savedCardLabel String?
+  savedCardAt    DateTime?
   // Finix buyer Identity (IDxxx) — created on the contact's first online
-  // payment and reused after. NOT a chargeable token (that's
-  // processorCustomerRef, which stays null until card-on-file ships).
+  // payment (or first saved card) and reused after. NOT a chargeable token
+  // (that's processorCustomerRef).
   finixBuyerIdentityId String?
   // Provider SMS (Telnyx): set when the client texts STOP to our number —
   // automated texts (reminders, quote/invoice links) skip them. Telnyx also

@@ -25,27 +25,7 @@ type Invoice = {
   lineItems: LineItem[];
 };
 
-/** Server-provided Finix config — non-null only when this company can charge online. */
-type FinixConfig = { applicationId: string; environment: "sandbox" | "live" } | null;
-
-// finix.js (loaded from Finix's CDN — self-hosting breaks PCI scope)
-type FinixForm = {
-  submit: (cb: (err: unknown, res: { data?: { id?: string } } | undefined) => void) => void;
-};
-declare global {
-  interface Window {
-    Finix?: {
-      PaymentForm: (
-        el: string | HTMLElement,
-        environment: string,
-        applicationId: string,
-        options: Record<string, unknown>
-      ) => FinixForm;
-    };
-  }
-}
-
-const FINIX_JS_SRC = "https://js.finix.com/v/2/finix.js";
+import { FINIX_JS_SRC, type FinixConfig, type FinixForm } from "@/lib/finix-js";
 
 export default function PayPage({
   invoice,
@@ -59,12 +39,17 @@ export default function PayPage({
   preview?: boolean;
 }) {
   const [method, setMethod] = useState<"CARD" | "ACH">("CARD");
+  const [saveCard, setSaveCard] = useState(false);
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
   const [pendingAch, setPendingAch] = useState(false);
+  const [remaining, setRemaining] = useState(0);
   const [error, setError] = useState("");
   const [scriptReady, setScriptReady] = useState(false);
   const [formHasErrors, setFormHasErrors] = useState(true);
+  // Partial payments: full balance by default; "Pay another amount" opens an input
+  const [partial, setPartial] = useState(false);
+  const [amountText, setAmountText] = useState("");
   const formRef = useRef<FinixForm | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -73,10 +58,13 @@ export default function PayPage({
     : 0;
 
   const paid = Math.round((Number(invoice.total) - balance) * 100) / 100;
-  const surcharge = method === "CARD" && invoice.company.surchargeEnabled
-    ? Math.round(balance * surchargeRate * 100) / 100
+  const parsedAmount = Math.round((Number(amountText) || 0) * 100) / 100;
+  const payAmount = partial ? parsedAmount : balance;
+  const amountValid = !partial || (parsedAmount >= 1 && parsedAmount <= balance);
+  const surcharge = method === "CARD" && invoice.company.surchargeEnabled && amountValid
+    ? Math.round(payAmount * surchargeRate * 100) / 100
     : 0;
-  const chargeTotal = balance + surcharge;
+  const chargeTotal = (amountValid ? payAmount : 0) + surcharge;
 
   // Load finix.js once (only when this company can actually charge online)
   useEffect(() => {
@@ -141,8 +129,26 @@ export default function PayPage({
           <p className="text-gray-500 text-sm">
             {pendingAch
               ? `Thank you. Your bank transfer for invoice #${invoice.invoiceNumber} is processing — it usually clears within a few business days.`
-              : `Thank you. Invoice #${invoice.invoiceNumber} is paid in full.`}
+              : remaining > 0
+                ? `Thank you. Your payment on invoice #${invoice.invoiceNumber} went through — $${remaining.toFixed(2)} remains on the balance.`
+                : `Thank you. Invoice #${invoice.invoiceNumber} is paid in full.`}
           </p>
+          {remaining > 0 && !pendingAch && (
+            <button
+              onClick={() => window.location.reload()}
+              className="inline-block mt-3 text-xs font-medium text-gray-600 underline underline-offset-2 hover:text-gray-800"
+            >
+              Make another payment
+            </button>
+          )}
+          <a
+            href={`/pay/${invoice.publicToken}/pdf`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-block mt-4 text-xs text-gray-500 underline underline-offset-2 hover:text-gray-700"
+          >
+            Download a copy (PDF)
+          </a>
         </div>
       </div>
     );
@@ -152,7 +158,12 @@ export default function PayPage({
     const res = await fetch(`/api/public/pay/${invoice.publicToken}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ method, paymentToken }),
+      body: JSON.stringify({
+        method,
+        paymentToken,
+        saveCard: method === "CARD" && saveCard,
+        amount: payAmount,
+      }),
     });
 
     setLoading(false);
@@ -178,6 +189,7 @@ export default function PayPage({
 
     const data = await res.json().catch(() => null);
     setPendingAch(Boolean(data?.pending));
+    setRemaining(Number(data?.remaining) || 0);
     setDone(true);
   }
 
@@ -243,6 +255,14 @@ export default function PayPage({
           <div className="flex justify-between items-start">
             <div>
               <p className="text-sm text-gray-500">Invoice #{invoice.invoiceNumber}</p>
+              <a
+                href={`/pay/${invoice.publicToken}/pdf`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-gray-500 underline underline-offset-2 hover:text-gray-700"
+              >
+                Download PDF
+              </a>
             </div>
             <div className="text-right">
               {invoice.contact && (
@@ -321,6 +341,59 @@ export default function PayPage({
 
         {/* Payment method */}
         <div className="card-ledger p-5 shadow-sm">
+          {/* Amount — full balance by default, or a partial payment */}
+          <h2 className="text-sm font-semibold text-gray-700 mb-3">Payment amount</h2>
+          <div className="grid grid-cols-2 gap-3 mb-3">
+            <button
+              type="button"
+              onClick={() => setPartial(false)}
+              className={`px-4 py-3 border rounded text-sm font-medium transition-colors ${
+                !partial
+                  ? "border-green-500 bg-green-50 text-green-700"
+                  : "border-gray-300 text-gray-600 hover:bg-gray-50"
+              }`}
+            >
+              Full balance — ${balance.toFixed(2)}
+            </button>
+            <button
+              type="button"
+              onClick={() => setPartial(true)}
+              className={`px-4 py-3 border rounded text-sm font-medium transition-colors ${
+                partial
+                  ? "border-green-500 bg-green-50 text-green-700"
+                  : "border-gray-300 text-gray-600 hover:bg-gray-50"
+              }`}
+            >
+              Another amount
+            </button>
+          </div>
+          {partial && (
+            <div className="mb-4">
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">$</span>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  min={1}
+                  max={balance}
+                  step="0.01"
+                  value={amountText}
+                  onChange={(e) => setAmountText(e.target.value)}
+                  placeholder={balance.toFixed(2)}
+                  className="w-full pl-7 pr-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500/30 focus:border-green-500"
+                />
+              </div>
+              {!amountValid && amountText !== "" && (
+                <p className="mt-1.5 text-xs text-red-600">
+                  Enter an amount between $1.00 and ${balance.toFixed(2)}.
+                </p>
+              )}
+              <p className="mt-1.5 text-xs text-gray-400">
+                The rest stays on the invoice — you can come back and pay it anytime.
+              </p>
+            </div>
+          )}
+
           <h2 className="text-sm font-semibold text-gray-700 mb-3">Payment method</h2>
           <div className="grid grid-cols-2 gap-3 mb-4">
             <button
@@ -369,6 +442,20 @@ export default function PayPage({
                   Loading secure payment form…
                 </div>
               )}
+              {method === "CARD" && scriptReady && (
+                <label className="flex items-start gap-2 mt-3 text-xs text-gray-500 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={saveCard}
+                    onChange={(e) => setSaveCard(e.target.checked)}
+                    className="mt-0.5 accent-green-600"
+                  />
+                  <span>
+                    Keep this card on file with {invoice.company.name} for faster future
+                    payments. You can remove it anytime.
+                  </span>
+                </label>
+              )}
             </div>
           ) : (
             <div className="p-4 bg-gray-50 border border-dashed border-gray-300 rounded text-center mb-4">
@@ -382,7 +469,7 @@ export default function PayPage({
 
           <button
             onClick={handlePay}
-            disabled={loading || (finix != null && (!scriptReady || formHasErrors))}
+            disabled={loading || !amountValid || (finix != null && (!scriptReady || formHasErrors))}
             className="w-full py-3 font-semibold text-sm rounded transition-opacity hover:opacity-90 flex items-center justify-center gap-2 disabled:opacity-50"
             style={{
               backgroundColor: brandAccent(invoice.company),

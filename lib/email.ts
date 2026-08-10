@@ -985,9 +985,68 @@ export function invoiceLinkEmail({
       </p>
       ${items}
       ${moneyBlock("Total", total)}
-      ${accentBtn(payUrl, "View &amp; Pay Invoice", brand)}`,
+      ${accentBtn(payUrl, "View &amp; Pay Invoice", brand)}
+      <p style="margin:12px 0 0;color:#6b7280;font-size:12px;">
+        Prefer a copy for your records? <a href="${payUrl}/pdf" style="color:#6b7280;">Download the PDF</a>.
+      </p>`,
   });
   return { subject: `Your invoice from ${companyName} — #${invoiceNumber}`, html };
+}
+
+/**
+ * Payment receipt — to the client right after a payment lands on their invoice.
+ * Covers online card/ACH payments, card-on-file charges, subscription
+ * auto-charges, and (opt-in) manually recorded payments. `pending` softens the
+ * copy for ACH debits that haven't settled yet.
+ */
+export function paymentReceiptEmail({
+  brand,
+  companyName,
+  invoiceNumber,
+  amount,
+  methodLabel,
+  remainingBalance,
+  payUrl,
+  pending,
+}: {
+  brand: EmailBrand;
+  companyName: string;
+  invoiceNumber: number;
+  amount: number;
+  methodLabel: string;
+  remainingBalance: number;
+  payUrl: string;
+  pending?: boolean;
+}): { subject: string; html: string } {
+  const balanceNote =
+    remainingBalance > 0
+      ? `<p style="margin:12px 0 0;color:#374151;font-size:14px;">Remaining balance: <strong>$${remainingBalance.toFixed(2)}</strong></p>`
+      : `<p style="margin:12px 0 0;color:#15803d;font-size:14px;font-weight:600;">This invoice is paid in full — thank you!</p>`;
+  const html = clientShell({
+    brand,
+    companyName,
+    context: `Receipt — Invoice #${invoiceNumber}`,
+    inner: `
+      <p style="margin:0 0 16px;color:#111827;font-size:15px;">
+        ${
+          pending
+            ? `Your bank payment to ${esc(companyName)} is processing — this is your confirmation. It usually clears within a few business days.`
+            : `Thank you! Here's your receipt from ${esc(companyName)}.`
+        }
+      </p>
+      ${moneyBlock(pending ? "Amount processing" : "Amount paid", amount)}
+      <p style="margin:8px 0 0;color:#6b7280;font-size:13px;">${esc(methodLabel)} · Invoice #${invoiceNumber}</p>
+      ${balanceNote}
+      <p style="margin:16px 0 0;color:#6b7280;font-size:12px;">
+        Need a copy for your records? <a href="${payUrl}/pdf" style="color:#6b7280;">Download the invoice PDF</a>${remainingBalance > 0 ? ` or <a href="${payUrl}" style="color:#6b7280;">pay the remaining balance</a>` : ""}.
+      </p>`,
+  });
+  return {
+    subject: pending
+      ? `Payment processing — $${amount.toFixed(2)} to ${companyName}`
+      : `Receipt from ${companyName} — $${amount.toFixed(2)}`,
+    html,
+  };
 }
 
 /**
@@ -1029,7 +1088,10 @@ export function quoteLinkEmail({
       ${items}
       ${moneyBlock("Total", total)}
       ${deposit}
-      ${accentBtn(viewUrl, "View &amp; Approve Quote", brand)}`,
+      ${accentBtn(viewUrl, "View &amp; Approve Quote", brand)}
+      <p style="margin:12px 0 0;color:#6b7280;font-size:12px;">
+        Prefer a copy for your records? <a href="${viewUrl}/pdf" style="color:#6b7280;">Download the PDF</a>.
+      </p>`,
   });
   return { subject: `Your quote from ${companyName} — #${quoteNumber}`, html };
 }

@@ -54,6 +54,7 @@ export default function CollectPaymentForm({
   const [paidAt, setPaidAt] = useState(new Date().toLocaleDateString("en-CA"));
   const [referenceNumber, setReferenceNumber] = useState("");
   const [details, setDetails] = useState("");
+  const [emailReceipt, setEmailReceipt] = useState(true);
 
   function selectInvoice(id: string) {
     setInvoiceId(id);
@@ -77,6 +78,7 @@ export default function CollectPaymentForm({
       paidAt,
       referenceNumber: referenceNumber || null,
       details: details || null,
+      emailReceipt,
     });
 
     setLoading(false);
@@ -192,6 +194,15 @@ export default function CollectPaymentForm({
               className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
             />
           </div>
+          <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={emailReceipt}
+              onChange={(e) => setEmailReceipt(e.target.checked)}
+              className="accent-green-600"
+            />
+            Email the client a receipt
+          </label>
         </div>
 
         {/* Outstanding invoices */}

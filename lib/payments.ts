@@ -19,8 +19,9 @@ import * as finix from "@/lib/finix";
 import { estimateProcessingCostCents } from "@/lib/platform-costs";
 import { notifyUsers } from "@/lib/push";
 import { queueQuickBooksPaymentSync } from "@/lib/quickbooks";
-import { sendEmail, reviewRequestEmail } from "@/lib/email";
+import { sendEmail, reviewRequestEmail, paymentReceiptEmail } from "@/lib/email";
 import { isPastDue } from "@/lib/due-dates";
+import { paymentMethodLabel } from "@/lib/statuses";
 import type { PaymentMethod, Prisma } from "@prisma/client";
 
 // ─── Processor interface ─────────────────────────────────────────────────────
@@ -38,6 +39,12 @@ export type ChargeResult =
        *  cost estimate on the Payment row (platform profitability). */
       cardBrand?: string | null;
       cardType?: string | null;
+      /** The vaulted payment instrument (PIxxx) this charge ran against —
+       *  persist on the contact when the client asked to save their card. */
+      instrumentRef?: string;
+      cardLast4?: string | null;
+      cardExpMonth?: number | null;
+      cardExpYear?: number | null;
     }
   | { success: false; error: string };
 
@@ -198,6 +205,10 @@ class FinixProcessor implements PaymentProcessor {
         buyerIdentityRef: identityId,
         cardBrand: instrument.brand ?? null,
         cardType: instrument.card_type ?? null,
+        instrumentRef: instrument.id,
+        cardLast4: instrument.last_four ?? null,
+        cardExpMonth: instrument.expiration_month ?? null,
+        cardExpYear: instrument.expiration_year ?? null,
       };
     } catch (err) {
       if (err instanceof finix.FinixError) {
@@ -297,6 +308,13 @@ export interface RecordPaymentParams {
    *  on real processor payments; drives platform cost estimates. */
   cardBrand?: string | null;
   cardType?: string | null;
+  /** Email the client a receipt. Defaults to true for processor payments
+   *  (online, card-on-file, auto-charge) and false for manual records — a
+   *  bookkeeping entry for last month's check shouldn't surprise-email the
+   *  client. The manual Collect Payment form opts in explicitly. */
+  emailReceipt?: boolean;
+  /** ACH debits haven't settled yet — the receipt says "processing". */
+  receiptPending?: boolean;
 }
 
 /**
@@ -394,7 +412,71 @@ export async function recordPayment(params: RecordPaymentParams) {
     paymentId: result.payment.id,
   });
 
+  // Receipt to the client — best-effort, never fails the recording.
+  const wantReceipt = params.emailReceipt ?? isProcessorPayment;
+  if (wantReceipt) {
+    sendPaymentReceipt({
+      invoiceId: params.invoiceId,
+      amount: params.amount,
+      method: params.method,
+      pending: params.receiptPending ?? false,
+    }).catch((e) => console.error("[payments] receipt email failed", e));
+  }
+
   return { payment: result.payment, fullyPaid: result.fullyPaid };
+}
+
+/** Email the client a receipt for a payment just recorded on their invoice. */
+async function sendPaymentReceipt(params: {
+  invoiceId: string;
+  amount: number;
+  method: PaymentMethod;
+  pending: boolean;
+}): Promise<void> {
+  const invoice = await prisma.invoice.findUnique({
+    where: { id: params.invoiceId },
+    select: {
+      invoiceNumber: true,
+      publicToken: true,
+      total: true,
+      companyId: true,
+      payments: { select: { amount: true } },
+      contact: { select: { email: true } },
+      company: {
+        select: {
+          name: true,
+          email: true,
+          brandColor: true,
+          documentColor: true,
+          brandColorSecondary: true,
+          logoUrl: true,
+        },
+      },
+    },
+  });
+  if (!invoice?.contact?.email) return;
+
+  const paid = invoice.payments.reduce((s, p) => s + Number(p.amount), 0);
+  const remaining = Math.max(0, Math.round((Number(invoice.total) - paid) * 100) / 100);
+  const baseUrl = process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com";
+  const { subject, html } = paymentReceiptEmail({
+    brand: invoice.company,
+    companyName: invoice.company.name,
+    invoiceNumber: invoice.invoiceNumber,
+    amount: params.amount,
+    methodLabel: paymentMethodLabel[params.method] ?? params.method,
+    remainingBalance: remaining,
+    payUrl: `${baseUrl}/pay/${invoice.publicToken}`,
+    pending: params.pending,
+  });
+  await sendEmail({
+    companyId: invoice.companyId,
+    to: invoice.contact.email,
+    subject,
+    html,
+    replyTo: invoice.company.email || undefined,
+    fromName: invoice.company.name,
+  });
 }
 
 /**
@@ -455,6 +537,24 @@ export function invoiceBalance(invoice: {
 /** Calculate the surcharge amount for a given payment total and rate. */
 export function calculateSurcharge(amount: number, rateDecimal: number): number {
   return Math.round(amount * rateDecimal * 100) / 100;
+}
+
+/** Display label for a saved card — "Visa •••• 4242 · exp 12/27". */
+export function savedCardLabel(card: {
+  cardBrand?: string | null;
+  cardLast4?: string | null;
+  cardExpMonth?: number | null;
+  cardExpYear?: number | null;
+}): string {
+  const brand = card.cardBrand
+    ? card.cardBrand.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())
+    : "Card";
+  const last4 = card.cardLast4 ? ` •••• ${card.cardLast4}` : "";
+  const exp =
+    card.cardExpMonth && card.cardExpYear
+      ? ` · exp ${String(card.cardExpMonth).padStart(2, "0")}/${String(card.cardExpYear).slice(-2)}`
+      : "";
+  return `${brand}${last4}${exp}`;
 }
 
 /**

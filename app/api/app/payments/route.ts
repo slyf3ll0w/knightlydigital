@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
   const companyId = actor.companyId;
 
   const body = await req.json();
-  const { invoiceId, amount, method, referenceNumber, details, paidAt } = body;
+  const { invoiceId, amount, method, referenceNumber, details, paidAt, emailReceipt } = body;
 
   if (!invoiceId || !amount || amount <= 0) {
     return NextResponse.json({ error: "Invoice and a positive amount are required." }, { status: 400 });
@@ -57,6 +57,9 @@ export async function POST(req: NextRequest) {
         ? new Date(paidAt.length === 10 ? `${paidAt}T12:00:00` : paidAt)
         : undefined,
       recordedById: actor.id,
+      // Manual records only email a receipt when the form asked for it —
+      // backfilled bookkeeping entries shouldn't surprise the client.
+      emailReceipt: emailReceipt === true,
     });
     return NextResponse.json({ payment, fullyPaid }, { status: 201 });
   } catch (e) {

@@ -7,6 +7,7 @@ import { money, shortDate } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
 import ViewedFact from "@/components/ViewedFact";
 import InvoiceActions from "./InvoiceActions";
+import { getProcessor } from "@/lib/payments";
 import PaymentRow from "./PaymentRow";
 import Celebration from "@/components/Celebration";
 import { shouldCelebrate } from "@/lib/celebrations";
@@ -46,6 +47,25 @@ export default async function InvoiceDetailPage({
   // Jobber-style nudge: invoice paid but the linked job is still open
   const showCloseJobNudge =
     invoice.status === "PAID" && invoice.job && invoice.job.status !== "ARCHIVED";
+
+  // "Charge card on file" — managers only, when the client saved a card and
+  // this company's merchant can actually move money.
+  let chargeStoredLabel: string | null = null;
+  if (
+    isManager(actor.role) &&
+    balance > 0 &&
+    invoice.status !== "PAID" &&
+    invoice.contact?.processorCustomerRef &&
+    getProcessor().live
+  ) {
+    const gate = await prisma.company.findUnique({
+      where: { id: companyId },
+      select: { finixMerchantId: true, finixOnboardingState: true },
+    });
+    if (gate?.finixMerchantId && gate.finixOnboardingState === "APPROVED") {
+      chargeStoredLabel = invoice.contact.savedCardLabel ?? "saved card";
+    }
+  }
 
   // One-shot confetti (per user) on the first open after a processor-verified
   // (card/ACH) payment marked it PAID — manual cash/check entries don't celebrate.
@@ -92,6 +112,8 @@ export default async function InvoiceDetailPage({
           paymentCount={invoice.payments.length}
           paymentTotal={totalPaid}
           contactEmail={invoice.contact?.email ?? ""}
+          chargeStoredLabel={chargeStoredLabel}
+          balance={balance}
         />
       </div>
 

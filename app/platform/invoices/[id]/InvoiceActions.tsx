@@ -13,6 +13,7 @@ import {
   RotateCcw,
   Trash2,
   AlertTriangle,
+  FileDown,
   X,
 } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
@@ -29,6 +30,8 @@ export default function InvoiceActions({
   paymentCount = 0,
   paymentTotal = 0,
   contactEmail = "",
+  chargeStoredLabel = null,
+  balance = 0,
 }: {
   invoiceId: string;
   status: string;
@@ -37,6 +40,9 @@ export default function InvoiceActions({
   paymentCount?: number;
   paymentTotal?: number;
   contactEmail?: string;
+  /** Saved-card label when this invoice can be charged to the card on file. */
+  chargeStoredLabel?: string | null;
+  balance?: number;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -87,6 +93,30 @@ export default function InvoiceActions({
     await navigator.clipboard.writeText(publicUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
+  }
+
+  // Charge the remaining balance to the client's card on file
+  async function chargeStored() {
+    setOpen(false);
+    const ok = await confirmSheet({
+      title: "Charge card on file?",
+      message: `${money(balance)} will be charged to ${chargeStoredLabel} right now. No card surcharge is applied to stored charges.`,
+      confirmLabel: `Charge ${money(balance)}`,
+    });
+    if (!ok) return;
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/app/invoices/${invoiceId}/charge-stored`, { method: "POST" });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        alert(data?.error ?? GENERIC_ERROR);
+      } else {
+        hapticImpact();
+      }
+    } finally {
+      setBusy(false);
+      router.refresh();
+    }
   }
 
   // Email the client their pay link (DRAFT invoices move to Awaiting Payment)
@@ -229,6 +259,24 @@ export default function InvoiceActions({
               <Copy size={14} className="text-gray-400" />
               {copied ? "Copied!" : "Copy payment link"}
             </button>
+            <a
+              href={`/api/app/invoices/${invoiceId}/pdf`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
+            >
+              <FileDown size={14} className="text-gray-400" />
+              Download PDF
+            </a>
+            {chargeStoredLabel && balance > 0 && (
+              <button
+                onClick={chargeStored}
+                className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
+              >
+                <DollarSign size={14} className="text-gray-400" />
+                <span className="truncate">Charge card on file ({chargeStoredLabel})</span>
+              </button>
+            )}
             {contactEmail && status === "DRAFT" && (
               <button
                 onClick={() => setStatus("AWAITING_PAYMENT")}

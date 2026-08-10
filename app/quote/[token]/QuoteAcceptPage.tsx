@@ -167,6 +167,14 @@ export default function QuoteAcceptPage({
             {quote.company.name} will be in touch to schedule your service.
             {deposit > 0 && ` A deposit of ${money(deposit)} will be collected to get started.`}
           </p>
+          <a
+            href={`/quote/${quote.publicToken}/pdf`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-block mt-4 text-xs text-gray-500 underline underline-offset-2 hover:text-gray-700"
+          >
+            Download a copy (PDF)
+          </a>
         </div>
       </div>
     );
@@ -236,16 +244,26 @@ export default function QuoteAcceptPage({
                   </p>
                 )}
               </div>
-              {quote.validUntil && (
-                <p className="text-xs text-amber-600">
-                  Valid until{" "}
-                  {new Date(quote.validUntil).toLocaleDateString("en-US", {
-                    month: "long",
-                    day: "numeric",
-                    year: "numeric",
-                  })}
-                </p>
-              )}
+              <div className="flex flex-col items-end gap-1.5">
+                {quote.validUntil && (
+                  <p className="text-xs text-amber-600">
+                    Valid until{" "}
+                    {new Date(quote.validUntil).toLocaleDateString("en-US", {
+                      month: "long",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
+                  </p>
+                )}
+                <a
+                  href={`/quote/${quote.publicToken}/pdf`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-gray-500 underline underline-offset-2 hover:text-gray-700"
+                >
+                  Download PDF
+                </a>
+              </div>
             </div>
 
             {deposit > 0 && (

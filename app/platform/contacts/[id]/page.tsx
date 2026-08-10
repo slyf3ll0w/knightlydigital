@@ -18,6 +18,7 @@ import PortalAccessCard from "./PortalAccessCard";
 import EmailClientButton from "./EmailClientButton";
 import AddressesCard from "./AddressesCard";
 import PeopleCard from "./PeopleCard";
+import SavedCardRow from "./SavedCardRow";
 import PipelineCard from "./PipelineCard";
 import { getActiveFieldDefs } from "@/lib/contact-fields";
 
@@ -373,6 +374,13 @@ export default async function ContactDetailPage({
                 <dt className="text-gray-400 text-xs">Lead source</dt>
                 <dd className="text-gray-800">{contact.leadSource || "—"}</dd>
               </div>
+              {contact.savedCardLabel && (
+                <SavedCardRow
+                  contactId={contact.id}
+                  label={contact.savedCardLabel}
+                  canRemove={isManager(actor.role)}
+                />
+              )}
               {contact.notes && (
                 <div className="col-span-2">
                   <dt className="text-gray-400 text-xs">Notes</dt>

@@ -16,6 +16,7 @@ import {
   Pencil,
   RotateCcw,
   FileSignature,
+  FileDown,
   Clock,
   DollarSign,
 } from "lucide-react";
@@ -331,6 +332,15 @@ export default function QuoteActions({
               <Copy size={14} className="text-gray-400" />
               {copied ? "Copied!" : "Copy client link"}
             </button>
+            <a
+              href={`/api/app/quotes/${quoteId}/pdf`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
+            >
+              <FileDown size={14} className="text-gray-400" />
+              Download PDF
+            </a>
             {contactEmail && status === "DRAFT" && (
               <button
                 onClick={() => setStatus("AWAITING_RESPONSE")}
