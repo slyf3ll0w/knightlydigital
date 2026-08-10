@@ -867,6 +867,10 @@ model Contract {
   // the quote contains agreement-requiring services
   quoteId       String?
   quote         Quote?            @relation(fields: [quoteId], references: [id])
+  // Per-company agreement number. Nullable so db push stays additive on
+  // existing rows; scripts/backfill-doc-numbers.mjs fills history on boot and
+  // new creates assign max+1 (multiple NULLs never trip a composite unique).
+  contractNumber Int?
   title         String
   body          String            @db.Text
   status        ContractStatus    @default(DRAFT)
@@ -882,6 +886,7 @@ model Contract {
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
 
+  @@unique([companyId, contractNumber])
   @@index([companyId, status])
   @@index([contactId])
 }
@@ -944,6 +949,9 @@ model Appointment {
   request      Request?          @relation(fields: [requestId], references: [id])
   assignedToId String?
   assignedTo   User?             @relation("AppointmentAssignee", fields: [assignedToId], references: [id])
+  // Per-company appointment number (nullable — backfilled on boot, see
+  // scripts/backfill-doc-numbers.mjs; new creates assign max+1).
+  appointmentNumber Int?
   title        String // "Estimate", "Sales call", ...
   type         AppointmentType
   status       AppointmentStatus @default(SCHEDULED)
@@ -969,6 +977,7 @@ model Appointment {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
+  @@unique([companyId, appointmentNumber])
   @@index([companyId, scheduledAt])
   @@index([companyId, status])
   @@index([contactId])

@@ -76,7 +76,7 @@ const LABELS: [prefix: string, label: string][] = [
   ["/app/settings", "Settings"],
   ["/app/dashboard", "Home"],
   ["/app/schedule", "Schedule"],
-  ["/app/appointments", "Schedule"],
+  ["/app/appointments", "Appointments"],
   ["/app/contacts", "Clients"],
   ["/app/requests", "Requests"],
   ["/app/leads", "Leads"],
@@ -86,7 +86,7 @@ const LABELS: [prefix: string, label: string][] = [
   ["/app/payments", "Payments"],
   ["/app/subscriptions", "Subscriptions"],
   ["/app/timesheets", "Timesheets"],
-  ["/app/contracts", "Contracts"],
+  ["/app/contracts", "Agreements"],
   ["/app/business", "Business"],
   ["/app/insights", "Insights"],
   ["/app/expenses", "Expenses"],
@@ -102,13 +102,13 @@ const LABELS: [prefix: string, label: string][] = [
  * own section's list page: pages that hang off a hub, and records that
  * belong to another entity.
  */
+// Appointments and agreements now have their own index pages, so their
+// subpages fall back to those lists like every other entity (no PARENTS
+// override needed anymore).
 const PARENTS: [prefix: string, to: string][] = [
   ["/app/insights", "/app/business"],
   ["/app/expenses", "/app/business"],
   ["/app/team-map", "/app/business"],
-  ["/app/appointments", "/app/schedule"],
-  // No /app/contracts index — agreements belong to a contact
-  ["/app/contracts", "/app/contacts"],
 ];
 
 const matches = (pathname: string, prefix: string) =>

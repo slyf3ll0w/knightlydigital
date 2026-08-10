@@ -54,6 +54,9 @@ export async function PATCH(
       }),
       ...recurring.data,
       ...(body.depositType !== undefined && sanitizeDeposit(body)),
+      // Archive/reactivate: inactive items vanish from pickers and booking
+      // but history that references them stays intact.
+      ...(body.isActive !== undefined && { isActive: body.isActive !== false }),
     },
   });
 
@@ -71,6 +74,19 @@ export async function DELETE(
   const item = await prisma.workItem.findFirst({ where: { id, companyId } });
   if (!item) return NextResponse.json({ error: "Item not found." }, { status: 404 });
 
+  // An item referenced by history (quote/invoice lines, subscriptions) is
+  // ARCHIVED instead of deleted — a hard delete used to orphan those links
+  // and quietly break the agreement gate and margin backfill on old docs.
+  const [quoteRefs, invoiceRefs, subRefs] = await Promise.all([
+    prisma.quoteLineItem.count({ where: { workItemId: id } }),
+    prisma.invoiceLineItem.count({ where: { workItemId: id } }),
+    prisma.subscription.count({ where: { workItemId: id } }),
+  ]);
+  if (quoteRefs + invoiceRefs + subRefs > 0) {
+    await prisma.workItem.update({ where: { id }, data: { isActive: false } });
+    return NextResponse.json({ archived: true });
+  }
+
   await prisma.workItem.delete({ where: { id } });
-  return NextResponse.json({ success: true });
+  return NextResponse.json({ success: true, deleted: true });
 }

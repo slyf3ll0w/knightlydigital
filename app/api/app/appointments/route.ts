@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getActor, canSell, contactScope, isManager } from "@/lib/permissions";
 import { autoAdvance } from "@/lib/pipeline";
 import { inPreview, PREVIEW_CAP, previewCapError } from "@/lib/preview";
+import { withDocNumberRetry } from "@/lib/doc-numbers";
 
 const validTypes = ["PHONE_CALL", "VIDEO_CALL", "IN_PERSON"];
 
@@ -62,12 +63,19 @@ export async function POST(req: NextRequest) {
       ? new Date(scheduledEnd)
       : new Date(start.getTime() + 30 * 60000);
 
-  const appointment = await prisma.appointment.create({
+  const appointment = await withDocNumberRetry(async () => {
+    const last = await prisma.appointment.findFirst({
+      where: { companyId },
+      orderBy: { appointmentNumber: "desc" },
+      select: { appointmentNumber: true },
+    });
+    return prisma.appointment.create({
     data: {
       companyId,
       contactId,
       requestId: requestId || null,
       assignedToId,
+      appointmentNumber: (last?.appointmentNumber ?? 0) + 1,
       title: (title?.trim() || "Estimate").slice(0, 120),
       type,
       scheduledAt: start,
@@ -79,6 +87,7 @@ export async function POST(req: NextRequest) {
       // Automatic client reminders default on; the form can opt one out
       remindClient: body.remindClient !== false,
     },
+    });
   });
 
   // Pipeline board: booking an estimate/sales call advances the lead's card

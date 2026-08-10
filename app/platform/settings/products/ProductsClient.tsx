@@ -28,6 +28,7 @@ type WorkItem = {
   depositType: DepositType;
   depositValue: number | string | null;
   checklist: string[] | null;
+  isActive: boolean;
 };
 
 type Template = { id: string; name: string };
@@ -117,6 +118,8 @@ export default function ProductsClient({
   templates: Template[];
 }) {
   const [items, setItems] = useState<WorkItem[]>(initialItems);
+  const activeItems = items.filter((i) => i.isActive !== false);
+  const archivedItems = items.filter((i) => i.isActive === false);
   const [editingId, setEditingId] = useState<string | "new" | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [loading, setLoading] = useState(false);
@@ -204,14 +207,35 @@ export default function ProductsClient({
   async function remove(id: string) {
     if (
       !(await confirmSheet({
-        message: "Delete this item from your price book?",
-        confirmLabel: "Delete Item",
+        message:
+          "Remove this item from your price book? If it appears on past quotes or invoices it's archived (history stays intact) — otherwise it's deleted.",
+        confirmLabel: "Remove Item",
         destructive: true,
       }))
     )
       return;
-    const { ok } = await postJson(`/api/app/work-items/${id}`, undefined, "DELETE");
-    if (ok) setItems((list) => list.filter((i) => i.id !== id));
+    const { ok, data } = await postJson<{ archived?: boolean }>(
+      `/api/app/work-items/${id}`,
+      undefined,
+      "DELETE"
+    );
+    if (!ok) return;
+    if (data?.archived) {
+      setItems((list) => list.map((i) => (i.id === id ? { ...i, isActive: false } : i)));
+    } else {
+      setItems((list) => list.filter((i) => i.id !== id));
+    }
+  }
+
+  async function reactivate(id: string) {
+    const { ok, data } = await postJson<WorkItem>(
+      `/api/app/work-items/${id}`,
+      { isActive: true },
+      "PATCH"
+    );
+    if (ok && data) {
+      setItems((list) => list.map((i) => (i.id === id ? { ...i, isActive: true } : i)));
+    }
   }
 
   const editorRow = (
@@ -536,7 +560,7 @@ export default function ProductsClient({
         {editingId === "new" && editorRow}
 
         <div className="card-ledger overflow-hidden">
-          {items.length === 0 && editingId !== "new" ? (
+          {activeItems.length === 0 && editingId !== "new" ? (
             <div className="py-16 text-center">
               <Package size={36} className="text-gray-300 mx-auto mb-3" />
               <p className="text-gray-500 text-sm mb-4">Your price book is empty.</p>
@@ -557,7 +581,7 @@ export default function ProductsClient({
                 <span className="text-right">Cost</span>
                 <span></span>
               </div>
-              {items.map((item) =>
+              {activeItems.map((item) =>
                 editingId === item.id ? (
                   <div key={item.id} className="p-3">
                     {editorRow}
@@ -666,6 +690,39 @@ export default function ProductsClient({
             </div>
           )}
         </div>
+
+        {/* Archived items — still on old documents, out of every picker.
+            One click brings one back. */}
+        {archivedItems.length > 0 && (
+          <div className="card-ledger overflow-hidden">
+            <div className="px-4 py-3 border-b border-gray-100">
+              <h2 className="text-sm font-semibold text-gray-500">
+                Archived ({archivedItems.length})
+              </h2>
+              <p className="text-xs text-gray-400 mt-0.5">
+                Hidden from quotes, invoices, and booking — past documents keep them.
+              </p>
+            </div>
+            <div className="divide-y divide-gray-50">
+              {archivedItems.map((item) => (
+                <div key={item.id} className="flex items-center justify-between gap-3 px-4 py-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-500 truncate">{item.name}</p>
+                    <p className="text-xs text-gray-400">
+                      {item.type === "SERVICE" ? "Service" : "Product"} · {money(item.unitPrice)}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => reactivate(item.id)}
+                    className="shrink-0 px-3 py-1.5 text-xs font-medium text-green-700 border border-green-200 rounded-lg hover:bg-green-50"
+                  >
+                    Reactivate
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

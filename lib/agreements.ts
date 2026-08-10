@@ -13,6 +13,7 @@ import { randomBytes } from "crypto";
 import type { AgreementTiming } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { sendEmail, contractSignEmail } from "@/lib/email";
+import { withDocNumberRetry } from "@/lib/doc-numbers";
 
 /**
  * How long a contract signing link stays valid after it's sent. Links are
@@ -97,18 +98,26 @@ export async function autoSendQuoteAgreements(
         .replaceAll("{{company_name}}", company?.name ?? "")
         .replaceAll("{{date}}", today);
 
-      const contract = await prisma.contract.create({
-        data: {
-          companyId: quote.companyId,
-          contactId: quote.contactId,
-          publicToken: randomBytes(24).toString("hex"),
-          templateId: template.id,
-          quoteId: quote.id,
-          title: template.name,
-          body,
-          status: "SENT",
-          sentAt: new Date(),
-        },
+      const contract = await withDocNumberRetry(async () => {
+        const last = await prisma.contract.findFirst({
+          where: { companyId: quote.companyId },
+          orderBy: { contractNumber: "desc" },
+          select: { contractNumber: true },
+        });
+        return prisma.contract.create({
+          data: {
+            companyId: quote.companyId,
+            contactId: quote.contactId,
+            contractNumber: (last?.contractNumber ?? 0) + 1,
+            publicToken: randomBytes(24).toString("hex"),
+            templateId: template.id,
+            quoteId: quote.id,
+            title: template.name,
+            body,
+            status: "SENT",
+            sentAt: new Date(),
+          },
+        });
       });
 
       if (quote.contact.email) {

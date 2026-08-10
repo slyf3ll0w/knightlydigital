@@ -411,12 +411,18 @@ export async function POST(
         );
         const userId = pickUserForSlot(booking.start, booking.end, usersNow);
         if (!userId) throw new SlotTakenError();
+        const lastAppt = await tx.appointment.findFirst({
+          where: { companyId: company.id },
+          orderBy: { appointmentNumber: "desc" },
+          select: { appointmentNumber: true },
+        });
         await tx.appointment.create({
           data: {
             companyId: company.id,
             contactId: contact.id,
             requestId: request.id,
             assignedToId: userId,
+            appointmentNumber: (lastAppt?.appointmentNumber ?? 0) + 1,
             title: booking.service.name,
             type: "IN_PERSON",
             scheduledAt: booking.start,

@@ -10,8 +10,10 @@ export default async function ProductsPage() {
   const companyId = actor.companyId;
 
   const [items, templates] = await Promise.all([
+    // All items, including archived ones — the client splits them so archived
+    // services can be reactivated instead of being gone forever.
     prisma.workItem.findMany({
-      where: { companyId, isActive: true },
+      where: { companyId },
       orderBy: { name: "asc" },
     }),
     prisma.contractTemplate.findMany({

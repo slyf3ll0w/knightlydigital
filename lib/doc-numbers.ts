@@ -17,7 +17,14 @@ import { Prisma } from "@prisma/client";
  * rethrown for the caller to turn into a proper message.
  */
 
-const NUMBER_FIELDS = ["requestNumber", "jobNumber", "quoteNumber", "invoiceNumber"];
+const NUMBER_FIELDS = [
+  "requestNumber",
+  "jobNumber",
+  "quoteNumber",
+  "invoiceNumber",
+  "contractNumber",
+  "appointmentNumber",
+];
 
 function isDocNumberClash(e: unknown): boolean {
   if (!(e instanceof Prisma.PrismaClientKnownRequestError) || e.code !== "P2002") return false;

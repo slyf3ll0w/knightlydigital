@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { getActor, canSell, contactScope } from "@/lib/permissions";
 import { sendEmail, contractSignEmail } from "@/lib/email";
 import { inPreview, previewBlockedError } from "@/lib/preview";
+import { withDocNumberRetry } from "@/lib/doc-numbers";
 
 /**
  * POST — issue a contract to a client. Body text comes from a saved
@@ -66,18 +67,26 @@ export async function POST(req: NextRequest) {
     .replaceAll("{{company_name}}", company?.name ?? "")
     .replaceAll("{{date}}", today);
 
-  const contract = await prisma.contract.create({
-    data: {
-      companyId,
-      contactId,
-      publicToken: randomBytes(24).toString("hex"),
-      templateId: templateId || null,
-      quoteId: quoteId || null,
-      title,
-      body: text,
-      status: "SENT",
-      sentAt: new Date(),
-    },
+  const contract = await withDocNumberRetry(async () => {
+    const last = await prisma.contract.findFirst({
+      where: { companyId },
+      orderBy: { contractNumber: "desc" },
+      select: { contractNumber: true },
+    });
+    return prisma.contract.create({
+      data: {
+        companyId,
+        contactId,
+        contractNumber: (last?.contractNumber ?? 0) + 1,
+        publicToken: randomBytes(24).toString("hex"),
+        templateId: templateId || null,
+        quoteId: quoteId || null,
+        title,
+        body: text,
+        status: "SENT",
+        sentAt: new Date(),
+      },
+    });
   });
 
   // Deliver the signing link to the client's inbox — ties the eventual
