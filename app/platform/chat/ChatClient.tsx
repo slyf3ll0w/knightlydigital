@@ -730,7 +730,7 @@ export default function ChatClient({
                 </div>
               )}
               <div className={`group flex ${entering ? "msg-enter" : ""} ${mine ? "justify-end" : "justify-start"} ${firstOfRun ? "mt-2.5" : "mt-0.5"} ${reactionGroups.length > 0 ? "mb-3.5" : ""}`}>
-                <div className={`flex max-w-[82%] items-end gap-1.5 lg:max-w-[70%] ${mine ? "flex-row-reverse" : ""}`}>
+                <div className={`flex max-w-[82%] items-end gap-1.5 lg:max-w-[min(70%,30rem)] ${mine ? "flex-row-reverse" : ""}`}>
                   {showMeta && (
                     <span className="w-[26px] shrink-0 self-end pb-0.5">
                       {lastOfRun && <Avatar name={m.userName} userId={m.userId} size={26} />}
@@ -943,6 +943,7 @@ export default function ChatClient({
           covers it, and the overlay sits above the tab bar. */}
       {mobileOpen && (
         <div
+          data-ptr-ignore
           className={`fixed inset-x-0 z-[60] flex flex-col bg-white lg:hidden ${
             vvBox ? "" : "top-0 h-[100dvh] pt-[env(safe-area-inset-top)]"
           }`}

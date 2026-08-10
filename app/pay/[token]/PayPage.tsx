@@ -47,7 +47,17 @@ declare global {
 
 const FINIX_JS_SRC = "https://js.finix.com/v/2/finix.js";
 
-export default function PayPage({ invoice, balance, finix }: { invoice: Invoice; balance: number; finix: FinixConfig }) {
+export default function PayPage({
+  invoice,
+  balance,
+  finix,
+  preview = false,
+}: {
+  invoice: Invoice;
+  balance: number;
+  finix: FinixConfig;
+  preview?: boolean;
+}) {
   const [method, setMethod] = useState<"CARD" | "ACH">("CARD");
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
@@ -172,6 +182,7 @@ export default function PayPage({ invoice, balance, finix }: { invoice: Invoice;
   }
 
   async function handlePay() {
+    if (preview) return;
     setError("");
     setLoading(true);
 
@@ -202,6 +213,11 @@ export default function PayPage({ invoice, balance, finix }: { invoice: Invoice;
   return (
     <div className="app-ui min-h-screen bg-gray-50 py-10 px-4">
       <div className="max-w-lg mx-auto space-y-4">
+        {preview && (
+          <div className="px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-700 text-center">
+            Preview mode — this is what your client sees. Payment is disabled.
+          </div>
+        )}
         {/* Company + invoice header */}
         <div className="card-ledger shadow-sm overflow-hidden">
           <div
@@ -366,7 +382,7 @@ export default function PayPage({ invoice, balance, finix }: { invoice: Invoice;
 
           <button
             onClick={handlePay}
-            disabled={loading || (finix != null && (!scriptReady || formHasErrors))}
+            disabled={preview || loading || (finix != null && (!scriptReady || formHasErrors))}
             className="w-full py-3 font-semibold text-sm rounded transition-opacity hover:opacity-90 flex items-center justify-center gap-2 disabled:opacity-50"
             style={{
               backgroundColor: brandAccent(invoice.company),

@@ -34,7 +34,7 @@ type JobWithContact = {
   scheduledAnytime: boolean;
   subscriptionId: string | null;
   contact: { firstName: string; lastName: string };
-  assignments?: { user: { name: string | null } }[];
+  assignments?: { userId: string; user: { name: string | null } }[];
 };
 
 function toDTO(j: JobWithContact): ScheduleJobDTO {
@@ -53,6 +53,7 @@ function toDTO(j: JobWithContact): ScheduleJobDTO {
     assignees: (j.assignments ?? [])
       .map((a) => a.user.name?.trim() ?? "")
       .filter(Boolean),
+    assigneeIds: (j.assignments ?? []).map((a) => a.userId),
   };
 }
 
@@ -220,7 +221,7 @@ export default async function SchedulePage({
         contact: { select: { firstName: true, lastName: true } },
         // Who's on it — the phone agenda shows initials so the company-wide
         // view answers "whose day is this?" without the team filter
-        assignments: { select: { user: { select: { name: true } } } },
+        assignments: { select: { userId: true, user: { select: { name: true } } } },
       },
       orderBy: { scheduledAt: "asc" },
     }),
@@ -242,7 +243,12 @@ export default async function SchedulePage({
       : Promise.resolve([]),
     prisma.job.findMany({
       where: { companyId, ...scope, status: "ACTIVE", scheduledAt: null, ...teamWhere },
-      include: { contact: { select: { firstName: true, lastName: true } } },
+      include: {
+        contact: { select: { firstName: true, lastName: true } },
+        // The drop-to-schedule sheet prefills the crew — without this a job
+        // assigned before scheduling would get its assignees wiped on save
+        assignments: { select: { userId: true, user: { select: { name: true } } } },
+      },
       orderBy: { createdAt: "desc" },
       take: 100,
     }),

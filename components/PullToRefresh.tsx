@@ -73,6 +73,19 @@ export default function PullToRefresh({
       if (!(e.target instanceof Node) || !el.contains(e.target)) return;
       // Left edge belongs to swipe-back
       if (t.clientX <= 24) return;
+      // A nested scroller (chat thread, picker list) owns its own vertical
+      // gesture — claiming it here would hijack scroll-up into a page refresh.
+      // Same for anything opted out via data-ptr-ignore (fixed overlays whose
+      // content must not ride the <main> translate).
+      for (
+        let n = e.target instanceof Element ? e.target : null;
+        n && n !== el;
+        n = n.parentElement
+      ) {
+        if (n.hasAttribute("data-ptr-ignore")) return;
+        const oy = getComputedStyle(n).overflowY;
+        if ((oy === "auto" || oy === "scroll") && n.scrollHeight > n.clientHeight) return;
+      }
       state.tracking = true;
       state.pulling = false;
       state.startX = t.clientX;

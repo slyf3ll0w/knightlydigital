@@ -317,7 +317,7 @@ export default function HubMessagesThread({
               const mine = m.direction === "INBOUND";
               return (
                 <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
-                  <div className={`max-w-[85%] sm:max-w-[75%] ${mine ? "text-right" : ""}`}>
+                  <div className={`max-w-[85%] sm:max-w-[min(75%,30rem)] ${mine ? "text-right" : ""}`}>
                     <div
                       className={`inline-block rounded-2xl px-3.5 py-2 text-left ${
                         mine ? "" : "bg-gray-100"

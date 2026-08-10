@@ -214,7 +214,7 @@ export default function InvoiceActions({
               </button>
             )}
             <a
-              href={publicUrl}
+              href={`${publicUrl}?preview=1`}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"

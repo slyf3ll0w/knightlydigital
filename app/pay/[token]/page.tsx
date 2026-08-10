@@ -18,10 +18,13 @@ export async function generateMetadata({ params }: { params: Promise<{ token: st
 
 export default async function PublicPayPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ token: string }>;
+  searchParams: Promise<{ preview?: string }>;
 }) {
   const { token } = await params;
+  const { preview } = await searchParams;
 
   // A final invoice's deposit credit may have changed since it was created
   // (deposit paid late, or a pending ACH deposit bounced) — re-derive it before
@@ -114,8 +117,13 @@ export default async function PublicPayPage({
 
   return (
     <>
-      <ViewBeacon kind="invoice" token={token} />
-      <PayPage invoice={JSON.parse(JSON.stringify(publicInvoice))} balance={balance} finix={finix} />
+      <ViewBeacon kind="invoice" token={token} disabled={preview === "1"} />
+      <PayPage
+        invoice={JSON.parse(JSON.stringify(publicInvoice))}
+        balance={balance}
+        finix={finix}
+        preview={preview === "1"}
+      />
     </>
   );
 }
