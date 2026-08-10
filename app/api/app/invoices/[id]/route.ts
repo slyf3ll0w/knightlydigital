@@ -139,6 +139,7 @@ export async function PATCH(
       data: {
         subject: body.subject || null,
         notes: body.notes || null,
+        clientMessage: body.clientMessage || null,
         subtotal,
         discountType,
         discountValue: discount > 0 ? discountValue : null,

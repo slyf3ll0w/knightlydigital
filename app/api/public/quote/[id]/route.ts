@@ -52,6 +52,17 @@ export async function POST(
     return NextResponse.json({ error: "Quote is not in a reviewable state." }, { status: 400 });
   }
 
+  // Expired quotes can't be approved online — prices may be stale. Requesting
+  // changes stays open: that's exactly how the client asks for a fresh one.
+  if (action === "approve" && quote.validUntil && quote.validUntil < new Date()) {
+    return NextResponse.json(
+      {
+        error: `This quote expired on ${quote.validUntil.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}. Use "Request changes" or contact ${quote.company.name} for an updated quote.`,
+      },
+      { status: 400 }
+    );
+  }
+
   if (action === "request_changes") {
     await prisma.quote.update({
       where: { id: quote.id },

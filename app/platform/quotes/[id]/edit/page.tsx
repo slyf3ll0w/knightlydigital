@@ -49,6 +49,8 @@ export default async function EditQuotePage({
         depositValue: quote.depositValue ? Number(quote.depositValue) : null,
         clientMessage: quote.clientMessage ?? "",
         disclaimer: quote.disclaimer ?? "",
+        notes: quote.notes ?? "",
+        validUntil: quote.validUntil ? quote.validUntil.toLocaleDateString("en-CA") : null,
         lineItems: quote.lineItems.map((li) => ({
           name: li.name,
           description: li.description,

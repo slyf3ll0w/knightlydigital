@@ -131,6 +131,25 @@ export default async function QuoteDetailPage({
           viewCount={quote.viewCount}
           sent={!!quote.sentAt}
         />
+        {quote.validUntil && (
+          <div>
+            <span className="text-xs font-medium text-gray-500 block">Valid until</span>
+            <span
+              className={
+                quote.validUntil < new Date() &&
+                ["DRAFT", "AWAITING_RESPONSE", "CHANGES_REQUESTED"].includes(quote.status)
+                  ? "font-medium text-red-700"
+                  : "text-gray-800"
+              }
+            >
+              {shortDate(quote.validUntil)}
+              {quote.validUntil < new Date() &&
+              ["DRAFT", "AWAITING_RESPONSE", "CHANGES_REQUESTED"].includes(quote.status)
+                ? " · Expired"
+                : ""}
+            </span>
+          </div>
+        )}
         {deposit > 0 && (
           <div>
             <span className="text-xs font-medium text-gray-500 block">

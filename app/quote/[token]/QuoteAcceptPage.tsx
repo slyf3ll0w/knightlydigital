@@ -64,6 +64,7 @@ export default function QuoteAcceptPage({
 
   const reviewable =
     !preview && ["AWAITING_RESPONSE", "CHANGES_REQUESTED", "DRAFT"].includes(quote.status);
+  const expired = Boolean(quote.validUntil && new Date(quote.validUntil) < new Date());
 
   // Live totals as the client toggles optional items
   const includedItems = quote.lineItems.filter((li) => !optedOut.includes(li.id));
@@ -373,8 +374,32 @@ export default function QuoteAcceptPage({
               </div>
             )}
 
+            {/* Expired: no online approval — prices may be stale. Requesting
+                changes stays open as the "send me a fresh one" path. */}
+            {expired && reviewable && (
+              <div className="mt-6 border-t border-gray-100 pt-5">
+                <div className="px-4 py-3 bg-amber-50 border border-amber-200 rounded text-sm text-amber-800">
+                  This quote expired on{" "}
+                  {new Date(quote.validUntil!).toLocaleDateString("en-US", {
+                    month: "long",
+                    day: "numeric",
+                    year: "numeric",
+                  })}
+                  . Contact {quote.company.name} for an updated quote, or request changes below
+                  and they&apos;ll send a fresh one.
+                </div>
+                <button
+                  onClick={() => setShowChanges(true)}
+                  className="mt-4 flex items-center gap-2 px-5 py-2.5 border border-gray-300 text-gray-700 text-sm font-medium rounded hover:bg-gray-50"
+                >
+                  <MessageSquare size={14} />
+                  Request changes
+                </button>
+              </div>
+            )}
+
             {/* Approval */}
-            {reviewable && !showChanges && (
+            {reviewable && !expired && !showChanges && (
               <div className="mt-6 border-t border-gray-100 pt-5">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Sign by typing your full name

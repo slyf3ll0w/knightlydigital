@@ -87,6 +87,7 @@ async function main() {
         depositApplied: 470,
         total: 1566.18,
         notes: "Warranty registration submitted to manufacturer.",
+        clientMessage: "Thanks for choosing us — it was a pleasure working on your home.",
         issuedAt: new Date("2026-08-10"),
         dueDate: new Date("2026-08-24"),
         createdAt: new Date("2026-08-10"),

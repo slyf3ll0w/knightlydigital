@@ -45,6 +45,8 @@ export type ExistingQuote = {
   depositValue: number | null;
   clientMessage: string;
   disclaimer: string;
+  notes: string;
+  validUntil: string | null; // "YYYY-MM-DD"
   lineItems: {
     name: string;
     description: string;
@@ -96,6 +98,8 @@ export default function QuoteEditor({
   );
   const [clientMessage, setClientMessage] = useState(existingQuote?.clientMessage ?? "");
   const [disclaimer, setDisclaimer] = useState(existingQuote?.disclaimer ?? "");
+  const [notes, setNotes] = useState(existingQuote?.notes ?? "");
+  const [validUntil, setValidUntil] = useState(existingQuote?.validUntil ?? "");
   const [lineItems, setLineItems] = useState<LineItem[]>(
     existingQuote && existingQuote.lineItems.length > 0
       ? existingQuote.lineItems.map((li) => ({
@@ -201,6 +205,9 @@ export default function QuoteEditor({
       depositValue: depositValue ? parseFloat(depositValue) || 0 : null,
       clientMessage: clientMessage || null,
       disclaimer: disclaimer || null,
+      notes: notes || null,
+      // Noon avoids the UTC date rolling back a day in western timezones
+      validUntil: validUntil ? new Date(`${validUntil}T12:00:00`).toISOString() : null,
       lineItems: lineItems.map((li, i) => ({
         name: li.name,
         description: li.description,
@@ -496,6 +503,31 @@ export default function QuoteEditor({
             className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
             placeholder="Terms and conditions the client agrees to when approving..."
           />
+        </div>
+
+        <div className="card-ledger p-5 grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Valid until</label>
+            <input
+              type="date"
+              value={validUntil}
+              onChange={(e) => setValidUntil(e.target.value)}
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+            />
+            <p className="mt-1 text-xs text-gray-400">
+              After this date the client can no longer approve online. Leave blank for no expiry.
+            </p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Internal notes</label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={3}
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
+              placeholder="Only your team sees these..."
+            />
+          </div>
         </div>
 
         <div className="flex items-center gap-3">

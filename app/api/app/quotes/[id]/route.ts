@@ -20,6 +20,13 @@ const allowedStatuses = [
   "ARCHIVED",
 ] as const;
 
+/** Accept an ISO string (or null/garbage → null) for the expiry date. */
+function parseValidUntil(v: unknown): Date | null {
+  if (typeof v !== "string" || !v) return null;
+  const d = new Date(v);
+  return isNaN(d.getTime()) ? null : d;
+}
+
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -131,6 +138,8 @@ export async function PATCH(
               : null,
           clientMessage: body.clientMessage || null,
           disclaimer: body.disclaimer || null,
+          notes: body.notes || null,
+          validUntil: parseValidUntil(body.validUntil),
           lineItems: {
             create: lineItems.map((li, i) => ({
               name: li.name ?? "",
@@ -161,6 +170,7 @@ export async function PATCH(
       ...(justSent && { sentAt: new Date() }),
       ...(body.status === "APPROVED" && { approvedAt: new Date() }),
       ...(body.notes !== undefined && { notes: body.notes }),
+      ...(body.validUntil !== undefined && { validUntil: parseValidUntil(body.validUntil) }),
     },
   });
 

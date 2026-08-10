@@ -994,6 +994,57 @@ export function invoiceLinkEmail({
 }
 
 /**
+ * Quote follow-up — a friendly nudge a few days after a quote went out with no
+ * response. Two stages (3 and 7 days); tone stays light — this is sales, not
+ * dunning. Stops the moment the quote is approved, changed, or expires.
+ */
+export function quoteFollowUpEmail({
+  brand,
+  companyName,
+  quoteNumber,
+  total,
+  viewUrl,
+  stage,
+  validUntil,
+}: {
+  brand: EmailBrand;
+  companyName: string;
+  quoteNumber: number;
+  total: number;
+  viewUrl: string;
+  stage: "followup_3" | "followup_7";
+  validUntil?: Date | null;
+}): { subject: string; html: string } {
+  const opener =
+    stage === "followup_3"
+      ? `Just checking in — here's the quote from ${esc(companyName)} in case it got buried. Review and approve online whenever you're ready.`
+      : `Your quote from ${esc(companyName)} is still open. If anything looks off, reply and we'll adjust it — otherwise you can approve online in a minute.`;
+  const expiryNote = validUntil
+    ? `<p style="margin:10px 0 0;color:#b45309;font-size:13px;">This quote is valid until ${validUntil.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}.</p>`
+    : "";
+  const html = clientShell({
+    brand,
+    companyName,
+    context: `Quote #${quoteNumber}`,
+    inner: `
+      <p style="margin:0 0 16px;color:#111827;font-size:15px;">${opener}</p>
+      ${moneyBlock("Quote total", total)}
+      ${expiryNote}
+      ${accentBtn(viewUrl, "Review &amp; Approve Quote", brand)}
+      <p style="margin:12px 0 0;color:#6b7280;font-size:12px;">
+        Questions or changes? Just reply to this email.
+      </p>`,
+  });
+  return {
+    subject:
+      stage === "followup_3"
+        ? `Still thinking it over? Your quote from ${companyName} — #${quoteNumber}`
+        : `Your quote from ${companyName} is still open — #${quoteNumber}`,
+    html,
+  };
+}
+
+/**
  * Payment receipt — to the client right after a payment lands on their invoice.
  * Covers online card/ACH payments, card-on-file charges, subscription
  * auto-charges, and (opt-in) manually recorded payments. `pending` softens the

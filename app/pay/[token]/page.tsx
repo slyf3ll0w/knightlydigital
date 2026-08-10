@@ -58,6 +58,7 @@ export default async function PublicPayPage({
       depositApplied: true,
       total: true,
       notes: true,
+      clientMessage: true,
       dueDate: true,
       contact: { select: { firstName: true, lastName: true, email: true } },
       company: {

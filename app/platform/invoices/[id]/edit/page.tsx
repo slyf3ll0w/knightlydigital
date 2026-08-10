@@ -36,6 +36,7 @@ export default async function EditInvoicePage({
         id: invoice.id,
         subject: invoice.subject ?? "",
         notes: invoice.notes ?? "",
+        clientMessage: invoice.clientMessage ?? "",
         taxRatePercent: invoice.taxRate ? String(Number(invoice.taxRate) * 100) : "",
         discountType:
           invoice.discountType === "PERCENT" || invoice.discountType === "FIXED"

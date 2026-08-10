@@ -412,6 +412,7 @@ export type InvoiceForPdf = {
   depositApplied: { toString(): string } | number | null;
   total: { toString(): string } | number;
   notes: string | null;
+  clientMessage: string | null;
   issuedAt: Date | null;
   dueDate: Date | null;
   createdAt: Date;
@@ -455,6 +456,9 @@ export function buildInvoiceDocument(invoice: InvoiceForPdf, logo: LogoSrc) {
         <BillTo contact={invoice.contact} />
         {invoice.subject ? (
           <Text style={[styles.billToName, { marginTop: 14 }]}>{invoice.subject}</Text>
+        ) : null}
+        {invoice.clientMessage ? (
+          <Text style={[styles.bodyText, styles.note]}>{invoice.clientMessage}</Text>
         ) : null}
         <ItemsTable
           items={invoice.lineItems.map((li) => ({

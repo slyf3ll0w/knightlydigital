@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { runDueSubscriptions, generateDueVisits } from "@/lib/subscriptions";
-import { runDueReminders, runAppointmentReminders } from "@/lib/reminders";
+import { runDueReminders, runAppointmentReminders, runQuoteFollowUps } from "@/lib/reminders";
 import { runQuickBooksNightlySync } from "@/lib/quickbooks";
 import { rollupStorageSnapshots } from "@/lib/usage";
 
@@ -36,6 +36,8 @@ export async function POST(req: NextRequest) {
   // Materialize upcoming visit-series jobs (~4-week rolling horizon)
   const visits = await generateDueVisits(now);
   const reminders = await runDueReminders(now);
+  // Sales follow-ups: quotes sitting unanswered get a nudge at 3 and 7 days
+  const quoteFollowUps = await runQuoteFollowUps(now);
   // Online-booking appointment reminders (1 day / 1 hour before). The 1-hour
   // stage only lands if this cron runs hourly — daily runs still cover the
   // day-before stage.
@@ -59,6 +61,7 @@ export async function POST(req: NextRequest) {
     subscriptions,
     visits,
     reminders,
+    quoteFollowUps,
     appointmentReminders,
     quickbooks,
     prunedPings: prunedPings.count,

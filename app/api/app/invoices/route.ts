@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(previewBlockedError("Invoicing"), { status: 403 });
 
   const body = await req.json();
-  const { contactId, jobId, subject, lineItems, taxRate, notes, dueDate } = body;
+  const { contactId, jobId, subject, lineItems, taxRate, notes, clientMessage, dueDate } = body;
 
   if (!lineItems?.length) {
     return NextResponse.json({ error: "At least one line item is required." }, { status: 400 });
@@ -131,6 +131,7 @@ export async function POST(req: NextRequest) {
         depositApplied: depositApplied > 0 ? depositApplied : null,
         total: netTotal,
         notes: notes || null,
+        clientMessage: typeof clientMessage === "string" && clientMessage ? clientMessage : null,
         issuedAt,
         dueDate: due,
         lineItems: {

@@ -16,7 +16,7 @@
 
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { sendEmail, emailEnabled, paymentReminderEmail, appointmentReminderEmail } from "@/lib/email";
+import { sendEmail, emailEnabled, paymentReminderEmail, appointmentReminderEmail, quoteFollowUpEmail } from "@/lib/email";
 import { sendSms, smsEnabled, appointmentReminderText } from "@/lib/sms";
 import { notifyUser } from "@/lib/push";
 import { slotLabel } from "@/lib/booking-availability";
@@ -147,6 +147,112 @@ export async function runDueReminders(now: Date = new Date()): Promise<ReminderS
     } catch (err) {
       summary.errors++;
       console.error("[reminders] failed for invoice", inv.id, err);
+    }
+  }
+
+  return summary;
+}
+
+// Follow-up nudges on quotes still awaiting a response, measured from sentAt.
+// Two stages only — after a week of silence, more automation reads as spam;
+// the owner can follow up by hand from there.
+const QUOTE_STAGES = [
+  { type: "followup_3" as const, days: 3 },
+  { type: "followup_7" as const, days: 7 },
+];
+
+/**
+ * Automated quote follow-ups: quotes sitting in AWAITING_RESPONSE get a
+ * friendly email at 3 and 7 days after they were sent. Same atomic-claim
+ * pattern as the invoice dunning above (QuoteReminder @@unique is the lock).
+ * Stops on approval/changes/archive (status leaves AWAITING_RESPONSE) and
+ * never nudges an expired quote — approving it online is blocked anyway.
+ */
+export async function runQuoteFollowUps(
+  now: Date = new Date()
+): Promise<{ checked: number; sent: number; errors: number }> {
+  if (!emailEnabled()) return { checked: 0, sent: 0, errors: 0 };
+
+  const quotes = await prisma.quote.findMany({
+    where: {
+      status: "AWAITING_RESPONSE",
+      sentAt: { not: null, lte: new Date(now.getTime() - 3 * DAY) },
+      OR: [{ validUntil: null }, { validUntil: { gt: now } }],
+      contact: { is: { email: { not: null } } },
+      company: { is: { suspendedAt: null } },
+    },
+    include: {
+      reminders: { select: { type: true } },
+      contact: { select: { email: true } },
+      company: {
+        select: {
+          name: true,
+          email: true,
+          brandColor: true,
+          documentColor: true,
+          brandColorSecondary: true,
+          logoUrl: true,
+        },
+      },
+    },
+    take: 1000,
+  });
+
+  const summary = { checked: quotes.length, sent: 0, errors: 0 };
+
+  for (const quote of quotes) {
+    try {
+      if (!quote.sentAt || !quote.contact?.email) continue;
+      const daysSinceSent = Math.floor((now.getTime() - quote.sentAt.getTime()) / DAY);
+      const sentTypes = new Set(quote.reminders.map((r) => r.type));
+      const eligible = QUOTE_STAGES.filter((s) => daysSinceSent >= s.days && !sentTypes.has(s.type));
+      if (eligible.length === 0) continue;
+
+      const stage = eligible[eligible.length - 1]; // most advanced unsent stage
+
+      try {
+        await prisma.quoteReminder.create({
+          data: { quoteId: quote.id, type: stage.type, sentAt: now },
+        });
+      } catch (e) {
+        if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") continue;
+        throw e;
+      }
+      if (eligible.length > 1) {
+        await prisma.quoteReminder.createMany({
+          data: eligible.slice(0, -1).map((s) => ({ quoteId: quote.id, type: s.type, sentAt: now })),
+          skipDuplicates: true,
+        });
+      }
+
+      const baseUrl = process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com";
+      const { subject, html } = quoteFollowUpEmail({
+        brand: quote.company,
+        companyName: quote.company.name,
+        quoteNumber: quote.quoteNumber,
+        total: Number(quote.total),
+        viewUrl: `${baseUrl}/quote/${quote.publicToken}`,
+        stage: stage.type,
+        validUntil: quote.validUntil,
+      });
+      const ok = await sendEmail({
+        companyId: quote.companyId,
+        to: quote.contact.email,
+        subject,
+        html,
+        replyTo: quote.company.email || undefined,
+        fromName: quote.company.name,
+      });
+
+      if (ok) {
+        summary.sent++;
+      } else {
+        summary.errors++;
+        console.error("[reminders] follow-up send failed after claim for quote", quote.id, stage.type);
+      }
+    } catch (err) {
+      summary.errors++;
+      console.error("[reminders] follow-up failed for quote", quote.id, err);
     }
   }
 

@@ -1270,6 +1270,7 @@ model Quote {
   lineItems QuoteLineItem[]
   contracts Contract[]
   invoices  Invoice[] // deposit (and any other) invoices issued against this quote
+  reminders QuoteReminder[]
 
   @@unique([companyId, quoteNumber])
   @@index([companyId])
@@ -1353,6 +1354,9 @@ model Invoice {
   depositApplied Decimal?     @db.Decimal(10, 2)
   total         Decimal       @db.Decimal(10, 2)
   notes         String?
+  // Client-facing message at the top of the pay page / PDF (parity with
+  // Quote.clientMessage; `notes` stays internal-facing on the editor).
+  clientMessage String?
   issuedAt      DateTime?
   dueDate       DateTime?
   paidAt        DateTime?
@@ -1491,6 +1495,19 @@ model PaymentReminder {
 
   @@unique([invoiceId, type])
   @@index([invoiceId])
+}
+
+// One row per follow-up stage sent on an awaiting quote — same atomic-claim
+// pattern as PaymentReminder (the @@unique is the lock; see lib/reminders.ts).
+model QuoteReminder {
+  id      String   @id @default(cuid())
+  quoteId String
+  quote   Quote    @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  type    String
+  sentAt  DateTime
+
+  @@unique([quoteId, type])
+  @@index([quoteId])
 }
 
 // ─── Platform usage metering (superadmin cost tracking) ──────────────────────

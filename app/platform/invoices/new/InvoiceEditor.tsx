@@ -23,6 +23,7 @@ type EditInvoice = {
   id: string;
   subject: string;
   notes: string;
+  clientMessage: string;
   taxRatePercent: string; // "8.25", not 0.0825
   discountType: "NONE" | "PERCENT" | "FIXED";
   discountValue: string;
@@ -98,6 +99,7 @@ export default function InvoiceEditor({
   const [jobId] = useState(prefillJob?.id ?? "");
   const [subject, setSubject] = useState(editInvoice?.subject ?? prefillJob?.title ?? "");
   const [notes, setNotes] = useState(editInvoice?.notes ?? "");
+  const [clientMessage, setClientMessage] = useState(editInvoice?.clientMessage ?? "");
   // Tax carries over from the job's quote — otherwise a quoted 8.25% job
   // silently invoices at 0% and the business under-bills.
   const quoteTaxPercent = prefillJob?.quote?.taxRate
@@ -184,6 +186,7 @@ export default function InvoiceEditor({
     const payload = {
       subject: subject || null,
       notes,
+      clientMessage: clientMessage || null,
       taxRate: taxRate ? parseFloat(taxRate) / 100 : null,
       discountType,
       discountValue: discountNum || null,
@@ -425,6 +428,13 @@ export default function InvoiceEditor({
               </div>
             </div>
           </div>
+        </div>
+
+        <div className="card-ledger p-5">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Client message</label>
+          <textarea value={clientMessage} onChange={(e) => setClientMessage(e.target.value)} rows={3}
+            className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
+            placeholder="A message the client sees at the top of the invoice (thank-you note, payment instructions)..." />
         </div>
 
         <div className="card-ledger p-5">

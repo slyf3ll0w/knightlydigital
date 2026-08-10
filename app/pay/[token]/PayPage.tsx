@@ -15,7 +15,7 @@ const RECURRING_LABEL: Record<string, string> = {
 type Invoice = {
   id: string; invoiceNumber: number; status: string; publicToken: string;
   subtotal: number; discount: number | null; tax: number | null; surcharge: number | null; depositApplied: number | null; total: number;
-  notes: string | null; dueDate: string | null;
+  notes: string | null; clientMessage: string | null; dueDate: string | null;
   contact: { firstName: string; lastName: string; email: string | null } | null;
   company: {
     name: string; phone: string | null; email: string | null;
@@ -277,6 +277,12 @@ export default function PayPage({
               )}
             </div>
           </div>
+
+          {invoice.clientMessage && (
+            <p className="mt-3 text-sm text-gray-700 whitespace-pre-wrap">
+              {invoice.clientMessage}
+            </p>
+          )}
 
           {/* Line items */}
           <div className="mt-4 border-t border-gray-100 pt-4 space-y-2">
