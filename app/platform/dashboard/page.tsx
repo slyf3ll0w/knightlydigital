@@ -273,6 +273,7 @@ export default async function DashboardPage() {
       action: "Finish & send",
       href: "/app/quotes?status=DRAFT",
       urgent: false,
+      minor: true,
     },
     {
       show: seeMoney,
@@ -283,8 +284,14 @@ export default async function DashboardPage() {
       action: "Finish & send",
       href: "/app/invoices?status=DRAFT",
       urgent: false,
+      minor: true,
     },
   ].filter((n) => n.show && n.count > 0);
+
+  // Phones show only what's worth acting on from the couch: the top four,
+  // urgency-ordered, drafts left to their list pages. Desktop keeps the
+  // full grid.
+  const needsMobile = needs.filter((n) => !("minor" in n && n.minor)).slice(0, 4);
 
   // One sorted "today" list: jobs + sales appointments
   // Compact ledger time ("10:00a") — fits the rail column without wrapping
@@ -310,6 +317,13 @@ export default async function DashboardPage() {
       ]
         .filter(Boolean)
         .join(" · "),
+      // The hero cares about WHERE — client + street beats assignee names
+      heroSub: [
+        `${job.contact.firstName} ${job.contact.lastName}`,
+        job.address || job.contact.address,
+      ]
+        .filter(Boolean)
+        .join(" · "),
       value: job.lineItems.reduce((s, li) => s + Number(li.total), 0),
       sort: job.scheduledAnytime ? 0 : new Date(job.scheduledAt!).getTime(),
     })),
@@ -326,19 +340,32 @@ export default async function DashboardPage() {
       sub: [`${a.contact.firstName} ${a.contact.lastName}`, appointmentTypeLabel[a.type]]
         .filter(Boolean)
         .join(" · "),
+      heroSub: [`${a.contact.firstName} ${a.contact.lastName}`, appointmentTypeLabel[a.type]]
+        .filter(Boolean)
+        .join(" · "),
       value: 0,
       sort: a.scheduledAnytime ? 0 : new Date(a.scheduledAt).getTime(),
     })),
   ].sort((x, y) => x.sort - y.sort);
+
+  // The phone hero: the first stop that hasn't passed yet (anytime jobs
+  // count — they're still work owed today). Everything else lists under
+  // Today, including finished stops, so the day keeps its shape.
+  const nowT = now.getTime();
+  const upNext = todayItems.find((i) => i.sort === 0 || i.sort >= nowT) ?? null;
+  const laterToday = todayItems.filter((i) => i !== upNext);
+
+  // Whole dollars for the glance strip — cents are for detail pages
+  const moneyRound = (n: number) => `$${Math.round(n).toLocaleString("en-US")}`;
 
   const firstName = actor.name?.split(" ")[0] ?? "there";
   const hour = now.getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
   return (
-    // Phones read this as a day-planner: Today's route first, then the to-do
-    // list, then money. Desktop keeps its own order (lg:block ignores the
-    // flex order classes entirely).
+    // Phone order: greeting → Up next hero → money pulse → Today timeline →
+    // Needs you → On the clock. Desktop keeps its own order (lg:block
+    // ignores the flex order classes entirely).
     <div className="p-4 lg:p-8 max-w-7xl mx-auto flex flex-col lg:block">
       <div className="mb-7 anim-fade-up order-1">
         {/* "Your day" hero — the date rides with the greeting on every screen */}
@@ -354,31 +381,29 @@ export default async function DashboardPage() {
 
       {/* Nudges ride below the day's actual work on phones */}
       {showSetupCard && (
-        <div className="order-6">
+        <div className="order-7">
           <DashboardSetupCard />
         </div>
       )}
-      <div className="order-7">
+      <div className="order-8">
         <PushNudge />
       </div>
 
-      {/* ── The money masthead (phones) — a solid brand-color "bank card"
-          right under the greeting: collected this month as the hero numeral
-          over a soft light sweep, sparkline in the same ink, then a hairline
-          foot with the two numbers an owner checks next. The one saturated
-          surface on the page, so opening the app leads with the business's
-          pulse instead of a stack of white cards. */}
-      {seePerformance && (
+      {/* ── "Up next" hero (phones) — the one thing everyone opens the app
+          for: the next stop. The single saturated surface on the page: solid
+          brand gradient, big Oxanium time, job + client + street. Skipped
+          entirely on a clear day — no hollow placeholder card. */}
+      {upNext && (
         <Link
-          href="/app/invoices"
-          className="chamfer anim-fade-up anim-delay-1 order-2 mb-8 block overflow-hidden rounded-2xl active:opacity-95 lg:hidden"
+          href={upNext.href}
+          className="chamfer anim-fade-up anim-delay-1 order-2 mb-7 block overflow-hidden rounded-2xl active:opacity-95 lg:hidden"
           style={{
             background:
               "linear-gradient(135deg, var(--wb-accent-bright, #2E6FF2), var(--wb-accent-strong, #0A4CBB))",
             color: "var(--wb-on-accent, #ffffff)",
           }}
         >
-          <div className="relative p-5 pb-4">
+          <div className="relative p-5">
             <div
               aria-hidden
               className="pointer-events-none absolute inset-0"
@@ -387,39 +412,53 @@ export default async function DashboardPage() {
                   "radial-gradient(130% 90% at 100% 0%, color-mix(in srgb, currentColor 14%, transparent), transparent 60%)",
               }}
             />
-            <p className="relative text-[13px] font-medium opacity-80">
-              Collected in {now.toLocaleDateString("en-US", { month: "long" })}
-            </p>
-            <p className="numeral-ledger relative mt-1 text-[36px] leading-none font-semibold">
-              {money(monthRevenue)}
-            </p>
-            {dailyRevenue.length > 1 && monthRevenue > 0 && (
-              <Sparkline values={dailyRevenue} className="relative opacity-90" />
-            )}
-          </div>
-          <div
-            className="grid grid-cols-2 border-t"
-            style={{ borderColor: "color-mix(in srgb, currentColor 25%, transparent)" }}
-          >
-            <div className="min-w-0 px-5 py-3">
-              <p className="text-xs font-medium opacity-75">Outstanding</p>
-              <p className="numeral-ledger mt-0.5 truncate text-base leading-tight font-semibold">
-                {receivableTotal > 0 ? money(receivableTotal) : "—"}
+            <div className="relative flex items-start justify-between gap-3">
+              <p className="text-[13px] font-medium opacity-80">
+                {upNext.apptType ? "Up next — appointment" : "Up next"}
               </p>
+              {seePrices && upNext.value > 0 && (
+                <p className="numeral-ledger text-[15px] font-semibold">{money(upNext.value)}</p>
+              )}
             </div>
-            <div
-              className="min-w-0 px-5 py-3"
-              style={{
-                borderLeft: "1px solid color-mix(in srgb, currentColor 25%, transparent)",
-              }}
-            >
-              <p className="text-xs font-medium opacity-75">Booked this week</p>
-              <p className="numeral-ledger mt-0.5 truncate text-base leading-tight font-semibold">
-                {upcomingJobsWeek.length > 0 ? money(weekRevenue) : "—"}
-              </p>
-            </div>
+            <p className="numeral-ledger relative mt-1.5 text-[30px] leading-none font-semibold">
+              {upNext.time === "Anytime" ? "Anytime today" : upNext.time}
+            </p>
+            <p className="relative mt-2.5 truncate text-[16px] font-semibold">{upNext.title}</p>
+            <p className="relative mt-0.5 truncate text-[13px] opacity-80">{upNext.heroSub}</p>
           </div>
         </Link>
+      )}
+
+      {/* ── The money pulse (phones) — three bare numbers straight on the
+          page, no card chrome: this is a glance, not a report. Whole
+          dollars; cents live on the Invoices page. */}
+      {seePerformance && (
+        <div className="anim-fade-up anim-delay-1 order-3 mb-8 grid grid-cols-3 divide-x divide-gray-200 lg:hidden">
+          <Link href="/app/invoices" className="min-w-0 pr-3">
+            <p className="numeral-ledger truncate text-[22px] leading-none font-semibold text-gray-900">
+              {moneyRound(monthRevenue)}
+            </p>
+            <p className="mt-1 text-[11px] font-medium text-gray-500">
+              Collected · {now.toLocaleDateString("en-US", { month: "short" })}
+            </p>
+          </Link>
+          <Link href="/app/invoices?status=AWAITING_PAYMENT" className="min-w-0 px-3">
+            <p
+              className={`numeral-ledger truncate text-[22px] leading-none font-semibold ${
+                receivableTotal > 0 ? "text-red-600" : "text-gray-900"
+              }`}
+            >
+              {moneyRound(receivableTotal)}
+            </p>
+            <p className="mt-1 text-[11px] font-medium text-gray-500">Outstanding</p>
+          </Link>
+          <Link href="/app/jobs" className="min-w-0 pl-3">
+            <p className="numeral-ledger truncate text-[22px] leading-none font-semibold text-gray-900">
+              {moneyRound(weekRevenue)}
+            </p>
+            <p className="mt-1 text-[11px] font-medium text-gray-500">Booked this week</p>
+          </Link>
+        </div>
       )}
       {seePerformance && (
         <div className="anim-fade-up anim-delay-1 mb-8 hidden gap-3 lg:grid lg:grid-cols-3">
@@ -473,7 +512,7 @@ export default async function DashboardPage() {
 
       {/* ── On the clock — who's working right now (owners/admins) ─────────── */}
       {isManager(actor.role) && onClock.length > 0 && (
-        <div className="anim-fade-up anim-delay-1 mb-8 order-5">
+        <div className="anim-fade-up anim-delay-2 mb-8 order-6">
           <RuledLabel>On the clock</RuledLabel>
           <div className="card-ledger divide-y divide-gray-50">
             {onClock.map((e) => (
@@ -540,24 +579,19 @@ export default async function DashboardPage() {
       )}
 
       {/* ── Needs you ──────────────────────────────────────────────────────── */}
-      <div className="anim-fade-up anim-delay-1 mb-8 order-4" data-tour="workflow">
+      <div className="anim-fade-up anim-delay-2 mb-8 order-5" data-tour="workflow">
         <RuledLabel>Needs you</RuledLabel>
-        {needs.length === 0 ? (
-          <div className="card-ledger flex items-center gap-3 px-5 py-4">
-            <CheckCircle2 size={20} className="text-green-600 shrink-0" />
-            <div>
-              <p className="text-sm font-semibold text-gray-900">You&apos;re all caught up</p>
-              <p className="text-xs text-gray-500">Nothing needs your attention right now.</p>
-            </div>
-          </div>
+        {/* Phones: only what's worth acting on right now — top four,
+            urgency-ordered, count leading each row in the same left rail the
+            Today timeline uses. All-clear is one quiet line, not a card. */}
+        {needsMobile.length === 0 ? (
+          <p className="flex items-center gap-2 text-sm text-gray-500 lg:hidden">
+            <CheckCircle2 size={16} className="shrink-0 text-green-600" />
+            You&apos;re all caught up.
+          </p>
         ) : (
-          <>
-          {/* Phone: the punch list — the count leads each row in the same
-              left rail the Today card uses for times, so the two cards read
-              as one system. One accent + red-for-urgent (per-section hue
-              tiles read like a sticker sheet here). */}
           <div className="card-tool divide-y divide-gray-100 overflow-hidden lg:hidden">
-            {needs.map((n) => (
+            {needsMobile.map((n) => (
               <Link
                 key={n.href}
                 href={n.href}
@@ -581,6 +615,16 @@ export default async function DashboardPage() {
               </Link>
             ))}
           </div>
+        )}
+        {needs.length === 0 ? (
+          <div className="card-ledger hidden items-center gap-3 px-5 py-4 lg:flex">
+            <CheckCircle2 size={20} className="text-green-600 shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-gray-900">You&apos;re all caught up</p>
+              <p className="text-xs text-gray-500">Nothing needs your attention right now.</p>
+            </div>
+          </div>
+        ) : (
           <div className="hidden lg:grid lg:grid-cols-4 gap-3">
             {needs.map((n) => (
               <Link
@@ -614,54 +658,50 @@ export default async function DashboardPage() {
               </Link>
             ))}
           </div>
-          </>
         )}
       </div>
 
-      {/* ── Today's appointments ──────────────────────────────────────────── */}
-      {/* Phone: the day sheet — a dispatch timeline with a time rail and stop
-          markers (jobs solid, sales appointments blue), ledger foot to the
-          schedule. */}
-      <div
-        className="card-tool anim-fade-up anim-delay-2 order-3 mb-8 overflow-hidden lg:hidden"
-        data-tour="today"
-      >
-        <div className="flex items-center justify-between border-b border-gray-100 px-4 pb-3 pt-4">
-          <p className="text-[17px] font-bold text-gray-900">Today</p>
-          {todayItems.length > 0 && (
-            <p className="numeral-ledger text-xl leading-none font-semibold text-gray-900">
-              {todayItems.length}
-              <span className="ml-1 text-xs font-medium text-gray-500">
-                {todayItems.length === 1 ? "stop" : "stops"}
+      {/* ── Today (phones) — the rest of the day as a chromeless timeline
+          straight on the page: time rail, stop markers on a hairline (solid
+          accent = job, blue = appointment). A clear day is one quiet
+          sentence, not a boxed illustration. */}
+      <div className="anim-fade-up anim-delay-2 order-4 mb-8 lg:hidden" data-tour="today">
+        <div className="mb-2 flex items-baseline justify-between">
+          <p className="text-[17px] font-bold text-gray-900">
+            Today
+            {todayItems.length > 0 && (
+              <span className="ml-1.5 text-[13px] font-medium text-gray-500">
+                · {todayItems.length} {todayItems.length === 1 ? "stop" : "stops"}
               </span>
-            </p>
-          )}
+            )}
+          </p>
+          <Link
+            href="/app/schedule"
+            className="flex items-center gap-1 text-[13px] font-semibold text-green-700"
+          >
+            Open schedule
+            <ArrowRight size={12} />
+          </Link>
         </div>
         {todayItems.length === 0 ? (
-          <EmptyState
-            art="schedule"
-            hue={SECTION_HUES.schedule}
-            title="Nothing scheduled today"
-            body="Jobs and appointments you schedule for today will show up here."
-            actionHref="/app/jobs/new"
-            actionLabel="Schedule a Job"
-            showPlusIcon={false}
-          />
+          <p className="text-sm text-gray-500">
+            Nothing scheduled — enjoy the quiet or{" "}
+            <Link href="/app/jobs/new" className="font-semibold text-green-700">
+              book a job
+            </Link>
+            .
+          </p>
+        ) : laterToday.length === 0 ? (
+          <p className="text-sm text-gray-500">That&apos;s your only stop — nothing after it.</p>
         ) : (
-          /* Agenda rows on a continuous timeline: time in the left rail, a
-             stop marker on a vertical hairline (solid accent = job, blue =
-             sales appointment), the job first and the client under it. */
-          <div className="relative py-1">
+          <div className="relative">
             {/* the rail: runs behind the stop markers, trimmed at both ends */}
-            <div
-              className="absolute left-[84px] top-4 bottom-4 w-px bg-gray-200"
-              aria-hidden
-            />
-            {todayItems.map((item) => (
+            <div className="absolute left-[68px] top-3 bottom-3 w-px bg-gray-200" aria-hidden />
+            {laterToday.map((item) => (
               <Link
                 key={item.id}
                 href={item.href}
-                className="flex items-center gap-3 px-4 py-2.5 transition-colors active:bg-gray-50"
+                className="flex items-center gap-3 py-2.5 transition-opacity active:opacity-70"
               >
                 <span className="numeral-ledger w-[52px] shrink-0 text-[13px] font-semibold text-gray-700">
                   {item.time}
@@ -685,13 +725,6 @@ export default async function DashboardPage() {
             ))}
           </div>
         )}
-        <Link
-          href="/app/schedule"
-          className="flex items-center justify-between border-t border-gray-100 bg-gray-50/60 px-4 py-2.5 text-[13px] font-semibold text-green-700"
-        >
-          Open schedule
-          <ArrowRight size={12} />
-        </Link>
       </div>
 
       {/* Desktop: timeline with a time rail — unchanged */}
