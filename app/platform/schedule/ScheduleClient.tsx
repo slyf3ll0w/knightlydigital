@@ -333,21 +333,7 @@ export default function ScheduleClient({
     // First-time scheduling (from the unscheduled drawer) opens the sheet to
     // pick the exact time and crew; re-drags of scheduled work stay immediate.
     if (job.kind === "job" && !job.scheduledAt) {
-      const startHour = typeof hour === "number" && hour >= 0 ? hour : 9;
-      setDropErr("");
-      setDropSheet({
-        jobId,
-        title: job.title,
-        contactName: job.contactName,
-        jobNumber: job.jobNumber,
-        form: {
-          date: toParam(day),
-          anytime: hour === "anytime" || hour === -1,
-          startTime: `${pad(startHour)}:00`,
-          endTime: startHour + 1 > 23 ? "23:59" : `${pad(startHour + 1)}:00`,
-          assignees: job.assigneeIds ?? [],
-        },
-      });
+      openScheduleSheet(job, day, hour);
       return;
     }
 
@@ -448,6 +434,26 @@ export default function ScheduleClient({
     }
     router.push(it.kind === "appointment" ? `/app/appointments/${it.id}` : `/app/jobs/${it.id}`);
   };
+
+  // Defaults to a concrete time — Anytime is the explicit choice (checked
+  // only when the job was dropped on the Anytime row itself)
+  function openScheduleSheet(job: ScheduleJobDTO, day: Date, hour: number | "anytime") {
+    const startHour = typeof hour === "number" && hour >= 0 ? hour : 9;
+    setDropErr("");
+    setDropSheet({
+      jobId: job.id,
+      title: job.title,
+      contactName: job.contactName,
+      jobNumber: job.jobNumber,
+      form: {
+        date: toParam(day),
+        anytime: hour === "anytime",
+        startTime: `${pad(startHour)}:00`,
+        endTime: startHour + 1 > 23 ? "23:59" : `${pad(startHour + 1)}:00`,
+        assignees: job.assigneeIds ?? [],
+      },
+    });
+  }
 
   async function saveDrop() {
     if (!dropSheet) return;
@@ -1503,17 +1509,21 @@ export default function ScheduleClient({
                 <p className="px-4 pt-3 text-xs text-gray-400 max-lg:hidden">
                   Drag a job onto the calendar to schedule it.
                 </p>
-                {/* Touch has no drag-and-drop — on phones the row opens the
-                    job, where the date lives. */}
+                {/* Touch has no drag-and-drop — on phones tapping the row
+                    opens the schedule sheet directly. */}
                 <p className="px-4 pt-2.5 text-xs text-gray-400 lg:hidden">
-                  Tap a job to open it and give it a date.
+                  Tap a job to schedule it.
                 </p>
                 <ul className="space-y-2 p-3">
                   {unscheduled.map((job) => (
                     <li
                       key={job.id}
                       {...dragProps(job)}
-                      onClick={() => openItem(job)}
+                      onClick={() =>
+                        window.matchMedia("(max-width: 1023px)").matches
+                          ? openScheduleSheet(job, anchor, -1)
+                          : openItem(job)
+                      }
                       className={`flex cursor-pointer items-center gap-2.5 rounded-[12px] border border-gray-200 bg-white p-3 transition-colors hover:border-green-300 hover:bg-green-50/50 active:bg-gray-50 lg:p-2.5 ${
                         dragId === job.id ? "opacity-50" : ""
                       }`}
@@ -1748,7 +1758,15 @@ export default function ScheduleClient({
             onClick={(e) => e.stopPropagation()}
           >
             <div>
-              <h2 className="text-base font-semibold text-gray-900">Schedule Job</h2>
+              <div className="flex items-baseline justify-between gap-3">
+                <h2 className="text-base font-semibold text-gray-900">Schedule Job</h2>
+                <Link
+                  href={`/app/jobs/${dropSheet.jobId}`}
+                  className="shrink-0 text-xs font-medium text-green-700 hover:underline"
+                >
+                  View job
+                </Link>
+              </div>
               <p className="mt-0.5 truncate text-sm text-gray-500">
                 {dropSheet.title} · {dropSheet.contactName}
                 {dropSheet.jobNumber != null && ` · Job #${dropSheet.jobNumber}`}

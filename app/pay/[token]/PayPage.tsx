@@ -182,7 +182,6 @@ export default function PayPage({
   }
 
   async function handlePay() {
-    if (preview) return;
     setError("");
     setLoading(true);
 
@@ -215,7 +214,8 @@ export default function PayPage({
       <div className="max-w-lg mx-auto space-y-4">
         {preview && (
           <div className="px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-700 text-center">
-            Preview mode — this is what your client sees. Payment is disabled.
+            Preview mode — opening this doesn&apos;t count as a client view. If your
+            client hands you their card, you can run the payment right here.
           </div>
         )}
         {/* Company + invoice header */}
@@ -382,7 +382,7 @@ export default function PayPage({
 
           <button
             onClick={handlePay}
-            disabled={preview || loading || (finix != null && (!scriptReady || formHasErrors))}
+            disabled={loading || (finix != null && (!scriptReady || formHasErrors))}
             className="w-full py-3 font-semibold text-sm rounded transition-opacity hover:opacity-90 flex items-center justify-center gap-2 disabled:opacity-50"
             style={{
               backgroundColor: brandAccent(invoice.company),

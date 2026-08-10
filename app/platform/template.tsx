@@ -58,8 +58,11 @@ export default function Template({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const section = pathname.split("/")[2] ?? "";
   const stack = stackDirection(pathname);
+  // Chat scrolls its message pane internally (iMessage-style) instead of the
+  // page — its h-full chain needs this wrapper to pass <main>'s height down.
+  const fill = section === "chat" ? " h-full" : "";
   return (
-    <div className={`${SECTION_ANIM[section] ?? "page-enter-rise"} ${stack}`.trim()}>
+    <div className={`${SECTION_ANIM[section] ?? "page-enter-rise"} ${stack}${fill}`.trim()}>
       {children}
     </div>
   );
