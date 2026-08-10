@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 import { requirePageActor, canSell, viaContactScope } from "@/lib/permissions";
 import Link from "next/link";
-import { Plus, ChevronRight, FileText } from "lucide-react";
+import { Plus, ChevronRight, FileText, Download } from "lucide-react";
 import PageTitle from "@/components/PageTitle";
 import { FilterRow, FilterChip } from "@/components/FilterChips";
 import FilterSelect from "@/components/FilterSelect";
@@ -11,6 +11,8 @@ import StatusChip from "@/components/StatusChip";
 import EmptyState from "@/components/EmptyState";
 import KpiStrip from "@/components/KpiStrip";
 import Monogram from "@/components/Monogram";
+import MobileSearch from "@/components/MobileSearch";
+import Pager from "@/components/Pager";
 import type { QuoteStatus } from "@prisma/client";
 
 const statusFilters = [
@@ -25,26 +27,52 @@ const statusFilters = [
 
 const validValues = statusFilters.map((f) => f.value).filter(Boolean);
 
+const PAGE_SIZE = 100;
+
 export default async function QuotesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ status?: string; q?: string; page?: string }>;
 }) {
   const actor = await requirePageActor((a) => canSell(a.role));
   const companyId = actor.companyId;
   const scope = viaContactScope(actor);
 
-  const { status } = await searchParams;
+  const { status, q, page: pageParam } = await searchParams;
   const validStatus = validValues.includes(status ?? "") ? (status as QuoteStatus) : undefined;
+  const query = q?.trim() || undefined;
+  const page = Math.max(1, parseInt(pageParam ?? "1", 10) || 1);
+  const search = query
+    ? {
+        OR: [
+          { title: { contains: query, mode: "insensitive" as const } },
+          ...(Number.isInteger(Number(query)) && query !== ""
+            ? [{ quoteNumber: Number(query) }]
+            : []),
+          {
+            contact: {
+              OR: [
+                { firstName: { contains: query, mode: "insensitive" as const } },
+                { lastName: { contains: query, mode: "insensitive" as const } },
+              ],
+            },
+          },
+        ],
+      }
+    : {};
+  const listWhere = { companyId, ...scope, ...(validStatus ? { status: validStatus } : {}), ...search };
 
   const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000);
 
-  const [quotes, draftCount, awaitingCount, approvedCount, sent30, approved30] = await Promise.all([
+  const [quotes, listCount, draftCount, awaitingCount, approvedCount, sent30, approved30] = await Promise.all([
     prisma.quote.findMany({
-      where: { companyId, ...scope, ...(validStatus ? { status: validStatus } : {}) },
+      where: listWhere,
       include: { contact: true },
       orderBy: { createdAt: "desc" },
+      take: PAGE_SIZE,
+      skip: (page - 1) * PAGE_SIZE,
     }),
+    prisma.quote.count({ where: listWhere }),
     prisma.quote.count({ where: { companyId, ...scope, status: "DRAFT" } }),
     prisma.quote.count({ where: { companyId, ...scope, status: "AWAITING_RESPONSE" } }),
     prisma.quote.count({ where: { companyId, ...scope, status: "APPROVED" } }),
@@ -97,14 +125,31 @@ export default async function QuotesPage({
           Quotes
         </PageTitle>
         {/* Phones create from the tab-bar FAB */}
-        <Link
-          href="/app/quotes/new"
-          className="hidden lg:flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors"
-        >
-          <Plus size={15} />
-          New Quote
-        </Link>
+        <div className="hidden lg:flex items-center gap-2">
+          <a
+            href="/api/app/export/quotes"
+            title="Download all quotes as CSV"
+            className="flex items-center gap-1.5 px-3 py-2 btn-tool-line bg-white text-sm font-medium text-gray-700 rounded-[10px] hover:bg-gray-50 active:bg-gray-100 transition-colors"
+          >
+            <Download size={14} />
+            Export
+          </a>
+          <Link
+            href="/app/quotes/new"
+            className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors"
+          >
+            <Plus size={15} />
+            New Quote
+          </Link>
+        </div>
       </div>
+
+      <MobileSearch
+        action="/app/quotes"
+        placeholder="Search quotes, clients…"
+        defaultValue={query}
+        params={{ status: validStatus }}
+      />
 
       <KpiStrip kpis={kpis} desktopCols={4} hue={SECTION_HUES.quotes} />
 
@@ -226,6 +271,13 @@ export default async function QuotesPage({
           </>
         )}
       </div>
+      <Pager
+        basePath="/app/quotes"
+        params={{ status: validStatus, q: query }}
+        page={page}
+        pageSize={PAGE_SIZE}
+        total={listCount}
+      />
     </div>
   );
 }

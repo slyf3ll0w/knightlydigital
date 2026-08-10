@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 import { requirePageActor, jobScope, canSeePricing, isManager } from "@/lib/permissions";
 import Link from "next/link";
-import { Plus, ChevronRight, Briefcase } from "lucide-react";
+import { Plus, ChevronRight, Briefcase, Download } from "lucide-react";
 import PageTitle from "@/components/PageTitle";
 import { SECTION_HUES } from "@/lib/section-colors";
 import { money, shortDate } from "@/lib/statuses";
@@ -11,6 +11,7 @@ import KpiStrip from "@/components/KpiStrip";
 import MobileSearch from "@/components/MobileSearch";
 import Monogram from "@/components/Monogram";
 import { FilterRow, FilterChip, SegmentedRow, Segment } from "@/components/FilterChips";
+import Pager from "@/components/Pager";
 import type { JobStatus } from "@prisma/client";
 
 const statusFilters = [
@@ -20,10 +21,12 @@ const statusFilters = [
   { value: "ARCHIVED", label: "Closed", mobile: "Closed" },
 ];
 
+const PAGE_SIZE = 100;
+
 export default async function JobsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; unscheduled?: string; q?: string }>;
+  searchParams: Promise<{ status?: string; unscheduled?: string; q?: string; page?: string }>;
 }) {
   const actor = await requirePageActor();
   const companyId = actor.companyId;
@@ -31,7 +34,8 @@ export default async function JobsPage({
   const showMoney = canSeePricing(actor.role);
   const canCreate = isManager(actor.role) || actor.role === "USER";
 
-  const { status, unscheduled, q } = await searchParams;
+  const { status, unscheduled, q, page: pageParam } = await searchParams;
+  const page = Math.max(1, parseInt(pageParam ?? "1", 10) || 1);
   const validStatus = ["ACTIVE", "REQUIRES_INVOICING", "ARCHIVED"].includes(status ?? "")
     ? (status as JobStatus)
     : undefined;
@@ -53,18 +57,22 @@ export default async function JobsPage({
       }
     : {};
 
-  const [jobs, activeCount, requiresInvoicingCount, unscheduledCount] = await Promise.all([
+  const listWhere = {
+    companyId,
+    ...scope,
+    ...(validStatus ? { status: validStatus } : {}),
+    ...(unscheduled ? { scheduledAt: null } : {}),
+    ...search,
+  };
+  const [jobs, listCount, activeCount, requiresInvoicingCount, unscheduledCount] = await Promise.all([
     prisma.job.findMany({
-      where: {
-        companyId,
-        ...scope,
-        ...(validStatus ? { status: validStatus } : {}),
-        ...(unscheduled ? { scheduledAt: null } : {}),
-        ...search,
-      },
+      where: listWhere,
       include: { contact: true, lineItems: true },
       orderBy: { updatedAt: "desc" },
+      take: PAGE_SIZE,
+      skip: (page - 1) * PAGE_SIZE,
     }),
+    prisma.job.count({ where: listWhere }),
     prisma.job.count({ where: { companyId, ...scope, status: "ACTIVE" } }),
     prisma.job.count({ where: { companyId, ...scope, status: "REQUIRES_INVOICING" } }),
     prisma.job.count({ where: { companyId, ...scope, status: "ACTIVE", scheduledAt: null } }),
@@ -100,15 +108,25 @@ export default async function JobsPage({
         </PageTitle>
         {/* Phones create from the tab-bar FAB — a second button here just
             crowded the header */}
-        {canCreate && (
-          <Link
-            href="/app/jobs/new"
-            className="hidden lg:flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors"
+        <div className="hidden lg:flex items-center gap-2">
+          <a
+            href="/api/app/export/jobs"
+            title="Download all jobs as CSV"
+            className="flex items-center gap-1.5 px-3 py-2 btn-tool-line bg-white text-sm font-medium text-gray-700 rounded-[10px] hover:bg-gray-50 active:bg-gray-100 transition-colors"
           >
-            <Plus size={15} />
-            New Job
-          </Link>
-        )}
+            <Download size={14} />
+            Export
+          </a>
+          {canCreate && (
+            <Link
+              href="/app/jobs/new"
+              className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors"
+            >
+              <Plus size={15} />
+              New Job
+            </Link>
+          )}
+        </div>
       </div>
 
       <MobileSearch
@@ -244,6 +262,13 @@ export default async function JobsPage({
           </>
         )}
       </div>
+      <Pager
+        basePath="/app/jobs"
+        params={{ status: validStatus, unscheduled, q: query }}
+        page={page}
+        pageSize={PAGE_SIZE}
+        total={listCount}
+      />
     </div>
   );
 }

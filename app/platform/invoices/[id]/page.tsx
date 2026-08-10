@@ -114,6 +114,13 @@ export default async function InvoiceDetailPage({
           contactEmail={invoice.contact?.email ?? ""}
           chargeStoredLabel={chargeStoredLabel}
           balance={balance}
+          reopenStatus={
+            totalPaid > 0 && totalPaid >= Number(invoice.total) - 0.005
+              ? "PAID"
+              : invoice.issuedAt
+                ? "AWAITING_PAYMENT"
+                : "DRAFT"
+          }
         />
       </div>
 

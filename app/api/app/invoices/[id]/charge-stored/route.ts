@@ -38,6 +38,8 @@ export async function POST(
     return NextResponse.json({ error: "Payments are paused on this account." }, { status: 403 });
   if (invoice.status === "PAID")
     return NextResponse.json({ error: "This invoice is already paid." }, { status: 400 });
+  if (invoice.status === "ARCHIVED")
+    return NextResponse.json({ error: "This invoice is archived — reopen it first." }, { status: 400 });
   if (!invoice.contact?.processorCustomerRef)
     return NextResponse.json({ error: "This client has no card on file." }, { status: 400 });
 

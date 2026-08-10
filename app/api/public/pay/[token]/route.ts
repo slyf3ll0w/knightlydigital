@@ -47,6 +47,12 @@ export async function POST(
   if (invoice.status === "PAID") {
     return NextResponse.json({ error: "Already paid." }, { status: 400 });
   }
+  if (invoice.status === "ARCHIVED") {
+    return NextResponse.json(
+      { error: "This invoice is no longer active. Please contact the business if you believe this is an error." },
+      { status: 400 }
+    );
+  }
 
   const paid = invoice.payments.reduce((s, p) => s + Number(p.amount), 0);
   const balance = Math.round((Number(invoice.total) - paid) * 100) / 100;

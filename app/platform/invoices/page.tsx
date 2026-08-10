@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 import { requirePageActor, canSeeMoney, viaContactScope } from "@/lib/permissions";
 import Link from "next/link";
-import { Plus, ChevronRight, DollarSign, Receipt } from "lucide-react";
+import { Plus, ChevronRight, DollarSign, Receipt, Download } from "lucide-react";
 import PageTitle from "@/components/PageTitle";
 import { FilterRow, FilterChip, SegmentedRow, Segment } from "@/components/FilterChips";
 import { SECTION_HUES } from "@/lib/section-colors";
@@ -12,6 +12,7 @@ import EmptyState from "@/components/EmptyState";
 import KpiStrip from "@/components/KpiStrip";
 import MobileSearch from "@/components/MobileSearch";
 import Monogram from "@/components/Monogram";
+import Pager from "@/components/Pager";
 import type { InvoiceStatus } from "@prisma/client";
 
 const statusFilters = [
@@ -20,19 +21,25 @@ const statusFilters = [
   { value: "AWAITING_PAYMENT", label: "Awaiting Payment", mobile: "Awaiting" },
   { value: "PAST_DUE", label: "Past Due", mobile: "Past due" },
   { value: "PAID", label: "Paid", mobile: "Paid" },
+  { value: "ARCHIVED", label: "Archived", mobile: "Archived" },
 ];
+
+const PAGE_SIZE = 100;
 
 export default async function InvoicesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; q?: string }>;
+  searchParams: Promise<{ status?: string; q?: string; page?: string }>;
 }) {
   const actor = await requirePageActor(canSeeMoney);
   const companyId = actor.companyId;
   const scope = viaContactScope(actor);
 
-  const { status, q } = await searchParams;
-  const validStatus = ["DRAFT", "AWAITING_PAYMENT", "PAST_DUE", "PAID"].includes(status ?? "")
+  const { status, q, page: pageParam } = await searchParams;
+  const page = Math.max(1, parseInt(pageParam ?? "1", 10) || 1);
+  const validStatus = ["DRAFT", "AWAITING_PAYMENT", "PAST_DUE", "PAID", "ARCHIVED"].includes(
+    status ?? ""
+  )
     ? (status as InvoiceStatus)
     : undefined;
   const query = q?.trim() || undefined;
@@ -62,12 +69,27 @@ export default async function InvoicesPage({
     data: { status: "PAST_DUE" },
   });
 
-  const [invoices, pastDue, awaiting, draft] = await Promise.all([
+  // "All" means the live ledger — archived invoices only show on their own tab
+  // (or in a search, so a shelved invoice is still findable)
+  const listWhere = {
+    companyId,
+    ...scope,
+    ...(validStatus
+      ? { status: validStatus }
+      : query
+        ? {}
+        : { status: { not: "ARCHIVED" as InvoiceStatus } }),
+    ...search,
+  };
+  const [invoices, listCount, pastDue, awaiting, draft] = await Promise.all([
     prisma.invoice.findMany({
-      where: { companyId, ...scope, ...(validStatus ? { status: validStatus } : {}), ...search },
+      where: listWhere,
       include: { contact: true, payments: true },
       orderBy: { createdAt: "desc" },
+      take: PAGE_SIZE,
+      skip: (page - 1) * PAGE_SIZE,
     }),
+    prisma.invoice.count({ where: listWhere }),
     prisma.invoice.aggregate({
       where: { companyId, ...scope, status: "PAST_DUE" },
       _count: true,
@@ -126,6 +148,14 @@ export default async function InvoicesPage({
         </PageTitle>
         {/* Phones create from the tab-bar FAB (Invoice + Payment both live there) */}
         <div className="hidden lg:flex items-center gap-2">
+          <a
+            href="/api/app/export/invoices"
+            title="Download all invoices as CSV"
+            className="flex items-center gap-1.5 px-3 py-2 btn-tool-line bg-white text-sm font-medium text-gray-700 rounded-[10px] hover:bg-gray-50 active:bg-gray-100 transition-colors"
+          >
+            <Download size={14} />
+            Export
+          </a>
           <Link
             href="/app/payments/new"
             className="flex items-center gap-1.5 px-4 py-2 btn-tool-line bg-white text-sm font-medium text-gray-700 rounded-[10px] hover:bg-gray-50 active:bg-gray-100 transition-colors"
@@ -293,6 +323,13 @@ export default async function InvoicesPage({
           </>
         )}
       </div>
+      <Pager
+        basePath="/app/invoices"
+        params={{ status: validStatus, q: query }}
+        page={page}
+        pageSize={PAGE_SIZE}
+        total={listCount}
+      />
     </div>
   );
 }

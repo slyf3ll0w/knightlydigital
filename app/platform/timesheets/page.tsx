@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, MapPin, Timer } from "lucide-react";
+import { ChevronLeft, ChevronRight, MapPin, Timer, Download } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { requirePageActor, isManager } from "@/lib/permissions";
 import { entryMs, formatDuration, mapsHref } from "@/lib/time-entries";
@@ -113,6 +113,14 @@ export default async function TimesheetsPage({
           >
             <ChevronRight size={16} />
           </Link>
+          <a
+            href={`/api/app/export/timesheets?from=${weekStart.toLocaleDateString("en-CA")}&to=${new Date(weekStart.getTime() + 6 * 86400_000).toLocaleDateString("en-CA")}`}
+            title="Download this week as CSV"
+            className="ml-1 flex items-center gap-1.5 px-3 py-1.5 btn-tool-line bg-white text-xs font-medium text-gray-700 rounded-lg hover:bg-gray-50"
+          >
+            <Download size={13} />
+            Export
+          </a>
         </div>
       </div>
 

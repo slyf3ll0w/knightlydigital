@@ -11,8 +11,11 @@ import EmptyState from "@/components/EmptyState";
 import KpiStrip from "@/components/KpiStrip";
 import MobileSearch from "@/components/MobileSearch";
 import Monogram from "@/components/Monogram";
+import Pager from "@/components/Pager";
 import { requirePageActor, canSell, viaContactScope, seesAllLeads } from "@/lib/permissions";
 import type { RequestStatus } from "@prisma/client";
+
+const PAGE_SIZE = 100;
 
 const statusFilters: { value: string; label: string; mobile: string }[] = [
   { value: "", label: "All", mobile: "All requests" },
@@ -25,12 +28,13 @@ const statusFilters: { value: string; label: string; mobile: string }[] = [
 export default async function RequestsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; assignee?: string; q?: string }>;
+  searchParams: Promise<{ status?: string; assignee?: string; q?: string; page?: string }>;
 }) {
   const actor = await requirePageActor((a) => canSell(a.role));
   const companyId = actor.companyId;
 
-  const { status, assignee, q } = await searchParams;
+  const { status, assignee, q, page: pageParam } = await searchParams;
+  const page = Math.max(1, parseInt(pageParam ?? "1", 10) || 1);
   const query = q?.trim() || undefined;
   const search = query
     ? {
@@ -58,12 +62,16 @@ export default async function RequestsPage({
     ...(mineOnly ? { contact: { assignedToId: actor.id } } : {}),
   };
 
-  const [requests, newCount, needsApprovalCount] = await Promise.all([
+  const listWhere = { companyId, ...scope, ...(validStatus ? { status: validStatus } : {}), ...search };
+  const [requests, listCount, newCount, needsApprovalCount] = await Promise.all([
     prisma.request.findMany({
-      where: { companyId, ...scope, ...(validStatus ? { status: validStatus } : {}), ...search },
+      where: listWhere,
       include: { contact: true },
       orderBy: { createdAt: "desc" },
+      take: PAGE_SIZE,
+      skip: (page - 1) * PAGE_SIZE,
     }),
+    prisma.request.count({ where: listWhere }),
     prisma.request.count({ where: { companyId, ...scope, status: "NEW" } }),
     prisma.request.count({ where: { companyId, ...scope, status: "NEEDS_APPROVAL" } }),
   ]);
@@ -240,6 +248,17 @@ export default async function RequestsPage({
           </div>
         )}
       </div>
+      <Pager
+        basePath="/app/requests"
+        params={{
+          status: validStatus,
+          assignee: mineOnly ? "me" : undefined,
+          q: query,
+        }}
+        page={page}
+        pageSize={PAGE_SIZE}
+        total={listCount}
+      />
     </div>
   );
 }

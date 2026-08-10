@@ -1309,6 +1309,9 @@ enum InvoiceStatus {
   AWAITING_PAYMENT
   PAID
   PAST_DUE
+  // Shelved without destroying the paper trail (wrong invoice, client bailed).
+  // Excluded from dunning and the default list; reopen restores the live state.
+  ARCHIVED
 }
 
 // Distinguishes a deposit invoice (collected up front against an approved quote)

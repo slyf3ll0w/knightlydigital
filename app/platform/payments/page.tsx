@@ -4,11 +4,12 @@ import Link from "next/link";
 import DisputeEvidence from "./DisputeEvidence";
 import PayoutButton from "./PayoutButton";
 import RefundAction from "./RefundAction";
-import { Plus, ArrowUpRight, ChevronRight, DollarSign } from "lucide-react";
+import { Plus, ArrowUpRight, ChevronRight, DollarSign, Download } from "lucide-react";
 import { money, shortDate } from "@/lib/statuses";
 import EmptyState from "@/components/EmptyState";
 import PageTitle from "@/components/PageTitle";
 import KpiStrip from "@/components/KpiStrip";
+import Pager from "@/components/Pager";
 import { SECTION_HUES } from "@/lib/section-colors";
 import {
   getProcessor,
@@ -46,9 +47,17 @@ function RuledLabel({ children }: { children: React.ReactNode }) {
   return <p className="mb-2.5 text-[17px] font-bold text-gray-900">{children}</p>;
 }
 
-export default async function PaymentsDashboardPage() {
+const PAGE_SIZE = 25;
+
+export default async function PaymentsDashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
   const actor = await requirePageActor(canSeeMoney);
   const companyId = actor.companyId;
+  const { page: pageParam } = await searchParams;
+  const page = Math.max(1, parseInt(pageParam ?? "1", 10) || 1);
 
   const company = await prisma.company.findUnique({
     where: { id: companyId },
@@ -71,12 +80,16 @@ export default async function PaymentsDashboardPage() {
   let payments = await prisma.payment.findMany({
     where: { companyId, processorRef: { not: null } },
     orderBy: { paidAt: "desc" },
-    take: 25,
+    take: PAGE_SIZE,
+    skip: (page - 1) * PAGE_SIZE,
     include: {
       invoice: { select: { id: true, invoiceNumber: true } },
       contact: { select: { firstName: true, lastName: true } },
       refunds: { select: { id: true } },
     },
+  });
+  const paymentsCount = await prisma.payment.count({
+    where: { companyId, processorRef: { not: null } },
   });
 
   // Live processor data — one call each, tolerated to fail independently
@@ -291,13 +304,23 @@ export default async function PaymentsDashboardPage() {
           )}
         </PageTitle>
         {/* Phones create from the tab-bar FAB */}
-        <Link
-          href="/app/payments/new"
-          className="hidden lg:flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors"
-        >
-          <Plus size={15} />
-          Collect Payment
-        </Link>
+        <div className="hidden lg:flex items-center gap-2">
+          <a
+            href="/api/app/export/payments"
+            title="Download all payments as CSV"
+            className="flex items-center gap-1.5 px-3 py-2 btn-tool-line bg-white text-sm font-medium text-gray-700 rounded-[10px] hover:bg-gray-50 active:bg-gray-100 transition-colors"
+          >
+            <Download size={14} />
+            Export
+          </a>
+          <Link
+            href="/app/payments/new"
+            className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors"
+          >
+            <Plus size={15} />
+            Collect Payment
+          </Link>
+        </div>
       </div>
 
       {/* Not set up yet — the statement card's spot holds the pitch, in the
@@ -605,6 +628,7 @@ export default async function PaymentsDashboardPage() {
             </>
           )}
         </div>
+        <Pager basePath="/app/payments" page={page} pageSize={PAGE_SIZE} total={paymentsCount} />
       </div>
     </div>
   );

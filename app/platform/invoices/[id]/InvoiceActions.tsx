@@ -14,6 +14,7 @@ import {
   Trash2,
   AlertTriangle,
   FileDown,
+  Archive,
   X,
 } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
@@ -32,6 +33,7 @@ export default function InvoiceActions({
   contactEmail = "",
   chargeStoredLabel = null,
   balance = 0,
+  reopenStatus = "DRAFT",
 }: {
   invoiceId: string;
   status: string;
@@ -43,6 +45,8 @@ export default function InvoiceActions({
   /** Saved-card label when this invoice can be charged to the card on file. */
   chargeStoredLabel?: string | null;
   balance?: number;
+  /** Where "Reopen" lands an archived invoice (computed from its payments). */
+  reopenStatus?: string;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -93,6 +97,19 @@ export default function InvoiceActions({
     await navigator.clipboard.writeText(publicUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
+  }
+
+  // Archive shelves the invoice without touching its payments — the
+  // paper-trail-preserving alternative to Delete.
+  async function archive() {
+    setOpen(false);
+    const ok = await confirmSheet({
+      title: "Archive this invoice?",
+      message:
+        "It moves out of your invoice list and stops payment reminders. Payments already recorded stay. You can reopen it anytime.",
+      confirmLabel: "Archive Invoice",
+    });
+    if (ok) await setStatus("ARCHIVED");
   }
 
   // Charge the remaining balance to the client's card on file
@@ -307,17 +324,32 @@ export default function InvoiceActions({
                 </button>
               </>
             )}
+            <div className="my-1 border-t border-gray-100" />
+            {status === "ARCHIVED" ? (
+              <button
+                onClick={() => setStatus(reopenStatus)}
+                className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
+              >
+                <RotateCcw size={14} className="text-gray-400" />
+                Reopen Invoice
+              </button>
+            ) : (
+              <button
+                onClick={archive}
+                className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
+              >
+                <Archive size={14} className="text-gray-400" />
+                Archive
+              </button>
+            )}
             {canDelete && (
-              <>
-                <div className="my-1 border-t border-gray-100" />
-                <button
-                  onClick={onDeleteClick}
-                  className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-red-600 hover:bg-red-50"
-                >
-                  <Trash2 size={14} />
-                  Delete Invoice
-                </button>
-              </>
+              <button
+                onClick={onDeleteClick}
+                className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-red-600 hover:bg-red-50"
+              >
+                <Trash2 size={14} />
+                Delete Invoice
+              </button>
             )}
           </div>
         )}

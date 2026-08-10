@@ -14,7 +14,7 @@ export async function PATCH(
   const { id } = await params;
   const { status } = await req.json();
 
-  const validStatuses = ["DRAFT", "AWAITING_PAYMENT", "PAID", "PAST_DUE"];
+  const validStatuses = ["DRAFT", "AWAITING_PAYMENT", "PAID", "PAST_DUE", "ARCHIVED"];
   if (!validStatuses.includes(status)) {
     return NextResponse.json({ error: "Invalid status." }, { status: 400 });
   }
@@ -34,9 +34,19 @@ export async function PATCH(
       { status: 409 }
     );
   }
-  if (status !== "PAID" && covered) {
+  // Archiving is exempt from the coverage check — shelving a paid-off (or
+  // partly paid) invoice keeps its payments; only live-status flips must
+  // stay consistent with the money recorded.
+  if (status !== "PAID" && status !== "ARCHIVED" && covered) {
     return NextResponse.json(
       { error: "This invoice is fully covered by recorded payments. Remove or refund a payment to re-open it." },
+      { status: 409 }
+    );
+  }
+  // Reopening an archived invoice lands on the state its payments imply.
+  if (invoice.status === "ARCHIVED" && status !== "ARCHIVED" && covered && status !== "PAID") {
+    return NextResponse.json(
+      { error: "This invoice is fully covered by recorded payments — reopen it as Paid." },
       { status: 409 }
     );
   }
@@ -46,10 +56,16 @@ export async function PATCH(
     data: {
       status,
       ...(status === "AWAITING_PAYMENT" && !invoice.issuedAt && { issuedAt: new Date() }),
-      ...(status === "PAID" ? { paidAt: new Date() } : { paidAt: null }),
+      // Archiving shelves the invoice as-is (a paid one keeps its paidAt);
+      // live-status flips derive paidAt from the new state.
+      ...(status === "ARCHIVED"
+        ? {}
+        : status === "PAID"
+          ? { paidAt: new Date() }
+          : { paidAt: null }),
     },
   });
-  if (status !== "PAID") {
+  if (status !== "PAID" && status !== "ARCHIVED") {
     // Un-paying clears everyone's seen-it rows so a genuine re-payment
     // celebrates again for the whole team
     await prisma.celebrationSeen.deleteMany({

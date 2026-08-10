@@ -1,10 +1,11 @@
 import { prisma } from "@/lib/db";
 import Link from "next/link";
-import { Plus, ChevronRight, UserCheck, Upload, ListPlus, Users } from "lucide-react";
+import { Plus, ChevronRight, UserCheck, Upload, ListPlus, Users, Download } from "lucide-react";
 import PageTitle from "@/components/PageTitle";
 import { SECTION_HUES } from "@/lib/section-colors";
 import { FilterRow, FilterChip, FilterDivider } from "@/components/FilterChips";
 import FilterSelect from "@/components/FilterSelect";
+import Pager from "@/components/Pager";
 import { shortDate } from "@/lib/statuses";
 import ContactStatus from "@/components/ContactStatus";
 import EmptyState from "@/components/EmptyState";
@@ -19,15 +20,18 @@ const statusFilters = [
   { value: "ARCHIVED", label: "Archived" },
 ];
 
+const PAGE_SIZE = 100;
+
 export default async function ContactsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; status?: string; assignee?: string }>;
+  searchParams: Promise<{ q?: string; status?: string; assignee?: string; page?: string }>;
 }) {
   const actor = await requirePageActor((a) => canSell(a.role));
   const companyId = actor.companyId;
 
-  const { q, status, assignee } = await searchParams;
+  const { q, status, assignee, page: pageParam } = await searchParams;
+  const page = Math.max(1, parseInt(pageParam ?? "1", 10) || 1);
   const validStatus = ["ARCHIVED"].includes(status ?? "")
     ? (status as "ARCHIVED")
     : undefined;
@@ -40,19 +44,25 @@ export default async function ContactsPage({
   // lib/contact-search.ts.
   const search = await contactSearchWhere(companyId, q);
 
-  const contacts = await prisma.contact.findMany({
-    where: {
-      companyId,
-      ...contactScope(actor),
-      ...(mineOnly ? { assignedToId: actor.id } : {}),
-      // A search sweeps every status (so leads are still findable here);
-      // otherwise the list is active clients, or the Archived tab
-      status: validStatus ? validStatus : q ? undefined : "ACTIVE",
-      ...(search ?? {}),
-    },
-    include: { assignedTo: { select: { name: true } } },
-    orderBy: { updatedAt: "desc" },
-  });
+  const listWhere = {
+    companyId,
+    ...contactScope(actor),
+    ...(mineOnly ? { assignedToId: actor.id } : {}),
+    // A search sweeps every status (so leads are still findable here);
+    // otherwise the list is active clients, or the Archived tab
+    status: validStatus ? validStatus : q ? undefined : ("ACTIVE" as const),
+    ...(search ?? {}),
+  };
+  const [contacts, listCount] = await Promise.all([
+    prisma.contact.findMany({
+      where: listWhere,
+      include: { assignedTo: { select: { name: true } } },
+      orderBy: { updatedAt: "desc" },
+      take: PAGE_SIZE,
+      skip: (page - 1) * PAGE_SIZE,
+    }),
+    prisma.contact.count({ where: listWhere }),
+  ]);
 
   const statusQS = (v: string) => {
     const p = new URLSearchParams();
@@ -98,6 +108,15 @@ export default async function ContactsPage({
                 <Upload size={15} />
                 <span className="hidden sm:inline">Import</span>
               </Link>
+              <a
+                href="/api/app/export/clients"
+                aria-label="Export CSV"
+                title="Download all clients as CSV"
+                className="flex h-10 w-10 items-center justify-center gap-1.5 rounded-[10px] btn-tool-line bg-white text-gray-700 hover:bg-gray-50 text-sm font-semibold transition-colors sm:w-auto sm:px-4"
+              >
+                <Download size={15} />
+                <span className="hidden sm:inline">Export</span>
+              </a>
             </>
           )}
           {/* Phones create from the tab-bar FAB */}
@@ -242,6 +261,17 @@ export default async function ContactsPage({
           </>
         )}
       </div>
+      <Pager
+        basePath="/app/contacts"
+        params={{
+          q: q?.trim() || undefined,
+          status: validStatus,
+          assignee: mineOnly ? "me" : undefined,
+        }}
+        page={page}
+        pageSize={PAGE_SIZE}
+        total={listCount}
+      />
     </div>
   );
 }

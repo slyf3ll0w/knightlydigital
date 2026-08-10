@@ -1,11 +1,11 @@
 import { Search } from "lucide-react";
 
 /**
- * Phone-only search field for list pages (Jobs / Invoices / Requests — the
- * desktop console reaches these through its own layouts, and the header
- * client search is hidden on phones). Plain GET form so server components
- * can use it: submits ?q= to the page itself, carrying any active filters
- * through hidden inputs.
+ * Search field for list pages (Jobs / Invoices / Requests / Quotes). Started
+ * phone-only — desktop now gets it too (capped width), since the header
+ * search only finds clients. Plain GET form so server components can use it:
+ * submits ?q= to the page itself, carrying any active filters through hidden
+ * inputs.
  */
 export default function MobileSearch({
   action,
@@ -20,7 +20,7 @@ export default function MobileSearch({
   params?: Record<string, string | undefined>;
 }) {
   return (
-    <form method="get" action={action} className="relative mb-3 lg:hidden">
+    <form method="get" action={action} className="relative mb-3 lg:mb-4 lg:max-w-sm">
       <Search
         size={16}
         className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"

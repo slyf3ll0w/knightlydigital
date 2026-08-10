@@ -49,6 +49,7 @@ export const invoiceStatusLabel: Record<string, string> = {
   AWAITING_PAYMENT: "Awaiting Payment",
   PAID: "Paid",
   PAST_DUE: "Past Due",
+  ARCHIVED: "Archived",
 };
 
 export const contactStatusLabel: Record<string, string> = {
@@ -121,7 +122,7 @@ export const statusTones: Record<StatusKind, Record<string, StatusTone>> = {
     ARCHIVED: "gray",
   },
   job: { ACTIVE: "green", REQUIRES_INVOICING: "amber", ARCHIVED: "gray" },
-  invoice: { DRAFT: "gray", AWAITING_PAYMENT: "amber", PAID: "green", PAST_DUE: "red" },
+  invoice: { DRAFT: "gray", AWAITING_PAYMENT: "amber", PAID: "green", PAST_DUE: "red", ARCHIVED: "gray" },
   contact: { LEAD: "amber", ACTIVE: "green", ARCHIVED: "gray" },
   // blue = upcoming commitment (distinct from job-status greens/ambers)
   appointment: { SCHEDULED: "blue", COMPLETED: "green", CANCELLED: "gray", NO_SHOW: "red" },
