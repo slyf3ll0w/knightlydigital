@@ -225,6 +225,39 @@ export default async function InsightsPage({
   const winRate =
     wonCount + lostCount > 0 ? Math.round((wonCount / (wonCount + lostCount)) * 100) : null;
 
+  // A/R aging — every unpaid invoice bucketed by how overdue it is. Not
+  // range-filtered: receivables are a "right now" number.
+  const openInvoices = await prisma.invoice.findMany({
+    where: { companyId, status: { in: ["AWAITING_PAYMENT", "PAST_DUE"] } },
+    include: {
+      payments: { select: { amount: true } },
+      contact: { select: { id: true, firstName: true, lastName: true, companyName: true } },
+    },
+  });
+  const AGING_BUCKETS = ["Current", "1–30 days", "31–60 days", "61–90 days", "90+ days"] as const;
+  const aging = new Map<string, number>(AGING_BUCKETS.map((b) => [b, 0]));
+  const byDebtor = new Map<string, { name: string; contactId: string | null; balance: number; worst: number }>();
+  const now = Date.now();
+  for (const inv of openInvoices) {
+    const paid = inv.payments.reduce((s, p) => s + Number(p.amount), 0);
+    const balance = Math.max(0, Number(inv.total) - paid);
+    if (balance <= 0) continue;
+    const daysPast = inv.dueDate ? Math.floor((now - inv.dueDate.getTime()) / 86400000) : 0;
+    const idx = daysPast <= 0 ? 0 : daysPast <= 30 ? 1 : daysPast <= 60 ? 2 : daysPast <= 90 ? 3 : 4;
+    const bucket = AGING_BUCKETS[idx];
+    aging.set(bucket, (aging.get(bucket) ?? 0) + balance);
+    const name = inv.contact
+      ? inv.contact.companyName?.trim() || `${inv.contact.firstName} ${inv.contact.lastName}`.trim()
+      : "No client";
+    const key = inv.contact?.id ?? "none";
+    const d = byDebtor.get(key) ?? { name, contactId: inv.contact?.id ?? null, balance: 0, worst: 0 };
+    d.balance += balance;
+    d.worst = Math.max(d.worst, idx);
+    byDebtor.set(key, d);
+  }
+  const totalReceivable = [...aging.values()].reduce((s, v) => s + v, 0);
+  const topDebtors = [...byDebtor.values()].sort((a, b) => b.balance - a.balance).slice(0, 6);
+
   const activeRange = range ?? "90";
   const paymentCount = `${payments.length} ${payments.length === 1 ? "payment" : "payments"}`;
 
@@ -306,6 +339,75 @@ export default async function InsightsPage({
           </p>
           <p className="mt-0.5 text-xs text-gray-500">revenue minus expenses</p>
         </div>
+      </div>
+
+      {/* A/R aging — who owes what, and how stale it's getting. The
+          bookkeeper report every incumbent has and we didn't. */}
+      <div className="card-ledger mb-5 lg:mb-6">
+        <div className="flex items-center justify-between gap-3 border-b border-gray-100 px-4 py-3.5 lg:px-5 lg:py-4">
+          <div className="min-w-0">
+            <h2 className="text-sm font-semibold text-gray-900">Receivables aging</h2>
+            <p className="text-xs text-gray-500">
+              {money(totalReceivable)} outstanding right now
+            </p>
+          </div>
+          <Link
+            href="/app/invoices?status=PAST_DUE"
+            className="shrink-0 text-xs font-semibold text-green-600 hover:underline"
+          >
+            Past-due invoices →
+          </Link>
+        </div>
+        <div className="grid grid-cols-5 divide-x divide-gray-100 border-b border-gray-100">
+          {AGING_BUCKETS.map((b, i) => (
+            <div key={b} className="px-2 py-3 text-center lg:px-4">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 lg:text-[11px]">
+                {b}
+              </p>
+              <p
+                className={`numeral-ledger mt-1 text-sm font-semibold lg:text-lg ${
+                  (aging.get(b) ?? 0) === 0
+                    ? "text-gray-300"
+                    : i >= 3
+                      ? "text-red-600"
+                      : i >= 1
+                        ? "text-amber-600"
+                        : "text-gray-900"
+                }`}
+              >
+                {money(aging.get(b) ?? 0)}
+              </p>
+            </div>
+          ))}
+        </div>
+        {topDebtors.length > 0 && (
+          <div className="divide-y divide-gray-50">
+            {topDebtors.map((d) => (
+              <div key={d.contactId ?? "none"} className="flex items-center justify-between gap-3 px-4 py-2.5 lg:px-5">
+                {d.contactId ? (
+                  <Link
+                    href={`/app/contacts/${d.contactId}`}
+                    className="min-w-0 truncate text-sm text-gray-800 hover:underline"
+                  >
+                    {d.name}
+                  </Link>
+                ) : (
+                  <span className="min-w-0 truncate text-sm text-gray-800">{d.name}</span>
+                )}
+                <span className="flex items-center gap-2 shrink-0">
+                  {d.worst >= 1 && (
+                    <span className={`stamp ${d.worst >= 3 ? "text-red-700" : "text-amber-700"}`}>
+                      {AGING_BUCKETS[d.worst]}
+                    </span>
+                  )}
+                  <span className="numeral-ledger text-sm font-semibold text-gray-900">
+                    {money(d.balance)}
+                  </span>
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Lead pipeline funnel — stages scroll edge-to-edge on phones (a

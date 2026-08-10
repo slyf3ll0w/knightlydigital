@@ -10,6 +10,8 @@ import QuoteActions from "./QuoteActions";
 import CollectDepositNudge from "./CollectDepositNudge";
 import Celebration from "@/components/Celebration";
 import { shouldCelebrate } from "@/lib/celebrations";
+import { activityFor } from "@/lib/activity";
+import ActivityTrail from "@/components/ActivityTrail";
 
 export default async function QuoteDetailPage({
   params,
@@ -391,6 +393,10 @@ export default async function QuoteDetailPage({
             <p className="text-sm text-gray-700 whitespace-pre-wrap">{quote.notes}</p>
           </div>
         )}
+      </div>
+
+      <div className="mt-6">
+        <ActivityTrail rows={await activityFor(companyId, "quote", quote.id)} />
       </div>
     </div>
   );

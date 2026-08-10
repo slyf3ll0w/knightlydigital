@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, canSeeMoney, viaContactScope } from "@/lib/permissions";
+import { logActivity } from "@/lib/activity";
 
 export async function PATCH(
   req: NextRequest,
@@ -72,6 +73,16 @@ export async function PATCH(
       where: { kind: "INVOICE_PAID", entityId: id },
     });
   }
+
+  logActivity({
+    companyId,
+    userId: actor.id,
+    userName: actor.name,
+    entityType: "invoice",
+    entityId: id,
+    action: "status_changed",
+    detail: `${invoice.status} → ${status}`,
+  });
 
   return NextResponse.json({ success: true });
 }

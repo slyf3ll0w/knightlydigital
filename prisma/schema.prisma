@@ -1045,6 +1045,11 @@ model Job {
   address      String?
   // Last time a tech sent the client an "on my way" text (from their own phone)
   onMyWaySentAt DateTime?
+  // On-site completion sign-off: the client types their name on the tech's
+  // phone when the work wraps (same typed-signature convention as quote
+  // approval). Proof-of-completion for disputes.
+  completionSignatureName String?
+  completionSignedAt      DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
@@ -1524,6 +1529,27 @@ model QuoteReminder {
 
   @@unique([quoteId, type])
   @@index([quoteId])
+}
+
+// ─── Activity log ─────────────────────────────────────────────────────────────
+
+// Light audit trail for money-touching mutations (who changed a status,
+// deleted a payment, ran a refund/stored charge). Append-only; written
+// fire-and-forget via lib/activity.ts so it can never fail the mutation.
+model ActivityLog {
+  id         String   @id @default(cuid())
+  companyId  String
+  // Plain string user id (no FK) so history survives team-member deletion
+  userId     String?
+  userName   String?
+  entityType String // "invoice" | "quote" | "payment" | "job" | ...
+  entityId   String
+  action     String // "status_changed" | "payment_deleted" | "refund" | ...
+  detail     String?
+  createdAt  DateTime @default(now())
+
+  @@index([companyId, entityType, entityId])
+  @@index([companyId, createdAt])
 }
 
 // ─── Platform usage metering (superadmin cost tracking) ──────────────────────

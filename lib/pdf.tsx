@@ -159,7 +159,8 @@ function Header({
         </View>
         <View>
           <Text style={styles.docType}>{docType.toUpperCase()}</Text>
-          <Text style={styles.docNumber}>#{docNumber}</Text>
+          {/* docNumber 0 = un-numbered document (statements) */}
+          {docNumber > 0 ? <Text style={styles.docNumber}>#{docNumber}</Text> : null}
           {metaLines.map((l) => (
             <Text key={l} style={styles.docMeta}>{l}</Text>
           ))}
@@ -522,6 +523,124 @@ export function buildInvoiceDocument(invoice: InvoiceForPdf, logo: LogoSrc) {
       </Page>
     </Document>
   );
+}
+
+// ─── Client statement PDF ─────────────────────────────────────────────────────
+
+/**
+ * One page per client: every open invoice with its balance, aged buckets, and
+ * the total due — the "send the bookkeeper a statement" document. Paid
+ * invoices from the last 90 days show below for context.
+ */
+export async function statementPdf(
+  contactId: string,
+  companyId: string
+): Promise<{ buffer: Buffer; filename: string } | null> {
+  const contact = await prisma.contact.findFirst({
+    where: { id: contactId, companyId },
+    select: {
+      ...contactSelect,
+      company: { select: companySelect },
+      invoices: {
+        where: { status: { in: ["AWAITING_PAYMENT", "PAST_DUE", "PAID"] } },
+        orderBy: { invoiceNumber: "asc" },
+        select: {
+          id: true,
+          invoiceNumber: true,
+          subject: true,
+          status: true,
+          issuedAt: true,
+          dueDate: true,
+          paidAt: true,
+          createdAt: true,
+          total: true,
+          payments: { select: { amount: true } },
+        },
+      },
+    },
+  });
+  if (!contact) return null;
+  const { company, invoices, ...contactBits } = contact;
+  const logo = await loadLogo(company);
+  const accent = brandAccent(company);
+  const now = new Date();
+
+  const rows = invoices.map((inv) => {
+    const paid = inv.payments.reduce((s, p) => s + Number(p.amount), 0);
+    const balance = Math.max(0, Math.round((Number(inv.total) - paid) * 100) / 100);
+    return { ...inv, paid, balance };
+  });
+  const open = rows.filter((r) => r.status !== "PAID" && r.balance > 0);
+  const recentPaid = rows.filter(
+    (r) => r.status === "PAID" && r.paidAt && now.getTime() - r.paidAt.getTime() < 90 * 86400_000
+  );
+  const totalDue = open.reduce((s, r) => s + r.balance, 0);
+
+  const table = (list: typeof rows, showBalance: boolean) => (
+    <View style={styles.table}>
+      <View style={styles.th}>
+        <Text style={[styles.colItem, styles.thText]}>INVOICE</Text>
+        <Text style={[styles.colUnit, styles.thText]}>DUE</Text>
+        <Text style={[styles.colUnit, styles.thText]}>TOTAL</Text>
+        <Text style={[styles.colTotal, styles.thText]}>{showBalance ? "BALANCE" : "PAID"}</Text>
+      </View>
+      {list.map((r) => (
+        <View key={r.id} style={styles.tr} wrap={false}>
+          <View style={styles.colItem}>
+            <Text style={styles.itemName}>#{r.invoiceNumber}{r.subject ? `  ${r.subject}` : ""}</Text>
+            <Text style={styles.itemDesc}>Issued {shortDate(r.issuedAt ?? r.createdAt)}</Text>
+          </View>
+          <Text style={styles.colUnit}>{r.dueDate ? shortDate(r.dueDate) : "—"}</Text>
+          <Text style={styles.colUnit}>{money(r.total)}</Text>
+          <Text style={[styles.colTotal, styles.itemName]}>
+            {money(showBalance ? r.balance : r.paid)}
+          </Text>
+        </View>
+      ))}
+    </View>
+  );
+
+  const doc = (
+    <Document title={`Statement — ${contactBits.firstName} ${contactBits.lastName} — ${company.name}`} producer="WorkBench" creator="WorkBench">
+      <Page size="LETTER" style={styles.page}>
+        <Header
+          company={company}
+          logo={logo}
+          docType="Statement"
+          docNumber={0}
+          metaLines={[`As of ${shortDate(now)}`]}
+          accent={accent}
+        />
+        <BillTo contact={contactBits} />
+        <View style={styles.totalsWrap}>
+          <View style={styles.totals}>
+            <View style={[styles.grandRow, { borderTopColor: accent }]}>
+              <Text style={styles.grandText}>Total due</Text>
+              <Text style={styles.grandText}>{money(totalDue)}</Text>
+            </View>
+          </View>
+        </View>
+        {open.length > 0 ? (
+          <>
+            <Text style={[styles.sectionLabel, { marginTop: 18 }]}>OPEN INVOICES</Text>
+            {table(open, true)}
+          </>
+        ) : (
+          <Text style={[styles.bodyText, styles.note]}>No open invoices — thank you!</Text>
+        )}
+        {recentPaid.length > 0 ? (
+          <>
+            <Text style={[styles.sectionLabel, { marginTop: 18 }]}>PAID (LAST 90 DAYS)</Text>
+            {table(recentPaid, false)}
+          </>
+        ) : null}
+        <Footer text={`Statement  ·  ${company.name}`} />
+      </Page>
+    </Document>
+  );
+
+  const who = `${contactBits.firstName}-${contactBits.lastName}`.replace(/[^\w-]/g, "");
+  return { buffer: await renderToBuffer(doc), filename: `Statement-${who}.pdf` };
 }
 
 /** Standard response wrapper for the four PDF routes. */

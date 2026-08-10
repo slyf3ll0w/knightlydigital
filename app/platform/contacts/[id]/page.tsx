@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { requirePageActor, canSell, contactScope, seesAllLeads, isManager } from "@/lib/permissions";
+import { requirePageActor, canSell, canSeeMoney, contactScope, seesAllLeads, isManager } from "@/lib/permissions";
 import Link from "next/link";
 import { ArrowLeft, Phone, Mail, MapPin, ChevronRight, Pencil, Eye } from "lucide-react";
 import { money, shortDate, clientMessageStatus, type StatusKind } from "@/lib/statuses";
@@ -388,6 +388,16 @@ export default async function ContactDetailPage({
                 </div>
               )}
             </dl>
+            {canSeeMoney(actor) && (
+              <a
+                href={`/api/app/contacts/${contact.id}/statement-pdf`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-3 inline-block text-xs font-medium text-green-700 hover:underline"
+              >
+                Download statement (PDF)
+              </a>
+            )}
           </div>
 
           <AddressesCard

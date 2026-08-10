@@ -4,6 +4,7 @@ import { getActor, isManager } from "@/lib/permissions";
 import { getProcessor, recordPayment, invoiceBalance, sendReviewRequest } from "@/lib/payments";
 import { recomputeDepositApplied } from "@/lib/deposits";
 import { inPreview, previewBlockedError } from "@/lib/preview";
+import { logActivity } from "@/lib/activity";
 
 /**
  * POST — charge the invoice's remaining balance to the client's card on file
@@ -90,6 +91,16 @@ export async function POST(
       jobTitle: null,
     }).catch((e) => console.error("[charge-stored] review request failed", e));
   }
+
+  logActivity({
+    companyId: actor.companyId,
+    userId: actor.id,
+    userName: actor.name,
+    entityType: "invoice",
+    entityId: invoice.id,
+    action: "card_on_file_charged",
+    detail: `$${balance.toFixed(2)} charged to ${invoice.contact.savedCardLabel ?? "saved card"}`,
+  });
 
   return NextResponse.json({ success: true, amount: balance, fullyPaid });
 }

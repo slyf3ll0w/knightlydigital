@@ -5,6 +5,7 @@ import { recomputeInvoiceStatus, estimateFeeCents } from "@/lib/payments";
 import { estimateProcessingCostCents } from "@/lib/platform-costs";
 import { reverseTransfer, toCents, FinixError } from "@/lib/finix";
 import { queueQuickBooksPaymentRefresh } from "@/lib/quickbooks";
+import { logActivity } from "@/lib/activity";
 
 /**
  * POST — refund an online (Finix) payment, full or partial. Managers only.
@@ -127,6 +128,16 @@ export async function POST(
     // so the nightly sweep can't spot this on its own — push the corrected
     // amount now (or remove the payment entirely if it refunded to zero).
     queueQuickBooksPaymentRefresh({ companyId: actor.companyId, paymentId: id });
+
+    logActivity({
+      companyId: actor.companyId,
+      userId: actor.id,
+      userName: actor.name,
+      entityType: "invoice",
+      entityId: payment.invoiceId,
+      action: "refund",
+      detail: `$${refundAmount.toFixed(2)} refunded (${reversal.id})`,
+    });
 
     return NextResponse.json({ success: true, payment: updated, reversalId: reversal.id });
   } catch (err) {

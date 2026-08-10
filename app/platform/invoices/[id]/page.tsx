@@ -8,6 +8,8 @@ import StatusChip from "@/components/StatusChip";
 import ViewedFact from "@/components/ViewedFact";
 import InvoiceActions from "./InvoiceActions";
 import { getProcessor } from "@/lib/payments";
+import { activityFor } from "@/lib/activity";
+import ActivityTrail from "@/components/ActivityTrail";
 import PaymentRow from "./PaymentRow";
 import Celebration from "@/components/Celebration";
 import { shouldCelebrate } from "@/lib/celebrations";
@@ -369,6 +371,10 @@ export default async function InvoiceDetailPage({
             })}
           </div>
         )}
+      </div>
+
+      <div className="mt-6">
+        <ActivityTrail rows={await activityFor(companyId, "invoice", invoice.id)} />
       </div>
     </div>
   );

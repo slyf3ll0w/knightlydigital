@@ -15,6 +15,7 @@ import { visitFrequencyLabel } from "@/lib/subscriptions";
 import { syncJobChecklist } from "@/lib/job-checklist";
 import JobActions from "./JobActions";
 import ClockCard from "./ClockCard";
+import CollectSignature from "./CollectSignature";
 import OnMyWay from "./OnMyWay";
 import AskForReview from "./AskForReview";
 import NoteForm from "./NoteForm";
@@ -179,6 +180,9 @@ export default async function JobDetailPage({
         </div>
         {actor.role !== "SALES" && (
           <div className="flex items-center gap-2">
+            {job.status === "ACTIVE" && !job.completionSignedAt && (
+              <CollectSignature jobId={job.id} />
+            )}
             {job.status === "ACTIVE" && job.contact.phone && (
               <OnMyWay
                 jobId={job.id}
@@ -234,6 +238,14 @@ export default async function JobDetailPage({
             dayStartMinutes={earliestOpenMinutes(sanitizeBusinessHours(company?.businessHours))}
           />
         </div>
+        {job.completionSignedAt && (
+          <div>
+            <span className="text-xs font-medium text-gray-500 block">Client sign-off</span>
+            <span className="text-green-700 font-medium">
+              {job.completionSignatureName} · {shortDate(job.completionSignedAt)}
+            </span>
+          </div>
+        )}
         {job.quote && (
           <div>
             <span className="text-xs font-medium text-gray-500 block">From quote</span>

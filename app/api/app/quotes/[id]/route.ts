@@ -11,6 +11,7 @@ import {
 } from "@/lib/work-items";
 import { computeQuoteTotals } from "@/lib/quote-totals";
 import { autoAdvance, recordLeadWin } from "@/lib/pipeline";
+import { logActivity } from "@/lib/activity";
 
 const allowedStatuses = [
   "DRAFT",
@@ -177,6 +178,18 @@ export async function PATCH(
   // Sending the quote auto-issues any attached agreements set to "with quote"
   if (justSent) {
     await autoSendQuoteAgreements(quote.id, "WITH_QUOTE");
+  }
+
+  if (body.status && body.status !== quote.status) {
+    logActivity({
+      companyId,
+      userId: actor.id,
+      userName: actor.name,
+      entityType: "quote",
+      entityId: quote.id,
+      action: "status_changed",
+      detail: `${quote.status} → ${body.status}`,
+    });
   }
 
   // Pipeline board: a sent quote advances the lead's card; an approved quote

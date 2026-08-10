@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { getActor, canSeeMoney, isManager, viaContactScope } from "@/lib/permissions";
 import { isPastDue } from "@/lib/due-dates";
 import { queueQuickBooksUnwind } from "@/lib/quickbooks";
+import { logActivity } from "@/lib/activity";
 
 const validMethods = [
   "CARD", "ACH", "CASH", "CHECK", "CASH_APP", "PAYPAL", "VENMO", "ZELLE", "OTHER",
@@ -102,6 +103,19 @@ export async function PATCH(
     return p;
   });
 
+  logActivity({
+    companyId: actor.companyId,
+    userId: actor.id,
+    userName: actor.name,
+    entityType: "invoice",
+    entityId: payment.invoiceId,
+    action: "payment_edited",
+    detail:
+      amount !== undefined && amount !== Number(payment.amount)
+        ? `$${Number(payment.amount).toFixed(2)} → $${amount.toFixed(2)}`
+        : "Payment details corrected",
+  });
+
   return NextResponse.json(updated);
 }
 
@@ -145,6 +159,16 @@ export async function DELETE(
   // The money is off the books here, so take it off the books in QuickBooks
   // too — otherwise QBO keeps showing the invoice paid.
   queueQuickBooksUnwind({ companyId: actor.companyId, entityType: "PAYMENT", localId: id });
+
+  logActivity({
+    companyId: actor.companyId,
+    userId: actor.id,
+    userName: actor.name,
+    entityType: "invoice",
+    entityId: payment.invoiceId,
+    action: "payment_deleted",
+    detail: `$${Number(payment.amount).toFixed(2)} ${payment.method} payment removed`,
+  });
 
   return NextResponse.json({ success: true });
 }
