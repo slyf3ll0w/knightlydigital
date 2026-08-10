@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { InvoiceStatus, RecurringInterval } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getActor, isManager, canSeeMoney, viaContactScope } from "@/lib/permissions";
-import { intQuantity, unitPriceValue } from "@/lib/work-items";
+import { intQuantity, unitPriceValue, resolveLineItemCosts } from "@/lib/work-items";
 import { paidDepositTotal } from "@/lib/deposits";
 import { inPreview, previewBlockedError } from "@/lib/preview";
 import { isPastDue } from "@/lib/due-dates";
@@ -52,20 +52,23 @@ export async function PATCH(
     return NextResponse.json({ error: "At least one line item is required." }, { status: 400 });
   }
 
-  const lineItems = body.lineItems as {
+  const rawLineItems = body.lineItems as {
     name?: string;
     description?: string;
     quantity: number;
+    unitCost?: number | null;
     unitPrice: number;
     serviceDate?: string;
     workItemId?: string | null;
     recurringInterval?: RecurringInterval | null;
     sortOrder?: number;
   }[];
-  for (const li of lineItems) {
+  for (const li of rawLineItems) {
     li.quantity = intQuantity(li.quantity);
     li.unitPrice = unitPriceValue(li.unitPrice);
   }
+  // Cost basis carried/backfilled for margin reporting (never client-visible)
+  const lineItems = await resolveLineItemCosts(companyId, rawLineItems);
 
   const subtotal = lineItems.reduce((s, li) => s + (li.quantity || 0) * (li.unitPrice || 0), 0);
   const discountType =
@@ -156,6 +159,7 @@ export async function PATCH(
             name: li.name ?? "",
             description: li.description ?? "",
             quantity: li.quantity,
+            unitCost: li.unitCost ?? null,
             unitPrice: li.unitPrice,
             total: li.quantity * li.unitPrice,
             serviceDate: li.serviceDate ? new Date(li.serviceDate) : null,

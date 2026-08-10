@@ -21,14 +21,48 @@ import {
 
 /** Full-replace line-item payload for the quote/invoice/job PATCH routes.
  *  Both name and description are set so every list/display renders, and the
- *  price-book cost backfill (which matches on name) still works. */
-export function itemsPayload(items: { description: string; quantity: number; unitPrice: number }[]) {
-  return items.map((li) => ({
-    name: li.description,
-    description: li.description,
-    quantity: li.quantity,
-    unitPrice: li.unitPrice,
-  }));
+ *  price-book cost backfill (which matches on name) still works.
+ *
+ *  `existing` (the entity's current lines) makes edits non-destructive: a line
+ *  the model resends inherits its old cost basis, optional flag, price-book
+ *  link, and recurring interval unless the model explicitly changed them —
+ *  before this, every Atlas edit silently wiped human-set margins/upsells. */
+export function itemsPayload(
+  items: {
+    name?: string;
+    description: string;
+    quantity: number;
+    unitPrice: number;
+    isOptional?: boolean | undefined;
+  }[],
+  existing?: {
+    name: string;
+    description: string;
+    unitCost: unknown;
+    isOptional: boolean;
+    workItemId: string | null;
+    recurringInterval: string | null;
+  }[]
+) {
+  const key = (s: string | null | undefined) => (s ?? "").trim().toLowerCase();
+  const byKey = new Map<string, NonNullable<typeof existing>[number]>();
+  for (const ex of existing ?? []) {
+    if (key(ex.name)) byKey.set(key(ex.name), ex);
+    if (key(ex.description) && !byKey.has(key(ex.description))) byKey.set(key(ex.description), ex);
+  }
+  return items.map((li) => {
+    const match = byKey.get(key(li.name)) ?? byKey.get(key(li.description));
+    return {
+      name: li.name || li.description,
+      description: li.description || li.name || "",
+      quantity: li.quantity,
+      unitPrice: li.unitPrice,
+      isOptional: li.isOptional ?? match?.isOptional ?? false,
+      unitCost: match?.unitCost != null ? Number(match.unitCost) : undefined,
+      workItemId: match?.workItemId ?? undefined,
+      recurringInterval: match?.recurringInterval ?? undefined,
+    };
+  });
 }
 
 /** Requests + quotes: pipeline reads, request lifecycle, booking approvals, quote CRUD. */
@@ -451,6 +485,12 @@ export const pipelineTools: Tool[] = [
         select: {
           id: true, status: true, total: true, title: true,
           contact: { select: { firstName: true, lastName: true, companyName: true } },
+          lineItems: {
+            select: {
+              name: true, description: true, unitCost: true, isOptional: true,
+              workItemId: true, recurringInterval: true,
+            },
+          },
         },
       });
       if (!quote) return { error: `No quote #${n} (or not visible to this user).` };
@@ -472,7 +512,7 @@ export const pipelineTools: Tool[] = [
           return { error: "Edits replace ALL line items — call get_document for the current list and include the complete set (with your changes) in lineItems." };
         }
         const total = lineItems.reduce((s, li) => s + li.quantity * li.unitPrice, 0);
-        const payload: Record<string, unknown> = { lineItems: itemsPayload(lineItems) };
+        const payload: Record<string, unknown> = { lineItems: itemsPayload(lineItems, quote.lineItems) };
         const lines = lineItems.map((li) => `${li.description} × ${li.quantity} @ ${money(li.unitPrice)}`);
         const title = str(args.title, 120);
         if (title) {

@@ -12,6 +12,7 @@ import {
   Archive,
   Trash2,
   Copy,
+  CopyPlus,
   Loader2,
   Pencil,
   RotateCcw,
@@ -207,6 +208,18 @@ export default function QuoteActions({
   const editable =
     status === "DRAFT" || status === "AWAITING_RESPONSE" || status === "CHANGES_REQUESTED";
 
+  // Duplicate into a fresh draft and jump straight to it
+  async function duplicateQuote() {
+    setOpen(false);
+    const res = await fetch(`/api/app/quotes/${quoteId}/duplicate`, { method: "POST" });
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data?.id) {
+      alert(data?.error ?? "Couldn't duplicate the quote.");
+      return;
+    }
+    router.push(`/app/quotes/${data.id}`);
+  }
+
   async function copyLink() {
     await navigator.clipboard.writeText(publicUrl);
     setCopied(true);
@@ -341,6 +354,13 @@ export default function QuoteActions({
               <FileDown size={14} className="text-gray-400" />
               Download PDF
             </a>
+            <button
+              onClick={duplicateQuote}
+              className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
+            >
+              <CopyPlus size={14} className="text-gray-400" />
+              Duplicate Quote
+            </button>
             {contactEmail && status === "DRAFT" && (
               <button
                 onClick={() => setStatus("AWAITING_RESPONSE")}

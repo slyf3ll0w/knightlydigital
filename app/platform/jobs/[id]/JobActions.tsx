@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { MoreHorizontal, CheckCircle, Receipt, Archive, RotateCcw, Trash2, Loader2, Pencil } from "lucide-react";
+import { MoreHorizontal, CheckCircle, Receipt, Archive, RotateCcw, Trash2, Loader2, Pencil, CopyPlus } from "lucide-react";
 import { confirmSheet } from "@/components/ConfirmSheet";
 
 export default function JobActions({
@@ -78,6 +78,23 @@ export default function JobActions({
       await setStatus("ARCHIVED");
     } else {
       await setStatus("REQUIRES_INVOICING");
+    }
+  }
+
+  // Duplicate into a fresh unscheduled job and jump to it
+  async function duplicateJob() {
+    setOpen(false);
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/app/jobs/${jobId}/duplicate`, { method: "POST" });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.id) {
+        alert(data?.error ?? "Couldn't duplicate the job.");
+        return;
+      }
+      router.push(`/app/jobs/${data.id}`);
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -175,6 +192,15 @@ export default function JobActions({
                 >
                   <Receipt size={14} className="text-gray-400" />
                   Create Invoice
+                </button>
+              )}
+              {canEdit && (
+                <button
+                  onClick={duplicateJob}
+                  className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                >
+                  <CopyPlus size={14} className="text-gray-400" />
+                  Duplicate Job
                 </button>
               )}
               {status !== "ARCHIVED" && (

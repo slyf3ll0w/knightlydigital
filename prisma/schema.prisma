@@ -1411,6 +1411,10 @@ model InvoiceLineItem {
   name        String  @default("")
   description String
   quantity    Decimal @db.Decimal(10, 3)
+  // Cost basis for margin reporting — backfilled from the price book by name
+  // (same as quotes/jobs); never shown to the client. Direct invoices used to
+  // drop cost data entirely, silently excluding them from profit numbers.
+  unitCost    Decimal? @db.Decimal(10, 2)
   unitPrice   Decimal @db.Decimal(10, 2)
   total       Decimal @db.Decimal(10, 2)
   serviceDate DateTime?

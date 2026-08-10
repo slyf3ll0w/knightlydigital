@@ -91,6 +91,39 @@ export async function backfillLineItemCosts<
 }
 
 /**
+ * Full cost resolution for invoice lines: id-linked items read the price-book
+ * cost directly (the invoice editor has no cost field, so workItemId items
+ * arrive costless — unlike quotes), then the name-match backfill covers
+ * free-typed lines. Keeps margin data on invoices created outside the
+ * quote→job flow.
+ */
+export async function resolveLineItemCosts<
+  T extends { name?: string; workItemId?: string | null; unitCost?: number | null }
+>(companyId: string, lineItems: T[]): Promise<T[]> {
+  const linkedIds = [
+    ...new Set(
+      lineItems
+        .filter((li) => li.workItemId && (li.unitCost === null || li.unitCost === undefined))
+        .map((li) => li.workItemId as string)
+    ),
+  ];
+  let byId = new Map<string, number>();
+  if (linkedIds.length > 0) {
+    const items = await prisma.workItem.findMany({
+      where: { companyId, id: { in: linkedIds }, unitCost: { not: null } },
+      select: { id: true, unitCost: true },
+    });
+    byId = new Map(items.map((i) => [i.id, Number(i.unitCost)]));
+  }
+  const withLinked = lineItems.map((li) => {
+    if (!li.workItemId || (li.unitCost !== null && li.unitCost !== undefined)) return li;
+    const cost = byId.get(li.workItemId);
+    return cost !== undefined ? { ...li, unitCost: cost } : li;
+  });
+  return backfillLineItemCosts(companyId, withLinked);
+}
+
+/**
  * requiresAgreement on a quote line is server-derived: lines linked to a
  * price-book item inherit its flag; free-typed lines can't be agreement-gated.
  * Client-supplied values are ignored so the conversion gate can't be stripped

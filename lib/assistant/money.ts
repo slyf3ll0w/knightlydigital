@@ -237,6 +237,12 @@ export const moneyTools: Tool[] = [
           id: true, status: true, total: true,
           contact: { select: { firstName: true, lastName: true, companyName: true } },
           payments: { select: { amount: true } },
+          lineItems: {
+            select: {
+              name: true, description: true, unitCost: true,
+              workItemId: true, recurringInterval: true,
+            },
+          },
         },
       });
       if (!invoice) return { error: `No invoice #${n} (or not visible to this user).` };
@@ -254,7 +260,12 @@ export const moneyTools: Tool[] = [
         }
         const total = lineItems.reduce((s, li) => s + li.quantity * li.unitPrice, 0);
         const paid = invoice.payments.reduce((s, p) => s + Number(p.amount), 0);
-        const payload: Record<string, unknown> = { lineItems: itemsPayload(lineItems) };
+        const payload: Record<string, unknown> = {
+          lineItems: itemsPayload(
+            lineItems,
+            invoice.lineItems.map((li) => ({ ...li, isOptional: false }))
+          ),
+        };
         const lines = lineItems.map((li) => `${li.description} × ${li.quantity} @ ${money(li.unitPrice)}`);
         const subject = str(args.subject, 120);
         if (subject) {

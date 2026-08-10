@@ -254,7 +254,20 @@ export const scheduleTools: Tool[] = [
           if (items.length === 0) {
             return { error: "lineItems replaces ALL line items — call get_document for the current list and send the complete set." };
           }
-          payload.lineItems = itemsPayload(items);
+          // Resent lines inherit their existing cost basis / price-book link
+          const existing = await prisma.jobLineItem.findMany({
+            where: { jobId: job.id },
+            select: { name: true, description: true, unitCost: true, recurringInterval: true },
+          });
+          payload.lineItems = itemsPayload(
+            items,
+            existing.map((li) => ({
+              ...li,
+              description: li.description ?? "",
+              isOptional: false,
+              workItemId: null,
+            }))
+          );
           const total = items.reduce((s, li) => s + li.quantity * li.unitPrice, 0);
           lines.push(...items.map((li) => `${li.description} × ${li.quantity} @ ${money(li.unitPrice)}`));
           lines.push(`New subtotal: ${money(total)}`);

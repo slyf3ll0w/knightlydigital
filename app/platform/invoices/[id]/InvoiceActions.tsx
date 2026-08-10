@@ -7,6 +7,7 @@ import {
   DollarSign,
   Loader2,
   Copy,
+  CopyPlus,
   MoreHorizontal,
   Eye,
   Pencil,
@@ -97,6 +98,18 @@ export default function InvoiceActions({
     await navigator.clipboard.writeText(publicUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
+  }
+
+  // Duplicate into a fresh draft and jump straight to it
+  async function duplicateInvoice() {
+    setOpen(false);
+    const res = await fetch(`/api/app/invoices/${invoiceId}/duplicate`, { method: "POST" });
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data?.id) {
+      alert(data?.error ?? "Couldn't duplicate the invoice.");
+      return;
+    }
+    router.push(`/app/invoices/${data.id}`);
   }
 
   // Archive shelves the invoice without touching its payments — the
@@ -294,6 +307,13 @@ export default function InvoiceActions({
                 <span className="truncate">Charge card on file ({chargeStoredLabel})</span>
               </button>
             )}
+            <button
+              onClick={duplicateInvoice}
+              className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
+            >
+              <CopyPlus size={14} className="text-gray-400" />
+              Duplicate Invoice
+            </button>
             {contactEmail && status === "DRAFT" && (
               <button
                 onClick={() => setStatus("AWAITING_PAYMENT")}

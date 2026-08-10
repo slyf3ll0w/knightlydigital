@@ -6,7 +6,7 @@ import { getActor, canSeeMoney, contactScope } from "@/lib/permissions";
 import { recordLeadWin } from "@/lib/pipeline";
 import { ensureSubscriptionsForContact } from "@/lib/subscriptions";
 import { paidDepositTotal } from "@/lib/deposits";
-import { intQuantity, unitPriceValue } from "@/lib/work-items";
+import { intQuantity, unitPriceValue, resolveLineItemCosts } from "@/lib/work-items";
 import { inPreview, previewBlockedError } from "@/lib/preview";
 import { withDocNumberRetry } from "@/lib/doc-numbers";
 
@@ -28,6 +28,38 @@ export async function POST(req: NextRequest) {
     li.quantity = intQuantity(li.quantity);
     li.unitPrice = unitPriceValue(li.unitPrice);
   }
+  const typedLineItems = lineItems as {
+    name?: string;
+    description: string;
+    quantity: number;
+    unitCost?: number | null;
+    unitPrice: number;
+    serviceDate?: string;
+    workItemId?: string | null;
+    recurringInterval?: RecurringInterval | null;
+    sortOrder?: number;
+  }[];
+  // Cost basis for margin reporting — the job's own line items first (they
+  // carried cost through quote→job), then the linked price-book item, then a
+  // name match. Clients never see it.
+  if (jobId) {
+    const jobLines = await prisma.jobLineItem.findMany({
+      where: { job: { id: jobId, companyId } },
+      select: { name: true, unitCost: true },
+    });
+    const costByName = new Map(
+      jobLines
+        .filter((jl) => jl.unitCost != null)
+        .map((jl) => [jl.name.trim().toLowerCase(), Number(jl.unitCost)])
+    );
+    for (const li of typedLineItems) {
+      if (li.unitCost == null) {
+        const cost = costByName.get((li.name ?? "").trim().toLowerCase());
+        if (cost !== undefined) li.unitCost = cost;
+      }
+    }
+  }
+  const costedLineItems = await resolveLineItemCosts(companyId, typedLineItems);
 
   const contact = contactId
     ? await prisma.contact.findFirst({ where: { id: contactId, companyId, ...contactScope(actor) } })
@@ -135,11 +167,12 @@ export async function POST(req: NextRequest) {
         issuedAt,
         dueDate: due,
         lineItems: {
-          create: lineItems.map(
+          create: costedLineItems.map(
             (li: {
               name?: string;
               description: string;
               quantity: number;
+              unitCost?: number | null;
               unitPrice: number;
               serviceDate?: string;
               workItemId?: string | null;
@@ -149,6 +182,7 @@ export async function POST(req: NextRequest) {
               name: li.name ?? "",
               description: li.description ?? "",
               quantity: li.quantity,
+              unitCost: li.unitCost ?? null,
               unitPrice: li.unitPrice,
               total: li.quantity * li.unitPrice,
               serviceDate: li.serviceDate ? new Date(li.serviceDate) : null,
