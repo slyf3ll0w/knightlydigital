@@ -34,7 +34,7 @@ export async function GET() {
   const sell = canSell(actor.role);
   const seeMoney = canSeeMoney(actor);
 
-  const [requests, leads, bookings, payments, pastDue] = await Promise.all([
+  const [requests, leads, bookings, payments, pastDue, clientMessages] = await Promise.all([
     sell
       ? prisma.request.findMany({
           where: { companyId: actor.companyId, status: "NEW", createdAt: { gte: since }, ...scope },
@@ -117,6 +117,26 @@ export async function GET() {
           },
         })
       : Promise.resolve([]),
+    // Unread client messages (portal or SMS) — previously push-only, so a
+    // missed push meant the message vanished until someone opened the inbox.
+    prisma.portalMessage.findMany({
+      where: {
+        companyId: actor.companyId,
+        direction: "INBOUND",
+        readByTeamAt: null,
+        createdAt: { gte: since },
+        contact: { is: { ...(contactScope(actor) as object) } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 6,
+      select: {
+        id: true,
+        body: true,
+        createdAt: true,
+        contactId: true,
+        contact: { select: { firstName: true, lastName: true, companyName: true } },
+      },
+    }),
   ]);
 
   const items = [
@@ -159,6 +179,14 @@ export async function GET() {
       sub: [money(inv.total), who(inv.contact)].filter(Boolean).join(" · "),
       at: (inv.dueDate ?? new Date()).toISOString(),
       href: `/app/invoices/${inv.id}`,
+    })),
+    ...clientMessages.map((m) => ({
+      id: `msg-${m.id}`,
+      kind: "message" as const,
+      title: `Message from ${who(m.contact) || "a client"}`,
+      sub: m.body.length > 90 ? `${m.body.slice(0, 90)}…` : m.body,
+      at: m.createdAt.toISOString(),
+      href: `/app/messages/thread/${m.contactId}`,
     })),
   ]
     .sort((a, b) => b.at.localeCompare(a.at))

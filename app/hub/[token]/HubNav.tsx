@@ -24,6 +24,7 @@ export default function HubNav({
   const pathname = usePathname();
   const nav = [
     { href: base, label: "Home" },
+    { href: `${base}/visits`, label: "Visits" },
     { href: `${base}/quotes`, label: "Quotes" },
     { href: `${base}/invoices`, label: "Invoices" },
     { href: `${base}/messages`, label: "Messages", badge: unreadMessages },

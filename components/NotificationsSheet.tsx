@@ -8,6 +8,7 @@ import {
   DollarSign,
   Inbox,
   Loader2,
+  MessageSquare,
   Receipt,
   SquareKanban,
 } from "lucide-react";
@@ -23,7 +24,7 @@ import { hapticImpact } from "@/lib/haptics";
 
 type Item = {
   id: string;
-  kind: "request" | "lead" | "booking" | "payment" | "invoice";
+  kind: "request" | "lead" | "booking" | "payment" | "invoice" | "message";
   title: string;
   sub: string;
   at: string;
@@ -40,6 +41,7 @@ const KIND_META: Record<Item["kind"], { icon: typeof Inbox; primary: boolean }> 
   booking: { icon: CalendarClock, primary: false },
   payment: { icon: DollarSign, primary: true },
   invoice: { icon: Receipt, primary: true },
+  message: { icon: MessageSquare, primary: false },
 };
 
 function ago(iso: string): string {

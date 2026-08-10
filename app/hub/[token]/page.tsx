@@ -259,6 +259,20 @@ export default async function HubHomePage({
           <Receipt size={18} className="text-gray-400" />
           <span className="text-sm font-medium text-gray-800">Your invoices</span>
         </Link>
+        <Link
+          href={`${base}/visits`}
+          className="flex items-center gap-3 card-ledger p-4 hover:shadow-sm transition-shadow"
+        >
+          <CalendarDays size={18} className="text-gray-400" />
+          <span className="text-sm font-medium text-gray-800">Your visits</span>
+        </Link>
+        <Link
+          href={`${base}/requests`}
+          className="flex items-center gap-3 card-ledger p-4 hover:shadow-sm transition-shadow"
+        >
+          <Inbox size={18} className="text-gray-400" />
+          <span className="text-sm font-medium text-gray-800">Your requests</span>
+        </Link>
       </div>
     </div>
   );
