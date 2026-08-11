@@ -1,0 +1,192 @@
+/**
+ * Route Manager read model — one day of field work as mappable stops.
+ *
+ * Coordinate resolution per job, cheapest first:
+ *   1. the linked property's stored pin (ContactAddress.lat/lng)
+ *   2. — if the property exists but was never geocoded, geocode it now and
+ *     persist onto the row so the next load is free
+ *   3. the job's free-text address snapshot via the global GeocodeCache
+ *   4. the contact's primary address via the cache
+ * Stops that still have no pin come back with lat/lng null — the UI lists
+ * them with a "no map pin" note instead of dropping them.
+ *
+ * Server TZ = company TZ (Railway TZ env), same convention as the schedule
+ * page and dashboard "today" queries, so day bounds are plain local Dates.
+ */
+
+import { prisma } from "@/lib/db";
+import { composeAddress, geocodeAddress, geocodingEnabled } from "@/lib/geocoding";
+import type { Actor } from "@/lib/permissions";
+import { canSell, jobScope } from "@/lib/permissions";
+
+export type RouteStop = {
+  id: string;
+  kind: "job" | "appointment";
+  jobNumber: number | null;
+  title: string;
+  status: string;
+  contactName: string;
+  address: string | null;
+  scheduledAt: string | null;
+  scheduledEnd: string | null;
+  scheduledAnytime: boolean;
+  assigneeIds: string[];
+  lat: number | null;
+  lng: number | null;
+};
+
+export type RouteDay = {
+  enabled: boolean;
+  start: { lat: number; lng: number; label: string } | null;
+  stops: RouteStop[];
+};
+
+export function parseRouteDate(s?: string | null): Date {
+  if (s) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+    if (m) {
+      const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+      if (!isNaN(d.getTime())) return d;
+    }
+  }
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return today;
+}
+
+export async function resolveRouteDay(actor: Actor, date: Date): Promise<RouteDay> {
+  const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const dayEnd = new Date(dayStart);
+  dayEnd.setDate(dayEnd.getDate() + 1);
+
+  const [company, jobs, appointments] = await Promise.all([
+    prisma.company.findUnique({
+      where: { id: actor.companyId },
+      select: { name: true, address: true, city: true, state: true, zip: true, lat: true, lng: true, geocodedAt: true },
+    }),
+    prisma.job.findMany({
+      where: {
+        companyId: actor.companyId,
+        ...jobScope(actor),
+        status: { not: "ARCHIVED" },
+        scheduledAt: { gte: dayStart, lt: dayEnd },
+      },
+      include: {
+        contact: { select: { firstName: true, lastName: true, address: true, city: true, state: true, zip: true } },
+        property: true,
+        assignments: { select: { userId: true } },
+      },
+      orderBy: { scheduledAt: "asc" },
+      take: 200,
+    }),
+    canSell(actor.role)
+      ? prisma.appointment.findMany({
+          where: {
+            companyId: actor.companyId,
+            status: "SCHEDULED",
+            scheduledAt: { gte: dayStart, lt: dayEnd },
+            address: { not: null },
+          },
+          include: {
+            contact: { select: { firstName: true, lastName: true } },
+            property: true,
+          },
+          orderBy: { scheduledAt: "asc" },
+          take: 100,
+        })
+      : Promise.resolve([]),
+  ]);
+
+  const stops: RouteStop[] = [];
+
+  for (const j of jobs) {
+    let lat: number | null = null;
+    let lng: number | null = null;
+
+    if (j.property?.lat != null && j.property?.lng != null) {
+      lat = j.property.lat;
+      lng = j.property.lng;
+    } else if (j.property && j.property.geocodedAt == null) {
+      // Property saved before geocoding existed — resolve once, keep forever
+      const hit = await geocodeAddress(composeAddress(j.property));
+      if (geocodingEnabled()) {
+        await prisma.contactAddress
+          .update({
+            where: { id: j.property.id },
+            data: { lat: hit?.lat ?? null, lng: hit?.lng ?? null, geocodedAt: new Date() },
+          })
+          .catch(() => {});
+      }
+      lat = hit?.lat ?? null;
+      lng = hit?.lng ?? null;
+    }
+    if (lat == null) {
+      const query = j.address?.trim() || composeAddress(j.contact);
+      const hit = query ? await geocodeAddress(query) : null;
+      lat = hit?.lat ?? null;
+      lng = hit?.lng ?? null;
+    }
+
+    stops.push({
+      id: j.id,
+      kind: "job",
+      jobNumber: j.jobNumber,
+      title: j.title,
+      status: j.status,
+      contactName: `${j.contact.firstName} ${j.contact.lastName}`.trim(),
+      address: j.address?.trim() || (j.property ? composeAddress(j.property) : composeAddress(j.contact)) || null,
+      scheduledAt: j.scheduledAt ? j.scheduledAt.toISOString() : null,
+      scheduledEnd: j.scheduledEnd ? j.scheduledEnd.toISOString() : null,
+      scheduledAnytime: j.scheduledAnytime,
+      assigneeIds: j.assignments.map((a) => a.userId),
+      lat,
+      lng,
+    });
+  }
+
+  for (const a of appointments) {
+    let lat = a.property?.lat ?? null;
+    let lng = a.property?.lng ?? null;
+    if (lat == null && a.address) {
+      const hit = await geocodeAddress(a.address);
+      lat = hit?.lat ?? null;
+      lng = hit?.lng ?? null;
+    }
+    stops.push({
+      id: a.id,
+      kind: "appointment",
+      jobNumber: null,
+      title: a.title,
+      status: a.status,
+      contactName: `${a.contact.firstName} ${a.contact.lastName}`.trim(),
+      address: a.address,
+      scheduledAt: a.scheduledAt.toISOString(),
+      scheduledEnd: a.scheduledEnd ? a.scheduledEnd.toISOString() : null,
+      scheduledAnytime: a.scheduledAnytime,
+      assigneeIds: a.assignedToId ? [a.assignedToId] : [],
+      lat,
+      lng,
+    });
+  }
+
+  // Shop pin: geocode lazily the first time a route view loads after the
+  // address exists (or after it changed — the settings PATCH clears the stamp).
+  let start: RouteDay["start"] = null;
+  if (company) {
+    let { lat, lng } = company;
+    if (lat == null && company.geocodedAt == null && company.address && geocodingEnabled()) {
+      const hit = await geocodeAddress(composeAddress(company));
+      await prisma.company
+        .update({
+          where: { id: actor.companyId },
+          data: { lat: hit?.lat ?? null, lng: hit?.lng ?? null, geocodedAt: new Date() },
+        })
+        .catch(() => {});
+      lat = hit?.lat ?? null;
+      lng = hit?.lng ?? null;
+    }
+    if (lat != null && lng != null) start = { lat, lng, label: company.name };
+  }
+
+  return { enabled: geocodingEnabled(), start, stops };
+}

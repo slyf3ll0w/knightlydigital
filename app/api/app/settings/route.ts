@@ -5,6 +5,7 @@ import { sanitizeBusinessHours, sanitizeServiceZips } from "@/lib/business-hours
 import { sanitizeDeposit } from "@/lib/deposits";
 import { SLOT_INTERVAL_CHOICES } from "@/lib/scheduling";
 import { getActor, isManager } from "@/lib/permissions";
+import { geocodeCompany } from "@/lib/geocoding";
 import { isWallpaper } from "@/lib/wallpapers";
 import { sanitizeSectionColors } from "@/lib/section-colors";
 
@@ -132,6 +133,17 @@ export async function PATCH(req: NextRequest) {
       bookingForm: body.bookingForm !== undefined ? sanitizeBookingForm(body.bookingForm) : undefined,
     },
   });
+
+  // Shop address changed → refresh the geocoded route start point
+  // (fire-and-forget; the Route Manager falls back to the first stop).
+  if (
+    body.address !== undefined ||
+    body.city !== undefined ||
+    body.state !== undefined ||
+    body.zip !== undefined
+  ) {
+    void geocodeCompany(companyId);
+  }
 
   return NextResponse.json({ success: true });
 }

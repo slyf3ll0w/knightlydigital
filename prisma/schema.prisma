@@ -19,6 +19,12 @@ model Company {
   city             String?
   state            String?
   zip              String?
+  // Geocoded shop location (lib/geocoding.ts) — the Route Manager's default
+  // start point for a tech's day. Refreshed when the address fields change;
+  // null until geocoded (or when geocoding is disabled/failed).
+  lat              Float?
+  lng              Float?
+  geocodedAt       DateTime?
   website          String?
   logoUrl          String? // display URL; points at /api/logo/[id] for uploaded logos
   logoData         Bytes? // uploaded logo bytes (small files only; move to R2 with job photos)
@@ -672,6 +678,12 @@ model ContactAddress {
   city      String?
   state     String?
   zip       String?
+  // Forward-geocoded pin for this property (lib/geocoding.ts) — what the
+  // Route Manager plots. Cleared whenever the address text changes; null =
+  // not geocoded yet, geocoding disabled, or the address didn't resolve.
+  lat        Float?
+  lng        Float?
+  geocodedAt DateTime?
   createdAt DateTime @default(now())
 
   // Work linked to this property (per-property history)
@@ -681,6 +693,21 @@ model ContactAddress {
   subscriptions Subscription[]
 
   @@index([contactId])
+}
+
+// Global forward-geocode cache — one row per normalized address string,
+// shared across tenants (a street address is not a tenant secret, and Mapbox
+// bills per lookup, so every company benefits from every hit). "ok" rows
+// carry coordinates; "failed" rows negative-cache strings that didn't
+// resolve so route loads don't re-spend quota retrying them.
+model GeocodeCache {
+  id        String   @id @default(cuid())
+  query     String   @unique // normalized: lowercased, whitespace-collapsed one-liner
+  lat       Float?
+  lng       Float?
+  status    String // "ok" | "failed"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // Other people who belong to the same client: a second decision-maker at a

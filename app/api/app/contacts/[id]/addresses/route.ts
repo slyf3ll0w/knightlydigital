@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, contactScope } from "@/lib/permissions";
+import { geocodeContactAddress } from "@/lib/geocoding";
 
 // Additional service addresses for a contact (the flat fields on Contact
 // stay the primary address; these are extras like rentals or a second shop).
@@ -36,6 +37,10 @@ export async function POST(
       zip: trimmed(body.zip, 20),
     },
   });
+
+  // Pin it for the Route Manager — fire-and-forget; a miss just means the
+  // route view resolves this property lazily on first load.
+  void geocodeContactAddress(created.id);
 
   return NextResponse.json({ success: true, address: created });
 }

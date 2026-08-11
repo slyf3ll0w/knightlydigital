@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, contactScope } from "@/lib/permissions";
 import type { Actor } from "@/lib/permissions";
+import { geocodeContactAddress } from "@/lib/geocoding";
 
 async function findScoped(actor: Actor, contactId: string, addressId: string) {
   return prisma.contactAddress.findFirst({
@@ -32,6 +33,12 @@ export async function PATCH(
   const address = body.address !== undefined ? String(body.address).trim().slice(0, 200) : undefined;
   if (address === "") return NextResponse.json({ error: "Street address is required." }, { status: 400 });
 
+  const addressChanged =
+    body.address !== undefined ||
+    body.city !== undefined ||
+    body.state !== undefined ||
+    body.zip !== undefined;
+
   const updated = await prisma.contactAddress.update({
     where: { id: addressId },
     data: {
@@ -40,8 +47,12 @@ export async function PATCH(
       city: body.city !== undefined ? trimmed(body.city, 100) : undefined,
       state: body.state !== undefined ? trimmed(body.state, 40) : undefined,
       zip: body.zip !== undefined ? trimmed(body.zip, 20) : undefined,
+      // Stale pin is worse than no pin — clear coords until the re-geocode lands
+      ...(addressChanged ? { lat: null, lng: null, geocodedAt: null } : {}),
     },
   });
+
+  if (addressChanged) void geocodeContactAddress(addressId);
 
   return NextResponse.json({ success: true, address: updated });
 }
