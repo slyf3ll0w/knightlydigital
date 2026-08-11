@@ -16,12 +16,10 @@ export const DOC_KIND = {
   quote: {
     label: "Quote",
     ink: "#15803D", // green-700 — matches the PDF doc-type ink
-    chip: "border-green-600/30 bg-green-600/[0.06] text-green-700",
   },
   invoice: {
     label: "Invoice",
     ink: "#0369A1", // sky-700
-    chip: "border-sky-600/30 bg-sky-600/[0.06] text-sky-700",
   },
 } as const;
 
@@ -56,11 +54,12 @@ export function cityLine(x: {
   return [cs, x.zip].filter(Boolean).join(" ");
 }
 
-/** The white sheet itself — everything document lives inside one of these. */
+/** The white sheet itself — every document lives inside one of these. The
+ *  generous padding mirrors the PDF's 48pt page margins. */
 export function PaperSheet({ children }: { children: React.ReactNode }) {
   return (
     <div className="card-ledger overflow-hidden bg-white shadow-sm">
-      <div className="px-5 py-6 sm:px-8 sm:py-8">{children}</div>
+      <div className="px-5 py-7 sm:px-11 sm:py-10">{children}</div>
     </div>
   );
 }
@@ -74,12 +73,18 @@ export function SectionLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
-/** Color-coded document tag — the at-a-glance quote/invoice differentiator. */
+/**
+ * Color-coded document type — the at-a-glance quote/invoice differentiator.
+ * Deliberately NOT a chip/badge: the PDF sets it as quiet letterspaced small
+ * caps over the number, and quiet type is the whole look. Only the ink color
+ * (green quote / sky invoice) carries the distinction.
+ */
 export function DocTypeTag({ kind }: { kind: DocKind }) {
   const meta = DOC_KIND[kind];
   return (
     <span
-      className={`inline-block rounded border px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.18em] ${meta.chip}`}
+      className="inline-block text-[10px] font-bold uppercase tracking-[0.24em]"
+      style={{ color: meta.ink }}
     >
       {meta.label}
     </span>
@@ -124,7 +129,9 @@ export function PaperHeader({
         </div>
         <div className="text-right">
           <DocTypeTag kind={kind} />
-          <p className="numeral-ledger mt-1 text-[26px] font-bold leading-none text-gray-900">
+          {/* Plain bold ink like the PDF's Helvetica — the app's ledger
+              numerals would break the "same paper" illusion here */}
+          <p className="mt-0.5 text-[26px] font-bold leading-none tracking-tight text-gray-900">
             #{docNumber}
           </p>
           <div className="mt-1.5 text-xs leading-relaxed text-gray-500">
@@ -134,7 +141,8 @@ export function PaperHeader({
           </div>
         </div>
       </div>
-      <div className="mt-4 h-[3px] rounded-full" style={{ backgroundColor: accent }} />
+      {/* Square-edged accent rule, exactly like the PDF's */}
+      <div className="mt-4 h-[3px]" style={{ backgroundColor: accent }} />
     </>
   );
 }

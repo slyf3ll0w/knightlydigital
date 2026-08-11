@@ -285,8 +285,8 @@ export default function PayPage({
                     <p className="text-sm font-semibold text-gray-900">
                       {li.name || li.description}
                       {li.recurringInterval && (
-                        <span className="ml-2 align-middle text-[10px] font-medium uppercase tracking-wide text-green-700">
-                          {RECURRING_LABEL[li.recurringInterval]}
+                        <span className="ml-1.5 text-xs font-normal text-gray-400">
+                          ({RECURRING_LABEL[li.recurringInterval].toLowerCase()})
                         </span>
                       )}
                     </p>
@@ -305,7 +305,7 @@ export default function PayPage({
                   <p className="hidden text-right text-sm text-gray-600 sm:block">
                     ${Number(li.unitPrice).toFixed(2)}
                   </p>
-                  <p className="text-right text-sm font-medium text-gray-900 max-sm:mt-1">
+                  <p className="text-right text-sm text-gray-900 max-sm:mt-1">
                     ${Number(li.total).toFixed(2)}
                   </p>
                 </div>
@@ -343,7 +343,7 @@ export default function PayPage({
                 style={{ borderTopColor: accent }}
               >
                 <span>Total</span>
-                <span className="numeral-ledger">${Number(invoice.total).toFixed(2)}</span>
+                <span>${Number(invoice.total).toFixed(2)}</span>
               </div>
               {paid > 0 && (
                 <div className="flex justify-between text-gray-500">
@@ -360,7 +360,7 @@ export default function PayPage({
               {(paid > 0 || surcharge > 0 || partial) && (
                 <div className="flex justify-between border-t border-gray-200 pt-1.5 text-base font-bold text-gray-900">
                   <span>{partial && amountValid ? "You're paying" : "Balance due"}</span>
-                  <span className="numeral-ledger">${chargeTotal.toFixed(2)}</span>
+                  <span>${chargeTotal.toFixed(2)}</span>
                 </div>
               )}
             </div>

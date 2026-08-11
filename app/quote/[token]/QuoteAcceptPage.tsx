@@ -278,8 +278,8 @@ export default function QuoteAcceptPage({
                         <p className="text-sm font-semibold text-gray-900">
                           {li.name || li.description}
                           {li.isOptional && (
-                            <span className="ml-2 align-middle text-[10px] font-medium uppercase tracking-wide text-gray-400">
-                              Optional
+                            <span className="ml-1.5 text-xs font-normal text-gray-400">
+                              {excluded ? "(optional — not included)" : "(optional)"}
                             </span>
                           )}
                         </p>
@@ -300,7 +300,7 @@ export default function QuoteAcceptPage({
                     <p className="hidden text-right text-sm text-gray-600 sm:block">
                       {money(Number(li.unitPrice))}
                     </p>
-                    <p className="text-right text-sm font-medium text-gray-900 max-sm:mt-1">
+                    <p className="text-right text-sm text-gray-900 max-sm:mt-1">
                       {excluded ? "—" : money(Number(li.total))}
                     </p>
                   </div>
@@ -342,12 +342,12 @@ export default function QuoteAcceptPage({
                 style={{ borderTopColor: accent }}
               >
                 <span>Total</span>
-                <span className="numeral-ledger">{money(total)}</span>
+                <span>{money(total)}</span>
               </div>
               {deposit > 0 && (
                 <div className="flex justify-between text-gray-500">
                   <span>Deposit due on approval</span>
-                  <span className="font-medium text-gray-700">{money(deposit)}</span>
+                  <span>{money(deposit)}</span>
                 </div>
               )}
             </div>
