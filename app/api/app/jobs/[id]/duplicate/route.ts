@@ -42,6 +42,7 @@ export async function POST(
           title: source.title,
           description: source.description,
           address: source.address,
+          propertyId: source.propertyId,
           leadSource: source.leadSource,
           status: "ACTIVE",
           lineItems: {

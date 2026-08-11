@@ -16,6 +16,7 @@ export default async function NewQuotePage({
     prisma.contact.findMany({
       where: { companyId, ...contactScope(actor), status: { in: ["LEAD", "ACTIVE"] } },
       orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+      include: { addresses: { orderBy: { createdAt: "asc" } } },
     }),
     prisma.workItem.findMany({
       where: { companyId, isActive: true },

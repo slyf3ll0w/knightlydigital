@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { MapPin, Plus, Pencil, Trash2, Loader2 } from "lucide-react";
+import Link from "next/link";
+import { MapPin, Plus, Pencil, Trash2, Loader2, ChevronDown, ChevronRight } from "lucide-react";
 import { confirmSheet } from "@/components/ConfirmSheet";
 
 type Addr = {
@@ -12,6 +13,14 @@ type Addr = {
   city: string | null;
   state: string | null;
   zip: string | null;
+};
+
+type HistoryRow = {
+  key: string;
+  kind: string; // "Job" | "Quote" | "Appointment"
+  title: string;
+  href: string;
+  date: string | null;
 };
 
 const EMPTY = { label: "", address: "", city: "", state: "", zip: "" };
@@ -29,13 +38,17 @@ export default function AddressesCard({
   contactId,
   primary,
   addresses,
+  history = {},
 }: {
   contactId: string;
   primary: string | null;
   addresses: Addr[];
+  /** Work linked to each saved address (per-property history), by address id */
+  history?: Record<string, HistoryRow[]>;
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState<string | "new" | null>(null);
+  const [openHistory, setOpenHistory] = useState<string | null>(null);
   const [form, setForm] = useState(EMPTY);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -139,31 +152,70 @@ export default function AddressesCard({
           <p className="text-xs text-gray-400">No addresses on file yet.</p>
         )}
 
-        {addresses.map((a) =>
-          editing === a.id ? null : (
-            <div key={a.id} className="flex items-start gap-2 text-sm group">
-              <MapPin size={14} className="text-gray-400 mt-0.5 shrink-0" />
-              <div className="min-w-0 flex-1">
-                <p className="text-gray-800">{line(a)}</p>
-                {a.label && <p className="text-[11px] text-gray-400">{a.label}</p>}
+        {addresses.map((a) => {
+          if (editing === a.id) return null;
+          const rows = history[a.id] ?? [];
+          const isOpen = openHistory === a.id;
+          return (
+            <div key={a.id}>
+              <div className="flex items-start gap-2 text-sm group">
+                <MapPin size={14} className="text-gray-400 mt-0.5 shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-gray-800">{line(a)}</p>
+                  <div className="flex items-center gap-2">
+                    {a.label && <p className="text-[11px] text-gray-400">{a.label}</p>}
+                    {rows.length > 0 && (
+                      <button
+                        onClick={() => setOpenHistory(isOpen ? null : a.id)}
+                        className="flex items-center gap-0.5 text-[11px] text-green-700 hover:underline"
+                      >
+                        {isOpen ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
+                        {rows.length} {rows.length === 1 ? "visit" : "visits"} here
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <button
+                  onClick={() => startEdit(a)}
+                  className="p-1 text-gray-300 hover:text-gray-600"
+                  title="Edit address"
+                >
+                  <Pencil size={13} />
+                </button>
+                <button
+                  onClick={() => remove(a.id)}
+                  className="p-1 text-gray-300 hover:text-red-600"
+                  title="Remove address"
+                >
+                  <Trash2 size={13} />
+                </button>
               </div>
-              <button
-                onClick={() => startEdit(a)}
-                className="p-1 text-gray-300 hover:text-gray-600"
-                title="Edit address"
-              >
-                <Pencil size={13} />
-              </button>
-              <button
-                onClick={() => remove(a.id)}
-                className="p-1 text-gray-300 hover:text-red-600"
-                title="Remove address"
-              >
-                <Trash2 size={13} />
-              </button>
+              {isOpen && (
+                <ul className="ml-6 mt-1 mb-1 space-y-0.5 border-l border-gray-100 pl-3">
+                  {rows.map((r) => (
+                    <li key={r.key} className="text-xs">
+                      <Link href={r.href} className="group/row flex items-baseline gap-1.5">
+                        <span className="text-gray-400 w-[4.5rem] shrink-0">{r.kind}</span>
+                        <span className="text-gray-700 truncate group-hover/row:underline">
+                          {r.title}
+                        </span>
+                        {r.date && (
+                          <span className="ml-auto shrink-0 text-gray-400">
+                            {new Date(r.date).toLocaleDateString("en-US", {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            })}
+                          </span>
+                        )}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
-          )
-        )}
+          );
+        })}
       </div>
 
       {editing !== null && (

@@ -415,6 +415,40 @@ export default async function ContactDetailPage({
               state: a.state,
               zip: a.zip,
             }))}
+            history={Object.fromEntries(
+              contact.addresses.map((a) => [
+                a.id,
+                [
+                  ...contact.jobs
+                    .filter((j) => j.propertyId === a.id)
+                    .map((j) => ({
+                      key: `j-${j.id}`,
+                      kind: "Job",
+                      title: j.title,
+                      href: `/app/jobs/${j.id}`,
+                      date: (j.scheduledAt ?? j.createdAt).toISOString(),
+                    })),
+                  ...contact.quotes
+                    .filter((q) => q.propertyId === a.id)
+                    .map((q) => ({
+                      key: `q-${q.id}`,
+                      kind: "Quote",
+                      title: q.title || `Quote #${q.quoteNumber}`,
+                      href: `/app/quotes/${q.id}`,
+                      date: q.createdAt.toISOString(),
+                    })),
+                  ...contact.appointments
+                    .filter((ap) => ap.propertyId === a.id)
+                    .map((ap) => ({
+                      key: `a-${ap.id}`,
+                      kind: "Appointment",
+                      title: ap.title,
+                      href: `/app/appointments/${ap.id}`,
+                      date: ap.scheduledAt.toISOString(),
+                    })),
+                ].sort((x, y) => (y.date ?? "").localeCompare(x.date ?? "")),
+              ])
+            )}
           />
 
           <PeopleCard

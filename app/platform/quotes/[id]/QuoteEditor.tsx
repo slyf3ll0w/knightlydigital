@@ -8,7 +8,19 @@ import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import WorkItemPicker, { type PickerWorkItem } from "@/components/WorkItemPicker";
 import ContactPicker from "@/components/ContactPicker";
 
-type Contact = { id: string; firstName: string; lastName: string };
+type Contact = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  addresses?: {
+    id: string;
+    label: string | null;
+    address: string;
+    city: string | null;
+    state: string | null;
+    zip: string | null;
+  }[];
+};
 
 type LineItem = {
   name: string;
@@ -37,6 +49,7 @@ const emptyLine: LineItem = {
 export type ExistingQuote = {
   id: string;
   contactId: string;
+  propertyId?: string;
   title: string;
   taxRate: number | null; // fraction (0.0825)
   discountType: "NONE" | "PERCENT" | "FIXED";
@@ -80,6 +93,7 @@ export default function QuoteEditor({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [contactId, setContactId] = useState(existingQuote?.contactId ?? prefilledContactId);
+  const [propertyId, setPropertyId] = useState(existingQuote?.propertyId ?? "");
   const [title, setTitle] = useState(existingQuote?.title ?? requestTitle);
   const [taxRate, setTaxRate] = useState(
     existingQuote?.taxRate ? String(Math.round(existingQuote.taxRate * 100000) / 1000) : ""
@@ -197,6 +211,7 @@ export default function QuoteEditor({
     const payload = {
       contactId,
       requestId: requestId || null,
+      propertyId: propertyId || null,
       title: title || null,
       taxRate: taxRate ? parseFloat(taxRate) / 100 : null,
       discountType,
@@ -274,11 +289,40 @@ export default function QuoteEditor({
             <ContactPicker
               contacts={contacts}
               value={contactId}
-              onChange={setContactId}
+              onChange={(id) => {
+                setContactId(id);
+                setPropertyId("");
+              }}
               disabled={editing}
               className="w-full sm:max-w-xs"
             />
           </div>
+          {(() => {
+            // Multi-property clients pick which service address this quote is
+            // for — converting it lands the job at that property
+            const saved = contacts.find((c) => c.id === contactId)?.addresses ?? [];
+            if (saved.length === 0) return null;
+            return (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Service address
+                </label>
+                <select
+                  value={propertyId}
+                  onChange={(e) => setPropertyId(e.target.value)}
+                  className="w-full sm:max-w-xs px-3 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+                >
+                  <option value="">Primary address</option>
+                  {saved.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.label ? `${a.label}: ` : ""}
+                      {[a.address, a.city, a.state, a.zip].filter(Boolean).join(", ")}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            );
+          })()}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
             <input

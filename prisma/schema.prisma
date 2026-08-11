@@ -648,6 +648,11 @@ model ContactAddress {
   zip       String?
   createdAt DateTime @default(now())
 
+  // Work linked to this property (per-property history)
+  jobs         Job[]
+  appointments Appointment[]
+  quotes       Quote[]
+
   @@index([contactId])
 }
 
@@ -964,6 +969,9 @@ model Appointment {
   // (cancels the appointment). Internal creates are never tentative.
   tentative        Boolean  @default(false)
   address          String? // required for IN_PERSON (API-enforced)
+  // Saved service address this appointment is at (see Job.propertyId)
+  propertyId       String?
+  property         ContactAddress? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
   meetingLink      String? // optional pasted URL for VIDEO_CALL
   notes            String?
   completedAt      DateTime?
@@ -1043,6 +1051,11 @@ model Job {
   completedAt  DateTime?
   closedAt     DateTime?
   address      String?
+  // Which saved service address (property) this job is at. The address string
+  // above stays the display/search snapshot; this id is the grouping key for
+  // per-property history. Null = the contact's primary address or free text.
+  propertyId   String?
+  property     ContactAddress? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
   // Last time a tech sent the client an "on my way" text (from their own phone)
   onMyWaySentAt DateTime?
   // On-site completion sign-off: the client types their name on the tech's
@@ -1259,6 +1272,10 @@ model Quote {
   request       Request?    @relation(fields: [requestId], references: [id])
   jobId         String?     @unique // set when this quote is converted into a job
   job           Job?        @relation(fields: [jobId], references: [id])
+  // Saved service address this quote is for — carried onto the job at
+  // convert time so multi-property clients keep the right property
+  propertyId    String?
+  property      ContactAddress? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
   quoteNumber   Int
   title         String?
   // Discount applies to the subtotal before tax; carries to the invoice

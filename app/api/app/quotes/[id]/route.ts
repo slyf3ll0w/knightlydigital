@@ -49,6 +49,18 @@ export async function PATCH(
     return NextResponse.json({ error: "Invalid status." }, { status: 400 });
   }
 
+  // Saved service address link — validated against the quote's contact.
+  // Only applied on full edits (the editor always sends it there).
+  const propertyId =
+    typeof body.propertyId === "string" && body.propertyId
+      ? (
+          await prisma.contactAddress.findFirst({
+            where: { id: body.propertyId, contactId: quote.contactId },
+            select: { id: true },
+          })
+        )?.id ?? null
+      : null;
+
   // Transition guard: client sign-off can't be quietly rewound. Approved
   // quotes only move to ARCHIVED (or CONVERTED via the convert route);
   // converted quotes never change status here.
@@ -122,6 +134,7 @@ export async function PATCH(
         where: { id: quote.id },
         data: {
           title: body.title || null,
+          ...(body.propertyId !== undefined && { propertyId }),
           subtotal,
           discountType,
           discountValue: discount > 0 ? discountValue : null,

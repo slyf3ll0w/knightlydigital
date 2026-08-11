@@ -45,6 +45,15 @@ export async function POST(req: NextRequest) {
     if (!request) return NextResponse.json({ error: "Request not found." }, { status: 404 });
   }
 
+  // Saved service address link — must be one of this contact's addresses
+  const property =
+    typeof body.propertyId === "string" && body.propertyId
+      ? await prisma.contactAddress.findFirst({
+          where: { id: body.propertyId, contactId },
+          select: { id: true },
+        })
+      : null;
+
   // Assignee defaults to whoever books it; managers may pick someone else
   let assignedToId = actor.id;
   if (isManager(actor.role) && body.assignedToId) {
@@ -82,6 +91,7 @@ export async function POST(req: NextRequest) {
       scheduledEnd: end,
       scheduledAnytime: anytime,
       address: type === "IN_PERSON" ? address.trim().slice(0, 300) : null,
+      propertyId: type === "IN_PERSON" ? (property?.id ?? null) : null,
       meetingLink: type === "VIDEO_CALL" && meetingLink?.trim() ? meetingLink.trim().slice(0, 500) : null,
       notes: notes?.trim() ? notes.trim().slice(0, 2000) : null,
       // Automatic client reminders default on; the form can opt one out

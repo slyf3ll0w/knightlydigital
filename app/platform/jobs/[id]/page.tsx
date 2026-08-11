@@ -45,6 +45,7 @@ export default async function JobDetailPage({
       include: {
         contact: true,
         request: true,
+        property: { select: { label: true } },
         assignments: { include: { user: true } },
         notes: { include: { user: true }, orderBy: { createdAt: "asc" } },
         photos: { orderBy: { createdAt: "asc" } },
@@ -321,7 +322,12 @@ export default async function JobDetailPage({
               {job.address && (
                 <div className="flex items-start gap-3">
                   <MapPin size={15} className="text-gray-400 mt-0.5 shrink-0" />
-                  <p className="text-sm text-gray-800">{job.address}</p>
+                  <div>
+                    <p className="text-sm text-gray-800">{job.address}</p>
+                    {job.property?.label && (
+                      <p className="text-xs text-gray-400">{job.property.label}</p>
+                    )}
+                  </div>
                 </div>
               )}
               {job.assignments.length > 0 && (

@@ -25,6 +25,7 @@ export async function POST(
     include: {
       lineItems: { orderBy: { sortOrder: "asc" } },
       contact: true,
+      property: true,
       contracts: { select: { status: true } },
     },
   });
@@ -78,7 +79,14 @@ export async function POST(
         jobNumber: (last?.jobNumber ?? 0) + 1,
         title: quote.title || `Job for ${quote.contact.firstName} ${quote.contact.lastName}`,
         leadSource: quote.contact.leadSource,
-        address: quote.contact.address,
+        // Quotes for a saved service address land the job AT that property —
+        // before this, every converted job fell back to the primary address
+        address: quote.property
+          ? [quote.property.address, quote.property.city, quote.property.state, quote.property.zip]
+              .filter(Boolean)
+              .join(", ")
+          : quote.contact.address,
+        propertyId: quote.propertyId,
         lineItems: {
           create: quote.lineItems
             .filter((li) => !(li.isOptional && li.optedOut))

@@ -59,6 +59,16 @@ export async function POST(req: NextRequest) {
     if (!request) return NextResponse.json({ error: "Request not found." }, { status: 404 });
   }
 
+  // Saved service address (property) — must belong to this contact; carried
+  // onto the job at convert time so multi-property clients group correctly
+  const property =
+    typeof body.propertyId === "string" && body.propertyId
+      ? await prisma.contactAddress.findFirst({
+          where: { id: body.propertyId, contactId },
+          select: { id: true },
+        })
+      : null;
+
   // Hand-typed line items matching a price-book name inherit its cost so
   // profit margins stay honest (picker-selected items already carry it)
   type QuoteLineInput = {
@@ -107,6 +117,7 @@ export async function POST(req: NextRequest) {
         companyId,
         contactId,
         requestId: requestId || null,
+        propertyId: property?.id ?? null,
         publicToken: randomBytes(24).toString("hex"),
         quoteNumber: (last?.quoteNumber ?? 0) + 1,
         title: title || null,

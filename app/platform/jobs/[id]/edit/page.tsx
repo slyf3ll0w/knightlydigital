@@ -18,7 +18,17 @@ export default async function EditJobPage({
     prisma.job.findFirst({
       where: { id, companyId, ...jobScope(actor) },
       include: {
-        contact: { select: { firstName: true, lastName: true } },
+        contact: {
+          select: {
+            firstName: true,
+            lastName: true,
+            address: true,
+            city: true,
+            state: true,
+            zip: true,
+            addresses: { orderBy: { createdAt: "asc" } },
+          },
+        },
         lineItems: { orderBy: { sortOrder: "asc" } },
       },
     }),
@@ -40,8 +50,23 @@ export default async function EditJobPage({
         title: job.title,
         description: job.description ?? "",
         address: job.address ?? "",
+        propertyId: job.propertyId ?? "",
         leadSource: job.leadSource ?? "",
         contactName: `${job.contact.firstName} ${job.contact.lastName}`,
+        contactAddress: {
+          address: job.contact.address,
+          city: job.contact.city,
+          state: job.contact.state,
+          zip: job.contact.zip,
+        },
+        savedAddresses: job.contact.addresses.map((a) => ({
+          id: a.id,
+          label: a.label,
+          address: a.address,
+          city: a.city,
+          state: a.state,
+          zip: a.zip,
+        })),
         lineItems: job.lineItems.map((li) => ({
           name: li.name,
           description: li.description ?? "",

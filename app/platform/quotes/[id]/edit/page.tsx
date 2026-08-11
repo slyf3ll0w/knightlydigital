@@ -20,6 +20,7 @@ export default async function EditQuotePage({
     prisma.contact.findMany({
       where: { companyId, ...contactScope(actor) },
       orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+      include: { addresses: { orderBy: { createdAt: "asc" } } },
     }),
     prisma.workItem.findMany({
       where: { companyId, isActive: true },
@@ -41,6 +42,7 @@ export default async function EditQuotePage({
       existingQuote={{
         id: quote.id,
         contactId: quote.contactId,
+        propertyId: quote.propertyId ?? "",
         title: quote.title ?? "",
         taxRate: quote.taxRate ? Number(quote.taxRate) : null,
         discountType: quote.discountType as "NONE" | "PERCENT" | "FIXED",

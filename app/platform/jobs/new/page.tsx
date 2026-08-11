@@ -57,6 +57,7 @@ function NewJobForm() {
     scheduledAt: "",
     scheduledEnd: "",
     address: "",
+    propertyId: "", // ContactAddress id when a saved extra address is picked
   });
 
   useEffect(() => {
@@ -83,7 +84,7 @@ function NewJobForm() {
   useEffect(() => {
     if (form.contactId) {
       const c = contacts.find((c) => c.id === form.contactId);
-      if (c?.address) set("address", c.address);
+      setForm((f) => ({ ...f, propertyId: "", ...(c?.address ? { address: c.address } : {}) }));
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.contactId, contacts]);
@@ -289,13 +290,22 @@ function NewJobForm() {
               <select
                 value=""
                 onChange={(e) => {
-                  if (e.target.value) set("address", e.target.value);
+                  const choice = addressChoices.find((a) => a.key === e.target.value);
+                  if (choice) {
+                    // Saved EXTRA addresses link the job to that property so
+                    // its history groups; the primary stays an unlinked string
+                    setForm((f) => ({
+                      ...f,
+                      address: choice.line,
+                      propertyId: choice.key === "primary" ? "" : choice.key,
+                    }));
+                  }
                 }}
                 className="w-full mb-2 px-3 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-green-500"
               >
                 <option value="">Pick a saved address...</option>
                 {addressChoices.map((a) => (
-                  <option key={a.key} value={a.line}>
+                  <option key={a.key} value={a.key}>
                     {a.label}: {a.line}
                   </option>
                 ))}
@@ -304,7 +314,10 @@ function NewJobForm() {
             <input
               type="text"
               value={form.address}
-              onChange={(e) => set("address", e.target.value)}
+              onChange={(e) =>
+                // Typing a custom address breaks the saved-property link
+                setForm((f) => ({ ...f, address: e.target.value, propertyId: "" }))
+              }
               className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               placeholder="Defaults to customer address"
             />

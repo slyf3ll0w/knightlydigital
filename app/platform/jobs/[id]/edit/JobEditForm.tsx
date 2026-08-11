@@ -25,13 +25,25 @@ const emptyLine: LineItem = {
   recurringInterval: null,
 };
 
+type SavedAddress = {
+  id: string;
+  label: string | null;
+  address: string;
+  city: string | null;
+  state: string | null;
+  zip: string | null;
+};
+
 export type EditJob = {
   id: string;
   title: string;
   description: string;
   address: string;
+  propertyId: string;
   leadSource: string;
   contactName: string;
+  contactAddress: { address: string | null; city: string | null; state: string | null; zip: string | null };
+  savedAddresses: SavedAddress[];
   lineItems: {
     name: string;
     description: string;
@@ -55,7 +67,23 @@ export default function JobEditForm({
   const [title, setTitle] = useState(job.title);
   const [description, setDescription] = useState(job.description);
   const [address, setAddress] = useState(job.address);
+  const [propertyId, setPropertyId] = useState(job.propertyId);
   const [leadSource, setLeadSource] = useState(job.leadSource);
+
+  // Saved-address quick pick — same convention as the new-job form: picking a
+  // saved EXTRA address links the job to that property for history grouping
+  const joinLine = (a: { address: string | null; city: string | null; state: string | null; zip: string | null }) =>
+    [a.address, a.city, a.state, a.zip].filter(Boolean).join(", ");
+  const addressChoices = [
+    ...(job.contactAddress.address
+      ? [{ key: "primary", label: "Primary", line: joinLine(job.contactAddress) }]
+      : []),
+    ...job.savedAddresses.map((a) => ({
+      key: a.id,
+      label: a.label || "Additional",
+      line: joinLine(a),
+    })),
+  ];
   const [lineItems, setLineItems] = useState<LineItem[]>(
     job.lineItems.map((li) => ({
       name: li.name,
@@ -117,6 +145,7 @@ export default function JobEditForm({
         title: title.trim(),
         description,
         address,
+        propertyId,
         leadSource,
         lineItems: lineItems
           .filter((li) => li.name.trim())
@@ -193,10 +222,34 @@ export default function JobEditForm({
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Job site address</label>
+            {addressChoices.length > 1 && (
+              <select
+                value=""
+                onChange={(e) => {
+                  const choice = addressChoices.find((a) => a.key === e.target.value);
+                  if (choice) {
+                    setAddress(choice.line);
+                    setPropertyId(choice.key === "primary" ? "" : choice.key);
+                  }
+                }}
+                className="w-full mb-2 px-3 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-green-500"
+              >
+                <option value="">Pick a saved address...</option>
+                {addressChoices.map((a) => (
+                  <option key={a.key} value={a.key}>
+                    {a.label}: {a.line}
+                  </option>
+                ))}
+              </select>
+            )}
             <input
               type="text"
               value={address}
-              onChange={(e) => setAddress(e.target.value)}
+              onChange={(e) => {
+                // Typing a custom address breaks the saved-property link
+                setAddress(e.target.value);
+                setPropertyId("");
+              }}
               className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
             />
           </div>

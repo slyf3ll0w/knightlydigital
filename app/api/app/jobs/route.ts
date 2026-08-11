@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
   const companyId = actor.companyId;
 
   const body = await req.json();
-  const { contactId, requestId, title, description, scheduledAt, scheduledEnd, scheduledAnytime, address, leadSource } = body;
+  const { contactId, requestId, title, description, scheduledAt, scheduledEnd, scheduledAnytime, address, leadSource, propertyId } = body;
   // Optional up-front crew assignment — only users in this company count
   const assigneeIds: string[] = Array.isArray(body.assigneeIds)
     ? body.assigneeIds.filter((v: unknown): v is string => typeof v === "string")
@@ -52,6 +52,16 @@ export async function POST(req: NextRequest) {
     const request = await prisma.request.findFirst({ where: { id: requestId, companyId } });
     if (!request) return NextResponse.json({ error: "Request not found." }, { status: 404 });
   }
+
+  // Saved service address (property): must belong to this contact. The
+  // property's address becomes the job-site snapshot unless one was typed.
+  const property =
+    typeof propertyId === "string" && propertyId
+      ? await prisma.contactAddress.findFirst({ where: { id: propertyId, contactId } })
+      : null;
+  const propertyLine = property
+    ? [property.address, property.city, property.state, property.zip].filter(Boolean).join(", ")
+    : null;
 
   const validAssignees =
     assigneeIds.length > 0
@@ -80,7 +90,8 @@ export async function POST(req: NextRequest) {
         scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
         scheduledEnd: scheduledEnd ? new Date(scheduledEnd) : null,
         scheduledAnytime: Boolean(scheduledAnytime),
-        address: address || contact.address || null,
+        address: address || propertyLine || contact.address || null,
+        propertyId: property?.id ?? null,
         ...(validAssignees.length > 0 && {
           assignments: { create: validAssignees.map((u) => ({ userId: u.id })) },
         }),

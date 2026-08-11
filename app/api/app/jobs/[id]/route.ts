@@ -20,9 +20,24 @@ export async function PATCH(
 
   const job = await prisma.job.findFirst({
     where: { id, companyId: actor.companyId, ...jobScope(actor) },
-    select: { id: true },
+    select: { id: true, contactId: true },
   });
   if (!job) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  // Saved service address link: "" clears it, an id must be one of this
+  // contact's saved addresses (else the link is silently dropped)
+  let propertyPatch: { propertyId: string | null } | null = null;
+  if (fullEdit && body.propertyId !== undefined) {
+    if (typeof body.propertyId === "string" && body.propertyId) {
+      const property = await prisma.contactAddress.findFirst({
+        where: { id: body.propertyId, contactId: job.contactId },
+        select: { id: true },
+      });
+      propertyPatch = { propertyId: property?.id ?? null };
+    } else {
+      propertyPatch = { propertyId: null };
+    }
+  }
 
   const validStatuses = ["ACTIVE", "REQUIRES_INVOICING", "ARCHIVED"];
   const data = {
@@ -32,6 +47,7 @@ export async function PATCH(
       ...(body.status && validStatuses.includes(body.status) && { status: body.status }),
       ...(body.address !== undefined && { address: body.address }),
       ...(body.leadSource !== undefined && { leadSource: body.leadSource || null }),
+      ...(propertyPatch ?? {}),
     }),
     ...(body.scheduledAt !== undefined && { scheduledAt: body.scheduledAt ? new Date(body.scheduledAt) : null }),
     ...(body.scheduledEnd !== undefined && { scheduledEnd: body.scheduledEnd ? new Date(body.scheduledEnd) : null }),

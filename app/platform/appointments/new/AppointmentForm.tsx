@@ -77,6 +77,7 @@ export default function AppointmentForm({
   const [anytime, setAnytime] = useState(false);
   const [address, setAddress] = useState("");
   const [addressTouched, setAddressTouched] = useState(false);
+  const [propertyId, setPropertyId] = useState(""); // saved-extra-address link
   const [meetingLink, setMeetingLink] = useState("");
   const [assignedToId, setAssignedToId] = useState(actorId);
   const [notes, setNotes] = useState("");
@@ -90,6 +91,7 @@ export default function AppointmentForm({
   function pickContact(id: string) {
     setContactId(id);
     if (!addressTouched) setAddress("");
+    setPropertyId("");
   }
 
   function pickStart(v: string) {
@@ -120,6 +122,7 @@ export default function AppointmentForm({
       scheduledEnd: anytime ? null : localInputToISO(end),
       scheduledAnytime: anytime,
       address: type === "IN_PERSON" ? effectiveAddress : null,
+      propertyId: type === "IN_PERSON" ? propertyId || null : null,
       meetingLink: type === "VIDEO_CALL" ? meetingLink : null,
       assignedToId,
       notes,
@@ -201,20 +204,28 @@ export default function AppointmentForm({
                   onChange={(e) => {
                     if (!e.target.value) return;
                     setAddressTouched(true);
-                    setAddress(e.target.value);
+                    if (e.target.value === "primary") {
+                      setAddress(contactAddress(selectedContact));
+                      setPropertyId("");
+                      return;
+                    }
+                    const a = selectedContact?.addresses?.find((x) => x.id === e.target.value);
+                    if (a) {
+                      // Saved extras link the appointment to that property
+                      setAddress([a.address, a.city, a.state, a.zip].filter(Boolean).join(", "));
+                      setPropertyId(a.id);
+                    }
                   }}
                   className={`${inputCls} mb-2 text-gray-600`}
                 >
                   <option value="">Pick a saved address...</option>
                   {contactAddress(selectedContact) && (
-                    <option value={contactAddress(selectedContact)}>
-                      Primary: {contactAddress(selectedContact)}
-                    </option>
+                    <option value="primary">Primary: {contactAddress(selectedContact)}</option>
                   )}
                   {selectedContact!.addresses!.map((a) => {
                     const l = [a.address, a.city, a.state, a.zip].filter(Boolean).join(", ");
                     return (
-                      <option key={a.id} value={l}>
+                      <option key={a.id} value={a.id}>
                         {a.label || "Additional"}: {l}
                       </option>
                     );
@@ -226,6 +237,7 @@ export default function AppointmentForm({
                 onChange={(e) => {
                   setAddressTouched(true);
                   setAddress(e.target.value);
+                  setPropertyId(""); // typing a custom address breaks the link
                 }}
                 placeholder="Defaults to the client's address"
                 className={inputCls}
