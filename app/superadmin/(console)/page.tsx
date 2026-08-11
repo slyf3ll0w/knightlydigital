@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { PLATFORM_COMPANY_ID, usageDay } from "@/lib/usage";
+import { mapboxMonthUsage } from "@/lib/mapbox-budget";
 import {
   platformPricingConfirmed,
   storageCostCentsPerMonth,
@@ -34,7 +35,7 @@ export default async function SuperadminDashboard({
   const sinceDate = new Date(Date.now() - days * 86400000);
   const sinceDay = usageDay(sinceDate);
 
-  const [companies, usage, latestStorage, payments, processed, snapshots] = await Promise.all([
+  const [companies, usage, latestStorage, payments, processed, snapshots, mapbox] = await Promise.all([
     prisma.company.findMany({
       select: {
         id: true,
@@ -87,6 +88,10 @@ export default async function SuperadminDashboard({
       where: { month: { gte: sinceDay.slice(0, 7) } },
       select: { finixMerchantId: true, residualCents: true },
     }),
+    // Month-to-date Mapbox spend vs. the free-tier kill-switch caps — always
+    // the calendar month regardless of the range picker, because that's the
+    // window Mapbox bills (and the window lib/mapbox-budget.ts gates on).
+    mapboxMonthUsage(),
   ]);
 
   const usageBy = new Map(usage.map((u) => [u.companyId, u._sum]));
@@ -319,6 +324,26 @@ export default async function SuperadminDashboard({
         </table>
       </div>
 
+      <p className="text-xs text-gray-400">
+        Mapbox (Routes), this calendar month:{" "}
+        <span
+          className={
+            mapbox.geocodeCalls >= mapbox.geocodeCap * 0.8 ? "font-semibold text-amber-600" : ""
+          }
+        >
+          {compact(mapbox.geocodeCalls)} / {compact(mapbox.geocodeCap)} geocodes
+        </span>
+        {" · "}
+        <span
+          className={
+            mapbox.matrixElements >= mapbox.matrixCap * 0.8 ? "font-semibold text-amber-600" : ""
+          }
+        >
+          {compact(mapbox.matrixElements)} / {compact(mapbox.matrixCap)} matrix elements
+        </span>
+        . At a cap the Route Manager falls back to estimates for the rest of the month — the free
+        tier is never exceeded, so cost stays $0.
+      </p>
       <p className="text-xs text-gray-400">
         Platform overhead (unattributed emails/AI — password resets, portal logins):{" "}
         {usd(Math.round(platformCost * 100) / 100)} in this range. Collected = every payment the

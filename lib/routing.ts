@@ -15,6 +15,9 @@
  *    is instant and within a few percent of optimal.
  */
 
+import { matrixBudgetOk } from "@/lib/mapbox-budget";
+import { recordMatrixCall } from "@/lib/usage";
+
 const MAPBOX_TOKEN = process.env.MAPBOX_TOKEN;
 
 export type RoutePoint = { lat: number; lng: number };
@@ -50,9 +53,16 @@ function haversineMatrix(points: RoutePoint[]): number[][] {
  * Pairwise drive-time matrix in minutes. Never throws — worst case is the
  * haversine estimate.
  */
-export async function driveTimeMatrix(points: RoutePoint[]): Promise<number[][]> {
+export async function driveTimeMatrix(
+  points: RoutePoint[],
+  /** Tenant to meter the (platform-billed) matrix call against. */
+  companyId?: string | null
+): Promise<number[][]> {
   if (points.length < 2) return points.map(() => points.map(() => 0));
   if (!MAPBOX_TOKEN || points.length > 25) return haversineMatrix(points);
+  // Free-tier kill switch (lib/mapbox-budget.ts) — over the monthly element
+  // cap the optimizer silently runs on the haversine estimate instead.
+  if (!(await matrixBudgetOk(points.length * points.length))) return haversineMatrix(points);
 
   try {
     const coords = points.map((p) => `${p.lng},${p.lat}`).join(";");
@@ -60,6 +70,7 @@ export async function driveTimeMatrix(points: RoutePoint[]): Promise<number[][]>
       `https://api.mapbox.com/directions-matrix/v1/mapbox/driving/${coords}` +
       `?annotations=duration&access_token=${MAPBOX_TOKEN}`;
     const res = await fetch(url);
+    recordMatrixCall(companyId, points.length * points.length);
     if (!res.ok) {
       console.error("[routing] mapbox matrix failed:", res.status, await res.text());
       return haversineMatrix(points);

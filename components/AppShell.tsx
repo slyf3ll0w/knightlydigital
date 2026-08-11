@@ -27,6 +27,7 @@ import {
   Tag,
   FileSignature,
   Repeat,
+  Route as RouteGlyph,
   ChevronsUpDown,
   CircleUserRound,
   LifeBuoy,
@@ -143,6 +144,7 @@ const navGroups: { label?: string; items: NavItem[] }[] = [
     items: [
       { href: "/app/dashboard", label: "Home", icon: Home },
       { href: "/app/schedule", label: "Schedule", icon: CalendarDays },
+      { href: "/app/schedule/map", label: "Routes", icon: RouteGlyph },
     ],
   },
   {
@@ -207,6 +209,7 @@ const createTints: Record<string, string> = {
 // keep the tenant's brand accent) — everything with an entity gets its hue.
 const sectionTints: Record<string, string> = {
   "/app/schedule": SECTION_HUES.schedule,
+  "/app/schedule/map": SECTION_HUES.schedule,
   "/app/contacts": SECTION_HUES.clients,
   "/app/requests": SECTION_HUES.requests,
   "/app/leads": SECTION_HUES.leads,
@@ -883,6 +886,10 @@ export default function AppShell({
 
   function isActive(href: string) {
     if (href === "/app/dashboard") return pathname === href;
+    // Routes (/app/schedule/map) has its own nav item — don't light Schedule
+    if (href === "/app/schedule") {
+      return pathname.startsWith(href) && !pathname.startsWith("/app/schedule/map");
+    }
     // Booking Form / Team / Services / Contracts / My Profile live under
     // /app/settings/ but have their own nav items
     if (href === "/app/settings") {

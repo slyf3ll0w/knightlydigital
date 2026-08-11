@@ -18,6 +18,24 @@ if (!TOKEN) {
   process.exit(1);
 }
 
+// Spend guard: every API call is metered into CompanyUsageDaily (the same
+// counter the app's monthly kill switch sums), and one run won't send more
+// than MAX_API_CALLS requests (override: BACKFILL_MAX_LOOKUPS env).
+const MAX_API_CALLS = Number(process.env.BACKFILL_MAX_LOOKUPS) || 5000;
+let apiCalls = 0;
+
+async function meter() {
+  apiCalls++;
+  const day = new Date().toISOString().slice(0, 10);
+  try {
+    await prisma.companyUsageDaily.upsert({
+      where: { companyId_day: { companyId: "platform", day } },
+      create: { companyId: "platform", day, geocodeCalls: 1 },
+      update: { geocodeCalls: { increment: 1 } },
+    });
+  } catch {}
+}
+
 const normalize = (q) =>
   q.toLowerCase().replace(/[.#]/g, "").replace(/\s+/g, " ").trim().slice(0, 300);
 
@@ -35,12 +53,18 @@ async function lookup(query) {
     return cached.status === "ok" && cached.lat != null ? { lat: cached.lat, lng: cached.lng } : null;
   }
 
+  if (apiCalls >= MAX_API_CALLS) {
+    console.error(`Reached the per-run lookup limit (${MAX_API_CALLS}) — re-run to continue.`);
+    process.exit(0);
+  }
+
   await sleep(150); // stay well under Mapbox's rate limit
   let result = null;
   try {
     const res = await fetch(
       `https://api.mapbox.com/search/geocode/v6/forward?q=${encodeURIComponent(key)}&limit=1&access_token=${TOKEN}`
     );
+    await meter();
     if (!res.ok) {
       console.error(`  ! mapbox ${res.status} for "${key}"`);
       if (res.status === 401 || res.status === 403) process.exit(1); // bad token — stop

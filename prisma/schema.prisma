@@ -1666,6 +1666,11 @@ model CompanyUsageDaily {
   emailsSent     Int      @default(0)
   smsSent        Int      @default(0)
   smsSegments    Int      @default(0)
+  // Mapbox spend guards (lib/mapbox-budget.ts): API lookups + matrix cells
+  // actually sent to Mapbox (cache hits cost nothing and aren't counted).
+  // The month-to-date platform-wide sum is the free-tier kill switch.
+  geocodeCalls   Int      @default(0)
+  matrixElements Int      @default(0)
   storageBytes   BigInt? // nightly snapshot (photos + logos + avatars), not a counter
   updatedAt      DateTime @updatedAt
 

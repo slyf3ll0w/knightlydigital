@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
     ...current.map((s) => ({ lat: s.lat!, lng: s.lng! })),
   ];
   const offset = hasStart ? 1 : 0;
-  const matrix = await driveTimeMatrix(points);
+  const matrix = await driveTimeMatrix(points, actor.companyId);
 
   const currentOrder = current.map((_, i) => i + offset);
   const currentPath = hasStart ? [0, ...currentOrder] : currentOrder;

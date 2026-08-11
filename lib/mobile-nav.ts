@@ -38,6 +38,7 @@ const STANDALONE = new Set([
  */
 const ROOTS = new Set([
   ...TAB_ROOTS,
+  "/app/schedule/map",
   "/app/contacts",
   "/app/requests",
   "/app/leads",
@@ -75,6 +76,7 @@ const LABELS: [prefix: string, label: string][] = [
   ["/app/settings/import", "Import"],
   ["/app/settings", "Settings"],
   ["/app/dashboard", "Home"],
+  ["/app/schedule/map", "Routes"],
   ["/app/schedule", "Schedule"],
   ["/app/appointments", "Appointments"],
   ["/app/contacts", "Clients"],

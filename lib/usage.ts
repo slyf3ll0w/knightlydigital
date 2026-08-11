@@ -44,6 +44,8 @@ type Counters = Partial<{
   emailsSent: number;
   smsSent: number;
   smsSegments: number;
+  geocodeCalls: number;
+  matrixElements: number;
 }>;
 
 async function bump(companyId: string | null | undefined, counters: Counters) {
@@ -96,6 +98,16 @@ export function recordEmailSent(companyId: string | null | undefined): void {
 /** One successful Telnyx send; Telnyx bills per segment. */
 export function recordSmsSent(companyId: string | null | undefined, segments: number): void {
   void bump(companyId, { smsSent: 1, smsSegments: Math.max(1, segments) });
+}
+
+/** One Mapbox forward-geocode API request (cache hits don't call this). */
+export function recordGeocodeCall(companyId: string | null | undefined): void {
+  void bump(companyId, { geocodeCalls: 1 });
+}
+
+/** One Mapbox Matrix API request — billed per cell (N stops = N² elements). */
+export function recordMatrixCall(companyId: string | null | undefined, elements: number): void {
+  void bump(companyId, { matrixElements: Math.max(1, elements) });
 }
 
 /**

@@ -1384,6 +1384,13 @@ export default function ScheduleClient({
               <span className="capitalize">{v}</span>
             </Segment>
           ))}
+          <Segment
+            active={false}
+            href={`/app/schedule/map?date=${toParam(anchor)}${team ? `&team=${team}` : ""}`}
+          >
+            <RouteIcon size={13} />
+            Map
+          </Segment>
         </SegmentedRow>
         {users.length > 1 && (
           <select
@@ -1400,13 +1407,6 @@ export default function ScheduleClient({
             ))}
           </select>
         )}
-        <Link
-          href={`/app/schedule/map?date=${toParam(anchor)}${team ? `&team=${team}` : ""}`}
-          aria-label="Route map"
-          className="shrink-0 rounded-[10px] border border-gray-200 bg-white p-2 text-gray-700 active:bg-gray-100"
-        >
-          <RouteIcon size={16} />
-        </Link>
         {(saving || isPending) && (
           <Loader2 size={15} className="shrink-0 animate-spin text-gray-400" />
         )}
@@ -1433,19 +1433,20 @@ export default function ScheduleClient({
         {(saving || isPending) && <Loader2 size={15} className="animate-spin text-gray-400" />}
 
         <div className="ml-auto flex items-center gap-2">
-          <Link
-            href={`/app/schedule/map?date=${toParam(anchor)}${team ? `&team=${team}` : ""}`}
-            className="flex shrink-0 items-center gap-1.5 rounded-[10px] btn-tool-line bg-white px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
-          >
-            <RouteIcon size={15} />
-            Map
-          </Link>
           <div className="flex shrink-0 items-center gap-1.5">
             {(["month", "week", "day"] as View[]).map((v) => (
               <FilterChip key={v} hue={hue} active={view === v} onClick={() => go({ view: v })}>
                 <span className="capitalize">{v}</span>
               </FilterChip>
             ))}
+            <FilterChip
+              hue={hue}
+              active={false}
+              href={`/app/schedule/map?date=${toParam(anchor)}${team ? `&team=${team}` : ""}`}
+            >
+              <RouteIcon size={14} />
+              Map
+            </FilterChip>
           </div>
           {users.length > 1 && (
             <select

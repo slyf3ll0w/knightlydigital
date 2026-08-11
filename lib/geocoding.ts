@@ -11,6 +11,8 @@
  */
 
 import { prisma } from "@/lib/db";
+import { geocodeBudgetOk } from "@/lib/mapbox-budget";
+import { recordGeocodeCall } from "@/lib/usage";
 
 const MAPBOX_TOKEN = process.env.MAPBOX_TOKEN;
 
@@ -44,7 +46,11 @@ export function normalizeAddressKey(query: string): string {
  * empty, geocoding is disabled, or the address doesn't resolve — callers
  * treat null as "no pin", never as an error.
  */
-export async function geocodeAddress(query: string): Promise<LatLng | null> {
+export async function geocodeAddress(
+  query: string,
+  /** Tenant to meter the (platform-billed) lookup against; null = platform. */
+  companyId?: string | null
+): Promise<LatLng | null> {
   const key = normalizeAddressKey(query);
   if (!key || key.length < 4) return null;
 
@@ -54,6 +60,9 @@ export async function geocodeAddress(query: string): Promise<LatLng | null> {
     : null;
 
   if (!geocodingEnabled()) return null;
+  // Free-tier kill switch — over the monthly cap this behaves exactly like a
+  // missing token, and nothing is cached so the address retries next month.
+  if (!(await geocodeBudgetOk())) return null;
 
   let result: LatLng | null = null;
   try {
@@ -61,6 +70,7 @@ export async function geocodeAddress(query: string): Promise<LatLng | null> {
       `https://api.mapbox.com/search/geocode/v6/forward` +
       `?q=${encodeURIComponent(key)}&limit=1&access_token=${MAPBOX_TOKEN}`;
     const res = await fetch(url);
+    recordGeocodeCall(companyId); // a request was sent — meter it, ok or not
     if (res.ok) {
       const data = (await res.json()) as {
         features?: { geometry?: { coordinates?: [number, number] } }[];
@@ -101,10 +111,16 @@ export async function geocodeContactAddress(id: string): Promise<void> {
   try {
     const row = await prisma.contactAddress.findUnique({
       where: { id },
-      select: { address: true, city: true, state: true, zip: true },
+      select: {
+        address: true,
+        city: true,
+        state: true,
+        zip: true,
+        contact: { select: { companyId: true } },
+      },
     });
     if (!row) return;
-    const hit = await geocodeAddress(composeAddress(row));
+    const hit = await geocodeAddress(composeAddress(row), row.contact.companyId);
     await prisma.contactAddress.update({
       where: { id },
       data: { lat: hit?.lat ?? null, lng: hit?.lng ?? null, geocodedAt: new Date() },
@@ -122,7 +138,7 @@ export async function geocodeCompany(id: string): Promise<void> {
       select: { address: true, city: true, state: true, zip: true },
     });
     if (!row) return;
-    const hit = await geocodeAddress(composeAddress(row));
+    const hit = await geocodeAddress(composeAddress(row), id);
     await prisma.company.update({
       where: { id },
       data: { lat: hit?.lat ?? null, lng: hit?.lng ?? null, geocodedAt: new Date() },

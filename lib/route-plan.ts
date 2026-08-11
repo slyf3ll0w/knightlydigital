@@ -108,7 +108,7 @@ export async function resolveRouteDay(actor: Actor, date: Date): Promise<RouteDa
       lng = j.property.lng;
     } else if (j.property && j.property.geocodedAt == null) {
       // Property saved before geocoding existed — resolve once, keep forever
-      const hit = await geocodeAddress(composeAddress(j.property));
+      const hit = await geocodeAddress(composeAddress(j.property), actor.companyId);
       if (geocodingEnabled()) {
         await prisma.contactAddress
           .update({
@@ -122,7 +122,7 @@ export async function resolveRouteDay(actor: Actor, date: Date): Promise<RouteDa
     }
     if (lat == null) {
       const query = j.address?.trim() || composeAddress(j.contact);
-      const hit = query ? await geocodeAddress(query) : null;
+      const hit = query ? await geocodeAddress(query, actor.companyId) : null;
       lat = hit?.lat ?? null;
       lng = hit?.lng ?? null;
     }
@@ -148,7 +148,7 @@ export async function resolveRouteDay(actor: Actor, date: Date): Promise<RouteDa
     let lat = a.property?.lat ?? null;
     let lng = a.property?.lng ?? null;
     if (lat == null && a.address) {
-      const hit = await geocodeAddress(a.address);
+      const hit = await geocodeAddress(a.address, actor.companyId);
       lat = hit?.lat ?? null;
       lng = hit?.lng ?? null;
     }
@@ -175,7 +175,7 @@ export async function resolveRouteDay(actor: Actor, date: Date): Promise<RouteDa
   if (company) {
     let { lat, lng } = company;
     if (lat == null && company.geocodedAt == null && company.address && geocodingEnabled()) {
-      const hit = await geocodeAddress(composeAddress(company));
+      const hit = await geocodeAddress(composeAddress(company), actor.companyId);
       await prisma.company
         .update({
           where: { id: actor.companyId },
