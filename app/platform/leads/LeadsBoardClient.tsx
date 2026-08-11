@@ -20,6 +20,8 @@ import {
 } from "lucide-react";
 import PageTitle from "@/components/PageTitle";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
+import { hapticImpact } from "@/lib/haptics";
+import { showWinBurst } from "@/lib/win-burst";
 import { money } from "@/lib/statuses";
 import { themedInkVars, themedBgVars } from "@/lib/section-colors";
 
@@ -170,7 +172,12 @@ export default function LeadsBoardClient({
     refresh();
   }
 
-  async function closeCard(card: BoardCard, action: "won" | "lost", reason?: string) {
+  async function closeCard(
+    card: BoardCard,
+    action: "won" | "lost",
+    reason?: string,
+    burstAt?: { x: number; y: number }
+  ) {
     const prev = board;
     setBoard((b) => b.filter((c) => c.id !== card.id));
     setSheetCard(null);
@@ -183,6 +190,12 @@ export default function LeadsBoardClient({
       setBoard(prev);
       showToast({ message: (data as { error?: string } | null)?.error ?? GENERIC_ERROR, tone: "red" });
       return;
+    }
+    if (action === "won") {
+      // A win sparks (from the drop point on desktop, near the toast
+      // otherwise) — smaller than paid-invoice confetti on purpose
+      hapticImpact("LIGHT");
+      showWinBurst(burstAt?.x, burstAt?.y);
     }
     showToast(
       action === "won"
@@ -271,7 +284,7 @@ export default function LeadsBoardClient({
         const card = board.find((c) => c.id === id);
         setDragId(null);
         if (!card) return;
-        if (zone === "won") closeCard(card, "won");
+        if (zone === "won") closeCard(card, "won", undefined, { x: e.clientX, y: e.clientY });
         else {
           setLostReason("");
           setLostCard(card);
@@ -651,7 +664,8 @@ export default function LeadsBoardClient({
       {toast && (
         <div className="fixed bottom-20 lg:bottom-6 right-4 z-50 max-w-sm">
           <div
-            className={`card-ledger flex items-center gap-3 px-4 py-3 text-sm font-medium ${
+            key={toast.message}
+            className={`msg-enter card-ledger flex items-center gap-3 px-4 py-3 text-sm font-medium ${
               toast.tone === "red"
                 ? "border-red-200 text-red-700"
                 : toast.tone === "green"

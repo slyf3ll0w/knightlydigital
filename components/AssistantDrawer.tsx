@@ -4,7 +4,7 @@ import { Fragment, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowUp, Check, Loader2, RotateCcw, X } from "lucide-react";
-import { AtlasMark } from "@/components/AtlasIcon";
+import AtlasIcon, { AtlasMark } from "@/components/AtlasIcon";
 import { hapticImpact } from "@/lib/haptics";
 import type { Proposal } from "@/lib/assistant";
 
@@ -427,8 +427,10 @@ export default function AssistantDrawer({
           )}
           {loading && (
             <div className="mr-4 flex items-center gap-2 px-1 py-2">
-              <Loader2 size={13} className="animate-spin text-green-600" />
-              <span className="text-xs text-gray-500">Looking that up...</span>
+              {/* The compass hunts for a heading while Atlas works — his own
+                  mark doing the thinking, not a generic spinner */}
+              <AtlasIcon size={15} thinking className="text-green-600" />
+              <span className="atlas-shimmer text-xs text-gray-500">Looking that up...</span>
             </div>
           )}
           {error && (

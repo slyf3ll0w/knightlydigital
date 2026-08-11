@@ -22,8 +22,9 @@ import {
   DollarSign,
 } from "lucide-react";
 import { confirmSheet, alertSheet } from "@/components/ConfirmSheet";
-import { hapticImpact } from "@/lib/haptics";
+import { hapticImpact, hapticNotify } from "@/lib/haptics";
 import { showSendRitual } from "@/lib/send-ritual";
+import { showApproveRitual } from "@/lib/approve-ritual";
 
 type AgreementState = {
   signed: boolean;
@@ -84,11 +85,18 @@ export default function QuoteActions({
     setOpen(false);
     setBusy(true);
     try {
-      await fetch(`/api/app/quotes/${quoteId}`, {
+      const res = await fetch(`/api/app/quotes/${quoteId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
       });
+      if (res.ok && newStatus === "APPROVED") {
+        hapticNotify("SUCCESS");
+        // Body-attached like the send ritual — the refresh below swaps the
+        // action buttons and would kill state-held overlays. The refreshed
+        // page mounts <Celebration>, so this reads slam → confetti.
+        showApproveRitual();
+      }
     } finally {
       setBusy(false);
       router.refresh();

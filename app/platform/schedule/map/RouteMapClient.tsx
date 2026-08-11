@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import PageTitle from "@/components/PageTitle";
 import { FilterChip } from "@/components/FilterChips";
+import { hapticImpact } from "@/lib/haptics";
 import { SECTION_HUES } from "@/lib/section-colors";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import "leaflet/dist/leaflet.css";
@@ -396,6 +397,7 @@ export default function RouteMapClient({
       setError(result?.error ?? GENERIC_ERROR);
       return;
     }
+    hapticImpact("LIGHT");
     setApplied(`${preview.userName}'s route updated — the calendar now follows this order.`);
     setPreview(null);
     refresh();
@@ -552,8 +554,24 @@ export default function RouteMapClient({
         </div>
       )}
       {applied && (
-        <div className="mb-3 flex items-center justify-between rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800">
-          {applied}
+        <div className="msg-enter mb-3 flex items-center justify-between gap-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800">
+          <div className="flex min-w-0 items-center gap-3">
+            {/* The banner draws its own little route — line traces stop to
+                stop, pins pop as it reaches them (route-trace/route-pin-pop) */}
+            <svg width="56" height="22" viewBox="0 0 64 24" fill="none" aria-hidden className="shrink-0">
+              <path
+                className="route-trace"
+                d="M4 18C16 4 24 22 34 10S52 16 60 6"
+                stroke="#16A34A"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+              <circle className="route-pin-pop" cx="4" cy="18" r="3" fill="#16A34A" />
+              <circle className="route-pin-pop pin-2" cx="34" cy="10" r="3" fill="#16A34A" />
+              <circle className="route-pin-pop pin-3" cx="60" cy="6" r="3.5" fill="#16A34A" />
+            </svg>
+            <span>{applied}</span>
+          </div>
           <button onClick={() => setApplied("")} className="p-0.5 text-green-500 hover:text-green-700">
             <X size={14} />
           </button>
@@ -716,7 +734,9 @@ export default function RouteMapClient({
                     Drive time {preview.currentDriveMinutes} min → {preview.totalDriveMinutes} min
                   </span>
                   {preview.savedMinutes > 0 && (
-                    <span className="stamp text-green-700">saves ~{preview.savedMinutes} min</span>
+                    <span className="stamp charge-pop text-green-700">
+                      saves ~{preview.savedMinutes} min
+                    </span>
                   )}
                 </p>
               </div>

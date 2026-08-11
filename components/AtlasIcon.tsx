@@ -21,9 +21,14 @@ const NEEDLE_SW = "M7.2 16.8 10.4 10.4 13.6 13.6Z";
 export default function AtlasIcon({
   size = 20,
   className = "",
+  thinking = false,
 }: {
   size?: number;
   className?: string;
+  /** Animates the needle hunting for a heading (atlas-seek in globals.css).
+      Use while Atlas is generating; the ring stays put so it reads as the
+      same mark, just alive. */
+  thinking?: boolean;
 }) {
   return (
     <svg
@@ -37,8 +42,10 @@ export default function AtlasIcon({
       <circle cx="12" cy="12" r="9.1" stroke="currentColor" strokeWidth="1.8" />
       {/* needle: solid NE half, ghosted SW half — fills stay crisp at 15px
           where the old stroked half-needle collapsed into mush */}
-      <path d={NEEDLE_NE} fill="currentColor" />
-      <path d={NEEDLE_SW} fill="currentColor" opacity="0.45" />
+      <g className={thinking ? "atlas-seek" : undefined}>
+        <path d={NEEDLE_NE} fill="currentColor" />
+        <path d={NEEDLE_SW} fill="currentColor" opacity="0.45" />
+      </g>
     </svg>
   );
 }
