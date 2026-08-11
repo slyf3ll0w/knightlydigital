@@ -396,6 +396,13 @@ export default function RouteMapClient({
     [canOptimize, canDispatch, meId]
   );
 
+  useEffect(() => {
+    if (!preview) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setPreview(null);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [preview]);
+
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="px-4 py-5 lg:px-8">
@@ -537,7 +544,9 @@ export default function RouteMapClient({
 
       {/* Map + routes */}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
-        <div className="route-map card-ledger relative h-[44dvh] w-full overflow-hidden lg:h-[calc(100dvh-15.5rem)] lg:flex-1">
+        {/* isolate: Leaflet's internal z-indexes (panes 400+, controls 1000)
+            must not escape this box, or they float above page modals */}
+        <div className="route-map card-ledger relative isolate h-[44dvh] w-full overflow-hidden lg:h-[calc(100dvh-15.5rem)] lg:flex-1">
           <div ref={containerRef} className="absolute inset-0" />
           {loading && !data && (
             <div className="absolute inset-0 z-[500] flex items-center justify-center bg-white/60">
@@ -656,7 +665,10 @@ export default function RouteMapClient({
 
       {/* Optimize preview — nothing is written until Apply */}
       {preview && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-6">
+        <div
+          className="fixed inset-0 z-[1200] flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-6"
+          onClick={(e) => e.target === e.currentTarget && setPreview(null)}
+        >
           <div className="flex max-h-[88dvh] w-full max-w-lg flex-col rounded-t-2xl bg-white shadow-xl sm:rounded-2xl">
             <div className="flex items-start justify-between border-b border-gray-100 px-5 py-4">
               <div>
