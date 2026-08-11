@@ -63,11 +63,25 @@ const styles = StyleSheet.create({
     flexDirection: "row", justifyContent: "space-between",
     color: MUTED, fontSize: 8, borderTopWidth: 0.75, borderTopColor: FAINT, paddingTop: 8,
   },
-  paidStamp: {
-    alignSelf: "flex-end", marginTop: 8, borderWidth: 1.5, borderRadius: 3,
-    paddingVertical: 3, paddingHorizontal: 10, fontSize: 11, fontFamily: "Helvetica-Bold", letterSpacing: 2,
+  // Rubber stamp — tilted inked mark in the whitespace under the doc number,
+  // to the right of PREPARED FOR (which caps at 280 wide, so this never
+  // collides). Matches PaperStamp in components/paper-doc.tsx.
+  stamp: {
+    position: "absolute", top: 152, right: 52,
+    transform: "rotate(-6deg)", opacity: 0.75,
+    borderWidth: 2, borderRadius: 4, paddingVertical: 4, paddingHorizontal: 12,
   },
+  stampText: { fontSize: 14, fontFamily: "Helvetica-Bold", letterSpacing: 3 },
 });
+
+/** "PAID" / "APPROVED" pressed onto the sheet in the document's fixed ink. */
+function Stamp({ text, ink }: { text: string; ink: string }) {
+  return (
+    <View style={[styles.stamp, { borderColor: ink }]}>
+      <Text style={[styles.stampText, { color: ink }]}>{text}</Text>
+    </View>
+  );
+}
 
 export type LogoSrc = { data: Buffer; format: "png" | "jpg" } | null;
 
@@ -329,16 +343,21 @@ export function buildQuoteDocument(quote: QuoteForPdf, logo: LogoSrc) {
     depositValue: quote.depositValue == null ? null : Number(quote.depositValue),
   });
 
+  // Approved/converted skip the status meta line — the stamp says it.
+  const stamped = quote.status === "APPROVED" || quote.status === "CONVERTED";
   const metaLines = [
     `Date: ${shortDate(quote.sentAt ?? quote.createdAt)}`,
     ...(quote.validUntil ? [`Valid until: ${shortDate(quote.validUntil)}`] : []),
-    ...(quote.status !== "AWAITING_RESPONSE" ? [QUOTE_STATUS_LABEL[quote.status] ?? quote.status] : []),
+    ...(quote.status !== "AWAITING_RESPONSE" && !stamped
+      ? [QUOTE_STATUS_LABEL[quote.status] ?? quote.status]
+      : []),
   ];
 
   return (
     <Document title={`Quote #${quote.quoteNumber} — ${quote.company.name}`} producer="WorkBench" creator="WorkBench">
       <Page size="LETTER" style={styles.page}>
         <Header company={quote.company} logo={logo} docType="Quote" docNumber={quote.quoteNumber} metaLines={metaLines} accent={accent} docTypeColor={DOC_TYPE_INK.quote} />
+        {stamped ? <Stamp text="APPROVED" ink={DOC_TYPE_INK.quote} /> : null}
         <BillTo contact={quote.contact} />
         {quote.title ? (
           <Text style={[styles.billToName, { marginTop: 14 }]}>{quote.title}</Text>
@@ -461,6 +480,7 @@ export function buildInvoiceDocument(invoice: InvoiceForPdf, logo: LogoSrc) {
     <Document title={`Invoice #${invoice.invoiceNumber} — ${invoice.company.name}`} producer="WorkBench" creator="WorkBench">
       <Page size="LETTER" style={styles.page}>
         <Header company={invoice.company} logo={logo} docType={invoice.kind === "DEPOSIT" ? "Deposit invoice" : "Invoice"} docNumber={invoice.invoiceNumber} metaLines={metaLines} accent={accent} docTypeColor={DOC_TYPE_INK.invoice} />
+        {isPaid ? <Stamp text="PAID" ink={DOC_TYPE_INK.invoice} /> : null}
         <BillTo contact={invoice.contact} />
         {invoice.subject ? (
           <Text style={[styles.billToName, { marginTop: 14 }]}>{invoice.subject}</Text>
@@ -500,9 +520,6 @@ export function buildInvoiceDocument(invoice: InvoiceForPdf, logo: LogoSrc) {
                 <Text style={styles.grandText}>Balance due</Text>
                 <Text style={styles.grandText}>{money(balance)}</Text>
               </View>
-            ) : null}
-            {isPaid ? (
-              <Text style={[styles.paidStamp, { color: accent, borderColor: accent }]}>PAID</Text>
             ) : null}
           </View>
         </View>

@@ -6,6 +6,7 @@ import { brandAccent, textOn } from "@/lib/branding";
 import {
   PaperSheet,
   PaperHeader,
+  PaperStamp,
   PreparedFor,
   SectionLabel,
   ItemsTableHead,
@@ -130,7 +131,11 @@ export default function PayPage({
     });
   }, [finix, scriptReady, method]);
 
-  if (invoice.status === "PAID" || done) {
+  // "done" is the just-paid confirmation moment. Revisiting a settled
+  // invoice's link falls through to the document itself, stamped PAID.
+  const isPaid = invoice.status === "PAID";
+
+  if (done) {
     return (
       <div className="app-ui min-h-screen bg-gray-50 flex items-center justify-center px-4">
         <div className="max-w-sm w-full card-ledger p-8 text-center shadow-sm">
@@ -264,7 +269,14 @@ export default function PayPage({
             ]}
           />
 
-          <PreparedFor contact={invoice.contact} />
+          <div className="flex items-start justify-between gap-4">
+            <PreparedFor contact={invoice.contact} />
+            {isPaid && (
+              <div className="mt-6 shrink-0 pr-1 sm:pr-4">
+                <PaperStamp kind="invoice" text="Paid" />
+              </div>
+            )}
+          </div>
 
           {invoice.clientMessage && (
             <p className="mt-4 text-sm leading-relaxed text-gray-700 whitespace-pre-wrap">
@@ -393,7 +405,9 @@ export default function PayPage({
           )}
 
           {/* Payment — the bottom of the same sheet, like the remittance stub
-              on a paper invoice */}
+              on a paper invoice. A settled invoice has no stub — the stamp
+              says everything. */}
+          {!isPaid && (
           <div className="mt-8 border-t-2 border-gray-900 pt-5">
           {/* Amount — full balance by default, or a partial payment */}
           <h2 className="text-sm font-semibold text-gray-700 mb-3">Payment amount</h2>
@@ -546,6 +560,7 @@ export default function PayPage({
             )}
           </div>
           </div>
+          )}
 
           <PaperFooter
             kind="invoice"

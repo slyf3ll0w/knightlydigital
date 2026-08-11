@@ -102,7 +102,69 @@ async function main() {
     )
   );
 
-  for (const [name, buf] of [["test-quote.pdf", quoteBuf], ["test-invoice.pdf", invoiceBuf]] as const) {
+  // Stamped variants: approved quote + paid invoice exercise the Stamp path
+  const approvedQuoteBuf = await renderToBuffer(
+    buildQuoteDocument(
+      {
+        quoteNumber: 1042,
+        title: "Water heater replacement",
+        status: "APPROVED",
+        discountType: "PERCENT",
+        discountValue: 10,
+        taxRate: 0.0825,
+        depositType: "PERCENT",
+        depositValue: 25,
+        clientMessage: "Thanks for having us out — here's everything we discussed on Tuesday.",
+        disclaimer: "Quote assumes accessible attic installation.",
+        validUntil: new Date("2026-09-10"),
+        sentAt: new Date("2026-08-10"),
+        approvedAt: new Date("2026-08-11"),
+        signatureName: "Lynne Carver",
+        createdAt: new Date("2026-08-09"),
+        contact,
+        company,
+        lineItems: lines,
+      },
+      null
+    )
+  );
+  const paidInvoiceBuf = await renderToBuffer(
+    buildInvoiceDocument(
+      {
+        invoiceNumber: 2087,
+        subject: "Water heater replacement",
+        status: "PAID",
+        kind: "STANDARD",
+        subtotal: 2090,
+        discount: 209,
+        taxRate: 0.0825,
+        tax: 155.18,
+        surcharge: null,
+        depositApplied: 470,
+        total: 1566.18,
+        notes: null,
+        clientMessage: null,
+        issuedAt: new Date("2026-08-10"),
+        dueDate: new Date("2026-08-24"),
+        createdAt: new Date("2026-08-10"),
+        contact,
+        company,
+        lineItems: lines.slice(0, 2).map(({ isOptional, optedOut, ...li }) => li),
+        payments: [
+          { id: "p1", amount: 470, method: "CARD", referenceNumber: null, paidAt: new Date("2026-08-05") },
+          { id: "p2", amount: 1566.18, method: "CARD", referenceNumber: null, paidAt: new Date("2026-08-11") },
+        ],
+      },
+      null
+    )
+  );
+
+  for (const [name, buf] of [
+    ["test-quote.pdf", quoteBuf],
+    ["test-invoice.pdf", invoiceBuf],
+    ["test-quote-approved.pdf", approvedQuoteBuf],
+    ["test-invoice-paid.pdf", paidInvoiceBuf],
+  ] as const) {
     if (buf.subarray(0, 5).toString() !== "%PDF-") throw new Error(`${name}: not a PDF`);
     if (buf.length < 2000) throw new Error(`${name}: suspiciously small (${buf.length}B)`);
     writeFileSync(join(outDir, name), buf);

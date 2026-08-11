@@ -26,9 +26,26 @@ async function pick(where: object) {
   return { quote, invoice };
 }
 
+// Settled docs — for checking the PAID / APPROVED stamps.
+async function pickStamped(where: object) {
+  const approvedQuote = await prisma.quote.findFirst({
+    where: { ...where, status: { in: ["APPROVED", "CONVERTED"] } },
+    orderBy: { createdAt: "desc" },
+    select: { publicToken: true, quoteNumber: true, status: true, companyId: true },
+  });
+  const paidInvoice = await prisma.invoice.findFirst({
+    where: { ...where, status: "PAID" },
+    orderBy: { createdAt: "desc" },
+    select: { publicToken: true, invoiceNumber: true, status: true, companyId: true },
+  });
+  return { approvedQuote, paidInvoice };
+}
+
 let result = await pick(companyFilter);
 // Demo co may have nothing open — any company works; preview=1 never marks
 // the document viewed and nothing is clicked.
 if (!result.quote && !result.invoice) result = await pick({});
-console.log(JSON.stringify({ company: demo?.name ?? "(any)", ...result }, null, 2));
+let stamped = await pickStamped(companyFilter);
+if (!stamped.approvedQuote && !stamped.paidInvoice) stamped = await pickStamped({});
+console.log(JSON.stringify({ company: demo?.name ?? "(any)", ...result, ...stamped }, null, 2));
 await prisma.$disconnect();

@@ -7,6 +7,7 @@ import { signatureMatchesName } from "@/lib/signature";
 import {
   PaperSheet,
   PaperHeader,
+  PaperStamp,
   PreparedFor,
   SectionLabel,
   ItemsTableHead,
@@ -89,6 +90,9 @@ export default function QuoteAcceptPage({
 
   const reviewable =
     !preview && ["AWAITING_RESPONSE", "CHANGES_REQUESTED", "DRAFT"].includes(quote.status);
+  // Signed off (converted = approved-then-scheduled) — the paper still shows,
+  // stamped, with actions gone; the client keeps a viewable copy.
+  const approved = quote.status === "APPROVED" || quote.status === "CONVERTED";
   const expired = Boolean(quote.validUntil && new Date(quote.validUntil) < new Date());
   const accent = brandAccent(quote.company);
 
@@ -182,7 +186,9 @@ export default function QuoteAcceptPage({
     }
   }
 
-  if (quote.status === "APPROVED" || quote.status === "CONVERTED" || done === "approved") {
+  // Right after signing: the confirmation moment. Coming back to the link
+  // later falls through to the stamped document below.
+  if (done === "approved") {
     return (
       <div className="app-ui min-h-screen bg-gray-50 flex items-center justify-center px-4">
         <div className="max-w-sm w-full card-ledger p-8 text-center shadow-sm">
@@ -241,7 +247,14 @@ export default function QuoteAcceptPage({
             ]}
           />
 
-          <PreparedFor contact={quote.contact} />
+          <div className="flex items-start justify-between gap-4">
+            <PreparedFor contact={quote.contact} />
+            {approved && (
+              <div className="mt-6 shrink-0 pr-1 sm:pr-4">
+                <PaperStamp kind="quote" text="Approved" />
+              </div>
+            )}
+          </div>
 
           {quote.title && (
             <p className="mt-4 text-base font-bold text-gray-900">{quote.title}</p>
@@ -265,7 +278,7 @@ export default function QuoteAcceptPage({
                     className={`border-b border-gray-100 py-2.5 sm:grid sm:grid-cols-[1fr_54px_90px_96px] sm:items-start sm:gap-3 ${excluded ? "opacity-40" : ""}`}
                   >
                     <div className="flex items-start gap-2.5 min-w-0">
-                      {li.isOptional && (
+                      {li.isOptional && !approved && (
                         <input
                           type="checkbox"
                           checked={!excluded}
@@ -358,6 +371,17 @@ export default function QuoteAcceptPage({
               <SectionLabel>Terms &amp; Conditions</SectionLabel>
               <p className="mt-1 text-xs leading-relaxed text-gray-500 whitespace-pre-wrap">
                 {quote.disclaimer}
+              </p>
+            </div>
+          )}
+
+          {/* Signed-off record — mirrors the PDF's APPROVED block */}
+          {approved && quote.signatureName && (
+            <div className="mt-8 border-t-2 border-gray-900 pt-4">
+              <SectionLabel>Approved</SectionLabel>
+              <p className="mt-1 text-sm text-gray-700">
+                Signed by <span className="font-semibold">{quote.signatureName}</span>
+                {quote.approvedAt ? ` on ${longDate(quote.approvedAt)}` : ""}.
               </p>
             </div>
           )}

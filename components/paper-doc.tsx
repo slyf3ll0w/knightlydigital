@@ -145,6 +145,24 @@ export function PaperHeader({
   );
 }
 
+/**
+ * Rubber stamp — the tilted inked mark a bookkeeper would press onto the
+ * paper ("PAID", "APPROVED"). Doc-ink colored, slightly transparent so it
+ * reads as ink on the sheet rather than UI chrome. Sits to the right of the
+ * PREPARED FOR block, in the whitespace under the doc number.
+ */
+export function PaperStamp({ kind, text }: { kind: DocKind; text: string }) {
+  const ink = DOC_KIND[kind].ink;
+  return (
+    <span
+      className="pointer-events-none inline-block -rotate-6 select-none rounded border-2 px-2.5 py-0.5 text-sm font-bold uppercase tracking-[0.22em] opacity-75 sm:px-3 sm:py-1 sm:text-base"
+      style={{ borderColor: ink, color: ink }}
+    >
+      {text}
+    </span>
+  );
+}
+
 /** The PREPARED FOR block — client name bold, address/contact muted. */
 export function PreparedFor({ contact }: { contact: PaperContact }) {
   if (!contact) return null;
