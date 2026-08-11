@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, RotateCcw, Loader2 } from "lucide-react";
+import { sendOrQueue } from "@/lib/outbox";
 
 export type ChecklistItemView = {
   id: string;
@@ -32,21 +33,43 @@ export default function JobChecklist({
   const [skippingId, setSkippingId] = useState<string | null>(null);
   const [reason, setReason] = useState("");
   const [error, setError] = useState("");
+  const [queued, setQueued] = useState(false);
+  // Ticks made offline, shown over the server-rendered props until reconnect
+  const [overrides, setOverrides] = useState<
+    Record<string, { done: boolean; doneByName: string | null; skipReason: string | null }>
+  >({});
 
-  const resolved = items.filter((i) => i.done || i.skipReason).length;
+  const view = items.map((i) => (overrides[i.id] ? { ...i, ...overrides[i.id] } : i));
+  const resolved = view.filter((i) => i.done || i.skipReason).length;
 
   async function update(itemId: string, action: "done" | "skip" | "reopen", skipReason?: string) {
     setBusyId(itemId);
     setError("");
     try {
-      const res = await fetch(`/api/app/jobs/${jobId}/checklist`, {
+      // Action-based (not toggle), so an offline tick replayed at flush time
+      // lands exactly once no matter how many times it's retried.
+      const res = await sendOrQueue({
+        url: `/api/app/jobs/${jobId}/checklist`,
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ itemId, action, reason: skipReason }),
+        body: { itemId, action, reason: skipReason },
+        label: "Checklist",
       });
+      if (res.queued) {
+        setOverrides((o) => ({
+          ...o,
+          [itemId]: {
+            done: action === "done",
+            doneByName: null,
+            skipReason: action === "skip" ? (skipReason ?? null) : null,
+          },
+        }));
+        setQueued(true);
+        setSkippingId(null);
+        setReason("");
+        return;
+      }
       if (!res.ok) {
-        const data = await res.json().catch(() => null);
-        setError(data?.error ?? "Something went wrong. Please try again.");
+        setError(res.data?.error ?? "Something went wrong. Please try again.");
         return;
       }
       setSkippingId(null);
@@ -59,7 +82,7 @@ export default function JobChecklist({
 
   // Group under the service each task came from — only label the groups
   // when more than one service contributes tasks.
-  const sources = [...new Set(items.map((i) => i.sourceName))];
+  const sources = [...new Set(view.map((i) => i.sourceName))];
 
   return (
     <div className="card-ledger p-5">
@@ -68,13 +91,18 @@ export default function JobChecklist({
         <span
           className={`stamp ${resolved === items.length ? "text-green-700" : "text-gray-500"}`}
         >
-          {resolved}/{items.length} done
+          {resolved}/{view.length} done
         </span>
       </div>
       {error && (
         <div className="mb-3 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
           {error}
         </div>
+      )}
+      {queued && !error && (
+        <p className="mb-3 text-xs text-amber-700">
+          Saved — checklist changes will sync when you&apos;re back online.
+        </p>
       )}
       <div className="space-y-4">
         {sources.map((source) => (
@@ -85,7 +113,7 @@ export default function JobChecklist({
               </p>
             )}
             <ul className="space-y-1">
-              {items
+              {view
                 .filter((i) => i.sourceName === source)
                 .map((item) => {
                   const busy = busyId === item.id;

@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { MoreHorizontal, CheckCircle, Receipt, Archive, RotateCcw, Trash2, Loader2, Pencil, CopyPlus } from "lucide-react";
 import { confirmSheet } from "@/components/ConfirmSheet";
+import { sendOrQueue } from "@/lib/outbox";
 
 export default function JobActions({
   jobId,
@@ -39,16 +40,25 @@ export default function JobActions({
     setOpen(false);
     setBusy(true);
     try {
-      const res = await fetch(`/api/app/jobs/${jobId}/status`, {
+      // Offline, the change queues and applies on reconnect. Checklist ticks
+      // made offline queue ahead of this, so the close-out gate still holds.
+      const res = await sendOrQueue({
+        url: `/api/app/jobs/${jobId}/status`,
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus }),
+        body: { status: newStatus },
+        label:
+          newStatus === "ARCHIVED"
+            ? "Close job"
+            : newStatus === "REQUIRES_INVOICING"
+              ? "Complete job"
+              : "Reopen job",
       });
-      // The close-out checklist gate (and other validation) answers 400
-      if (!res.ok) {
-        const data = await res.json().catch(() => null);
-        if (data?.error) alert(data.error);
+      if (res.queued) {
+        alert("You're offline — this change is saved and will apply when you reconnect.");
+        return;
       }
+      // The close-out checklist gate (and other validation) answers 400
+      if (!res.ok && res.data?.error) alert(res.data.error);
     } finally {
       setBusy(false);
       router.refresh();

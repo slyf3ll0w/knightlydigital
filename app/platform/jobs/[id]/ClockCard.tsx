@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Play, Square, Timer } from "lucide-react";
 import { hapticImpact } from "@/lib/haptics";
 import { formatDuration } from "@/lib/time-entries";
+import { sendOrQueue } from "@/lib/outbox";
 
 type OpenEntry = { id: string; startedAt: string };
 
@@ -30,6 +31,7 @@ export default function ClockCard({
   const [entry, setEntry] = useState<OpenEntry | null>(openEntry);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [queuedNote, setQueuedNote] = useState<string | null>(null);
   const [, forceTick] = useState(0);
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -74,28 +76,37 @@ export default function ClockCard({
       payload.lng = gps.coords.longitude;
       payload.accuracy = gps.coords.accuracy;
     }
-    try {
-      const res = await fetch(`/api/app/jobs/${jobId}/clock`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setError(data.error ?? "Couldn't reach the server — try again.");
-      } else {
-        setEntry(
-          action === "in" && data.entry
-            ? { id: data.entry.id, startedAt: data.entry.startedAt }
-            : null
-        );
-        router.refresh(); // pull in the activity note + new totals
-      }
-    } catch {
-      setError("You're offline — reconnect and try again.");
-    } finally {
-      setBusy(false);
+    // Offline, the punch queues in the outbox and replays on reconnect —
+    // the clientKey in the payload makes the eventual flush idempotent.
+    const res = await sendOrQueue<{ entry?: OpenEntry }>({
+      url: `/api/app/jobs/${jobId}/clock`,
+      body: payload,
+      label: action === "in" ? "Clock in" : "Clock out",
+    });
+    if (res.queued) {
+      // Trust the tap: run the timer from the tap-time locally
+      setEntry(
+        action === "in"
+          ? { id: `queued-${payload.clientKey}`, startedAt: payload.occurredAt as string }
+          : null
+      );
+      setQueuedNote(
+        action === "in"
+          ? "Clocked in — will sync when you're back online."
+          : "Clocked out — will sync when you're back online."
+      );
+    } else if (!res.ok) {
+      setError(res.data?.error ?? "Couldn't reach the server — try again.");
+    } else {
+      setQueuedNote(null);
+      setEntry(
+        action === "in" && res.data?.entry
+          ? { id: res.data.entry.id, startedAt: res.data.entry.startedAt }
+          : null
+      );
+      router.refresh(); // pull in the activity note + new totals
     }
+    setBusy(false);
   }
 
   const elapsed = entry ? Date.now() - new Date(entry.startedAt).getTime() : 0;
@@ -153,6 +164,7 @@ export default function ClockCard({
         </p>
       )}
       {error && <p className="text-xs text-red-600 mt-2">{error}</p>}
+      {queuedNote && !error && <p className="text-xs text-amber-700 mt-2">{queuedNote}</p>}
     </div>
   );
 }

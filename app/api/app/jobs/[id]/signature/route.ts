@@ -24,10 +24,14 @@ export async function POST(
 
   const job = await prisma.job.findFirst({
     where: { id, companyId: actor.companyId, ...jobScope(actor) },
-    select: { id: true, status: true, completionSignedAt: true },
+    select: { id: true, status: true, completionSignedAt: true, completionSignatureName: true },
   });
   if (!job) return NextResponse.json({ error: "Job not found." }, { status: 404 });
   if (job.completionSignedAt) {
+    // A queued/retried save of the SAME signature already landed — success.
+    if (job.completionSignatureName === signatureName) {
+      return NextResponse.json({ success: true });
+    }
     return NextResponse.json({ error: "This job is already signed off." }, { status: 400 });
   }
 

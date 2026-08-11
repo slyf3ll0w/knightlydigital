@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { PenLine, Loader2 } from "lucide-react";
 import { hapticImpact } from "@/lib/haptics";
+import { sendOrQueue } from "@/lib/outbox";
 
 /**
  * On-site completion sign-off: the tech hands the client the phone, the
@@ -17,6 +18,7 @@ export default function CollectSignature({ jobId }: { jobId: string }) {
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [queued, setQueued] = useState(false);
 
   async function sign() {
     if (!name.trim()) {
@@ -25,20 +27,35 @@ export default function CollectSignature({ jobId }: { jobId: string }) {
     }
     setBusy(true);
     setError("");
-    const res = await fetch(`/api/app/jobs/${jobId}/signature`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ signatureName: name.trim() }),
+    // Offline sign-off queues and replays on reconnect (the route treats a
+    // same-name replay as success, so the flush can't double-error)
+    const res = await sendOrQueue({
+      url: `/api/app/jobs/${jobId}/signature`,
+      body: { signatureName: name.trim() },
+      label: "Job sign-off",
     });
-    const data = await res.json().catch(() => null);
     setBusy(false);
+    if (res.queued) {
+      hapticImpact();
+      setQueued(true);
+      setOpen(false);
+      return;
+    }
     if (!res.ok) {
-      setError(data?.error ?? "Couldn't save the signature. Please try again.");
+      setError(res.data?.error ?? "Couldn't save the signature. Please try again.");
       return;
     }
     hapticImpact();
     setOpen(false);
     router.refresh();
+  }
+
+  if (queued) {
+    return (
+      <p className="text-xs text-amber-700">
+        Signed — the sign-off will sync when you&apos;re back online.
+      </p>
+    );
   }
 
   return (

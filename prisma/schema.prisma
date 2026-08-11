@@ -1145,6 +1145,9 @@ model TimeEntry {
   note      String?
   // Client-generated key so a retried/queued clock tap can't double-create
   clientKey String?   @unique
+  // Key of the clock-OUT tap that closed this entry — a replayed/queued
+  // clock-out matches here instead of closing whatever span is open now
+  endClientKey String? @unique
   // Location stamps (nullable — tech may deny location); accuracy in meters
   startLat      Float?
   startLng      Float?
@@ -1194,6 +1197,8 @@ model JobNote {
   userId    String
   user      User     @relation(fields: [userId], references: [id])
   body      String
+  // Client-generated key so a queued/retried note post can't double-create
+  clientKey String?  @unique
   createdAt DateTime @default(now())
 
   @@index([jobId])

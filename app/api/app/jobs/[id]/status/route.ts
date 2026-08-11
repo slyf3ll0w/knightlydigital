@@ -41,10 +41,13 @@ export async function PATCH(
     }
   }
 
+  // Stamp only on a real transition — a replayed/queued PATCH of the status
+  // the job already has must not move completedAt/closedAt.
   const extra: Record<string, Date | null> = {};
-  if (status === "REQUIRES_INVOICING") extra.completedAt = new Date();
-  if (status === "ARCHIVED") extra.closedAt = new Date();
-  if (status === "ACTIVE") {
+  if (status === "REQUIRES_INVOICING" && job.status !== "REQUIRES_INVOICING")
+    extra.completedAt = new Date();
+  if (status === "ARCHIVED" && job.status !== "ARCHIVED") extra.closedAt = new Date();
+  if (status === "ACTIVE" && job.status !== "ACTIVE") {
     extra.completedAt = null;
     extra.closedAt = null;
   }

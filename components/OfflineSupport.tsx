@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { usePathname } from "next/navigation";
-import { RefreshCw, WifiOff, X } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { CloudUpload, RefreshCw, WifiOff, X } from "lucide-react";
+import { flushOutbox, outboxCount, subscribeOutbox } from "@/lib/outbox";
 
 /**
  * Offline mode, phase 1 (read-only snapshot). Mounted once in the platform
@@ -56,10 +57,58 @@ function swMessage<T>(msg: Record<string, unknown>): Promise<T | null> {
 
 export default function OfflineSupport() {
   const pathname = usePathname();
+  const router = useRouter();
   const [offline, setOffline] = useState(false);
   const [backOnline, setBackOnline] = useState(false);
   const [cachedAt, setCachedAt] = useState<number | null>(null);
+  const [pending, setPending] = useState(0);
+  const [syncNote, setSyncNote] = useState<string | null>(null);
   const wasOffline = useRef(false);
+
+  // Write outbox: queued offline writes flush on load, on reconnect, when
+  // the app returns to the foreground, and every 30s while any are waiting
+  // (covers "wifi is up but the server was unreachable for a moment").
+  useEffect(() => {
+    setPending(outboxCount());
+    const unsub = subscribeOutbox(setPending);
+
+    const flush = async () => {
+      if (!navigator.onLine) return;
+      const { flushed, dropped } = await flushOutbox();
+      if (flushed > 0 || dropped.length > 0) {
+        const parts: string[] = [];
+        if (flushed > 0) parts.push(`${flushed} saved change${flushed === 1 ? "" : "s"} synced`);
+        for (const d of dropped) parts.push(`${d.label} failed: ${d.error}`);
+        setSyncNote(parts.join(" · "));
+        if (flushed > 0) router.refresh();
+      }
+    };
+
+    void flush();
+    const onOnline = () => void flush();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void flush();
+    };
+    window.addEventListener("online", onOnline);
+    document.addEventListener("visibilitychange", onVisible);
+    const interval = setInterval(() => {
+      if (outboxCount() > 0) void flush();
+    }, 30_000);
+    return () => {
+      unsub();
+      window.removeEventListener("online", onOnline);
+      document.removeEventListener("visibilitychange", onVisible);
+      clearInterval(interval);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // The sync note excuses itself after a while
+  useEffect(() => {
+    if (!syncNote) return;
+    const t = setTimeout(() => setSyncNote(null), 8_000);
+    return () => clearTimeout(t);
+  }, [syncNote]);
 
   // Registration + cache warming (production only — a caching SW during
   // next dev serves stale bundles and makes development miserable)
@@ -180,7 +229,7 @@ export default function OfflineSupport() {
     return () => clearTimeout(t);
   }, [backOnline]);
 
-  if (!offline && !backOnline) return null;
+  if (!offline && !backOnline && !syncNote && pending === 0) return null;
 
   return (
     <div
@@ -199,11 +248,26 @@ export default function OfflineSupport() {
                   minute: "2-digit",
                 })}`
               : ""}
+            {pending > 0 ? ` · ${pending} change${pending === 1 ? "" : "s"} queued` : ""}
           </span>
+        </div>
+      ) : pending > 0 && !backOnline && !syncNote ? (
+        // Online but writes still waiting (server hiccup) — offer a retry
+        <div className="flex items-center gap-1.5 rounded-full bg-amber-400 text-black text-xs font-semibold pl-3.5 pr-1.5 py-1.5 shadow-lg whitespace-nowrap">
+          <CloudUpload size={13} className="shrink-0" />
+          <span>
+            {pending} change{pending === 1 ? "" : "s"} waiting to sync
+          </span>
+          <button
+            onClick={() => void flushOutbox()}
+            className="flex items-center gap-1 rounded-full bg-black/10 hover:bg-black/20 px-2.5 py-1 transition-colors"
+          >
+            <RefreshCw size={12} /> Sync now
+          </button>
         </div>
       ) : (
         <div className="flex items-center gap-1.5 rounded-full bg-green-600 text-white text-xs font-semibold pl-3.5 pr-1.5 py-1.5 shadow-lg whitespace-nowrap">
-          <span>Back online</span>
+          <span className="truncate max-w-[70vw]">{syncNote ?? "Back online"}</span>
           <button
             onClick={() => window.location.reload()}
             className="flex items-center gap-1 rounded-full bg-white/15 hover:bg-white/25 px-2.5 py-1 transition-colors"
@@ -211,7 +275,10 @@ export default function OfflineSupport() {
             <RefreshCw size={12} /> Refresh
           </button>
           <button
-            onClick={() => setBackOnline(false)}
+            onClick={() => {
+              setBackOnline(false);
+              setSyncNote(null);
+            }}
             aria-label="Dismiss"
             className="p-1 rounded-full hover:bg-white/15 transition-colors"
           >

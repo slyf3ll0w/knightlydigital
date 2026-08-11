@@ -43,11 +43,19 @@ export async function POST(
       ? `${actor.id}:${body.clientKey}`
       : null;
 
-  // Idempotent replay: this exact tap already landed.
+  // Idempotent replay: this exact tap already landed. Clock-ins match the
+  // entry they created; clock-outs match the entry they closed — without the
+  // second check a replayed clock-out would close whatever span is open NOW.
   if (clientKey) {
     const existing = await prisma.timeEntry.findUnique({ where: { clientKey } });
     if (existing && existing.userId === actor.id && existing.companyId === actor.companyId) {
       return NextResponse.json({ success: true, entry: toDTO(existing) });
+    }
+    if (action === "out") {
+      const closed = await prisma.timeEntry.findUnique({ where: { endClientKey: clientKey } });
+      if (closed && closed.userId === actor.id && closed.companyId === actor.companyId) {
+        return NextResponse.json({ success: true, entry: toDTO(closed) });
+      }
     }
   }
 
@@ -107,6 +115,7 @@ export async function POST(
       where: { id: open.id },
       data: {
         endedAt,
+        endClientKey: clientKey,
         endLat: gps?.lat ?? null,
         endLng: gps?.lng ?? null,
         endAccuracy: gps?.accuracy ?? null,
