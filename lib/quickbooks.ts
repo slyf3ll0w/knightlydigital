@@ -57,6 +57,10 @@ const OAUTH_SCOPE = "com.intuit.quickbooks.accounting";
 const MINOR_VERSION = "75";
 /** The generic Service item all invoice lines bill against (Phase 1). */
 const DEFAULT_ITEM_NAME = "WorkBench Services";
+/** Card surcharges get their own item so fees are visible in QBO reports. */
+const SURCHARGE_ITEM_NAME = "Card Processing Surcharges";
+/** Fallback expense account for pushed expenses when none matches. */
+const EXPENSE_ACCOUNT_NAME = "WorkBench Expenses";
 /** Per-run cap so a huge first sync can't run away; the next run continues. */
 const SYNC_BATCH_LIMIT = 100;
 
@@ -390,6 +394,8 @@ const QBO_ENTITY_PATH: Record<QuickBooksEntityType, string> = {
   CUSTOMER: "customer",
   INVOICE: "invoice",
   PAYMENT: "payment",
+  ESTIMATE: "estimate",
+  PURCHASE: "purchase",
 };
 
 /** Run a QBO SQL-ish query; returns the entity array (possibly empty). */
@@ -616,6 +622,53 @@ async function ensureDefaultItem(connection: QuickBooksConnection): Promise<stri
   return itemId;
 }
 
+/**
+ * The Service item card surcharges bill against — separate from the generic
+ * services item so processing-fee income shows up as its own line on QBO
+ * P&L reports instead of inflating service revenue. Prefers an income
+ * account that looks fee-shaped; otherwise rides the same account as the
+ * default item.
+ */
+async function ensureSurchargeItem(connection: QuickBooksConnection): Promise<string> {
+  if (connection.surchargeItemId) return connection.surchargeItemId;
+
+  const existing = await qboQuery(
+    connection,
+    "Item",
+    `select Id from Item where Name = '${q(SURCHARGE_ITEM_NAME)}'`
+  );
+  let itemId: string;
+  if (existing.length > 0) {
+    itemId = (existing[0] as { Id: string }).Id;
+  } else {
+    const accounts = await qboQuery(
+      connection,
+      "Account",
+      "select Id, Name from Account where AccountType = 'Income' maxresults 50"
+    );
+    if (accounts.length === 0) {
+      throw new Error("No income account found in this QuickBooks company — add one in QuickBooks first.");
+    }
+    const preferred =
+      accounts.find((a) => /surcharge|processing|fee/i.test(String(a.Name))) ??
+      accounts.find((a) => /service/i.test(String(a.Name))) ??
+      accounts[0];
+    const created = await qboPost(connection, "item", {
+      Name: SURCHARGE_ITEM_NAME,
+      Type: "Service",
+      IncomeAccountRef: { value: (preferred as { Id: string }).Id },
+    });
+    itemId = (created.Item as { Id: string }).Id;
+  }
+
+  await prisma.quickBooksConnection.update({
+    where: { id: connection.id },
+    data: { surchargeItemId: itemId },
+  });
+  connection.surchargeItemId = itemId;
+  return itemId;
+}
+
 // ─── Entity push: Invoice ────────────────────────────────────────────────────
 
 /**
@@ -679,11 +732,13 @@ export async function pushInvoice(
     });
   }
   if (money(invoice.surcharge) > 0) {
+    // Own item → own income line in QBO reports, not buried in services
+    const surchargeItemId = await ensureSurchargeItem(connection);
     lines.push({
       DetailType: "SalesItemLineDetail",
       Amount: money(invoice.surcharge),
       Description: "Card processing surcharge",
-      SalesItemLineDetail: { ItemRef: { value: itemId }, TaxCodeRef: { value: "NON" } },
+      SalesItemLineDetail: { ItemRef: { value: surchargeItemId }, TaxCodeRef: { value: "NON" } },
     });
   }
 
@@ -736,6 +791,270 @@ export async function pushInvoice(
     localUpdatedAt: invoice.updatedAt,
   });
   return qboInvoice.Id;
+}
+
+// ─── Entity push: Estimate (our Quote) ───────────────────────────────────────
+
+/** Our quote status → QBO Estimate TxnStatus. */
+function estimateTxnStatus(status: string): string {
+  if (status === "APPROVED" || status === "CONVERTED") return "Accepted";
+  if (status === "ARCHIVED") return "Closed";
+  return "Pending";
+}
+
+/**
+ * Push one quote as a QBO Estimate (create or sparse update). Drafts are
+ * skipped — QBO only hears about quotes a client actually received. Optional
+ * items the client removed are left off, matching what they approved.
+ */
+export async function pushEstimate(
+  connection: QuickBooksConnection,
+  quoteId: string
+): Promise<string | null> {
+  const quote = await prisma.quote.findFirst({
+    where: { id: quoteId, companyId: connection.companyId },
+    include: { lineItems: { orderBy: { sortOrder: "asc" } } },
+  });
+  if (!quote) throw new Error("Quote not found");
+  if (quote.status === "DRAFT") return null;
+
+  const record = await getSyncRecord(connection.companyId, "ESTIMATE", quoteId);
+  if (
+    record?.qboId &&
+    record.status === "SYNCED" &&
+    record.localUpdatedAt &&
+    quote.updatedAt <= record.localUpdatedAt
+  ) {
+    return record.qboId;
+  }
+
+  const customerId = await ensureCustomer(connection, quote.contactId);
+  const itemId = await ensureDefaultItem(connection);
+  const taxable = money(quote.tax) > 0;
+
+  const lines: QboEntity[] = quote.lineItems
+    .filter((li) => !(li.isOptional && li.optedOut))
+    .map((li) => ({
+      DetailType: "SalesItemLineDetail",
+      Amount: money(li.total),
+      Description: [li.name, li.description].filter(Boolean).join(" — ").slice(0, 4000) || undefined,
+      SalesItemLineDetail: {
+        ItemRef: { value: itemId },
+        Qty: Number(li.quantity),
+        UnitPrice: money(li.unitPrice),
+        TaxCodeRef: { value: taxable ? "TAX" : "NON" },
+      },
+    }));
+  if (money(quote.discount) > 0) {
+    lines.push({
+      DetailType: "DiscountLineDetail",
+      Amount: money(quote.discount),
+      DiscountLineDetail: { PercentBased: false },
+    });
+  }
+
+  const payload: QboEntity = {
+    CustomerRef: { value: customerId },
+    DocNumber: String(quote.quoteNumber),
+    TxnDate: dateOnly(quote.sentAt ?? quote.createdAt),
+    TxnStatus: estimateTxnStatus(quote.status),
+    ...(quote.validUntil ? { ExpirationDate: dateOnly(quote.validUntil) } : {}),
+    Line: lines,
+    ...(taxable ? { TxnTaxDetail: { TotalTax: money(quote.tax) } } : {}),
+    PrivateNote: `Synced from WorkBench (quote #${quote.quoteNumber})`.slice(0, 4000),
+  };
+
+  let result: QboEntity;
+  if (record?.qboId) {
+    const current = await qboGet(connection, `estimate/${record.qboId}`);
+    const existing = current.Estimate as QboEntity;
+    result = await qboPost(connection, "estimate", {
+      ...payload,
+      Id: record.qboId,
+      SyncToken: existing.SyncToken,
+      sparse: true,
+    });
+  } else {
+    // Adopt an existing estimate with our number so a lost sync record (or a
+    // pre-Hub estimate) can't double-book.
+    const matches = await qboQuery(
+      connection,
+      "Estimate",
+      `select Id, SyncToken from Estimate where DocNumber = '${q(String(quote.quoteNumber))}' and CustomerRef = '${q(customerId)}'`
+    );
+    if (matches.length > 0) {
+      const existing = matches[0] as { Id: string; SyncToken?: string };
+      result = await qboPost(connection, "estimate", {
+        ...payload,
+        Id: existing.Id,
+        SyncToken: existing.SyncToken,
+        sparse: true,
+      });
+    } else {
+      result = await qboPost(connection, "estimate", payload);
+    }
+  }
+
+  const qboEstimate = result.Estimate as { Id: string; SyncToken?: string };
+  await saveSyncRecord({
+    connection,
+    entityType: "ESTIMATE",
+    localId: quoteId,
+    qboId: qboEstimate.Id,
+    qboSyncToken: qboEstimate.SyncToken,
+    localUpdatedAt: quote.updatedAt,
+  });
+  return qboEstimate.Id;
+}
+
+// ─── Entity push: Purchase (our Expense) ─────────────────────────────────────
+
+/**
+ * Resolve (once) the two accounts an expense Purchase needs: the expense
+ * account its line posts to and the bank/credit account it's paid from.
+ * Our Expense model has no vendor or payment method, so this is deliberately
+ * generic — the point is the numbers land on the P&L, bookkeepers can
+ * recategorize inside QBO.
+ */
+async function ensureExpenseAccounts(
+  connection: QuickBooksConnection
+): Promise<{ expenseAccountId: string; paymentAccountId: string }> {
+  if (connection.expenseAccountId && connection.paymentAccountId) {
+    return {
+      expenseAccountId: connection.expenseAccountId,
+      paymentAccountId: connection.paymentAccountId,
+    };
+  }
+
+  let expenseAccountId = connection.expenseAccountId;
+  if (!expenseAccountId) {
+    const named = await qboQuery(
+      connection,
+      "Account",
+      `select Id from Account where Name = '${q(EXPENSE_ACCOUNT_NAME)}'`
+    );
+    if (named.length > 0) {
+      expenseAccountId = (named[0] as { Id: string }).Id;
+    } else {
+      const expenseAccounts = await qboQuery(
+        connection,
+        "Account",
+        "select Id, Name from Account where AccountType = 'Expense' maxresults 100"
+      );
+      const preferred = expenseAccounts.find((a) =>
+        /miscellaneous|other|supplies|job/i.test(String(a.Name))
+      );
+      if (preferred) {
+        expenseAccountId = (preferred as unknown as { Id: string }).Id;
+      } else {
+        const created = await qboPost(connection, "account", {
+          Name: EXPENSE_ACCOUNT_NAME,
+          AccountType: "Expense",
+        });
+        expenseAccountId = (created.Account as { Id: string }).Id;
+      }
+    }
+  }
+
+  let paymentAccountId = connection.paymentAccountId;
+  if (!paymentAccountId) {
+    const banks = await qboQuery(
+      connection,
+      "Account",
+      "select Id, Name from Account where AccountType = 'Bank' maxresults 20"
+    );
+    const cards =
+      banks.length > 0
+        ? []
+        : await qboQuery(
+            connection,
+            "Account",
+            "select Id, Name from Account where AccountType = 'Credit Card' maxresults 20"
+          );
+    const pay = banks.find((a) => /check/i.test(String(a.Name))) ?? banks[0] ?? cards[0];
+    if (!pay) {
+      throw new Error(
+        "No bank or credit-card account found in this QuickBooks company — add one in QuickBooks first."
+      );
+    }
+    paymentAccountId = (pay as unknown as { Id: string }).Id;
+  }
+
+  await prisma.quickBooksConnection.update({
+    where: { id: connection.id },
+    data: { expenseAccountId, paymentAccountId },
+  });
+  connection.expenseAccountId = expenseAccountId;
+  connection.paymentAccountId = paymentAccountId;
+  return { expenseAccountId, paymentAccountId };
+}
+
+/**
+ * Push one expense as a QBO Purchase (create or full update — Purchase has
+ * no meaningful sparse semantics for our single-line shape).
+ */
+export async function pushExpense(
+  connection: QuickBooksConnection,
+  expenseId: string
+): Promise<string | null> {
+  const expense = await prisma.expense.findFirst({
+    where: { id: expenseId, companyId: connection.companyId },
+  });
+  if (!expense) throw new Error("Expense not found");
+
+  const record = await getSyncRecord(connection.companyId, "PURCHASE", expenseId);
+  if (
+    record?.qboId &&
+    record.status === "SYNCED" &&
+    record.localUpdatedAt &&
+    expense.updatedAt <= record.localUpdatedAt
+  ) {
+    return record.qboId;
+  }
+
+  const { expenseAccountId, paymentAccountId } = await ensureExpenseAccounts(connection);
+
+  const payload: QboEntity = {
+    PaymentType: "Cash", // generic — our Expense has no payment method
+    AccountRef: { value: paymentAccountId },
+    TxnDate: dateOnly(expense.incurredAt),
+    Line: [
+      {
+        DetailType: "AccountBasedExpenseLineDetail",
+        Amount: money(expense.amount),
+        Description: [expense.category, expense.description]
+          .filter(Boolean)
+          .join(" — ")
+          .slice(0, 4000),
+        AccountBasedExpenseLineDetail: { AccountRef: { value: expenseAccountId } },
+      },
+    ],
+    PrivateNote: "Synced from WorkBench (expense)".slice(0, 4000),
+  };
+
+  let result: QboEntity;
+  if (record?.qboId) {
+    const current = await qboGet(connection, `purchase/${record.qboId}`);
+    const existing = current.Purchase as QboEntity;
+    result = await qboPost(connection, "purchase", {
+      ...payload,
+      Id: record.qboId,
+      SyncToken: existing.SyncToken,
+    });
+  } else {
+    result = await qboPost(connection, "purchase", payload);
+  }
+
+  const qboPurchase = result.Purchase as { Id: string; SyncToken?: string };
+  await saveSyncRecord({
+    connection,
+    entityType: "PURCHASE",
+    localId: expenseId,
+    qboId: qboPurchase.Id,
+    qboSyncToken: qboPurchase.SyncToken,
+    localUpdatedAt: expense.updatedAt,
+  });
+  return qboPurchase.Id;
 }
 
 // ─── Entity push: Payment ────────────────────────────────────────────────────
@@ -951,6 +1270,8 @@ export function queueQuickBooksPaymentRefresh(params: {
 export interface SyncSummary {
   invoices: { pushed: number; failed: number; skipped: number };
   payments: { pushed: number; failed: number };
+  quotes: { pushed: number; failed: number; skipped: number };
+  expenses: { pushed: number; failed: number };
   done: boolean; // false = batch cap hit, another run will continue
 }
 
@@ -968,6 +1289,8 @@ export async function syncCompany(companyId: string): Promise<SyncSummary> {
   const summary: SyncSummary = {
     invoices: { pushed: 0, failed: 0, skipped: 0 },
     payments: { pushed: 0, failed: 0 },
+    quotes: { pushed: 0, failed: 0, skipped: 0 },
+    expenses: { pushed: 0, failed: 0 },
     done: true,
   };
 
@@ -1040,6 +1363,79 @@ export async function syncCompany(companyId: string): Promise<SyncSummary> {
       }
     }
 
+    // Quotes → Estimates (same never-synced-or-edited-since filter as invoices)
+    const [quotes, quoteRecords] = await Promise.all([
+      prisma.quote.findMany({
+        where: { companyId, status: { not: "DRAFT" } },
+        select: { id: true, updatedAt: true },
+        orderBy: { createdAt: "asc" },
+      }),
+      prisma.quickBooksSyncRecord.findMany({
+        where: { companyId, entityType: "ESTIMATE" },
+      }),
+    ]);
+    const recordByQuote = new Map(quoteRecords.map((r) => [r.localId, r]));
+    const dueQuotes = quotes.filter((qt) => {
+      const r = recordByQuote.get(qt.id);
+      return !(
+        r?.qboId &&
+        r.status === "SYNCED" &&
+        r.localUpdatedAt &&
+        qt.updatedAt <= r.localUpdatedAt
+      );
+    });
+    for (const qt of dueQuotes) {
+      if (budget-- <= 0) {
+        summary.done = false;
+        break;
+      }
+      try {
+        const id = await pushEstimate(connection, qt.id);
+        if (id) summary.quotes.pushed++;
+        else summary.quotes.skipped++;
+      } catch (err) {
+        if (isConnectionLevelError(err)) throw err;
+        summary.quotes.failed++;
+        await saveSyncError(connection, "ESTIMATE", qt.id, err);
+      }
+    }
+
+    // Expenses → Purchases
+    const [expenses, expenseRecords] = await Promise.all([
+      prisma.expense.findMany({
+        where: { companyId },
+        select: { id: true, updatedAt: true },
+        orderBy: { createdAt: "asc" },
+      }),
+      prisma.quickBooksSyncRecord.findMany({
+        where: { companyId, entityType: "PURCHASE" },
+      }),
+    ]);
+    const recordByExpense = new Map(expenseRecords.map((r) => [r.localId, r]));
+    const dueExpenses = expenses.filter((ex) => {
+      const r = recordByExpense.get(ex.id);
+      return !(
+        r?.qboId &&
+        r.status === "SYNCED" &&
+        r.localUpdatedAt &&
+        ex.updatedAt <= r.localUpdatedAt
+      );
+    });
+    for (const ex of dueExpenses) {
+      if (budget-- <= 0) {
+        summary.done = false;
+        break;
+      }
+      try {
+        const id = await pushExpense(connection, ex.id);
+        if (id) summary.expenses.pushed++;
+      } catch (err) {
+        if (isConnectionLevelError(err)) throw err;
+        summary.expenses.failed++;
+        await saveSyncError(connection, "PURCHASE", ex.id, err);
+      }
+    }
+
     await prisma.quickBooksConnection.update({
       where: { id: connection.id },
       data: { lastSyncAt: new Date(), lastSyncError: null },
@@ -1104,8 +1500,8 @@ export async function runQuickBooksNightlySync(): Promise<{
   for (const { companyId } of connections) {
     try {
       const s = await syncCompany(companyId);
-      pushed += s.invoices.pushed + s.payments.pushed;
-      failed += s.invoices.failed + s.payments.failed;
+      pushed += s.invoices.pushed + s.payments.pushed + s.quotes.pushed + s.expenses.pushed;
+      failed += s.invoices.failed + s.payments.failed + s.quotes.failed + s.expenses.failed;
     } catch (err) {
       failed++;
       console.error(`[quickbooks] nightly sync failed for company ${companyId}`, err);

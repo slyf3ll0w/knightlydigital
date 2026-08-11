@@ -10,6 +10,7 @@ import {
   unitPriceValue,
 } from "@/lib/work-items";
 import { computeQuoteTotals } from "@/lib/quote-totals";
+import { queueQuickBooksUnwind } from "@/lib/quickbooks";
 import { autoAdvance, recordLeadWin } from "@/lib/pipeline";
 import { logActivity } from "@/lib/activity";
 
@@ -281,5 +282,7 @@ export async function DELETE(
 
   // Converted quotes can go too — the job it became stays
   await prisma.quote.delete({ where: { id } });
+  // Mirror the delete in QuickBooks (no-op unless the estimate synced)
+  queueQuickBooksUnwind({ companyId, entityType: "ESTIMATE", localId: id });
   return NextResponse.json({ success: true });
 }

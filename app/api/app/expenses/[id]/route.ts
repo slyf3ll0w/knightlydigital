@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
+import { queueQuickBooksUnwind } from "@/lib/quickbooks";
 
 /** PATCH — correct an expense (description, category, amount, date). Managers only. */
 export async function PATCH(
@@ -74,5 +75,11 @@ export async function DELETE(
   if (!expense) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   await prisma.expense.delete({ where: { id: expense.id } });
+  // Mirror the delete in QuickBooks (no-op unless the purchase synced)
+  queueQuickBooksUnwind({
+    companyId: actor.companyId,
+    entityType: "PURCHASE",
+    localId: expense.id,
+  });
   return NextResponse.json({ success: true });
 }

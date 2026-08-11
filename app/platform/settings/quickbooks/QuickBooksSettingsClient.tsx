@@ -29,7 +29,15 @@ const CALLBACK_ERRORS: Record<string, string> = {
 };
 
 function entityLabel(t: string): string {
-  return t === "CUSTOMER" ? "Client" : t === "INVOICE" ? "Invoice" : "Payment";
+  return t === "CUSTOMER"
+    ? "Client"
+    : t === "INVOICE"
+      ? "Invoice"
+      : t === "ESTIMATE"
+        ? "Quote"
+        : t === "PURCHASE"
+          ? "Expense"
+          : "Payment";
 }
 
 export default function QuickBooksSettingsClient({ configured }: { configured: boolean }) {
@@ -76,11 +84,20 @@ export default function QuickBooksSettingsClient({ configured }: { configured: b
         setSyncError(data?.error ?? "Sync failed — please try again.");
       } else {
         const s = data.summary;
+        const failed =
+          s.invoices.failed +
+          s.payments.failed +
+          (s.quotes?.failed ?? 0) +
+          (s.expenses?.failed ?? 0);
+        const parts = [
+          `${s.invoices.pushed} invoice${s.invoices.pushed === 1 ? "" : "s"}`,
+          `${s.payments.pushed} payment${s.payments.pushed === 1 ? "" : "s"}`,
+          `${s.quotes?.pushed ?? 0} quote${(s.quotes?.pushed ?? 0) === 1 ? "" : "s"}`,
+          `${s.expenses?.pushed ?? 0} expense${(s.expenses?.pushed ?? 0) === 1 ? "" : "s"}`,
+        ];
         setSyncMessage(
-          `Synced ${s.invoices.pushed} invoice${s.invoices.pushed === 1 ? "" : "s"} and ${s.payments.pushed} payment${s.payments.pushed === 1 ? "" : "s"}` +
-            (s.invoices.failed + s.payments.failed > 0
-              ? ` · ${s.invoices.failed + s.payments.failed} failed (details below)`
-              : "") +
+          `Synced ${parts.join(", ")}` +
+            (failed > 0 ? ` · ${failed} failed (details below)` : "") +
             (s.done ? "" : " · large backlog — run again to continue")
         );
       }

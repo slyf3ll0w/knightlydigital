@@ -724,6 +724,8 @@ model Expense {
   incurredAt  DateTime // transaction date (date-only, noon anchor)
   createdById String?
   createdAt   DateTime @default(now())
+  // Drives QBO re-push change detection (same pattern as Invoice.updatedAt)
+  updatedAt   DateTime @default(now()) @updatedAt
 
   @@index([companyId, incurredAt])
 }
@@ -1867,6 +1869,13 @@ model QuickBooksConnection {
   // bill against ("Streamflaire Services") and the income account behind it.
   defaultItemId         String?
   incomeAccountId       String?
+  // Card surcharges bill against their own Service item so processing fees
+  // show up as their own income line in QBO reports, not buried in services
+  surchargeItemId       String?
+  // Expense (Purchase) push: the expense account lines post to and the
+  // bank/credit account they're paid from — both lazily resolved on first use
+  expenseAccountId      String?
+  paymentAccountId      String?
   lastSyncAt            DateTime?
   lastSyncError         String? // most recent connection-level failure; null = healthy
   createdAt             DateTime @default(now())
@@ -1879,6 +1888,8 @@ enum QuickBooksEntityType {
   CUSTOMER
   INVOICE
   PAYMENT
+  ESTIMATE // our Quote
+  PURCHASE // our Expense
 }
 
 enum QuickBooksSyncStatus {
