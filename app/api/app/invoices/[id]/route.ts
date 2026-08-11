@@ -3,6 +3,7 @@ import type { InvoiceStatus, RecurringInterval } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getActor, isManager, canSeeMoney, viaContactScope } from "@/lib/permissions";
 import { intQuantity, unitPriceValue, resolveLineItemCosts } from "@/lib/work-items";
+import { computeQuoteTotals } from "@/lib/quote-totals";
 import { paidDepositTotal } from "@/lib/deposits";
 import { inPreview, previewBlockedError } from "@/lib/preview";
 import { isPastDue } from "@/lib/due-dates";
@@ -74,16 +75,15 @@ export async function PATCH(
   const discountType =
     body.discountType === "PERCENT" || body.discountType === "FIXED" ? body.discountType : "NONE";
   const discountValue = Number(body.discountValue) || 0;
-  const discount =
-    discountType === "PERCENT"
-      ? Math.round(subtotal * Math.min(Math.max(discountValue, 0), 100)) / 100
-      : discountType === "FIXED"
-        ? Math.min(Math.max(discountValue, 0), subtotal)
-        : 0;
   const taxRate = Number(body.taxRate) || null;
-  const taxable = subtotal - discount;
-  const tax = taxRate ? taxable * taxRate : null;
-  const gross = taxable + (tax ?? 0);
+  // Shared quote/invoice math (lib/quote-totals) — tax rounds to cents so an
+  // edit re-derives the same total the quote and create path computed.
+  const { discount, tax, total: gross } = computeQuoteTotals({
+    subtotal,
+    discountType,
+    discountValue,
+    taxRate,
+  });
 
   // Re-net the deposit from SOURCE — the actual PAID deposit invoices on the
   // originating quote — not by ratcheting the stored depositApplied down against

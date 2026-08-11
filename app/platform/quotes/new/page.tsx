@@ -12,7 +12,7 @@ export default async function NewQuotePage({
 
   const { contactId, requestId } = await searchParams;
 
-  const [contacts, workItems, request] = await Promise.all([
+  const [contacts, workItems, company, request] = await Promise.all([
     prisma.contact.findMany({
       where: { companyId, ...contactScope(actor), status: { in: ["LEAD", "ACTIVE"] } },
       orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
@@ -22,12 +22,20 @@ export default async function NewQuotePage({
       where: { companyId, isActive: true },
       orderBy: { name: "asc" },
     }),
+    prisma.company.findUnique({
+      where: { id: companyId },
+      select: { defaultTaxRate: true },
+    }),
     requestId
       ? prisma.request.findFirst({
           where: { id: requestId, companyId, contact: contactScope(actor) },
         })
       : Promise.resolve(null),
   ]);
+
+  const defaultTaxRatePercent = company?.defaultTaxRate
+    ? String(Math.round(Number(company.defaultTaxRate) * 100000) / 1000)
+    : "";
 
   return (
     <QuoteEditor
@@ -36,6 +44,7 @@ export default async function NewQuotePage({
       prefilledContactId={request?.contactId ?? contactId ?? ""}
       requestId={request?.id ?? ""}
       requestTitle={request?.title ?? ""}
+      defaultTaxRatePercent={defaultTaxRatePercent}
     />
   );
 }

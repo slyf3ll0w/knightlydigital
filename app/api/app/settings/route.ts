@@ -93,6 +93,16 @@ export async function PATCH(req: NextRequest) {
           : undefined,
       surchargeEnabled: body.surchargeEnabled ?? undefined,
       surchargeRate: body.surchargeRate ?? undefined,
+      // Default sales-tax rate as a fraction (0.0825 = 8.25%); null clears it
+      defaultTaxRate:
+        body.defaultTaxRate !== undefined
+          ? (() => {
+              const rate = Number(body.defaultTaxRate);
+              return Number.isFinite(rate) && rate > 0
+                ? Math.min(rate, 0.9999)
+                : null;
+            })()
+          : undefined,
       hideConvertedLeads:
         typeof body.hideConvertedLeads === "boolean" ? body.hideConvertedLeads : undefined,
       ...(body.defaultDepositType !== undefined &&

@@ -80,6 +80,7 @@ export default function QuoteEditor({
   requestId = "",
   requestTitle = "",
   existingQuote,
+  defaultTaxRatePercent = "",
 }: {
   contacts: Contact[];
   workItems?: PickerWorkItem[];
@@ -87,6 +88,7 @@ export default function QuoteEditor({
   requestId?: string;
   requestTitle?: string;
   existingQuote?: ExistingQuote;
+  defaultTaxRatePercent?: string;
 }) {
   const router = useRouter();
   const editing = Boolean(existingQuote);
@@ -95,8 +97,14 @@ export default function QuoteEditor({
   const [contactId, setContactId] = useState(existingQuote?.contactId ?? prefilledContactId);
   const [propertyId, setPropertyId] = useState(existingQuote?.propertyId ?? "");
   const [title, setTitle] = useState(existingQuote?.title ?? requestTitle);
+  // Existing quotes keep their own rate (including "no tax"); new quotes
+  // start from the company default
   const [taxRate, setTaxRate] = useState(
-    existingQuote?.taxRate ? String(Math.round(existingQuote.taxRate * 100000) / 1000) : ""
+    existingQuote
+      ? existingQuote.taxRate
+        ? String(Math.round(existingQuote.taxRate * 100000) / 1000)
+        : ""
+      : defaultTaxRatePercent
   );
   const [discountType, setDiscountType] = useState<"NONE" | "PERCENT" | "FIXED">(
     existingQuote?.discountType ?? "NONE"
@@ -175,11 +183,15 @@ export default function QuoteEditor({
       : discountType === "FIXED"
         ? Math.min(Math.max(discountNum, 0), subtotal)
         : 0;
-  const tax = taxRate ? (subtotal - discount) * (parseFloat(taxRate) / 100) : 0;
+  // Rounded to cents to match the server (lib/quote-totals and
+  // quoteDepositAmount) — the preview must show the totals that get stored
+  const tax = taxRate
+    ? Math.round((subtotal - discount) * parseFloat(taxRate)) / 100
+    : 0;
   const total = subtotal - discount + tax;
   const deposit =
     depositType === "PERCENT"
-      ? total * ((parseFloat(depositValue) || 0) / 100)
+      ? Math.round(total * (parseFloat(depositValue) || 0)) / 100
       : depositType === "FIXED"
         ? Math.min(parseFloat(depositValue) || 0, total)
         : depositType === "FULL"

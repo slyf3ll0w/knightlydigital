@@ -143,12 +143,23 @@ export async function paidDepositTotal(tx: Tx, quoteId: string): Promise<number>
 export async function recomputeDepositApplied(tx: Tx, quoteId: string): Promise<void> {
   const quote = await tx.quote.findFirst({
     where: { id: quoteId },
-    select: { jobId: true },
+    select: { jobId: true, companyId: true },
   });
-  if (!quote?.jobId) return;
+  if (!quote) return;
 
+  // The final invoice is usually found through the converted job, but a quote
+  // that never converted (work invoiced directly, or abandoned) can still have
+  // a non-deposit invoice linked by quoteId — without this, a paid deposit on
+  // an unconverted quote has no path to ever being credited.
   const final = await tx.invoice.findFirst({
-    where: { jobId: quote.jobId, kind: { not: "DEPOSIT" } },
+    where: {
+      kind: { not: "DEPOSIT" },
+      companyId: quote.companyId,
+      OR: [
+        ...(quote.jobId ? [{ jobId: quote.jobId }] : []),
+        { quoteId },
+      ],
+    },
     include: { payments: true },
   });
   if (!final) return;

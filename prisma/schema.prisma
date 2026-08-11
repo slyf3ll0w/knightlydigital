@@ -69,6 +69,10 @@ model Company {
   // their own and used to prefill custom quotes. NONE = no default deposit.
   defaultDepositType  DepositType @default(NONE)
   defaultDepositValue Decimal?    @db.Decimal(10, 2) // percent (0-100) or fixed dollars
+  // Default sales-tax rate as a fraction (0.0825 = 8.25%). Prefills new quotes
+  // and invoices and applies to engine-generated (recurring) invoices; each
+  // document can still override or clear its own rate. null = no tax.
+  defaultTaxRate   Decimal? @db.Decimal(5, 4)
   reviewLink       String?
   // "On my way" text template ({{placeholder}} substitution per lib/messaging.ts);
   // null = the built-in default. Sent from the tech's own phone via an sms: link.

@@ -7,7 +7,9 @@ import {
   deleteFutureVisits,
   addVisitInterval,
   firstOfNextMonth,
+  rollCursorForward,
 } from "@/lib/subscriptions";
+import { inPreview, previewBlockedError } from "@/lib/preview";
 
 /**
  * PATCH — manage one subscription. Body:
@@ -45,6 +47,9 @@ export async function PATCH(
   const body = await req.json();
 
   if (body.action === "billNow") {
+    // Same gate as the run/bill-ready routes — preview companies don't bill
+    if (await inPreview(companyId))
+      return NextResponse.json(previewBlockedError("Billing"), { status: 403 });
     const outcome = await billSubscriptionNow(id, companyId);
     if (!outcome) return NextResponse.json({ error: "This series has nothing to bill." }, { status: 400 });
     if (outcome === "empty") {
@@ -248,6 +253,21 @@ export async function PATCH(
       data.nextVisitDate = rolled;
       finalNextVisit = rolled;
     }
+  }
+
+  // Resuming a billed plan with a stale cursor: roll it forward on-cadence
+  // (keeping the anchor day) so the client isn't billed one full cycle per
+  // sweep for the months the series sat paused. An explicit nextRunDate in
+  // the same request wins.
+  if (
+    data.status === "ACTIVE" &&
+    sub.status !== "ACTIVE" &&
+    data.nextRunDate === undefined &&
+    sub.interval &&
+    sub.nextRunDate &&
+    sub.nextRunDate < new Date()
+  ) {
+    data.nextRunDate = rollCursorForward(sub.nextRunDate, sub.interval);
   }
 
   const updated = await prisma.subscription.update({ where: { id }, data });

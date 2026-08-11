@@ -12,7 +12,7 @@ export default async function NewInvoicePage({
 
   const { jobId, contactId } = await searchParams;
 
-  const [contacts, workItems, job] = await Promise.all([
+  const [contacts, workItems, company, job] = await Promise.all([
     prisma.contact.findMany({
       where: { companyId, ...contactScope(actor), status: { in: ["LEAD", "ACTIVE"] } },
       orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
@@ -21,17 +21,34 @@ export default async function NewInvoicePage({
       where: { companyId, isActive: true },
       orderBy: { name: "asc" },
     }),
+    prisma.company.findUnique({
+      where: { id: companyId },
+      select: { defaultTaxRate: true },
+    }),
     jobId
       ? prisma.job.findFirst({
           where: { id: jobId, companyId, ...viaContactScope(actor) },
           include: {
             contact: true,
             lineItems: { orderBy: { sortOrder: "asc" } },
-            quote: { include: { lineItems: true } },
+            quote: {
+              include: {
+                // Services the client opted out of on the quote must not
+                // reappear on the bill when the quote is the prefill source
+                lineItems: {
+                  where: { OR: [{ isOptional: false }, { optedOut: false }] },
+                  orderBy: { sortOrder: "asc" },
+                },
+              },
+            },
           },
         })
       : null,
   ]);
+
+  const defaultTaxRatePercent = company?.defaultTaxRate
+    ? String(Math.round(Number(company.defaultTaxRate) * 100000) / 1000)
+    : "";
 
   return (
     <InvoiceEditor
@@ -39,6 +56,7 @@ export default async function NewInvoicePage({
       workItems={JSON.parse(JSON.stringify(workItems))}
       prefillJob={job ? JSON.parse(JSON.stringify(job)) : null}
       prefilledContactId={contactId ?? ""}
+      defaultTaxRatePercent={defaultTaxRatePercent}
     />
   );
 }

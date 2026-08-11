@@ -14,6 +14,7 @@ export default function JobActions({
   canDelete = false,
   canEdit = false,
   scheduledAt = null,
+  planBilled = false,
 }: {
   jobId: string;
   status: string;
@@ -22,6 +23,9 @@ export default function JobActions({
   canDelete?: boolean;
   canEdit?: boolean;
   scheduledAt?: string | null;
+  // Billed automatically by a recurring plan's cycle invoice — manual
+  // invoicing would double-bill, so those actions are hidden
+  planBilled?: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -157,7 +161,7 @@ export default function JobActions({
           Complete Job
         </button>
       )}
-      {status === "REQUIRES_INVOICING" && (
+      {status === "REQUIRES_INVOICING" && !planBilled && (
         <button
           onClick={() => router.push(`/app/invoices/new?jobId=${jobId}`)}
           className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors max-lg:fixed max-lg:right-4 max-lg:bottom-[calc(5.5rem+env(safe-area-inset-bottom))] max-lg:z-30 max-lg:rounded-full max-lg:px-5 max-lg:py-3 max-lg:text-[15px]"
@@ -195,7 +199,7 @@ export default function JobActions({
                   Edit Job
                 </button>
               )}
-              {status !== "ARCHIVED" && !hasInvoice && (
+              {status !== "ARCHIVED" && !hasInvoice && !planBilled && (
                 <button
                   onClick={() => router.push(`/app/invoices/new?jobId=${jobId}`)}
                   className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"

@@ -60,12 +60,14 @@ export default function InvoiceEditor({
   prefillJob,
   prefilledContactId = "",
   editInvoice = null,
+  defaultTaxRatePercent = "",
 }: {
   contacts: Contact[];
   workItems?: PickerWorkItem[];
   prefillJob: PrefillJob | null;
   prefilledContactId?: string;
   editInvoice?: EditInvoice | null;
+  defaultTaxRatePercent?: string;
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -101,11 +103,15 @@ export default function InvoiceEditor({
   const [notes, setNotes] = useState(editInvoice?.notes ?? "");
   const [clientMessage, setClientMessage] = useState(editInvoice?.clientMessage ?? "");
   // Tax carries over from the job's quote — otherwise a quoted 8.25% job
-  // silently invoices at 0% and the business under-bills.
+  // silently invoices at 0% and the business under-bills. With no quote in
+  // the picture, the company's default rate fills in (a quote that chose no
+  // tax keeps that choice).
   const quoteTaxPercent = prefillJob?.quote?.taxRate
     ? String(Math.round(Number(prefillJob.quote.taxRate) * 100000) / 1000)
     : "";
-  const [taxRate, setTaxRate] = useState(editInvoice?.taxRatePercent ?? quoteTaxPercent);
+  const [taxRate, setTaxRate] = useState(
+    editInvoice?.taxRatePercent ?? (prefillJob?.quote ? quoteTaxPercent : defaultTaxRatePercent)
+  );
   // Quote discounts carry over when invoicing a quoted job
   const quoteDiscount = prefillJob?.quote;
   const [discountType, setDiscountType] = useState<"NONE" | "PERCENT" | "FIXED">(
@@ -174,7 +180,11 @@ export default function InvoiceEditor({
       : discountType === "FIXED"
         ? Math.min(Math.max(discountNum, 0), subtotal)
         : 0;
-  const tax = taxRate ? (subtotal - discount) * (parseFloat(taxRate) / 100) : 0;
+  // Rounded to cents to match the server (lib/quote-totals) — the preview
+  // total must be the total that gets stored
+  const tax = taxRate
+    ? Math.round((subtotal - discount) * parseFloat(taxRate)) / 100
+    : 0;
   const grossTotal = subtotal - discount + tax;
   const total = Math.max(0, grossTotal - Math.min(depositApplied, grossTotal));
 

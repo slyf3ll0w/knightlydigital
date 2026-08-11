@@ -55,7 +55,9 @@ export default async function JobDetailPage({
           include: { user: { select: { id: true, name: true, hourlyCost: true } } },
           orderBy: { startedAt: "asc" },
         },
-        subscription: { select: { id: true, name: true, visitFrequency: true } },
+        subscription: {
+          select: { id: true, name: true, visitFrequency: true, interval: true, billPerVisit: true },
+        },
         quote: true,
         invoice: { include: { payments: true } },
       },
@@ -215,6 +217,7 @@ export default async function JobDetailPage({
               canDelete={isManager(actor.role)}
               canEdit={canEdit}
               scheduledAt={job.scheduledAt?.toISOString() ?? null}
+              planBilled={!!job.subscription?.interval && !job.subscription.billPerVisit}
             />
           </div>
         )}
@@ -550,32 +553,47 @@ export default async function JobDetailPage({
           {/* Billing */}
           {showMoney && (
           <div className="card-ledger p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-[13px] font-semibold text-gray-500">Billing</h2>
-              {!job.invoice && (
-                <Link
-                  href={`/app/invoices/new?jobId=${job.id}`}
-                  className="text-xs text-green-600 hover:underline font-medium"
-                >
-                  + Create Invoice
-                </Link>
-              )}
-            </div>
-            {job.invoice ? (
-              <Link href={`/app/invoices/${job.invoice.id}`} className="block hover:opacity-80">
-                <p className="text-sm font-medium text-gray-800">
-                  Invoice #{job.invoice.invoiceNumber}
-                </p>
-                <p className="text-lg font-bold text-gray-900 mt-1">{money(job.invoice.total)}</p>
-                <StatusChip kind="invoice" status={job.invoice.status} className="mt-1" />
-              </Link>
-            ) : (
-              <p className="text-xs text-gray-400">
-                {job.status === "REQUIRES_INVOICING"
-                  ? "This job is waiting to be invoiced."
-                  : "No invoice yet."}
-              </p>
-            )}
+            {/* Plan-billed recurring work is invoiced by its billing cycle —
+                offering "+ Create Invoice" here would double-bill the client */}
+            {(() => {
+              const planBilled =
+                !!job.subscription?.interval && !job.subscription.billPerVisit;
+              return (
+                <>
+                  <div className="flex items-center justify-between mb-3">
+                    <h2 className="text-[13px] font-semibold text-gray-500">Billing</h2>
+                    {!job.invoice && !planBilled && (
+                      <Link
+                        href={`/app/invoices/new?jobId=${job.id}`}
+                        className="text-xs text-green-600 hover:underline font-medium"
+                      >
+                        + Create Invoice
+                      </Link>
+                    )}
+                  </div>
+                  {job.invoice ? (
+                    <Link href={`/app/invoices/${job.invoice.id}`} className="block hover:opacity-80">
+                      <p className="text-sm font-medium text-gray-800">
+                        Invoice #{job.invoice.invoiceNumber}
+                      </p>
+                      <p className="text-lg font-bold text-gray-900 mt-1">{money(job.invoice.total)}</p>
+                      <StatusChip kind="invoice" status={job.invoice.status} className="mt-1" />
+                    </Link>
+                  ) : planBilled ? (
+                    <p className="text-xs text-gray-400">
+                      Billed automatically by the recurring plan
+                      {job.subscription?.name ? ` “${job.subscription.name}”` : ""}.
+                    </p>
+                  ) : (
+                    <p className="text-xs text-gray-400">
+                      {job.status === "REQUIRES_INVOICING"
+                        ? "This job is waiting to be invoiced."
+                        : "No invoice yet."}
+                    </p>
+                  )}
+                </>
+              );
+            })()}
           </div>
           )}
 

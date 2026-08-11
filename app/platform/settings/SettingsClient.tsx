@@ -55,6 +55,7 @@ type Company = {
   surchargeEnabled: boolean; surchargeRate: string | number | null;
   defaultDepositType: "NONE" | "PERCENT" | "FIXED" | "FULL";
   defaultDepositValue: string | number | null;
+  defaultTaxRate: string | number | null;
   reviewLink: string | null; industry: string | null;
   onMyWayTemplate: string | null;
   timezone: string;
@@ -974,6 +975,11 @@ export default function SettingsClient({
     surchargeRate: company.surchargeRate ? (Number(company.surchargeRate) * 100).toFixed(2) : "3.00",
     defaultDepositType: company.defaultDepositType ?? "NONE",
     defaultDepositValue: company.defaultDepositValue != null ? String(Number(company.defaultDepositValue)) : "",
+    // Stored as a fraction (0.0825); shown/edited as a percent ("8.25")
+    defaultTaxRate:
+      company.defaultTaxRate != null
+        ? String(Math.round(Number(company.defaultTaxRate) * 100000) / 1000)
+        : "",
     reviewLink: company.reviewLink ?? "",
     onMyWayTemplate: company.onMyWayTemplate ?? "",
     timezone: company.timezone ?? "America/Chicago",
@@ -1055,6 +1061,11 @@ export default function SettingsClient({
       if ("defaultDepositType" in payload || "defaultDepositValue" in payload) {
         payload.defaultDepositType = form.defaultDepositType;
         payload.defaultDepositValue = form.defaultDepositValue;
+      }
+      if ("defaultTaxRate" in payload) {
+        payload.defaultTaxRate = form.defaultTaxRate
+          ? parseFloat(form.defaultTaxRate) / 100
+          : null;
       }
       // Stored as a JSON string in the form (string diffing) — the API wants
       // the object
@@ -1886,6 +1897,29 @@ export default function SettingsClient({
             On approval, the deposit is billed to the client as its own invoice; the final invoice
             then subtracts what they&apos;ve already paid.
           </p>
+        </div>
+        )}
+
+        {/* Default sales tax */}
+        {show("payments") && (
+        <div className="card-ledger p-5 space-y-4">
+          <div>
+            <h2 className="text-sm font-semibold text-gray-700">Sales Tax</h2>
+            <p className="text-xs text-gray-400 mt-0.5">
+              Prefills new quotes and invoices and applies to recurring invoices. Each document can
+              still change or remove its own rate.
+            </p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Default tax rate</label>
+            <div className="flex items-center gap-2">
+              <input type="number" value={form.defaultTaxRate} onChange={(e) => set("defaultTaxRate", e.target.value)}
+                min="0" max="99" step="0.001" placeholder="0"
+                className="w-24 px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+              <span className="text-sm text-gray-500">%</span>
+            </div>
+            <p className="text-xs text-gray-400 mt-1">Leave blank if you don&apos;t charge sales tax.</p>
+          </div>
         </div>
         )}
 

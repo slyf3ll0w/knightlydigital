@@ -1,9 +1,10 @@
 /**
- * The one place quote money math lives. Discount comes off the subtotal, tax
- * applies to the discounted subtotal and is rounded to cents — matching what
- * the client sees on the acceptance page — so the total stored at creation,
- * edit, and public approval is always identical (the deposit invoice is
- * minted from it).
+ * The one place document money math lives — quotes AND invoices. Discount
+ * comes off the subtotal, tax applies to the discounted subtotal and is
+ * rounded to cents — matching what the client sees on the acceptance page —
+ * so a quote's total survives conversion to an invoice exactly, and the total
+ * stored at creation, edit, and public approval is always identical (the
+ * deposit invoice is minted from it).
  */
 export function computeQuoteTotals(input: {
   subtotal: number;

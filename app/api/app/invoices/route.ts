@@ -7,6 +7,7 @@ import { recordLeadWin } from "@/lib/pipeline";
 import { ensureSubscriptionsForContact } from "@/lib/subscriptions";
 import { paidDepositTotal } from "@/lib/deposits";
 import { intQuantity, unitPriceValue, resolveLineItemCosts } from "@/lib/work-items";
+import { computeQuoteTotals } from "@/lib/quote-totals";
 import { inPreview, previewBlockedError } from "@/lib/preview";
 import { withDocNumberRetry } from "@/lib/doc-numbers";
 
@@ -70,7 +71,13 @@ export async function POST(req: NextRequest) {
   if (jobId) {
     const job = await prisma.job.findFirst({
       where: { id: jobId, companyId },
-      select: { id: true, jobNumber: true, invoice: { select: { invoiceNumber: true } } },
+      select: {
+        id: true,
+        jobNumber: true,
+        consolidatedInvoiceId: true,
+        invoice: { select: { invoiceNumber: true } },
+        subscription: { select: { name: true, interval: true, billPerVisit: true } },
+      },
     });
     if (!job) return NextResponse.json({ error: "Job not found." }, { status: 404 });
     // One invoice per job (Invoice.jobId is unique) — say so instead of
@@ -83,24 +90,42 @@ export async function POST(req: NextRequest) {
         { status: 409 }
       );
     }
+    // A visit already billed on a consolidated invoice has invoice == null but
+    // consolidatedInvoiceId set — invoicing it again bills the client twice.
+    if (job.consolidatedInvoiceId) {
+      return NextResponse.json(
+        {
+          error: `Job #${job.jobNumber} was already billed on a consolidated recurring invoice. Invoicing it again would charge the client twice.`,
+        },
+        { status: 409 }
+      );
+    }
+    // Plan-billed recurring work (interval set, not per-visit) is invoiced by
+    // its billing cycle — a manual invoice on top double-bills the same work.
+    if (job.subscription?.interval && !job.subscription.billPerVisit) {
+      return NextResponse.json(
+        {
+          error: `Job #${job.jobNumber} belongs to the recurring plan "${job.subscription.name}", which bills it automatically. Invoicing it again would charge the client twice.`,
+        },
+        { status: 409 }
+      );
+    }
   }
 
   const subtotal = lineItems.reduce(
     (s: number, li: { quantity: number; unitPrice: number }) => s + li.quantity * li.unitPrice,
     0
   );
-  // Discount comes off the subtotal before tax
+  // Shared quote/invoice math (lib/quote-totals) — tax rounds to cents, so a
+  // quoted total survives invoicing exactly instead of drifting by fractions.
   const discountType = body.discountType === "PERCENT" || body.discountType === "FIXED" ? body.discountType : "NONE";
   const discountValue = Number(body.discountValue) || 0;
-  const discount =
-    discountType === "PERCENT"
-      ? Math.round(subtotal * Math.min(Math.max(discountValue, 0), 100)) / 100
-      : discountType === "FIXED"
-        ? Math.min(Math.max(discountValue, 0), subtotal)
-        : 0;
-  const taxable = subtotal - discount;
-  const tax = taxRate ? taxable * taxRate : null;
-  const total = taxable + (tax ?? 0);
+  const { discount, tax, total } = computeQuoteTotals({
+    subtotal,
+    discountType,
+    discountValue,
+    taxRate: taxRate || null,
+  });
 
   // Due date from explicit value, else the client's payment terms (Net N).
   // Date-only strings get anchored to midday so they don't shift a day in

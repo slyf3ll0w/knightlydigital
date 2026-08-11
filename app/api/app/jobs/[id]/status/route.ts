@@ -42,18 +42,37 @@ export async function PATCH(
     }
   }
 
+  // Plan-billed recurring work (interval billing, not per-visit) is covered by
+  // the plan's cycle invoice — completing such a job closes it out directly.
+  // Parking it in "Requires invoicing" would count it in the invoicing queue
+  // and invite a second, manual invoice for work the plan already bills.
+  let effectiveStatus = status;
+  let planBilled = false;
+  if (status === "REQUIRES_INVOICING" && job.subscriptionId) {
+    const sub = await prisma.subscription.findUnique({
+      where: { id: job.subscriptionId },
+      select: { interval: true, billPerVisit: true },
+    });
+    if (sub?.interval && !sub.billPerVisit) {
+      effectiveStatus = "ARCHIVED";
+      planBilled = true;
+    }
+  }
+
   // Stamp only on a real transition — a replayed/queued PATCH of the status
-  // the job already has must not move completedAt/closedAt.
+  // the job already has must not move completedAt/closedAt. completedAt keys
+  // off the REQUESTED completion, so a plan-billed visit that closes straight
+  // to ARCHIVED still records when the work was done.
   const extra: Record<string, Date | null> = {};
   if (status === "REQUIRES_INVOICING" && job.status !== "REQUIRES_INVOICING")
     extra.completedAt = new Date();
-  if (status === "ARCHIVED" && job.status !== "ARCHIVED") extra.closedAt = new Date();
-  if (status === "ACTIVE" && job.status !== "ACTIVE") {
+  if (effectiveStatus === "ARCHIVED" && job.status !== "ARCHIVED") extra.closedAt = new Date();
+  if (effectiveStatus === "ACTIVE" && job.status !== "ACTIVE") {
     extra.completedAt = null;
     extra.closedAt = null;
   }
 
-  await prisma.job.update({ where: { id }, data: { status, ...extra } });
+  await prisma.job.update({ where: { id }, data: { status: effectiveStatus, ...extra } });
 
   // Per-visit billed series: completing the visit mints (and sends/charges)
   // its invoice, then archives the job. A billing failure never blocks the
@@ -87,5 +106,5 @@ export async function PATCH(
     }
   }
 
-  return NextResponse.json({ success: true, visitBilling });
+  return NextResponse.json({ success: true, visitBilling, planBilled });
 }

@@ -1,49 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import type { PaymentMethod, Prisma } from "@prisma/client";
+import type { PaymentMethod } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getActor, canSeeMoney, isManager, viaContactScope } from "@/lib/permissions";
-import { isPastDue } from "@/lib/due-dates";
+import { recomputeInvoiceStatus } from "@/lib/payments";
 import { queueQuickBooksUnwind } from "@/lib/quickbooks";
 import { logActivity } from "@/lib/activity";
 
 const validMethods = [
   "CARD", "ACH", "CASH", "CHECK", "CASH_APP", "PAYPAL", "VENMO", "ZELLE", "OTHER",
 ];
-
-/**
- * After a payment changes or disappears, the invoice's status must follow
- * the money again: covered → PAID (stamped with the latest payment date),
- * no longer covered → back to AWAITING_PAYMENT or PAST_DUE by due date.
- */
-async function recomputeInvoiceStatus(tx: Prisma.TransactionClient, invoiceId: string) {
-  const invoice = await tx.invoice.findUnique({
-    where: { id: invoiceId },
-    include: { payments: true },
-  });
-  if (!invoice) return;
-
-  const paid = invoice.payments.reduce((s, p) => s + Number(p.amount), 0);
-  const fullyPaid = paid > 0 && paid >= Number(invoice.total) - 0.005;
-
-  if (fullyPaid) {
-    const lastPaidAt = invoice.payments.reduce<Date | null>(
-      (latest, p) => (!latest || p.paidAt > latest ? p.paidAt : latest),
-      null
-    );
-    await tx.invoice.update({
-      where: { id: invoiceId },
-      data: { status: "PAID", paidAt: lastPaidAt ?? new Date() },
-    });
-  } else if (invoice.status === "PAID") {
-    await tx.invoice.update({
-      where: { id: invoiceId },
-      data: {
-        status: isPastDue(invoice.dueDate) ? "PAST_DUE" : "AWAITING_PAYMENT",
-        paidAt: null,
-      },
-    });
-  }
-}
 
 /** PATCH — correct a recorded payment (amount, method, date, reference, details). */
 export async function PATCH(

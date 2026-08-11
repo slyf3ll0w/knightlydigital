@@ -59,6 +59,22 @@ export function addInterval(date: Date, interval: RecurringInterval): Date {
   }
 }
 
+/**
+ * Advance a billing cursor by whole intervals until it's out of the past —
+ * used when resuming a paused/cancelled series so the client isn't
+ * retro-billed one full cycle per sweep for the time the series sat paused.
+ * Keeps the original anchor day (day-of-month) rather than re-anchoring.
+ */
+export function rollCursorForward(
+  cursor: Date,
+  interval: RecurringInterval,
+  from: Date = new Date()
+): Date {
+  let next = cursor;
+  while (next < from) next = addInterval(next, interval);
+  return next;
+}
+
 /** Human label for an interval, e.g. for badges and client-facing pages. */
 export function intervalLabel(interval: RecurringInterval): string {
   return {
@@ -166,6 +182,27 @@ export async function ensureSubscriptionsForContact(
 type DueSub = Prisma.SubscriptionGetPayload<{ include: { contact: true } }>;
 
 /**
+ * Engine-generated invoices charge the company's default sales-tax rate, the
+ * same as a hand-made invoice — without this, every recurring/per-visit
+ * invoice ships tax-free while one-off invoices tax, and the business quietly
+ * under-collects. Rounding matches lib/quote-totals.
+ */
+async function applyCompanyTax(
+  tx: Tx,
+  companyId: string,
+  subtotal: number
+): Promise<{ taxRate: number | null; tax: number | null; total: number }> {
+  const company = await tx.company.findUnique({
+    where: { id: companyId },
+    select: { defaultTaxRate: true },
+  });
+  const rate = company?.defaultTaxRate ? Number(company.defaultTaxRate) : null;
+  if (!rate) return { taxRate: null, tax: null, total: subtotal };
+  const tax = Math.round(subtotal * rate * 100) / 100;
+  return { taxRate: rate, tax, total: Math.round((subtotal + tax) * 100) / 100 };
+}
+
+/**
  * Post-commit settlement for an engine-generated SEND invoice: auto-charge
  * via lib/auto-charge.ts (pinned/default SavedCard, falling back to the
  * legacy contact mirror), otherwise email a pay-by-link. A declined card
@@ -248,7 +285,7 @@ async function generateCycle(sub: DueSub, now: Date): Promise<"billed" | "drafte
   // nextRunDate), but guard anyway — billing math needs a cadence.
   const interval = sub.interval;
   if (!interval) return "drafted";
-  const lineTotal = Number(sub.unitPrice) * Number(sub.quantity);
+  const lineTotal = Math.round(Number(sub.unitPrice) * Number(sub.quantity) * 100) / 100;
 
   // Retried as a whole: the cron can overlap a staff member creating an
   // invoice or job in the same company, and the optimistic claim inside is
@@ -314,6 +351,7 @@ async function generateCycle(sub: DueSub, now: Date): Promise<"billed" | "drafte
       orderBy: { invoiceNumber: "desc" },
       select: { invoiceNumber: true },
     });
+    const money = await applyCompanyTax(tx, sub.companyId, lineTotal);
     const dueDate = new Date(now.getTime() + sub.contact.paymentTermsDays * 86400000);
     const invoice = await tx.invoice.create({
       data: {
@@ -325,7 +363,9 @@ async function generateCycle(sub: DueSub, now: Date): Promise<"billed" | "drafte
         subject: sub.name,
         status: send ? "AWAITING_PAYMENT" : "DRAFT",
         subtotal: lineTotal,
-        total: lineTotal,
+        taxRate: money.taxRate,
+        tax: money.tax,
+        total: money.total,
         issuedAt: send ? now : null,
         dueDate: send ? dueDate : null,
         lineItems: {
@@ -346,6 +386,7 @@ async function generateCycle(sub: DueSub, now: Date): Promise<"billed" | "drafte
       invoiceId: invoice.id,
       invoiceNumber: invoice.invoiceNumber,
       publicToken: invoice.publicToken,
+      total: money.total,
       send,
     };
   }));
@@ -363,7 +404,7 @@ async function generateCycle(sub: DueSub, now: Date): Promise<"billed" | "drafte
     invoiceId: cycle.invoiceId,
     invoiceNumber: cycle.invoiceNumber,
     publicToken: cycle.publicToken,
-    amount: lineTotal,
+    amount: cycle.total,
     chargeDescription: `${sub.name} — subscription`,
     paymentDetails: "Auto-charged (recurring subscription)",
   });
@@ -398,7 +439,7 @@ export async function billCompletedVisit(
   // the unbilled pool and runMonthlyConsolidations invoices it on the 1st.
   if (sub.consolidateMonthly) return null;
 
-  const lineTotal = Number(sub.unitPrice) * Number(sub.quantity);
+  const lineTotal = Math.round(Number(sub.unitPrice) * Number(sub.quantity) * 100) / 100;
   const send = sub.invoiceMode === "SEND";
   const now = new Date();
 
@@ -417,6 +458,7 @@ export async function billCompletedVisit(
       orderBy: { invoiceNumber: "desc" },
       select: { invoiceNumber: true },
     });
+    const money = await applyCompanyTax(tx, companyId, lineTotal);
     const invoice = await tx.invoice.create({
       data: {
         companyId,
@@ -428,7 +470,9 @@ export async function billCompletedVisit(
         subject: sub.name,
         status: send ? "AWAITING_PAYMENT" : "DRAFT",
         subtotal: lineTotal,
-        total: lineTotal,
+        taxRate: money.taxRate,
+        tax: money.tax,
+        total: money.total,
         issuedAt: send ? now : null,
         dueDate: send
           ? new Date(now.getTime() + sub.contact.paymentTermsDays * 86400000)
@@ -462,6 +506,7 @@ export async function billCompletedVisit(
       invoiceId: invoice.id,
       invoiceNumber: invoice.invoiceNumber,
       publicToken: invoice.publicToken,
+      total: money.total,
     };
   }));
 
@@ -476,7 +521,7 @@ export async function billCompletedVisit(
     invoiceId: minted.invoiceId,
     invoiceNumber: minted.invoiceNumber,
     publicToken: minted.publicToken,
-    amount: lineTotal,
+    amount: minted.total,
     chargeDescription: `${sub.name} — visit`,
     paymentDetails: "Auto-charged (per-visit billing)",
   });
@@ -501,7 +546,7 @@ async function billSeriesPool(
   now: Date
 ): Promise<"charged" | "billed" | "drafted" | "empty"> {
   if (!sub.billPerVisit) return "empty";
-  const perVisit = Number(sub.unitPrice) * Number(sub.quantity);
+  const perVisit = Math.round(Number(sub.unitPrice) * Number(sub.quantity) * 100) / 100;
   const send = sub.invoiceMode === "SEND";
 
   let minted: {
@@ -580,9 +625,10 @@ async function billSeriesPool(
           sortOrder: i,
         })),
       });
+      const money = await applyCompanyTax(tx, sub.companyId, total);
       await tx.invoice.update({
         where: { id: invoice.id },
-        data: { subtotal: total, total },
+        data: { subtotal: total, taxRate: money.taxRate, tax: money.tax, total: money.total },
       });
 
       // Visits still sitting in "requires invoicing" are now invoiced —
@@ -603,7 +649,7 @@ async function billSeriesPool(
         invoiceId: invoice.id,
         invoiceNumber: invoice.invoiceNumber,
         publicToken: invoice.publicToken,
-        total,
+        total: money.total,
         visitCount: mine.length,
       };
     }));
@@ -784,11 +830,23 @@ export async function billSubscriptionNow(
   // A standalone recurring-job series has no cycle to force
   if (!sub.interval) return null;
   // Make it due so the shared cycle path (with its idempotency guard) runs it
+  const originalNext = sub.nextRunDate;
   if (!sub.nextRunDate || sub.nextRunDate > now) {
     await prisma.subscription.update({ where: { id }, data: { nextRunDate: now } });
     sub.nextRunDate = now;
   }
-  return generateCycle({ ...sub }, now);
+  const outcome = await generateCycle({ ...sub }, now);
+  // Billing now bills the UPCOMING cycle early — it must not re-anchor every
+  // future cycle to today. The cycle advanced the cursor from "now"; move it
+  // to one interval past the original date instead, keeping the anchor day.
+  // Guarded on the exact advanced value so a concurrent edit isn't clobbered.
+  if (originalNext && originalNext > now) {
+    await prisma.subscription.updateMany({
+      where: { id, nextRunDate: addInterval(now, sub.interval) },
+      data: { nextRunDate: addInterval(originalNext, sub.interval) },
+    });
+  }
+  return outcome;
 }
 
 // ─── Visit series (visit cadence decoupled from billing) ─────────────────────
