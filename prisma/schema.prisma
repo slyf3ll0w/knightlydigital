@@ -649,9 +649,10 @@ model ContactAddress {
   createdAt DateTime @default(now())
 
   // Work linked to this property (per-property history)
-  jobs         Job[]
-  appointments Appointment[]
-  quotes       Quote[]
+  jobs          Job[]
+  appointments  Appointment[]
+  quotes        Quote[]
+  subscriptions Subscription[]
 
   @@index([contactId])
 }
@@ -1726,12 +1727,18 @@ model Subscription {
   description String?
   unitPrice   Decimal            @db.Decimal(10, 2)
   quantity    Decimal            @default(1) @db.Decimal(10, 3)
-  interval    RecurringInterval
+  // BILLING cadence — null = a standalone recurring-job series ("mow every
+  // 2 weeks") that schedules visits via the series below but never bills
+  interval    RecurringInterval?
   createsJob  Boolean            @default(false)
   invoiceMode RecurringInvoiceMode @default(SEND)
   status      SubscriptionStatus @default(ACTIVE)
-  nextRunDate DateTime // date-only, noon-anchored; the engine bills when this is due
+  // date-only, noon-anchored; the engine bills when due (null = never bills)
+  nextRunDate DateTime?
   lastGeneratedAt DateTime? // guards against double-billing on repeated/overlapping runs
+  // Saved service address generated visits land at (see Job.propertyId)
+  propertyId  String?
+  property    ContactAddress?    @relation(fields: [propertyId], references: [id], onDelete: SetNull)
 
   // ── Visit series (visit cadence decoupled from billing) ─────────────────────
   // "Weekly mows, billed monthly": visitFrequency generates visit jobs on its

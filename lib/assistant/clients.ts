@@ -186,7 +186,8 @@ export const clientTools: Tool[] = [
               })),
               subscriptions: c.subscriptions.map((s) => ({
                 id: s.id, name: s.name, status: s.status, interval: s.interval,
-                price: money(s.unitPrice), nextBill: s.nextRunDate.toISOString().slice(0, 10),
+                price: money(s.unitPrice),
+                nextBill: s.nextRunDate ? s.nextRunDate.toISOString().slice(0, 10) : null,
               })),
             }
           : {}),

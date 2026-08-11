@@ -90,7 +90,7 @@ export const visitFrequencyLabel: Record<Frequency, string> = {
 };
 
 /** noon-anchored "today + interval" so dates never drift across timezones. */
-function firstRunDate(interval: RecurringInterval): Date {
+export function firstRunDate(interval: RecurringInterval): Date {
   const base = new Date();
   base.setHours(12, 0, 0, 0);
   return addInterval(base, interval);
@@ -167,6 +167,10 @@ type DueSub = Prisma.SubscriptionGetPayload<{ include: { contact: true } }>;
  * second charge.
  */
 async function generateCycle(sub: DueSub, now: Date): Promise<"billed" | "drafted" | "charged"> {
+  // Standalone recurring-job series never reach here (the sweep filters on
+  // nextRunDate), but guard anyway — billing math needs a cadence.
+  const interval = sub.interval;
+  if (!interval) return "drafted";
   const lineTotal = Number(sub.unitPrice) * Number(sub.quantity);
 
   // Retried as a whole: the cron can overlap a staff member creating an
@@ -179,8 +183,8 @@ async function generateCycle(sub: DueSub, now: Date): Promise<"billed" | "drafte
       where: { id: sub.id },
       select: { nextRunDate: true, status: true },
     });
-    if (!fresh || fresh.status !== "ACTIVE" || fresh.nextRunDate > now) {
-      return null; // already handled by a concurrent run
+    if (!fresh || fresh.status !== "ACTIVE" || !fresh.nextRunDate || fresh.nextRunDate > now) {
+      return null; // already handled by a concurrent run (or billing removed)
     }
 
     // Optimistic claim: advance the schedule keyed on the exact nextRunDate we
@@ -188,7 +192,7 @@ async function generateCycle(sub: DueSub, now: Date): Promise<"billed" | "drafte
     const claimed = await tx.subscription.updateMany({
       where: { id: sub.id, status: "ACTIVE", nextRunDate: fresh.nextRunDate },
       data: {
-        nextRunDate: addInterval(fresh.nextRunDate, sub.interval),
+        nextRunDate: addInterval(fresh.nextRunDate, interval),
         lastGeneratedAt: now,
       },
     });
@@ -346,9 +350,11 @@ export async function billSubscriptionNow(
     include: { contact: true },
   });
   if (!sub) return null;
+  // A standalone recurring-job series has nothing to bill
+  if (!sub.interval) return null;
   const now = new Date();
   // Make it due so the shared cycle path (with its idempotency guard) runs it
-  if (sub.nextRunDate > now) {
+  if (!sub.nextRunDate || sub.nextRunDate > now) {
     await prisma.subscription.update({ where: { id }, data: { nextRunDate: now } });
     sub.nextRunDate = now;
   }
@@ -393,7 +399,7 @@ export async function generateDueVisits(
       company: { is: { suspendedAt: null } },
       ...(companyId ? { companyId } : {}),
     },
-    include: { contact: true, company: { select: { timezone: true } } },
+    include: { contact: true, property: true, company: { select: { timezone: true } } },
     orderBy: { nextVisitDate: "asc" },
     take: 500,
   });
@@ -484,7 +490,13 @@ export async function generateDueVisits(
                 title: sub.name,
                 description: sub.description,
                 leadSource: sub.contact.leadSource,
-                address: sub.contact.address,
+                // Series pinned to a saved service address put visits THERE
+                address: sub.property
+                  ? [sub.property.address, sub.property.city, sub.property.state, sub.property.zip]
+                      .filter(Boolean)
+                      .join(", ")
+                  : sub.contact.address,
+                propertyId: sub.propertyId,
                 scheduledAt,
                 scheduledEnd,
                 scheduledAnytime: anytime,
@@ -562,7 +574,9 @@ export async function runDueSubscriptions(
   const due = await prisma.subscription.findMany({
     where: {
       status: "ACTIVE",
-      nextRunDate: { lte: now },
+      // Standalone recurring-job series have no nextRunDate — they only
+      // generate visits, never invoices
+      nextRunDate: { not: null, lte: now },
       company: { is: { suspendedAt: null } },
       ...(companyId ? { companyId } : {}),
     },

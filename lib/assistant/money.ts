@@ -158,7 +158,7 @@ export const moneyTools: Tool[] = [
         subscriptions: rows.map((s) => ({
           id: s.id, name: s.name, client: clientName(s.contact), status: s.status,
           price: money(Number(s.unitPrice) * Number(s.quantity)), interval: s.interval,
-          nextBill: s.nextRunDate.toISOString().slice(0, 10),
+          nextBill: s.nextRunDate ? s.nextRunDate.toISOString().slice(0, 10) : null,
         })),
       };
     },
@@ -606,7 +606,9 @@ export const moneyTools: Tool[] = [
       }
       if (day(args.nextRunDate)) {
         payload.nextRunDate = str(args.nextRunDate, 10);
-        lines.push(`Next bill: ${sub.nextRunDate.toISOString().slice(0, 10)} → ${str(args.nextRunDate, 10)}`);
+        lines.push(
+          `Next bill: ${sub.nextRunDate ? sub.nextRunDate.toISOString().slice(0, 10) : "none"} → ${str(args.nextRunDate, 10)}`
+        );
       }
       if (lines.length === 0) {
         return { error: "Nothing to change — provide status, billNow, or plan edits (name/unitPrice/quantity/interval/nextRunDate)." };
