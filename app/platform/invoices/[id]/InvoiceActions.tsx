@@ -80,6 +80,9 @@ export default function InvoiceActions({
   const [formHasErrors, setFormHasErrors] = useState(true);
   const [savingCard, setSavingCard] = useState(false);
   const [cardError, setCardError] = useState("");
+  // Keeping the new card on file is the client's choice, not a side effect —
+  // same opt-in default as the public /pay page
+  const [saveNewCard, setSaveNewCard] = useState(false);
   const finixFormRef = useRef<FinixForm | null>(null);
   const finixContainerRef = useRef<HTMLDivElement>(null);
   const ref = useRef<HTMLDivElement>(null);
@@ -214,6 +217,7 @@ export default function InvoiceActions({
   function openChargeDialog() {
     setOpen(false);
     setCardError("");
+    setSaveNewCard(false);
     setPickedId(
       cardOptions.find((c) => c.isDefault)?.id ??
         cardOptions[0]?.id ??
@@ -229,35 +233,28 @@ export default function InvoiceActions({
       setSavingCard(true);
       finixFormRef.current.submit(async (err, res) => {
         const paymentToken = res?.data?.id;
+        setSavingCard(false);
         if (err || !paymentToken) {
-          setSavingCard(false);
           setCardError("Please check the card details and try again.");
           return;
         }
-        // Vault first (no charge), then charge exactly the vaulted card —
-        // it lands on file for autopay/next time as a bonus.
-        const r = await fetch(`/api/app/contacts/${contactId}/payment-method`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ paymentToken }),
-        });
-        const data = await r.json().catch(() => null);
-        setSavingCard(false);
-        if (!r.ok) {
-          setCardError(data?.error ?? "Couldn't save the card. Please try again.");
-          return;
-        }
-        runCharge(data?.cardId ?? null, data?.label ?? "new card");
+        // The charge route token-charges directly; the card is only kept on
+        // the client's file when the save box was ticked (their choice, same
+        // opt-in as the public pay page).
+        runCharge({ paymentToken, saveCard: saveNewCard }, "new card");
       });
       return;
     }
     const card = cardOptions.find((c) => c.id === pickedId);
-    if (card) runCharge(card.id || null, card.label);
+    if (card) runCharge(card.id ? { cardId: card.id } : {}, card.label);
   }
 
   // The terminal ritual: processing overlay (minimum on-screen beat so even
   // instant responses read as a real charge), then approved / declined.
-  async function runCharge(cardId: string | null, label: string) {
+  async function runCharge(
+    payload: { cardId?: string; paymentToken?: string; saveCard?: boolean },
+    label: string
+  ) {
     setPickOpen(false);
     setCharge({ state: "processing", label, amount: balance });
     const started = Date.now();
@@ -267,7 +264,7 @@ export default function InvoiceActions({
       res = await fetch(`/api/app/invoices/${invoiceId}/charge-stored`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(cardId ? { cardId } : {}),
+        body: JSON.stringify(payload),
       });
       data = await res.json().catch(() => null);
     } catch {
@@ -671,9 +668,18 @@ export default function InvoiceActions({
                     Loading secure card form…
                   </div>
                 )}
+                <label className="mt-2 flex items-center gap-2 text-xs text-gray-600 select-none cursor-pointer w-fit">
+                  <input
+                    type="checkbox"
+                    checked={saveNewCard}
+                    onChange={(e) => setSaveNewCard(e.target.checked)}
+                    className="h-3.5 w-3.5 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                  />
+                  Save this card to the client&apos;s file for next time
+                </label>
                 <p className="mt-2 text-[11px] text-gray-400">
                   Card details go straight to the payment processor — they never touch this
-                  server. The card is saved to the client&apos;s file for next time.
+                  server.
                 </p>
                 {finix?.environment === "sandbox" && (
                   <p className="mt-1 text-[11px] text-amber-600">Test mode — no real cards.</p>
