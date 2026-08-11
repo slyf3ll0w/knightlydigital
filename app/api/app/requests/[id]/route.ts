@@ -3,6 +3,27 @@ import { prisma } from "@/lib/db";
 import { getActor, canSell, isManager, viaContactScope } from "@/lib/permissions";
 
 /**
+ * GET — one request, for prefilling convert flows (the new-job form is a
+ * client component, so it can't server-load the request like quotes/new does).
+ */
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const actor = await getActor();
+  if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!canSell(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  const { id } = await params;
+  const request = await prisma.request.findFirst({
+    where: { id, companyId: actor.companyId, ...viaContactScope(actor) },
+    select: { id: true, contactId: true, title: true, details: true, status: true },
+  });
+  if (!request) return NextResponse.json({ error: "Request not found." }, { status: 404 });
+  return NextResponse.json(request);
+}
+
+/**
  * PATCH — update a request's status or details.
  * Body: { status?: "NEW" | "CONVERTED" | "ARCHIVED", title?, details? }
  */

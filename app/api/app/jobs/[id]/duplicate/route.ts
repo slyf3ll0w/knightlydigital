@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getActor, isManager, jobScope } from "@/lib/permissions";
+import { getActor, canSell, jobScope } from "@/lib/permissions";
 import { withDocNumberRetry } from "@/lib/doc-numbers";
+import { inPreview, PREVIEW_CAP, previewCapError } from "@/lib/preview";
 
 /**
  * POST — duplicate a job into a fresh unscheduled ACTIVE job: same client,
@@ -15,10 +16,16 @@ export async function POST(
 ) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!isManager(actor.role) && actor.role !== "USER") {
+  // Same rule as every other job-creation path
+  if (!canSell(actor.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const companyId = actor.companyId;
+  // Same preview cap as the direct-create path — duplicating is creating
+  if (await inPreview(companyId)) {
+    const n = await prisma.job.count({ where: { companyId } });
+    if (n >= PREVIEW_CAP) return NextResponse.json(previewCapError("jobs"), { status: 403 });
+  }
 
   const { id } = await params;
   const source = await prisma.job.findFirst({
@@ -53,6 +60,7 @@ export async function POST(
               unitCost: li.unitCost,
               unitPrice: li.unitPrice,
               total: li.total,
+              workItemId: li.workItemId,
               recurringInterval: li.recurringInterval,
               sortOrder: i,
             })),

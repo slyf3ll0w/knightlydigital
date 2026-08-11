@@ -3,6 +3,8 @@ import type { RecurringInterval } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getActor, isManager, jobScope } from "@/lib/permissions";
 import { findScheduleConflicts } from "@/lib/schedule-conflicts";
+import { ensureSubscriptionsForContact } from "@/lib/subscriptions";
+import { syncJobChecklist } from "@/lib/job-checklist";
 
 export async function PATCH(
   req: NextRequest,
@@ -85,13 +87,14 @@ export async function PATCH(
       quantity: number;
       unitPrice: number;
       unitCost?: number | null;
+      workItemId?: string | null;
       recurringInterval?: RecurringInterval | null;
       sortOrder?: number;
     }[]).filter((li) => (li.name ?? "").trim());
 
-    await prisma.$transaction([
-      prisma.jobLineItem.deleteMany({ where: { jobId: job.id } }),
-      prisma.jobLineItem.createMany({
+    await prisma.$transaction(async (tx) => {
+      await tx.jobLineItem.deleteMany({ where: { jobId: job.id } });
+      await tx.jobLineItem.createMany({
         data: lineItems.map((li, i) => ({
           jobId: job.id,
           name: li.name!.trim(),
@@ -100,11 +103,29 @@ export async function PATCH(
           unitPrice: li.unitPrice || 0,
           unitCost: li.unitCost ?? null,
           total: (li.quantity || 1) * (li.unitPrice || 0),
+          workItemId: li.workItemId ?? null,
           recurringInterval: li.recurringInterval ?? null,
           sortOrder: li.sortOrder ?? i,
         })),
-      }),
-    ]);
+      });
+      // Recurring services added to a job start the client's plan — the same
+      // rule as quotes and invoices (this route previously never did, so the
+      // identical service billed nothing when sold via a job edit). One-time
+      // lines arrive with recurringInterval null and are skipped.
+      await ensureSubscriptionsForContact(
+        tx,
+        actor.companyId,
+        job.contactId,
+        lineItems
+          .filter((li) => li.recurringInterval != null)
+          .map((li) => ({ workItemId: li.workItemId, quantity: Number(li.quantity) || 1 }))
+      );
+    });
+
+    // Re-materialize the close-out checklist for the new service set
+    await syncJobChecklist(job.id, actor.companyId).catch((e) =>
+      console.error("[jobs] checklist sync failed for", job.id, e)
+    );
   }
 
   // Replace team assignments (managers + Sales/Tech combo only)

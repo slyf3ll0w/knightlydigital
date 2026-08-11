@@ -73,6 +73,7 @@ export default async function EditJobPage({
           quantity: Number(li.quantity),
           unitPrice: Number(li.unitPrice),
           unitCost: li.unitCost != null ? Number(li.unitCost) : null,
+          workItemId: li.workItemId,
           recurringInterval: li.recurringInterval,
         })),
       }}

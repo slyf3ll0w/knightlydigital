@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { RecurringInterval } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { getActor, isManager, jobScope, contactScope } from "@/lib/permissions";
+import { getActor, canSell, jobScope, contactScope } from "@/lib/permissions";
 import { recordLeadWin } from "@/lib/pipeline";
+import { ensureSubscriptionsForContact } from "@/lib/subscriptions";
+import { syncJobChecklist } from "@/lib/job-checklist";
 import { withDocNumberRetry } from "@/lib/doc-numbers";
 import { inPreview, PREVIEW_CAP, previewCapError } from "@/lib/preview";
 
@@ -21,9 +24,10 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  // Creating jobs is for managers + Sales/Tech combo; pure sales converts
-  // quotes instead, pure techs only work assigned jobs.
-  if (!isManager(actor.role) && actor.role !== "USER") {
+  // One rule for creating jobs everywhere: anyone who can sell (owners,
+  // admins, sales, sales/tech combo) — matching quote conversion, which
+  // creates the same entity. Pure techs only work assigned jobs.
+  if (!canSell(actor.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   if (await inPreview(actor.companyId)) {
@@ -38,6 +42,20 @@ export async function POST(req: NextRequest) {
   const assigneeIds: string[] = Array.isArray(body.assigneeIds)
     ? body.assigneeIds.filter((v: unknown): v is string => typeof v === "string")
     : [];
+  // Optional services from the price book (or free-typed). A job with no
+  // line items is still valid — but pricing it here builds its checklist and
+  // can start a recurring plan, same as the quote and invoice paths.
+  const lineItems = (Array.isArray(body.lineItems) ? body.lineItems : []) as {
+    name?: string;
+    description?: string;
+    quantity?: number;
+    unitPrice?: number;
+    unitCost?: number | null;
+    workItemId?: string | null;
+    recurringInterval?: RecurringInterval | null;
+    sortOrder?: number;
+  }[];
+  const namedLines = lineItems.filter((li) => (li.name ?? "").trim());
 
   if (!contactId || !title) {
     return NextResponse.json({ error: "Client and title are required." }, { status: 400 });
@@ -102,6 +120,21 @@ export async function POST(req: NextRequest) {
         ...(validAssignees.length > 0 && {
           assignments: { create: validAssignees.map((u) => ({ userId: u.id })) },
         }),
+        ...(namedLines.length > 0 && {
+          lineItems: {
+            create: namedLines.map((li, i) => ({
+              name: li.name!.trim(),
+              description: li.description || null,
+              quantity: li.quantity || 1,
+              unitPrice: li.unitPrice || 0,
+              unitCost: li.unitCost ?? null,
+              total: (li.quantity || 1) * (li.unitPrice || 0),
+              workItemId: li.workItemId ?? null,
+              recurringInterval: li.recurringInterval ?? null,
+              sortOrder: li.sortOrder ?? i,
+            })),
+          },
+        }),
       },
     });
 
@@ -109,12 +142,32 @@ export async function POST(req: NextRequest) {
       await tx.request.update({ where: { id: requestId }, data: { status: "CONVERTED" } });
     }
 
+    // Recurring services sold on this job start the client's plan — same rule
+    // as quote conversion and direct invoices. Lines the user marked one-time
+    // arrive with recurringInterval null and are skipped.
+    await ensureSubscriptionsForContact(
+      tx,
+      companyId,
+      contactId,
+      namedLines
+        .filter((li) => li.recurringInterval != null)
+        .map((li) => ({ workItemId: li.workItemId, quantity: Number(li.quantity) || 1 }))
+    );
+
     // First real work closes the lead: active client, off the pipeline board
     // (repeat clients on the board leave it the same way)
     await recordLeadWin(tx, companyId, contact);
 
     return created;
   }));
+
+  // Materialize the close-out checklist from the picked services right away —
+  // before this, a directly-created job could never have one.
+  if (namedLines.length > 0) {
+    await syncJobChecklist(job.id, companyId).catch((e) =>
+      console.error("[jobs] checklist sync failed for", job.id, e)
+    );
+  }
 
   return NextResponse.json(job, { status: 201 });
 }

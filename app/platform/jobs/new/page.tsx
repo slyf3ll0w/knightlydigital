@@ -10,6 +10,11 @@ import { localInputToISO } from "@/lib/statuses";
 import SlotTimePicker from "@/components/SlotTimePicker";
 import ContactPicker from "@/components/ContactPicker";
 import SuggestedTimes from "@/components/SuggestedTimes";
+import { type PickerWorkItem } from "@/components/WorkItemPicker";
+import LineItemsEditor, {
+  type EditorLineItem,
+  payloadRecurringInterval,
+} from "@/components/LineItemsEditor";
 import {
   addMinutesToLocalDateTime,
   DEFAULT_SLOT_INTERVAL_MINUTES,
@@ -42,15 +47,23 @@ function NewJobForm() {
   const searchParams = useSearchParams();
   const prefilledContactId = searchParams.get("contactId") ?? "";
   const requestId = searchParams.get("requestId") ?? "";
+  // Coming from the schedule: the day the dispatcher was looking at
+  const prefilledDate = /^\d{4}-\d{2}-\d{2}$/.test(searchParams.get("date") ?? "")
+    ? searchParams.get("date")!
+    : "";
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [team, setTeam] = useState<TeamUser[]>([]);
+  const [workItems, setWorkItems] = useState<PickerWorkItem[]>([]);
+  const [lineItems, setLineItems] = useState<EditorLineItem[]>([]);
   const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
   const [interval, setInterval] = useState(DEFAULT_SLOT_INTERVAL_MINUTES);
   const [dayStart, setDayStart] = useState(8 * 60);
-  const [anytime, setAnytime] = useState(false);
+  // Day-first scheduling: a date handed in from the schedule starts as
+  // "Anytime that day" — the route plan gives it a time later
+  const [anytime, setAnytime] = useState(Boolean(prefilledDate));
   const [window_, setWindow] = useState(""); // arrival window: "" = company default
   const [form, setForm] = useState({
     contactId: prefilledContactId,
@@ -58,7 +71,7 @@ function NewJobForm() {
     title: "",
     description: "",
     leadSource: "",
-    scheduledAt: "",
+    scheduledAt: prefilledDate ? `${prefilledDate}T12:00` : "",
     scheduledEnd: "",
     address: "",
     propertyId: "", // ContactAddress id when a saved extra address is picked
@@ -76,6 +89,11 @@ function NewJobForm() {
         setTeam(Array.isArray(users) ? users.filter((u) => u.isActive) : [])
       )
       .catch(() => {});
+    // Price book for the services section
+    fetch("/api/app/work-items")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((items: PickerWorkItem[]) => setWorkItems(Array.isArray(items) ? items : []))
+      .catch(() => {});
     fetch("/api/app/scheduling")
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
@@ -84,6 +102,23 @@ function NewJobForm() {
       })
       .catch(() => {});
   }, []);
+
+  // Converting a request: carry its title and details into the job instead of
+  // making the user retype what the client already wrote
+  useEffect(() => {
+    if (!requestId) return;
+    fetch(`/api/app/requests/${requestId}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((req: { title?: string; details?: string | null } | null) => {
+        if (!req) return;
+        setForm((f) => ({
+          ...f,
+          title: f.title || req.title || "",
+          description: f.description || req.details || "",
+        }));
+      })
+      .catch(() => {});
+  }, [requestId]);
 
   useEffect(() => {
     if (form.contactId) {
@@ -136,6 +171,20 @@ function NewJobForm() {
       scheduledAnytime: anytime && Boolean(form.scheduledAt),
       arrivalWindowMinutes: window_ === "" ? null : Number(window_),
       assigneeIds,
+      lineItems: lineItems
+        .filter((li) => li.name.trim())
+        .map((li, i) => ({
+          name: li.name,
+          description: li.description,
+          quantity: parseFloat(li.quantity) || 1,
+          unitPrice: parseFloat(li.unitPrice) || 0,
+          unitCost: !li.unitCost ? null : parseFloat(li.unitCost) || 0,
+          workItemId: li.workItemId || null,
+          // One-time sale of a recurring-capable service sends null — no
+          // subscription starts for it
+          recurringInterval: payloadRecurringInterval(li),
+          sortOrder: i,
+        })),
     });
     setLoading(false);
 
@@ -227,6 +276,42 @@ function NewJobForm() {
               Used in Insights to show which sources bring in the most revenue.
             </p>
           </div>
+        </div>
+
+        {/* Services from the price book — the whole point of doing jobs is to
+            get paid: picking them here prices the job, builds its close-out
+            checklist, and (for recurring services) can start the client's
+            plan. No overflow-hidden: the picker dropdown must spill past the
+            card edge. */}
+        <div className="card-ledger">
+          <div className="px-5 py-4 border-b border-gray-100">
+            <h2 className="text-sm font-semibold text-gray-700">Product / Service</h2>
+            <p className="text-xs text-gray-400 mt-0.5">
+              What this job is for — used for the invoice and the job&apos;s checklist.
+            </p>
+          </div>
+          <LineItemsEditor
+            items={lineItems}
+            onChange={setLineItems}
+            workItems={workItems}
+            allowEmpty
+          />
+          {lineItems.some((li) => li.name.trim()) && (
+            <div className="px-5 py-3 border-t border-gray-100 bg-gray-50 rounded-b-[7px] max-lg:rounded-b-[13px]">
+              <div className="ml-auto w-56 flex justify-between text-sm font-bold">
+                <span className="text-gray-900">Total price</span>
+                <span className="text-gray-900">
+                  $
+                  {lineItems
+                    .reduce(
+                      (s, li) => s + (parseFloat(li.quantity) || 0) * (parseFloat(li.unitPrice) || 0),
+                      0
+                    )
+                    .toFixed(2)}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="card-ledger p-5 space-y-4">

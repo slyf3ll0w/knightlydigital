@@ -3,21 +3,17 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Loader2, Plus, Trash2, ArrowLeft } from "lucide-react";
+import { Loader2, ArrowLeft } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
-import WorkItemPicker, { type PickerWorkItem } from "@/components/WorkItemPicker";
+import { type PickerWorkItem } from "@/components/WorkItemPicker";
 import ContactPicker from "@/components/ContactPicker";
+import LineItemsEditor, {
+  type EditorLineItem,
+  emptyEditorLine,
+  payloadRecurringInterval,
+} from "@/components/LineItemsEditor";
 
 type Contact = { id: string; firstName: string; lastName: string; paymentTermsDays?: number };
-type LineItem = {
-  name: string;
-  description: string;
-  quantity: string;
-  unitPrice: string;
-  workItemId?: string;
-  recurringInterval?: string | null;
-  serviceDate?: string | null; // preserved through edits, not editable here
-};
 // Present when editing an existing invoice — switches submit to PATCH
 type EditInvoice = {
   id: string;
@@ -40,14 +36,23 @@ type EditInvoice = {
     serviceDate?: string | null;
   }[];
 };
+type PrefillLine = {
+  name: string;
+  description: string | null;
+  quantity: number;
+  unitPrice: number;
+  unitCost?: number | string | null;
+  workItemId?: string | null;
+  recurringInterval?: string | null;
+};
 type PrefillJob = {
   id: string;
   title: string;
   contactId: string;
   contact: Contact;
-  lineItems?: { name: string; description: string | null; quantity: number; unitPrice: number }[];
+  lineItems?: PrefillLine[];
   quote?: {
-    lineItems: { name: string; description: string; quantity: number; unitPrice: number }[];
+    lineItems: PrefillLine[];
     discountType?: string;
     discountValue?: number | null;
     taxRate?: number | string | null; // fraction (0.0825) — Decimal serializes as string
@@ -73,15 +78,18 @@ export default function InvoiceEditor({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // Prefer the job's own line items; fall back to its quote's items
+  // Prefer the job's own line items; fall back to its quote's items. The
+  // price-book link (workItemId) and recurring snapshot ride along so a
+  // job-derived invoice can still start subscriptions and track costs.
   const sourceLines =
     prefillJob?.lineItems?.length
       ? prefillJob.lineItems
       : prefillJob?.quote?.lineItems?.length
         ? prefillJob.quote.lineItems
         : null;
-  const initLines: LineItem[] = editInvoice
+  const initLines: EditorLineItem[] = editInvoice
     ? editInvoice.lineItems.map((li) => ({
+        ...emptyEditorLine,
         name: li.name ?? "",
         description: li.description ?? "",
         quantity: String(li.quantity),
@@ -91,11 +99,15 @@ export default function InvoiceEditor({
         serviceDate: li.serviceDate ?? null,
       }))
     : sourceLines?.map((li) => ({
+        ...emptyEditorLine,
         name: li.name ?? "",
         description: li.description ?? "",
         quantity: String(li.quantity),
         unitPrice: String(li.unitPrice),
-      })) ?? [{ name: "", description: "", quantity: "1", unitPrice: "" }];
+        unitCost: li.unitCost != null ? String(Number(li.unitCost)) : "",
+        workItemId: li.workItemId ?? undefined,
+        recurringInterval: li.recurringInterval ?? null,
+      })) ?? [{ ...emptyEditorLine }];
 
   const [contactId, setContactId] = useState(prefillJob?.contactId ?? prefilledContactId);
   const [jobId] = useState(prefillJob?.id ?? "");
@@ -139,36 +151,9 @@ export default function InvoiceEditor({
     editInvoice?.dueDate ?? defaultDueFor(prefillJob?.contactId ?? prefilledContactId)
   );
   const [dueDateTouched, setDueDateTouched] = useState(Boolean(editInvoice?.dueDate));
-  const [lineItems, setLineItems] = useState<LineItem[]>(initLines);
+  const [lineItems, setLineItems] = useState<EditorLineItem[]>(initLines);
   const depositApplied = editInvoice?.depositApplied ?? 0;
   const backHref = editInvoice ? `/app/invoices/${editInvoice.id}` : "/app/invoices";
-
-  function addLine() {
-    setLineItems((l) => [...l, { name: "", description: "", quantity: "1", unitPrice: "" }]);
-  }
-  function removeLine(i: number) {
-    setLineItems((l) => l.filter((_, idx) => idx !== i));
-  }
-  function updateLine(i: number, field: keyof LineItem, value: string) {
-    setLineItems((l) => l.map((item, idx) => (idx === i ? { ...item, [field]: value } : item)));
-  }
-
-  function applyWorkItem(i: number, item: PickerWorkItem) {
-    setLineItems((l) =>
-      l.map((li, idx) =>
-        idx === i
-          ? {
-              ...li,
-              name: item.name,
-              description: item.description ?? li.description,
-              unitPrice: String(Number(item.unitPrice)),
-              workItemId: item.id,
-              recurringInterval: item.recurringInterval ?? null,
-            }
-          : li
-      )
-    );
-  }
 
   const subtotal = lineItems.reduce((sum, li) => {
     return sum + (parseInt(li.quantity, 10) || 0) * (parseFloat(li.unitPrice) || 0);
@@ -206,8 +191,11 @@ export default function InvoiceEditor({
         description: li.description,
         quantity: parseInt(li.quantity, 10) || 1,
         unitPrice: parseFloat(li.unitPrice) || 0,
+        unitCost: li.unitCost ? parseFloat(li.unitCost) : null,
         workItemId: li.workItemId || null,
-        recurringInterval: li.recurringInterval ?? null,
+        // One-time sale of a recurring-capable service sends null, so no
+        // subscription is started for it
+        recurringInterval: payloadRecurringInterval(li),
         serviceDate: li.serviceDate ?? undefined,
         sortOrder: i,
       })),
@@ -318,63 +306,12 @@ export default function InvoiceEditor({
           <div className="px-5 py-4 border-b border-gray-100">
             <h2 className="text-sm font-semibold text-gray-700">Line Items</h2>
           </div>
-          <div className="p-5">
-            <div className="space-y-3">
-              {lineItems.map((li, i) => (
-                <div key={i} className="border border-gray-100 rounded-lg p-3 space-y-2">
-                  {/* Phone: name + delete on row 1, qty/price on row 2; sm+: one row */}
-                  <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_32px] sm:grid-cols-[minmax(0,1fr)_70px_110px_32px] gap-2 items-start">
-                    <div className="col-span-2 sm:col-span-1 min-w-0 sm:order-1">
-                      <WorkItemPicker
-                        value={li.name}
-                        items={workItems}
-                        onChange={(text) => updateLine(i, "name", text)}
-                        onSelect={(item) => applyWorkItem(i, item)}
-                        required
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => removeLine(i)}
-                      disabled={lineItems.length === 1}
-                      className="p-2 text-gray-300 hover:text-red-400 transition-colors disabled:opacity-0 sm:order-4"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                    <input
-                      type="number"
-                      inputMode="numeric"
-                      placeholder="Qty"
-                      value={li.quantity}
-                      onChange={(e) => updateLine(i, "quantity", e.target.value.replace(/[^0-9]/g, ""))}
-                      min="1" step="1"
-                      className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 sm:order-2"
-                    />
-                    <input
-                      type="number"
-                      inputMode="decimal"
-                      placeholder="Unit price"
-                      value={li.unitPrice}
-                      onChange={(e) => updateLine(i, "unitPrice", e.target.value)}
-                      min="0" step="0.01"
-                      className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 sm:order-3"
-                    />
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="Description"
-                    value={li.description}
-                    onChange={(e) => updateLine(i, "description", e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-                  />
-                </div>
-              ))}
-            </div>
-            <button type="button" onClick={addLine}
-              className="mt-3 flex items-center gap-1 text-sm text-green-600 hover:underline font-medium">
-              <Plus size={13} /> Add line item
-            </button>
-          </div>
+          <LineItemsEditor
+            items={lineItems}
+            onChange={setLineItems}
+            workItems={workItems}
+            integerQty
+          />
           <div className="px-5 py-4 border-t border-gray-100 bg-gray-50 rounded-b-[7px] max-lg:rounded-b-[13px]">
             <div className="flex items-start justify-between gap-4 flex-wrap">
               <div className="space-y-2">

@@ -1333,7 +1333,9 @@ export default function ScheduleClient({
           {/* Phones create from the tab-bar FAB */}
           {canCreateJob && (
             <Link
-              href="/app/jobs/new"
+              // Day-first: carry the day being viewed into the form (month
+              // view falls back to today, same convention as the drop sheet)
+              href={`/app/jobs/new?date=${toParam(view === "month" ? new Date() : anchor)}`}
               className="hidden lg:flex h-10 items-center gap-1.5 rounded-[10px] btn-tool bg-green-500 px-4 text-sm font-semibold text-white transition-colors hover:bg-green-600 active:bg-green-700"
             >
               <Plus size={15} />

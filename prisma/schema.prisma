@@ -1186,7 +1186,8 @@ model JobLineItem {
   unitCost    Decimal? @db.Decimal(10, 2)
   unitPrice   Decimal  @db.Decimal(10, 2)
   total       Decimal  @db.Decimal(10, 2)
-  recurringInterval RecurringInterval? // display-only snapshot from the price book
+  workItemId  String? // source price-book item, when picked from the price book
+  recurringInterval RecurringInterval? // snapshot from the price book; null = sold one-time
   sortOrder   Int      @default(0)
 
   @@index([jobId])

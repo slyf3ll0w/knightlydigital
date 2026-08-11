@@ -236,16 +236,23 @@ export async function POST(req: NextRequest) {
       await recordLeadWin(tx, companyId, contact);
     }
 
-    // Recurring services billed directly also start a subscription
+    // Recurring services billed directly also start a subscription. Lines the
+    // user marked one-time arrive with recurringInterval null and are skipped.
     if (contact) {
       await ensureSubscriptionsForContact(
         tx,
         companyId,
         contact.id,
-        (lineItems as { workItemId?: string | null; quantity?: number }[]).map((li) => ({
-          workItemId: li.workItemId,
-          quantity: Number(li.quantity) || 1,
-        }))
+        (lineItems as {
+          workItemId?: string | null;
+          quantity?: number;
+          recurringInterval?: string | null;
+        }[])
+          .filter((li) => li.recurringInterval != null)
+          .map((li) => ({
+            workItemId: li.workItemId,
+            quantity: Number(li.quantity) || 1,
+          }))
       );
     }
 

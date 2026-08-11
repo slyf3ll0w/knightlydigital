@@ -3,10 +3,15 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Loader2, Plus, Trash2, ArrowLeft } from "lucide-react";
+import { Loader2, ArrowLeft } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
-import WorkItemPicker, { type PickerWorkItem } from "@/components/WorkItemPicker";
+import { type PickerWorkItem } from "@/components/WorkItemPicker";
 import ContactPicker from "@/components/ContactPicker";
+import LineItemsEditor, {
+  type EditorLineItem,
+  emptyEditorLine,
+  payloadRecurringInterval,
+} from "@/components/LineItemsEditor";
 
 type Contact = {
   id: string;
@@ -22,29 +27,6 @@ type Contact = {
   }[];
 };
 
-type LineItem = {
-  name: string;
-  description: string;
-  quantity: string;
-  unitPrice: string;
-  unitCost: string; // hidden; filled from the price book for margin tracking
-  isOptional: boolean;
-  requiresAgreement: boolean; // hidden; snapshotted from the price book
-  workItemId: string; // hidden; source price-book item (drives recurring/agreement)
-  recurringInterval: string | null; // hidden; snapshotted from the price book
-};
-
-const emptyLine: LineItem = {
-  name: "",
-  description: "",
-  quantity: "1",
-  unitPrice: "",
-  unitCost: "",
-  isOptional: false,
-  requiresAgreement: false,
-  workItemId: "",
-  recurringInterval: null,
-};
 
 export type ExistingQuote = {
   id: string;
@@ -122,9 +104,10 @@ export default function QuoteEditor({
   const [disclaimer, setDisclaimer] = useState(existingQuote?.disclaimer ?? "");
   const [notes, setNotes] = useState(existingQuote?.notes ?? "");
   const [validUntil, setValidUntil] = useState(existingQuote?.validUntil ?? "");
-  const [lineItems, setLineItems] = useState<LineItem[]>(
+  const [lineItems, setLineItems] = useState<EditorLineItem[]>(
     existingQuote && existingQuote.lineItems.length > 0
       ? existingQuote.lineItems.map((li) => ({
+          ...emptyEditorLine,
           name: li.name,
           description: li.description,
           quantity: String(li.quantity),
@@ -135,39 +118,8 @@ export default function QuoteEditor({
           workItemId: li.workItemId ?? "",
           recurringInterval: li.recurringInterval ?? null,
         }))
-      : [{ ...emptyLine }]
+      : [{ ...emptyEditorLine }]
   );
-
-  function addLine() {
-    setLineItems((l) => [...l, { ...emptyLine }]);
-  }
-
-  function removeLine(i: number) {
-    setLineItems((l) => l.filter((_, idx) => idx !== i));
-  }
-
-  function updateLine(i: number, field: keyof LineItem, value: string | boolean) {
-    setLineItems((l) => l.map((item, idx) => (idx === i ? { ...item, [field]: value } : item)));
-  }
-
-  function applyWorkItem(i: number, item: PickerWorkItem) {
-    setLineItems((l) =>
-      l.map((li, idx) =>
-        idx === i
-          ? {
-              ...li,
-              name: item.name,
-              description: item.description ?? li.description,
-              unitPrice: String(Number(item.unitPrice)),
-              unitCost: item.unitCost !== null ? String(Number(item.unitCost)) : "",
-              requiresAgreement: Boolean(item.requiresAgreement),
-              workItemId: item.id,
-              recurringInterval: item.recurringInterval ?? null,
-            }
-          : li
-      )
-    );
-  }
 
   // Optional items count toward the total by default (client can opt out in the hub)
   const subtotal = lineItems.reduce((sum, li) => {
@@ -240,11 +192,13 @@ export default function QuoteEditor({
         description: li.description,
         quantity: parseInt(li.quantity, 10) || 1,
         unitPrice: parseFloat(li.unitPrice) || 0,
-        unitCost: li.unitCost === "" ? null : parseFloat(li.unitCost) || 0,
-        requiresAgreement: li.requiresAgreement,
-        isOptional: li.isOptional,
+        unitCost: !li.unitCost ? null : parseFloat(li.unitCost) || 0,
+        requiresAgreement: li.requiresAgreement ?? false,
+        isOptional: li.isOptional ?? false,
         workItemId: li.workItemId || null,
-        recurringInterval: li.recurringInterval,
+        // One-time sale of a recurring-capable service sends null — no
+        // subscription starts when the quote converts
+        recurringInterval: payloadRecurringInterval(li),
         sortOrder: i,
       })),
     };
@@ -355,78 +309,13 @@ export default function QuoteEditor({
               Product / Service
             </h2>
           </div>
-          <div className="p-5">
-            <div className="space-y-4">
-              {lineItems.map((li, i) => (
-                <div key={i} className="border border-gray-100 rounded-lg p-3 space-y-2">
-                  {/* Phone: name + delete on row 1, qty/price on row 2; sm+: one row */}
-                  <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_32px] sm:grid-cols-[minmax(0,1fr)_70px_110px_32px] gap-2 items-start">
-                    <div className="col-span-2 sm:col-span-1 min-w-0 sm:order-1">
-                      <WorkItemPicker
-                        value={li.name}
-                        items={workItems}
-                        onChange={(text) => updateLine(i, "name", text)}
-                        onSelect={(item) => applyWorkItem(i, item)}
-                        required
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => removeLine(i)}
-                      disabled={lineItems.length === 1}
-                      className="p-2 text-gray-300 hover:text-red-400 transition-colors disabled:opacity-0 sm:order-4"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                    <input
-                      type="number"
-                      inputMode="numeric"
-                      placeholder="Qty"
-                      value={li.quantity}
-                      onChange={(e) => updateLine(i, "quantity", e.target.value.replace(/[^0-9]/g, ""))}
-                      min="1"
-                      step="1"
-                      className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 sm:order-2"
-                    />
-                    <input
-                      type="number"
-                      inputMode="decimal"
-                      placeholder="Unit price"
-                      value={li.unitPrice}
-                      onChange={(e) => updateLine(i, "unitPrice", e.target.value)}
-                      min="0"
-                      step="0.01"
-                      className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 sm:order-3"
-                    />
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="Description"
-                    value={li.description}
-                    onChange={(e) => updateLine(i, "description", e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-                  />
-                  <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer w-fit">
-                    <input
-                      type="checkbox"
-                      checked={li.isOptional}
-                      onChange={(e) => updateLine(i, "isOptional", e.target.checked)}
-                      className="rounded border-gray-300 text-green-600 focus:ring-green-500"
-                    />
-                    Mark as optional — client can remove this item when approving
-                  </label>
-                </div>
-              ))}
-            </div>
-            <button
-              type="button"
-              onClick={addLine}
-              className="mt-3 flex items-center gap-1 text-sm text-green-600 hover:underline font-medium"
-            >
-              <Plus size={13} />
-              Add line item
-            </button>
-          </div>
+          <LineItemsEditor
+            items={lineItems}
+            onChange={setLineItems}
+            workItems={workItems}
+            integerQty
+            showOptional
+          />
 
           {/* Totals + deposit */}
           <div className="px-5 py-4 border-t border-gray-100 bg-gray-50 space-y-4 rounded-b-[7px] max-lg:rounded-b-[13px]">

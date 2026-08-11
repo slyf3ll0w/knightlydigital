@@ -4,6 +4,7 @@ import { getActor, canSell, viaContactScope } from "@/lib/permissions";
 import { ensureSubscriptionsForContact } from "@/lib/subscriptions";
 import { recordLeadWin } from "@/lib/pipeline";
 import { withDocNumberRetry } from "@/lib/doc-numbers";
+import { inPreview, PREVIEW_CAP, previewCapError } from "@/lib/preview";
 
 /**
  * POST — convert an approved quote into a job (Jobber's "Convert to Job").
@@ -18,6 +19,11 @@ export async function POST(
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!canSell(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const companyId = actor.companyId;
+  // Same preview cap as the direct-create path — converting creates a job too
+  if (await inPreview(companyId)) {
+    const n = await prisma.job.count({ where: { companyId } });
+    if (n >= PREVIEW_CAP) return NextResponse.json(previewCapError("jobs"), { status: 403 });
+  }
 
   const { id } = await params;
   const quote = await prisma.quote.findFirst({
@@ -97,6 +103,11 @@ export async function POST(
               unitCost: li.unitCost,
               unitPrice: li.unitPrice,
               total: li.total,
+              // Price-book link + recurring snapshot survive conversion, so
+              // the job (and its eventual invoice) stay traceable to the
+              // service that was sold
+              workItemId: li.workItemId,
+              recurringInterval: li.recurringInterval,
               sortOrder: i,
             })),
         },
@@ -108,13 +119,15 @@ export async function POST(
       data: { jobId: created.id, status: "CONVERTED" },
     });
 
-    // Recurring services on the quote become live subscriptions on the client
+    // Recurring services on the quote become live subscriptions on the
+    // client. Lines sold one-time carry recurringInterval null and are
+    // skipped — the seller's choice on the quote is the contract.
     await ensureSubscriptionsForContact(
       tx,
       companyId,
       quote.contactId,
       quote.lineItems
-        .filter((li) => !(li.isOptional && li.optedOut))
+        .filter((li) => !(li.isOptional && li.optedOut) && li.recurringInterval != null)
         .map((li) => ({ workItemId: li.workItemId, quantity: Number(li.quantity) }))
     );
 
