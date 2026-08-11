@@ -576,6 +576,17 @@ html[data-mode="dark"] .app-ui .sheet-hairline {
 .charge-shake {
   animation: chargeShake 0.5s ease-in-out both;
 }
+/* Send ritual: the plane sweeps in from the lower left, steadies, and darts
+   off the top right — then the check draws itself (charge-pop/charge-draw). */
+@keyframes sendFly {
+  0% { transform: translate(-130px, 90px) rotate(-18deg) scale(0.7); opacity: 0; }
+  30% { transform: translate(-8px, 6px) rotate(-6deg) scale(1); opacity: 1; }
+  55% { transform: translate(4px, 2px) rotate(-2deg) scale(1); opacity: 1; }
+  100% { transform: translate(160px, -120px) rotate(10deg) scale(0.8); opacity: 0; }
+}
+.send-fly {
+  animation: sendFly 0.85s cubic-bezier(0.45, 0, 0.2, 1) both;
+}
 
 /* ── Theme-guarded custom colors — the app-wide override rule for stored,
    user-picked colors (pipeline stages etc.). Components set the guarded

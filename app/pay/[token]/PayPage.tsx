@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { CreditCard, Building2, Loader2, CheckCircle, Clock, Lock } from "lucide-react";
+import { CreditCard, Building2, Loader2, Clock, Lock } from "lucide-react";
+import ChargeOverlay, { type ChargePhase } from "@/components/ChargeOverlay";
 import { brandAccent, textOn } from "@/lib/branding";
 import {
   PaperSheet,
@@ -69,6 +70,8 @@ export default function PayPage({
   // Partial payments: full balance by default; "Pay another amount" opens an input
   const [partial, setPartial] = useState(false);
   const [amountText, setAmountText] = useState("");
+  // The card-terminal ritual while the charge runs (see components/ChargeOverlay)
+  const [charge, setCharge] = useState<ChargePhase | null>(null);
   const formRef = useRef<FinixForm | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -139,13 +142,26 @@ export default function PayPage({
     return (
       <div className="app-ui min-h-screen bg-gray-50 flex items-center justify-center px-4">
         <div className="max-w-sm w-full card-ledger p-8 text-center shadow-sm">
-          <div className={`w-14 h-14 ${pendingAch ? "bg-blue-100" : "bg-green-100"} rounded-full flex items-center justify-center mx-auto mb-4`}>
-            {pendingAch ? (
+          {pendingAch ? (
+            <div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <Clock size={28} className="text-blue-600" />
-            ) : (
-              <CheckCircle size={28} className="text-green-600" />
-            )}
-          </div>
+            </div>
+          ) : (
+            // Same self-drawing checkmark as the charge ritual
+            <div className="charge-pop w-14 h-14 bg-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg viewBox="0 0 48 48" className="h-7 w-7">
+                <path
+                  className="charge-draw"
+                  d="M12 25 L21 34 L37 16"
+                  fill="none"
+                  stroke="white"
+                  strokeWidth="5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </div>
+          )}
           <h1 className="text-xl font-bold text-gray-900 mb-2">
             {pendingAch ? "Payment on its way!" : "Payment received!"}
           </h1>
@@ -178,6 +194,18 @@ export default function PayPage({
   }
 
   async function submitPayment(paymentToken?: string) {
+    // The terminal ritual: processing overlay with a minimum on-screen beat,
+    // then the approved checkmark before the confirmation card. Failures drop
+    // the overlay and surface the normal inline error.
+    const label = method === "CARD" ? "your card" : "your bank account";
+    setCharge({
+      state: "processing",
+      label,
+      amount: chargeTotal,
+      ...(method === "ACH" && { caption: "Submitting the bank transfer…" }),
+    });
+    const started = Date.now();
+
     const res = await fetch(`/api/public/pay/${invoice.publicToken}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -187,17 +215,19 @@ export default function PayPage({
         saveCard: method === "CARD" && saveCard,
         amount: payAmount,
       }),
-    });
+    }).catch(() => null);
 
+    await new Promise((r) => setTimeout(r, Math.max(0, 1100 - (Date.now() - started))));
     setLoading(false);
 
-    if (!res.ok) {
-      const data = await res.json().catch(() => null);
+    if (!res || !res.ok) {
+      setCharge(null);
+      const data = res ? await res.json().catch(() => null) : null;
       // 503 = no money can move. The processor-not-enabled case (identified by
       // the processorLive field) gets the "coming soon" copy with the
       // business's contact details; anything else — a paused account, say —
       // already sends copy that fits, so show that instead of overriding it.
-      if (res.status === 503 && data && "processorLive" in data) {
+      if (res && res.status === 503 && data && "processorLive" in data) {
         const contactBits = [invoice.company.phone, invoice.company.email]
           .filter(Boolean)
           .join(" or ");
@@ -211,9 +241,22 @@ export default function PayPage({
     }
 
     const data = await res.json().catch(() => null);
-    setPendingAch(Boolean(data?.pending));
-    setRemaining(Number(data?.remaining) || 0);
-    setDone(true);
+    if (data?.pending) {
+      // ACH: submitted, not yet cleared — no "Approved" claim, straight to
+      // the on-its-way confirmation.
+      setCharge(null);
+      setPendingAch(true);
+      setRemaining(Number(data?.remaining) || 0);
+      setDone(true);
+      return;
+    }
+    setCharge({ state: "approved", label, amount: chargeTotal });
+    setTimeout(() => {
+      setCharge(null);
+      setPendingAch(false);
+      setRemaining(Number(data?.remaining) || 0);
+      setDone(true);
+    }, 1800);
   }
 
   async function handlePay() {
@@ -571,6 +614,7 @@ export default function PayPage({
           />
         </PaperSheet>
       </div>
+      <ChargeOverlay phase={charge} onDismiss={() => setCharge(null)} />
     </div>
   );
 }

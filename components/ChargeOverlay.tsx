@@ -10,7 +10,7 @@ import { CreditCard } from "lucide-react";
  */
 
 export type ChargePhase =
-  | { state: "processing"; label: string; amount: number }
+  | { state: "processing"; label: string; amount: number; caption?: string }
   | { state: "approved"; label: string; amount: number }
   | { state: "declined"; label: string; amount: number; error: string };
 
@@ -53,7 +53,9 @@ export default function ChargeOverlay({
               {money(phase.amount)}
             </p>
             <p className="mt-1 text-sm text-gray-600">Charging {phase.label}</p>
-            <p className="mt-3 text-xs text-gray-400">Contacting the card network…</p>
+            <p className="mt-3 text-xs text-gray-400">
+              {phase.caption ?? "Contacting the card network…"}
+            </p>
           </>
         )}
 

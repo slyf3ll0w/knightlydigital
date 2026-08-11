@@ -21,9 +21,9 @@ import {
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { money } from "@/lib/statuses";
 import { confirmSheet } from "@/components/ConfirmSheet";
-import { launchSendPlane, launchPointFrom } from "@/lib/send-plane";
 import { hapticImpact } from "@/lib/haptics";
 import ChargeOverlay, { type ChargePhase } from "@/components/ChargeOverlay";
+import SendOverlay from "@/components/SendOverlay";
 
 type SavedCardOption = { id: string; label: string; isDefault: boolean };
 
@@ -64,6 +64,7 @@ export default function InvoiceActions({
   const [confirmText, setConfirmText] = useState("");
   const [deleteError, setDeleteError] = useState("");
   const [charge, setCharge] = useState<ChargePhase | null>(null);
+  const [sendShow, setSendShow] = useState<string | null>(null);
   const [pickOpen, setPickOpen] = useState(false);
   const [pickedId, setPickedId] = useState<string>("");
   const ref = useRef<HTMLDivElement>(null);
@@ -194,9 +195,7 @@ export default function InvoiceActions({
   }
 
   // Email the client their pay link (DRAFT invoices move to Awaiting Payment)
-  async function emailToClient(e?: React.MouseEvent<HTMLElement>) {
-    // Launch point grabbed now — the button unmounts before the send resolves
-    const from = launchPointFrom(e?.currentTarget ?? null);
+  async function emailToClient() {
     setOpen(false);
     setBusy(true);
     try {
@@ -208,7 +207,7 @@ export default function InvoiceActions({
       }
       setSentTo(data?.to ?? contactEmail);
       hapticImpact("LIGHT");
-      launchSendPlane(from);
+      setSendShow(data?.to ?? contactEmail);
     } finally {
       setBusy(false);
       router.refresh();
@@ -535,6 +534,7 @@ export default function InvoiceActions({
       )}
 
       <ChargeOverlay phase={charge} onDismiss={() => setCharge(null)} />
+      <SendOverlay to={sendShow} onDone={() => setSendShow(null)} />
     </div>
   );
 }

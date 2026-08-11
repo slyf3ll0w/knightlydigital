@@ -192,8 +192,19 @@ export default function QuoteAcceptPage({
     return (
       <div className="app-ui min-h-screen bg-gray-50 flex items-center justify-center px-4">
         <div className="max-w-sm w-full card-ledger p-8 text-center shadow-sm">
-          <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <CheckCircle size={28} className="text-green-600" />
+          {/* Same self-drawing checkmark as the payment ritual */}
+          <div className="charge-pop w-14 h-14 bg-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg viewBox="0 0 48 48" className="h-7 w-7">
+              <path
+                className="charge-draw"
+                d="M12 25 L21 34 L37 16"
+                fill="none"
+                stroke="white"
+                strokeWidth="5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
           </div>
           <h1 className="text-xl font-bold text-gray-900 mb-2">Quote approved!</h1>
           <p className="text-gray-500 text-sm">

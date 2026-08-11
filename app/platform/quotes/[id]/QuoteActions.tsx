@@ -22,8 +22,8 @@ import {
   DollarSign,
 } from "lucide-react";
 import { confirmSheet } from "@/components/ConfirmSheet";
-import { launchSendPlane, launchPointFrom } from "@/lib/send-plane";
 import { hapticImpact } from "@/lib/haptics";
+import SendOverlay from "@/components/SendOverlay";
 
 type AgreementState = {
   signed: boolean;
@@ -59,6 +59,7 @@ export default function QuoteActions({
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
   const [sentTo, setSentTo] = useState("");
+  const [sendShow, setSendShow] = useState<string | null>(null);
   const [agreementOpen, setAgreementOpen] = useState(false);
   const [templateId, setTemplateId] = useState(agreement?.templates[0]?.id ?? "");
   const [agreementError, setAgreementError] = useState("");
@@ -96,9 +97,7 @@ export default function QuoteActions({
   }
 
   // Email the client their approval link (marks the quote sent on success)
-  async function emailToClient(e?: React.MouseEvent<HTMLElement>) {
-    // Launch point grabbed now — the button unmounts before the send resolves
-    const from = launchPointFrom(e?.currentTarget ?? null);
+  async function emailToClient() {
     setOpen(false);
     setBusy(true);
     try {
@@ -110,7 +109,7 @@ export default function QuoteActions({
       }
       setSentTo(data?.to ?? contactEmail);
       hapticImpact("LIGHT");
-      launchSendPlane(from);
+      setSendShow(data?.to ?? contactEmail);
     } finally {
       setBusy(false);
       router.refresh();
@@ -511,6 +510,7 @@ export default function QuoteActions({
           </div>
         </div>
       )}
+      <SendOverlay to={sendShow} onDone={() => setSendShow(null)} />
     </div>
   );
 }
