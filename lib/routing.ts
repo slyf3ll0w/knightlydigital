@@ -49,6 +49,18 @@ function haversineMatrix(points: RoutePoint[]): number[][] {
   );
 }
 
+// Same day, same pins → same matrix. Route pages re-fetch on every visit and
+// every optimize preview re-asks for the identical point set, so a short
+// in-process cache keeps casual browsing from eating the monthly element
+// budget. Keyed on rounded coordinates (≈1 m at 5 decimals).
+const matrixCache = new Map<string, { at: number; matrix: number[][] }>();
+const MATRIX_CACHE_MS = 10 * 60_000;
+const MATRIX_CACHE_MAX = 200;
+
+function matrixCacheKey(points: RoutePoint[]): string {
+  return points.map((p) => `${p.lat.toFixed(5)},${p.lng.toFixed(5)}`).join(";");
+}
+
 /**
  * Pairwise drive-time matrix in minutes. Never throws — worst case is the
  * haversine estimate.
@@ -60,6 +72,11 @@ export async function driveTimeMatrix(
 ): Promise<number[][]> {
   if (points.length < 2) return points.map(() => points.map(() => 0));
   if (!MAPBOX_TOKEN || points.length > 25) return haversineMatrix(points);
+
+  const key = matrixCacheKey(points);
+  const hit = matrixCache.get(key);
+  if (hit && Date.now() - hit.at < MATRIX_CACHE_MS) return hit.matrix;
+
   // Free-tier kill switch (lib/mapbox-budget.ts) — over the monthly element
   // cap the optimizer silently runs on the haversine estimate instead.
   if (!(await matrixBudgetOk(points.length * points.length))) return haversineMatrix(points);
@@ -79,11 +96,16 @@ export async function driveTimeMatrix(
     const durations = data.durations;
     if (!durations || durations.length !== points.length) return haversineMatrix(points);
     // null cells = unroutable pair (island, bad snap) — patch with the estimate
-    return durations.map((row, i) =>
+    const matrix = durations.map((row, i) =>
       row.map((sec, j) =>
         sec == null ? estimateDriveMinutes(haversineKm(points[i], points[j])) : sec / 60
       )
     );
+    if (matrixCache.size >= MATRIX_CACHE_MAX) {
+      matrixCache.delete(matrixCache.keys().next().value!);
+    }
+    matrixCache.set(key, { at: Date.now(), matrix });
+    return matrix;
   } catch (err) {
     console.error("[routing] mapbox matrix threw:", err);
     return haversineMatrix(points);

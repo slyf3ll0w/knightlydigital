@@ -1104,6 +1104,16 @@ model Job {
   // Date-only scheduling: scheduledAt anchored at T12:00, shown in the
   // calendar's "Anytime" row rather than at a clock position.
   scheduledAnytime Boolean @default(false)
+  // Per-job arrival-window override (lib/arrival-window.ts): null = the
+  // company default (Company.arrivalWindowMinutes), 0 = promise the exact
+  // start time. Techs always see exact times — this only changes what the
+  // client is told (hub, reminders, on-my-way).
+  arrivalWindowMinutes Int?
+  // Client visit reminders (same day-before + ~1-hour machinery as
+  // Appointment — see runVisitReminders in lib/reminders.ts)
+  remindClient       Boolean   @default(true)
+  reminderDaySentAt  DateTime?
+  reminderHourSentAt DateTime?
   completedAt  DateTime?
   closedAt     DateTime?
   address      String?

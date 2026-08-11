@@ -10,6 +10,7 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
+  CornerDownRight,
   Loader2,
   MapPin,
   Route as RouteIcon,
@@ -50,6 +51,11 @@ type RouteDay = {
   enabled: boolean;
   start: { lat: number; lng: number; label: string } | null;
   stops: RouteStop[];
+  /** legs[userId][stopId] = drive minutes into that stop; totals[userId] = whole route. */
+  drive?: {
+    legs: Record<string, Record<string, number>>;
+    totals: Record<string, number>;
+  };
 };
 
 type OptimizeStop = {
@@ -587,6 +593,8 @@ export default function RouteMapClient({
                     <p className="truncate text-sm font-bold text-gray-900">{g.name}</p>
                     <p className="numeral-ledger text-[11px] text-gray-500">
                       {g.stops.length} stop{g.stops.length === 1 ? "" : "s"} · {spanLabel(g.stops)}
+                      {(data?.drive?.totals[g.userId] ?? 0) > 0 &&
+                        ` · ~${Math.round(data!.drive!.totals[g.userId])} min drive`}
                     </p>
                   </div>
                 </div>
@@ -603,8 +611,16 @@ export default function RouteMapClient({
                   )}
               </div>
               <ul className="divide-y divide-gray-100">
-                {g.stops.map((s, i) => (
+                {g.stops.map((s, i) => {
+                  const leg = data?.drive?.legs[g.userId]?.[s.id];
+                  return (
                   <li key={s.id}>
+                    {leg != null && leg > 0 && (
+                      <p className="numeral-ledger flex items-center gap-1.5 px-4 pt-2 text-[10.5px] text-gray-400">
+                        <CornerDownRight size={11} className="shrink-0" />
+                        ~{leg} min drive{i === 0 ? " from HQ" : ""}
+                      </p>
+                    )}
                     <div
                       role="button"
                       tabIndex={0}
@@ -656,7 +672,8 @@ export default function RouteMapClient({
                       </div>
                     </div>
                   </li>
-                ))}
+                  );
+                })}
               </ul>
             </div>
           ))}

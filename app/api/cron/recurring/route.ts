@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { runDueSubscriptions, generateDueVisits } from "@/lib/subscriptions";
-import { runDueReminders, runAppointmentReminders, runQuoteFollowUps } from "@/lib/reminders";
+import {
+  runDueReminders,
+  runAppointmentReminders,
+  runQuoteFollowUps,
+  runVisitReminders,
+} from "@/lib/reminders";
 import { runQuickBooksNightlySync } from "@/lib/quickbooks";
 import { rollupStorageSnapshots } from "@/lib/usage";
 
@@ -42,6 +47,9 @@ export async function POST(req: NextRequest) {
   // stage only lands if this cron runs hourly — daily runs still cover the
   // day-before stage.
   const appointmentReminders = await runAppointmentReminders(now);
+  // Job-visit reminders (same cadence): clients are told the arrival window,
+  // never the dispatch-exact time
+  const visitReminders = await runVisitReminders(now);
   // QuickBooks sweep: catches invoices issued/edited outside the payment
   // hook. No-op unless QBO env vars are set and companies have connected.
   const quickbooks = await runQuickBooksNightlySync();
@@ -63,6 +71,7 @@ export async function POST(req: NextRequest) {
     reminders,
     quoteFollowUps,
     appointmentReminders,
+    visitReminders,
     quickbooks,
     prunedPings: prunedPings.count,
     storageCompanies,

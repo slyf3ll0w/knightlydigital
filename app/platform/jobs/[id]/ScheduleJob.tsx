@@ -7,6 +7,7 @@ import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { localInputToISO } from "@/lib/statuses";
 import SlotTimePicker from "@/components/SlotTimePicker";
 import { addMinutesToLocalDateTime, DEFAULT_JOB_DURATION_MINUTES } from "@/lib/scheduling";
+import { ARRIVAL_WINDOW_CHOICES, arrivalWindowChoiceLabel } from "@/lib/arrival-window";
 
 const SLOT_INPUT_CLS =
   "min-w-0 flex-[1.15] px-2 py-1.5 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500";
@@ -29,6 +30,8 @@ export default function ScheduleJob({
   scheduledAt,
   scheduledEnd,
   scheduledAnytime,
+  arrivalWindowMinutes,
+  companyWindowMinutes,
   intervalMinutes = 30,
   defaultDurationMinutes,
   dayStartMinutes,
@@ -37,6 +40,10 @@ export default function ScheduleJob({
   scheduledAt: string | null;
   scheduledEnd: string | null;
   scheduledAnytime: boolean;
+  /** Per-job client arrival-window override; null = company default. */
+  arrivalWindowMinutes?: number | null;
+  /** Company default window width, for the "Company default (…)" label. */
+  companyWindowMinutes?: number;
   intervalMinutes?: number;
   /** Expected on-site time from the price book (sum of the job's line items'
       service durations). Falls back to one hour when absent. */
@@ -52,22 +59,29 @@ export default function ScheduleJob({
   const [start, setStart] = useState(toLocalInput(scheduledAt));
   const [end, setEnd] = useState(toLocalInput(scheduledEnd));
   const [day, setDay] = useState(toLocalDate(scheduledAt));
+  // "" = inherit the company default; a number = this job's own window
+  const [window_, setWindow] = useState(
+    arrivalWindowMinutes == null ? "" : String(arrivalWindowMinutes)
+  );
 
   async function save() {
     setError("");
     setLoading(true);
-    const body = anytime
-      ? {
-          // date-only: anchor at noon so the date survives timezone shifts
-          scheduledAt: day ? localInputToISO(`${day}T12:00`) : null,
-          scheduledEnd: null,
-          scheduledAnytime: Boolean(day),
-        }
-      : {
-          scheduledAt: localInputToISO(start),
-          scheduledEnd: localInputToISO(end),
-          scheduledAnytime: false,
-        };
+    const body = {
+      arrivalWindowMinutes: window_ === "" ? null : Number(window_),
+      ...(anytime
+        ? {
+            // date-only: anchor at noon so the date survives timezone shifts
+            scheduledAt: day ? localInputToISO(`${day}T12:00`) : null,
+            scheduledEnd: null,
+            scheduledAnytime: Boolean(day),
+          }
+        : {
+            scheduledAt: localInputToISO(start),
+            scheduledEnd: localInputToISO(end),
+            scheduledAnytime: false,
+          }),
+    };
     const { ok, data } = await postJson(`/api/app/jobs/${jobId}`, body, "PATCH");
     setLoading(false);
     if (!ok) {
@@ -155,6 +169,27 @@ export default function ScheduleJob({
               onChange={setEnd}
             />
           </div>
+        </div>
+      )}
+      {!anytime && (
+        <div>
+          <label className="block text-xs text-gray-500 mb-0.5">
+            Arrival window <span className="text-gray-400">(what the client is promised)</span>
+          </label>
+          <select
+            value={window_}
+            onChange={(e) => setWindow(e.target.value)}
+            className="w-full sm:w-64 px-2 py-1.5 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+          >
+            <option value="">
+              Company default{companyWindowMinutes != null ? ` (${arrivalWindowChoiceLabel(companyWindowMinutes)})` : ""}
+            </option>
+            {ARRIVAL_WINDOW_CHOICES.map((m) => (
+              <option key={m} value={m}>
+                {arrivalWindowChoiceLabel(m)}
+              </option>
+            ))}
+          </select>
         </div>
       )}
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 pt-0.5">

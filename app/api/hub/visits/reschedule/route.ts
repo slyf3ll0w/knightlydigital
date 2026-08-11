@@ -33,11 +33,18 @@ export async function POST(req: NextRequest) {
   if (!contact) return NextResponse.json({ error: "Not found." }, { status: 404 });
   const gate = await prisma.company.findUnique({
     where: { id: contact.companyId },
-    select: { suspendedAt: true },
+    select: { suspendedAt: true, timezone: true },
   });
   if (gate?.suspendedAt) {
     return suspendedResponse("This business can't take requests right now.");
   }
+  // Dates render in the company's timezone — the server's own zone can be a
+  // day off around midnight
+  const dateOpts = {
+    month: "long",
+    day: "numeric",
+    timeZone: gate?.timezone ?? "America/Chicago",
+  } as const;
 
   // Resolve the visit (must belong to this client) for an accurate label
   let label: string | null = null;
@@ -48,7 +55,7 @@ export async function POST(req: NextRequest) {
     });
     if (job) {
       label = `job #${job.jobNumber} (${job.title})${
-        job.scheduledAt ? ` on ${job.scheduledAt.toLocaleDateString("en-US", { month: "long", day: "numeric" })}` : ""
+        job.scheduledAt ? ` on ${job.scheduledAt.toLocaleDateString("en-US", dateOpts)}` : ""
       }`;
     }
   } else {
@@ -57,7 +64,7 @@ export async function POST(req: NextRequest) {
       select: { title: true, scheduledAt: true },
     });
     if (appt) {
-      label = `the ${appt.title} appointment on ${appt.scheduledAt.toLocaleDateString("en-US", { month: "long", day: "numeric" })}`;
+      label = `the ${appt.title} appointment on ${appt.scheduledAt.toLocaleDateString("en-US", dateOpts)}`;
     }
   }
   if (!label) return NextResponse.json({ error: "Visit not found." }, { status: 404 });

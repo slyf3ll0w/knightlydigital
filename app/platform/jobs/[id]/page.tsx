@@ -10,6 +10,7 @@ import { requirePageActor, jobScope, canSeePricing, canSell, isManager } from "@
 import { resolveSlotInterval } from "@/lib/scheduling";
 import { earliestOpenMinutes, sanitizeBusinessHours } from "@/lib/business-hours";
 import { renderMessageTemplate, DEFAULT_ON_MY_WAY_TEMPLATE } from "@/lib/messaging";
+import { arrivalTimeLabel, resolveArrivalWindowMinutes } from "@/lib/arrival-window";
 import { entryMs, formatDuration } from "@/lib/time-entries";
 import { visitFrequencyLabel } from "@/lib/subscriptions";
 import { syncJobChecklist } from "@/lib/job-checklist";
@@ -75,6 +76,7 @@ export default async function JobDetailPage({
         timezone: true,
         onMyWayTemplate: true,
         reviewLink: true,
+        arrivalWindowMinutes: true,
       },
     }),
     // My open clock entry, wherever it is (drives the Clock In/Out card)
@@ -116,13 +118,15 @@ export default async function JobDetailPage({
       techName: actor.name,
       jobTitle: job.title,
       address: job.address,
-      time: job.scheduledAt
-        ? job.scheduledAt.toLocaleTimeString("en-US", {
-            hour: "numeric",
-            minute: "2-digit",
-            timeZone: company?.timezone ?? "America/Chicago",
-          })
-        : "",
+      // Clients are promised the arrival window, not the dispatch-exact minute
+      time:
+        job.scheduledAt && !job.scheduledAnytime
+          ? arrivalTimeLabel(
+              company?.timezone ?? "America/Chicago",
+              job.scheduledAt,
+              resolveArrivalWindowMinutes(job.arrivalWindowMinutes, company?.arrivalWindowMinutes)
+            )
+          : "",
     }
   );
 
@@ -232,6 +236,8 @@ export default async function JobDetailPage({
             scheduledAt={job.scheduledAt?.toISOString() ?? null}
             scheduledEnd={job.scheduledEnd?.toISOString() ?? null}
             scheduledAnytime={job.scheduledAnytime}
+            arrivalWindowMinutes={job.arrivalWindowMinutes}
+            companyWindowMinutes={company?.arrivalWindowMinutes}
             intervalMinutes={resolveSlotInterval({
               companyIntervalMinutes: company?.schedulingIntervalMinutes,
             })}

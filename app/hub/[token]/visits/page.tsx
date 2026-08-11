@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { CalendarDays } from "lucide-react";
-import { slotLabel } from "@/lib/booking-availability";
+import { arrivalTimeLabel, resolveArrivalWindowMinutes } from "@/lib/arrival-window";
 import RescheduleButton from "./RescheduleButton";
 
 /**
@@ -28,7 +28,14 @@ export default async function HubVisitsPage({
         where: { status: "ACTIVE", scheduledAt: { gte: startOfDay } },
         orderBy: { scheduledAt: "asc" },
         take: 20,
-        select: { id: true, title: true, scheduledAt: true, scheduledAnytime: true, address: true },
+        select: {
+          id: true,
+          title: true,
+          scheduledAt: true,
+          scheduledAnytime: true,
+          arrivalWindowMinutes: true,
+          address: true,
+        },
       },
       appointments: {
         where: { status: "SCHEDULED", scheduledAt: { gte: startOfDay } },
@@ -82,7 +89,7 @@ export default async function HubVisitsPage({
           ? "To be scheduled"
           : j.scheduledAnytime
             ? `${dayLabel(d)} · anytime that day`
-            : `${dayLabel(d)} · arriving ${slotLabel(tz, d, new Date(d.getTime() + windowMin * 60000))}`,
+            : `${dayLabel(d)} · arriving ${arrivalTimeLabel(tz, d, resolveArrivalWindowMinutes(j.arrivalWindowMinutes, windowMin))}`,
         address: j.address,
         tentative: false,
       };
@@ -97,7 +104,7 @@ export default async function HubVisitsPage({
         timeLabel: a.scheduledAnytime
           ? `${dayLabel(d)} · anytime that day`
           : a.type === "IN_PERSON"
-            ? `${dayLabel(d)} · arriving ${slotLabel(tz, d, new Date(d.getTime() + windowMin * 60000))}`
+            ? `${dayLabel(d)} · arriving ${arrivalTimeLabel(tz, d, windowMin)}`
             : `${dayLabel(d)} · ${d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: tz })}`,
         address: a.address,
         tentative: a.tentative,

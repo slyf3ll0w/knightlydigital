@@ -12,6 +12,7 @@ import {
   Mail,
 } from "lucide-react";
 import { money } from "@/lib/statuses";
+import { arrivalTimeLabel, resolveArrivalWindowMinutes } from "@/lib/arrival-window";
 import ResendContractButton from "./ResendContractButton";
 
 export default async function HubHomePage({
@@ -36,8 +37,15 @@ export default async function HubHomePage({
         where: { status: "ACTIVE", scheduledAt: { gte: startOfDay } },
         orderBy: { scheduledAt: "asc" },
         take: 5,
-        select: { id: true, title: true, scheduledAt: true, scheduledAnytime: true },
+        select: {
+          id: true,
+          title: true,
+          scheduledAt: true,
+          scheduledAnytime: true,
+          arrivalWindowMinutes: true,
+        },
       },
+      company: { select: { timezone: true, arrivalWindowMinutes: true } },
       contracts: {
         where: { status: { in: ["SENT", "SIGNED"] } },
         orderBy: { createdAt: "desc" },
@@ -57,10 +65,17 @@ export default async function HubHomePage({
   const nextVisit = contact.jobs[0];
   const base = `/hub/${token}`;
 
-  const visitTime = (d: Date, anytime: boolean) =>
+  // Clients are promised an arrival window, never the dispatch-exact time —
+  // and everything renders in the company's timezone, not the server's.
+  const tz = contact.company.timezone;
+  const visitTime = (d: Date, anytime: boolean, jobWindow: number | null) =>
     anytime
       ? "Anytime"
-      : d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+      : `arriving ${arrivalTimeLabel(
+          tz,
+          d,
+          resolveArrivalWindowMinutes(jobWindow, contact.company.arrivalWindowMinutes)
+        )}`;
 
   /** Small ledger "appointment ticket" date tile — month over day numeral. */
   const dateTile = (d: Date | null) => (
@@ -68,10 +83,10 @@ export default async function HubHomePage({
       {d ? (
         <>
           <span className="text-[9px] font-bold uppercase tracking-wide leading-none text-red-600/80">
-            {d.toLocaleDateString("en-US", { month: "short" })}
+            {d.toLocaleDateString("en-US", { month: "short", timeZone: tz })}
           </span>
           <span className="numeral-ledger text-lg font-semibold leading-tight text-gray-900">
-            {d.getDate()}
+            {d.toLocaleDateString("en-US", { day: "numeric", timeZone: tz })}
           </span>
         </>
       ) : (
@@ -136,6 +151,7 @@ export default async function HubHomePage({
               ? new Date(nextVisit.scheduledAt).toLocaleDateString("en-US", {
                   month: "short",
                   day: "numeric",
+                  timeZone: tz,
                 })
               : "—"}
           </p>
@@ -167,7 +183,7 @@ export default async function HubHomePage({
                     <p className="text-sm font-medium text-gray-900 truncate">{job.title}</p>
                     <p className="text-xs text-gray-500">
                       {d
-                        ? `${d.toLocaleDateString("en-US", { weekday: "long" })} · ${visitTime(d, job.scheduledAnytime)}`
+                        ? `${d.toLocaleDateString("en-US", { weekday: "long", timeZone: tz })} · ${visitTime(d, job.scheduledAnytime, job.arrivalWindowMinutes)}`
                         : "To be scheduled"}
                     </p>
                   </div>

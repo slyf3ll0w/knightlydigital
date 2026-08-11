@@ -61,6 +61,12 @@ export async function PATCH(
       return NextResponse.json({ error: "Invalid date." }, { status: 400 });
     }
     data.scheduledAt = start;
+    if (start.getTime() !== appt.scheduledAt.getTime()) {
+      // A moved appointment reminds again at its new time — stale stamps
+      // would otherwise silently swallow the reminder for the new slot
+      data.reminderDaySentAt = null;
+      data.reminderHourSentAt = null;
+    }
   }
   if (body.scheduledEnd !== undefined) {
     if (body.scheduledEnd) {

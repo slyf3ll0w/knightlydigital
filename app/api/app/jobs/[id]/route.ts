@@ -49,9 +49,26 @@ export async function PATCH(
       ...(body.leadSource !== undefined && { leadSource: body.leadSource || null }),
       ...(propertyPatch ?? {}),
     }),
-    ...(body.scheduledAt !== undefined && { scheduledAt: body.scheduledAt ? new Date(body.scheduledAt) : null }),
+    ...(body.scheduledAt !== undefined && {
+      scheduledAt: body.scheduledAt ? new Date(body.scheduledAt) : null,
+      // A moved visit reminds again at its new time (stamps are per-schedule)
+      reminderDaySentAt: null,
+      reminderHourSentAt: null,
+    }),
     ...(body.scheduledEnd !== undefined && { scheduledEnd: body.scheduledEnd ? new Date(body.scheduledEnd) : null }),
     ...(body.scheduledAnytime !== undefined && { scheduledAnytime: Boolean(body.scheduledAnytime) }),
+    // Arrival window override: null = company default, 0 = exact time
+    ...(body.arrivalWindowMinutes !== undefined && {
+      arrivalWindowMinutes:
+        body.arrivalWindowMinutes === null
+          ? null
+          : Number.isInteger(Number(body.arrivalWindowMinutes)) &&
+              Number(body.arrivalWindowMinutes) >= 0 &&
+              Number(body.arrivalWindowMinutes) <= 480
+            ? Number(body.arrivalWindowMinutes)
+            : undefined,
+    }),
+    ...(body.remindClient !== undefined && { remindClient: Boolean(body.remindClient) }),
   };
   // updateMany with an empty data object touches no rows — skip it when the
   // request only changes assignments

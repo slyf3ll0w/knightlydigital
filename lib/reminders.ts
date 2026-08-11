@@ -20,6 +20,7 @@ import { sendEmail, emailEnabled, paymentReminderEmail, appointmentReminderEmail
 import { sendSms, smsEnabled, appointmentReminderText } from "@/lib/sms";
 import { notifyUser } from "@/lib/push";
 import { slotLabel } from "@/lib/booking-availability";
+import { arrivalSlotLabel, resolveArrivalWindowMinutes } from "@/lib/arrival-window";
 import { pastDueFilter } from "@/lib/due-dates";
 
 const DAY = 86400000;
@@ -422,6 +423,160 @@ export async function runAppointmentReminders(
     } catch (err) {
       summary.errors++;
       console.error("[reminders] failed for appointment", appt.id, err);
+    }
+  }
+
+  return summary;
+}
+
+/**
+ * Client JOB-visit reminders — the same day-before + ~1-hour machinery as
+ * appointments, for scheduled jobs. What the client is told is the ARRIVAL
+ * WINDOW (lib/arrival-window.ts: per-job override falling back to the company
+ * default; 0 = the exact start time), never the dispatch-exact minute.
+ * Anytime visits (date only) are skipped — there's no time to promise.
+ * Opt out per job with Job.remindClient=false.
+ */
+export async function runVisitReminders(
+  now: Date = new Date()
+): Promise<AppointmentReminderSummary> {
+  const HOUR = 3600000;
+  const jobs = await prisma.job.findMany({
+    where: {
+      status: "ACTIVE",
+      scheduledAnytime: false,
+      remindClient: true,
+      scheduledAt: { gt: now, lte: new Date(now.getTime() + 26 * HOUR) },
+      contact: { is: { OR: [{ email: { not: null } }, { phone: { not: null } }] } },
+      company: { is: { suspendedAt: null } },
+      OR: [{ reminderDaySentAt: null }, { reminderHourSentAt: null }],
+    },
+    include: {
+      contact: { select: { firstName: true, email: true, phone: true, smsOptOut: true } },
+      assignments: { select: { userId: true } },
+      company: {
+        select: {
+          name: true,
+          email: true,
+          timezone: true,
+          arrivalWindowMinutes: true,
+          brandColor: true,
+          documentColor: true,
+          brandColorSecondary: true,
+          logoUrl: true,
+        },
+      },
+    },
+    take: 1000,
+  });
+
+  const summary: AppointmentReminderSummary = { checked: jobs.length, sent: 0, errors: 0 };
+
+  for (const job of jobs) {
+    try {
+      const scheduledAt = job.scheduledAt!;
+      const msUntil = scheduledAt.getTime() - now.getTime();
+      const stage: "day" | "hour" | null =
+        msUntil <= 75 * 60000 && !job.reminderHourSentAt
+          ? "hour"
+          : msUntil > 2 * HOUR && !job.reminderDaySentAt
+            ? "day"
+            : null;
+      if (!stage) continue;
+
+      // SMS quiet hours: never text outside 8 AM–9 PM company-local
+      const localHour = Number(
+        new Intl.DateTimeFormat("en-US", {
+          timeZone: job.company.timezone,
+          hour: "2-digit",
+          hourCycle: "h23",
+        }).format(now)
+      );
+      const smsQuiet = localHour < 8 || localHour >= 21;
+
+      const canEmail = emailEnabled() && Boolean(job.contact.email);
+      const canSms =
+        smsEnabled() && Boolean(job.contact.phone) && !job.contact.smsOptOut && !smsQuiet;
+      if (!canEmail && !canSms) continue;
+
+      // Claim before sending — same compare-and-set as appointments
+      const claimed = await prisma.job.updateMany({
+        where: {
+          id: job.id,
+          ...(stage === "hour" ? { reminderHourSentAt: null } : { reminderDaySentAt: null }),
+        },
+        data:
+          stage === "hour"
+            ? { reminderHourSentAt: now, reminderDaySentAt: job.reminderDaySentAt ?? now }
+            : { reminderDaySentAt: now },
+      });
+      if (claimed.count === 0) continue;
+
+      const windowLabel = arrivalSlotLabel(
+        job.company.timezone,
+        scheduledAt,
+        resolveArrivalWindowMinutes(job.arrivalWindowMinutes, job.company.arrivalWindowMinutes)
+      );
+
+      let emailOk = false;
+      if (canEmail && job.contact.email) {
+        const { subject, html } = appointmentReminderEmail({
+          brand: job.company,
+          companyName: job.company.name,
+          companyEmail: job.company.email,
+          contactFirstName: job.contact.firstName,
+          serviceName: job.title,
+          windowLabel,
+          address: job.address,
+          stage,
+        });
+        emailOk = await sendEmail({
+          companyId: job.companyId,
+          to: job.contact.email,
+          subject,
+          html,
+          replyTo: job.company.email || undefined,
+          fromName: job.company.name,
+        });
+      }
+
+      let smsOk = false;
+      if (canSms && job.contact.phone) {
+        smsOk = await sendSms({
+          companyId: job.companyId,
+          to: job.contact.phone,
+          text: appointmentReminderText({
+            companyName: job.company.name,
+            firstName: job.contact.firstName,
+            serviceName: job.title,
+            windowLabel,
+            address: job.address,
+            stage,
+          }),
+        });
+      }
+
+      const ok = emailOk || smsOk;
+      if (ok) {
+        summary.sent++;
+        // Heads-up push to the crew an hour out (client already reminded)
+        if (stage === "hour") {
+          for (const a of job.assignments) {
+            await notifyUser(a.userId, {
+              title: "Upcoming visit",
+              body: `${job.title} — arrival window ${windowLabel}`,
+              url: `/app/jobs/${job.id}`,
+              tag: `visit-${job.id}`,
+            });
+          }
+        }
+      } else {
+        summary.errors++;
+        console.error("[reminders] send failed after claim for job visit", job.id, stage);
+      }
+    } catch (err) {
+      summary.errors++;
+      console.error("[reminders] failed for job visit", job.id, err);
     }
   }
 

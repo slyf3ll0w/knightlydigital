@@ -18,6 +18,7 @@ import { prisma } from "@/lib/db";
 import { composeAddress, geocodeAddress, geocodingEnabled } from "@/lib/geocoding";
 import type { Actor } from "@/lib/permissions";
 import { canSell, jobScope } from "@/lib/permissions";
+import { driveTimeMatrix } from "@/lib/routing";
 
 export type RouteStop = {
   id: string;
@@ -40,6 +41,58 @@ export type RouteDay = {
   start: { lat: number; lng: number; label: string } | null;
   stops: RouteStop[];
 };
+
+export type RouteDrive = {
+  /** legs[userId][stopId] = drive minutes into that stop from the previous
+      point on that tech's route (the shop for the first stop, when known). */
+  legs: Record<string, Record<string, number>>;
+  /** totals[userId] = whole-route drive minutes (same legs, summed). */
+  totals: Record<string, number>;
+};
+
+/**
+ * Per-tech drive legs for the day, in the order the calendar reads right now.
+ * One Matrix call covers every tech (points dedupe through the matrix cache);
+ * days too big for the API silently use the haversine estimate — display
+ * copy should hedge ("~12 min") either way.
+ */
+export async function resolveDriveLegs(day: RouteDay, companyId: string): Promise<RouteDrive> {
+  const drive: RouteDrive = { legs: {}, totals: {} };
+  const located = day.stops.filter((s) => s.lat != null && s.lng != null);
+  if (!located.length) return drive;
+
+  const points = [
+    ...(day.start ? [{ lat: day.start.lat, lng: day.start.lng }] : []),
+    ...located.map((s) => ({ lat: s.lat!, lng: s.lng! })),
+  ];
+  if (points.length < 2) return drive;
+  const offset = day.start ? 1 : 0;
+  const matrix = await driveTimeMatrix(points, companyId);
+  const indexOf = new Map(located.map((s, i) => [s.id, i + offset]));
+
+  const userIds = new Set(located.flatMap((s) => s.assigneeIds));
+  for (const userId of userIds) {
+    const route = located
+      .filter((s) => s.assigneeIds.includes(userId))
+      .sort((a, b) => new Date(a.scheduledAt ?? 0).getTime() - new Date(b.scheduledAt ?? 0).getTime());
+    if (!route.length) continue;
+    const legs: Record<string, number> = {};
+    let total = 0;
+    let prev = day.start ? 0 : null; // matrix index of the previous point
+    for (const stop of route) {
+      const here = indexOf.get(stop.id)!;
+      if (prev != null) {
+        const minutes = Math.round(matrix[prev][here]);
+        legs[stop.id] = minutes;
+        total += minutes;
+      }
+      prev = here;
+    }
+    drive.legs[userId] = legs;
+    drive.totals[userId] = total;
+  }
+  return drive;
+}
 
 export function parseRouteDate(s?: string | null): Date {
   if (s) {
