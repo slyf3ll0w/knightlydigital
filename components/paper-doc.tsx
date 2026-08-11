@@ -54,14 +54,12 @@ export function cityLine(x: {
   return [cs, x.zip].filter(Boolean).join(" ");
 }
 
-/** The white sheet itself — every document lives inside one of these. The
- *  generous padding mirrors the PDF's 48pt page margins. */
+/** The paper itself. Deliberately NO card chrome (border/shadow/background
+ *  swap) — the page behind it is white, so the browser tab IS the sheet,
+ *  the same way a PDF viewer shows the page. Padding mirrors the PDF's
+ *  48pt margins. */
 export function PaperSheet({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="card-ledger overflow-hidden bg-white shadow-sm">
-      <div className="px-5 py-7 sm:px-11 sm:py-10">{children}</div>
-    </div>
-  );
+  return <div className="bg-white px-1 py-4 sm:px-7 sm:py-6">{children}</div>;
 }
 
 /** Small-caps section label ("PREPARED FOR", "PAYMENTS", "TERMS"). */

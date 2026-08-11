@@ -242,10 +242,10 @@ export default function PayPage({
   const accent = brandAccent(invoice.company);
 
   return (
-    <div className="app-ui min-h-screen bg-gray-50 py-6 sm:py-10 px-4">
-      <div className="max-w-2xl mx-auto space-y-4">
+    <div className="app-ui min-h-screen bg-white py-4 sm:py-8 px-4">
+      <div className="max-w-2xl mx-auto">
         {preview && (
-          <div className="px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-700 text-center">
+          <div className="mb-2 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-700 text-center">
             Preview mode — opening this doesn&apos;t count as a client view. If your
             client hands you their card, you can run the payment right here.
           </div>
