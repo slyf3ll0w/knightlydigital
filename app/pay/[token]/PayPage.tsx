@@ -251,8 +251,9 @@ export default function PayPage({
       <div className="max-w-2xl mx-auto">
         {preview && (
           <p className="mb-3 text-center text-xs text-gray-400">
-            Preview — doesn&apos;t count as a client view. If your client hands you
-            their card, you can run the payment right here.
+            {isPaid
+              ? "Preview — doesn't count as a client view."
+              : "Preview — doesn't count as a client view. If your client hands you their card, you can run the payment right here."}
           </p>
         )}
 
