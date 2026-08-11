@@ -60,12 +60,30 @@ export default async function PublicPayPage({
       notes: true,
       clientMessage: true,
       dueDate: true,
-      contact: { select: { firstName: true, lastName: true, email: true } },
+      issuedAt: true,
+      createdAt: true,
+      kind: true,
+      contact: {
+        select: {
+          firstName: true,
+          lastName: true,
+          email: true,
+          phone: true,
+          address: true,
+          city: true,
+          state: true,
+          zip: true,
+        },
+      },
       company: {
         select: {
           name: true,
           phone: true,
           email: true,
+          address: true,
+          city: true,
+          state: true,
+          zip: true,
           logoUrl: true,
           brandColor: true,
           documentColor: true,
@@ -86,7 +104,10 @@ export default async function PublicPayPage({
           recurringInterval: true,
         },
       },
-      payments: { select: { amount: true } },
+      payments: {
+        select: { id: true, amount: true, method: true, paidAt: true },
+        orderBy: { paidAt: "asc" },
+      },
     },
   });
 
@@ -94,8 +115,9 @@ export default async function PublicPayPage({
 
   // The server charge path bills the remaining balance (total minus recorded
   // payments) — the page must display and authorize that same amount.
-  const { payments, ...publicInvoice } = invoice;
-  const paid = payments.reduce((s, p) => s + Number(p.amount), 0);
+  // Payments ride along (amount/method/date only) for the document's
+  // PAYMENTS section, mirroring the PDF.
+  const paid = invoice.payments.reduce((s, p) => s + Number(p.amount), 0);
   const balance = Math.round((Number(invoice.total) - paid) * 100) / 100;
 
   // Online charging is on only when the platform processor is Finix AND this
@@ -120,7 +142,7 @@ export default async function PublicPayPage({
     <>
       <ViewBeacon kind="invoice" token={token} disabled={preview === "1"} />
       <PayPage
-        invoice={JSON.parse(JSON.stringify(publicInvoice))}
+        invoice={JSON.parse(JSON.stringify(invoice))}
         balance={balance}
         finix={finix}
         preview={preview === "1"}

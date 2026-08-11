@@ -2,7 +2,17 @@
 
 import { useEffect, useRef, useState } from "react";
 import { CreditCard, Building2, Loader2, CheckCircle, Clock, Lock } from "lucide-react";
-import { brandHeader, brandAccent, textOn } from "@/lib/branding";
+import { brandAccent, textOn } from "@/lib/branding";
+import {
+  PaperSheet,
+  PaperHeader,
+  PreparedFor,
+  SectionLabel,
+  ItemsTableHead,
+  PaperFooter,
+  type PaperCompany,
+  type PaperContact,
+} from "@/components/paper-doc";
 
 type LineItem = { id: string; name?: string; description: string; quantity: number; unitPrice: number; total: number; recurringInterval?: "MONTHLY" | "QUARTERLY" | "SEMIANNUAL" | "ANNUAL" | null };
 
@@ -12,20 +22,28 @@ const RECURRING_LABEL: Record<string, string> = {
   SEMIANNUAL: "Billed every 6 months",
   ANNUAL: "Billed annually",
 };
+const METHOD_LABEL: Record<string, string> = {
+  CARD: "Card", ACH: "Bank (ACH)", CASH: "Cash", CHECK: "Check", CASH_APP: "Cash App",
+  PAYPAL: "PayPal", VENMO: "Venmo", ZELLE: "Zelle", OTHER: "Other",
+};
 type Invoice = {
-  id: string; invoiceNumber: number; status: string; publicToken: string;
+  id: string; invoiceNumber: number; status: string; kind: string; publicToken: string;
   subtotal: number; discount: number | null; tax: number | null; surcharge: number | null; depositApplied: number | null; total: number;
   notes: string | null; clientMessage: string | null; dueDate: string | null;
-  contact: { firstName: string; lastName: string; email: string | null } | null;
-  company: {
-    name: string; phone: string | null; email: string | null;
-    logoUrl: string | null; brandColor: string | null; brandColorSecondary: string | null;
+  issuedAt: string | null; createdAt: string;
+  contact: (PaperContact & { firstName: string; lastName: string }) | null;
+  company: PaperCompany & {
+    name: string;
     surchargeEnabled: boolean; surchargeRate: number | null;
   };
   lineItems: LineItem[];
+  payments: { id: string; amount: number; method: string; paidAt: string }[];
 };
 
 import { FINIX_JS_SRC, type FinixConfig, type FinixForm } from "@/lib/finix-js";
+
+const shortDate = (iso: string) =>
+  new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 
 export default function PayPage({
   invoice,
@@ -221,129 +239,166 @@ export default function PayPage({
     });
   }
 
+  const accent = brandAccent(invoice.company);
+
   return (
-    <div className="app-ui min-h-screen bg-gray-50 py-10 px-4">
-      <div className="max-w-lg mx-auto space-y-4">
+    <div className="app-ui min-h-screen bg-gray-50 py-6 sm:py-10 px-4">
+      <div className="max-w-2xl mx-auto space-y-4">
         {preview && (
           <div className="px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-700 text-center">
             Preview mode — opening this doesn&apos;t count as a client view. If your
             client hands you their card, you can run the payment right here.
           </div>
         )}
-        {/* Company + invoice header */}
-        <div className="card-ledger shadow-sm overflow-hidden">
-          <div
-            className="px-5 py-4 flex items-center gap-3"
-            style={{ backgroundColor: brandHeader(invoice.company) }}
-          >
-            {invoice.company.logoUrl && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={invoice.company.logoUrl}
-                alt={`${invoice.company.name} logo`}
-                className="h-20 w-auto max-w-[300px] object-contain shrink-0"
-              />
-            )}
-            <p
-              className="font-bold text-lg"
-              style={{ color: textOn(brandHeader(invoice.company)) }}
-            >
-              {invoice.company.name}
-            </p>
-          </div>
-          <div className="p-5">
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-sm text-gray-500">Invoice #{invoice.invoiceNumber}</p>
-              <a
-                href={`/pay/${invoice.publicToken}/pdf`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-gray-500 underline underline-offset-2 hover:text-gray-700"
-              >
-                Download PDF
-              </a>
-            </div>
-            <div className="text-right">
-              {invoice.contact && (
-                <p className="text-sm text-gray-600">
-                  {invoice.contact.firstName} {invoice.contact.lastName}
-                </p>
-              )}
-              {invoice.dueDate && (
-                <p className="text-xs text-gray-400">
-                  Due {new Date(invoice.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                </p>
-              )}
-            </div>
-          </div>
+
+        {/* The document — the web twin of the PDF letterhead */}
+        <PaperSheet>
+          <PaperHeader
+            company={invoice.company}
+            kind="invoice"
+            docNumber={invoice.invoiceNumber}
+            metaLines={[
+              `Date: ${shortDate(invoice.issuedAt ?? invoice.createdAt)}`,
+              invoice.dueDate ? `Due: ${shortDate(invoice.dueDate)}` : null,
+              invoice.kind === "DEPOSIT" ? "Deposit invoice" : null,
+            ]}
+          />
+
+          <PreparedFor contact={invoice.contact} />
 
           {invoice.clientMessage && (
-            <p className="mt-3 text-sm text-gray-700 whitespace-pre-wrap">
+            <p className="mt-4 text-sm leading-relaxed text-gray-700 whitespace-pre-wrap">
               {invoice.clientMessage}
             </p>
           )}
 
-          {/* Line items */}
-          <div className="mt-4 border-t border-gray-100 pt-4 space-y-2">
-            {invoice.lineItems.map((li) => (
-              <div key={li.id} className="flex justify-between text-sm">
-                <span className="text-gray-700">
-                  {li.name || li.description}
-                  {li.recurringInterval && (
-                    <span className="ml-2 text-[11px] font-medium px-1.5 py-0.5 rounded bg-green-100 text-green-700 align-middle">
-                      {RECURRING_LABEL[li.recurringInterval]}
-                    </span>
-                  )}
-                </span>
-                <span className="font-medium text-gray-900">${Number(li.total).toFixed(2)}</span>
-              </div>
-            ))}
+          {/* Line items — ruled table like the PDF */}
+          <div className="mt-5">
+            <ItemsTableHead />
+            <div>
+              {invoice.lineItems.map((li) => (
+                <div
+                  key={li.id}
+                  className="border-b border-gray-100 py-2.5 sm:grid sm:grid-cols-[1fr_54px_90px_96px] sm:items-start sm:gap-3"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-gray-900">
+                      {li.name || li.description}
+                      {li.recurringInterval && (
+                        <span className="ml-2 align-middle text-[10px] font-medium uppercase tracking-wide text-green-700">
+                          {RECURRING_LABEL[li.recurringInterval]}
+                        </span>
+                      )}
+                    </p>
+                    {li.name && li.description && (
+                      <p className="mt-0.5 text-xs leading-relaxed text-gray-500">
+                        {li.description}
+                      </p>
+                    )}
+                    <p className="mt-0.5 text-xs text-gray-400 sm:hidden">
+                      {Number(li.quantity)} × ${Number(li.unitPrice).toFixed(2)}
+                    </p>
+                  </div>
+                  <p className="hidden text-right text-sm text-gray-600 sm:block">
+                    {Number(li.quantity)}
+                  </p>
+                  <p className="hidden text-right text-sm text-gray-600 sm:block">
+                    ${Number(li.unitPrice).toFixed(2)}
+                  </p>
+                  <p className="text-right text-sm font-medium text-gray-900 max-sm:mt-1">
+                    ${Number(li.total).toFixed(2)}
+                  </p>
+                </div>
+              ))}
+            </div>
           </div>
 
-          {/* Totals */}
-          <div className="mt-4 border-t border-gray-100 pt-3 space-y-1.5">
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Subtotal</span>
-              <span>${Number(invoice.subtotal).toFixed(2)}</span>
-            </div>
-            {invoice.discount && Number(invoice.discount) > 0 && (
-              <div className="flex justify-between text-sm text-green-700">
-                <span>Discount</span>
-                <span>-${Number(invoice.discount).toFixed(2)}</span>
+          {/* Totals ledger — right-aligned, accent-ruled total like the PDF */}
+          <div className="mt-4 flex justify-end">
+            <div className="w-full max-w-[260px] space-y-1.5 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-500">Subtotal</span>
+                <span>${Number(invoice.subtotal).toFixed(2)}</span>
               </div>
-            )}
-            {invoice.tax && Number(invoice.tax) > 0 && (
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Tax</span>
-                <span>${Number(invoice.tax).toFixed(2)}</span>
+              {invoice.discount && Number(invoice.discount) > 0 ? (
+                <div className="flex justify-between text-gray-500">
+                  <span>Discount</span>
+                  <span>-${Number(invoice.discount).toFixed(2)}</span>
+                </div>
+              ) : null}
+              {invoice.tax && Number(invoice.tax) > 0 ? (
+                <div className="flex justify-between text-gray-500">
+                  <span>Tax</span>
+                  <span>${Number(invoice.tax).toFixed(2)}</span>
+                </div>
+              ) : null}
+              {invoice.depositApplied && Number(invoice.depositApplied) > 0 ? (
+                <div className="flex justify-between text-gray-500">
+                  <span>Deposit applied</span>
+                  <span>-${Number(invoice.depositApplied).toFixed(2)}</span>
+                </div>
+              ) : null}
+              <div
+                className="flex justify-between border-t-2 pt-1.5 text-base font-bold text-gray-900"
+                style={{ borderTopColor: accent }}
+              >
+                <span>Total</span>
+                <span className="numeral-ledger">${Number(invoice.total).toFixed(2)}</span>
               </div>
-            )}
-            {invoice.depositApplied && Number(invoice.depositApplied) > 0 && (
-              <div className="flex justify-between text-sm text-green-700">
-                <span>Deposit applied</span>
-                <span>-${Number(invoice.depositApplied).toFixed(2)}</span>
-              </div>
-            )}
-            {paid > 0 && (
-              <div className="flex justify-between text-sm text-green-700">
-                <span>Paid to date</span>
-                <span>-${paid.toFixed(2)}</span>
-              </div>
-            )}
-            {surcharge > 0 && (
-              <div className="flex justify-between text-sm text-amber-600">
-                <span>Card surcharge ({(surchargeRate * 100).toFixed(1)}%)</span>
-                <span>${surcharge.toFixed(2)}</span>
-              </div>
-            )}
-            <div className="flex justify-between font-bold text-base border-t border-gray-200 pt-1.5">
-              <span>Total due</span>
-              <span>${chargeTotal.toFixed(2)}</span>
+              {paid > 0 && (
+                <div className="flex justify-between text-gray-500">
+                  <span>Paid to date</span>
+                  <span>-${paid.toFixed(2)}</span>
+                </div>
+              )}
+              {surcharge > 0 && (
+                <div className="flex justify-between text-amber-600">
+                  <span>Card surcharge ({(surchargeRate * 100).toFixed(1)}%)</span>
+                  <span>${surcharge.toFixed(2)}</span>
+                </div>
+              )}
+              {(paid > 0 || surcharge > 0 || partial) && (
+                <div className="flex justify-between border-t border-gray-200 pt-1.5 text-base font-bold text-gray-900">
+                  <span>{partial && amountValid ? "You're paying" : "Balance due"}</span>
+                  <span className="numeral-ledger">${chargeTotal.toFixed(2)}</span>
+                </div>
+              )}
             </div>
           </div>
-          </div>
-        </div>
+
+          {/* Payments so far — mirrors the PDF's PAYMENTS section */}
+          {invoice.payments.length > 0 && (
+            <div className="mt-6">
+              <SectionLabel>Payments</SectionLabel>
+              <div className="mt-1 space-y-1">
+                {invoice.payments.map((p) => (
+                  <div key={p.id} className="flex justify-between text-sm">
+                    <span className="text-gray-500">
+                      {shortDate(p.paidAt)} · {METHOD_LABEL[p.method] ?? p.method}
+                    </span>
+                    <span className="text-gray-700">${Number(p.amount).toFixed(2)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {invoice.notes && (
+            <div className="mt-6">
+              <SectionLabel>Notes</SectionLabel>
+              <p className="mt-1 text-xs leading-relaxed text-gray-500 whitespace-pre-wrap">
+                {invoice.notes}
+              </p>
+            </div>
+          )}
+
+          <PaperFooter
+            kind="invoice"
+            docNumber={invoice.invoiceNumber}
+            companyName={invoice.company.name}
+            pdfHref={`/pay/${invoice.publicToken}/pdf`}
+          />
+        </PaperSheet>
 
         {/* Payment method */}
         <div className="card-ledger p-5 shadow-sm">

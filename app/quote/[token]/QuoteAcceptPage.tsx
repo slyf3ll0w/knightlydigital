@@ -2,8 +2,18 @@
 
 import { useState } from "react";
 import { CheckCircle, Loader2, MessageSquare } from "lucide-react";
-import { brandHeader, brandAccent, textOn } from "@/lib/branding";
+import { brandAccent, textOn } from "@/lib/branding";
 import { signatureMatchesName } from "@/lib/signature";
+import {
+  PaperSheet,
+  PaperHeader,
+  PreparedFor,
+  SectionLabel,
+  ItemsTableHead,
+  PaperFooter,
+  type PaperCompany,
+  type PaperContact,
+} from "@/components/paper-doc";
 
 type Quote = {
   id: string;
@@ -22,13 +32,12 @@ type Quote = {
   clientMessage: string | null;
   disclaimer: string | null;
   validUntil: string | null;
-  contact: { firstName: string; lastName: string } | null;
-  company: {
-    name: string;
-    logoUrl: string | null;
-    brandColor: string | null;
-    brandColorSecondary: string | null;
-  };
+  sentAt: string | null;
+  createdAt: string;
+  signatureName: string | null;
+  approvedAt: string | null;
+  contact: (PaperContact & { firstName: string; lastName: string }) | null;
+  company: PaperCompany & { name: string };
   lineItems: {
     id: string;
     name: string;
@@ -43,6 +52,22 @@ type Quote = {
 
 function money(n: number) {
   return `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function longDate(iso: string) {
+  return new Date(iso).toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function shortDate(iso: string) {
+  return new Date(iso).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 }
 
 export default function QuoteAcceptPage({
@@ -65,6 +90,7 @@ export default function QuoteAcceptPage({
   const reviewable =
     !preview && ["AWAITING_RESPONSE", "CHANGES_REQUESTED", "DRAFT"].includes(quote.status);
   const expired = Boolean(quote.validUntil && new Date(quote.validUntil) < new Date());
+  const accent = brandAccent(quote.company);
 
   // Live totals as the client toggles optional items
   const includedItems = quote.lineItems.filter((li) => !optedOut.includes(li.id));
@@ -195,7 +221,7 @@ export default function QuoteAcceptPage({
   }
 
   return (
-    <div className="app-ui min-h-screen bg-gray-50 py-10 px-4">
+    <div className="app-ui min-h-screen bg-gray-50 py-6 sm:py-10 px-4">
       <div className="max-w-2xl mx-auto space-y-4">
         {preview && (
           <div className="px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-700 text-center">
@@ -203,137 +229,99 @@ export default function QuoteAcceptPage({
           </div>
         )}
 
-        <div className="card-ledger shadow-sm overflow-hidden">
-          {/* Branded header */}
-          <div
-            className="px-6 py-5 flex items-center gap-4"
-            style={{ backgroundColor: brandHeader(quote.company) }}
-          >
-            {quote.company.logoUrl && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={quote.company.logoUrl}
-                alt={`${quote.company.name} logo`}
-                className="h-24 w-auto max-w-[340px] object-contain shrink-0"
-              />
-            )}
+        {/* The document — the web twin of the PDF letterhead */}
+        <PaperSheet>
+          <PaperHeader
+            company={quote.company}
+            kind="quote"
+            docNumber={quote.quoteNumber}
+            metaLines={[
+              `Date: ${shortDate(quote.sentAt ?? quote.createdAt)}`,
+              quote.validUntil ? `Valid until: ${shortDate(quote.validUntil)}` : null,
+            ]}
+          />
+
+          <PreparedFor contact={quote.contact} />
+
+          {quote.title && (
+            <p className="mt-4 text-base font-bold text-gray-900">{quote.title}</p>
+          )}
+          {quote.clientMessage && (
+            <p className="mt-3 text-sm leading-relaxed text-gray-700 whitespace-pre-wrap">
+              {quote.clientMessage}
+            </p>
+          )}
+
+          {/* Line items — ruled table like the PDF; optional items keep their
+              interactive include/exclude checkboxes */}
+          <div className="mt-5">
+            <ItemsTableHead />
             <div>
-              <h1
-                className="text-lg font-bold"
-                style={{ color: textOn(brandHeader(quote.company)) }}
-              >
-                {quote.company.name}
-              </h1>
-              <p
-                className="text-sm"
-                style={{ color: textOn(brandHeader(quote.company)), opacity: 0.65 }}
-              >
-                Quote #{quote.quoteNumber}
-              </p>
-            </div>
-          </div>
-
-          <div className="p-6">
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                {quote.title && (
-                  <h2 className="text-xl font-bold text-gray-900">{quote.title}</h2>
-                )}
-                {quote.contact && (
-                  <p className="text-sm text-gray-500">
-                    Prepared for {quote.contact.firstName} {quote.contact.lastName}
-                  </p>
-                )}
-              </div>
-              <div className="flex flex-col items-end gap-1.5">
-                {quote.validUntil && (
-                  <p className="text-xs text-amber-600">
-                    Valid until{" "}
-                    {new Date(quote.validUntil).toLocaleDateString("en-US", {
-                      month: "long",
-                      day: "numeric",
-                      year: "numeric",
-                    })}
-                  </p>
-                )}
-                <a
-                  href={`/quote/${quote.publicToken}/pdf`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs text-gray-500 underline underline-offset-2 hover:text-gray-700"
-                >
-                  Download PDF
-                </a>
-              </div>
-            </div>
-
-            {deposit > 0 && (
-              <p className="text-sm text-gray-600 italic mb-4">
-                A deposit of {money(deposit)} will be required to begin.
-              </p>
-            )}
-
-            {quote.clientMessage && (
-              <p className="text-sm text-gray-700 whitespace-pre-wrap mb-5">
-                {quote.clientMessage}
-              </p>
-            )}
-
-            {/* Line items */}
-            <div className="border-t border-gray-100 pt-4 space-y-3">
               {quote.lineItems.map((li) => {
                 const excluded = optedOut.includes(li.id);
                 return (
                   <div
                     key={li.id}
-                    className={`flex items-start gap-3 ${excluded ? "opacity-40" : ""}`}
+                    className={`border-b border-gray-100 py-2.5 sm:grid sm:grid-cols-[1fr_54px_90px_96px] sm:items-start sm:gap-3 ${excluded ? "opacity-40" : ""}`}
                   >
-                    {li.isOptional && (
-                      <input
-                        type="checkbox"
-                        checked={!excluded}
-                        onChange={() => toggleItem(li.id)}
-                        disabled={!reviewable}
-                        className="mt-1 rounded border-gray-300 text-green-600 focus:ring-green-500"
-                      />
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-gray-900">
-                        {li.name || li.description}
-                        {/* explicit space — JSX drops line-break whitespace, and
-                            without it screen readers hear "ReplacementOptional" */}
-                        {li.isOptional && " "}
-                        {li.isOptional && (
-                          <span className="ml-2 text-xs font-medium px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">
-                            Optional
-                          </span>
-                        )}
-                      </p>
-                      {li.name && li.description && (
-                        <p className="text-xs text-gray-500 mt-0.5">{li.description}</p>
+                    <div className="flex items-start gap-2.5 min-w-0">
+                      {li.isOptional && (
+                        <input
+                          type="checkbox"
+                          checked={!excluded}
+                          onChange={() => toggleItem(li.id)}
+                          disabled={!reviewable}
+                          className="mt-0.5 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                        />
                       )}
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-gray-900">
+                          {li.name || li.description}
+                          {li.isOptional && (
+                            <span className="ml-2 align-middle text-[10px] font-medium uppercase tracking-wide text-gray-400">
+                              Optional
+                            </span>
+                          )}
+                        </p>
+                        {li.name && li.description && (
+                          <p className="mt-0.5 text-xs leading-relaxed text-gray-500">
+                            {li.description}
+                          </p>
+                        )}
+                        {/* Phones: qty × unit reads under the name */}
+                        <p className="mt-0.5 text-xs text-gray-400 sm:hidden">
+                          {Number(li.quantity)} × {money(Number(li.unitPrice))}
+                        </p>
+                      </div>
                     </div>
-                    <div className="text-right shrink-0">
-                      <p className="text-sm font-medium text-gray-900">{money(Number(li.total))}</p>
-                      <p className="text-xs text-gray-400">
-                        {Number(li.quantity)} × {money(Number(li.unitPrice))}
-                      </p>
-                    </div>
+                    <p className="hidden text-right text-sm text-gray-600 sm:block">
+                      {Number(li.quantity)}
+                    </p>
+                    <p className="hidden text-right text-sm text-gray-600 sm:block">
+                      {money(Number(li.unitPrice))}
+                    </p>
+                    <p className="text-right text-sm font-medium text-gray-900 max-sm:mt-1">
+                      {excluded ? "—" : money(Number(li.total))}
+                    </p>
                   </div>
                 );
               })}
             </div>
+          </div>
 
-            {/* Totals */}
-            <div className="ml-auto w-64 border-t border-gray-100 mt-4 pt-3 space-y-1.5 text-sm">
+          {/* Totals ledger — right-aligned, accent-ruled total like the PDF */}
+          <div className="mt-4 flex justify-end">
+            <div className="w-full max-w-[260px] space-y-1.5 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-500">
-                  Subtotal ({includedItems.length} of {quote.lineItems.length} items)
+                  Subtotal
+                  {quote.lineItems.some((li) => li.isOptional) &&
+                    ` (${includedItems.length} of ${quote.lineItems.length} items)`}
                 </span>
                 <span>{money(subtotal)}</span>
               </div>
               {discount > 0 && (
-                <div className="flex justify-between text-green-700">
+                <div className="flex justify-between text-gray-500">
                   <span>
                     Discount
                     {quote.discountType === "PERCENT" ? ` (${Number(quote.discountValue)}%)` : ""}
@@ -342,145 +330,150 @@ export default function QuoteAcceptPage({
                 </div>
               )}
               {tax > 0 && (
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Tax</span>
+                <div className="flex justify-between text-gray-500">
+                  <span>
+                    Tax{quote.taxRate ? ` (${(Number(quote.taxRate) * 100).toFixed(2).replace(/\.?0+$/, "")}%)` : ""}
+                  </span>
                   <span>{money(tax)}</span>
                 </div>
               )}
-              <div className="flex justify-between font-bold text-base border-t border-gray-200 pt-1.5">
+              <div
+                className="flex justify-between border-t-2 pt-1.5 text-base font-bold text-gray-900"
+                style={{ borderTopColor: accent }}
+              >
                 <span>Total</span>
-                <span>{money(total)}</span>
+                <span className="numeral-ledger">{money(total)}</span>
               </div>
               {deposit > 0 && (
-                <div className="flex justify-between text-green-700 font-medium">
-                  <span>Deposit required</span>
-                  <span>{money(deposit)}</span>
+                <div className="flex justify-between text-gray-500">
+                  <span>Deposit due on approval</span>
+                  <span className="font-medium text-gray-700">{money(deposit)}</span>
                 </div>
               )}
             </div>
-
-            {quote.disclaimer && (
-              <div className="mt-5 pt-4 border-t border-gray-100">
-                <p className="text-xs text-gray-400 uppercase font-semibold mb-1">
-                  Terms &amp; Conditions
-                </p>
-                <p className="text-xs text-gray-600 whitespace-pre-wrap">{quote.disclaimer}</p>
-              </div>
-            )}
-
-            {error && (
-              <div className="mt-4 px-4 py-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
-                {error}
-              </div>
-            )}
-
-            {/* Expired: no online approval — prices may be stale. Requesting
-                changes stays open as the "send me a fresh one" path. */}
-            {expired && reviewable && (
-              <div className="mt-6 border-t border-gray-100 pt-5">
-                <div className="px-4 py-3 bg-amber-50 border border-amber-200 rounded text-sm text-amber-800">
-                  This quote expired on{" "}
-                  {new Date(quote.validUntil!).toLocaleDateString("en-US", {
-                    month: "long",
-                    day: "numeric",
-                    year: "numeric",
-                  })}
-                  . Contact {quote.company.name} for an updated quote, or request changes below
-                  and they&apos;ll send a fresh one.
-                </div>
-                <button
-                  onClick={() => setShowChanges(true)}
-                  className="mt-4 flex items-center gap-2 px-5 py-2.5 border border-gray-300 text-gray-700 text-sm font-medium rounded hover:bg-gray-50"
-                >
-                  <MessageSquare size={14} />
-                  Request changes
-                </button>
-              </div>
-            )}
-
-            {/* Approval */}
-            {reviewable && !expired && !showChanges && (
-              <div className="mt-6 border-t border-gray-100 pt-5">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Sign by typing your full name
-                </label>
-                <input
-                  type="text"
-                  value={signatureName}
-                  onChange={(e) => setSignatureName(e.target.value)}
-                  placeholder={
-                    quote.contact
-                      ? `${quote.contact.firstName} ${quote.contact.lastName}`
-                      : "Your full name"
-                  }
-                  className={`w-full max-w-sm px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 ${quote.contact ? "mb-1" : "mb-4"}`}
-                />
-                {quote.contact && (
-                  <p className="text-xs text-gray-400 mb-4">
-                    Signing as {quote.contact.firstName} {quote.contact.lastName}
-                  </p>
-                )}
-                <div className="flex flex-wrap gap-3">
-                  <button
-                    onClick={approve}
-                    disabled={loading}
-                    className="flex items-center justify-center gap-2 px-6 py-3 font-semibold text-sm rounded transition-opacity hover:opacity-90 disabled:opacity-50"
-                    style={{
-                      backgroundColor: brandAccent(quote.company),
-                      color: textOn(brandAccent(quote.company)),
-                    }}
-                  >
-                    {loading ? (
-                      <Loader2 size={14} className="animate-spin" />
-                    ) : (
-                      <CheckCircle size={14} />
-                    )}
-                    Approve Quote
-                  </button>
-                  <button
-                    onClick={() => setShowChanges(true)}
-                    disabled={loading}
-                    className="flex items-center gap-1.5 px-5 py-3 border border-gray-300 text-sm font-medium text-gray-600 rounded hover:bg-gray-50 transition-colors"
-                  >
-                    <MessageSquare size={13} />
-                    Request Changes
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {reviewable && showChanges && (
-              <div className="mt-6 border-t border-gray-100 pt-5">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  What would you like changed?
-                </label>
-                <textarea
-                  value={changeMessage}
-                  onChange={(e) => setChangeMessage(e.target.value)}
-                  rows={3}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none mb-3"
-                  placeholder="Tell us what to adjust..."
-                />
-                <div className="flex gap-3">
-                  <button
-                    onClick={requestChanges}
-                    disabled={loading}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-gray-900 hover:bg-gray-800 text-white font-semibold text-sm rounded transition-colors disabled:opacity-50"
-                  >
-                    {loading && <Loader2 size={13} className="animate-spin" />}
-                    Send Request
-                  </button>
-                  <button
-                    onClick={() => setShowChanges(false)}
-                    className="px-5 py-2.5 border border-gray-300 text-sm font-medium text-gray-600 rounded hover:bg-gray-50 transition-colors"
-                  >
-                    Back
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
-        </div>
+
+          {quote.disclaimer && (
+            <div className="mt-6">
+              <SectionLabel>Terms &amp; Conditions</SectionLabel>
+              <p className="mt-1 text-xs leading-relaxed text-gray-500 whitespace-pre-wrap">
+                {quote.disclaimer}
+              </p>
+            </div>
+          )}
+
+          <PaperFooter
+            kind="quote"
+            docNumber={quote.quoteNumber}
+            companyName={quote.company.name}
+            pdfHref={`/quote/${quote.publicToken}/pdf`}
+          />
+        </PaperSheet>
+
+        {error && (
+          <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+            {error}
+          </div>
+        )}
+
+        {/* Expired: no online approval — prices may be stale. Requesting
+            changes stays open as the "send me a fresh one" path. */}
+        {expired && reviewable && !showChanges && (
+          <div className="card-ledger p-5 shadow-sm">
+            <div className="px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
+              This quote expired on {longDate(quote.validUntil!)}. Contact{" "}
+              {quote.company.name} for an updated quote, or request changes and they&apos;ll
+              send a fresh one.
+            </div>
+            <button
+              onClick={() => setShowChanges(true)}
+              className="mt-4 flex items-center gap-2 px-5 py-2.5 border border-gray-300 text-gray-700 text-sm font-medium rounded hover:bg-gray-50"
+            >
+              <MessageSquare size={14} />
+              Request changes
+            </button>
+          </div>
+        )}
+
+        {/* Approval — the action panel sits under the document, like a
+            signature line at the bottom of paper */}
+        {reviewable && !expired && !showChanges && (
+          <div className="card-ledger p-5 shadow-sm">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Sign by typing your full name
+            </label>
+            <input
+              type="text"
+              value={signatureName}
+              onChange={(e) => setSignatureName(e.target.value)}
+              placeholder={
+                quote.contact
+                  ? `${quote.contact.firstName} ${quote.contact.lastName}`
+                  : "Your full name"
+              }
+              className={`w-full max-w-sm px-3 py-2.5 border border-gray-300 rounded text-[16px] sm:text-sm italic focus:outline-none focus:ring-2 focus:ring-green-500 ${quote.contact ? "mb-1" : "mb-4"}`}
+            />
+            {quote.contact && (
+              <p className="text-xs text-gray-400 mb-4">
+                Signing as {quote.contact.firstName} {quote.contact.lastName}
+              </p>
+            )}
+            <div className="flex flex-wrap gap-3">
+              <button
+                onClick={approve}
+                disabled={loading}
+                className="flex items-center justify-center gap-2 px-6 py-3 font-semibold text-sm rounded transition-opacity hover:opacity-90 disabled:opacity-50"
+                style={{ backgroundColor: accent, color: textOn(accent) }}
+              >
+                {loading ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <CheckCircle size={14} />
+                )}
+                Approve Quote
+              </button>
+              <button
+                onClick={() => setShowChanges(true)}
+                disabled={loading}
+                className="flex items-center gap-1.5 px-5 py-3 border border-gray-300 text-sm font-medium text-gray-600 rounded hover:bg-gray-50 transition-colors"
+              >
+                <MessageSquare size={13} />
+                Request Changes
+              </button>
+            </div>
+          </div>
+        )}
+
+        {reviewable && showChanges && (
+          <div className="card-ledger p-5 shadow-sm">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              What would you like changed?
+            </label>
+            <textarea
+              value={changeMessage}
+              onChange={(e) => setChangeMessage(e.target.value)}
+              rows={3}
+              className="w-full px-3 py-2.5 border border-gray-300 rounded text-[16px] sm:text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none mb-3"
+              placeholder="Tell us what to adjust..."
+            />
+            <div className="flex gap-3">
+              <button
+                onClick={requestChanges}
+                disabled={loading}
+                className="flex items-center gap-2 px-5 py-2.5 bg-gray-900 hover:bg-gray-800 text-white font-semibold text-sm rounded transition-colors disabled:opacity-50"
+              >
+                {loading && <Loader2 size={13} className="animate-spin" />}
+                Send Request
+              </button>
+              <button
+                onClick={() => setShowChanges(false)}
+                className="px-5 py-2.5 border border-gray-300 text-sm font-medium text-gray-600 rounded hover:bg-gray-50 transition-colors"
+              >
+                Back
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -139,11 +139,16 @@ function cityLine(x: { city: string | null; state: string | null; zip: string | 
   return [cs, x.zip].filter(Boolean).join(" ");
 }
 
+// Fixed doc-type inks — the same green-quote / sky-invoice code the web
+// documents use (components/paper-doc.tsx), so the two are telling the same
+// story on paper and on screen.
+export const DOC_TYPE_INK = { quote: "#15803D", invoice: "#0369A1" } as const;
+
 function Header({
-  company, logo, docType, docNumber, metaLines, accent,
+  company, logo, docType, docNumber, metaLines, accent, docTypeColor,
 }: {
   company: CompanyForPdf; logo: LogoSrc; docType: string; docNumber: number;
-  metaLines: string[]; accent: string;
+  metaLines: string[]; accent: string; docTypeColor?: string;
 }) {
   return (
     <>
@@ -158,7 +163,9 @@ function Header({
           </Text>
         </View>
         <View>
-          <Text style={styles.docType}>{docType.toUpperCase()}</Text>
+          <Text style={[styles.docType, docTypeColor ? { color: docTypeColor } : {}]}>
+            {docType.toUpperCase()}
+          </Text>
           {/* docNumber 0 = un-numbered document (statements) */}
           {docNumber > 0 ? <Text style={styles.docNumber}>#{docNumber}</Text> : null}
           {metaLines.map((l) => (
@@ -331,7 +338,7 @@ export function buildQuoteDocument(quote: QuoteForPdf, logo: LogoSrc) {
   return (
     <Document title={`Quote #${quote.quoteNumber} — ${quote.company.name}`} producer="WorkBench" creator="WorkBench">
       <Page size="LETTER" style={styles.page}>
-        <Header company={quote.company} logo={logo} docType="Quote" docNumber={quote.quoteNumber} metaLines={metaLines} accent={accent} />
+        <Header company={quote.company} logo={logo} docType="Quote" docNumber={quote.quoteNumber} metaLines={metaLines} accent={accent} docTypeColor={DOC_TYPE_INK.quote} />
         <BillTo contact={quote.contact} />
         {quote.title ? (
           <Text style={[styles.billToName, { marginTop: 14 }]}>{quote.title}</Text>
@@ -453,7 +460,7 @@ export function buildInvoiceDocument(invoice: InvoiceForPdf, logo: LogoSrc) {
   return (
     <Document title={`Invoice #${invoice.invoiceNumber} — ${invoice.company.name}`} producer="WorkBench" creator="WorkBench">
       <Page size="LETTER" style={styles.page}>
-        <Header company={invoice.company} logo={logo} docType={invoice.kind === "DEPOSIT" ? "Deposit invoice" : "Invoice"} docNumber={invoice.invoiceNumber} metaLines={metaLines} accent={accent} />
+        <Header company={invoice.company} logo={logo} docType={invoice.kind === "DEPOSIT" ? "Deposit invoice" : "Invoice"} docNumber={invoice.invoiceNumber} metaLines={metaLines} accent={accent} docTypeColor={DOC_TYPE_INK.invoice} />
         <BillTo contact={invoice.contact} />
         {invoice.subject ? (
           <Text style={[styles.billToName, { marginTop: 14 }]}>{invoice.subject}</Text>
