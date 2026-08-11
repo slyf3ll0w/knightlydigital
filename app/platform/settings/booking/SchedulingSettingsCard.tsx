@@ -21,6 +21,15 @@ const WINDOW_OPTIONS = [
   { value: 240, label: "4 hours" },
 ];
 
+const DRIVE_LIMIT_OPTIONS = [
+  { value: 0, label: "Off — offer any open time" },
+  { value: 15, label: "Within 15 min drive" },
+  { value: 20, label: "Within 20 min drive" },
+  { value: 30, label: "Within 30 min drive" },
+  { value: 45, label: "Within 45 min drive" },
+  { value: 60, label: "Within 1 hour drive" },
+];
+
 const inputCls =
   "px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white";
 
@@ -28,12 +37,15 @@ export default function SchedulingSettingsCard({
   hours: initialHours,
   serviceZips: initialZips,
   arrivalWindowMinutes: initialWindow,
+  bookingDriveLimitMinutes: initialDriveLimit,
   timezone,
   bookableCount,
 }: {
   hours: BusinessHours;
   serviceZips: string[];
   arrivalWindowMinutes: number;
+  /** 0 = off */
+  bookingDriveLimitMinutes: number;
   timezone: string;
   bookableCount: number;
 }) {
@@ -41,6 +53,7 @@ export default function SchedulingSettingsCard({
   const [hours, setHours] = useState<BusinessHours>(initialHours);
   const [zipsText, setZipsText] = useState(initialZips.join(", "));
   const [window_, setWindow] = useState(initialWindow);
+  const [driveLimit, setDriveLimit] = useState(initialDriveLimit);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
@@ -54,7 +67,12 @@ export default function SchedulingSettingsCard({
       .filter(Boolean);
     const { ok, data } = await postJson(
       "/api/app/settings",
-      { businessHours: hours, serviceZips, arrivalWindowMinutes: window_ },
+      {
+        businessHours: hours,
+        serviceZips,
+        arrivalWindowMinutes: window_,
+        bookingDriveLimitMinutes: driveLimit,
+      },
       "PATCH"
     );
     setSaving(false);
@@ -149,6 +167,32 @@ export default function SchedulingSettingsCard({
               className={`${inputCls} w-full lg:w-auto`}
             >
               {WINDOW_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Drive-time limit */}
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t border-gray-100 pt-4">
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-gray-900">Drive-time limit</p>
+              <p className="text-xs text-gray-500">
+                Only offer days where you&apos;re already working near the client&apos;s address
+                (or near your shop) — keeps online bookings from scattering your routes.
+                Clients enter their address before times show.
+              </p>
+            </div>
+            <select
+              value={driveLimit}
+              onChange={(e) => {
+                setDriveLimit(Number(e.target.value));
+                setSaved(false);
+              }}
+              className={`${inputCls} w-full lg:w-auto`}
+            >
+              {DRIVE_LIMIT_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
                   {o.label}
                 </option>

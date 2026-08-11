@@ -4,6 +4,7 @@ import { resolveWebForm } from "@/lib/web-forms";
 import { limit, clientIp } from "@/lib/rate-limit";
 import { generateSlots } from "@/lib/booking-slots";
 import {
+  bookingDriveFilter,
   engineInputFor,
   getBookableUsersWithBusy,
   groupSlotsByDay,
@@ -12,8 +13,9 @@ import {
 
 /**
  * Public slot lookup for self-scheduling booking forms.
- *   GET /api/public/booking-slots/[companySlug]?form=<formSlug>&service=<formServiceId>&zip=<zip>
- * Returns { zipRequired, outOfArea } or { days: [{ date, label, slots }] }.
+ *   GET /api/public/booking-slots/[companySlug]?form=<formSlug>&service=<formServiceId>&zip=<zip>&address=<address>
+ * Returns { zipRequired, outOfArea }, { addressRequired } (drive-time limit
+ * on but no locatable address yet), or { days: [{ date, label, slots }] }.
  * Times are labeled in the company's timezone (the visit happens there).
  */
 export async function GET(
@@ -49,8 +51,29 @@ export async function GET(
 
   const now = new Date();
   const horizonEnd = new Date(now.getTime() + (config.selfSchedule.horizonDays + 1) * 86400000);
+
+  // Drive-time limit: cluster offered days around the existing route
+  const drive = await bookingDriveFilter(
+    company,
+    q.get("address")?.slice(0, 300),
+    now,
+    horizonEnd
+  );
+  if (drive.enabled && drive.addressRequired) {
+    return NextResponse.json({ zipRequired, outOfArea: false, addressRequired: true, days: [] });
+  }
+
   const users = await getBookableUsersWithBusy(company.id, now, horizonEnd);
-  const slots = generateSlots(engineInputFor(company, config, service.durationMinutes, users, now));
+  const slots = generateSlots(
+    engineInputFor(
+      company,
+      config,
+      service.durationMinutes,
+      users,
+      now,
+      drive.enabled ? drive.allow : undefined
+    )
+  );
 
   return NextResponse.json({
     zipRequired,

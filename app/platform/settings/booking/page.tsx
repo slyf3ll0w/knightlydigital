@@ -22,6 +22,7 @@ export default async function BookingFormsPage() {
         businessHours: true,
         serviceZips: true,
         arrivalWindowMinutes: true,
+        bookingDriveLimitMinutes: true,
         timezone: true,
       },
     }),
@@ -54,6 +55,7 @@ export default async function BookingFormsPage() {
           hours={sanitizeBusinessHours(company.businessHours)}
           serviceZips={company.serviceZips}
           arrivalWindowMinutes={company.arrivalWindowMinutes}
+          bookingDriveLimitMinutes={company.bookingDriveLimitMinutes ?? 0}
           timezone={company.timezone}
           bookableCount={bookableCount}
         />

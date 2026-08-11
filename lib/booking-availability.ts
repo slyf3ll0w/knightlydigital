@@ -2,6 +2,8 @@ import { prisma } from "@/lib/db";
 import { sanitizeBusinessHours, sanitizeWorkingHoursOrNull } from "./business-hours";
 import { generateSlots, type BookableUser, type Slot, type SlotEngineInput } from "./booking-slots";
 import type { BookingFormConfig } from "./booking-form";
+import { geocodeAddress, geocodingEnabled } from "./geocoding";
+import { estimateDriveMinutes, haversineKm, type RoutePoint } from "./routing";
 
 /**
  * Server side of the online-booking slot engine: fetches the bookable team
@@ -137,6 +139,136 @@ export type BookingCompany = {
   arrivalWindowMinutes: number;
 };
 
+// ─── Booking drive-time limit ────────────────────────────────────────────────
+
+export type DriveFilter =
+  | { enabled: false }
+  | { enabled: true; addressRequired: true; allow?: undefined }
+  | { enabled: true; addressRequired?: false; allow: (userId: string, dayKey: string) => boolean };
+
+const dayKeyOf = (tz: string) => {
+  const fmt = dayKeyFmt(tz);
+  return (d: Date) => fmt.format(d);
+};
+
+/** "YYYY-MM-DD" of an instant in the company's timezone — matches the dayKey
+ *  the slot engine hands to userAllowedOnDay. */
+export function localDayKey(tz: string, d: Date): string {
+  return dayKeyFmt(tz).format(d);
+}
+
+/**
+ * Jobber's booking "drive time limit", built on the Route Manager: when
+ * Company.bookingDriveLimitMinutes is set, self-scheduling only offers a
+ * member days where the new visit clusters with their existing route — an
+ * anchor visit that day (or the shop, for anyone) within the limit's
+ * estimated drive of the client's address. Distances are haversine-based
+ * (free — no matrix spend); the only Mapbox cost is geocoding, which runs
+ * through the shared cache and monthly budget. Degrades to "no restriction"
+ * when geocoding is off/over budget or nothing is locatable, and asks for
+ * the client's address (addressRequired) before showing any times.
+ */
+export async function bookingDriveFilter(
+  company: {
+    id: string;
+    timezone: string;
+    lat: number | null;
+    lng: number | null;
+    bookingDriveLimitMinutes: number | null;
+  },
+  address: string | null | undefined,
+  from: Date,
+  to: Date
+): Promise<DriveFilter> {
+  const limit = company.bookingDriveLimitMinutes ?? 0;
+  if (limit <= 0) return { enabled: false };
+  // No geocoding = no coordinates to judge with — degrade like the rest of
+  // the Route Manager rather than blocking the whole booking form.
+  if (!geocodingEnabled()) return { enabled: false };
+
+  const target = address?.trim() ? await geocodeAddress(address, company.id) : null;
+  if (!target) return { enabled: true, addressRequired: true };
+
+  const withinLimit = (p: RoutePoint) => estimateDriveMinutes(haversineKm(p, target)) <= limit;
+
+  // Client near the shop? Then any day clusters fine for everyone.
+  if (company.lat != null && company.lng != null && withinLimit({ lat: company.lat, lng: company.lng })) {
+    return { enabled: true, allow: () => true };
+  }
+
+  // Anchor visits in the horizon: jobs + confirmed in-person appointments
+  // with an address. "Anytime" visits still anchor their day.
+  const [jobs, appts] = await Promise.all([
+    prisma.job.findMany({
+      where: {
+        companyId: company.id,
+        status: { not: "ARCHIVED" },
+        scheduledAt: { gte: from, lt: to },
+        address: { not: null },
+      },
+      select: { scheduledAt: true, address: true, assignments: { select: { userId: true } } },
+    }),
+    prisma.appointment.findMany({
+      where: {
+        companyId: company.id,
+        type: "IN_PERSON",
+        status: "SCHEDULED",
+        scheduledAt: { gte: from, lt: to },
+        address: { not: null },
+      },
+      select: { scheduledAt: true, address: true, assignedToId: true },
+    }),
+  ]);
+
+  const anchors = [
+    ...jobs.map((j) => ({
+      at: j.scheduledAt!,
+      address: j.address!,
+      userIds: j.assignments.map((a) => a.userId),
+    })),
+    ...appts.map((a) => ({
+      at: a.scheduledAt,
+      address: a.address!,
+      userIds: a.assignedToId ? [a.assignedToId] : [],
+    })),
+  ];
+
+  // Geocode the distinct anchor addresses (global cache makes repeats free;
+  // hard cap keeps a pathological horizon from burning the geocode budget).
+  const distinct = [...new Set(anchors.map((a) => a.address))].slice(0, 250);
+  const points = new Map<string, RoutePoint | null>();
+  for (const addr of distinct) {
+    points.set(addr, await geocodeAddress(addr, company.id));
+  }
+
+  // Nothing locatable anywhere (brand-new company, no shop pin) — we can't
+  // evaluate clustering at all, so don't dead-end the booking form.
+  const anyLocated = [...points.values()].some(Boolean);
+  if (!anyLocated && (company.lat == null || company.lng == null)) return { enabled: false };
+
+  const toKey = dayKeyOf(company.timezone);
+  const anyUserDays = new Set<string>(); // unassigned anchors qualify the day for everyone
+  const userDays = new Map<string, Set<string>>();
+  for (const a of anchors) {
+    const p = points.get(a.address);
+    if (!p || !withinLimit(p)) continue;
+    const key = toKey(a.at);
+    if (a.userIds.length === 0) {
+      anyUserDays.add(key);
+    } else {
+      for (const id of a.userIds) {
+        if (!userDays.has(id)) userDays.set(id, new Set());
+        userDays.get(id)!.add(key);
+      }
+    }
+  }
+
+  return {
+    enabled: true,
+    allow: (userId, dayKey) => anyUserDays.has(dayKey) || (userDays.get(userId)?.has(dayKey) ?? false),
+  };
+}
+
 /** The offered service resolved to its live price-book duration, or null if
  *  it isn't self-bookable (missing from the form/price book, or no duration). */
 export async function resolveBookableService(
@@ -160,7 +292,8 @@ export function engineInputFor(
   config: BookingFormConfig,
   durationMinutes: number,
   users: BookableUser[],
-  now: Date
+  now: Date,
+  userAllowedOnDay?: (userId: string, dayKey: string) => boolean
 ): SlotEngineInput {
   return {
     timezone: company.timezone,
@@ -171,6 +304,7 @@ export function engineInputFor(
     now,
     leadHours: config.selfSchedule.leadHours,
     horizonDays: config.selfSchedule.horizonDays,
+    userAllowedOnDay,
   };
 }
 

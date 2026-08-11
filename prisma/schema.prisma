@@ -80,6 +80,12 @@ model Company {
   businessHours        Json?
   serviceZips          String[] @default([])
   arrivalWindowMinutes Int      @default(120)
+  // Drive-time limit for self-scheduling (minutes; null/0 = off). When on,
+  // online booking only offers days where the visit clusters with the tech's
+  // existing route — an anchor visit (or the shop) within this many estimated
+  // drive minutes of the client's address. Requires the address before times
+  // show. See bookingDriveFilter in lib/booking-availability.ts.
+  bookingDriveLimitMinutes Int?
   // Granularity of the even time-slot picker when staff schedule jobs/appointments
   // in-app (minutes). Resolved through lib/scheduling.ts, which is structured so a
   // future route-management system and per-service-type overrides can refine it.

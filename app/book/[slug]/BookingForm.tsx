@@ -89,11 +89,15 @@ export default function BookingForm({
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [outOfArea, setOutOfArea] = useState(false);
   const [zipRequired, setZipRequired] = useState(false);
+  const [addressRequired, setAddressRequired] = useState(false);
   const [activeDay, setActiveDay] = useState("");
   const [selectedSlot, setSelectedSlot] = useState<{ start: string; label: string } | null>(null);
   const [booked, setBooked] = useState<{ start: string; windowEnd: string; label: string; service: string } | null>(null);
   const [slotsEpoch, setSlotsEpoch] = useState(0); // bump to force a refetch
   const zip = zipFromAddress(form.address) ?? "";
+  // Only send the address once it reads complete (has a ZIP) — the drive-time
+  // limit geocodes it server-side, and half-typed streets would churn the cache
+  const addressParam = zip ? form.address.trim() : "";
 
   useEffect(() => {
     if (!selfBook || !bookServiceId) return;
@@ -104,6 +108,7 @@ export default function BookingForm({
         const params = new URLSearchParams({ service: bookServiceId });
         if (formSlug) params.set("form", formSlug);
         if (zip) params.set("zip", zip);
+        if (addressParam) params.set("address", addressParam);
         const res = await fetch(`/api/public/booking-slots/${companySlug}?${params}`);
         const data = await res.json().catch(() => null);
         if (cancelled) return;
@@ -112,6 +117,7 @@ export default function BookingForm({
         } else {
           setOutOfArea(data.outOfArea === true);
           setZipRequired(data.zipRequired === true);
+          setAddressRequired(data.addressRequired === true);
           const d: SlotDay[] = Array.isArray(data.days) ? data.days : [];
           setDays(d);
           setActiveDay((prev) => (d.some((x) => x.date === prev) ? prev : (d[0]?.date ?? "")));
@@ -130,7 +136,7 @@ export default function BookingForm({
       clearTimeout(t);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selfBook, bookServiceId, zip, companySlug, formSlug, slotsEpoch]);
+  }, [selfBook, bookServiceId, zip, addressParam, companySlug, formSlug, slotsEpoch]);
 
   const dark = theme === "dark";
   const card = transparent
@@ -156,7 +162,10 @@ export default function BookingForm({
   // Slot picking is live while the form renders, so the classic date field
   // only shows when self-scheduling is off, no service is picked yet, or the
   // schedule genuinely has nothing open (fall back to "we'll call you").
-  const slotsExhausted = selfBook && bookServiceId !== "" && days !== null && days.length === 0 && !slotsLoading;
+  // addressRequired isn't "nothing open" — the drive-time limit just needs an
+  // address first, and its own prompt renders inside the picker.
+  const slotsExhausted =
+    selfBook && bookServiceId !== "" && days !== null && days.length === 0 && !slotsLoading && !addressRequired;
   const slotPickerActive = selfBook && !outOfArea && !slotsExhausted;
 
   async function handleSubmit(e: React.FormEvent) {
@@ -552,6 +561,11 @@ export default function BookingForm({
             <p className={`text-sm ${dark ? "text-gray-400" : "text-gray-500"}`}>
               Enter your address (with ZIP code) above so we can check our service area and
               show open times.
+            </p>
+          ) : addressRequired ? (
+            <p className={`text-sm ${dark ? "text-gray-400" : "text-gray-500"}`}>
+              Enter your full address (with ZIP code) above and we&apos;ll show times when
+              we&apos;re already working near you.
             </p>
           ) : days === null || (slotsLoading && days.length === 0) ? (
             <p className={`flex items-center gap-2 text-sm ${dark ? "text-gray-400" : "text-gray-500"}`}>

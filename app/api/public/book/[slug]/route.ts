@@ -12,8 +12,10 @@ import { derivedQuoteDeposit } from "@/lib/statuses";
 import { zipFromAddress } from "@/lib/business-hours";
 import { generateSlots, pickUserForSlot } from "@/lib/booking-slots";
 import {
+  bookingDriveFilter,
   engineInputFor,
   getBookableUsersWithBusy,
+  localDayKey,
   resolveBookableService,
   slotLabel,
 } from "@/lib/booking-availability";
@@ -155,6 +157,8 @@ export async function POST(
         windowEnd: Date;
       }
     | null = null;
+  // Drive-time clustering filter, kept for the in-transaction user pick
+  let driveAllow: ((userId: string, dayKey: string) => boolean) | null = null;
   if (form.type === "BOOKING" && config.selfSchedule.enabled && body.slotStart !== undefined) {
     const service = await resolveBookableService(company.id, config, body.serviceId);
     if (!service) {
@@ -175,6 +179,17 @@ export async function POST(
     }
     const now = new Date();
     const horizonEnd = new Date(now.getTime() + (config.selfSchedule.horizonDays + 1) * 86400000);
+    // Drive-time limit: re-derive the clustering filter from the submitted
+    // address (geocodes are cached from the slot lookup) so a crafted POST
+    // can't book a day the picker never offered.
+    const drive = await bookingDriveFilter(company, String(address ?? ""), now, horizonEnd);
+    if (drive.enabled && drive.addressRequired) {
+      return NextResponse.json(
+        { error: "Enter your service address so we can check availability near you." },
+        { status: 400 }
+      );
+    }
+    driveAllow = drive.enabled ? (drive.allow ?? null) : null;
     const users = await getBookableUsersWithBusy(company.id, now, horizonEnd);
     // Validate the picked time against the FULL candidate set, not the sampled
     // per-day subset shown on the form: the display cap (maxPerDay=6) samples
@@ -183,7 +198,7 @@ export async function POST(
     // genuinely-free times. A slot that was actually taken drops out of the full
     // set too (free.length === 0), so real conflicts still 409.
     const slots = generateSlots({
-      ...engineInputFor(company, config, service.durationMinutes, users, now),
+      ...engineInputFor(company, config, service.durationMinutes, users, now, driveAllow ?? undefined),
       maxPerDay: Number.MAX_SAFE_INTEGER,
     });
     const slot = slots.find((s) => s.start.getTime() === start.getTime());
@@ -409,7 +424,11 @@ export async function POST(
           booking.end,
           tx
         );
-        const userId = pickUserForSlot(booking.start, booking.end, usersNow, company.timezone);
+        const dayKey = localDayKey(company.timezone, booking.start);
+        const candidates = driveAllow
+          ? usersNow.filter((u) => driveAllow!(u.id, dayKey))
+          : usersNow;
+        const userId = pickUserForSlot(booking.start, booking.end, candidates, company.timezone);
         if (!userId) throw new SlotTakenError();
         const lastAppt = await tx.appointment.findFirst({
           where: { companyId: company.id },

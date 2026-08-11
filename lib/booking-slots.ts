@@ -41,6 +41,9 @@ export type SlotEngineInput = {
   leadHours: number; // earliest offered slot = now + leadHours
   horizonDays: number; // how many days out to offer
   maxPerDay?: number; // cap displayed slots per day (default 6)
+  /** Drive-time clustering (booking drive limit): can this member take new
+   *  work on this local day ("YYYY-MM-DD")? Absent = no restriction. */
+  userAllowedOnDay?: (userId: string, dayKey: string) => boolean;
 };
 
 const STEP_MINUTES = 30;
@@ -152,6 +155,7 @@ export function generateSlots(input: SlotEngineInput): Slot[] {
     leadHours,
     horizonDays,
     maxPerDay = 6,
+    userAllowedOnDay,
   } = input;
   if (durationMinutes <= 0 || users.length === 0) return [];
 
@@ -164,6 +168,9 @@ export function generateSlots(input: SlotEngineInput): Slot[] {
     const probe = new Date(now.getTime() + dayOffset * 86400000);
     const { y, m, d, day } = localDayParts(timezone, probe);
     const ranges = hours[DAY_KEYS[day]] ?? [];
+    const dayKey = `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    const dayUsers = userAllowedOnDay ? users.filter((u) => userAllowedOnDay(u.id, dayKey)) : users;
+    if (dayUsers.length === 0) continue;
     const daySlots: Slot[] = [];
 
     for (const range of ranges) {
@@ -175,7 +182,7 @@ export function generateSlots(input: SlotEngineInput): Slot[] {
         const start = wallTimeToUtc(timezone, y, m, d, t);
         if (start < earliest) continue;
         const end = new Date(start.getTime() + durationMinutes * 60000);
-        const free = users.filter(
+        const free = dayUsers.filter(
           (u) =>
             worksWindow(u.hours, day, t, t + durationMinutes) &&
             !u.busy.some((b) => overlaps(start, end, b))

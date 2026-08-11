@@ -123,6 +123,14 @@ export async function PATCH(req: NextRequest) {
         Number(body.arrivalWindowMinutes) <= 480
           ? Number(body.arrivalWindowMinutes)
           : undefined,
+      // Booking drive-time limit (minutes; 0 clears it → off)
+      bookingDriveLimitMinutes:
+        body.bookingDriveLimitMinutes !== undefined &&
+        Number.isInteger(Number(body.bookingDriveLimitMinutes)) &&
+        Number(body.bookingDriveLimitMinutes) >= 0 &&
+        Number(body.bookingDriveLimitMinutes) <= 240
+          ? Number(body.bookingDriveLimitMinutes) || null
+          : undefined,
       // Even time-slot granularity for in-app job/appointment scheduling; only
       // an allowed choice is accepted, anything else leaves the value unchanged.
       schedulingIntervalMinutes:
