@@ -245,10 +245,10 @@ export default function PayPage({
     <div className="app-ui min-h-screen bg-white py-4 sm:py-8 px-4">
       <div className="max-w-2xl mx-auto">
         {preview && (
-          <div className="mb-2 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-700 text-center">
-            Preview mode — opening this doesn&apos;t count as a client view. If your
-            client hands you their card, you can run the payment right here.
-          </div>
+          <p className="mb-3 text-center text-xs text-gray-400">
+            Preview — doesn&apos;t count as a client view. If your client hands you
+            their card, you can run the payment right here.
+          </p>
         )}
 
         {/* The document — the web twin of the PDF letterhead */}

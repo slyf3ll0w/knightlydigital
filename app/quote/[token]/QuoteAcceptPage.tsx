@@ -224,9 +224,9 @@ export default function QuoteAcceptPage({
     <div className="app-ui min-h-screen bg-white py-4 sm:py-8 px-4">
       <div className="max-w-2xl mx-auto">
         {preview && (
-          <div className="mb-2 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-700 text-center">
-            Preview mode — this is what your client sees. Actions are disabled.
-          </div>
+          <p className="mb-3 text-center text-xs text-gray-400">
+            Preview — this is what your client sees. Actions are disabled.
+          </p>
         )}
 
         {/* The document — the web twin of the PDF letterhead */}
