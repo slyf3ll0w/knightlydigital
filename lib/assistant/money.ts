@@ -150,7 +150,7 @@ export const moneyTools: Tool[] = [
         where: { companyId: actor.companyId, ...viaContactScope(actor), status },
         take: 15, orderBy: { nextRunDate: "asc" },
         select: {
-          id: true, name: true, status: true, interval: true, billPerVisit: true, unitPrice: true, quantity: true, nextRunDate: true,
+          id: true, name: true, status: true, interval: true, billPerVisit: true, consolidateMonthly: true, unitPrice: true, quantity: true, nextRunDate: true,
           contact: { select: { firstName: true, lastName: true, companyName: true } },
         },
       });
@@ -158,8 +158,11 @@ export const moneyTools: Tool[] = [
         subscriptions: rows.map((s) => ({
           id: s.id, name: s.name, client: clientName(s.contact), status: s.status,
           price: money(Number(s.unitPrice) * Number(s.quantity)),
-          // "PER_VISIT" = each completed visit is invoiced; null = visits-only
-          interval: s.interval ?? (s.billPerVisit ? "PER_VISIT" : null),
+          // "PER_VISIT" = each completed visit invoiced; "PER_VISIT_MONTHLY" =
+          // one monthly invoice for completed visits; null = visits-only
+          interval:
+            s.interval ??
+            (s.billPerVisit ? (s.consolidateMonthly ? "PER_VISIT_MONTHLY" : "PER_VISIT") : null),
           nextBill: s.nextRunDate ? s.nextRunDate.toISOString().slice(0, 10) : null,
         })),
       };

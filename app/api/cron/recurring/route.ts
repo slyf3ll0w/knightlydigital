@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { runDueSubscriptions, generateDueVisits } from "@/lib/subscriptions";
+import {
+  runDueSubscriptions,
+  runMonthlyConsolidations,
+  generateDueVisits,
+} from "@/lib/subscriptions";
 import {
   runDueReminders,
   runAppointmentReminders,
@@ -39,6 +43,8 @@ export async function POST(req: NextRequest) {
 
   const now = new Date();
   const subscriptions = await runDueSubscriptions(now);
+  // Monthly-consolidated series: bill the month's completed visits on the 1st
+  const consolidations = await runMonthlyConsolidations(now);
   // Materialize upcoming visit-series jobs (~4-week rolling horizon)
   const visits = await generateDueVisits(now);
   // Autopay retries: re-attempt declined card-on-file charges on their
@@ -73,6 +79,7 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({
     ok: true,
     subscriptions,
+    consolidations,
     visits,
     autoChargeRetries,
     cardNudges,

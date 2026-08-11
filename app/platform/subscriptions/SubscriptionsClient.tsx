@@ -17,6 +17,8 @@ type Sub = {
   interval: "MONTHLY" | "QUARTERLY" | "SEMIANNUAL" | "ANNUAL" | null;
   // bill each completed visit instead of on a schedule (interval stays null)
   billPerVisit: boolean;
+  // per-visit pricing but ONE invoice a month (nextRunDate = the 1st)
+  consolidateMonthly: boolean;
   createsJob: boolean;
   invoiceMode: "SEND" | "DRAFT";
   status: "ACTIVE" | "PAUSED" | "CANCELLED";
@@ -550,7 +552,9 @@ export default function SubscriptionsClient({
                         {s.interval
                           ? INTERVAL_LABEL[s.interval]
                           : s.billPerVisit
-                            ? "Billed per visit"
+                            ? s.consolidateMonthly
+                              ? "Per visit, billed monthly"
+                              : "Billed per visit"
                             : "Recurring job"}
                         {s.visitFrequency && (
                           <span className="text-green-700">
@@ -565,14 +569,17 @@ export default function SubscriptionsClient({
                       )}
                     </div>
                     <p className="mt-0.5 text-xs text-gray-500">
-                      {s.interval && s.nextRunDate && (
+                      {(s.interval || (s.billPerVisit && s.consolidateMonthly)) && s.nextRunDate && (
                         <>
                           Bills <span className="font-medium text-gray-700">{fmtDate(s.nextRunDate)}</span>
                         </>
                       )}
                       {s.visitFrequency && s.nextVisitDate && (
                         <>
-                          {s.interval && s.nextRunDate ? " · " : ""}Next visit{" "}
+                          {(s.interval || (s.billPerVisit && s.consolidateMonthly)) && s.nextRunDate
+                            ? " · "
+                            : ""}
+                          Next visit{" "}
                           <span className="font-medium text-gray-700">{fmtDate(s.nextVisitDate)}</span>
                         </>
                       )}
@@ -588,12 +595,16 @@ export default function SubscriptionsClient({
                           <Pencil size={13} />
                           Edit
                         </button>
-                        {s.interval && (
+                        {(s.interval || (s.billPerVisit && s.consolidateMonthly)) && (
                           <button
                             onClick={() => billNow(s.id)}
                             disabled={busyId === s.id || s.status !== "ACTIVE"}
                             className="flex h-10 items-center rounded-[10px] bg-green-50 px-3 text-xs font-medium text-green-700 active:bg-green-100 transition-colors disabled:opacity-40"
-                            title="Generate this subscription's next invoice now"
+                            title={
+                              s.interval
+                                ? "Generate this subscription's next invoice now"
+                                : "Invoice the completed visits accumulated so far now"
+                            }
                           >
                             {busyId === s.id ? <Loader2 size={13} className="animate-spin" /> : "Bill now"}
                           </button>
@@ -658,7 +669,7 @@ export default function SubscriptionsClient({
                         {s.interval
                           ? `${INTERVAL_LABEL[s.interval]} · ${money(Number(s.unitPrice) * Number(s.quantity))}`
                           : s.billPerVisit
-                            ? `${money(Number(s.unitPrice) * Number(s.quantity))} per visit`
+                            ? `${money(Number(s.unitPrice) * Number(s.quantity))} per visit${s.consolidateMonthly ? " · billed monthly" : ""}`
                             : "Recurring job — no billing"}
                         {s.visitFrequency && (
                           <span className="text-green-700">
@@ -670,7 +681,7 @@ export default function SubscriptionsClient({
                       </p>
                     </div>
                     <div className="text-xs text-gray-500 whitespace-nowrap text-right">
-                      {s.interval && s.nextRunDate && (
+                      {(s.interval || (s.billPerVisit && s.consolidateMonthly)) && s.nextRunDate && (
                         <div>
                           Bills: <span className="font-medium text-gray-700">{fmtDate(s.nextRunDate)}</span>
                         </div>
@@ -692,12 +703,16 @@ export default function SubscriptionsClient({
                         >
                           <Pencil size={14} />
                         </button>
-                        {s.interval && (
+                        {(s.interval || (s.billPerVisit && s.consolidateMonthly)) && (
                           <button
                             onClick={() => billNow(s.id)}
                             disabled={busyId === s.id || s.status !== "ACTIVE"}
                             className="px-2.5 py-1.5 text-xs font-medium text-green-700 bg-green-50 hover:bg-green-100 rounded-lg transition-colors disabled:opacity-40"
-                            title="Generate this subscription's next invoice now"
+                            title={
+                              s.interval
+                                ? "Generate this subscription's next invoice now"
+                                : "Invoice the completed visits accumulated so far now"
+                            }
                           >
                             {busyId === s.id ? <Loader2 size={13} className="animate-spin" /> : "Bill now"}
                           </button>
@@ -760,7 +775,9 @@ export default function SubscriptionsClient({
                       {s.interval
                         ? INTERVAL_LABEL[s.interval]
                         : s.billPerVisit
-                          ? "billed per visit"
+                          ? s.consolidateMonthly
+                            ? "per visit, billed monthly"
+                            : "billed per visit"
                           : "recurring job"})
                     </div>
                   ))}

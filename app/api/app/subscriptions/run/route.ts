@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { getActor, isManager } from "@/lib/permissions";
-import { runDueSubscriptions, generateDueVisits } from "@/lib/subscriptions";
+import {
+  runDueSubscriptions,
+  runMonthlyConsolidations,
+  generateDueVisits,
+} from "@/lib/subscriptions";
 import { inPreview, previewBlockedError } from "@/lib/preview";
 
 /**
@@ -17,6 +21,13 @@ export async function POST() {
 
   const now = new Date();
   const summary = await runDueSubscriptions(now, actor.companyId);
+  const consolidations = await runMonthlyConsolidations(now, actor.companyId);
   const visits = await generateDueVisits(now, actor.companyId);
-  return NextResponse.json({ ok: true, ...summary, visits });
+  return NextResponse.json({
+    ok: true,
+    ...summary,
+    processed: summary.processed + consolidations.processed,
+    consolidations,
+    visits,
+  });
 }

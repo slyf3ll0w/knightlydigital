@@ -6,6 +6,7 @@ import {
   generateDueVisits,
   deleteFutureVisits,
   addVisitInterval,
+  firstOfNextMonth,
 } from "@/lib/subscriptions";
 
 /**
@@ -45,7 +46,13 @@ export async function PATCH(
 
   if (body.action === "billNow") {
     const outcome = await billSubscriptionNow(id, companyId);
-    if (!outcome) return NextResponse.json({ error: "Subscription is not active." }, { status: 400 });
+    if (!outcome) return NextResponse.json({ error: "This series has nothing to bill." }, { status: 400 });
+    if (outcome === "empty") {
+      return NextResponse.json(
+        { error: "No completed visits to bill yet — finish a visit first." },
+        { status: 400 }
+      );
+    }
     return NextResponse.json({ ok: true, outcome });
   }
 
@@ -83,9 +90,30 @@ export async function PATCH(
       }
       data.billPerVisit = true;
       data.interval = null;
-      data.nextRunDate = null;
+      // Consolidated series keep nextRunDate as their monthly cursor
+      data.nextRunDate = body.consolidateMonthly === true ? firstOfNextMonth() : null;
     } else {
       data.billPerVisit = false;
+    }
+  }
+  if (body.consolidateMonthly !== undefined) {
+    const finalBillPerVisit =
+      data.billPerVisit !== undefined ? data.billPerVisit : sub.billPerVisit;
+    if (body.consolidateMonthly === true) {
+      if (!finalBillPerVisit) {
+        return NextResponse.json(
+          { error: "Monthly consolidation only applies to per-visit billing." },
+          { status: 400 }
+        );
+      }
+      data.consolidateMonthly = true;
+      if (data.nextRunDate === undefined && !sub.nextRunDate) {
+        data.nextRunDate = firstOfNextMonth();
+      }
+    } else {
+      data.consolidateMonthly = false;
+      // Back to bill-on-completion: the monthly cursor has no meaning
+      if (finalBillPerVisit) data.nextRunDate = null;
     }
   }
   if (body.interval !== undefined && data.interval === undefined) {

@@ -327,6 +327,22 @@ unique constraint. `billPerVisit` and `interval` are mutually exclusive;
 per-visit requires a visit series. Created from New Series ("Bill after each
 visit") — price-book recurring services still only create interval billing.
 
+**Monthly consolidation (`consolidateMonthly`, only with `billPerVisit`).**
+Per-visit pricing but ONE invoice a month: completed visits skip
+`billCompletedVisit` and join the unbilled pool (completed + no direct
+invoice + `Job.consolidatedInvoiceId` null); `runMonthlyConsolidations`
+(hourly cron + Run-due-now + "Bill now") bills each due series' pool as a
+single invoice with a dated line per visit (`InvoiceLineItem.serviceDate`),
+stamps `consolidatedInvoiceId` on the visits, archives any still in
+REQUIRES_INVOICING, then settles through the same auto-charge path.
+`nextRunDate` is the cursor (the 1st, advancing monthly via
+`firstOfNextMonth`) — which is why `runDueSubscriptions` filters
+`interval: { not: null }`: the flat sweep must never claim a consolidated
+series' cursor. Manually invoicing a pooled visit removes it from the pool
+(its direct invoice exists). "Bill now" on a consolidated series invoices
+the pool immediately; pause stops the sweep (pool keeps accruing until
+resume/cancel — bill before cancelling).
+
 **Visit series (weekly/biweekly visits, billed on their own cadence).** A
 subscription can carry a visit schedule (`visitFrequency` weekly/biweekly/
 monthly/quarterly/annually + `nextVisitDate`, time window, default assignees)

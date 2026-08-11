@@ -86,7 +86,7 @@ export default function NewSeriesForm({
   const [visitTime, setVisitTime] = useState("");
   const [visitDuration, setVisitDuration] = useState("60");
   const [assignees, setAssignees] = useState<string[]>([]);
-  const [billing, setBilling] = useState<"none" | "visit" | "schedule">("none");
+  const [billing, setBilling] = useState<"none" | "visit" | "monthly" | "schedule">("none");
   const [unitPrice, setUnitPrice] = useState("");
   const [interval, setInterval] = useState("MONTHLY");
   const [invoiceMode, setInvoiceMode] = useState<"SEND" | "DRAFT">("SEND");
@@ -117,6 +117,11 @@ export default function NewSeriesForm({
         visitAssigneeIds: assignees,
         ...(billing === "schedule" && { interval, unitPrice: parseFloat(unitPrice) || 0 }),
         ...(billing === "visit" && { billPerVisit: true, unitPrice: parseFloat(unitPrice) || 0 }),
+        ...(billing === "monthly" && {
+          billPerVisit: true,
+          consolidateMonthly: true,
+          unitPrice: parseFloat(unitPrice) || 0,
+        }),
         ...(billing !== "none" && { invoiceMode }),
       }
     );
@@ -293,6 +298,11 @@ export default function NewSeriesForm({
                   hint: "Completing a visit generates its invoice on the spot — per-cut mows, per-clean pricing.",
                 },
                 {
+                  value: "monthly",
+                  label: "Bill monthly for completed visits",
+                  hint: "Per-visit pricing, one invoice on the 1st listing the month's visits — the cleaning-service norm.",
+                },
+                {
                   value: "schedule",
                   label: "Bill a flat amount on a schedule",
                   hint: "One recurring invoice regardless of visits — the classic pool-service / membership model.",
@@ -325,7 +335,7 @@ export default function NewSeriesForm({
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs text-gray-500 mb-1">
-                  {billing === "visit" ? "Price per visit *" : "Price per cycle *"}
+                  {billing === "schedule" ? "Price per cycle *" : "Price per visit *"}
                 </label>
                 <input
                   type="number"
@@ -349,7 +359,7 @@ export default function NewSeriesForm({
                   </select>
                 </div>
               )}
-              <div className={billing === "visit" ? "" : "col-span-2"}>
+              <div className={billing === "schedule" ? "col-span-2" : ""}>
                 <label className="block text-xs text-gray-500 mb-1">Invoices are</label>
                 <select
                   value={invoiceMode}
@@ -365,7 +375,11 @@ export default function NewSeriesForm({
                   ? invoiceMode === "SEND"
                     ? "Each completed visit's invoice is emailed right away — and charged to the client's card on file automatically when payments are live."
                     : "Each completed visit leaves a draft invoice to review and send."
-                  : "The first invoice goes out one billing cycle from today; each cycle auto-generates the next."}
+                  : billing === "monthly"
+                    ? invoiceMode === "SEND"
+                      ? "On the 1st, the month's completed visits go out as one itemized invoice — charged to the card on file automatically when payments are live."
+                      : "On the 1st, the month's completed visits become one itemized draft invoice to review and send."
+                    : "The first invoice goes out one billing cycle from today; each cycle auto-generates the next."}
               </p>
             </div>
           )}

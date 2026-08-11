@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, canSeeMoney, isManager, contactScope } from "@/lib/permissions";
-import { firstRunDate, generateDueVisits } from "@/lib/subscriptions";
+import { firstRunDate, firstOfNextMonth, generateDueVisits } from "@/lib/subscriptions";
 
 /** GET — recurring subscriptions for the company (money-visible roles). */
 export async function GET() {
@@ -31,6 +31,8 @@ const validFrequencies = ["WEEKLY", "BIWEEKLY", "MONTHLY", "QUARTERLY", "ANNUALL
  * - Billed subscription: interval + unitPrice, first invoice one interval out.
  * - Per-visit billed series: billPerVisit + unitPrice + a visit schedule —
  *   each completed visit mints its own invoice (see billCompletedVisit).
+ *   With consolidateMonthly, completed visits instead accumulate and bill as
+ *   ONE invoice on the 1st (nextRunDate is the monthly cursor).
  * Visit series fields mirror the PATCH route; visits materialize immediately.
  */
 export async function POST(req: NextRequest) {
@@ -55,6 +57,7 @@ export async function POST(req: NextRequest) {
   // not at all — never both.
   const bills = Boolean(body.interval);
   const perVisit = body.billPerVisit === true;
+  const consolidate = perVisit && body.consolidateMonthly === true;
   if (bills && perVisit) {
     return NextResponse.json(
       { error: "Pick scheduled billing or per-visit billing, not both." },
@@ -158,8 +161,10 @@ export async function POST(req: NextRequest) {
       unitPrice: Math.round(unitPrice * 100) / 100,
       quantity: 1,
       interval: bills ? body.interval : null,
-      nextRunDate: bills ? firstRunDate(body.interval) : null,
+      // Consolidated per-visit series bill on the 1st — nextRunDate is their cursor
+      nextRunDate: bills ? firstRunDate(body.interval) : consolidate ? firstOfNextMonth() : null,
       billPerVisit: perVisit,
+      consolidateMonthly: consolidate,
       invoiceMode: body.invoiceMode === "DRAFT" ? "DRAFT" : "SEND",
       propertyId: property?.id ?? null,
       visitFrequency: frequency,
