@@ -31,6 +31,16 @@ import "leaflet/dist/leaflet.css";
  * and writes nothing until Apply.
  */
 
+/** Quick "Day starts at" presets for the Optimize preview. */
+const ANCHOR_PRESETS: { value: string; label: string }[] = [
+  { value: "07:00", label: "7 AM" },
+  { value: "07:30", label: "7:30" },
+  { value: "08:00", label: "8 AM" },
+  { value: "08:30", label: "8:30" },
+  { value: "09:00", label: "9 AM" },
+  { value: "10:00", label: "10 AM" },
+];
+
 type RouteStop = {
   id: string;
   kind: "job" | "appointment";
@@ -720,20 +730,40 @@ export default function RouteMapClient({
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto px-5 py-3">
-              <label className="mb-3 flex items-center gap-2 text-xs text-gray-600">
-                Day starts at
-                <input
-                  type="time"
-                  value={preview.anchorTime}
-                  disabled={previewBusy}
-                  onChange={(e) =>
-                    e.target.value &&
-                    runOptimize(preview.userId, preview.stops.map((s) => s.id), e.target.value)
-                  }
-                  className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-green-500"
-                />
-                <span className="text-gray-400">first stop begins then</span>
-              </label>
+              <div className="mb-3 space-y-1.5">
+                <label className="flex items-center gap-2 text-xs text-gray-600">
+                  Day starts at
+                  <input
+                    type="time"
+                    value={preview.anchorTime}
+                    disabled={previewBusy}
+                    onChange={(e) =>
+                      e.target.value &&
+                      runOptimize(preview.userId, preview.stops.map((s) => s.id), e.target.value)
+                    }
+                    className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                  <span className="text-gray-400">first stop begins then</span>
+                </label>
+                <div className="flex flex-wrap gap-1">
+                  {ANCHOR_PRESETS.map((p) => (
+                    <button
+                      key={p.value}
+                      disabled={previewBusy}
+                      onClick={() =>
+                        runOptimize(preview.userId, preview.stops.map((s) => s.id), p.value)
+                      }
+                      className={`rounded-full border px-2.5 py-0.5 text-[11px] font-semibold transition-colors disabled:opacity-50 ${
+                        preview.anchorTime === p.value
+                          ? "border-green-500 bg-green-50 text-green-700"
+                          : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50"
+                      }`}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
               {preview.warnings.length > 0 && (
                 <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
                   {preview.warnings.map((w) => (

@@ -127,6 +127,9 @@ export default async function JobDetailPage({
               resolveArrivalWindowMinutes(job.arrivalWindowMinutes, company?.arrivalWindowMinutes)
             )
           : "",
+      // The drive-time estimate is only known when the tech taps the button —
+      // leave the token in place; OnMyWay fills it (lib/messaging.ts fillEta)
+      eta: "{{eta}}",
     }
   );
 

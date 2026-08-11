@@ -53,10 +53,11 @@ export const ON_MY_WAY_PLACEHOLDERS = [
   ["{{jobTitle}}", "the job's title"],
   ["{{address}}", "the job site address"],
   ["{{time}}", "the scheduled time"],
+  ["{{eta}}", 'live drive-time estimate from where you are, e.g. "about 20 minutes out"'],
 ] as const;
 
 export const DEFAULT_ON_MY_WAY_TEMPLATE =
-  "Hi {{firstName}}, this is {{techName}} with {{companyName}} — I'm on my way to you now. See you soon!";
+  "Hi {{firstName}}, this is {{techName}} with {{companyName}} — I'm on my way to you now, {{eta}}. See you soon!";
 
 /**
  * Fill {{placeholders}} into a message template. Unknown or empty
@@ -68,6 +69,30 @@ export function renderMessageTemplate(
 ): string {
   return template
     .replace(/\{\{\s*(\w+)\s*\}\}/g, (_, key: string) => vars[key] ?? "")
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/ ([,.!?;:])/g, "$1")
+    .trim();
+}
+
+/** "about 20 minutes out" — ETA rounded to a friendly 5-minute step. */
+export function etaPhrase(minutes: number): string {
+  const rounded = Math.max(5, Math.round(minutes / 5) * 5);
+  return `about ${rounded} minutes out`;
+}
+
+/**
+ * Resolve the {{eta}} token after the fact — the drive-time estimate is only
+ * known when the tech actually taps the button (server-side render fills the
+ * other placeholders and leaves this one in place). No estimate → the token
+ * lifts out cleanly, including a leading comma/dash so the sentence still reads.
+ */
+export function fillEta(message: string, etaMinutes: number | null): string {
+  if (!/\{\{\s*eta\s*\}\}/.test(message)) return message;
+  if (etaMinutes != null && Number.isFinite(etaMinutes)) {
+    return message.replace(/\{\{\s*eta\s*\}\}/g, etaPhrase(etaMinutes));
+  }
+  return message
+    .replace(/\s*[,—–-]?\s*\{\{\s*eta\s*\}\}/g, "")
     .replace(/[ \t]{2,}/g, " ")
     .replace(/ ([,.!?;:])/g, "$1")
     .trim();
