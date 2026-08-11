@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { sanitizeBusinessHours } from "./business-hours";
+import { sanitizeBusinessHours, sanitizeWorkingHoursOrNull } from "./business-hours";
 import { generateSlots, type BookableUser, type Slot, type SlotEngineInput } from "./booking-slots";
 import type { BookingFormConfig } from "./booking-form";
 
@@ -22,10 +22,11 @@ export async function getBookableUsersWithBusy(
 ): Promise<BookableUser[]> {
   const users = await db.user.findMany({
     where: { companyId, isActive: true, bookable: true },
-    select: { id: true },
+    select: { id: true, workingHours: true },
   });
   if (users.length === 0) return [];
   const ids = users.map((u) => u.id);
+  const hoursById = new Map(users.map((u) => [u.id, sanitizeWorkingHoursOrNull(u.workingHours)]));
   // True overlap: start < to AND end > from. Records without an explicit end
   // default to an hour long, so "end > from" becomes start > from - 1h.
   // "Anytime" (date-only) items don't hold a clock position.
@@ -121,7 +122,11 @@ export async function getBookableUsersWithBusy(
     if (b.userId) busyByUser.get(b.userId)?.push(interval);
     else for (const id of ids) busyByUser.get(id)?.push(interval);
   }
-  return ids.map((id) => ({ id, busy: busyByUser.get(id) ?? [] }));
+  return ids.map((id) => ({
+    id,
+    busy: busyByUser.get(id) ?? [],
+    hours: hoursById.get(id) ?? null,
+  }));
 }
 
 export type BookingCompany = {

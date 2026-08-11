@@ -21,7 +21,12 @@ import { geocodeAddress } from "@/lib/geocoding";
 import { driveTimeMatrix } from "@/lib/routing";
 import { resolveRouteDay } from "@/lib/route-plan";
 import type { Actor } from "@/lib/permissions";
-import { sanitizeBusinessHours, timeToMinutes, DAY_KEYS } from "@/lib/business-hours";
+import {
+  sanitizeBusinessHours,
+  resolveWorkingHours,
+  timeToMinutes,
+  DAY_KEYS,
+} from "@/lib/business-hours";
 import { resolveSlotInterval, DEFAULT_JOB_DURATION_MINUTES } from "@/lib/scheduling";
 
 export type TimeSuggestion = {
@@ -62,10 +67,14 @@ export async function suggestTimes(
       ? Math.min(opts.durationMinutes!, 12 * 60)
       : DEFAULT_JOB_DURATION_MINUTES;
 
-  const [company, day] = await Promise.all([
+  const [company, tech, day] = await Promise.all([
     prisma.company.findUnique({
       where: { id: actor.companyId },
       select: { businessHours: true, schedulingIntervalMinutes: true },
+    }),
+    prisma.user.findFirst({
+      where: { id: opts.userId, companyId: actor.companyId },
+      select: { workingHours: true },
     }),
     resolveRouteDay(actor, opts.date),
   ]);
@@ -116,8 +125,9 @@ export async function suggestTimes(
     return Math.round(matrix[from][to]);
   };
 
-  // Candidate grid: the company's slot interval across that day's open hours.
-  const hours = sanitizeBusinessHours(company?.businessHours);
+  // Candidate grid: the company's slot interval across that day's open hours —
+  // the TECH's hours when they have their own week, else the company's.
+  const hours = resolveWorkingHours(tech?.workingHours, sanitizeBusinessHours(company?.businessHours));
   const ranges = hours[DAY_KEYS[opts.date.getDay()]] ?? [];
   const interval = resolveSlotInterval({ companyIntervalMinutes: company?.schedulingIntervalMinutes });
   const dayBase = new Date(opts.date.getFullYear(), opts.date.getMonth(), opts.date.getDate()).getTime();

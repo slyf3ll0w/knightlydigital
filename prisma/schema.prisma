@@ -203,6 +203,10 @@ model User {
   // picker and tentative appointments land on them. Off by default — owners
   // opt team members in from the Team page.
   bookable     Boolean  @default(false)
+  // Per-member weekly working hours (same JSON shape as Company.businessHours);
+  // null = works the company's business hours. Feeds Find a Time, online
+  // booking availability, and the route optimizer's default day start.
+  workingHours Json?
   // Profile picture (small client-resized square; same bytes-in-DB pattern
   // as Company.logoData — move to R2 with job photos when volume grows)
   avatarData      Bytes?

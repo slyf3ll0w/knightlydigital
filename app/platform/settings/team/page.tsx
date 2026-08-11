@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { prisma } from "@/lib/db";
 import { requirePageActor, isManager } from "@/lib/permissions";
+import { sanitizeBusinessHours, sanitizeWorkingHoursOrNull } from "@/lib/business-hours";
 import TeamClient from "./TeamClient";
 
 export const metadata: Metadata = { title: "Team" };
@@ -19,6 +20,7 @@ export default async function TeamPage() {
         role: true,
         isActive: true,
         bookable: true,
+        workingHours: true,
         hourlyCost: true,
         createdAt: true,
       },
@@ -26,7 +28,7 @@ export default async function TeamPage() {
     }),
     prisma.company.findUnique({
       where: { id: actor.companyId },
-      select: { defaultLeadUserId: true, salesSeePayments: true },
+      select: { defaultLeadUserId: true, salesSeePayments: true, businessHours: true },
     }),
   ]);
 
@@ -36,9 +38,11 @@ export default async function TeamPage() {
       actorRole={actor.role}
       users={users.map((u) => ({
         ...u,
+        workingHours: sanitizeWorkingHoursOrNull(u.workingHours),
         hourlyCost: u.hourlyCost != null ? Number(u.hourlyCost) : null,
         createdAt: u.createdAt.toISOString(),
       }))}
+      companyHours={sanitizeBusinessHours(company?.businessHours)}
       defaultLeadUserId={company?.defaultLeadUserId ?? ""}
       salesSeePayments={company?.salesSeePayments ?? true}
     />

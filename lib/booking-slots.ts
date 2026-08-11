@@ -17,7 +17,12 @@ import { type BusinessHours, DAY_KEYS, timeToMinutes } from "./business-hours";
  */
 
 export type BusyInterval = { start: Date; end: Date };
-export type BookableUser = { id: string; busy: BusyInterval[] };
+export type BookableUser = {
+  id: string;
+  busy: BusyInterval[];
+  /** Per-member weekly hours; null/absent = works the company's hours. */
+  hours?: BusinessHours | null;
+};
 
 export type Slot = {
   start: Date; // earliest arrival (UTC instant)
@@ -102,6 +107,40 @@ function overlaps(aStart: Date, aEnd: Date, b: BusyInterval): boolean {
   return aStart < b.end && b.start < aEnd;
 }
 
+/** Does this member work the whole [startMin, endMin) window on that weekday?
+ *  No personal hours set = yes (the company grid already bounds the slot). */
+function worksWindow(
+  hours: BusinessHours | null | undefined,
+  day: DayKeyIndex,
+  startMin: number,
+  endMin: number
+): boolean {
+  if (!hours) return true;
+  const ranges = hours[DAY_KEYS[day]] ?? [];
+  return ranges.some((r) => {
+    const s = timeToMinutes(r.start);
+    const e = timeToMinutes(r.end);
+    return s !== null && e !== null && s <= startMin && endMin <= e;
+  });
+}
+
+/** Minutes since local midnight of an instant, seen from `tz`. */
+function minutesOfDay(tz: string, date: Date): number {
+  const dtf = new Intl.DateTimeFormat("en-US", {
+    timeZone: tz,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+  let h = 0,
+    m = 0;
+  for (const part of dtf.formatToParts(date)) {
+    if (part.type === "hour") h = Number(part.value) % 24;
+    if (part.type === "minute") m = Number(part.value);
+  }
+  return h * 60 + m;
+}
+
 export function generateSlots(input: SlotEngineInput): Slot[] {
   const {
     timezone,
@@ -136,7 +175,11 @@ export function generateSlots(input: SlotEngineInput): Slot[] {
         const start = wallTimeToUtc(timezone, y, m, d, t);
         if (start < earliest) continue;
         const end = new Date(start.getTime() + durationMinutes * 60000);
-        const free = users.filter((u) => !u.busy.some((b) => overlaps(start, end, b)));
+        const free = users.filter(
+          (u) =>
+            worksWindow(u.hours, day, t, t + durationMinutes) &&
+            !u.busy.some((b) => overlaps(start, end, b))
+        );
         if (free.length === 0) continue;
         daySlots.push({
           start,
@@ -168,9 +211,23 @@ export function generateSlots(input: SlotEngineInput): Slot[] {
  * id — the free user with the fewest busy intervals, spreading bookings —
  * or null if the slot was lost.
  */
-export function pickUserForSlot(start: Date, end: Date, users: BookableUser[]): string | null {
+export function pickUserForSlot(
+  start: Date,
+  end: Date,
+  users: BookableUser[],
+  timezone?: string
+): string | null {
+  // With a timezone we can re-apply per-member working hours, so a crafted
+  // POST can't land a booking on someone outside their week.
+  let onDuty: (u: BookableUser) => boolean = () => true;
+  if (timezone) {
+    const { day } = localDayParts(timezone, start);
+    const startMin = minutesOfDay(timezone, start);
+    const endMin = startMin + Math.round((end.getTime() - start.getTime()) / 60000);
+    onDuty = (u) => worksWindow(u.hours, day, startMin, endMin);
+  }
   const free = users
-    .filter((u) => !u.busy.some((b) => overlaps(start, end, b)))
+    .filter((u) => onDuty(u) && !u.busy.some((b) => overlaps(start, end, b)))
     .sort((a, b) => a.busy.length - b.busy.length);
   return free[0]?.id ?? null;
 }

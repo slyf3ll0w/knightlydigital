@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { KeyRound, Loader2, Plus, UserPlus, X } from "lucide-react";
+import { CalendarClock, KeyRound, Loader2, Plus, UserPlus, X } from "lucide-react";
 import Avatar from "@/components/Avatar";
+import BusinessHoursEditor from "@/components/BusinessHoursEditor";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
+import type { BusinessHours } from "@/lib/business-hours";
 
 /**
  * Team management — add members (free, no seat limits), change roles,
@@ -20,6 +22,8 @@ type Member = {
   role: string;
   isActive: boolean;
   bookable: boolean;
+  /** Per-member weekly hours; null = works the company's business hours. */
+  workingHours: BusinessHours | null;
   hourlyCost: number | null;
   createdAt: string;
 };
@@ -54,12 +58,14 @@ export default function TeamClient({
   actorId,
   actorRole,
   users,
+  companyHours,
   defaultLeadUserId,
   salesSeePayments,
 }: {
   actorId: string;
   actorRole: string;
   users: Member[];
+  companyHours: BusinessHours;
   defaultLeadUserId: string;
   salesSeePayments: boolean;
 }) {
@@ -72,6 +78,10 @@ export default function TeamClient({
   const [error, setError] = useState("");
   const [resetFor, setResetFor] = useState<string | null>(null);
   const [resetPassword, setResetPassword] = useState("");
+  // Working-hours editor: which member's panel is open + their draft week
+  const [hoursFor, setHoursFor] = useState<string | null>(null);
+  const [hoursDraft, setHoursDraft] = useState<BusinessHours>(companyHours);
+  const [hoursCustom, setHoursCustom] = useState(false);
   const [policyBusy, setPolicyBusy] = useState(false);
   // Draft hourly-cost inputs, saved on blur (keyed by member id)
   const [rates, setRates] = useState<Record<string, string>>(() =>
@@ -292,6 +302,31 @@ export default function TeamClient({
                 </label>
               )}
 
+              {m.isActive && (canManage(m) || m.id === actorId) && (
+                <button
+                  onClick={() => {
+                    if (hoursFor === m.id) {
+                      setHoursFor(null);
+                      return;
+                    }
+                    setHoursFor(m.id);
+                    setResetFor(null);
+                    setHoursCustom(m.workingHours != null);
+                    setHoursDraft(m.workingHours ?? companyHours);
+                  }}
+                  className={`p-1.5 rounded-full hover:bg-gray-100 active:bg-gray-100 ${
+                    m.workingHours ? "text-green-600" : "text-gray-400 hover:text-gray-700"
+                  }`}
+                  title={
+                    m.workingHours
+                      ? "Custom working hours set — click to edit"
+                      : "Working hours (company default)"
+                  }
+                >
+                  <CalendarClock size={14} />
+                </button>
+              )}
+
               {canManage(m) ? (
                 <select
                   value={m.role}
@@ -317,6 +352,7 @@ export default function TeamClient({
                     onClick={() => {
                       setResetFor(resetFor === m.id ? null : m.id);
                       setResetPassword("");
+                      setHoursFor(null);
                     }}
                     className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 active:bg-gray-100 rounded-full"
                     title="Reset password"
@@ -337,6 +373,48 @@ export default function TeamClient({
                 </>
               )}
             </div>
+
+            {hoursFor === m.id && (
+              <div className="mt-3 space-y-3 rounded-xl border border-gray-100 bg-gray-50/60 p-3 sm:ml-11">
+                <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={!hoursCustom}
+                    onChange={(e) => {
+                      const inherit = e.target.checked;
+                      setHoursCustom(!inherit);
+                      if (!inherit) setHoursDraft(m.workingHours ?? companyHours);
+                    }}
+                    className="h-4 w-4 accent-green-600"
+                  />
+                  Works the company&apos;s business hours
+                </label>
+                {hoursCustom && <BusinessHoursEditor hours={hoursDraft} onChange={setHoursDraft} />}
+                <p className="text-xs text-gray-400">
+                  Working hours feed Find a Time suggestions, online booking availability, and
+                  the route optimizer&apos;s day start.
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={async () => {
+                      if (await patchMember(m.id, { workingHours: hoursCustom ? hoursDraft : null }))
+                        setHoursFor(null);
+                    }}
+                    disabled={busy}
+                    className="px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-semibold rounded-[10px] btn-tool disabled:opacity-50"
+                  >
+                    Save Hours
+                  </button>
+                  <button
+                    onClick={() => setHoursFor(null)}
+                    className="p-1 text-gray-400 hover:text-gray-600"
+                    aria-label="Cancel"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              </div>
+            )}
 
             {resetFor === m.id && (
               <div className="flex flex-wrap items-center gap-2 mt-3 sm:pl-11">

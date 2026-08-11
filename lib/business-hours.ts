@@ -71,6 +71,25 @@ export function sanitizeBusinessHours(raw: unknown): BusinessHours {
 }
 
 /**
+ * Per-member working hours (User.workingHours): same JSON shape, but null
+ * means "inherit the company's business hours" — so unlike
+ * sanitizeBusinessHours, garbage maps to null, not to the default week.
+ * An all-days-empty object is legal (someone temporarily off the schedule).
+ */
+export function sanitizeWorkingHoursOrNull(raw: unknown): BusinessHours | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  return sanitizeBusinessHours(raw);
+}
+
+/** A member's effective week: their own hours when set, else the company's. */
+export function resolveWorkingHours(
+  userHours: unknown,
+  companyHours: BusinessHours
+): BusinessHours {
+  return sanitizeWorkingHoursOrNull(userHours) ?? companyHours;
+}
+
+/**
  * Earliest opening time across the week, in minutes since midnight — the
  * anchor the in-app time pickers open on. Companies with no open days (or
  * unset hours) get the 8:00 AM default so the pickers still read sensibly.

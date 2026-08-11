@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getActor, isManager, canManageRole, type Role } from "@/lib/permissions";
 import { ensureAccountForUser, setPasswordForUser } from "@/lib/account";
+import { sanitizeWorkingHoursOrNull } from "@/lib/business-hours";
 
 /**
  * PATCH — edit a team member: role, active toggle, password reset, name/phone.
@@ -42,6 +44,17 @@ export async function PATCH(
   }
 
   if (body.bookable !== undefined) data.bookable = Boolean(body.bookable);
+
+  // Per-member weekly working hours; null = works the company's business hours
+  if (body.workingHours !== undefined) {
+    if (body.workingHours === null) {
+      data.workingHours = Prisma.DbNull;
+    } else {
+      const hours = sanitizeWorkingHoursOrNull(body.workingHours);
+      if (!hours) return NextResponse.json({ error: "Invalid working hours." }, { status: 400 });
+      data.workingHours = hours;
+    }
+  }
 
   // Internal labor cost per hour (feeds job labor costing from time entries)
   if (body.hourlyCost !== undefined) {

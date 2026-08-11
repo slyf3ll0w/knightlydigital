@@ -4,6 +4,12 @@ import { getActor, isManager } from "@/lib/permissions";
 import { parseRouteDate, resolveRouteDay } from "@/lib/route-plan";
 import { driveTimeMatrix, roundGapMinutes, routeMinutes, solveStopOrder } from "@/lib/routing";
 import { DEFAULT_JOB_DURATION_MINUTES } from "@/lib/scheduling";
+import {
+  DAY_KEYS,
+  resolveWorkingHours,
+  sanitizeBusinessHours,
+  timeToMinutes,
+} from "@/lib/business-hours";
 
 /**
  * POST /api/app/route-plan/optimize — order one tech's day by drive time.
@@ -44,7 +50,7 @@ export async function POST(req: NextRequest) {
 
   const user = await prisma.user.findFirst({
     where: { id: userId, companyId: actor.companyId, isActive: true },
-    select: { id: true, name: true },
+    select: { id: true, name: true, workingHours: true },
   });
   if (!user) return NextResponse.json({ error: "Team member not found." }, { status: 404 });
 
@@ -114,23 +120,42 @@ export async function POST(req: NextRequest) {
   // Anchor: an explicit start time wins (the "day starts at" control —
   // per-day, per-run; Jobber can't do this); otherwise keep the day starting
   // when it already starts — the earliest timed stop; a fully-"Anytime" day
-  // anchors at 8:00 AM company-local.
+  // anchors where this tech's week begins (their working hours, else the
+  // company's business hours, else 8:00 AM company-local).
   const timed = current.filter((s) => !s.scheduledAnytime && s.scheduledAt);
   const anchorMatch =
     typeof body.anchorTime === "string" ? /^([01]\d|2[0-3]):([0-5]\d)$/.exec(body.anchorTime) : null;
-  const anchor = anchorMatch
-    ? new Date(
-        date.getFullYear(),
-        date.getMonth(),
-        date.getDate(),
-        Number(anchorMatch[1]),
-        Number(anchorMatch[2]),
-        0,
-        0
-      )
-    : timed.length
-      ? new Date(Math.min(...timed.map((s) => new Date(s.scheduledAt!).getTime())))
-      : new Date(date.getFullYear(), date.getMonth(), date.getDate(), 8, 0, 0, 0);
+  let anchor: Date;
+  if (anchorMatch) {
+    anchor = new Date(
+      date.getFullYear(),
+      date.getMonth(),
+      date.getDate(),
+      Number(anchorMatch[1]),
+      Number(anchorMatch[2]),
+      0,
+      0
+    );
+  } else if (timed.length) {
+    anchor = new Date(Math.min(...timed.map((s) => new Date(s.scheduledAt!).getTime())));
+  } else {
+    const company = await prisma.company.findUnique({
+      where: { id: actor.companyId },
+      select: { businessHours: true },
+    });
+    const week = resolveWorkingHours(user.workingHours, sanitizeBusinessHours(company?.businessHours));
+    const ranges = week[DAY_KEYS[date.getDay()]] ?? [];
+    const startMin = (ranges.length ? timeToMinutes(ranges[0].start) : null) ?? 8 * 60;
+    anchor = new Date(
+      date.getFullYear(),
+      date.getMonth(),
+      date.getDate(),
+      Math.floor(startMin / 60),
+      startMin % 60,
+      0,
+      0
+    );
+  }
 
   const durationOf = (s: (typeof current)[number]): number => {
     if (!s.scheduledAnytime && s.scheduledAt && s.scheduledEnd) {

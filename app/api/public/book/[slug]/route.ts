@@ -409,7 +409,7 @@ export async function POST(
           booking.end,
           tx
         );
-        const userId = pickUserForSlot(booking.start, booking.end, usersNow);
+        const userId = pickUserForSlot(booking.start, booking.end, usersNow, company.timezone);
         if (!userId) throw new SlotTakenError();
         const lastAppt = await tx.appointment.findFirst({
           where: { companyId: company.id },
