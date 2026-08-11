@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import { confirmSheet } from "@/components/ConfirmSheet";
 import { hapticImpact } from "@/lib/haptics";
-import SendOverlay from "@/components/SendOverlay";
+import { showSendRitual } from "@/lib/send-ritual";
 
 type AgreementState = {
   signed: boolean;
@@ -59,7 +59,6 @@ export default function QuoteActions({
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
   const [sentTo, setSentTo] = useState("");
-  const [sendShow, setSendShow] = useState<string | null>(null);
   const [agreementOpen, setAgreementOpen] = useState(false);
   const [templateId, setTemplateId] = useState(agreement?.templates[0]?.id ?? "");
   const [agreementError, setAgreementError] = useState("");
@@ -109,7 +108,9 @@ export default function QuoteActions({
       }
       setSentTo(data?.to ?? contactEmail);
       hapticImpact("LIGHT");
-      setSendShow(data?.to ?? contactEmail);
+      // Body-attached on purpose — the refresh below swaps the action
+      // buttons and would kill any overlay held in this component's state
+      showSendRitual(data?.to ?? contactEmail);
     } finally {
       setBusy(false);
       router.refresh();
@@ -510,7 +511,6 @@ export default function QuoteActions({
           </div>
         </div>
       )}
-      <SendOverlay to={sendShow} onDone={() => setSendShow(null)} />
     </div>
   );
 }

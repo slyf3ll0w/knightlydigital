@@ -23,7 +23,7 @@ import { money } from "@/lib/statuses";
 import { confirmSheet } from "@/components/ConfirmSheet";
 import { hapticImpact } from "@/lib/haptics";
 import ChargeOverlay, { type ChargePhase } from "@/components/ChargeOverlay";
-import SendOverlay from "@/components/SendOverlay";
+import { showSendRitual } from "@/lib/send-ritual";
 
 type SavedCardOption = { id: string; label: string; isDefault: boolean };
 
@@ -64,7 +64,6 @@ export default function InvoiceActions({
   const [confirmText, setConfirmText] = useState("");
   const [deleteError, setDeleteError] = useState("");
   const [charge, setCharge] = useState<ChargePhase | null>(null);
-  const [sendShow, setSendShow] = useState<string | null>(null);
   const [pickOpen, setPickOpen] = useState(false);
   const [pickedId, setPickedId] = useState<string>("");
   const ref = useRef<HTMLDivElement>(null);
@@ -207,7 +206,9 @@ export default function InvoiceActions({
       }
       setSentTo(data?.to ?? contactEmail);
       hapticImpact("LIGHT");
-      setSendShow(data?.to ?? contactEmail);
+      // Body-attached on purpose — the refresh below swaps the action
+      // buttons and would kill any overlay held in this component's state
+      showSendRitual(data?.to ?? contactEmail);
     } finally {
       setBusy(false);
       router.refresh();
@@ -534,7 +535,6 @@ export default function InvoiceActions({
       )}
 
       <ChargeOverlay phase={charge} onDismiss={() => setCharge(null)} />
-      <SendOverlay to={sendShow} onDone={() => setSendShow(null)} />
     </div>
   );
 }
