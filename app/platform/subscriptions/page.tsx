@@ -3,12 +3,12 @@ import { prisma } from "@/lib/db";
 import { requirePageActor, canSeeMoney, isManager } from "@/lib/permissions";
 import SubscriptionsClient from "./SubscriptionsClient";
 
-export const metadata: Metadata = { title: "Subscriptions" };
+export const metadata: Metadata = { title: "Recurring" };
 
 export default async function SubscriptionsPage() {
   const actor = await requirePageActor((a) => canSeeMoney(a));
 
-  const [subs, team] = await Promise.all([
+  const [subs, team, readyJobs] = await Promise.all([
     prisma.subscription.findMany({
       where: { companyId: actor.companyId },
       include: {
@@ -32,11 +32,32 @@ export default async function SubscriptionsPage() {
       select: { id: true, name: true },
       orderBy: { name: "asc" },
     }),
+    // The Ready-to-bill queue: completed per-visit-series work nothing has
+    // invoiced yet (directly or via a consolidated invoice)
+    prisma.job.findMany({
+      where: {
+        companyId: actor.companyId,
+        completedAt: { not: null },
+        invoice: { is: null },
+        consolidatedInvoiceId: null,
+        subscription: { is: { billPerVisit: true, status: { not: "CANCELLED" } } },
+      },
+      select: {
+        id: true,
+        title: true,
+        completedAt: true,
+        scheduledAt: true,
+        contact: { select: { id: true, firstName: true, lastName: true } },
+        subscription: { select: { id: true, name: true, unitPrice: true, quantity: true } },
+      },
+      orderBy: { completedAt: "asc" },
+    }),
   ]);
 
   return (
     <SubscriptionsClient
       initialSubs={JSON.parse(JSON.stringify(subs))}
+      readyJobs={JSON.parse(JSON.stringify(readyJobs))}
       team={team}
       canManage={isManager(actor.role)}
     />

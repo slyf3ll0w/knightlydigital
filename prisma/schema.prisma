@@ -1871,6 +1871,11 @@ model Subscription {
   status      SubscriptionStatus @default(ACTIVE)
   // date-only, noon-anchored; the engine bills when due (null = never bills)
   nextRunDate DateTime?
+  // Stripe-style billing anchor: the day the plan's FIRST payment succeeded.
+  // Set once by recordPayment, which re-points nextRunDate so every later
+  // cycle lands on this day-of-month (clamped for short months). Null until
+  // the first payment lands (or forever, for pre-anchor legacy plans).
+  anchoredAt  DateTime?
   lastGeneratedAt DateTime? // guards against double-billing on repeated/overlapping runs
   // Saved service address generated visits land at (see Job.propertyId)
   propertyId  String?

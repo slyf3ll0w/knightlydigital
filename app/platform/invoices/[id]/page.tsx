@@ -8,6 +8,8 @@ import StatusChip from "@/components/StatusChip";
 import ViewedFact from "@/components/ViewedFact";
 import InvoiceActions from "./InvoiceActions";
 import { getProcessor } from "@/lib/payments";
+import { finixApplicationId, finixEnvironment } from "@/lib/finix";
+import type { FinixConfig } from "@/lib/finix-js";
 import { activityFor } from "@/lib/activity";
 import ActivityTrail from "@/components/ActivityTrail";
 import PaymentRow from "./PaymentRow";
@@ -55,6 +57,7 @@ export default async function InvoiceDetailPage({
   // goes down so the action can offer a pick when there's more than one.
   let chargeStoredLabel: string | null = null;
   let savedCards: { id: string; label: string; isDefault: boolean }[] = [];
+  let finixCfg: FinixConfig = null;
   if (
     isManager(actor.role) &&
     balance > 0 &&
@@ -67,6 +70,10 @@ export default async function InvoiceDetailPage({
       select: { finixMerchantId: true, finixOnboardingState: true },
     });
     if (gate?.finixMerchantId && gate.finixOnboardingState === "APPROVED") {
+      // Staff can also tokenize a NEW card right in the charge dialog
+      if (getProcessor().name === "finix") {
+        finixCfg = { applicationId: finixApplicationId(), environment: finixEnvironment() };
+      }
       savedCards = await prisma.savedCard.findMany({
         where: { contactId: invoice.contact.id },
         orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
@@ -128,6 +135,8 @@ export default async function InvoiceDetailPage({
           contactEmail={invoice.contact?.email ?? ""}
           chargeStoredLabel={chargeStoredLabel}
           savedCards={savedCards}
+          contactId={invoice.contact?.id ?? ""}
+          finix={finixCfg}
           balance={balance}
           reopenStatus={
             totalPaid > 0 && totalPaid >= Number(invoice.total) - 0.005

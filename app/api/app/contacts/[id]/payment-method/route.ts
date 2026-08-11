@@ -113,7 +113,9 @@ export async function POST(
     await reviveAutopayForContact(contact.id).catch((e) =>
       console.error("[contacts] autopay revive failed", e)
     );
-    return NextResponse.json({ saved: true, label });
+    // cardId lets save-then-charge flows (invoice "Charge Card" with a new
+    // card) charge exactly the card that was just vaulted
+    return NextResponse.json({ saved: true, label: added.card.label, cardId: added.card.id });
   } catch (err) {
     if (err instanceof finix.FinixError) {
       return NextResponse.json({ error: err.message }, { status: 402 });

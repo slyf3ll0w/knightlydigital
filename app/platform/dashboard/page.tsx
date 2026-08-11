@@ -16,6 +16,7 @@ import {
   LifeBuoy,
   Megaphone,
   Timer,
+  Repeat,
 } from "lucide-react";
 import { money, appointmentTypeLabel } from "@/lib/statuses";
 import { SECTION_HUES } from "@/lib/section-colors";
@@ -109,6 +110,7 @@ export default async function DashboardPage() {
     monthPayments,
     setupCompany,
     onClock,
+    readyToBill,
   ] = await Promise.all([
     prisma.request.count({ where: { companyId, ...leadScope, status: "NEW" } }),
     prisma.request.count({ where: { companyId, ...leadScope, status: "NEEDS_APPROVAL" } }),
@@ -168,6 +170,19 @@ export default async function DashboardPage() {
           orderBy: { startedAt: "asc" },
         })
       : Promise.resolve([]),
+    // Completed per-visit-series work waiting in the Ready-to-bill queue
+    seeMoney
+      ? prisma.job.findMany({
+          where: {
+            companyId,
+            completedAt: { not: null },
+            invoice: { is: null },
+            consolidatedInvoiceId: null,
+            subscription: { is: { billPerVisit: true, status: { not: "CANCELLED" } } },
+          },
+          select: { subscription: { select: { unitPrice: true, quantity: true } } },
+        })
+      : Promise.resolve([]),
   ]);
   const showSetupCard = isManager(actor.role) && setupCompany?.setupWizardAt == null;
 
@@ -193,7 +208,21 @@ export default async function DashboardPage() {
   // so a quiet day reads calm instead of showing a wall of zeros. Urgent
   // (money overdue) sorts first.
   const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
+  const readyToBillTotal = readyToBill.reduce(
+    (s, j) => s + (j.subscription ? Number(j.subscription.unitPrice) * Number(j.subscription.quantity) : 0),
+    0
+  );
   const needs = [
+    {
+      show: seeMoney,
+      count: readyToBill.length,
+      icon: Repeat,
+      hue: SECTION_HUES.subscriptions,
+      title: plural(readyToBill.length, "Visit ready to bill", "Visits ready to bill"),
+      action: `Bill ${money(readyToBillTotal)} in one click`,
+      href: "/app/subscriptions",
+      urgent: false,
+    },
     {
       show: sell,
       count: needsApprovalRequests,

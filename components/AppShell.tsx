@@ -163,7 +163,7 @@ const navGroups: { label?: string; items: NavItem[] }[] = [
       { href: "/app/timesheets", label: "Timesheets", icon: Timer, show: (r) => !isManagerRole(r) && r !== "SALES" },
       { href: "/app/invoices", label: "Invoices", icon: Receipt, show: moneyRoles },
       { href: "/app/payments", label: "Payments", icon: DollarSign, show: moneyRoles },
-      { href: "/app/subscriptions", label: "Subscriptions", icon: Repeat, show: moneyRoles },
+      { href: "/app/subscriptions", label: "Recurring", icon: Repeat, show: moneyRoles },
     ],
   },
   {

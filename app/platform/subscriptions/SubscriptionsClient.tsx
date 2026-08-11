@@ -81,12 +81,29 @@ function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
+type ReadyJob = {
+  id: string;
+  title: string;
+  completedAt: string | null;
+  scheduledAt: string | null;
+  contact: { id: string; firstName: string; lastName: string };
+  subscription: {
+    id: string;
+    name: string;
+    unitPrice: number | string;
+    quantity: number | string;
+  } | null;
+};
+
 export default function SubscriptionsClient({
   initialSubs,
+  readyJobs = [],
   team,
   canManage,
 }: {
   initialSubs: Sub[];
+  /** Completed per-visit-series work nothing has invoiced yet. */
+  readyJobs?: ReadyJob[];
   team: { id: string; name: string }[];
   canManage: boolean;
 }) {
@@ -234,13 +251,52 @@ export default function SubscriptionsClient({
     setTimeout(() => setFlash(""), 6000);
   }
 
+  const [billingReady, setBillingReady] = useState(false);
+  const [readyBilled, setReadyBilled] = useState(false);
+
+  async function billReady() {
+    setBillingReady(true);
+    setError("");
+    const { ok, data } = await postJson<{ invoices?: number; charged?: number }>(
+      "/api/app/subscriptions/bill-ready",
+      {},
+      "POST"
+    );
+    setBillingReady(false);
+    if (!ok) {
+      setError((data as { error?: string })?.error ?? GENERIC_ERROR);
+      return;
+    }
+    setReadyBilled(true);
+    const n = data?.invoices ?? 0;
+    const charged = data?.charged ?? 0;
+    setFlash(
+      `${n} invoice${n === 1 ? "" : "s"} created${charged > 0 ? `, ${charged} charged to cards on file` : ""}. Refresh to see them.`
+    );
+    setTimeout(() => setFlash(""), 8000);
+  }
+
+  // Ready-to-bill queue, grouped per client
+  const readyGroups = (() => {
+    const byContact = new Map<string, { contact: ReadyJob["contact"]; jobs: ReadyJob[]; total: number }>();
+    for (const j of readyJobs) {
+      if (!j.subscription) continue;
+      const g = byContact.get(j.contact.id) ?? { contact: j.contact, jobs: [], total: 0 };
+      g.jobs.push(j);
+      g.total += Number(j.subscription.unitPrice) * Number(j.subscription.quantity);
+      byContact.set(j.contact.id, g);
+    }
+    return Array.from(byContact.values());
+  })();
+  const readyTotal = readyGroups.reduce((s, g) => s + g.total, 0);
+
   const active = subs.filter((s) => s.status !== "CANCELLED");
   const cancelled = subs.filter((s) => s.status === "CANCELLED");
 
   return (
     <div className="p-4 lg:p-8 max-w-4xl mx-auto">
       <div className="flex items-center justify-between gap-3 mb-1">
-        <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">Subscriptions</h1>
+        <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">Recurring</h1>
         {canManage && (
           <div className="flex items-center gap-2">
             {active.length > 0 && (
@@ -265,8 +321,7 @@ export default function SubscriptionsClient({
         )}
       </div>
       <p className="text-sm text-gray-500 mb-6">
-        Recurring work and billing. A series can schedule repeat visits, auto-generate
-        invoices, or both.
+        Monthly plans that auto-charge, and per-job series billed for completed work.
       </p>
 
       {error && (
@@ -274,6 +329,55 @@ export default function SubscriptionsClient({
       )}
       {flash && (
         <div className="mb-4 px-4 py-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">{flash}</div>
+      )}
+
+      {/* Ready to bill — completed per-job work nothing has invoiced yet.
+          Billing it here is the whole per-job model: click daily for
+          per-visit invoices, click on the 1st for one monthly invoice. */}
+      {readyGroups.length > 0 && !readyBilled && (
+        <div className="card-ledger mb-6 overflow-hidden">
+          <div className="flex flex-wrap items-center justify-between gap-3 px-4 lg:px-5 py-3.5 border-b border-gray-100 bg-green-50/50">
+            <div>
+              <p className="text-sm font-semibold text-gray-900">
+                Ready to bill{" "}
+                <span className="numeral-ledger">{money(readyTotal)}</span>
+              </p>
+              <p className="text-xs text-gray-500">
+                {readyJobs.length} completed visit{readyJobs.length === 1 ? "" : "s"} across{" "}
+                {readyGroups.length} client{readyGroups.length === 1 ? "" : "s"} — one invoice
+                per series, charged to cards on file automatically.
+              </p>
+            </div>
+            {canManage && (
+              <button
+                onClick={billReady}
+                disabled={billingReady}
+                className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors disabled:opacity-50"
+              >
+                {billingReady && <Loader2 size={13} className="animate-spin" />}
+                Bill Ready Work
+              </button>
+            )}
+          </div>
+          <div className="divide-y divide-gray-100">
+            {readyGroups.map((g) => (
+              <div key={g.contact.id} className="px-4 lg:px-5 py-2.5 flex items-center gap-3 text-sm">
+                <Link
+                  href={`/app/contacts/${g.contact.id}`}
+                  className="min-w-0 flex-1 truncate text-gray-800 hover:underline"
+                >
+                  {g.contact.firstName} {g.contact.lastName}
+                </Link>
+                <span className="text-xs text-gray-500">
+                  {g.jobs.length} visit{g.jobs.length === 1 ? "" : "s"}
+                </span>
+                <span className="numeral-ledger text-sm font-semibold text-gray-900">
+                  {money(g.total)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
 
       {subs.length === 0 ? (
@@ -550,11 +654,9 @@ export default function SubscriptionsClient({
                         </Link>
                         {" · "}
                         {s.interval
-                          ? INTERVAL_LABEL[s.interval]
+                          ? `${INTERVAL_LABEL[s.interval]} plan`
                           : s.billPerVisit
-                            ? s.consolidateMonthly
-                              ? "Per visit, billed monthly"
-                              : "Billed per visit"
+                            ? "Per-job billing"
                             : "Recurring job"}
                         {s.visitFrequency && (
                           <span className="text-green-700">
@@ -667,9 +769,15 @@ export default function SubscriptionsClient({
                         </Link>
                         {" · "}
                         {s.interval
-                          ? `${INTERVAL_LABEL[s.interval]} · ${money(Number(s.unitPrice) * Number(s.quantity))}`
+                          ? `${INTERVAL_LABEL[s.interval]} plan · ${money(Number(s.unitPrice) * Number(s.quantity))}`
                           : s.billPerVisit
-                            ? `${money(Number(s.unitPrice) * Number(s.quantity))} per visit${s.consolidateMonthly ? " · billed monthly" : ""}`
+                            ? `${money(Number(s.unitPrice) * Number(s.quantity))} per visit${
+                                s.consolidateMonthly
+                                  ? s.nextRunDate
+                                    ? " · billed monthly"
+                                    : " · bills from the ready queue"
+                                  : " · bills on completion"
+                              }`
                             : "Recurring job — no billing"}
                         {s.visitFrequency && (
                           <span className="text-green-700">

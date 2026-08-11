@@ -21,7 +21,7 @@ import {
   Clock,
   DollarSign,
 } from "lucide-react";
-import { confirmSheet } from "@/components/ConfirmSheet";
+import { confirmSheet, alertSheet } from "@/components/ConfirmSheet";
 import { hapticImpact } from "@/lib/haptics";
 import { showSendRitual } from "@/lib/send-ritual";
 
@@ -103,7 +103,7 @@ export default function QuoteActions({
       const res = await fetch(`/api/app/quotes/${quoteId}/send`, { method: "POST" });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
-        alert(data?.error ?? "Couldn't send the quote.");
+        alertSheet({ message: data?.error ?? "Couldn't send the quote." });
         return;
       }
       setSentTo(data?.to ?? contactEmail);
@@ -127,7 +127,7 @@ export default function QuoteActions({
         router.push(`/app/jobs/${data.id}`);
         return;
       }
-      if (data?.error) alert(data.error);
+      if (data?.error) alertSheet({ message: data.error });
       router.refresh();
     } finally {
       setBusy(false);
@@ -163,7 +163,7 @@ export default function QuoteActions({
       const res = await fetch(`/api/app/quotes/${quoteId}/collect-deposit`, { method: "POST" });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
-        alert(data?.error ?? "Couldn't create the deposit invoice.");
+        alertSheet({ message: data?.error ?? "Couldn't create the deposit invoice." });
         return;
       }
       if (data?.invoiceId) {
@@ -199,7 +199,7 @@ export default function QuoteActions({
         return;
       }
       const data = await res.json().catch(() => null);
-      alert(data?.error ?? "Couldn't delete this quote.");
+      alertSheet({ message: data?.error ?? "Couldn't delete this quote." });
     } finally {
       setBusy(false);
     }
@@ -214,7 +214,7 @@ export default function QuoteActions({
     const res = await fetch(`/api/app/quotes/${quoteId}/duplicate`, { method: "POST" });
     const data = await res.json().catch(() => null);
     if (!res.ok || !data?.id) {
-      alert(data?.error ?? "Couldn't duplicate the quote.");
+      alertSheet({ message: data?.error ?? "Couldn't duplicate the quote." });
       return;
     }
     router.push(`/app/quotes/${data.id}`);

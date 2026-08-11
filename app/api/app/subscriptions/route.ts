@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, canSeeMoney, isManager, contactScope } from "@/lib/permissions";
-import { firstRunDate, firstOfNextMonth, generateDueVisits } from "@/lib/subscriptions";
+import {
+  firstRunDate,
+  firstOfNextMonth,
+  generateDueVisits,
+  billSubscriptionNow,
+} from "@/lib/subscriptions";
+import { inPreview } from "@/lib/preview";
 
 /** GET — recurring subscriptions for the company (money-visible roles). */
 export async function GET() {
@@ -19,6 +25,13 @@ export async function GET() {
 
 const validIntervals = ["MONTHLY", "QUARTERLY", "SEMIANNUAL", "ANNUAL"];
 const validFrequencies = ["WEEKLY", "BIWEEKLY", "MONTHLY", "QUARTERLY", "ANNUALLY"];
+
+/** Noon-anchored today — makes a new plan's first cycle due immediately. */
+function noonToday(): Date {
+  const d = new Date();
+  d.setHours(12, 0, 0, 0);
+  return d;
+}
 
 /**
  * POST — create a recurring series directly (until now they only came from
@@ -58,6 +71,11 @@ export async function POST(req: NextRequest) {
   const bills = Boolean(body.interval);
   const perVisit = body.billPerVisit === true;
   const consolidate = perVisit && body.consolidateMonthly === true;
+  // Per-job queue mode: completed visits accumulate in the Ready-to-bill
+  // queue instead of invoicing on completion; only the owner's "Bill ready
+  // work" (or per-series Bill now) bills them. Modeled as consolidateMonthly
+  // WITHOUT a monthly cursor, so the cron sweep never picks it up.
+  const holdForReview = perVisit && body.holdForReview === true;
   if (bills && perVisit) {
     return NextResponse.json(
       { error: "Pick scheduled billing or per-visit billing, not both." },
@@ -150,6 +168,7 @@ export async function POST(req: NextRequest) {
         })
       : null;
 
+  const preview = await inPreview(companyId);
   const sub = await prisma.subscription.create({
     data: {
       companyId,
@@ -161,10 +180,21 @@ export async function POST(req: NextRequest) {
       unitPrice: Math.round(unitPrice * 100) / 100,
       quantity: 1,
       interval: bills ? body.interval : null,
-      // Consolidated per-visit series bill on the 1st — nextRunDate is their cursor
-      nextRunDate: bills ? firstRunDate(body.interval) : consolidate ? firstOfNextMonth() : null,
+      // Plans bill their first cycle immediately (noon today) — the day the
+      // first payment SUCCEEDS then becomes the recurring anchor (see
+      // anchorPlanFromFirstPayment). Preview-mode companies can't invoice,
+      // so they keep the old one-interval-out start. Legacy consolidated
+      // series bill on the 1st — nextRunDate is their cursor; queue-mode
+      // series have no cursor at all.
+      nextRunDate: bills
+        ? preview
+          ? firstRunDate(body.interval)
+          : noonToday()
+        : consolidate
+          ? firstOfNextMonth()
+          : null,
       billPerVisit: perVisit,
-      consolidateMonthly: consolidate,
+      consolidateMonthly: consolidate || holdForReview,
       invoiceMode: body.invoiceMode === "DRAFT" ? "DRAFT" : "SEND",
       propertyId: property?.id ?? null,
       visitFrequency: frequency,
@@ -178,8 +208,23 @@ export async function POST(req: NextRequest) {
   // Put the first visits on the calendar right away
   const visits = frequency ? await generateDueVisits(new Date(), companyId) : null;
 
+  // Plans: mint (and auto-charge) the first invoice right now — signing a
+  // client up should feel like something happened. The day this payment
+  // SUCCEEDS becomes the recurring anchor.
+  let firstBill: "billed" | "drafted" | "charged" | "empty" | null = null;
+  if (bills && !preview) {
+    firstBill = await billSubscriptionNow(sub.id, companyId).catch((e) => {
+      console.error("[subscriptions] first cycle failed for", sub.id, e);
+      return null;
+    });
+  }
+
   return NextResponse.json(
-    { ...JSON.parse(JSON.stringify(sub)), visitsCreated: visits?.visitsCreated ?? 0 },
+    {
+      ...JSON.parse(JSON.stringify(sub)),
+      visitsCreated: visits?.visitsCreated ?? 0,
+      firstBill,
+    },
     { status: 201 }
   );
 }

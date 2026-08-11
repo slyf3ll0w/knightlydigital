@@ -396,8 +396,23 @@ export async function recordPayment(params: RecordPaymentParams) {
       await recomputeDepositApplied(tx, invoice.quoteId);
     }
 
-    return { payment, fullyPaid, invoiceNumber: invoice.invoiceNumber };
+    return {
+      payment,
+      fullyPaid,
+      invoiceNumber: invoice.invoiceNumber,
+      subscriptionId: invoice.subscriptionId,
+    };
   });
+
+  // Stripe-style billing anchor: a plan's FIRST successful payment sets the
+  // day-of-month all future cycles land on. Whoever pays — auto-charge, pay
+  // link, or a manually recorded check — funnels through here, so the anchor
+  // is set exactly once, from real money.
+  if (result.fullyPaid && result.subscriptionId) {
+    anchorPlanFromFirstPayment(result.subscriptionId, params.paidAt ?? new Date()).catch((e) =>
+      console.error("[payments] plan anchor failed", e)
+    );
+  }
 
   // Push the good news to the owner(s) — covers online /pay payments,
   // subscription auto-charges, and payments a teammate recorded.
@@ -437,6 +452,38 @@ export async function recordPayment(params: RecordPaymentParams) {
   }
 
   return { payment: result.payment, fullyPaid: result.fullyPaid };
+}
+
+/**
+ * Anchor a scheduled plan to its first successful payment: stamp anchoredAt
+ * and re-point nextRunDate one interval out from the payment day, so every
+ * later cycle lands on that day-of-month. One-shot — an already-anchored (or
+ * non-interval) subscription is left alone. Month math mirrors
+ * lib/subscriptions.ts addInterval/addMonthsClamped; duplicated here because
+ * importing lib/subscriptions from this file would create an import cycle
+ * (subscriptions → auto-charge → payments).
+ */
+async function anchorPlanFromFirstPayment(subscriptionId: string, paidAt: Date): Promise<void> {
+  const sub = await prisma.subscription.findUnique({
+    where: { id: subscriptionId },
+    select: { interval: true, anchoredAt: true },
+  });
+  if (!sub?.interval || sub.anchoredAt) return;
+
+  const anchor = new Date(paidAt);
+  anchor.setHours(12, 0, 0, 0); // noon-anchored like every engine date
+  const months = { MONTHLY: 1, QUARTERLY: 3, SEMIANNUAL: 6, ANNUAL: 12 }[sub.interval];
+  const next = new Date(anchor);
+  const targetDay = next.getDate();
+  next.setDate(1); // avoid transient overflow while shifting the month
+  next.setMonth(next.getMonth() + months);
+  const lastDay = new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate();
+  next.setDate(Math.min(targetDay, lastDay));
+
+  await prisma.subscription.update({
+    where: { id: subscriptionId },
+    data: { anchoredAt: anchor, nextRunDate: next },
+  });
 }
 
 /** Email the client a receipt for a payment just recorded on their invoice. */

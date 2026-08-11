@@ -7,7 +7,7 @@ import {
   AlertTriangle, Archive, ArchiveRestore, Loader2, MoreHorizontal, Pencil, Trash2, X,
 } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
-import { confirmSheet } from "@/components/ConfirmSheet";
+import { confirmSheet, alertSheet } from "@/components/ConfirmSheet";
 
 /**
  * The client page's ⋯ menu: Edit / Archive ⇄ Reactivate / Delete.
@@ -90,7 +90,7 @@ export default function ContactActionsMenu({
     const { ok, data } = await postJson(`/api/app/contacts/${contactId}`, { status: next }, "PATCH");
     setBusy(false);
     if (!ok) {
-      alert(data?.error ?? GENERIC_ERROR);
+      alertSheet({ message: data?.error ?? GENERIC_ERROR });
       return;
     }
     router.refresh();

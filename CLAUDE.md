@@ -309,6 +309,21 @@ EMAIL_DOMAINS_ENABLED=   # "1" to enable
 
 ## Recurring subscriptions
 
+**The user-facing model (2026-08-11 redesign) is TWO products** on the
+/app/subscriptions page (nav label "Recurring"): a **Monthly plan** (flat
+auto-charge: first invoice + charge at creation, then anchored to the day the
+first payment SUCCEEDS — `Subscription.anchoredAt`, set once by
+`anchorPlanFromFirstPayment` in lib/payments.ts, which re-points nextRunDate)
+and **Per-job billing** (per-visit price; completed visits either bill on
+completion or wait in the **Ready-to-bill queue** — pool = completed + no
+direct invoice + no consolidatedInvoiceId — billed by `billAllReadyWork` via
+POST /api/app/subscriptions/bill-ready, per-series "Bill now", or the legacy
+monthly cursor). Queue mode = `billPerVisit + consolidateMonthly + nextRunDate
+null` (the cron consolidation sweep requires a cursor, so it never touches
+queue series). The dashboard "Needs you" list surfaces the queue total. The
+machinery below (interval billing, billPerVisit, consolidateMonthly cursor,
+autopay/retries) is unchanged plumbing under this two-product surface.
+
 Services in the price book (Settings → Products & Services) can be marked recurring
 (monthly / quarterly / every 6 months / annually). Selling a recurring service —
 through a quote→job conversion, a direct invoice, or a web-form service request —

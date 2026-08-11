@@ -17,13 +17,15 @@ import {
   FileDown,
   Archive,
   X,
+  CreditCard,
 } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { money } from "@/lib/statuses";
-import { confirmSheet } from "@/components/ConfirmSheet";
+import { confirmSheet, alertSheet } from "@/components/ConfirmSheet";
 import { hapticImpact } from "@/lib/haptics";
 import ChargeOverlay, { type ChargePhase } from "@/components/ChargeOverlay";
 import { showSendRitual } from "@/lib/send-ritual";
+import { FINIX_JS_SRC, type FinixConfig, type FinixForm } from "@/lib/finix-js";
 
 type SavedCardOption = { id: string; label: string; isDefault: boolean };
 
@@ -39,6 +41,8 @@ export default function InvoiceActions({
   savedCards = [],
   balance = 0,
   reopenStatus = "DRAFT",
+  contactId = "",
+  finix = null,
 }: {
   invoiceId: string;
   status: string;
@@ -54,6 +58,10 @@ export default function InvoiceActions({
   balance?: number;
   /** Where "Reopen" lands an archived invoice (computed from its payments). */
   reopenStatus?: string;
+  /** The invoice's client — needed to vault a NEW card at charge time. */
+  contactId?: string;
+  /** finix.js config when the company can tokenize cards staff-side. */
+  finix?: FinixConfig;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -66,7 +74,73 @@ export default function InvoiceActions({
   const [charge, setCharge] = useState<ChargePhase | null>(null);
   const [pickOpen, setPickOpen] = useState(false);
   const [pickedId, setPickedId] = useState<string>("");
+  // New-card entry inside the charge dialog (finix.js tokenization, same
+  // pattern as the contact page's SavedCardsCard — numbers never touch us)
+  const [scriptReady, setScriptReady] = useState(false);
+  const [formHasErrors, setFormHasErrors] = useState(true);
+  const [savingCard, setSavingCard] = useState(false);
+  const [cardError, setCardError] = useState("");
+  const finixFormRef = useRef<FinixForm | null>(null);
+  const finixContainerRef = useRef<HTMLDivElement>(null);
   const ref = useRef<HTMLDivElement>(null);
+
+  // The chargeable options: SavedCard rows, or the legacy single-card mirror
+  const cardOptions: SavedCardOption[] =
+    savedCards.length > 0
+      ? savedCards
+      : chargeStoredLabel
+        ? [{ id: "", label: chargeStoredLabel, isDefault: true }]
+        : [];
+  const canNewCard = Boolean(finix && contactId);
+  const canChargeCard = balance > 0 && (cardOptions.length > 0 || canNewCard);
+
+  useEffect(() => {
+    if (!finix || !pickOpen || pickedId !== "new") return;
+    if (window.Finix) {
+      setScriptReady(true);
+      return;
+    }
+    const existing = document.querySelector(`script[src="${FINIX_JS_SRC}"]`);
+    const script = existing ?? document.createElement("script");
+    const onLoad = () => setScriptReady(true);
+    script.addEventListener("load", onLoad);
+    if (!existing) {
+      (script as HTMLScriptElement).src = FINIX_JS_SRC;
+      document.head.appendChild(script);
+    }
+    return () => script.removeEventListener("load", onLoad);
+  }, [finix, pickOpen, pickedId]);
+
+  useEffect(() => {
+    if (!finix || !pickOpen || pickedId !== "new" || !scriptReady || !window.Finix || !finixContainerRef.current)
+      return;
+    finixContainerRef.current.innerHTML = "";
+    setFormHasErrors(true);
+    finixFormRef.current = window.Finix.PaymentForm(
+      finixContainerRef.current,
+      finix.environment,
+      finix.applicationId,
+      {
+        paymentMethods: ["card"],
+        showLabels: true,
+        showPlaceholders: true,
+        showAddress: false,
+        requiredFields: ["card_holder_name"],
+        onUpdate: (_state: unknown, _bin: unknown, hasErrors: boolean) => {
+          setFormHasErrors(hasErrors);
+        },
+        styles: {
+          default: {
+            input: {
+              default: { border: "1px solid #D1D5DB", borderRadius: "8px", fontSize: "14px" },
+              focused: { border: "1px solid #22C55E", boxShadow: "0 0 0 2px rgba(34,197,94,0.25)" },
+              error: { border: "1px solid #F87171" },
+            },
+          },
+        },
+      }
+    );
+  }, [finix, pickOpen, pickedId, scriptReady]);
 
   useEffect(() => {
     function onClick(e: MouseEvent) {
@@ -95,7 +169,7 @@ export default function InvoiceActions({
       });
       if (!res.ok) {
         const data = await res.json().catch(() => null);
-        alert(data?.error ?? "Couldn't update the invoice.");
+        alertSheet({ message: data?.error ?? "Couldn't update the invoice." });
       }
     } finally {
       setBusy(false);
@@ -115,7 +189,7 @@ export default function InvoiceActions({
     const res = await fetch(`/api/app/invoices/${invoiceId}/duplicate`, { method: "POST" });
     const data = await res.json().catch(() => null);
     if (!res.ok || !data?.id) {
-      alert(data?.error ?? "Couldn't duplicate the invoice.");
+      alertSheet({ message: data?.error ?? "Couldn't duplicate the invoice." });
       return;
     }
     router.push(`/app/invoices/${data.id}`);
@@ -134,27 +208,51 @@ export default function InvoiceActions({
     if (ok) await setStatus("ARCHIVED");
   }
 
-  // Charge the remaining balance to a card on the client's file. One card →
-  // straight to confirm; several → pick which first.
-  async function chargeStored() {
+  // Charge the remaining balance to a card: the dialog lists the client's
+  // saved cards plus "New card" (tokenized in place), and its Charge button
+  // IS the confirmation — amount and card are both on screen.
+  function openChargeDialog() {
     setOpen(false);
-    if (savedCards.length > 1) {
-      setPickedId(savedCards.find((c) => c.isDefault)?.id ?? savedCards[0].id);
-      setPickOpen(true);
-      return;
-    }
-    const only = savedCards[0] ?? null;
-    await confirmAndCharge(only?.id ?? null, only?.label ?? chargeStoredLabel ?? "saved card");
+    setCardError("");
+    setPickedId(
+      cardOptions.find((c) => c.isDefault)?.id ??
+        cardOptions[0]?.id ??
+        (canNewCard ? "new" : "")
+    );
+    setPickOpen(true);
   }
 
-  async function confirmAndCharge(cardId: string | null, label: string) {
-    const ok = await confirmSheet({
-      title: "Charge card on file?",
-      message: `${money(balance)} will be charged to ${label} right now. No card surcharge is applied to stored charges.`,
-      confirmLabel: `Charge ${money(balance)}`,
-    });
-    if (!ok) return;
-    runCharge(cardId, label);
+  function chargeSelected() {
+    if (pickedId === "new") {
+      if (!finixFormRef.current) return;
+      setCardError("");
+      setSavingCard(true);
+      finixFormRef.current.submit(async (err, res) => {
+        const paymentToken = res?.data?.id;
+        if (err || !paymentToken) {
+          setSavingCard(false);
+          setCardError("Please check the card details and try again.");
+          return;
+        }
+        // Vault first (no charge), then charge exactly the vaulted card —
+        // it lands on file for autopay/next time as a bonus.
+        const r = await fetch(`/api/app/contacts/${contactId}/payment-method`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ paymentToken }),
+        });
+        const data = await r.json().catch(() => null);
+        setSavingCard(false);
+        if (!r.ok) {
+          setCardError(data?.error ?? "Couldn't save the card. Please try again.");
+          return;
+        }
+        runCharge(data?.cardId ?? null, data?.label ?? "new card");
+      });
+      return;
+    }
+    const card = cardOptions.find((c) => c.id === pickedId);
+    if (card) runCharge(card.id || null, card.label);
   }
 
   // The terminal ritual: processing overlay (minimum on-screen beat so even
@@ -201,7 +299,7 @@ export default function InvoiceActions({
       const res = await fetch(`/api/app/invoices/${invoiceId}/send`, { method: "POST" });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
-        alert(data?.error ?? "Couldn't send the invoice.");
+        alertSheet({ message: data?.error ?? "Couldn't send the invoice." });
         return;
       }
       setSentTo(data?.to ?? contactEmail);
@@ -285,15 +383,24 @@ export default function InvoiceActions({
             Mark as Sent
           </button>
         ))}
-      {(status === "AWAITING_PAYMENT" || status === "PAST_DUE") && (
-        <button
-          onClick={() => router.push(`/app/payments/new?invoiceId=${invoiceId}`)}
-          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors"
-        >
-          <DollarSign size={13} />
-          Collect Payment
-        </button>
-      )}
+      {(status === "AWAITING_PAYMENT" || status === "PAST_DUE") &&
+        (canChargeCard ? (
+          <button
+            onClick={openChargeDialog}
+            className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors"
+          >
+            <CreditCard size={13} />
+            Charge Card
+          </button>
+        ) : (
+          <button
+            onClick={() => router.push(`/app/payments/new?invoiceId=${invoiceId}`)}
+            className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors"
+          >
+            <DollarSign size={13} />
+            Collect Payment
+          </button>
+        ))}
       {status === "PAID" && (
         <button
           onClick={() => setStatus("AWAITING_PAYMENT")}
@@ -347,13 +454,15 @@ export default function InvoiceActions({
               <FileDown size={14} className="text-gray-400" />
               Download PDF
             </a>
-            {chargeStoredLabel && balance > 0 && (
+            {canChargeCard && status !== "AWAITING_PAYMENT" && status !== "PAST_DUE" && (
               <button
-                onClick={chargeStored}
+                onClick={openChargeDialog}
                 className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
               >
-                <DollarSign size={14} className="text-gray-400" />
-                <span className="truncate">Charge card on file ({chargeStoredLabel})</span>
+                <CreditCard size={14} className="text-gray-400" />
+                <span className="truncate">
+                  {chargeStoredLabel ? `Charge card on file (${chargeStoredLabel})` : "Charge a card"}
+                </span>
               </button>
             )}
             <button
@@ -389,7 +498,7 @@ export default function InvoiceActions({
                   className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
                 >
                   <DollarSign size={14} className="text-gray-400" />
-                  Collect Payment
+                  {canChargeCard ? "Collect other payment" : "Collect Payment"}
                 </button>
               </>
             )}
@@ -487,21 +596,25 @@ export default function InvoiceActions({
 
       {pickOpen && (
         <div className="modal-pop fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setPickOpen(false)} />
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => !savingCard && setPickOpen(false)}
+          />
           <div className="modal-card relative w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
             <div className="flex items-start justify-between mb-3">
-              <h2 className="text-lg font-bold text-gray-900">Which card?</h2>
+              <h2 className="text-lg font-bold text-gray-900">Charge Card</h2>
               <button
                 onClick={() => setPickOpen(false)}
+                disabled={savingCard}
                 className="p-1 text-gray-400 hover:text-gray-600"
               >
                 <X size={16} />
               </button>
             </div>
             <div className="space-y-2 mb-4">
-              {savedCards.map((card) => (
+              {cardOptions.map((card) => (
                 <label
-                  key={card.id}
+                  key={card.id || "legacy"}
                   className={`flex items-center gap-3 rounded-lg border px-3.5 py-3 cursor-pointer transition-colors ${
                     pickedId === card.id
                       ? "border-green-500 bg-green-50"
@@ -516,20 +629,73 @@ export default function InvoiceActions({
                     className="accent-green-600"
                   />
                   <span className="flex-1 text-sm text-gray-800">{card.label}</span>
-                  {card.isDefault && <span className="text-xs text-gray-400">Default</span>}
+                  {card.isDefault && cardOptions.length > 1 && (
+                    <span className="text-xs text-gray-400">Default</span>
+                  )}
                 </label>
               ))}
+              {canNewCard && (
+                <label
+                  className={`flex items-center gap-3 rounded-lg border px-3.5 py-3 cursor-pointer transition-colors ${
+                    pickedId === "new"
+                      ? "border-green-500 bg-green-50"
+                      : "border-gray-200 hover:bg-gray-50"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="charge-card"
+                    checked={pickedId === "new"}
+                    onChange={() => setPickedId("new")}
+                    className="accent-green-600"
+                  />
+                  <span className="flex-1 text-sm text-gray-800 flex items-center gap-2">
+                    <CreditCard size={14} className="text-gray-400" />
+                    New card…
+                  </span>
+                </label>
+              )}
             </div>
+
+            {pickedId === "new" && (
+              <div className="mb-4">
+                {cardError && (
+                  <div className="mb-3 px-3 py-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+                    {cardError}
+                  </div>
+                )}
+                <div ref={finixContainerRef} />
+                {!scriptReady && (
+                  <div className="flex items-center justify-center gap-2 py-6 text-xs text-gray-400">
+                    <Loader2 size={13} className="animate-spin" />
+                    Loading secure card form…
+                  </div>
+                )}
+                <p className="mt-2 text-[11px] text-gray-400">
+                  Card details go straight to the payment processor — they never touch this
+                  server. The card is saved to the client&apos;s file for next time.
+                </p>
+                {finix?.environment === "sandbox" && (
+                  <p className="mt-1 text-[11px] text-amber-600">Test mode — no real cards.</p>
+                )}
+              </div>
+            )}
+
             <button
-              onClick={() => {
-                const card = savedCards.find((c) => c.id === pickedId);
-                if (card) confirmAndCharge(card.id, card.label);
-              }}
-              className="w-full flex items-center justify-center gap-1.5 px-4 py-2.5 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded-[10px] transition-colors"
+              onClick={chargeSelected}
+              disabled={
+                savingCard ||
+                !pickedId ||
+                (pickedId === "new" && (!scriptReady || formHasErrors))
+              }
+              className="w-full flex items-center justify-center gap-1.5 px-4 py-2.5 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded-[10px] transition-colors disabled:opacity-40"
             >
-              <DollarSign size={13} />
+              {savingCard ? <Loader2 size={13} className="animate-spin" /> : <DollarSign size={13} />}
               Charge {money(balance)}
             </button>
+            <p className="mt-2 text-center text-[11px] text-gray-400">
+              Charged right now — no card surcharge on stored charges.
+            </p>
           </div>
         </div>
       )}

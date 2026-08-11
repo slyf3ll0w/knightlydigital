@@ -484,115 +484,135 @@ export async function billCompletedVisit(
 
 // ─── Monthly consolidation (per-visit pricing, one invoice a month) ──────────
 
+/** Sentinel: a concurrent run claimed the whole pool while we were minting. */
+const POOL_ALREADY_CLAIMED = new Error("pool-already-claimed");
+
 /**
- * Bill one consolidated series: every completed, never-invoiced visit in the
- * pool becomes a dated line on a single invoice ("the cleaning-service
- * invoice" — April, 4 visits, $340). The nextRunDate claim + invoice commit
- * first in one transaction (same optimistic-claim idempotency as
- * generateCycle); the charge happens post-commit. "empty" = the cycle came
- * due with nothing to bill — the cursor still advances so the series just
- * waits for next month.
+ * Bill a per-visit series' unbilled pool: every completed, never-invoiced
+ * visit becomes a dated line on ONE invoice ("the cleaning-service invoice" —
+ * April, 4 visits, $340). Shared by the monthly cron cursor, the "Bill now"
+ * button, and the Ready-to-bill batch — none of them can double-bill: the
+ * invoice claims its visits via Job.consolidatedInvoiceId inside the
+ * transaction, so a visit only ever lands on one invoice. The charge happens
+ * post-commit. "empty" = nothing completed and unbilled.
  */
-async function consolidateCycle(
+async function billSeriesPool(
   sub: DueSub,
   now: Date
 ): Promise<"charged" | "billed" | "drafted" | "empty"> {
-  if (!sub.billPerVisit || !sub.consolidateMonthly) return "empty";
+  if (!sub.billPerVisit) return "empty";
   const perVisit = Number(sub.unitPrice) * Number(sub.quantity);
   const send = sub.invoiceMode === "SEND";
 
-  const cycle = await withDocNumberRetry(() => prisma.$transaction(async (tx) => {
-    const fresh = await tx.subscription.findUnique({
-      where: { id: sub.id },
-      select: { nextRunDate: true, status: true },
-    });
-    if (!fresh || fresh.status !== "ACTIVE" || !fresh.nextRunDate || fresh.nextRunDate > now) {
-      return null; // already handled by a concurrent run
-    }
-    const claimed = await tx.subscription.updateMany({
-      where: { id: sub.id, status: "ACTIVE", nextRunDate: fresh.nextRunDate },
-      data: { nextRunDate: firstOfNextMonth(now), lastGeneratedAt: now },
-    });
-    if (claimed.count === 0) return null;
-
-    // The unbilled pool: completed visits with no invoice of their own and
-    // no consolidated invoice yet. A visit staff invoiced manually left the
-    // pool the moment its direct invoice existed.
-    const visits = await tx.job.findMany({
-      where: {
-        subscriptionId: sub.id,
-        companyId: sub.companyId,
-        completedAt: { not: null, lte: now },
-        invoice: null,
-        consolidatedInvoiceId: null,
-      },
-      select: { id: true, status: true, scheduledAt: true, completedAt: true },
-      orderBy: [{ scheduledAt: "asc" }, { completedAt: "asc" }],
-    });
-    if (visits.length === 0) return { empty: true as const };
-
-    const total = Math.round(perVisit * visits.length * 100) / 100;
-    const lastInv = await tx.invoice.findFirst({
-      where: { companyId: sub.companyId },
-      orderBy: { invoiceNumber: "desc" },
-      select: { invoiceNumber: true },
-    });
-    const invoice = await tx.invoice.create({
-      data: {
-        companyId: sub.companyId,
-        publicToken: randomBytes(24).toString("hex"),
-        contactId: sub.contactId,
-        subscriptionId: sub.id,
-        invoiceNumber: (lastInv?.invoiceNumber ?? 0) + 1,
-        subject: sub.name,
-        status: send ? "AWAITING_PAYMENT" : "DRAFT",
-        subtotal: total,
-        total,
-        issuedAt: send ? now : null,
-        dueDate: send
-          ? new Date(now.getTime() + sub.contact.paymentTermsDays * 86400000)
-          : null,
-        lineItems: {
-          create: visits.map((v, i) => ({
-            name: sub.name,
-            description: sub.description ?? "",
-            quantity: sub.quantity,
-            unitPrice: sub.unitPrice,
-            total: perVisit,
-            serviceDate: v.scheduledAt ?? v.completedAt,
-            sortOrder: i,
-          })),
+  let minted: {
+    invoiceId: string;
+    invoiceNumber: number;
+    publicToken: string;
+    total: number;
+    visitCount: number;
+  } | null = null;
+  try {
+    minted = await withDocNumberRetry(() => prisma.$transaction(async (tx) => {
+      // The unbilled pool: completed visits with no invoice of their own and
+      // no consolidated invoice yet. A visit staff invoiced manually left
+      // the pool the moment its direct invoice existed.
+      const visits = await tx.job.findMany({
+        where: {
+          subscriptionId: sub.id,
+          companyId: sub.companyId,
+          completedAt: { not: null, lte: now },
+          invoice: { is: null },
+          consolidatedInvoiceId: null,
         },
-      },
-    });
-
-    // Tie the visits to their consolidated invoice; ones still sitting in
-    // "requires invoicing" are now invoiced — close them out (the same
-    // convention as invoicing a job directly).
-    await tx.job.updateMany({
-      where: { id: { in: visits.map((v) => v.id) } },
-      data: { consolidatedInvoiceId: invoice.id },
-    });
-    const openIds = visits.filter((v) => v.status === "REQUIRES_INVOICING").map((v) => v.id);
-    if (openIds.length > 0) {
-      await tx.job.updateMany({
-        where: { id: { in: openIds } },
-        data: { status: "ARCHIVED", closedAt: now },
+        select: { id: true },
       });
-    }
+      if (visits.length === 0) return null;
 
-    return {
-      empty: false as const,
-      invoiceId: invoice.id,
-      invoiceNumber: invoice.invoiceNumber,
-      publicToken: invoice.publicToken,
-      total,
-      visitCount: visits.length,
-    };
-  }));
+      const lastInv = await tx.invoice.findFirst({
+        where: { companyId: sub.companyId },
+        orderBy: { invoiceNumber: "desc" },
+        select: { invoiceNumber: true },
+      });
+      // Minted empty first: the invoice's id is the claim token for its
+      // visits, and only claimed visits become lines.
+      const invoice = await tx.invoice.create({
+        data: {
+          companyId: sub.companyId,
+          publicToken: randomBytes(24).toString("hex"),
+          contactId: sub.contactId,
+          subscriptionId: sub.id,
+          invoiceNumber: (lastInv?.invoiceNumber ?? 0) + 1,
+          subject: sub.name,
+          status: send ? "AWAITING_PAYMENT" : "DRAFT",
+          subtotal: 0,
+          total: 0,
+          issuedAt: send ? now : null,
+          dueDate: send
+            ? new Date(now.getTime() + sub.contact.paymentTermsDays * 86400000)
+            : null,
+        },
+      });
+      await tx.job.updateMany({
+        where: {
+          id: { in: visits.map((v) => v.id) },
+          invoice: { is: null },
+          consolidatedInvoiceId: null,
+        },
+        data: { consolidatedInvoiceId: invoice.id },
+      });
+      const mine = await tx.job.findMany({
+        where: { consolidatedInvoiceId: invoice.id },
+        select: { id: true, status: true, scheduledAt: true, completedAt: true },
+        orderBy: [{ scheduledAt: "asc" }, { completedAt: "asc" }],
+      });
+      if (mine.length === 0) throw POOL_ALREADY_CLAIMED; // rolls the invoice back
 
-  if (!cycle) return "empty";
-  if (cycle.empty) return "empty";
+      const total = Math.round(perVisit * mine.length * 100) / 100;
+      await tx.invoiceLineItem.createMany({
+        data: mine.map((v, i) => ({
+          invoiceId: invoice.id,
+          name: sub.name,
+          description: sub.description ?? "",
+          quantity: sub.quantity,
+          unitPrice: sub.unitPrice,
+          total: perVisit,
+          serviceDate: v.scheduledAt ?? v.completedAt,
+          sortOrder: i,
+        })),
+      });
+      await tx.invoice.update({
+        where: { id: invoice.id },
+        data: { subtotal: total, total },
+      });
+
+      // Visits still sitting in "requires invoicing" are now invoiced —
+      // close them out (the same convention as invoicing a job directly).
+      const openIds = mine.filter((v) => v.status === "REQUIRES_INVOICING").map((v) => v.id);
+      if (openIds.length > 0) {
+        await tx.job.updateMany({
+          where: { id: { in: openIds } },
+          data: { status: "ARCHIVED", closedAt: now },
+        });
+      }
+      await tx.subscription.update({
+        where: { id: sub.id },
+        data: { lastGeneratedAt: now },
+      });
+
+      return {
+        invoiceId: invoice.id,
+        invoiceNumber: invoice.invoiceNumber,
+        publicToken: invoice.publicToken,
+        total,
+        visitCount: mine.length,
+      };
+    }));
+  } catch (err) {
+    if (err === POOL_ALREADY_CLAIMED) return "empty";
+    throw err;
+  }
+
+  if (!minted) return "empty";
   if (!send) return "drafted";
 
   return settleGeneratedInvoice({
@@ -600,13 +620,96 @@ async function consolidateCycle(
     subscriptionId: sub.id,
     contact: sub.contact,
     serviceName: sub.name,
-    invoiceId: cycle.invoiceId,
-    invoiceNumber: cycle.invoiceNumber,
-    publicToken: cycle.publicToken,
-    amount: cycle.total,
-    chargeDescription: `${sub.name} — ${cycle.visitCount} visit${cycle.visitCount === 1 ? "" : "s"}`,
-    paymentDetails: "Auto-charged (monthly visit billing)",
+    invoiceId: minted.invoiceId,
+    invoiceNumber: minted.invoiceNumber,
+    publicToken: minted.publicToken,
+    amount: minted.total,
+    chargeDescription: `${sub.name} — ${minted.visitCount} visit${minted.visitCount === 1 ? "" : "s"}`,
+    paymentDetails: "Auto-charged (visit billing)",
   });
+}
+
+/**
+ * One monthly-cursor cycle for a consolidated series: claim/advance
+ * nextRunDate, then bill the pool. The cursor claim is its own atomic step —
+ * if billing crashes after the claim, the pool is untouched and simply bills
+ * on the next pass (or the Bill-now button). "empty" also covers a cycle
+ * that came due with no completed visits: the cursor still advances and the
+ * series just waits for next month.
+ */
+async function consolidateCycle(
+  sub: DueSub,
+  now: Date
+): Promise<"charged" | "billed" | "drafted" | "empty"> {
+  if (!sub.billPerVisit || !sub.consolidateMonthly) return "empty";
+  const fresh = await prisma.subscription.findUnique({
+    where: { id: sub.id },
+    select: { nextRunDate: true, status: true },
+  });
+  if (!fresh || fresh.status !== "ACTIVE" || !fresh.nextRunDate || fresh.nextRunDate > now) {
+    return "empty"; // already handled by a concurrent run
+  }
+  const claimed = await prisma.subscription.updateMany({
+    where: { id: sub.id, status: "ACTIVE", nextRunDate: fresh.nextRunDate },
+    data: { nextRunDate: firstOfNextMonth(now) },
+  });
+  if (claimed.count === 0) return "empty";
+  return billSeriesPool(sub, now);
+}
+
+export interface ReadyWorkSummary {
+  series: number;
+  invoices: number;
+  charged: number;
+  billed: number;
+  drafted: number;
+  errors: number;
+}
+
+/**
+ * The "Bill ready work" button: bill every ACTIVE per-visit series that has
+ * completed, unbilled visits — one invoice per series, dated line per visit,
+ * settled through the auto-charge path. The owner's clicking cadence IS the
+ * billing cadence: daily gives per-visit billing, monthly gives the
+ * consolidated invoice.
+ */
+export async function billAllReadyWork(
+  companyId: string,
+  now: Date = new Date()
+): Promise<ReadyWorkSummary> {
+  const subs = await prisma.subscription.findMany({
+    where: {
+      companyId,
+      status: "ACTIVE",
+      billPerVisit: true,
+      jobs: {
+        some: {
+          completedAt: { not: null, lte: now },
+          invoice: { is: null },
+          consolidatedInvoiceId: null,
+        },
+      },
+    },
+    include: { contact: true },
+  });
+
+  const summary: ReadyWorkSummary = {
+    series: 0, invoices: 0, charged: 0, billed: 0, drafted: 0, errors: 0,
+  };
+  for (const sub of subs) {
+    try {
+      const outcome = await billSeriesPool(sub, now);
+      summary.series++;
+      if (outcome !== "empty") {
+        summary.invoices++;
+        summary[outcome]++;
+      }
+    } catch (err) {
+      summary.errors++;
+      console.error("[subscriptions] ready-work billing failed for", sub.id, err);
+    }
+  }
+  return summary;
 }
 
 export interface ConsolidationRunSummary {
@@ -672,16 +775,13 @@ export async function billSubscriptionNow(
   });
   if (!sub) return null;
   const now = new Date();
-  // Monthly-consolidated series: bill the accumulated visits right now
-  // ("empty" = nothing completed since the last invoice).
-  if (sub.billPerVisit && sub.consolidateMonthly) {
-    if (!sub.nextRunDate || sub.nextRunDate > now) {
-      await prisma.subscription.update({ where: { id }, data: { nextRunDate: now } });
-      sub.nextRunDate = now;
-    }
-    return consolidateCycle({ ...sub }, now);
+  // Per-visit series (instant, queued, or monthly-consolidated): bill the
+  // accumulated completed visits right now — the monthly cursor, if any, is
+  // left alone ("empty" = nothing completed since the last invoice).
+  if (sub.billPerVisit) {
+    return billSeriesPool({ ...sub }, now);
   }
-  // A standalone recurring-job or per-visit series has no cycle to force
+  // A standalone recurring-job series has no cycle to force
   if (!sub.interval) return null;
   // Make it due so the shared cycle path (with its idempotency guard) runs it
   if (!sub.nextRunDate || sub.nextRunDate > now) {

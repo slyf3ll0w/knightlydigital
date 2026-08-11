@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { MoreHorizontal, CheckCircle, Receipt, Archive, RotateCcw, Trash2, Loader2, Pencil, CopyPlus } from "lucide-react";
-import { confirmSheet } from "@/components/ConfirmSheet";
+import { confirmSheet, alertSheet } from "@/components/ConfirmSheet";
 import { sendOrQueue } from "@/lib/outbox";
 
 export default function JobActions({
@@ -54,11 +54,11 @@ export default function JobActions({
               : "Reopen job",
       });
       if (res.queued) {
-        alert("You're offline — this change is saved and will apply when you reconnect.");
+        alertSheet({ message: "You're offline — this change is saved and will apply when you reconnect." });
         return;
       }
       // The close-out checklist gate (and other validation) answers 400
-      if (!res.ok && res.data?.error) alert(res.data.error);
+      if (!res.ok && res.data?.error) alertSheet({ message: res.data.error });
     } finally {
       setBusy(false);
       router.refresh();
@@ -99,7 +99,7 @@ export default function JobActions({
       const res = await fetch(`/api/app/jobs/${jobId}/duplicate`, { method: "POST" });
       const data = await res.json().catch(() => null);
       if (!res.ok || !data?.id) {
-        alert(data?.error ?? "Couldn't duplicate the job.");
+        alertSheet({ message: data?.error ?? "Couldn't duplicate the job." });
         return;
       }
       router.push(`/app/jobs/${data.id}`);
@@ -135,7 +135,7 @@ export default function JobActions({
         return;
       }
       const data = await res.json().catch(() => null);
-      alert(data?.error ?? "Couldn't delete this job.");
+      alertSheet({ message: data?.error ?? "Couldn't delete this job." });
     } finally {
       setBusy(false);
     }

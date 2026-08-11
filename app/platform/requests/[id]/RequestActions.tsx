@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { MoreHorizontal, FileText, Briefcase, Archive, Trash2, Pencil, Loader2 } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
-import { confirmSheet } from "@/components/ConfirmSheet";
+import { confirmSheet, alertSheet } from "@/components/ConfirmSheet";
 
 export default function RequestActions({
   requestId,
@@ -91,7 +91,7 @@ export default function RequestActions({
     const res = await fetch(`/api/app/requests/${requestId}`, { method: "DELETE" });
     if (!res.ok) {
       const data = await res.json().catch(() => null);
-      alert(data?.error ?? "Couldn't delete this request.");
+      alertSheet({ message: data?.error ?? "Couldn't delete this request." });
       return;
     }
     router.push("/app/requests");
