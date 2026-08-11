@@ -129,6 +129,50 @@ export async function PATCH(
     });
 
     const updated = await prisma.$transaction(async (tx) => {
+      // Revision snapshot: a quote the client has SEEN is about to be
+      // rewritten — keep the old version. Draft edits never snapshot.
+      if (quote.sentAt) {
+        const oldItems = await tx.quoteLineItem.findMany({
+          where: { quoteId: quote.id },
+          orderBy: { sortOrder: "asc" },
+        });
+        const revCount = await tx.quoteRevision.count({ where: { quoteId: quote.id } });
+        await tx.quoteRevision.create({
+          data: {
+            quoteId: quote.id,
+            revision: revCount + 1,
+            total: quote.total,
+            snapshot: JSON.parse(
+              JSON.stringify({
+                title: quote.title,
+                status: quote.status,
+                sentAt: quote.sentAt,
+                subtotal: quote.subtotal,
+                discountType: quote.discountType,
+                discountValue: quote.discountValue,
+                discount: quote.discount,
+                taxRate: quote.taxRate,
+                tax: quote.tax,
+                total: quote.total,
+                depositType: quote.depositType,
+                depositValue: quote.depositValue,
+                clientMessage: quote.clientMessage,
+                disclaimer: quote.disclaimer,
+                validUntil: quote.validUntil,
+                lineItems: oldItems.map((li) => ({
+                  name: li.name,
+                  description: li.description,
+                  quantity: li.quantity,
+                  unitPrice: li.unitPrice,
+                  total: li.total,
+                  isOptional: li.isOptional,
+                  optedOut: li.optedOut,
+                })),
+              })
+            ),
+          },
+        });
+      }
       await tx.quoteLineItem.deleteMany({ where: { quoteId: quote.id } });
       return tx.quote.update({
         where: { id: quote.id },

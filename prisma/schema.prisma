@@ -1311,11 +1311,30 @@ model Quote {
   contracts Contract[]
   invoices  Invoice[] // deposit (and any other) invoices issued against this quote
   reminders QuoteReminder[]
+  revisions QuoteRevision[]
 
   @@unique([companyId, quoteNumber])
   @@index([companyId])
   @@index([companyId, status])
   @@index([contactId])
+}
+
+// A quote as the client last saw it, captured right before an after-send edit
+// rewrites the live document. Editing a DRAFT never snapshots (nobody saw it);
+// editing a sent/change-requested quote does, so "what did we originally
+// offer?" always has an answer.
+model QuoteRevision {
+  id       String  @id @default(cuid())
+  quoteId  String
+  quote    Quote   @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  revision Int // 1-based, in the order the versions existed
+  total    Decimal @db.Decimal(10, 2)
+  // Full document snapshot: title, message, totals, validity, line items
+  snapshot Json
+  createdAt DateTime @default(now())
+
+  @@unique([quoteId, revision])
+  @@index([quoteId])
 }
 
 model QuoteLineItem {

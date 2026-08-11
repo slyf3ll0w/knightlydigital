@@ -35,6 +35,7 @@ export default async function QuoteDetailPage({
         where: { kind: "DEPOSIT" },
         select: { id: true, invoiceNumber: true, status: true, total: true },
       },
+      revisions: { orderBy: { revision: "desc" } },
     },
   });
 
@@ -394,6 +395,49 @@ export default async function QuoteDetailPage({
           </div>
         )}
       </div>
+
+      {quote.revisions.length > 0 && (
+        <div className="mt-6 card-ledger p-5">
+          <h2 className="text-[13px] font-semibold text-gray-500 mb-3">Revision history</h2>
+          <ul className="space-y-2">
+            {quote.revisions.map((rev) => {
+              const snap = rev.snapshot as {
+                sentAt?: string | null;
+                lineItems?: { name: string; quantity: unknown; unitPrice: unknown }[];
+              };
+              const items = snap.lineItems ?? [];
+              return (
+                <li key={rev.id} className="flex items-baseline gap-3 text-sm">
+                  <span className="shrink-0 text-xs font-semibold text-gray-500">
+                    Rev {rev.revision}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-xs text-gray-500">
+                    {items.length} item{items.length === 1 ? "" : "s"}
+                    {snap.sentAt &&
+                      ` · sent ${new Date(snap.sentAt).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                      })}`}
+                    {" · replaced "}
+                    {new Date(rev.createdAt).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
+                  </span>
+                  <span className="numeral-ledger shrink-0 font-medium text-gray-700">
+                    ${Number(rev.total).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+          <p className="mt-2 text-[11px] text-gray-400">
+            Captured each time a sent quote was edited — the amounts the client saw before the
+            change.
+          </p>
+        </div>
+      )}
 
       <div className="mt-6">
         <ActivityTrail rows={await activityFor(companyId, "quote", quote.id)} />
