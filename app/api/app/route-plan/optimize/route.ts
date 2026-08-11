@@ -11,15 +11,19 @@ import { DEFAULT_JOB_DURATION_MINUTES } from "@/lib/scheduling";
  * Body: {
  *   date: "YYYY-MM-DD",
  *   userId: string,            // whose route
- *   order?: string[],          // manual stop order (job ids) instead of solving
+ *   order?: string[],          // manual stop order (stop ids) instead of solving
+ *   anchorTime?: "HH:mm",      // when the day starts (default: earliest timed stop)
  *   apply?: boolean            // false/absent = preview only, nothing written
  * }
  *
- * Preview returns the proposed order with proposed times and the drive-time
- * delta; apply rewrites scheduledAt/scheduledEnd (durations preserved,
- * drive-time gaps between stops, "Anytime" stops get real times) inside one
- * transaction. Appointments and time blocks are never moved — overlaps with
- * the proposed times come back as warnings instead.
+ * The route covers jobs AND confirmed in-person appointments — both get
+ * reordered and re-timed together. Preview returns the proposed order with
+ * proposed times and the drive-time delta; apply rewrites
+ * scheduledAt/scheduledEnd (durations preserved, drive-time gaps between
+ * stops, "Anytime" stops get real times) inside one transaction, clearing
+ * client-reminder stamps so moved visits remind at their new times.
+ * Tentative (unconfirmed) bookings, phone/video appointments, and time
+ * blocks are never moved — overlaps come back as warnings instead.
  *
  * Who may run it mirrors the job PATCH: managers + USER for any tech, TECH
  * for their own route only, SALES never.
@@ -47,8 +51,12 @@ export async function POST(req: NextRequest) {
   const date = parseRouteDate(typeof body.date === "string" ? body.date : null);
   const day = await resolveRouteDay(actor, date);
 
+  // Routable: the tech's jobs + their confirmed in-person appointments.
+  // Tentative bookings hold their promised slot — they only warn.
   const assigned = day.stops.filter(
-    (s) => s.kind === "job" && s.assigneeIds.includes(userId) && s.status === "ACTIVE"
+    (s) =>
+      s.assigneeIds.includes(userId) &&
+      (s.kind === "job" ? s.status === "ACTIVE" : s.status === "SCHEDULED" && !s.tentative)
   );
   const stops = assigned.filter((s) => s.lat != null && s.lng != null);
   const skipped = assigned.filter((s) => s.lat == null).map((s) => s.title);
@@ -103,21 +111,34 @@ export async function POST(req: NextRequest) {
   ];
   const totalDriveMinutes = routeMinutes(matrix, orderedPath);
 
-  // Anchor: keep the day starting when it already starts — the earliest timed
-  // stop; a fully-"Anytime" day anchors at 8:00 AM company-local.
+  // Anchor: an explicit start time wins (the "day starts at" control —
+  // per-day, per-run; Jobber can't do this); otherwise keep the day starting
+  // when it already starts — the earliest timed stop; a fully-"Anytime" day
+  // anchors at 8:00 AM company-local.
   const timed = current.filter((s) => !s.scheduledAnytime && s.scheduledAt);
-  const anchor = timed.length
+  const anchorMatch =
+    typeof body.anchorTime === "string" ? /^([01]\d|2[0-3]):([0-5]\d)$/.exec(body.anchorTime) : null;
+  const anchor = anchorMatch
     ? new Date(
-        Math.min(...timed.map((s) => new Date(s.scheduledAt!).getTime()))
+        date.getFullYear(),
+        date.getMonth(),
+        date.getDate(),
+        Number(anchorMatch[1]),
+        Number(anchorMatch[2]),
+        0,
+        0
       )
-    : new Date(date.getFullYear(), date.getMonth(), date.getDate(), 8, 0, 0, 0);
+    : timed.length
+      ? new Date(Math.min(...timed.map((s) => new Date(s.scheduledAt!).getTime())))
+      : new Date(date.getFullYear(), date.getMonth(), date.getDate(), 8, 0, 0, 0);
 
   const durationOf = (s: (typeof current)[number]): number => {
     if (!s.scheduledAnytime && s.scheduledAt && s.scheduledEnd) {
       const mins = (new Date(s.scheduledEnd).getTime() - new Date(s.scheduledAt).getTime()) / 60000;
       if (mins > 0) return mins;
     }
-    return DEFAULT_JOB_DURATION_MINUTES;
+    // Appointments default to their 30-minute convention, jobs to an hour
+    return s.kind === "appointment" ? 30 : DEFAULT_JOB_DURATION_MINUTES;
   };
 
   // Walk the day: the first stop keeps the anchor (the shop→first leg happens
@@ -138,11 +159,14 @@ export async function POST(req: NextRequest) {
     };
   });
 
-  // Fixed commitments we never move — warn when the proposed route runs over
+  // Fixed commitments we never move — warn when the proposed route runs over.
+  // Routed in-person appointments are excluded (they move with the route);
+  // what's left is phone/video calls and tentative bookings.
+  const routedIds = new Set(orderedStops.map((s) => s.id));
   const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
   const dayEnd = new Date(dayStart);
   dayEnd.setDate(dayEnd.getDate() + 1);
-  const [appts, blocks] = await Promise.all([
+  const [apptsRaw, blocks] = await Promise.all([
     prisma.appointment.findMany({
       where: {
         companyId: actor.companyId,
@@ -151,7 +175,7 @@ export async function POST(req: NextRequest) {
         scheduledAnytime: false,
         scheduledAt: { gte: dayStart, lt: dayEnd },
       },
-      select: { title: true, scheduledAt: true, scheduledEnd: true },
+      select: { id: true, title: true, scheduledAt: true, scheduledEnd: true },
     }),
     prisma.timeBlock.findMany({
       where: {
@@ -164,6 +188,7 @@ export async function POST(req: NextRequest) {
       select: { title: true, startAt: true, endAt: true },
     }),
   ]);
+  const appts = apptsRaw.filter((a) => !routedIds.has(a.id));
   const fmt = (d: Date) => d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
   const warnings: string[] = [];
   for (const p of proposed) {
@@ -184,17 +209,21 @@ export async function POST(req: NextRequest) {
 
   let applied = false;
   if (body.apply === true) {
+    // Clearing reminder stamps re-arms the day-before/1-hour client reminders
+    // for the new times (both models carry the same stamp columns).
     await prisma.$transaction(
-      proposed.map((p) =>
-        prisma.job.update({
-          where: { id: p.id },
-          data: {
-            scheduledAt: new Date(p.proposedStart),
-            scheduledEnd: new Date(p.proposedEnd),
-            scheduledAnytime: false,
-          },
-        })
-      )
+      proposed.map((p) => {
+        const data = {
+          scheduledAt: new Date(p.proposedStart),
+          scheduledEnd: new Date(p.proposedEnd),
+          scheduledAnytime: false,
+          reminderDaySentAt: null,
+          reminderHourSentAt: null,
+        };
+        return p.kind === "appointment"
+          ? prisma.appointment.update({ where: { id: p.id }, data })
+          : prisma.job.update({ where: { id: p.id }, data });
+      })
     );
     applied = true;
   }
@@ -203,6 +232,7 @@ export async function POST(req: NextRequest) {
     userName: user.name,
     stops: proposed.map((p) => ({
       id: p.id,
+      kind: p.kind,
       jobNumber: p.jobNumber,
       title: p.title,
       contactName: p.contactName,
@@ -213,6 +243,7 @@ export async function POST(req: NextRequest) {
       proposedEnd: p.proposedEnd,
       driveMinutesFromPrev: p.driveMinutesFromPrev,
     })),
+    anchorTime: `${String(anchor.getHours()).padStart(2, "0")}:${String(anchor.getMinutes()).padStart(2, "0")}`,
     currentDriveMinutes: Math.round(currentDriveMinutes),
     totalDriveMinutes: Math.round(totalDriveMinutes),
     savedMinutes: Math.max(0, Math.round(currentDriveMinutes - totalDriveMinutes)),

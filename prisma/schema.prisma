@@ -1020,6 +1020,10 @@ model Appointment {
   scheduledEnd DateTime?
   // Date-only scheduling: anchored at noon, shown in the calendar's "Anytime" row
   scheduledAnytime Boolean  @default(false)
+  // Per-appointment arrival-window override (lib/arrival-window.ts): null =
+  // company default, 0 = exact time. Only meaningful for IN_PERSON — calls
+  // always promise the exact time.
+  arrivalWindowMinutes Int?
   // Self-scheduled online booking awaiting owner approval. Renders dashed on
   // the schedule; blocks the slot until accepted (clears this) or declined
   // (cancels the appointment). Internal creates are never tentative.

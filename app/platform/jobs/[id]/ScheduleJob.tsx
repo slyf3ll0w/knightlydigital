@@ -6,6 +6,7 @@ import { CalendarDays, Loader2, X } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { localInputToISO } from "@/lib/statuses";
 import SlotTimePicker from "@/components/SlotTimePicker";
+import SuggestedTimes from "@/components/SuggestedTimes";
 import { addMinutesToLocalDateTime, DEFAULT_JOB_DURATION_MINUTES } from "@/lib/scheduling";
 import { ARRIVAL_WINDOW_CHOICES, arrivalWindowChoiceLabel } from "@/lib/arrival-window";
 
@@ -32,6 +33,8 @@ export default function ScheduleJob({
   scheduledAnytime,
   arrivalWindowMinutes,
   companyWindowMinutes,
+  address,
+  assigneeId,
   intervalMinutes = 30,
   defaultDurationMinutes,
   dayStartMinutes,
@@ -44,6 +47,9 @@ export default function ScheduleJob({
   arrivalWindowMinutes?: number | null;
   /** Company default window width, for the "Company default (…)" label. */
   companyWindowMinutes?: number;
+  /** Job-site address + a tech — enables the "Find a Time" suggestion chips. */
+  address?: string | null;
+  assigneeId?: string;
   intervalMinutes?: number;
   /** Expected on-site time from the price book (sum of the job's line items'
       service durations). Falls back to one hour when absent. */
@@ -170,6 +176,19 @@ export default function ScheduleJob({
             />
           </div>
         </div>
+      )}
+      {!anytime && assigneeId && start.length >= 10 && (
+        <SuggestedTimes
+          date={start.slice(0, 10)}
+          userId={assigneeId}
+          address={address}
+          durationMinutes={defaultDurationMinutes || DEFAULT_JOB_DURATION_MINUTES}
+          excludeId={jobId}
+          onPick={(s, e) => {
+            setStart(s);
+            setEnd(e);
+          }}
+        />
       )}
       {!anytime && (
         <div>

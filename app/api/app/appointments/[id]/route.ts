@@ -85,6 +85,18 @@ export async function PATCH(
     return NextResponse.json({ error: "End time must be after the start time." }, { status: 400 });
   }
   if (body.scheduledAnytime !== undefined) data.scheduledAnytime = Boolean(body.scheduledAnytime);
+  // Arrival-window override: null = company default, 0 = exact time
+  if (body.arrivalWindowMinutes !== undefined) {
+    data.arrivalWindowMinutes =
+      body.arrivalWindowMinutes === null
+        ? null
+        : Number.isInteger(Number(body.arrivalWindowMinutes)) &&
+            Number(body.arrivalWindowMinutes) >= 0 &&
+            Number(body.arrivalWindowMinutes) <= 480
+          ? Number(body.arrivalWindowMinutes)
+          : appt.arrivalWindowMinutes;
+  }
+  if (body.remindClient !== undefined) data.remindClient = Boolean(body.remindClient);
 
   if (body.assignedToId !== undefined && isManager(actor.role)) {
     if (!body.assignedToId) {

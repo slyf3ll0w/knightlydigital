@@ -31,6 +31,8 @@ export type RouteStop = {
   scheduledAt: string | null;
   scheduledEnd: string | null;
   scheduledAnytime: boolean;
+  /** Unconfirmed online booking (appointments only) — never auto-moved. */
+  tentative: boolean;
   assigneeIds: string[];
   lat: number | null;
   lng: number | null;
@@ -191,6 +193,7 @@ export async function resolveRouteDay(actor: Actor, date: Date): Promise<RouteDa
       scheduledAt: j.scheduledAt ? j.scheduledAt.toISOString() : null,
       scheduledEnd: j.scheduledEnd ? j.scheduledEnd.toISOString() : null,
       scheduledAnytime: j.scheduledAnytime,
+      tentative: false,
       assigneeIds: j.assignments.map((a) => a.userId),
       lat,
       lng,
@@ -216,6 +219,7 @@ export async function resolveRouteDay(actor: Actor, date: Date): Promise<RouteDa
       scheduledAt: a.scheduledAt.toISOString(),
       scheduledEnd: a.scheduledEnd ? a.scheduledEnd.toISOString() : null,
       scheduledAnytime: a.scheduledAnytime,
+      tentative: a.tentative,
       assigneeIds: a.assignedToId ? [a.assignedToId] : [],
       lat,
       lng,

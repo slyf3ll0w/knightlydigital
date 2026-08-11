@@ -9,11 +9,13 @@ import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { localInputToISO } from "@/lib/statuses";
 import SlotTimePicker from "@/components/SlotTimePicker";
 import ContactPicker from "@/components/ContactPicker";
+import SuggestedTimes from "@/components/SuggestedTimes";
 import {
   addMinutesToLocalDateTime,
   DEFAULT_SLOT_INTERVAL_MINUTES,
   DEFAULT_JOB_DURATION_MINUTES,
 } from "@/lib/scheduling";
+import { ARRIVAL_WINDOW_CHOICES, arrivalWindowChoiceLabel } from "@/lib/arrival-window";
 
 type ContactAddress = {
   id: string;
@@ -48,6 +50,8 @@ function NewJobForm() {
   const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
   const [interval, setInterval] = useState(DEFAULT_SLOT_INTERVAL_MINUTES);
   const [dayStart, setDayStart] = useState(8 * 60);
+  const [anytime, setAnytime] = useState(false);
+  const [window_, setWindow] = useState(""); // arrival window: "" = company default
   const [form, setForm] = useState({
     contactId: prefilledContactId,
     requestId,
@@ -122,8 +126,15 @@ function NewJobForm() {
 
     const { ok, data } = await postJson<{ id: string }>("/api/app/jobs", {
       ...form,
-      scheduledAt: localInputToISO(form.scheduledAt),
-      scheduledEnd: localInputToISO(form.scheduledEnd),
+      // date-only scheduling anchors at noon (same convention as ScheduleJob)
+      scheduledAt: anytime
+        ? form.scheduledAt
+          ? localInputToISO(`${form.scheduledAt.slice(0, 10)}T12:00`)
+          : ""
+        : localInputToISO(form.scheduledAt),
+      scheduledEnd: anytime ? "" : localInputToISO(form.scheduledEnd),
+      scheduledAnytime: anytime && Boolean(form.scheduledAt),
+      arrivalWindowMinutes: window_ === "" ? null : Number(window_),
       assigneeIds,
     });
     setLoading(false);
@@ -221,38 +232,90 @@ function NewJobForm() {
         <div className="card-ledger p-5 space-y-4">
           <h2 className="text-sm font-semibold text-gray-700">Scheduling</h2>
 
-          <div className="grid grid-cols-2 gap-4">
+          {anytime ? (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Start</label>
-              <SlotTimePicker
-                value={form.scheduledAt}
-                intervalMinutes={interval}
-                dayStartMinutes={dayStart}
-                inputCls="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-                ariaLabel="Start"
-                onChange={(next) => {
-                  set("scheduledAt", next);
-                  if (!form.scheduledEnd && next.length >= 16) {
-                    set(
-                      "scheduledEnd",
-                      addMinutesToLocalDateTime(next, DEFAULT_JOB_DURATION_MINUTES)
-                    );
-                  }
-                }}
+              <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+              <input
+                type="date"
+                value={form.scheduledAt.slice(0, 10)}
+                onChange={(e) => set("scheduledAt", e.target.value ? `${e.target.value}T12:00` : "")}
+                className="w-full sm:w-56 px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">End</label>
-              <SlotTimePicker
-                value={form.scheduledEnd}
-                intervalMinutes={interval}
-                dayStartMinutes={dayStart}
-                inputCls="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-                ariaLabel="End"
-                onChange={(next) => set("scheduledEnd", next)}
-              />
+          ) : (
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Start</label>
+                <SlotTimePicker
+                  value={form.scheduledAt}
+                  intervalMinutes={interval}
+                  dayStartMinutes={dayStart}
+                  inputCls="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  ariaLabel="Start"
+                  onChange={(next) => {
+                    set("scheduledAt", next);
+                    if (!form.scheduledEnd && next.length >= 16) {
+                      set(
+                        "scheduledEnd",
+                        addMinutesToLocalDateTime(next, DEFAULT_JOB_DURATION_MINUTES)
+                      );
+                    }
+                  }}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">End</label>
+                <SlotTimePicker
+                  value={form.scheduledEnd}
+                  intervalMinutes={interval}
+                  dayStartMinutes={dayStart}
+                  inputCls="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  ariaLabel="End"
+                  onChange={(next) => set("scheduledEnd", next)}
+                />
+              </div>
             </div>
-          </div>
+          )}
+          <label className="flex items-center gap-1.5 text-xs text-gray-600 select-none">
+            <input
+              type="checkbox"
+              checked={anytime}
+              onChange={(e) => setAnytime(e.target.checked)}
+              className="h-3.5 w-3.5 rounded border-gray-300 text-green-600 focus:ring-green-500"
+            />
+            Anytime (no set time)
+          </label>
+          {!anytime && form.scheduledAt.length >= 10 && assigneeIds.length > 0 && (
+            <SuggestedTimes
+              date={form.scheduledAt.slice(0, 10)}
+              userId={assigneeIds[0]}
+              address={form.address}
+              durationMinutes={DEFAULT_JOB_DURATION_MINUTES}
+              onPick={(s, e) => {
+                set("scheduledAt", s);
+                set("scheduledEnd", e);
+              }}
+            />
+          )}
+          {!anytime && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Arrival window <span className="text-xs font-normal text-gray-400">(what the client is promised)</span>
+              </label>
+              <select
+                value={window_}
+                onChange={(e) => setWindow(e.target.value)}
+                className="w-full sm:w-64 px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              >
+                <option value="">Company default</option>
+                {ARRIVAL_WINDOW_CHOICES.map((m) => (
+                  <option key={m} value={m}>
+                    {arrivalWindowChoiceLabel(m)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {team.length > 0 && (
             <div>

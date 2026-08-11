@@ -96,6 +96,14 @@ export async function POST(req: NextRequest) {
       notes: notes?.trim() ? notes.trim().slice(0, 2000) : null,
       // Automatic client reminders default on; the form can opt one out
       remindClient: body.remindClient !== false,
+      // Arrival-window override: null = company default, 0 = exact time
+      arrivalWindowMinutes:
+        type === "IN_PERSON" &&
+        Number.isInteger(Number(body.arrivalWindowMinutes)) &&
+        Number(body.arrivalWindowMinutes) >= 0 &&
+        Number(body.arrivalWindowMinutes) <= 480
+          ? Number(body.arrivalWindowMinutes)
+          : null,
     },
     });
   });

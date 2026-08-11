@@ -238,6 +238,8 @@ export default async function JobDetailPage({
             scheduledAnytime={job.scheduledAnytime}
             arrivalWindowMinutes={job.arrivalWindowMinutes}
             companyWindowMinutes={company?.arrivalWindowMinutes}
+            address={job.address}
+            assigneeId={job.assignments[0]?.userId ?? actor.id}
             intervalMinutes={resolveSlotInterval({
               companyIntervalMinutes: company?.schedulingIntervalMinutes,
             })}

@@ -42,6 +42,7 @@ type RouteStop = {
   scheduledAt: string | null;
   scheduledEnd: string | null;
   scheduledAnytime: boolean;
+  tentative: boolean;
   assigneeIds: string[];
   lat: number | null;
   lng: number | null;
@@ -60,6 +61,7 @@ type RouteDay = {
 
 type OptimizeStop = {
   id: string;
+  kind: "job" | "appointment";
   jobNumber: number | null;
   title: string;
   contactName: string;
@@ -74,6 +76,7 @@ type OptimizeStop = {
 type OptimizeResult = {
   userName: string;
   stops: OptimizeStop[];
+  anchorTime: string; // "HH:mm" the proposed day starts at
   currentDriveMinutes: number;
   totalDriveMinutes: number;
   savedMinutes: number;
@@ -307,7 +310,9 @@ export default function RouteMapClient({
           });
           const when = s.scheduledAnytime ? "Anytime" : fmtTime(s.scheduledAt);
           const link =
-            s.kind === "job" ? `<br/><a href="/app/jobs/${s.id}">Open job →</a>` : "";
+            s.kind === "job"
+              ? `<br/><a href="/app/jobs/${s.id}">Open job →</a>`
+              : `<br/><a href="/app/appointments/${s.id}">Open appointment →</a>`;
           const marker = L.marker([s.lat, s.lng], { icon })
             .addTo(layer)
             .bindPopup(
@@ -347,12 +352,13 @@ export default function RouteMapClient({
 
   // ── Optimize flow ─────────────────────────────────────────────────────────
   const runOptimize = useCallback(
-    async (userId: string, order?: string[]) => {
+    async (userId: string, order?: string[], anchorTime?: string) => {
       setPreviewBusy(true);
       const { ok, data: result } = await postJson<OptimizeResult>("/api/app/route-plan/optimize", {
         date,
         userId,
         ...(order ? { order } : {}),
+        ...(anchorTime ? { anchorTime } : {}),
       });
       setPreviewBusy(false);
       if (!ok || !result || result.stops == null) {
@@ -372,6 +378,7 @@ export default function RouteMapClient({
       date,
       userId: preview.userId,
       order: preview.stops.map((s) => s.id),
+      anchorTime: preview.anchorTime,
       apply: true,
     });
     setPreviewBusy(false);
@@ -392,7 +399,7 @@ export default function RouteMapClient({
       const j = index + dir;
       if (j < 0 || j >= ids.length) return;
       [ids[index], ids[j]] = [ids[j], ids[index]];
-      runOptimize(preview.userId, ids);
+      runOptimize(preview.userId, ids, preview.anchorTime);
     },
     [preview, runOptimize]
   );
@@ -599,7 +606,9 @@ export default function RouteMapClient({
                   </div>
                 </div>
                 {mayOptimize(g.userId) &&
-                  g.stops.filter((s) => s.kind === "job" && s.lat != null).length >= 2 && (
+                  g.stops.filter(
+                    (s) => s.lat != null && (s.kind === "job" || !s.tentative)
+                  ).length >= 2 && (
                     <button
                       onClick={() => runOptimize(g.userId)}
                       disabled={previewBusy}
@@ -653,9 +662,9 @@ export default function RouteMapClient({
                         <p className="numeral-ledger text-xs font-semibold text-gray-900">
                           {s.scheduledAnytime ? "Anytime" : fmtTime(s.scheduledAt)}
                         </p>
-                        {s.kind === "job" ? (
+                        {s.kind === "job" || !s.scheduledAnytime ? (
                           <Link
-                            href={`/app/jobs/${s.id}`}
+                            href={s.kind === "job" ? `/app/jobs/${s.id}` : `/app/appointments/${s.id}`}
                             onClick={(e) => e.stopPropagation()}
                             className="text-[11px] font-semibold text-green-700 hover:underline"
                           >
@@ -711,6 +720,20 @@ export default function RouteMapClient({
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto px-5 py-3">
+              <label className="mb-3 flex items-center gap-2 text-xs text-gray-600">
+                Day starts at
+                <input
+                  type="time"
+                  value={preview.anchorTime}
+                  disabled={previewBusy}
+                  onChange={(e) =>
+                    e.target.value &&
+                    runOptimize(preview.userId, preview.stops.map((s) => s.id), e.target.value)
+                  }
+                  className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-green-500"
+                />
+                <span className="text-gray-400">first stop begins then</span>
+              </label>
               {preview.warnings.length > 0 && (
                 <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
                   {preview.warnings.map((w) => (
@@ -736,7 +759,12 @@ export default function RouteMapClient({
                       {i + 1}
                     </span>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-gray-900">{s.title}</p>
+                      <p className="flex items-center gap-1.5 truncate text-sm font-semibold text-gray-900">
+                        <span className="truncate">{s.title}</span>
+                        {s.kind === "appointment" && (
+                          <span className="stamp shrink-0 text-purple-700">Appt</span>
+                        )}
+                      </p>
                       <p className="numeral-ledger text-xs text-gray-500">
                         {!s.scheduledAnytime && s.currentStart && (
                           <span className="mr-1.5 text-gray-400 line-through">
@@ -778,7 +806,8 @@ export default function RouteMapClient({
               </ol>
               <p className="mt-3 text-xs text-gray-400">
                 Applying rewrites the calendar times — durations are kept, drive time spaces the
-                stops, and appointments never move.
+                stops, and moved visits re-send their reminders at the new times. Unconfirmed
+                bookings, calls, and blocked time never move.
               </p>
             </div>
 

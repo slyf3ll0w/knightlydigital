@@ -8,7 +8,9 @@ import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { localInputToISO } from "@/lib/statuses";
 import SlotTimePicker from "@/components/SlotTimePicker";
 import ContactPicker from "@/components/ContactPicker";
+import SuggestedTimes from "@/components/SuggestedTimes";
 import { addMinutesToLocalDateTime } from "@/lib/scheduling";
+import { ARRIVAL_WINDOW_CHOICES, arrivalWindowChoiceLabel } from "@/lib/arrival-window";
 
 /**
  * Book a sales meeting / estimate. Type drives the extra field:
@@ -82,6 +84,7 @@ export default function AppointmentForm({
   const [assignedToId, setAssignedToId] = useState(actorId);
   const [notes, setNotes] = useState("");
   const [remindClient, setRemindClient] = useState(true);
+  const [window_, setWindow] = useState(""); // "" = company default
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -127,6 +130,8 @@ export default function AppointmentForm({
       assignedToId,
       notes,
       remindClient,
+      arrivalWindowMinutes:
+        type === "IN_PERSON" && window_ !== "" ? Number(window_) : null,
     });
     setLoading(false);
     if (!ok || !data?.id) {
@@ -303,6 +308,33 @@ export default function AppointmentForm({
             />
             Anytime (no set time)
           </label>
+          {!anytime && start.length >= 10 && (
+            <SuggestedTimes
+              date={start.slice(0, 10)}
+              userId={assignedToId}
+              address={type === "IN_PERSON" ? effectiveAddress : null}
+              durationMinutes={30}
+              onPick={(s, e) => {
+                setStart(s);
+                setEnd(e);
+              }}
+            />
+          )}
+          {type === "IN_PERSON" && !anytime && (
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">
+                Arrival window <span className="text-gray-400">(what the client is promised)</span>
+              </label>
+              <select value={window_} onChange={(e) => setWindow(e.target.value)} className={inputCls}>
+                <option value="">Company default</option>
+                {ARRIVAL_WINDOW_CHOICES.map((m) => (
+                  <option key={m} value={m}>
+                    {arrivalWindowChoiceLabel(m)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
         <div className="card-ledger p-5 space-y-4">

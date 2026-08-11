@@ -90,6 +90,13 @@ export async function POST(req: NextRequest) {
         scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
         scheduledEnd: scheduledEnd ? new Date(scheduledEnd) : null,
         scheduledAnytime: Boolean(scheduledAnytime),
+        // Arrival-window override: null = company default, 0 = exact time
+        arrivalWindowMinutes:
+          Number.isInteger(Number(body.arrivalWindowMinutes)) &&
+          Number(body.arrivalWindowMinutes) >= 0 &&
+          Number(body.arrivalWindowMinutes) <= 480
+            ? Number(body.arrivalWindowMinutes)
+            : null,
         address: address || propertyLine || contact.address || null,
         propertyId: property?.id ?? null,
         ...(validAssignees.length > 0 && {

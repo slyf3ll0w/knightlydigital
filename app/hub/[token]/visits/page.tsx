@@ -47,6 +47,7 @@ export default async function HubVisitsPage({
           scheduledAt: true,
           scheduledEnd: true,
           scheduledAnytime: true,
+          arrivalWindowMinutes: true,
           tentative: true,
           address: true,
           type: true,
@@ -104,7 +105,7 @@ export default async function HubVisitsPage({
         timeLabel: a.scheduledAnytime
           ? `${dayLabel(d)} · anytime that day`
           : a.type === "IN_PERSON"
-            ? `${dayLabel(d)} · arriving ${arrivalTimeLabel(tz, d, windowMin)}`
+            ? `${dayLabel(d)} · arriving ${arrivalTimeLabel(tz, d, resolveArrivalWindowMinutes(a.arrivalWindowMinutes, windowMin))}`
             : `${dayLabel(d)} · ${d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: tz })}`,
         address: a.address,
         tentative: a.tentative,
