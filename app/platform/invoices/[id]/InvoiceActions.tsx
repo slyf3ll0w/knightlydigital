@@ -23,6 +23,9 @@ import { money } from "@/lib/statuses";
 import { confirmSheet } from "@/components/ConfirmSheet";
 import { launchSendPlane, launchPointFrom } from "@/lib/send-plane";
 import { hapticImpact } from "@/lib/haptics";
+import ChargeOverlay, { type ChargePhase } from "@/components/ChargeOverlay";
+
+type SavedCardOption = { id: string; label: string; isDefault: boolean };
 
 export default function InvoiceActions({
   invoiceId,
@@ -33,6 +36,7 @@ export default function InvoiceActions({
   paymentTotal = 0,
   contactEmail = "",
   chargeStoredLabel = null,
+  savedCards = [],
   balance = 0,
   reopenStatus = "DRAFT",
 }: {
@@ -43,8 +47,10 @@ export default function InvoiceActions({
   paymentCount?: number;
   paymentTotal?: number;
   contactEmail?: string;
-  /** Saved-card label when this invoice can be charged to the card on file. */
+  /** Default-card label when this invoice can be charged to a card on file. */
   chargeStoredLabel?: string | null;
+  /** Every card on the client's file — a picker shows when there's a choice. */
+  savedCards?: SavedCardOption[];
   balance?: number;
   /** Where "Reopen" lands an archived invoice (computed from its payments). */
   reopenStatus?: string;
@@ -57,6 +63,9 @@ export default function InvoiceActions({
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [confirmText, setConfirmText] = useState("");
   const [deleteError, setDeleteError] = useState("");
+  const [charge, setCharge] = useState<ChargePhase | null>(null);
+  const [pickOpen, setPickOpen] = useState(false);
+  const [pickedId, setPickedId] = useState<string>("");
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -125,28 +134,63 @@ export default function InvoiceActions({
     if (ok) await setStatus("ARCHIVED");
   }
 
-  // Charge the remaining balance to the client's card on file
+  // Charge the remaining balance to a card on the client's file. One card →
+  // straight to confirm; several → pick which first.
   async function chargeStored() {
     setOpen(false);
+    if (savedCards.length > 1) {
+      setPickedId(savedCards.find((c) => c.isDefault)?.id ?? savedCards[0].id);
+      setPickOpen(true);
+      return;
+    }
+    const only = savedCards[0] ?? null;
+    await confirmAndCharge(only?.id ?? null, only?.label ?? chargeStoredLabel ?? "saved card");
+  }
+
+  async function confirmAndCharge(cardId: string | null, label: string) {
     const ok = await confirmSheet({
       title: "Charge card on file?",
-      message: `${money(balance)} will be charged to ${chargeStoredLabel} right now. No card surcharge is applied to stored charges.`,
+      message: `${money(balance)} will be charged to ${label} right now. No card surcharge is applied to stored charges.`,
       confirmLabel: `Charge ${money(balance)}`,
     });
     if (!ok) return;
-    setBusy(true);
+    runCharge(cardId, label);
+  }
+
+  // The terminal ritual: processing overlay (minimum on-screen beat so even
+  // instant responses read as a real charge), then approved / declined.
+  async function runCharge(cardId: string | null, label: string) {
+    setPickOpen(false);
+    setCharge({ state: "processing", label, amount: balance });
+    const started = Date.now();
+    let res: Response | null = null;
+    let data: { error?: string; amount?: number } | null = null;
     try {
-      const res = await fetch(`/api/app/invoices/${invoiceId}/charge-stored`, { method: "POST" });
-      const data = await res.json().catch(() => null);
-      if (!res.ok) {
-        alert(data?.error ?? GENERIC_ERROR);
-      } else {
-        hapticImpact();
-      }
-    } finally {
-      setBusy(false);
-      router.refresh();
+      res = await fetch(`/api/app/invoices/${invoiceId}/charge-stored`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(cardId ? { cardId } : {}),
+      });
+      data = await res.json().catch(() => null);
+    } catch {
+      res = null;
     }
+    await new Promise((r) => setTimeout(r, Math.max(0, 1100 - (Date.now() - started))));
+    if (!res || !res.ok) {
+      setCharge({
+        state: "declined",
+        label,
+        amount: balance,
+        error: data?.error ?? GENERIC_ERROR,
+      });
+      return;
+    }
+    hapticImpact();
+    setCharge({ state: "approved", label, amount: data?.amount ?? balance });
+    setTimeout(() => {
+      setCharge(null);
+      router.refresh();
+    }, 1800);
   }
 
   // Email the client their pay link (DRAFT invoices move to Awaiting Payment)
@@ -212,8 +256,13 @@ export default function InvoiceActions({
       {busy && <Loader2 size={16} className="animate-spin text-gray-400" />}
 
       {sentTo && (
-        <span className="fixed left-1/2 -translate-x-1/2 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-40 max-w-[calc(100vw-2rem)] truncate rounded-full bg-gray-900/95 px-4 py-2 text-xs font-medium text-white shadow-lg lg:static lg:left-auto lg:bottom-auto lg:z-auto lg:max-w-none lg:translate-x-0 lg:rounded-none lg:bg-transparent lg:p-0 lg:text-green-700 lg:shadow-none">
-          Emailed to {sentTo}
+        // Floating pill on every screen size (desktop used to demote it to
+        // inline text); outer span owns the centering so the entrance
+        // animation's transform doesn't fight -translate-x-1/2
+        <span className="fixed left-1/2 -translate-x-1/2 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] lg:bottom-8 z-40 max-w-[calc(100vw-2rem)]">
+          <span className="msg-enter block truncate rounded-full bg-gray-900/95 px-4 py-2 text-xs font-medium text-white shadow-lg">
+            Emailed to {sentTo}
+          </span>
         </span>
       )}
 
@@ -435,6 +484,57 @@ export default function InvoiceActions({
           </div>
         </div>
       )}
+
+      {pickOpen && (
+        <div className="modal-pop fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setPickOpen(false)} />
+          <div className="modal-card relative w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+            <div className="flex items-start justify-between mb-3">
+              <h2 className="text-lg font-bold text-gray-900">Which card?</h2>
+              <button
+                onClick={() => setPickOpen(false)}
+                className="p-1 text-gray-400 hover:text-gray-600"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="space-y-2 mb-4">
+              {savedCards.map((card) => (
+                <label
+                  key={card.id}
+                  className={`flex items-center gap-3 rounded-lg border px-3.5 py-3 cursor-pointer transition-colors ${
+                    pickedId === card.id
+                      ? "border-green-500 bg-green-50"
+                      : "border-gray-200 hover:bg-gray-50"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="charge-card"
+                    checked={pickedId === card.id}
+                    onChange={() => setPickedId(card.id)}
+                    className="accent-green-600"
+                  />
+                  <span className="flex-1 text-sm text-gray-800">{card.label}</span>
+                  {card.isDefault && <span className="text-xs text-gray-400">Default</span>}
+                </label>
+              ))}
+            </div>
+            <button
+              onClick={() => {
+                const card = savedCards.find((c) => c.id === pickedId);
+                if (card) confirmAndCharge(card.id, card.label);
+              }}
+              className="w-full flex items-center justify-center gap-1.5 px-4 py-2.5 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded-[10px] transition-colors"
+            >
+              <DollarSign size={13} />
+              Charge {money(balance)}
+            </button>
+          </div>
+        </div>
+      )}
+
+      <ChargeOverlay phase={charge} onDismiss={() => setCharge(null)} />
     </div>
   );
 }

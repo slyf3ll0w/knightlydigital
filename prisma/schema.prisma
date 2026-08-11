@@ -625,6 +625,7 @@ model Contact {
   clientMessages  ClientMessage[]
   portalMessages  PortalMessage[]
   pushSubscriptions ContactPushSubscription[]
+  savedCards      SavedCard[]
 
   @@index([companyId])
   @@index([companyId, status])
@@ -632,6 +633,31 @@ model Contact {
   @@index([companyId, assignedToId])
   @@index([companyId, importBatchId])
   @@index([companyId, pipelineStageId])
+}
+
+// A vaulted card on a client's account (Finix payment instrument, PIxxx).
+// Multiple cards per contact; exactly one is the default — recurring billing
+// and one-tap staff charges use the default, staff can pick another at charge
+// time. The legacy Contact.processorCustomerRef/savedCardLabel/savedCardAt
+// columns mirror the default card (kept in sync by syncDefaultCardMirror) so
+// nothing that still reads them breaks.
+model SavedCard {
+  id            String   @id @default(cuid())
+  companyId     String
+  contactId     String
+  contact       Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  instrumentRef String // Finix PIxxx — the chargeable vault token
+  label         String // "Visa •••• 4242 · exp 12/27" (display only)
+  brand         String?
+  last4         String?
+  expMonth      Int?
+  expYear       Int?
+  isDefault     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  @@unique([contactId, instrumentRef])
+  @@index([contactId])
+  @@index([companyId])
 }
 
 // Additional service addresses (rental properties, second locations, ...).

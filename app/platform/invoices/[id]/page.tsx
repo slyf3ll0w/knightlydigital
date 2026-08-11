@@ -50,14 +50,16 @@ export default async function InvoiceDetailPage({
   const showCloseJobNudge =
     invoice.status === "PAID" && invoice.job && invoice.job.status !== "ARCHIVED";
 
-  // "Charge card on file" — managers only, when the client saved a card and
-  // this company's merchant can actually move money.
+  // "Charge card on file" — managers only, when the client has cards saved
+  // and this company's merchant can actually move money. The full card list
+  // goes down so the action can offer a pick when there's more than one.
   let chargeStoredLabel: string | null = null;
+  let savedCards: { id: string; label: string; isDefault: boolean }[] = [];
   if (
     isManager(actor.role) &&
     balance > 0 &&
     invoice.status !== "PAID" &&
-    invoice.contact?.processorCustomerRef &&
+    invoice.contact &&
     getProcessor().live
   ) {
     const gate = await prisma.company.findUnique({
@@ -65,7 +67,17 @@ export default async function InvoiceDetailPage({
       select: { finixMerchantId: true, finixOnboardingState: true },
     });
     if (gate?.finixMerchantId && gate.finixOnboardingState === "APPROVED") {
-      chargeStoredLabel = invoice.contact.savedCardLabel ?? "saved card";
+      savedCards = await prisma.savedCard.findMany({
+        where: { contactId: invoice.contact.id },
+        orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
+        select: { id: true, label: true, isDefault: true },
+      });
+      if (savedCards.length > 0) {
+        chargeStoredLabel = savedCards[0].label;
+      } else if (invoice.contact.processorCustomerRef) {
+        // Pre-backfill legacy single card
+        chargeStoredLabel = invoice.contact.savedCardLabel ?? "saved card";
+      }
     }
   }
 
@@ -115,6 +127,7 @@ export default async function InvoiceDetailPage({
           paymentTotal={totalPaid}
           contactEmail={invoice.contact?.email ?? ""}
           chargeStoredLabel={chargeStoredLabel}
+          savedCards={savedCards}
           balance={balance}
           reopenStatus={
             totalPaid > 0 && totalPaid >= Number(invoice.total) - 0.005

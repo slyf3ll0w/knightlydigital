@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getProcessor, recordPayment, calculateSurcharge, sendReviewRequest, savedCardLabel } from "@/lib/payments";
+import { addSavedCard } from "@/lib/saved-cards";
 import { recomputeDepositApplied } from "@/lib/deposits";
 import { suspendedResponse } from "@/lib/suspension";
 
@@ -134,16 +135,16 @@ export async function POST(
   // subscription auto-charge and staff "charge card on file". Never fails the
   // payment. Cards only — ACH debits can bounce days later.
   if (saveCard === true && method === "CARD" && result.instrumentRef && invoice.contact) {
-    await prisma.contact
-      .update({
-        where: { id: invoice.contact.id },
-        data: {
-          processorCustomerRef: result.instrumentRef,
-          savedCardLabel: savedCardLabel(result),
-          savedCardAt: new Date(),
-        },
-      })
-      .catch((e) => console.error("[pay] save card failed", e));
+    await addSavedCard({
+      companyId: invoice.companyId,
+      contactId: invoice.contact.id,
+      instrumentRef: result.instrumentRef,
+      label: savedCardLabel(result),
+      brand: result.cardBrand,
+      last4: result.cardLast4,
+      expMonth: result.cardExpMonth,
+      expYear: result.cardExpYear,
+    }).catch((e) => console.error("[pay] save card failed", e));
   }
 
   const { fullyPaid } = await recordPayment({

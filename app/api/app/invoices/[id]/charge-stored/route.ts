@@ -5,16 +5,17 @@ import { getProcessor, recordPayment, invoiceBalance, sendReviewRequest } from "
 import { recomputeDepositApplied } from "@/lib/deposits";
 import { inPreview, previewBlockedError } from "@/lib/preview";
 import { logActivity } from "@/lib/activity";
+import { defaultSavedCard } from "@/lib/saved-cards";
 
 /**
- * POST — charge the invoice's remaining balance to the client's card on file
- * (Contact.processorCustomerRef, saved by the client on /pay or in the hub).
+ * POST — charge the invoice's remaining balance to a card on the client's
+ * file (SavedCard rows; body.cardId picks one, otherwise the default card).
  * Managers only: this moves the client's money without them present. No card
  * surcharge is applied to stored charges — the client never saw a
  * pay-by-bank-instead choice for this transaction.
  */
 export async function POST(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const actor = await getActor();
@@ -41,7 +42,22 @@ export async function POST(
     return NextResponse.json({ error: "This invoice is already paid." }, { status: 400 });
   if (invoice.status === "ARCHIVED")
     return NextResponse.json({ error: "This invoice is archived — reopen it first." }, { status: 400 });
-  if (!invoice.contact?.processorCustomerRef)
+  if (!invoice.contact)
+    return NextResponse.json({ error: "This invoice has no client." }, { status: 400 });
+
+  // Which card: an explicit pick from the charge sheet, else the default.
+  const body = await req.json().catch(() => null);
+  const cardId = typeof body?.cardId === "string" ? body.cardId : "";
+  const card = cardId
+    ? await prisma.savedCard.findFirst({
+        where: { id: cardId, contactId: invoice.contact.id },
+      })
+    : await defaultSavedCard(invoice.contact.id);
+  // Legacy fallback: contacts saved before the SavedCard table (backfill
+  // should have caught them, but the mirror columns are authoritative enough)
+  const instrumentRef = card?.instrumentRef ?? invoice.contact.processorCustomerRef;
+  const cardLabel = card?.label ?? invoice.contact.savedCardLabel;
+  if (!instrumentRef)
     return NextResponse.json({ error: "This client has no card on file." }, { status: 400 });
 
   // A final invoice's deposit credit may have moved since creation.
@@ -59,7 +75,7 @@ export async function POST(
     return NextResponse.json({ error: "Online payments are not enabled yet." }, { status: 503 });
 
   const result = await processor.chargeStored({
-    customerRef: invoice.contact.processorCustomerRef,
+    customerRef: instrumentRef,
     amount: balance,
     description: `Invoice #${invoice.invoiceNumber} — ${invoice.company.name}`,
     metadata: { invoiceId: invoice.id, companyId: actor.companyId, chargedBy: actor.id },
@@ -77,7 +93,7 @@ export async function POST(
     cardBrand: result.cardBrand,
     cardType: result.cardType,
     recordedById: actor.id,
-    details: `Card on file${invoice.contact.savedCardLabel ? ` (${invoice.contact.savedCardLabel})` : ""}`,
+    details: `Card on file${cardLabel ? ` (${cardLabel})` : ""}`,
     receiptPending: result.pending,
   });
 
@@ -99,7 +115,7 @@ export async function POST(
     entityType: "invoice",
     entityId: invoice.id,
     action: "card_on_file_charged",
-    detail: `$${balance.toFixed(2)} charged to ${invoice.contact.savedCardLabel ?? "saved card"}`,
+    detail: `$${balance.toFixed(2)} charged to ${cardLabel ?? "saved card"}`,
   });
 
   return NextResponse.json({ success: true, amount: balance, fullyPaid });

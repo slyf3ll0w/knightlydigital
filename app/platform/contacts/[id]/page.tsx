@@ -18,9 +18,11 @@ import PortalAccessCard from "./PortalAccessCard";
 import EmailClientButton from "./EmailClientButton";
 import AddressesCard from "./AddressesCard";
 import PeopleCard from "./PeopleCard";
-import SavedCardRow from "./SavedCardRow";
+import SavedCardsCard from "./SavedCardsCard";
 import PipelineCard from "./PipelineCard";
 import { getActiveFieldDefs } from "@/lib/contact-fields";
+import { getProcessor } from "@/lib/payments";
+import { finixApplicationId, finixEnvironment } from "@/lib/finix";
 
 export default async function ContactDetailPage({
   params,
@@ -38,7 +40,20 @@ export default async function ContactDetailPage({
     prisma.contact.findFirst({
       where: { id, companyId, ...contactScope(actor) },
       include: {
-        company: { select: { name: true, phone: true, website: true, logoUrl: true } },
+        company: {
+          select: {
+            name: true,
+            phone: true,
+            website: true,
+            logoUrl: true,
+            finixMerchantId: true,
+            finixOnboardingState: true,
+          },
+        },
+        savedCards: {
+          orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
+          select: { id: true, label: true, isDefault: true },
+        },
         requests: { orderBy: { createdAt: "desc" } },
         appointments: { orderBy: { createdAt: "desc" } },
         contracts: { orderBy: { createdAt: "desc" } },
@@ -374,13 +389,6 @@ export default async function ContactDetailPage({
                 <dt className="text-gray-400 text-xs">Lead source</dt>
                 <dd className="text-gray-800">{contact.leadSource || "—"}</dd>
               </div>
-              {contact.savedCardLabel && (
-                <SavedCardRow
-                  contactId={contact.id}
-                  label={contact.savedCardLabel}
-                  canRemove={isManager(actor.role)}
-                />
-              )}
               {contact.notes && (
                 <div className="col-span-2">
                   <dt className="text-gray-400 text-xs">Notes</dt>
@@ -399,6 +407,22 @@ export default async function ContactDetailPage({
               </a>
             )}
           </div>
+
+          {canSeeMoney(actor) && (
+            <SavedCardsCard
+              contactId={contact.id}
+              cards={contact.savedCards}
+              canManage={isManager(actor.role)}
+              finix={
+                getProcessor().name === "finix" &&
+                getProcessor().live &&
+                contact.company.finixMerchantId &&
+                contact.company.finixOnboardingState === "APPROVED"
+                  ? { applicationId: finixApplicationId(), environment: finixEnvironment() }
+                  : null
+              }
+            />
+          )}
 
           <AddressesCard
             contactId={contact.id}

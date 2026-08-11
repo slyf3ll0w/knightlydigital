@@ -2,28 +2,29 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CreditCard, Loader2, Trash2 } from "lucide-react";
+import { CreditCard, Loader2, Plus, Trash2 } from "lucide-react";
 import { confirmSheet } from "@/components/ConfirmSheet";
+import { FINIX_JS_SRC, type FinixConfig, type FinixForm } from "@/lib/finix-js";
 
 /**
- * finix.js card tokenization form — same mount pattern as the public pay page,
- * but the token is exchanged into a vaulted instrument with NO charge. Lists
- * every saved card; the default is the one charged unless staff pick another.
+ * Cards on file, staff side. Lists every saved card (default first) and — for
+ * managers, when the company can take online payments — adds one right here:
+ * the client hands their card over in person or reads it on the phone, the
+ * browser tokenizes it with finix.js (the number never touches our server),
+ * and it's vaulted without a charge. Same flow the client hub uses.
  */
-
-import { FINIX_JS_SRC, type FinixConfig, type FinixForm } from "@/lib/finix-js";
 
 type Card = { id: string; label: string; isDefault: boolean };
 
-export default function SavedCardManager({
-  token,
-  companyName,
+export default function SavedCardsCard({
+  contactId,
   cards,
+  canManage,
   finix,
 }: {
-  token: string;
-  companyName: string;
+  contactId: string;
   cards: Card[];
+  canManage: boolean;
   finix: FinixConfig;
 }) {
   const router = useRouter();
@@ -82,6 +83,9 @@ export default function SavedCardManager({
     );
   }, [finix, adding, scriptReady]);
 
+  // Nothing on file and nothing addable — no card to render at all
+  if (cards.length === 0 && !(canManage && finix)) return null;
+
   async function saveCard() {
     if (!formRef.current) return;
     setError("");
@@ -90,13 +94,13 @@ export default function SavedCardManager({
       const paymentToken = res?.data?.id;
       if (err || !paymentToken) {
         setBusyId(null);
-        setError("Please check your card details and try again.");
+        setError("Please check the card details and try again.");
         return;
       }
-      const r = await fetch("/api/hub/payment-method", {
+      const r = await fetch(`/api/app/contacts/${contactId}/payment-method`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, paymentToken }),
+        body: JSON.stringify({ paymentToken }),
       });
       const data = await r.json().catch(() => null);
       setBusyId(null);
@@ -111,10 +115,10 @@ export default function SavedCardManager({
 
   async function makeDefault(card: Card) {
     setBusyId(card.id);
-    await fetch("/api/hub/payment-method", {
+    await fetch(`/api/app/contacts/${contactId}/payment-method`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token, cardId: card.id }),
+      body: JSON.stringify({ cardId: card.id }),
     });
     setBusyId(null);
     router.refresh();
@@ -124,84 +128,86 @@ export default function SavedCardManager({
     if (
       !(await confirmSheet({
         title: "Remove this card?",
-        message: `${card.label} will be removed from your account with ${companyName}.`,
+        message: `${card.label} will no longer be chargeable. The client can re-add it anytime.`,
         confirmLabel: "Remove",
         destructive: true,
       }))
     )
       return;
     setBusyId(card.id);
-    await fetch("/api/hub/payment-method", {
+    await fetch(`/api/app/contacts/${contactId}/payment-method`, {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token, cardId: card.id }),
+      body: JSON.stringify({ cardId: card.id }),
     });
     setBusyId(null);
     router.refresh();
   }
 
-  if (!finix) {
-    return (
-      <div className="card-ledger p-5 text-sm text-gray-500">
-        {companyName} isn&apos;t set up for online payments yet, so cards can&apos;t be
-        saved here. Check back soon.
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-4">
+    <div className="card-ledger p-4">
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-[13px] font-semibold text-gray-500">Cards on file</h2>
+        {canManage && finix && !adding && (
+          <button
+            onClick={() => setAdding(true)}
+            className="flex items-center gap-1 text-xs font-medium text-green-700 hover:underline"
+          >
+            <Plus size={12} />
+            Add card
+          </button>
+        )}
+      </div>
+
+      {cards.length === 0 && !adding && (
+        <p className="text-sm text-gray-400">
+          No cards yet — add one here, or the client can save one when paying online.
+        </p>
+      )}
+
       {cards.length > 0 && (
-        <div className="card-ledger divide-y divide-gray-100">
+        <div className="divide-y divide-gray-100">
           {cards.map((card) => (
-            <div key={card.id} className="p-4 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center shrink-0">
-                <CreditCard size={18} className="text-gray-500" />
-              </div>
+            <div key={card.id} className="py-2.5 first:pt-0 flex items-center gap-3">
+              <CreditCard size={16} className="text-gray-400 shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-gray-900">{card.label}</p>
-                <p className="text-xs text-gray-500">
-                  {card.isDefault ? "Default — used for automatic charges" : "On file"}
-                </p>
+                <p className="text-sm text-gray-800">{card.label}</p>
+                {card.isDefault && cards.length > 1 && (
+                  <p className="text-xs text-gray-400">Default</p>
+                )}
               </div>
-              {!card.isDefault && (
+              {canManage && !card.isDefault && (
                 <button
                   onClick={() => makeDefault(card)}
                   disabled={busyId !== null}
-                  className="px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                  className="text-xs font-medium text-gray-500 hover:text-gray-700 disabled:opacity-50"
                 >
                   Make default
                 </button>
               )}
-              <button
-                onClick={() => removeCard(card)}
-                disabled={busyId !== null}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-50"
-              >
-                {busyId === card.id ? (
-                  <Loader2 size={12} className="animate-spin" />
-                ) : (
-                  <Trash2 size={12} />
-                )}
-                Remove
-              </button>
+              {canManage && (
+                <button
+                  onClick={() => removeCard(card)}
+                  disabled={busyId !== null}
+                  className="text-gray-300 hover:text-red-600 disabled:opacity-50"
+                  title="Remove card"
+                >
+                  {busyId === card.id ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : (
+                    <Trash2 size={14} />
+                  )}
+                </button>
+              )}
             </div>
           ))}
         </div>
       )}
 
-      {!adding ? (
-        <button
-          onClick={() => setAdding(true)}
-          className="w-full py-3 text-sm font-semibold border border-gray-300 rounded-[10px] text-gray-700 hover:bg-gray-50"
-        >
-          {cards.length > 0 ? "Add another card" : "Add a card"}
-        </button>
-      ) : (
-        <div className="card-ledger p-5">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3">Add a card</h3>
+      {adding && (
+        <div className="mt-3 border-t border-gray-100 pt-3">
           {error && (
-            <div className="mb-3 px-4 py-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+            <div className="mb-3 px-3 py-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">
               {error}
             </div>
           )}
@@ -212,11 +218,11 @@ export default function SavedCardManager({
               Loading secure card form…
             </div>
           )}
-          <div className="flex gap-2 mt-4">
+          <div className="flex gap-2 mt-3">
             <button
               onClick={saveCard}
               disabled={busyId !== null || !scriptReady || formHasErrors}
-              className="flex-1 py-2.5 text-sm font-semibold rounded-[10px] bg-gray-900 text-white hover:bg-gray-800 disabled:opacity-50 flex items-center justify-center gap-2"
+              className="flex-1 py-2 text-sm font-semibold rounded-[10px] bg-gray-900 text-white hover:bg-gray-800 disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {busyId === "add" && <Loader2 size={13} className="animate-spin" />}
               Save card
@@ -227,16 +233,16 @@ export default function SavedCardManager({
                 setError("");
               }}
               disabled={busyId !== null}
-              className="px-4 py-2.5 text-sm font-medium border border-gray-300 rounded-[10px] text-gray-600 hover:bg-gray-50"
+              className="px-4 py-2 text-sm font-medium border border-gray-300 rounded-[10px] text-gray-600 hover:bg-gray-50"
             >
               Cancel
             </button>
           </div>
-          <p className="mt-3 text-[11px] text-gray-400">
-            Your card details go directly to the payment processor — {companyName} never
-            sees the full number. No charge happens when you save.
+          <p className="mt-2 text-[11px] text-gray-400">
+            Card details go straight to the payment processor — they never touch this
+            server. No charge happens when you save.
           </p>
-          {finix.environment === "sandbox" && (
+          {finix?.environment === "sandbox" && (
             <p className="mt-1 text-[11px] text-amber-600">Test mode — no real cards.</p>
           )}
         </div>

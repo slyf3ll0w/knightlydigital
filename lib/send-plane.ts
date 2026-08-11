@@ -30,9 +30,12 @@ export function launchSendPlane(from: LaunchPoint | null) {
     '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#22C55E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block;margin:-13px 0 0 -13px"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>';
   document.body.appendChild(wrap);
 
-  // Fly toward the top-right, but never past the viewport edge
-  const dx = Math.max(60, Math.min(window.innerWidth - start.x - 24, 340));
-  const dy = -Math.max(60, Math.min(start.y - 24, 300));
+  // Fly up and to the right, exiting past the viewport edge. The floors
+  // matter: desktop action rows sit at the top-right, where "distance to the
+  // edge" is nearly zero — without them the flight collapsed into an
+  // invisible 60px hop there (why the animation read as mobile-only).
+  const dx = Math.min(Math.max(160, window.innerWidth - start.x + 60), 480);
+  const dy = -Math.min(Math.max(180, start.y + 60), 420);
 
   const anim = wrap.animate(
     [
@@ -47,7 +50,7 @@ export function launchSendPlane(from: LaunchPoint | null) {
       // recede into the distance and fade
       { transform: `translate(${dx}px,${dy}px) rotate(14deg) scale(0.45)`, opacity: 0 },
     ],
-    { duration: 750, easing: "cubic-bezier(0.25, 0.6, 0.3, 1)" }
+    { duration: 800, easing: "cubic-bezier(0.25, 0.6, 0.3, 1)" }
   );
   anim.onfinish = () => wrap.remove();
   anim.oncancel = () => wrap.remove();

@@ -231,8 +231,13 @@ export default function QuoteActions({
       {busy && <Loader2 size={16} className="animate-spin text-gray-400" />}
 
       {sentTo && (
-        <span className="fixed left-1/2 -translate-x-1/2 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-40 max-w-[calc(100vw-2rem)] truncate rounded-full bg-gray-900/95 px-4 py-2 text-xs font-medium text-white shadow-lg lg:static lg:left-auto lg:bottom-auto lg:z-auto lg:max-w-none lg:translate-x-0 lg:rounded-none lg:bg-transparent lg:p-0 lg:text-green-700 lg:shadow-none">
-          Emailed to {sentTo}
+        // Floating pill on every screen size (desktop used to demote it to
+        // inline text); outer span owns the centering so the entrance
+        // animation's transform doesn't fight -translate-x-1/2
+        <span className="fixed left-1/2 -translate-x-1/2 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] lg:bottom-8 z-40 max-w-[calc(100vw-2rem)]">
+          <span className="msg-enter block truncate rounded-full bg-gray-900/95 px-4 py-2 text-xs font-medium text-white shadow-lg">
+            Emailed to {sentTo}
+          </span>
         </span>
       )}
 

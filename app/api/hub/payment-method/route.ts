@@ -4,16 +4,18 @@ import { limit, clientIp } from "@/lib/rate-limit";
 import { getProcessor, savedCardLabel } from "@/lib/payments";
 import * as finix from "@/lib/finix";
 import { suspendedResponse } from "@/lib/suspension";
+import { addSavedCard, removeSavedCard, setDefaultSavedCard } from "@/lib/saved-cards";
 
 /**
- * Public (hub-token-authed): the client's saved payment method.
+ * Public (hub-token-authed): the client's saved cards.
  *
  * POST tokenizes a card WITHOUT charging it — finix.js hands us a one-time
  * token, we exchange it into a vaulted payment instrument under the client's
- * buyer identity, and store the ref on the contact. This is how a client puts
- * a card on file before any invoice exists (memberships, autopay migration).
- * DELETE removes the card from the account (the Finix instrument simply stops
- * being referenced).
+ * buyer identity, and store it as a SavedCard row (multiple cards per
+ * account; the first becomes the default). This is how a client puts a card
+ * on file before any invoice exists (memberships, autopay migration).
+ * PATCH makes one of the saved cards the default; DELETE removes a card
+ * (the Finix instrument simply stops being referenced).
  */
 
 async function contactByToken(token: string) {
@@ -22,6 +24,7 @@ async function contactByToken(token: string) {
     where: { hubToken: token },
     select: {
       id: true,
+      companyId: true,
       firstName: true,
       lastName: true,
       email: true,
@@ -35,6 +38,15 @@ async function contactByToken(token: string) {
         },
       },
     },
+  });
+}
+
+/** The card list the hub UI renders — default first, then oldest-to-newest. */
+async function cardList(contactId: string) {
+  return prisma.savedCard.findMany({
+    where: { contactId },
+    orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
+    select: { id: true, label: true, brand: true, last4: true, isDefault: true },
   });
 }
 
@@ -97,16 +109,26 @@ export async function POST(req: NextRequest) {
       cardExpMonth: instrument.expiration_month,
       cardExpYear: instrument.expiration_year,
     });
-    await prisma.contact.update({
-      where: { id: contact.id },
-      data: {
-        finixBuyerIdentityId: identityId,
-        processorCustomerRef: instrument.id,
-        savedCardLabel: label,
-        savedCardAt: new Date(),
-      },
+    if (!contact.finixBuyerIdentityId) {
+      await prisma.contact.update({
+        where: { id: contact.id },
+        data: { finixBuyerIdentityId: identityId },
+      });
+    }
+    const added = await addSavedCard({
+      companyId: contact.companyId,
+      contactId: contact.id,
+      instrumentRef: instrument.id,
+      label,
+      brand: instrument.brand ?? null,
+      last4: instrument.last_four ?? null,
+      expMonth: instrument.expiration_month ?? null,
+      expYear: instrument.expiration_year ?? null,
     });
-    return NextResponse.json({ saved: true, label });
+    if (!added.ok) {
+      return NextResponse.json({ error: added.error }, { status: 400 });
+    }
+    return NextResponse.json({ saved: true, label, cards: await cardList(contact.id) });
   } catch (err) {
     if (err instanceof finix.FinixError) {
       return NextResponse.json({ error: err.message }, { status: 402 });
@@ -119,15 +141,28 @@ export async function POST(req: NextRequest) {
   }
 }
 
-export async function DELETE(req: NextRequest) {
+export async function PATCH(req: NextRequest) {
   const data = await req.json().catch(() => null);
   const token = typeof data?.token === "string" ? data.token : "";
+  const cardId = typeof data?.cardId === "string" ? data.cardId : "";
   const contact = await contactByToken(token);
   if (!contact) return NextResponse.json({ error: "Not found." }, { status: 404 });
 
-  await prisma.contact.update({
-    where: { id: contact.id },
-    data: { processorCustomerRef: null, savedCardLabel: null, savedCardAt: null },
-  });
-  return NextResponse.json({ removed: true });
+  if (!cardId || !(await setDefaultSavedCard(contact.id, cardId))) {
+    return NextResponse.json({ error: "Card not found." }, { status: 404 });
+  }
+  return NextResponse.json({ updated: true, cards: await cardList(contact.id) });
+}
+
+export async function DELETE(req: NextRequest) {
+  const data = await req.json().catch(() => null);
+  const token = typeof data?.token === "string" ? data.token : "";
+  const cardId = typeof data?.cardId === "string" ? data.cardId : "";
+  const contact = await contactByToken(token);
+  if (!contact) return NextResponse.json({ error: "Not found." }, { status: 404 });
+
+  if (!cardId || !(await removeSavedCard(contact.id, cardId))) {
+    return NextResponse.json({ error: "Card not found." }, { status: 404 });
+  }
+  return NextResponse.json({ removed: true, cards: await cardList(contact.id) });
 }

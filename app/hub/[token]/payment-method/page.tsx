@@ -5,9 +5,10 @@ import { finixApplicationId, finixEnvironment } from "@/lib/finix";
 import SavedCardManager from "./SavedCardManager";
 
 /**
- * Client hub: the card on file. Shows the saved card with a remove action,
- * and a finix.js tokenization form to add/replace one — no charge happens
- * here; saving a card is how autopay and one-tap future payments work.
+ * Client hub: the cards on file. Lists every saved card (default marked),
+ * with make-default/remove actions, and a finix.js tokenization form to add
+ * more — no charge happens here; saving a card is how autopay and one-tap
+ * future payments work.
  */
 export default async function HubPaymentMethodPage({
   params,
@@ -19,8 +20,10 @@ export default async function HubPaymentMethodPage({
   const contact = await prisma.contact.findUnique({
     where: { hubToken: token },
     select: {
-      savedCardLabel: true,
-      savedCardAt: true,
+      savedCards: {
+        orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
+        select: { id: true, label: true, isDefault: true },
+      },
       company: {
         select: {
           name: true,
@@ -49,15 +52,16 @@ export default async function HubPaymentMethodPage({
 
   return (
     <div>
-      <h2 className="text-xl font-bold text-gray-900 mb-1">Payment method</h2>
+      <h2 className="text-xl font-bold text-gray-900 mb-1">Payment methods</h2>
       <p className="text-sm text-gray-500 mb-4">
-        A card on file lets {contact.company.name} charge agreed work without
-        chasing you for payment — and you can remove it anytime.
+        Cards on file let {contact.company.name} charge agreed work without
+        chasing you for payment. Your default card is used unless you say
+        otherwise — and you can remove any card anytime.
       </p>
       <SavedCardManager
         token={token}
         companyName={contact.company.name}
-        savedLabel={contact.savedCardLabel}
+        cards={contact.savedCards}
         finix={finix}
       />
     </div>
