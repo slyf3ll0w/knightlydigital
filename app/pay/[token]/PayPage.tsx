@@ -392,16 +392,9 @@ export default function PayPage({
             </div>
           )}
 
-          <PaperFooter
-            kind="invoice"
-            docNumber={invoice.invoiceNumber}
-            companyName={invoice.company.name}
-            pdfHref={`/pay/${invoice.publicToken}/pdf`}
-          />
-        </PaperSheet>
-
-        {/* Payment method */}
-        <div className="card-ledger p-5 shadow-sm">
+          {/* Payment — the bottom of the same sheet, like the remittance stub
+              on a paper invoice */}
+          <div className="mt-8 border-t-2 border-gray-900 pt-5">
           {/* Amount — full balance by default, or a partial payment */}
           <h2 className="text-sm font-semibold text-gray-700 mb-3">Payment amount</h2>
           <div className="grid grid-cols-2 gap-3 mb-3">
@@ -552,7 +545,15 @@ export default function PayPage({
               <span className="ml-1 px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-medium">Test mode</span>
             )}
           </div>
-        </div>
+          </div>
+
+          <PaperFooter
+            kind="invoice"
+            docNumber={invoice.invoiceNumber}
+            companyName={invoice.company.name}
+            pdfHref={`/pay/${invoice.publicToken}/pdf`}
+          />
+        </PaperSheet>
       </div>
     </div>
   );

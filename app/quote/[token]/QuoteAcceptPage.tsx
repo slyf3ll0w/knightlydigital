@@ -362,43 +362,37 @@ export default function QuoteAcceptPage({
             </div>
           )}
 
-          <PaperFooter
-            kind="quote"
-            docNumber={quote.quoteNumber}
-            companyName={quote.company.name}
-            pdfHref={`/quote/${quote.publicToken}/pdf`}
-          />
-        </PaperSheet>
+          {/* Sign-off — the bottom of the same sheet, like the signature
+              line on a paper proposal */}
+          {(error || (reviewable && !preview) || (expired && reviewable)) && (
+            <div className="mt-8 border-t-2 border-gray-900 pt-5">
+              {error && (
+                <div className="mb-4 px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                  {error}
+                </div>
+              )}
 
-        {error && (
-          <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
-            {error}
-          </div>
-        )}
+              {/* Expired: no online approval — prices may be stale. Requesting
+                  changes stays open as the "send me a fresh one" path. */}
+              {expired && reviewable && !showChanges && (
+                <>
+                  <div className="px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
+                    This quote expired on {longDate(quote.validUntil!)}. Contact{" "}
+                    {quote.company.name} for an updated quote, or request changes and
+                    they&apos;ll send a fresh one.
+                  </div>
+                  <button
+                    onClick={() => setShowChanges(true)}
+                    className="mt-4 flex items-center gap-2 px-5 py-2.5 border border-gray-300 text-gray-700 text-sm font-medium rounded hover:bg-gray-50"
+                  >
+                    <MessageSquare size={14} />
+                    Request changes
+                  </button>
+                </>
+              )}
 
-        {/* Expired: no online approval — prices may be stale. Requesting
-            changes stays open as the "send me a fresh one" path. */}
-        {expired && reviewable && !showChanges && (
-          <div className="card-ledger p-5 shadow-sm">
-            <div className="px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
-              This quote expired on {longDate(quote.validUntil!)}. Contact{" "}
-              {quote.company.name} for an updated quote, or request changes and they&apos;ll
-              send a fresh one.
-            </div>
-            <button
-              onClick={() => setShowChanges(true)}
-              className="mt-4 flex items-center gap-2 px-5 py-2.5 border border-gray-300 text-gray-700 text-sm font-medium rounded hover:bg-gray-50"
-            >
-              <MessageSquare size={14} />
-              Request changes
-            </button>
-          </div>
-        )}
-
-        {/* Approval — the action panel sits under the document, like a
-            signature line at the bottom of paper */}
-        {reviewable && !expired && !showChanges && (
-          <div className="card-ledger p-5 shadow-sm">
+              {reviewable && !expired && !showChanges && (
+                <>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Sign by typing your full name
             </label>
@@ -441,39 +435,49 @@ export default function QuoteAcceptPage({
                 Request Changes
               </button>
             </div>
-          </div>
-        )}
+                </>
+              )}
 
-        {reviewable && showChanges && (
-          <div className="card-ledger p-5 shadow-sm">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              What would you like changed?
-            </label>
-            <textarea
-              value={changeMessage}
-              onChange={(e) => setChangeMessage(e.target.value)}
-              rows={3}
-              className="w-full px-3 py-2.5 border border-gray-300 rounded text-[16px] sm:text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none mb-3"
-              placeholder="Tell us what to adjust..."
-            />
-            <div className="flex gap-3">
-              <button
-                onClick={requestChanges}
-                disabled={loading}
-                className="flex items-center gap-2 px-5 py-2.5 bg-gray-900 hover:bg-gray-800 text-white font-semibold text-sm rounded transition-colors disabled:opacity-50"
-              >
-                {loading && <Loader2 size={13} className="animate-spin" />}
-                Send Request
-              </button>
-              <button
-                onClick={() => setShowChanges(false)}
-                className="px-5 py-2.5 border border-gray-300 text-sm font-medium text-gray-600 rounded hover:bg-gray-50 transition-colors"
-              >
-                Back
-              </button>
+              {reviewable && showChanges && (
+                <>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    What would you like changed?
+                  </label>
+                  <textarea
+                    value={changeMessage}
+                    onChange={(e) => setChangeMessage(e.target.value)}
+                    rows={3}
+                    className="w-full px-3 py-2.5 border border-gray-300 rounded text-[16px] sm:text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none mb-3"
+                    placeholder="Tell us what to adjust..."
+                  />
+                  <div className="flex gap-3">
+                    <button
+                      onClick={requestChanges}
+                      disabled={loading}
+                      className="flex items-center gap-2 px-5 py-2.5 bg-gray-900 hover:bg-gray-800 text-white font-semibold text-sm rounded transition-colors disabled:opacity-50"
+                    >
+                      {loading && <Loader2 size={13} className="animate-spin" />}
+                      Send Request
+                    </button>
+                    <button
+                      onClick={() => setShowChanges(false)}
+                      className="px-5 py-2.5 border border-gray-300 text-sm font-medium text-gray-600 rounded hover:bg-gray-50 transition-colors"
+                    >
+                      Back
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
-          </div>
-        )}
+          )}
+
+          <PaperFooter
+            kind="quote"
+            docNumber={quote.quoteNumber}
+            companyName={quote.company.name}
+            pdfHref={`/quote/${quote.publicToken}/pdf`}
+          />
+        </PaperSheet>
       </div>
     </div>
   );
