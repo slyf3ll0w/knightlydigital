@@ -7,17 +7,21 @@
  * sweeps ACTIVE subscriptions whose nextRunDate is due and generates the next
  * invoice (and optionally a job) for each cycle.
  *
- * Billing is built against the lib/payments.ts PaymentProcessor seam: when a
- * processor is live AND the client has a card on file (Contact.processorCustomerRef),
- * the engine auto-charges via chargeStored() and records the payment. Until then
- * it falls back to emailing a pay-by-link. No call site changes when payments
- * go live — only a new processor implementation.
+ * A series can bill per completed visit instead (Subscription.billPerVisit):
+ * the job status route calls `billCompletedVisit` when a series visit wraps,
+ * which mints + sends/charges that visit's invoice on the spot.
+ *
+ * Billing settles through lib/auto-charge.ts: when a processor is live and
+ * the client has a card on file (the series' pinned SavedCard, the default
+ * SavedCard, or the legacy Contact.processorCustomerRef mirror), the engine
+ * auto-charges and records the payment; declines book a retry schedule +
+ * dunning. With no card at all it falls back to emailing a pay-by-link.
  */
 
 import { randomBytes } from "crypto";
 import type { Frequency, Prisma, PrismaClient, RecurringInterval } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { getProcessor, recordPayment } from "@/lib/payments";
+import { attemptAutoCharge } from "@/lib/auto-charge";
 import { sendEmail, invoiceLinkEmail } from "@/lib/email";
 import { localDayParts, wallTimeToUtc } from "@/lib/booking-slots";
 import { withDocNumberRetry } from "@/lib/doc-numbers";
@@ -157,6 +161,74 @@ export async function ensureSubscriptionsForContact(
 type DueSub = Prisma.SubscriptionGetPayload<{ include: { contact: true } }>;
 
 /**
+ * Post-commit settlement for an engine-generated SEND invoice: auto-charge
+ * via lib/auto-charge.ts (pinned/default SavedCard, falling back to the
+ * legacy contact mirror), otherwise email a pay-by-link. A declined card
+ * never throws — the failure books its own retry schedule and dunning
+ * (client "card declined" email, owner push, ActivityLog), so this only
+ * sends the plain pay-link email when there was no card to try at all.
+ */
+async function settleGeneratedInvoice(opts: {
+  companyId: string;
+  subscriptionId: string;
+  contact: { email: string | null };
+  serviceName: string;
+  invoiceId: string;
+  invoiceNumber: number;
+  publicToken: string;
+  amount: number;
+  chargeDescription: string;
+  paymentDetails: string;
+}): Promise<"charged" | "billed"> {
+  const outcome = await attemptAutoCharge({
+    companyId: opts.companyId,
+    invoiceId: opts.invoiceId,
+    subscriptionId: opts.subscriptionId,
+    amount: opts.amount,
+    chargeDescription: opts.chargeDescription,
+    paymentDetails: opts.paymentDetails,
+  });
+  if (outcome === "charged") return "charged";
+  // "failed" already emailed the client its own payment-issue note — don't
+  // stack a second, contradictory "here's your invoice" email on top.
+  if (outcome === "failed") return "billed";
+
+  if (opts.contact.email) {
+    const company = await prisma.company.findUnique({
+      where: { id: opts.companyId },
+      select: {
+        name: true,
+        email: true,
+        brandColor: true,
+        documentColor: true,
+        brandColorSecondary: true,
+        logoUrl: true,
+      },
+    });
+    if (company) {
+      const baseUrl = process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com";
+      const { subject, html } = invoiceLinkEmail({
+        brand: company,
+        companyName: company.name,
+        invoiceNumber: opts.invoiceNumber,
+        total: opts.amount,
+        payUrl: `${baseUrl}/pay/${opts.publicToken}`,
+        serviceNames: [opts.serviceName],
+      });
+      await sendEmail({
+        companyId: opts.companyId,
+        to: opts.contact.email,
+        subject,
+        html,
+        replyTo: company.email || undefined,
+        fromName: company.name,
+      });
+    }
+  }
+  return "billed";
+}
+
+/**
  * Generate one cycle for a single subscription: optional job, an invoice, and
  * either an auto-charge or a pay-link email. The invoice + nextRunDate advance
  * commit FIRST in one transaction (with an optimistic claim on nextRunDate so
@@ -273,67 +345,133 @@ async function generateCycle(sub: DueSub, now: Date): Promise<"billed" | "drafte
     };
   }));
 
-  if (!cycle) return "drafted";
+  if (!cycle || !cycle.send) return "drafted";
 
   // Post-commit: the cycle (invoice + schedule advance) is durable before any
   // external call, so a slow or crashed charge leaves an unpaid invoice for
   // dunning instead of rolling back a billed cycle.
-  const processor = getProcessor();
-  if (cycle.send && processor.live && sub.contact.processorCustomerRef) {
-    const result = await processor.chargeStored({
-      customerRef: sub.contact.processorCustomerRef,
-      amount: lineTotal,
-      description: `${sub.name} — subscription`,
-      metadata: { invoiceId: cycle.invoiceId, subscriptionId: sub.id },
-    });
-    if (result.success) {
-      await recordPayment({
-        companyId: sub.companyId,
-        invoiceId: cycle.invoiceId,
-        amount: lineTotal,
-        method: "CARD",
-        processorRef: result.transactionId,
-        cardBrand: result.cardBrand,
-        cardType: result.cardType,
-        details: "Auto-charged (recurring subscription)",
-      });
-      return "charged";
-    }
-  }
+  return settleGeneratedInvoice({
+    companyId: sub.companyId,
+    subscriptionId: sub.id,
+    contact: sub.contact,
+    serviceName: sub.name,
+    invoiceId: cycle.invoiceId,
+    invoiceNumber: cycle.invoiceNumber,
+    publicToken: cycle.publicToken,
+    amount: lineTotal,
+    chargeDescription: `${sub.name} — subscription`,
+    paymentDetails: "Auto-charged (recurring subscription)",
+  });
+}
 
-  if (cycle.send && sub.contact.email) {
-    const company = await prisma.company.findUnique({
-      where: { id: sub.companyId },
-      select: {
-        name: true,
-        email: true,
-        brandColor: true,
-        documentColor: true,
-        brandColorSecondary: true,
-        logoUrl: true,
+/**
+ * Per-visit billing: called when a series visit job is completed. If the job
+ * belongs to a billPerVisit subscription and has no invoice yet, mints the
+ * visit's invoice (unitPrice × quantity, sent or drafted per invoiceMode),
+ * archives the job — the same convention as manually invoicing a completed
+ * job — and then auto-charges the card on file / emails the pay link when
+ * sending. Idempotent via the one-invoice-per-job unique constraint, so a
+ * replayed completion (or an un-complete → re-complete) can't double-bill.
+ * Bills regardless of series status: a completed visit is real work even if
+ * the series was paused/cancelled after it was scheduled.
+ */
+export async function billCompletedVisit(
+  jobId: string,
+  companyId: string
+): Promise<"charged" | "billed" | "drafted" | null> {
+  const job = await prisma.job.findFirst({
+    where: { id: jobId, companyId },
+    select: {
+      id: true,
+      invoice: { select: { id: true } },
+      subscription: { include: { contact: true } },
+    },
+  });
+  const sub = job?.subscription;
+  if (!job || !sub || !sub.billPerVisit || job.invoice) return null;
+
+  const lineTotal = Number(sub.unitPrice) * Number(sub.quantity);
+  const send = sub.invoiceMode === "SEND";
+  const now = new Date();
+
+  const minted = await withDocNumberRetry(() => prisma.$transaction(async (tx) => {
+    // The unique Invoice.jobId is the real double-bill guard; re-check inside
+    // the transaction so overlapping completions bail cleanly instead of
+    // erroring on the constraint.
+    const fresh = await tx.job.findUnique({
+      where: { id: job.id },
+      select: { status: true, invoice: { select: { id: true } } },
+    });
+    if (!fresh || fresh.invoice) return null;
+
+    const lastInv = await tx.invoice.findFirst({
+      where: { companyId },
+      orderBy: { invoiceNumber: "desc" },
+      select: { invoiceNumber: true },
+    });
+    const invoice = await tx.invoice.create({
+      data: {
+        companyId,
+        publicToken: randomBytes(24).toString("hex"),
+        contactId: sub.contactId,
+        jobId: job.id,
+        subscriptionId: sub.id,
+        invoiceNumber: (lastInv?.invoiceNumber ?? 0) + 1,
+        subject: sub.name,
+        status: send ? "AWAITING_PAYMENT" : "DRAFT",
+        subtotal: lineTotal,
+        total: lineTotal,
+        issuedAt: send ? now : null,
+        dueDate: send
+          ? new Date(now.getTime() + sub.contact.paymentTermsDays * 86400000)
+          : null,
+        lineItems: {
+          create: {
+            name: sub.name,
+            description: sub.description ?? "",
+            quantity: sub.quantity,
+            unitPrice: sub.unitPrice,
+            total: lineTotal,
+            sortOrder: 0,
+          },
+        },
       },
     });
-    if (company) {
-      const baseUrl = process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com";
-      const { subject, html } = invoiceLinkEmail({
-        brand: company,
-        companyName: company.name,
-        invoiceNumber: cycle.invoiceNumber,
-        total: lineTotal,
-        payUrl: `${baseUrl}/pay/${cycle.publicToken}`,
-        serviceNames: [sub.name],
-      });
-      await sendEmail({
-        companyId: sub.companyId,
-        to: sub.contact.email,
-        subject,
-        html,
-        replyTo: company.email || undefined,
-        fromName: company.name,
+
+    // Invoicing the completed visit resolves its "requires invoicing" state
+    if (fresh.status === "REQUIRES_INVOICING") {
+      await tx.job.update({
+        where: { id: job.id },
+        data: { status: "ARCHIVED", closedAt: now },
       });
     }
-  }
-  return cycle.send ? "billed" : "drafted";
+    await tx.subscription.update({
+      where: { id: sub.id },
+      data: { lastGeneratedAt: now },
+    });
+
+    return {
+      invoiceId: invoice.id,
+      invoiceNumber: invoice.invoiceNumber,
+      publicToken: invoice.publicToken,
+    };
+  }));
+
+  if (!minted) return null;
+  if (!send) return "drafted";
+
+  return settleGeneratedInvoice({
+    companyId,
+    subscriptionId: sub.id,
+    contact: sub.contact,
+    serviceName: sub.name,
+    invoiceId: minted.invoiceId,
+    invoiceNumber: minted.invoiceNumber,
+    publicToken: minted.publicToken,
+    amount: lineTotal,
+    chargeDescription: `${sub.name} — visit`,
+    paymentDetails: "Auto-charged (per-visit billing)",
+  });
 }
 
 /**

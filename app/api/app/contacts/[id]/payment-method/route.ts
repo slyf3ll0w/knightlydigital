@@ -4,6 +4,7 @@ import { getActor, isManager } from "@/lib/permissions";
 import { getProcessor, savedCardLabel } from "@/lib/payments";
 import * as finix from "@/lib/finix";
 import { addSavedCard, removeSavedCard, setDefaultSavedCard } from "@/lib/saved-cards";
+import { reviveAutopayForContact } from "@/lib/auto-charge";
 
 /**
  * Staff side of the client's cards on file (managers only).
@@ -108,6 +109,10 @@ export async function POST(
       expYear: instrument.expiration_year ?? null,
     });
     if (!added.ok) return NextResponse.json({ error: added.error }, { status: 400 });
+    // A fresh card un-stalls any autopay invoices whose old card was declining
+    await reviveAutopayForContact(contact.id).catch((e) =>
+      console.error("[contacts] autopay revive failed", e)
+    );
     return NextResponse.json({ saved: true, label });
   } catch (err) {
     if (err instanceof finix.FinixError) {

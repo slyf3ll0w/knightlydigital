@@ -11,7 +11,20 @@ export default async function SubscriptionsPage() {
   const [subs, team] = await Promise.all([
     prisma.subscription.findMany({
       where: { companyId: actor.companyId },
-      include: { contact: { select: { id: true, firstName: true, lastName: true } } },
+      include: {
+        contact: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            // For the autopay-card picker in the edit form
+            savedCards: {
+              select: { id: true, label: true, isDefault: true },
+              orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
+            },
+          },
+        },
+      },
       orderBy: [{ status: "asc" }, { nextRunDate: "asc" }],
     }),
     prisma.user.findMany({

@@ -7,6 +7,7 @@ import {
   runQuoteFollowUps,
   runVisitReminders,
 } from "@/lib/reminders";
+import { runAutoChargeRetries, runCardExpiryNudges } from "@/lib/auto-charge";
 import { runQuickBooksNightlySync } from "@/lib/quickbooks";
 import { rollupStorageSnapshots } from "@/lib/usage";
 
@@ -40,6 +41,11 @@ export async function POST(req: NextRequest) {
   const subscriptions = await runDueSubscriptions(now);
   // Materialize upcoming visit-series jobs (~4-week rolling horizon)
   const visits = await generateDueVisits(now);
+  // Autopay retries: re-attempt declined card-on-file charges on their
+  // +1d/+3d/+7d schedule (soft declines only — hard declines gave up already)
+  const autoChargeRetries = await runAutoChargeRetries(now);
+  // "Your card expires soon" nudges for clients on autopay (once per card)
+  const cardNudges = await runCardExpiryNudges(now);
   const reminders = await runDueReminders(now);
   // Sales follow-ups: quotes sitting unanswered get a nudge at 3 and 7 days
   const quoteFollowUps = await runQuoteFollowUps(now);
@@ -68,6 +74,8 @@ export async function POST(req: NextRequest) {
     ok: true,
     subscriptions,
     visits,
+    autoChargeRetries,
+    cardNudges,
     reminders,
     quoteFollowUps,
     appointmentReminders,

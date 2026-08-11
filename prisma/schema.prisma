@@ -669,7 +669,13 @@ model SavedCard {
   expMonth      Int?
   expYear       Int?
   isDefault     Boolean  @default(false)
+  // "Your card expires soon" email sent (once per card row — a re-vaulted
+  // card with a new expiry lands as a fresh row). See runCardExpiryNudges.
+  expiryNudgeSentAt DateTime?
   createdAt     DateTime @default(now())
+
+  // Series whose autopay is pinned to this card (Subscription.savedCardId)
+  subscriptions Subscription[]
 
   @@unique([contactId, instrumentRef])
   @@index([contactId])
@@ -1506,6 +1512,14 @@ model Invoice {
   lastViewedAt  DateTime?
   viewCount     Int           @default(0)
   publicToken   String        @unique @default(cuid())
+  // ── Autopay retry state (recurring engine — lib/auto-charge.ts) ────────────
+  // Failed card-on-file attempts on this engine-generated invoice; the cron
+  // retries at autoChargeNextAt (null = nothing scheduled). Gave-up = hard
+  // decline or retries exhausted; cleared when the client saves a new card.
+  autoChargeAttempts  Int       @default(0)
+  autoChargeNextAt    DateTime?
+  autoChargeLastError String?
+  autoChargeGaveUpAt  DateTime?
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
@@ -1517,6 +1531,7 @@ model Invoice {
   @@index([companyId])
   @@index([companyId, status])
   @@index([quoteId])
+  @@index([status, autoChargeNextAt])
 }
 
 // ─── Celebrations ─────────────────────────────────────────────────────────────
@@ -1833,6 +1848,12 @@ model Subscription {
   // BILLING cadence — null = a standalone recurring-job series ("mow every
   // 2 weeks") that schedules visits via the series below but never bills
   interval    RecurringInterval?
+  // Bill after each completed visit instead of on a calendar schedule:
+  // completing one of this series' visit jobs mints an invoice for
+  // unitPrice × quantity (sent/charged or drafted per invoiceMode). Mutually
+  // exclusive with `interval` — a series bills on a schedule, per visit, or
+  // not at all.
+  billPerVisit Boolean           @default(false)
   createsJob  Boolean            @default(false)
   invoiceMode RecurringInvoiceMode @default(SEND)
   status      SubscriptionStatus @default(ACTIVE)
@@ -1842,6 +1863,11 @@ model Subscription {
   // Saved service address generated visits land at (see Job.propertyId)
   propertyId  String?
   property    ContactAddress?    @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  // Autopay card pinned to this series — null = the contact's default card.
+  // Resolution happens at charge time (lib/auto-charge.ts), so a swapped
+  // default card takes effect on the next charge without touching the series.
+  savedCardId String?
+  savedCard   SavedCard?         @relation(fields: [savedCardId], references: [id], onDelete: SetNull)
 
   // ── Visit series (visit cadence decoupled from billing) ─────────────────────
   // "Weekly mows, billed monthly": visitFrequency generates visit jobs on its

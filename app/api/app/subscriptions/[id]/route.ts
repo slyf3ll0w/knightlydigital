@@ -12,9 +12,11 @@ import {
  * PATCH — manage one subscription. Body:
  *   { status: "ACTIVE" | "PAUSED" | "CANCELLED" }  — pause/resume/cancel
  *   { action: "billNow" }                          — bill this cycle immediately
- *   { name?, unitPrice?, quantity?, interval?, nextRunDate? } — reprice/edit;
- *     takes effect from the next billing run (already-generated invoices keep
- *     their amounts)
+ *   { name?, unitPrice?, quantity?, interval?, nextRunDate?, billPerVisit? }
+ *     — reprice/edit; takes effect from the next billing run (already-
+ *     generated invoices keep their amounts). billPerVisit: true switches the
+ *     series to per-completed-visit invoicing (clears interval/nextRunDate —
+ *     the two billing styles are mutually exclusive).
  *   { visitFrequency?, nextVisitDate?, visitStartMinutes?,
  *     visitDurationMinutes?, visitAssigneeIds? } — the visit series (weekly
  *     mows billed monthly). Setting a frequency materializes upcoming visits
@@ -71,11 +73,28 @@ export async function PATCH(
     }
     data.quantity = qty;
   }
-  if (body.interval !== undefined) {
+  if (body.billPerVisit !== undefined) {
+    if (body.billPerVisit === true) {
+      if (body.interval) {
+        return NextResponse.json(
+          { error: "Pick scheduled billing or per-visit billing, not both." },
+          { status: 400 }
+        );
+      }
+      data.billPerVisit = true;
+      data.interval = null;
+      data.nextRunDate = null;
+    } else {
+      data.billPerVisit = false;
+    }
+  }
+  if (body.interval !== undefined && data.interval === undefined) {
     if (!validIntervals.includes(body.interval)) {
       return NextResponse.json({ error: "Invalid billing interval." }, { status: 400 });
     }
     data.interval = body.interval;
+    // Scheduled billing replaces per-visit billing
+    if (sub.billPerVisit) data.billPerVisit = false;
   }
   if (body.nextRunDate !== undefined) {
     if (!body.nextRunDate) {
@@ -148,6 +167,22 @@ export async function PATCH(
     data.visitAssigneeIds = valid.map((u) => u.id);
   }
 
+  // Pin autopay to one of the client's saved cards (null = the default card)
+  if (body.savedCardId !== undefined) {
+    if (body.savedCardId === null || body.savedCardId === "") {
+      data.savedCardId = null;
+    } else {
+      const card = await prisma.savedCard.findFirst({
+        where: { id: String(body.savedCardId), contactId: sub.contactId },
+        select: { id: true },
+      });
+      if (!card) {
+        return NextResponse.json({ error: "That card isn't on this client's file." }, { status: 400 });
+      }
+      data.savedCardId = card.id;
+    }
+  }
+
   if (Object.keys(data).length === 0) {
     return NextResponse.json({ error: "Nothing to update." }, { status: 400 });
   }
@@ -160,6 +195,16 @@ export async function PATCH(
     data.nextVisitDate !== undefined ? (data.nextVisitDate as Date | null) : sub.nextVisitDate;
   if (finalFrequency && !finalNextVisit) {
     return NextResponse.json({ error: "Pick the first visit date." }, { status: 400 });
+  }
+
+  // Per-visit billing without visits would never bill anything
+  const finalPerVisit =
+    data.billPerVisit !== undefined ? (data.billPerVisit as boolean) : sub.billPerVisit;
+  if (finalPerVisit && !finalFrequency) {
+    return NextResponse.json(
+      { error: "Per-visit billing needs a repeating visit schedule." },
+      { status: 400 }
+    );
   }
 
   // Resuming (or editing) with a stale date: roll forward on-cadence so the

@@ -86,9 +86,10 @@ export default function NewSeriesForm({
   const [visitTime, setVisitTime] = useState("");
   const [visitDuration, setVisitDuration] = useState("60");
   const [assignees, setAssignees] = useState<string[]>([]);
-  const [bills, setBills] = useState(false);
+  const [billing, setBilling] = useState<"none" | "visit" | "schedule">("none");
   const [unitPrice, setUnitPrice] = useState("");
   const [interval, setInterval] = useState("MONTHLY");
+  const [invoiceMode, setInvoiceMode] = useState<"SEND" | "DRAFT">("SEND");
 
   const savedAddresses = contacts.find((c) => c.id === contactId)?.addresses ?? [];
 
@@ -97,7 +98,7 @@ export default function NewSeriesForm({
     if (!contactId) return setError("Pick a client.");
     if (!name.trim()) return setError("Give the series a name (e.g. Lawn mowing).");
     if (!firstVisit) return setError("Pick the first visit date.");
-    if (bills && !(parseFloat(unitPrice) > 0)) {
+    if (billing !== "none" && !(parseFloat(unitPrice) > 0)) {
       return setError("Enter the price to bill, or turn billing off.");
     }
     setError("");
@@ -114,7 +115,9 @@ export default function NewSeriesForm({
         visitStartMinutes: visitTime === "" ? null : Number(visitTime),
         visitDurationMinutes: Number(visitDuration) || 60,
         visitAssigneeIds: assignees,
-        ...(bills && { interval, unitPrice: parseFloat(unitPrice) || 0 }),
+        ...(billing === "schedule" && { interval, unitPrice: parseFloat(unitPrice) || 0 }),
+        ...(billing === "visit" && { billPerVisit: true, unitPrice: parseFloat(unitPrice) || 0 }),
+        ...(billing !== "none" && { invoiceMode }),
       }
     );
     setLoading(false);
@@ -275,25 +278,55 @@ export default function NewSeriesForm({
         </div>
 
         <div className="card-ledger p-5 space-y-4">
-          <label className="flex items-center gap-2.5 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={bills}
-              onChange={(e) => setBills(e.target.checked)}
-              className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
-            />
-            <span className="text-sm font-semibold text-gray-700">Also bill on a schedule</span>
-          </label>
-          {!bills && (
-            <p className="text-xs text-gray-400">
-              Off = a repeating job with no automatic invoices — invoice each visit yourself (or
-              not at all).
-            </p>
-          )}
-          {bills && (
+          <h2 className="text-sm font-semibold text-gray-700">Billing</h2>
+          <div className="space-y-2">
+            {(
+              [
+                {
+                  value: "none",
+                  label: "No automatic billing",
+                  hint: "A repeating job with no automatic invoices — invoice each visit yourself (or not at all).",
+                },
+                {
+                  value: "visit",
+                  label: "Bill after each visit",
+                  hint: "Completing a visit generates its invoice on the spot — per-cut mows, per-clean pricing.",
+                },
+                {
+                  value: "schedule",
+                  label: "Bill a flat amount on a schedule",
+                  hint: "One recurring invoice regardless of visits — the classic pool-service / membership model.",
+                },
+              ] as const
+            ).map((opt) => (
+              <label
+                key={opt.value}
+                className={`flex items-start gap-2.5 p-3 rounded-lg border cursor-pointer transition-colors ${
+                  billing === opt.value
+                    ? "border-green-500 bg-green-50/50"
+                    : "border-gray-200 hover:border-gray-300"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="billing"
+                  checked={billing === opt.value}
+                  onChange={() => setBilling(opt.value)}
+                  className="mt-0.5 h-4 w-4 border-gray-300 text-green-600 focus:ring-green-500"
+                />
+                <span className="min-w-0">
+                  <span className="block text-sm font-medium text-gray-800">{opt.label}</span>
+                  <span className="block text-xs text-gray-400 mt-0.5">{opt.hint}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+          {billing !== "none" && (
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Price per cycle *</label>
+                <label className="block text-xs text-gray-500 mb-1">
+                  {billing === "visit" ? "Price per visit *" : "Price per cycle *"}
+                </label>
                 <input
                   type="number"
                   min="0"
@@ -304,19 +337,35 @@ export default function NewSeriesForm({
                   className={inputCls}
                 />
               </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Bills</label>
-                <select value={interval} onChange={(e) => setInterval(e.target.value)} className={inputCls}>
-                  {INTERVALS.map((iv) => (
-                    <option key={iv.value} value={iv.value}>
-                      {iv.label}
-                    </option>
-                  ))}
+              {billing === "schedule" && (
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Bills</label>
+                  <select value={interval} onChange={(e) => setInterval(e.target.value)} className={inputCls}>
+                    {INTERVALS.map((iv) => (
+                      <option key={iv.value} value={iv.value}>
+                        {iv.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              <div className={billing === "visit" ? "" : "col-span-2"}>
+                <label className="block text-xs text-gray-500 mb-1">Invoices are</label>
+                <select
+                  value={invoiceMode}
+                  onChange={(e) => setInvoiceMode(e.target.value as "SEND" | "DRAFT")}
+                  className={inputCls}
+                >
+                  <option value="SEND">Sent automatically</option>
+                  <option value="DRAFT">Drafted for my review</option>
                 </select>
               </div>
               <p className="col-span-2 text-xs text-gray-400">
-                The first invoice goes out one billing cycle from today; each cycle auto-generates
-                the next.
+                {billing === "visit"
+                  ? invoiceMode === "SEND"
+                    ? "Each completed visit's invoice is emailed right away — and charged to the client's card on file automatically when payments are live."
+                    : "Each completed visit leaves a draft invoice to review and send."
+                  : "The first invoice goes out one billing cycle from today; each cycle auto-generates the next."}
               </p>
             </div>
           )}

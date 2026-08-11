@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getActor, jobScope } from "@/lib/permissions";
 import { sendReviewRequest } from "@/lib/payments";
 import { syncJobChecklist, countOpenChecklistItems } from "@/lib/job-checklist";
+import { billCompletedVisit } from "@/lib/subscriptions";
 
 export async function PATCH(
   req: NextRequest,
@@ -54,6 +55,18 @@ export async function PATCH(
 
   await prisma.job.update({ where: { id }, data: { status, ...extra } });
 
+  // Per-visit billed series: completing the visit mints (and sends/charges)
+  // its invoice, then archives the job. A billing failure never blocks the
+  // status change — the job just stays in Requires Invoicing for manual
+  // handling. Real-transition guard matches the completedAt stamp above.
+  let visitBilling: "charged" | "billed" | "drafted" | null = null;
+  if (status === "REQUIRES_INVOICING" && job.status !== "REQUIRES_INVOICING" && job.subscriptionId) {
+    visitBilling = await billCompletedVisit(id, companyId).catch((e) => {
+      console.error("[jobs] per-visit billing failed for", id, e);
+      return null;
+    });
+  }
+
   // Completed job + configured review link → ask the client for a review.
   // sendReviewRequest owns the dedupe (once per job), so the same client
   // paying that job's invoice later doesn't get asked a second time.
@@ -74,5 +87,5 @@ export async function PATCH(
     }
   }
 
-  return NextResponse.json({ success: true });
+  return NextResponse.json({ success: true, visitBilling });
 }

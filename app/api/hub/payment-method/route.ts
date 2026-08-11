@@ -5,6 +5,7 @@ import { getProcessor, savedCardLabel } from "@/lib/payments";
 import * as finix from "@/lib/finix";
 import { suspendedResponse } from "@/lib/suspension";
 import { addSavedCard, removeSavedCard, setDefaultSavedCard } from "@/lib/saved-cards";
+import { reviveAutopayForContact } from "@/lib/auto-charge";
 
 /**
  * Public (hub-token-authed): the client's saved cards.
@@ -128,6 +129,11 @@ export async function POST(req: NextRequest) {
     if (!added.ok) {
       return NextResponse.json({ error: added.error }, { status: 400 });
     }
+    // A fresh card un-stalls any autopay invoices whose old card was
+    // declining — the next cron pass retries them against it.
+    await reviveAutopayForContact(contact.id).catch((e) =>
+      console.error("[hub] autopay revive failed", e)
+    );
     return NextResponse.json({ saved: true, label, cards: await cardList(contact.id) });
   } catch (err) {
     if (err instanceof finix.FinixError) {

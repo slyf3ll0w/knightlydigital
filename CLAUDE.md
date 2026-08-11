@@ -316,6 +316,17 @@ creates a `Subscription` on the client. The engine in `lib/subscriptions.ts` the
 generates the next invoice (and optionally a job) each cycle. See the
 Subscriptions page (`/app/subscriptions`) to pause/cancel or bill a cycle now.
 
+**Per-visit billing (`Subscription.billPerVisit`).** The third billing shape,
+alongside scheduled billing (`interval`) and visits-only (neither): completing
+one of the series' visit jobs calls `billCompletedVisit` (lib/subscriptions.ts,
+hooked into the job status route), which mints that visit's invoice
+(unitPrice × quantity, sent/charged or drafted per `invoiceMode`), archives the
+job (same convention as manually invoicing a completed job), and auto-charges
+the card on file / emails the pay link. Idempotent via the one-invoice-per-job
+unique constraint. `billPerVisit` and `interval` are mutually exclusive;
+per-visit requires a visit series. Created from New Series ("Bill after each
+visit") — price-book recurring services still only create interval billing.
+
 **Visit series (weekly/biweekly visits, billed on their own cadence).** A
 subscription can carry a visit schedule (`visitFrequency` weekly/biweekly/
 monthly/quarterly/annually + `nextVisitDate`, time window, default assignees)
@@ -349,12 +360,24 @@ Everything is idempotent — hourly runs won't double-bill, double-remind, or
 double-generate (each sweep claims its work atomically). Until a trigger is set up,
 owners can use the **Run due now** button on the Subscriptions page.
 
-**Auto-charge:** billing is built against the `PaymentProcessor` seam in
-`lib/payments.ts`. When a processor is `live` AND the client has a saved card
-(`Contact.processorCustomerRef`), the engine auto-charges via `chargeStored()` and
-records the payment; otherwise it emails a pay-by-link. Implementing a real
-`FinixProcessor.chargeStored()` + saving cards is the only work needed to turn on
-true silent auto-charge — no recurring code changes.
+**Auto-charge + retries (`lib/auto-charge.ts`):** engine-generated invoices
+settle through `attemptAutoCharge`, which resolves the card at charge time —
+the series' pinned card (`Subscription.savedCardId`, set from the edit form's
+"Autopay card" select), else the client's default `SavedCard`, else the legacy
+`Contact.processorCustomerRef` mirror — and charges via the `PaymentProcessor`
+seam. Declines are classified hard vs soft from the Finix `failure_code`
+(surfaced on `ChargeResult.code`): soft declines retry on a +1d/+3d/+7d
+schedule (max 4 attempts — `runAutoChargeRetries` on the hourly cron; retry
+state lives on the Invoice `autoCharge*` columns); hard declines (lost/stolen/
+invalid/expired/closed) stop immediately. Dunning: first failure → client
+"payment didn't go through" email with a hub card-update link, owner push,
+ActivityLog (`auto_charge_failed`, userName "Autopay"); give-up → owner push
+again. Saving a new card (hub, staff, or /pay checkout) calls
+`reviveAutopayForContact` so stalled invoices retry on the next cron pass.
+`runCardExpiryNudges` (same cron) emails autopay clients once per card ~30
+days before it expires. NOTE: `chargeStored`'s Finix idempotency id is
+minute-windowed — never remove that, or retries replay the original decline.
+With no card at all the engine still falls back to the pay-by-link email.
 
 ## Database setup (Railway)
 

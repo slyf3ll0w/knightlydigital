@@ -15,6 +15,8 @@ type Sub = {
   quantity: number | string;
   // null = standalone recurring-job series (visits only, never bills)
   interval: "MONTHLY" | "QUARTERLY" | "SEMIANNUAL" | "ANNUAL" | null;
+  // bill each completed visit instead of on a schedule (interval stays null)
+  billPerVisit: boolean;
   createsJob: boolean;
   invoiceMode: "SEND" | "DRAFT";
   status: "ACTIVE" | "PAUSED" | "CANCELLED";
@@ -24,7 +26,14 @@ type Sub = {
   visitStartMinutes: number | null;
   visitDurationMinutes: number | null;
   visitAssigneeIds: string[];
-  contact: { id: string; firstName: string; lastName: string };
+  // Autopay card pinned to this series (null = the client's default card)
+  savedCardId: string | null;
+  contact: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    savedCards: { id: string; label: string; isDefault: boolean }[];
+  };
 };
 
 type BillingInterval = NonNullable<Sub["interval"]>;
@@ -96,6 +105,7 @@ export default function SubscriptionsClient({
     visitTime: "", // "" = Anytime, else minutes from midnight
     visitDuration: "60",
     visitAssignees: [] as string[],
+    savedCardId: "", // "" = default card
   });
 
   function openEdit(s: Sub) {
@@ -110,6 +120,7 @@ export default function SubscriptionsClient({
       visitTime: s.visitStartMinutes != null ? String(s.visitStartMinutes) : "",
       visitDuration: String(s.visitDurationMinutes ?? 60),
       visitAssignees: s.visitAssigneeIds ?? [],
+      savedCardId: s.savedCardId ?? "",
     });
     setError("");
     setEditId(s.id);
@@ -125,13 +136,19 @@ export default function SubscriptionsClient({
       return;
     }
     // Standalone recurring-job series have no billing — leave those fields
-    // out entirely so the PATCH can't accidentally start billing one
-    const bills = Boolean(subs.find((s) => s.id === id)?.interval);
+    // out entirely so the PATCH can't accidentally start billing one.
+    // Per-visit series are priced but have no schedule fields to send.
+    const sub = subs.find((s) => s.id === id);
+    const bills = Boolean(sub?.interval);
+    const perVisit = Boolean(sub?.billPerVisit);
     const data = await patch(id, {
       name: editForm.name,
-      ...(bills && {
+      ...((bills || perVisit) && {
         unitPrice: parseFloat(editForm.unitPrice) || 0,
         quantity: parseFloat(editForm.quantity) || 1,
+        savedCardId: editForm.savedCardId || null,
+      }),
+      ...(bills && {
         interval: editForm.interval,
         nextRunDate: editForm.nextRunDate,
       }),
@@ -148,9 +165,12 @@ export default function SubscriptionsClient({
             ? {
                 ...s,
                 name: editForm.name.trim(),
-                ...(s.interval && {
+                ...((s.interval || s.billPerVisit) && {
                   unitPrice: parseFloat(editForm.unitPrice) || 0,
                   quantity: parseFloat(editForm.quantity) || 1,
+                  savedCardId: editForm.savedCardId || null,
+                }),
+                ...(s.interval && {
                   interval: editForm.interval,
                   nextRunDate: `${editForm.nextRunDate}T12:00:00`,
                 }),
@@ -284,10 +304,12 @@ export default function SubscriptionsClient({
                           className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                         />
                       </div>
-                      {s.interval && (
+                      {(s.interval || s.billPerVisit) && (
                         <>
                           <div>
-                            <label className="block text-xs text-gray-500 mb-0.5">Unit price</label>
+                            <label className="block text-xs text-gray-500 mb-0.5">
+                              {s.billPerVisit ? "Price per visit" : "Unit price"}
+                            </label>
                             <input
                               type="number"
                               min="0"
@@ -308,31 +330,62 @@ export default function SubscriptionsClient({
                               className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                             />
                           </div>
-                          <div>
-                            <label className="block text-xs text-gray-500 mb-0.5">Interval</label>
-                            <select
-                              value={editForm.interval}
-                              onChange={(e) =>
-                                setEditForm((f) => ({ ...f, interval: e.target.value as BillingInterval }))
-                              }
-                              className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
-                            >
-                              {(Object.keys(INTERVAL_LABEL) as BillingInterval[]).map((iv) => (
-                                <option key={iv} value={iv}>
-                                  {INTERVAL_LABEL[iv]}
+                          {s.interval && (
+                            <>
+                              <div>
+                                <label className="block text-xs text-gray-500 mb-0.5">Interval</label>
+                                <select
+                                  value={editForm.interval}
+                                  onChange={(e) =>
+                                    setEditForm((f) => ({ ...f, interval: e.target.value as BillingInterval }))
+                                  }
+                                  className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                                >
+                                  {(Object.keys(INTERVAL_LABEL) as BillingInterval[]).map((iv) => (
+                                    <option key={iv} value={iv}>
+                                      {INTERVAL_LABEL[iv]}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div>
+                                <label className="block text-xs text-gray-500 mb-0.5">Next billing</label>
+                                <input
+                                  type="date"
+                                  value={editForm.nextRunDate}
+                                  onChange={(e) => setEditForm((f) => ({ ...f, nextRunDate: e.target.value }))}
+                                  className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                                />
+                              </div>
+                            </>
+                          )}
+                          {s.contact.savedCards.length > 0 && (
+                            <div className="col-span-2">
+                              <label className="block text-xs text-gray-500 mb-0.5">Autopay card</label>
+                              <select
+                                value={editForm.savedCardId}
+                                onChange={(e) =>
+                                  setEditForm((f) => ({ ...f, savedCardId: e.target.value }))
+                                }
+                                className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                              >
+                                <option value="">
+                                  Default card
+                                  {(() => {
+                                    const d =
+                                      s.contact.savedCards.find((c) => c.isDefault) ??
+                                      s.contact.savedCards[0];
+                                    return d ? ` (${d.label})` : "";
+                                  })()}
                                 </option>
-                              ))}
-                            </select>
-                          </div>
-                          <div>
-                            <label className="block text-xs text-gray-500 mb-0.5">Next billing</label>
-                            <input
-                              type="date"
-                              value={editForm.nextRunDate}
-                              onChange={(e) => setEditForm((f) => ({ ...f, nextRunDate: e.target.value }))}
-                              className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-                            />
-                          </div>
+                                {s.contact.savedCards.map((c) => (
+                                  <option key={c.id} value={c.id}>
+                                    {c.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
                         </>
                       )}
                     </div>
@@ -482,7 +535,7 @@ export default function SubscriptionsClient({
                       <p className="min-w-0 flex-1 truncate text-[15.5px] font-semibold text-gray-900">
                         {s.name}
                       </p>
-                      {s.interval && (
+                      {(s.interval || s.billPerVisit) && (
                         <p className="numeral-ledger shrink-0 text-sm font-semibold text-gray-900">
                           {money(Number(s.unitPrice) * Number(s.quantity))}
                         </p>
@@ -494,14 +547,18 @@ export default function SubscriptionsClient({
                           {s.contact.firstName} {s.contact.lastName}
                         </Link>
                         {" · "}
-                        {s.interval ? INTERVAL_LABEL[s.interval] : "Recurring job"}
+                        {s.interval
+                          ? INTERVAL_LABEL[s.interval]
+                          : s.billPerVisit
+                            ? "Billed per visit"
+                            : "Recurring job"}
                         {s.visitFrequency && (
                           <span className="text-green-700">
                             {" · "}visits {FREQ_LABEL[s.visitFrequency].toLowerCase()}
                           </span>
                         )}
                         {!s.visitFrequency && s.createsJob && " · creates a job"}
-                        {s.interval && s.invoiceMode === "DRAFT" && " · drafts only"}
+                        {(s.interval || s.billPerVisit) && s.invoiceMode === "DRAFT" && " · drafts only"}
                       </p>
                       {s.status === "PAUSED" && (
                         <span className="stamp shrink-0 text-amber-700">Paused</span>
@@ -600,14 +657,16 @@ export default function SubscriptionsClient({
                         {" · "}
                         {s.interval
                           ? `${INTERVAL_LABEL[s.interval]} · ${money(Number(s.unitPrice) * Number(s.quantity))}`
-                          : "Recurring job — no billing"}
+                          : s.billPerVisit
+                            ? `${money(Number(s.unitPrice) * Number(s.quantity))} per visit`
+                            : "Recurring job — no billing"}
                         {s.visitFrequency && (
                           <span className="text-green-700">
                             {" · "}visits {FREQ_LABEL[s.visitFrequency].toLowerCase()}
                           </span>
                         )}
                         {!s.visitFrequency && s.createsJob && " · creates a job"}
-                        {s.interval && s.invoiceMode === "DRAFT" && " · drafts only"}
+                        {(s.interval || s.billPerVisit) && s.invoiceMode === "DRAFT" && " · drafts only"}
                       </p>
                     </div>
                     <div className="text-xs text-gray-500 whitespace-nowrap text-right">
@@ -698,7 +757,11 @@ export default function SubscriptionsClient({
                   {cancelled.map((s) => (
                     <div key={s.id} className="px-5 py-3 text-sm text-gray-500">
                       {s.name} — {s.contact.firstName} {s.contact.lastName} (
-                      {s.interval ? INTERVAL_LABEL[s.interval] : "recurring job"})
+                      {s.interval
+                        ? INTERVAL_LABEL[s.interval]
+                        : s.billPerVisit
+                          ? "billed per visit"
+                          : "recurring job"})
                     </div>
                   ))}
                 </div>

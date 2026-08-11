@@ -46,7 +46,13 @@ export type ChargeResult =
       cardExpMonth?: number | null;
       cardExpYear?: number | null;
     }
-  | { success: false; error: string };
+  | {
+      success: false;
+      error: string;
+      /** Processor decline code (e.g. Finix failure_code) — drives the
+       *  hard-vs-soft classification in lib/auto-charge.ts. */
+      code?: string | null;
+    };
 
 export type CheckoutSession =
   | { success: true; url: string; expiresAt: Date }
@@ -240,12 +246,19 @@ class FinixProcessor implements PaymentProcessor {
         amountCents: finix.toCents(params.amount),
         merchantId,
         sourceInstrumentId: params.customerRef,
-        idempotencyId: `${invoiceId}-stored-${finix.toCents(params.amount)}`,
+        // Minute-windowed like charge(): a double-fire never double-charges,
+        // while a genuine retry (autopay retries run days apart) gets a fresh
+        // id instead of replaying the original decline forever.
+        idempotencyId: `${invoiceId}-stored-${finix.toCents(params.amount)}-${Math.floor(Date.now() / 60000)}`,
         tags: params.metadata ?? {},
       });
 
       if (transfer.state === "FAILED" || transfer.state === "CANCELED") {
-        return { success: false, error: transfer.failure_message || "The stored payment method was declined." };
+        return {
+          success: false,
+          error: transfer.failure_message || "The stored payment method was declined.",
+          code: transfer.failure_code,
+        };
       }
       // Card metadata for the cost estimate — best-effort; the vaulted
       // instrument is fetched fresh since the exchange response is long gone.

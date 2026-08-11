@@ -994,6 +994,90 @@ export function invoiceLinkEmail({
 }
 
 /**
+ * Autopay dunning — the client's card on file was declined on a recurring
+ * invoice. Sent once, on the first failure (retries stay silent); the primary
+ * action is fixing the card in the hub, with the pay link as the manual
+ * fallback. Tone stays matter-of-fact — cards decline for boring reasons.
+ */
+export function autopayFailedEmail({
+  brand,
+  companyName,
+  invoiceNumber,
+  total,
+  cardLabel,
+  payUrl,
+  updateCardUrl,
+}: {
+  brand: EmailBrand;
+  companyName: string;
+  invoiceNumber: number;
+  total: number;
+  cardLabel: string | null;
+  payUrl: string;
+  updateCardUrl: string;
+}): { subject: string; html: string } {
+  const html = clientShell({
+    brand,
+    companyName,
+    context: `Invoice #${invoiceNumber}`,
+    inner: `
+      <p style="margin:0 0 16px;color:#111827;font-size:15px;">
+        The automatic payment for your invoice from ${esc(companyName)} didn't go
+        through${cardLabel ? ` — ${esc(cardLabel)} was declined` : ""}. This usually
+        just means the card expired or was replaced.
+      </p>
+      ${moneyBlock("Amount due", total)}
+      ${accentBtn(updateCardUrl, "Update Card on File", brand)}
+      <p style="margin:16px 0 0;color:#374151;font-size:14px;">
+        We'll automatically try again once your card is updated. Prefer to pay this
+        one directly? <a href="${payUrl}" style="color:#374151;">Pay the invoice online</a>.
+      </p>`,
+  });
+  return {
+    subject: `Payment didn't go through — invoice #${invoiceNumber} from ${companyName}`,
+    html,
+  };
+}
+
+/**
+ * Card-expiry heads-up for clients on autopay — sent once per card, ~30 days
+ * before (or after) the card on file expires, so recurring charges don't
+ * start bouncing.
+ */
+export function cardExpiringEmail({
+  brand,
+  companyName,
+  cardLabel,
+  expired,
+  updateCardUrl,
+}: {
+  brand: EmailBrand;
+  companyName: string;
+  cardLabel: string;
+  expired: boolean;
+  updateCardUrl: string;
+}): { subject: string; html: string } {
+  const html = clientShell({
+    brand,
+    companyName,
+    context: "Card on file",
+    inner: `
+      <p style="margin:0 0 16px;color:#111827;font-size:15px;">
+        The card you keep on file with ${esc(companyName)} for automatic payments
+        (${esc(cardLabel)}) ${expired ? "has expired" : "expires soon"}. Updating it
+        now keeps your service billing running without interruption.
+      </p>
+      ${accentBtn(updateCardUrl, "Update Card on File", brand)}`,
+  });
+  return {
+    subject: expired
+      ? `Your card on file with ${companyName} has expired`
+      : `Your card on file with ${companyName} expires soon`,
+    html,
+  };
+}
+
+/**
  * Quote follow-up — a friendly nudge a few days after a quote went out with no
  * response. Two stages (3 and 7 days); tone stays light — this is sales, not
  * dunning. Stops the moment the quote is approved, changed, or expires.

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getProcessor, recordPayment, calculateSurcharge, sendReviewRequest, savedCardLabel } from "@/lib/payments";
 import { addSavedCard } from "@/lib/saved-cards";
+import { reviveAutopayForContact } from "@/lib/auto-charge";
 import { recomputeDepositApplied } from "@/lib/deposits";
 import { suspendedResponse } from "@/lib/suspension";
 
@@ -145,6 +146,11 @@ export async function POST(
       expMonth: result.cardExpMonth,
       expYear: result.cardExpYear,
     }).catch((e) => console.error("[pay] save card failed", e));
+    // The working card they just paid with un-stalls any OTHER autopay
+    // invoices whose old card was declining (this one is about to be PAID).
+    await reviveAutopayForContact(invoice.contact.id).catch((e) =>
+      console.error("[pay] autopay revive failed", e)
+    );
   }
 
   const { fullyPaid } = await recordPayment({

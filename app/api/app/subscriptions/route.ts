@@ -24,11 +24,13 @@ const validFrequencies = ["WEEKLY", "BIWEEKLY", "MONTHLY", "QUARTERLY", "ANNUALL
  * POST — create a recurring series directly (until now they only came from
  * selling a recurring price-book service through a quote or invoice).
  *
- * Two shapes, same model:
+ * Three shapes, same model:
  * - Standalone recurring JOB ("mow every 2 weeks"): visitFrequency +
  *   nextVisitDate required, no billing — interval/nextRunDate stay null and
  *   the billing sweep never sees it.
  * - Billed subscription: interval + unitPrice, first invoice one interval out.
+ * - Per-visit billed series: billPerVisit + unitPrice + a visit schedule —
+ *   each completed visit mints its own invoice (see billCompletedVisit).
  * Visit series fields mirror the PATCH route; visits materialize immediately.
  */
 export async function POST(req: NextRequest) {
@@ -48,8 +50,17 @@ export async function POST(req: NextRequest) {
   });
   if (!contact) return NextResponse.json({ error: "Client not found." }, { status: 404 });
 
-  // Billing is optional — but when present it must be complete
+  // Billing is optional — but when present it must be complete. A series
+  // bills on a schedule (interval), per completed visit (billPerVisit), or
+  // not at all — never both.
   const bills = Boolean(body.interval);
+  const perVisit = body.billPerVisit === true;
+  if (bills && perVisit) {
+    return NextResponse.json(
+      { error: "Pick scheduled billing or per-visit billing, not both." },
+      { status: 400 }
+    );
+  }
   if (bills && !validIntervals.includes(body.interval)) {
     return NextResponse.json({ error: "Invalid billing interval." }, { status: 400 });
   }
@@ -57,18 +68,25 @@ export async function POST(req: NextRequest) {
   if (unitPrice < 0) {
     return NextResponse.json({ error: "Price must be zero or more." }, { status: 400 });
   }
-  if (bills && unitPrice === 0) {
+  if ((bills || perVisit) && unitPrice === 0) {
     return NextResponse.json(
       { error: "A billed subscription needs a price (or turn billing off)." },
       { status: 400 }
     );
   }
 
-  // The visit series — required for a non-billing series (otherwise the
-  // record would never do anything at all)
+  // The visit series — required for a non-scheduled-billing series (per-visit
+  // billing has nothing to bill without visits; a no-billing series would
+  // never do anything at all)
   const frequency = body.visitFrequency ?? null;
   if (frequency && !validFrequencies.includes(frequency)) {
     return NextResponse.json({ error: "Invalid visit frequency." }, { status: 400 });
+  }
+  if (perVisit && !frequency) {
+    return NextResponse.json(
+      { error: "Per-visit billing needs a repeating visit schedule." },
+      { status: 400 }
+    );
   }
   if (!bills && !frequency) {
     return NextResponse.json(
@@ -141,6 +159,7 @@ export async function POST(req: NextRequest) {
       quantity: 1,
       interval: bills ? body.interval : null,
       nextRunDate: bills ? firstRunDate(body.interval) : null,
+      billPerVisit: perVisit,
       invoiceMode: body.invoiceMode === "DRAFT" ? "DRAFT" : "SEND",
       propertyId: property?.id ?? null,
       visitFrequency: frequency,
