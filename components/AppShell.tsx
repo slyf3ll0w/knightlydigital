@@ -671,11 +671,19 @@ function CompanySwitcherSheet({ open, onClose }: { open: boolean; onClose: () =>
 }
 
 /**
- * ⌘K / Ctrl+K palette — jump anywhere, create anything, or hand a query to
- * client search. Pure client-side over the same nav/create lists the rail
- * uses, so it costs no API and can't drift from the real IA. Rides the
- * Modal primitive (top-aligned card on desktop, sheet on phones).
+ * ⌘K / Ctrl+K palette — search real records (clients / jobs / quotes /
+ * invoices via /api/app/search, role-scoped like the list pages), jump
+ * anywhere, or create anything. Nav/create rows come from the same lists
+ * the rail uses so they can't drift from the real IA. Rides the Modal
+ * primitive (top-aligned card on desktop, sheet on phones).
  */
+const HIT_ICONS: Record<string, typeof Home> = {
+  Clients: Users,
+  Jobs: Briefcase,
+  Quotes: FileText,
+  Invoices: Receipt,
+};
+
 function CommandPalette({
   open,
   onClose,
@@ -690,9 +698,15 @@ function CommandPalette({
   const [idx, setIdx] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  type Hit = { href: string; label: string; sub: string; group: string };
+  const [hits, setHits] = useState<Hit[]>([]);
+  const [searching, setSearching] = useState(false);
+  const seqRef = useRef(0);
+
   useEffect(() => {
     if (open) {
       setQuery("");
+      setHits([]);
       setIdx(0);
       // focus once the entrance has started painting
       const t = setTimeout(() => inputRef.current?.focus(), 40);
@@ -700,9 +714,36 @@ function CommandPalette({
     }
   }, [open]);
 
+  // Live record search, debounced a beat behind typing. Stale responses are
+  // dropped by sequence number so fast typing can't paint out of order.
+  useEffect(() => {
+    if (!open) return;
+    const trimmed = query.trim();
+    if (trimmed.length < 2) {
+      setHits([]);
+      setSearching(false);
+      return;
+    }
+    setSearching(true);
+    const seq = ++seqRef.current;
+    const t = setTimeout(() => {
+      fetch(`/api/app/search?q=${encodeURIComponent(trimmed)}`)
+        .then((r) => (r.ok ? r.json() : { results: [] }))
+        .then((d) => {
+          if (seqRef.current !== seq) return;
+          setHits(Array.isArray(d.results) ? d.results : []);
+          setSearching(false);
+        })
+        .catch(() => {
+          if (seqRef.current === seq) setSearching(false);
+        });
+    }, 180);
+    return () => clearTimeout(t);
+  }, [open, query]);
+
   const q = query.trim().toLowerCase();
   const manager = isManagerRole(role);
-  type Row = { href: string; label: string; icon: typeof Home; group: string };
+  type Row = { href: string; label: string; icon: typeof Home; group: string; sub?: string };
   const destinations: Row[] = [
     ...forRole(railDrivers, role),
     ...railGroups.flatMap((g) => forRole(g.items, role)),
@@ -717,18 +758,20 @@ function CommandPalette({
     group: "Create",
   }));
   const rows: Row[] = [
+    // Record hits lead — they're what the query was really about
+    ...hits.map((h) => ({ ...h, icon: HIT_ICONS[h.group] ?? Search })),
+    ...destinations.filter((d) => !q || d.label.toLowerCase().includes(q)),
+    ...creates.filter((c) => !q || c.label.toLowerCase().includes(q)),
     ...(q && sellRoles(role)
       ? [
           {
             href: `/app/contacts?q=${encodeURIComponent(query.trim())}`,
-            label: `Search clients for “${query.trim()}”`,
+            label: `Search all clients for “${query.trim()}”`,
             icon: Search,
             group: "Search",
           },
         ]
       : []),
-    ...destinations.filter((d) => !q || d.label.toLowerCase().includes(q)),
-    ...creates.filter((c) => !q || c.label.toLowerCase().includes(q)),
   ];
   const active = Math.min(idx, Math.max(0, rows.length - 1));
 
@@ -772,7 +815,9 @@ function CommandPalette({
       </div>
       <div className="max-h-[50vh] overflow-y-auto py-1.5">
         {rows.length === 0 && (
-          <p className="px-4 py-6 text-center text-sm text-gray-400">Nothing matches</p>
+          <p className="px-4 py-6 text-center text-sm text-gray-400">
+            {searching ? "Searching…" : "Nothing matches"}
+          </p>
         )}
         {rows.map((row, i) => {
           const Icon = row.icon;
@@ -787,8 +832,13 @@ function CommandPalette({
               }`}
             >
               <Icon size={15} className="shrink-0 text-gray-400" />
-              <span className="truncate">{row.label}</span>
-              <span className="ml-auto shrink-0 text-[11px] text-gray-300">{row.group}</span>
+              <span className="min-w-0 truncate">{row.label}</span>
+              {row.sub && (
+                <span className="numeral-ledger min-w-0 shrink-[2] truncate text-xs text-gray-400">
+                  {row.sub}
+                </span>
+              )}
+              <span className="ml-auto shrink-0 pl-2 text-[11px] text-gray-300">{row.group}</span>
             </button>
           );
         })}
@@ -1114,7 +1164,7 @@ export default function AppShell({
         style={animIndex !== undefined ? { animationDelay: `${animIndex * 22}ms` } : undefined}
         className={`${animIndex !== undefined ? "rail-item-in " : ""}group font-display flex items-center gap-2.5 py-2 pl-4 pr-4 text-[13px] transition-colors ${
           active
-            ? "bg-[var(--rail-active)] font-semibold text-[color:var(--rail-ink)]"
+            ? "font-semibold" /* wash + accent-leaning ink painted by the light-spill rule in globals.css */
             : "font-medium text-[color:var(--rail-muted)] hover:bg-[var(--rail-hover)] hover:text-[color:var(--rail-ink)]"
         }`}
       >
@@ -1165,7 +1215,7 @@ export default function AppShell({
                   type="button"
                   onClick={() => toggleGroup(g.key)}
                   aria-expanded={open}
-                  className="w-full font-display flex items-center py-2 pl-4 pr-4 text-[12.5px] font-medium text-[color:var(--rail-faint)] hover:text-[color:var(--rail-muted)] transition-colors"
+                  className="w-full font-display flex items-center py-2 pl-4 pr-4 text-[10.5px] font-semibold uppercase tracking-[0.09em] text-[color:var(--rail-faint)] hover:text-[color:var(--rail-muted)] transition-colors"
                 >
                   <span className="truncate">{g.label}</span>
                   <span className="ml-auto flex items-center gap-2">
@@ -1206,34 +1256,34 @@ export default function AppShell({
     </>
   );
 
-  // Sidebar header is the company's identity, not ours: ONE geometry — a
-  // 36px mark tile + the company name on a 57px row whose hairline continues
-  // the top bar's, logo or not. (The old floating logo card ignored that
-  // hairline and made the rail's whole rhythm depend on whether a logo was
-  // uploaded.) Uploaded logos sit on their pickable plate color; the
-  // fallback monogram wears the resolved brand accent.
-  const logo = (
+  // Sidebar header is the company's identity, not ours. With an uploaded
+  // logo the logo IS the identity — a full-width plate (their pickable plate
+  // color) with the mark rendered big, no name text competing with it
+  // (David's call: the name only appears when there's no logo to speak for
+  // the company). No logo → accent monogram tile + name on the 57px row.
+  const logo = companyLogoUrl ? (
+    <div className="px-3 py-2.5 border-b border-[color:var(--rail-line)]">
+      <span
+        className="theme-fixed flex h-14 w-full items-center justify-center overflow-hidden rounded-xl shadow-sm ring-1 ring-[color:var(--rail-line)]"
+        style={{ backgroundColor: sidebarLogoColor || "#FFFFFF" }}
+        title={companyName ?? undefined}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={companyLogoUrl}
+          alt={companyName ?? ""}
+          className="h-full w-full object-contain p-1.5"
+        />
+      </span>
+    </div>
+  ) : (
     <div className="flex items-center gap-3 px-3.5 min-h-[57px] border-b border-[color:var(--rail-line)] min-w-0">
-      {companyLogoUrl ? (
-        <span
-          className="theme-fixed flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-[10px] shadow-sm ring-1 ring-[color:var(--rail-line)]"
-          style={{ backgroundColor: sidebarLogoColor || "#FFFFFF" }}
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={companyLogoUrl}
-            alt={companyName ?? ""}
-            className="h-full w-full object-contain p-[3px]"
-          />
-        </span>
-      ) : (
-        <span
-          className="w-11 h-11 rounded-[10px] flex items-center justify-center shrink-0 font-display font-bold text-lg shadow-sm"
-          style={{ backgroundColor: railAccent, color: textOn(railAccent) }}
-        >
-          {companyName?.charAt(0).toUpperCase() ?? "W"}
-        </span>
-      )}
+      <span
+        className="w-11 h-11 rounded-[10px] flex items-center justify-center shrink-0 font-display font-bold text-lg shadow-sm"
+        style={{ backgroundColor: railAccent, color: textOn(railAccent) }}
+      >
+        {companyName?.charAt(0).toUpperCase() ?? "W"}
+      </span>
       <span className="font-display font-semibold text-[15px] tracking-tight text-[color:var(--rail-ink)] truncate">
         {companyName ?? "WorkBench"}
       </span>

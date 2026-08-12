@@ -32,6 +32,9 @@ export default function PageTitle({
     <h1 className="numeral-ledger relative flex items-center gap-3 text-[26px] font-bold text-gray-900 lg:text-2xl lg:font-semibold">
       {text && <TitleSentinel title={text} />}
       {children}
+      {/* The top bar's primary→accent margin rule, in miniature — draws in
+          under the title as the page lands (globals.css .title-rule) */}
+      <span aria-hidden className="title-rule" />
     </h1>
   );
 }

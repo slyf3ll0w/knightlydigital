@@ -195,13 +195,12 @@ export default function KpiStrip({
               {k.spark && k.spark.length > 1 && <Spark values={k.spark} />}
             </>
           );
-          const cls = "card-tool p-4";
           return k.href ? (
-            <Link key={k.label} href={k.href} className={cls}>
+            <Link key={k.label} href={k.href} className="card-tool p-4 lift-hover">
               {card}
             </Link>
           ) : (
-            <div key={k.label} className={cls}>
+            <div key={k.label} className="card-tool p-4">
               {card}
             </div>
           );
