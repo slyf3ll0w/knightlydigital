@@ -68,7 +68,7 @@ export default async function BusinessPage() {
 
   return (
     <div className="p-4 lg:p-8 max-w-4xl mx-auto">
-      <PageTitle>Business</PageTitle>
+      <PageTitle rule={false}>Business</PageTitle>
       <p className="text-sm text-gray-500 mb-6">The view from the office.</p>
 
       <div className="grid sm:grid-cols-3 gap-4">

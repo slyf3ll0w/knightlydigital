@@ -939,6 +939,76 @@ body {
   background-color: color-mix(in srgb, var(--wb-accent, #0B57D8) 3%, #FBFBFB);
 }
 
+/* ── Atmosphere — light falls on the stage from above: each brand color
+   breathes in from its own top corner (primary left, the structural color;
+   accent right, the energetic one) and is gone before the content starts.
+   Weather, not decoration — the flat ground reads lit, the statics stay
+   calm. Desktop only; the phone chrome has its own material story. Sits
+   behind the wallpaper layer, so the two compose. ── */
+@media (min-width: 1024px) {
+  .app-ui .page-atmo::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 300px;
+    pointer-events: none;
+    background:
+      radial-gradient(
+        640px 260px at 10% -70px,
+        color-mix(in srgb, var(--wb-primary, #0A1428) 7%, transparent),
+        transparent 70%
+      ),
+      radial-gradient(
+        720px 280px at 90% -90px,
+        color-mix(in srgb, var(--wb-accent, #0B57D8) 8%, transparent),
+        transparent 70%
+      );
+  }
+  /* Dark: the same weather glows a touch brighter against the dark ground */
+  html[data-mode="dark"] .app-ui .page-atmo::before {
+    background:
+      radial-gradient(
+        640px 260px at 10% -70px,
+        color-mix(in srgb, var(--wb-primary, #8B93A6) 10%, transparent),
+        transparent 70%
+      ),
+      radial-gradient(
+        720px 280px at 90% -90px,
+        color-mix(in srgb, var(--wb-accent, #0B57D8) 11%, transparent),
+        transparent 70%
+      );
+  }
+}
+
+/* ── Card material — a near-invisible top-light: nothing added at the
+   crown, a breath of the primary's temperature by the foot. Cards read
+   dimensional instead of flat white. Transparent-based so hover/active
+   background changes still show through. ── */
+.app-ui .card-ledger,
+.app-ui .card-tool {
+  background-image: linear-gradient(
+    180deg,
+    transparent 30%,
+    color-mix(in srgb, var(--wb-primary, #0A1428) 3%, transparent)
+  );
+}
+html[data-mode="dark"] .app-ui .card-ledger,
+html[data-mode="dark"] .app-ui .card-tool {
+  /* Flipped in the dark: the light lands on the crown */
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 60%);
+}
+
+/* ── Interior hairlines carry the primary's temperature, like the card
+   borders already do — no dead-neutral gray lines left on the stage. ── */
+.app-ui .divide-gray-100 > :not([hidden]) ~ :not([hidden]) {
+  border-color: color-mix(in srgb, var(--wb-primary, #0A1428) 6%, #F3F4F6);
+}
+.app-ui .divide-gray-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: color-mix(in srgb, var(--wb-primary, #0A1428) 8%, #E5E7EB);
+}
+
 /* ── Blocked-off time on the schedule — diagonal hatching reads as
    "unavailable" rather than work. rgba so it holds up in dark mode. ── */
 .bg-blocked {

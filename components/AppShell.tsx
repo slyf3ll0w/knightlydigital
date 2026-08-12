@@ -1452,7 +1452,9 @@ export default function AppShell({
       />
 
       {/* ── Main content area ─────────────────────────────────────────────── */}
-      <div className="relative flex-1 flex flex-col min-w-0 overflow-hidden">
+      {/* page-atmo: both brand colors breathe in from the top corners of the
+          stage (globals.css) — behind the wallpaper, behind everything */}
+      <div className="page-atmo relative flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Optional company wallpaper — pinned behind every page (it doesn't
             scroll with the content). Either the huge logo watermark (tilted
             or straight) or one of the .wp-* patterns from globals.css
