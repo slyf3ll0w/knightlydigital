@@ -14,10 +14,13 @@ import TitleSentinel from "@/components/TitleSentinel";
  */
 export default function PageTitle({
   children,
+  rule = true,
 }: {
   /** Optional since the calm-stage pass — kept for old call sites. */
   section?: SectionKey;
   icon?: LucideIcon;
+  /** Set false where text sits tight under the title (the rule would overlap) */
+  rule?: boolean;
   children: React.ReactNode;
 }) {
   // The collapsed header title needs plain text — take the first string child
@@ -34,7 +37,7 @@ export default function PageTitle({
       {children}
       {/* The top bar's primary→accent margin rule, in miniature — draws in
           under the title as the page lands (globals.css .title-rule) */}
-      <span aria-hidden className="title-rule" />
+      {rule && <span aria-hidden className="title-rule" />}
     </h1>
   );
 }

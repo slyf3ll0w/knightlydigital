@@ -220,6 +220,33 @@ const railGroups: { key: string; label: string; items: NavItem[] }[] = [
   },
 ];
 
+// Every rail icon owns a tiny mechanical verb on hover — the gear turns, the
+// calendar flips its page, the briefcase gets picked up, the tag swings on its
+// string. Gestures live in globals.css keyed by data-anim; anything unmapped
+// keeps the default 1.5px lean.
+const railAnims: Record<string, string> = {
+  "/app/dashboard": "rise",
+  "/app/schedule": "flip",
+  "/app/contacts": "pop",
+  "/app/quotes": "tilt",
+  "/app/jobs": "bob",
+  "/app/invoices": "tilt",
+  "/app/leads": "shuffle",
+  "/app/requests": "drop",
+  "/app/messages": "wiggle",
+  "/app/appointments": "flip",
+  "/app/contracts": "tilt",
+  "/app/timesheets": "tick",
+  "/app/payments": "pulse",
+  "/app/subscriptions": "cycle",
+  "/app/business": "rise",
+  "/app/settings/products": "swing",
+  "/app/settings/contracts": "tilt",
+  "/app/settings/booking": "pop",
+  "/app/settings/team": "pop",
+  "/app/settings": "turn",
+};
+
 const createItems: NavItem[] = [
   { href: "/app/contacts/new", label: "Client", icon: Users, show: sellRoles },
   { href: "/app/contacts/new?type=lead", label: "Lead", icon: SquareKanban, show: sellRoles },
@@ -346,13 +373,14 @@ function CreateMenu({ role, previewMode }: { role: string; previewMode?: boolean
       <button
         onClick={() => setOpen((v) => !v)}
         data-tour="create"
-        className="flex items-center gap-1.5 rounded-full bg-green-600 px-3.5 py-1.5 text-sm font-semibold text-[color:var(--wb-on-accent,#ffffff)] hover:bg-green-500 transition-colors"
+        className="group flex items-center gap-1.5 rounded-full bg-green-600 px-3.5 py-1.5 text-sm font-semibold text-[color:var(--wb-on-accent,#ffffff)] hover:bg-green-500 transition-colors"
       >
-        {/* The plus twirls into an × while the menu is open — springy overshoot */}
+        {/* The plus twirls into an × while the menu is open — springy
+            overshoot. On hover it pre-turns a quarter, hinting the twirl. */}
         <Plus
           size={15}
           className={`transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
-            open ? "rotate-[135deg]" : ""
+            open ? "rotate-[135deg]" : "group-hover:rotate-90"
           }`}
         />
         Create
@@ -1168,8 +1196,12 @@ export default function AppShell({
             : "font-medium text-[color:var(--rail-muted)] hover:bg-[var(--rail-hover)] hover:text-[color:var(--rail-ink)]"
         }`}
       >
+        {/* 16px on a 1.8 stroke — a finer line than lucide's stock 2, so the
+            glyphs read drawn rather than stamped */}
         <Icon
-          size={15}
+          size={16}
+          strokeWidth={1.8}
+          data-anim={railAnims[href]}
           className={
             active
               ? "text-[color:var(--rail-accent)]"
@@ -1210,25 +1242,29 @@ export default function AppShell({
             const open = (openGroups[g.key] ?? false) || g.items.some((i) => isActive(i.href));
             const rollup = open ? 0 : g.items.reduce((n, i) => n + badgeCount(i.href), 0);
             return (
-              <div key={g.key} className="mt-2.5 border-t border-[color:var(--rail-line)] pt-1.5">
+              // Ledger section head: the label sits set INTO a hairline that
+              // runs out to the chevron — the label IS the divider, so the
+              // plain border-top these groups used to wear is gone.
+              <div key={g.key} className="mt-3">
                 <button
                   type="button"
                   onClick={() => toggleGroup(g.key)}
                   aria-expanded={open}
-                  className="w-full font-display flex items-center py-2 pl-4 pr-4 text-[10.5px] font-semibold uppercase tracking-[0.09em] text-[color:var(--rail-faint)] hover:text-[color:var(--rail-muted)] transition-colors"
+                  className={`w-full font-display flex items-center gap-2.5 py-2 pl-4 pr-4 text-[10.5px] font-semibold uppercase tracking-[0.12em] transition-colors hover:text-[color:var(--rail-muted)] ${
+                    open ? "text-[color:var(--rail-muted)]" : "text-[color:var(--rail-faint)]"
+                  }`}
                 >
-                  <span className="truncate">{g.label}</span>
-                  <span className="ml-auto flex items-center gap-2">
-                    {rollup > 0 && (
-                      <span key={rollup} className="rail-count text-[color:var(--rail-num)]">
-                        {rollup > 99 ? "99+" : rollup}
-                      </span>
-                    )}
-                    <ChevronDown
-                      size={13}
-                      className={`shrink-0 transition-transform duration-200 ${open ? "" : "-rotate-90"}`}
-                    />
-                  </span>
+                  <span className="shrink-0">{g.label}</span>
+                  <span aria-hidden className="rail-head-rule" />
+                  {rollup > 0 && (
+                    <span key={rollup} className="rail-count shrink-0 text-[color:var(--rail-num)]">
+                      {rollup > 99 ? "99+" : rollup}
+                    </span>
+                  )}
+                  <ChevronDown
+                    size={13}
+                    className={`shrink-0 transition-transform duration-200 ${open ? "" : "-rotate-90"}`}
+                  />
                 </button>
                 {open && (
                   <div>
@@ -1573,7 +1609,7 @@ export default function AppShell({
             type="button"
             onClick={() => setNotifsOpen(true)}
             aria-label="Notifications"
-            className="hidden lg:flex relative p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+            className="bell-swing hidden lg:flex relative p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
           >
             <Bell size={17} />
             {bellDot && (
@@ -1583,7 +1619,7 @@ export default function AppShell({
 
           <Link
             href={manager ? "/app/settings" : "/app/settings/profile"}
-            className="hidden lg:flex p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+            className="gear-turn hidden lg:flex p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
             title={manager ? "Settings" : "My Profile"}
           >
             <Settings size={17} />

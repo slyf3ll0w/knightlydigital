@@ -1041,6 +1041,114 @@ body {
   transform: translateX(1.5px);
 }
 
+/* ── Rail icon gestures — every glyph owns a tiny mechanical verb on hover:
+   the gear turns, the calendar flips its page, the briefcase gets picked
+   up, the price tag swings on its string. Mapped per row in AppShell via
+   data-anim; anything unmapped keeps the 1.5px lean above. These out-rank
+   the lean on specificity, so no exclusions needed. ── */
+.rail-gray a:hover > svg[data-anim="turn"] {
+  transform: rotate(80deg);
+}
+.rail-gray a:hover > svg[data-anim="cycle"] {
+  transform: rotate(180deg);
+}
+.rail-gray a:hover > svg[data-anim="rise"] {
+  transform: translateY(-1.5px) scale(1.06);
+}
+.rail-gray a:hover > svg[data-anim="pop"] {
+  transform: scale(1.14);
+}
+.rail-gray a:hover > svg[data-anim="tilt"] {
+  transform: rotate(-8deg);
+}
+.rail-gray a:hover > svg[data-anim="flip"] {
+  animation: railFlip 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.rail-gray a:hover > svg[data-anim="bob"] {
+  animation: railBob 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.rail-gray a:hover > svg[data-anim="drop"] {
+  animation: railDrop 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.rail-gray a:hover > svg[data-anim="wiggle"] {
+  animation: railWiggle 0.5s ease-in-out;
+}
+.rail-gray a:hover > svg[data-anim="pulse"] {
+  animation: railPulse 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.rail-gray a:hover > svg[data-anim="tick"] {
+  animation: railTick 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.rail-gray a:hover > svg[data-anim="shuffle"] {
+  animation: railShuffle 0.45s ease-in-out;
+}
+.rail-gray a:hover > svg[data-anim="swing"] {
+  transform-origin: 50% 10%;
+  animation: railSwing 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes railFlip {
+  0% { transform: none; }
+  45% { transform: perspective(120px) rotateX(-32deg); }
+  100% { transform: none; }
+}
+@keyframes railBob {
+  0% { transform: none; }
+  40% { transform: translateY(-2.5px) rotate(-3deg); }
+  100% { transform: none; }
+}
+@keyframes railDrop {
+  0% { transform: none; }
+  40% { transform: translateY(2px); }
+  100% { transform: none; }
+}
+@keyframes railWiggle {
+  0%, 100% { transform: none; }
+  25% { transform: rotate(8deg); }
+  60% { transform: rotate(-6deg); }
+}
+@keyframes railPulse {
+  0%, 100% { transform: none; }
+  45% { transform: scale(1.18); }
+}
+@keyframes railTick {
+  0%, 100% { transform: none; }
+  30% { transform: rotate(18deg); }
+  65% { transform: rotate(-7deg); }
+}
+@keyframes railShuffle {
+  0%, 100% { transform: none; }
+  30% { transform: translateX(-1.5px); }
+  70% { transform: translateX(1.5px); }
+}
+@keyframes railSwing {
+  0%, 100% { transform: none; }
+  30% { transform: rotate(14deg); }
+  65% { transform: rotate(-8deg); }
+}
+
+/* The active row's icon is LIT like the bar beside it — a soft cast of its
+   own accent, the indicator's glow at glyph scale. */
+.rail-gray a[data-rail-active="true"] > svg {
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--rail-accent) 50%, transparent));
+}
+
+/* ── Group heads: the label sits set INTO a hairline that runs out toward
+   the chevron — a ledger section rule, not a border-top. It warms toward
+   the accent under the pointer. ── */
+.rail-head-rule {
+  height: 1px;
+  flex: 1 1 auto;
+  min-width: 8px;
+  background: linear-gradient(90deg, var(--rail-line) 60%, transparent);
+}
+.rail-gray button:hover > .rail-head-rule {
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--rail-accent) 35%, var(--rail-line)) 60%,
+    transparent
+  );
+}
+
 /* Rail v2 hardware: the sliding accent bar. One bar for the whole rail —
    it TRAVELS to the active row on navigation (iOS sheet curve) instead of
    teleporting, so the rail has the same mass as the rest of the motion
@@ -1191,6 +1299,39 @@ body {
   transform: translateY(-2px);
 }
 
+/* ── The top-bar bell rings on hover — hinged at the crown ── */
+.bell-swing:hover > svg {
+  transform-origin: 50% 10%;
+  animation: bellSwing 0.7s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes bellSwing {
+  0%, 100% { transform: none; }
+  20% { transform: rotate(13deg); }
+  45% { transform: rotate(-10deg); }
+  70% { transform: rotate(5deg); }
+}
+
+/* ── The top-bar gear turns on hover — same verb as the rail's Settings row ── */
+.gear-turn > svg {
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.gear-turn:hover > svg {
+  transform: rotate(80deg);
+}
+
+/* ── Spark bars grow up left→right as the stat card lands — the CountUp
+   tick in chart form. Per-bar delay set inline via --d. ── */
+.spark-grow rect {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: sparkGrow 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--d, 0ms);
+}
+@keyframes sparkGrow {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
+}
+
 /* ── Text selection carries the tenant accent ── */
 .app-ui ::selection {
   background: color-mix(in srgb, var(--wb-accent, #0b57d8) 24%, transparent);
@@ -1252,6 +1393,18 @@ body {
   }
   .rail-gray nav a:hover > svg,
   .rail-gray > div > a:hover > svg {
+    transform: none;
+  }
+  .rail-gray a:hover > svg[data-anim],
+  .bell-swing:hover > svg,
+  .spark-grow rect {
+    animation: none;
+    transform: none;
+  }
+  .gear-turn > svg {
+    transition: none;
+  }
+  .gear-turn:hover > svg {
     transform: none;
   }
 }

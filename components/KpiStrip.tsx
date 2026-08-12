@@ -30,10 +30,12 @@ function Spark({ values }: { values: number[] }) {
   return (
     <svg
       viewBox={`0 0 ${w} 24`}
-      className="mt-2 h-6 w-full text-green-600"
+      className="spark-grow mt-2 h-6 w-full text-green-600"
       preserveAspectRatio="none"
       aria-hidden
     >
+      {/* Bars grow up left→right as the card lands (globals.css .spark-grow),
+          the CountUp tick in chart form — --d staggers each bar */}
       {values.map((v, i) => {
         const h = v > 0 ? Math.max((v / max) * 22, 2) : 1;
         return (
@@ -46,6 +48,7 @@ function Spark({ values }: { values: number[] }) {
             rx={0.75}
             fill="currentColor"
             opacity={v > 0 ? 0.85 : 0.15}
+            style={{ "--d": `${i * 14}ms` } as React.CSSProperties}
           />
         );
       })}
