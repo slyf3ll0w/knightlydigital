@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { MoreHorizontal, FileText, Briefcase, Archive, Trash2, Pencil, Loader2 } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { confirmSheet, alertSheet } from "@/components/ConfirmSheet";
+import Modal from "@/components/Modal";
 
 export default function RequestActions({
   requestId,
@@ -174,15 +175,15 @@ export default function RequestActions({
         )}
       </div>
 
-      {editing && (
-        <div
-          className="modal-pop fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4"
-          onClick={() => !busy && setEditing(false)}
-        >
-          <div
-            className="modal-card w-full max-w-md bg-white rounded-lg shadow-xl p-5 space-y-3 text-left"
-            onClick={(e) => e.stopPropagation()}
-          >
+      <Modal
+        open={editing}
+        onClose={() => {
+          if (!busy) setEditing(false);
+        }}
+        cardClassName="w-full max-w-md bg-white rounded-lg shadow-xl p-5 space-y-3 text-left"
+      >
+        {editing && (
+          <>
             <h2 className="text-base font-semibold text-gray-900">Edit Request</h2>
 
             <div>
@@ -227,9 +228,9 @@ export default function RequestActions({
                 Save Changes
               </button>
             </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </Modal>
     </div>
   );
 }

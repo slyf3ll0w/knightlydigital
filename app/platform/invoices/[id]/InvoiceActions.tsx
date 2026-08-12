@@ -20,6 +20,7 @@ import {
   CreditCard,
 } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
+import Modal from "@/components/Modal";
 import { money } from "@/lib/statuses";
 import { confirmSheet, alertSheet } from "@/components/ConfirmSheet";
 import { hapticImpact } from "@/lib/haptics";
@@ -530,10 +531,13 @@ export default function InvoiceActions({
         )}
       </div>
 
-      {deleteOpen && (
-        <div className="modal-pop fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40" onClick={() => !busy && setDeleteOpen(false)} />
-          <div className="modal-card relative w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+      <Modal
+        open={deleteOpen}
+        onClose={() => !busy && setDeleteOpen(false)}
+        cardClassName="relative w-full max-w-md rounded-lg bg-white p-6 shadow-xl"
+      >
+        {deleteOpen && (
+          <>
             <div className="flex items-start justify-between mb-3">
               <span className="flex h-9 w-9 items-center justify-center rounded-full bg-red-100">
                 <AlertTriangle size={17} className="text-red-600" />
@@ -587,17 +591,17 @@ export default function InvoiceActions({
                 Delete Invoice
               </button>
             </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </Modal>
 
-      {pickOpen && (
-        <div className="modal-pop fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0 bg-black/40"
-            onClick={() => !savingCard && setPickOpen(false)}
-          />
-          <div className="modal-card relative w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+      <Modal
+        open={pickOpen}
+        onClose={() => !savingCard && setPickOpen(false)}
+        cardClassName="relative w-full max-w-md rounded-lg bg-white p-6 shadow-xl"
+      >
+        {pickOpen && (
+          <>
             <div className="flex items-start justify-between mb-3">
               <h2 className="text-lg font-bold text-gray-900">Charge Card</h2>
               <button
@@ -702,9 +706,9 @@ export default function InvoiceActions({
             <p className="mt-2 text-center text-[11px] text-gray-400">
               Charged right now — no card surcharge on stored charges.
             </p>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </Modal>
 
       <ChargeOverlay phase={charge} onDismiss={() => setCharge(null)} />
     </div>

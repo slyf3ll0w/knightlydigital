@@ -395,7 +395,7 @@ export default async function DashboardPage() {
     // Phone order: greeting → Up next hero → money pulse → Today timeline →
     // Needs you → On the clock. Desktop keeps its own order (lg:block
     // ignores the flex order classes entirely).
-    <div className="p-4 lg:p-8 max-w-7xl mx-auto flex flex-col lg:block">
+    <div className="p-4 lg:p-8 max-w-6xl mx-auto flex flex-col lg:block">
       <div className="mb-7 anim-fade-up order-1">
         {/* "Your day" hero — the date rides with the greeting on every screen */}
         <p className="text-sm font-medium text-gray-500">

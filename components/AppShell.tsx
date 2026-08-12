@@ -48,6 +48,7 @@ import NotificationsSheet from "@/components/NotificationsSheet";
 import { HomeFill, ScheduleFill, ChatFill, MoreFill } from "@/components/TabIcons";
 import { mobileBackFor } from "@/lib/mobile-nav";
 import { AtlasMark } from "@/components/AtlasIcon";
+import Modal from "@/components/Modal";
 import TourGuide from "@/components/TourGuide";
 import AssistantDrawer from "@/components/AssistantDrawer";
 import { resolveAccent, shade, textOn } from "@/lib/branding";
@@ -669,6 +670,133 @@ function CompanySwitcherSheet({ open, onClose }: { open: boolean; onClose: () =>
   );
 }
 
+/**
+ * ⌘K / Ctrl+K palette — jump anywhere, create anything, or hand a query to
+ * client search. Pure client-side over the same nav/create lists the rail
+ * uses, so it costs no API and can't drift from the real IA. Rides the
+ * Modal primitive (top-aligned card on desktop, sheet on phones).
+ */
+function CommandPalette({
+  open,
+  onClose,
+  role,
+}: {
+  open: boolean;
+  onClose: () => void;
+  role: string;
+}) {
+  const router = useRouter();
+  const [query, setQuery] = useState("");
+  const [idx, setIdx] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (open) {
+      setQuery("");
+      setIdx(0);
+      // focus once the entrance has started painting
+      const t = setTimeout(() => inputRef.current?.focus(), 40);
+      return () => clearTimeout(t);
+    }
+  }, [open]);
+
+  const q = query.trim().toLowerCase();
+  const manager = isManagerRole(role);
+  type Row = { href: string; label: string; icon: typeof Home; group: string };
+  const destinations: Row[] = [
+    ...forRole(railDrivers, role),
+    ...railGroups.flatMap((g) => forRole(g.items, role)),
+    { href: "/app/chat", label: "Team Chat", icon: MessagesSquare },
+    ...(manager ? [{ href: "/app/settings", label: "Settings", icon: Settings }] : []),
+    { href: "/app/settings/profile", label: "My Profile", icon: CircleUserRound },
+  ].map((d) => ({ ...d, group: "Go to" }));
+  const creates: Row[] = forRole(createItems, role).map((c) => ({
+    href: c.href,
+    icon: c.icon,
+    label: `New ${c.label.toLowerCase()}`,
+    group: "Create",
+  }));
+  const rows: Row[] = [
+    ...(q && sellRoles(role)
+      ? [
+          {
+            href: `/app/contacts?q=${encodeURIComponent(query.trim())}`,
+            label: `Search clients for “${query.trim()}”`,
+            icon: Search,
+            group: "Search",
+          },
+        ]
+      : []),
+    ...destinations.filter((d) => !q || d.label.toLowerCase().includes(q)),
+    ...creates.filter((c) => !q || c.label.toLowerCase().includes(q)),
+  ];
+  const active = Math.min(idx, Math.max(0, rows.length - 1));
+
+  const go = (row: Row) => {
+    onClose();
+    router.push(row.href);
+  };
+
+  const onKey = (e: React.KeyboardEvent) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setIdx((v) => Math.min(v + 1, rows.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setIdx((v) => Math.max(v - 1, 0));
+    } else if (e.key === "Enter" && rows[active]) {
+      e.preventDefault();
+      go(rows[active]);
+    }
+  };
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      cardClassName="card-ledger w-full max-w-lg self-start lg:mt-[12vh] p-0 overflow-hidden"
+    >
+      <div className="flex items-center gap-2.5 border-b border-gray-100 px-4">
+        <Search size={16} className="shrink-0 text-gray-400" />
+        <input
+          ref={inputRef}
+          value={query}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setIdx(0);
+          }}
+          onKeyDown={onKey}
+          placeholder="Search or jump to…"
+          className="w-full bg-transparent py-3 text-[15px] text-gray-900 placeholder:text-gray-400 focus:outline-none"
+        />
+      </div>
+      <div className="max-h-[50vh] overflow-y-auto py-1.5">
+        {rows.length === 0 && (
+          <p className="px-4 py-6 text-center text-sm text-gray-400">Nothing matches</p>
+        )}
+        {rows.map((row, i) => {
+          const Icon = row.icon;
+          return (
+            <button
+              key={`${row.group}-${row.href}`}
+              type="button"
+              onClick={() => go(row)}
+              onMouseEnter={() => setIdx(i)}
+              className={`flex w-full items-center gap-2.5 px-4 py-2 text-left text-sm font-medium transition-colors ${
+                i === active ? "bg-gray-50 text-gray-900" : "text-gray-700"
+              }`}
+            >
+              <Icon size={15} className="shrink-0 text-gray-400" />
+              <span className="truncate">{row.label}</span>
+              <span className="ml-auto shrink-0 text-[11px] text-gray-300">{row.group}</span>
+            </button>
+          );
+        })}
+      </div>
+    </Modal>
+  );
+}
+
 interface AppShellProps {
   children: React.ReactNode;
   userName?: string | null;
@@ -703,7 +831,6 @@ export default function AppShell({
   companyName,
   companyLogoUrl,
   wallpaper = "none",
-  sidebarTheme,
   sidebarLogoColor,
   brandColor,
   brandColorSecondary,
@@ -719,33 +846,17 @@ export default function AppShell({
   const assistantAvailable = aiEnabled && !previewMode;
   const userRole = role ?? "OWNER";
   const manager = isManagerRole(userRole);
-  // Tenant-selectable rail theme; unknown values fall back to black
-  const rail = sidebarTheme === "white" || sidebarTheme === "gray" ? sidebarTheme : "black";
-  const railDark = rail === "black";
-  // The black rail takes the tenant PRIMARY's temperature — near-ink with a
-  // whisper of their color instead of flat #121212, so the frame carries the
-  // brand before any accent shows. Light rails keep their stock paper.
-  const railBrandBg =
-    railDark && (brandColor || brandColorSecondary)
-      ? mixHex("#101318", (brandColor || brandColorSecondary) as string, 0.16)
-      : undefined;
-  const railBgHex =
-    rail === "white" ? "#FFFFFF" : rail === "gray" ? "#F1F2F4" : railBrandBg ?? "#121212";
+  // Rail color is no longer its own customization — it follows the THEME:
+  // light gray in light mode (rail-gray, tinted by the tenant primary in
+  // globals.css), dark gray in dark mode (the dark bridge repaints it).
+  // Company.sidebarTheme stays in the schema/API, ignored here.
+  //
   // Both brand colors, one rule: SECONDARY is the accent, primary backs it
-  // up, and a color that can't hold 3:1 contrast against this rail falls
-  // back to the rail's guaranteed ink (lib/branding.ts resolveAccent). Two
-  // resolutions — the dark-mode bridge repaints every rail near-black, so
-  // the indicator accent re-resolves against that surface via CSS vars.
-  const railAccent = resolveAccent(
-    [brandColorSecondary, brandColor],
-    railBgHex,
-    railDark ? "#FFFFFF" : "#0A1428"
-  );
-  const railAccentDark = resolveAccent(
-    [brandColorSecondary, brandColor],
-    railBrandBg ?? "#1B1D22",
-    "#FFFFFF"
-  );
+  // up, and a color that can't hold 3:1 contrast against the actual rail
+  // surface falls back to that surface's guaranteed ink — resolved once per
+  // theme (the CSS vars pick the right half).
+  const railAccent = resolveAccent([brandColorSecondary, brandColor], "#F1F2F4", "#0A1428");
+  const railAccentDark = resolveAccent([brandColorSecondary, brandColor], "#1B1D22", "#FFFFFF");
   const pathname = usePathname();
   const router = useRouter();
   const [moreOpen, setMoreOpen] = useState(false);
@@ -849,8 +960,22 @@ export default function AppShell({
   useEffect(() => {
     if (assistantOpen) setTeaserVisible(false);
   }, [assistantOpen]);
-  const [search, setSearch] = useState("");
   const [counts, setCounts] = useState({ requests: 0, pastDue: 0, chat: 0, leads: 0, messages: 0 });
+
+  // ⌘K / Ctrl+K command palette
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [kbdHint, setKbdHint] = useState("Ctrl K");
+  useEffect(() => {
+    if (/Mac|iPhone|iPad/.test(navigator.platform)) setKbdHint("⌘K");
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setPaletteOpen((v) => !v);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   // Bell-dot memory: "Clear all" in the notifications sheet snapshots the
   // badge counts, and the dot only returns when a count grows PAST its
@@ -958,11 +1083,6 @@ export default function AppShell({
   };
 
   if (isAuthPage) return <>{children}</>;
-
-  function onSearch(e: React.FormEvent) {
-    e.preventDefault();
-    if (search.trim()) router.push(`/app/contacts?q=${encodeURIComponent(search.trim())}`);
-  }
 
   // Live counts: new requests / unread messages (neutral), past-due
   // invoices (red — urgent). Shared by rail rows and group roll-ups.
@@ -1093,28 +1213,28 @@ export default function AppShell({
   // uploaded.) Uploaded logos sit on their pickable plate color; the
   // fallback monogram wears the resolved brand accent.
   const logo = (
-    <div className="flex items-center gap-2.5 px-4 min-h-[57px] border-b border-[color:var(--rail-line)] min-w-0">
+    <div className="flex items-center gap-3 px-3.5 min-h-[57px] border-b border-[color:var(--rail-line)] min-w-0">
       {companyLogoUrl ? (
         <span
-          className="theme-fixed flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-[8px] ring-1 ring-[color:var(--rail-line)]"
+          className="theme-fixed flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-[10px] ring-1 ring-[color:var(--rail-line)]"
           style={{ backgroundColor: sidebarLogoColor || "#FFFFFF" }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={companyLogoUrl}
             alt={companyName ?? ""}
-            className="h-full w-full object-contain p-0.5"
+            className="h-full w-full object-contain p-[3px]"
           />
         </span>
       ) : (
         <span
-          className="w-9 h-9 rounded-[8px] flex items-center justify-center shrink-0 font-display font-bold text-sm"
+          className="w-11 h-11 rounded-[10px] flex items-center justify-center shrink-0 font-display font-bold text-lg"
           style={{ backgroundColor: railAccent, color: textOn(railAccent) }}
         >
           {companyName?.charAt(0).toUpperCase() ?? "W"}
         </span>
       )}
-      <span className="font-display font-semibold text-[14px] tracking-tight text-[color:var(--rail-ink)] truncate">
+      <span className="font-display font-semibold text-[15px] tracking-tight text-[color:var(--rail-ink)] truncate">
         {companyName ?? "WorkBench"}
       </span>
     </div>
@@ -1215,12 +1335,11 @@ export default function AppShell({
       )}
       {/* ── Desktop sidebar ──────────────────────────────────────────────── */}
       <aside
-        className={`hidden lg:flex flex-col w-[232px] shrink-0 rail-${rail}`}
+        className="hidden lg:flex flex-col w-[232px] shrink-0 rail-gray border-r border-[color:var(--rail-line)]"
         style={
           {
             "--rail-accent-l": railAccent,
             "--rail-accent-d": railAccentDark,
-            ...(railBrandBg ? { "--rail-bg": railBrandBg } : {}),
           } as React.CSSProperties
         }
       >
@@ -1355,24 +1474,18 @@ export default function AppShell({
             </span>
           </div>
 
-          <form
-            onSubmit={onSearch}
-            className={`ml-auto w-full max-w-xs ${sellRoles(userRole) ? "hidden sm:block" : "hidden"}`}
+          {/* Palette trigger, styled like the search field it replaced */}
+          <button
+            type="button"
+            onClick={() => setPaletteOpen(true)}
+            className="ml-auto hidden w-full max-w-xs items-center gap-2 rounded-md border border-transparent bg-gray-100 px-3 py-1.5 text-sm text-gray-400 transition-colors hover:border-gray-300 hover:bg-gray-50 sm:flex"
           >
-            <div className="relative">
-              <Search
-                size={14}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-              />
-              <input
-                type="search"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search clients..."
-                className="w-full pl-8 pr-3 py-1.5 bg-gray-100 hover:bg-gray-50 border border-transparent focus:border-gray-300 focus:bg-white rounded-md text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none transition-colors"
-              />
-            </div>
-          </form>
+            <Search size={14} />
+            <span>Search</span>
+            <kbd className="ml-auto rounded border border-gray-200 bg-white px-1.5 py-px text-[10px] font-semibold text-gray-400">
+              {kbdHint}
+            </kbd>
+          </button>
 
           {/* Global create — the page-level CTA color, one click from
               anywhere (the rail is pure navigation now) */}
@@ -1387,7 +1500,7 @@ export default function AppShell({
               isActive("/app/chat")
                 ? "border-gray-900 bg-gray-900 text-white"
                 : "border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-            } ${sellRoles(userRole) ? "" : "ml-auto"}`}
+            }`}
             title="Team chat"
           >
             <MessagesSquare size={15} />
@@ -1462,6 +1575,9 @@ export default function AppShell({
           pathname={pathname}
         />
       </div>
+
+      {/* ⌘K palette */}
+      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} role={userRole} />
 
       {/* Mobile confirm sheet — imperative host for confirmSheet() */}
       <ConfirmSheetHost />

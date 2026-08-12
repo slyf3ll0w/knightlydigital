@@ -24,6 +24,7 @@ import PageTitle from "@/components/PageTitle";
 import { SECTION_HUES } from "@/lib/section-colors";
 import { FilterChip, SegmentedRow, Segment } from "@/components/FilterChips";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
+import Modal from "@/components/Modal";
 
 /**
  * Month / Week / Day calendar with an "Anytime" all-day row, an
@@ -1283,7 +1284,7 @@ export default function ScheduleClient({
 
   // ── Page ──────────────────────────────────────────────────────────────────
   return (
-    <div className="mx-auto max-w-7xl p-4 lg:p-8">
+    <div className="mx-auto max-w-6xl p-4 lg:p-8">
       {/* Header — actions are icon circles on phones (labels return at md)
           so the row breathes instead of cramming three long buttons. */}
       <div className="mb-5 flex items-center justify-between gap-2">
@@ -1591,15 +1592,15 @@ export default function ScheduleClient({
       </div>
 
       {/* Block-off-time sheet (create + edit; read-only when not yours) */}
-      {blockSheet && (
-        <div
-          className="modal-pop fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4"
-          onClick={() => !blockBusy && setBlockSheet(null)}
-        >
-          <div
-            className="modal-card w-full max-w-md space-y-3 rounded-lg bg-white p-5 text-left shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
+      <Modal
+        open={Boolean(blockSheet)}
+        onClose={() => {
+          if (!blockBusy) setBlockSheet(null);
+        }}
+        cardClassName="w-full max-w-md space-y-3 rounded-lg bg-white p-5 text-left shadow-xl"
+      >
+        {blockSheet && (
+          <>
             <h2 className="text-base font-semibold text-gray-900">
               {blockSheet.id === null
                 ? "Block Off Time"
@@ -1782,21 +1783,21 @@ export default function ScheduleClient({
                 </button>
               )}
             </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </Modal>
 
       {/* Drop-to-schedule sheet — pick the time and crew for a job dragged in
           from the unscheduled drawer */}
-      {dropSheet && (
-        <div
-          className="modal-pop fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4"
-          onClick={() => !dropBusy && setDropSheet(null)}
-        >
-          <div
-            className="modal-card w-full max-w-md space-y-3 rounded-lg bg-white p-5 text-left shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
+      <Modal
+        open={Boolean(dropSheet)}
+        onClose={() => {
+          if (!dropBusy) setDropSheet(null);
+        }}
+        cardClassName="w-full max-w-md space-y-3 rounded-lg bg-white p-5 text-left shadow-xl"
+      >
+        {dropSheet && (
+          <>
             <div>
               <div className="flex items-baseline justify-between gap-3">
                 <h2 className="text-base font-semibold text-gray-900">Schedule Job</h2>
@@ -1917,9 +1918,9 @@ export default function ScheduleClient({
                 Cancel
               </button>
             </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </Modal>
     </div>
   );
 }

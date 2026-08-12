@@ -18,6 +18,7 @@ import {
   RotateCcw,
   SquareKanban,
 } from "lucide-react";
+import Modal from "@/components/Modal";
 import PageTitle from "@/components/PageTitle";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { hapticImpact } from "@/lib/haptics";
@@ -616,12 +617,13 @@ export default function LeadsBoardClient({
       )}
 
       {/* Lost reason */}
-      {lostCard && (
-        <div
-          className="modal-pop fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4"
-          onClick={() => setLostCard(null)}
-        >
-          <div className="modal-card card-ledger w-full max-w-sm p-5" onClick={(e) => e.stopPropagation()}>
+      <Modal
+        open={Boolean(lostCard)}
+        onClose={() => setLostCard(null)}
+        cardClassName="card-ledger w-full max-w-sm p-5"
+      >
+        {lostCard && (
+          <>
             <h2 className="text-base font-semibold text-gray-900 mb-1">
               Mark {lostCard.name} as lost?
             </h2>
@@ -656,9 +658,10 @@ export default function LeadsBoardClient({
                 Mark Lost
               </button>
             </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </Modal>
+
 
       {/* Toast (with undo) */}
       {toast && (

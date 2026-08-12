@@ -1,6 +1,6 @@
 export default function ScheduleLoading() {
   return (
-    <div className="mx-auto max-w-7xl animate-pulse p-4 lg:p-8">
+    <div className="mx-auto max-w-6xl animate-pulse p-4 lg:p-8">
       <div className="mb-5 flex items-center justify-between">
         <div className="h-8 w-36 rounded-lg bg-gray-200" />
         <div className="flex gap-2">

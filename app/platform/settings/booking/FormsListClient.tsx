@@ -26,6 +26,7 @@ import PageTitle from "@/components/PageTitle";
 import { SECTION_HUES, hueInk } from "@/lib/section-colors";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { confirmSheet } from "@/components/ConfirmSheet";
+import Modal from "@/components/Modal";
 
 /**
  * Your public forms: one default (answers the original /book and /embed
@@ -364,15 +365,15 @@ export default function FormsListClient({
 
       {/* New-form dialog — bottom sheet on phones. The type picker used to be
           three tall cards stacked inline, which buried the Create button. */}
-      {creating && (
-        <div
-          className="modal-pop fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4"
-          onClick={() => !busy && setCreating(false)}
-        >
-          <div
-            className="modal-card w-full max-w-lg rounded-lg bg-white p-5 text-left shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
+      <Modal
+        open={creating}
+        onClose={() => {
+          if (!busy) setCreating(false);
+        }}
+        cardClassName="w-full max-w-lg rounded-lg bg-white p-5 text-left shadow-xl"
+      >
+        {creating && (
+          <>
             <h2 className="mb-3 text-base font-semibold text-gray-900">New Form</h2>
 
             <label className="mb-1 block text-xs font-medium text-gray-500">Form name *</label>
@@ -431,9 +432,9 @@ export default function FormsListClient({
                 Cancel
               </button>
             </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </Modal>
     </div>
   );
 }

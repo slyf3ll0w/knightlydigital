@@ -25,6 +25,7 @@ import { confirmSheet, alertSheet } from "@/components/ConfirmSheet";
 import { hapticImpact, hapticNotify } from "@/lib/haptics";
 import { showSendRitual } from "@/lib/send-ritual";
 import { showApproveRitual } from "@/lib/approve-ritual";
+import Modal from "@/components/Modal";
 
 type AgreementState = {
   signed: boolean;
@@ -463,13 +464,13 @@ export default function QuoteActions({
 
       {/* Send-agreement modal: pick a template, signing link goes to the
           client's inbox; the quote unlocks once they sign */}
-      {agreementOpen && agreement && (
-        <div className="modal-pop fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0 bg-black/40"
-            onClick={() => !busy && setAgreementOpen(false)}
-          />
-          <div className="modal-card relative w-full max-w-md card-ledger bg-white p-6 shadow-xl">
+      <Modal
+        open={agreementOpen && Boolean(agreement)}
+        onClose={() => !busy && setAgreementOpen(false)}
+        cardClassName="relative w-full max-w-md card-ledger bg-white p-6 shadow-xl"
+      >
+        {agreementOpen && agreement && (
+          <>
             <h2 className="text-lg font-bold text-gray-900 mb-1">Send agreement</h2>
             <p className="text-sm text-gray-600 mb-4">
               This quote includes services that require a signed agreement before work starts.
@@ -516,9 +517,9 @@ export default function QuoteActions({
                 </button>
               )}
             </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </Modal>
     </div>
   );
 }

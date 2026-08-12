@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
+import Modal from "@/components/Modal";
 
 const OUT_SIZE = 256; // exported square, matches the old center-crop pipeline
 const MAX_ZOOM = 3;
@@ -118,8 +119,13 @@ export default function AvatarCropModal({
   const working = busy || exporting;
 
   return (
-    <div className="modal-pop fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
-      <div className="modal-card w-full max-w-sm rounded-lg bg-white p-5 shadow-xl">
+    <Modal
+      open
+      onClose={() => {
+        if (!working) onCancel();
+      }}
+      cardClassName="w-full max-w-sm rounded-lg bg-white p-5 shadow-xl"
+    >
         <h2 className="mb-1 text-base font-semibold text-gray-900">Position your photo</h2>
         <p className="mb-3 text-xs text-gray-500">Drag to move · pinch or slide to zoom</p>
 
@@ -197,7 +203,6 @@ export default function AvatarCropModal({
             Save Photo
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

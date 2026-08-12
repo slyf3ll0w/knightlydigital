@@ -163,7 +163,7 @@ export default async function JobDetailPage({
   return (
     // pb-20: phone bottom padding so the docked action pill never covers the
     // last card
-    <div className="p-4 pb-20 lg:p-8 max-w-5xl mx-auto">
+    <div className="p-4 pb-20 lg:p-8 max-w-4xl mx-auto">
       {/* Header */}
       <div className="flex items-center gap-3 mb-4">
         <Link href="/app/jobs" className="hidden lg:block text-gray-400 hover:text-gray-600">

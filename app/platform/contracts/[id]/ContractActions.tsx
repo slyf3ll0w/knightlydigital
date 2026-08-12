@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Check, Copy, ExternalLink, Loader2, Pencil, Trash2, X } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { confirmSheet } from "@/components/ConfirmSheet";
+import Modal from "@/components/Modal";
 
 /** Contract controls: copy the signing link, edit while unsigned, void/reopen, delete. */
 export default function ContractActions({
@@ -151,15 +152,15 @@ export default function ContractActions({
         </p>
       )}
 
-      {editing && (
-        <div
-          className="modal-pop fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4"
-          onClick={() => !busy && setEditing(false)}
-        >
-          <div
-            className="modal-card w-full max-w-2xl bg-white rounded-lg shadow-xl p-5 space-y-3 text-left"
-            onClick={(e) => e.stopPropagation()}
-          >
+      <Modal
+        open={editing}
+        onClose={() => {
+          if (!busy) setEditing(false);
+        }}
+        cardClassName="w-full max-w-2xl bg-white rounded-lg shadow-xl p-5 space-y-3 text-left"
+      >
+        {editing && (
+          <>
             <h2 className="text-base font-semibold text-gray-900">Edit Contract</h2>
             <p className="text-xs text-gray-500">
               Editable until the client signs. If it was already sent, the signing link shows the
@@ -207,9 +208,9 @@ export default function ContractActions({
                 Save Changes
               </button>
             </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </Modal>
     </div>
   );
 }

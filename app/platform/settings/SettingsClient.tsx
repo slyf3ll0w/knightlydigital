@@ -1165,7 +1165,7 @@ export default function SettingsClient({
   }
 
   return (
-    <div className="p-4 lg:p-8 max-w-5xl mx-auto">
+    <div className="p-4 lg:p-8 max-w-4xl mx-auto">
       {/* Header — on phones inside a section, the back control and the
           section's own title take the h1's place (the h1 belongs to the
           index screen and to desktop). */}
@@ -1689,38 +1689,9 @@ export default function SettingsClient({
               How the desktop navigation rail looks for your whole team
             </p>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Sidebar color</label>
-            <div className="flex flex-wrap gap-2">
-              {(
-                [
-                  ["black", "Black", "#121212"],
-                  ["white", "White", "#FFFFFF"],
-                  ["gray", "Gray", "#F1F2F4"],
-                ] as const
-              ).map(([value, label, hex]) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => set("sidebarTheme", value)}
-                  className={`flex items-center gap-2 rounded-[10px] border px-3.5 py-2 text-sm font-medium transition-colors ${
-                    form.sidebarTheme === value
-                      ? "border-green-500 ring-2 ring-green-500/30 text-gray-900"
-                      : "border-gray-300 text-gray-600 hover:bg-gray-50"
-                  }`}
-                >
-                  <span
-                    className="h-4 w-4 rounded-full border border-gray-300"
-                    style={{ backgroundColor: hex }}
-                  />
-                  {label}
-                </button>
-              ))}
-            </div>
-            <p className="text-xs text-gray-400 mt-1">
-              A neutral rail keeps buttons and your brand accents standing out.
-            </p>
-          </div>
+          {/* Rail color follows the app theme (light/dark) since the calm-
+              stage pass — the old black/white/gray picker is retired.
+              Company.sidebarTheme survives in the schema, unused. */}
           {form.logoUrl && (
             <ColorField
               label="Logo backdrop"

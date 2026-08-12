@@ -1,6 +1,6 @@
 export default function DashboardLoading() {
   return (
-    <div className="p-4 lg:p-8 max-w-7xl mx-auto animate-pulse">
+    <div className="p-4 lg:p-8 max-w-6xl mx-auto animate-pulse">
       <div className="mb-6">
         <div className="h-3.5 w-44 bg-gray-100 rounded-lg mb-2" />
         <div className="h-7 w-64 bg-gray-200 rounded-lg" />

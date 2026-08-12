@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { PenLine, Loader2 } from "lucide-react";
 import { hapticImpact } from "@/lib/haptics";
 import { sendOrQueue } from "@/lib/outbox";
+import Modal from "@/components/Modal";
 
 /**
  * On-site completion sign-off: the tech hands the client the phone, the
@@ -68,10 +69,15 @@ export default function CollectSignature({ jobId }: { jobId: string }) {
         Collect Signature
       </button>
 
-      {open && (
-        <div className="modal-pop fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40" onClick={() => !busy && setOpen(false)} />
-          <div className="modal-card relative w-full max-w-sm rounded-xl bg-white p-5 shadow-xl">
+      <Modal
+        open={open}
+        onClose={() => {
+          if (!busy) setOpen(false);
+        }}
+        cardClassName="relative w-full max-w-sm rounded-xl bg-white p-5 shadow-xl"
+      >
+        {open && (
+          <>
             <h3 className="text-base font-bold text-gray-900 mb-1">Sign off on this job</h3>
             <p className="text-sm text-gray-500 mb-4">
               Hand the phone to your client — typing their name confirms the work is
@@ -107,9 +113,9 @@ export default function CollectSignature({ jobId }: { jobId: string }) {
                 Cancel
               </button>
             </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </Modal>
     </>
   );
 }

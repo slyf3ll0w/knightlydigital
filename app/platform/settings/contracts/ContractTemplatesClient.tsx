@@ -17,6 +17,7 @@ import PageTitle from "@/components/PageTitle";
 import { SECTION_HUES, hueInk } from "@/lib/section-colors";
 import { confirmSheet } from "@/components/ConfirmSheet";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
+import Modal from "@/components/Modal";
 
 /**
  * Reusable contract templates. {{client_name}}, {{company_name}}, and
@@ -218,15 +219,13 @@ export default function ContractTemplatesClient({ templates }: { templates: Temp
       )}
 
       {/* Editor — centered dialog on desktop, bottom sheet on phones */}
-      {editing !== null && (
-        <div
-          className="modal-pop fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4"
-          onClick={() => !busy && setEditing(null)}
-        >
-          <div
-            className="modal-card w-full max-w-xl rounded-lg bg-white p-5 text-left shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
+      <Modal
+        open={editing !== null}
+        onClose={() => !busy && setEditing(null)}
+        cardClassName="w-full max-w-xl rounded-lg bg-white p-5 text-left shadow-xl"
+      >
+        {editing !== null && (
+          <>
             <h2 className="mb-3 text-base font-semibold text-gray-900">
               {editing === "new" ? "New Template" : "Edit Template"}
             </h2>
@@ -287,9 +286,9 @@ export default function ContractTemplatesClient({ templates }: { templates: Temp
                 </button>
               )}
             </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </Modal>
     </div>
   );
 }

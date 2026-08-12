@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { confirmSheet, alertSheet } from "@/components/ConfirmSheet";
+import Modal from "@/components/Modal";
 
 /**
  * The client page's ⋯ menu: Edit / Archive ⇄ Reactivate / Delete.
@@ -185,10 +186,15 @@ export default function ContactActionsMenu({
         )}
       </div>
 
-      {deleteOpen && (
-        <div className="modal-pop fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40" onClick={() => !busy && setDeleteOpen(false)} />
-          <div className="modal-card relative w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+      <Modal
+        open={deleteOpen}
+        onClose={() => {
+          if (!busy) setDeleteOpen(false);
+        }}
+        cardClassName="relative w-full max-w-md rounded-lg bg-white p-6 shadow-xl"
+      >
+        {deleteOpen && (
+          <>
             <div className="flex items-start justify-between mb-3">
               <span className="flex h-9 w-9 items-center justify-center rounded-full bg-red-100">
                 <AlertTriangle size={17} className="text-red-600" />
@@ -252,9 +258,9 @@ export default function ContactActionsMenu({
                 Delete Everything
               </button>
             </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </Modal>
     </>
   );
 }

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Pencil, Trash2, X } from "lucide-react";
 import { localInputToISO } from "@/lib/statuses";
 import { confirmSheet } from "@/components/ConfirmSheet";
+import Modal from "@/components/Modal";
 
 /** ISO → datetime-local value in the browser's timezone. */
 function toLocalInput(iso: string | null): string {
@@ -67,8 +68,8 @@ export default function EntryActions({
     router.refresh();
   }
 
-  if (!editing) {
-    return (
+  return (
+    <>
       <button
         onClick={() => setEditing(true)}
         className="p-1.5 text-gray-300 hover:text-gray-600 shrink-0"
@@ -76,66 +77,65 @@ export default function EntryActions({
       >
         <Pencil size={13} />
       </button>
-    );
-  }
-
-  return (
-    <div className="modal-pop fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
-      <div className="modal-card w-full max-w-sm card-ledger bg-white p-5 space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-gray-900">Edit time entry</h3>
-          <button onClick={() => setEditing(false)} className="text-gray-400 hover:text-gray-600">
-            <X size={16} />
-          </button>
-        </div>
-        <label className="block text-xs font-medium text-gray-600">
-          Start
-          <input
-            type="datetime-local"
-            value={start}
-            onChange={(e) => setStart(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-          />
-        </label>
-        <label className="block text-xs font-medium text-gray-600">
-          End{" "}
-          <span className="font-normal text-gray-400">(leave empty to keep them on the clock)</span>
-          <input
-            type="datetime-local"
-            value={end}
-            onChange={(e) => setEnd(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-          />
-        </label>
-        <label className="block text-xs font-medium text-gray-600">
-          Note
-          <input
-            type="text"
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            placeholder="Why the change (optional)"
-            className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-          />
-        </label>
-        {error && <p className="text-xs text-red-600">{error}</p>}
-        <div className="flex items-center justify-between pt-1">
-          <button
-            onClick={remove}
-            disabled={busy}
-            className="flex items-center gap-1 text-xs font-medium text-red-600 hover:underline disabled:opacity-50"
-          >
-            <Trash2 size={12} />
-            Delete
-          </button>
-          <button
-            onClick={save}
-            disabled={busy}
-            className="px-4 py-2 bg-gray-900 text-white text-sm font-semibold rounded-lg hover:bg-gray-800 disabled:opacity-50"
-          >
-            Save
-          </button>
-        </div>
-      </div>
-    </div>
+      <Modal open={editing} onClose={() => setEditing(false)} cardClassName="w-full max-w-sm card-ledger bg-white p-5 space-y-3">
+      {editing && (
+        <>
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-gray-900">Edit time entry</h3>
+            <button onClick={() => setEditing(false)} className="text-gray-400 hover:text-gray-600">
+              <X size={16} />
+            </button>
+          </div>
+          <label className="block text-xs font-medium text-gray-600">
+            Start
+            <input
+              type="datetime-local"
+              value={start}
+              onChange={(e) => setStart(e.target.value)}
+              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+            />
+          </label>
+          <label className="block text-xs font-medium text-gray-600">
+            End{" "}
+            <span className="font-normal text-gray-400">(leave empty to keep them on the clock)</span>
+            <input
+              type="datetime-local"
+              value={end}
+              onChange={(e) => setEnd(e.target.value)}
+              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+            />
+          </label>
+          <label className="block text-xs font-medium text-gray-600">
+            Note
+            <input
+              type="text"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="Why the change (optional)"
+              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+            />
+          </label>
+          {error && <p className="text-xs text-red-600">{error}</p>}
+          <div className="flex items-center justify-between pt-1">
+            <button
+              onClick={remove}
+              disabled={busy}
+              className="flex items-center gap-1 text-xs font-medium text-red-600 hover:underline disabled:opacity-50"
+            >
+              <Trash2 size={12} />
+              Delete
+            </button>
+            <button
+              onClick={save}
+              disabled={busy}
+              className="px-4 py-2 bg-gray-900 text-white text-sm font-semibold rounded-lg hover:bg-gray-800 disabled:opacity-50"
+            >
+              Save
+            </button>
+          </div>
+        </>
+      )}
+      </Modal>
+    </>
   );
 }

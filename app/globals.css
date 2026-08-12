@@ -555,6 +555,57 @@ html[data-mode="dark"] .app-ui .sheet-hairline {
   }
 }
 
+/* Exits (components/Modal.tsx sets .modal-closing for the final 240ms):
+   reverse of the entrance, a touch faster — leaving should feel lighter
+   than arriving. Phones slide the sheet back down; desktop settles the
+   card away while the scrim fades. */
+@keyframes modalScrimOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+@keyframes modalCardOut {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+}
+@keyframes sheetDown {
+  from {
+    transform: none;
+  }
+  to {
+    transform: translateY(100%);
+  }
+}
+.app-ui .modal-pop.modal-closing {
+  animation: modalScrimOut 0.2s ease-in both;
+  pointer-events: none;
+}
+@media (min-width: 1024px) {
+  .app-ui .modal-pop.modal-closing > .modal-card {
+    animation: modalCardOut 0.18s ease-in both;
+  }
+}
+@media (max-width: 1023px) {
+  .app-ui .modal-pop.modal-closing > .modal-card {
+    animation: sheetDown 0.24s cubic-bezier(0.32, 0.72, 0, 1) both;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-ui .modal-pop.modal-closing,
+  .app-ui .modal-pop.modal-closing > .modal-card {
+    animation: none;
+  }
+}
+
 /* ── Atlas drawer — slides in from the right with a scrim fade instead of
    popping (works at both widths; the phone drawer is full-bleed). ── */
 @keyframes drawerScrimIn {
@@ -936,30 +987,11 @@ body {
 /* ── Sidebar rail themes — tenant-selectable (Settings → Branding). Each
    theme sets the full ink ramp as vars; the rail markup reads only vars,
    so it's untouched by the dark-mode utility bridge (theme-fixed). ── */
-.rail-black {
-  --rail-bg: #121212;
-  --rail-ink: #FFFFFF;
-  --rail-muted: #9CA3AF;
-  --rail-faint: rgba(255, 255, 255, 0.4);
-  --rail-line: rgba(255, 255, 255, 0.1);
-  --rail-hover: rgba(255, 255, 255, 0.06);
-  --rail-active: rgba(255, 255, 255, 0.07);
-  --rail-num: #8E99AD;
-  --rail-num-due: #F87171;
-}
-.rail-white {
-  --rail-bg: #FFFFFF;
-  --rail-ink: #111827;
-  --rail-muted: #6B7280;
-  --rail-faint: rgba(17, 24, 39, 0.45);
-  --rail-line: rgba(15, 23, 42, 0.1);
-  --rail-hover: rgba(15, 23, 42, 0.05);
-  --rail-active: rgba(15, 23, 42, 0.06);
-  --rail-num: #6B7280;
-  --rail-num-due: #DC2626;
-}
+/* The rail follows the THEME now, not a per-tenant picker: light gray here
+   (carrying the tenant primary's temperature, like .bg-chrome), dark gray
+   via the dark-mode bridge below. */
 .rail-gray {
-  --rail-bg: #F1F2F4;
+  --rail-bg: color-mix(in srgb, var(--wb-primary, #0A1428) 4%, #F3F4F6);
   --rail-ink: #111827;
   --rail-muted: #6B7280;
   --rail-faint: rgba(17, 24, 39, 0.45);
@@ -968,8 +1000,6 @@ body {
   --rail-active: rgba(15, 23, 42, 0.06);
   --rail-num: #6B7280;
   --rail-num-due: #DC2626;
-}
-.rail-black, .rail-white, .rail-gray {
   background-color: var(--rail-bg);
   /* Sliding-indicator accent, per theme: AppShell injects a light-rail and a
      dark-rail resolved candidate; the dark bridge flips to the -d half. */
@@ -1573,12 +1603,8 @@ body {
   html[data-mode="dark"] .app-ui .chip-pressed {
     box-shadow: none;
   }
-  /* Sidebar rails go true dark with the rest of the frame — the console-navy
-     default (and the light white/gray themes) read as a stray bright panel
-     next to the near-black canvas. Same primary wash as dark .bg-chrome so
-     the top bar and rail meet as one chrome. */
-  html[data-mode="dark"] .app-ui .rail-black,
-  html[data-mode="dark"] .app-ui .rail-white,
+  /* The rail's dark half — dark gray with the same primary wash as dark
+     .bg-chrome, so the top bar and rail meet as one chrome. */
   html[data-mode="dark"] .app-ui .rail-gray {
     --rail-bg: color-mix(in srgb, var(--wb-primary, #606673) 8%, #171717);
     --rail-ink: #ffffff;

@@ -9,6 +9,7 @@ import { localInputToISO, appointmentTypeLabel } from "@/lib/statuses";
 import SlotTimePicker from "@/components/SlotTimePicker";
 import { addMinutesToLocalDateTime } from "@/lib/scheduling";
 import { confirmSheet, alertSheet } from "@/components/ConfirmSheet";
+import Modal from "@/components/Modal";
 
 /**
  * Appointment lifecycle controls: Complete (→ Create Quote CTA), No-show,
@@ -321,15 +322,15 @@ export default function AppointmentActions({
 
       {error && <p className="text-xs text-red-600">{error}</p>}
 
-      {editing && (
-        <div
-          className="modal-pop fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4"
-          onClick={() => !busy && setEditing(false)}
-        >
-          <div
-            className="modal-card w-full max-w-md bg-white rounded-lg shadow-xl p-5 space-y-3 text-left"
-            onClick={(e) => e.stopPropagation()}
-          >
+      <Modal
+        open={editing}
+        onClose={() => {
+          if (!busy) setEditing(false);
+        }}
+        cardClassName="w-full max-w-md bg-white rounded-lg shadow-xl p-5 space-y-3 text-left"
+      >
+        {editing && (
+          <>
             <h2 className="text-base font-semibold text-gray-900">Edit Appointment</h2>
 
             <div>
@@ -434,9 +435,9 @@ export default function AppointmentActions({
                 Save Changes
               </button>
             </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </Modal>
     </div>
   );
 }
