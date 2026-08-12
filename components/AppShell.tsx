@@ -50,11 +50,10 @@ import { mobileBackFor } from "@/lib/mobile-nav";
 import { AtlasMark } from "@/components/AtlasIcon";
 import TourGuide from "@/components/TourGuide";
 import AssistantDrawer from "@/components/AssistantDrawer";
-import { shade, textOn } from "@/lib/branding";
+import { resolveAccent, shade, textOn } from "@/lib/branding";
 import {
   SECTION_HUES,
   hueInk,
-  hueTint,
   sanitizeSectionColors,
   sectionColorVars,
 } from "@/lib/section-colors";
@@ -64,19 +63,11 @@ import { switchToMembership } from "@/lib/company-switch";
 import { WALLPAPER_PATTERNS } from "@/lib/wallpapers";
 import { GOOGLE_FONT_RE } from "@/lib/booking-form";
 
-const DEFAULT_ACCENT = "#FFFFFF"; // console default: white on the dark rail
-
 function luminanceOf(hex: string): number | null {
   const m = /^#?([0-9a-f]{6})$/i.exec(hex);
   if (!m) return null;
   const n = parseInt(m[1], 16);
   return 0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255);
-}
-
-/** Brand accent, guarded: too-dark colors are invisible on the console rail. */
-function sidebarAccent(hex: string): string {
-  const luminance = luminanceOf(hex);
-  return luminance === null || luminance < 70 ? DEFAULT_ACCENT : hex;
 }
 
 /** Same accent for light surfaces (mobile tab bar / FAB / create sheet),
@@ -177,6 +168,57 @@ const navGroups: { label?: string; items: NavItem[] }[] = [
   },
 ];
 
+// ── Desktop rail v2 ─────────────────────────────────────────────────────────
+// Six daily drivers always visible; everything else lives in collapsible
+// groups (open state remembered per user, and a group holding the active
+// route is always held open). Mobile keeps `navGroups` above — the More
+// sheet is its own surface and stays as-is.
+const railDrivers: NavItem[] = [
+  { href: "/app/dashboard", label: "Home", icon: Home },
+  { href: "/app/schedule", label: "Schedule", icon: CalendarDays },
+  { href: "/app/contacts", label: "Clients", icon: Users, show: sellRoles },
+  { href: "/app/quotes", label: "Quotes", icon: FileText, show: sellRoles },
+  { href: "/app/jobs", label: "Jobs", icon: Briefcase },
+  { href: "/app/invoices", label: "Invoices", icon: Receipt, show: moneyRoles },
+];
+
+const railGroups: { key: string; label: string; items: NavItem[] }[] = [
+  {
+    key: "work",
+    label: "Work",
+    items: [
+      { href: "/app/leads", label: "Leads", icon: SquareKanban, show: sellRoles },
+      { href: "/app/requests", label: "Requests", icon: Inbox, show: sellRoles },
+      { href: "/app/messages", label: "Messages", icon: MessageSquare, show: sellRoles },
+      { href: "/app/appointments", label: "Appointments", icon: CalendarClock, show: sellRoles },
+      { href: "/app/schedule/map", label: "Routes", icon: RouteGlyph },
+      { href: "/app/contracts", label: "Agreements", icon: FileSignature, show: sellRoles },
+      // Managers reach timesheets through the Business hub; techs/USER need
+      // a direct path to their own hours.
+      { href: "/app/timesheets", label: "Timesheets", icon: Timer, show: (r) => !isManagerRole(r) && r !== "SALES" },
+    ],
+  },
+  {
+    key: "money",
+    label: "Money",
+    items: [
+      { href: "/app/payments", label: "Payments", icon: DollarSign, show: moneyRoles },
+      { href: "/app/subscriptions", label: "Recurring", icon: Repeat, show: moneyRoles },
+    ],
+  },
+  {
+    key: "business",
+    label: "Business",
+    items: [
+      { href: "/app/business", label: "Business", icon: BarChart3, show: isManagerRole },
+      { href: "/app/settings/products", label: "Services", icon: Tag, show: isManagerRole },
+      { href: "/app/settings/contracts", label: "Contracts", icon: FileSignature, show: isManagerRole },
+      { href: "/app/settings/booking", label: "Forms", icon: Globe, show: isManagerRole },
+      { href: "/app/settings/team", label: "Team", icon: UserPlus, show: isManagerRole },
+    ],
+  },
+];
+
 const createItems: NavItem[] = [
   { href: "/app/contacts/new", label: "Client", icon: Users, show: sellRoles },
   { href: "/app/contacts/new?type=lead", label: "Lead", icon: SquareKanban, show: sellRoles },
@@ -269,10 +311,12 @@ const tourKeys: Record<string, string> = {
 };
 
 /**
- * Global create menu (desktop sidebar). Self-contained state + ref — a shared
- * ref made the click-outside handler swallow item clicks.
+ * Global create menu (desktop top bar). Self-contained state + ref — a shared
+ * ref made the click-outside handler swallow item clicks. The button wears
+ * the same accent as every page CTA (the green→accent bridge), so the
+ * shell's most prominent action finally matches the product's.
  */
-function CreateMenu({ accent, role, previewMode }: { accent: string; role: string; previewMode?: boolean }) {
+function CreateMenu({ role, previewMode }: { role: string; previewMode?: boolean }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -297,12 +341,11 @@ function CreateMenu({ accent, role, previewMode }: { accent: string; role: strin
   if (items.length === 0) return null;
 
   return (
-    <div className="px-3 pt-4 relative" ref={ref}>
+    <div className="relative hidden lg:block" ref={ref}>
       <button
         onClick={() => setOpen((v) => !v)}
         data-tour="create"
-        style={{ backgroundColor: accent, color: textOn(accent) }}
-        className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 hover:brightness-110 text-sm font-semibold rounded-[10px] btn-tool"
+        className="flex items-center gap-1.5 rounded-full bg-green-600 px-3.5 py-1.5 text-sm font-semibold text-[color:var(--wb-on-accent,#ffffff)] hover:bg-green-500 transition-colors"
       >
         {/* The plus twirls into an × while the menu is open — springy overshoot */}
         <Plus
@@ -314,25 +357,19 @@ function CreateMenu({ accent, role, previewMode }: { accent: string; role: strin
         Create
       </button>
       {open && (
-        <div className="anim-create-pop absolute left-3 right-3 top-full mt-1.5 z-50 card-tool py-1.5 overflow-hidden">
+        <div className="anim-create-pop absolute right-0 top-full z-50 mt-1.5 w-52 card-ledger py-1.5 shadow-xl overflow-hidden">
+          {/* Plain rows, neutral icons — the entity-hue tiles stay on the
+              mobile create sheet, where color is wayfinding across a grid.
+              A nine-row desktop list reads by label. */}
           {items.map(({ href, label, icon: Icon }, i) => (
             <Link
               key={href}
               href={href}
               onClick={() => setOpen(false)}
               style={{ animationDelay: `${i * 25}ms` }}
-              className="anim-create-item flex items-center gap-2.5 px-3 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50"
+              className="anim-create-item flex items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50"
             >
-              {/* Mini solid hue tile — the mobile Create sheet's tiles at row scale */}
-              <span
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] border-[1.5px] border-[color:var(--tool-line,#0A1428)]"
-                style={{
-                  backgroundColor: createTints[href] ?? "#0A1428",
-                  color: hueInk(createTints[href] ?? "#0A1428"),
-                }}
-              >
-                <Icon size={14} strokeWidth={2.25} />
-              </span>
+              <Icon size={15} className="text-gray-400" strokeWidth={2} />
               {label}
             </Link>
           ))}
@@ -343,21 +380,26 @@ function CreateMenu({ accent, role, previewMode }: { accent: string; role: strin
 }
 
 /**
- * Bottom-of-sidebar user card → upward popover (profile, sign out).
+ * Bottom-of-rail identity card → upward popover. The ONE place for "who am
+ * I / which company am I in": company switching, profile, help, sign out —
+ * the top bar no longer carries a second avatar doing half of this job.
  * Desktop only — phones get the same links in the More sheet.
  */
 function UserMenu({
   userName,
   userEmail,
   userId,
+  companyName,
 }: {
   userName?: string | null;
   userEmail?: string | null;
   userId?: string | null;
+  companyName?: string | null;
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const { memberships, switching, switchTo } = useMemberships(open);
 
   useEffect(() => {
     function onClick(e: MouseEvent) {
@@ -374,15 +416,18 @@ function UserMenu({
   return (
     <div className="relative" ref={ref}>
       {open && (
-        <div className="sheet-material absolute bottom-full left-0 right-0 mb-1.5 z-50 rounded-lg shadow-xl ring-1 ring-black/5 py-1.5 overflow-hidden">
-          <Link
-            href="/app/settings/profile"
-            onClick={() => setOpen(false)}
-            className="flex items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-          >
-            <CircleUserRound size={14} className="text-gray-400" />
-            My Profile
-          </Link>
+        <div className="sheet-material absolute bottom-full left-2 right-2 mb-1.5 z-50 rounded-lg shadow-xl ring-1 ring-black/5 py-1.5 overflow-hidden">
+          <p className="px-3.5 pb-1 pt-1.5 text-[11px] font-semibold text-gray-400">
+            Your companies
+          </p>
+          <MembershipRows
+            memberships={memberships}
+            switching={switching}
+            switchTo={switchTo}
+            onClose={() => setOpen(false)}
+            compact
+          />
+          <div className="my-1 border-t border-gray-100" />
           <Link
             href="/app/support"
             onClick={() => setOpen(false)}
@@ -391,7 +436,6 @@ function UserMenu({
             <LifeBuoy size={14} className="text-gray-400" />
             Help &amp; Feedback
           </Link>
-          <div className="my-1 border-t border-gray-100" />
           <button
             onClick={() => signOut({ callbackUrl: "/app/login" })}
             className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
@@ -399,16 +443,23 @@ function UserMenu({
             <LogOut size={14} className="text-gray-400" />
             Sign out
           </button>
+          <p className="flex items-center gap-1.5 border-t border-gray-100 mt-1 px-3.5 pt-2 pb-1 text-[10px] text-gray-400">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/workbench-icon.png" alt="" className="h-2.5 w-auto shrink-0 opacity-60" />
+            Powered by WorkBench
+          </p>
         </div>
       )}
       <button
         onClick={() => setOpen((v) => !v)}
-        className="w-full px-3 py-2.5 flex items-center gap-3 rounded-md hover:bg-[var(--rail-hover)] transition-colors text-left"
+        className="w-full px-4 py-3 flex items-center gap-3 hover:bg-[var(--rail-hover)] transition-colors text-left"
       >
-        <Avatar name={userName} userId={userId} size={28} />
+        <Avatar name={userName} userId={userId} size={30} />
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-medium text-[color:var(--rail-ink)] truncate">{userName}</p>
-          <p className="text-[11px] text-[color:var(--rail-faint)] truncate">{userEmail}</p>
+          <p className="text-xs font-semibold text-[color:var(--rail-ink)] truncate">{userName}</p>
+          <p className="text-[11px] text-[color:var(--rail-faint)] truncate">
+            {companyName ?? userEmail}
+          </p>
         </div>
         <ChevronsUpDown size={13} className="text-[color:var(--rail-faint)] shrink-0" />
       </button>
@@ -586,73 +637,6 @@ function MembershipRows({
   );
 }
 
-/**
- * The top-bar avatar button. Opens an anchored dropdown on sm+ screens; on
- * phones it defers to the bottom sheet (CompanySwitcherSheet), which must be
- * rendered OUTSIDE the header — the header's backdrop-filter makes it the
- * containing block for fixed descendants, which would trap the sheet.
- */
-function CompanySwitcher({
-  userName,
-  userId,
-  onOpenSheet,
-}: {
-  userName?: string | null;
-  userId?: string | null;
-  onOpenSheet: () => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  const pathname = usePathname();
-  const { memberships, switching, switchTo } = useMemberships(open);
-
-  useEffect(() => {
-    function onClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener("mousedown", onClick);
-    return () => document.removeEventListener("mousedown", onClick);
-  }, []);
-
-  useEffect(() => {
-    setOpen(false);
-  }, [pathname]);
-
-  return (
-    // Desktop only — on phones the header's company-name button opens the
-    // switcher sheet directly (the Daylight & Dusk header owns that slot).
-    <div className="relative hidden lg:block" ref={ref}>
-      <button
-        type="button"
-        onClick={() => {
-          hapticImpact("LIGHT");
-          if (window.matchMedia("(min-width: 640px)").matches) setOpen((v) => !v);
-          else onOpenSheet();
-        }}
-        aria-label="Switch company"
-        className="flex h-9 w-9 items-center justify-center rounded-full active:bg-gray-100 transition-colors"
-      >
-        <Avatar name={userName} userId={userId} size={32} className="ring-gray-200" />
-      </button>
-
-      {open && (
-        <div className="anim-create-pop absolute right-0 top-full z-50 mt-1.5 hidden w-72 overflow-hidden card-tool py-1.5 sm:block">
-          <p className="px-3.5 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
-            Your companies
-          </p>
-          <MembershipRows
-            memberships={memberships}
-            switching={switching}
-            switchTo={switchTo}
-            onClose={() => setOpen(false)}
-            compact
-          />
-        </div>
-      )}
-    </div>
-  );
-}
-
 /** Phone bottom sheet for the switcher — same material as the More sheet. */
 function CompanySwitcherSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { memberships, switching, switchTo } = useMemberships(open);
@@ -738,11 +722,30 @@ export default function AppShell({
   // Tenant-selectable rail theme; unknown values fall back to black
   const rail = sidebarTheme === "white" || sidebarTheme === "gray" ? sidebarTheme : "black";
   const railDark = rail === "black";
-  // Secondary brand color is the accent; primary fills in when it's unset.
-  // Guarded per rail: colors that would vanish flip to the readable default.
-  const accent = railDark
-    ? sidebarAccent(brandColorSecondary || brandColor || DEFAULT_ACCENT)
-    : surfaceAccent(brandColorSecondary || brandColor || "#0A1428");
+  // The black rail takes the tenant PRIMARY's temperature — near-ink with a
+  // whisper of their color instead of flat #121212, so the frame carries the
+  // brand before any accent shows. Light rails keep their stock paper.
+  const railBrandBg =
+    railDark && (brandColor || brandColorSecondary)
+      ? mixHex("#101318", (brandColor || brandColorSecondary) as string, 0.16)
+      : undefined;
+  const railBgHex =
+    rail === "white" ? "#FFFFFF" : rail === "gray" ? "#F1F2F4" : railBrandBg ?? "#121212";
+  // Both brand colors, one rule: SECONDARY is the accent, primary backs it
+  // up, and a color that can't hold 3:1 contrast against this rail falls
+  // back to the rail's guaranteed ink (lib/branding.ts resolveAccent). Two
+  // resolutions — the dark-mode bridge repaints every rail near-black, so
+  // the indicator accent re-resolves against that surface via CSS vars.
+  const railAccent = resolveAccent(
+    [brandColorSecondary, brandColor],
+    railBgHex,
+    railDark ? "#FFFFFF" : "#0A1428"
+  );
+  const railAccentDark = resolveAccent(
+    [brandColorSecondary, brandColor],
+    railBrandBg ?? "#1B1D22",
+    "#FFFFFF"
+  );
   const pathname = usePathname();
   const router = useRouter();
   const [moreOpen, setMoreOpen] = useState(false);
@@ -750,6 +753,48 @@ export default function AppShell({
   const [notifsOpen, setNotifsOpen] = useState(false);
   const [assistantOpen, setAssistantOpen] = useState(false);
   const mainRef = useRef<HTMLElement>(null);
+
+  // Rail v2: collapsible group open-state, remembered per user (a group
+  // holding the active route is additionally forced open at render, so
+  // "where am I" never hides).
+  const groupsKey = `wb-rail-groups:${userId ?? "shared"}`;
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  useEffect(() => {
+    try {
+      setOpenGroups(JSON.parse(localStorage.getItem(groupsKey) ?? "{}") ?? {});
+    } catch {
+      // storage blocked — groups just start collapsed
+    }
+  }, [groupsKey]);
+  const toggleGroup = (key: string) =>
+    setOpenGroups((prev) => {
+      const next = { ...prev, [key]: !(prev[key] ?? false) };
+      try {
+        localStorage.setItem(groupsKey, JSON.stringify(next));
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+
+  // The sliding accent bar: ONE indicator that travels to the active row
+  // instead of each row painting its own. Repositioned after every render —
+  // row offsets move when groups toggle or counts change size.
+  const railNavRef = useRef<HTMLElement>(null);
+  const railIndRef = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    const nav = railNavRef.current;
+    const ind = railIndRef.current;
+    if (!nav || !ind) return;
+    const el = nav.querySelector<HTMLElement>('[data-rail-active="true"]');
+    if (!el) {
+      ind.classList.remove("rail-indicator-on");
+      return;
+    }
+    ind.style.transform = `translateY(${el.offsetTop + 5}px)`;
+    ind.style.height = `${el.offsetHeight - 10}px`;
+    ind.classList.add("rail-indicator-on");
+  });
 
   // iOS large-title collapse: TitleSentinel (inside each PageTitle) reports
   // when the big in-page title scrolls away; the header raises a small one.
@@ -919,54 +964,54 @@ export default function AppShell({
     if (search.trim()) router.push(`/app/contacts?q=${encodeURIComponent(search.trim())}`);
   }
 
+  // Live counts: new requests / unread messages (neutral), past-due
+  // invoices (red — urgent). Shared by rail rows and group roll-ups.
+  const badgeCount = (href: string) =>
+    href === "/app/requests"
+      ? counts.requests
+      : href === "/app/invoices"
+        ? counts.pastDue
+        : href === "/app/chat"
+          ? counts.chat
+          : href === "/app/leads"
+            ? counts.leads
+            : href === "/app/messages"
+              ? counts.messages
+              : 0;
+
+  // Rail v2 row: full-bleed (no rounded chip), neutral ink icon, ONE accent
+  // (the sliding indicator paints it — rows carry no per-section hue), and
+  // counts as right-aligned ledger numerals instead of badge pills.
   const navLink = (href: string, label: string, Icon: typeof Home) => {
     const active = isActive(href);
-    // Section hue for active/hover; unmapped items keep the tenant accent
-    const tint = sectionTints[href] ?? accent;
-    // Live badges: new requests (neutral), past-due invoices (red — urgent)
-    const badge =
-      href === "/app/requests"
-        ? counts.requests
-        : href === "/app/invoices"
-          ? counts.pastDue
-          : href === "/app/chat"
-            ? counts.chat
-            : href === "/app/leads"
-              ? counts.leads
-              : href === "/app/messages"
-                ? counts.messages
-                : 0;
+    const badge = badgeCount(href);
     return (
       <Link
         key={href}
         href={href}
         data-tour={tourKeys[href]}
-        className={`group font-display relative flex items-center gap-3 rounded-md px-3 py-2 text-[13px] transition-colors ${
+        data-rail-active={active ? "true" : undefined}
+        className={`group font-display flex items-center gap-2.5 py-2 pl-4 pr-4 text-[13px] transition-colors ${
           active
-            ? "font-semibold text-[color:var(--rail-ink)]"
+            ? "bg-[var(--rail-active)] font-semibold text-[color:var(--rail-ink)]"
             : "font-medium text-[color:var(--rail-muted)] hover:bg-[var(--rail-hover)] hover:text-[color:var(--rail-ink)]"
         }`}
-        style={{ "--st": tint, ...(active ? { backgroundColor: hueTint(tint, 0.15) } : {}) } as React.CSSProperties}
       >
-        {active && (
-          <span
-            className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full"
-            style={{ backgroundColor: tint }}
-            aria-hidden
-          />
-        )}
         <Icon
-          size={16}
-          className={active ? undefined : "transition-colors group-hover:text-[color:var(--st)]"}
-          style={active ? { color: tint } : undefined}
+          size={15}
+          className={
+            active
+              ? "text-[color:var(--rail-ink)]"
+              : "text-[color:var(--rail-faint)] transition-colors group-hover:text-[color:var(--rail-muted)]"
+          }
         />
-        {label}
+        <span className="truncate">{label}</span>
         {badge > 0 && (
           <span
-            className={`ml-auto min-w-[18px] rounded-full px-1.5 py-px text-center text-[10px] font-bold tabular-nums ${
+            className={`numeral-ledger ml-auto text-[12px] font-semibold ${
               href === "/app/invoices"
-                ? "bg-red-500 text-white"
-                : "bg-[var(--rail-chip)] text-[color:var(--rail-chip-ink)]"
+                ? "text-[color:var(--rail-num-due)]"
+                : "text-[color:var(--rail-num)]"
             }`}
           >
             {badge > 99 ? "99+" : badge}
@@ -978,82 +1023,96 @@ export default function AppShell({
 
   const sidebarInner = (
     <>
-      <CreateMenu accent={accent} role={userRole} previewMode={previewMode} />
-
-      {/* Nav groups — labeled sections instead of bare dividers */}
-      <nav className="flex-1 px-3 py-4 overflow-y-auto">
-        {navGroups
-          .map((group) => ({ ...group, items: forRole(group.items, userRole) }))
-          .filter((group) => group.items.length > 0)
-          .map((group, i) => (
-            <div key={i} className={i > 0 ? "mt-4" : undefined}>
-              {group.label && (
-                <div className="flex items-center gap-2 px-3 pb-1.5">
-                  <span className="font-display text-[10px] font-semibold uppercase tracking-[0.12em] text-[color:var(--rail-faint)]">
-                    {group.label}
+      {/* Rail v2: six daily drivers, then collapsible groups. Full-bleed
+          rows on a calm rail — the sliding indicator is the only accent.
+          Create moved to the top bar; the rail is pure navigation. */}
+      <nav ref={railNavRef} className="relative flex-1 py-3 overflow-y-auto">
+        <span ref={railIndRef} aria-hidden className="rail-indicator" />
+        {forRole(railDrivers, userRole).map(({ href, label, icon: Icon }) =>
+          navLink(href, label, Icon)
+        )}
+        {railGroups
+          .map((g) => ({ ...g, items: forRole(g.items, userRole) }))
+          .filter((g) => g.items.length > 0)
+          .map((g) => {
+            const open = (openGroups[g.key] ?? false) || g.items.some((i) => isActive(i.href));
+            const rollup = open ? 0 : g.items.reduce((n, i) => n + badgeCount(i.href), 0);
+            return (
+              <div key={g.key} className="mt-2.5 border-t border-[color:var(--rail-line)] pt-1.5">
+                <button
+                  type="button"
+                  onClick={() => toggleGroup(g.key)}
+                  aria-expanded={open}
+                  className="w-full font-display flex items-center py-2 pl-4 pr-4 text-[12.5px] font-medium text-[color:var(--rail-faint)] hover:text-[color:var(--rail-muted)] transition-colors"
+                >
+                  <span className="truncate">{g.label}</span>
+                  <span className="ml-auto flex items-center gap-2">
+                    {rollup > 0 && (
+                      <span className="numeral-ledger text-[12px] font-semibold text-[color:var(--rail-num)]">
+                        {rollup > 99 ? "99+" : rollup}
+                      </span>
+                    )}
+                    <ChevronDown
+                      size={13}
+                      className={`shrink-0 transition-transform duration-200 ${open ? "" : "-rotate-90"}`}
+                    />
                   </span>
-                  <span className="h-px flex-1 bg-[var(--rail-line)]" aria-hidden />
-                </div>
-              )}
-              <div className="space-y-0.5">
-                {group.items.map(({ href, label, icon: Icon }) => navLink(href, label, Icon))}
+                </button>
+                {open && (
+                  <div>
+                    {g.items.map(({ href, label, icon: Icon }) => navLink(href, label, Icon))}
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
 
         {/* Team chat lives in the top bar on desktop (and the More sheet on
             mobile) — it's a companion to every page, not a destination */}
       </nav>
 
-      {/* Settings + user */}
-      <div className="px-3 py-3 border-t border-[color:var(--rail-line)] space-y-0.5">
-        {manager && navLink("/app/settings/booking", "Forms", Globe)}
-        {manager && navLink("/app/settings/team", "Team", UserPlus)}
+      {/* Settings + identity */}
+      <div className="py-1.5 border-t border-[color:var(--rail-line)]">
         {manager && navLink("/app/settings", "Settings", Settings)}
-        <UserMenu userName={userName} userEmail={userEmail} userId={userId} />
-        <p className="px-3 pt-1.5 pb-1 text-[10px] text-[color:var(--rail-faint)] flex items-center gap-1.5">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/workbench-icon.png"
-            alt=""
-            className={`h-2.5 w-auto shrink-0 opacity-60 brightness-0 ${railDark ? "invert" : ""}`}
-          />
-          Powered by WorkBench
-        </p>
+        <UserMenu
+          userName={userName}
+          userEmail={userEmail}
+          userId={userId}
+          companyName={companyName}
+        />
       </div>
     </>
   );
 
-  // Sidebar header is the company's identity, not ours (their logo when
-  // uploaded, otherwise a brand-colored initial tile). The logo rides a
-  // floating rounded card on a tenant-pickable backdrop — margins all
-  // around mean it never has to line up with the top bar's hairline, so
-  // any logo shape or size reads as intentional.
-  const logo = companyLogoUrl ? (
-    <div className="px-3 pt-3 pb-1.5">
-      <div
-        className="theme-fixed flex items-center justify-center rounded-xl px-3 py-2.5 ring-1 ring-[color:var(--rail-line)]"
-        style={{ backgroundColor: sidebarLogoColor || "#FFFFFF" }}
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        {/* max-h-14 keeps square-ish logos from stretching the tile into a
-            billboard — wide wordmarks still get the full width. */}
-        <img
-          src={companyLogoUrl}
-          alt={companyName ?? ""}
-          className="max-h-14 w-full object-contain"
-        />
-      </div>
-    </div>
-  ) : (
-    <div className="flex items-center gap-2.5 px-4 py-2.5 min-h-[57px] border-b border-[color:var(--rail-line)] min-w-0">
-      <div
-        className="chamfer w-9 h-9 rounded-md flex items-center justify-center shrink-0 font-display font-bold text-sm"
-        style={{ backgroundColor: accent, color: textOn(accent) }}
-      >
-        {companyName?.charAt(0).toUpperCase() ?? "J"}
-      </div>
-      <span className="font-display font-bold text-[14px] tracking-tight text-[color:var(--rail-ink)] truncate">
+  // Sidebar header is the company's identity, not ours: ONE geometry — a
+  // 36px mark tile + the company name on a 57px row whose hairline continues
+  // the top bar's, logo or not. (The old floating logo card ignored that
+  // hairline and made the rail's whole rhythm depend on whether a logo was
+  // uploaded.) Uploaded logos sit on their pickable plate color; the
+  // fallback monogram wears the resolved brand accent.
+  const logo = (
+    <div className="flex items-center gap-2.5 px-4 min-h-[57px] border-b border-[color:var(--rail-line)] min-w-0">
+      {companyLogoUrl ? (
+        <span
+          className="theme-fixed flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-[8px] ring-1 ring-[color:var(--rail-line)]"
+          style={{ backgroundColor: sidebarLogoColor || "#FFFFFF" }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={companyLogoUrl}
+            alt={companyName ?? ""}
+            className="h-full w-full object-contain p-0.5"
+          />
+        </span>
+      ) : (
+        <span
+          className="w-9 h-9 rounded-[8px] flex items-center justify-center shrink-0 font-display font-bold text-sm"
+          style={{ backgroundColor: railAccent, color: textOn(railAccent) }}
+        >
+          {companyName?.charAt(0).toUpperCase() ?? "W"}
+        </span>
+      )}
+      <span className="font-display font-semibold text-[14px] tracking-tight text-[color:var(--rail-ink)] truncate">
         {companyName ?? "WorkBench"}
       </span>
     </div>
@@ -1153,7 +1212,16 @@ export default function AppShell({
         </>
       )}
       {/* ── Desktop sidebar ──────────────────────────────────────────────── */}
-      <aside className={`hidden lg:flex flex-col w-[232px] shrink-0 rail-${rail}`}>
+      <aside
+        className={`hidden lg:flex flex-col w-[232px] shrink-0 rail-${rail}`}
+        style={
+          {
+            "--rail-accent-l": railAccent,
+            "--rail-accent-d": railAccentDark,
+            ...(railBrandBg ? { "--rail-bg": railBrandBg } : {}),
+          } as React.CSSProperties
+        }
+      >
         {logo}
         {sidebarInner}
       </aside>
@@ -1291,22 +1359,30 @@ export default function AppShell({
             </div>
           </form>
 
+          {/* Global create — the page-level CTA color, one click from
+              anywhere (the rail is pure navigation now) */}
+          <CreateMenu role={userRole} previewMode={previewMode} />
+
           {/* Team chat — always one click away without spending sidebar space.
               Shown even for solo companies: the chat page nudges them to add
               a teammate, and hiding it entirely read as "chat is gone". */}
           <Link
             href="/app/chat"
-            className={`hidden lg:flex relative items-center gap-1.5 rounded-[10px] border px-3 py-1.5 text-sm font-medium transition-colors ${
+            className={`hidden lg:flex relative items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
               isActive("/app/chat")
                 ? "border-gray-900 bg-gray-900 text-white"
                 : "border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900"
             } ${sellRoles(userRole) ? "" : "ml-auto"}`}
             title="Team chat"
           >
-            <MessagesSquare size={15} style={{ color: isActive("/app/chat") ? undefined : "#F43F5E" }} />
+            <MessagesSquare size={15} />
             Chat
             {counts.chat > 0 && (
-              <span className="min-w-[18px] rounded-full bg-red-500 px-1.5 py-px text-center text-[10px] font-bold text-white tabular-nums">
+              <span
+                className={`numeral-ledger text-[12px] font-semibold ${
+                  isActive("/app/chat") ? "text-red-300" : "text-red-600"
+                }`}
+              >
                 {counts.chat > 99 ? "99+" : counts.chat}
               </span>
             )}
@@ -1319,11 +1395,6 @@ export default function AppShell({
           >
             <Settings size={17} />
           </Link>
-          <CompanySwitcher
-            userName={userName}
-            userId={userId}
-            onOpenSheet={() => setCompanySheetOpen(true)}
-          />
 
           {/* Collapsed large title — fades up into the blurred bar once the
               in-page title scrolls away (iOS nav-bar behavior). Bottom-anchored

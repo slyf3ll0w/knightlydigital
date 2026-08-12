@@ -24,7 +24,7 @@ export default function SuspendedPage() {
         </p>
         <Link
           href="/api/auth/signout"
-          className="chamfer mt-6 inline-block bg-[#0A1428] px-4 py-2 text-sm font-semibold text-white"
+          className="mt-6 inline-block rounded-full bg-[#0A1428] px-4 py-2 text-sm font-semibold text-white"
         >
           Sign out
         </Link>

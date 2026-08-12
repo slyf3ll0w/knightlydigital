@@ -872,8 +872,9 @@ body {
   --rail-faint: rgba(255, 255, 255, 0.4);
   --rail-line: rgba(255, 255, 255, 0.1);
   --rail-hover: rgba(255, 255, 255, 0.06);
-  --rail-chip: rgba(255, 255, 255, 0.1);
-  --rail-chip-ink: #D1D5DB;
+  --rail-active: rgba(255, 255, 255, 0.07);
+  --rail-num: #8E99AD;
+  --rail-num-due: #F87171;
 }
 .rail-white {
   --rail-bg: #FFFFFF;
@@ -882,8 +883,9 @@ body {
   --rail-faint: rgba(17, 24, 39, 0.45);
   --rail-line: rgba(15, 23, 42, 0.1);
   --rail-hover: rgba(15, 23, 42, 0.05);
-  --rail-chip: rgba(15, 23, 42, 0.08);
-  --rail-chip-ink: #4B5563;
+  --rail-active: rgba(15, 23, 42, 0.06);
+  --rail-num: #6B7280;
+  --rail-num-due: #DC2626;
 }
 .rail-gray {
   --rail-bg: #F1F2F4;
@@ -892,11 +894,40 @@ body {
   --rail-faint: rgba(17, 24, 39, 0.45);
   --rail-line: rgba(15, 23, 42, 0.12);
   --rail-hover: rgba(15, 23, 42, 0.06);
-  --rail-chip: rgba(15, 23, 42, 0.08);
-  --rail-chip-ink: #4B5563;
+  --rail-active: rgba(15, 23, 42, 0.06);
+  --rail-num: #6B7280;
+  --rail-num-due: #DC2626;
 }
 .rail-black, .rail-white, .rail-gray {
   background-color: var(--rail-bg);
+  /* Sliding-indicator accent, per theme: AppShell injects a light-rail and a
+     dark-rail resolved candidate; the dark bridge flips to the -d half. */
+  --rail-accent: var(--rail-accent-l, currentColor);
+}
+
+/* Rail v2 hardware: the sliding accent bar. One bar for the whole rail —
+   it TRAVELS to the active row on navigation (iOS sheet curve) instead of
+   teleporting, so the rail has the same mass as the rest of the motion
+   system. Positioned by AppShell against the row's offsetTop. */
+.rail-indicator {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 3px;
+  background: var(--rail-accent, currentColor);
+  opacity: 0;
+  transition:
+    transform 0.26s cubic-bezier(0.32, 0.72, 0, 1),
+    height 0.26s cubic-bezier(0.32, 0.72, 0, 1),
+    opacity 0.15s ease;
+}
+.rail-indicator.rail-indicator-on {
+  opacity: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .rail-indicator {
+    transition: opacity 0.15s ease;
+  }
 }
 
 .bg-paper-warm {
@@ -1417,8 +1448,10 @@ body {
     --rail-faint: rgba(255, 255, 255, 0.4);
     --rail-line: rgba(255, 255, 255, 0.1);
     --rail-hover: rgba(255, 255, 255, 0.06);
-    --rail-chip: rgba(255, 255, 255, 0.1);
-    --rail-chip-ink: #d1d5db;
+    --rail-active: rgba(255, 255, 255, 0.07);
+    --rail-num: #8e99ad;
+    --rail-num-due: #f87171;
+    --rail-accent: var(--rail-accent-d, #ffffff);
   }
 
   /* ── Ink ── */

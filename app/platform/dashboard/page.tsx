@@ -425,7 +425,7 @@ export default async function DashboardPage() {
       {upNext && (
         <Link
           href={upNext.href}
-          className="chamfer anim-fade-up anim-delay-1 order-2 mb-7 block overflow-hidden rounded-2xl active:opacity-95 lg:hidden"
+          className="anim-fade-up anim-delay-1 order-2 mb-7 block overflow-hidden rounded-2xl active:opacity-95 lg:hidden"
           style={{
             background:
               "linear-gradient(135deg, var(--wb-accent-bright, #2E6FF2), var(--wb-accent-strong, #0A4CBB))",
