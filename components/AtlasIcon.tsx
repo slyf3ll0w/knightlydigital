@@ -15,6 +15,8 @@
  *    friendlier avatar for the chat.
  */
 
+import { useId } from "react";
+
 const NEEDLE_NE = "M16.8 7.2 13.6 13.6 10.4 10.4Z";
 const NEEDLE_SW = "M7.2 16.8 10.4 10.4 13.6 13.6Z";
 
@@ -87,9 +89,13 @@ export function AtlasMark({
   const base = lum === null ? "#3B82F6" : accent;
   // Very light accents (pale yellows, near-white) need an ink glyph.
   const glyph = lum !== null && lum > 165 ? "#0A1428" : "#FFFFFF";
-  // Gradient id must be unique per accent — two marks with different accents
-  // can share one document, and SVG defs are document-global.
-  const gid = `atlas-badge-${base.replace("#", "")}`;
+  // Gradient id must be unique PER INSTANCE, not per accent: two marks with
+  // the same accent share an id, and when the first copy in the document
+  // sits inside a display:none container (the mobile More sheet on desktop)
+  // the reference fails to resolve — the badge painted nothing and the FAB
+  // showed a white circle with a white glyph. useId keeps every mark
+  // self-contained; the solid `base` fallback in fill= is the second belt.
+  const gid = `atlas-badge-${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
   return (
     <svg
       width={size}
@@ -105,7 +111,7 @@ export function AtlasMark({
           <stop offset="1" stopColor={shade(base, -0.18)} />
         </linearGradient>
       </defs>
-      <circle cx="24" cy="24" r="24" fill={`url(#${gid})`} />
+      <circle cx="24" cy="24" r="24" fill={`url(#${gid}) ${base}`} />
       {/* hairline bevel so the badge doesn't melt into same-hue backgrounds */}
       <circle cx="24" cy="24" r="23.25" stroke={glyph} strokeOpacity="0.25" strokeWidth="1.5" />
       <circle cx="24" cy="24" r="12" stroke={glyph} strokeWidth="2.2" />

@@ -52,9 +52,11 @@ function Spark({ values }: { values: number[] }) {
   );
 }
 
-/** Hue dot before a stat label — the stamp language in miniature. */
+/** Dot before a stat label — the stamp language in miniature. Danger reads
+ *  red; everything else takes the ONE tenant accent (the per-section hue
+ *  retired with the calm-stage pass — `hue` stays accepted, unused). */
 function DotLabel({
-  hue,
+  hue: _hue,
   danger,
   className,
   children,
@@ -64,7 +66,7 @@ function DotLabel({
   className: string;
   children: React.ReactNode;
 }) {
-  const dot = danger ? "#EF4444" : hue;
+  const dot = danger ? "#EF4444" : "var(--wb-ink, #0B57D8)";
   return (
     <p className={`flex items-center gap-1.5 ${className}`}>
       {dot && (

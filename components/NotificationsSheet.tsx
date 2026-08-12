@@ -242,18 +242,22 @@ export default function NotificationsSheet({
   return (
     <>
       <div
-        className={`fixed inset-0 z-40 bg-black/30 lg:hidden transition-opacity duration-300 ${
+        className={`fixed inset-0 z-40 bg-black/30 lg:bg-black/10 transition-opacity duration-300 ${
           open ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
         onClick={onClose}
         aria-hidden
       />
+      {/* Phone: bottom sheet. Desktop: the same panel anchored under the
+          bell, fading up instead of sliding from the bottom of a monitor. */}
       <div
-        className={`sheet-material fixed inset-x-0 bottom-0 z-50 flex max-h-[80dvh] flex-col rounded-t-3xl shadow-[0_-8px_30px_rgba(28,25,23,0.18)] transition-transform duration-300 [transition-timing-function:cubic-bezier(0.32,0.72,0,1)] lg:hidden ${
-          open ? "" : "pointer-events-none translate-y-full"
+        className={`sheet-material fixed inset-x-0 bottom-0 z-50 flex max-h-[80dvh] flex-col rounded-t-3xl shadow-[0_-8px_30px_rgba(28,25,23,0.18)] transition-[transform,opacity] duration-300 [transition-timing-function:cubic-bezier(0.32,0.72,0,1)] lg:inset-x-auto lg:bottom-auto lg:right-4 lg:top-[64px] lg:w-[380px] lg:max-h-[70vh] lg:rounded-2xl lg:shadow-xl lg:ring-1 lg:ring-black/5 ${
+          open
+            ? "lg:translate-y-0"
+            : "pointer-events-none translate-y-full opacity-100 lg:translate-y-1.5 lg:opacity-0"
         }`}
       >
-        <div className="mx-auto mt-2.5 h-1 w-9 shrink-0 rounded-full bg-gray-300" />
+        <div className="mx-auto mt-2.5 h-1 w-9 shrink-0 rounded-full bg-gray-300 lg:hidden" />
         <div className="flex items-baseline justify-between px-5 pb-2.5 pt-3.5">
           <p className="font-display text-[16px] font-bold text-gray-900">Notifications</p>
           {items && items.length > 0 && (

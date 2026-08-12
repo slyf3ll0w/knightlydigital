@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { hueInk } from "@/lib/section-colors";
 
 /**
  * Filter rail + chips shared by every list page. One horizontal row that
@@ -92,12 +91,14 @@ export function FilterDivider() {
 }
 
 export function FilterChip({
-  hue,
+  hue: _hue,
   active,
   href,
   onClick,
   children,
 }: {
+  /** Accepted for call-site compat; the active fill is the ONE tenant
+   *  accent via .chip-pressed now, not a per-section hue. */
   hue: string;
   active: boolean;
   href?: string;
@@ -109,17 +110,16 @@ export function FilterChip({
   const cls = active
     ? `${base} chip-pressed font-semibold`
     : `${base} btn-tool-line bg-white font-medium text-gray-600 hover:text-gray-900`;
-  const style = active ? { backgroundColor: hue, color: hueInk(hue) } : undefined;
 
   if (href) {
     return (
-      <Link href={href} className={cls} style={style}>
+      <Link href={href} className={cls}>
         {children}
       </Link>
     );
   }
   return (
-    <button type="button" onClick={onClick} className={cls} style={style}>
+    <button type="button" onClick={onClick} className={cls}>
       {children}
     </button>
   );

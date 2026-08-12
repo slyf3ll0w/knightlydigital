@@ -982,7 +982,7 @@ export default function AppShell({
   // Rail v2 row: full-bleed (no rounded chip), neutral ink icon, ONE accent
   // (the sliding indicator paints it — rows carry no per-section hue), and
   // counts as right-aligned ledger numerals instead of badge pills.
-  const navLink = (href: string, label: string, Icon: typeof Home) => {
+  const navLink = (href: string, label: string, Icon: typeof Home, animIndex?: number) => {
     const active = isActive(href);
     const badge = badgeCount(href);
     return (
@@ -991,7 +991,8 @@ export default function AppShell({
         href={href}
         data-tour={tourKeys[href]}
         data-rail-active={active ? "true" : undefined}
-        className={`group font-display flex items-center gap-2.5 py-2 pl-4 pr-4 text-[13px] transition-colors ${
+        style={animIndex !== undefined ? { animationDelay: `${animIndex * 22}ms` } : undefined}
+        className={`${animIndex !== undefined ? "rail-item-in " : ""}group font-display flex items-center gap-2.5 py-2 pl-4 pr-4 text-[13px] transition-colors ${
           active
             ? "bg-[var(--rail-active)] font-semibold text-[color:var(--rail-ink)]"
             : "font-medium text-[color:var(--rail-muted)] hover:bg-[var(--rail-hover)] hover:text-[color:var(--rail-ink)]"
@@ -1060,7 +1061,7 @@ export default function AppShell({
                 </button>
                 {open && (
                   <div>
-                    {g.items.map(({ href, label, icon: Icon }) => navLink(href, label, Icon))}
+                    {g.items.map(({ href, label, icon: Icon }, i) => navLink(href, label, Icon, i))}
                   </div>
                 )}
               </div>
@@ -1340,6 +1341,19 @@ export default function AppShell({
             <Settings size={21} />
           </Link>
 
+          {/* Desktop left slot: the page's title rises into the bar once the
+              in-page h1 scrolls away (the iOS collapse, at a desk) — context
+              without duplicating the heading that's already on the page. */}
+          <div className="hidden lg:flex min-w-0 flex-initial items-center" aria-hidden>
+            <span
+              className={`truncate font-display text-[15px] font-semibold text-gray-900 transition-all duration-200 ${
+                headerTitle.shown ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0"
+              }`}
+            >
+              {headerTitle.text}
+            </span>
+          </div>
+
           <form
             onSubmit={onSearch}
             className={`ml-auto w-full max-w-xs ${sellRoles(userRole) ? "hidden sm:block" : "hidden"}`}
@@ -1387,6 +1401,20 @@ export default function AppShell({
               </span>
             )}
           </Link>
+
+          {/* Desktop notifications — the bell finally exists at a desk (it
+              was phone-only chrome before). Same sheet, anchored top-right. */}
+          <button
+            type="button"
+            onClick={() => setNotifsOpen(true)}
+            aria-label="Notifications"
+            className="hidden lg:flex relative p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+          >
+            <Bell size={17} />
+            {bellDot && (
+              <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500" />
+            )}
+          </button>
 
           <Link
             href={manager ? "/app/settings" : "/app/settings/profile"}

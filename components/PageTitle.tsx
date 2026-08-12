@@ -1,24 +1,24 @@
 import type { LucideIcon } from "lucide-react";
-import { SECTION_HUES, type SectionKey, hueInk } from "@/lib/section-colors";
+import type { SectionKey } from "@/lib/section-colors";
 import TitleSentinel from "@/components/TitleSentinel";
 
 /**
- * Page heading with the section's icon tile — solid section hue on a hard
- * navy offset (the marketing site's tool-button language), so each page
- * opens with a piece of the brand world instead of a pale gray heading.
+ * Page heading — clean ledger type, no ornament. (The old section-hue icon
+ * tile was one of fifteen accent colors fighting the tenant's brand; the
+ * calm-stage pass retired it. `section`/`icon` stay in the signature so the
+ * fifteen call sites didn't need touching — the hue rainbow now lives only
+ * in the two mobile nav sheets.)
  * On mobile this is the iOS large title: a sentinel reports when it scrolls
- * away so the shell can raise a small title into the blurred header.
+ * away so the shell can raise a small title into the bar — and the desktop
+ * top bar now does the same collapse.
  */
 export default function PageTitle({
-  section,
-  icon: Icon,
   children,
 }: {
   section: SectionKey;
   icon: LucideIcon;
   children: React.ReactNode;
 }) {
-  const hue = SECTION_HUES[section];
   // The collapsed header title needs plain text — take the first string child
   // ("Payments" in <PageTitle>Payments {stamp}</PageTitle>).
   const text =
@@ -30,15 +30,6 @@ export default function PageTitle({
   return (
     <h1 className="numeral-ledger relative flex items-center gap-3 text-[26px] font-bold text-gray-900 lg:text-2xl lg:font-semibold">
       {text && <TitleSentinel title={text} />}
-      {/* Section-hue tile is desktop wayfinding; the mobile large title is
-          pure bold text like a native iOS nav title */}
-      <span
-        className="chip-tool hidden lg:flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px]"
-        style={{ backgroundColor: hue, color: hueInk(hue) }}
-        aria-hidden
-      >
-        <Icon size={18} strokeWidth={2.25} />
-      </span>
       {children}
     </h1>
   );

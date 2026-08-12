@@ -43,68 +43,73 @@
     clip-path: polygon(0 0, calc(100% - 7px) 0, 100% 7px, 100% 100%, 0 100%);
   }
 
-  /* ── Tool chip — the marketing site's hard-shadow button language in
-     miniature. Active filters and section tiles sit proud of the page on a
-     solid navy offset instead of blending into it. */
+  /* ── Tool chip — a compact raised tile. The hard navy offset retired with
+     the rest of the desktop offsets (one card language: soft ledger depth). */
   .chip-tool {
-    box-shadow: 2px 2px 0 var(--tool-shadow, #0a1428);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
   }
 
-  /* ── Tool card — the button language at card scale: navy outline + solid
-     offset. For compact info cards (stat strips, statements, sheet groups);
-     large record lists stay on .card-ledger paper so pages don't become
-     border soup. */
+  /* ── Tool card — compact info cards (stat strips, statements, sheet
+     groups) at 12px radius. Same soft ledger material as .card-ledger —
+     the 1.5px outline + 3px hard offset read as sticker chrome next to
+     the calm rail, so desktop now matches the phone treatment. */
   .card-tool {
     @apply bg-white rounded-[12px];
-    border: 1.5px solid var(--tool-line, #0a1428);
-    box-shadow: 3px 3px 0 var(--tool-shadow, #0a1428);
+    border: 1px solid color-mix(in srgb, var(--tool-line, #0a1428) 20%, transparent);
+    box-shadow:
+      0 1px 2px rgba(15, 23, 42, 0.05),
+      0 2px 6px rgba(15, 23, 42, 0.03);
   }
 
-  /* ── Tool button — same offset, but it presses flat when you push it
-     (the marketing site's .wb-btn-tool). Solid primary actions only;
-     surfaces and cards keep their soft ledger shadows. */
+  /* ── Tool button — solid primary actions. Desktop trades the press-flat
+     offset for lift physics: rises a hair on hover, settles on press. The
+     phone build keeps its hard-offset signature below (David's pick). */
   .btn-tool {
-    box-shadow: 2px 2px 0 var(--tool-shadow, #0a1428);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
     transition:
       transform 0.13s ease,
       box-shadow 0.13s ease,
       background-color 0.15s ease;
   }
   .btn-tool:hover {
-    transform: translate(1px, 1px);
-    box-shadow: 1px 1px 0 var(--tool-shadow, #0a1428);
+    transform: translateY(-1px);
+    box-shadow: 0 3px 10px rgba(15, 23, 42, 0.16);
   }
   .btn-tool:active {
-    transform: translate(2px, 2px);
-    box-shadow: 0 0 0 var(--tool-shadow, #0a1428);
+    transform: translateY(0) scale(0.98);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.1);
   }
 
-  /* ── Outlined tool button — the secondary flavor of .btn-tool: a white
-     surface with the tool outline, same hard offset, same press-flat
-     behavior. Raised = clickable; the selected state is .chip-pressed. */
+  /* ── Outlined tool button — the secondary flavor: white surface, quiet
+     hairline, border firms up on hover. Raised = clickable; the selected
+     state is .chip-pressed. */
   .btn-tool-line {
-    border: 1.5px solid var(--tool-line, #0a1428);
-    box-shadow: 2px 2px 0 var(--tool-shadow, #0a1428);
+    border: 1px solid color-mix(in srgb, var(--tool-line, #0a1428) 25%, transparent);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
     transition:
       transform 0.13s ease,
       box-shadow 0.13s ease,
+      border-color 0.15s ease,
       background-color 0.15s ease;
   }
   .btn-tool-line:hover {
-    transform: translate(1px, 1px);
-    box-shadow: 1px 1px 0 var(--tool-shadow, #0a1428);
+    border-color: color-mix(in srgb, var(--tool-line, #0a1428) 45%, transparent);
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.1);
   }
   .btn-tool-line:active {
-    transform: translate(2px, 2px);
-    box-shadow: 0 0 0 var(--tool-shadow, #0a1428);
+    transform: scale(0.98);
+    box-shadow: none;
   }
 
-  /* ── Pressed-in chip — the SELECTED state of a tool control: no offset,
-     an inset lip on the top-left instead, as if the button is being held
-     down. Distinguishes "where I am" from "what I can press". */
+  /* ── Pressed chip — the SELECTED state of a tool control: solid tenant
+     accent, both themes (the accent vars resolve per theme). !important
+     beats the per-section hues some call sites still pass inline — ONE
+     accent on filters everywhere, not one hue per section. */
   .chip-pressed {
-    border: 1.5px solid var(--tool-line, #0a1428);
-    box-shadow: inset 2px 2px 0 rgba(10, 20, 40, 0.22);
+    border: 1px solid transparent;
+    box-shadow: none;
+    background: var(--wb-accent, #0b57d8) !important;
+    color: var(--wb-on-accent, #ffffff) !important;
   }
 
   /* ── Mobile: native hardware, not tool hardware ──
@@ -916,17 +921,55 @@ body {
   width: 3px;
   background: var(--rail-accent, currentColor);
   opacity: 0;
+  /* The travel overshoots a hair and settles — the house spring, so the
+     bar arrives with mass instead of easing politely into place. */
   transition:
-    transform 0.26s cubic-bezier(0.32, 0.72, 0, 1),
+    transform 0.3s cubic-bezier(0.34, 1.4, 0.64, 1),
     height 0.26s cubic-bezier(0.32, 0.72, 0, 1),
     opacity 0.15s ease;
 }
 .rail-indicator.rail-indicator-on {
   opacity: 1;
 }
+/* Rail spice: rows cascade in as a group opens (the create-menu stagger at
+   rail scale), and the freshly active row's icon does the overshoot pop the
+   rest of the ritual family uses. */
+@keyframes railItemIn {
+  from {
+    opacity: 0;
+    transform: translateX(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+.rail-item-in {
+  animation: railItemIn 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes railIconPop {
+  0% {
+    transform: scale(1);
+  }
+  45% {
+    transform: scale(1.22);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.app-ui aside a[data-rail-active="true"] > svg {
+  animation: railIconPop 0.32s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
 @media (prefers-reduced-motion: reduce) {
   .rail-indicator {
     transition: opacity 0.15s ease;
+  }
+  .rail-item-in {
+    animation: none;
+  }
+  .app-ui aside a[data-rail-active="true"] > svg {
+    animation: none;
   }
 }
 
@@ -1433,7 +1476,7 @@ body {
     background-color: var(--t-surface);
   }
   html[data-mode="dark"] .app-ui .chip-pressed {
-    box-shadow: inset 2px 2px 0 rgba(0, 0, 0, 0.45);
+    box-shadow: none;
   }
   /* Sidebar rails go true dark with the rest of the frame — the console-navy
      default (and the light white/gray themes) read as a stray bright panel
