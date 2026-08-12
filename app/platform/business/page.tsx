@@ -4,6 +4,7 @@ import { ArrowRight, BarChart3, Map, Timer } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { requirePageActor, isManager } from "@/lib/permissions";
 import { entryMs, formatDuration } from "@/lib/time-entries";
+import PageTitle from "@/components/PageTitle";
 
 export const metadata: Metadata = { title: "Business" };
 
@@ -67,7 +68,7 @@ export default async function BusinessPage() {
 
   return (
     <div className="p-4 lg:p-8 max-w-4xl mx-auto">
-      <h1 className="font-display text-2xl font-bold text-gray-900 mb-1">Business</h1>
+      <PageTitle>Business</PageTitle>
       <p className="text-sm text-gray-500 mb-6">The view from the office.</p>
 
       <div className="grid sm:grid-cols-3 gap-4">

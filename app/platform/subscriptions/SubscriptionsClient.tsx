@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Check, Repeat, Loader2, Pencil, Play, Pause, X, RotateCw } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { confirmSheet } from "@/components/ConfirmSheet";
+import PageTitle from "@/components/PageTitle";
 
 type Frequency = "WEEKLY" | "BIWEEKLY" | "MONTHLY" | "QUARTERLY" | "ANNUALLY";
 
@@ -296,7 +297,7 @@ export default function SubscriptionsClient({
   return (
     <div className="p-4 lg:p-8 max-w-4xl mx-auto">
       <div className="flex items-center justify-between gap-3 mb-1">
-        <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">Recurring</h1>
+        <PageTitle>Recurring</PageTitle>
         {canManage && (
           <div className="flex items-center gap-2">
             {active.length > 0 && (

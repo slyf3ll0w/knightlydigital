@@ -182,7 +182,7 @@ export default async function JobsPage({
           />
         ) : (
           <>
-            <div className="divide-y divide-gray-100">
+            <div className="list-settle divide-y divide-gray-100">
               <div className="hidden lg:grid grid-cols-[1fr_70px_150px_160px_100px_40px] gap-4 px-4 py-2 text-xs font-medium text-gray-500 bg-gray-50">
                 <span>Client</span>
                 <span>#</span>

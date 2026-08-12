@@ -26,6 +26,7 @@ import {
   Users,
   Zap,
 } from "lucide-react";
+import { Input, Textarea, Select } from "@/components/Input";
 import { resizeImageFile } from "@/lib/resize-image";
 import { INDUSTRIES } from "@/lib/pricebooks";
 import { DEFAULT_ON_MY_WAY_TEMPLATE, ON_MY_WAY_PLACEHOLDERS } from "@/lib/messaging";
@@ -33,6 +34,7 @@ import { textOn } from "@/lib/branding";
 import { GOOGLE_FONT_RE } from "@/lib/booking-form";
 import { resolveWallpaper } from "@/lib/wallpapers";
 import { confirmSheet } from "@/components/ConfirmSheet";
+import PageTitle from "@/components/PageTitle";
 import {
   SECTION_HUES,
   SECTION_HUE_DEFAULTS,
@@ -616,22 +618,22 @@ function EmailDomainCard({ isOwner }: { isOwner: boolean }) {
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Your domain</label>
-                <input
+                <Input
                   type="text"
                   value={domainInput}
                   onChange={(e) => setDomainInput(e.target.value)}
                   placeholder="summitplumbing.com"
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="w-full focus:ring-2"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Address prefix</label>
-                <input
+                <Input
                   type="text"
                   value={localInput}
                   onChange={(e) => setLocalInput(e.target.value)}
                   placeholder="notifications"
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="w-full focus:ring-2"
                 />
                 <p className="text-xs text-gray-400 mt-1">
                   {(localInput || "notifications").trim()}@{domainInput.trim() || "yourdomain.com"}
@@ -1172,7 +1174,7 @@ export default function SettingsClient({
       <div className="mb-6 flex items-start justify-between gap-4">
         <div className="min-w-0">
           <div className={section === "home" ? "" : "hidden lg:block"}>
-            <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">Settings</h1>
+            <PageTitle>Settings</PageTitle>
             <p className="text-sm text-gray-500">
               Manage your business profile — changes save automatically
             </p>
@@ -1324,71 +1326,71 @@ export default function SettingsClient({
           <h2 className="text-sm font-semibold text-gray-700">Business Info</h2>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Business name *</label>
-            <input type="text" value={form.name} onChange={(e) => set("name", e.target.value)}
+            <Input type="text" value={form.name} onChange={(e) => set("name", e.target.value)}
               required
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+              className="w-full focus:ring-2" />
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-              <input type="tel" value={form.phone} onChange={(e) => set("phone", e.target.value)}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+              <Input type="tel" value={form.phone} onChange={(e) => set("phone", e.target.value)}
+                className="w-full focus:ring-2" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-              <input type="email" value={form.email} onChange={(e) => set("email", e.target.value)}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+              <Input type="email" value={form.email} onChange={(e) => set("email", e.target.value)}
+                className="w-full focus:ring-2" />
             </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Street address</label>
-            <input type="text" value={form.address} onChange={(e) => set("address", e.target.value)}
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+            <Input type="text" value={form.address} onChange={(e) => set("address", e.target.value)}
+              className="w-full focus:ring-2" />
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div className="col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
-              <input type="text" value={form.city} onChange={(e) => set("city", e.target.value)}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+              <Input type="text" value={form.city} onChange={(e) => set("city", e.target.value)}
+                className="w-full focus:ring-2" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
-              <input type="text" value={form.state} onChange={(e) => set("state", e.target.value)}
+              <Input type="text" value={form.state} onChange={(e) => set("state", e.target.value)}
                 maxLength={2}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 uppercase" />
+                className="w-full focus:ring-2 uppercase" />
             </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Website</label>
-            <input type="url" value={form.website} onChange={(e) => set("website", e.target.value)}
+            <Input type="url" value={form.website} onChange={(e) => set("website", e.target.value)}
               placeholder="https://"
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+              className="w-full focus:ring-2" />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Industry</label>
-            <select value={INDUSTRIES.includes(form.industry as (typeof INDUSTRIES)[number]) ? form.industry : form.industry ? "Other" : ""}
+            <Select value={INDUSTRIES.includes(form.industry as (typeof INDUSTRIES)[number]) ? form.industry : form.industry ? "Other" : ""}
               onChange={(e) => set("industry", e.target.value)}
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white">
+              className="w-full focus:ring-2">
               <option value="">Not set</option>
               {INDUSTRIES.map((ind) => (
                 <option key={ind} value={ind}>{ind}</option>
               ))}
-            </select>
+            </Select>
             <p className="text-xs text-gray-400 mt-1">
               Changing this doesn&apos;t touch your price book — edit that in Products &amp; Services.
             </p>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Timezone</label>
-            <select value={form.timezone} onChange={(e) => set("timezone", e.target.value)}
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white">
+            <Select value={form.timezone} onChange={(e) => set("timezone", e.target.value)}
+              className="w-full focus:ring-2">
               {!TIMEZONES.some((tz) => tz.value === form.timezone) && (
                 <option value={form.timezone}>{form.timezone}</option>
               )}
               {TIMEZONES.map((tz) => (
                 <option key={tz.value} value={tz.value}>{tz.label}</option>
               ))}
-            </select>
+            </Select>
             <p className="text-xs text-gray-400 mt-1">
               Used for scheduling and recurring billing dates.
             </p>
@@ -1397,15 +1399,15 @@ export default function SettingsClient({
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Scheduling time slots
             </label>
-            <select
+            <Select
               value={form.schedulingIntervalMinutes}
               onChange={(e) => set("schedulingIntervalMinutes", e.target.value)}
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+              className="w-full focus:ring-2"
             >
               <option value="15">Every 15 minutes</option>
               <option value="30">Every 30 minutes</option>
               <option value="60">Every hour</option>
-            </select>
+            </Select>
             <p className="text-xs text-gray-400 mt-1">
               Time options offered when you schedule jobs and appointments.
             </p>
@@ -1589,12 +1591,12 @@ export default function SettingsClient({
               builder; the shell refreshes with the new font as it saves */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">App font</label>
-            <input
+            <Input
               type="text"
               value={form.brandFont}
               onChange={(e) => set("brandFont", e.target.value)}
               placeholder="Default — or any Google Font name, e.g. Lexend"
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+              className="w-full focus:ring-2"
             />
             <p className="text-xs text-gray-400 mt-1">
               Changes the font across the whole app for your team. Ledger numerals
@@ -1809,9 +1811,9 @@ export default function SettingsClient({
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Surcharge rate</label>
               <div className="flex items-center gap-2">
-                <input type="number" value={form.surchargeRate} onChange={(e) => set("surchargeRate", e.target.value)}
+                <Input type="number" value={form.surchargeRate} onChange={(e) => set("surchargeRate", e.target.value)}
                   min="0" max="10" step="0.01"
-                  className="w-24 px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                  className="w-24 focus:ring-2" />
                 <span className="text-sm text-gray-500">% added to card payments</span>
               </div>
               <p className="text-xs text-gray-400 mt-1">
@@ -1835,23 +1837,23 @@ export default function SettingsClient({
           <div className="flex flex-wrap items-end gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Deposit</label>
-              <select
+              <Select
                 value={form.defaultDepositType}
                 onChange={(e) => set("defaultDepositType", e.target.value)}
-                className="px-3 py-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="focus:ring-2"
               >
                 <option value="NONE">No default deposit</option>
                 <option value="PERCENT">Percentage of total</option>
                 <option value="FIXED">Fixed amount</option>
                 <option value="FULL">Full payment upfront</option>
-              </select>
+              </Select>
             </div>
             {(form.defaultDepositType === "PERCENT" || form.defaultDepositType === "FIXED") && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   {form.defaultDepositType === "PERCENT" ? "Percent (0–100)" : "Amount ($)"}
                 </label>
-                <input
+                <Input
                   type="number"
                   min="0"
                   step={form.defaultDepositType === "PERCENT" ? "1" : "0.01"}
@@ -1859,7 +1861,7 @@ export default function SettingsClient({
                   value={form.defaultDepositValue}
                   onChange={(e) => set("defaultDepositValue", e.target.value)}
                   placeholder={form.defaultDepositType === "PERCENT" ? "25" : "100.00"}
-                  className="w-28 px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="w-28 focus:ring-2"
                 />
               </div>
             )}
@@ -1884,9 +1886,9 @@ export default function SettingsClient({
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Default tax rate</label>
             <div className="flex items-center gap-2">
-              <input type="number" value={form.defaultTaxRate} onChange={(e) => set("defaultTaxRate", e.target.value)}
+              <Input type="number" value={form.defaultTaxRate} onChange={(e) => set("defaultTaxRate", e.target.value)}
                 min="0" max="99" step="0.001" placeholder="0"
-                className="w-24 px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                className="w-24 focus:ring-2" />
               <span className="text-sm text-gray-500">%</span>
             </div>
             <p className="text-xs text-gray-400 mt-1">Leave blank if you don&apos;t charge sales tax.</p>
@@ -1903,9 +1905,9 @@ export default function SettingsClient({
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Assistant name</label>
-            <input type="text" value={form.assistantName} onChange={(e) => set("assistantName", e.target.value)}
+            <Input type="text" value={form.assistantName} onChange={(e) => set("assistantName", e.target.value)}
               placeholder="Atlas" maxLength={40}
-              className="w-full max-w-xs px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+              className="w-full max-w-xs focus:ring-2" />
             <p className="text-xs text-gray-400 mt-1">Give it a name that fits your business — leave blank for Atlas</p>
           </div>
         </div>
@@ -1925,13 +1927,13 @@ export default function SettingsClient({
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Message template</label>
-            <textarea
+            <Textarea
               value={form.onMyWayTemplate}
               onChange={(e) => set("onMyWayTemplate", e.target.value)}
               placeholder={DEFAULT_ON_MY_WAY_TEMPLATE}
               rows={3}
               maxLength={320}
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full focus:ring-2"
             />
             <p className="text-xs text-gray-400 mt-1">
               Leave blank to use the default. Placeholders fill in automatically:{" "}
@@ -1955,9 +1957,9 @@ export default function SettingsClient({
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Google review link</label>
-            <input type="url" value={form.reviewLink} onChange={(e) => set("reviewLink", e.target.value)}
+            <Input type="url" value={form.reviewLink} onChange={(e) => set("reviewLink", e.target.value)}
               placeholder="https://g.page/r/..."
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+              className="w-full focus:ring-2" />
             <p className="text-xs text-gray-400 mt-1">Find this in your Google Business Profile → Get more reviews</p>
           </div>
         </div>

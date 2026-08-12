@@ -1122,7 +1122,7 @@ export default function AppShell({
           size={15}
           className={
             active
-              ? "text-[color:var(--rail-ink)]"
+              ? "text-[color:var(--rail-accent)]"
               : "text-[color:var(--rail-faint)] transition-colors group-hover:text-[color:var(--rail-muted)]"
           }
         />
@@ -1216,7 +1216,7 @@ export default function AppShell({
     <div className="flex items-center gap-3 px-3.5 min-h-[57px] border-b border-[color:var(--rail-line)] min-w-0">
       {companyLogoUrl ? (
         <span
-          className="theme-fixed flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-[10px] ring-1 ring-[color:var(--rail-line)]"
+          className="theme-fixed flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-[10px] shadow-sm ring-1 ring-[color:var(--rail-line)]"
           style={{ backgroundColor: sidebarLogoColor || "#FFFFFF" }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -1228,7 +1228,7 @@ export default function AppShell({
         </span>
       ) : (
         <span
-          className="w-11 h-11 rounded-[10px] flex items-center justify-center shrink-0 font-display font-bold text-lg"
+          className="w-11 h-11 rounded-[10px] flex items-center justify-center shrink-0 font-display font-bold text-lg shadow-sm"
           style={{ backgroundColor: railAccent, color: textOn(railAccent) }}
         >
           {companyName?.charAt(0).toUpperCase() ?? "W"}

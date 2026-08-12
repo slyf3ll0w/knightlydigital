@@ -5,6 +5,7 @@ import { requirePageActor, isManager } from "@/lib/permissions";
 import { entryMs, formatDuration, mapsHref } from "@/lib/time-entries";
 import EntryActions from "./EntryActions";
 import AddEntry from "./AddEntry";
+import PageTitle from "@/components/PageTitle";
 
 /**
  * Weekly timesheets. Techs see their own hours; owners/admins see the whole
@@ -84,7 +85,7 @@ export default async function TimesheetsPage({
     <div className="p-4 lg:p-8 max-w-4xl mx-auto">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>
-          <h1 className="font-display text-2xl font-bold text-gray-900">Timesheets</h1>
+          <PageTitle>Timesheets</PageTitle>
           <p className="text-sm text-gray-500 mt-0.5">
             {manager ? "Hours across your team" : "Your hours"} · week of{" "}
             {weekStart.toLocaleDateString("en-US", { month: "long", day: "numeric" })}

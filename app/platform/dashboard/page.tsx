@@ -22,6 +22,7 @@ import { money, appointmentTypeLabel } from "@/lib/statuses";
 import { SECTION_HUES } from "@/lib/section-colors";
 import { formatDuration, mapsHref } from "@/lib/time-entries";
 import EmptyState from "@/components/EmptyState";
+import CountUp from "@/components/CountUp";
 import DashboardSetupCard from "./DashboardSetupCard";
 import { PushNudge } from "@/components/PushNotifications";
 import {
@@ -465,7 +466,7 @@ export default async function DashboardPage() {
         <div className="anim-fade-up anim-delay-1 order-3 mb-8 grid grid-cols-3 divide-x divide-gray-200 lg:hidden">
           <Link href="/app/invoices" className="min-w-0 pr-3">
             <p className="numeral-ledger truncate text-[22px] leading-none font-semibold text-gray-900">
-              {moneyRound(monthRevenue)}
+              <CountUp value={moneyRound(monthRevenue)} />
             </p>
             <p className="mt-1 text-[11px] font-medium text-gray-500">
               Collected · {now.toLocaleDateString("en-US", { month: "short" })}
@@ -477,13 +478,13 @@ export default async function DashboardPage() {
                 receivableTotal > 0 ? "text-red-600" : "text-gray-900"
               }`}
             >
-              {moneyRound(receivableTotal)}
+              <CountUp value={moneyRound(receivableTotal)} />
             </p>
             <p className="mt-1 text-[11px] font-medium text-gray-500">Outstanding</p>
           </Link>
           <Link href="/app/jobs" className="min-w-0 pl-3">
             <p className="numeral-ledger truncate text-[22px] leading-none font-semibold text-gray-900">
-              {moneyRound(weekRevenue)}
+              <CountUp value={moneyRound(weekRevenue)} />
             </p>
             <p className="mt-1 text-[11px] font-medium text-gray-500">Booked this week</p>
           </Link>
@@ -499,7 +500,7 @@ export default async function DashboardPage() {
               Collected
             </p>
             <p className="numeral-ledger mt-1 text-[24px] leading-none font-semibold text-green-700">
-              {money(monthRevenue)}
+              <CountUp value={money(monthRevenue)} />
             </p>
             <p className="mt-1.5 text-xs text-gray-500">this month</p>
             {dailyRevenue.length > 1 && monthRevenue > 0 && <Sparkline values={dailyRevenue} />}
@@ -516,7 +517,7 @@ export default async function DashboardPage() {
                 receivableTotal > 0 ? "text-red-600" : "text-gray-900"
               }`}
             >
-              {receivableTotal > 0 ? money(receivableTotal) : "—"}
+              {receivableTotal > 0 ? <CountUp value={money(receivableTotal)} /> : "—"}
             </p>
             <p className="mt-1.5 text-xs text-gray-500">
               {receivableClients} {receivableClients === 1 ? "client owes" : "clients owe"} you
@@ -530,7 +531,7 @@ export default async function DashboardPage() {
               Booked this week
             </p>
             <p className="numeral-ledger mt-1 text-[24px] leading-none font-semibold text-gray-900">
-              {upcomingJobsWeek.length > 0 ? money(weekRevenue) : "—"}
+              {upcomingJobsWeek.length > 0 ? <CountUp value={money(weekRevenue)} /> : "—"}
             </p>
             <p className="mt-1.5 text-xs text-gray-500">
               {upcomingJobsWeek.length} {upcomingJobsWeek.length === 1 ? "job" : "jobs"} scheduled

@@ -15,8 +15,9 @@ import TitleSentinel from "@/components/TitleSentinel";
 export default function PageTitle({
   children,
 }: {
-  section: SectionKey;
-  icon: LucideIcon;
+  /** Optional since the calm-stage pass — kept for old call sites. */
+  section?: SectionKey;
+  icon?: LucideIcon;
   children: React.ReactNode;
 }) {
   // The collapsed header title needs plain text — take the first string child

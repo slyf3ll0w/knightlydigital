@@ -7,6 +7,7 @@ import { ArrowLeft, Check, Download, Loader2, Pencil, Plus, Trash2, X } from "lu
 import { money } from "@/lib/statuses";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { confirmSheet } from "@/components/ConfirmSheet";
+import PageTitle from "@/components/PageTitle";
 
 /** Business expense log (owners/admins): record transactions by date and
  *  export any period as CSV for the bookkeeper. */
@@ -129,7 +130,7 @@ export default function ExpensesClient({ expenses }: { expenses: Expense[] }) {
           <Link href="/app/insights" className="text-gray-400 hover:text-gray-600">
             <ArrowLeft size={18} />
           </Link>
-          <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">Expenses</h1>
+          <PageTitle>Expenses</PageTitle>
         </div>
         <button
           onClick={() => setShowAdd((v) => !v)}
