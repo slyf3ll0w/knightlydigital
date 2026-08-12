@@ -64,8 +64,9 @@ export default async function HubLayout({
       {/* Company-branded hero: gradient + subtle grain, dashboard-style
           greeting; desktop tabs live on the hero, phones get the app's
           bottom tab bar (rendered by HubNav). */}
+      {/* z-10: the hero's own material must cover the fixed logo watermark */}
       <header
-        className="relative overflow-hidden"
+        className="relative z-10 overflow-hidden"
         style={{
           background: `linear-gradient(135deg, ${headerBg} 0%, ${shade(headerBg, 0.3)} 100%)`,
         }}
@@ -121,10 +122,29 @@ export default async function HubLayout({
           style={{ background: "linear-gradient(90deg, var(--wb-primary, #0A1428), var(--wb-accent, #0B57D8))" }}
         />
       </header>
-      {/* Bottom padding clears the fixed phone tab bar (+ home indicator). */}
-      <main className="max-w-3xl mx-auto px-4 py-6 lg:py-8 pb-[calc(5.5rem+env(safe-area-inset-bottom))] lg:pb-8">
-        {children}
-      </main>
+      {/* Company-logo watermark — the app's tilted wallpaper, fixed behind
+          the page (cards paint above it; the hero and tab bar cover it). */}
+      {contact.company.logoUrl ? (
+        <div
+          aria-hidden
+          className="pointer-events-none fixed inset-0 z-0 flex items-center justify-center overflow-hidden"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={contact.company.logoUrl}
+            alt=""
+            className="logo-wallpaper max-w-none w-[120%] shrink-0 rotate-45 object-contain"
+          />
+        </div>
+      ) : null}
+      {/* Atmosphere: brand light spills from under the hero; a quiet
+          vignette holds the page's floor. Bottom padding clears the fixed
+          phone tab bar (+ home indicator). */}
+      <div className="hub-atmo hub-vignette relative">
+        <main className="relative max-w-3xl mx-auto px-4 py-6 lg:py-8 pb-[calc(5.5rem+env(safe-area-inset-bottom))] lg:pb-8">
+          {children}
+        </main>
+      </div>
       {/* Phone chrome: the app's bottom tab bar */}
       <HubNav
         base={base}

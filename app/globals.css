@@ -982,6 +982,49 @@ body {
   }
 }
 
+/* ── Client-portal atmosphere — the hub's take on the weather above: brand
+   light spills out from under the branded hero into the page. Unlike
+   page-atmo this runs on phones too (the portal has no phone chrome of its
+   own to carry material), and it breathes a touch stronger because it's
+   the only light source on that canvas. Force-light surface — no dark
+   half needed. ── */
+.app-ui .hub-atmo::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 320px;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      520px 240px at 6% -60px,
+      color-mix(in srgb, var(--wb-primary, #0A1428) 10%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      620px 260px at 94% -80px,
+      color-mix(in srgb, var(--wb-accent, #0B57D8) 11%, transparent),
+      transparent 70%
+    );
+}
+/* And a quiet floor: the page darkens a breath toward the bottom edge so
+   the sheet reads held, not floating off-white into the browser chrome. */
+.app-ui .hub-vignette::after {
+  content: "";
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 180px;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    color-mix(in srgb, var(--wb-primary, #0A1428) 5%, transparent)
+  );
+}
+
 /* ── Card material — a near-invisible top-light: nothing added at the
    crown, a breath of the primary's temperature by the foot. Cards read
    dimensional instead of flat white. Transparent-based so hover/active
