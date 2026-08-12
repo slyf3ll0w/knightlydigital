@@ -524,6 +524,72 @@ html[data-mode="dark"] .app-ui .sheet-hairline {
   }
 }
 
+/* ── Desktop dialogs stop hard-cutting into existence: scrim fades, the
+   card rises 8px at 96% scale and settles (the settle curve the rest of
+   the motion system speaks). One CSS rule covers every .modal-pop dialog —
+   phones keep their spring-up sheets above. ── */
+@keyframes modalScrimIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes modalCardIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (min-width: 1024px) {
+  .app-ui .modal-pop {
+    animation: modalScrimIn 0.15s ease-out both;
+  }
+  .app-ui .modal-pop > .modal-card {
+    animation: modalCardIn 0.24s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+}
+
+/* ── Atlas drawer — slides in from the right with a scrim fade instead of
+   popping (works at both widths; the phone drawer is full-bleed). ── */
+@keyframes drawerScrimIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes drawerSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(48px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.drawer-scrim-in {
+  animation: drawerScrimIn 0.2s ease-out both;
+}
+.drawer-slide-in {
+  animation: drawerSlideIn 0.28s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-ui .modal-pop,
+  .app-ui .modal-pop > .modal-card,
+  .drawer-scrim-in,
+  .drawer-slide-in {
+    animation: none;
+  }
+}
+
 /* ── Chat: new bubbles spring in (iMessage feel). Applied only to messages
    that arrive after the thread is on screen, never on thread open. ── */
 @keyframes msgIn {
@@ -961,6 +1027,32 @@ body {
 .app-ui aside a[data-rail-active="true"] > svg {
   animation: railIconPop 0.32s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
+/* Rail count — the stamp language for numbers: an Oxanium numeral on a
+   quiet wash mixed from its own ink (gray for news, red for past-due),
+   squared like a ledger cell rather than a badge pill. It arrives on the
+   house spring, and re-pops when the number changes (callers key the span
+   by value). Also worn by the top-bar chat count. */
+.rail-count {
+  font-family: "Oxanium", var(--font-body);
+  font-variant-numeric: lining-nums tabular-nums;
+  font-size: 11.5px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 3.5px 6px;
+  border-radius: 7px;
+  background: color-mix(in srgb, currentColor 13%, transparent);
+  animation: railCountIn 0.34s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@keyframes railCountIn {
+  from {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   .rail-indicator {
     transition: opacity 0.15s ease;
@@ -969,6 +1061,9 @@ body {
     animation: none;
   }
   .app-ui aside a[data-rail-active="true"] > svg {
+    animation: none;
+  }
+  .rail-count {
     animation: none;
   }
 }

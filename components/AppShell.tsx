@@ -1009,7 +1009,8 @@ export default function AppShell({
         <span className="truncate">{label}</span>
         {badge > 0 && (
           <span
-            className={`numeral-ledger ml-auto text-[12px] font-semibold ${
+            key={badge}
+            className={`rail-count ml-auto ${
               href === "/app/invoices"
                 ? "text-[color:var(--rail-num-due)]"
                 : "text-[color:var(--rail-num)]"
@@ -1049,7 +1050,7 @@ export default function AppShell({
                   <span className="truncate">{g.label}</span>
                   <span className="ml-auto flex items-center gap-2">
                     {rollup > 0 && (
-                      <span className="numeral-ledger text-[12px] font-semibold text-[color:var(--rail-num)]">
+                      <span key={rollup} className="rail-count text-[color:var(--rail-num)]">
                         {rollup > 99 ? "99+" : rollup}
                       </span>
                     )}
@@ -1393,7 +1394,8 @@ export default function AppShell({
             Chat
             {counts.chat > 0 && (
               <span
-                className={`numeral-ledger text-[12px] font-semibold ${
+                key={counts.chat}
+                className={`rail-count ${
                   isActive("/app/chat") ? "text-red-300" : "text-red-600"
                 }`}
               >

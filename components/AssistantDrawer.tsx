@@ -321,8 +321,8 @@ export default function AssistantDrawer({
   return (
     <>
       {/* backdrop (mobile emphasis; click closes everywhere) */}
-      <div className="fixed inset-0 z-40 bg-black/20 sm:bg-black/10" onClick={onClose} />
-      <div className="fixed inset-y-0 right-0 z-50 flex w-full max-w-full flex-col border-l border-gray-200 bg-paper-plain pt-[env(safe-area-inset-top)] shadow-2xl sm:w-[400px]">
+      <div className="drawer-scrim-in fixed inset-0 z-40 bg-black/20 sm:bg-black/10" onClick={onClose} />
+      <div className="drawer-slide-in fixed inset-y-0 right-0 z-50 flex w-full max-w-full flex-col border-l border-gray-200 bg-paper-plain pt-[env(safe-area-inset-top)] shadow-2xl sm:w-[400px]">
         {/* No header bar — the empty state introduces Atlas, so the chrome is
             just two floating controls. White circles with a border so they
             stay visible over any message content. */}

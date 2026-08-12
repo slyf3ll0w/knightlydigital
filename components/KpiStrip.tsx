@@ -1,4 +1,5 @@
 import Link from "next/link";
+import CountUp from "@/components/CountUp";
 
 export type Kpi = {
   label: string;
@@ -120,7 +121,7 @@ export default function KpiStrip({
                   k.tone === "danger" ? "text-red-700" : "text-gray-900"
                 }`}
               >
-                {k.value}
+                {<CountUp value={k.value} />}
               </p>
             </>
           );
@@ -153,7 +154,7 @@ export default function KpiStrip({
                     k.tone === "danger" ? "text-red-700" : "text-gray-900"
                   }`}
                 >
-                  {k.value}
+                  {<CountUp value={k.value} />}
                 </p>
               </>
             );
@@ -188,7 +189,7 @@ export default function KpiStrip({
                   k.tone === "danger" ? "text-red-700" : "text-gray-900"
                 }`}
               >
-                {k.value}
+                {<CountUp value={k.value} />}
               </p>
               {k.sub && <p className="mt-0.5 text-xs text-gray-500">{k.sub}</p>}
               {k.spark && k.spark.length > 1 && <Spark values={k.spark} />}
