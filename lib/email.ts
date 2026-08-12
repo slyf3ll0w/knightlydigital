@@ -12,10 +12,13 @@
  *                   color wordmark on white, navy→blue rule, orange stamp
  *                   dash, and the app's "tool" button look.
  * - clientShell() — client-facing emails (quotes, invoices, bookings,
- *                   contracts, portal). Mirrors the public quote/invoice
- *                   document header: documentColor surface, company logo,
- *                   bold company name, context line. Buttons use the same
- *                   accent as the document pages (brandAccent semantics).
+ *                   contracts, portal). The "paper trail" look of the
+ *                   quote/invoice PDFs (lib/pdf.tsx): white sheet, company
+ *                   identity left / letter-spaced doc type + big #number
+ *                   right, brand-accent rule, small-caps field labels,
+ *                   hairline item rows, right-aligned totals ledger, rubber
+ *                   stamps, hairline footer. Buttons use the same accent as
+ *                   the document pages (brandAccent semantics).
  */
 
 import { prisma } from "@/lib/db";
@@ -34,6 +37,14 @@ const WB_BLUE = "#0B57D8";
 const WB_ORANGE = "#F86808"; // the logo's Bench orange
 const FONT = "-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif";
 
+// Paper-trail palette + fixed doc-type inks — the same values as the PDFs
+// (lib/pdf.tsx INK/MUTED/FAINT/DOC_TYPE_INK), duplicated here so email.ts
+// never imports the react-pdf stack.
+const INK = "#111827";
+const MUTED = "#6B7280";
+const FAINT = "#E5E7EB";
+const DOC_INK = { quote: "#15803D", invoice: "#0369A1", alert: "#B45309" } as const;
+
 /** Whether Resend is configured — without it every sendEmail is a no-op. */
 export function emailEnabled(): boolean {
   return Boolean(RESEND_API_KEY);
@@ -50,6 +61,8 @@ export type EmailBrand = {
   logoUrl?: string | null;
 };
 
+// documentColor is no longer painted (the paper shell is white like the PDF)
+// but stays in the type so callers' company selects keep compiling.
 const BRAND_HEX = /^#[0-9a-fA-F]{6}$/;
 const hex = (v: string | null | undefined) => (BRAND_HEX.test(v ?? "") ? v! : null);
 
@@ -58,10 +71,6 @@ function luminance(h: string): number {
   return 0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255);
 }
 const onColor = (bg: string) => (luminance(bg) > 160 ? "#111827" : "#ffffff");
-
-/** Header surface for client emails — same fallback chain as brandHeader(). */
-const headerColor = (brand: EmailBrand) =>
-  hex(brand.documentColor) ?? hex(brand.brandColor) ?? "#FFFFFF";
 
 /** Button/accent color — same fallback chain as brandAccent() on the doc pages. */
 const accentColor = (brand: EmailBrand) =>
@@ -74,6 +83,10 @@ const linkColor = (brand: EmailBrand) => {
 };
 
 const absUrl = (u: string) => (u.startsWith("http") ? u : `${APP_URL}${u}`);
+
+/** "$1,485.00" — same formatting as the documents' money() (lib/statuses). */
+const usd = (n: number) =>
+  `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 /** All email content is user input — escape it before it goes into HTML. */
 function esc(s: string): string {
@@ -92,9 +105,59 @@ function esc(s: string): string {
 const fieldLabel = (label: string, topMargin = 16) =>
   `<p style="margin:${topMargin}px 0 4px;color:#6b7280;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">${label}</p>`;
 
-/** Big money numeral with its label — the statement look. */
-const moneyBlock = (label: string, amount: number) =>
-  `${fieldLabel(label)}<p style="margin:0;color:#111827;font-size:26px;font-weight:700;">$${amount.toFixed(2)}</p>`;
+/**
+ * Line-item list in the PDF table's clothes: small-caps ITEM header on a
+ * heavy ink rule, hairline dividers between rows. Names only — the linked
+ * document carries quantities and prices.
+ */
+function itemsBlock(names: string[]): string {
+  if (names.length === 0) return "";
+  const rows = names
+    .map(
+      (n) =>
+        `<tr><td style="padding:8px 0;border-bottom:1px solid ${FAINT};color:${INK};font-size:14px;font-family:${FONT};">${esc(n)}</td></tr>`
+    )
+    .join("");
+  return `
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:18px 0 0;border-collapse:collapse;">
+        <tr><td style="padding:0 0 6px;border-bottom:2px solid ${INK};color:${MUTED};font-size:10px;font-weight:700;letter-spacing:1.5px;font-family:${FONT};">ITEM</td></tr>
+        ${rows}
+      </table>`;
+}
+
+/**
+ * Right-aligned totals ledger — the PDF's: the grand total riding a 2px
+ * brand-accent rule, money hard-right. `after` rows (remaining balance,
+ * deposit due) sit under the grand line in the muted ledger voice.
+ */
+function totalsLedger(
+  brand: EmailBrand,
+  grandLabel: string,
+  amount: number,
+  after: { label: string; amount: number }[] = []
+): string {
+  const accent = accentColor(brand);
+  const grandCell = `padding:8px 0 0;border-top:2px solid ${accent};color:${INK};font-size:16px;font-weight:700;font-family:${FONT};`;
+  const afterRows = after
+    .map(
+      (r) =>
+        `<tr><td style="padding:5px 0 0;color:${MUTED};font-size:13px;font-family:${FONT};">${esc(r.label)}</td><td style="padding:5px 0 0;color:${INK};font-size:13px;font-family:${FONT};text-align:right;white-space:nowrap;">${usd(r.amount)}</td></tr>`
+    )
+    .join("");
+  return `
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0 0;border-collapse:collapse;"><tr>
+        <td>&nbsp;</td>
+        <td width="230" style="width:230px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+            <tr>
+              <td style="${grandCell}">${esc(grandLabel)}</td>
+              <td style="${grandCell}text-align:right;white-space:nowrap;">${usd(amount)}</td>
+            </tr>
+            ${afterRows}
+          </table>
+        </td>
+      </tr></table>`;
+}
 
 /** Accent CTA button for client emails — same accent as the document pages. */
 function accentBtn(href: string, label: string, brand: EmailBrand): string {
@@ -104,40 +167,70 @@ function accentBtn(href: string, label: string, brand: EmailBrand): string {
 }
 
 /**
- * Client-facing shell — mirrors the public quote/invoice document header:
- * brand-colored surface, company logo, bold company name, and a context line
- * ("Quote #12", "Appointment reminder"). Footer credits the company with a
- * quiet "Powered by WorkBench".
+ * Client-facing shell — the quote/invoice PDF's paper header, shrunk to email
+ * width: white sheet, company identity (logo + bold name) left, letter-spaced
+ * doc-type caps + big #number right, then the brand-accent rule. Optional
+ * rubber stamp ("PAID", "CONFIRMED") presses into the header whitespace under
+ * the number, exactly where the PDF stamps land. Hairline footer reads like
+ * the PDF's: "Invoice #14 · Company", with a quiet "Powered by WorkBench".
  */
 function clientShell({
   brand,
   companyName,
   context,
+  docNumber,
+  docInk,
+  stamp,
+  footerLeft,
   inner,
 }: {
   brand: EmailBrand;
   companyName: string;
-  context?: string;
+  /** Letter-spaced caps label top-right — the PDF's doc type ("Quote", "Appointment reminder"). */
+  context: string;
+  /** Big #number under the doc type (quotes, invoices, receipts). */
+  docNumber?: number;
+  /** Ink for the doc-type label — DOC_INK.quote / DOC_INK.invoice; muted otherwise. */
+  docInk?: string;
+  /** Rubber-stamp badge under the doc number. Rotation is progressive
+   *  enhancement — Apple Mail tilts it, Gmail/Outlook set it straight. */
+  stamp?: { text: string; ink: string };
+  /** Left footer slot ("Invoice #14") — pairs with the company name like the PDF footer. */
+  footerLeft?: string;
   inner: string;
 }): string {
-  const bg = headerColor(brand);
-  const fg = onColor(bg);
+  const accent = accentColor(brand);
   const logo = brand.logoUrl
-    ? `<img src="${esc(absUrl(brand.logoUrl))}" alt="" style="display:block;max-height:52px;max-width:240px;margin:0 0 12px;" />`
+    ? `<img src="${esc(absUrl(brand.logoUrl))}" alt="" style="display:block;max-height:40px;max-width:200px;margin:0 0 10px;" />`
+    : "";
+  const stampHtml = stamp
+    ? `<div style="margin-top:12px;"><span style="display:inline-block;border:2px solid ${stamp.ink};border-radius:4px;padding:3px 10px;color:${stamp.ink};font-size:12px;font-weight:700;letter-spacing:3px;font-family:${FONT};transform:rotate(-4deg);opacity:0.8;">${esc(stamp.text)}</span></div>`
     : "";
   return `
 <div style="font-family:${FONT};background:#f3f4f6;padding:24px;">
-  <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;">
-    <div style="background:${bg};padding:22px 28px;">
-      ${logo}
-      <p style="margin:0;color:${fg};font-size:19px;font-weight:700;line-height:1.3;">${esc(companyName)}</p>
-      ${context ? `<p style="margin:3px 0 0;color:${fg};opacity:0.72;font-size:13px;">${esc(context)}</p>` : ""}
+  <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid ${FAINT};border-radius:10px;overflow:hidden;">
+    <div style="padding:26px 28px 0;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;"><tr>
+        <td style="vertical-align:top;">
+          ${logo}
+          <p style="margin:0;color:${INK};font-size:16px;font-weight:700;line-height:1.3;font-family:${FONT};">${esc(companyName)}</p>
+        </td>
+        <td style="vertical-align:top;text-align:right;padding-left:12px;">
+          <p style="margin:0;color:${docInk ?? MUTED};font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;font-family:${FONT};">${esc(context)}</p>
+          ${docNumber ? `<p style="margin:2px 0 0;color:${INK};font-size:22px;font-weight:700;font-family:${FONT};">#${docNumber}</p>` : ""}
+          ${stampHtml}
+        </td>
+      </tr></table>
+      <div style="height:3px;font-size:3px;line-height:3px;background:${accent};margin-top:16px;">&nbsp;</div>
     </div>
-    <div style="padding:26px 28px;">
+    <div style="padding:22px 28px 26px;">
       ${inner}
     </div>
-    <div style="padding:14px 28px;border-top:1px solid #f3f4f6;">
-      <p style="margin:0;color:#9ca3af;font-size:12px;">Sent by ${esc(companyName)} · Powered by <a href="https://workbenchfsm.com" style="color:#9ca3af;text-decoration:underline;">WorkBench</a></p>
+    <div style="padding:12px 28px 14px;border-top:1px solid ${FAINT};">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;"><tr>
+        <td style="color:#9ca3af;font-size:11px;font-family:${FONT};">${footerLeft ? `${esc(footerLeft)} &nbsp;·&nbsp; ` : ""}${esc(companyName)}</td>
+        <td style="text-align:right;color:#9ca3af;font-size:11px;font-family:${FONT};padding-left:12px;white-space:nowrap;">Powered by <a href="https://workbenchfsm.com" style="color:#9ca3af;text-decoration:underline;">WorkBench</a></td>
+      </tr></table>
     </div>
   </div>
 </div>`;
@@ -205,7 +298,10 @@ function htmlToText(html: string): string {
         const text = label.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
         return text ? `${text}: ${href}` : href;
       })
-      .replace(/<\/(p|div|h[1-6])>/gi, "\n")
+      // Table cells become column-ish gaps, rows become lines (the paper
+      // shell's header/ledger/items tables all flatten to sane text this way)
+      .replace(/<\/t[dh]>/gi, "  ")
+      .replace(/<\/(p|div|h[1-6]|tr|table)>/gi, "\n")
       .replace(/<br\s*\/?>/gi, "\n")
       .replace(/<[^>]+>/g, "")
       .replace(/&nbsp;/g, " ")
@@ -712,7 +808,7 @@ export function reviewRequestEmail({
   const html = clientShell({
     brand,
     companyName,
-    context: "Thanks for your business",
+    context: "Thank you",
     inner: `
       <p style="margin:0 0 12px;color:#111827;font-size:15px;">Hi ${esc(contactFirstName)},</p>
       <p style="margin:0 0 12px;color:#374151;font-size:14px;">
@@ -938,6 +1034,7 @@ export function contractSignedCopyEmail({
     brand,
     companyName,
     context: "Signed agreement",
+    stamp: { text: "SIGNED", ink: DOC_INK.quote },
     inner: `
       <p style="margin:0 0 12px;color:#111827;font-size:15px;">Hi ${esc(contactFirstName)},</p>
       <p style="margin:0 0 16px;color:#374151;font-size:14px;">
@@ -972,19 +1069,19 @@ export function invoiceLinkEmail({
   payUrl: string;
   serviceNames: string[];
 }): { subject: string; html: string } {
-  const items = serviceNames
-    .map((s) => `<p style="margin:0 0 4px;color:#374151;font-size:14px;">• ${esc(s)}</p>`)
-    .join("");
   const html = clientShell({
     brand,
     companyName,
-    context: `Invoice #${invoiceNumber}`,
+    context: "Invoice",
+    docNumber: invoiceNumber,
+    docInk: DOC_INK.invoice,
+    footerLeft: `Invoice #${invoiceNumber}`,
     inner: `
-      <p style="margin:0 0 16px;color:#111827;font-size:15px;">
+      <p style="margin:0;color:#111827;font-size:15px;">
         Thanks for your request — here's your invoice from ${esc(companyName)}.
       </p>
-      ${items}
-      ${moneyBlock("Total", total)}
+      ${itemsBlock(serviceNames)}
+      ${totalsLedger(brand, "Total", total)}
       ${accentBtn(payUrl, "View &amp; Pay Invoice", brand)}
       <p style="margin:12px 0 0;color:#6b7280;font-size:12px;">
         Prefer a copy for your records? <a href="${payUrl}/pdf" style="color:#6b7280;">Download the PDF</a>.
@@ -1019,14 +1116,17 @@ export function autopayFailedEmail({
   const html = clientShell({
     brand,
     companyName,
-    context: `Invoice #${invoiceNumber}`,
+    context: "Invoice",
+    docNumber: invoiceNumber,
+    docInk: DOC_INK.invoice,
+    footerLeft: `Invoice #${invoiceNumber}`,
     inner: `
-      <p style="margin:0 0 16px;color:#111827;font-size:15px;">
+      <p style="margin:0;color:#111827;font-size:15px;">
         The automatic payment for your invoice from ${esc(companyName)} didn't go
         through${cardLabel ? ` — ${esc(cardLabel)} was declined` : ""}. This usually
         just means the card expired or was replaced.
       </p>
-      ${moneyBlock("Amount due", total)}
+      ${totalsLedger(brand, "Amount due", total)}
       ${accentBtn(updateCardUrl, "Update Card on File", brand)}
       <p style="margin:16px 0 0;color:#374151;font-size:14px;">
         We'll automatically try again once your card is updated. Prefer to pay this
@@ -1109,10 +1209,13 @@ export function quoteFollowUpEmail({
   const html = clientShell({
     brand,
     companyName,
-    context: `Quote #${quoteNumber}`,
+    context: "Quote",
+    docNumber: quoteNumber,
+    docInk: DOC_INK.quote,
+    footerLeft: `Quote #${quoteNumber}`,
     inner: `
-      <p style="margin:0 0 16px;color:#111827;font-size:15px;">${opener}</p>
-      ${moneyBlock("Quote total", total)}
+      <p style="margin:0;color:#111827;font-size:15px;">${opener}</p>
+      ${totalsLedger(brand, "Quote total", total)}
       ${expiryNote}
       ${accentBtn(viewUrl, "Review &amp; Approve Quote", brand)}
       <p style="margin:12px 0 0;color:#6b7280;font-size:12px;">
@@ -1153,24 +1256,33 @@ export function paymentReceiptEmail({
   payUrl: string;
   pending?: boolean;
 }): { subject: string; html: string } {
-  const balanceNote =
-    remainingBalance > 0
-      ? `<p style="margin:12px 0 0;color:#374151;font-size:14px;">Remaining balance: <strong>$${remainingBalance.toFixed(2)}</strong></p>`
-      : `<p style="margin:12px 0 0;color:#15803d;font-size:14px;font-weight:600;">This invoice is paid in full — thank you!</p>`;
+  const settled = !pending && remainingBalance <= 0;
+  const balanceNote = settled
+    ? `<p style="margin:12px 0 0;color:#15803d;font-size:14px;font-weight:600;">This invoice is paid in full — thank you!</p>`
+    : "";
   const html = clientShell({
     brand,
     companyName,
-    context: `Receipt — Invoice #${invoiceNumber}`,
+    context: "Receipt",
+    docNumber: invoiceNumber,
+    docInk: DOC_INK.invoice,
+    stamp: settled ? { text: "PAID", ink: DOC_INK.invoice } : undefined,
+    footerLeft: `Invoice #${invoiceNumber}`,
     inner: `
-      <p style="margin:0 0 16px;color:#111827;font-size:15px;">
+      <p style="margin:0;color:#111827;font-size:15px;">
         ${
           pending
             ? `Your bank payment to ${esc(companyName)} is processing — this is your confirmation. It usually clears within a few business days.`
             : `Thank you! Here's your receipt from ${esc(companyName)}.`
         }
       </p>
-      ${moneyBlock(pending ? "Amount processing" : "Amount paid", amount)}
-      <p style="margin:8px 0 0;color:#6b7280;font-size:13px;">${esc(methodLabel)} · Invoice #${invoiceNumber}</p>
+      ${totalsLedger(
+        brand,
+        pending ? "Amount processing" : "Amount paid",
+        amount,
+        remainingBalance > 0 ? [{ label: "Remaining balance", amount: remainingBalance }] : []
+      )}
+      <p style="margin:8px 0 0;color:#6b7280;font-size:13px;text-align:right;">${esc(methodLabel)}</p>
       ${balanceNote}
       <p style="margin:16px 0 0;color:#6b7280;font-size:12px;">
         Need a copy for your records? <a href="${payUrl}/pdf" style="color:#6b7280;">Download the invoice PDF</a>${remainingBalance > 0 ? ` or <a href="${payUrl}" style="color:#6b7280;">pay the remaining balance</a>` : ""}.
@@ -1206,22 +1318,22 @@ export function quoteLinkEmail({
   serviceNames: string[];
   depositNote?: string;
 }): { subject: string; html: string } {
-  const items = serviceNames
-    .map((s) => `<p style="margin:0 0 4px;color:#374151;font-size:14px;">• ${esc(s)}</p>`)
-    .join("");
   const deposit = depositNote
-    ? `<p style="margin:8px 0 0;color:#6b7280;font-size:13px;">${esc(depositNote)}</p>`
+    ? `<p style="margin:8px 0 0;color:#6b7280;font-size:13px;text-align:right;">${esc(depositNote)}</p>`
     : "";
   const html = clientShell({
     brand,
     companyName,
-    context: `Quote #${quoteNumber}`,
+    context: "Quote",
+    docNumber: quoteNumber,
+    docInk: DOC_INK.quote,
+    footerLeft: `Quote #${quoteNumber}`,
     inner: `
-      <p style="margin:0 0 16px;color:#111827;font-size:15px;">
+      <p style="margin:0;color:#111827;font-size:15px;">
         Thanks for your request — here's your quote from ${esc(companyName)}. Review it and approve online to get started.
       </p>
-      ${items}
-      ${moneyBlock("Total", total)}
+      ${itemsBlock(serviceNames)}
+      ${totalsLedger(brand, "Total", total)}
       ${deposit}
       ${accentBtn(viewUrl, "View &amp; Approve Quote", brand)}
       <p style="margin:12px 0 0;color:#6b7280;font-size:12px;">
@@ -1289,6 +1401,7 @@ export function bookingConfirmedEmail({
     brand,
     companyName,
     context: "Booking confirmed",
+    stamp: { text: "CONFIRMED", ink: DOC_INK.quote },
     inner: `<p style="margin:0 0 12px;color:#111827;font-size:15px;">Hi ${esc(contactFirstName)},</p>
       <p style="margin:0;color:#374151;font-size:14px;">
         Good news — your <strong>${esc(serviceName)}</strong> booking with
@@ -1419,13 +1532,24 @@ export function paymentReminderEmail({
     },
   }[stage];
 
+  // Overdue stages press an escalating stamp into the header — the paper
+  // trail's version of the firmer tone.
+  const stamp =
+    stage === "due"
+      ? undefined
+      : { text: stage === "overdue_14" ? "FINAL NOTICE" : "PAST DUE", ink: DOC_INK.alert };
+
   const html = clientShell({
     brand,
     companyName,
-    context: `Invoice #${invoiceNumber}`,
+    context: "Invoice",
+    docNumber: invoiceNumber,
+    docInk: DOC_INK.invoice,
+    stamp,
+    footerLeft: `Invoice #${invoiceNumber}`,
     inner: `
-      <p style="margin:0 0 16px;color:#111827;font-size:15px;">${esc(copy.lead)}</p>
-      ${moneyBlock("Balance due", balance)}
+      <p style="margin:0;color:#111827;font-size:15px;">${esc(copy.lead)}</p>
+      ${totalsLedger(brand, "Balance due", balance)}
       ${accentBtn(payUrl, "View &amp; Pay Invoice", brand)}
       ${companyEmail ? `<p style="margin:20px 0 0;color:#6b7280;font-size:13px;">Already paid or have a question? Reply to this email or reach ${esc(companyName)} at ${esc(companyEmail)}.</p>` : ""}`,
   });
