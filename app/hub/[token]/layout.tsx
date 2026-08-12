@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { brandHeader, shade, textOn } from "@/lib/branding";
+import { hubBrandVars } from "@/lib/hub-brand";
 import { companyMeta } from "@/lib/client-meta";
 import ForceLightTheme from "@/components/ForceLightTheme";
 import ViewBeacon from "@/components/ViewBeacon";
@@ -52,12 +53,17 @@ export default async function HubLayout({
   const headerText = textOn(headerBg);
 
   return (
-    <div className="app-ui min-h-screen bg-paper">
+    // Brand vars on the root: the whole design system — paper grid, ledger
+    // cards, the green→accent bridge, stamps, tab inks — runs in the
+    // tenant's colors, exactly like AppShell does for the operator app.
+    <div className="app-ui min-h-screen bg-paper" style={hubBrandVars(contact.company)}>
       {/* Client-facing: always light, never the operator's dark theme */}
       <ForceLightTheme />
       <ViewBeacon kind="hub" token={token} />
       <HubPwa />
-      {/* Company-branded hero: gradient + subtle grain, greeting, underline tabs */}
+      {/* Company-branded hero: gradient + subtle grain, dashboard-style
+          greeting; desktop tabs live on the hero, phones get the app's
+          bottom tab bar (rendered by HubNav). */}
       <header
         className="relative overflow-hidden"
         style={{
@@ -72,14 +78,14 @@ export default async function HubLayout({
             backgroundSize: "18px 18px",
           }}
         />
-        <div className="relative max-w-3xl mx-auto px-4 pt-6">
+        <div className="relative max-w-3xl mx-auto px-4 pt-6 pb-6 lg:pb-0">
           <div className="anim-portal flex items-center gap-3">
             {contact.company.logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={contact.company.logoUrl}
                 alt={`${contact.company.name} logo`}
-                className="h-14 w-auto max-w-[200px] rounded-md bg-white object-contain p-1 shrink-0"
+                className="h-12 w-auto max-w-[180px] rounded-[10px] bg-white object-contain p-1 shrink-0 shadow-sm"
               />
             ) : null}
             <p className="text-sm font-semibold" style={{ color: headerText, opacity: 0.85 }}>
@@ -87,27 +93,46 @@ export default async function HubLayout({
             </p>
           </div>
           <div className="anim-portal anim-delay-1 mt-5">
+            <p className="text-[13px] font-medium" style={{ color: headerText, opacity: 0.6 }}>
+              Your client portal
+            </p>
             <h1
-              className="numeral-ledger text-2xl sm:text-3xl font-semibold"
+              className="font-display mt-0.5 text-[27px] sm:text-3xl font-bold tracking-tight"
               style={{ color: headerText }}
             >
               Hi {contact.firstName}
             </h1>
-            <p className="mt-1 text-sm" style={{ color: headerText, opacity: 0.6 }}>
-              Welcome to your client hub
-            </p>
           </div>
-          <div className="anim-portal anim-delay-2 mt-6">
+          <div className="anim-portal anim-delay-2 mt-6 hidden lg:block">
             <HubNav
               base={base}
+              variant="top"
               color={headerText}
               badgeTextColor={headerBg}
               unreadMessages={unreadMessages}
             />
           </div>
         </div>
+        {/* Ledger margin rule — the app frame's signature: primary running
+            into accent along the header's bottom edge. */}
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-[2.5px]"
+          style={{ background: "linear-gradient(90deg, var(--wb-primary, #0A1428), var(--wb-accent, #0B57D8))" }}
+        />
       </header>
-      <main className="max-w-3xl mx-auto px-4 py-8">{children}</main>
+      {/* Bottom padding clears the fixed phone tab bar (+ home indicator). */}
+      <main className="max-w-3xl mx-auto px-4 py-6 lg:py-8 pb-[calc(5.5rem+env(safe-area-inset-bottom))] lg:pb-8">
+        {children}
+      </main>
+      {/* Phone chrome: the app's bottom tab bar */}
+      <HubNav
+        base={base}
+        variant="bottom"
+        color={headerText}
+        badgeTextColor={headerBg}
+        unreadMessages={unreadMessages}
+      />
     </div>
   );
 }

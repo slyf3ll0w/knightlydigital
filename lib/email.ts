@@ -30,7 +30,10 @@ const FROM = process.env.EMAIL_FROM ?? "WorkBench <notifications@workbenchfsm.co
 // Bare address from FROM — sends that brand the display name still have to
 // use the Resend-verified domain, only the name in front of it changes.
 const FROM_ADDRESS = FROM.match(/<([^>]+)>/)?.[1] ?? FROM;
-const APP_URL = process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com";
+// Trailing slash stripped: NEXTAUTH_URL set to "https://x.com/" would mint
+// "https://x.com//quote/…" links — double slashes read as URL obfuscation to
+// phishing filters (Yahoo PH01 bounced exactly this).
+const APP_URL = (process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com").replace(/\/+$/, "");
 
 const WB_NAVY = "#0A1428";
 const WB_BLUE = "#0B57D8";

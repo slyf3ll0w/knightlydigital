@@ -1,8 +1,9 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import Link from "next/link";
-import { FileText, ChevronRight } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { money, shortDate } from "@/lib/statuses";
+import EmptyState from "@/components/EmptyState";
 
 // Client-facing stamps — friendlier labels than the internal ones
 const clientQuoteStamp: Record<string, { label: string; tone: string }> = {
@@ -39,42 +40,44 @@ export default async function HubQuotesPage({
 
   return (
     <div>
-      <h2 className="text-xl font-bold text-gray-900 mb-4">Your quotes</h2>
-      {contact.quotes.length === 0 ? (
-        <div className="card-ledger py-14 text-center">
-          <FileText size={32} className="text-gray-300 mx-auto mb-3" />
-          <p className="text-sm text-gray-500">No quotes yet.</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {contact.quotes.map((q) => {
-            const stamp = clientQuoteStamp[q.status];
-            return (
-              <Link
-                key={q.id}
-                href={`/quote/${q.publicToken}`}
-                className="flex items-center gap-4 card-ledger p-4 hover:shadow-sm transition-shadow"
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <p className="text-sm font-semibold text-gray-900 truncate">
-                      {q.title || `Quote #${q.quoteNumber}`}
+      <h2 className="numeral-ledger relative mb-6 w-fit text-[22px] font-bold text-gray-900">
+        Your quotes
+        <span aria-hidden className="title-rule" />
+      </h2>
+      <div className="card-ledger overflow-hidden">
+        {contact.quotes.length === 0 ? (
+          <EmptyState art="quotes" title="No quotes yet" body="When we send you a quote, it shows up here to review and approve." />
+        ) : (
+          <div className="list-settle divide-y divide-gray-100">
+            {contact.quotes.map((q) => {
+              const stamp = clientQuoteStamp[q.status];
+              return (
+                <Link
+                  key={q.id}
+                  href={`/quote/${q.publicToken}`}
+                  className="flex items-center gap-4 px-4 py-3 hover:bg-gray-50 active:bg-gray-100 transition-colors"
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <p className="text-sm font-semibold text-gray-900 truncate">
+                        {q.title || `Quote #${q.quoteNumber}`}
+                      </p>
+                      {stamp && <span className={`stamp ${stamp.tone}`}>{stamp.label}</span>}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      #{q.quoteNumber} · {shortDate(q.createdAt)}
                     </p>
-                    {stamp && <span className={`stamp ${stamp.tone}`}>{stamp.label}</span>}
                   </div>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    #{q.quoteNumber} · {shortDate(q.createdAt)}
-                  </p>
-                </div>
-                <span className="numeral-ledger text-base font-semibold text-gray-900">
-                  {money(q.total)}
-                </span>
-                <ChevronRight size={15} className="text-gray-300" />
-              </Link>
-            );
-          })}
-        </div>
-      )}
+                  <span className="numeral-ledger text-base font-semibold text-gray-900">
+                    {money(q.total)}
+                  </span>
+                  <ChevronRight size={15} className="text-gray-400 shrink-0" />
+                </Link>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

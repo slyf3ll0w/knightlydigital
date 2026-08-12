@@ -168,7 +168,7 @@ export default function SavedCardManager({
                 <button
                   onClick={() => makeDefault(card)}
                   disabled={busyId !== null}
-                  className="px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                  className="px-3 py-1.5 text-xs font-medium text-gray-600 btn-tool-line bg-white rounded-[9px] hover:text-gray-900 transition-colors disabled:opacity-50"
                 >
                   Make default
                 </button>
@@ -193,7 +193,7 @@ export default function SavedCardManager({
       {!adding ? (
         <button
           onClick={() => setAdding(true)}
-          className="w-full py-3 text-sm font-semibold border border-gray-300 rounded-[10px] text-gray-700 hover:bg-gray-50"
+          className="w-full py-3 text-sm font-semibold btn-tool-line bg-white rounded-[10px] text-gray-700 hover:text-gray-900 transition-colors"
         >
           {cards.length > 0 ? "Add another card" : "Add a card"}
         </button>
@@ -216,7 +216,7 @@ export default function SavedCardManager({
             <button
               onClick={saveCard}
               disabled={busyId !== null || !scriptReady || formHasErrors}
-              className="flex-1 py-2.5 text-sm font-semibold rounded-[10px] bg-gray-900 text-white hover:bg-gray-800 disabled:opacity-50 flex items-center justify-center gap-2"
+              className="flex-1 py-2.5 text-sm font-semibold rounded-[10px] btn-tool bg-green-500 hover:bg-green-600 active:bg-green-700 text-white disabled:opacity-50 flex items-center justify-center gap-2 transition-colors"
             >
               {busyId === "add" && <Loader2 size={13} className="animate-spin" />}
               Save card
@@ -227,7 +227,7 @@ export default function SavedCardManager({
                 setError("");
               }}
               disabled={busyId !== null}
-              className="px-4 py-2.5 text-sm font-medium border border-gray-300 rounded-[10px] text-gray-600 hover:bg-gray-50"
+              className="px-4 py-2.5 text-sm font-medium btn-tool-line bg-white rounded-[10px] text-gray-600 hover:text-gray-900 transition-colors"
             >
               Cancel
             </button>

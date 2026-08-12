@@ -1,8 +1,8 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { CalendarDays } from "lucide-react";
 import { arrivalTimeLabel, resolveArrivalWindowMinutes } from "@/lib/arrival-window";
 import RescheduleButton from "./RescheduleButton";
+import EmptyState from "@/components/EmptyState";
 
 /**
  * Client hub: every upcoming visit — scheduled jobs and appointments — with
@@ -115,31 +115,35 @@ export default async function HubVisitsPage({
 
   return (
     <div>
-      <h2 className="text-xl font-bold text-gray-900 mb-4">Upcoming visits</h2>
+      <h2 className="numeral-ledger relative mb-6 w-fit text-[22px] font-bold text-gray-900">
+        Upcoming visits
+        <span aria-hidden className="title-rule" />
+      </h2>
       {rows.length === 0 ? (
-        <div className="card-ledger py-14 text-center">
-          <CalendarDays size={32} className="text-gray-300 mx-auto mb-3" />
-          <p className="text-sm text-gray-500">Nothing scheduled right now.</p>
+        <div className="card-ledger overflow-hidden">
+          <EmptyState art="schedule" title="Nothing scheduled right now" body="Confirmed visits and appointments show up here with their arrival windows." />
         </div>
       ) : (
-        <div className="space-y-3">
-          {rows.map((r) => (
-            <div key={`${r.kind}-${r.id}`} className="card-ledger p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <p className="text-sm font-semibold text-gray-900 truncate">{r.title}</p>
-                    {r.tentative && (
-                      <span className="stamp text-amber-700">Awaiting confirmation</span>
-                    )}
+        <div className="card-ledger overflow-hidden">
+          <div className="list-settle divide-y divide-gray-100">
+            {rows.map((r) => (
+              <div key={`${r.kind}-${r.id}`} className="px-4 py-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <p className="text-sm font-semibold text-gray-900 truncate">{r.title}</p>
+                      {r.tentative && (
+                        <span className="stamp text-amber-700">Awaiting confirmation</span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-0.5">{r.timeLabel}</p>
+                    {r.address && <p className="text-xs text-gray-400 mt-0.5">{r.address}</p>}
                   </div>
-                  <p className="text-xs text-gray-500 mt-0.5">{r.timeLabel}</p>
-                  {r.address && <p className="text-xs text-gray-400 mt-0.5">{r.address}</p>}
+                  <RescheduleButton token={token} kind={r.kind} id={r.id} title={r.title} />
                 </div>
-                <RescheduleButton token={token} kind={r.kind} id={r.id} title={r.title} />
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       )}
       <p className="mt-4 text-xs text-gray-400">

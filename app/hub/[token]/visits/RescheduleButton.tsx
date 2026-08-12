@@ -54,15 +54,15 @@ export default function RescheduleButton({
       {!open ? (
         <button
           onClick={() => setOpen(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 btn-tool-line bg-white rounded-[9px] hover:text-gray-900 transition-colors"
         >
           <CalendarClock size={12} />
           Request reschedule
         </button>
       ) : (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40" onClick={() => !busy && setOpen(false)} />
-          <div className="relative w-full max-w-sm rounded-xl bg-white p-5 shadow-xl">
+        <div className="modal-pop fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+          <div className="absolute inset-0" onClick={() => !busy && setOpen(false)} />
+          <div className="modal-card card-ledger relative w-full max-w-sm p-5">
             <h3 className="text-sm font-bold text-gray-900 mb-1">Request a new time</h3>
             <p className="text-xs text-gray-500 mb-3">
               For <span className="font-medium text-gray-700">{title}</span>. Tell us what
@@ -85,7 +85,7 @@ export default function RescheduleButton({
               <button
                 onClick={send}
                 disabled={busy}
-                className="flex-1 py-2.5 text-sm font-semibold rounded-lg bg-gray-900 text-white hover:bg-gray-800 disabled:opacity-50 flex items-center justify-center gap-2"
+                className="flex-1 py-2.5 text-sm font-semibold rounded-[10px] btn-tool bg-green-500 hover:bg-green-600 active:bg-green-700 text-white disabled:opacity-50 flex items-center justify-center gap-2 transition-colors"
               >
                 {busy && <Loader2 size={13} className="animate-spin" />}
                 Send request
@@ -93,7 +93,7 @@ export default function RescheduleButton({
               <button
                 onClick={() => setOpen(false)}
                 disabled={busy}
-                className="px-4 py-2.5 text-sm font-medium border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50"
+                className="px-4 py-2.5 text-sm font-medium btn-tool-line bg-white rounded-[10px] text-gray-600 hover:text-gray-900 transition-colors"
               >
                 Cancel
               </button>

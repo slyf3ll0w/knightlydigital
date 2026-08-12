@@ -7,6 +7,7 @@ import {
   Receipt,
   ArrowRight,
   CalendarDays,
+  ChevronRight,
   FileSignature,
   CheckCircle2,
   Mail,
@@ -132,38 +133,37 @@ export default async function HubHomePage({
         </Link>
       )}
 
-      {/* At-a-glance ledger strip */}
-      <div className="anim-portal anim-delay-1 card-ledger grid grid-cols-3 divide-x divide-gray-100">
-        <div className="px-4 py-4">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
-            Open balance
-          </p>
-          <p className="numeral-ledger mt-1 text-lg sm:text-2xl font-semibold text-gray-900">
-            {money(openBalance)}
-          </p>
-        </div>
-        <div className="px-4 py-4">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
-            Next visit
-          </p>
-          <p className="numeral-ledger mt-1 text-lg sm:text-2xl font-semibold text-gray-900">
-            {nextVisit?.scheduledAt
+      {/* At-a-glance strip — the app's KPI card: tool chrome, accent-dot
+          labels, ledger numerals */}
+      <div className="anim-portal anim-delay-1 card-tool grid grid-cols-3 divide-x divide-gray-100">
+        {[
+          { label: "Open balance", value: money(openBalance) },
+          {
+            label: "Next visit",
+            value: nextVisit?.scheduledAt
               ? new Date(nextVisit.scheduledAt).toLocaleDateString("en-US", {
                   month: "short",
                   day: "numeric",
                   timeZone: tz,
                 })
-              : "—"}
-          </p>
-        </div>
-        <div className="px-4 py-4">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
-            Quotes to review
-          </p>
-          <p className="numeral-ledger mt-1 text-lg sm:text-2xl font-semibold text-gray-900">
-            {openQuotes}
-          </p>
-        </div>
+              : "—",
+          },
+          { label: "Quotes to review", value: String(openQuotes) },
+        ].map((kpi) => (
+          <div key={kpi.label} className="px-4 py-4">
+            <p className="flex items-center gap-1.5 text-[11px] font-medium text-gray-500">
+              <span
+                aria-hidden
+                className="h-1.5 w-1.5 shrink-0 rounded-full"
+                style={{ background: "var(--wb-accent-bright, #2E6FF2)" }}
+              />
+              {kpi.label}
+            </p>
+            <p className="numeral-ledger mt-1 text-lg sm:text-2xl font-semibold text-gray-900">
+              {kpi.value}
+            </p>
+          </div>
+        ))}
       </div>
 
       {/* Upcoming visits — appointment-ticket date tiles */}
@@ -173,7 +173,7 @@ export default async function HubHomePage({
             <CalendarDays size={15} className="text-gray-400" />
             <h2 className="font-semibold text-gray-900 text-sm">Upcoming visits</h2>
           </div>
-          <div className="divide-y divide-gray-50">
+          <div className="list-settle divide-y divide-gray-50">
             {contact.jobs.map((job) => {
               const d = job.scheduledAt ? new Date(job.scheduledAt) : null;
               return (
@@ -253,42 +253,30 @@ export default async function HubHomePage({
         </p>
         <Link
           href={`${base}/requests/new`}
-          className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded-full transition-colors"
+          className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors"
         >
           New Request
         </Link>
       </div>
 
-      {/* Quick links */}
+      {/* Quick links — lift on hover, leaning chevrons like the app's rows */}
       <div className="anim-portal anim-delay-4 grid grid-cols-2 gap-3">
-        <Link
-          href={`${base}/quotes`}
-          className="flex items-center gap-3 card-ledger p-4 hover:shadow-sm transition-shadow"
-        >
-          <FileText size={18} className="text-gray-400" />
-          <span className="text-sm font-medium text-gray-800">Your quotes</span>
-        </Link>
-        <Link
-          href={`${base}/invoices`}
-          className="flex items-center gap-3 card-ledger p-4 hover:shadow-sm transition-shadow"
-        >
-          <Receipt size={18} className="text-gray-400" />
-          <span className="text-sm font-medium text-gray-800">Your invoices</span>
-        </Link>
-        <Link
-          href={`${base}/visits`}
-          className="flex items-center gap-3 card-ledger p-4 hover:shadow-sm transition-shadow"
-        >
-          <CalendarDays size={18} className="text-gray-400" />
-          <span className="text-sm font-medium text-gray-800">Your visits</span>
-        </Link>
-        <Link
-          href={`${base}/requests`}
-          className="flex items-center gap-3 card-ledger p-4 hover:shadow-sm transition-shadow"
-        >
-          <Inbox size={18} className="text-gray-400" />
-          <span className="text-sm font-medium text-gray-800">Your requests</span>
-        </Link>
+        {[
+          { href: `${base}/quotes`, label: "Quotes", Icon: FileText },
+          { href: `${base}/invoices`, label: "Invoices", Icon: Receipt },
+          { href: `${base}/visits`, label: "Visits", Icon: CalendarDays },
+          { href: `${base}/requests`, label: "Requests", Icon: Inbox },
+        ].map(({ href, label, Icon }) => (
+          <Link
+            key={href}
+            href={href}
+            className="lift-hover flex items-center gap-3 card-ledger p-4 transition-shadow hover:shadow-md"
+          >
+            <Icon size={18} className="shrink-0 text-[color:var(--wb-ink,#0B57D8)]" />
+            <span className="min-w-0 flex-1 truncate text-sm font-medium text-gray-800">{label}</span>
+            <ChevronRight size={14} className="shrink-0 text-gray-400" />
+          </Link>
+        ))}
       </div>
     </div>
   );

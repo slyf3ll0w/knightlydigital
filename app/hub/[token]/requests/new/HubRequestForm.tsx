@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Loader2, CheckCircle, ArrowLeft } from "lucide-react";
+import { Input, Textarea } from "@/components/Input";
 
 export default function HubRequestForm({ token }: { token: string }) {
   const [loading, setLoading] = useState(false);
@@ -56,11 +57,14 @@ export default function HubRequestForm({ token }: { token: string }) {
 
   return (
     <div>
-      <div className="flex items-center gap-3 mb-4">
+      <div className="flex items-center gap-3 mb-6">
         <Link href={`/hub/${token}`} className="text-gray-400 hover:text-gray-600">
           <ArrowLeft size={18} />
         </Link>
-        <h2 className="text-xl font-bold text-gray-900">New request</h2>
+        <h2 className="numeral-ledger relative w-fit text-[22px] font-bold text-gray-900">
+          New request
+          <span aria-hidden className="title-rule" />
+        </h2>
       </div>
 
       <form onSubmit={handleSubmit} className="card-ledger p-6 space-y-4">
@@ -73,29 +77,29 @@ export default function HubRequestForm({ token }: { token: string }) {
           <label className="block text-sm font-medium text-gray-700 mb-1">
             What do you need done? *
           </label>
-          <input
+          <Input
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             required
             placeholder="e.g. Driveway and patio pressure wash"
-            className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+            className="w-full"
           />
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Details</label>
-          <textarea
+          <Textarea
             value={details}
             onChange={(e) => setDetails(e.target.value)}
             rows={5}
             placeholder="Please provide as much information as you can..."
-            className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
+            className="w-full resize-none"
           />
         </div>
         <button
           type="submit"
           disabled={loading}
-          className="flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded-full transition-colors disabled:opacity-50"
+          className="flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors disabled:opacity-50"
         >
           {loading && <Loader2 size={14} className="animate-spin" />}
           Send Request

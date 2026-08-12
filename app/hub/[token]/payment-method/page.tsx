@@ -52,7 +52,10 @@ export default async function HubPaymentMethodPage({
 
   return (
     <div>
-      <h2 className="text-xl font-bold text-gray-900 mb-1">Payment methods</h2>
+      <h2 className="numeral-ledger relative mb-3 w-fit text-[22px] font-bold text-gray-900">
+        Payment methods
+        <span aria-hidden className="title-rule" />
+      </h2>
       <p className="text-sm text-gray-500 mb-4">
         Cards on file let {contact.company.name} charge agreed work without
         chasing you for payment. Your default card is used unless you say

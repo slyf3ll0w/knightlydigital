@@ -1,8 +1,9 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import Link from "next/link";
-import { Inbox, Plus, ChevronRight } from "lucide-react";
+import { Plus, ChevronRight } from "lucide-react";
 import { shortDate } from "@/lib/statuses";
+import EmptyState from "@/components/EmptyState";
 
 /**
  * Client hub: the requests this client has filed, with an honest status —
@@ -85,57 +86,62 @@ export default async function HubRequestsPage({
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-bold text-gray-900">Your requests</h2>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="numeral-ledger relative w-fit text-[22px] font-bold text-gray-900">
+          Your requests
+          <span aria-hidden className="title-rule" />
+        </h2>
         <Link
           href={`${base}/requests/new`}
-          className="flex items-center gap-1.5 px-3.5 py-2 bg-green-500 hover:bg-green-600 text-white text-xs font-semibold rounded-full transition-colors"
+          className="flex items-center gap-1.5 px-3.5 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-xs font-semibold rounded-[10px] btn-tool transition-colors"
         >
           <Plus size={13} />
           New Request
         </Link>
       </div>
       {requests.length === 0 ? (
-        <div className="card-ledger py-14 text-center">
-          <Inbox size={32} className="text-gray-300 mx-auto mb-3" />
-          <p className="text-sm text-gray-500 mb-4">You haven&apos;t sent any requests yet.</p>
-          <Link
-            href={`${base}/requests/new`}
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded-full transition-colors"
-          >
-            Send your first request
-          </Link>
+        <div className="card-ledger overflow-hidden">
+          <EmptyState
+            art="requests"
+            title="You haven't sent any requests yet"
+            body="Tell us what you need done and we'll take it from there."
+            actionHref={`${base}/requests/new`}
+            actionLabel="Send your first request"
+            showPlusIcon={false}
+          />
         </div>
       ) : (
-        <div className="space-y-3">
-          {requests.map((r) => {
-            const s = describe(r);
-            const inner = (
-              <>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <p className="text-sm font-semibold text-gray-900 truncate">{r.title}</p>
-                    <span className={`stamp ${s.tone}`}>{s.label}</span>
+        <div className="card-ledger overflow-hidden">
+          <div className="list-settle divide-y divide-gray-100">
+            {requests.map((r) => {
+              const s = describe(r);
+              const inner = (
+                <>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <p className="text-sm font-semibold text-gray-900 truncate">{r.title}</p>
+                      <span className={`stamp ${s.tone}`}>{s.label}</span>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-0.5">Sent {shortDate(r.createdAt)}</p>
                   </div>
-                  <p className="text-xs text-gray-500 mt-0.5">Sent {shortDate(r.createdAt)}</p>
+                  {s.quoteToken && <ChevronRight size={15} className="text-gray-400 shrink-0" />}
+                </>
+              );
+              return s.quoteToken ? (
+                <Link
+                  key={r.id}
+                  href={`/quote/${s.quoteToken}`}
+                  className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 active:bg-gray-100 transition-colors"
+                >
+                  {inner}
+                </Link>
+              ) : (
+                <div key={r.id} className="flex items-center gap-3 px-4 py-3">
+                  {inner}
                 </div>
-                {s.quoteToken && <ChevronRight size={15} className="text-gray-300" />}
-              </>
-            );
-            return s.quoteToken ? (
-              <Link
-                key={r.id}
-                href={`/quote/${s.quoteToken}`}
-                className="flex items-center gap-3 card-ledger p-4 hover:shadow-sm transition-shadow"
-              >
-                {inner}
-              </Link>
-            ) : (
-              <div key={r.id} className="flex items-center gap-3 card-ledger p-4">
-                {inner}
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       )}
     </div>
