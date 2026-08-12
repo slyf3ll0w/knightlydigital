@@ -10,14 +10,17 @@
  * Stops that still have no pin come back with lat/lng null — the UI lists
  * them with a "no map pin" note instead of dropping them.
  *
- * Server TZ = company TZ (Railway TZ env), same convention as the schedule
- * page and dashboard "today" queries, so day bounds are plain local Dates.
+ * Day bounds are computed in the COMPANY's timezone (Company.timezone) — the
+ * server's own TZ must never decide which stops belong to a tenant's day.
+ * The requested date is a calendar Y-M-D; wallTimeToUtc turns it into that
+ * company's midnight-to-midnight window, DST-safely.
  */
 
 import { prisma } from "@/lib/db";
 import { composeAddress, geocodeAddress, geocodingEnabled } from "@/lib/geocoding";
 import type { Actor } from "@/lib/permissions";
-import { canSell, jobScope } from "@/lib/permissions";
+import { appointmentScope, jobScope } from "@/lib/permissions";
+import { wallTimeToUtc } from "@/lib/booking-slots";
 import { driveTimeMatrix } from "@/lib/routing";
 
 export type RouteStop = {
@@ -110,15 +113,19 @@ export function parseRouteDate(s?: string | null): Date {
 }
 
 export async function resolveRouteDay(actor: Actor, date: Date): Promise<RouteDay> {
-  const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  const dayEnd = new Date(dayStart);
-  dayEnd.setDate(dayEnd.getDate() + 1);
+  // Company first: its timezone defines what "this day" even means
+  const company = await prisma.company.findUnique({
+    where: { id: actor.companyId },
+    select: {
+      name: true, address: true, city: true, state: true, zip: true,
+      lat: true, lng: true, geocodedAt: true, timezone: true,
+    },
+  });
+  const tz = company?.timezone || "America/Chicago";
+  const dayStart = wallTimeToUtc(tz, date.getFullYear(), date.getMonth() + 1, date.getDate(), 0);
+  const dayEnd = wallTimeToUtc(tz, date.getFullYear(), date.getMonth() + 1, date.getDate(), 24 * 60);
 
-  const [company, jobs, appointments] = await Promise.all([
-    prisma.company.findUnique({
-      where: { id: actor.companyId },
-      select: { name: true, address: true, city: true, state: true, zip: true, lat: true, lng: true, geocodedAt: true },
-    }),
+  const [jobs, appointments] = await Promise.all([
     prisma.job.findMany({
       where: {
         companyId: actor.companyId,
@@ -134,22 +141,24 @@ export async function resolveRouteDay(actor: Actor, date: Date): Promise<RouteDa
       orderBy: { scheduledAt: "asc" },
       take: 200,
     }),
-    canSell(actor.role)
-      ? prisma.appointment.findMany({
-          where: {
-            companyId: actor.companyId,
-            status: "SCHEDULED",
-            scheduledAt: { gte: dayStart, lt: dayEnd },
-            address: { not: null },
-          },
-          include: {
-            contact: { select: { firstName: true, lastName: true } },
-            property: true,
-          },
-          orderBy: { scheduledAt: "asc" },
-          take: 100,
-        })
-      : Promise.resolve([]),
+    // Every role, properly scoped — appointmentScope gives managers the whole
+    // board and everyone else (including techs, who previously saw none at
+    // all) their own leads' and directly-assigned appointments.
+    prisma.appointment.findMany({
+      where: {
+        companyId: actor.companyId,
+        ...appointmentScope(actor),
+        status: "SCHEDULED",
+        scheduledAt: { gte: dayStart, lt: dayEnd },
+        address: { not: null },
+      },
+      include: {
+        contact: { select: { firstName: true, lastName: true } },
+        property: true,
+      },
+      orderBy: { scheduledAt: "asc" },
+      take: 100,
+    }),
   ]);
 
   const stops: RouteStop[] = [];

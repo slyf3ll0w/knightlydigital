@@ -203,8 +203,6 @@ export default async function SchedulePage({
 
   const teamWhere = team ? { assignments: { some: { userId: team } } } : {};
   const scope = jobScope(actor);
-  // Sales meetings live on the calendar too — but not for techs
-  const showAppointments = canSell(actor.role);
 
   // Blocked-off time: managers + USER see everyone's blocks (named), narrowed
   // by the team filter; sales/tech see their own plus company-wide ones.
@@ -225,24 +223,34 @@ export default async function SchedulePage({
       },
       orderBy: { scheduledAt: "asc" },
     }),
-    showAppointments
-      ? prisma.appointment.findMany({
-          where: {
-            companyId,
-            ...appointmentScope(actor),
-            status: { not: "CANCELLED" },
-            scheduledAt: { gte: fetchStart, lte: fetchEnd },
-            ...(team ? { assignedToId: team } : {}),
-          },
-          include: {
-            contact: { select: { firstName: true, lastName: true } },
-            assignedTo: { select: { name: true } },
-          },
-          orderBy: { scheduledAt: "asc" },
-        })
-      : Promise.resolve([]),
+    // Appointments for EVERY role, properly scoped — a tech assigned to an
+    // in-person estimate used to have it on nobody's calendar but the office's
+    prisma.appointment.findMany({
+      where: {
+        companyId,
+        ...appointmentScope(actor),
+        status: { not: "CANCELLED" },
+        scheduledAt: { gte: fetchStart, lte: fetchEnd },
+        ...(team ? { assignedToId: team } : {}),
+      },
+      include: {
+        contact: { select: { firstName: true, lastName: true } },
+        assignedTo: { select: { name: true } },
+      },
+      orderBy: { scheduledAt: "asc" },
+    }),
     prisma.job.findMany({
-      where: { companyId, ...scope, status: "ACTIVE", scheduledAt: null, ...teamWhere },
+      where: {
+        companyId,
+        ...scope,
+        status: "ACTIVE",
+        scheduledAt: null,
+        // Filtering by a tech must still show the UNASSIGNED pool — those are
+        // exactly the jobs a dispatcher is looking to hand that tech
+        ...(team
+          ? { OR: [{ assignments: { some: { userId: team } } }, { assignments: { none: {} } }] }
+          : {}),
+      },
       include: {
         contact: { select: { firstName: true, lastName: true } },
         // The drop-to-schedule sheet prefills the crew — without this a job
@@ -280,7 +288,8 @@ export default async function SchedulePage({
       unscheduled={unscheduled.map(toDTO)}
       users={users}
       canCreateJob={canFilterTeam}
-      canCreateAppointment={showAppointments}
+      // Viewing is for everyone (scoped above); creating stays a sales action
+      canCreateAppointment={canSell(actor.role)}
       canBlockForOthers={isManager(actor.role)}
       meId={actor.id}
     />

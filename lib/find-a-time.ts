@@ -28,6 +28,7 @@ import {
   DAY_KEYS,
 } from "@/lib/business-hours";
 import { resolveSlotInterval, DEFAULT_JOB_DURATION_MINUTES } from "@/lib/scheduling";
+import { wallTimeToUtc } from "@/lib/booking-slots";
 
 export type TimeSuggestion = {
   start: string; // ISO
@@ -70,7 +71,7 @@ export async function suggestTimes(
   const [company, tech, day] = await Promise.all([
     prisma.company.findUnique({
       where: { id: actor.companyId },
-      select: { businessHours: true, schedulingIntervalMinutes: true },
+      select: { businessHours: true, schedulingIntervalMinutes: true, timezone: true },
     }),
     prisma.user.findFirst({
       where: { id: opts.userId, companyId: actor.companyId },
@@ -78,6 +79,25 @@ export async function suggestTimes(
     }),
     resolveRouteDay(actor, opts.date),
   ]);
+  const tz = company?.timezone || "America/Chicago";
+
+  // Blocked-off time is just as committed as a visit — without this the
+  // engine happily suggested slots inside "Shop closed" / personal blocks.
+  const blocksDayStart = wallTimeToUtc(tz, opts.date.getFullYear(), opts.date.getMonth() + 1, opts.date.getDate(), 0);
+  const blocksDayEnd = wallTimeToUtc(tz, opts.date.getFullYear(), opts.date.getMonth() + 1, opts.date.getDate(), 24 * 60);
+  const timeBlocks = await prisma.timeBlock.findMany({
+    where: {
+      companyId: actor.companyId,
+      startAt: { lt: blocksDayEnd },
+      endAt: { gt: blocksDayStart },
+      OR: [{ userId: opts.userId }, { userId: null }],
+    },
+    select: { startAt: true, endAt: true, allDay: true },
+  });
+  const busyBlocks = timeBlocks.map((b) => ({
+    startMs: b.allDay ? blocksDayStart.getTime() : b.startAt.getTime(),
+    endMs: b.allDay ? blocksDayEnd.getTime() : b.endAt.getTime(),
+  }));
 
   // The tech's committed day: timed visits only ("anytime" stops have no slot
   // to defend), minus the visit being rescheduled.
@@ -130,7 +150,16 @@ export async function suggestTimes(
   const hours = resolveWorkingHours(tech?.workingHours, sanitizeBusinessHours(company?.businessHours));
   const ranges = hours[DAY_KEYS[opts.date.getDay()]] ?? [];
   const interval = resolveSlotInterval({ companyIntervalMinutes: company?.schedulingIntervalMinutes });
-  const dayBase = new Date(opts.date.getFullYear(), opts.date.getMonth(), opts.date.getDate()).getTime();
+  // Candidate wall-times resolve in the COMPANY's timezone (DST-safe per
+  // slot), not the server's
+  const slotStartMs = (minutesOfDay: number) =>
+    wallTimeToUtc(
+      tz,
+      opts.date.getFullYear(),
+      opts.date.getMonth() + 1,
+      opts.date.getDate(),
+      minutesOfDay
+    ).getTime();
 
   type Candidate = TimeSuggestion & { startMs: number; gapKey: string };
   const byGap = new Map<string, Candidate>();
@@ -140,10 +169,11 @@ export async function suggestTimes(
     const close = timeToMinutes(range.end);
     if (open == null || close == null) continue;
     for (let m = Math.ceil(open / interval) * interval; m + duration <= close; m += interval) {
-      const startMs = dayBase + m * 60000;
+      const startMs = slotStartMs(m);
       const endMs = startMs + duration * 60000;
-      if (startMs <= Date.now() && isToday(opts.date)) continue; // no time travel
+      if (startMs <= Date.now()) continue; // no time travel (past slots on any day)
       if (stops.some((s) => startMs < s.endMs && endMs > s.startMs)) continue; // occupied
+      if (busyBlocks.some((b) => startMs < b.endMs && endMs > b.startMs)) continue; // blocked time
 
       const prev = [...stops].reverse().find((s) => s.endMs <= startMs) ?? null;
       const next = stops.find((s) => s.startMs >= endMs) ?? null;
@@ -186,13 +216,4 @@ export async function suggestTimes(
     .map(({ startMs: _s, gapKey: _g, ...rest }) => rest);
 
   return { driveAware: target != null, suggestions };
-}
-
-function isToday(d: Date): boolean {
-  const now = new Date();
-  return (
-    d.getFullYear() === now.getFullYear() &&
-    d.getMonth() === now.getMonth() &&
-    d.getDate() === now.getDate()
-  );
 }

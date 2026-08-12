@@ -8,7 +8,7 @@ import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { localInputToISO, appointmentTypeLabel } from "@/lib/statuses";
 import SlotTimePicker from "@/components/SlotTimePicker";
 import { addMinutesToLocalDateTime } from "@/lib/scheduling";
-import { confirmSheet } from "@/components/ConfirmSheet";
+import { confirmSheet, alertSheet } from "@/components/ConfirmSheet";
 
 /**
  * Appointment lifecycle controls: Complete (→ Create Quote CTA), No-show,
@@ -102,13 +102,25 @@ export default function AppointmentActions({
   async function patch(body: Record<string, unknown>) {
     setBusy(true);
     setError("");
-    const { ok, data } = await postJson(`/api/app/appointments/${appointmentId}`, body, "PATCH");
+    const { ok, data } = await postJson<{ conflicts?: string[] }>(
+      `/api/app/appointments/${appointmentId}`,
+      body,
+      "PATCH"
+    );
     setBusy(false);
     if (!ok) {
-      setError(data?.error ?? GENERIC_ERROR);
+      setError((data as { error?: string } | null)?.error ?? GENERIC_ERROR);
       return false;
     }
     setMenuOpen(false);
+    // The server computes double-booking on schedule changes — show it
+    // instead of discarding it (saved either way; it's a heads-up)
+    if (data?.conflicts?.length) {
+      await alertSheet({
+        title: "Saved, with a heads-up",
+        message: `This time overlaps:\n${data.conflicts.join("\n")}`,
+      });
+    }
     router.refresh();
     return true;
   }

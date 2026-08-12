@@ -10,6 +10,7 @@ import {
   sanitizeBusinessHours,
   timeToMinutes,
 } from "@/lib/business-hours";
+import { wallTimeToUtc } from "@/lib/booking-slots";
 
 /**
  * POST /api/app/route-plan/optimize — order one tech's day by drive time.
@@ -56,6 +57,13 @@ export async function POST(req: NextRequest) {
 
   const date = parseRouteDate(typeof body.date === "string" ? body.date : null);
   const day = await resolveRouteDay(actor, date);
+  // All wall-clock math below (anchor, day bounds, warning labels) runs in
+  // the COMPANY's timezone, not the server's
+  const tzCompany = await prisma.company.findUnique({
+    where: { id: actor.companyId },
+    select: { timezone: true, businessHours: true },
+  });
+  const tz = tzCompany?.timezone || "America/Chicago";
 
   // Routable: the tech's jobs + their confirmed in-person appointments.
   // Tentative bookings hold their promised slot — they only warn.
@@ -127,34 +135,20 @@ export async function POST(req: NextRequest) {
     typeof body.anchorTime === "string" ? /^([01]\d|2[0-3]):([0-5]\d)$/.exec(body.anchorTime) : null;
   let anchor: Date;
   if (anchorMatch) {
-    anchor = new Date(
+    anchor = wallTimeToUtc(
+      tz,
       date.getFullYear(),
-      date.getMonth(),
+      date.getMonth() + 1,
       date.getDate(),
-      Number(anchorMatch[1]),
-      Number(anchorMatch[2]),
-      0,
-      0
+      Number(anchorMatch[1]) * 60 + Number(anchorMatch[2])
     );
   } else if (timed.length) {
     anchor = new Date(Math.min(...timed.map((s) => new Date(s.scheduledAt!).getTime())));
   } else {
-    const company = await prisma.company.findUnique({
-      where: { id: actor.companyId },
-      select: { businessHours: true },
-    });
-    const week = resolveWorkingHours(user.workingHours, sanitizeBusinessHours(company?.businessHours));
+    const week = resolveWorkingHours(user.workingHours, sanitizeBusinessHours(tzCompany?.businessHours));
     const ranges = week[DAY_KEYS[date.getDay()]] ?? [];
     const startMin = (ranges.length ? timeToMinutes(ranges[0].start) : null) ?? 8 * 60;
-    anchor = new Date(
-      date.getFullYear(),
-      date.getMonth(),
-      date.getDate(),
-      Math.floor(startMin / 60),
-      startMin % 60,
-      0,
-      0
-    );
+    anchor = wallTimeToUtc(tz, date.getFullYear(), date.getMonth() + 1, date.getDate(), startMin);
   }
 
   const durationOf = (s: (typeof current)[number]): number => {
@@ -188,9 +182,8 @@ export async function POST(req: NextRequest) {
   // Routed in-person appointments are excluded (they move with the route);
   // what's left is phone/video calls and tentative bookings.
   const routedIds = new Set(orderedStops.map((s) => s.id));
-  const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  const dayEnd = new Date(dayStart);
-  dayEnd.setDate(dayEnd.getDate() + 1);
+  const dayStart = wallTimeToUtc(tz, date.getFullYear(), date.getMonth() + 1, date.getDate(), 0);
+  const dayEnd = wallTimeToUtc(tz, date.getFullYear(), date.getMonth() + 1, date.getDate(), 24 * 60);
   const [apptsRaw, blocks, otherJobsRaw] = await Promise.all([
     prisma.appointment.findMany({
       where: {
@@ -228,7 +221,8 @@ export async function POST(req: NextRequest) {
   ]);
   const appts = apptsRaw.filter((a) => !routedIds.has(a.id));
   const otherJobs = otherJobsRaw.filter((j) => !routedIds.has(j.id));
-  const fmt = (d: Date) => d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  const fmt = (d: Date) =>
+    d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: tz });
   const warnings: string[] = [];
   for (const p of proposed) {
     const ps = new Date(p.proposedStart).getTime();
@@ -299,7 +293,13 @@ export async function POST(req: NextRequest) {
       proposedEnd: p.proposedEnd,
       driveMinutesFromPrev: p.driveMinutesFromPrev,
     })),
-    anchorTime: `${String(anchor.getHours()).padStart(2, "0")}:${String(anchor.getMinutes()).padStart(2, "0")}`,
+    // Company-TZ wall time in "HH:mm" (the client echoes this back on apply)
+    anchorTime: anchor.toLocaleTimeString("en-GB", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+      timeZone: tz,
+    }),
     currentDriveMinutes: Math.round(currentDriveMinutes),
     totalDriveMinutes: Math.round(totalDriveMinutes),
     savedMinutes: Math.max(0, Math.round(currentDriveMinutes - totalDriveMinutes)),
