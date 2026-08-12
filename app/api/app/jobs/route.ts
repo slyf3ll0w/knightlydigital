@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { RecurringInterval } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, jobScope, contactScope } from "@/lib/permissions";
+import { findScheduleConflicts } from "@/lib/schedule-conflicts";
 import { recordLeadWin } from "@/lib/pipeline";
 import { ensureSubscriptionsForContact } from "@/lib/subscriptions";
 import { syncJobChecklist } from "@/lib/job-checklist";
@@ -59,6 +60,15 @@ export async function POST(req: NextRequest) {
 
   if (!contactId || !title) {
     return NextResponse.json({ error: "Client and title are required." }, { status: 400 });
+  }
+  // A window that ends before it starts is always a typo — the only schedule
+  // shape we hard-reject (conflicts below are a non-blocking heads-up)
+  if (
+    scheduledAt &&
+    scheduledEnd &&
+    new Date(scheduledEnd).getTime() <= new Date(scheduledAt).getTime()
+  ) {
+    return NextResponse.json({ error: "The end time must be after the start time." }, { status: 400 });
   }
 
   const contact = await prisma.contact.findFirst({
@@ -169,5 +179,18 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  return NextResponse.json(job, { status: 201 });
+  // Non-blocking double-booking heads-up — the same check every other
+  // schedule write runs; creation was the one path with none at all.
+  let conflicts: string[] = [];
+  if (scheduledAt && !scheduledAnytime && validAssignees.length > 0) {
+    conflicts = await findScheduleConflicts({
+      companyId,
+      start: new Date(scheduledAt),
+      end: scheduledEnd ? new Date(scheduledEnd) : null,
+      userIds: validAssignees.map((u) => u.id),
+      excludeJobId: job.id,
+    }).catch(() => []);
+  }
+
+  return NextResponse.json({ ...job, conflicts }, { status: 201 });
 }

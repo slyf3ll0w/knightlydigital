@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Loader2, ArrowLeft } from "lucide-react";
 import { Suspense } from "react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
+import { alertSheet } from "@/components/ConfirmSheet";
 import { localInputToISO } from "@/lib/statuses";
 import SlotTimePicker from "@/components/SlotTimePicker";
 import ContactPicker from "@/components/ContactPicker";
@@ -159,7 +160,7 @@ function NewJobForm() {
     setError("");
     setLoading(true);
 
-    const { ok, data } = await postJson<{ id: string }>("/api/app/jobs", {
+    const { ok, data } = await postJson<{ id: string; conflicts?: string[] }>("/api/app/jobs", {
       ...form,
       // date-only scheduling anchors at noon (same convention as ScheduleJob)
       scheduledAt: anytime
@@ -191,6 +192,14 @@ function NewJobForm() {
     if (!ok || !data?.id) {
       setError(data?.error ?? GENERIC_ERROR);
       return;
+    }
+
+    // The job saved either way — double-booking is a heads-up, not a block
+    if (data.conflicts?.length) {
+      await alertSheet({
+        title: "Scheduled, with a heads-up",
+        message: `This time overlaps:\n${data.conflicts.join("\n")}`,
+      });
     }
 
     router.push(`/app/jobs/${data.id}`);

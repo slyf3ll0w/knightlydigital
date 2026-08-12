@@ -38,6 +38,14 @@ export async function findScheduleConflicts(params: {
         status: "ACTIVE",
         scheduledAnytime: false,
         scheduledAt: { not: null, lt: end },
+        // Overlap-bound the query itself: entries ending before the window
+        // (no-end rows get their 1-hour UI default) can't conflict. Without
+        // this, `take: 50` with no lower bound could return 50 historical
+        // rows and miss the one that actually overlaps a busy tech's slot.
+        OR: [
+          { scheduledEnd: { gt: start } },
+          { scheduledEnd: null, scheduledAt: { gt: new Date(start.getTime() - 3600_000) } },
+        ],
         assignments: { some: { userId: { in: userIds } } },
       },
       select: {
@@ -47,6 +55,7 @@ export async function findScheduleConflicts(params: {
         scheduledEnd: true,
         assignments: { select: { userId: true } },
       },
+      orderBy: { scheduledAt: "asc" },
       take: 50,
     }),
     prisma.appointment.findMany({
@@ -56,9 +65,14 @@ export async function findScheduleConflicts(params: {
         status: "SCHEDULED",
         scheduledAnytime: false,
         scheduledAt: { lt: end },
+        OR: [
+          { scheduledEnd: { gt: start } },
+          { scheduledEnd: null, scheduledAt: { gt: new Date(start.getTime() - 3600_000) } },
+        ],
         assignedToId: { in: userIds },
       },
       select: { title: true, scheduledAt: true, scheduledEnd: true, assignedToId: true },
+      orderBy: { scheduledAt: "asc" },
       take: 50,
     }),
     prisma.timeBlock.findMany({

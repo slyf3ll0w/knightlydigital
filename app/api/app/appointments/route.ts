@@ -71,6 +71,10 @@ export async function POST(req: NextRequest) {
     : scheduledEnd
       ? new Date(scheduledEnd)
       : new Date(start.getTime() + 30 * 60000);
+  // Same guard the PATCH route has had all along
+  if (end && end.getTime() <= start.getTime()) {
+    return NextResponse.json({ error: "The end time must be after the start time." }, { status: 400 });
+  }
 
   const appointment = await withDocNumberRetry(async () => {
     const last = await prisma.appointment.findFirst({

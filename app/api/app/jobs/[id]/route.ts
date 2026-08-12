@@ -26,6 +26,16 @@ export async function PATCH(
   });
   if (!job) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
+  // A window that ends before it starts is always a typo (the appointment
+  // route has rejected this for a while; jobs never did)
+  if (
+    body.scheduledAt &&
+    body.scheduledEnd &&
+    new Date(body.scheduledEnd).getTime() <= new Date(body.scheduledAt).getTime()
+  ) {
+    return NextResponse.json({ error: "The end time must be after the start time." }, { status: 400 });
+  }
+
   // Saved service address link: "" clears it, an id must be one of this
   // contact's saved addresses (else the link is silently dropped)
   let propertyPatch: { propertyId: string | null } | null = null;

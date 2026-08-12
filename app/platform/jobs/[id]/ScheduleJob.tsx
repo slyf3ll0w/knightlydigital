@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CalendarDays, Loader2, X } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
+import { alertSheet } from "@/components/ConfirmSheet";
 import { localInputToISO } from "@/lib/statuses";
 import SlotTimePicker from "@/components/SlotTimePicker";
 import SuggestedTimes from "@/components/SuggestedTimes";
@@ -88,13 +89,25 @@ export default function ScheduleJob({
             scheduledAnytime: false,
           }),
     };
-    const { ok, data } = await postJson(`/api/app/jobs/${jobId}`, body, "PATCH");
+    const { ok, data } = await postJson<{ conflicts?: string[] }>(
+      `/api/app/jobs/${jobId}`,
+      body,
+      "PATCH"
+    );
     setLoading(false);
     if (!ok) {
-      setError(data?.error ?? GENERIC_ERROR);
+      setError((data as { error?: string } | null)?.error ?? GENERIC_ERROR);
       return;
     }
     setOpen(false);
+    // The server computes double-booking on every schedule write — show it
+    // instead of throwing it away (saved either way; it's a heads-up)
+    if (data?.conflicts?.length) {
+      await alertSheet({
+        title: "Scheduled, with a heads-up",
+        message: `This time overlaps:\n${data.conflicts.join("\n")}`,
+      });
+    }
     router.refresh();
   }
 

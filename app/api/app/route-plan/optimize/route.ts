@@ -191,7 +191,7 @@ export async function POST(req: NextRequest) {
   const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
   const dayEnd = new Date(dayStart);
   dayEnd.setDate(dayEnd.getDate() + 1);
-  const [apptsRaw, blocks] = await Promise.all([
+  const [apptsRaw, blocks, otherJobsRaw] = await Promise.all([
     prisma.appointment.findMany({
       where: {
         companyId: actor.companyId,
@@ -212,8 +212,22 @@ export async function POST(req: NextRequest) {
       },
       select: { title: true, startAt: true, endAt: true },
     }),
+    // The tech's timed jobs that are NOT on this route (skipped for a missing
+    // pin, or excluded by status) keep their old times — the new walk can run
+    // straight over them without this scan.
+    prisma.job.findMany({
+      where: {
+        companyId: actor.companyId,
+        status: "ACTIVE",
+        scheduledAnytime: false,
+        scheduledAt: { gte: dayStart, lt: dayEnd },
+        assignments: { some: { userId } },
+      },
+      select: { id: true, jobNumber: true, title: true, scheduledAt: true, scheduledEnd: true },
+    }),
   ]);
   const appts = apptsRaw.filter((a) => !routedIds.has(a.id));
+  const otherJobs = otherJobsRaw.filter((j) => !routedIds.has(j.id));
   const fmt = (d: Date) => d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
   const warnings: string[] = [];
   for (const p of proposed) {
@@ -225,11 +239,28 @@ export async function POST(req: NextRequest) {
         warnings.push(`"${p.title}" overlaps appointment "${a.title}" (${fmt(a.scheduledAt)})`);
       }
     }
+    for (const j of otherJobs) {
+      if (!j.scheduledAt) continue;
+      const je = (j.scheduledEnd ?? new Date(j.scheduledAt.getTime() + 3600_000)).getTime();
+      if (ps < je && pe > j.scheduledAt.getTime()) {
+        warnings.push(
+          `"${p.title}" overlaps Job #${j.jobNumber} (${j.title}) at ${fmt(j.scheduledAt)} — not on this route`
+        );
+      }
+    }
     for (const b of blocks) {
       if (ps < b.endAt.getTime() && pe > b.startAt.getTime()) {
         warnings.push(`"${p.title}" overlaps blocked time "${b.title || "Busy"}" (${fmt(b.startAt)})`);
       }
     }
+  }
+  // Day-first honesty: flexible stops get real clock times when applied —
+  // say so up front instead of silently pinning them.
+  const flexible = orderedStops.filter((s) => s.scheduledAnytime).length;
+  if (flexible > 0 && body.apply !== true) {
+    warnings.unshift(
+      `${flexible} "Anytime" stop${flexible === 1 ? "" : "s"} will get set arrival times when you apply this route.`
+    );
   }
 
   let applied = false;
