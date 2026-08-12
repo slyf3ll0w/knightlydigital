@@ -8,9 +8,11 @@ import {
   ArrowDown,
   ArrowUp,
   CalendarDays,
+  CalendarPlus,
   ChevronLeft,
   ChevronRight,
   CornerDownRight,
+  Inbox,
   Loader2,
   MapPin,
   Route as RouteIcon,
@@ -22,6 +24,7 @@ import { FilterChip } from "@/components/FilterChips";
 import { hapticImpact } from "@/lib/haptics";
 import { SECTION_HUES } from "@/lib/section-colors";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
+import { localInputToISO } from "@/lib/statuses";
 import "leaflet/dist/leaflet.css";
 
 /**
@@ -59,6 +62,15 @@ type RouteStop = {
   lng: number | null;
 };
 
+type UnscheduledJob = {
+  id: string;
+  jobNumber: number;
+  title: string;
+  contactName: string;
+  address: string | null;
+  assigneeIds: string[];
+};
+
 type RouteDay = {
   enabled: boolean;
   start: { lat: number; lng: number; label: string } | null;
@@ -68,6 +80,8 @@ type RouteDay = {
     legs: Record<string, Record<string, number>>;
     totals: Record<string, number>;
   };
+  /** The backlog: active jobs with no date at all — pull them onto this day. */
+  unscheduled?: UnscheduledJob[];
 };
 
 type OptimizeStop = {
@@ -183,6 +197,8 @@ export default function RouteMapClient({
   const [preview, setPreview] = useState<(OptimizeResult & { userId: string }) | null>(null);
   const [previewBusy, setPreviewBusy] = useState(false);
   const [applied, setApplied] = useState("");
+  const [trayOpen, setTrayOpen] = useState(false);
+  const [addingId, setAddingId] = useState("");
 
   const go = useCallback(
     (next: { date?: string; team?: string }) => {
@@ -421,6 +437,34 @@ export default function RouteMapClient({
     [canOptimize, canDispatch, meId]
   );
 
+  // ── Day-first: pull an unscheduled job onto this day ──────────────────────
+  // It lands as "Anytime" (day picked, no clock time) — Optimize then slots
+  // it into the route with everything else.
+  const addToDay = useCallback(
+    async (job: UnscheduledJob) => {
+      setAddingId(job.id);
+      const { ok, data: res } = await postJson<{ error?: string }>(
+        `/api/app/jobs/${job.id}`,
+        {
+          scheduledAt: localInputToISO(`${date}T12:00`),
+          scheduledEnd: null,
+          scheduledAnytime: true,
+        },
+        "PATCH"
+      );
+      setAddingId("");
+      if (!ok) {
+        setError(res?.error ?? GENERIC_ERROR);
+        return;
+      }
+      hapticImpact("LIGHT");
+      setApplied(`Job #${job.jobNumber} added to ${fmtDateLabel(date)} — hit Optimize to slot it.`);
+      refresh();
+      router.refresh();
+    },
+    [date, refresh, router]
+  );
+
   useEffect(() => {
     if (!preview) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setPreview(null);
@@ -597,12 +641,77 @@ export default function RouteMapClient({
         </div>
 
         <div className="w-full space-y-3 lg:w-[380px] lg:max-h-[calc(100dvh-15.5rem)] lg:overflow-y-auto lg:pr-0.5">
+          {/* Day-first tray: the unscheduled backlog, one tap from joining
+              this day. Pull a job on, then Optimize gives it its time. */}
+          {canDispatch && (data?.unscheduled?.length ?? 0) > 0 && (
+            <div className="card-ledger overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setTrayOpen((v) => !v)}
+                className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left transition-colors hover:bg-gray-50"
+              >
+                <span className="flex min-w-0 items-center gap-2.5">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-500">
+                    <Inbox size={14} />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-bold text-gray-900">
+                      Unscheduled jobs
+                    </span>
+                    <span className="numeral-ledger block text-[11px] text-gray-500">
+                      {data!.unscheduled!.length} waiting — add them to this day
+                    </span>
+                  </span>
+                </span>
+                <ChevronRight
+                  size={16}
+                  className={`shrink-0 text-gray-400 transition-transform ${trayOpen || groups.length === 0 ? "rotate-90" : ""}`}
+                />
+              </button>
+              {/* An empty day opens the tray on its own — building the day
+                  from the backlog IS the task at that point */}
+              {(trayOpen || groups.length === 0) && (
+                <ul className="max-h-64 divide-y divide-gray-100 overflow-y-auto border-t border-gray-100">
+                  {data!.unscheduled!.map((j) => (
+                    <li key={j.id} className="flex items-center gap-3 px-4 py-2.5">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-gray-900">
+                          <Link href={`/app/jobs/${j.id}`} className="hover:underline">
+                            {j.title}
+                          </Link>
+                        </p>
+                        <p className="truncate text-xs text-gray-500">
+                          {j.contactName}
+                          {j.address ? ` · ${j.address}` : ""}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => addToDay(j)}
+                        disabled={addingId === j.id}
+                        className="flex shrink-0 items-center gap-1.5 rounded-[10px] btn-tool-line bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-800 transition-colors hover:bg-gray-50 disabled:opacity-50"
+                      >
+                        {addingId === j.id ? (
+                          <Loader2 size={13} className="animate-spin" />
+                        ) : (
+                          <CalendarPlus size={13} />
+                        )}
+                        Add to day
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+
           {!loading && groups.length === 0 && (
             <div className="card-ledger px-4 py-10 text-center">
               <RouteIcon size={22} className="mx-auto mb-2 text-gray-300" />
               <p className="text-sm font-semibold text-gray-900">Nothing scheduled this day</p>
               <p className="mt-1 text-xs text-gray-500">
-                Jobs with a scheduled date show up here as a route.
+                {canDispatch && (data?.unscheduled?.length ?? 0) > 0
+                  ? "Build the day: add jobs from the unscheduled list above, then Optimize orders the route and hands out times."
+                  : "Jobs with a scheduled date show up here as a route."}
               </p>
               <Link
                 href={`/app/schedule?view=day&date=${date}`}
@@ -631,6 +740,15 @@ export default function RouteMapClient({
                       {(data?.drive?.totals[g.userId] ?? 0) > 0 &&
                         ` · ~${Math.round(data!.drive!.totals[g.userId])} min drive`}
                     </p>
+                    {/* Day-first nudge: flexible stops are waiting for the
+                        optimizer to hand them their clock time */}
+                    {mayOptimize(g.userId) &&
+                      g.stops.filter((s) => s.scheduledAnytime).length > 0 && (
+                        <p className="text-[11px] font-medium text-amber-700">
+                          {g.stops.filter((s) => s.scheduledAnytime).length} waiting for a time —
+                          Optimize slots them
+                        </p>
+                      )}
                   </div>
                 </div>
                 {mayOptimize(g.userId) &&
@@ -687,9 +805,13 @@ export default function RouteMapClient({
                         </p>
                       </div>
                       <div className="shrink-0 text-right">
-                        <p className="numeral-ledger text-xs font-semibold text-gray-900">
-                          {s.scheduledAnytime ? "Anytime" : fmtTime(s.scheduledAt)}
-                        </p>
+                        {s.scheduledAnytime ? (
+                          <span className="stamp text-amber-700">Anytime</span>
+                        ) : (
+                          <p className="numeral-ledger text-xs font-semibold text-gray-900">
+                            {fmtTime(s.scheduledAt)}
+                          </p>
+                        )}
                         {s.kind === "job" || !s.scheduledAnytime ? (
                           <Link
                             href={s.kind === "job" ? `/app/jobs/${s.id}` : `/app/appointments/${s.id}`}
