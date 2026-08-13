@@ -56,7 +56,7 @@ export default async function HubLayout({
     // Brand vars on the root: the whole design system — paper grid, ledger
     // cards, the green→accent bridge, stamps, tab inks — runs in the
     // tenant's colors, exactly like AppShell does for the operator app.
-    <div className="app-ui min-h-screen bg-paper" style={hubBrandVars(contact.company)}>
+    <div className="app-ui min-h-screen bg-paper-plain" style={hubBrandVars(contact.company)}>
       {/* Client-facing: always light, never the operator's dark theme */}
       <ForceLightTheme />
       <ViewBeacon kind="hub" token={token} />
