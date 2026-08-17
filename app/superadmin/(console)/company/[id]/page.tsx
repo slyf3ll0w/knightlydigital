@@ -8,6 +8,7 @@ import {
   usageCostCents,
 } from "@/lib/platform-costs";
 import { AccountActions } from "./AccountActions";
+import { AddonControl } from "./AddonControl";
 import { AssistantControl } from "./AssistantControl";
 import { PaymentsControl } from "./PaymentsControl";
 
@@ -76,6 +77,9 @@ export default async function CompanyReport({
       finixSandboxApproved: true,
       paymentsWaived: true,
       assistantEnabled: true,
+      addonEnabled: true,
+      addonActiveAt: true,
+      addonLiverySubId: true,
       industry: true,
       suspendedAt: true,
       suspendedReason: true,
@@ -433,6 +437,13 @@ export default async function CompanyReport({
             assistantEnabled={company.assistantEnabled}
             paymentsWaived={company.paymentsWaived}
             finixSandboxApproved={company.finixSandboxApproved}
+          />
+
+          <AddonControl
+            companyId={company.id}
+            addonEnabled={company.addonEnabled}
+            addonActiveAt={company.addonActiveAt?.toISOString() ?? null}
+            addonLiverySubId={company.addonLiverySubId}
           />
 
           <AccountActions

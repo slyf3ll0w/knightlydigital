@@ -50,7 +50,11 @@ export async function PATCH(
     action !== "require-payments" &&
     action !== "assistant-on" &&
     action !== "assistant-off" &&
-    action !== "assistant-default"
+    action !== "assistant-default" &&
+    action !== "addon-show" &&
+    action !== "addon-hide" &&
+    action !== "addon-grant" &&
+    action !== "addon-revoke"
   ) {
     return NextResponse.json({ error: "Unknown action." }, { status: 400 });
   }
@@ -80,6 +84,30 @@ export async function PATCH(
     await prisma.company.update({ where: { id }, data: { assistantEnabled } });
     console.warn(
       `[superadmin] assistant ${assistantEnabled === null ? "reset to DEFAULT" : assistantEnabled ? "forced ON" : "forced OFF"} for "${company.name}" (${id}) by ${admin.email}`
+    );
+    return NextResponse.json({ success: true });
+  }
+
+  // Premium add-on (lib/addon.ts): show/hide flips the VISIBILITY switch
+  // (upsell page + settings link); grant/revoke overrides the ENTITLEMENT the
+  // Livery webhook normally manages — the escape hatch for missed webhooks,
+  // comped accounts, or a manual walk-back.
+  if (action === "addon-show" || action === "addon-hide") {
+    const enabled = action === "addon-show";
+    await prisma.company.update({ where: { id }, data: { addonEnabled: enabled } });
+    console.warn(
+      `[superadmin] add-on ${enabled ? "SHOWN to" : "HIDDEN from"} "${company.name}" (${id}) by ${admin.email}`
+    );
+    return NextResponse.json({ success: true });
+  }
+  if (action === "addon-grant" || action === "addon-revoke") {
+    const grant = action === "addon-grant";
+    await prisma.company.update({
+      where: { id },
+      data: grant ? { addonActiveAt: new Date() } : { addonActiveAt: null, addonLiverySubId: null },
+    });
+    console.warn(
+      `[superadmin] add-on entitlement ${grant ? "GRANTED (manual)" : "REVOKED"} for "${company.name}" (${id}) by ${admin.email}`
     );
     return NextResponse.json({ success: true });
   }

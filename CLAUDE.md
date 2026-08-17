@@ -305,6 +305,13 @@ QBO_ENVIRONMENT=sandbox  # "production" once Intuit grants production keys
 # Optional — per-company custom sending domains (lib/email-domains.ts). Needs a
 # paid Resend plan (extra domains); Settings card + API stay hidden until set.
 EMAIL_DOMAINS_ENABLED=   # "1" to enable
+# Optional — the Workbench Plus premium add-on, sold through Livery
+# (lib/addon.ts; webhook receiver at /api/public/webhooks/livery). Both must
+# be set or the upsell page shows "not available yet". Visibility is
+# per-company (Company.addonEnabled, superadmin console); entitlement is
+# Company.addonActiveAt, managed by the Livery webhooks.
+LIVERY_ADDON_CHECKOUT_URL=  # e.g. https://paywithlivery.com/l/workbench-plus
+LIVERY_WEBHOOK_SECRET=      # whsec_… from Livery → Settings → Developers
 ```
 
 ## Recurring subscriptions

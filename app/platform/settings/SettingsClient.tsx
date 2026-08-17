@@ -22,6 +22,7 @@ import {
   Globe,
   RefreshCw,
   Tags,
+  Sparkles,
   UserRound,
   Users,
   Zap,
@@ -55,6 +56,7 @@ type Company = {
   logoWallpaper: boolean; wallpaper: string | null;
   sidebarTheme: string; sidebarLogoColor: string | null;
   surchargeEnabled: boolean; surchargeRate: string | number | null;
+  addonEnabled: boolean;
   defaultDepositType: "NONE" | "PERCENT" | "FIXED" | "FULL";
   defaultDepositValue: string | number | null;
   defaultTaxRate: string | number | null;
@@ -257,6 +259,16 @@ const SETUP_LINKS = [
     icon: RefreshCw,
   },
 ] as const;
+
+// Premium add-on (lib/addon.ts) — only rendered while the company's
+// superadmin visibility switch (Company.addonEnabled) is on.
+const ADDON_LINK = {
+  href: "/app/settings/addon",
+  label: "Workbench Plus",
+  sub: "Premium add-on — more horsepower for your team",
+  hueKey: "payments",
+  icon: Sparkles,
+} as const;
 
 const WORKSPACE_LINKS = [
   {
@@ -1234,7 +1246,7 @@ export default function SettingsClient({
           </div>
           <p className="mb-1 mt-6 px-3 text-xs font-semibold text-gray-400">Setup</p>
           <div className="space-y-0.5">
-            {SETUP_LINKS.map((l) => (
+            {(company.addonEnabled ? [...SETUP_LINKS, ADDON_LINK] : [...SETUP_LINKS]).map((l) => (
               <Link
                 key={l.href}
                 href={l.href}
@@ -1285,7 +1297,7 @@ export default function SettingsClient({
             <div>
               <p className="mb-2 px-1 text-[13px] font-semibold text-gray-500">Setup</p>
               <div className="card-ledger divide-y divide-gray-100 overflow-hidden">
-                {SETUP_LINKS.map((l) => (
+                {(company.addonEnabled ? [...SETUP_LINKS, ADDON_LINK] : [...SETUP_LINKS]).map((l) => (
                   <SettingsLinkRow
                     key={l.href}
                     href={l.href}

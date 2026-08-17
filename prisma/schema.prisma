@@ -109,6 +109,16 @@ model Company {
   // Stamped when the merchant came from the sandbox test-approve bypass
   // instead of the hosted underwriting form (Settings → "test approval").
   finixSandboxApproved Boolean @default(false)
+  // ── Premium add-on, sold through Livery (lib/addon.ts) ──
+  // addonEnabled is the superadmin VISIBILITY switch: the upsell page and its
+  // settings link only render while it's on (preview = on for Streamflaire
+  // only). addonActiveAt is the ENTITLEMENT — stamped by the Livery webhook
+  // when the subscription's first payment lands (or a superadmin override),
+  // cleared on cancel / final payment failure. Gate features with
+  // hasAddon(company), never on addonEnabled.
+  addonEnabled     Boolean   @default(false)
+  addonActiveAt    DateTime?
+  addonLiverySubId String? // Livery Subscription id backing the entitlement
   // Platform suspension (superadmin-only): set → the tenant app and public
   // booking/leads/payments are disabled, data stays intact until support
   // reinstates. Deletion is separate and permanent.
