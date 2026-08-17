@@ -1,6 +1,7 @@
 "use client";
 
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import type { CaptchaAction } from "@/lib/captcha";
 
 declare global {
   interface Window {
@@ -39,8 +40,13 @@ export type TurnstileHandle = {
  */
 const WATCHDOG_MS = 20_000;
 
-const TurnstileWidget = forwardRef<TurnstileHandle, { onToken: (token: string) => void }>(
-  function TurnstileWidget({ onToken }, handle) {
+const TurnstileWidget = forwardRef<
+  TurnstileHandle,
+  { onToken: (token: string) => void; action?: CaptchaAction }
+>(
+  // `action` is stamped into the token and re-checked server side, so a token
+  // minted on the signup form can't be spent on the login form.
+  function TurnstileWidget({ onToken, action }, handle) {
     const ref = useRef<HTMLDivElement>(null);
     const widgetId = useRef<string | null>(null);
     const retries = useRef(0);
@@ -92,6 +98,7 @@ const TurnstileWidget = forwardRef<TurnstileHandle, { onToken: (token: string) =
         if (!window.turnstile || !ref.current || widgetId.current) return;
         widgetId.current = window.turnstile.render(ref.current, {
           sitekey: SITE_KEY,
+          ...(action ? { action } : {}),
           callback: (token: string) => {
             retries.current = 0;
             disarmWatchdog();
@@ -119,6 +126,12 @@ const TurnstileWidget = forwardRef<TurnstileHandle, { onToken: (token: string) =
           retry: "never",
           "refresh-expired": "auto",
           theme: "light",
+          // The widget stays invisible unless Cloudflare actually needs the
+          // user to interact — for most sign-ins the check runs silently and
+          // the form never shifts. When it does appear, it spans the form
+          // width instead of the fixed 300px box.
+          appearance: "interaction-only",
+          size: "flexible",
         });
         armWatchdog();
       }
@@ -126,11 +139,20 @@ const TurnstileWidget = forwardRef<TurnstileHandle, { onToken: (token: string) =
       if (window.turnstile) {
         render();
       } else {
-        const script = document.createElement("script");
-        script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
-        script.async = true;
-        script.onload = render;
-        document.head.appendChild(script);
+        // Two widgets mounting in the same tick (e.g. multi-step forms) must
+        // share one script tag, or the second load clobbers the first's state.
+        const existing = document.querySelector<HTMLScriptElement>(
+          'script[src^="https://challenges.cloudflare.com/turnstile/"]'
+        );
+        if (existing) {
+          existing.addEventListener("load", render);
+        } else {
+          const script = document.createElement("script");
+          script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+          script.async = true;
+          script.onload = render;
+          document.head.appendChild(script);
+        }
       }
 
       return () => {
@@ -146,7 +168,7 @@ const TurnstileWidget = forwardRef<TurnstileHandle, { onToken: (token: string) =
 
     if (!SITE_KEY) return null;
     return (
-      <div className="my-3">
+      <div>
         <div ref={ref} />
         {failed && (
           <div className="px-3 py-2.5 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">

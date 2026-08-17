@@ -62,7 +62,7 @@ export const authOptions: NextAuthOptions = {
         // password anyway.
         const justRegistered = Date.now() - account.createdAt.getTime() < 2 * 60 * 1000;
         if (!justRegistered) {
-          const captchaOk = await verifyCaptcha(credentials.captchaToken);
+          const captchaOk = await verifyCaptcha(credentials.captchaToken, "login");
           if (!captchaOk) throw new Error("captcha");
         }
 

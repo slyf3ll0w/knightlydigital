@@ -31,14 +31,14 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="app-ui min-h-screen bg-gray-50 flex flex-col items-center justify-center px-4">
+    <div className="app-ui page-atmo relative min-h-screen bg-paper-plain flex flex-col items-center justify-center px-4">
       <div className="w-full max-w-sm">
-        <div className="flex justify-center mb-8">
+        <div className="flex justify-center mb-8 anim-portal">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/workbench-logo.png" alt="WorkBench" className="h-7 w-auto" />
         </div>
 
-        <div className="card-ledger p-8 shadow-sm">
+        <div className="card-ledger p-8 anim-portal anim-delay-1">
           {sent ? (
             <div className="text-center">
               <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -52,7 +52,10 @@ export default function ForgotPasswordPage() {
             </div>
           ) : (
             <>
-              <h1 className="text-xl font-bold text-gray-900 mb-1">Reset your password</h1>
+              <h1 className="numeral-ledger relative mb-4 w-fit text-xl font-bold text-gray-900">
+                Reset your password
+                <span aria-hidden className="title-rule" />
+              </h1>
               <p className="text-sm text-gray-500 mb-6">
                 Enter your account email and we&apos;ll send you a reset link.
               </p>
@@ -96,7 +99,7 @@ export default function ForgotPasswordPage() {
           )}
         </div>
 
-        <p className="text-center text-sm text-gray-500 mt-6">
+        <p className="text-center text-sm text-gray-500 mt-6 anim-portal anim-delay-2">
           <Link href="/app/login" className="text-green-600 hover:underline font-medium">
             Back to sign in
           </Link>

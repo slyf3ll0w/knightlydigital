@@ -15,14 +15,14 @@ const base =
 export function Input({
   className = "",
   ...props
-}: React.InputHTMLAttributes<HTMLInputElement>) {
+}: React.ComponentProps<"input">) {
   return <input {...props} className={`${base} ${className}`} />;
 }
 
 export function Textarea({
   className = "",
   ...props
-}: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+}: React.ComponentProps<"textarea">) {
   return <textarea {...props} className={`${base} ${className}`} />;
 }
 
@@ -30,7 +30,7 @@ export function Select({
   className = "",
   children,
   ...props
-}: React.SelectHTMLAttributes<HTMLSelectElement>) {
+}: React.ComponentProps<"select">) {
   return (
     <select {...props} className={`${base} ${className}`}>
       {children}

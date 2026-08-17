@@ -57,7 +57,7 @@ function ResetPasswordForm() {
 
   if (done) {
     return (
-      <div className="card-ledger p-8 shadow-sm text-center">
+      <div className="card-ledger p-8 text-center anim-portal">
         <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
           <CheckCircle size={22} className="text-green-600" />
         </div>
@@ -76,8 +76,11 @@ function ResetPasswordForm() {
   }
 
   return (
-    <div className="card-ledger p-8 shadow-sm">
-      <h1 className="text-xl font-bold text-gray-900 mb-1">Choose a new password</h1>
+    <div className="card-ledger p-8 anim-portal anim-delay-1">
+      <h1 className="numeral-ledger relative mb-4 w-fit text-xl font-bold text-gray-900">
+        Choose a new password
+        <span aria-hidden className="title-rule" />
+      </h1>
       <p className="text-sm text-gray-500 mb-6">Enter and confirm your new password.</p>
 
       {!token && (
@@ -157,16 +160,16 @@ function ResetPasswordForm() {
 
 export default function ResetPasswordPage() {
   return (
-    <div className="app-ui min-h-screen bg-gray-50 flex flex-col items-center justify-center px-4">
+    <div className="app-ui page-atmo relative min-h-screen bg-paper-plain flex flex-col items-center justify-center px-4">
       <div className="w-full max-w-sm">
-        <div className="flex justify-center mb-8">
+        <div className="flex justify-center mb-8 anim-portal">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/workbench-logo.png" alt="WorkBench" className="h-7 w-auto" />
         </div>
         <Suspense fallback={<div className="card-ledger p-8 shadow-sm text-center text-sm text-gray-500">Loading…</div>}>
           <ResetPasswordForm />
         </Suspense>
-        <p className="text-center text-sm text-gray-500 mt-6">
+        <p className="text-center text-sm text-gray-500 mt-6 anim-portal anim-delay-2">
           <Link href="/app/login" className="text-green-600 hover:underline font-medium">
             Back to sign in
           </Link>

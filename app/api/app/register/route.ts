@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
   // Optional — seeds the starter price book; signup never hard-fails on it
   const { industry } = body;
 
-  if (!(await verifyCaptcha(captchaToken))) {
+  if (!(await verifyCaptcha(captchaToken, "signup"))) {
     return NextResponse.json(
       { error: "Captcha verification failed. Please try again." },
       { status: 400 }

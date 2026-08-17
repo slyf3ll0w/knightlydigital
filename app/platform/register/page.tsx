@@ -253,7 +253,7 @@ export default function RegisterPage() {
                 </div>
               )}
 
-              <TurnstileWidget ref={captchaRef} onToken={setCaptchaToken} />
+              <TurnstileWidget ref={captchaRef} onToken={setCaptchaToken} action="signup" />
 
               <button
                 type="submit"

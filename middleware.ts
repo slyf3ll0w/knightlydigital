@@ -168,6 +168,12 @@ export async function middleware(req: NextRequest) {
       if (rule.match(path) && (!rule.methods || rule.methods.includes(req.method))) {
         const result = limit(`${rule.name}:${clientIp(req.headers)}`, rule.max, rule.windowMs);
         if (!result.ok) {
+          // The login form is a native document POST (see login/page.tsx), so
+          // a JSON 429 would render as a bare JSON page. Bounce back to the
+          // form instead — 303 turns the POST into a GET.
+          if (rule.name === "login") {
+            return NextResponse.redirect(new URL("/app/login?error=rate-limit", req.url), 303);
+          }
           return NextResponse.json(
             { error: "Too many requests. Please try again later." },
             { status: 429, headers: { "Retry-After": String(result.retryAfterSeconds) } }
