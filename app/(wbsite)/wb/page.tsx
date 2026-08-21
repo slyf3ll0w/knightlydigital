@@ -3,16 +3,32 @@ import Image from "next/image";
 import Link from "next/link";
 import { AnimateIn } from "@/components/AnimateIn";
 import WBFaq from "@/components/wb/WBFaq";
+import WBPhoneShowcase from "@/components/wb/WBPhoneShowcase";
+import WBShowcase from "@/components/wb/WBShowcase";
 import {
   ArrowRight,
+  Bug,
   CalendarClock,
   CheckCircle2,
   ChevronRight,
   Compass,
   CreditCard,
+  Droplets,
+  Fan,
   FileText,
+  Hammer,
+  Home,
+  Leaf,
   PenLine,
+  Plug,
+  Smartphone,
+  Sparkles,
+  SprayCan,
   Users,
+  Warehouse,
+  Waves,
+  WifiOff,
+  Zap,
 } from "lucide-react";
 
 export const metadata: Metadata = {
@@ -32,6 +48,21 @@ const moreFeatures = [
   { label: "Review requests", href: "/features#clients" },
   { label: "Atlas AI", href: "/features#atlas" },
   { label: "iPhone app", href: "/features#mobile" },
+];
+
+const trades = [
+  { icon: Droplets, label: "Plumbing" },
+  { icon: Fan, label: "HVAC" },
+  { icon: Zap, label: "Electrical" },
+  { icon: Sparkles, label: "Cleaning" },
+  { icon: Leaf, label: "Lawn care" },
+  { icon: Home, label: "Roofing" },
+  { icon: Hammer, label: "Handyman" },
+  { icon: Bug, label: "Pest control" },
+  { icon: Waves, label: "Pool service" },
+  { icon: Plug, label: "Appliance repair" },
+  { icon: Warehouse, label: "Garage doors" },
+  { icon: SprayCan, label: "Pressure washing" },
 ];
 
 const atlasExamples = [
@@ -267,35 +298,46 @@ export default function WBHomePage() {
       </section>
 
       {/* ── Trades ticker ── */}
-      <section className="border-b border-gray-200 bg-white py-4">
-        <div className="wb-marquee">
+      <section className="bg-white py-8">
+        <p className="text-center text-[11.5px] font-bold uppercase tracking-[0.16em] text-gray-400">
+          Built for every trade
+        </p>
+        <div className="wb-marquee mt-5">
           <div className="wb-marquee-track">
             {[0, 1].map((dup) => (
-              <div key={dup} className="flex items-center" aria-hidden={dup === 1}>
-                {[
-                  "Plumbing",
-                  "HVAC",
-                  "Electrical",
-                  "Cleaning",
-                  "Lawn care",
-                  "Roofing",
-                  "Handyman",
-                  "Pest control",
-                  "Pool service",
-                  "Appliance repair",
-                  "Garage doors",
-                  "Pressure washing",
-                ].map((t, i) => (
-                  <span key={t} className="flex items-center">
-                    <span className="whitespace-nowrap text-[13.5px] font-bold tracking-wide text-gray-500">
-                      {t}
+              <div key={dup} className="flex items-center gap-3 pr-3" aria-hidden={dup === 1}>
+                {trades.map(({ icon: Icon, label }, i) => (
+                  <span
+                    key={label}
+                    className="flex items-center gap-2.5 whitespace-nowrap rounded-full bg-white py-2 pl-2.5 pr-4 ring-1 ring-inset ring-gray-200"
+                  >
+                    <span className={`flex h-7 w-7 items-center justify-center rounded-full ${i % 2 ? "bg-orange-50" : "bg-blue-50"}`}>
+                      <Icon className={`h-3.5 w-3.5 ${i % 2 ? "text-[#F86A0A]" : "text-[#0B57D8]"}`} strokeWidth={2.2} />
                     </span>
-                    <span className={`mx-8 h-1.5 w-1.5 rounded-full ${i % 2 ? "bg-[#F86A0A]/50" : "bg-[#0B57D8]/40"}`} />
+                    <span className="text-[13.5px] font-bold text-gray-700">{label}</span>
                   </span>
                 ))}
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* ── Product showcase ── */}
+      <section className="border-b border-gray-200 bg-white pb-20 pt-10 sm:pb-24">
+        <div className="mx-auto max-w-5xl px-5 sm:px-8">
+          <AnimateIn>
+            <h2 className="mx-auto max-w-2xl text-center text-3xl font-extrabold leading-tight sm:text-4xl">
+              A look inside
+            </h2>
+            <p className="mx-auto mt-4 max-w-xl text-center text-[15.5px] leading-relaxed text-gray-600">
+              Real screens from the app your team will live in — from the
+              morning dashboard to the paid invoice.
+            </p>
+          </AnimateIn>
+          <AnimateIn delay={130} className="mt-10">
+            <WBShowcase />
+          </AnimateIn>
         </div>
       </section>
 
@@ -498,6 +540,73 @@ export default function WBHomePage() {
             </div>
           </div>
         </AnimateIn>
+      </section>
+
+      {/* ── iPhone app ── */}
+      <section className="border-t border-gray-200 bg-white">
+        <div className="mx-auto grid max-w-6xl gap-12 px-5 py-20 sm:px-8 sm:py-24 lg:grid-cols-[1.15fr_1fr] lg:items-center lg:gap-16">
+          <AnimateIn>
+            <p className="text-[12px] font-bold uppercase tracking-[0.14em] text-[#F86A0A]">
+              WorkBench on iPhone
+            </p>
+            <h2 className="mt-3 text-3xl font-extrabold leading-tight sm:text-4xl">
+              The field runs from a pocket.
+            </h2>
+            <p className="mt-5 max-w-lg text-[15.5px] leading-relaxed text-gray-600">
+              The native iPhone app carries the whole system — schedule,
+              jobs, chat, invoices, Atlas — so techs never need a laptop
+              between the truck and the crawl space.
+            </p>
+            <ul className="mt-8 grid gap-5">
+              {[
+                {
+                  icon: Smartphone,
+                  title: "Push that matters",
+                  body: "New requests, bookings, chat messages, and payments land on the phone the moment they happen.",
+                },
+                {
+                  icon: WifiOff,
+                  title: "Works offline",
+                  body: "Today's schedule and job details stay viewable with no signal — basements and dead zones included.",
+                },
+                {
+                  icon: CalendarClock,
+                  title: "Field work, start to finish",
+                  body: "Clock in on the job, add photos and notes, message the office, and send the invoice before leaving the driveway.",
+                },
+              ].map(({ icon: Icon, title, body }, i) => (
+                <li key={title} className="flex gap-4">
+                  <div className={`flex h-10 w-10 flex-none items-center justify-center rounded-xl ${i === 1 ? "bg-blue-50" : "bg-orange-50"}`}>
+                    <Icon className={`h-[18px] w-[18px] ${i === 1 ? "text-[#0B57D8]" : "text-[#F86A0A]"}`} strokeWidth={2} />
+                  </div>
+                  <div>
+                    <p className="text-[15px] font-bold text-gray-900">{title}</p>
+                    <p className="mt-0.5 text-[14px] leading-relaxed text-gray-500">{body}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <a
+              href={APP_STORE_URL}
+              target="_blank"
+              rel="noopener"
+              aria-label="Download WorkBench on the App Store"
+              className="mt-8 inline-block transition-opacity hover:opacity-80"
+            >
+              <Image
+                src="/app-store-badge.svg"
+                alt="Download on the App Store"
+                width={120}
+                height={40}
+                unoptimized
+                className="h-[46px] w-auto"
+              />
+            </a>
+          </AnimateIn>
+          <AnimateIn delay={150}>
+            <WBPhoneShowcase />
+          </AnimateIn>
+        </div>
       </section>
 
       {/* ── Pricing teaser ── */}

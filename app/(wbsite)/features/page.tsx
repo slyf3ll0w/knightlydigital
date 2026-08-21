@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { AnimateIn } from "@/components/AnimateIn";
+import WBPhoneShowcase from "@/components/wb/WBPhoneShowcase";
 import {
   ArrowRight,
   Banknote,
@@ -381,25 +382,7 @@ export default function WBFeaturesPage() {
               for requests, bookings, chat, and payments — and the web app
               runs on anything with a browser.
             </p>
-            <a
-              href={APP_STORE_URL}
-              target="_blank"
-              rel="noopener"
-              aria-label="Download WorkBench on the App Store"
-              className="mt-6 inline-block transition-opacity hover:opacity-80"
-            >
-              <Image
-                src="/app-store-badge.svg"
-                alt="Download on the App Store"
-                width={120}
-                height={40}
-                unoptimized
-                className="h-[46px] w-auto"
-              />
-            </a>
-          </AnimateIn>
-          <AnimateIn delay={130}>
-            <ul className="grid gap-5">
+            <ul className="mt-8 grid gap-5">
               {[
                 {
                   icon: Smartphone,
@@ -428,6 +411,25 @@ export default function WBFeaturesPage() {
                 </li>
               ))}
             </ul>
+            <a
+              href={APP_STORE_URL}
+              target="_blank"
+              rel="noopener"
+              aria-label="Download WorkBench on the App Store"
+              className="mt-8 inline-block transition-opacity hover:opacity-80"
+            >
+              <Image
+                src="/app-store-badge.svg"
+                alt="Download on the App Store"
+                width={120}
+                height={40}
+                unoptimized
+                className="h-[46px] w-auto"
+              />
+            </a>
+          </AnimateIn>
+          <AnimateIn delay={130}>
+            <WBPhoneShowcase />
           </AnimateIn>
         </div>
       </section>
