@@ -98,7 +98,7 @@ export default function WBShowcase() {
           </span>
           <span className="w-[54px]" aria-hidden />
         </div>
-        <div className="relative aspect-[1460/812]">
+        <div className="relative aspect-[1512/791]">
           {slides.map((s, i) => (
             <Image
               key={s.key}
