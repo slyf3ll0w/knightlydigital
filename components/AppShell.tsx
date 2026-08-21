@@ -35,6 +35,7 @@ import {
   MessagesSquare,
   SquareKanban,
   Timer,
+  Command,
   X,
   Check,
   Loader2,
@@ -468,6 +469,20 @@ function UserMenu({
             Help &amp; Feedback
           </Link>
           <button
+            type="button"
+            onClick={() => {
+              setOpen(false);
+              window.dispatchEvent(new Event("wb:shortcuts"));
+            }}
+            className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            <Command size={14} className="text-gray-400" />
+            Keyboard shortcuts
+            <kbd className="ml-auto rounded border border-gray-200 bg-gray-50 px-1.5 py-px text-[10px] font-semibold text-gray-400">
+              ?
+            </kbd>
+          </button>
+          <button
             onClick={() => signOut({ callbackUrl: "/app/login" })}
             className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
           >
@@ -873,7 +888,246 @@ function CommandPalette({
           );
         })}
       </div>
+      {/* Desktop-only footer — the keys a pointer can't teach */}
+      <div className="hidden items-center gap-3.5 border-t border-gray-100 px-4 py-2 text-[11px] text-gray-400 lg:flex">
+        <span className="flex items-center gap-1">
+          <Kbd>↑↓</Kbd> navigate
+        </span>
+        <span className="flex items-center gap-1">
+          <Kbd>↵</Kbd> open
+        </span>
+        <button
+          type="button"
+          onClick={() => {
+            onClose();
+            window.dispatchEvent(new Event("wb:shortcuts"));
+          }}
+          className="ml-auto flex items-center gap-1 transition-colors hover:text-gray-600"
+        >
+          <Kbd>?</Kbd> all shortcuts
+        </button>
+      </div>
     </Modal>
+  );
+}
+
+// ── Keyboard shortcuts ──────────────────────────────────────────────────────
+// Linear/GitHub-style sequences: `g` then a letter jumps to a page, `n` then
+// a letter starts a record. Single keys: `/` opens the palette, `?` the cheat
+// sheet. Sequences arm for 1.6 seconds and never fire while a field has
+// focus, so typing a note can't teleport the page.
+type SeqShortcut = { key: string; href: string; label: string; show?: (role: string) => boolean };
+
+const goShortcuts: SeqShortcut[] = [
+  { key: "h", href: "/app/dashboard", label: "Home" },
+  { key: "s", href: "/app/schedule", label: "Schedule" },
+  { key: "c", href: "/app/contacts", label: "Clients", show: sellRoles },
+  { key: "q", href: "/app/quotes", label: "Quotes", show: sellRoles },
+  { key: "j", href: "/app/jobs", label: "Jobs" },
+  { key: "i", href: "/app/invoices", label: "Invoices", show: moneyRoles },
+  { key: "l", href: "/app/leads", label: "Leads", show: sellRoles },
+  { key: "r", href: "/app/requests", label: "Requests", show: sellRoles },
+  { key: "m", href: "/app/messages", label: "Messages", show: sellRoles },
+  { key: "a", href: "/app/appointments", label: "Appointments", show: sellRoles },
+  { key: "p", href: "/app/payments", label: "Payments", show: moneyRoles },
+  { key: "b", href: "/app/business", label: "Business", show: isManagerRole },
+  { key: "t", href: "/app/chat", label: "Team Chat" },
+  { key: "e", href: "/app/settings", label: "Settings", show: isManagerRole },
+];
+
+const newShortcuts: SeqShortcut[] = [
+  { key: "c", href: "/app/contacts/new", label: "New client", show: sellRoles },
+  { key: "l", href: "/app/contacts/new?type=lead", label: "New lead", show: sellRoles },
+  { key: "r", href: "/app/requests/new", label: "New request", show: sellRoles },
+  { key: "a", href: "/app/appointments/new", label: "New appointment", show: sellRoles },
+  { key: "q", href: "/app/quotes/new", label: "New quote", show: sellRoles },
+  { key: "g", href: "/app/contracts/new", label: "New agreement", show: sellRoles },
+  { key: "j", href: "/app/jobs/new", label: "New job", show: (r) => isManagerRole(r) || r === "USER" },
+  { key: "i", href: "/app/invoices/new", label: "New invoice", show: moneyRoles },
+  { key: "p", href: "/app/payments/new", label: "New payment", show: moneyRoles },
+];
+
+// Same preview-mode lock as CreateMenu: invoicing + payment recording wait
+// for approval, so their shortcuts do too.
+const seqFor = (list: SeqShortcut[], role: string, previewMode: boolean) =>
+  list.filter(
+    (s) =>
+      (!s.show || s.show(role)) &&
+      (!previewMode || (s.href !== "/app/invoices/new" && s.href !== "/app/payments/new"))
+  );
+
+function Kbd({ children }: { children: React.ReactNode }) {
+  return (
+    <kbd className="inline-flex h-5 min-w-5 items-center justify-center rounded border border-gray-200 bg-gray-50 px-1 font-sans text-[11px] font-semibold text-gray-500">
+      {children}
+    </kbd>
+  );
+}
+
+function ShortcutsHelp({
+  open,
+  onClose,
+  role,
+  previewMode,
+}: {
+  open: boolean;
+  onClose: () => void;
+  role: string;
+  previewMode: boolean;
+}) {
+  const [mac, setMac] = useState(false);
+  useEffect(() => {
+    setMac(/Mac|iPhone|iPad/.test(navigator.platform));
+  }, []);
+  const go = seqFor(goShortcuts, role, false);
+  const creates = seqFor(newShortcuts, role, previewMode);
+  const row = (label: string, keys: React.ReactNode) => (
+    <div key={label} className="flex items-center justify-between gap-4 py-[5px] text-[13px] text-gray-700">
+      <span className="min-w-0 truncate">{label}</span>
+      <span className="flex shrink-0 items-center gap-1 text-[10px] text-gray-400">{keys}</span>
+    </div>
+  );
+  const seqKeys = (prefix: string, key: string) => (
+    <>
+      <Kbd>{prefix}</Kbd>
+      <span>then</span>
+      <Kbd>{key}</Kbd>
+    </>
+  );
+  const heading = (label: string) => (
+    <p className="pb-1 pt-4 text-[10.5px] font-semibold uppercase tracking-[0.12em] text-gray-400 first:pt-0">
+      {label}
+    </p>
+  );
+  return (
+    <Modal open={open} onClose={onClose} cardClassName="card-ledger w-full max-w-xl p-0 overflow-hidden">
+      <div className="flex items-center justify-between border-b border-gray-100 px-5 py-3.5">
+        <h2 className="font-display text-[15px] font-semibold text-gray-900">Keyboard shortcuts</h2>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close"
+          className="rounded-md p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+        >
+          <X size={16} />
+        </button>
+      </div>
+      <div className="grid max-h-[65vh] gap-x-10 overflow-y-auto px-5 py-4 sm:grid-cols-2">
+        <div>
+          {heading("Go to")}
+          {go.map((s) => row(s.label, seqKeys("g", s.key)))}
+        </div>
+        <div>
+          {heading("General")}
+          {row("Command palette", (
+            <>
+              <Kbd>{mac ? "⌘" : "Ctrl"}</Kbd>
+              <Kbd>K</Kbd>
+            </>
+          ))}
+          {row("Search & jump", <Kbd>/</Kbd>)}
+          {row("This cheat sheet", <Kbd>?</Kbd>)}
+          {heading("Create")}
+          {creates.map((s) => row(s.label, seqKeys("n", s.key)))}
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+function KeyboardShortcuts({
+  role,
+  previewMode,
+  openPalette,
+}: {
+  role: string;
+  previewMode: boolean;
+  openPalette: () => void;
+}) {
+  const router = useRouter();
+  const [helpOpen, setHelpOpen] = useState(false);
+  // Armed prefix (g/n) — ref for the handler, state for the pending chip
+  const [pending, setPending] = useState<"g" | "n" | null>(null);
+  const pendingRef = useRef<"g" | "n" | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    const arm = (mode: "g" | "n" | null) => {
+      pendingRef.current = mode;
+      setPending(mode);
+      if (timerRef.current) clearTimeout(timerRef.current);
+      if (mode)
+        timerRef.current = setTimeout(() => {
+          pendingRef.current = null;
+          setPending(null);
+        }, 1600);
+    };
+    const openHelp = () => setHelpOpen(true);
+    window.addEventListener("wb:shortcuts", openHelp);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey || e.defaultPrevented) return;
+      const el = document.activeElement as HTMLElement | null;
+      if (
+        el &&
+        (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT" || el.isContentEditable)
+      ) {
+        if (pendingRef.current) arm(null);
+        return;
+      }
+      const k = e.key.toLowerCase();
+      const mode = pendingRef.current;
+      if (mode) {
+        arm(null);
+        const hit = seqFor(mode === "g" ? goShortcuts : newShortcuts, role, previewMode).find(
+          (s) => s.key === k
+        );
+        if (hit) {
+          e.preventDefault();
+          router.push(hit.href);
+          return;
+        }
+        // no match — fall through so the key can start a fresh sequence
+      }
+      if (k === "g") return arm("g");
+      if (k === "n") return arm("n");
+      if (e.key === "/") {
+        e.preventDefault();
+        openPalette();
+        return;
+      }
+      if (e.key === "?") {
+        e.preventDefault();
+        setHelpOpen((v) => !v);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("wb:shortcuts", openHelp);
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [role, previewMode]);
+
+  return (
+    <>
+      {/* Armed-sequence chip — quiet feedback that the next key completes a
+          shortcut. Desktop only; theme-fixed so it never inverts. */}
+      {pending && !helpOpen && (
+        <div className="theme-fixed pointer-events-none fixed bottom-5 left-1/2 z-[60] hidden -translate-x-1/2 items-center gap-2 rounded-full bg-gray-900 py-1.5 pl-2 pr-3.5 text-xs font-medium text-white shadow-lg lg:flex">
+          <kbd className="flex h-5 min-w-5 items-center justify-center rounded bg-white/15 px-1 font-sans text-[11px] font-semibold">
+            {pending}
+          </kbd>
+          {pending === "g" ? "Go to…" : "Create…"}
+        </div>
+      )}
+      <ShortcutsHelp
+        open={helpOpen}
+        onClose={() => setHelpOpen(false)}
+        role={role}
+        previewMode={previewMode}
+      />
+    </>
   );
 }
 
@@ -1672,6 +1926,13 @@ export default function AppShell({
 
       {/* ⌘K palette */}
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} role={userRole} />
+
+      {/* g/n sequences, `/`, and the `?` cheat sheet */}
+      <KeyboardShortcuts
+        role={userRole}
+        previewMode={previewMode}
+        openPalette={() => setPaletteOpen(true)}
+      />
 
       {/* Mobile confirm sheet — imperative host for confirmSheet() */}
       <ConfirmSheetHost />
