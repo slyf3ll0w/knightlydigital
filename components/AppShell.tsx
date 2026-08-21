@@ -396,7 +396,7 @@ function CreateMenu({ role, previewMode }: { role: string; previewMode?: boolean
           {items.map(({ href, label, icon: Icon }, i) => (
             <Link
               key={href}
-              href={href}
+              href={withCreateContext(href, pathname)}
               onClick={() => setOpen(false)}
               style={{ animationDelay: `${i * 25}ms` }}
               className="anim-create-item flex items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50"
@@ -715,12 +715,40 @@ function CompanySwitcherSheet({ open, onClose }: { open: boolean; onClose: () =>
   );
 }
 
+// ── Context-aware create ────────────────────────────────────────────────────
+// Standing on a record when you create carries that record into the form —
+// press `n q` (or use the Create menu / palette) on a client's page and the
+// new quote opens with that client already selected. The new-record pages
+// already accept these params; this just fills them in from the URL you're on.
+const CONTACT_PREFILL = new Set([
+  "/app/quotes/new",
+  "/app/jobs/new",
+  "/app/invoices/new",
+  "/app/appointments/new",
+  "/app/requests/new",
+  "/app/payments/new",
+]);
+
+function withCreateContext(href: string, pathname: string): string {
+  let m = /^\/app\/(?:contacts|messages\/thread)\/([a-z0-9]+)/i.exec(pathname);
+  if (m && m[1] !== "new" && CONTACT_PREFILL.has(href)) return `${href}?contactId=${m[1]}`;
+  m = /^\/app\/jobs\/([a-z0-9]+)/i.exec(pathname);
+  if (m && m[1] !== "new" && href === "/app/invoices/new") return `${href}?jobId=${m[1]}`;
+  return href;
+}
+
 /**
  * ⌘K / Ctrl+K palette — search real records (clients / jobs / quotes /
  * invoices via /api/app/search, role-scoped like the list pages), jump
  * anywhere, or create anything. Nav/create rows come from the same lists
  * the rail uses so they can't drift from the real IA. Rides the Modal
  * primitive (top-aligned card on desktop, sheet on phones).
+ *
+ * Two task layers on top of jump-to: an empty query shows Recent records
+ * (your latest palette picks + the records most recently touched
+ * server-side), and Tab on a client/job row drills into ACTIONS for that
+ * record — create links with the id prefilled, so "quote for Sarah" ends in
+ * a filled-out form.
  */
 const HIT_ICONS: Record<string, typeof Home> = {
   Clients: Users,
@@ -733,30 +761,66 @@ function CommandPalette({
   open,
   onClose,
   role,
+  previewMode,
+  userId,
 }: {
   open: boolean;
   onClose: () => void;
   role: string;
+  previewMode: boolean;
+  userId?: string | null;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [query, setQuery] = useState("");
   const [idx, setIdx] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
   type Hit = { href: string; label: string; sub: string; group: string };
+  type DrillTarget = { href: string; label: string; sub?: string; group: string };
   const [hits, setHits] = useState<Hit[]>([]);
   const [searching, setSearching] = useState(false);
   const seqRef = useRef(0);
+
+  // Empty-palette "Recent" rows + the drilled-into record (Tab on a row)
+  const [recents, setRecents] = useState<DrillTarget[]>([]);
+  const [drill, setDrill] = useState<DrillTarget | null>(null);
+  const pickKey = `wb-palette-recent:${userId ?? "shared"}`;
 
   useEffect(() => {
     if (open) {
       setQuery("");
       setHits([]);
       setIdx(0);
+      setDrill(null);
+      // Recents: your latest palette picks lead (recently VIEWED), the
+      // server's recently-updated records fill the rest (recently WORKED).
+      let picks: DrillTarget[] = [];
+      try {
+        picks = JSON.parse(localStorage.getItem(pickKey) ?? "[]");
+      } catch {
+        // storage blocked — the server list still fills in
+      }
+      setRecents(picks.slice(0, 8));
+      let cancelled = false;
+      fetch("/api/app/search?recent=1")
+        .then((r) => (r.ok ? r.json() : { results: [] }))
+        .then((d) => {
+          if (cancelled) return;
+          const server: DrillTarget[] = Array.isArray(d.results) ? d.results : [];
+          setRecents((local) =>
+            [...local, ...server.filter((s) => !local.some((l) => l.href === s.href))].slice(0, 8)
+          );
+        })
+        .catch(() => {});
       // focus once the entrance has started painting
       const t = setTimeout(() => inputRef.current?.focus(), 40);
-      return () => clearTimeout(t);
+      return () => {
+        cancelled = true;
+        clearTimeout(t);
+      };
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   // Live record search, debounced a beat behind typing. Stale responses are
@@ -788,7 +852,36 @@ function CommandPalette({
 
   const q = query.trim().toLowerCase();
   const manager = isManagerRole(role);
-  type Row = { href: string; label: string; icon: typeof Home; group: string; sub?: string };
+  type Row = { href: string; label: string; icon: typeof Home; group: string; sub?: string; tag?: string };
+
+  // Record actions — what Tab drills into. Create links carry the record's
+  // id, so the form opens already pointed at the right person/job.
+  const recordActions = (rec: DrillTarget): Row[] => {
+    const id = rec.href.split("/").pop() ?? "";
+    const money = moneyRoles(role) && !previewMode;
+    if (rec.group === "Clients") {
+      const acts = [
+        { href: rec.href, label: `Open ${rec.label}`, icon: Users, ok: true },
+        { href: `/app/quotes/new?contactId=${id}`, label: "New quote", icon: FileText, ok: sellRoles(role) },
+        { href: `/app/jobs/new?contactId=${id}`, label: "New job", icon: Briefcase, ok: manager || role === "USER" },
+        { href: `/app/invoices/new?contactId=${id}`, label: "New invoice", icon: Receipt, ok: money },
+        { href: `/app/appointments/new?contactId=${id}`, label: "New appointment", icon: CalendarClock, ok: sellRoles(role) },
+        { href: `/app/payments/new?contactId=${id}`, label: "Record payment", icon: DollarSign, ok: money },
+        { href: `/app/messages/thread/${id}`, label: "Message", icon: MessageSquare, ok: sellRoles(role) },
+      ];
+      return acts.filter((a) => a.ok).map(({ ok: _ok, ...r }) => ({ ...r, group: "Client" }));
+    }
+    if (rec.group === "Jobs") {
+      const acts = [
+        { href: rec.href, label: `Open ${rec.label}`, icon: Briefcase, ok: true },
+        { href: `/app/invoices/new?jobId=${id}`, label: "Invoice this job", icon: Receipt, ok: money },
+      ];
+      return acts.filter((a) => a.ok).map(({ ok: _ok, ...r }) => ({ ...r, group: "Job" }));
+    }
+    return [];
+  };
+  const hasActions = (row: { href: string; label: string; group: string }) =>
+    (row.group === "Clients" || row.group === "Jobs") && recordActions(row).length > 1;
   const destinations: Row[] = [
     ...forRole(railDrivers, role),
     ...railGroups.flatMap((g) => forRole(g.items, role)),
@@ -796,33 +889,65 @@ function CommandPalette({
     ...(manager ? [{ href: "/app/settings", label: "Settings", icon: Settings }] : []),
     { href: "/app/settings/profile", label: "My Profile", icon: CircleUserRound },
   ].map((d) => ({ ...d, group: "Go to" }));
-  const creates: Row[] = forRole(createItems, role).map((c) => ({
-    href: c.href,
-    icon: c.icon,
-    label: `New ${c.label.toLowerCase()}`,
-    group: "Create",
-  }));
-  const rows: Row[] = [
-    // Record hits lead — they're what the query was really about
-    ...hits.map((h) => ({ ...h, icon: HIT_ICONS[h.group] ?? Search })),
-    ...destinations.filter((d) => !q || d.label.toLowerCase().includes(q)),
-    ...creates.filter((c) => !q || c.label.toLowerCase().includes(q)),
-    ...(q && sellRoles(role)
-      ? [
-          {
-            href: `/app/contacts?q=${encodeURIComponent(query.trim())}`,
-            label: `Search all clients for “${query.trim()}”`,
-            icon: Search,
-            group: "Search",
-          },
-        ]
-      : []),
-  ];
+  const creates: Row[] = forRole(createItems, role)
+    // Same preview-mode lock as CreateMenu — no dead doors pre-approval
+    .filter((c) => !previewMode || (c.href !== "/app/invoices/new" && c.href !== "/app/payments/new"))
+    .map((c) => ({
+      href: withCreateContext(c.href, pathname),
+      icon: c.icon,
+      label: `New ${c.label.toLowerCase()}`,
+      group: "Create",
+    }));
+  const rows: Row[] = drill
+    ? recordActions(drill)
+    : [
+        // Empty palette: pick up where you left off
+        ...(q ? [] : recents.map((h) => ({ ...h, icon: HIT_ICONS[h.group] ?? Search, tag: "Recent" }))),
+        // Record hits lead — they're what the query was really about
+        ...hits.map((h) => ({ ...h, icon: HIT_ICONS[h.group] ?? Search })),
+        ...destinations.filter((d) => !q || d.label.toLowerCase().includes(q)),
+        ...creates.filter((c) => !q || c.label.toLowerCase().includes(q)),
+        ...(q && sellRoles(role)
+          ? [
+              {
+                href: `/app/contacts?q=${encodeURIComponent(query.trim())}`,
+                label: `Search all clients for “${query.trim()}”`,
+                icon: Search,
+                group: "Search",
+              },
+            ]
+          : []),
+      ];
   const active = Math.min(idx, Math.max(0, rows.length - 1));
 
+  // Picking a record remembers it for the empty palette's Recent list
+  const savePick = (row: { href: string; label: string; sub?: string; group: string }) => {
+    if (!["Clients", "Jobs", "Quotes", "Invoices"].includes(row.group)) return;
+    try {
+      const entry = { href: row.href, label: row.label, sub: row.sub ?? "", group: row.group };
+      const prev: DrillTarget[] = JSON.parse(localStorage.getItem(pickKey) ?? "[]");
+      localStorage.setItem(
+        pickKey,
+        JSON.stringify([entry, ...prev.filter((p) => p.href !== entry.href)].slice(0, 8))
+      );
+    } catch {
+      // storage blocked — recents just lean on the server list
+    }
+  };
+
   const go = (row: Row) => {
+    savePick(drill && row.href === drill.href ? drill : row);
     onClose();
     router.push(row.href);
+  };
+
+  const enterDrill = (row: DrillTarget) => {
+    setDrill(row);
+    setIdx(0);
+  };
+  const exitDrill = () => {
+    setDrill(null);
+    setIdx(0);
   };
 
   const onKey = (e: React.KeyboardEvent) => {
@@ -832,6 +957,15 @@ function CommandPalette({
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       setIdx((v) => Math.max(v - 1, 0));
+    } else if (e.key === "Tab") {
+      // Tab never leaves the input — it drills into the active row's actions
+      e.preventDefault();
+      if (!drill && rows[active] && hasActions(rows[active])) enterDrill(rows[active]);
+    } else if (drill && (e.key === "Escape" || e.key === "Backspace" || e.key === "ArrowLeft")) {
+      // Escape backs out of the drill instead of closing the palette
+      e.preventDefault();
+      e.stopPropagation();
+      exitDrill();
     } else if (e.key === "Enter" && rows[active]) {
       e.preventDefault();
       go(rows[active]);
@@ -849,16 +983,29 @@ function CommandPalette({
         <input
           ref={inputRef}
           value={query}
+          readOnly={!!drill}
           onChange={(e) => {
             setQuery(e.target.value);
             setIdx(0);
           }}
           onKeyDown={onKey}
           placeholder="Search or jump to…"
-          className="w-full bg-transparent py-3 text-[15px] text-gray-900 placeholder:text-gray-400 focus:outline-none"
+          className={`w-full bg-transparent py-3 text-[15px] text-gray-900 placeholder:text-gray-400 focus:outline-none ${
+            drill ? "opacity-40" : ""
+          }`}
         />
       </div>
       <div className="max-h-[50vh] overflow-y-auto py-1.5">
+        {drill && (
+          <button
+            type="button"
+            onClick={exitDrill}
+            className="flex w-full items-center gap-1 px-3 pb-1 pt-1.5 text-xs font-semibold text-gray-400 transition-colors hover:text-gray-600"
+          >
+            <ChevronLeft size={13} />
+            <span className="min-w-0 truncate">{drill.label}</span>
+          </button>
+        )}
         {rows.length === 0 && (
           <p className="px-4 py-6 text-center text-sm text-gray-400">
             {searching ? "Searching…" : "Nothing matches"}
@@ -883,7 +1030,23 @@ function CommandPalette({
                   {row.sub}
                 </span>
               )}
-              <span className="ml-auto shrink-0 pl-2 text-[11px] text-gray-300">{row.group}</span>
+              <span className="ml-auto shrink-0 pl-2 text-[11px] text-gray-300">
+                {row.tag ?? row.group}
+              </span>
+              {!drill && hasActions(row) && (
+                <span
+                  role="button"
+                  tabIndex={-1}
+                  aria-label={`Actions for ${row.label}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    enterDrill(row);
+                  }}
+                  className="-mr-1.5 shrink-0 rounded p-1 text-gray-300 transition-colors hover:bg-gray-200 hover:text-gray-500"
+                >
+                  <ChevronRight size={14} />
+                </span>
+              )}
             </button>
           );
         })}
@@ -896,6 +1059,15 @@ function CommandPalette({
         <span className="flex items-center gap-1">
           <Kbd>↵</Kbd> open
         </span>
+        {drill ? (
+          <span className="flex items-center gap-1">
+            <Kbd>⌫</Kbd> back
+          </span>
+        ) : (
+          <span className="flex items-center gap-1">
+            <Kbd>tab</Kbd> actions
+          </span>
+        )}
         <button
           type="button"
           onClick={() => {
@@ -1045,6 +1217,7 @@ function KeyboardShortcuts({
   openPalette: () => void;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [helpOpen, setHelpOpen] = useState(false);
   // Armed prefix (g/n) — ref for the handler, state for the pending chip
   const [pending, setPending] = useState<"g" | "n" | null>(null);
@@ -1083,7 +1256,8 @@ function KeyboardShortcuts({
         );
         if (hit) {
           e.preventDefault();
-          router.push(hit.href);
+          // `n` creates carry the record you're standing on into the form
+          router.push(mode === "n" ? withCreateContext(hit.href, pathname) : hit.href);
           return;
         }
         // no match — fall through so the key can start a fresh sequence
@@ -1107,7 +1281,7 @@ function KeyboardShortcuts({
       if (timerRef.current) clearTimeout(timerRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [role, previewMode]);
+  }, [role, previewMode, pathname]);
 
   return (
     <>
@@ -1925,7 +2099,13 @@ export default function AppShell({
       </div>
 
       {/* ⌘K palette */}
-      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} role={userRole} />
+      <CommandPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        role={userRole}
+        previewMode={previewMode}
+        userId={userId}
+      />
 
       {/* g/n sequences, `/`, and the `?` cheat sheet */}
       <KeyboardShortcuts
