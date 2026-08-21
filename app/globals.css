@@ -1116,8 +1116,16 @@ html[data-mode="dark"] .app-ui .card-tool {
    believable hinge, with a decaying two-to-three-phase settle so the object
    feels like it has weight. Nothing is held mid-transform and nothing just
    zooms — those read as glitches, not gestures. Mapped per row in AppShell
-   via data-anim; anything unmapped keeps the 1.5px lean above. These
-   out-rank the lean on specificity, so no exclusions needed. ── */
+   via data-anim; anything unmapped keeps the 1.5px lean above. ── */
+
+/* A glyph with a verb doesn't ALSO lean: the lean's held translateX was
+   surfacing the moment a one-shot gesture finished, reading as a slide-right
+   afterglow. The gesture is the hover feedback; when it ends, the icon rests
+   where it started — like the bell. (Same specificity as the turn/cycle
+   rules below, so source order lets their held rotations win.) */
+.rail-gray a:hover > svg[data-anim] {
+  transform: none;
+}
 
 /* Gear-class verbs: smooth two-way turns — ease in on hover, ease back out
    on leave (the reversibility is most of why the gear feels engineered). */
