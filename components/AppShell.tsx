@@ -220,30 +220,32 @@ const railGroups: { key: string; label: string; items: NavItem[] }[] = [
   },
 ];
 
-// Every rail icon owns a tiny mechanical verb on hover — the gear turns, the
-// calendar flips its page, the briefcase gets picked up, the tag swings on its
-// string. Gestures live in globals.css keyed by data-anim; anything unmapped
-// keeps the default 1.5px lean.
+// Every rail icon performs its real-world verb on hover — the gear turns,
+// the calendar flips its page, the briefcase gets picked up, the tag swings
+// on its string. Gestures live in globals.css keyed by data-anim, all tuned
+// to the bell/gear standard (anchored pivots, decaying settle); anything
+// unmapped keeps the default 1.5px lean.
 const railAnims: Record<string, string> = {
-  "/app/dashboard": "rise",
+  "/app/dashboard": "hop",
   "/app/schedule": "flip",
-  "/app/contacts": "pop",
-  "/app/quotes": "tilt",
-  "/app/jobs": "bob",
-  "/app/invoices": "tilt",
+  "/app/contacts": "spring",
+  "/app/quotes": "sheet",
+  "/app/jobs": "lift",
+  "/app/invoices": "sheet",
   "/app/leads": "shuffle",
   "/app/requests": "drop",
-  "/app/messages": "wiggle",
+  "/app/messages": "perk",
   "/app/appointments": "flip",
-  "/app/contracts": "tilt",
+  "/app/schedule/map": "shuffle",
+  "/app/contracts": "sheet",
   "/app/timesheets": "tick",
-  "/app/payments": "pulse",
+  "/app/payments": "spring",
   "/app/subscriptions": "cycle",
-  "/app/business": "rise",
+  "/app/business": "grow",
   "/app/settings/products": "swing",
-  "/app/settings/contracts": "tilt",
-  "/app/settings/booking": "pop",
-  "/app/settings/team": "pop",
+  "/app/settings/contracts": "sheet",
+  "/app/settings/booking": "spring",
+  "/app/settings/team": "spring",
   "/app/settings": "turn",
 };
 

@@ -1111,89 +1111,142 @@ html[data-mode="dark"] .app-ui .card-tool {
   transform: translateX(1.5px);
 }
 
-/* ── Rail icon gestures — every glyph owns a tiny mechanical verb on hover:
-   the gear turns, the calendar flips its page, the briefcase gets picked
-   up, the price tag swings on its string. Mapped per row in AppShell via
-   data-anim; anything unmapped keeps the 1.5px lean above. These out-rank
-   the lean on specificity, so no exclusions needed. ── */
+/* ── Rail icon gestures — every glyph performs its real-world verb on
+   hover, tuned to the bell/gear standard: rotation or scale anchored at a
+   believable hinge, with a decaying two-to-three-phase settle so the object
+   feels like it has weight. Nothing is held mid-transform and nothing just
+   zooms — those read as glitches, not gestures. Mapped per row in AppShell
+   via data-anim; anything unmapped keeps the 1.5px lean above. These
+   out-rank the lean on specificity, so no exclusions needed. ── */
+
+/* Gear-class verbs: smooth two-way turns — ease in on hover, ease back out
+   on leave (the reversibility is most of why the gear feels engineered). */
+.rail-gray a > svg[data-anim="turn"],
+.rail-gray a > svg[data-anim="cycle"] {
+  transition:
+    transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    color 0.15s ease;
+}
 .rail-gray a:hover > svg[data-anim="turn"] {
   transform: rotate(80deg);
 }
 .rail-gray a:hover > svg[data-anim="cycle"] {
   transform: rotate(180deg);
 }
-.rail-gray a:hover > svg[data-anim="rise"] {
-  transform: translateY(-1.5px) scale(1.06);
-}
-.rail-gray a:hover > svg[data-anim="pop"] {
-  transform: scale(1.14);
-}
-.rail-gray a:hover > svg[data-anim="tilt"] {
-  transform: rotate(-8deg);
+
+/* Bell-class verbs: one-shot decaying physics at a physical pivot */
+.rail-gray a:hover > svg[data-anim="hop"] {
+  animation: railHop 0.55s cubic-bezier(0.22, 1, 0.36, 1);
 }
 .rail-gray a:hover > svg[data-anim="flip"] {
-  animation: railFlip 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+  transform-origin: 50% 8%;
+  animation: railFlip 0.6s cubic-bezier(0.22, 1, 0.36, 1);
 }
-.rail-gray a:hover > svg[data-anim="bob"] {
-  animation: railBob 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+.rail-gray a:hover > svg[data-anim="lift"] {
+  animation: railLift 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
-.rail-gray a:hover > svg[data-anim="drop"] {
-  animation: railDrop 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+.rail-gray a:hover > svg[data-anim="sheet"] {
+  animation: railSheet 0.6s cubic-bezier(0.22, 1, 0.36, 1);
 }
-.rail-gray a:hover > svg[data-anim="wiggle"] {
-  animation: railWiggle 0.5s ease-in-out;
-}
-.rail-gray a:hover > svg[data-anim="pulse"] {
-  animation: railPulse 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-.rail-gray a:hover > svg[data-anim="tick"] {
-  animation: railTick 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+.rail-gray a:hover > svg[data-anim="spring"] {
+  animation: railSpring 0.55s cubic-bezier(0.22, 1, 0.36, 1);
 }
 .rail-gray a:hover > svg[data-anim="shuffle"] {
-  animation: railShuffle 0.45s ease-in-out;
+  animation: railShuffle 0.6s ease-in-out;
+}
+.rail-gray a:hover > svg[data-anim="drop"] {
+  animation: railDrop 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.rail-gray a:hover > svg[data-anim="perk"] {
+  transform-origin: 20% 85%; /* the bubble's tail — it perks up from there */
+  animation: railPerk 0.65s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.rail-gray a:hover > svg[data-anim="tick"] {
+  animation: railTick 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 .rail-gray a:hover > svg[data-anim="swing"] {
-  transform-origin: 50% 10%;
-  animation: railSwing 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transform-origin: 25% 15%; /* the tag's string hole */
+  animation: railSwing 0.65s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
+.rail-gray a:hover > svg[data-anim="grow"] {
+  transform-origin: 50% 100%; /* bars grow up from the baseline */
+  animation: railGrow 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* The house hops once and lands */
+@keyframes railHop {
+  0%, 100% { transform: none; }
+  30% { transform: translateY(-3px); }
+  65% { transform: translateY(0.5px); }
+}
+/* The calendar's page lifts, overturns a touch, lies flat */
 @keyframes railFlip {
-  0% { transform: none; }
-  45% { transform: perspective(120px) rotateX(-32deg); }
-  100% { transform: none; }
-}
-@keyframes railBob {
-  0% { transform: none; }
-  40% { transform: translateY(-2.5px) rotate(-3deg); }
-  100% { transform: none; }
-}
-@keyframes railDrop {
-  0% { transform: none; }
-  40% { transform: translateY(2px); }
-  100% { transform: none; }
-}
-@keyframes railWiggle {
   0%, 100% { transform: none; }
-  25% { transform: rotate(8deg); }
-  60% { transform: rotate(-6deg); }
+  35% { transform: perspective(160px) rotateX(-42deg); }
+  70% { transform: perspective(160px) rotateX(7deg); }
 }
-@keyframes railPulse {
+/* The briefcase is picked up by the handle and set back down */
+@keyframes railLift {
   0%, 100% { transform: none; }
-  45% { transform: scale(1.18); }
+  30% { transform: translateY(-3px) rotate(-5deg); }
+  60% { transform: translateY(-0.5px) rotate(2.5deg); }
+  85% { transform: rotate(-1deg); }
 }
-@keyframes railTick {
+/* The sheet is picked off the stack and laid back square */
+@keyframes railSheet {
   0%, 100% { transform: none; }
-  30% { transform: rotate(18deg); }
-  65% { transform: rotate(-7deg); }
+  30% { transform: translateY(-2.5px) rotate(-6deg); }
+  62% { transform: translateY(-0.5px) rotate(2deg); }
+  85% { transform: rotate(-0.5deg); }
 }
+/* A coin-press: swells, recoils, settles — scale with spring decay */
+@keyframes railSpring {
+  0%, 100% { transform: none; }
+  35% { transform: scale(1.16); }
+  60% { transform: scale(0.97); }
+  80% { transform: scale(1.05); }
+}
+/* Cards shuffle: a lateral weave with a counter-roll, dying out */
 @keyframes railShuffle {
   0%, 100% { transform: none; }
-  30% { transform: translateX(-1.5px); }
-  70% { transform: translateX(1.5px); }
+  22% { transform: translateX(-2.5px) rotate(-3deg); }
+  52% { transform: translateX(2.5px) rotate(3deg); }
+  78% { transform: translateX(-1px) rotate(-1deg); }
 }
+/* The inbox takes the weight of a delivery, then rides back up */
+@keyframes railDrop {
+  0%, 100% { transform: none; }
+  30% { transform: translateY(3px); }
+  62% { transform: translateY(-1.25px); }
+  85% { transform: translateY(0.5px); }
+}
+/* The speech bubble perks up on its tail — bellSwing's little sibling */
+@keyframes railPerk {
+  0%, 100% { transform: none; }
+  20% { transform: rotate(10deg); }
+  48% { transform: rotate(-7deg); }
+  72% { transform: rotate(3.5deg); }
+}
+/* The timer is wound: a firm twist, recoil, rest */
+@keyframes railTick {
+  0%, 100% { transform: none; }
+  25% { transform: rotate(17deg); }
+  55% { transform: rotate(-8deg); }
+  80% { transform: rotate(3deg); }
+}
+/* The price tag swings on its string, decaying like the bell */
 @keyframes railSwing {
   0%, 100% { transform: none; }
-  30% { transform: rotate(14deg); }
-  65% { transform: rotate(-8deg); }
+  25% { transform: rotate(13deg); }
+  55% { transform: rotate(-9deg); }
+  80% { transform: rotate(4deg); }
+}
+/* The chart's bars stretch up and settle at their new close */
+@keyframes railGrow {
+  0%, 100% { transform: none; }
+  35% { transform: scaleY(1.18); }
+  65% { transform: scaleY(0.96); }
+  85% { transform: scaleY(1.04); }
 }
 
 /* The active row's icon is LIT like the bar beside it — a soft cast of its
@@ -1463,6 +1516,10 @@ html[data-mode="dark"] .app-ui .card-tool {
   .rail-gray nav a:hover > svg,
   .rail-gray > div > a:hover > svg {
     transform: none;
+  }
+  .rail-gray a > svg[data-anim="turn"],
+  .rail-gray a > svg[data-anim="cycle"] {
+    transition: none;
   }
   .rail-gray a:hover > svg[data-anim],
   .bell-swing:hover > svg,
