@@ -73,6 +73,17 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // A session that resolves to no usable account (user deleted from the
+  // superadmin console, or a legacy row that can't own one) rendered the
+  // attach-mode form, which never collects name/email/password — say what's
+  // actually wrong instead of "all fields required".
+  if (session?.user?.id && !account) {
+    return NextResponse.json(
+      { error: "Your session is no longer valid. Please sign out, then try again." },
+      { status: 401 }
+    );
+  }
+
   if (!companyName || (!account && (!yourName || !email || !password))) {
     return NextResponse.json({ error: "All required fields must be filled." }, { status: 400 });
   }

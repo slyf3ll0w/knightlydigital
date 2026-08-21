@@ -46,9 +46,9 @@ export const assignableRoles: Role[] = ["OWNER", "ADMIN", "USER", "SALES", "TECH
  * and platform suspension must be enforced from the DB. Every /api/app route
  * and platform page goes through this — one indexed lookup per request.
  */
-async function loadActor(): Promise<{ actor: Actor | null; suspended: boolean }> {
+async function loadActor(): Promise<{ actor: Actor | null; suspended: boolean; stale: boolean }> {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.id) return { actor: null, suspended: false };
+  if (!session?.user?.id) return { actor: null, suspended: false, stale: false };
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
     select: {
@@ -60,7 +60,10 @@ async function loadActor(): Promise<{ actor: Actor | null; suspended: boolean }>
       company: { select: { salesSeePayments: true, suspendedAt: true } },
     },
   });
-  if (!user || !user.isActive || !user.companyId) return { actor: null, suspended: false };
+  // stale = the JWT points at a User that no longer exists (deleted from the
+  // superadmin console) — the cookie itself is the problem, not the account.
+  if (!user) return { actor: null, suspended: false, stale: true };
+  if (!user.isActive || !user.companyId) return { actor: null, suspended: false, stale: false };
   return {
     actor: {
       id: user.id,
@@ -70,6 +73,7 @@ async function loadActor(): Promise<{ actor: Actor | null; suspended: boolean }>
       salesSeePayments: user.company?.salesSeePayments ?? true,
     },
     suspended: Boolean(user.company?.suspendedAt),
+    stale: false,
   };
 }
 
@@ -85,8 +89,11 @@ export async function getActor(): Promise<Actor | null> {
  * suspended companies land on the contact-support page.
  */
 export async function requirePageActor(allowed?: (a: Actor) => boolean): Promise<Actor> {
-  const { actor, suspended } = await loadActor();
+  const { actor, suspended, stale } = await loadActor();
   if (suspended) redirect("/app/suspended");
+  // A deleted user's session can't be fixed by register (attach mode hides
+  // the fields the server would demand) — clear the dead cookie instead.
+  if (stale) redirect("/api/app/session-reset");
   if (!actor) {
     const session = await getServerSession(authOptions);
     redirect(session ? "/app/register" : "/app/login");
