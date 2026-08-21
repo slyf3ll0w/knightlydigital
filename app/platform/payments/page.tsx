@@ -235,7 +235,7 @@ export default async function PaymentsDashboardPage({
   const pageTotal = payments.reduce((s, p) => s + Number(p.amount), 0);
 
   // Dispute debits make settlement nets negative; "$-8,888.88" reads badly
-  const signedMoney = (v: number) => (v < 0 ? `−${money(-v)}` : money(v));
+  const signedMoney = money; // money() signs negatives itself now
 
   // A settlement's real-world position, funding transfers beating raw status.
   // Tones match StatusChip's dot-stamp language (see .stamp in globals.css).

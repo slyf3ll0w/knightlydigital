@@ -35,7 +35,7 @@ export default async function PortalLoginPage({
   const headerText = textOn(headerBg);
 
   return (
-    <div className="app-ui min-h-screen bg-paper flex flex-col">
+    <div className="app-ui min-h-screen bg-paper-plain flex flex-col">
       {/* Same branded hero as the hub — this is the portal's front door */}
       <header
         className="relative overflow-hidden"

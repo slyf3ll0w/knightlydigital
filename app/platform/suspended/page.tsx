@@ -7,7 +7,7 @@ import Link from "next/link";
  */
 export default function SuspendedPage() {
   return (
-    <div className="bg-paper flex min-h-screen items-center justify-center px-4">
+    <div className="bg-paper-plain flex min-h-screen items-center justify-center px-4">
       <div className="card-ledger w-full max-w-md p-8 text-center">
         <img src="/workbench-logo.png" alt="WorkBench" className="mx-auto mb-6 h-9 w-auto" />
         <h1 className="text-xl font-bold text-gray-900">Account suspended</h1>

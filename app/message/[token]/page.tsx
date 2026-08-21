@@ -62,7 +62,7 @@ export default async function PublicMessagePage({
   });
 
   return (
-    <div className="app-ui min-h-screen bg-paper">
+    <div className="app-ui min-h-screen bg-paper-plain">
       {/* Client-facing: always light, never the operator's dark theme */}
       <ForceLightTheme />
       <ViewBeacon kind="message" token={token} />

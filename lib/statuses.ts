@@ -144,7 +144,14 @@ export const paymentMethodLabel: Record<string, string> = {
 
 export function money(n: number | string | { toString(): string } | null | undefined): string {
   const v = Number(n ?? 0);
-  return `$${v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  // Sign before the $ ("−$10.00", never "$-10.00"), true minus like the
+  // ledger columns use. Matters anywhere a computed value can go negative
+  // (Insights profit).
+  const abs = Math.abs(v).toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  return `${v < 0 ? "−" : ""}$${abs}`;
 }
 
 export function shortDate(d: Date | string | null | undefined): string {
