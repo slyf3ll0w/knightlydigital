@@ -60,6 +60,17 @@ export async function PATCH(req: NextRequest) {
             ? body.sidebarLogoColor
             : null
           : undefined,
+      // Rail logo plate height in px, clamped so the plate can grow tall but
+      // never break the fixed-width rail; null/garbage = back to default (56)
+      sidebarLogoSize:
+        body.sidebarLogoSize !== undefined
+          ? (() => {
+              const n = Number(body.sidebarLogoSize);
+              return Number.isFinite(n) && n > 0
+                ? Math.min(Math.max(Math.round(n), 36), 128)
+                : null;
+            })()
+          : undefined,
       brandColor:
         body.brandColor !== undefined
           ? /^#[0-9a-fA-F]{6}$/.test(body.brandColor ?? "")

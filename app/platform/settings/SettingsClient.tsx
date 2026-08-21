@@ -55,6 +55,7 @@ type Company = {
   sectionColors: Record<string, string> | null;
   logoWallpaper: boolean; wallpaper: string | null;
   sidebarTheme: string; sidebarLogoColor: string | null;
+  sidebarLogoSize: number | null;
   surchargeEnabled: boolean; surchargeRate: string | number | null;
   addonEnabled: boolean;
   defaultDepositType: "NONE" | "PERCENT" | "FIXED" | "FULL";
@@ -979,6 +980,7 @@ export default function SettingsClient({
     wallpaper: resolveWallpaper(company.wallpaper, company.logoWallpaper ?? false),
     sidebarTheme: company.sidebarTheme ?? "black",
     sidebarLogoColor: company.sidebarLogoColor ?? "",
+    sidebarLogoSize: company.sidebarLogoSize != null ? String(company.sidebarLogoSize) : "",
     brandColor: company.brandColor ?? "",
     brandColorSecondary: company.brandColorSecondary ?? "",
     documentColor: company.documentColor ?? "",
@@ -1714,6 +1716,51 @@ export default function SettingsClient({
               fallback="#FFFFFF"
               onChange={(v) => set("sidebarLogoColor", v)}
             />
+          )}
+          {form.logoUrl && (
+            <div>
+              <div className="flex items-baseline justify-between">
+                <label className="text-sm font-medium text-gray-700">Logo size</label>
+                {form.sidebarLogoSize && form.sidebarLogoSize !== "56" && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      set("sidebarLogoSize", "");
+                      document.documentElement.style.setProperty("--rail-logo-h", "56px");
+                    }}
+                    className="text-[11px] text-gray-400 underline hover:text-gray-600"
+                  >
+                    Reset
+                  </button>
+                )}
+              </div>
+              <p className="text-xs text-gray-400 mt-0.5">
+                How tall the logo panel stands in the sidebar — the sidebar itself
+                stays the same width
+              </p>
+              {/* Live: the rail plate reads --rail-logo-h before the saved value,
+                  so the real sidebar follows the thumb as it drags */}
+              <input
+                type="range"
+                min={36}
+                max={128}
+                step={2}
+                value={Number(form.sidebarLogoSize) || 56}
+                onChange={(e) => {
+                  set("sidebarLogoSize", e.target.value);
+                  document.documentElement.style.setProperty(
+                    "--rail-logo-h",
+                    `${e.target.value}px`
+                  );
+                }}
+                aria-label="Sidebar logo size"
+                className="mt-2 w-full accent-green-600"
+              />
+              <div className="flex justify-between text-[11px] text-gray-400">
+                <span>Small</span>
+                <span>Large</span>
+              </div>
+            </div>
           )}
         </div>
         )}

@@ -48,6 +48,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             wallpaper: true,
             sidebarTheme: true,
             sidebarLogoColor: true,
+            sidebarLogoSize: true,
             brandColor: true,
             brandColorSecondary: true,
             brandFont: true,
@@ -115,6 +116,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         wallpaper={resolveWallpaper(company?.wallpaper, company?.logoWallpaper ?? false)}
         sidebarTheme={company?.sidebarTheme}
         sidebarLogoColor={company?.sidebarLogoColor}
+        sidebarLogoSize={company?.sidebarLogoSize}
         brandColor={company?.brandColor}
         brandColorSecondary={company?.brandColorSecondary}
         brandFont={company?.brandFont}

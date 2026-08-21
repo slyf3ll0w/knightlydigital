@@ -885,6 +885,9 @@ interface AppShellProps {
   wallpaper?: string | null;
   sidebarTheme?: string | null;
   sidebarLogoColor?: string | null;
+  /** Company.sidebarLogoSize — rail logo plate height in px (36–128); null = 56.
+   *  Height only: the rail's width is fixed, the plate just gets taller. */
+  sidebarLogoSize?: number | null;
   brandColor?: string | null;
   brandColorSecondary?: string | null;
   /** Company.brandFont — app-wide Google Font override (Settings → Branding) */
@@ -910,6 +913,7 @@ export default function AppShell({
   companyLogoUrl,
   wallpaper = "none",
   sidebarLogoColor,
+  sidebarLogoSize,
   brandColor,
   brandColorSecondary,
   brandFont,
@@ -1297,11 +1301,19 @@ export default function AppShell({
   // color) with the mark rendered big, no name text competing with it
   // (David's call: the name only appears when there's no logo to speak for
   // the company). No logo → accent monogram tile + name on the 57px row.
+  // Plate height is tenant-tunable (Settings → Sidebar → Logo size). Height
+  // only — the rail's width is fixed, so the plate can grow tall, never wide.
+  // The --rail-logo-h var lets the settings slider preview live while
+  // dragging; the stored value is the fallback.
+  const logoPlateH = Math.min(Math.max(sidebarLogoSize ?? 56, 36), 128);
   const logo = companyLogoUrl ? (
     <div className="px-3 py-2.5 border-b border-[color:var(--rail-line)]">
       <span
-        className="theme-fixed flex h-14 w-full items-center justify-center overflow-hidden rounded-xl shadow-sm ring-1 ring-[color:var(--rail-line)]"
-        style={{ backgroundColor: sidebarLogoColor || "#FFFFFF" }}
+        className="theme-fixed flex w-full items-center justify-center overflow-hidden rounded-xl shadow-sm ring-1 ring-[color:var(--rail-line)]"
+        style={{
+          backgroundColor: sidebarLogoColor || "#FFFFFF",
+          height: `var(--rail-logo-h, ${logoPlateH}px)`,
+        }}
         title={companyName ?? undefined}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -1480,14 +1492,6 @@ export default function AppShell({
         )}
         {/* Top bar */}
         <header className="app-header relative flex items-center gap-4 px-4 lg:px-6 min-h-[57px] pt-[env(safe-area-inset-top)] border-b border-gray-200 bg-chrome shrink-0">
-          {/* Ledger margin rule — both brand colors meet on the app frame:
-              primary (structure) running into secondary (accent). Desktop
-              only: the phone header is clear, no line. */}
-          <span
-            aria-hidden
-            className="pointer-events-none absolute inset-x-0 -bottom-px hidden h-[2.5px] lg:block"
-            style={{ background: "linear-gradient(90deg, var(--wb-primary), var(--wb-accent))" }}
-          />
           {/* Mobile header, left slot: an iOS "‹ Section" back control on
               subpages; at the top level it's the company's identity — round
               logo, name, and a switcher chevron (the ClickWise header). The

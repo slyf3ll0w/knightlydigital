@@ -1327,9 +1327,8 @@ html[data-mode="dark"] .app-ui .card-tool {
   animation: none;
 }
 
-/* ── Title rule — the top bar's primary→accent margin rule in miniature,
-   drawn in under every PageTitle as the page lands. The one place the two
-   brand colors meet twice on a page, so the frame and the heading rhyme. ── */
+/* ── Title rule — a short primary→accent margin rule drawn in under every
+   PageTitle as the page lands: the one place the two brand colors meet. ── */
 .title-rule {
   position: absolute;
   left: 0;

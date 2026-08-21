@@ -49,6 +49,7 @@ model Company {
   wallpaper        String?
   sidebarTheme     String   @default("white") // desktop sidebar: "black" | "white" | "gray"
   sidebarLogoColor String? // hex backdrop behind the sidebar logo panel; null = white
+  sidebarLogoSize  Int? // desktop rail logo plate height in px (36–128); null = default 56
   timezone         String   @default("America/Chicago")
   surchargeEnabled Boolean  @default(false)
   surchargeRate    Decimal  @default(0.0300) @db.Decimal(5, 4)
