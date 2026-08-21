@@ -350,7 +350,7 @@ export default async function QuoteDetailPage({
                     ? ` (${Number(quote.discountValue)}%)`
                     : ""}
                 </span>
-                <span>-{money(quote.discount)}</span>
+                <span>−{money(quote.discount)}</span>
               </div>
             )}
             {quote.tax && (

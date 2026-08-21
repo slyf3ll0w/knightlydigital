@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, BarChart3, Map, Timer } from "lucide-react";
+import { ArrowRight, BarChart3, Map, Receipt, Timer } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { requirePageActor, isManager } from "@/lib/permissions";
 import { entryMs, formatDuration } from "@/lib/time-entries";
@@ -22,7 +22,7 @@ export default async function BusinessPage() {
   startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-  const [onClock, weekEntries, monthPayments] = await Promise.all([
+  const [onClock, weekEntries, monthPayments, monthExpenses] = await Promise.all([
     prisma.timeEntry.count({ where: { companyId, endedAt: null } }),
     prisma.timeEntry.findMany({
       where: { companyId, startedAt: { gte: startOfWeek } },
@@ -32,9 +32,14 @@ export default async function BusinessPage() {
       where: { companyId, paidAt: { gte: startOfMonth } },
       _sum: { amount: true },
     }),
+    prisma.expense.aggregate({
+      where: { companyId, incurredAt: { gte: startOfMonth } },
+      _sum: { amount: true },
+    }),
   ]);
   const weekMs = weekEntries.reduce((s, e) => s + entryMs(e, now), 0);
   const collected = Number(monthPayments._sum.amount ?? 0);
+  const spent = Number(monthExpenses._sum.amount ?? 0);
 
   const cards = [
     {
@@ -64,6 +69,14 @@ export default async function BusinessPage() {
       body: "Hours by team member, with edits for missed punches.",
       stat: `${formatDuration(weekMs)} logged this week`,
     },
+    {
+      href: "/app/expenses",
+      icon: Receipt,
+      tint: "#E11D48",
+      title: "Expenses",
+      body: "Materials, fuel, software — log costs to see real profit.",
+      stat: `$${spent.toLocaleString("en-US", { maximumFractionDigits: 0 })} spent this month`,
+    },
   ];
 
   return (
@@ -71,7 +84,7 @@ export default async function BusinessPage() {
       <PageTitle rule={false}>Business</PageTitle>
       <p className="text-sm text-gray-500 mb-6">The view from the office.</p>
 
-      <div className="grid sm:grid-cols-3 gap-4">
+      <div className="grid sm:grid-cols-2 gap-4">
         {cards.map((c) => (
           <Link
             key={c.href}

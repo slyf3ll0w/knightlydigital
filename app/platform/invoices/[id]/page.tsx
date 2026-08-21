@@ -305,7 +305,7 @@ export default async function InvoiceDetailPage({
                     ? ` (${Number(invoice.discountValue)}%)`
                     : ""}
                 </span>
-                <span>-{money(invoice.discount)}</span>
+                <span>−{money(invoice.discount)}</span>
               </div>
             )}
             {invoice.tax && (
@@ -319,7 +319,7 @@ export default async function InvoiceDetailPage({
             {invoice.depositApplied && Number(invoice.depositApplied) > 0 && (
               <div className="flex justify-between text-green-700">
                 <span>Deposit applied</span>
-                <span>-{money(invoice.depositApplied)}</span>
+                <span>−{money(invoice.depositApplied)}</span>
               </div>
             )}
             <div className="flex justify-between font-bold text-base pt-1.5 border-t border-gray-200">
@@ -329,7 +329,7 @@ export default async function InvoiceDetailPage({
             {totalPaid > 0 && (
               <div className="flex justify-between text-green-700">
                 <span>Payments</span>
-                <span>-{money(totalPaid)}</span>
+                <span>−{money(totalPaid)}</span>
               </div>
             )}
             <div className="flex justify-between font-semibold">

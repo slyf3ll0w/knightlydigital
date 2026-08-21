@@ -350,7 +350,7 @@ export default function QuoteAcceptPage({
                     Discount
                     {quote.discountType === "PERCENT" ? ` (${Number(quote.discountValue)}%)` : ""}
                   </span>
-                  <span>-{money(discount)}</span>
+                  <span>−{money(discount)}</span>
                 </div>
               )}
               {tax > 0 && (

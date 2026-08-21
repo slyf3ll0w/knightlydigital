@@ -517,7 +517,9 @@ export default async function DashboardPage() {
                 receivableTotal > 0 ? "text-red-600" : "text-gray-900"
               }`}
             >
-              {receivableTotal > 0 ? <CountUp value={money(receivableTotal)} /> : "—"}
+              {/* Real zeros, matching the Collected card — the three cards
+                  read as one ledger row */}
+              <CountUp value={money(receivableTotal)} />
             </p>
             <p className="mt-1.5 text-xs text-gray-500">
               {receivableClients} {receivableClients === 1 ? "client owes" : "clients owe"} you
@@ -531,7 +533,7 @@ export default async function DashboardPage() {
               Booked this week
             </p>
             <p className="numeral-ledger mt-1 text-[24px] leading-none font-semibold text-gray-900">
-              {upcomingJobsWeek.length > 0 ? <CountUp value={money(weekRevenue)} /> : "—"}
+              <CountUp value={money(weekRevenue)} />
             </p>
             <p className="mt-1.5 text-xs text-gray-500">
               {upcomingJobsWeek.length} {upcomingJobsWeek.length === 1 ? "job" : "jobs"} scheduled

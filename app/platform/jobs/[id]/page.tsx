@@ -611,13 +611,13 @@ export default async function JobDetailPage({
                 {lineCost > 0 && (
                   <div className="flex justify-between">
                     <span className="text-gray-500">Line item cost</span>
-                    <span className="text-gray-800">-{money(lineCost)}</span>
+                    <span className="text-gray-800">−{money(lineCost)}</span>
                   </div>
                 )}
                 {laborCost > 0 && (
                   <div className="flex justify-between">
                     <span className="text-gray-500">Labor ({formatDuration(loggedMs)})</span>
-                    <span className="text-gray-800">-{money(laborCost)}</span>
+                    <span className="text-gray-800">−{money(laborCost)}</span>
                   </div>
                 )}
                 <div className="flex justify-between font-semibold border-t border-gray-100 pt-1.5">
