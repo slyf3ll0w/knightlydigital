@@ -4,10 +4,47 @@ import { WB_HOME } from "./WBNav";
 
 const APP_STORE_URL = "https://apps.apple.com/app/workbench-fsm/id6789991103";
 
+const columns: {
+  heading: string;
+  links: { label: string; href: string; external?: boolean }[];
+}[] = [
+  {
+    heading: "Product",
+    links: [
+      { label: "Home", href: WB_HOME },
+      { label: "Features", href: "/features" },
+      { label: "Pricing", href: "/pricing" },
+      { label: "Roadmap", href: "/roadmap" },
+      { label: "iPhone app", href: APP_STORE_URL, external: true },
+    ],
+  },
+  {
+    heading: "Get started",
+    links: [
+      { label: "Apply for access", href: "/apply" },
+      { label: "Log in", href: "/app/login" },
+    ],
+  },
+  {
+    heading: "Company",
+    links: [
+      { label: "Streamflaire", href: "https://streamflaire.com", external: true },
+      { label: "info@streamflaire.com", href: "mailto:info@streamflaire.com", external: true },
+    ],
+  },
+  {
+    heading: "Policies",
+    links: [
+      { label: "Privacy", href: "/privacy" },
+      { label: "Terms of Service", href: "/terms" },
+    ],
+  },
+];
+
 export default function WBFooter() {
   return (
     <footer className="border-t border-gray-200 bg-white">
-      <div className="mx-auto flex max-w-6xl flex-col gap-8 px-5 py-12 sm:px-8 md:flex-row md:items-start md:justify-between">
+      <div className="mx-auto grid max-w-6xl gap-10 px-5 py-14 sm:px-8 lg:grid-cols-[minmax(220px,1fr)_repeat(4,auto)] lg:gap-16">
         <div className="max-w-xs">
           <Image
             src="/workbench-logo.png"
@@ -46,72 +83,36 @@ export default function WBFooter() {
             />
           </a>
         </div>
-        <div className="flex gap-16">
-          <div>
+        {columns.map((col) => (
+          <div key={col.heading}>
             <p className="text-xs font-bold uppercase tracking-wide text-gray-400">
-              Product
+              {col.heading}
             </p>
             <ul className="mt-3 space-y-2 text-[13.5px] text-gray-600">
-              <li>
-                <Link href={WB_HOME} className="hover:text-gray-900">
-                  Overview
-                </Link>
-              </li>
-              <li>
-                <Link href="/pricing" className="hover:text-gray-900">
-                  Pricing
-                </Link>
-              </li>
-              <li>
-                <Link href="/roadmap" className="hover:text-gray-900">
-                  Roadmap
-                </Link>
-              </li>
-              <li>
-                <a
-                  href={APP_STORE_URL}
-                  target="_blank"
-                  rel="noopener"
-                  className="hover:text-gray-900"
-                >
-                  iPhone app
-                </a>
-              </li>
+              {col.links.map((l) =>
+                l.external ? (
+                  <li key={l.label}>
+                    <a
+                      href={l.href}
+                      {...(l.href.startsWith("http")
+                        ? { target: "_blank", rel: "noopener" }
+                        : {})}
+                      className="hover:text-gray-900"
+                    >
+                      {l.label}
+                    </a>
+                  </li>
+                ) : (
+                  <li key={l.label}>
+                    <Link href={l.href} className="hover:text-gray-900">
+                      {l.label}
+                    </Link>
+                  </li>
+                )
+              )}
             </ul>
           </div>
-          <div>
-            <p className="text-xs font-bold uppercase tracking-wide text-gray-400">
-              Company
-            </p>
-            <ul className="mt-3 space-y-2 text-[13.5px] text-gray-600">
-              <li>
-                <Link href="/apply" className="hover:text-gray-900">
-                  Apply for access
-                </Link>
-              </li>
-              <li>
-                <a
-                  href="https://streamflaire.com"
-                  target="_blank"
-                  rel="noopener"
-                  className="hover:text-gray-900"
-                >
-                  Streamflaire.com
-                </a>
-              </li>
-              <li>
-                <Link href="/privacy" className="hover:text-gray-900">
-                  Privacy
-                </Link>
-              </li>
-              <li>
-                <a href="mailto:info@streamflaire.com" className="hover:text-gray-900">
-                  info@streamflaire.com
-                </a>
-              </li>
-            </ul>
-          </div>
-        </div>
+        ))}
       </div>
       <div className="border-t border-gray-100">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4 sm:px-8">

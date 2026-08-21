@@ -1,8 +1,59 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AnimateIn } from "@/components/AnimateIn";
+import WBFaq from "@/components/wb/WBFaq";
 import WBPricing from "@/components/wb/WBPricing";
 import { ArrowRight, CreditCard, HandCoins, Puzzle, ShieldCheck } from "lucide-react";
+
+const pricingFaq = [
+  {
+    q: "What's the catch?",
+    a: (
+      <p>
+        The catch is that we&apos;re a payments company as much as a software
+        company. WorkBench earns a slice of the flat processing fee when your
+        clients pay you through it — that&apos;s the entire business model.
+        If you&apos;d rather record cash and checks by hand, the software is
+        still free.
+      </p>
+    ),
+  },
+  {
+    q: "Are there any monthly fees or minimums on payments?",
+    a: (
+      <p>
+        No. You pay 2.9% + 30¢ per successful card transaction and 0.75% per
+        ACH bank transfer, and that&apos;s the whole list. No monthly fee, no
+        minimum volume, no charge on failed or declined payments.
+      </p>
+    ),
+  },
+  {
+    q: "Will features I use ever move behind a paywall?",
+    a: (
+      <p>
+        No. The essentials — clients, scheduling, quotes, invoices, payments,
+        the client portal, team chat, Atlas — are free permanently. If we
+        ever ship a paid add-on, it will be genuinely additive; nothing you
+        rely on today gets taken away or metered.
+      </p>
+    ),
+  },
+  {
+    q: "How do I actually get access?",
+    a: (
+      <p>
+        WorkBench is invite-only.{" "}
+        <Link href="/apply" className="font-semibold text-[#0B57D8] hover:underline">
+          Apply here
+        </Link>{" "}
+        — a person reviews every application, and we onboard approved
+        companies personally. At signup, a short payment-verification form
+        (standard KYC) activates your account.
+      </p>
+    ),
+  },
+];
 
 export const metadata: Metadata = {
   title: "Pricing — WorkBench",
@@ -129,6 +180,20 @@ export default function WBPricingPage() {
         </div>
       </section>
 
+      {/* ── FAQ ── */}
+      <section className="border-t border-gray-200 bg-white">
+        <div className="mx-auto max-w-3xl px-5 py-20 sm:px-8">
+          <AnimateIn>
+            <h2 className="text-center text-3xl font-extrabold leading-tight sm:text-4xl">
+              Pricing questions, answered
+            </h2>
+          </AnimateIn>
+          <AnimateIn delay={120} className="mt-10">
+            <WBFaq items={pricingFaq} />
+          </AnimateIn>
+        </div>
+      </section>
+
       {/* ── CTA ── */}
       <section className="border-t border-gray-200 bg-white">
         <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-6 px-5 py-16 sm:px-8 md:flex-row md:items-center">
@@ -141,13 +206,19 @@ export default function WBPricingPage() {
               we&apos;ll take it from there.
             </p>
           </AnimateIn>
-          <AnimateIn delay={120}>
+          <AnimateIn delay={120} className="flex flex-wrap items-center gap-4">
             <Link
               href="/apply"
               className="wb-btn-tool inline-flex items-center gap-2 rounded-lg bg-[#0B57D8] px-6 py-3 text-[15px] font-bold text-white"
             >
               Apply for access
               <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
+            </Link>
+            <Link
+              href="/features"
+              className="inline-flex items-center gap-2 rounded-lg border-2 border-gray-300 bg-white px-6 py-3 text-[15px] font-bold text-gray-900 transition-colors hover:border-gray-900"
+            >
+              See every feature
             </Link>
           </AnimateIn>
         </div>

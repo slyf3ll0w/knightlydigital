@@ -9,35 +9,41 @@ import { Check } from "lucide-react";
  * "Free", Monthly is "Still free" — that's the whole pricing model.
  */
 
-const featureGroups: { label: string; items: string[] }[] = [
+const featureGroups: { label: string; accent: string; items: string[] }[] = [
   {
     label: "Run the work",
+    accent: "border-[#0B57D8]",
     items: [
       "Client database & history",
       "Online booking & self-scheduling",
       "Drag-to-schedule calendar",
       "Job pipeline with photos",
       "Lead pipeline board",
+      "Time tracking & timesheets",
     ],
   },
   {
     label: "Get paid",
+    accent: "border-[#F86A0A]",
     items: [
       "Quotes with e-signature",
       "One-click invoicing",
       "Card & ACH payments",
       "Deposits & payment reminders",
-      "Recurring billing",
+      "Recurring billing & autopay",
+      "One-click refunds",
     ],
   },
   {
     label: "Grow & manage",
+    accent: "border-[#0B57D8]",
     items: [
       "Branded client portal",
       "Contracts & e-signatures",
       "Team chat & mobile push",
       "Unlimited users & team roles",
       "Atlas AI assistant",
+      "iPhone app with offline mode",
     ],
   },
 ];
@@ -47,7 +53,7 @@ export default function WBPricing() {
   const annual = billing === "annual";
 
   return (
-    <div className="grid overflow-hidden rounded-3xl border border-gray-200 bg-white lg:grid-cols-[340px_1fr]">
+    <div className="grid overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-[0_18px_50px_rgba(11,87,216,0.08)] lg:grid-cols-[350px_1fr]">
       {/* ── Price panel ── */}
       <div className="relative flex flex-col bg-gradient-to-br from-[#0050D4] to-[#003FA5] p-8 lg:p-10">
         <div className="wb-grid-lines pointer-events-none absolute inset-0" aria-hidden />
@@ -101,12 +107,16 @@ export default function WBPricing() {
             ))}
           </ul>
 
-          <Link
-            href="/apply"
-            className="mt-8 inline-flex items-center justify-center rounded-lg bg-white px-6 py-3 text-[14.5px] font-bold text-[#0B57D8] transition-colors hover:bg-blue-50 lg:mt-auto"
-          >
-            Apply for access →
-          </Link>
+          {/* Generous air between the checklist and the action — the button
+              never crowds the list, even when mt-auto pins it to the base. */}
+          <div className="mt-12 lg:mt-auto lg:pt-12">
+            <Link
+              href="/apply"
+              className="inline-flex w-full items-center justify-center rounded-lg bg-white px-6 py-3.5 text-[14.5px] font-bold text-[#0B57D8] transition-colors hover:bg-blue-50"
+            >
+              Apply for access →
+            </Link>
+          </div>
         </div>
       </div>
 
@@ -115,7 +125,7 @@ export default function WBPricing() {
         <div className="grid gap-x-8 gap-y-8 sm:grid-cols-3">
           {featureGroups.map((group) => (
             <div key={group.label}>
-              <p className="border-b border-gray-200 pb-3 text-[13px] font-bold text-gray-900">
+              <p className={`border-b-2 pb-3 text-[13px] font-bold text-gray-900 ${group.accent}`}>
                 {group.label}
               </p>
               <ul className="mt-4 flex flex-col gap-2.5">
@@ -132,6 +142,11 @@ export default function WBPricing() {
             </div>
           ))}
         </div>
+        <p className="mt-8 border-t border-gray-100 pt-5 text-[13px] leading-relaxed text-gray-500">
+          Funded by built-in payment processing: 2.9% + 30¢ per card
+          transaction, 0.75% per ACH bank transfer. No monthly fees, no
+          minimums, no charge on failed payments.
+        </p>
       </div>
     </div>
   );

@@ -11,12 +11,19 @@ import { usePathname } from "next/navigation";
 export const WB_HOME = "/";
 
 const links = [
-  { href: WB_HOME, label: "Product" },
+  { href: WB_HOME, label: "Home" },
+  { href: "/features", label: "Features" },
   { href: "/pricing", label: "Pricing" },
 ];
 
 export default function WBNav() {
   const pathname = usePathname();
+  // The root is middleware-rewritten to /wb, so the client router can report
+  // either path while on the home page.
+  const isActive = (href: string) =>
+    href === WB_HOME
+      ? pathname === "/" || pathname === "/wb"
+      : pathname === href || pathname.startsWith(`${href}/`);
 
   return (
     <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-xl">
@@ -43,11 +50,12 @@ export default function WBNav() {
           </Link>
           <nav className="hidden items-center gap-8 sm:flex">
             {links.map((l) => {
-              const active = pathname === l.href;
+              const active = isActive(l.href);
               return (
                 <Link
                   key={l.href}
                   href={l.href}
+                  aria-current={active ? "page" : undefined}
                   className={`wb-navlink text-[14px] transition-colors ${
                     active
                       ? "wb-active font-bold text-[#0B57D8]"
