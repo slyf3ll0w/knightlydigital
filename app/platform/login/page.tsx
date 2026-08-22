@@ -98,27 +98,25 @@ export default function AppLoginPage() {
   }
 
   return (
-    <div className="app-ui page-atmo relative min-h-screen bg-paper-plain flex flex-col items-center justify-center px-4">
+    // Clean and quiet, like the app it opens into: the app's flat light
+    // ground, one white card with a hairline border, blue accents — no
+    // patterns, gradients, or chrome. app-ui stays on the wrapper so the
+    // form controls' green utilities keep bridging to the brand accent.
+    <div className="app-ui flex min-h-screen flex-col items-center justify-center bg-[#FAFBFD] px-4 py-10">
       <div className="w-full max-w-sm">
-        {/* Logo */}
-        <div className="flex justify-center mb-8 anim-portal">
+        <div className="mb-8 flex justify-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/workbench-logo.png" alt="WorkBench" className="h-7 w-auto" />
+          <img src="/workbench-logo.png" alt="WorkBench" className="h-8 w-auto" />
         </div>
 
-        <div className="card-ledger overflow-hidden anim-portal anim-delay-1">
-          {/* The top bar's primary→accent margin rule, full bleed — the same
-              keel the console chrome wears, so the sign-in card reads as a
-              piece of the machine. */}
-          <div
-            aria-hidden
-            className="h-[3px] bg-gradient-to-r from-[color:var(--wb-primary)] to-[color:var(--wb-accent)]"
-          />
-          <div className="p-8">
-            <h1 className="numeral-ledger relative mb-7 w-fit text-[22px] font-bold text-gray-900">
-              Sign in
-              <span aria-hidden className="title-rule" />
+        <div className="rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
+          <div>
+            <h1 className="text-center text-[22px] font-bold tracking-tight text-gray-900">
+              Log in to your account
             </h1>
+            <p className="mb-6 mt-1.5 text-center text-sm text-gray-500">
+              Welcome back — let&apos;s get to work.
+            </p>
 
             {staleSession && (
               <div className="mb-4 px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
@@ -162,7 +160,10 @@ export default function AppLoginPage() {
               <input type="hidden" name="callbackUrl" value="/app/dashboard" />
               <input type="hidden" name="captchaToken" value={captchaToken} />
               <div>
-                <label htmlFor="signin-email" className="block text-sm font-medium text-gray-700 mb-1">
+                <label
+                  htmlFor="signin-email"
+                  className="mb-1 block text-sm font-semibold text-gray-700"
+                >
                   Email
                 </label>
                 <Input
@@ -180,13 +181,13 @@ export default function AppLoginPage() {
                 <div className="flex items-center justify-between mb-1">
                   <label
                     htmlFor="signin-password"
-                    className="block text-sm font-medium text-gray-700"
+                    className="block text-sm font-semibold text-gray-700"
                   >
                     Password
                   </label>
                   <Link
                     href="/app/forgot-password"
-                    className="text-xs font-medium text-green-600 hover:underline"
+                    className="text-xs font-semibold text-[#0B57D8] hover:underline"
                   >
                     Forgot password?
                   </Link>
@@ -217,18 +218,18 @@ export default function AppLoginPage() {
               <button
                 type="submit"
                 disabled={loading || !csrfToken}
-                className="chamfer w-full py-2.5 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white font-semibold text-sm rounded-[10px] btn-tool transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#0B57D8] py-3 text-[15px] font-bold text-white transition-colors hover:bg-[#0A4CBB] active:bg-[#09429F] disabled:opacity-50"
               >
                 {loading && <Loader2 size={14} className="animate-spin" />}
-                Sign in
+                Log in
               </button>
             </form>
           </div>
         </div>
 
-        <p className="text-center text-sm text-gray-500 mt-6 anim-portal anim-delay-2">
+        <p className="mt-6 text-center text-sm text-gray-500">
           Don&apos;t have an account?{" "}
-          <Link href="/app/register" className="text-green-600 hover:underline font-medium">
+          <Link href="/app/register" className="font-semibold text-[#0B57D8] hover:underline">
             Get started free
           </Link>
         </p>
