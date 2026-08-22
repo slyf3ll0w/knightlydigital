@@ -100,9 +100,11 @@ export default function RegisterPage() {
     window.location.href = "/app/dashboard";
   }
 
+  // Same field recipe as the login card (components/Input base) — green focus
+  // utilities bridge to the brand accent under app-ui
   const inputClass =
-    "w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent";
-  const labelClass = "block text-sm font-medium text-gray-700 mb-1";
+    "w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500";
+  const labelClass = "mb-1 block text-sm font-semibold text-gray-700";
 
   return (
     <div className="app-ui min-h-screen bg-white flex">
@@ -111,9 +113,9 @@ export default function RegisterPage() {
         <div className="flex-1 overflow-y-auto px-6 lg:px-12 py-8">
           <div className="w-full max-w-lg mx-auto">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/workbench-logo.png" alt="WorkBench" className="h-6 w-auto mb-8" />
+            <img src="/workbench-logo.png" alt="WorkBench" className="h-7 w-auto mb-8" />
 
-            <h1 className="numeral-ledger text-2xl font-semibold text-gray-900 mb-1">
+            <h1 className="mb-1 text-2xl font-bold tracking-tight text-gray-900">
               {attachMode ? "Add another company" : "Create your account"}
             </h1>
             <p className="text-sm text-gray-500 mb-6">
@@ -144,7 +146,7 @@ export default function RegisterPage() {
                 />
                 <p className="mt-1.5 text-xs text-gray-400">
                   WorkBench is invite-only. Don&apos;t have a code?{" "}
-                  <Link href="/apply" className="text-green-600 hover:underline font-medium">
+                  <Link href="/apply" className="font-semibold text-[#0B57D8] hover:underline">
                     Apply for access
                   </Link>
                 </p>
@@ -258,7 +260,7 @@ export default function RegisterPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white font-semibold text-sm rounded-[10px] btn-tool transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#0B57D8] py-3 text-[15px] font-bold text-white transition-colors hover:bg-[#0A4CBB] active:bg-[#09429F] disabled:opacity-50"
               >
                 {loading && <Loader2 size={14} className="animate-spin" />}
                 {attachMode ? "Create this company" : "Create my free account"}
@@ -269,8 +271,8 @@ export default function RegisterPage() {
               <>
                 <p className="text-sm text-gray-500 text-center mt-4">
                   Have an account?{" "}
-                  <Link href="/app/login" className="text-green-600 hover:underline font-medium">
-                    Sign in
+                  <Link href="/app/login" className="font-semibold text-[#0B57D8] hover:underline">
+                    Log in
                   </Link>
                 </p>
                 <p className="text-xs text-gray-400 text-center mt-2">
