@@ -18,7 +18,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { sendEmail, emailEnabled, paymentReminderEmail, appointmentReminderEmail, quoteFollowUpEmail } from "@/lib/email";
 import { sendSms, smsEnabled, appointmentReminderText } from "@/lib/sms";
-import { notifyUser } from "@/lib/push";
+import { notifyUser, notifyUsers } from "@/lib/push";
 import { arrivalSlotLabel, resolveArrivalWindowMinutes } from "@/lib/arrival-window";
 import { pastDueFilter } from "@/lib/due-dates";
 
@@ -563,17 +563,8 @@ export async function runVisitReminders(
       const ok = emailOk || smsOk;
       if (ok) {
         summary.sent++;
-        // Heads-up push to the crew an hour out (client already reminded)
-        if (stage === "hour") {
-          for (const a of job.assignments) {
-            await notifyUser(a.userId, {
-              title: "Upcoming visit",
-              body: `${job.title} — arrival window ${windowLabel}`,
-              url: `/app/jobs/${job.id}`,
-              tag: `visit-${job.id}`,
-            });
-          }
-        }
+        // (Crew heads-up moved to runTechHeadsUp — it has its own stamp so
+        // techs hear about remindClient=false jobs too, with action buttons.)
       } else {
         summary.errors++;
         console.error("[reminders] send failed after claim for job visit", job.id, stage);
@@ -581,6 +572,87 @@ export async function runVisitReminders(
     } catch (err) {
       summary.errors++;
       console.error("[reminders] failed for job visit", job.id, err);
+    }
+  }
+
+  return summary;
+}
+
+/**
+ * Crew heads-up push ~1 hour before a scheduled visit — the tech-facing
+ * counterpart of runVisitReminders, with its own stamp (Job.techHeadsUpSentAt)
+ * so it fires even when the client reminder is off or unreachable. The push
+ * carries action buttons (Chrome/Android; other platforms show a plain
+ * notification): "On My Way" deep-links into the job with ?omw=1 (auto-opens
+ * the tech's Messages app with the template), "Directions" opens the maps app.
+ * Anytime visits are skipped — there's no time to be an hour ahead of.
+ */
+export async function runTechHeadsUp(now: Date = new Date()): Promise<AppointmentReminderSummary> {
+  const jobs = await prisma.job.findMany({
+    where: {
+      status: "ACTIVE",
+      scheduledAnytime: false,
+      scheduledAt: { gt: now, lte: new Date(now.getTime() + 65 * 60000) },
+      techHeadsUpSentAt: null,
+      assignments: { some: {} },
+      company: { is: { suspendedAt: null } },
+    },
+    include: {
+      contact: { select: { firstName: true, lastName: true, phone: true, address: true } },
+      assignments: { select: { userId: true } },
+      company: { select: { timezone: true } },
+    },
+    take: 1000,
+  });
+
+  const summary: AppointmentReminderSummary = { checked: jobs.length, sent: 0, errors: 0 };
+
+  for (const job of jobs) {
+    try {
+      // Claim before sending — same compare-and-set as the client reminders
+      const claimed = await prisma.job.updateMany({
+        where: { id: job.id, techHeadsUpSentAt: null },
+        data: { techHeadsUpSentAt: now },
+      });
+      if (claimed.count === 0) continue;
+
+      const timeLabel = new Intl.DateTimeFormat("en-US", {
+        timeZone: job.company.timezone,
+        hour: "numeric",
+        minute: "2-digit",
+      }).format(job.scheduledAt!);
+      const address = job.address ?? job.contact.address;
+      const clientName = `${job.contact.firstName} ${job.contact.lastName}`.trim();
+
+      const actions = [
+        ...(job.contact.phone
+          ? [{ action: "omw", title: "On My Way", url: `/app/jobs/${job.id}?omw=1` }]
+          : []),
+        ...(address
+          ? [
+              {
+                action: "nav",
+                title: "Directions",
+                url: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`,
+              },
+            ]
+          : []),
+      ];
+
+      await notifyUsers(
+        job.assignments.map((a) => a.userId),
+        {
+          title: `Up next at ${timeLabel}`,
+          body: [job.title, clientName, address].filter(Boolean).join(" · "),
+          url: `/app/jobs/${job.id}`,
+          tag: `visit-${job.id}`,
+          ...(actions.length > 0 ? { actions } : {}),
+        }
+      );
+      summary.sent++;
+    } catch (err) {
+      summary.errors++;
+      console.error("[reminders] tech heads-up failed for job", job.id, err);
     }
   }
 

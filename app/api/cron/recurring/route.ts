@@ -10,6 +10,7 @@ import {
   runAppointmentReminders,
   runQuoteFollowUps,
   runVisitReminders,
+  runTechHeadsUp,
 } from "@/lib/reminders";
 import { runAutoChargeRetries, runCardExpiryNudges } from "@/lib/auto-charge";
 import { runQuickBooksNightlySync } from "@/lib/quickbooks";
@@ -62,6 +63,9 @@ export async function POST(req: NextRequest) {
   // Job-visit reminders (same cadence): clients are told the arrival window,
   // never the dispatch-exact time
   const visitReminders = await runVisitReminders(now);
+  // Crew heads-up push ~1 hour before each visit, with On My Way / Directions
+  // action buttons — needs the hourly cron to land, like the 1-hour stages
+  const techHeadsUp = await runTechHeadsUp(now);
   // QuickBooks sweep: catches invoices issued/edited outside the payment
   // hook. No-op unless QBO env vars are set and companies have connected.
   const quickbooks = await runQuickBooksNightlySync();
@@ -87,6 +91,7 @@ export async function POST(req: NextRequest) {
     quoteFollowUps,
     appointmentReminders,
     visitReminders,
+    techHeadsUp,
     quickbooks,
     prunedPings: prunedPings.count,
     storageCompanies,

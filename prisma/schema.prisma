@@ -1154,6 +1154,9 @@ model Job {
   remindClient       Boolean   @default(true)
   reminderDaySentAt  DateTime?
   reminderHourSentAt DateTime?
+  // Crew heads-up push ~1h before the visit (runTechHeadsUp) — independent of
+  // the client reminder so techs still hear about remindClient=false jobs
+  techHeadsUpSentAt  DateTime?
   completedAt  DateTime?
   closedAt     DateTime?
   address      String?

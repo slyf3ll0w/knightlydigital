@@ -122,6 +122,16 @@ async function sendFcm(
 /** The public key the browser needs to subscribe; null until keys are set. */
 export const pushPublicKey = configured ? VAPID_PUBLIC_KEY! : null;
 
+export interface PushAction {
+  /** Stable id matched back in the service worker's notificationclick. */
+  action: string;
+  title: string;
+  /** Where the button goes: an in-app path ("/app/jobs/abc?omw=1") or an
+   *  external URL (a maps link). In-app paths get the /app/open membership
+   *  rewrite, external URLs pass through untouched. */
+  url: string;
+}
+
 export interface PushPayload {
   title: string;
   body?: string;
@@ -132,6 +142,10 @@ export interface PushPayload {
   /** Notification icon URL — company logo on client-facing pushes; the
    *  service worker falls back to the WorkBench icon when absent. */
   icon?: string;
+  /** Action buttons on the notification (web push only — Chrome/Android
+   *  render them, iOS and the native FCM shell ignore them and fall back to
+   *  the plain tap-through url). Keep to 2: platforms cap at 2–3. */
+  actions?: PushAction[];
 }
 
 /**
@@ -180,13 +194,17 @@ export async function notifyUsers(userIds: string[], payload: PushPayload): Prom
       const multiCompany = t.accountId
         ? siblingRows.filter((r) => r.accountId === t.accountId).length > 1
         : false;
+      // In-app links (main tap AND action buttons) route through /app/open so
+      // multi-company accounts land in the right membership; external action
+      // URLs (maps links) pass through as-is.
+      const viaOpen = (url: string) =>
+        url.startsWith("/") ? `/app/open?u=${t.id}&to=${encodeURIComponent(url)}` : url;
       const body: PushPayload = {
         ...payload,
         title:
           multiCompany && t.company ? `${t.company.name} · ${payload.title}` : payload.title,
-        url: payload.url
-          ? `/app/open?u=${t.id}&to=${encodeURIComponent(payload.url)}`
-          : payload.url,
+        url: payload.url ? viaOpen(payload.url) : payload.url,
+        actions: payload.actions?.map((a) => ({ ...a, url: viaOpen(a.url) })),
       };
       for (const sub of deviceSubs) {
         const key = `${sub.endpoint}|${t.id}`;

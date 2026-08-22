@@ -33,7 +33,8 @@ type JobWithContact = {
   scheduledEnd: Date | null;
   scheduledAnytime: boolean;
   subscriptionId: string | null;
-  contact: { firstName: string; lastName: string };
+  address: string | null;
+  contact: { firstName: string; lastName: string; phone: string | null; address: string | null };
   assignments?: { userId: string; user: { name: string | null } }[];
 };
 
@@ -54,6 +55,9 @@ function toDTO(j: JobWithContact): ScheduleJobDTO {
       .map((a) => a.user.name?.trim() ?? "")
       .filter(Boolean),
     assigneeIds: (j.assignments ?? []).map((a) => a.userId),
+    // Phone agenda swipe actions (call / directions)
+    phone: j.contact.phone,
+    address: j.address ?? j.contact.address,
   };
 }
 
@@ -66,7 +70,7 @@ type ApptWithContact = {
   scheduledEnd: Date | null;
   scheduledAnytime: boolean;
   tentative: boolean;
-  contact: { firstName: string; lastName: string };
+  contact: { firstName: string; lastName: string; phone: string | null; address: string | null };
   assignedTo?: { name: string | null } | null;
 };
 
@@ -84,6 +88,9 @@ function apptToDTO(a: ApptWithContact): ScheduleJobDTO {
     contactName: `${a.contact.firstName} ${a.contact.lastName}`.trim(),
     tentative: a.tentative,
     assignees: a.assignedTo?.name?.trim() ? [a.assignedTo.name.trim()] : [],
+    phone: a.contact.phone,
+    // Directions only make sense for an on-site visit
+    address: a.type === "IN_PERSON" ? a.contact.address : null,
   };
 }
 
@@ -216,7 +223,7 @@ export default async function SchedulePage({
     prisma.job.findMany({
       where: { companyId, ...scope, scheduledAt: { gte: fetchStart, lte: fetchEnd }, ...teamWhere },
       include: {
-        contact: { select: { firstName: true, lastName: true } },
+        contact: { select: { firstName: true, lastName: true, phone: true, address: true } },
         // Who's on it — the phone agenda shows initials so the company-wide
         // view answers "whose day is this?" without the team filter
         assignments: { select: { userId: true, user: { select: { name: true } } } },
@@ -234,7 +241,7 @@ export default async function SchedulePage({
         ...(team ? { assignedToId: team } : {}),
       },
       include: {
-        contact: { select: { firstName: true, lastName: true } },
+        contact: { select: { firstName: true, lastName: true, phone: true, address: true } },
         assignedTo: { select: { name: true } },
       },
       orderBy: { scheduledAt: "asc" },
@@ -252,7 +259,7 @@ export default async function SchedulePage({
           : {}),
       },
       include: {
-        contact: { select: { firstName: true, lastName: true } },
+        contact: { select: { firstName: true, lastName: true, phone: true, address: true } },
         // The drop-to-schedule sheet prefills the crew — without this a job
         // assigned before scheduling would get its assignees wiped on save
         assignments: { select: { userId: true, user: { select: { name: true } } } },

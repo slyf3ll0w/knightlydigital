@@ -21,9 +21,13 @@ import {
 import { money, appointmentTypeLabel } from "@/lib/statuses";
 import { SECTION_HUES } from "@/lib/section-colors";
 import { formatDuration, mapsHref } from "@/lib/time-entries";
+import { renderMessageTemplate, DEFAULT_ON_MY_WAY_TEMPLATE } from "@/lib/messaging";
+import { arrivalTimeLabel, resolveArrivalWindowMinutes } from "@/lib/arrival-window";
 import EmptyState from "@/components/EmptyState";
 import CountUp from "@/components/CountUp";
 import DashboardSetupCard from "./DashboardSetupCard";
+import UpNextActions from "./UpNextActions";
+import SwipeRowContact from "@/components/SwipeRowContact";
 import { PushNudge } from "@/components/PushNotifications";
 import {
   requirePageActor,
@@ -112,6 +116,8 @@ export default async function DashboardPage() {
     setupCompany,
     onClock,
     readyToBill,
+    heroCompany,
+    myOpenEntry,
   ] = await Promise.all([
     prisma.request.count({ where: { companyId, ...leadScope, status: "NEW" } }),
     prisma.request.count({ where: { companyId, ...leadScope, status: "NEEDS_APPROVAL" } }),
@@ -184,6 +190,16 @@ export default async function DashboardPage() {
           select: { subscription: { select: { unitPrice: true, quantity: true } } },
         })
       : Promise.resolve([]),
+    // The "Up next" hero's action row needs the On-My-Way template context
+    prisma.company.findUnique({
+      where: { id: companyId },
+      select: { name: true, timezone: true, onMyWayTemplate: true, arrivalWindowMinutes: true },
+    }),
+    // My open clock entry, wherever it is — drives the hero's clocked-in state
+    prisma.timeEntry.findFirst({
+      where: { userId: actor.id, endedAt: null },
+      select: { id: true, startedAt: true, jobId: true },
+    }),
   ]);
   const showSetupCard = isManager(actor.role) && setupCompany?.setupWizardAt == null;
 
@@ -356,6 +372,9 @@ export default async function DashboardPage() {
         .join(" · "),
       value: job.lineItems.reduce((s, li) => s + Number(li.total), 0),
       sort: job.scheduledAnytime ? 0 : new Date(job.scheduledAt!).getTime(),
+      // Swipe actions on the timeline rows
+      phone: job.contact.phone,
+      address: job.address ?? job.contact.address,
     })),
     ...todayAppointments.map((a) => ({
       id: `a-${a.id}`,
@@ -375,15 +394,54 @@ export default async function DashboardPage() {
         .join(" · "),
       value: 0,
       sort: a.scheduledAnytime ? 0 : new Date(a.scheduledAt).getTime(),
+      phone: a.contact.phone,
+      address: a.type === "IN_PERSON" ? a.contact.address : null,
     })),
   ].sort((x, y) => x.sort - y.sort);
 
-  // The phone hero: the first stop that hasn't passed yet (anytime jobs
-  // count — they're still work owed today). Everything else lists under
-  // Today, including finished stops, so the day keeps its shape.
+  // The phone hero: the job I'm CLOCKED INTO if it's on today's list (mid-job,
+  // its start time has passed — it would otherwise fall out of the hero right
+  // when the wrap-up actions matter most), else the first stop that hasn't
+  // passed yet (anytime jobs count — they're still work owed today).
+  // Everything else lists under Today, including finished stops, so the day
+  // keeps its shape.
   const nowT = now.getTime();
-  const upNext = todayItems.find((i) => i.sort === 0 || i.sort >= nowT) ?? null;
+  const clockedHero = myOpenEntry?.jobId
+    ? (todayItems.find((i) => i.id === `j-${myOpenEntry.jobId}`) ?? null)
+    : null;
+  const upNext =
+    clockedHero ?? todayItems.find((i) => i.sort === 0 || i.sort >= nowT) ?? null;
   const laterToday = todayItems.filter((i) => i !== upNext);
+
+  // Hero action-row context (see UpNextActions): the source records behind the
+  // picked item, my clock state on it, and the rendered On-My-Way template.
+  const upNextJob = upNext?.id.startsWith("j-")
+    ? (todayVisits.find((j) => `j-${j.id}` === upNext.id) ?? null)
+    : null;
+  const upNextOmwMessage =
+    upNextJob?.contact.phone && upNextJob.status === "ACTIVE"
+      ? renderMessageTemplate(heroCompany?.onMyWayTemplate || DEFAULT_ON_MY_WAY_TEMPLATE, {
+          firstName: upNextJob.contact.firstName,
+          lastName: upNextJob.contact.lastName,
+          companyName: heroCompany?.name,
+          techName: actor.name,
+          jobTitle: upNextJob.title,
+          address: upNextJob.address ?? upNextJob.contact.address,
+          time:
+            upNextJob.scheduledAt && !upNextJob.scheduledAnytime
+              ? arrivalTimeLabel(
+                  heroCompany?.timezone ?? "America/Chicago",
+                  upNextJob.scheduledAt,
+                  resolveArrivalWindowMinutes(
+                    upNextJob.arrivalWindowMinutes,
+                    heroCompany?.arrivalWindowMinutes
+                  )
+                )
+              : "",
+          // Filled at tap-time by the action row (lib/messaging.ts fillEta)
+          eta: "{{eta}}",
+        })
+      : null;
 
   // Whole dollars for the glance strip — cents are for detail pages
   const moneyRound = (n: number) => `$${Math.round(n).toLocaleString("en-US")}`;
@@ -424,9 +482,8 @@ export default async function DashboardPage() {
           brand gradient, big Oxanium time, job + client + street. Skipped
           entirely on a clear day — no hollow placeholder card. */}
       {upNext && (
-        <Link
-          href={upNext.href}
-          className="anim-fade-up anim-delay-1 order-2 mb-7 block overflow-hidden rounded-2xl active:opacity-95 lg:hidden"
+        <div
+          className="anim-fade-up anim-delay-1 order-2 mb-7 overflow-hidden rounded-2xl lg:hidden"
           style={{
             background:
               "linear-gradient(135deg, var(--wb-accent-bright, #2E6FF2), var(--wb-accent-strong, #0A4CBB))",
@@ -442,21 +499,45 @@ export default async function DashboardPage() {
                   "radial-gradient(130% 90% at 100% 0%, color-mix(in srgb, currentColor 14%, transparent), transparent 60%)",
               }}
             />
-            <div className="relative flex items-start justify-between gap-3">
-              <p className="text-[13px] font-medium opacity-80">
-                {upNext.apptType ? "Up next — appointment" : "Up next"}
+            <Link href={upNext.href} className="relative block active:opacity-95">
+              <div className="flex items-start justify-between gap-3">
+                <p className="text-[13px] font-medium opacity-80">
+                  {upNext === clockedHero
+                    ? "On the job"
+                    : upNext.apptType
+                      ? "Up next — appointment"
+                      : "Up next"}
+                </p>
+                {seePrices && upNext.value > 0 && (
+                  <p className="numeral-ledger text-[15px] font-semibold">{money(upNext.value)}</p>
+                )}
+              </div>
+              <p className="numeral-ledger mt-1.5 text-[30px] leading-none font-semibold">
+                {upNext.time === "Anytime" ? "Anytime today" : upNext.time}
               </p>
-              {seePrices && upNext.value > 0 && (
-                <p className="numeral-ledger text-[15px] font-semibold">{money(upNext.value)}</p>
-              )}
-            </div>
-            <p className="numeral-ledger relative mt-1.5 text-[30px] leading-none font-semibold">
-              {upNext.time === "Anytime" ? "Anytime today" : upNext.time}
-            </p>
-            <p className="relative mt-2.5 truncate text-[16px] font-semibold">{upNext.title}</p>
-            <p className="relative mt-0.5 truncate text-[13px] opacity-80">{upNext.heroSub}</p>
+              <p className="mt-2.5 truncate text-[16px] font-semibold">{upNext.title}</p>
+              <p className="mt-0.5 truncate text-[13px] opacity-80">{upNext.heroSub}</p>
+            </Link>
+            {/* The moment's one-tap actions: On My Way / Directions / Clock In
+                before the visit; Clock Out (timer) / Photos / Checklist on the
+                clock; Call / Text / Directions for appointments. */}
+            <UpNextActions
+              kind={upNextJob ? "job" : "appointment"}
+              id={upNextJob ? upNextJob.id : upNext.id.slice(2)}
+              phone={upNext.phone ?? null}
+              address={upNext.address ?? null}
+              omwMessage={upNextOmwMessage}
+              omwSentAt={upNextJob?.onMyWaySentAt?.toISOString() ?? null}
+              clockEntry={
+                upNextJob && myOpenEntry?.jobId === upNextJob.id
+                  ? { id: myOpenEntry.id, startedAt: myOpenEntry.startedAt.toISOString() }
+                  : null
+              }
+              canClock={upNextJob?.status === "ACTIVE" && actor.role !== "SALES"}
+              apptType={upNext.apptType}
+            />
           </div>
-        </Link>
+        </div>
       )}
 
       {/* ── The money pulse (phones) — three bare numbers straight on the
@@ -730,30 +811,32 @@ export default async function DashboardPage() {
             {/* the rail: runs behind the stop markers, trimmed at both ends */}
             <div className="absolute left-[68px] top-3 bottom-3 w-px bg-gray-200" aria-hidden />
             {laterToday.map((item) => (
-              <Link
-                key={item.id}
-                href={item.href}
-                className="flex items-center gap-3 py-2.5 transition-opacity active:opacity-70"
-              >
-                <span className="numeral-ledger w-[52px] shrink-0 text-[13px] font-semibold text-gray-700">
-                  {item.time}
-                </span>
-                <span
-                  className={`relative z-10 h-2.5 w-2.5 shrink-0 rounded-full ${
-                    item.apptType ? "bg-blue-400" : "bg-green-500"
-                  }`}
-                  aria-hidden
-                />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-gray-900">{item.title}</p>
-                  {item.sub && <p className="truncate text-xs text-gray-500">{item.sub}</p>}
-                </div>
-                {seePrices && item.value > 0 && (
-                  <p className="numeral-ledger shrink-0 text-[13px] font-semibold text-gray-900">
-                    {money(item.value)}
-                  </p>
-                )}
-              </Link>
+              // Swipe a stop left for Call / Directions without opening it
+              <SwipeRowContact key={item.id} phone={item.phone} address={item.address}>
+                <Link
+                  href={item.href}
+                  className="flex items-center gap-3 py-2.5 transition-opacity active:opacity-70"
+                >
+                  <span className="numeral-ledger w-[52px] shrink-0 text-[13px] font-semibold text-gray-700">
+                    {item.time}
+                  </span>
+                  <span
+                    className={`relative z-10 h-2.5 w-2.5 shrink-0 rounded-full ${
+                      item.apptType ? "bg-blue-400" : "bg-green-500"
+                    }`}
+                    aria-hidden
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-gray-900">{item.title}</p>
+                    {item.sub && <p className="truncate text-xs text-gray-500">{item.sub}</p>}
+                  </div>
+                  {seePrices && item.value > 0 && (
+                    <p className="numeral-ledger shrink-0 text-[13px] font-semibold text-gray-900">
+                      {money(item.value)}
+                    </p>
+                  )}
+                </Link>
+              </SwipeRowContact>
             ))}
           </div>
         )}

@@ -29,8 +29,10 @@ import Fold from "@/components/Fold";
 
 export default async function JobDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ omw?: string }>;
 }) {
   const actor = await requirePageActor();
   const companyId = actor.companyId;
@@ -39,6 +41,9 @@ export default async function JobDetailPage({
   const canOpenContact = canSell(actor.role);
 
   const { id } = await params;
+  // ?omw=1 — the "On My Way" push-notification action button: auto-fire the
+  // OnMyWay flow on load (the tap on the button was the intent)
+  const autoOmw = (await searchParams).omw === "1";
 
   const [job, teamUsers, company, myOpenEntry] = await Promise.all([
     prisma.job.findFirst({
@@ -199,6 +204,7 @@ export default async function JobDetailPage({
                 phone={job.contact.phone}
                 message={onMyWayMessage}
                 sentAt={job.onMyWaySentAt?.toISOString() ?? null}
+                auto={autoOmw}
               />
             )}
             {job.status !== "ACTIVE" && job.contact.phone && (
@@ -360,8 +366,10 @@ export default async function JobDetailPage({
             </div>
           </div>
 
-          {/* Close-out checklist — must be fully resolved to complete the job */}
+          {/* Close-out checklist — must be fully resolved to complete the job.
+              id anchors the dashboard hero's clocked-in "Checklist" action */}
           {checklistItems.length > 0 && (
+            <div id="checklist" className="scroll-mt-20">
             <JobChecklist
               jobId={job.id}
               readOnly={job.status === "ARCHIVED" || actor.role === "SALES"}
@@ -374,6 +382,7 @@ export default async function JobDetailPage({
                 skipReason: c.skipReason,
               }))}
             />
+            </div>
           )}
 
           {/* Line items — folded on phones, the total answers the glance */}
@@ -500,7 +509,10 @@ export default async function JobDetailPage({
             </div>
           </Fold>
 
-          {/* Photos */}
+          {/* Photos — id anchors the dashboard hero's clocked-in "Photos"
+              action; open by default when arriving on that anchor is handled
+              by the tech tapping the folded header */}
+          <div id="photos" className="scroll-mt-20">
           <Fold
             title="Photos"
             meta={job.photos.length > 0 ? `${job.photos.length}` : "Add"}
@@ -515,6 +527,7 @@ export default async function JobDetailPage({
               }))}
             />
           </Fold>
+          </div>
         </div>
 
         {/* Sidebar */}

@@ -16,7 +16,7 @@
  * Bump VERSION to drop every cache wholesale on the next deploy.
  */
 
-const VERSION = "v3";
+const VERSION = "v4";
 const STATIC_CACHE = `sfh-static-${VERSION}`;
 const PAGES_CACHE = `sfh-pages-${VERSION}`;
 const MEDIA_CACHE = `sfh-media-${VERSION}`;
@@ -274,6 +274,15 @@ self.addEventListener("push", (event) => {
     /* non-JSON payload — show the generic notification */
   }
   const title = data.title || "WorkBench";
+  // Action buttons ("On My Way" / "Directions" on job heads-ups): the button
+  // row carries ids + titles; the target URLs ride in data.actionUrls keyed by
+  // id, read back in notificationclick. Platforms without action support
+  // (iOS) just show the plain notification — the tap-through url still works.
+  const actions = Array.isArray(data.actions)
+    ? data.actions.filter((a) => a && a.action && a.title && a.url).slice(0, 2)
+    : [];
+  const actionUrls = {};
+  for (const a of actions) actionUrls[a.action] = a.url;
   event.waitUntil(
     self.registration.showNotification(title, {
       body: data.body || "",
@@ -282,14 +291,23 @@ self.addEventListener("push", (event) => {
       icon: data.icon || "/pwa/icon-192.png",
       badge: "/pwa/icon-192.png",
       tag: data.tag || undefined,
-      data: { url: data.url || "/app/dashboard" },
+      actions: actions.map((a) => ({ action: a.action, title: a.title })),
+      data: { url: data.url || "/app/dashboard", actionUrls },
     })
   );
 });
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const url = (event.notification.data && event.notification.data.url) || "/app/dashboard";
+  const d = event.notification.data || {};
+  const actionUrl = event.action && d.actionUrls ? d.actionUrls[event.action] : null;
+  // External action targets (maps links) open in their own window/app —
+  // never routed through the app-tab focusing below.
+  if (actionUrl && !actionUrl.startsWith("/")) {
+    event.waitUntil(self.clients.openWindow(actionUrl));
+    return;
+  }
+  const url = actionUrl || d.url || "/app/dashboard";
   // Focus a window from the same surface as the target: an /app notification
   // should reuse an /app tab, a /hub/... one should reuse that client's hub
   // (never someone's operator tab, and vice versa).

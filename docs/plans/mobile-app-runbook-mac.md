@@ -264,3 +264,29 @@ To finish it (all three are required, in this order):
 Note `limitsNavigationsToAppBoundDomains` in `capacitor.config.ts` is a
 separate mechanism (it buys service workers for the offline cache) and does not
 substitute for Associated Domains.
+
+## Next store build — Siri App Intents (queued 2026-08-22)
+
+Ship "Hey Siri, clock me in" / "Hey Siri, next job" as real App Intents in the
+iOS shell whenever the next native build goes out. The URL tier already works
+without a store build (Shortcuts app → Open URLs →
+`https://workbenchfsm.com/app/go/next-job`, which resolves clocked-in job →
+next scheduled job → schedule); App Intents are the upgrade that skips opening
+the app and lets Siri confirm conversationally.
+
+Sketch:
+- Add an **App Intents extension** (Swift, iOS 16+) to `ios/App` with two
+  intents: `OpenNextJobIntent` (opens the universal link above — trivial) and
+  `ClockInIntent` (calls `POST /api/app/jobs/[id]/clock`; needs the session
+  cookie shared from the WKWebView's cookie store, plus the next-job lookup —
+  consider a tiny `GET /api/app/arrival`-style endpoint returning the target
+  job id).
+- Donate the intents (`AppShortcutsProvider`) so they appear in
+  Spotlight/Shortcuts with the "WorkBench" app name and suggested phrases.
+- Native change only — cannot ride a web deploy. Pair it with whatever else
+  forces the next store submission.
+- Android note: Google Assistant App Actions are DEPRECATED — do not build
+  that side. Android's equivalents (long-press app shortcuts) already ship;
+  a home-screen widget is the only further step worth considering.
+- Later web-side nicety: a Settings help card documenting the Shortcuts-app
+  recipe for users who won't wait for the store build.

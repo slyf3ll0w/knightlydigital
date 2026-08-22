@@ -13,6 +13,7 @@ import AppLock from "@/components/AppLock";
 import OfflineSupport from "@/components/OfflineSupport";
 import ForegroundRefresh from "@/components/ForegroundRefresh";
 import TeamLocationReporter from "@/components/TeamLocationReporter";
+import ArrivalNudge from "@/components/ArrivalNudge";
 import { resolveWallpaper } from "@/lib/wallpapers";
 
 export const metadata: Metadata = {
@@ -107,6 +108,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <OfflineSupport />
       <ForegroundRefresh />
       <TeamLocationReporter />
+      <ArrivalNudge />
       <AppShell
         userName={user?.name ?? session.user.name}
         userEmail={session.user.email}

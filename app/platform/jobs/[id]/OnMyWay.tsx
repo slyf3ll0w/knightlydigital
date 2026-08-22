@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Navigation } from "lucide-react";
 import { smsHref, isApplePlatform, canSendSms, fillEta } from "@/lib/messaging";
@@ -20,11 +20,15 @@ export default function OnMyWay({
   phone,
   message,
   sentAt,
+  auto = false,
 }: {
   jobId: string;
   phone: string;
   message: string;
   sentAt: string | null;
+  /** Fire the flow on mount (?omw=1 — the push notification's "On My Way"
+   *  action button; that tap was the intent, so don't ask again). */
+  auto?: boolean;
 }) {
   const router = useRouter();
   const [sent, setSent] = useState<Date | null>(sentAt ? new Date(sentAt) : null);
@@ -35,6 +39,17 @@ export default function OnMyWay({
   // server render (which can't sniff the device) matches the first paint.
   const [supported, setSupported] = useState(false);
   useEffect(() => setSupported(canSendSms()), []);
+
+  const autoFired = useRef(false);
+  useEffect(() => {
+    if (!auto || !supported || autoFired.current) return;
+    autoFired.current = true;
+    // Drop ?omw=1 from the URL so a refresh doesn't re-open Messages
+    window.history.replaceState(null, "", window.location.pathname);
+    void send();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auto, supported]);
+
   if (!supported) return null;
 
   const wantsEta = /\{\{\s*eta\s*\}\}/.test(message);
