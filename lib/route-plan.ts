@@ -19,7 +19,7 @@
 import { prisma } from "@/lib/db";
 import { composeAddress, geocodeAddress, geocodingEnabled } from "@/lib/geocoding";
 import type { Actor } from "@/lib/permissions";
-import { appointmentScope, jobScope } from "@/lib/permissions";
+import { appointmentScope, isManager, jobScope } from "@/lib/permissions";
 import { wallTimeToUtc } from "@/lib/booking-slots";
 import { driveTimeMatrix } from "@/lib/routing";
 
@@ -141,16 +141,19 @@ export async function resolveRouteDay(actor: Actor, date: Date): Promise<RouteDa
       orderBy: { scheduledAt: "asc" },
       take: 200,
     }),
-    // Every role, properly scoped — appointmentScope gives managers the whole
-    // board and everyone else (including techs, who previously saw none at
-    // all) their own leads' and directly-assigned appointments.
+    // Dispatchers (managers + USER — who optimize/Find-a-Time already let
+    // plan any tech's day) need the WHOLE committed day: appointmentScope
+    // would hide appointments a colleague assigned, and routes/suggestions
+    // would land on top of them. Techs/sales keep their scoped view.
+    // No address filter: phone/video appointments (address null) are real
+    // time commitments — they ride along as pin-less stops so Find-a-Time
+    // and the day view see them; the optimizer never moves them (no pin).
     prisma.appointment.findMany({
       where: {
         companyId: actor.companyId,
-        ...appointmentScope(actor),
+        ...(isManager(actor.role) || actor.role === "USER" ? {} : appointmentScope(actor)),
         status: "SCHEDULED",
         scheduledAt: { gte: dayStart, lt: dayEnd },
-        address: { not: null },
       },
       include: {
         contact: { select: { firstName: true, lastName: true } },

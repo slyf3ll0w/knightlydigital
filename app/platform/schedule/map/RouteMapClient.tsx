@@ -264,8 +264,16 @@ export default function RouteMapClient({
     return out;
   }, [data, roster, team, canDispatch]);
 
+  // Phone/video appointments ride along pin-less by design (they hold the
+  // tech's time but have no address) — the "check the address" nudge is only
+  // for stops that SHOULD have mapped.
   const unlocated = useMemo(
-    () => groups.flatMap((g) => g.stops.filter((s) => s.lat == null).map((s) => s.title)),
+    () =>
+      groups.flatMap((g) =>
+        g.stops
+          .filter((s) => s.lat == null && !(s.kind === "appointment" && !s.address))
+          .map((s) => s.title)
+      ),
     [groups]
   );
 

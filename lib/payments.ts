@@ -473,12 +473,23 @@ async function anchorPlanFromFirstPayment(subscriptionId: string, paidAt: Date):
   const anchor = new Date(paidAt);
   anchor.setHours(12, 0, 0, 0); // noon-anchored like every engine date
   const months = { MONTHLY: 1, QUARTERLY: 3, SEMIANNUAL: 6, ANNUAL: 12 }[sub.interval];
-  const next = new Date(anchor);
-  const targetDay = next.getDate();
-  next.setDate(1); // avoid transient overflow while shifting the month
-  next.setMonth(next.getMonth() + months);
-  const lastDay = new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate();
-  next.setDate(Math.min(targetDay, lastDay));
+  const targetDay = anchor.getDate();
+  const intervalFromAnchor = (steps: number): Date => {
+    const d = new Date(anchor);
+    d.setDate(1); // avoid transient overflow while shifting the month
+    d.setMonth(d.getMonth() + months * steps);
+    const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+    d.setDate(Math.min(targetDay, lastDay));
+    return d;
+  };
+  // Roll forward past today: recordPayment accepts a backdated paidAt (staff
+  // recording an old check), and a cursor left in the past bills one cycle
+  // per hourly sweep — auto-charging each — until it catches up. Same guard
+  // as rollCursorForward on the resume path, keeping the anchor day-of-month.
+  const now = new Date();
+  let steps = 1;
+  let next = intervalFromAnchor(steps);
+  while (next < now) next = intervalFromAnchor(++steps);
 
   await prisma.subscription.update({
     where: { id: subscriptionId },

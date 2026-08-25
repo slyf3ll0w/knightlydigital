@@ -66,11 +66,15 @@ export async function POST(req: NextRequest) {
   const tz = tzCompany?.timezone || "America/Chicago";
 
   // Routable: the tech's jobs + their confirmed in-person appointments.
-  // Tentative bookings hold their promised slot — they only warn.
+  // Tentative bookings hold their promised slot — they only warn. Phone/video
+  // appointments (no address) now ride the day as pin-less stops for
+  // Find-a-Time's sake; they're not routable and already warn via apptsRaw.
   const assigned = day.stops.filter(
     (s) =>
       s.assigneeIds.includes(userId) &&
-      (s.kind === "job" ? s.status === "ACTIVE" : s.status === "SCHEDULED" && !s.tentative)
+      (s.kind === "job"
+        ? s.status === "ACTIVE"
+        : s.status === "SCHEDULED" && !s.tentative && s.address != null)
   );
   const stops = assigned.filter((s) => s.lat != null && s.lng != null);
   const skipped = assigned.filter((s) => s.lat == null).map((s) => s.title);

@@ -140,7 +140,16 @@ export async function PATCH(
     if (isNaN(next.getTime())) {
       return NextResponse.json({ error: "Invalid next billing date." }, { status: 400 });
     }
-    data.nextRunDate = next;
+    // A picked day in the past would bill one catch-up cycle per hourly sweep
+    // until the cursor caught up — roll on-cadence to the upcoming occurrence
+    // of that day instead (today itself stays today; the noon anchor can sit
+    // a few hours behind an afternoon save without meaning "last month").
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const interval = (data.interval !== undefined ? data.interval : sub.interval) as
+      | Parameters<typeof rollCursorForward>[1]
+      | null;
+    data.nextRunDate = next < todayStart && interval ? rollCursorForward(next, interval, todayStart) : next;
   }
 
   // ── Visit series ────────────────────────────────────────────────────────────
@@ -268,6 +277,27 @@ export async function PATCH(
     sub.nextRunDate < new Date()
   ) {
     data.nextRunDate = rollCursorForward(sub.nextRunDate, sub.interval);
+  }
+
+  // Scheduled billing must always leave here with a live cursor. Switching a
+  // queue-mode per-visit series (nextRunDate null) to an interval used to keep
+  // the null — and the billing sweep filters `nextRunDate: { not: null }`, so
+  // the plan silently never billed again. Same start as the create route:
+  // noon today, first successful payment re-anchors (anchorPlanFromFirstPayment).
+  const finalInterval = data.interval !== undefined ? data.interval : sub.interval;
+  if (finalInterval) {
+    const finalNextRun =
+      data.nextRunDate !== undefined ? (data.nextRunDate as Date) : sub.nextRunDate;
+    if (!finalNextRun) {
+      const start = new Date();
+      start.setHours(12, 0, 0, 0);
+      data.nextRunDate = start;
+    }
+    // consolidateMonthly is a per-visit-only flag — a leftover true alongside
+    // an interval is a state no sweep expects.
+    if (sub.consolidateMonthly && data.consolidateMonthly === undefined) {
+      data.consolidateMonthly = false;
+    }
   }
 
   const updated = await prisma.subscription.update({ where: { id }, data });

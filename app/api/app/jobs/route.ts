@@ -13,9 +13,34 @@ export async function GET() {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  // Whitelisted relations: `include: { user: true }` shipped every assignee's
+  // full row (legacy passwordHash, hourlyCost — the pricing-gated field — and
+  // avatar bytes) and `contact: true` shipped hubToken/processor refs to every
+  // role that can list jobs. Nothing display-worthy needs more than this.
   const jobs = await prisma.job.findMany({
     where: { companyId: actor.companyId, ...jobScope(actor) },
-    include: { contact: true, assignments: { include: { user: true } } },
+    include: {
+      contact: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          companyName: true,
+          email: true,
+          phone: true,
+          address: true,
+          city: true,
+          state: true,
+          zip: true,
+          status: true,
+        },
+      },
+      assignments: {
+        include: {
+          user: { select: { id: true, name: true, email: true, phone: true, role: true, isActive: true } },
+        },
+      },
+    },
     orderBy: { updatedAt: "desc" },
   });
 

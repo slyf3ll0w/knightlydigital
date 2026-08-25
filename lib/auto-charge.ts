@@ -271,6 +271,19 @@ export async function runAutoChargeRetries(now: Date = new Date()): Promise<Retr
 
   for (const inv of due) {
     try {
+      // Claim before charging: push the due stamp forward atomically so an
+      // overlapping sweep (double-registered cron, or a slow run crossing the
+      // next hourly fire) can't re-charge the same invoice minutes later —
+      // the processor's minute-windowed idempotency only covers same-minute
+      // repeats. A short lease rather than null so a crash mid-charge
+      // self-heals on a later sweep instead of silently stalling autopay;
+      // success/failure below overwrite it with the real schedule.
+      const claim = await prisma.invoice.updateMany({
+        where: { id: inv.id, autoChargeNextAt: { not: null, lte: now } },
+        data: { autoChargeNextAt: new Date(now.getTime() + 3600_000) },
+      });
+      if (claim.count === 0) continue; // another sweep already has it
+
       summary.processed++;
       const balance = invoiceBalance(inv);
       if (balance <= 0) {

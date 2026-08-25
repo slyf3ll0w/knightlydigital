@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Loader2, MapPin, Phone, Video } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
+import { alertSheet } from "@/components/ConfirmSheet";
 import { localInputToISO } from "@/lib/statuses";
 import SlotTimePicker from "@/components/SlotTimePicker";
 import ContactPicker from "@/components/ContactPicker";
@@ -116,7 +117,7 @@ export default function AppointmentForm({
     }
 
     setLoading(true);
-    const { ok, data } = await postJson<{ id: string }>("/api/app/appointments", {
+    const { ok, data } = await postJson<{ id: string; conflicts?: string[] }>("/api/app/appointments", {
       contactId,
       requestId: requestId || null,
       title,
@@ -138,6 +139,15 @@ export default function AppointmentForm({
       setError(data?.error ?? GENERIC_ERROR);
       return;
     }
+
+    // The appointment saved either way — double-booking is a heads-up, not a block
+    if (data.conflicts?.length) {
+      await alertSheet({
+        title: "Booked, with a heads-up",
+        message: `This time overlaps:\n${data.conflicts.join("\n")}`,
+      });
+    }
+
     router.push(`/app/appointments/${data.id}`);
   }
 

@@ -33,13 +33,15 @@ export default function ChargeOverlay({
           <>
             <div className="relative mx-auto h-24 w-24">
               {/* Spinner ring around the card — the "contacting the network" beat */}
-              <svg viewBox="0 0 96 96" className="absolute inset-0 h-full w-full animate-spin [animation-duration:1.1s]">
+              {/* currentColor + text-gray-900 so the ring rides the dark bridge
+                  (a hardcoded near-black stroke vanished on the dark scrim) */}
+              <svg viewBox="0 0 96 96" className="absolute inset-0 h-full w-full animate-spin [animation-duration:1.1s] text-gray-900">
                 <circle
                   cx="48"
                   cy="48"
                   r="44"
                   fill="none"
-                  stroke="#111827"
+                  stroke="currentColor"
                   strokeWidth="3"
                   strokeLinecap="round"
                   strokeDasharray="80 200"
