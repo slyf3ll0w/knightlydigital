@@ -1157,6 +1157,10 @@ model Job {
   // Crew heads-up push ~1h before the visit (runTechHeadsUp) — independent of
   // the client reminder so techs still hear about remindClient=false jobs
   techHeadsUpSentAt  DateTime?
+  // Background-generated visits can land on top of existing work with nobody
+  // watching — generateDueVisits stamps the first conflict label here so the
+  // schedule can badge it; any schedule/crew edit clears it (a human looked).
+  conflictNote String?
   completedAt  DateTime?
   closedAt     DateTime?
   address      String?

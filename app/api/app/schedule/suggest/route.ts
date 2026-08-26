@@ -35,8 +35,13 @@ export async function POST(req: NextRequest) {
   });
   if (!user) return NextResponse.json({ error: "Team member not found." }, { status: 404 });
 
+  // "Today" resolves in the company's timezone, not the server's
+  const tz = await prisma.company.findUnique({
+    where: { id: actor.companyId },
+    select: { timezone: true },
+  });
   const result = await suggestTimes(actor, {
-    date: parseRouteDate(typeof body.date === "string" ? body.date : null),
+    date: parseRouteDate(typeof body.date === "string" ? body.date : null, tz?.timezone),
     userId,
     durationMinutes: Number(body.durationMinutes) || undefined,
     address: typeof body.address === "string" ? body.address : null,

@@ -1,6 +1,7 @@
 import { headers } from "next/headers";
 import { prisma } from "@/lib/db";
 import { requirePageActor, isManager, jobScope, canSell, appointmentScope } from "@/lib/permissions";
+import { localDayParts } from "@/lib/booking-slots";
 import ScheduleClient, { type ScheduleJobDTO } from "./ScheduleClient";
 
 /**
@@ -13,7 +14,7 @@ function pad(n: number) {
   return String(n).padStart(2, "0");
 }
 
-function parseDateParam(s?: string): Date {
+function parseDateParam(s: string | undefined, tz: string): Date {
   if (s) {
     const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
     if (m) {
@@ -21,7 +22,10 @@ function parseDateParam(s?: string): Date {
       if (!isNaN(d.getTime())) return d;
     }
   }
-  return new Date();
+  // No date = "today" in the COMPANY's calendar, not the server's — a
+  // late-evening tenant west of the server would otherwise open on tomorrow.
+  const { y, m, d } = localDayParts(tz, new Date());
+  return new Date(y, m - 1, d);
 }
 
 type JobWithContact = {
@@ -33,6 +37,7 @@ type JobWithContact = {
   scheduledEnd: Date | null;
   scheduledAnytime: boolean;
   subscriptionId: string | null;
+  conflictNote?: string | null;
   address: string | null;
   contact: { firstName: string; lastName: string; phone: string | null; address: string | null };
   assignments?: { userId: string; user: { name: string | null } }[];
@@ -51,6 +56,7 @@ function toDTO(j: JobWithContact): ScheduleJobDTO {
     scheduledAnytime: j.scheduledAnytime,
     contactName: `${j.contact.firstName} ${j.contact.lastName}`.trim(),
     recurring: !!j.subscriptionId,
+    conflictNote: j.conflictNote ?? null,
     assignees: (j.assignments ?? [])
       .map((a) => a.user.name?.trim() ?? "")
       .filter(Boolean),
@@ -173,7 +179,11 @@ export default async function SchedulePage({
     const ua = (await headers()).get("user-agent") ?? "";
     if (/iPhone|iPod|Windows Phone|Android(?=.*Mobile)/i.test(ua)) view = "day";
   }
-  const anchor = parseDateParam(dateParam);
+  const companyTz = await prisma.company.findUnique({
+    where: { id: companyId },
+    select: { timezone: true },
+  });
+  const anchor = parseDateParam(dateParam, companyTz?.timezone || "America/Chicago");
 
   // Visible range (server TZ = company TZ via Railway TZ env)
   let start: Date;

@@ -119,11 +119,12 @@ export async function POST(req: NextRequest) {
   // Non-blocking double-booking heads-up — the same check every other
   // schedule write runs; jobs POST got it, this path never did.
   let conflicts: string[] = [];
-  if (!anytime && end) {
+  if (!anytime) {
     conflicts = await findScheduleConflicts({
       companyId,
       start,
-      end,
+      // No end picked = the same 1-hour default window the PATCH route uses
+      end: end ?? new Date(start.getTime() + 3600_000),
       userIds: [assignedToId],
       excludeAppointmentId: appointment.id,
     }).catch(() => []);

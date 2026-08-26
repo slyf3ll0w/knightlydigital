@@ -20,7 +20,7 @@ import { prisma } from "@/lib/db";
 import { composeAddress, geocodeAddress, geocodingEnabled } from "@/lib/geocoding";
 import type { Actor } from "@/lib/permissions";
 import { appointmentScope, isManager, jobScope } from "@/lib/permissions";
-import { wallTimeToUtc } from "@/lib/booking-slots";
+import { localDayParts, wallTimeToUtc } from "@/lib/booking-slots";
 import { driveTimeMatrix } from "@/lib/routing";
 
 export type RouteStop = {
@@ -99,13 +99,20 @@ export async function resolveDriveLegs(day: RouteDay, companyId: string): Promis
   return drive;
 }
 
-export function parseRouteDate(s?: string | null): Date {
+export function parseRouteDate(s?: string | null, tz?: string | null): Date {
   if (s) {
     const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
     if (m) {
       const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
       if (!isNaN(d.getTime())) return d;
     }
+  }
+  if (tz) {
+    // No date given = "today" — the COMPANY's calendar day, not the server's.
+    // A late-evening tenant west of the server would otherwise open on
+    // tomorrow's route every night.
+    const { y, m, d } = localDayParts(tz, new Date());
+    return new Date(y, m - 1, d);
   }
   const today = new Date();
   today.setHours(0, 0, 0, 0);

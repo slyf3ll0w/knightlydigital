@@ -25,6 +25,7 @@ import { attemptAutoCharge } from "@/lib/auto-charge";
 import { sendEmail, invoiceLinkEmail } from "@/lib/email";
 import { localDayParts, wallTimeToUtc } from "@/lib/booking-slots";
 import { withDocNumberRetry } from "@/lib/doc-numbers";
+import { findScheduleConflicts } from "@/lib/schedule-conflicts";
 
 type Tx = Prisma.TransactionClient | PrismaClient;
 
@@ -911,6 +912,8 @@ export async function generateDueVisits(
 
   const summary: VisitRunSummary = { subscriptions: 0, visitsCreated: 0, errors: 0 };
   for (const sub of due) {
+    // Timed visits minted this sweep — checked for double-booking post-commit
+    const newVisits: { id: string; start: Date; end: Date; assigneeIds: string[] }[] = [];
     try {
       const created = await withDocNumberRetry(() => prisma.$transaction(async (tx) => {
         // Re-read inside the transaction so overlapping sweeps can't both
@@ -986,7 +989,7 @@ export async function generateDueVisits(
               orderBy: { jobNumber: "desc" },
               select: { jobNumber: true },
             });
-            await tx.job.create({
+            const visit = await tx.job.create({
               data: {
                 companyId: sub.companyId,
                 contactId: sub.contactId,
@@ -1008,6 +1011,9 @@ export async function generateDueVisits(
                 assignments: { create: assigneeIds.map((userId) => ({ userId })) },
               },
             });
+            if (!anytime && scheduledEnd) {
+              newVisits.push({ id: visit.id, start: scheduledAt, end: scheduledEnd, assigneeIds });
+            }
             count++;
           }
           cursor = addVisitInterval(cursor, fresh.visitFrequency);
@@ -1021,6 +1027,30 @@ export async function generateDueVisits(
       }));
       summary.subscriptions++;
       summary.visitsCreated += created;
+
+      // Nobody is watching a background sweep, so a generated visit that lands
+      // on existing work gets its first conflict stamped onto the job — the
+      // schedule shows it as a badge until someone reschedules (which clears
+      // it). Post-commit and best-effort: a failed check never fails the sweep.
+      for (const v of newVisits) {
+        try {
+          const conflicts = await findScheduleConflicts({
+            companyId: sub.companyId,
+            start: v.start,
+            end: v.end,
+            userIds: v.assigneeIds,
+            excludeJobId: v.id,
+          });
+          if (conflicts.length > 0) {
+            await prisma.job.update({
+              where: { id: v.id },
+              data: { conflictNote: conflicts[0] },
+            });
+          }
+        } catch (e) {
+          console.error("[subscriptions] visit conflict check failed for", v.id, e);
+        }
+      }
     } catch (err) {
       summary.errors++;
       console.error("[subscriptions] visit generation failed for", sub.id, err);

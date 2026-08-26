@@ -55,15 +55,15 @@ export async function POST(req: NextRequest) {
   });
   if (!user) return NextResponse.json({ error: "Team member not found." }, { status: 404 });
 
-  const date = parseRouteDate(typeof body.date === "string" ? body.date : null);
-  const day = await resolveRouteDay(actor, date);
-  // All wall-clock math below (anchor, day bounds, warning labels) runs in
-  // the COMPANY's timezone, not the server's
+  // All wall-clock math (the "today" default, anchor, day bounds, warning
+  // labels) runs in the COMPANY's timezone, not the server's
   const tzCompany = await prisma.company.findUnique({
     where: { id: actor.companyId },
     select: { timezone: true, businessHours: true },
   });
   const tz = tzCompany?.timezone || "America/Chicago";
+  const date = parseRouteDate(typeof body.date === "string" ? body.date : null, tz);
+  const day = await resolveRouteDay(actor, date);
 
   // Routable: the tech's jobs + their confirmed in-person appointments.
   // Tentative bookings hold their promised slot — they only warn. Phone/video
@@ -184,20 +184,23 @@ export async function POST(req: NextRequest) {
 
   // Fixed commitments we never move — warn when the proposed route runs over.
   // Routed in-person appointments are excluded (they move with the route);
-  // what's left is phone/video calls and tentative bookings.
+  // what's left is phone/video calls and tentative bookings. Moved stops can
+  // carry CO-ASSIGNEES (a two-tech job), so their commitments are scanned
+  // too — applying tech A's route must not silently bury tech B's day.
   const routedIds = new Set(orderedStops.map((s) => s.id));
+  const scanUserIds = [...new Set([userId, ...orderedStops.flatMap((s) => s.assigneeIds)])];
   const dayStart = wallTimeToUtc(tz, date.getFullYear(), date.getMonth() + 1, date.getDate(), 0);
   const dayEnd = wallTimeToUtc(tz, date.getFullYear(), date.getMonth() + 1, date.getDate(), 24 * 60);
-  const [apptsRaw, blocks, otherJobsRaw] = await Promise.all([
+  const [apptsRaw, blocks, otherJobsRaw, scanUsers] = await Promise.all([
     prisma.appointment.findMany({
       where: {
         companyId: actor.companyId,
-        assignedToId: userId,
+        assignedToId: { in: scanUserIds },
         status: "SCHEDULED",
         scheduledAnytime: false,
         scheduledAt: { gte: dayStart, lt: dayEnd },
       },
-      select: { id: true, title: true, scheduledAt: true, scheduledEnd: true },
+      select: { id: true, title: true, scheduledAt: true, scheduledEnd: true, assignedToId: true },
     }),
     prisma.timeBlock.findMany({
       where: {
@@ -205,12 +208,12 @@ export async function POST(req: NextRequest) {
         allDay: false,
         startAt: { lt: dayEnd },
         endAt: { gt: dayStart },
-        OR: [{ userId }, { userId: null }],
+        OR: [{ userId: { in: scanUserIds } }, { userId: null }],
       },
-      select: { title: true, startAt: true, endAt: true },
+      select: { title: true, startAt: true, endAt: true, userId: true },
     }),
-    // The tech's timed jobs that are NOT on this route (skipped for a missing
-    // pin, or excluded by status) keep their old times — the new walk can run
+    // Timed jobs that are NOT on this route (skipped for a missing pin, or
+    // excluded by status) keep their old times — the new walk can run
     // straight over them without this scan.
     prisma.job.findMany({
       where: {
@@ -218,15 +221,32 @@ export async function POST(req: NextRequest) {
         status: "ACTIVE",
         scheduledAnytime: false,
         scheduledAt: { gte: dayStart, lt: dayEnd },
-        assignments: { some: { userId } },
+        assignments: { some: { userId: { in: scanUserIds } } },
       },
-      select: { id: true, jobNumber: true, title: true, scheduledAt: true, scheduledEnd: true },
+      select: {
+        id: true,
+        jobNumber: true,
+        title: true,
+        scheduledAt: true,
+        scheduledEnd: true,
+        assignments: { select: { userId: true } },
+      },
+    }),
+    prisma.user.findMany({
+      where: { id: { in: scanUserIds }, companyId: actor.companyId },
+      select: { id: true, name: true },
     }),
   ]);
   const appts = apptsRaw.filter((a) => !routedIds.has(a.id));
   const otherJobs = otherJobsRaw.filter((j) => !routedIds.has(j.id));
   const fmt = (d: Date) =>
     d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: tz });
+  // Name the teammate when the buried commitment isn't the routed tech's own
+  const whose = (ownerId: string | null | undefined) => {
+    if (!ownerId || ownerId === userId) return "";
+    const n = scanUsers.find((u) => u.id === ownerId)?.name;
+    return n ? ` — ${n}'s` : " — a teammate's";
+  };
   const warnings: string[] = [];
   for (const p of proposed) {
     const ps = new Date(p.proposedStart).getTime();
@@ -234,21 +254,27 @@ export async function POST(req: NextRequest) {
     for (const a of appts) {
       const ae = (a.scheduledEnd ?? new Date(a.scheduledAt.getTime() + 3600_000)).getTime();
       if (ps < ae && pe > a.scheduledAt.getTime()) {
-        warnings.push(`"${p.title}" overlaps appointment "${a.title}" (${fmt(a.scheduledAt)})`);
+        warnings.push(
+          `"${p.title}" overlaps appointment "${a.title}" (${fmt(a.scheduledAt)})${whose(a.assignedToId)}`
+        );
       }
     }
     for (const j of otherJobs) {
       if (!j.scheduledAt) continue;
       const je = (j.scheduledEnd ?? new Date(j.scheduledAt.getTime() + 3600_000)).getTime();
       if (ps < je && pe > j.scheduledAt.getTime()) {
+        const other = j.assignments.find((x) => x.userId !== userId && scanUserIds.includes(x.userId));
+        const mine = j.assignments.some((x) => x.userId === userId);
         warnings.push(
-          `"${p.title}" overlaps Job #${j.jobNumber} (${j.title}) at ${fmt(j.scheduledAt)} — not on this route`
+          `"${p.title}" overlaps Job #${j.jobNumber} (${j.title}) at ${fmt(j.scheduledAt)} — not on this route${mine ? "" : whose(other?.userId)}`
         );
       }
     }
     for (const b of blocks) {
       if (ps < b.endAt.getTime() && pe > b.startAt.getTime()) {
-        warnings.push(`"${p.title}" overlaps blocked time "${b.title || "Busy"}" (${fmt(b.startAt)})`);
+        warnings.push(
+          `"${p.title}" overlaps blocked time "${b.title || "Busy"}" (${fmt(b.startAt)})${whose(b.userId)}`
+        );
       }
     }
   }
@@ -276,7 +302,9 @@ export async function POST(req: NextRequest) {
         };
         return p.kind === "appointment"
           ? prisma.appointment.update({ where: { id: p.id }, data })
-          : prisma.job.update({ where: { id: p.id }, data });
+          : // Re-timing counts as a human touching the schedule — the
+            // generated-visit conflict badge is done
+            prisma.job.update({ where: { id: p.id }, data: { ...data, conflictNote: null } });
       })
     );
     applied = true;

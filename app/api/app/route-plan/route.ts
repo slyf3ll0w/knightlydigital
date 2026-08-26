@@ -17,7 +17,12 @@ export async function GET(req: NextRequest) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const date = parseRouteDate(req.nextUrl.searchParams.get("date"));
+  // "Today" resolves in the company's timezone, not the server's
+  const tz = await prisma.company.findUnique({
+    where: { id: actor.companyId },
+    select: { timezone: true },
+  });
+  const date = parseRouteDate(req.nextUrl.searchParams.get("date"), tz?.timezone);
   const [day, unscheduledRows] = await Promise.all([
     resolveRouteDay(actor, date),
     prisma.job.findMany({

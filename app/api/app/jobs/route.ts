@@ -208,10 +208,13 @@ export async function POST(req: NextRequest) {
   // schedule write runs; creation was the one path with none at all.
   let conflicts: string[] = [];
   if (scheduledAt && !scheduledAnytime && validAssignees.length > 0) {
+    const checkStart = new Date(scheduledAt);
     conflicts = await findScheduleConflicts({
       companyId,
-      start: new Date(scheduledAt),
-      end: scheduledEnd ? new Date(scheduledEnd) : null,
+      start: checkStart,
+      // No end picked = the calendar's 1-hour default window (same as the
+      // PATCH route) — a timed job without an end still holds real time.
+      end: scheduledEnd ? new Date(scheduledEnd) : new Date(checkStart.getTime() + 3600_000),
       userIds: validAssignees.map((u) => u.id),
       excludeJobId: job.id,
     }).catch(() => []);

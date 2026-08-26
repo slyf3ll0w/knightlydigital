@@ -66,6 +66,8 @@ export async function PATCH(
       // A moved visit reminds again at its new time (stamps are per-schedule)
       reminderDaySentAt: null,
       reminderHourSentAt: null,
+      // A human rescheduled it — the generated-visit conflict badge is done
+      conflictNote: null,
     }),
     ...(body.scheduledEnd !== undefined && { scheduledEnd: body.scheduledEnd ? new Date(body.scheduledEnd) : null }),
     ...(body.scheduledAnytime !== undefined && { scheduledAnytime: Boolean(body.scheduledAnytime) }),
