@@ -524,6 +524,22 @@ html[data-mode="dark"] .app-ui .sheet-hairline {
   }
 }
 
+/* ── Form-control focus baseline — components/Input.tsx's ring, applied to
+   any control that declares NO focus: utilities of its own (the [class*=]
+   guard), so bare holdouts inherit the primitive's treatment instead of the
+   browser default. Controls that pick their own ring (amber refund, blue
+   pickers) keep it. :where() adds no specificity. ── */
+.app-ui
+  :where(
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([class*="focus:"]),
+    select:not([class*="focus:"]),
+    textarea:not([class*="focus:"])
+  ):focus {
+  outline: none;
+  border-color: var(--wb-accent-bright, #22c55e);
+  box-shadow: 0 0 0 1px var(--wb-accent-bright, #22c55e);
+}
+
 /* ── Desktop dialogs stop hard-cutting into existence: scrim fades, the
    card rises 8px at 96% scale and settles (the settle curve the rest of
    the motion system speaks). One CSS rule covers every .modal-pop dialog —

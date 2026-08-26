@@ -15,9 +15,14 @@ export type ConfirmSheetOptions = {
   destructive?: boolean;
   /** One-button notice (alertSheet) — no cancel, always resolves true. */
   alertOnly?: boolean;
+  /** Text input (promptSheet) — confirming resolves with its value. */
+  input?: { placeholder?: string; initial?: string };
 };
 
-type Presenter = (opts: ConfirmSheetOptions, resolve: (ok: boolean) => void) => void;
+type Presenter = (
+  opts: ConfirmSheetOptions,
+  resolve: (ok: boolean, value?: string) => void
+) => void;
 
 let presenter: Presenter | null = null;
 
@@ -50,10 +55,36 @@ export function alertSheet(
   return confirmSheet({ confirmLabel: "OK", ...opts, alertOnly: true });
 }
 
+/**
+ * Drop-in async replacement for window.prompt(): same presentation as
+ * confirmSheet plus a text field. Resolves the typed string (possibly "")
+ * on confirm, null on cancel — the window.prompt contract.
+ */
+export function promptSheet(
+  opts: Omit<ConfirmSheetOptions, "alertOnly" | "input"> & {
+    placeholder?: string;
+    initial?: string;
+  }
+): Promise<string | null> {
+  if (typeof window === "undefined") return Promise.resolve(null);
+  const { placeholder, initial, ...rest } = opts;
+  if (!presenter) {
+    const text = rest.title ? `${rest.title}\n\n${rest.message}` : rest.message;
+    return Promise.resolve(window.prompt(text, initial ?? ""));
+  }
+  return new Promise((resolve) =>
+    presenter!({ ...rest, input: { placeholder, initial } }, (ok, value) =>
+      resolve(ok ? (value ?? "") : null)
+    )
+  );
+}
+
 export default function ConfirmSheetHost() {
   const [opts, setOpts] = useState<ConfirmSheetOptions | null>(null);
   const [open, setOpen] = useState(false); // drives the slide/fade transition
-  const resolveRef = useRef<((ok: boolean) => void) | null>(null);
+  const [inputValue, setInputValue] = useState("");
+  const resolveRef = useRef<((ok: boolean, value?: string) => void) | null>(null);
+  const inputValueRef = useRef(""); // settle() reads this — state is for paint
   const closingRef = useRef(false);
 
   useEffect(() => {
@@ -61,6 +92,8 @@ export default function ConfirmSheetHost() {
       resolveRef.current?.(false); // a new ask while open cancels the old one
       resolveRef.current = resolve;
       closingRef.current = false;
+      inputValueRef.current = o.input?.initial ?? "";
+      setInputValue(o.input?.initial ?? "");
       setOpts(o);
       setOpen(false);
       // Two frames so the closed position paints before the transition starts
@@ -75,7 +108,7 @@ export default function ConfirmSheetHost() {
   const settle = useCallback((ok: boolean) => {
     if (closingRef.current) return;
     closingRef.current = true;
-    resolveRef.current?.(ok);
+    resolveRef.current?.(ok, inputValueRef.current);
     resolveRef.current = null;
     setOpen(false);
     window.setTimeout(() => {
@@ -124,6 +157,18 @@ export default function ConfirmSheetHost() {
             <p className="mx-auto max-w-[34ch] text-[13px] leading-snug text-gray-500">
               {opts.message}
             </p>
+            {opts.input && (
+              <input
+                autoFocus
+                value={inputValue}
+                onChange={(e) => {
+                  inputValueRef.current = e.target.value;
+                  setInputValue(e.target.value);
+                }}
+                placeholder={opts.input.placeholder}
+                className="mt-3 w-full rounded-[10px] border border-gray-300 bg-white px-3 py-2 text-left text-[15px] text-gray-900 outline-none focus:border-[color:var(--mobile-accent,#0B57D8)]"
+              />
+            )}
           </div>
           <button
             onClick={() => settle(true)}
@@ -158,6 +203,18 @@ export default function ConfirmSheetHost() {
             <h2 className="text-base font-bold text-gray-900 mb-1.5">{opts.title}</h2>
           )}
           <p className="text-sm leading-relaxed text-gray-600">{opts.message}</p>
+          {opts.input && (
+            <input
+              autoFocus
+              value={inputValue}
+              onChange={(e) => {
+                inputValueRef.current = e.target.value;
+                setInputValue(e.target.value);
+              }}
+              placeholder={opts.input.placeholder}
+              className="mt-3 w-full rounded-[10px] border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-green-500"
+            />
+          )}
           <div className="mt-5 flex justify-end gap-2">
             {!opts.alertOnly && (
               <button
@@ -169,7 +226,7 @@ export default function ConfirmSheetHost() {
             )}
             <button
               onClick={() => settle(true)}
-              autoFocus
+              autoFocus={!opts.input}
               className={`px-4 py-2 text-sm font-semibold text-white rounded-[10px] btn-tool transition-colors ${
                 opts.destructive
                   ? "bg-red-600 hover:bg-red-700"

@@ -850,10 +850,10 @@ export default function RouteMapClient({
       {/* Optimize preview — nothing is written until Apply */}
       {preview && (
         <div
-          className="fixed inset-0 z-[1200] flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-6"
+          className="fixed inset-0 z-[1200] flex items-end justify-center bg-black/40 p-0 lg:items-center lg:p-6"
           onClick={(e) => e.target === e.currentTarget && setPreview(null)}
         >
-          <div className="flex max-h-[88dvh] w-full max-w-lg flex-col rounded-t-2xl bg-white shadow-xl sm:rounded-2xl">
+          <div className="flex max-h-[88dvh] w-full max-w-lg flex-col rounded-t-2xl bg-white shadow-xl lg:rounded-2xl">
             <div className="flex items-start justify-between border-b border-gray-100 px-5 py-4">
               <div>
                 <h2 className="font-display text-base font-bold text-gray-900">

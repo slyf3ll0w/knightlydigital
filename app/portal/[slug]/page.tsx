@@ -1,7 +1,9 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { brandHeader, shade, textOn } from "@/lib/branding";
+import { hubBrandVars } from "@/lib/hub-brand";
 import { companyMeta } from "@/lib/client-meta";
+import ForceLightTheme from "@/components/ForceLightTheme";
 import PortalLoginForm from "./PortalLoginForm";
 
 /**
@@ -35,7 +37,13 @@ export default async function PortalLoginPage({
   const headerText = textOn(headerBg);
 
   return (
-    <div className="app-ui min-h-screen bg-paper-plain flex flex-col">
+    // Brand vars + pinned-light, exactly like the hub the door leads into —
+    // the client walks through a door the same color as the room.
+    <div
+      className="app-ui min-h-screen bg-paper-plain flex flex-col"
+      style={hubBrandVars(company)}
+    >
+      <ForceLightTheme />
       {/* Same branded hero as the hub — this is the portal's front door */}
       <header
         className="relative overflow-hidden"
@@ -71,6 +79,12 @@ export default async function PortalLoginPage({
             </div>
           </div>
         </div>
+        {/* Ledger margin rule — the same signature edge the hub header wears */}
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-[2.5px]"
+          style={{ background: "linear-gradient(90deg, var(--wb-primary, #0A1428), var(--wb-accent, #0B57D8))" }}
+        />
       </header>
 
       <main className="flex-1 flex items-start justify-center px-4 pt-12 pb-16">

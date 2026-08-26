@@ -976,7 +976,7 @@ function CommandPalette({
     <Modal
       open={open}
       onClose={onClose}
-      cardClassName="card-ledger w-full max-w-lg self-start lg:mt-[12vh] p-0 overflow-hidden"
+      cardClassName="card-ledger w-full max-w-lg lg:self-start lg:mt-[12vh] p-0 overflow-hidden"
     >
       <div className="flex items-center gap-2.5 border-b border-gray-100 px-4">
         <Search size={16} className="shrink-0 text-gray-400" />

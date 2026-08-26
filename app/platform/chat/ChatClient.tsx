@@ -19,6 +19,7 @@ import {
   X,
 } from "lucide-react";
 import Avatar from "@/components/Avatar";
+import Modal from "@/components/Modal";
 import { hapticImpact } from "@/lib/haptics";
 import { confirmSheet } from "@/components/ConfirmSheet";
 
@@ -1030,50 +1031,42 @@ export default function ChatClient({
       )}
 
       {/* Rename group sheet */}
-      {renameOpen && (
-        <div
-          className="fixed inset-0 z-[70] flex items-end bg-black/40 lg:items-center lg:justify-center"
-          onClick={() => setRenameOpen(false)}
+      <Modal
+        open={renameOpen}
+        onClose={() => setRenameOpen(false)}
+        cardClassName="w-full max-w-md bg-white rounded-2xl p-4"
+      >
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            saveRename();
+          }}
         >
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              saveRename();
-            }}
-            className="w-full rounded-t-3xl bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:max-w-md lg:rounded-2xl"
-            onClick={(e) => e.stopPropagation()}
+          <h2 className="mb-3 text-base font-semibold text-gray-900">Rename group</h2>
+          <input
+            value={renameDraft}
+            onChange={(e) => setRenameDraft(e.target.value)}
+            maxLength={60}
+            autoFocus
+            className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-[15px] focus:border-green-400 focus:outline-none"
+          />
+          <button
+            type="submit"
+            disabled={!renameDraft.trim()}
+            className="mt-4 w-full rounded-[10px] btn-tool bg-green-500 py-3 text-sm font-bold text-white transition-colors hover:bg-green-600 disabled:opacity-40"
           >
-            <div className="mx-auto mb-3 h-1 w-9 rounded-full bg-gray-200 lg:hidden" />
-            <h2 className="mb-3 text-base font-semibold text-gray-900">Rename group</h2>
-            <input
-              value={renameDraft}
-              onChange={(e) => setRenameDraft(e.target.value)}
-              maxLength={60}
-              autoFocus
-              className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-[15px] focus:border-green-400 focus:outline-none"
-            />
-            <button
-              type="submit"
-              disabled={!renameDraft.trim()}
-              className="mt-4 w-full rounded-[10px] btn-tool bg-green-500 py-3 text-sm font-bold text-white transition-colors hover:bg-green-600 disabled:opacity-40"
-            >
-              Save
-            </button>
-          </form>
-        </div>
-      )}
+            Save
+          </button>
+        </form>
+      </Modal>
 
       {/* New chat / add people sheet */}
-      {showNewChat && (
-        <div
-          className="fixed inset-0 z-[70] flex items-end bg-black/40 lg:items-center lg:justify-center"
-          onClick={() => setShowNewChat(false)}
-        >
-          <div
-            className="w-full rounded-t-3xl bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:max-w-md lg:rounded-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mx-auto mb-3 h-1 w-9 rounded-full bg-gray-200 lg:hidden" />
+      <Modal
+        open={!!showNewChat}
+        onClose={() => setShowNewChat(false)}
+        cardClassName="w-full max-w-md bg-white rounded-2xl p-4"
+      >
+        <div>
             <h2 className="mb-1 text-base font-semibold text-gray-900">
               {showNewChat === "add" ? "Add people" : "New chat"}
             </h2>
@@ -1134,9 +1127,8 @@ export default function ChatClient({
                   : "Start chat"}
               <ChevronRight size={15} />
             </button>
-          </div>
         </div>
-      )}
+      </Modal>
     </div>
   );
 }

@@ -13,6 +13,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { postJson } from "@/lib/safe-fetch";
+import PageTitle from "@/components/PageTitle";
 
 type TicketType = "BUG" | "SUGGESTION";
 type TicketStatus = "OPEN" | "PLANNED" | "RESOLVED" | "DECLINED";
@@ -113,7 +114,7 @@ export default function SupportClient({
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-gray-900">Help &amp; Feedback</h1>
+        <PageTitle rule={false}>Help &amp; Feedback</PageTitle>
         <p className="text-sm text-gray-500 mt-1">
           Spotted something broken, or have an idea that would make WorkBench better? Tell us —
           every ticket is read by the team.

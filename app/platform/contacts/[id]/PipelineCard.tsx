@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Trophy, XCircle, SquareKanban } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
-import { confirmSheet } from "@/components/ConfirmSheet";
+import { confirmSheet, promptSheet } from "@/components/ConfirmSheet";
 
 /**
  * Right-rail pipeline card on the client page: which board stage the lead
@@ -86,12 +86,13 @@ export default function PipelineCard({
           Won
         </button>
         <button
-          onClick={() => {
-            const reason = window.prompt(
-              isLead
-                ? `Mark ${contactName} as lost? The lead is archived.\n\nReason (optional):`
-                : `Take ${contactName} off the board? They stay an active client.\n\nReason (optional):`
-            );
+          onClick={async () => {
+            const reason = await promptSheet({
+              title: isLead ? `Mark ${contactName} as lost?` : `Take ${contactName} off the board?`,
+              message: isLead ? "The lead is archived." : "They stay an active client.",
+              confirmLabel: isLead ? "Mark as Lost" : "Remove from Board",
+              placeholder: "Reason (optional)",
+            });
             if (reason !== null) send({ action: "lost", reason: reason || undefined });
           }}
           disabled={busy}

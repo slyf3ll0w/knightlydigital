@@ -7,13 +7,15 @@ import {
   contactScope,
   viaContactScope,
   jobScope,
+  appointmentScope,
 } from "@/lib/permissions";
 
 /**
  * ⌘K live search — one query fanned across the records people actually hunt
- * for (clients, jobs, quotes, invoices), scoped exactly like the list pages.
- * Numeric queries also match record numbers ("1042" finds Invoice #1042).
- * Capped small on purpose: the palette is a jump menu, not a report.
+ * for (clients, jobs, quotes, invoices, requests, appointments), scoped
+ * exactly like the list pages. Numeric queries also match record numbers
+ * ("1042" finds Invoice #1042). Capped small on purpose: the palette is a
+ * jump menu, not a report.
  */
 const TAKE = 5;
 
@@ -40,7 +42,7 @@ export async function GET(req: NextRequest) {
   const filtered = <T,>(or: T[]): { OR: T[] } | Record<string, never> =>
     recent ? {} : { OR: or };
 
-  const [contacts, jobs, quotes, invoices] = await Promise.all([
+  const [contacts, jobs, quotes, invoices, requests, appointments] = await Promise.all([
     canSell(actor.role)
       ? prisma.contact.findMany({
           where: {
@@ -126,6 +128,48 @@ export async function GET(req: NextRequest) {
           take: recent ? 3 : TAKE,
         })
       : Promise.resolve([]),
+    canSell(actor.role)
+      ? prisma.request.findMany({
+          where: {
+            companyId,
+            ...viaContactScope(actor),
+            ...filtered<object>([
+              { title: contains },
+              { contact: { OR: nameOr } },
+              ...(num !== null ? [{ requestNumber: num }] : []),
+            ]),
+          },
+          select: {
+            id: true,
+            title: true,
+            requestNumber: true,
+            updatedAt: true,
+            contact: { select: { firstName: true, lastName: true } },
+          },
+          orderBy: { updatedAt: "desc" },
+          take: recent ? 3 : TAKE,
+        })
+      : Promise.resolve([]),
+    prisma.appointment.findMany({
+      where: {
+        companyId,
+        ...appointmentScope(actor),
+        ...filtered<object>([
+          { title: contains },
+          { contact: { OR: nameOr } },
+          ...(num !== null ? [{ appointmentNumber: num }] : []),
+        ]),
+      },
+      select: {
+        id: true,
+        title: true,
+        appointmentNumber: true,
+        updatedAt: true,
+        contact: { select: { firstName: true, lastName: true } },
+      },
+      orderBy: { updatedAt: "desc" },
+      take: recent ? 3 : TAKE,
+    }),
   ]);
 
   const person = (c: { firstName: string; lastName: string } | null | undefined) =>
@@ -160,8 +204,22 @@ export async function GET(req: NextRequest) {
       group: "Invoices",
       at: inv.updatedAt,
     })),
+    ...requests.map((r) => ({
+      href: `/app/requests/${r.id}`,
+      label: r.title || `Request #${r.requestNumber}`,
+      sub: `#${r.requestNumber} · ${person(r.contact)}`,
+      group: "Requests",
+      at: r.updatedAt,
+    })),
+    ...appointments.map((a) => ({
+      href: `/app/appointments/${a.id}`,
+      label: a.title || `Appointment #${a.appointmentNumber}`,
+      sub: `#${a.appointmentNumber} · ${person(a.contact)}`,
+      group: "Appointments",
+      at: a.updatedAt,
+    })),
   ];
-  // Recent mode interleaves the four types by freshness; search keeps the
+  // Recent mode interleaves the types by freshness; search keeps the
   // grouped order the palette has always shown.
   if (recent) stamped.sort((a, b) => b.at.getTime() - a.at.getTime());
   const results = (recent ? stamped.slice(0, 8) : stamped).map(({ at: _at, ...r }) => r);

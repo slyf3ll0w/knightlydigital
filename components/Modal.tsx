@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 /**
  * THE dialog surface — one primitive instead of fifteen hand-rolled
@@ -23,6 +24,7 @@ export default function Modal({
   children,
   cardClassName = "card-ledger w-full max-w-md p-5",
   dismissible = true,
+  portal = false,
 }: {
   open: boolean;
   onClose: () => void;
@@ -30,6 +32,12 @@ export default function Modal({
   /** Classes for the card itself — width, padding, surface. */
   cardClassName?: string;
   dismissible?: boolean;
+  /**
+   * Render into document.body and swallow clicks at the root — for dialogs
+   * mounted inside row <Link>s, where a backdrop click would otherwise
+   * bubble into navigation.
+   */
+  portal?: boolean;
 }) {
   const [phase, setPhase] = useState<"closed" | "open" | "closing">(open ? "open" : "closed");
   const lastChildren = useRef<React.ReactNode>(children);
@@ -56,12 +64,18 @@ export default function Modal({
   }, [open, dismissible, onClose]);
 
   if (phase === "closed") return null;
-  return (
+  const node = (
     <div
       className={`modal-pop fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 ${
         phase === "closing" ? "modal-closing" : ""
       }`}
-      onClick={dismissible ? onClose : undefined}
+      onClick={(e) => {
+        if (portal) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        if (dismissible) onClose();
+      }}
       role="dialog"
       aria-modal="true"
     >
@@ -70,4 +84,5 @@ export default function Modal({
       </div>
     </div>
   );
+  return portal && typeof document !== "undefined" ? createPortal(node, document.body) : node;
 }

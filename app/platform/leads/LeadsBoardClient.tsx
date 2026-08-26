@@ -795,12 +795,7 @@ function ActionSheet({
   onLost: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-end lg:items-center lg:justify-center" onClick={onClose}>
-      <div
-        className="bg-white w-full lg:max-w-sm rounded-t-2xl lg:rounded-2xl p-4 pb-[max(1rem,env(safe-area-inset-bottom))] max-h-[85vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="mx-auto w-10 h-1 rounded-full bg-gray-200 mb-3 lg:hidden" aria-hidden />
+    <Modal open onClose={onClose} cardClassName="w-full max-w-sm bg-white rounded-2xl p-4">
         <div className="flex items-start justify-between mb-1">
           <div>
             <p className="text-base font-semibold text-gray-900">{card.name}</p>
@@ -906,7 +901,6 @@ function ActionSheet({
             Lost
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

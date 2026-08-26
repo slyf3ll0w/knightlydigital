@@ -77,11 +77,11 @@ export default function EmailClientButton({
 
       {open && (
         <div
-          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4"
+          className="fixed inset-0 z-50 flex items-end lg:items-center justify-center bg-black/40 p-0 lg:p-4"
           onClick={close}
         >
           <div
-            className="w-full sm:max-w-lg bg-white rounded-t-2xl sm:rounded-xl shadow-xl p-5 space-y-4"
+            className="w-full lg:max-w-lg bg-white rounded-t-2xl lg:rounded-xl shadow-xl p-5 space-y-4"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-3">
