@@ -22,7 +22,13 @@
  */
 
 import { prisma } from "@/lib/db";
-import { getProcessor, recordPayment, invoiceBalance } from "@/lib/payments";
+import {
+  getProcessor,
+  recordPayment,
+  invoiceBalance,
+  acquireChargeLock,
+  releaseChargeLock,
+} from "@/lib/payments";
 import { defaultSavedCard } from "@/lib/saved-cards";
 import { logActivity } from "@/lib/activity";
 import { notifyUsers } from "@/lib/push";
@@ -45,7 +51,7 @@ export function classifyDecline(error: string, code?: string | null): "hard" | "
   return HARD_DECLINE.test(code ?? "") || HARD_DECLINE.test(error) ? "hard" : "soft";
 }
 
-export type AutoChargeOutcome = "charged" | "failed" | "no_card" | "not_live";
+export type AutoChargeOutcome = "charged" | "failed" | "no_card" | "not_live" | "locked";
 
 /**
  * Charge one engine-generated invoice to the client's card on file. Success
@@ -85,41 +91,50 @@ export async function attemptAutoCharge(params: {
   const cardLabel = pinned?.label ?? fallback?.label ?? sub.contact.savedCardLabel;
   if (!instrumentRef) return "no_card";
 
-  const result = await processor.chargeStored({
-    customerRef: instrumentRef,
-    amount: params.amount,
-    description: params.chargeDescription,
-    metadata: { invoiceId: params.invoiceId, subscriptionId: sub.id },
-  });
+  // One charge in flight per invoice: a staff "Charge card" or the client on
+  // /pay racing this sweep would each pass their own balance check and charge
+  // twice. Locked = someone else is mid-charge right now; their success clears
+  // the retry schedule, their failure leaves ours to fire on the next pass.
+  if (!(await acquireChargeLock(params.invoiceId))) return "locked";
+  try {
+    const result = await processor.chargeStored({
+      customerRef: instrumentRef,
+      amount: params.amount,
+      description: params.chargeDescription,
+      metadata: { invoiceId: params.invoiceId, subscriptionId: sub.id },
+    });
 
-  if (result.success) {
-    await recordPayment({
+    if (result.success) {
+      await recordPayment({
+        companyId: params.companyId,
+        invoiceId: params.invoiceId,
+        amount: params.amount,
+        method: "CARD",
+        processorRef: result.transactionId,
+        cardBrand: result.cardBrand,
+        cardType: result.cardType,
+        details: `${params.paymentDetails}${cardLabel ? ` (${cardLabel})` : ""}`,
+        receiptPending: result.pending,
+      });
+      await prisma.invoice.update({
+        where: { id: params.invoiceId },
+        data: { autoChargeNextAt: null, autoChargeGaveUpAt: null, autoChargeLastError: null },
+      });
+      return "charged";
+    }
+
+    await handleAutoChargeFailure({
       companyId: params.companyId,
       invoiceId: params.invoiceId,
       amount: params.amount,
-      method: "CARD",
-      processorRef: result.transactionId,
-      cardBrand: result.cardBrand,
-      cardType: result.cardType,
-      details: `${params.paymentDetails}${cardLabel ? ` (${cardLabel})` : ""}`,
-      receiptPending: result.pending,
-    });
-    await prisma.invoice.update({
-      where: { id: params.invoiceId },
-      data: { autoChargeNextAt: null, autoChargeGaveUpAt: null, autoChargeLastError: null },
-    });
-    return "charged";
+      cardLabel,
+      error: result.error,
+      code: result.code,
+    }).catch((e) => console.error("[auto-charge] failure handling failed", params.invoiceId, e));
+    return "failed";
+  } finally {
+    await releaseChargeLock(params.invoiceId);
   }
-
-  await handleAutoChargeFailure({
-    companyId: params.companyId,
-    invoiceId: params.invoiceId,
-    amount: params.amount,
-    cardLabel,
-    error: result.error,
-    code: result.code,
-  }).catch((e) => console.error("[auto-charge] failure handling failed", params.invoiceId, e));
-  return "failed";
 }
 
 /** Book the retry state, audit it, and run first-failure / give-up dunning. */
@@ -262,7 +277,7 @@ export async function runAutoChargeRetries(now: Date = new Date()): Promise<Retr
       subscriptionId: true,
       subject: true,
       total: true,
-      payments: { select: { amount: true } },
+      payments: { select: { amount: true, surchargeAmount: true } },
       company: { select: { name: true } },
     },
     orderBy: { autoChargeNextAt: "asc" },
@@ -304,7 +319,11 @@ export async function runAutoChargeRetries(now: Date = new Date()): Promise<Retr
       });
       if (outcome === "charged") summary.charged++;
       else if (outcome === "failed") summary.failed++;
-      else {
+      else if (outcome === "locked") {
+        // Another charge path (staff, /pay) holds this invoice right now —
+        // the 1-hour lease from the claim above is the natural retry.
+        continue;
+      } else {
         // No card / processor down: push the retry forward a day rather than
         // burning an attempt on a charge that never reached the processor.
         await prisma.invoice.update({

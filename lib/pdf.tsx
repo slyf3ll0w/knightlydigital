@@ -15,6 +15,7 @@ import React from "react";
 import { Document, Page, View, Text, Image, StyleSheet, renderToBuffer } from "@react-pdf/renderer";
 import { prisma } from "@/lib/db";
 import { brandAccent } from "@/lib/branding";
+import { invoiceBalance } from "@/lib/payments";
 import { computeQuoteTotals } from "@/lib/quote-totals";
 import { money, shortDate, quoteDepositAmount, paymentMethodLabel } from "@/lib/statuses";
 
@@ -454,6 +455,7 @@ export type InvoiceForPdf = {
   payments: {
     id: string;
     amount: { toString(): string } | number;
+    surchargeAmount?: { toString(): string } | number | null;
     method: string;
     referenceNumber: string | null;
     paidAt: Date;
@@ -464,10 +466,11 @@ export type InvoiceForPdf = {
 export function buildInvoiceDocument(invoice: InvoiceForPdf, logo: LogoSrc) {
   const accent = brandAccent(invoice.company);
 
-  const surcharge = invoice.surcharge == null ? 0 : Number(invoice.surcharge);
-  const paid = invoice.payments.reduce((s, p) => s + Number(p.amount), 0);
   // Payments carry any card surcharge on top of the invoice total, so the
-  // amount owed reconciles against total + surcharge (mirrors the pay page).
+  // amount owed reconciles against total + Σ payment surcharges (the same
+  // math as lib/payments invoiceBalance — one balance on every surface).
+  const surcharge = invoice.payments.reduce((s, p) => s + Number(p.surchargeAmount ?? 0), 0);
+  const paid = invoice.payments.reduce((s, p) => s + Number(p.amount), 0);
   const balance = Math.max(0, Math.round((Number(invoice.total) + surcharge - paid) * 100) / 100);
   const isPaid = invoice.status === "PAID";
 
@@ -578,7 +581,7 @@ export async function statementPdf(
           paidAt: true,
           createdAt: true,
           total: true,
-          payments: { select: { amount: true } },
+          payments: { select: { amount: true, surchargeAmount: true } },
         },
       },
     },
@@ -591,7 +594,7 @@ export async function statementPdf(
 
   const rows = invoices.map((inv) => {
     const paid = inv.payments.reduce((s, p) => s + Number(p.amount), 0);
-    const balance = Math.max(0, Math.round((Number(inv.total) - paid) * 100) / 100);
+    const balance = Math.max(0, invoiceBalance(inv));
     return { ...inv, paid, balance };
   });
   const open = rows.filter((r) => r.status !== "PAID" && r.balance > 0);

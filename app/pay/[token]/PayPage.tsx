@@ -39,7 +39,7 @@ type Invoice = {
     surchargeEnabled: boolean; surchargeRate: number | null;
   };
   lineItems: LineItem[];
-  payments: { id: string; amount: number; method: string; paidAt: string }[];
+  payments: { id: string; amount: number; surchargeAmount: number | null; method: string; paidAt: string }[];
 };
 
 import { FINIX_JS_SRC, type FinixConfig, type FinixForm } from "@/lib/finix-js";
@@ -75,11 +75,16 @@ export default function PayPage({
   const formRef = useRef<FinixForm | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Display exactly what the server will charge — never a guessed fallback:
+  // a company with the rate set to 0 is charged 0, so 0 is what shows.
   const surchargeRate = invoice.company.surchargeEnabled
-    ? Number(invoice.company.surchargeRate) || 0.03
+    ? Number(invoice.company.surchargeRate) || 0
     : 0;
 
-  const paid = Math.round((Number(invoice.total) - balance) * 100) / 100;
+  const paid = invoice.payments.reduce((s, p) => s + Number(p.amount), 0);
+  // Surcharges already collected on prior payments — itemized like the PDF so
+  // the ledger's arithmetic (total + surcharges − paid = balance) adds up.
+  const priorSurcharges = invoice.payments.reduce((s, p) => s + Number(p.surchargeAmount ?? 0), 0);
   const parsedAmount = Math.round((Number(amountText) || 0) * 100) / 100;
   const payAmount = partial ? parsedAmount : balance;
   const amountValid = !partial || (parsedAmount >= 1 && parsedAmount <= balance);
@@ -401,6 +406,12 @@ export default function PayPage({
                 <span>Total</span>
                 <span>${Number(invoice.total).toFixed(2)}</span>
               </div>
+              {priorSurcharges > 0 && (
+                <div className="flex justify-between text-gray-500">
+                  <span>Card surcharges</span>
+                  <span>${priorSurcharges.toFixed(2)}</span>
+                </div>
+              )}
               {paid > 0 && (
                 <div className="flex justify-between text-gray-500">
                   <span>Paid to date</span>
@@ -413,7 +424,7 @@ export default function PayPage({
                   <span>${surcharge.toFixed(2)}</span>
                 </div>
               )}
-              {(paid > 0 || surcharge > 0 || partial) && (
+              {(paid > 0 || priorSurcharges > 0 || surcharge > 0 || partial) && (
                 <div className="flex justify-between border-t border-gray-200 pt-1.5 text-base font-bold text-gray-900">
                   <span>{partial && amountValid ? "You're paying" : "Balance due"}</span>
                   <span>${chargeTotal.toFixed(2)}</span>
@@ -534,7 +545,7 @@ export default function PayPage({
             </button>
           </div>
 
-          {method === "CARD" && invoice.company.surchargeEnabled && (
+          {method === "CARD" && invoice.company.surchargeEnabled && surchargeRate > 0 && (
             <p className="text-xs text-amber-600 mb-4 bg-amber-50 px-3 py-2 rounded">
               A {(surchargeRate * 100).toFixed(1)}% card surcharge applies. Pay via bank transfer to avoid this fee.
             </p>

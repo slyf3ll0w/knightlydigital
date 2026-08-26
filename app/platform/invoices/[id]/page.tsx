@@ -7,7 +7,7 @@ import { money, shortDate } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
 import ViewedFact from "@/components/ViewedFact";
 import InvoiceActions from "./InvoiceActions";
-import { getProcessor } from "@/lib/payments";
+import { getProcessor, invoiceBalance } from "@/lib/payments";
 import { finixApplicationId, finixEnvironment } from "@/lib/finix";
 import type { FinixConfig } from "@/lib/finix-js";
 import { activityFor } from "@/lib/activity";
@@ -46,7 +46,7 @@ export default async function InvoiceDetailPage({
   const baseUrl = process.env.NEXTAUTH_URL ?? "";
   const publicUrl = `${baseUrl}/pay/${invoice.publicToken}`;
   const totalPaid = invoice.payments.reduce((s, p) => s + Number(p.amount), 0);
-  const balance = Math.max(0, Number(invoice.total) - totalPaid);
+  const balance = Math.max(0, invoiceBalance(invoice));
 
   // Jobber-style nudge: invoice paid but the linked job is still open
   const showCloseJobNudge =

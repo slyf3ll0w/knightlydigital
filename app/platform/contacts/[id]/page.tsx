@@ -21,7 +21,7 @@ import PeopleCard from "./PeopleCard";
 import SavedCardsCard from "./SavedCardsCard";
 import PipelineCard from "./PipelineCard";
 import { getActiveFieldDefs } from "@/lib/contact-fields";
-import { getProcessor } from "@/lib/payments";
+import { getProcessor, invoiceBalance } from "@/lib/payments";
 import { finixApplicationId, finixEnvironment } from "@/lib/finix";
 
 export default async function ContactDetailPage({
@@ -110,10 +110,7 @@ export default async function ContactDetailPage({
   const lifetimeValue = contact.payments.reduce((s, p) => s + Number(p.amount), 0);
   const currentBalance = contact.invoices
     .filter((i) => i.status !== "DRAFT")
-    .reduce((s, inv) => {
-      const paid = inv.payments.reduce((p, x) => p + Number(x.amount), 0);
-      return s + Math.max(0, Number(inv.total) - paid);
-    }, 0);
+    .reduce((s, inv) => s + Math.max(0, invoiceBalance(inv)), 0);
 
   const baseUrl = process.env.NEXTAUTH_URL ?? "";
   const hubUrl = `${baseUrl}/hub/${contact.hubToken}`;

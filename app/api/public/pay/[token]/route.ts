@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getProcessor, recordPayment, calculateSurcharge, sendReviewRequest, savedCardLabel } from "@/lib/payments";
+import {
+  getProcessor,
+  recordPayment,
+  calculateSurcharge,
+  invoiceBalance,
+  acquireChargeLock,
+  releaseChargeLock,
+  sendReviewRequest,
+  savedCardLabel,
+} from "@/lib/payments";
 import { addSavedCard } from "@/lib/saved-cards";
 import { reviveAutopayForContact } from "@/lib/auto-charge";
 import { recomputeDepositApplied } from "@/lib/deposits";
@@ -56,8 +65,7 @@ export async function POST(
     );
   }
 
-  const paid = invoice.payments.reduce((s, p) => s + Number(p.amount), 0);
-  const balance = Math.round((Number(invoice.total) - paid) * 100) / 100;
+  const balance = invoiceBalance(invoice);
   if (balance <= 0) return NextResponse.json({ error: "Nothing left to pay." }, { status: 400 });
 
   // Partial payments: the client may pay any amount from $1 up to the balance.
@@ -84,113 +92,158 @@ export async function POST(
     invoice.company.finixMerchantId != null &&
     invoice.company.finixOnboardingState === "APPROVED";
 
-  const result =
-    processor.live && !merchantApproved
-      ? // Processor is live platform-wide but THIS company hasn't finished
-        // onboarding — same manual-payment fallback as the pre-launch stub.
-        { success: false as const, error: "Online payments are not enabled yet. Record this payment manually." }
-      : await processor.charge({
-          amount: payAmount + surchargeAmount,
-          method: method === "CARD" ? "card" : "ach",
-          surcharge: surchargeAmount,
-          description: `Invoice #${invoice.invoiceNumber} — ${invoice.company.name}`,
-          metadata: { invoiceId: invoice.id, companyId: invoice.companyId },
-          token: typeof paymentToken === "string" ? paymentToken : undefined,
-          merchantRef: invoice.company.finixMerchantId ?? undefined,
-          buyer: {
-            identityRef: invoice.contact?.finixBuyerIdentityId,
-            firstName: invoice.contact?.firstName,
-            lastName: invoice.contact?.lastName,
-            email: invoice.contact?.email,
-            phone: invoice.contact?.phone,
-          },
-        });
-
-  if (!result.success) {
-    // Pre-launch / not-onboarded: no money can move — tell the client to pay
-    // the business directly (503). A live decline is a 402 with the reason.
-    const notEnabled = !processor.live || !merchantApproved;
-    return NextResponse.json(
-      { error: result.error, processorLive: processor.live && merchantApproved },
-      { status: notEnabled ? 503 : 402 }
-    );
-  }
-
-  // First online payment creates the contact's buyer identity — keep it for
-  // reuse so repeat payments don't mint duplicate identities.
-  if (
-    result.buyerIdentityRef &&
-    invoice.contact &&
-    !invoice.contact.finixBuyerIdentityId
-  ) {
-    await prisma.contact
-      .update({
-        where: { id: invoice.contact.id },
-        data: { finixBuyerIdentityId: result.buyerIdentityRef },
-      })
-      .catch(() => {});
-  }
-
-  // Client asked to keep this card on file: the charge already vaulted the
-  // instrument at Finix, so persisting the ref is all "saving" means. Enables
-  // subscription auto-charge and staff "charge card on file". Never fails the
-  // payment. Cards only — ACH debits can bounce days later.
-  if (saveCard === true && method === "CARD" && result.instrumentRef && invoice.contact) {
-    await addSavedCard({
-      companyId: invoice.companyId,
-      contactId: invoice.contact.id,
-      instrumentRef: result.instrumentRef,
-      label: savedCardLabel(result),
-      brand: result.cardBrand,
-      last4: result.cardLast4,
-      expMonth: result.cardExpMonth,
-      expYear: result.cardExpYear,
-    }).catch((e) => console.error("[pay] save card failed", e));
-    // The working card they just paid with un-stalls any OTHER autopay
-    // invoices whose old card was declining (this one is about to be PAID).
-    await reviveAutopayForContact(invoice.contact.id).catch((e) =>
-      console.error("[pay] autopay revive failed", e)
-    );
-  }
-
-  const { fullyPaid } = await recordPayment({
-    companyId: invoice.companyId,
-    invoiceId: invoice.id,
-    amount: payAmount + surchargeAmount,
-    method: method === "CARD" ? "CARD" : "ACH",
-    processorRef: result.transactionId,
-    surchargeAmount: surchargeAmount > 0 ? surchargeAmount : null,
-    cardBrand: result.cardBrand,
-    cardType: result.cardType,
-    details: result.pending ? "Online payment — ACH processing" : "Online payment",
-    receiptPending: result.pending,
-  });
-
-  if (surchargeAmount > 0) {
-    await prisma.invoice.update({
+  // One charge in flight per invoice: a double-submit, a second device, or a
+  // staff charge racing this one would each pass their own balance check and
+  // charge twice. Mutex only when a real charge will be attempted.
+  const willCharge = processor.live && merchantApproved;
+  if (willCharge) {
+    if (!(await acquireChargeLock(invoice.id))) {
+      return NextResponse.json(
+        { error: "A payment on this invoice is already processing. Give it a moment, then refresh." },
+        { status: 409 }
+      );
+    }
+    // The lock is ours — re-derive the balance in case a racing payment
+    // landed between the first read and the lock.
+    const locked = await prisma.invoice.findUniqueOrThrow({
       where: { id: invoice.id },
-      data: { surcharge: surchargeAmount },
+      select: { status: true, total: true, payments: { select: { amount: true, surchargeAmount: true } } },
     });
+    const freshBalance = invoiceBalance(locked);
+    if (locked.status === "PAID" || freshBalance <= 0) {
+      await releaseChargeLock(invoice.id);
+      return NextResponse.json({ error: "Nothing left to pay." }, { status: 400 });
+    }
+    if (payAmount > freshBalance) {
+      await releaseChargeLock(invoice.id);
+      return NextResponse.json(
+        { error: `The balance changed to $${freshBalance.toFixed(2)} — refresh the page and try again.` },
+        { status: 409 }
+      );
+    }
   }
 
-  // Paid in full → ask for a review. A pending ACH debit hasn't settled yet
-  // (it can still bounce), so that one waits for the webhook rather than
-  // thanking someone whose money may come back. Never allowed to fail the
-  // payment: the client's card is already charged by this point.
-  if (fullyPaid && !result.pending && invoice.contact?.email) {
-    await sendReviewRequest({
+  try {
+    const result =
+      processor.live && !merchantApproved
+        ? // Processor is live platform-wide but THIS company hasn't finished
+          // onboarding — same manual-payment fallback as the pre-launch stub.
+          { success: false as const, error: "Online payments are not enabled yet. Record this payment manually." }
+        : await processor.charge({
+            amount: payAmount + surchargeAmount,
+            method: method === "CARD" ? "card" : "ach",
+            surcharge: surchargeAmount,
+            description: `Invoice #${invoice.invoiceNumber} — ${invoice.company.name}`,
+            metadata: { invoiceId: invoice.id, companyId: invoice.companyId },
+            token: typeof paymentToken === "string" ? paymentToken : undefined,
+            merchantRef: invoice.company.finixMerchantId ?? undefined,
+            buyer: {
+              identityRef: invoice.contact?.finixBuyerIdentityId,
+              firstName: invoice.contact?.firstName,
+              lastName: invoice.contact?.lastName,
+              email: invoice.contact?.email,
+              phone: invoice.contact?.phone,
+            },
+          });
+
+    if (!result.success) {
+      // Pre-launch / not-onboarded: no money can move — tell the client to pay
+      // the business directly (503). A live decline is a 402 with the reason.
+      const notEnabled = !processor.live || !merchantApproved;
+      return NextResponse.json(
+        { error: result.error, processorLive: processor.live && merchantApproved },
+        { status: notEnabled ? 503 : 402 }
+      );
+    }
+
+    // First online payment creates the contact's buyer identity — keep it for
+    // reuse so repeat payments don't mint duplicate identities.
+    if (
+      result.buyerIdentityRef &&
+      invoice.contact &&
+      !invoice.contact.finixBuyerIdentityId
+    ) {
+      await prisma.contact
+        .update({
+          where: { id: invoice.contact.id },
+          data: { finixBuyerIdentityId: result.buyerIdentityRef },
+        })
+        .catch(() => {});
+    }
+
+    // Client asked to keep this card on file: the charge already vaulted the
+    // instrument at Finix, so persisting the ref is all "saving" means. Enables
+    // subscription auto-charge and staff "charge card on file". Never fails the
+    // payment. Cards only — ACH debits can bounce days later.
+    if (saveCard === true && method === "CARD" && result.instrumentRef && invoice.contact) {
+      await addSavedCard({
+        companyId: invoice.companyId,
+        contactId: invoice.contact.id,
+        instrumentRef: result.instrumentRef,
+        label: savedCardLabel(result),
+        brand: result.cardBrand,
+        last4: result.cardLast4,
+        expMonth: result.cardExpMonth,
+        expYear: result.cardExpYear,
+      }).catch((e) => console.error("[pay] save card failed", e));
+      // The working card they just paid with un-stalls any OTHER autopay
+      // invoices whose old card was declining (this one is about to be PAID).
+      await reviveAutopayForContact(invoice.contact.id).catch((e) =>
+        console.error("[pay] autopay revive failed", e)
+      );
+    }
+
+    const { fullyPaid } = await recordPayment({
       companyId: invoice.companyId,
-      contactId: invoice.contactId,
-      jobId: invoice.jobId,
-      email: invoice.contact.email,
-      contactFirstName: invoice.contact.firstName,
-      jobTitle: null,
-    }).catch((e) => console.error("[pay] review request failed", e));
-  }
+      invoiceId: invoice.id,
+      amount: payAmount + surchargeAmount,
+      method: method === "CARD" ? "CARD" : "ACH",
+      processorRef: result.transactionId,
+      surchargeAmount: surchargeAmount > 0 ? surchargeAmount : null,
+      cardBrand: result.cardBrand,
+      cardType: result.cardType,
+      details: result.pending ? "Online payment — ACH processing" : "Online payment",
+      receiptPending: result.pending,
+    });
 
-  return NextResponse.json({
-    success: true,
-    pending: result.pending ?? false,
-    remaining: Math.max(0, Math.round((balance - payAmount) * 100) / 100),
-  });
+    if (surchargeAmount > 0) {
+      // Accumulated, never overwritten: the column mirrors the sum of all
+      // payments' surcharges (QBO pushes it as its own income line). Read-then-
+      // write (SQL increment leaves a NULL column NULL) is safe here — the
+      // charge lock held around this block keeps surcharge writers serial.
+      const cur = await prisma.invoice.findUnique({
+        where: { id: invoice.id },
+        select: { surcharge: true },
+      });
+      await prisma.invoice.update({
+        where: { id: invoice.id },
+        data: {
+          surcharge: Math.round((Number(cur?.surcharge ?? 0) + surchargeAmount) * 100) / 100,
+        },
+      });
+    }
+
+    // Paid in full → ask for a review. A pending ACH debit hasn't settled yet
+    // (it can still bounce), so that one waits for the webhook rather than
+    // thanking someone whose money may come back. Never allowed to fail the
+    // payment: the client's card is already charged by this point.
+    if (fullyPaid && !result.pending && invoice.contact?.email) {
+      await sendReviewRequest({
+        companyId: invoice.companyId,
+        contactId: invoice.contactId,
+        jobId: invoice.jobId,
+        email: invoice.contact.email,
+        contactFirstName: invoice.contact.firstName,
+        jobTitle: null,
+      }).catch((e) => console.error("[pay] review request failed", e));
+    }
+
+    return NextResponse.json({
+      success: true,
+      pending: result.pending ?? false,
+      remaining: Math.max(0, Math.round((balance - payAmount) * 100) / 100),
+    });
+  } finally {
+    if (willCharge) await releaseChargeLock(invoice.id);
+  }
 }

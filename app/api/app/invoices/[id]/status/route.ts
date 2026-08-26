@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, canSeeMoney, viaContactScope } from "@/lib/permissions";
+import { invoiceBalance } from "@/lib/payments";
 import { logActivity } from "@/lib/activity";
 
 export async function PATCH(
@@ -22,12 +23,12 @@ export async function PATCH(
 
   const invoice = await prisma.invoice.findFirst({
     where: { id, companyId, ...viaContactScope(actor) },
-    include: { payments: true },
+    include: { payments: true, contact: { select: { paymentTermsDays: true } } },
   });
   if (!invoice) return NextResponse.json({ error: "Invoice not found." }, { status: 404 });
 
   const paid = invoice.payments.reduce((s, p) => s + Number(p.amount), 0);
-  const covered = paid > 0 && paid >= Number(invoice.total) - 0.005;
+  const covered = paid > 0 && invoiceBalance(invoice) <= 0.005;
 
   if (status === "PAID" && !covered) {
     return NextResponse.json(
@@ -57,6 +58,11 @@ export async function PATCH(
     data: {
       status,
       ...(status === "AWAITING_PAYMENT" && !invoice.issuedAt && { issuedAt: new Date() }),
+      // Marking sent is issuing too: without a due date the invoice can never
+      // go PAST_DUE and payment reminders skip it.
+      ...(status === "AWAITING_PAYMENT" && !invoice.dueDate && invoice.contact
+        ? { dueDate: new Date(Date.now() + invoice.contact.paymentTermsDays * 86400000) }
+        : {}),
       // Archiving shelves the invoice as-is (a paid one keeps its paidAt);
       // live-status flips derive paidAt from the new state.
       ...(status === "ARCHIVED"

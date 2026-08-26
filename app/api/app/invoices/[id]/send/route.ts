@@ -83,11 +83,19 @@ export async function POST(
     });
   }
 
-  if (invoice.status === "DRAFT") {
-    await prisma.invoice.update({
-      where: { id: invoice.id },
-      data: { status: "AWAITING_PAYMENT" },
-    });
+  // Sending IS issuing: stamp the dates a drafted engine invoice (or any
+  // draft) never got, so A/R aging, the PAST_DUE flip, and payment reminders
+  // can see it. Dates already set are left alone.
+  const now = new Date();
+  const patch = {
+    ...(invoice.status === "DRAFT" ? { status: "AWAITING_PAYMENT" as const } : {}),
+    ...(invoice.issuedAt ? {} : { issuedAt: now }),
+    ...(invoice.dueDate
+      ? {}
+      : { dueDate: new Date(now.getTime() + invoice.contact.paymentTermsDays * 86400000) }),
+  };
+  if (Object.keys(patch).length > 0) {
+    await prisma.invoice.update({ where: { id: invoice.id }, data: patch });
   }
 
   return NextResponse.json({ emailed: true, texted, to: invoice.contact.email });

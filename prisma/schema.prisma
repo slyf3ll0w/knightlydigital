@@ -1544,6 +1544,10 @@ model Invoice {
   autoChargeNextAt    DateTime?
   autoChargeLastError String?
   autoChargeGaveUpAt  DateTime?
+  // Short-lived charge mutex (lib/payments.ts acquireChargeLock): only one
+  // charge attempt — staff, /pay, or autopay — may be in flight per invoice.
+  // A stale stamp (crashed charge) expires by lease, never needs cleanup.
+  chargeLockedAt      DateTime?
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 

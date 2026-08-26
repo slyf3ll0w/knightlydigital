@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import Link from "next/link";
 import { ChevronRight, CreditCard } from "lucide-react";
 import { money, shortDate } from "@/lib/statuses";
+import { invoiceBalance } from "@/lib/payments";
 import EmptyState from "@/components/EmptyState";
 
 export default async function HubInvoicesPage({
@@ -64,8 +65,7 @@ export default async function HubInvoicesPage({
         <div className="card-ledger overflow-hidden">
           <div className="list-settle divide-y divide-gray-100">
             {list.map((inv) => {
-              const paidAmt = inv.payments.reduce((s, p) => s + Number(p.amount), 0);
-              const balance = Math.max(0, Number(inv.total) - paidAmt);
+              const balance = Math.max(0, invoiceBalance(inv));
               const stamp = clientInvoiceStamp[inv.status];
               return (
                 <Link

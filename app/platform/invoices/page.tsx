@@ -7,6 +7,7 @@ import { FilterRow, FilterChip, SegmentedRow, Segment } from "@/components/Filte
 import { SECTION_HUES } from "@/lib/section-colors";
 import { money, shortDate } from "@/lib/statuses";
 import { pastDueFilter } from "@/lib/due-dates";
+import { invoiceBalance } from "@/lib/payments";
 import StatusChip from "@/components/StatusChip";
 import EmptyState from "@/components/EmptyState";
 import KpiStrip from "@/components/KpiStrip";
@@ -237,8 +238,7 @@ export default async function InvoicesPage({
                 <span></span>
               </div>
               {invoices.map((inv) => {
-                const paid = inv.payments.reduce((s, p) => s + Number(p.amount), 0);
-                const balance = Math.max(0, Number(inv.total) - paid);
+                const balance = Math.max(0, invoiceBalance(inv));
                 return (
                   <Link
                     key={inv.id}

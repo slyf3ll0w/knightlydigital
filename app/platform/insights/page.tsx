@@ -6,6 +6,7 @@ import PageTitle from "@/components/PageTitle";
 import { FilterRow, FilterChip } from "@/components/FilterChips";
 import { SECTION_HUES } from "@/lib/section-colors";
 import { money } from "@/lib/statuses";
+import { invoiceBalance } from "@/lib/payments";
 
 const ranges = [
   { value: "30", label: "30 days" },
@@ -230,7 +231,7 @@ export default async function InsightsPage({
   const openInvoices = await prisma.invoice.findMany({
     where: { companyId, status: { in: ["AWAITING_PAYMENT", "PAST_DUE"] } },
     include: {
-      payments: { select: { amount: true } },
+      payments: { select: { amount: true, surchargeAmount: true } },
       contact: { select: { id: true, firstName: true, lastName: true, companyName: true } },
     },
   });
@@ -239,8 +240,7 @@ export default async function InsightsPage({
   const byDebtor = new Map<string, { name: string; contactId: string | null; balance: number; worst: number }>();
   const now = Date.now();
   for (const inv of openInvoices) {
-    const paid = inv.payments.reduce((s, p) => s + Number(p.amount), 0);
-    const balance = Math.max(0, Number(inv.total) - paid);
+    const balance = Math.max(0, invoiceBalance(inv));
     if (balance <= 0) continue;
     const daysPast = inv.dueDate ? Math.floor((now - inv.dueDate.getTime()) / 86400000) : 0;
     const idx = daysPast <= 0 ? 0 : daysPast <= 30 ? 1 : daysPast <= 60 ? 2 : daysPast <= 90 ? 3 : 4;

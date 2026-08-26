@@ -103,11 +103,15 @@ export async function PATCH(
   const depositApplied = Math.min(paidDeposits, gross);
   const netTotal = Math.round((gross - depositApplied) * 100) / 100;
 
+  // Principal actually paid toward the invoice — payment amounts include
+  // their card surcharges, which never count against the invoice's total.
   const paid = invoice.payments.reduce((s, p) => s + Number(p.amount), 0);
-  if (netTotal < paid - 0.005) {
+  const surcharges = invoice.payments.reduce((s, p) => s + Number(p.surchargeAmount ?? 0), 0);
+  const principalPaid = Math.round((paid - surcharges) * 100) / 100;
+  if (netTotal < principalPaid - 0.005) {
     return NextResponse.json(
       {
-        error: `The new total ($${netTotal.toFixed(2)}) is less than the $${paid.toFixed(
+        error: `The new total ($${netTotal.toFixed(2)}) is less than the $${principalPaid.toFixed(
           2
         )} already paid on this invoice. Remove or adjust the payments first.`,
       },
@@ -123,7 +127,7 @@ export async function PATCH(
 
   // Recompute status: full coverage → PAID; otherwise sent invoices land on
   // AWAITING_PAYMENT or PAST_DUE by the (possibly new) due date
-  const fullyPaid = paid > 0 && paid >= netTotal - 0.005;
+  const fullyPaid = principalPaid > 0 && principalPaid >= netTotal - 0.005;
   let status: InvoiceStatus = invoice.status;
   if (fullyPaid) {
     status = "PAID";

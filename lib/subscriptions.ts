@@ -430,11 +430,15 @@ export async function billCompletedVisit(
     select: {
       id: true,
       invoice: { select: { id: true } },
+      consolidatedInvoiceId: true,
       subscription: { include: { contact: true } },
     },
   });
   const sub = job?.subscription;
-  if (!job || !sub || !sub.billPerVisit || job.invoice) return null;
+  // Already billed either way — its own invoice OR a consolidated one. A
+  // visit swept onto a monthly invoice, then re-completed after the series
+  // switched off consolidation, must not mint a second (direct) invoice.
+  if (!job || !sub || !sub.billPerVisit || job.invoice || job.consolidatedInvoiceId) return null;
   // Monthly-consolidated series don't bill on completion — the visit joins
   // the unbilled pool and runMonthlyConsolidations invoices it on the 1st.
   if (sub.consolidateMonthly) return null;
@@ -443,15 +447,19 @@ export async function billCompletedVisit(
   const send = sub.invoiceMode === "SEND";
   const now = new Date();
 
+  // Serializable, matching billSeriesPool: a completion racing a pool sweep
+  // guards on different columns (Invoice.jobId here, consolidatedInvoiceId
+  // there), so only serialization makes the two paths see each other — one
+  // aborts with P2034 and bails instead of double-billing the visit.
   const minted = await withDocNumberRetry(() => prisma.$transaction(async (tx) => {
     // The unique Invoice.jobId is the real double-bill guard; re-check inside
     // the transaction so overlapping completions bail cleanly instead of
     // erroring on the constraint.
     const fresh = await tx.job.findUnique({
       where: { id: job.id },
-      select: { status: true, invoice: { select: { id: true } } },
+      select: { status: true, consolidatedInvoiceId: true, invoice: { select: { id: true } } },
     });
-    if (!fresh || fresh.invoice) return null;
+    if (!fresh || fresh.invoice || fresh.consolidatedInvoiceId) return null;
 
     const lastInv = await tx.invoice.findFirst({
       where: { companyId },
@@ -508,7 +516,12 @@ export async function billCompletedVisit(
       publicToken: invoice.publicToken,
       total: money.total,
     };
-  }));
+  }, { isolationLevel: "Serializable" })).catch((e) => {
+    // Serialization conflict: another biller claimed this visit mid-flight —
+    // its invoice wins, and the guards above cover any later re-complete.
+    if ((e as { code?: string })?.code === "P2034") return null;
+    throw e;
+  });
 
   if (!minted) return null;
   if (!send) return "drafted";
@@ -652,9 +665,13 @@ async function billSeriesPool(
         total: money.total,
         visitCount: mine.length,
       };
-    }));
+    }, { isolationLevel: "Serializable" }));
   } catch (err) {
     if (err === POOL_ALREADY_CLAIMED) return "empty";
+    // Serialization conflict: a visit completing right now (billCompletedVisit)
+    // or a concurrent sweep raced this pool — whoever claimed first wins; the
+    // rest of the pool simply bills on the next pass.
+    if ((err as { code?: string })?.code === "P2034") return "empty";
     throw err;
   }
 

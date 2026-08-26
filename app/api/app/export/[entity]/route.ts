@@ -10,6 +10,7 @@ import {
   contactScope,
 } from "@/lib/permissions";
 import { csvCell, csvText, csvResponse } from "@/lib/csv";
+import { invoiceBalance } from "@/lib/payments";
 import { entryMs } from "@/lib/time-entries";
 
 /**
@@ -138,7 +139,7 @@ export async function GET(
         where: { companyId, ...viaContactScope(actor) },
         include: {
           contact: { select: { firstName: true, lastName: true } },
-          payments: { select: { amount: true } },
+          payments: { select: { amount: true, surchargeAmount: true } },
         },
         orderBy: { invoiceNumber: "asc" },
         take: MAX_ROWS,
@@ -148,7 +149,7 @@ export async function GET(
         ["Invoice #", "Subject", "Client", "Kind", "Status", "Issued", "Due", "Paid at", "Subtotal", "Discount", "Tax", "Surcharge", "Deposit applied", "Total", "Paid", "Balance"],
         rows.map((i) => {
           const paid = i.payments.reduce((s, p) => s + Number(p.amount), 0);
-          const balance = Math.max(0, Math.round((Number(i.total) - paid) * 100) / 100);
+          const balance = Math.max(0, invoiceBalance(i));
           return [
             csvCell(String(i.invoiceNumber)),
             csvText(i.subject ?? ""),

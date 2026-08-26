@@ -170,8 +170,11 @@ export async function recomputeDepositApplied(tx: Tx, quoteId: string): Promise<
   if (applied === Number(final.depositApplied ?? 0)) return;
 
   const netTotal = Math.round((gross - applied) * 100) / 100;
+  // Payment amounts include their card surcharges, so coverage is against
+  // netTotal + surcharges (inlined — importing lib/payments here would cycle).
   const paid = final.payments.reduce((s, p) => s + Number(p.amount), 0);
-  const fullyPaid = paid > 0 && paid >= netTotal - 0.005;
+  const surcharges = final.payments.reduce((s, p) => s + Number(p.surchargeAmount ?? 0), 0);
+  const fullyPaid = paid > 0 && paid >= netTotal + surcharges - 0.005;
 
   await tx.invoice.update({
     where: { id: final.id },

@@ -21,6 +21,7 @@ import { sendSms, smsEnabled, appointmentReminderText } from "@/lib/sms";
 import { notifyUser, notifyUsers } from "@/lib/push";
 import { arrivalSlotLabel, resolveArrivalWindowMinutes } from "@/lib/arrival-window";
 import { pastDueFilter } from "@/lib/due-dates";
+import { invoiceBalance } from "@/lib/payments";
 
 const DAY = 86400000;
 
@@ -65,7 +66,7 @@ export async function runDueReminders(now: Date = new Date()): Promise<ReminderS
       company: { is: { suspendedAt: null } },
     },
     include: {
-      payments: { select: { amount: true } },
+      payments: { select: { amount: true, surchargeAmount: true } },
       reminders: { select: { type: true } },
       contact: { select: { email: true } },
       company: {
@@ -86,8 +87,7 @@ export async function runDueReminders(now: Date = new Date()): Promise<ReminderS
 
   for (const inv of invoices) {
     try {
-      const paid = inv.payments.reduce((s, p) => s + Number(p.amount), 0);
-      const balance = Math.round((Number(inv.total) - paid) * 100) / 100;
+      const balance = invoiceBalance(inv);
       if (balance <= 0 || !inv.contact?.email || !inv.dueDate) continue;
 
       const daysPastDue = Math.floor((now.getTime() - inv.dueDate.getTime()) / DAY);

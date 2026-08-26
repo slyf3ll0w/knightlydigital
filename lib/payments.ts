@@ -379,9 +379,15 @@ export async function recordPayment(params: RecordPaymentParams) {
       },
     });
 
+    // Paid-in-full must clear total + every surcharge collected: payment
+    // amounts include their surcharges, so comparing against total alone
+    // would mark a surcharged partial payment as covering principal it didn't.
     const paidSoFar =
       invoice.payments.reduce((s, p) => s + Number(p.amount), 0) + params.amount;
-    const fullyPaid = paidSoFar >= Number(invoice.total) - 0.005;
+    const surchargesSoFar =
+      invoice.payments.reduce((s, p) => s + Number(p.surchargeAmount ?? 0), 0) +
+      (params.surchargeAmount ?? 0);
+    const fullyPaid = paidSoFar >= Number(invoice.total) + surchargesSoFar - 0.005;
 
     await tx.invoice.update({
       where: { id: invoice.id },
@@ -409,7 +415,10 @@ export async function recordPayment(params: RecordPaymentParams) {
   // link, or a manually recorded check — funnels through here, so the anchor
   // is set exactly once, from real money.
   if (result.fullyPaid && result.subscriptionId) {
-    anchorPlanFromFirstPayment(result.subscriptionId, params.paidAt ?? new Date()).catch((e) =>
+    // Awaited so the anchor lands before recordPayment returns — fire-and-
+    // forget raced the caller's own cursor writes (Bill now, the engine's
+    // cycle advance) and the plan's billing day came out nondeterministic.
+    await anchorPlanFromFirstPayment(result.subscriptionId, params.paidAt ?? new Date()).catch((e) =>
       console.error("[payments] plan anchor failed", e)
     );
   }
@@ -511,7 +520,7 @@ async function sendPaymentReceipt(params: {
       publicToken: true,
       total: true,
       companyId: true,
-      payments: { select: { amount: true } },
+      payments: { select: { amount: true, surchargeAmount: true } },
       contact: { select: { email: true } },
       company: {
         select: {
@@ -527,8 +536,7 @@ async function sendPaymentReceipt(params: {
   });
   if (!invoice?.contact?.email) return;
 
-  const paid = invoice.payments.reduce((s, p) => s + Number(p.amount), 0);
-  const remaining = Math.max(0, Math.round((Number(invoice.total) - paid) * 100) / 100);
+  const remaining = Math.max(0, invoiceBalance(invoice));
   const baseUrl = process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com";
   const { subject, html } = paymentReceiptEmail({
     brand: invoice.company,
@@ -565,7 +573,7 @@ export async function recomputeInvoiceStatus(
   if (!invoice) return;
 
   const paid = invoice.payments.reduce((s, p) => s + Number(p.amount), 0);
-  const fullyPaid = paid > 0 && paid >= Number(invoice.total) - 0.005;
+  const fullyPaid = paid > 0 && invoiceBalance(invoice) <= 0.005;
 
   if (fullyPaid) {
     const lastPaidAt = invoice.payments.reduce<Date | null>(
@@ -596,13 +604,57 @@ export async function recomputeInvoiceStatus(
   }
 }
 
-/** Outstanding balance on an invoice (total minus recorded payments). */
+/**
+ * Outstanding balance on an invoice: total, plus every card surcharge already
+ * collected, minus recorded payments. Payment.amount INCLUDES that payment's
+ * surcharge, so "what clears this invoice" = total + Σ surcharges − Σ paid —
+ * without the surcharge term, a surcharged partial payment silently eats into
+ * the principal still owed. Every balance surface (pay page/route, PDF,
+ * autopay, staff charge, statements) must use this, never total − paid.
+ */
 export function invoiceBalance(invoice: {
   total: number | { toString(): string };
-  payments: { amount: number | { toString(): string } }[];
+  payments: {
+    amount: number | { toString(): string };
+    surchargeAmount?: number | { toString(): string } | null;
+  }[];
 }): number {
   const paid = invoice.payments.reduce((s, p) => s + Number(p.amount), 0);
-  return Math.round((Number(invoice.total) - paid) * 100) / 100;
+  const surcharges = invoice.payments.reduce(
+    (s, p) => s + Number(p.surchargeAmount ?? 0),
+    0
+  );
+  return Math.round((Number(invoice.total) + surcharges - paid) * 100) / 100;
+}
+
+/**
+ * Per-invoice charge mutex. Concurrent charge attempts — two staff members,
+ * staff + the client on /pay, or either against an autopay sweep — would each
+ * pass their own balance check and charge the card twice; the processor's
+ * idempotency only spans the same minute. Every path that is about to call
+ * the processor takes this lock first and releases it when done. Held as a
+ * 90-second lease (a crashed charge self-expires), released explicitly on
+ * every normal exit.
+ */
+export async function acquireChargeLock(invoiceId: string): Promise<boolean> {
+  const now = new Date();
+  const claim = await prisma.invoice.updateMany({
+    where: {
+      id: invoiceId,
+      OR: [
+        { chargeLockedAt: null },
+        { chargeLockedAt: { lt: new Date(now.getTime() - 90_000) } },
+      ],
+    },
+    data: { chargeLockedAt: now },
+  });
+  return claim.count > 0;
+}
+
+export async function releaseChargeLock(invoiceId: string): Promise<void> {
+  await prisma.invoice
+    .updateMany({ where: { id: invoiceId }, data: { chargeLockedAt: null } })
+    .catch((e) => console.error("[payments] charge lock release failed", invoiceId, e));
 }
 
 /** Calculate the surcharge amount for a given payment total and rate. */

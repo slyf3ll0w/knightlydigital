@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { companyMeta } from "@/lib/client-meta";
-import { getProcessor } from "@/lib/payments";
+import { getProcessor, invoiceBalance } from "@/lib/payments";
 import { recomputeDepositApplied } from "@/lib/deposits";
 import { finixApplicationId, finixEnvironment } from "@/lib/finix";
 import ViewBeacon from "@/components/ViewBeacon";
@@ -105,7 +105,7 @@ export default async function PublicPayPage({
         },
       },
       payments: {
-        select: { id: true, amount: true, method: true, paidAt: true },
+        select: { id: true, amount: true, surchargeAmount: true, method: true, paidAt: true },
         orderBy: { paidAt: "asc" },
       },
     },
@@ -113,12 +113,11 @@ export default async function PublicPayPage({
 
   if (!invoice) notFound();
 
-  // The server charge path bills the remaining balance (total minus recorded
-  // payments) — the page must display and authorize that same amount.
-  // Payments ride along (amount/method/date only) for the document's
+  // The server charge path bills the remaining balance (invoiceBalance —
+  // total + collected surcharges − payments) — the page must display and
+  // authorize that same amount. Payments ride along for the document's
   // PAYMENTS section, mirroring the PDF.
-  const paid = invoice.payments.reduce((s, p) => s + Number(p.amount), 0);
-  const balance = Math.round((Number(invoice.total) - paid) * 100) / 100;
+  const balance = invoiceBalance(invoice);
 
   // Online charging is on only when the platform processor is Finix AND this
   // company's merchant is approved. Checked with a separate server-only query —

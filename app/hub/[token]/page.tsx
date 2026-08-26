@@ -13,6 +13,7 @@ import {
   Mail,
 } from "lucide-react";
 import { money } from "@/lib/statuses";
+import { invoiceBalance } from "@/lib/payments";
 import { arrivalTimeLabel, resolveArrivalWindowMinutes } from "@/lib/arrival-window";
 import ResendContractButton from "./ResendContractButton";
 
@@ -58,10 +59,10 @@ export default async function HubHomePage({
   if (!contact) notFound();
 
   const openQuotes = contact.quotes.length;
-  const openBalance = contact.invoices.reduce((s, inv) => {
-    const paid = inv.payments.reduce((p, x) => p + Number(x.amount), 0);
-    return s + Math.max(0, Number(inv.total) - paid);
-  }, 0);
+  const openBalance = contact.invoices.reduce(
+    (s, inv) => s + Math.max(0, invoiceBalance(inv)),
+    0
+  );
   const pendingContracts = contact.contracts.filter((c) => c.status === "SENT");
   const nextVisit = contact.jobs[0];
   const base = `/hub/${token}`;

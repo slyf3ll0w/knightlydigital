@@ -5,6 +5,8 @@ import {
   getProcessor,
   recordPayment,
   invoiceBalance,
+  acquireChargeLock,
+  releaseChargeLock,
   sendReviewRequest,
   savedCardLabel,
 } from "@/lib/payments";
@@ -90,112 +92,126 @@ export async function POST(
   // A final invoice's deposit credit may have moved since creation.
   if (invoice.quoteId) await recomputeDepositApplied(prisma, invoice.quoteId);
 
-  const fresh = await prisma.invoice.findUniqueOrThrow({
-    where: { id: invoice.id },
-    include: { payments: true },
-  });
-  const balance = invoiceBalance(fresh);
-  if (balance <= 0) return NextResponse.json({ error: "Nothing left to charge." }, { status: 400 });
-
-  const processor = getProcessor();
-  if (!processor.live)
-    return NextResponse.json({ error: "Online payments are not enabled yet." }, { status: 503 });
-
-  const description = `Invoice #${invoice.invoiceNumber} — ${invoice.company.name}`;
-  const metadata = { invoiceId: invoice.id, companyId: actor.companyId, chargedBy: actor.id };
-  const result = paymentToken
-    ? await processor.charge({
-        amount: balance,
-        method: "card",
-        surcharge: 0,
-        description,
-        metadata,
-        token: paymentToken,
-        merchantRef: invoice.company.finixMerchantId ?? undefined,
-        buyer: {
-          identityRef: invoice.contact.finixBuyerIdentityId,
-          firstName: invoice.contact.firstName,
-          lastName: invoice.contact.lastName,
-          email: invoice.contact.email,
-          phone: invoice.contact.phone,
-        },
-      })
-    : await processor.chargeStored({
-        customerRef: instrumentRef!,
-        amount: balance,
-        description,
-        metadata,
-      });
-  if (!result.success) {
-    return NextResponse.json({ error: result.error }, { status: 402 });
+  // One charge in flight per invoice: a second staff member, the client on
+  // /pay, or an autopay sweep racing this one would each pass their own
+  // balance check and charge the card twice. The balance read below happens
+  // under the lock, so it can't go stale before the charge.
+  if (!(await acquireChargeLock(invoice.id))) {
+    return NextResponse.json(
+      { error: "A charge on this invoice is already processing. Give it a moment, then refresh." },
+      { status: 409 }
+    );
   }
+  try {
+    const fresh = await prisma.invoice.findUniqueOrThrow({
+      where: { id: invoice.id },
+      include: { payments: true },
+    });
+    const balance = invoiceBalance(fresh);
+    if (balance <= 0) return NextResponse.json({ error: "Nothing left to charge." }, { status: 400 });
 
-  if (paymentToken) {
-    cardLabel = savedCardLabel(result) || "new card";
-    // First online charge mints the contact's buyer identity — keep it so
-    // repeat charges don't create duplicate identities.
-    if (result.buyerIdentityRef && !invoice.contact.finixBuyerIdentityId) {
-      await prisma.contact
-        .update({
-          where: { id: invoice.contact.id },
-          data: { finixBuyerIdentityId: result.buyerIdentityRef },
+    const processor = getProcessor();
+    if (!processor.live)
+      return NextResponse.json({ error: "Online payments are not enabled yet." }, { status: 503 });
+
+    const description = `Invoice #${invoice.invoiceNumber} — ${invoice.company.name}`;
+    const metadata = { invoiceId: invoice.id, companyId: actor.companyId, chargedBy: actor.id };
+    const result = paymentToken
+      ? await processor.charge({
+          amount: balance,
+          method: "card",
+          surcharge: 0,
+          description,
+          metadata,
+          token: paymentToken,
+          merchantRef: invoice.company.finixMerchantId ?? undefined,
+          buyer: {
+            identityRef: invoice.contact.finixBuyerIdentityId,
+            firstName: invoice.contact.firstName,
+            lastName: invoice.contact.lastName,
+            email: invoice.contact.email,
+            phone: invoice.contact.phone,
+          },
         })
-        .catch(() => {});
+      : await processor.chargeStored({
+          customerRef: instrumentRef!,
+          amount: balance,
+          description,
+          metadata,
+        });
+    if (!result.success) {
+      return NextResponse.json({ error: result.error }, { status: 402 });
     }
-    // Keep the card ONLY when the box was ticked — same opt-in as /pay.
-    // Never allowed to fail the charge that already went through.
-    if (saveNewCard && result.instrumentRef) {
-      await addSavedCard({
+
+    if (paymentToken) {
+      cardLabel = savedCardLabel(result) || "new card";
+      // First online charge mints the contact's buyer identity — keep it so
+      // repeat charges don't create duplicate identities.
+      if (result.buyerIdentityRef && !invoice.contact.finixBuyerIdentityId) {
+        await prisma.contact
+          .update({
+            where: { id: invoice.contact.id },
+            data: { finixBuyerIdentityId: result.buyerIdentityRef },
+          })
+          .catch(() => {});
+      }
+      // Keep the card ONLY when the box was ticked — same opt-in as /pay.
+      // Never allowed to fail the charge that already went through.
+      if (saveNewCard && result.instrumentRef) {
+        await addSavedCard({
+          companyId: actor.companyId,
+          contactId: invoice.contact.id,
+          instrumentRef: result.instrumentRef,
+          label: cardLabel,
+          brand: result.cardBrand,
+          last4: result.cardLast4,
+          expMonth: result.cardExpMonth,
+          expYear: result.cardExpYear,
+        }).catch((e) => console.error("[charge] save card failed", e));
+        await reviveAutopayForContact(invoice.contact.id).catch((e) =>
+          console.error("[charge] autopay revive failed", e)
+        );
+      }
+    }
+
+    const { fullyPaid } = await recordPayment({
+      companyId: actor.companyId,
+      invoiceId: invoice.id,
+      amount: balance,
+      method: "CARD",
+      processorRef: result.transactionId,
+      cardBrand: result.cardBrand,
+      cardType: result.cardType,
+      recordedById: actor.id,
+      details: paymentToken
+        ? `Card charged by staff${cardLabel ? ` (${cardLabel})` : ""}${saveNewCard ? "" : " — not kept on file"}`
+        : `Card on file${cardLabel ? ` (${cardLabel})` : ""}`,
+      receiptPending: result.pending,
+    });
+
+    if (fullyPaid && !result.pending && invoice.contact.email) {
+      await sendReviewRequest({
         companyId: actor.companyId,
         contactId: invoice.contact.id,
-        instrumentRef: result.instrumentRef,
-        label: cardLabel,
-        brand: result.cardBrand,
-        last4: result.cardLast4,
-        expMonth: result.cardExpMonth,
-        expYear: result.cardExpYear,
-      }).catch((e) => console.error("[charge] save card failed", e));
-      await reviveAutopayForContact(invoice.contact.id).catch((e) =>
-        console.error("[charge] autopay revive failed", e)
-      );
+        jobId: invoice.jobId,
+        email: invoice.contact.email,
+        contactFirstName: invoice.contact.firstName,
+        jobTitle: null,
+      }).catch((e) => console.error("[charge-stored] review request failed", e));
     }
-  }
 
-  const { fullyPaid } = await recordPayment({
-    companyId: actor.companyId,
-    invoiceId: invoice.id,
-    amount: balance,
-    method: "CARD",
-    processorRef: result.transactionId,
-    cardBrand: result.cardBrand,
-    cardType: result.cardType,
-    recordedById: actor.id,
-    details: paymentToken
-      ? `Card charged by staff${cardLabel ? ` (${cardLabel})` : ""}${saveNewCard ? "" : " — not kept on file"}`
-      : `Card on file${cardLabel ? ` (${cardLabel})` : ""}`,
-    receiptPending: result.pending,
-  });
-
-  if (fullyPaid && !result.pending && invoice.contact.email) {
-    await sendReviewRequest({
+    logActivity({
       companyId: actor.companyId,
-      contactId: invoice.contact.id,
-      jobId: invoice.jobId,
-      email: invoice.contact.email,
-      contactFirstName: invoice.contact.firstName,
-      jobTitle: null,
-    }).catch((e) => console.error("[charge-stored] review request failed", e));
-  }
-
-  logActivity({
-    companyId: actor.companyId,
-    userId: actor.id,
-    userName: actor.name,
-    entityType: "invoice",
-    entityId: invoice.id,
-    action: "card_on_file_charged",
-    detail: `$${balance.toFixed(2)} charged to ${cardLabel ?? "saved card"}`,
-  });
+      userId: actor.id,
+      userName: actor.name,
+      entityType: "invoice",
+      entityId: invoice.id,
+      action: "card_on_file_charged",
+      detail: `$${balance.toFixed(2)} charged to ${cardLabel ?? "saved card"}`,
+    });
 
   return NextResponse.json({ success: true, amount: balance, fullyPaid });
+  } finally {
+    await releaseChargeLock(invoice.id);
+  }
 }

@@ -19,6 +19,7 @@ import {
   Repeat,
 } from "lucide-react";
 import { money, appointmentTypeLabel } from "@/lib/statuses";
+import { invoiceBalance } from "@/lib/payments";
 import { SECTION_HUES } from "@/lib/section-colors";
 import { formatDuration, mapsHref } from "@/lib/time-entries";
 import { renderMessageTemplate, DEFAULT_ON_MY_WAY_TEMPLATE } from "@/lib/messaging";
@@ -203,10 +204,7 @@ export default async function DashboardPage() {
   ]);
   const showSetupCard = isManager(actor.role) && setupCompany?.setupWizardAt == null;
 
-  const receivableTotal = receivables.reduce((s, inv) => {
-    const paid = inv.payments.reduce((p, x) => p + Number(x.amount), 0);
-    return s + Number(inv.total) - paid;
-  }, 0);
+  const receivableTotal = receivables.reduce((s, inv) => s + invoiceBalance(inv), 0);
   const receivableClients = new Set(receivables.map((i) => i.contactId).filter(Boolean)).size;
   const weekRevenue = upcomingJobsWeek.reduce(
     (s, j) => s + j.lineItems.reduce((t, li) => t + Number(li.total), 0),

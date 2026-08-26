@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { requirePageActor, canSeeMoney, viaContactScope } from "@/lib/permissions";
+import { invoiceBalance } from "@/lib/payments";
 import CollectPaymentForm from "./CollectPaymentForm";
 
 export default async function NewPaymentPage({
@@ -25,7 +26,6 @@ export default async function NewPaymentPage({
   });
 
   const outstanding = invoices.map((inv) => {
-    const paid = inv.payments.reduce((s, p) => s + Number(p.amount), 0);
     return {
       id: inv.id,
       invoiceNumber: inv.invoiceNumber,
@@ -34,7 +34,7 @@ export default async function NewPaymentPage({
       dueDate: inv.dueDate?.toISOString() ?? null,
       contactName: inv.contact ? `${inv.contact.firstName} ${inv.contact.lastName}` : "—",
       total: Number(inv.total),
-      balance: Math.round((Number(inv.total) - paid) * 100) / 100,
+      balance: invoiceBalance(inv),
     };
   });
 
