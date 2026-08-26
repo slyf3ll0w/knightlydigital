@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { signIn, useSession } from "next-auth/react";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
-import TurnstileWidget, { TurnstileHandle } from "@/components/TurnstileWidget";
+import TurnstileWidget, { TurnstileHandle, captchaEnabled } from "@/components/TurnstileWidget";
 import { INDUSTRIES } from "@/lib/pricebooks";
 import { saveCredential } from "@/lib/save-credential";
 import { switchToMembership } from "@/lib/company-switch";
@@ -257,9 +257,11 @@ export default function RegisterPage() {
 
               <TurnstileWidget ref={captchaRef} onToken={setCaptchaToken} action="signup" />
 
+              {/* Wait for the invisible challenge's token — submitting before
+                  it mints is a guaranteed rejection that burns rate budget. */}
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || (captchaEnabled && !captchaToken)}
                 className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#0B57D8] py-3 text-[15px] font-bold text-white transition-colors hover:bg-[#0A4CBB] active:bg-[#09429F] disabled:opacity-50"
               >
                 {loading && <Loader2 size={14} className="animate-spin" />}

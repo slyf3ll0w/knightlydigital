@@ -5,7 +5,7 @@ import { signOut, useSession, getCsrfToken } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
-import TurnstileWidget, { TurnstileHandle } from "@/components/TurnstileWidget";
+import TurnstileWidget, { TurnstileHandle, captchaEnabled } from "@/components/TurnstileWidget";
 import { Input } from "@/components/Input";
 
 // Human-readable copy for the ?error= code NextAuth redirects back with.
@@ -215,9 +215,12 @@ export default function AppLoginPage() {
                 </div>
               </div>
               <TurnstileWidget ref={captchaRef} onToken={setCaptchaToken} action="login" />
+              {/* The invisible challenge takes a beat to mint its token — a
+                  submit before then is a guaranteed rejection that burns one
+                  of the 5-per-15-min attempts, so the button waits for it. */}
               <button
                 type="submit"
-                disabled={loading || !csrfToken}
+                disabled={loading || !csrfToken || (captchaEnabled && !captchaToken)}
                 className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#0B57D8] py-3 text-[15px] font-bold text-white transition-colors hover:bg-[#0A4CBB] active:bg-[#09429F] disabled:opacity-50"
               >
                 {loading && <Loader2 size={14} className="animate-spin" />}

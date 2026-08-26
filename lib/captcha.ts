@@ -52,6 +52,18 @@ export async function verifyCaptcha(
   const secret = process.env.TURNSTILE_SECRET_KEY;
   if (!secret) return true; // captcha not configured yet
 
+  if (!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY) {
+    // Secret set but no site key: no form can render the widget, so no user
+    // can ever mint a token — verifying would lock the entire tenant base
+    // out of login/signup with nothing on screen. This is a deploy
+    // misconfiguration, not an attack (an attacker can't unset the site
+    // key), so pass loudly instead of failing the whole product closed.
+    console.error(
+      "[captcha] TURNSTILE_SECRET_KEY is set but NEXT_PUBLIC_TURNSTILE_SITE_KEY is missing — captcha check skipped; set both keys"
+    );
+    return true;
+  }
+
   if (typeof token !== "string" || !token || token.length > 2048) return false;
 
   try {

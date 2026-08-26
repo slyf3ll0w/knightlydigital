@@ -15,6 +15,13 @@ declare global {
 
 const SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
+/**
+ * Whether the captcha is active in this build — forms gate their submit
+ * button on the minted token ONLY when this is true, so an unconfigured
+ * deployment never ends up with a button that can't enable.
+ */
+export const captchaEnabled = Boolean(SITE_KEY);
+
 export type TurnstileHandle = {
   /** Re-run the challenge for a fresh token (tokens are single-use). */
   reset: () => void;
