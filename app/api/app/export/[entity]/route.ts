@@ -108,6 +108,10 @@ export async function GET(
     }
 
     case "jobs": {
+      // Techs export their own jobs, but the priced column follows the same
+      // money gate as every other surface — the job pages hide prices from
+      // roles without canSeeMoney, and the export must not show more.
+      const seeMoney = canSeeMoney(actor);
       const rows = await prisma.job.findMany({
         where: { companyId, ...jobScope(actor) },
         include: {
@@ -119,7 +123,7 @@ export async function GET(
       });
       return csvResponse(
         `jobs-${stamp}.csv`,
-        ["Job #", "Title", "Client", "Status", "Scheduled", "Address", "Line-item total", "Created"],
+        ["Job #", "Title", "Client", "Status", "Scheduled", "Address", ...(seeMoney ? ["Line-item total"] : []), "Created"],
         rows.map((j) => [
           csvCell(String(j.jobNumber)),
           csvText(j.title),
@@ -127,7 +131,7 @@ export async function GET(
           csvCell(j.status),
           csvCell(j.scheduledAt ? j.scheduledAt.toISOString() : ""),
           csvText(j.address ?? ""),
-          csvCell(num(j.lineItems.reduce((s, li) => s + Number(li.total), 0))),
+          ...(seeMoney ? [csvCell(num(j.lineItems.reduce((s, li) => s + Number(li.total), 0)))] : []),
           csvCell(day(j.createdAt)),
         ])
       );
