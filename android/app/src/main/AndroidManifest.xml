@@ -18,6 +18,17 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- App Links: /app/* URLs open the shell instead of the browser.
+                 Mirrors the AASA `applinks` scope — client-facing pages
+                 (/hub /quote /pay ...) deliberately excluded. autoVerify
+                 requires /.well-known/assetlinks.json to be live (middleware,
+                 gated on ANDROID_CERT_SHA256) or Android silently ignores it. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="workbenchfsm.com" android:pathPrefix="/app" />
+            </intent-filter>
         </activity>
 
         <provider

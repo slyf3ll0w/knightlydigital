@@ -1,5 +1,17 @@
 apply plugin: 'com.android.application'
 
+// Upload-key signing for Play releases. The keystore + passwords live in
+// android/keystore.properties (gitignored — see that file's template in
+// docs/plans/mobile-app-runbook-mac.md § PLAY STORE). Google Play App Signing
+// holds the real app signing key; this upload key only authenticates uploads,
+// so it's resettable through Play Console support if ever lost. Builds
+// without the properties file (CI, other machines) still work, just unsigned.
+def keystorePropsFile = rootProject.file('keystore.properties')
+def keystoreProps = new Properties()
+if (keystorePropsFile.exists()) {
+    keystorePropsFile.withInputStream { keystoreProps.load(it) }
+}
+
 android {
     namespace = "com.streamflaire.hub"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -7,7 +19,7 @@ android {
         applicationId "com.streamflaire.hub"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 2
+        versionCode 3
         versionName "1.2"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
@@ -16,10 +28,23 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        if (keystorePropsFile.exists()) {
+            release {
+                storeFile file(keystoreProps['storeFile'])
+                storePassword keystoreProps['storePassword']
+                keyAlias keystoreProps['keyAlias']
+                keyPassword keystoreProps['keyPassword']
+            }
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (keystorePropsFile.exists()) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 }

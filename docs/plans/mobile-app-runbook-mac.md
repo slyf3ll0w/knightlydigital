@@ -207,6 +207,46 @@ plugin — haptics just no-op until the app is rebuilt. To activate:
   cert SHA-256) + apple-app-site-association for universal links.
 - iOS: Apple Developer enrollment ($99/yr, takes days). TestFlight before review.
 
+## PLAY STORE — Android release from Windows (2026-08-26)
+
+No Mac needed for any of this. Play Console account created + paid 2026-08-26.
+Listing copy, data-safety draft, and release path: `docs/plans/play-store-listing.md`.
+Account-deletion URL (required by Data safety form): workbenchfsm.com/account-deletion.
+
+Toolchain (installed 2026-08-26 by Claude): Temurin JDK 21 (winget) +
+Android cmdline-tools at `%LOCALAPPDATA%\Android\Sdk` (no Android Studio).
+
+**Signing** — Play App Signing manages the app key; we hold only an upload key:
+- Keystore: `C:\Users\David Lessly\.workbench-keys\workbench-upload.jks`
+  (OUTSIDE the repo — also back it up off-machine, e.g. password manager).
+- `android/keystore.properties` (gitignored) template:
+  ```
+  storeFile=C:/Users/David Lessly/.workbench-keys/workbench-upload.jks
+  storePassword=...
+  keyAlias=workbench-upload
+  keyPassword=...
+  ```
+- `android/app/build.gradle` reads it if present; absent → unsigned build,
+  no error. If the upload key is ever lost: Play Console → App integrity →
+  request upload key reset (that's the whole point of Play App Signing).
+- Upload key SHA-256 (generated 2026-08-26):
+  `DE:DF:69:37:4C:20:A2:FA:9E:68:B6:36:36:83:58:59:A5:95:EB:9D:F0:AE:70:F5:C4:95:7A:EB:D7:71:C6:FD`
+
+**Build**: `cd android && .\gradlew bundleRelease` → AAB at
+`android/app/build/outputs/bundle/release/app-release.aab`. Bump
+`versionCode` in `android/app/build.gradle` for every upload (Play rejects
+reuse; versionName is cosmetic).
+
+**After first release** (any track): Play Console → Test and release → App
+integrity → copy the **App signing key** SHA-256 → set `ANDROID_CERT_SHA256`
+on Railway (comma-separated list; optionally append the upload-key SHA-256) →
+`curl https://workbenchfsm.com/.well-known/assetlinks.json` returns JSON.
+This activates the manifest's autoVerify App Links intent filter
+(workbenchfsm.com/app/* opens the shell) AND Google Password Manager
+save/fill inside the shell (`get_login_creds` relation) — Android's
+equivalent of the iOS Associated Domains step, no store rebuild required
+since the intent filter already shipped in versionCode 3.
+
 ## Gotchas learned on the Windows side
 
 - `npx cap add ios` ran fine on Windows; only dependency install remains for Mac.

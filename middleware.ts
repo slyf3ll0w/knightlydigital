@@ -162,6 +162,28 @@ export async function middleware(req: NextRequest) {
     });
   }
 
+  // Android's counterpart to the AASA file — Digital Asset Links. Grants the
+  // Play-store shell App Links (workbenchfsm.com/app/* URLs open the app) and
+  // credential sharing (Google Password Manager saves/fills logins inside the
+  // shell's webview). Gated the same way: stays a 404 until the Play App
+  // Signing cert exists, because the SHA-256 here must be the cert Google
+  // signs releases with — set ANDROID_CERT_SHA256 to that fingerprint
+  // (Play Console → Test and release → App integrity; comma-separate to also
+  // allow the upload cert for local release builds).
+  if (path === "/.well-known/assetlinks.json") {
+    const certs = process.env.ANDROID_CERT_SHA256;
+    if (!certs) return new NextResponse("Not found", { status: 404 });
+    const target = {
+      namespace: "android_app",
+      package_name: "com.streamflaire.hub",
+      sha256_cert_fingerprints: certs.split(",").map((c) => c.trim().toUpperCase()),
+    };
+    return NextResponse.json([
+      { relation: ["delegate_permission/common.handle_all_urls"], target },
+      { relation: ["delegate_permission/common.get_login_creds"], target },
+    ]);
+  }
+
   // ── Rate limiting (POST-like methods only) ─────────────────────────────────
   if (req.method !== "GET" && req.method !== "HEAD") {
     for (const rule of rateLimits) {
@@ -240,6 +262,7 @@ export const config = {
     "/wb",
     "/.well-known/change-password",
     "/.well-known/apple-app-site-association",
+    "/.well-known/assetlinks.json",
     "/about",
     "/services",
     "/custom-web-design",
