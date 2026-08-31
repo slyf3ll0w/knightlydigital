@@ -15,6 +15,7 @@ import {
 import { runAutoChargeRetries, runCardExpiryNudges } from "@/lib/auto-charge";
 import { runQuickBooksNightlySync } from "@/lib/quickbooks";
 import { rollupStorageSnapshots } from "@/lib/usage";
+import { runNightlyReconciliation } from "@/lib/reconcile";
 
 /**
  * Daily billing cron. A scheduler (Railway cron service, or an external pinger
@@ -80,6 +81,9 @@ export async function POST(req: NextRequest) {
     console.error("[cron] storage rollup failed", err);
     return 0;
   });
+  // Financial reconciliation: re-derives every money invariant and emails the
+  // platform operator on drift. Self-gates to once a day; never throws.
+  const reconcile = await runNightlyReconciliation(now);
   return NextResponse.json({
     ok: true,
     subscriptions,
@@ -95,5 +99,6 @@ export async function POST(req: NextRequest) {
     quickbooks,
     prunedPings: prunedPings.count,
     storageCompanies,
+    reconcile,
   });
 }

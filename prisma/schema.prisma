@@ -1722,6 +1722,28 @@ model ActivityLog {
   @@index([companyId, createdAt])
 }
 
+// ─── Nightly financial reconciliation (lib/reconcile.ts) ─────────────────────
+
+// One row per nightly reconciliation sweep. The sweep re-derives every money
+// invariant (invoice math, status-vs-balance, duplicate charges, subscription
+// shape, Finix transfer cross-check) and emails the platform operator when
+// anything drifted. The latest row also acts as the once-a-day gate on the
+// hourly cron. Findings are stored as JSON for the paper trail.
+model ReconcileRun {
+  id              String    @id @default(cuid())
+  startedAt       DateTime  @default(now())
+  finishedAt      DateTime?
+  companies       Int       @default(0)
+  invoicesChecked Int       @default(0)
+  errorCount      Int       @default(0)
+  warningCount    Int       @default(0)
+  // [{ companyId, companyName, severity: "error"|"warning", check, entity, entityId, detail }]
+  findings        Json?
+  emailedTo       String?
+
+  @@index([startedAt])
+}
+
 // ─── Platform usage metering (superadmin cost tracking) ──────────────────────
 
 // One row per company per UTC day, upserted with atomic increments by

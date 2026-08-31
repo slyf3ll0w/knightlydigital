@@ -8,7 +8,9 @@
     "start": "prisma db push && node scripts/rename-superadmin-email.mjs && node scripts/backfill-doc-numbers.mjs && node scripts/backfill-saved-cards.mjs && next start",
     "db:push": "prisma db push --accept-data-loss",
     "db:seed": "tsx prisma/seed.ts",
-    "db:generate": "prisma generate"
+    "db:generate": "prisma generate",
+    "e2e": "playwright test",
+    "e2e:provision": "tsx e2e/provision.mts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -48,6 +50,7 @@
   "devDependencies": {
     "@capacitor/assets": "^3.0.5",
     "@capacitor/cli": "^8.4.1",
+    "@playwright/test": "^1.62.1",
     "@types/leaflet": "^1.9.21",
     "@types/node": "^20",
     "@types/react": "^19",

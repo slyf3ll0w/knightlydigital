@@ -4,3 +4,8 @@ node_modules/
 .env.local
 .env.production
 out/
+# E2E suite — local secrets, minted sessions, reports
+e2e/.env.e2e
+e2e/.state.json
+e2e/report/
+e2e/artifacts/
