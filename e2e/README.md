@@ -1,9 +1,11 @@
-# E2E money-path suite
+# E2E suite
 
 Playwright suite that drives the **deployed** Workbench app (default: production,
 where Finix runs in sandbox mode — fake money) through the paths that lose money
 or trust if they break: invoice math, payments, quotes, recurring billing,
-autopay, card charges, and tenant isolation.
+autopay, card charges, and tenant isolation — plus the daily-driver workflows
+around them: jobs & scheduling, CRM plumbing, PDFs/exports, and the public
+booking surface.
 
 The suite runs against two dedicated tenant companies (`e2e-harness`,
 `e2e-tenant-b`) that exist only for testing. Auth is a minted NextAuth session
@@ -59,3 +61,17 @@ The HTML report lands in `e2e/report/`; failure traces in `e2e/artifacts/`.
 - `card-charge` — real sandbox charges through `/pay`: success + 3% surcharge +
   save-card, amount-triggered decline ($x.02), autopay charge-at-signup,
   autopay decline → retry schedule.
+- `jobs-scheduling` — schedule-window guards, close-out checklist gate
+  (skip-needs-reason, completedAt/closedAt stamps), double-booking heads-ups on
+  jobs and appointments, job delete.
+- `contacts-crm` — contact edits, saved service addresses → job-site snapshot,
+  notes, request → job conversion, ⌘K search.
+- `documents-export` — invoice/quote/statement PDFs render as real PDFs; CSV
+  exports (clients/invoices/jobs/timesheets) carry the run's rows.
+- `public-booking` — self-scheduling slot engine offers times once configured;
+  the Turnstile captcha gate rejects scripted public submissions (a red here
+  means the deployment lost its captcha keys).
+
+Deliberately not covered: real email/SMS delivery (test contacts have no
+email), QuickBooks sync (needs a QBO sandbox), the mobile apps, and live-money
+Finix.
