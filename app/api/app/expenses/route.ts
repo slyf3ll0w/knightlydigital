@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
+import { firstRunAfter } from "@/lib/expenses";
 
 /**
  * Business expenses (owners/admins only).
  * GET            — list (optional ?from=YYYY-MM-DD&to=YYYY-MM-DD)
  * GET&format=csv — download the range as a CSV
  * POST           — log a transaction { description, category?, amount, incurredAt }
+ *                  repeatMonthly: true also creates a RecurringExpense template
+ *                  that re-posts it on the same day each month (cron-driven)
  */
 
 function parseDay(s: string | null, end = false): Date | null {
@@ -90,15 +93,37 @@ export async function POST(req: NextRequest) {
   }
   if (!incurredAt) return NextResponse.json({ error: "Pick the transaction date." }, { status: 400 });
 
+  const category =
+    typeof body.category === "string" && body.category.trim() ? body.category.trim().slice(0, 60) : null;
+  const rounded = Math.round(amount * 100) / 100;
+
   const expense = await prisma.expense.create({
     data: {
       companyId: actor.companyId,
       description,
-      category: typeof body.category === "string" && body.category.trim() ? body.category.trim().slice(0, 60) : null,
-      amount: Math.round(amount * 100) / 100,
+      category,
+      amount: rounded,
       incurredAt,
       createdById: actor.id,
     },
   });
+
+  // "Repeat monthly": today's entry is already logged above, so the template
+  // starts one cycle out (never re-posts the same day, never backfills).
+  if (body.repeatMonthly === true) {
+    const dayOfMonth = incurredAt.getDate();
+    await prisma.recurringExpense.create({
+      data: {
+        companyId: actor.companyId,
+        description,
+        category,
+        amount: rounded,
+        dayOfMonth,
+        nextRunDate: firstRunAfter(new Date(Math.max(incurredAt.getTime(), Date.now())), dayOfMonth),
+        createdById: actor.id,
+      },
+    });
+  }
+
   return NextResponse.json(expense, { status: 201 });
 }

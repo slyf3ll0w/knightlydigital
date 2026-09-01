@@ -168,6 +168,7 @@ model Company {
   contractTemplates ContractTemplate[]
   contracts         Contract[]
   expenses          Expense[]
+  recurringExpenses RecurringExpense[]
   teamMessages      TeamMessage[]
   chatChannels      ChatChannel[]
   pipelineStages    PipelineStage[]
@@ -812,6 +813,31 @@ model Expense {
   updatedAt   DateTime @default(now()) @updatedAt
 
   @@index([companyId, incurredAt])
+}
+
+// A standing monthly expense (rent, insurance, software…). The daily cron
+// posts a real Expense row on each due date and advances nextRunDate, so the
+// log stays the single source of truth — templates never count toward totals.
+model RecurringExpense {
+  id          String   @id @default(cuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id])
+  description String
+  category    String?
+  amount      Decimal  @db.Decimal(10, 2)
+  // Posts on this day each month, clamped to the month's last day (31 → Feb 28)
+  dayOfMonth  Int
+  // Next date this template posts (noon anchor, like Expense.incurredAt).
+  // The sweep claims a template by compare-and-swapping this forward, so two
+  // overlapping cron runs can't double-log.
+  nextRunDate DateTime
+  active      Boolean  @default(true)
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
+
+  @@index([companyId])
+  @@index([active, nextRunDate])
 }
 
 // ─── Client notes (same shape as job notes) ──────────────────────────────────

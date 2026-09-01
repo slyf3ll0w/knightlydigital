@@ -14,6 +14,7 @@ import {
 } from "@/lib/reminders";
 import { runAutoChargeRetries, runCardExpiryNudges } from "@/lib/auto-charge";
 import { runQuickBooksNightlySync } from "@/lib/quickbooks";
+import { runRecurringExpenses } from "@/lib/expenses";
 import { rollupStorageSnapshots } from "@/lib/usage";
 import { runNightlyReconciliation } from "@/lib/reconcile";
 
@@ -54,6 +55,9 @@ export async function POST(req: NextRequest) {
   const autoChargeRetries = await runAutoChargeRetries(now);
   // "Your card expires soon" nudges for clients on autopay (once per card)
   const cardNudges = await runCardExpiryNudges(now);
+  // Standing monthly expenses (rent, insurance…) post to the expense log on
+  // their day of the month
+  const recurringExpenses = await runRecurringExpenses(now);
   const reminders = await runDueReminders(now);
   // Sales follow-ups: quotes sitting unanswered get a nudge at 3 and 7 days
   const quoteFollowUps = await runQuoteFollowUps(now);
@@ -91,6 +95,7 @@ export async function POST(req: NextRequest) {
     visits,
     autoChargeRetries,
     cardNudges,
+    recurringExpenses,
     reminders,
     quoteFollowUps,
     appointmentReminders,

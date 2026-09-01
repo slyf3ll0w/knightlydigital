@@ -43,6 +43,7 @@ export async function deleteCompanyCascade(companyId: string): Promise<void> {
       await tx.contractTemplate.deleteMany({ where });
       await tx.webForm.deleteMany({ where });
       await tx.expense.deleteMany({ where });
+      await tx.recurringExpense.deleteMany({ where });
       await tx.user.deleteMany({ where });
       await tx.company.delete({ where: { id: companyId } });
     },

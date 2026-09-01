@@ -8,11 +8,17 @@ export const metadata: Metadata = { title: "Expenses" };
 export default async function ExpensesPage() {
   const actor = await requirePageActor((a) => isManager(a.role));
 
-  const expenses = await prisma.expense.findMany({
-    where: { companyId: actor.companyId },
-    orderBy: { incurredAt: "desc" },
-    take: 200,
-  });
+  const [expenses, recurring] = await Promise.all([
+    prisma.expense.findMany({
+      where: { companyId: actor.companyId },
+      orderBy: { incurredAt: "desc" },
+      take: 200,
+    }),
+    prisma.recurringExpense.findMany({
+      where: { companyId: actor.companyId },
+      orderBy: { dayOfMonth: "asc" },
+    }),
+  ]);
 
   return (
     <ExpensesClient
@@ -22,6 +28,15 @@ export default async function ExpensesPage() {
         category: e.category,
         amount: Number(e.amount),
         incurredAt: e.incurredAt.toISOString().slice(0, 10),
+      }))}
+      recurring={recurring.map((r) => ({
+        id: r.id,
+        description: r.description,
+        category: r.category,
+        amount: Number(r.amount),
+        dayOfMonth: r.dayOfMonth,
+        nextRunDate: r.nextRunDate.toISOString().slice(0, 10),
+        active: r.active,
       }))}
     />
   );
