@@ -5,7 +5,6 @@ import { getProcessor } from "@/lib/payments";
 import {
   createOnboardingForm,
   createOnboardingFormLink,
-  provisionSandboxMerchant,
   finixConfigured,
   finixEnvironment,
   FinixError,
@@ -21,10 +20,10 @@ import { syncFromFinix } from "@/lib/finix-status";
  *        webhooks — the webhook route is a faster path, not a required one.
  * POST — owner-only: create the company's hosted onboarding form (first click)
  *        or mint a fresh session link (links expire hourly). Returns { url }.
- *        Body { action: "test-approve" } (SANDBOX ONLY) skips the form and
- *        provisions a merchant from canned test data instead — auto-approves
- *        in ~2 minutes. provisionSandboxMerchant throws in live mode, so this
- *        can never bypass real KYC.
+ *        There is deliberately NO in-app way to skip the form — sandbox
+ *        testers get a bypass invite code on /apply instead (that skips the
+ *        application review, never underwriting), and the E2E harness
+ *        provisions its merchant server-side via e2e/provision.mts.
  */
 
 export async function GET() {
@@ -79,36 +78,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Payments are already set up." }, { status: 400 });
   }
 
+  // The old { action: "test-approve" } sandbox shortcut is gone on purpose:
+  // everyone goes through the hosted form now (sandbox included).
   if (body.action === "test-approve") {
-    if (finixEnvironment() !== "sandbox") {
-      return NextResponse.json(
-        { error: "Test approval only exists in sandbox mode." },
-        { status: 400 }
-      );
-    }
-    try {
-      const result = await provisionSandboxMerchant({
-        businessName: company.name,
-        email: company.email,
-        phone: company.phone,
-      });
-      await prisma.company.update({
-        where: { id: actor.companyId },
-        data: {
-          finixIdentityId: result.identityId,
-          finixMerchantId: result.merchantId,
-          finixOnboardingState: result.onboardingState,
-          // Bypassed real underwriting → Atlas defaults off (lib/assistant-access.ts)
-          finixSandboxApproved: true,
-        },
-      });
-      return NextResponse.json({ testApproved: true, state: result.onboardingState });
-    } catch (err) {
-      console.error("[payments] sandbox test approval failed", err);
-      const message =
-        err instanceof FinixError ? `Test approval failed: ${err.message}` : "Test approval failed.";
-      return NextResponse.json({ error: message }, { status: 502 });
-    }
+    return NextResponse.json(
+      { error: "Test approval has been removed — complete the verification form instead." },
+      { status: 400 }
+    );
   }
 
   const baseUrl = process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com";

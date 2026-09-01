@@ -370,30 +370,6 @@ function PaymentsOnlineCard({ isOwner }: { isOwner: boolean }) {
     }
   }
 
-  // Sandbox-only: provision a test merchant from canned data, skipping the
-  // application form entirely. The server refuses this outside sandbox.
-  async function testApprove() {
-    setBusy(true);
-    setError("");
-    try {
-      const res = await fetch("/api/app/settings/payments", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "test-approve" }),
-      });
-      const data = await res.json().catch(() => null);
-      if (!res.ok) {
-        setError(data?.error ?? "Test approval failed. Please try again.");
-        return;
-      }
-      setStatus((s) => (s ? { ...s, started: true, state: data?.state ?? "PROVISIONING" } : s));
-    } catch {
-      setError("Couldn't reach the server. Check your connection and try again.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
   // Pre-launch (processor not configured) — say nothing rather than tease
   if (!status || !status.available) return null;
 
@@ -468,17 +444,6 @@ function PaymentsOnlineCard({ isOwner }: { isOwner: boolean }) {
                 ? "Continue application"
                 : "Set up payments"}
             </button>
-            {status.environment === "sandbox" && (
-              <button
-                onClick={testApprove}
-                disabled={busy}
-                title="Sandbox only: provisions a merchant from canned test data — no form"
-                className="flex items-center gap-1.5 px-4 py-2 border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-semibold rounded-full transition-colors disabled:opacity-40"
-              >
-                {busy && <Loader2 size={11} className="animate-spin" />}
-                Skip form — instant test approval
-              </button>
-            )}
           </div>
         ) : (
           <p className="text-xs text-gray-400">

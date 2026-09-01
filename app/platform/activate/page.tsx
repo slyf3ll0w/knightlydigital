@@ -10,12 +10,11 @@ import ActivateClient from "./ActivateClient";
 export const dynamic = "force-dynamic";
 
 /**
- * The payment-verification gate. New companies land here after signup and
- * stay until they complete the hosted Finix onboarding form (KYC/KYB).
- * Completing the form (merchant PROVISIONING) unlocks the app in a limited
- * "pending" mode; REJECTED locks the account. The platform layout renders
- * this page standalone and redirects gated companies here from everywhere
- * else — see lib/payments-gate.ts for the state machine.
+ * The payment-setup step. New companies land here straight from /apply and
+ * complete the hosted Finix onboarding form (KYC/KYB) — but the account is
+ * fully usable either way ("look around first" door + layout banner nudges
+ * them back until the form is done). REJECTED locks the account. See
+ * lib/payments-gate.ts for the state machine.
  */
 export default async function ActivatePage({
   searchParams,

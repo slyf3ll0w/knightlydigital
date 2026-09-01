@@ -40,7 +40,7 @@ export default function ActivateClient({
   companyName: string;
 }) {
   const router = useRouter();
-  const [busy, setBusy] = useState<"form" | "test" | null>(null);
+  const [busy, setBusy] = useState<"form" | null>(null);
   const [error, setError] = useState("");
 
   async function openForm() {
@@ -60,28 +60,6 @@ export default function ActivateClient({
       window.location.href = data.url;
     } catch {
       setError("Couldn't open the verification form. Please try again.");
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  async function testApprove() {
-    setError("");
-    setBusy("test");
-    try {
-      const res = await fetch("/api/app/settings/payments", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "test-approve" }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error ?? "Test approval failed.");
-        return;
-      }
-      router.refresh();
-    } catch {
-      setError("Test approval failed.");
     } finally {
       setBusy(null);
     }
@@ -157,8 +135,8 @@ export default function ActivateClient({
             </Link>
             <p className="mt-3 text-[13px] text-gray-400">
               Reviewed by our payments underwriter, usually within a business day. Your details go
-              directly to the payment processor over an encrypted connection. Until you&apos;re
-              approved you can explore and set up your account in preview mode.
+              directly to the payment processor over an encrypted connection. The rest of your
+              account already works — only card &amp; bank payments wait on approval.
             </p>
           </>
         )}
@@ -255,30 +233,17 @@ export default function ActivateClient({
           </div>
         )}
 
-        {sandbox && status !== "rejected" && isOwner && (
-          <div className="mt-6 rounded-lg border border-dashed border-gray-300 px-4 py-3">
-            <p className="text-[13px] font-semibold text-gray-500">
-              Sandbox tools
-            </p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {status === "activate" && (
-                <button
-                  onClick={testApprove}
-                  disabled={busy !== null}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-[13px] font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-                >
-                  {busy === "test" && <Loader2 size={13} className="animate-spin" />}
-                  Approve instantly (test data)
-                </button>
-              )}
-              <button
-                onClick={() => router.refresh()}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-[13px] font-semibold text-gray-700 hover:bg-gray-50"
-              >
-                Check status
-              </button>
-            </div>
-          </div>
+        {/* The old "Sandbox tools" test-approve shortcut is gone on purpose —
+            everyone completes the verification form, sandbox included. The
+            sanctioned tester shortcut is a bypass invite code on /apply, and
+            that only skips the application review, never underwriting. */}
+        {sandbox && status === "pending" && (
+          <button
+            onClick={() => router.refresh()}
+            className="mt-6 inline-flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-[13px] font-semibold text-gray-700 hover:bg-gray-50"
+          >
+            Check status
+          </button>
         )}
       </div>
 

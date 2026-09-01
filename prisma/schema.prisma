@@ -112,8 +112,10 @@ model Company {
   // ATLAS_TRIAL_TURNS (incremented atomically in the assistant route).
   atlasTrialStartedAt DateTime?
   atlasTrialUsed      Int       @default(0)
-  // Stamped when the merchant came from the sandbox test-approve bypass
-  // instead of the hosted underwriting form (Settings → "test approval").
+  // Historical: stamped when a merchant came from the old sandbox
+  // test-approve bypass (removed 2026-09-01 — everyone completes the hosted
+  // underwriting form now; testers use a bypass invite code on /apply, which
+  // only skips the application review). Kept for existing rows.
   finixSandboxApproved Boolean @default(false)
   // ── Premium add-on, sold through Livery (lib/addon.ts) ──
   // addonEnabled is the superadmin VISIBILITY switch: the upsell page and its

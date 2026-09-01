@@ -99,13 +99,18 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (gate === "rejected") {
     redirect("/app/activate");
   }
-  // Preview mode: invited companies explore everything free before Finix
-  // approval — record caps, no email/AI/CSV/public forms (lib/preview.ts).
-  const preview = gate === "activate" || gate === "pending";
-
   // Atlas paywall state (lib/assistant-access.ts) — the drawer shows the
   // trial/upsell for "locked", chat for "trial"/"full", nothing for "off".
   const atlas = company ? atlasAccess(company) : null;
+
+  // ── The one status banner ──────────────────────────────────────────────────
+  // Accounts are fully usable from day one; the banner's job is to keep the
+  // onboarding moving. Never stack notices (it reads as clutter): the most
+  // actionable thing wins — an underwriter request, then finishing payment
+  // setup, then the pending-approval warning, then "under review" FYI.
+  const pendingApproval = Boolean(company?.accessPendingAt && !company.suspendedAt);
+  const updateRequested =
+    gate === "pending" && company?.finixOnboardingState === "UPDATE_REQUESTED";
 
   return (
     <>
@@ -136,46 +141,52 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         atlasTrialTurns={ATLAS_TRIAL_TURNS}
         assistantName={company?.assistantName}
         userId={session.user.id}
-        previewMode={preview}
       >
-        {company?.accessPendingAt && !company.suspendedAt && (
+        {updateRequested ? (
+          <div className="mb-4 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <span className="font-semibold">Action needed on payment verification:</span>
+            <span>the underwriter needs more information to approve your business.</span>
+            <Link href="/app/activate" className="font-bold underline">
+              Finish verification
+            </Link>
+          </div>
+        ) : gate === "activate" && pendingApproval ? (
+          <div className="mb-4 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <span className="font-semibold">Account pending approval</span>
+            <span>
+              — use WorkBench normally while a person reviews your application (if it
+              isn&apos;t approved, you&apos;ll lose access). While you wait, finish your
+              payment setup.
+            </span>
+            <Link href="/app/activate" className="font-bold underline">
+              Finish payment setup
+            </Link>
+          </div>
+        ) : gate === "activate" ? (
+          <div className="mb-4 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+            <span className="font-semibold">Finish your payment setup</span>
+            <span>
+              — verify your business to switch on card &amp; bank payments. Everything else
+              already works.
+            </span>
+            <Link href="/app/activate" className="font-bold underline">
+              Finish setup
+            </Link>
+          </div>
+        ) : pendingApproval ? (
           <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
             <span className="font-semibold">Account pending approval</span> — a person is
             reviewing your application, usually within a business day. You can use WorkBench
             normally in the meantime, but if the application isn&apos;t approved you&apos;ll
             lose access to this account.
           </div>
-        )}
-        {gate === "activate" && (
-          <div className="mb-4 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
-            <span className="font-semibold">Preview mode</span>
-            <span>
-              — set up your whole account now (team, prices, branding, forms). Saving is limited
-              and email, texting, AI, imports, and live booking forms stay locked until your
-              account is approved.
-            </span>
-            <Link href="/app/activate" className="font-bold underline">
-              Start verification
-            </Link>
+        ) : gate === "pending" ? (
+          <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+            <span className="font-semibold">Payment verification under review</span> — card
+            &amp; bank payments switch on the moment the underwriter approves you, usually
+            within a business day.
           </div>
-        )}
-        {gate === "pending" &&
-          (company?.finixOnboardingState === "UPDATE_REQUESTED" ? (
-            <div className="mb-4 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-              <span className="font-semibold">Action needed on payment verification:</span>
-              <span>the underwriter needs more information to approve your business.</span>
-              <Link href="/app/activate" className="font-bold underline">
-                Finish verification
-              </Link>
-            </div>
-          ) : (
-            <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
-              <span className="font-semibold">Payment verification under review</span> — usually
-              done within a business day. Keep setting up in preview mode: saving is limited and
-              email, texting, AI, imports, and live booking forms unlock the moment you&apos;re
-              approved.
-            </div>
-          ))}
+        ) : null}
         {children}
       </AppShell>
     </>
