@@ -127,16 +127,10 @@ export default function ActivateClient({
                 this step.
               </div>
             )}
-            <Link
-              href="/app/dashboard"
-              className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-gray-300 px-6 py-2.5 text-[14px] font-semibold text-gray-700 hover:bg-gray-50"
-            >
-              Look around first — verify later
-            </Link>
             <p className="mt-3 text-[13px] text-gray-400">
-              Reviewed by our payments underwriter, usually within a business day. Your details go
-              directly to the payment processor over an encrypted connection. The rest of your
-              account already works — only card &amp; bank payments wait on approval.
+              Your details go directly to the payment processor over an encrypted connection.
+              Your account opens the moment you complete the form; card &amp; bank payments
+              switch on when the underwriter approves you, usually within a business day.
             </p>
           </>
         )}

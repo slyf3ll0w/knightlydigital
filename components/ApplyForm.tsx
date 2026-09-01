@@ -115,9 +115,10 @@ export default function ApplyForm() {
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50">
           <CheckCircle2 className="h-5 w-5 text-[#0B57D8]" strokeWidth={2} />
         </div>
-        <h2 className="mx-auto mt-5 max-w-md text-2xl font-extrabold">Your account is open.</h2>
+        <h2 className="mx-auto mt-5 max-w-md text-2xl font-extrabold">Your account is created.</h2>
         <p className="mx-auto mt-3 max-w-md text-[15px] leading-relaxed text-gray-600">
-          Signing you in and taking you to payment verification…
+          Signing you in and taking you to payment verification — complete it
+          and you&apos;re in.
         </p>
         <Loader2 className="mx-auto mt-5 h-5 w-5 animate-spin text-gray-400" />
       </div>
@@ -132,9 +133,9 @@ export default function ApplyForm() {
     <form onSubmit={handleSubmit} className="rounded-3xl border border-gray-200 bg-white p-6 sm:p-10">
       <h2 className="text-2xl font-extrabold">Tell us about your business</h2>
       <p className="mt-2 text-[15px] leading-relaxed text-gray-600">
-        This opens your account right away — next comes a short
-        payment-verification step, then you&apos;re in. A person reviews every
-        application within a business day; your account stays open while
+        This creates your account — complete the short payment-verification
+        step that follows and you&apos;re in. A person also reviews every
+        application within a business day; your account keeps working while
         that happens.
       </p>
 

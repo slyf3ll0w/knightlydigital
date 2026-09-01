@@ -14,19 +14,19 @@ const steps = [
     icon: ClipboardList,
     step: "Step 1",
     title: "Tell us about your business",
-    body: "The application below opens your account on the spot. A person reviews every application within a business day — WorkBench moves real money, so we check that every company on it is a real business.",
+    body: "The application below creates your account on the spot. A person reviews every application within a business day — WorkBench moves real money, so we check that every company on it is a real business.",
   },
   {
     icon: ShieldCheck,
     step: "Step 2",
     title: "Verify payments",
-    body: "A one-time payment verification (the same KYC check every payments provider runs) — about 10 minutes. Card and ACH payments switch on the moment underwriting approves you.",
+    body: "A one-time payment verification (the same KYC check every payments provider runs) — about 10 minutes. Your account opens as soon as you complete it; card and ACH switch on when underwriting approves you.",
   },
   {
     icon: Wrench,
     step: "Step 3",
     title: "Set up your account",
-    body: "You're in: add your prices, your team, and your clients right away. While your application is under review the account is provisional — if we can't approve it, access closes.",
+    body: "You're in: add your prices, your team, and your clients right away. Until your application and underwriting are both approved the account is provisional — if we can't approve it, access closes.",
   },
 ];
 

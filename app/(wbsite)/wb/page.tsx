@@ -114,11 +114,11 @@ const faqItems = [
     a: (
       <p>
         Because WorkBench moves real money, every company on it is verified.
-        Tell us about your business and your account opens on the spot; a
-        short payment-verification form (the same KYC check every payments
-        provider runs) switches payments on, and a person reviews every
-        application within a business day — most companies are quoting and
-        scheduling the same day they sign up.
+        Tell us about your business, then complete a short payment-verification
+        form (the same KYC check every payments provider runs) and your
+        account opens. A person also reviews every application within a
+        business day — most companies are quoting and scheduling the same day
+        they sign up.
       </p>
     ),
   },

@@ -96,7 +96,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       </>
     );
   }
-  if (gate === "rejected") {
+  // Underwriting completion is the door: until the hosted Finix form is done
+  // (gate "activate"), the account is held at /app/activate — no in-app
+  // access. Completing it (PROVISIONING) opens the app in pending mode;
+  // going fully live needs BOTH the application approved (accessPendingAt
+  // cleared) and underwriting APPROVED. REJECTED locks the account.
+  if (gate === "rejected" || gate === "activate") {
     redirect("/app/activate");
   }
   // Atlas paywall state (lib/assistant-access.ts) — the drawer shows the
@@ -148,29 +153,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <span>the underwriter needs more information to approve your business.</span>
             <Link href="/app/activate" className="font-bold underline">
               Finish verification
-            </Link>
-          </div>
-        ) : gate === "activate" && pendingApproval ? (
-          <div className="mb-4 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-            <span className="font-semibold">Account pending approval</span>
-            <span>
-              — use WorkBench normally while a person reviews your application (if it
-              isn&apos;t approved, you&apos;ll lose access). While you wait, finish your
-              payment setup.
-            </span>
-            <Link href="/app/activate" className="font-bold underline">
-              Finish payment setup
-            </Link>
-          </div>
-        ) : gate === "activate" ? (
-          <div className="mb-4 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
-            <span className="font-semibold">Finish your payment setup</span>
-            <span>
-              — verify your business to switch on card &amp; bank payments. Everything else
-              already works.
-            </span>
-            <Link href="/app/activate" className="font-bold underline">
-              Finish setup
             </Link>
           </div>
         ) : pendingApproval ? (
