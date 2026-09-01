@@ -10,6 +10,7 @@ import {
 import { AccountActions } from "./AccountActions";
 import { AddonControl } from "./AddonControl";
 import { AssistantControl } from "./AssistantControl";
+import { ATLAS_TRIAL_TURNS } from "@/lib/assistant-access";
 import { PaymentsControl } from "./PaymentsControl";
 
 export const dynamic = "force-dynamic";
@@ -77,6 +78,8 @@ export default async function CompanyReport({
       finixSandboxApproved: true,
       paymentsWaived: true,
       assistantEnabled: true,
+      atlasTrialStartedAt: true,
+      atlasTrialUsed: true,
       addonEnabled: true,
       addonActiveAt: true,
       addonLiverySubId: true,
@@ -435,8 +438,9 @@ export default async function CompanyReport({
           <AssistantControl
             companyId={company.id}
             assistantEnabled={company.assistantEnabled}
-            paymentsWaived={company.paymentsWaived}
-            finixSandboxApproved={company.finixSandboxApproved}
+            atlasTrialStartedAt={company.atlasTrialStartedAt?.toISOString() ?? null}
+            atlasTrialUsed={company.atlasTrialUsed}
+            atlasTrialTurns={ATLAS_TRIAL_TURNS}
           />
 
           <AddonControl

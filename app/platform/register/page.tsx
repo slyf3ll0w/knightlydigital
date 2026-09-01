@@ -145,10 +145,11 @@ export default function RegisterPage() {
                   spellCheck={false}
                 />
                 <p className="mt-1.5 text-xs text-gray-400">
-                  WorkBench is invite-only. Don&apos;t have a code?{" "}
+                  This page is for invite codes. Don&apos;t have one?{" "}
                   <Link href="/apply" className="font-semibold text-[#0B57D8] hover:underline">
-                    Apply for access
-                  </Link>
+                    Get started
+                  </Link>{" "}
+                  — no code needed.
                 </p>
               </div>
               {!attachMode && (

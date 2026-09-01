@@ -114,7 +114,7 @@ export default function WBPricing() {
               href="/apply"
               className="inline-flex w-full items-center justify-center rounded-lg bg-white px-6 py-3.5 text-[14.5px] font-bold text-[#0B57D8] transition-colors hover:bg-blue-50"
             >
-              Apply for access →
+              Get started →
             </Link>
           </div>
         </div>

@@ -76,7 +76,7 @@ export default function WBNav() {
               href="/apply"
               className="wb-btn-tool rounded-lg bg-[#0B57D8] px-5 py-2.5 text-[14px] font-bold text-white"
             >
-              Apply for access
+              Get started
             </Link>
           </nav>
           {/* Mobile: log in + the essential action */}
@@ -91,7 +91,7 @@ export default function WBNav() {
               href="/apply"
               className="wb-btn-tool rounded-lg bg-[#0B57D8] px-4 py-2 text-[13px] font-bold text-white"
             >
-              Apply
+              Get started
             </Link>
           </div>
         </div>

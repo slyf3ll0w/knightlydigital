@@ -102,11 +102,16 @@ model Company {
   // Display name for the in-app AI assistant; null = the default ("Atlas")
   assistantName    String?
   // Atlas access (lib/assistant-access.ts). assistantEnabled is a superadmin
-  // override: true/false force it, null = default policy — off for companies
-  // that skipped real Finix underwriting (paymentsWaived or sandbox
-  // test-approve), on for everyone else. Every AI turn is real spend, so free
-  // riders don't get it by default.
+  // override: true = full Atlas regardless of plan (the whitelist — test
+  // accounts, comped users), false = Atlas hidden entirely, null = the
+  // default paywall policy: free trial (ATLAS_TRIAL_TURNS turns), then the
+  // full-plan upsell ("Coming Soon"). Every AI turn is real spend.
   assistantEnabled     Boolean?
+  // Atlas free trial: stamped when an owner/admin starts the trial from the
+  // paywall; atlasTrialUsed counts assistant turns consumed against
+  // ATLAS_TRIAL_TURNS (incremented atomically in the assistant route).
+  atlasTrialStartedAt DateTime?
+  atlasTrialUsed      Int       @default(0)
   // Stamped when the merchant came from the sandbox test-approve bypass
   // instead of the hosted underwriting form (Settings → "test approval").
   finixSandboxApproved Boolean @default(false)
@@ -125,6 +130,12 @@ model Company {
   // reinstates. Deletion is separate and permanent.
   suspendedAt      DateTime?
   suspendedReason  String?
+  // Self-serve onboarding review: stamped when the company was created through
+  // the public /apply flow and a person hasn't reviewed the application yet.
+  // The app stays fully usable (banner warns access is provisional); approving
+  // at /superadmin/applications clears it, rejecting suspends the company.
+  // Null for invite-code signups and every pre-existing company.
+  accessPendingAt  DateTime?
   // Team settings: who gets website/booking leads (null = company owner),
   // and whether SALES users can see invoices & payments for their leads.
   defaultLeadUserId String?
@@ -177,6 +188,7 @@ model Company {
   locationPings     LocationPing[]
   quickBooks        QuickBooksConnection?
   inviteCode        InviteCode?
+  application       AccessApplication?
   clientMessages    ClientMessage[]
   feedbackTickets   FeedbackTicket[]
   portalMessages    PortalMessage[]
@@ -2129,6 +2141,10 @@ model InviteCode {
   code            String    @unique // human-typable, e.g. WB-7K2M-9QX4
   note            String? // superadmin's memo: who this is for
   email           String? // where it was sent — informational, not enforced
+  // Sandbox tester codes: entered on the public /apply form, the signup skips
+  // the human application review entirely (no accessPendingAt, application
+  // auto-APPROVED). Same single-use/expiry/revoke mechanics as regular codes.
+  bypassApproval  Boolean   @default(false)
   expiresAt       DateTime? // null = never expires
   usedAt          DateTime?
   usedByCompanyId String?   @unique
@@ -2170,6 +2186,12 @@ model AccessApplication {
   status      ApplicationStatus @default(PENDING)
   decidedAt   DateTime?
   createdAt   DateTime          @default(now())
+
+  // The company opened by the self-serve onboarding flow (null on legacy
+  // invite-code applications). While the application is PENDING the company
+  // carries accessPendingAt; approving clears it, rejecting suspends.
+  companyId String?  @unique
+  company   Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
 
   inviteCode InviteCode?
 

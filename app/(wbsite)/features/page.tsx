@@ -452,7 +452,7 @@ export default function WBFeaturesPage() {
                   href="/apply"
                   className="wb-btn-tool inline-flex items-center gap-2 rounded-lg bg-[#F86A0A] px-7 py-3 text-[15px] font-bold text-white"
                 >
-                  Apply for access
+                  Get started
                   <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
                 </Link>
                 <Link

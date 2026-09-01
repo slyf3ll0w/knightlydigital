@@ -765,6 +765,33 @@ export function inviteCodeEmail({
   return { subject: "You're in — your WorkBench invite code", html };
 }
 
+/** Self-serve onboarding: the application was approved — the account they're
+ *  already using is theirs for keeps (the pending banner goes away). */
+export function applicationApprovedEmail({
+  name,
+  companyName,
+}: {
+  name: string | null;
+  companyName: string;
+}): { subject: string; html: string } {
+  const html = wbShell({
+    label: "You're approved",
+    inner: `
+      <p style="margin:0 0 12px;color:#111827;font-size:15px;">Hi ${esc(name || "there")},</p>
+      <p style="margin:0 0 16px;color:#374151;font-size:14px;">
+        Good news — we reviewed your application and
+        <strong>${esc(companyName)}</strong> is approved on WorkBench. Your
+        account is fully yours: the pending-approval notice is gone and
+        nothing else changes.
+      </p>
+      ${wbBtn(`${APP_URL}/app/dashboard`, "Open WorkBench")}
+      <p style="margin:16px 0 0;color:#6b7280;font-size:12px;">
+        Questions? Just reply to this email.
+      </p>`,
+  });
+  return { subject: "You're approved — welcome to WorkBench", html };
+}
+
 /** Platform-console sign-in code — the email second factor for superadmins. */
 export function superadminLoginCodeEmail({ code }: { code: string }): {
   subject: string;

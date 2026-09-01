@@ -25,7 +25,9 @@ export function normalizeInviteCode(raw: string): string {
   return raw.trim().toUpperCase();
 }
 
-export type InviteCheck = { ok: true; id: string } | { ok: false; reason: string };
+export type InviteCheck =
+  | { ok: true; id: string; bypassApproval: boolean }
+  | { ok: false; reason: string };
 
 export async function checkInviteCode(raw: unknown): Promise<InviteCheck> {
   const code = typeof raw === "string" ? normalizeInviteCode(raw) : "";
@@ -37,5 +39,5 @@ export async function checkInviteCode(raw: unknown): Promise<InviteCheck> {
   if (invite.expiresAt && invite.expiresAt < new Date()) {
     return { ok: false, reason: "That invite code has expired." };
   }
-  return { ok: true, id: invite.id };
+  return { ok: true, id: invite.id, bypassApproval: invite.bypassApproval };
 }

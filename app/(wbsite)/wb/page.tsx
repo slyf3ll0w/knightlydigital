@@ -34,7 +34,7 @@ import {
 export const metadata: Metadata = {
   title: "WorkBench — Field service management, free to run",
   description:
-    "WorkBench runs the whole day for home-service teams: scheduling, quotes, invoices, online booking, client hub, team chat, an AI assistant, and built-in payments. Free to use, invite-only. Now on the App Store.",
+    "WorkBench runs the whole day for home-service teams: scheduling, quotes, invoices, online booking, client hub, team chat, an AI assistant, and built-in payments. Free to use. Now on the App Store.",
 };
 
 const APP_STORE_URL = "https://apps.apple.com/app/workbench-fsm/id6789991103";
@@ -110,14 +110,15 @@ const faqItems = [
     ),
   },
   {
-    q: "How does invite-only access work?",
+    q: "How does getting started work?",
     a: (
       <p>
         Because WorkBench moves real money, every company on it is verified.
-        You apply, a person reviews the application, and we onboard you
-        personally — most companies are quoting and scheduling the same week.
-        At signup a short payment-verification form (the same KYC check every
-        payments provider runs) activates your account.
+        Tell us about your business and your account opens on the spot; a
+        short payment-verification form (the same KYC check every payments
+        provider runs) switches payments on, and a person reviews every
+        application within a business day — most companies are quoting and
+        scheduling the same day they sign up.
       </p>
     ),
   },
@@ -179,7 +180,7 @@ export default function WBHomePage() {
                 href="/apply"
                 className="wb-btn-tool inline-flex items-center gap-2 rounded-lg bg-[#F86A0A] px-6 py-3 text-[15px] font-bold text-white"
               >
-                Apply for access
+                Get started
                 <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
               </Link>
               <Link
@@ -670,19 +671,19 @@ export default function WBHomePage() {
             <div className="wb-grid-lines pointer-events-none absolute inset-0" aria-hidden />
             <div className="relative">
               <h2 className="mx-auto max-w-xl text-3xl font-extrabold leading-tight text-white sm:text-4xl">
-                We onboard every company personally.
+                Your account opens today.
               </h2>
               <p className="mx-auto mt-4 max-w-md text-[15px] leading-relaxed text-blue-100/85">
-                WorkBench is invite-only. Apply, tell us about your business,
-                and we&apos;ll get you set up ourselves — most companies are
-                quoting and scheduling the same week.
+                Tell us about your business, verify payments, and start
+                setting up — most companies are quoting and scheduling the
+                same day they sign up.
               </p>
               <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
                 <Link
                   href="/apply"
                   className="wb-btn-tool inline-flex items-center gap-2 rounded-lg bg-[#F86A0A] px-7 py-3 text-[15px] font-bold text-white"
                 >
-                  Apply for access
+                  Get started
                   <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
                 </Link>
                 <a

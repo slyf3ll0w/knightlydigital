@@ -15,6 +15,8 @@ export async function POST(req: NextRequest) {
   const email = typeof body.email === "string" ? body.email.trim().slice(0, 254) : "";
   const expiresInDays = Number(body.expiresInDays) || 0;
   const shouldEmail = body.sendEmail === true;
+  // Sandbox bypass codes skip the human application review on /apply.
+  const bypassApproval = body.bypassApproval === true;
 
   if (shouldEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return NextResponse.json({ error: "A valid email is required to send the code." }, { status: 400 });
@@ -32,6 +34,7 @@ export async function POST(req: NextRequest) {
           note: note || null,
           email: email || null,
           expiresAt,
+          bypassApproval,
         },
       });
       break;

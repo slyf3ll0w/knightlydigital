@@ -3,12 +3,19 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getSuperadmin } from "@/lib/superadmin";
 import { generateInviteCode } from "@/lib/invites";
-import { sendEmail, inviteCodeEmail } from "@/lib/email";
+import { sendEmail, inviteCodeEmail, applicationApprovedEmail } from "@/lib/email";
 
 /**
- * Decide an access application. Approve mints a single-use InviteCode and
- * emails it to the applicant; reject just closes the application (no email —
- * follow up personally if it warrants one).
+ * Decide an access application.
+ *
+ * Self-serve applications (companyId set — the account is already open in
+ * pending mode): approve clears Company.accessPendingAt and emails the good
+ * news; reject suspends the company (they keep nothing) and no email is sent
+ * — the suspended screen says to contact support, follow up personally if it
+ * warrants one.
+ *
+ * Legacy applications (no company): approve mints a single-use InviteCode
+ * and emails it; reject just closes the application.
  */
 export async function PATCH(
   req: NextRequest,
@@ -23,7 +30,10 @@ export async function PATCH(
     return NextResponse.json({ error: "Unknown action." }, { status: 400 });
   }
 
-  const application = await prisma.accessApplication.findUnique({ where: { id } });
+  const application = await prisma.accessApplication.findUnique({
+    where: { id },
+    include: { company: { select: { id: true, name: true, suspendedAt: true } } },
+  });
   if (!application) {
     return NextResponse.json({ error: "Application not found." }, { status: 404 });
   }
@@ -31,6 +41,51 @@ export async function PATCH(
     return NextResponse.json({ error: "This application has already been decided." }, { status: 409 });
   }
 
+  // ── Self-serve: the account exists, the decision acts on it ──────────────
+  if (application.company) {
+    if (action === "reject") {
+      await prisma.$transaction([
+        prisma.accessApplication.update({
+          where: { id },
+          data: { status: "REJECTED", decidedAt: new Date() },
+        }),
+        prisma.company.update({
+          where: { id: application.company.id },
+          data: {
+            accessPendingAt: null,
+            // Reuse the platform suspension machinery — the whole app, public
+            // booking, pay pages etc. all go dark through the existing gates.
+            suspendedAt: application.company.suspendedAt ?? new Date(),
+            suspendedReason:
+              "Your WorkBench application wasn't approved. If you think this is a mistake, contact support.",
+          },
+        }),
+      ]);
+      console.warn(
+        `[superadmin] application REJECTED — company "${application.company.name}" suspended (${application.company.id}) by ${admin.email}`
+      );
+      return NextResponse.json({ success: true });
+    }
+
+    await prisma.$transaction([
+      prisma.accessApplication.update({
+        where: { id },
+        data: { status: "APPROVED", decidedAt: new Date() },
+      }),
+      prisma.company.update({
+        where: { id: application.company.id },
+        data: { accessPendingAt: null },
+      }),
+    ]);
+    const emailBody = applicationApprovedEmail({
+      name: application.name,
+      companyName: application.companyName,
+    });
+    const emailed = await sendEmail({ to: application.email, ...emailBody });
+    return NextResponse.json({ success: true, emailed });
+  }
+
+  // ── Legacy: no account yet — the old invite-code flow ────────────────────
   if (action === "reject") {
     await prisma.accessApplication.update({
       where: { id },

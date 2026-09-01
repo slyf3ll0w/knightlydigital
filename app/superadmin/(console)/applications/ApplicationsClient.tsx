@@ -24,6 +24,8 @@ type Application = {
   createdAt: string;
   decidedAt: string | null;
   inviteCode: { code: string; used: boolean } | null;
+  /** Self-serve applications: the account is already open in pending mode. */
+  company: { id: string; name: string; suspended: boolean; finixState: string | null } | null;
 };
 
 const statusChip: Record<Application["status"], string> = {
@@ -41,8 +43,16 @@ export default function ApplicationsClient({ applications }: { applications: App
   const pending = applications.filter((a) => a.status === "PENDING");
   const decided = applications.filter((a) => a.status !== "PENDING");
 
-  async function decide(id: string, action: "approve" | "reject") {
-    if (action === "reject" && !confirm("Reject this application? No email is sent.")) return;
+  async function decide(id: string, action: "approve" | "reject", hasCompany: boolean) {
+    if (
+      action === "reject" &&
+      !confirm(
+        hasCompany
+          ? "Reject this application? Their account is already open — rejecting SUSPENDS the company immediately. No email is sent."
+          : "Reject this application? No email is sent."
+      )
+    )
+      return;
     setError("");
     setBusy(id);
     try {
@@ -58,7 +68,9 @@ export default function ApplicationsClient({ applications }: { applications: App
       }
       if (action === "approve" && data.emailed === false) {
         setError(
-          `Approved and code ${data.code} was created, but the email failed to send — copy it from the Invite codes tab and send it yourself.`
+          data.code
+            ? `Approved and code ${data.code} was created, but the email failed to send — copy it from the Invite codes tab and send it yourself.`
+            : "Approved — their account is confirmed, but the notification email failed to send."
         );
       }
       router.refresh();
@@ -141,22 +153,44 @@ export default function ApplicationsClient({ applications }: { applications: App
             </a>
           ))}
         </div>
+        {app.company && (
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+            <span
+              className={`rounded-full px-2 py-0.5 font-semibold ${
+                app.company.suspended
+                  ? "bg-red-100 text-red-700"
+                  : "bg-blue-100 text-blue-700"
+              }`}
+            >
+              {app.company.suspended ? "Account suspended" : "Account open (pending)"}
+            </span>
+            {app.company.finixState && (
+              <span className="text-gray-400">Finix: {app.company.finixState}</span>
+            )}
+            <a
+              href={`/superadmin/company/${app.company.id}`}
+              className="font-semibold text-[#0B57D8] hover:underline"
+            >
+              View company
+            </a>
+          </div>
+        )}
         {app.status === "PENDING" && (
           <div className="mt-4 flex gap-2">
             <button
-              onClick={() => decide(app.id, "approve")}
+              onClick={() => decide(app.id, "approve", !!app.company)}
               disabled={busy === app.id}
               className="inline-flex items-center gap-1.5 rounded-lg bg-green-500 px-4 py-2 text-sm font-semibold text-white hover:bg-green-600 disabled:opacity-50"
             >
               {busy === app.id ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-              Approve &amp; email code
+              {app.company ? "Approve account" : "Approve & email code"}
             </button>
             <button
-              onClick={() => decide(app.id, "reject")}
+              onClick={() => decide(app.id, "reject", !!app.company)}
               disabled={busy === app.id}
               className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-50"
             >
-              <X size={14} /> Reject
+              <X size={14} /> {app.company ? "Reject & suspend" : "Reject"}
             </button>
           </div>
         )}
@@ -185,9 +219,11 @@ export default function ApplicationsClient({ applications }: { applications: App
     <div>
       <h1 className="text-xl font-bold text-gray-900">Access applications</h1>
       <p className="mt-1 text-sm text-gray-500">
-        Approving emails the applicant a single-use invite code for the signup page. This is a
-        pre-screen — Finix underwriting (KYC/KYB) is the hard gate after they sign up, so approve
-        anyone who looks like a real business that will actually run card payments.
+        Self-serve signups open their account immediately in pending mode — approving keeps
+        the account and emails the good news; rejecting <strong>suspends it</strong>. Finix
+        underwriting (KYC/KYB) is still the hard gate for payments, so approve anyone who
+        looks like a real business that will actually run card volume. Legacy applications
+        without an account still get an invite code on approval.
       </p>
 
       {error && (

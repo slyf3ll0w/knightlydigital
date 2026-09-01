@@ -232,7 +232,7 @@ export default function AppLoginPage() {
 
         <p className="mt-6 text-center text-sm text-gray-500">
           Don&apos;t have an account?{" "}
-          <Link href="/app/register" className="font-semibold text-[#0B57D8] hover:underline">
+          <Link href="/apply" className="font-semibold text-[#0B57D8] hover:underline">
             Get started free
           </Link>
         </p>

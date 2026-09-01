@@ -4,7 +4,7 @@ import { getActor } from "@/lib/permissions";
 import { aiEnabled } from "@/lib/ai";
 import { limit } from "@/lib/rate-limit";
 import { runAssistant, type ChatMessage } from "@/lib/assistant";
-import { assistantAllowed } from "@/lib/assistant-access";
+import { atlasAccess, ATLAS_TRIAL_TURNS } from "@/lib/assistant-access";
 import { inPreview, previewBlockedError } from "@/lib/preview";
 
 /**
@@ -21,15 +21,27 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "The assistant isn't available right now." }, { status: 503 });
   }
 
-  // Account-level access (lib/assistant-access.ts): the layout also hides the
-  // bubble, but this is the enforcement point a direct request can't skip.
+  // Account-level access (lib/assistant-access.ts): the layout also gates the
+  // UI, but this is the enforcement point a direct request can't skip.
   const company = await prisma.company.findUnique({
     where: { id: actor.companyId },
-    select: { assistantEnabled: true, paymentsWaived: true, finixSandboxApproved: true },
+    select: { assistantEnabled: true, atlasTrialStartedAt: true, atlasTrialUsed: true },
   });
-  if (!company || !assistantAllowed(company)) {
+  const access = company ? atlasAccess(company) : null;
+  if (!access || access.level === "off") {
     return NextResponse.json(
       { error: "The AI assistant isn't included on this account." },
+      { status: 403 }
+    );
+  }
+  if (access.level === "locked") {
+    return NextResponse.json(
+      {
+        error: access.trialUsed
+          ? "Your free Atlas trial has ended — the full plan is coming soon."
+          : "Atlas is a premium add-on — start the free trial to chat.",
+        atlasLocked: true,
+      },
       { status: 403 }
     );
   }
@@ -62,12 +74,45 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Send at least one user message." }, { status: 400 });
   }
 
+  // Trial metering: claim a turn atomically BEFORE the AI call — the
+  // conditional updateMany means two racing requests can't both slip past the
+  // cap. A failed AI call refunds the turn below.
+  let trialRemaining: number | undefined;
+  if (access.level === "trial") {
+    const claimed = await prisma.company.updateMany({
+      where: { id: actor.companyId, atlasTrialUsed: { lt: ATLAS_TRIAL_TURNS } },
+      data: { atlasTrialUsed: { increment: 1 } },
+    });
+    if (claimed.count === 0) {
+      return NextResponse.json(
+        {
+          error: "Your free Atlas trial has ended — the full plan is coming soon.",
+          atlasLocked: true,
+        },
+        { status: 403 }
+      );
+    }
+    trialRemaining = Math.max(0, access.remaining - 1);
+  }
+
   const result = await runAssistant(actor, messages);
   if (!result) {
+    if (access.level === "trial") {
+      await prisma.company
+        .updateMany({
+          where: { id: actor.companyId, atlasTrialUsed: { gt: 0 } },
+          data: { atlasTrialUsed: { decrement: 1 } },
+        })
+        .catch(() => undefined);
+    }
     return NextResponse.json(
       { error: "The assistant couldn't answer that just now — please try again." },
       { status: 502 }
     );
   }
-  return NextResponse.json({ reply: result.reply, proposals: result.proposals });
+  return NextResponse.json({
+    reply: result.reply,
+    proposals: result.proposals,
+    ...(trialRemaining !== undefined ? { trialRemaining } : {}),
+  });
 }

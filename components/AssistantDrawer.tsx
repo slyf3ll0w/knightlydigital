@@ -3,10 +3,18 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowUp, Check, Loader2, RotateCcw, X } from "lucide-react";
+import { ArrowUp, Check, Loader2, Lock, RotateCcw, Sparkles, X } from "lucide-react";
 import AtlasIcon, { AtlasMark } from "@/components/AtlasIcon";
 import { hapticImpact } from "@/lib/haptics";
 import type { Proposal } from "@/lib/assistant";
+
+/** Mirror of lib/assistant-access AtlasAccess, minus the "off" state the
+ *  shell never renders a drawer for. */
+export type AtlasDrawerAccess =
+  | { level: "full" }
+  | { level: "trial"; remaining: number }
+  | { level: "locked"; trialUsed: boolean }
+  | { level: "off" };
 
 /**
  * Owner assistant chat drawer (docs/plans/ai-assistant-plan.md). Reads are
@@ -152,6 +160,9 @@ export default function AssistantDrawer({
   name = "Atlas",
   storageScope = "",
   accent,
+  access = { level: "full" },
+  trialTurns = 25,
+  canStartTrial = false,
 }: {
   open: boolean;
   onClose: () => void;
@@ -162,6 +173,12 @@ export default function AssistantDrawer({
   storageScope?: string;
   /** Company brand accent for the Atlas mark; defaults to Streamflaire green. */
   accent?: string;
+  /** Paywall state from the server layout (lib/assistant-access.ts). */
+  access?: AtlasDrawerAccess;
+  /** Turns included in the free trial — paywall copy. */
+  trialTurns?: number;
+  /** Owners/admins can start the company's free trial. */
+  canStartTrial?: boolean;
 }) {
   const router = useRouter();
   const storageKey = `sf-assistant-chat:${storageScope || "shared"}`;
@@ -169,6 +186,11 @@ export default function AssistantDrawer({
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  // Server truth arrives as a prop; sends and trial-start move it locally so
+  // the drawer reacts without waiting on a refresh.
+  const [liveAccess, setLiveAccess] = useState<AtlasDrawerAccess>(access);
+  const [startingTrial, setStartingTrial] = useState(false);
+  useEffect(() => setLiveAccess(access), [access]);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -220,11 +242,28 @@ export default function AssistantDrawer({
         body: JSON.stringify({ messages: next.map((m) => ({ role: m.role, content: m.content })) }),
       });
       const data = (await res.json().catch(() => null)) as
-        | { reply?: string; proposals?: Proposal[]; error?: string }
+        | {
+            reply?: string;
+            proposals?: Proposal[];
+            error?: string;
+            atlasLocked?: boolean;
+            trialRemaining?: number;
+          }
         | null;
       if (!res.ok || !data?.reply) {
+        if (data?.atlasLocked) {
+          // Trial exhausted between renders — flip to the upsell.
+          setLiveAccess({ level: "locked", trialUsed: true });
+        }
         setError(data?.error ?? "Something went wrong — please try again.");
       } else {
+        if (typeof data.trialRemaining === "number") {
+          setLiveAccess(
+            data.trialRemaining > 0
+              ? { level: "trial", remaining: data.trialRemaining }
+              : { level: "locked", trialUsed: true }
+          );
+        }
         persist([
           ...next,
           {
@@ -317,6 +356,31 @@ export default function AssistantDrawer({
     inputRef.current?.focus();
   }
 
+  async function startTrial() {
+    if (startingTrial) return;
+    setError("");
+    setStartingTrial(true);
+    try {
+      const res = await fetch("/api/app/assistant/trial", { method: "POST" });
+      const data = (await res.json().catch(() => null)) as
+        | { success?: boolean; turns?: number; error?: string }
+        | null;
+      if (!res.ok || !data?.success) {
+        setError(data?.error ?? "Couldn't start the trial — please try again.");
+        return;
+      }
+      setLiveAccess({ level: "trial", remaining: data.turns ?? trialTurns });
+      router.refresh();
+    } catch {
+      setError("Couldn't start the trial — please try again.");
+    } finally {
+      setStartingTrial(false);
+    }
+  }
+
+  const locked = liveAccess.level === "locked";
+  const trialEnded = liveAccess.level === "locked" && liveAccess.trialUsed;
+
   if (!open) return null;
   return (
     <>
@@ -352,7 +416,79 @@ export default function AssistantDrawer({
 
         {/* messages — top padding clears the floating controls */}
         <div className="flex-1 space-y-3 overflow-y-auto px-4 pb-4 pt-14">
-          {messages.length === 0 && (
+          {/* ── Paywall: Atlas is a premium add-on. Fresh drawer shows the
+                 trial offer / Coming-Soon upsell; if a chat is already on
+                 screen (trial ran out mid-conversation) the messages stay and
+                 the input strip below carries the upsell instead. ── */}
+          {locked && messages.length === 0 && (
+            <div className="pt-2">
+              <div className="mb-6 text-center">
+                <AtlasMark size={52} accent={accent} className="mx-auto mb-3" />
+                <p className="font-display text-base font-bold text-gray-900">
+                  Meet {name}.
+                </p>
+                <p className="mx-auto mt-1 max-w-[290px] text-xs leading-relaxed text-gray-500">
+                  Your AI teammate for the whole business — schedule, money, clients, and
+                  agreements. Ask anything, or hand off the busywork and confirm each action
+                  before it happens.
+                </p>
+              </div>
+              {!trialEnded ? (
+                <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+                  <div className="flex items-center gap-2">
+                    <Sparkles size={15} className="text-amber-500" />
+                    <p className="text-sm font-bold text-gray-900">Try {name} free</p>
+                  </div>
+                  <p className="mt-1 text-xs leading-relaxed text-gray-500">
+                    {trialTurns} messages on us — no card needed, right on your free plan.
+                  </p>
+                  {canStartTrial ? (
+                    <button
+                      type="button"
+                      onClick={startTrial}
+                      disabled={startingTrial}
+                      className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-[10px] btn-tool bg-green-500 px-3 py-2 text-xs font-semibold transition-colors hover:bg-green-600 disabled:opacity-50"
+                    >
+                      {startingTrial ? (
+                        <Loader2 size={12} className="animate-spin" />
+                      ) : (
+                        <Sparkles size={12} />
+                      )}
+                      Start my free trial
+                    </button>
+                  ) : (
+                    <p className="mt-3 rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-500">
+                      Ask your account owner or an admin to start the free trial.
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4">
+                  <p className="text-sm font-bold text-amber-900">Your free trial has ended.</p>
+                  <p className="mt-1 text-xs leading-relaxed text-amber-800">
+                    Thanks for trying {name} — the full plan is almost here.
+                  </p>
+                </div>
+              )}
+              <div className="mt-3 rounded-2xl border border-dashed border-gray-300 p-4">
+                <div className="flex items-center gap-2">
+                  <Lock size={14} className="text-gray-400" />
+                  <p className="text-sm font-bold text-gray-900">{name} Full</p>
+                </div>
+                <p className="mt-1 text-xs leading-relaxed text-gray-500">
+                  Unlimited messages, every tool, the whole business on tap.
+                </p>
+                <button
+                  type="button"
+                  disabled
+                  className="mt-3 w-full cursor-not-allowed rounded-[10px] border border-gray-300 bg-gray-50 px-3 py-2 text-xs font-bold text-gray-400"
+                >
+                  Coming Soon!
+                </button>
+              </div>
+            </div>
+          )}
+          {!locked && messages.length === 0 && (
             <div className="pt-2">
               <div className="mb-6 text-center">
                 <AtlasMark size={52} accent={accent} className="mx-auto mb-3" />
@@ -441,8 +577,23 @@ export default function AssistantDrawer({
           <div ref={bottomRef} />
         </div>
 
-        {/* input */}
+        {/* input — or the upsell strip once the paywall is down */}
+        {locked ? (
+          <div className="shrink-0 border-t border-gray-200 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+            <p className="text-center text-xs font-semibold text-gray-600">
+              {trialEnded
+                ? `Your free trial has ended — ${name} Full is coming soon!`
+                : `Start the free trial above to chat with ${name}.`}
+            </p>
+          </div>
+        ) : (
         <div className="shrink-0 border-t border-gray-200 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          {liveAccess.level === "trial" && (
+            <p className="mb-1.5 text-center text-[10px] font-semibold text-amber-600">
+              Free trial — {liveAccess.remaining} of {trialTurns} messages left · Full plan
+              coming soon
+            </p>
+          )}
           <div className="flex items-end gap-2">
             <textarea
               ref={inputRef}
@@ -476,6 +627,7 @@ export default function AssistantDrawer({
             AI answers can be wrong — verify anything important on its page.
           </p>
         </div>
+        )}
       </div>
     </>
   );

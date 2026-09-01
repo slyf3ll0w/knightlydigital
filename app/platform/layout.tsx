@@ -6,7 +6,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/db";
 import { paymentsGateStatus } from "@/lib/payments-gate";
-import { assistantAllowed } from "@/lib/assistant-access";
+import { atlasAccess, ATLAS_TRIAL_TURNS } from "@/lib/assistant-access";
 import AppShell from "@/components/AppShell";
 import NativeShell from "@/components/NativeShell";
 import AppLock from "@/components/AppLock";
@@ -56,10 +56,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             sectionColors: true,
             assistantName: true,
             assistantEnabled: true,
-            finixSandboxApproved: true,
+            atlasTrialStartedAt: true,
+            atlasTrialUsed: true,
             finixOnboardingState: true,
             paymentsWaived: true,
             suspendedAt: true,
+            accessPendingAt: true,
           },
         })
       : null,
@@ -101,6 +103,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // approval — record caps, no email/AI/CSV/public forms (lib/preview.ts).
   const preview = gate === "activate" || gate === "pending";
 
+  // Atlas paywall state (lib/assistant-access.ts) — the drawer shows the
+  // trial/upsell for "locked", chat for "trial"/"full", nothing for "off".
+  const atlas = company ? atlasAccess(company) : null;
+
   return (
     <>
       <NativeShell />
@@ -125,11 +131,21 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         sectionColors={company?.sectionColors}
         teamCount={teamCount}
         needsTour={!!user && !user.tourCompletedAt}
-        aiEnabled={Boolean(process.env.GEMINI_API_KEY) && !!company && assistantAllowed(company)}
+        aiEnabled={Boolean(process.env.GEMINI_API_KEY) && !!atlas && atlas.level !== "off"}
+        atlas={atlas ?? undefined}
+        atlasTrialTurns={ATLAS_TRIAL_TURNS}
         assistantName={company?.assistantName}
         userId={session.user.id}
         previewMode={preview}
       >
+        {company?.accessPendingAt && !company.suspendedAt && (
+          <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <span className="font-semibold">Account pending approval</span> — a person is
+            reviewing your application, usually within a business day. You can use WorkBench
+            normally in the meantime, but if the application isn&apos;t approved you&apos;ll
+            lose access to this account.
+          </div>
+        )}
         {gate === "activate" && (
           <div className="mb-4 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
             <span className="font-semibold">Preview mode</span>

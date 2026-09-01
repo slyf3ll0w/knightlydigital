@@ -93,6 +93,15 @@ const rateLimits: { match: (path: string) => boolean; max: number; windowMs: num
     name: "magic-link",
   },
   {
+    // Self-serve onboarding: creates a real Account + Company, so it gets the
+    // same tight budget as the invite register endpoint (must sort before the
+    // public catch-all — first match wins).
+    match: (p) => p.startsWith("/api/public/apply"),
+    max: 3,
+    windowMs: 60 * 60_000,
+    name: "apply",
+  },
+  {
     // Cold inbound from strangers: booking forms, lead webhooks, applications
     match: (p) => p.startsWith("/api/public/"),
     max: 10,

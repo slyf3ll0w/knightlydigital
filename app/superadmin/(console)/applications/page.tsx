@@ -6,7 +6,12 @@ export const dynamic = "force-dynamic";
 export default async function ApplicationsPage() {
   const applications = await prisma.accessApplication.findMany({
     orderBy: { createdAt: "desc" },
-    include: { inviteCode: { select: { code: true, usedAt: true } } },
+    include: {
+      inviteCode: { select: { code: true, usedAt: true } },
+      company: {
+        select: { id: true, name: true, suspendedAt: true, finixOnboardingState: true },
+      },
+    },
   });
 
   return (
@@ -31,6 +36,14 @@ export default async function ApplicationsPage() {
         createdAt: a.createdAt.toISOString(),
         decidedAt: a.decidedAt?.toISOString() ?? null,
         inviteCode: a.inviteCode ? { code: a.inviteCode.code, used: !!a.inviteCode.usedAt } : null,
+        company: a.company
+          ? {
+              id: a.company.id,
+              name: a.company.name,
+              suspended: !!a.company.suspendedAt,
+              finixState: a.company.finixOnboardingState,
+            }
+          : null,
       }))}
     />
   );

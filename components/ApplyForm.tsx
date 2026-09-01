@@ -1,8 +1,10 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { signIn } from "next-auth/react";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import TurnstileWidget, { type TurnstileHandle } from "@/components/TurnstileWidget";
+import { saveCredential } from "@/lib/save-credential";
 
 const TEAM_SIZES = ["Just me", "2–5", "6–15", "16+"];
 const PAYMENTS_TODAY = [
@@ -21,13 +23,18 @@ const ENTITY_TYPES = [
 ];
 
 /**
- * The /apply access application. Posts to /api/public/apply, which queues a
- * PENDING AccessApplication for superadmin review — approval emails the
- * applicant a single-use invite code for /app/register.
+ * Step 1 of onboarding — the application form at /apply. One submit does
+ * everything: records the application AND opens the account, then signs the
+ * new owner in and sends them straight to payment verification (Finix
+ * underwriting) at /app/activate. A person still reviews the application
+ * afterward — the account runs in pending-approval mode until then.
  *
  * The questions are payment-intent screening: every company must pass Finix
- * underwriting before their account opens, so this form's job is to predict
- * (a) is this a real business and (b) will they actually run card volume.
+ * underwriting, so this form's job is to predict (a) is this a real business
+ * and (b) will they actually run card volume.
+ *
+ * The optional invite code (regular or sandbox-bypass) skips the review
+ * pending state — the code is the approval.
  */
 export default function ApplyForm() {
   const [loading, setLoading] = useState(false);
@@ -38,6 +45,7 @@ export default function ApplyForm() {
   const [form, setForm] = useState({
     name: "",
     email: "",
+    password: "",
     phone: "",
     companyName: "",
     industry: "",
@@ -50,7 +58,15 @@ export default function ApplyForm() {
     entityType: "",
     website: "",
     message: "",
+    inviteCode: "",
   });
+
+  // Bypass-code links arrive as /apply?code=WB-XXXX-XXXX — prefill it. Read
+  // after mount (not in the initializer) so SSR and first client render match.
+  useEffect(() => {
+    const code = new URLSearchParams(window.location.search).get("code");
+    if (code) setForm((f) => ({ ...f, inviteCode: code.toUpperCase() }));
+  }, []);
 
   function set(field: keyof typeof form, value: string) {
     setForm((f) => ({ ...f, [field]: value }));
@@ -69,14 +85,26 @@ export default function ApplyForm() {
       const data = await res.json();
       if (!res.ok) {
         setError(data.error ?? "Something went wrong. Please try again.");
+        // Turnstile tokens are single-use; the failed attempt consumed this one
         captchaRef.current?.reset();
+        setLoading(false);
         return;
       }
+
+      // Account is open — sign in and continue to payment verification.
       setDone(true);
+      await signIn("credentials", {
+        email: form.email,
+        password: form.password,
+        redirect: false,
+      });
+      // Signup is the one moment a password manager most wants to hear from
+      // us — a brand-new credential nothing else will ever offer to store.
+      await saveCredential(form.email, form.password);
+      window.location.href = "/app/activate";
     } catch {
       setError("Something went wrong. Please try again.");
       captchaRef.current?.reset();
-    } finally {
       setLoading(false);
     }
   }
@@ -87,12 +115,11 @@ export default function ApplyForm() {
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50">
           <CheckCircle2 className="h-5 w-5 text-[#0B57D8]" strokeWidth={2} />
         </div>
-        <h2 className="mx-auto mt-5 max-w-md text-2xl font-extrabold">Application received.</h2>
+        <h2 className="mx-auto mt-5 max-w-md text-2xl font-extrabold">Your account is open.</h2>
         <p className="mx-auto mt-3 max-w-md text-[15px] leading-relaxed text-gray-600">
-          A person reads every application — usually within a business day.
-          When you&apos;re approved, we&apos;ll email your invite code to{" "}
-          <span className="font-semibold text-gray-900">{form.email}</span>.
+          Signing you in and taking you to payment verification…
         </p>
+        <Loader2 className="mx-auto mt-5 h-5 w-5 animate-spin text-gray-400" />
       </div>
     );
   }
@@ -103,11 +130,12 @@ export default function ApplyForm() {
 
   return (
     <form onSubmit={handleSubmit} className="rounded-3xl border border-gray-200 bg-white p-6 sm:p-10">
-      <h2 className="text-2xl font-extrabold">Apply for access</h2>
+      <h2 className="text-2xl font-extrabold">Tell us about your business</h2>
       <p className="mt-2 text-[15px] leading-relaxed text-gray-600">
-        Tell us about your business. If you&apos;re approved, your invite code
-        arrives by email — then a short payment-verification step activates
-        your account.
+        This opens your account right away — next comes a short
+        payment-verification step, then you&apos;re in. A person reviews every
+        application within a business day; your account stays open while
+        that happens.
       </p>
 
       {error && (
@@ -129,16 +157,38 @@ export default function ApplyForm() {
             placeholder="Jane Smith"
           />
         </div>
+        {/* autocomplete="username" (not "email") — this is the account
+            identifier the new password gets stored against, and password
+            managers won't offer to save a signup without one. */}
         <div>
-          <label className={labelClass}>Email</label>
+          <label htmlFor="apply-email" className={labelClass}>Email</label>
           <input
+            id="apply-email"
+            name="username"
             type="email"
             required
             maxLength={254}
+            autoComplete="username"
             value={form.email}
             onChange={(e) => set("email", e.target.value)}
             className={inputClass}
             placeholder="you@acmehvac.com"
+          />
+        </div>
+        <div>
+          <label htmlFor="apply-password" className={labelClass}>Choose a password</label>
+          <input
+            id="apply-password"
+            name="password"
+            type="password"
+            required
+            minLength={8}
+            maxLength={72}
+            autoComplete="new-password"
+            value={form.password}
+            onChange={(e) => set("password", e.target.value)}
+            className={inputClass}
+            placeholder="Min. 8 characters"
           />
         </div>
         <div>
@@ -318,6 +368,25 @@ export default function ApplyForm() {
             placeholder="How you heard about WorkBench, what you're using today…"
           />
         </div>
+        <div className="sm:col-span-2">
+          <label className={labelClass}>
+            Invite code{" "}
+            <span className="font-normal text-gray-400">
+              (optional — skips the review if someone gave you one)
+            </span>
+          </label>
+          <input
+            type="text"
+            maxLength={40}
+            value={form.inviteCode}
+            onChange={(e) => set("inviteCode", e.target.value.toUpperCase())}
+            className={`${inputClass} font-mono tracking-wider uppercase`}
+            placeholder="WB-XXXX-XXXX"
+            autoCapitalize="characters"
+            autoCorrect="off"
+            spellCheck={false}
+          />
+        </div>
       </div>
 
       <div className="mt-6">
@@ -330,10 +399,12 @@ export default function ApplyForm() {
         className="wb-btn-tool mt-6 inline-flex items-center gap-2 rounded-lg bg-[#0B57D8] px-6 py-3 text-[15px] font-bold text-white disabled:opacity-50"
       >
         {loading && <Loader2 size={15} className="animate-spin" />}
-        Submit application
+        Create my account
       </button>
       <p className="mt-4 text-[13px] text-gray-400">
-        A person reads every application — no bots, no auto-approvals.
+        Free forever — we make money when you get paid, not before. A person
+        reads every application; until yours is approved your account is
+        provisional, and it closes if we can&apos;t approve it.
       </p>
     </form>
   );

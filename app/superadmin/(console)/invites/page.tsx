@@ -23,6 +23,7 @@ export default async function InvitesPage() {
         expiresAt: i.expiresAt?.toISOString() ?? null,
         usedAt: i.usedAt?.toISOString() ?? null,
         revokedAt: i.revokedAt?.toISOString() ?? null,
+        bypassApproval: i.bypassApproval,
         usedByCompany: i.usedByCompany?.name ?? null,
         applicationCompany: i.application?.companyName ?? null,
       }))}

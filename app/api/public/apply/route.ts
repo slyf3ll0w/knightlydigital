@@ -1,22 +1,34 @@
 import { NextRequest, NextResponse } from "next/server";
+import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { verifyCaptcha } from "@/lib/captcha";
 import { sendEmail, newApplicationEmail } from "@/lib/email";
+import { checkInviteCode } from "@/lib/invites";
+import { normalizeEmail } from "@/lib/user-email";
+import { findOrAdoptAccountByEmail } from "@/lib/account";
+import { createCompanySignup, InviteClaimedError } from "@/lib/signup";
 
 // Where new-application notifications land (a person reads every one).
 const APPLICATION_INBOX = process.env.APPLICATION_INBOX ?? "info@streamflaire.com";
 
 /**
- * Public access-application intake from /apply. Creates a PENDING
- * AccessApplication for review at /superadmin/applications and pings the
- * admin inbox. Captcha-gated here, rate-limited (10/hr/IP) in middleware
- * under the /api/public/ bucket.
+ * Self-serve onboarding intake from /apply — step 1 of the signup flow.
+ * One POST does all of it: records the AccessApplication AND opens the
+ * account (Account + Company + OWNER membership), so the client can sign in
+ * and continue straight to Finix underwriting at /app/activate.
+ *
+ * The application still gets human review at /superadmin/applications — the
+ * company just isn't held for it: it opens in pending-approval mode
+ * (Company.accessPendingAt, banner in the app) and gets suspended if the
+ * review says no. A valid invite code (regular or bypassApproval) skips the
+ * pending state entirely — the code IS the approval.
+ *
+ * Captcha-gated here, rate-limited (3/hr/IP, "apply" bucket) in middleware.
  */
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const {
     name,
-    email,
     phone,
     companyName,
     industry,
@@ -29,8 +41,11 @@ export async function POST(req: NextRequest) {
     entityType,
     website,
     message,
+    password,
+    inviteCode,
     captchaToken,
   } = body;
+  const email = normalizeEmail(body.email);
 
   if (!(await verifyCaptcha(captchaToken))) {
     return NextResponse.json(
@@ -39,11 +54,17 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  if (!name || !email || !companyName) {
-    return NextResponse.json({ error: "Name, email, and business name are required." }, { status: 400 });
+  if (!name || !email || !companyName || !password) {
+    return NextResponse.json(
+      { error: "Name, email, business name, and password are required." },
+      { status: 400 }
+    );
   }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email))) {
     return NextResponse.json({ error: "Please enter a valid email address." }, { status: 400 });
+  }
+  if (String(password).length < 8 || String(password).length > 72) {
+    return NextResponse.json({ error: "Password must be 8–72 characters." }, { status: 400 });
   }
   if (
     String(name).length > 120 ||
@@ -59,21 +80,64 @@ export async function POST(req: NextRequest) {
     String(yearsInBusiness ?? "").length > 40 ||
     String(entityType ?? "").length > 40 ||
     String(website ?? "").length > 200 ||
-    String(message ?? "").length > 2000
+    String(message ?? "").length > 2000 ||
+    String(inviteCode ?? "").length > 40
   ) {
     return NextResponse.json({ error: "Input too long." }, { status: 400 });
   }
 
-  // Re-applying while a decision is pending just acks the existing one —
-  // no duplicate rows to wade through in the review queue.
-  const pending = await prisma.accessApplication.findFirst({
-    where: { email, status: "PENDING" },
-    select: { id: true },
-  });
-  if (pending) {
-    return NextResponse.json({ success: true });
+  // Optional invite code — a typo should surface, not silently open a
+  // pending-review account the tester didn't want.
+  let invite: { id: string } | null = null;
+  if (typeof inviteCode === "string" && inviteCode.trim()) {
+    const check = await checkInviteCode(inviteCode);
+    if (!check.ok) {
+      return NextResponse.json({ error: check.reason }, { status: 403 });
+    }
+    invite = { id: check.id };
   }
 
+  // Email already tied to an account that already opened a company through
+  // this flow? Point them at sign-in instead of stacking applications.
+  const openApplication = await prisma.accessApplication.findFirst({
+    where: { email, companyId: { not: null } },
+    select: { id: true },
+  });
+  if (openApplication) {
+    return NextResponse.json(
+      {
+        error:
+          "You've already applied with this email and your account is open — sign in at the login page. Forgot your password? Reset it from there.",
+      },
+      { status: 409 }
+    );
+  }
+
+  // Existing login with this email: the typed password must match, then the
+  // new company attaches to it (same behavior as the register page). The
+  // generic message on mismatch never confirms the address exists.
+  const existing = await findOrAdoptAccountByEmail(email);
+  let owner:
+    | { account: { id: string; email: string }; ownerName: string }
+    | { newLogin: { email: string; hash: string; name: string } };
+  if (existing) {
+    const valid = await bcrypt.compare(String(password), existing.passwordHash);
+    if (!valid) {
+      return NextResponse.json(
+        { error: "Unable to sign you up. Please try again, or sign in if you already have an account." },
+        { status: 400 }
+      );
+    }
+    owner = { account: { id: existing.id, email: existing.email }, ownerName: String(name).trim() };
+  } else {
+    owner = {
+      newLogin: { email, hash: await bcrypt.hash(String(password), 12), name: String(name).trim() },
+    };
+  }
+
+  // A code — regular invite or sandbox bypass — is the approval: the
+  // application books as decided and the company opens without the pending
+  // banner. No code = PENDING review, account open with accessPendingAt.
   const application = await prisma.accessApplication.create({
     data: {
       name,
@@ -90,8 +154,33 @@ export async function POST(req: NextRequest) {
       entityType: entityType || null,
       website: website || null,
       message: message || null,
+      ...(invite ? { status: "APPROVED" as const, decidedAt: new Date() } : {}),
     },
   });
+
+  try {
+    await createCompanySignup({
+      companyName,
+      industry,
+      owner,
+      inviteId: invite?.id ?? null,
+      accessPending: !invite,
+      applicationId: application.id,
+    });
+  } catch (e) {
+    // The company never opened — remove the application so a retry doesn't
+    // trip the already-applied check above.
+    await prisma.accessApplication
+      .delete({ where: { id: application.id } })
+      .catch(() => undefined);
+    if (e instanceof InviteClaimedError) {
+      return NextResponse.json(
+        { error: "That invite code has already been used." },
+        { status: 403 }
+      );
+    }
+    throw e;
+  }
 
   // Best-effort notify — the application is saved either way.
   const notification = newApplicationEmail({

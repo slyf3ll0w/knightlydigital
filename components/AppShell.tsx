@@ -1327,6 +1327,16 @@ interface AppShellProps {
   teamCount?: number;
   needsTour?: boolean;
   aiEnabled?: boolean;
+  /** Atlas paywall state (lib/assistant-access.ts): "full" = unmetered,
+   *  "trial" = free trial running, "locked" = paywall (trial offer or the
+   *  Coming-Soon upsell). "off" never reaches here — aiEnabled is false. */
+  atlas?:
+    | { level: "full" }
+    | { level: "trial"; remaining: number }
+    | { level: "locked"; trialUsed: boolean }
+    | { level: "off" };
+  /** Turns included in the free trial — for the paywall copy. */
+  atlasTrialTurns?: number;
   assistantName?: string | null;
   userId?: string | null;
   /** Pre-approval preview: Atlas is hidden entirely (every turn costs money);
@@ -1351,11 +1361,14 @@ export default function AppShell({
   teamCount = 1,
   needsTour = false,
   aiEnabled = false,
+  atlas = { level: "full" },
+  atlasTrialTurns = 25,
   assistantName,
   userId,
   previewMode = false,
 }: AppShellProps) {
-  const assistantAvailable = aiEnabled && !previewMode;
+  const assistantAvailable = aiEnabled && !previewMode && atlas.level !== "off";
+  const atlasLocked = atlas.level === "locked";
   const userRole = role ?? "OWNER";
   const manager = isManagerRole(userRole);
   // Rail color is no longer its own customization — it follows the THEME:
@@ -1888,6 +1901,7 @@ export default function AppShell({
         userId={userId}
         isActive={isActive}
         aiEnabled={assistantAvailable}
+        atlasLocked={atlasLocked}
         assistantName={assistantName || "Atlas"}
         assistantAccent={brandColorSecondary || brandColor || undefined}
         openAssistant={() => setAssistantOpen(true)}
@@ -2155,8 +2169,9 @@ export default function AppShell({
                   Hi, I&apos;m {assistantName || "Atlas"} 👋
                 </p>
                 <p className="mt-0.5 text-xs leading-relaxed text-gray-500">
-                  Ask me anything about your business — or tell me what to do and I&apos;ll
-                  handle it.
+                  {atlasLocked
+                    ? "Your AI teammate for the whole business — try me free."
+                    : "Ask me anything about your business — or tell me what to do and I'll handle it."}
                 </p>
               </button>
               <button
@@ -2190,6 +2205,9 @@ export default function AppShell({
           name={assistantName || "Atlas"}
           storageScope={userId ?? ""}
           accent={brandColorSecondary || brandColor || undefined}
+          access={atlas}
+          trialTurns={atlasTrialTurns}
+          canStartTrial={manager}
         />
       )}
 
@@ -2415,6 +2433,7 @@ function MoreSheet({
   userId,
   isActive,
   aiEnabled,
+  atlasLocked = false,
   assistantName,
   assistantAccent,
   openAssistant,
@@ -2429,6 +2448,7 @@ function MoreSheet({
   userId?: string | null;
   isActive: (href: string) => boolean;
   aiEnabled: boolean;
+  atlasLocked?: boolean;
   assistantName: string;
   assistantAccent?: string;
   openAssistant: () => void;
@@ -2565,7 +2585,9 @@ function MoreSheet({
                   {assistantName}
                 </span>
                 <span className="block truncate text-xs text-gray-500">
-                  Ask anything — or hand off a task
+                  {atlasLocked
+                    ? "Premium add-on — try it free"
+                    : "Ask anything — or hand off a task"}
                 </span>
               </span>
               <ChevronRight size={16} className="text-gray-300 shrink-0" />

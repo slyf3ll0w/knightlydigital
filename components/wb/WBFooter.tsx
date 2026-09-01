@@ -21,7 +21,7 @@ const columns: {
   {
     heading: "Get started",
     links: [
-      { label: "Apply for access", href: "/apply" },
+      { label: "Get started", href: "/apply" },
       { label: "Log in", href: "/app/login" },
     ],
   },

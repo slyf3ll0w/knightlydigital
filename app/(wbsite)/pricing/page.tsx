@@ -43,9 +43,9 @@ const pricingFaq = [
     q: "How do I actually get access?",
     a: (
       <p>
-        WorkBench is invite-only.{" "}
+        Your account opens the day you sign up.{" "}
         <Link href="/apply" className="font-semibold text-[#0B57D8] hover:underline">
-          Apply here
+          Get started here
         </Link>{" "}
         — a person reviews every application, and we onboard approved
         companies personally. At signup, a short payment-verification form
@@ -202,8 +202,8 @@ export default function WBPricingPage() {
               Sounds fair? It is.
             </h2>
             <p className="mt-2 text-[15px] text-gray-500">
-              WorkBench is invite-only — tell us about your business and
-              we&apos;ll take it from there.
+              Tell us about your business and your account opens today —
+              free, start to finish.
             </p>
           </AnimateIn>
           <AnimateIn delay={120} className="flex flex-wrap items-center gap-4">
@@ -211,7 +211,7 @@ export default function WBPricingPage() {
               href="/apply"
               className="wb-btn-tool inline-flex items-center gap-2 rounded-lg bg-[#0B57D8] px-6 py-3 text-[15px] font-bold text-white"
             >
-              Apply for access
+              Get started
               <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
             </Link>
             <Link
