@@ -1,13 +1,21 @@
 // Invoice money math + status lifecycle, driven through the real API.
 // Guards the invariants in lib/payments.ts: server-computed totals, partial
 // payments, PAID ⇔ balance cleared, payment edit/delete recompute, and the
-// total ≥ paid edit guard.
+// zero/negative guards. Invoice detail has no GET route (pages read it
+// server-side), so state assertions look straight at the database.
 import { test, expect } from "@playwright/test";
 import { Api, createContact, deleteContact } from "../helpers/api";
+import { db, disconnectDb } from "../helpers/db";
 
 test.describe("invoice money paths", () => {
   let api: Api;
   let contactId: string;
+
+  const invoiceState = (id: string) =>
+    db().invoice.findUniqueOrThrow({
+      where: { id },
+      select: { status: true, paidAt: true },
+    });
 
   test.beforeAll(async () => {
     api = Api.forOwnerA();
@@ -16,6 +24,7 @@ test.describe("invoice money paths", () => {
 
   test.afterAll(async () => {
     if (contactId) await deleteContact(api, contactId);
+    await disconnectDb();
   });
 
   test("server computes totals: line items + percent discount + tax", async () => {
@@ -54,8 +63,7 @@ test.describe("invoice money paths", () => {
       method: "CHECK",
     });
     expect(p1.fullyPaid).toBe(false);
-    let fetched = await api.get(`/api/app/invoices/${invoice.id}`);
-    expect(fetched.status).toBe("AWAITING_PAYMENT");
+    expect((await invoiceState(invoice.id)).status).toBe("AWAITING_PAYMENT");
 
     // One cent short must NOT mark it paid.
     const p2 = await api.post("/api/app/payments", {
@@ -72,20 +80,19 @@ test.describe("invoice money paths", () => {
       method: "CASH",
     });
     expect(p3.fullyPaid).toBe(true);
-    fetched = await api.get(`/api/app/invoices/${invoice.id}`);
-    expect(fetched.status).toBe("PAID");
-    expect(fetched.paidAt).toBeTruthy();
+    let state = await invoiceState(invoice.id);
+    expect(state.status).toBe("PAID");
+    expect(state.paidAt).toBeTruthy();
 
     // Deleting a payment reopens the invoice.
     await api.delete(`/api/app/payments/${p3.payment.id}`);
-    fetched = await api.get(`/api/app/invoices/${invoice.id}`);
-    expect(["AWAITING_PAYMENT", "PAST_DUE"]).toContain(fetched.status);
-    expect(fetched.paidAt).toBeNull();
+    state = await invoiceState(invoice.id);
+    expect(["AWAITING_PAYMENT", "PAST_DUE"]).toContain(state.status);
+    expect(state.paidAt).toBeNull();
 
     // Shrinking a payment keeps the math honest.
     await api.patch(`/api/app/payments/${p2.payment.id}`, { amount: 20 });
-    fetched = await api.get(`/api/app/invoices/${invoice.id}`);
-    expect(fetched.status).not.toBe("PAID");
+    expect((await invoiceState(invoice.id)).status).not.toBe("PAID");
 
     await api.delete(`/api/app/invoices/${invoice.id}?force=1`);
   });

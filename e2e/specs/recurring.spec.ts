@@ -126,11 +126,13 @@ test.describe("recurring billing", () => {
   });
 
   test("ready-to-bill queue pools visits until bill-ready sweeps them", async () => {
+    // holdForReview alone = queue mode (consolidateMonthly stored true but NO
+    // cursor); sending consolidateMonthly:true too would make it a legacy
+    // monthly-cursor series instead.
     const sub = await api.post("/api/app/subscriptions", {
       name: "E2E queue series",
       contactId,
       billPerVisit: true,
-      consolidateMonthly: true,
       holdForReview: true,
       unitPrice: 35,
       invoiceMode: "DRAFT",

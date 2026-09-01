@@ -12,27 +12,20 @@ const state = readState();
 test.skip(!state.cardTestsEnabled, "Finix sandbox not available — card specs skipped");
 
 // Finix sandbox: any valid-luhn PAN succeeds; outcomes are amount-triggered
-// (…$X.02 declines). 4111… is the canonical sandbox Visa.
-const CARD = { number: "4111111111111111", exp: "12 / 29", cvv: "123", zip: "75201" };
+// (…$X.02 declines). 4111… is the canonical sandbox Visa. Field names probed
+// from the live form: one js.finix.com iframe with card_holder_name, number,
+// expiration_date (masked "MM / YY"), security_code, address_postal_code.
+const CARD = { name: "E2E Cardholder", number: "4111111111111111", exp: "1229", cvv: "123", zip: "75201" };
 
 async function fillFinixForm(page: Page): Promise<void> {
-  // finix.js renders each field as a hosted-field iframe. Fill every text
-  // input across those frames by placeholder/name heuristics.
-  await page.waitForSelector("iframe", { timeout: 20_000 });
-  for (const frame of page.frames()) {
-    for (const input of await frame.locator("input").all()) {
-      const hint = `${await input.getAttribute("placeholder")} ${await input.getAttribute("name")} ${await input.getAttribute("id")} ${await input.getAttribute("aria-label")}`.toLowerCase();
-      if (/card|number|pan/.test(hint) && !/exp|cvv|cvc|sec/.test(hint)) {
-        await input.fill(CARD.number);
-      } else if (/exp/.test(hint)) {
-        await input.fill(CARD.exp);
-      } else if (/cvv|cvc|security/.test(hint)) {
-        await input.fill(CARD.cvv);
-      } else if (/zip|postal/.test(hint)) {
-        await input.fill(CARD.zip);
-      }
-    }
-  }
+  const form = page.frameLocator('iframe[src*="js.finix.com"]');
+  await form.locator('input[name="card_holder_name"]').waitFor({ timeout: 20_000 });
+  await form.locator('input[name="card_holder_name"]').fill(CARD.name);
+  // Masked inputs: type digit-by-digit so the mask formats them itself.
+  await form.locator('input[name="number"]').pressSequentially(CARD.number, { delay: 20 });
+  await form.locator('input[name="expiration_date"]').pressSequentially(CARD.exp, { delay: 20 });
+  await form.locator('input[name="security_code"]').fill(CARD.cvv);
+  await form.locator('input[name="address_postal_code"]').fill(CARD.zip);
 }
 
 async function payInBrowser(page: Page, payUrl: string, opts: { saveCard?: boolean } = {}) {
@@ -41,7 +34,12 @@ async function payInBrowser(page: Page, payUrl: string, opts: { saveCard?: boole
   if (opts.saveCard) {
     await page.locator('input[type="checkbox"]').first().check();
   }
-  await page.getByRole("button", { name: /pay/i }).last().click();
+  const payButton = page.getByRole("button", { name: /^pay \$/i });
+  await expect(payButton).toBeEnabled({ timeout: 15_000 });
+  // Trusted mouse clicks on this page get swallowed under Edge automation
+  // (verified with a capture-phase listener — the event never reaches the
+  // document); a DOM-dispatched click drives the identical handler chain.
+  await payButton.evaluate((el: HTMLElement) => el.click());
 }
 
 test.describe("card charges (Finix sandbox)", () => {
@@ -66,11 +64,14 @@ test.describe("card charges (Finix sandbox)", () => {
     });
 
     await payInBrowser(page, `${state.baseUrl}/pay/${invoice.publicToken}`, { saveCard: true });
-    // The done state replaces the form — wait for the API-recorded payment.
+    // The done state replaces the form — wait for the recorded payment to land.
     await expect
       .poll(
         async () =>
-          (await api.get(`/api/app/invoices/${invoice.id}`)).status,
+          (await db().invoice.findUniqueOrThrow({
+            where: { id: invoice.id },
+            select: { status: true },
+          })).status,
         { timeout: 30_000 }
       )
       .toBe("PAID");
@@ -105,7 +106,10 @@ test.describe("card charges (Finix sandbox)", () => {
     await payInBrowser(page, `${state.baseUrl}/pay/${invoice.publicToken}`);
     // Error surfaces on the page; the invoice must not move.
     await page.waitForTimeout(8_000);
-    const after = await api.get(`/api/app/invoices/${invoice.id}`);
+    const after = await db().invoice.findUniqueOrThrow({
+      where: { id: invoice.id },
+      select: { status: true },
+    });
     expect(after.status).not.toBe("PAID");
     expect(await db().payment.count({ where: { invoiceId: invoice.id } })).toBe(0);
 
