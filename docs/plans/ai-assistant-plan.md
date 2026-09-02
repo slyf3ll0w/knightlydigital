@@ -132,6 +132,23 @@ redesign [BUILT 2026-09-01]:**
   so a burn-down can be re-run on a test company. Measured static payload
   2026-09-02: 95 tools = 57,397 chars ≈ 15k tokens + ~2.5k system prompt
   per model call — see cost-controls.md for the reduction plan.
+- **Queued next step + card v2 [2026-09-02]** (David: "assign the jobs,
+  then I had to prompt him again for the route"). Writes only happen on
+  Confirm, so step two of a dependent task can't run in the same turn.
+  New tool `queue_next_step(instruction)` (96 tools; every role): the model
+  stages step one and queues the exact follow-up; `AssistantResult.nextStep`
+  rides the reply only when cards were staged. The drawer fires it as the
+  next turn BY ITSELF once every card in that reply is `done` (skipped or
+  failed → dropped, the user steers), rendered as a quiet "Continuing on
+  its own" line instead of a bubble; chains cap at MAX_AUTO_CHAIN=3. Prompt
+  gained a FINISH THE WHOLE JOB rule: ask only when a wrong guess is costly,
+  ask everything at once, and after an answer resume the original request
+  end to end. Cost: an auto turn is a normal metered turn — the saving is
+  the dropped clarification round-trips, not the continue itself.
+  Cards v2: tinted header band in the decision's ink (accent / amber /
+  red / green) with kicker + Oxanium title, numeral-ledger values, batch
+  rows numbered, one solid pill commit ("Save all 3"), quiet Skip, DONE
+  rubber stamp (stamp-slam) on applied cards.
 - Drawer: approval cards rebuilt on .card-ledger — colored rule (accent /
   amber money / red permanent), status stamp, key/value ledger rows,
   batch preview with "Show all", typed-name arming, verb-specific commit

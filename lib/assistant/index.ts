@@ -6,7 +6,7 @@ import {
   type AIContent,
   type AIPart,
 } from "../ai";
-import { type Proposal, type Tool, type ToolCtx } from "./core";
+import { str, type Proposal, type Tool, type ToolCtx } from "./core";
 import { recordsTools } from "./records";
 import { clientTools } from "./clients";
 import { clientExtraTools } from "./client-extras";
@@ -75,7 +75,48 @@ const THINKING_BUDGET = (() => {
   return Number.isFinite(n) && n >= 0 ? Math.min(8192, Math.round(n)) : 1024;
 })();
 
+/**
+ * Follow-through for multi-step work. Writes only happen when the user
+ * confirms a card, so "assign these jobs, then build the route" can't finish
+ * in one turn — the route tool needs the assignments saved first. The model
+ * stages step one and queues the rest here; the drawer sends the queued
+ * instruction as the next turn by itself once every card from this turn is
+ * confirmed (docs/plans/ai-assistant-plan.md, "queued next step").
+ */
+const queueNextStepTool: Tool = {
+  decl: {
+    name: "queue_next_step",
+    description:
+      "Queue the REST of a multi-step task to run automatically after the user confirms the card(s) you staged this turn. Use when a later step needs a change saved first (assign the jobs, then optimize the route; create the client, then quote them; convert the quote, then schedule the job). instruction = the exact follow-up request, self-contained, with every name/id/date it needs. Call at most once per turn, and only in a turn where you also staged at least one card. Then tell the user, briefly, what will happen after they confirm.",
+    parameters: {
+      type: "object",
+      properties: {
+        instruction: { type: "string", description: "the complete follow-up request, as if the user typed it" },
+      },
+      required: ["instruction"],
+    },
+  },
+  allowed: () => true,
+  run: async (_actor, args, ctx) => {
+    const instruction = str(args.instruction, 600);
+    if (!instruction) return { error: "instruction is required" };
+    if (ctx.proposals.length === 0) {
+      return {
+        error:
+          "Nothing is staged yet this turn — stage the first step's card(s) first, then queue the rest.",
+      };
+    }
+    ctx.nextStep = instruction;
+    return {
+      queued: true,
+      runsAfter: "the user confirms this turn's cards",
+      note: "Tell the user what happens next in one short line — don't ask them to prompt you again.",
+    };
+  },
+};
+
 const tools: Tool[] = [
+  queueNextStepTool,
   ...recordsTools,
   ...clientTools,
   ...clientExtraTools,
@@ -136,6 +177,7 @@ Actions:
 - When the user wants a link to share themselves: quote approval and invoice pay links come from get_document (clientLink / payLink), agreement signing links from list_agreements, form links and website embed code from manage_web_form, statement PDFs from get_statement, CSV exports from export_data — paste them directly in your reply.
 - Edits to quotes, invoices, and job line items REPLACE the full line-item list — call get_document first and resend every line (with your changes), never just the changed one. Copying a document is duplicate_document.
 - Chain lookups yourself — if the user says "cancel Tuesday's appointment with Ben", find it (get_schedule or search + activity) and stage the cancellation; don't ask them for ids.
+- FINISH THE WHOLE JOB. Questions cost the user a turn, so ask only when a wrong guess would be costly (money, deletions, which of two similarly-named people), pick sensible defaults otherwise, and when you must ask, ask everything at once in one message. When the user answers a question you asked, resume the ORIGINAL request end to end — never stop after the sub-step they answered. If a later step depends on a change being saved first (assign the unassigned jobs, THEN optimize that tech's route; create the client, THEN quote them; convert the quote, THEN schedule the job), stage step one's card(s) and call queue_next_step with the exact follow-up — it runs by itself after they confirm, so they never have to prompt you again. Say so in one line: "Once you confirm, I'll build Mike's route for Tuesday."
 - BULK WORK is supported and expected. "Reformat every client's phone number", "archive all my leads from last year", "add a 3% price increase to every active subscription": fetch the full list (query_records with a big limit, paging if hasMore), compute each change yourself (you are good at reformatting, renaming, recalculating), then stage one update per affected record — call the action tool once per record, many per round is fine. Skip records that already match. Similar changes are automatically combined into ONE confirmation card, so a big batch is still a single Confirm for the user. Before answering, COUNT: if the user asked for N records and you staged fewer, stage the missing ones first (a tool result saying NOT EXECUTED means exactly that — re-issue the call). In your reply, state how many you staged and how many you skipped and why. If a tool result carries an atlasNote saying the turn's tool budget is nearly spent, finish what you can, then tell the user exactly what's left and that saying "continue" picks it up. NEVER refuse doable work or tell the user to do it by hand on a page — that is a last resort for things you truly have no tool for.
 - Emails and messages: email_document really emails a quote/invoice link; email_client sends a tracked one-off email; reply_in_portal answers the client's portal thread (they're notified); send_agreement, send_portal_invite, collect_deposit, and respond_to_booking also send real emails — say so when staging them. Setting a status via update_quote/update_invoice only marks it in the system (no email). "On my way" and review-request texts go out from the user's own phone: give them the sms link the tool returns, and the card just logs it.
 - Online bookings waiting for approval (requests with status NEEDS_APPROVAL) are approved or declined with respond_to_booking — the client is emailed the outcome.
@@ -219,6 +261,9 @@ export type AssistantResult = {
   toolCalls: number;
   /** Model that produced the final answer. */
   model: string;
+  /** Follow-up request the drawer sends on its own once this turn's cards
+   *  are confirmed (queue_next_step). Only present alongside proposals. */
+  nextStep?: string;
 };
 
 /**
@@ -306,6 +351,7 @@ export async function runAssistant(
         rounds,
         toolCalls,
         model,
+        ...(ctx.nextStep && ctx.proposals.length > 0 ? { nextStep: ctx.nextStep } : {}),
       });
       if (text) return done(text);
       // model went silent (rare) — if it staged something, still surface it

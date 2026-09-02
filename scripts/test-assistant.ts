@@ -6,7 +6,7 @@
  * round-trip works end to end).
  */
 import assert from "node:assert";
-import { mergeBulkProposals, toolsForActor, type Proposal } from "../lib/assistant";
+import { mergeBulkProposals, toolsForActor, type Proposal, type ToolCtx } from "../lib/assistant";
 import {
   planPeriod,
   planBalance,
@@ -27,7 +27,7 @@ const salesNoMoney: Actor = { ...base, role: "SALES", salesSeePayments: false };
 
 const names = (a: Actor) => toolsForActor(a).map((t) => t.decl.name).sort();
 
-// 1. owner sees everything (v8: 95 tools — records, client extras, field ops, money extras)
+// 1. owner sees everything (v8: 96 tools — records, client extras, field ops, money extras, queue_next_step)
 assert.deepEqual(
   names(owner),
   [
@@ -47,7 +47,7 @@ assert.deepEqual(
     "manage_pipeline_stage", "manage_recurring_expense", "manage_saved_card",
     "manage_subscription", "manage_time_block", "manage_time_entry",
     "manage_web_form", "move_lead", "optimize_route", "post_team_message",
-    "query_records", "quickbooks", "record_job_signoff", "record_payment",
+    "query_records", "queue_next_step", "quickbooks", "record_job_signoff", "record_payment",
     "refund_payment", "reply_in_portal", "report", "request_review",
     "respond_to_booking", "run_recurring_billing", "schedule_appointment",
     "search_clients", "send_agreement", "send_on_my_way", "send_payout",
@@ -70,7 +70,7 @@ assert.deepEqual(
     "add_job_note", "clock", "export_data", "find_a_time", "get_document",
     "get_job_checklist", "get_route_plan", "get_schedule", "list_pipeline",
     "manage_time_block", "optimize_route", "post_team_message", "query_records",
-    "record_job_signoff", "report", "request_review", "send_on_my_way",
+    "queue_next_step", "record_job_signoff", "report", "request_review", "send_on_my_way",
     "update_checklist_item", "update_job", "update_job_status",
     "whats_needing_attention",
   ],
@@ -258,6 +258,20 @@ console.log("ok 2: tech limited to schedule + job + field tools");
   if (planned.level === "plan") assert.ok(planned.meter.refillsAt, "plan meter carries its refill date");
   console.log(`ok 5e: trial = one-time ${ATLAS_TRIAL_TOKENS.toLocaleString()} tokens on the shared meter, ladder intact`);
 }
+
+// 5f. queue_next_step: refuses with nothing staged, records the follow-up otherwise
+(async () => {
+  const tool = toolsForActor(owner).find((t) => t.decl.name === "queue_next_step")!;
+  const empty: ToolCtx = { proposals: [] };
+  const refused = await tool.run(owner, { instruction: "Optimize Mike's route for 2026-09-09" }, empty);
+  assert.ok("error" in refused && !empty.nextStep, "nothing staged → refused");
+  const ctx: ToolCtx = { proposals: [{ id: "p1", kind: "update_job", title: "t", lines: [], endpoint: "/x", method: "PATCH", payload: {} }] };
+  const ok = await tool.run(owner, { instruction: "Optimize Mike's route for 2026-09-09" }, ctx);
+  assert.equal((ok as { queued?: boolean }).queued, true);
+  assert.equal(ctx.nextStep, "Optimize Mike's route for 2026-09-09");
+  assert.ok(toolsForActor(tech).some((t) => t.decl.name === "queue_next_step"), "every role can queue");
+  console.log("ok 5f: queue_next_step gates on staged cards and records the follow-up");
+})();
 
 // 6. optional live round-trip
 (async () => {

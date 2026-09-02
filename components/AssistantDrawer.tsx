@@ -11,6 +11,7 @@ import {
   Clock,
   Coins,
   Copy,
+  CornerDownRight,
   CreditCard,
   ExternalLink,
   Loader2,
@@ -38,10 +39,16 @@ export type AtlasDrawerAccess = AtlasAccess;
  * the user presses Confirm, which submits to the same existing API route the
  * equivalent button uses. History lives in sessionStorage only.
  *
- * Cards ride the console's own material: .card-ledger surface, a status
- * stamp, key/value ledger rows, verb-specific commit buttons, and a colored
- * rule that says what kind of decision this is (accent = ordinary change,
- * amber = moves real money, red = permanent).
+ * Cards ride the console's own material: .card-ledger surface, a tinted
+ * header band whose color says what kind of decision this is (brand accent
+ * = ordinary change, amber = moves real money, red = permanent, green =
+ * applied), the title in the display face, key/value ledger rows with
+ * Oxanium numerals, and one solid pill to commit.
+ *
+ * Multi-step work: a reply can carry a queued next step (queue_next_step).
+ * Once every card in that reply is confirmed the drawer sends the queued
+ * instruction as the next turn by itself, shown as a "Continuing" line
+ * rather than a bubble the user never typed.
  */
 
 type CardState = "pending" | "confirming" | "done" | "failed" | "dismissed";
@@ -54,7 +61,20 @@ type Msg = {
   proposals?: CardProposal[];
   /** Atlas tokens this reply cost (metered accounts: trial + plan). */
   tokens?: number;
+  /** Follow-up Atlas queued (queue_next_step) — the drawer sends it by
+   *  itself once every card in this reply is confirmed. */
+  nextStep?: string;
+  /** The queued step already went out (or was dropped because a card was
+   *  skipped) — never fire twice. */
+  nextStepFired?: boolean;
+  /** This user turn was sent by the drawer, not typed. */
+  auto?: boolean;
+  /** How many automatic turns led here — caps runaway chains. */
+  autoDepth?: number;
 };
+
+/** Longest chain of self-sent turns before Atlas has to be asked again. */
+const MAX_AUTO_CHAIN = 3;
 
 const STARTERS = [
   "What needs my attention right now?",
@@ -123,7 +143,36 @@ function splitLine(line: string): { label: string; value: string } | null {
   return { label: m[1], value: m[2] };
 }
 
+/** Money, counts, dates and clock times get the console's Oxanium numerals. */
+function isNumeral(v: string): boolean {
+  const s = v.trim();
+  return (
+    /^[-–]?\$\d[\d,]*(\.\d+)?$/.test(s) ||
+    /^\d[\d,]*(\.\d+)?(%| ?h| ?hrs?| ?min)?$/.test(s) ||
+    /^\d{4}-\d{2}-\d{2}/.test(s) ||
+    /^\d{1,2}:\d{2}/.test(s)
+  );
+}
+
 const BATCH_PREVIEW = 5;
+
+type Tone = "pending" | "money" | "danger" | "done" | "failed";
+
+/** One decision, one color. Ordinary changes wear the brand accent, money
+ *  is amber, permanent is red, applied is green — the header wash, the
+ *  kicker and the commit button all draw from the same ink. */
+const TONE: Record<Tone, { ink: string; solid: string; onSolid: string; kicker: string }> = {
+  pending: {
+    ink: "var(--wb-accent, #0b57d8)",
+    solid: "var(--wb-accent, #0b57d8)",
+    onSolid: "var(--wb-on-accent, #ffffff)",
+    kicker: "Needs your OK",
+  },
+  money: { ink: "#b45309", solid: "#d97706", onSolid: "#ffffff", kicker: "Moves real money" },
+  danger: { ink: "#b91c1c", solid: "#dc2626", onSolid: "#ffffff", kicker: "Permanent" },
+  done: { ink: "#15803d", solid: "#16a34a", onSolid: "#ffffff", kicker: "Applied" },
+  failed: { ink: "#b91c1c", solid: "#dc2626", onSolid: "#ffffff", kicker: "Didn't go through" },
+};
 
 function ProposalCard({
   proposal: p,
@@ -141,7 +190,8 @@ function ProposalCard({
   const { Icon, verb } = kindMeta(p);
   const batchCount = p.batch?.length ?? 0;
   const isBatch = batchCount > 0;
-  const commitLabel = p.confirmLabel ?? (isBatch ? `${verb} all ${batchCount}` : verb);
+  // "Save all 3", "Send all 12" — the verb's first word carries the batch
+  const commitLabel = p.confirmLabel ?? (isBatch ? `${verb.split(" ")[0]} all ${batchCount}` : verb);
 
   if (p.state === "dismissed") {
     return (
@@ -153,7 +203,7 @@ function ProposalCard({
     );
   }
 
-  const tone =
+  const tone: Tone =
     p.state === "done"
       ? "done"
       : p.state === "failed"
@@ -163,89 +213,79 @@ function ProposalCard({
           : p.money
             ? "money"
             : "pending";
-  const rule =
-    tone === "done"
-      ? "#16a34a"
-      : tone === "failed"
-        ? "#dc2626"
-        : tone === "danger"
-          ? "#dc2626"
-          : tone === "money"
-            ? "#d97706"
-            : "var(--wb-accent, #0b57d8)";
-  const stamp =
-    tone === "done"
-      ? { label: "Done", cls: "text-green-700" }
-      : tone === "failed"
-        ? { label: "Didn't go through", cls: "text-red-700" }
-        : tone === "danger"
-          ? { label: "Permanent", cls: "text-red-700" }
-          : tone === "money"
-            ? { label: "Moves real money", cls: "text-amber-700" }
-            : isBatch
-              ? { label: `${batchCount} changes`, cls: "text-blue-700" }
-              : { label: "Needs your OK", cls: "text-blue-700" };
-  const iconTone =
-    tone === "danger" || tone === "failed"
-      ? "text-red-600"
-      : tone === "money"
-        ? "text-amber-600"
-        : tone === "done"
-          ? "text-green-600"
-          : "text-gray-500";
-
+  const t = TONE[tone];
+  const kicker = tone === "pending" && isBatch ? `${batchCount} changes · needs your OK` : t.kicker;
   const lines = isBatch && !expanded ? p.lines.slice(0, BATCH_PREVIEW) : p.lines;
   const hidden = isBatch && !expanded ? Math.max(0, p.lines.length - BATCH_PREVIEW) : 0;
   const busy = p.state === "confirming";
+  const open = p.state === "pending" || p.state === "confirming";
 
   return (
-    <div
-      className="card-ledger overflow-hidden"
-      style={{ borderLeft: `3px solid ${rule}` }}
-      role="group"
-      aria-label={p.title}
-    >
-      {/* header */}
-      <div className="flex items-start gap-2.5 px-3.5 pb-2 pt-3">
-        <span
-          className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] bg-gray-50 ${iconTone}`}
-        >
-          {p.state === "done" ? <Check size={15} strokeWidth={2.5} /> : <Icon size={15} />}
-        </span>
+    <div className="card-ledger overflow-hidden" role="group" aria-label={p.title}>
+      {/* header — a tinted band in the decision's color: kicker, then the
+          title in the console's display face. Applied cards get the
+          rubber-stamp ritual the approve flow already uses. */}
+      <div
+        className="flex items-start gap-3 px-3.5 pb-2.5 pt-3"
+        style={{ background: `color-mix(in srgb, ${t.ink} 9%, transparent)` }}
+      >
         <div className="min-w-0 flex-1">
-          <p className="text-[13px] font-semibold leading-snug text-gray-900">{p.title}</p>
-          <span className={`stamp mt-1 ${stamp.cls}`}>{stamp.label}</span>
+          <p className="flex items-center gap-1.5 text-[11px] font-semibold leading-none" style={{ color: t.ink }}>
+            {tone === "done" ? <Check size={12} strokeWidth={3} /> : tone === "failed" ? <AlertTriangle size={12} /> : <Icon size={12} />}
+            {kicker}
+          </p>
+          <p className="font-display mt-1.5 text-[14px] font-bold leading-snug text-gray-900">{p.title}</p>
         </div>
+        {tone === "done" && (
+          <span
+            className="stamp-slam font-display mt-0.5 shrink-0 rounded-[4px] border-2 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider"
+            style={{ borderColor: t.ink, color: t.ink }}
+          >
+            Done
+          </span>
+        )}
       </div>
 
-      {/* ledger rows */}
+      {/* body — key/value ledger rows, or a numbered preview for batches */}
       {lines.length > 0 && (
-        <div className="mx-3.5 divide-y divide-gray-100 border-t border-gray-100">
-          {lines.map((l, j) => {
-            const kv = isBatch ? null : splitLine(l);
-            return kv ? (
-              <div key={j} className="flex items-baseline justify-between gap-3 py-1.5 text-xs">
-                <span className="shrink-0 text-gray-500">{kv.label}</span>
-                <span className="min-w-0 text-right font-medium text-gray-800 [overflow-wrap:anywhere]">
-                  {kv.value}
-                </span>
-              </div>
-            ) : (
-              <p
-                key={j}
-                className={`py-1.5 text-xs leading-relaxed text-gray-700 [overflow-wrap:anywhere] ${
-                  isBatch ? "truncate" : "whitespace-pre-wrap"
-                }`}
-              >
-                {l}
-              </p>
-            );
-          })}
+        <div className="px-3.5">
+          {isBatch ? (
+            <ol className="divide-y divide-gray-100">
+              {lines.map((l, j) => (
+                <li key={j} className="flex items-baseline gap-2 py-1.5 text-xs">
+                  <span className="numeral-ledger w-4 shrink-0 text-right text-[11px] text-gray-400">{j + 1}</span>
+                  <span className="min-w-0 truncate text-gray-700">{l}</span>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <div className="divide-y divide-gray-100">
+              {lines.map((l, j) => {
+                const kv = splitLine(l);
+                return kv ? (
+                  <div key={j} className="flex items-baseline justify-between gap-3 py-1.5 text-xs">
+                    <span className="shrink-0 text-gray-500">{kv.label}</span>
+                    <span
+                      className={`min-w-0 text-right font-medium text-gray-800 [overflow-wrap:anywhere] ${
+                        isNumeral(kv.value) ? "numeral-ledger text-[13px]" : ""
+                      }`}
+                    >
+                      {kv.value}
+                    </span>
+                  </div>
+                ) : (
+                  <p key={j} className="whitespace-pre-wrap py-1.5 text-xs leading-relaxed text-gray-700 [overflow-wrap:anywhere]">
+                    {l}
+                  </p>
+                );
+              })}
+            </div>
+          )}
           {hidden > 0 && (
             <button
               type="button"
               onClick={() => setExpanded(true)}
-              className="flex w-full items-center gap-1 py-1.5 text-xs font-medium text-gray-500 hover:text-gray-800"
+              className="flex w-full items-center gap-1 border-t border-gray-100 py-1.5 text-xs font-medium text-gray-500 hover:text-gray-800"
             >
               <ChevronDown size={13} />
               Show all {p.lines.length}
@@ -255,9 +295,9 @@ function ProposalCard({
       )}
 
       {/* typed confirmation for destructive cards */}
-      {needsTyping && (p.state === "pending" || p.state === "confirming") && (
-        <div className="mx-3.5 mt-2 border-t border-gray-100 pt-2.5">
-          <label className="block text-xs text-red-700">
+      {needsTyping && open && (
+        <div className="mx-3.5 mt-1 border-t border-gray-100 pt-2.5">
+          <label className="block text-xs" style={{ color: t.ink }}>
             Type <span className="font-semibold">{p.confirmText}</span> to allow this
             <input
               type="text"
@@ -271,55 +311,45 @@ function ProposalCard({
         </div>
       )}
 
-      {/* footer */}
-      {p.state === "pending" || p.state === "confirming" ? (
-        <div className="mt-2.5 flex items-center justify-end gap-1.5 border-t border-gray-100 bg-gray-50/60 px-3 py-2">
+      {/* footer — quiet skip on the left, one solid commit on the right */}
+      {open ? (
+        <div className="mt-1.5 flex items-center justify-between gap-2 border-t border-gray-100 px-3.5 py-2.5">
           <button
             type="button"
             disabled={busy}
             onClick={onCancel}
-            className="rounded-full px-3 py-1.5 text-xs font-medium text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-800 disabled:opacity-50"
+            className="rounded-full px-2.5 py-1.5 text-xs font-medium text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-800 disabled:opacity-50"
           >
-            Cancel
+            Skip
           </button>
           <button
             type="button"
             disabled={busy || !armed}
             onClick={onConfirm}
-            className={`btn-tool flex items-center gap-1.5 rounded-[10px] px-3 py-1.5 text-xs font-semibold text-white transition-colors disabled:opacity-50 ${
-              tone === "danger"
-                ? "bg-red-600 hover:bg-red-700"
-                : tone === "money"
-                  ? "bg-amber-500 hover:bg-amber-600"
-                  : "bg-green-500 hover:bg-green-600"
-            }`}
+            className="btn-tool flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-semibold disabled:opacity-40"
+            style={{ background: t.solid, color: t.onSolid }}
           >
             {busy ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} strokeWidth={2.5} />}
             {commitLabel}
           </button>
         </div>
-      ) : (
-        <div
-          className={`mt-2.5 flex items-center justify-between gap-2 border-t px-3.5 py-2 text-xs font-medium ${
-            p.state === "done" ? "border-green-100 bg-green-50/70 text-green-700" : "border-red-100 bg-red-50/70 text-red-700"
-          }`}
-        >
-          <span className="flex min-w-0 items-center gap-1.5">
-            {p.state === "done" ? <Check size={13} strokeWidth={2.5} /> : <AlertTriangle size={13} />}
-            <span className="truncate">{p.resultNote}</span>
-          </span>
-          {p.state === "done" && p.href && (
-            <Link href={p.href} className="flex shrink-0 items-center gap-1 text-green-800 underline-offset-2 hover:underline">
+      ) : p.state === "failed" ? (
+        <div className="mt-1.5 flex items-center justify-between gap-2 border-t border-red-100 bg-red-50/60 px-3.5 py-2 text-xs font-medium text-red-700">
+          <span className="min-w-0 truncate">{p.resultNote}</span>
+          <button type="button" onClick={onConfirm} className="shrink-0 underline-offset-2 hover:underline">
+            Try again
+          </button>
+        </div>
+      ) : isBatch || p.href ? (
+        <div className="mt-1.5 flex items-center justify-between gap-2 border-t border-gray-100 px-3.5 py-2 text-xs text-gray-500">
+          <span className="min-w-0 truncate">{isBatch ? p.resultNote : "Saved"}</span>
+          {p.href && (
+            <Link href={p.href} className="flex shrink-0 items-center gap-1 font-medium text-gray-700 underline-offset-2 hover:underline">
               Open <ExternalLink size={11} />
             </Link>
           )}
-          {p.state === "failed" && (
-            <button type="button" onClick={onConfirm} className="shrink-0 text-red-800 underline-offset-2 hover:underline">
-              Try again
-            </button>
-          )}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -432,12 +462,17 @@ export default function AssistantDrawer({
     });
   }
 
-  async function send(text: string) {
+  /**
+   * One turn. `auto` marks a turn the drawer sent itself (a queued next
+   * step); `base` lets the caller hand over a fresher message list than the
+   * closure has, so the fired flag it just wrote isn't overwritten.
+   */
+  async function send(text: string, opts: { auto?: boolean; depth?: number; base?: Msg[] } = {}) {
     const content = text.trim().slice(0, 4000);
     if (!content || loading) return;
     setError("");
     setInput("");
-    const next: Msg[] = [...messages, { role: "user", content }];
+    const next: Msg[] = [...(opts.base ?? messages), { role: "user", content, ...(opts.auto ? { auto: true } : {}) }];
     persist(next);
     setLoading(true);
     try {
@@ -451,6 +486,7 @@ export default function AssistantDrawer({
         | {
             reply?: string;
             proposals?: Proposal[];
+            nextStep?: string;
             error?: string;
             atlasLocked?: boolean;
             access?: AtlasDrawerAccess;
@@ -473,6 +509,8 @@ export default function AssistantDrawer({
             content: data.reply,
             proposals: (data.proposals ?? []).map((p) => ({ ...p, state: "pending" as const })),
             ...(metered ? { tokens: data.turnTokens } : {}),
+            ...(data.nextStep && (data.proposals?.length ?? 0) > 0 ? { nextStep: data.nextStep } : {}),
+            ...(opts.depth ? { autoDepth: opts.depth } : {}),
           },
         ]);
       }
@@ -482,6 +520,30 @@ export default function AssistantDrawer({
       setLoading(false);
     }
   }
+
+  // Queued next step: once every card in a reply is settled, the drawer
+  // sends Atlas's own follow-up as the next turn. Fires only when every
+  // card was applied — a skipped or failed card means the plan changed and
+  // the user should steer. Depth-capped so a chain can't run away.
+  const firedRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (loading) return;
+    const idx = messages.findIndex((m) => m.role === "assistant" && m.nextStep && !m.nextStepFired);
+    if (idx < 0) return;
+    const m = messages[idx];
+    const cards = m.proposals ?? [];
+    if (cards.length === 0 || cards.some((c) => c.state === "pending" || c.state === "confirming")) return;
+    const key = `${idx}:${m.nextStep}`;
+    if (firedRef.current.has(key)) return;
+    firedRef.current.add(key);
+    const marked = messages.map((x, i) => (i === idx ? { ...x, nextStepFired: true } : x));
+    persist(marked);
+    const depth = (m.autoDepth ?? 0) + 1;
+    if (cards.every((c) => c.state === "done") && depth <= MAX_AUTO_CHAIN) {
+      void send(m.nextStep!, { auto: true, depth, base: marked });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages, loading]);
 
   function setCard(msgIdx: number, propId: string, patch: Partial<{ state: CardState; resultNote: string }>) {
     persist((prev) =>
@@ -750,7 +812,17 @@ export default function AssistantDrawer({
             </div>
           )}
           {messages.map((m, i) =>
-            m.role === "user" ? (
+            m.role === "user" && m.auto ? (
+              // a turn the drawer sent itself — a quiet continuation line,
+              // not a bubble the user never typed
+              <div key={i} className="flex items-start gap-1.5 px-0.5 py-1 text-[11px] leading-relaxed text-gray-500">
+                <CornerDownRight size={12} className="mt-0.5 shrink-0" />
+                <span>
+                  <span className="font-semibold text-gray-600">Continuing on its own: </span>
+                  {m.content}
+                </span>
+              </div>
+            ) : m.role === "user" ? (
               <div
                 key={i}
                 className="ml-auto w-fit max-w-[85%] rounded-2xl rounded-br-md bg-green-600 px-3.5 py-2"
@@ -779,7 +851,8 @@ export default function AssistantDrawer({
                   <button
                     type="button"
                     onClick={() => confirmAll(i, m.proposals ?? [])}
-                    className="btn-tool flex items-center gap-1.5 rounded-[10px] bg-green-500 px-3 py-1.5 text-xs font-semibold transition-colors hover:bg-green-600"
+                    className="btn-tool flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-semibold"
+                    style={{ background: "var(--wb-accent, #0b57d8)", color: "var(--wb-on-accent, #ffffff)" }}
                   >
                     <Check size={12} strokeWidth={2.5} />
                     Confirm all ({m.proposals!.filter((p) => p.state === "pending" && !p.danger && !p.money).length})
@@ -793,6 +866,15 @@ export default function AssistantDrawer({
                     onCancel={() => setCard(i, p.id, { state: "dismissed" })}
                   />
                 ))}
+                {m.nextStep && !m.nextStepFired && (
+                  <p className="flex items-start gap-1.5 px-0.5 text-[11px] leading-relaxed text-gray-500">
+                    <CornerDownRight size={12} className="mt-0.5 shrink-0" />
+                    <span>
+                      <span className="font-semibold text-gray-600">Then, on its own: </span>
+                      {m.nextStep}
+                    </span>
+                  </p>
+                )}
               </div>
             )
           )}

@@ -67,6 +67,24 @@ Seed 10–20 clients with messy phone numbers first, then:
   default — the last tool round carries an atlasNote; reply should say what's
   left and that "continue" picks it up. Say "continue" and confirm it finishes.
 
+## 4b. Follow-through (queued next step)
+
+The scenario that motivated it: unassigned jobs → assign → route.
+
+- Leave 3 jobs unassigned on next Tuesday, then: "Assign Tuesday's unassigned
+  jobs to Mike and build his route." Expect ONE turn: a batch card for the
+  assignments, a reply that says what happens after you confirm, and a gray
+  "Then, on its own: …" line under the card. Confirm → a "Continuing on its
+  own" line appears and the route card arrives without you typing anything.
+- Skip the assignment card instead → nothing fires; Atlas waits.
+- Ask something that used to draw a question ("quote Sarah for a gutter
+  clean") → it should pick the price-book service and stage the quote, not
+  ask which service.
+- Clarify-then-resume: "Schedule the Patel job" → if it asks which day,
+  answer "Thursday" → it should stage the schedule card, not stop at "ok".
+- Chain cap: a task with four dependent steps stops auto-continuing after
+  three self-sent turns and tells you what's left.
+
 ## 5. Field ops
 
 Sign in as a TECH for these; techs only see the field/schedule tools.

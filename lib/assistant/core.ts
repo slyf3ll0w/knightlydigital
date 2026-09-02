@@ -44,7 +44,13 @@ export type Proposal = {
   batch?: BatchItem[];
 };
 
-export type ToolCtx = { proposals: Proposal[] };
+export type ToolCtx = {
+  proposals: Proposal[];
+  /** Set by queue_next_step: the follow-up request the drawer sends on its
+   *  own once every card staged this turn is confirmed (multi-step work
+   *  where step two depends on step one being saved). */
+  nextStep?: string;
+};
 
 export type Tool = {
   decl: AIFunctionDecl;
