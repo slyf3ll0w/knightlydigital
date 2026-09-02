@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { getActor, isManager, canManageRole, type Role } from "@/lib/permissions";
 import { ensureAccountForUser, setPasswordForUser } from "@/lib/account";
 import { sanitizeWorkingHoursOrNull } from "@/lib/business-hours";
+import { geocodeMemberStart } from "@/lib/booking-runtime";
 
 /**
  * PATCH — edit a team member: role, active toggle, password reset, name/phone.
@@ -44,6 +45,24 @@ export async function PATCH(
   }
 
   if (body.bookable !== undefined) data.bookable = Boolean(body.bookable);
+
+  // Online-scheduling extras: personal video room + where the day starts
+  let restartGeocode = false;
+  if (body.meetingLink !== undefined) {
+    const link = body.meetingLink ? String(body.meetingLink).trim().slice(0, 500) : "";
+    if (link && !/^https?:\/\/\S+$/i.test(link)) {
+      return NextResponse.json({ error: "Meeting link must be a full URL (https://…)." }, { status: 400 });
+    }
+    data.meetingLink = link || null;
+  }
+  if (body.startAddress !== undefined) {
+    const addr = body.startAddress ? String(body.startAddress).trim().slice(0, 300) : "";
+    data.startAddress = addr || null;
+    data.startLat = null;
+    data.startLng = null;
+    data.startGeocodedAt = null;
+    restartGeocode = Boolean(addr);
+  }
 
   // Per-member weekly working hours; null = works the company's business hours
   if (body.workingHours !== undefined) {
@@ -119,8 +138,9 @@ export async function PATCH(
   const updated = await prisma.user.update({
     where: { id: target.id },
     data,
-    select: { id: true, name: true, email: true, phone: true, role: true, isActive: true, bookable: true, hourlyCost: true },
+    select: { id: true, name: true, email: true, phone: true, role: true, isActive: true, bookable: true, hourlyCost: true, meetingLink: true, startAddress: true },
   });
+  if (restartGeocode) void geocodeMemberStart(target.id);
 
   if (passwordToSet !== null) {
     await setPasswordForUser(target.id, passwordToSet);

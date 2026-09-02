@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
-import { defaultConfigForType, listWebForms, slugifyFormName } from "@/lib/web-forms";
+import { defaultConfigForType, listWebForms, safeFormSlug, slugifyFormName } from "@/lib/web-forms";
 import { inPreview, PREVIEW_FORM_CAP, previewCapError } from "@/lib/preview";
 
 const validTypes = ["INQUIRY", "BOOKING", "SERVICE_REQUEST"];
@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
   }
 
   // unique slug per company
-  const base = slugifyFormName(name);
+  const base = safeFormSlug(slugifyFormName(name));
   let slug = base;
   for (let i = 2; i < 50; i++) {
     const clash = await prisma.webForm.findFirst({

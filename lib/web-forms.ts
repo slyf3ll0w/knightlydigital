@@ -20,6 +20,9 @@ export type WebFormRow = {
   config: BookingFormConfig;
 };
 
+/** Form slugs that collide with public routes under /book/[slug]/. */
+export const RESERVED_FORM_SLUGS = new Set(["schedule", "embed"]);
+
 export function slugifyFormName(name: string): string {
   return (
     name
@@ -28,6 +31,11 @@ export function slugifyFormName(name: string): string {
       .replace(/^-+|-+$/g, "")
       .slice(0, 40) || "form"
   );
+}
+
+/** Slug the POST route may store: reserved words get a suffix. */
+export function safeFormSlug(slug: string): string {
+  return RESERVED_FORM_SLUGS.has(slug) ? `${slug}-form` : slug;
 }
 
 /** Per-type defaults applied when a form is created. */
@@ -104,21 +112,33 @@ export async function listWebForms(companyId: string, legacyConfig: unknown): Pr
  * Resolve the form a public URL refers to. No formSlug → the default form
  * (the company's original single form).
  */
+/**
+ * The public-company gate every customer-facing booking surface shares:
+ * suspended companies and pre-approval (payments gate) companies vanish
+ * from /book, /embed, the slot APIs and every submit POST.
+ */
+export async function resolvePublicCompany(companySlug: string) {
+  const company = await prisma.company.findUnique({ where: { slug: companySlug } });
+  if (!company) return null;
+  if (company.suspendedAt) return null;
+  const { paymentsGateStatus } = await import("@/lib/payments-gate");
+  const gate = paymentsGateStatus(company);
+  if (gate === "activate" || gate === "pending" || gate === "rejected") return null;
+  return company;
+}
+
+/**
+ * Resolve the form a public URL refers to. No formSlug → the default form
+ * (the company's original single form).
+ */
 export async function resolveWebForm(
   companySlug: string,
   formSlug?: string
 ): Promise<{ company: NonNullable<Awaited<ReturnType<typeof prisma.company.findUnique>>>; form: WebFormRow } | null> {
-  const company = await prisma.company.findUnique({ where: { slug: companySlug } });
+  // Suspended / pre-approval companies disappear from public booking
+  // entirely — the booking page and its POST both resolve through here.
+  const company = await resolvePublicCompany(companySlug);
   if (!company) return null;
-  // Suspended companies disappear from public booking entirely — the booking
-  // page and its POST both resolve through here, so this is the one gate.
-  if (company.suspendedAt) return null;
-  // Same for preview (pre-Finix-approval) companies: /book, /embed, the
-  // slots API, and the submit POST all resolve through here, so no real
-  // submission can arrive before the account is approved.
-  const { paymentsGateStatus } = await import("@/lib/payments-gate");
-  const gate = paymentsGateStatus(company);
-  if (gate === "activate" || gate === "pending" || gate === "rejected") return null;
 
   await ensureDefaultForm(company.id, company.bookingForm);
 

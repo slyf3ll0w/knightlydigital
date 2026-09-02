@@ -6,6 +6,8 @@ import { listWebForms } from "@/lib/web-forms";
 import { sanitizeBusinessHours } from "@/lib/business-hours";
 import { inPreview } from "@/lib/preview";
 import FormsListClient from "./FormsListClient";
+import BookingTypesList from "./BookingTypesList";
+import { bookingTypeInclude } from "@/lib/booking-runtime";
 import SchedulingSettingsCard from "./SchedulingSettingsCard";
 
 export default async function BookingFormsPage() {
@@ -28,6 +30,11 @@ export default async function BookingFormsPage() {
     }),
     prisma.user.count({ where: { companyId, isActive: true, bookable: true } }),
   ]);
+  const bookingTypes = await prisma.bookingType.findMany({
+    where: { companyId },
+    include: bookingTypeInclude,
+    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+  });
   if (!company) redirect("/app/register");
 
   const forms = await listWebForms(companyId, company.bookingForm);
@@ -42,6 +49,25 @@ export default async function BookingFormsPage() {
       companySlug={company.slug}
       baseUrl={baseUrl}
       previewMode={await inPreview(companyId)}
+      typesList={
+        <BookingTypesList
+          companySlug={company.slug}
+          baseUrl={baseUrl}
+          previewMode={await inPreview(companyId)}
+          types={bookingTypes.map((t) => ({
+            id: t.id,
+            name: t.name,
+            slug: t.slug,
+            kind: t.kind,
+            isActive: t.isActive,
+            durationMinutes: t.durationMinutes,
+            confirmation: t.confirmation,
+            paymentMode: t.paymentMode,
+            members: t.members.map((m) => ({ userId: m.userId, name: m.user.name, eligible: m.user.isActive && m.user.bookable })),
+            serviceCount: t.services.filter((s) => s.workItem.isActive).length,
+          }))}
+        />
+      }
       forms={forms.map((f) => ({
         id: f.id,
         name: f.name,

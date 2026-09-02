@@ -10,111 +10,111 @@ datasource db {
 // ─── Tenancy ─────────────────────────────────────────────────────────────────
 
 model Company {
-  id               String   @id @default(cuid())
-  name             String
-  slug             String   @unique
-  phone            String?
-  email            String?
-  address          String?
-  city             String?
-  state            String?
-  zip              String?
+  id                        String      @id @default(cuid())
+  name                      String
+  slug                      String      @unique
+  phone                     String?
+  email                     String?
+  address                   String?
+  city                      String?
+  state                     String?
+  zip                       String?
   // Geocoded shop location (lib/geocoding.ts) — the Route Manager's default
   // start point for a tech's day. Refreshed when the address fields change;
   // null until geocoded (or when geocoding is disabled/failed).
-  lat              Float?
-  lng              Float?
-  geocodedAt       DateTime?
-  website          String?
-  logoUrl          String? // display URL; points at /api/logo/[id] for uploaded logos
-  logoData         Bytes? // uploaded logo bytes (small files only; move to R2 with job photos)
-  logoMime         String?
-  brandColor       String? // primary brand hex: headers/surfaces on client-facing pages + app accent
-  brandColorSecondary String? // secondary brand hex: buttons/accents; falls back to brandColor
+  lat                       Float?
+  lng                       Float?
+  geocodedAt                DateTime?
+  website                   String?
+  logoUrl                   String? // display URL; points at /api/logo/[id] for uploaded logos
+  logoData                  Bytes? // uploaded logo bytes (small files only; move to R2 with job photos)
+  logoMime                  String?
+  brandColor                String? // primary brand hex: headers/surfaces on client-facing pages + app accent
+  brandColorSecondary       String? // secondary brand hex: buttons/accents; falls back to brandColor
   // Client-document header hex (quotes, invoices, emails, hub, portal) —
   // decoupled from the in-app primary; falls back to brandColor when unset.
-  documentColor    String?
+  documentColor             String?
   // App-wide Google Font override for the signed-in app (same free-text
   // Google Font convention as booking-form appearance.font). Body + display
   // text; ledger numerals/stamps stay Oxanium. Null = stock Inter/Oxanium.
-  brandFont        String?
+  brandFont                 String?
   // Advanced customization: per-section hue overrides for the app's color
   // language ({ jobs: "#F97316", ... } — keys/validation in lib/section-colors.ts).
   // {} or null = the stock palette.
-  sectionColors    Json?
-  logoWallpaper    Boolean  @default(false) // legacy wallpaper toggle — superseded by `wallpaper`; null wallpaper + true here still means "logo"
+  sectionColors             Json?
+  logoWallpaper             Boolean     @default(false) // legacy wallpaper toggle — superseded by `wallpaper`; null wallpaper + true here still means "logo"
   // App wallpaper behind every page: "none" | "logo" | "grid" | "dots" |
   // "blueprint" | "topo" | "pinstripe" (see WALLPAPERS in lib/wallpapers.ts).
   // Null = not chosen yet → falls back to logoWallpaper for pre-existing tenants.
-  wallpaper        String?
-  sidebarTheme     String   @default("white") // desktop sidebar: "black" | "white" | "gray"
-  sidebarLogoColor String? // hex backdrop behind the sidebar logo panel; null = white
-  sidebarLogoSize  Int? // desktop rail logo plate height in px (36–128); null = default 56
-  timezone         String   @default("America/Chicago")
-  surchargeEnabled Boolean  @default(false)
-  surchargeRate    Decimal  @default(0.0300) @db.Decimal(5, 4)
+  wallpaper                 String?
+  sidebarTheme              String      @default("white") // desktop sidebar: "black" | "white" | "gray"
+  sidebarLogoColor          String? // hex backdrop behind the sidebar logo panel; null = white
+  sidebarLogoSize           Int? // desktop rail logo plate height in px (36–128); null = default 56
+  timezone                  String      @default("America/Chicago")
+  surchargeEnabled          Boolean     @default(false)
+  surchargeRate             Decimal     @default(0.0300) @db.Decimal(5, 4)
   // Finix payment processing (Streamflaire Payments). The identity/merchant pair
   // comes from the hosted onboarding form; onboardingState mirrors Finix's
   // merchant onboarding_state (PROVISIONING | APPROVED | REJECTED |
   // UPDATE_REQUESTED). Online charges only run when APPROVED.
-  finixOnboardingFormId String?
-  finixIdentityId       String?
-  finixMerchantId       String? @unique
-  finixOnboardingState  String?
+  finixOnboardingFormId     String?
+  finixIdentityId           String?
+  finixMerchantId           String?     @unique
+  finixOnboardingState      String?
   // Payment verification is mandatory: new companies are held at /app/activate
   // until Finix underwriting approves them. This flag exempts a company from
   // that gate (test accounts, comped users) — flipped only from the superadmin
   // console.
-  paymentsWaived Boolean @default(false)
+  paymentsWaived            Boolean     @default(false)
   // Company-wide default deposit, applied to preset services with no deposit of
   // their own and used to prefill custom quotes. NONE = no default deposit.
-  defaultDepositType  DepositType @default(NONE)
-  defaultDepositValue Decimal?    @db.Decimal(10, 2) // percent (0-100) or fixed dollars
+  defaultDepositType        DepositType @default(NONE)
+  defaultDepositValue       Decimal?    @db.Decimal(10, 2) // percent (0-100) or fixed dollars
   // Default sales-tax rate as a fraction (0.0825 = 8.25%). Prefills new quotes
   // and invoices and applies to engine-generated (recurring) invoices; each
   // document can still override or clear its own rate. null = no tax.
-  defaultTaxRate   Decimal? @db.Decimal(5, 4)
-  reviewLink       String?
+  defaultTaxRate            Decimal?    @db.Decimal(5, 4)
+  reviewLink                String?
   // "On my way" text template ({{placeholder}} substitution per lib/messaging.ts);
   // null = the built-in default. Sent from the tech's own phone via an sms: link.
-  onMyWayTemplate  String?
-  bookingForm      Json? // booking/embed form config (custom fields etc.) — see lib/booking-form.ts
+  onMyWayTemplate           String?
+  bookingForm               Json? // booking/embed form config (custom fields etc.) — see lib/booking-form.ts
   // Online booking (self-scheduling). businessHours: { mon: [{start:"08:00",end:"17:00"}], ... }
   // per lib/business-hours.ts; null = default weekday hours. serviceZips empty = no
   // service-area restriction. arrivalWindowMinutes = width of the promised window.
-  businessHours        Json?
-  serviceZips          String[] @default([])
-  arrivalWindowMinutes Int      @default(120)
+  businessHours             Json?
+  serviceZips               String[]    @default([])
+  arrivalWindowMinutes      Int         @default(120)
   // Drive-time limit for self-scheduling (minutes; null/0 = off). When on,
   // online booking only offers days where the visit clusters with the tech's
   // existing route — an anchor visit (or the shop) within this many estimated
   // drive minutes of the client's address. Requires the address before times
   // show. See bookingDriveFilter in lib/booking-availability.ts.
-  bookingDriveLimitMinutes Int?
+  bookingDriveLimitMinutes  Int?
   // Granularity of the even time-slot picker when staff schedule jobs/appointments
   // in-app (minutes). Resolved through lib/scheduling.ts, which is structured so a
   // future route-management system and per-service-type overrides can refine it.
-  schedulingIntervalMinutes Int  @default(30)
-  industry         String? // onboarding answer; drives starter price book + future industry defaults
+  schedulingIntervalMinutes Int         @default(30)
+  industry                  String? // onboarding answer; drives starter price book + future industry defaults
   // AI setup wizard: stamped when the owner applies OR dismisses it — hides
   // the dashboard card either way (the Settings entry stays available)
-  setupWizardAt    DateTime?
+  setupWizardAt             DateTime?
   // Display name for the in-app AI assistant; null = the default ("Atlas")
-  assistantName    String?
+  assistantName             String?
   // Atlas access (lib/assistant-access.ts). assistantEnabled is a superadmin
   // override: true = full Atlas regardless of plan (the whitelist — test
   // accounts, comped users), false = Atlas hidden entirely, null = the
   // default paywall policy: a one-time free allowance of Atlas tokens
   // (ATLAS_TRIAL_TOKENS), then the full-plan upsell ("Coming Soon"). Every
   // AI turn is real spend.
-  assistantEnabled     Boolean?
+  assistantEnabled          Boolean?
   // Atlas free trial: stamped when an owner/admin starts the trial from the
   // paywall. atlasTrialTokensUsed is the SAME spend meter the paid plan
   // uses (lib/assistant-billing.ts): every turn's real Gemini cost, priced
   // as Atlas tokens, debited against ATLAS_TRIAL_TOKENS. One allowance
   // ever — it never refills.
-  atlasTrialStartedAt  DateTime?
-  atlasTrialTokensUsed Int       @default(0)
+  atlasTrialStartedAt       DateTime?
+  atlasTrialTokensUsed      Int         @default(0)
   // Atlas paid plan (lib/assistant-billing.ts) — NOT LIVE yet: no checkout
   // is wired, the superadmin console grants/revokes it for testing. Same
   // meter as the trial, but monthly: every turn's real Gemini cost
@@ -123,15 +123,15 @@ model Company {
   // (ATLAS_PLAN_TOKENS per monthly period, anchored on atlasPlanActiveAt).
   // atlasPeriodStart names the period atlasPeriodTokensUsed belongs to; the
   // assistant route rolls it forward lazily (see debitAtlasTokens).
-  atlasPlanActiveAt     DateTime?
-  atlasPlanLiverySubId  String? // future: the Livery Subscription id backing the plan
-  atlasPeriodStart      DateTime?
-  atlasPeriodTokensUsed Int       @default(0)
+  atlasPlanActiveAt         DateTime?
+  atlasPlanLiverySubId      String? // future: the Livery Subscription id backing the plan
+  atlasPeriodStart          DateTime?
+  atlasPeriodTokensUsed     Int         @default(0)
   // Historical: stamped when a merchant came from the old sandbox
   // test-approve bypass (removed 2026-09-01 — everyone completes the hosted
   // underwriting form now; testers use a bypass invite code on /apply, which
   // only skips the application review). Kept for existing rows.
-  finixSandboxApproved Boolean @default(false)
+  finixSandboxApproved      Boolean     @default(false)
   // ── Premium add-on, sold through Livery (lib/addon.ts) ──
   // addonEnabled is the superadmin VISIBILITY switch: the upsell page and its
   // settings link only render while it's on (preview = on for Streamflaire
@@ -139,60 +139,61 @@ model Company {
   // when the subscription's first payment lands (or a superadmin override),
   // cleared on cancel / final payment failure. Gate features with
   // hasAddon(company), never on addonEnabled.
-  addonEnabled     Boolean   @default(false)
-  addonActiveAt    DateTime?
-  addonLiverySubId String? // Livery Subscription id backing the entitlement
+  addonEnabled              Boolean     @default(false)
+  addonActiveAt             DateTime?
+  addonLiverySubId          String? // Livery Subscription id backing the entitlement
   // Platform suspension (superadmin-only): set → the tenant app and public
   // booking/leads/payments are disabled, data stays intact until support
   // reinstates. Deletion is separate and permanent.
-  suspendedAt      DateTime?
-  suspendedReason  String?
+  suspendedAt               DateTime?
+  suspendedReason           String?
   // Self-serve onboarding review: stamped when the company was created through
   // the public /apply flow and a person hasn't reviewed the application yet.
   // The app stays fully usable (banner warns access is provisional); approving
   // at /superadmin/applications clears it, rejecting suspends the company.
   // Null for invite-code signups and every pre-existing company.
-  accessPendingAt  DateTime?
+  accessPendingAt           DateTime?
   // Team settings: who gets website/booking leads (null = company owner),
   // and whether SALES users can see invoices & payments for their leads.
-  defaultLeadUserId String?
-  salesSeePayments  Boolean @default(true)
+  defaultLeadUserId         String?
+  salesSeePayments          Boolean     @default(true)
   // Lead intake webhook (Zapier/Make/ad connectors): POST /api/public/leads/[token].
   // null = intake off; rotating the token kills old integrations instantly.
-  leadWebhookToken String? @unique
+  leadWebhookToken          String?     @unique
   // Hide the board's Converted section (recently-won cards) to save screen space
-  hideConvertedLeads Boolean @default(false)
-  teamSize         String? // onboarding answers below — analytics/marketing
-  currentSoftware  String?
-  topPriority      String?
-  referralSource   String?
+  hideConvertedLeads        Boolean     @default(false)
+  teamSize                  String? // onboarding answers below — analytics/marketing
+  currentSoftware           String?
+  topPriority               String?
+  referralSource            String?
   // Custom sending domain (Resend Domains API): client emails send from
   // `${emailFromLocal}@${emailDomain}` once status is "verified"; every other
   // state falls back to the platform EMAIL_FROM. Rails only until the Resend
   // plan supports tenant domains — UI/API gate on EMAIL_DOMAINS_ENABLED.
-  emailDomain        String?  @unique // apex or subdomain the company verified (e.g. "summitplumbing.com")
-  emailDomainId      String? // Resend domain id — the handle for verify/status/delete
-  emailDomainStatus  String? // Resend status mirror: "pending" | "verified" | "failed" | "temporary_failure"
-  emailDomainRecords Json? // DNS records Resend wants ([{record,name,type,value,status}]) — shown in Settings
-  emailFromLocal     String? // local part of the From address; null = "notifications"
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  emailDomain               String?     @unique // apex or subdomain the company verified (e.g. "summitplumbing.com")
+  emailDomainId             String? // Resend domain id — the handle for verify/status/delete
+  emailDomainStatus         String? // Resend status mirror: "pending" | "verified" | "failed" | "temporary_failure"
+  emailDomainRecords        Json? // DNS records Resend wants ([{record,name,type,value,status}]) — shown in Settings
+  emailFromLocal            String? // local part of the From address; null = "notifications"
+  createdAt                 DateTime    @default(now())
+  updatedAt                 DateTime    @updatedAt
 
-  users           User[]
-  contacts        Contact[]
-  requests        Request[]
-  jobs            Job[]
-  quotes          Quote[]
-  invoices        Invoice[]
-  payments        Payment[]
-  refunds         Refund[]
-  workItems       WorkItem[]
-  subscriptions   Subscription[]
-  bookingRequests BookingRequest[]
-  reviewRequests  ReviewRequest[]
-  appointments    Appointment[]
+  users             User[]
+  contacts          Contact[]
+  requests          Request[]
+  jobs              Job[]
+  quotes            Quote[]
+  invoices          Invoice[]
+  payments          Payment[]
+  refunds           Refund[]
+  workItems         WorkItem[]
+  subscriptions     Subscription[]
+  bookingRequests   BookingRequest[]
+  reviewRequests    ReviewRequest[]
+  appointments      Appointment[]
   contactFieldDefs  ContactFieldDef[]
   webForms          WebForm[]
+  bookingTypes      BookingType[]
   contractTemplates ContractTemplate[]
   contracts         Contract[]
   expenses          Expense[]
@@ -222,42 +223,51 @@ model Company {
 // re-points it. Identity (name, avatar, email, password) is account-level and
 // fanned out to the member rows so every existing per-row read keeps working.
 model Account {
-  id           String   @id @default(cuid())
-  email        String   @unique // always stored lowercased (lib/user-email.ts)
-  passwordHash String
+  id               String   @id @default(cuid())
+  email            String   @unique // always stored lowercased (lib/user-email.ts)
+  passwordHash     String
   // The User row (membership) the last session used — sign-in lands here.
   // Plain string on purpose: memberships get deleted with their company, and
   // login falls back to the oldest active membership when this row is gone.
   lastActiveUserId String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
-  users               User[]
+  users User[]
 }
 
 model User {
-  id           String   @id @default(cuid())
-  email        String
-  name         String
+  id              String    @id @default(cuid())
+  email           String
+  name            String
   // Legacy (pre-Account) login hash — Account.passwordHash is authoritative.
   // Kept nullable so old rows keep signing in until the backfill/first-login
   // lazily creates their Account (lib/account.ts).
-  passwordHash String?
-  role         Role     @default(TECH)
-  companyId    String?
-  company      Company? @relation(fields: [companyId], references: [id])
-  accountId    String?
-  account      Account? @relation(fields: [accountId], references: [id])
-  phone        String?
-  isActive     Boolean  @default(true)
+  passwordHash    String?
+  role            Role      @default(TECH)
+  companyId       String?
+  company         Company?  @relation(fields: [companyId], references: [id])
+  accountId       String?
+  account         Account?  @relation(fields: [accountId], references: [id])
+  phone           String?
+  isActive        Boolean   @default(true)
   // Accepts online-booking slots: this user's free time feeds the public slot
   // picker and tentative appointments land on them. Off by default — owners
   // opt team members in from the Team page.
-  bookable     Boolean  @default(false)
+  bookable        Boolean   @default(false)
   // Per-member weekly working hours (same JSON shape as Company.businessHours);
   // null = works the company's business hours. Feeds Find a Time, online
   // booking availability, and the route optimizer's default day start.
-  workingHours Json?
+  workingHours    Json?
+  // Online scheduling extras (Team page): a personal video-meeting room
+  // pasted into video-call confirmations, and where this member starts the
+  // day (geocoded like Company.address) so the first drive of the day is
+  // measured from home instead of the shop. All null = shop pin.
+  meetingLink     String?
+  startAddress    String?
+  startLat        Float?
+  startLng        Float?
+  startGeocodedAt DateTime?
   // Profile picture (small client-resized square; same bytes-in-DB pattern
   // as Company.logoData — move to R2 with job photos when volume grows)
   avatarData      Bytes?
@@ -267,36 +277,37 @@ model User {
   tourCompletedAt DateTime?
   // Plain-text signature appended to client email messages (Settings → My
   // Profile); null = auto-generated from name + company details at send time
-  emailSignature  String?  @db.Text
+  emailSignature  String?   @db.Text
   // Team chat: last time this user opened the chat (drives the unread badge)
   chatLastSeenAt  DateTime?
   // Internal labor cost per hour — feeds job labor costing from time entries.
   // Never shown to techs (pricing gate); null = don't cost this user's time.
-  hourlyCost   Decimal? @db.Decimal(10, 2)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  hourlyCost      Decimal?  @db.Decimal(10, 2)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  assignments      JobAssignment[]
-  notes            JobNote[]
-  contactNotes     ContactNote[]
-  clientMessages   ClientMessage[]
-  assignedContacts Contact[]       @relation("AssignedContacts")
-  appointments     Appointment[]   @relation("AppointmentAssignee")
-  teamMessages     TeamMessage[]
-  receivedTeamMessages TeamMessage[] @relation("ReceivedTeamMessages")
-  chatThreadStates ChatThreadState[]
-  chatChannelMembers ChatChannelMember[]
-  pushSubscriptions PushSubscription[]
-  passwordResetTokens PasswordResetToken[]
-  emailChangeTokens   EmailChangeToken[]
+  assignments          JobAssignment[]
+  notes                JobNote[]
+  contactNotes         ContactNote[]
+  clientMessages       ClientMessage[]
+  assignedContacts     Contact[]             @relation("AssignedContacts")
+  appointments         Appointment[]         @relation("AppointmentAssignee")
+  bookingTypeMembers   BookingTypeMember[]
+  teamMessages         TeamMessage[]
+  receivedTeamMessages TeamMessage[]         @relation("ReceivedTeamMessages")
+  chatThreadStates     ChatThreadState[]
+  chatChannelMembers   ChatChannelMember[]
+  pushSubscriptions    PushSubscription[]
+  passwordResetTokens  PasswordResetToken[]
+  emailChangeTokens    EmailChangeToken[]
   superadminLoginCodes SuperadminLoginCode[]
-  timeBlocks       TimeBlock[]     @relation("TimeBlockUser")
-  timeEntries      TimeEntry[]
-  locationPings    LocationPing[]
-  checklistChecks  JobChecklistItem[]
-  feedbackTickets  FeedbackTicket[]
-  portalMessages   PortalMessage[]
-  celebrationsSeen CelebrationSeen[]
+  timeBlocks           TimeBlock[]           @relation("TimeBlockUser")
+  timeEntries          TimeEntry[]
+  locationPings        LocationPing[]
+  checklistChecks      JobChecklistItem[]
+  feedbackTickets      FeedbackTicket[]
+  portalMessages       PortalMessage[]
+  celebrationsSeen     CelebrationSeen[]
 
   // Same address may exist at several companies (one row per membership),
   // but only once within a company.
@@ -361,12 +372,12 @@ model SuperadminLoginCode {
 // have several: phone app + desktop browser). Dead endpoints are pruned when
 // the push service answers 404/410 on send.
 model PushSubscription {
-  id     String @id @default(cuid())
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   // Web: the push-service endpoint URL. Native (ios/android): the FCM device token.
-  endpoint String @unique
-  platform String @default("web") // "web" | "ios" | "android"
+  endpoint  String   @unique
+  platform  String   @default("web") // "web" | "ios" | "android"
   // Web-push encryption keys — null for native subscriptions
   p256dh    String?
   auth      String?
@@ -418,20 +429,20 @@ model ChatChannelMember {
 // channels rework; recipientId is the legacy pre-channels DM pointer, kept
 // only so scripts/migrate-chat-channels.mjs can map old rows.
 model TeamMessage {
-  id          String    @id @default(cuid())
+  id          String       @id @default(cuid())
   companyId   String
-  company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company     Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
   channelId   String?
   channel     ChatChannel? @relation(fields: [channelId], references: [id], onDelete: Cascade)
   userId      String
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   recipientId String?
-  recipient   User?     @relation("ReceivedTeamMessages", fields: [recipientId], references: [id], onDelete: Cascade)
+  recipient   User?        @relation("ReceivedTeamMessages", fields: [recipientId], references: [id], onDelete: Cascade)
   body        String
   editedAt    DateTime?
   // Soft delete: body is wiped, a "message deleted" tombstone stays in the thread
   deletedAt   DateTime?
-  createdAt   DateTime  @default(now())
+  createdAt   DateTime     @default(now())
 
   reactions TeamMessageReaction[]
 
@@ -521,23 +532,23 @@ enum FeedbackStatus {
 // posts an (editable) RoadmapItem onto the public Upcoming Features board.
 // The submitter follows status + the platform response on /app/support.
 model FeedbackTicket {
-  id        String         @id @default(cuid())
-  type      FeedbackType
-  status    FeedbackStatus @default(OPEN)
-  title     String
-  details   String         @db.Text
-  pageUrl   String? // in-app path the user filed it from
+  id            String         @id @default(cuid())
+  type          FeedbackType
+  status        FeedbackStatus @default(OPEN)
+  title         String
+  details       String         @db.Text
+  pageUrl       String? // in-app path the user filed it from
   // Platform reply shown to the submitter on their tickets list
-  response  String?        @db.Text
-  companyId String
-  company   Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  userId    String?
-  user      User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  response      String?        @db.Text
+  companyId     String
+  company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  userId        String?
+  user          User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
   // Board item this ticket became when approved (approval snapshot lives there)
   roadmapItemId String?
-  roadmapItem   RoadmapItem? @relation(fields: [roadmapItemId], references: [id], onDelete: SetNull)
-  createdAt DateTime       @default(now())
-  updatedAt DateTime       @updatedAt
+  roadmapItem   RoadmapItem?   @relation(fields: [roadmapItemId], references: [id], onDelete: SetNull)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 
   @@index([status, createdAt])
   @@index([companyId, userId, createdAt])
@@ -612,41 +623,41 @@ model PipelineStage {
 }
 
 model Contact {
-  id               String        @id @default(cuid())
-  companyId        String
-  company          Company       @relation(fields: [companyId], references: [id])
-  firstName        String
-  lastName         String
-  companyName      String? // the client's business name (CRM imports usually have one)
-  email            String?
-  phone            String?
-  address          String?
-  city             String?
-  state            String?
-  zip              String?
-  notes            String?
-  status           ContactStatus @default(LEAD)
-  leadSource       String?
+  id                   String         @id @default(cuid())
+  companyId            String
+  company              Company        @relation(fields: [companyId], references: [id])
+  firstName            String
+  lastName             String
+  companyName          String? // the client's business name (CRM imports usually have one)
+  email                String?
+  phone                String?
+  address              String?
+  city                 String?
+  state                String?
+  zip                  String?
+  notes                String?
+  status               ContactStatus  @default(LEAD)
+  leadSource           String?
   // Lead pipeline (kanban): a set stage = a card on the Leads board. LEAD
   // contacts always carry a stage; ACTIVE clients re-enter when they submit
   // a new request (their card shows a Repeat badge). Won clears the stage and
   // stamps wonAt; Lost clears it with a reason (leads also archive).
-  pipelineStageId String?
-  pipelineStage   PipelineStage? @relation(fields: [pipelineStageId], references: [id])
-  pipelineOrder   Int            @default(0) // manual sort within the column
-  stageChangedAt  DateTime? // drives the card's "Nd in stage" aging
-  wonAt           DateTime? // last win — insights funnel
-  timesWon        Int       @default(0) // Repeat badge = won before the current run
-  lostAt          DateTime?
-  lostReason      String?
+  pipelineStageId      String?
+  pipelineStage        PipelineStage? @relation(fields: [pipelineStageId], references: [id])
+  pipelineOrder        Int            @default(0) // manual sort within the column
+  stageChangedAt       DateTime? // drives the card's "Nd in stage" aging
+  wonAt                DateTime? // last win — insights funnel
+  timesWon             Int            @default(0) // Repeat badge = won before the current run
+  lostAt               DateTime?
+  lostReason           String?
   // Lead ownership: SALES/USER roles only see contacts assigned to them
-  assignedToId     String?
-  assignedTo       User?         @relation("AssignedContacts", fields: [assignedToId], references: [id])
+  assignedToId         String?
+  assignedTo           User?          @relation("AssignedContacts", fields: [assignedToId], references: [id])
   // CSV import provenance — lets "Undo this import" find the batch
-  importBatchId    String?
+  importBatchId        String?
   // Values for the company's ContactFieldDef custom fields: { [defId]: value }
-  customFields     Json?
-  paymentTermsDays Int           @default(30)
+  customFields         Json?
+  paymentTermsDays     Int            @default(30)
   // Payment processor's vaulted card (Finix payment instrument, PIxxx) —
   // set when the client checks "save this card" on /pay or adds a card in the
   // client hub. Recurring billing auto-charges when set; staff can charge it
@@ -654,8 +665,8 @@ model Contact {
   processorCustomerRef String?
   // Display-only metadata for the saved card ("Visa •••• 4242 · exp 12/27")
   // and when it was saved — never used for charging.
-  savedCardLabel String?
-  savedCardAt    DateTime?
+  savedCardLabel       String?
+  savedCardAt          DateTime?
   // Finix buyer Identity (IDxxx) — created on the contact's first online
   // payment (or first saved card) and reused after. NOT a chargeable token
   // (that's processorCustomerRef).
@@ -663,30 +674,30 @@ model Contact {
   // Provider SMS (Telnyx): set when the client texts STOP to our number —
   // automated texts (reminders, quote/invoice links) skip them. Telnyx also
   // blocks at their edge; this flag keeps our senders honest and visible.
-  smsOptOut        Boolean       @default(false)
-  hubToken         String        @unique @default(cuid())
+  smsOptOut            Boolean        @default(false)
+  hubToken             String         @unique @default(cuid())
   // Last time the client opened their hub (beacon-stamped, no push — shown on
   // the contact page as "Portal · last visit")
-  hubLastVisitAt   DateTime?
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
+  hubLastVisitAt       DateTime?
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
 
-  requests        Request[]
-  jobs            Job[]
-  quotes          Quote[]
-  invoices        Invoice[]
-  payments        Payment[]
-  subscriptions   Subscription[]
-  bookingRequests BookingRequest[]
-  appointments    Appointment[]
-  contracts       Contract[]
-  contactNotes    ContactNote[]
-  addresses       ContactAddress[]
-  people          ContactPerson[]
-  clientMessages  ClientMessage[]
-  portalMessages  PortalMessage[]
+  requests          Request[]
+  jobs              Job[]
+  quotes            Quote[]
+  invoices          Invoice[]
+  payments          Payment[]
+  subscriptions     Subscription[]
+  bookingRequests   BookingRequest[]
+  appointments      Appointment[]
+  contracts         Contract[]
+  contactNotes      ContactNote[]
+  addresses         ContactAddress[]
+  people            ContactPerson[]
+  clientMessages    ClientMessage[]
+  portalMessages    PortalMessage[]
   pushSubscriptions ContactPushSubscription[]
-  savedCards      SavedCard[]
+  savedCards        SavedCard[]
 
   @@index([companyId])
   @@index([companyId, status])
@@ -703,21 +714,21 @@ model Contact {
 // columns mirror the default card (kept in sync by syncDefaultCardMirror) so
 // nothing that still reads them breaks.
 model SavedCard {
-  id            String   @id @default(cuid())
-  companyId     String
-  contactId     String
-  contact       Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
-  instrumentRef String // Finix PIxxx — the chargeable vault token
-  label         String // "Visa •••• 4242 · exp 12/27" (display only)
-  brand         String?
-  last4         String?
-  expMonth      Int?
-  expYear       Int?
-  isDefault     Boolean  @default(false)
+  id                String    @id @default(cuid())
+  companyId         String
+  contactId         String
+  contact           Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  instrumentRef     String // Finix PIxxx — the chargeable vault token
+  label             String // "Visa •••• 4242 · exp 12/27" (display only)
+  brand             String?
+  last4             String?
+  expMonth          Int?
+  expYear           Int?
+  isDefault         Boolean   @default(false)
   // "Your card expires soon" email sent (once per card row — a re-vaulted
   // card with a new expiry lands as a fresh row). See runCardExpiryNudges.
   expiryNudgeSentAt DateTime?
-  createdAt     DateTime @default(now())
+  createdAt         DateTime  @default(now())
 
   // Series whose autopay is pinned to this card (Subscription.savedCardId)
   subscriptions Subscription[]
@@ -731,21 +742,21 @@ model SavedCard {
 // The contact's flat address/city/state/zip stays the primary; these are
 // extras, offered wherever a job/appointment address gets picked.
 model ContactAddress {
-  id        String   @id @default(cuid())
-  contactId String
-  contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
-  label     String? // "Rental on 5th St", "Office", ...
-  address   String
-  city      String?
-  state     String?
-  zip       String?
+  id         String    @id @default(cuid())
+  contactId  String
+  contact    Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  label      String? // "Rental on 5th St", "Office", ...
+  address    String
+  city       String?
+  state      String?
+  zip        String?
   // Forward-geocoded pin for this property (lib/geocoding.ts) — what the
   // Route Manager plots. Cleared whenever the address text changes; null =
   // not geocoded yet, geocoding disabled, or the address didn't resolve.
   lat        Float?
   lng        Float?
   geocodedAt DateTime?
-  createdAt DateTime @default(now())
+  createdAt  DateTime  @default(now())
 
   // Work linked to this property (per-property history)
   jobs          Job[]
@@ -814,6 +825,9 @@ model Request {
   status        RequestStatus @default(NEW)
   preferredDate DateTime? // client's requested date from booking-type forms (date-only, noon anchor)
   source        String        @default("internal") // internal | client_hub | booking_form
+  // Online scheduling: the booking type the customer picked (null = classic form)
+  bookingTypeId String?
+  bookingType   BookingType?  @relation(fields: [bookingTypeId], references: [id], onDelete: SetNull)
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
@@ -889,22 +903,22 @@ model ContactNote {
 // beacon as quotes/invoices (no tracking pixels — deliverability). Replies
 // are ordinary email replies (Reply-To = the company inbox).
 model ClientMessage {
-  id            String    @id @default(cuid())
-  companyId     String
-  company       Company   @relation(fields: [companyId], references: [id])
-  contactId     String
-  contact       Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
-  senderId      String?
-  sender        User?     @relation(fields: [senderId], references: [id])
-  subject       String
-  body          String    @db.Text
+  id             String    @id @default(cuid())
+  companyId      String
+  company        Company   @relation(fields: [companyId], references: [id])
+  contactId      String
+  contact        Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  senderId       String?
+  sender         User?     @relation(fields: [senderId], references: [id])
+  subject        String
+  body           String    @db.Text
   // Signature as it went out (snapshot — later profile edits don't rewrite
   // sent mail); shown under the body on the public message page too
-  signature     String?   @db.Text
-  publicToken   String    @unique @default(cuid())
-  firstViewedAt DateTime?
-  lastViewedAt  DateTime?
-  viewCount     Int       @default(0)
+  signature      String?   @db.Text
+  publicToken    String    @unique @default(cuid())
+  firstViewedAt  DateTime?
+  lastViewedAt   DateTime?
+  viewCount      Int       @default(0)
   // Email-open pixel (HubSpot-style, honestly labeled): first pixel load that
   // survived scanner filtering. Kind "confident" = a real mail client fetched
   // images (Gmail proxy, Outlook after download-images); "likely" = Apple's
@@ -914,7 +928,7 @@ model ClientMessage {
   // The one open push per message has been sent (confident pixel OR page
   // view, whichever lands first) — "likely" signals never push.
   openNotifiedAt DateTime?
-  createdAt     DateTime  @default(now())
+  createdAt      DateTime  @default(now())
 
   @@index([companyId])
   @@index([contactId])
@@ -934,22 +948,22 @@ enum PortalMessageDirection {
 // outbound messages always originate in the app (the SMS/email/push copies
 // are notifications pointing back at the thread, not separate messages).
 model PortalMessage {
-  id        String                 @id @default(cuid())
-  companyId String
-  company   Company                @relation(fields: [companyId], references: [id])
-  contactId String
-  contact   Contact                @relation(fields: [contactId], references: [id], onDelete: Cascade)
-  direction PortalMessageDirection
+  id             String                 @id @default(cuid())
+  companyId      String
+  company        Company                @relation(fields: [companyId], references: [id])
+  contactId      String
+  contact        Contact                @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  direction      PortalMessageDirection
   // Team user who sent an OUTBOUND message; null for INBOUND
-  senderId  String?
-  sender    User?                  @relation(fields: [senderId], references: [id])
-  body      String                 @db.Text
-  via       String                 @default("portal") // "portal" | "sms"
+  senderId       String?
+  sender         User?                  @relation(fields: [senderId], references: [id])
+  body           String                 @db.Text
+  via            String                 @default("portal") // "portal" | "sms"
   // Read state, one side each: INBOUND rows get readByTeamAt when the team
   // opens the thread; OUTBOUND rows get readByClientAt when the hub loads it
   readByTeamAt   DateTime?
   readByClientAt DateTime?
-  createdAt      DateTime          @default(now())
+  createdAt      DateTime               @default(now())
 
   @@index([companyId, createdAt])
   @@index([companyId, direction, readByTeamAt])
@@ -1003,35 +1017,35 @@ model ContractTemplate {
 // with a typed signature on the public /contract/[token] page (same e-sign
 // approach as quote approval: typed name + timestamp + IP).
 model Contract {
-  id            String            @id @default(cuid())
-  companyId     String
-  company       Company           @relation(fields: [companyId], references: [id])
-  contactId     String
-  contact       Contact           @relation(fields: [contactId], references: [id])
-  templateId    String?
-  template      ContractTemplate? @relation(fields: [templateId], references: [id])
+  id             String            @id @default(cuid())
+  companyId      String
+  company        Company           @relation(fields: [companyId], references: [id])
+  contactId      String
+  contact        Contact           @relation(fields: [contactId], references: [id])
+  templateId     String?
+  template       ContractTemplate? @relation(fields: [templateId], references: [id])
   // Agreement attached to a specific quote — gates quote→job conversion when
   // the quote contains agreement-requiring services
-  quoteId       String?
-  quote         Quote?            @relation(fields: [quoteId], references: [id])
+  quoteId        String?
+  quote          Quote?            @relation(fields: [quoteId], references: [id])
   // Per-company agreement number. Nullable so db push stays additive on
   // existing rows; scripts/backfill-doc-numbers.mjs fills history on boot and
   // new creates assign max+1 (multiple NULLs never trip a composite unique).
   contractNumber Int?
-  title         String
-  body          String            @db.Text
-  status        ContractStatus    @default(DRAFT)
-  publicToken   String            @unique @default(cuid())
-  sentAt        DateTime?
+  title          String
+  body           String            @db.Text
+  status         ContractStatus    @default(DRAFT)
+  publicToken    String            @unique @default(cuid())
+  sentAt         DateTime?
   // Client opened the public /contract page (beacon-stamped — see /api/public/viewed)
-  firstViewedAt DateTime?
-  lastViewedAt  DateTime?
-  viewCount     Int               @default(0)
-  signatureName String?
-  signedAt      DateTime?
-  signedFromIp  String?
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
+  firstViewedAt  DateTime?
+  lastViewedAt   DateTime?
+  viewCount      Int               @default(0)
+  signatureName  String?
+  signedAt       DateTime?
+  signedFromIp   String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
 
   @@unique([companyId, contractNumber])
   @@index([companyId, status])
@@ -1068,7 +1082,106 @@ model WebForm {
   @@index([companyId])
 }
 
-// ─── Appointments (sales meetings / estimates) ───────────────────────────────
+// ─── Booking types (online scheduling — Calendly-style "event types") ────────
+
+// What a customer can pick on the public booking pages. Calls promise an
+// exact start; in-person kinds promise an arrival window; SERVICE books
+// price-book work (an approved quote → scheduled job, optionally paid).
+enum BookingKind {
+  PHONE_CALL
+  VIDEO_CALL
+  IN_PERSON // estimate / consult at the customer's address
+  SERVICE // customer picks services from the price book
+}
+
+enum BookingConfirmation {
+  INSTANT // confirmed on the spot
+  APPROVAL // tentative until the business accepts (Request.NEEDS_APPROVAL)
+}
+
+enum BookingPayment {
+  NONE
+  DEPOSIT // each service's deposit rule (company default fallback)
+  FULL // whole amount at booking (DepositType.FULL on the quote)
+}
+
+enum BookingAssignment {
+  ROUND_ROBIN // whoever is free, then least recently assigned
+  PRIORITY // member priority first, then least recently assigned
+}
+
+model BookingType {
+  id                   String              @id @default(cuid())
+  companyId            String
+  company              Company             @relation(fields: [companyId], references: [id])
+  name                 String
+  slug                 String // URL part: /book/[companySlug]/schedule/[slug]
+  description          String?
+  kind                 BookingKind
+  isActive             Boolean             @default(true)
+  sortOrder            Int                 @default(0)
+  // Timing
+  durationMinutes      Int                 @default(30)
+  stepMinutes          Int                 @default(30) // candidate-start granularity (calls: 15/30/60)
+  bufferBeforeMinutes  Int                 @default(0)
+  bufferAfterMinutes   Int                 @default(0)
+  leadHours            Int                 @default(4) // earliest offered slot = now + leadHours
+  horizonDays          Int                 @default(30)
+  maxPerDay            Int? // per member, this type; null = no cap
+  maxShownPerDay       Int                 @default(6) // arrival-window kinds sample evenly; calls list every step
+  confirmation         BookingConfirmation @default(INSTANT)
+  // In-person: promised window width; null = company default, 0 = exact
+  arrivalWindowMinutes Int?
+  // Video: fallback link when the assigned member has none of their own
+  meetingLink          String?
+  paymentMode          BookingPayment      @default(NONE)
+  assignment           BookingAssignment   @default(ROUND_ROBIN)
+  // Client self-serve links in the confirmation email (calls by default)
+  clientCanReschedule  Boolean             @default(false)
+  clientCanCancel      Boolean             @default(false)
+  cutoffHours          Int                 @default(24)
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+
+  members      BookingTypeMember[]
+  services     BookingTypeService[]
+  appointments Appointment[]
+  jobs         Job[]
+  requests     Request[]
+
+  @@unique([companyId, slug])
+  @@index([companyId])
+}
+
+// The pool: who takes bookings of this type. lastAssignedAt drives round
+// robin (least recently assigned wins among the free); priority only
+// matters in PRIORITY assignment mode (higher first).
+model BookingTypeMember {
+  bookingTypeId  String
+  bookingType    BookingType @relation(fields: [bookingTypeId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  priority       Int         @default(0)
+  lastAssignedAt DateTime?
+
+  @@id([bookingTypeId, userId])
+  @@index([userId])
+}
+
+// SERVICE kinds: the price-book items a customer can pick. Price, duration,
+// deposit and agreement rules stay on WorkItem.
+model BookingTypeService {
+  bookingTypeId String
+  bookingType   BookingType @relation(fields: [bookingTypeId], references: [id], onDelete: Cascade)
+  workItemId    String
+  workItem      WorkItem    @relation(fields: [workItemId], references: [id], onDelete: Cascade)
+  sortOrder     Int         @default(0)
+
+  @@id([bookingTypeId, workItemId])
+  @@index([workItemId])
+}
+
+// ─── Appointments (sales meetings / estimates)───────────────────────────────
 
 enum AppointmentType {
   PHONE_CALL
@@ -1087,25 +1200,25 @@ enum AppointmentStatus {
 // discovery meeting. Sits between Request and Quote in the lifecycle and
 // shows on the schedule next to jobs. Replaces Request.assessmentAt.
 model Appointment {
-  id           String            @id @default(cuid())
-  companyId    String
-  company      Company           @relation(fields: [companyId], references: [id])
-  contactId    String
-  contact      Contact           @relation(fields: [contactId], references: [id])
-  requestId    String?
-  request      Request?          @relation(fields: [requestId], references: [id])
-  assignedToId String?
-  assignedTo   User?             @relation("AppointmentAssignee", fields: [assignedToId], references: [id])
+  id                   String            @id @default(cuid())
+  companyId            String
+  company              Company           @relation(fields: [companyId], references: [id])
+  contactId            String
+  contact              Contact           @relation(fields: [contactId], references: [id])
+  requestId            String?
+  request              Request?          @relation(fields: [requestId], references: [id])
+  assignedToId         String?
+  assignedTo           User?             @relation("AppointmentAssignee", fields: [assignedToId], references: [id])
   // Per-company appointment number (nullable — backfilled on boot, see
   // scripts/backfill-doc-numbers.mjs; new creates assign max+1).
-  appointmentNumber Int?
-  title        String // "Estimate", "Sales call", ...
-  type         AppointmentType
-  status       AppointmentStatus @default(SCHEDULED)
-  scheduledAt  DateTime
-  scheduledEnd DateTime?
+  appointmentNumber    Int?
+  title                String // "Estimate", "Sales call", ...
+  type                 AppointmentType
+  status               AppointmentStatus @default(SCHEDULED)
+  scheduledAt          DateTime
+  scheduledEnd         DateTime?
   // Date-only scheduling: anchored at noon, shown in the calendar's "Anytime" row
-  scheduledAnytime Boolean  @default(false)
+  scheduledAnytime     Boolean           @default(false)
   // Per-appointment arrival-window override (lib/arrival-window.ts): null =
   // company default, 0 = exact time. Only meaningful for IN_PERSON — calls
   // always promise the exact time.
@@ -1113,23 +1226,30 @@ model Appointment {
   // Self-scheduled online booking awaiting owner approval. Renders dashed on
   // the schedule; blocks the slot until accepted (clears this) or declined
   // (cancels the appointment). Internal creates are never tentative.
-  tentative        Boolean  @default(false)
-  address          String? // required for IN_PERSON (API-enforced)
+  tentative            Boolean           @default(false)
+  // Online scheduling: which booking type this came through, when the
+  // customer booked it, and the signed token behind their reschedule/cancel
+  // links (null = internal create / self-serve off for that type).
+  bookingTypeId        String?
+  bookingType          BookingType?      @relation(fields: [bookingTypeId], references: [id], onDelete: SetNull)
+  bookedOnlineAt       DateTime?
+  manageToken          String?           @unique
+  address              String? // required for IN_PERSON (API-enforced)
   // Saved service address this appointment is at (see Job.propertyId)
-  propertyId       String?
-  property         ContactAddress? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
-  meetingLink      String? // optional pasted URL for VIDEO_CALL
-  notes            String?
-  completedAt      DateTime?
+  propertyId           String?
+  property             ContactAddress?   @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  meetingLink          String? // optional pasted URL for VIDEO_CALL
+  notes                String?
+  completedAt          DateTime?
   // Client reminder emails/texts: each stage fires once, tracked here like
   // PaymentReminder rows track dunning stages. Covers online-booked AND
   // manually created appointments; remindClient=false opts one appointment out
   // (internal meetings, clients who asked not to be messaged).
-  remindClient       Boolean   @default(true)
-  reminderDaySentAt  DateTime?
-  reminderHourSentAt DateTime?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  remindClient         Boolean           @default(true)
+  reminderDaySentAt    DateTime?
+  reminderHourSentAt   DateTime?
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
 
   @@unique([companyId, appointmentNumber])
   @@index([companyId, scheduledAt])
@@ -1174,74 +1294,79 @@ enum JobStatus {
 }
 
 model Job {
-  id           String    @id @default(cuid())
-  companyId    String
-  company      Company   @relation(fields: [companyId], references: [id])
-  contactId    String
-  contact      Contact   @relation(fields: [contactId], references: [id])
-  requestId    String?
-  request      Request?  @relation(fields: [requestId], references: [id])
+  id                      String          @id @default(cuid())
+  companyId               String
+  company                 Company         @relation(fields: [companyId], references: [id])
+  contactId               String
+  contact                 Contact         @relation(fields: [contactId], references: [id])
+  requestId               String?
+  request                 Request?        @relation(fields: [requestId], references: [id])
   // Set when this job was auto-generated by a recurring subscription cycle
-  subscriptionId String?
-  subscription   Subscription? @relation(fields: [subscriptionId], references: [id])
+  subscriptionId          String?
+  subscription            Subscription?   @relation(fields: [subscriptionId], references: [id])
   // The monthly consolidated invoice that billed this visit (many visits →
   // one invoice, distinct from the one-invoice-per-job `invoice` relation).
   // Null + completed + no direct invoice = still in the unbilled pool.
-  consolidatedInvoiceId String?
-  consolidatedInvoice   Invoice? @relation("ConsolidatedVisits", fields: [consolidatedInvoiceId], references: [id], onDelete: SetNull)
-  jobNumber    Int
-  title        String
-  description  String?
-  leadSource   String?
-  status       JobStatus @default(ACTIVE)
-  scheduledAt  DateTime?
-  scheduledEnd DateTime?
+  consolidatedInvoiceId   String?
+  consolidatedInvoice     Invoice?        @relation("ConsolidatedVisits", fields: [consolidatedInvoiceId], references: [id], onDelete: SetNull)
+  jobNumber               Int
+  title                   String
+  description             String?
+  leadSource              String?
+  status                  JobStatus       @default(ACTIVE)
+  scheduledAt             DateTime?
+  scheduledEnd            DateTime?
   // Date-only scheduling: scheduledAt anchored at T12:00, shown in the
   // calendar's "Anytime" row rather than at a clock position.
-  scheduledAnytime Boolean @default(false)
+  scheduledAnytime        Boolean         @default(false)
   // Per-job arrival-window override (lib/arrival-window.ts): null = the
   // company default (Company.arrivalWindowMinutes), 0 = promise the exact
   // start time. Techs always see exact times — this only changes what the
   // client is told (hub, reminders, on-my-way).
-  arrivalWindowMinutes Int?
+  arrivalWindowMinutes    Int?
   // Client visit reminders (same day-before + ~1-hour machinery as
   // Appointment — see runVisitReminders in lib/reminders.ts)
-  remindClient       Boolean   @default(true)
-  reminderDaySentAt  DateTime?
-  reminderHourSentAt DateTime?
+  remindClient            Boolean         @default(true)
+  reminderDaySentAt       DateTime?
+  reminderHourSentAt      DateTime?
   // Crew heads-up push ~1h before the visit (runTechHeadsUp) — independent of
   // the client reminder so techs still hear about remindClient=false jobs
-  techHeadsUpSentAt  DateTime?
+  techHeadsUpSentAt       DateTime?
   // Background-generated visits can land on top of existing work with nobody
   // watching — generateDueVisits stamps the first conflict label here so the
   // schedule can badge it; any schedule/crew edit clears it (a human looked).
-  conflictNote String?
-  completedAt  DateTime?
-  closedAt     DateTime?
-  address      String?
+  conflictNote            String?
+  // Online scheduling: booked by the customer through this booking type
+  // (SERVICE kind). Schedule chips stamp "Booked online".
+  bookingTypeId           String?
+  bookingType             BookingType?    @relation(fields: [bookingTypeId], references: [id], onDelete: SetNull)
+  bookedOnlineAt          DateTime?
+  completedAt             DateTime?
+  closedAt                DateTime?
+  address                 String?
   // Which saved service address (property) this job is at. The address string
   // above stays the display/search snapshot; this id is the grouping key for
   // per-property history. Null = the contact's primary address or free text.
-  propertyId   String?
-  property     ContactAddress? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  propertyId              String?
+  property                ContactAddress? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
   // Last time a tech sent the client an "on my way" text (from their own phone)
-  onMyWaySentAt DateTime?
+  onMyWaySentAt           DateTime?
   // On-site completion sign-off: the client types their name on the tech's
   // phone when the work wraps (same typed-signature convention as quote
   // approval). Proof-of-completion for disputes.
   completionSignatureName String?
   completionSignedAt      DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  createdAt               DateTime        @default(now())
+  updatedAt               DateTime        @updatedAt
 
-  assignments JobAssignment[]
-  notes       JobNote[]
-  photos      JobPhoto[]
-  lineItems   JobLineItem[]
-  timeEntries TimeEntry[]
+  assignments    JobAssignment[]
+  notes          JobNote[]
+  photos         JobPhoto[]
+  lineItems      JobLineItem[]
+  timeEntries    TimeEntry[]
   checklistItems JobChecklistItem[]
-  quote       Quote?
-  invoice     Invoice?
+  quote          Quote?
+  invoice        Invoice?
 
   @@unique([companyId, jobNumber])
   @@index([companyId])
@@ -1250,18 +1375,18 @@ model Job {
 }
 
 model JobLineItem {
-  id          String   @id @default(cuid())
-  jobId       String
-  job         Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  name        String
-  description String?
-  quantity    Decimal  @db.Decimal(10, 3)
-  unitCost    Decimal? @db.Decimal(10, 2)
-  unitPrice   Decimal  @db.Decimal(10, 2)
-  total       Decimal  @db.Decimal(10, 2)
-  workItemId  String? // source price-book item, when picked from the price book
+  id                String             @id @default(cuid())
+  jobId             String
+  job               Job                @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  name              String
+  description       String?
+  quantity          Decimal            @db.Decimal(10, 3)
+  unitCost          Decimal?           @db.Decimal(10, 2)
+  unitPrice         Decimal            @db.Decimal(10, 2)
+  total             Decimal            @db.Decimal(10, 2)
+  workItemId        String? // source price-book item, when picked from the price book
   recurringInterval RecurringInterval? // snapshot from the price book; null = sold one-time
-  sortOrder   Int      @default(0)
+  sortOrder         Int                @default(0)
 
   @@index([jobId])
 }
@@ -1314,22 +1439,22 @@ enum TimeEntrySource {
 // tracking, and only while clocking. Job deletion keeps the hours (SetNull)
 // so payroll totals survive.
 model TimeEntry {
-  id        String    @id @default(cuid())
-  companyId String
-  company   Company   @relation(fields: [companyId], references: [id])
-  userId    String
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  jobId     String?
-  job       Job?      @relation(fields: [jobId], references: [id], onDelete: SetNull)
-  startedAt DateTime
-  endedAt   DateTime?
-  source    TimeEntrySource @default(CLOCK)
-  note      String?
+  id            String          @id @default(cuid())
+  companyId     String
+  company       Company         @relation(fields: [companyId], references: [id])
+  userId        String
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobId         String?
+  job           Job?            @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  startedAt     DateTime
+  endedAt       DateTime?
+  source        TimeEntrySource @default(CLOCK)
+  note          String?
   // Client-generated key so a retried/queued clock tap can't double-create
-  clientKey String?   @unique
+  clientKey     String?         @unique
   // Key of the clock-OUT tap that closed this entry — a replayed/queued
   // clock-out matches here instead of closing whatever span is open now
-  endClientKey String? @unique
+  endClientKey  String?         @unique
   // Location stamps (nullable — tech may deny location); accuracy in meters
   startLat      Float?
   startLng      Float?
@@ -1338,9 +1463,9 @@ model TimeEntry {
   endLng        Float?
   endAccuracy   Float?
   // Manager who last hand-edited this entry (audit trail for payroll)
-  editedById String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  editedById    String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
 
   locationPings LocationPing[]
 
@@ -1393,12 +1518,12 @@ enum PhotoType {
 }
 
 model JobPhoto {
-  id        String    @id @default(cuid())
-  jobId     String
-  job       Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  url       String
-  caption   String?
-  type      PhotoType @default(GENERAL)
+  id         String    @id @default(cuid())
+  jobId      String
+  job        Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  url        String
+  caption    String?
+  type       PhotoType @default(GENERAL)
   // Bytes live in R2 when object storage is configured (storageKey set, data
   // null); otherwise they fall back to the `data` column, which is how every
   // photo was stored before R2. Both are served through /api/job-photos/[id].
@@ -1408,7 +1533,7 @@ model JobPhoto {
   storageKey String?
   sizeBytes  Int?
   mimeType   String?
-  createdAt  DateTime @default(now())
+  createdAt  DateTime  @default(now())
 
   @@index([jobId])
 }
@@ -1432,15 +1557,15 @@ enum DepositType {
 }
 
 model Quote {
-  id            String      @id @default(cuid())
+  id            String          @id @default(cuid())
   companyId     String
-  company       Company     @relation(fields: [companyId], references: [id])
+  company       Company         @relation(fields: [companyId], references: [id])
   contactId     String
-  contact       Contact     @relation(fields: [contactId], references: [id])
+  contact       Contact         @relation(fields: [contactId], references: [id])
   requestId     String?
-  request       Request?    @relation(fields: [requestId], references: [id])
-  jobId         String?     @unique // set when this quote is converted into a job
-  job           Job?        @relation(fields: [jobId], references: [id])
+  request       Request?        @relation(fields: [requestId], references: [id])
+  jobId         String?         @unique // set when this quote is converted into a job
+  job           Job?            @relation(fields: [jobId], references: [id])
   // Saved service address this quote is for — carried onto the job at
   // convert time so multi-property clients keep the right property
   propertyId    String?
@@ -1448,16 +1573,16 @@ model Quote {
   quoteNumber   Int
   title         String?
   // Discount applies to the subtotal before tax; carries to the invoice
-  discountType  DepositType @default(NONE)
-  discountValue Decimal?    @db.Decimal(10, 2)
-  discount      Decimal?    @db.Decimal(10, 2) // computed amount
-  status        QuoteStatus @default(DRAFT)
-  subtotal      Decimal     @db.Decimal(10, 2)
-  taxRate       Decimal?    @db.Decimal(5, 4)
-  tax           Decimal?    @db.Decimal(10, 2)
-  total         Decimal     @db.Decimal(10, 2)
-  depositType   DepositType @default(NONE)
-  depositValue  Decimal?    @db.Decimal(10, 2) // percent (0-100) or fixed dollars
+  discountType  DepositType     @default(NONE)
+  discountValue Decimal?        @db.Decimal(10, 2)
+  discount      Decimal?        @db.Decimal(10, 2) // computed amount
+  status        QuoteStatus     @default(DRAFT)
+  subtotal      Decimal         @db.Decimal(10, 2)
+  taxRate       Decimal?        @db.Decimal(5, 4)
+  tax           Decimal?        @db.Decimal(10, 2)
+  total         Decimal         @db.Decimal(10, 2)
+  depositType   DepositType     @default(NONE)
+  depositValue  Decimal?        @db.Decimal(10, 2) // percent (0-100) or fixed dollars
   clientMessage String?
   disclaimer    String?
   notes         String?
@@ -1467,13 +1592,13 @@ model Quote {
   // excluded — see /api/public/viewed). First view pushes the team.
   firstViewedAt DateTime?
   lastViewedAt  DateTime?
-  viewCount     Int         @default(0)
+  viewCount     Int             @default(0)
   approvedAt    DateTime?
   signatureName String?
   changeRequest String?
-  publicToken   String      @unique @default(cuid())
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  publicToken   String          @unique @default(cuid())
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
 
   lineItems QuoteLineItem[]
   contracts Contract[]
@@ -1492,13 +1617,13 @@ model Quote {
 // editing a sent/change-requested quote does, so "what did we originally
 // offer?" always has an answer.
 model QuoteRevision {
-  id       String  @id @default(cuid())
-  quoteId  String
-  quote    Quote   @relation(fields: [quoteId], references: [id], onDelete: Cascade)
-  revision Int // 1-based, in the order the versions existed
-  total    Decimal @db.Decimal(10, 2)
+  id        String   @id @default(cuid())
+  quoteId   String
+  quote     Quote    @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  revision  Int // 1-based, in the order the versions existed
+  total     Decimal  @db.Decimal(10, 2)
   // Full document snapshot: title, message, totals, validity, line items
-  snapshot Json
+  snapshot  Json
   createdAt DateTime @default(now())
 
   @@unique([quoteId, revision])
@@ -1506,26 +1631,26 @@ model QuoteRevision {
 }
 
 model QuoteLineItem {
-  id          String  @id @default(cuid())
-  quoteId     String
-  quote       Quote   @relation(fields: [quoteId], references: [id], onDelete: Cascade)
-  name        String  @default("")
-  description String
-  quantity    Decimal @db.Decimal(10, 3)
-  unitCost    Decimal? @db.Decimal(10, 2)
-  unitPrice   Decimal @db.Decimal(10, 2)
-  total       Decimal @db.Decimal(10, 2)
-  isOptional  Boolean @default(false)
-  optedOut    Boolean @default(false) // client unchecked this optional item in the hub
+  id                String             @id @default(cuid())
+  quoteId           String
+  quote             Quote              @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  name              String             @default("")
+  description       String
+  quantity          Decimal            @db.Decimal(10, 3)
+  unitCost          Decimal?           @db.Decimal(10, 2)
+  unitPrice         Decimal            @db.Decimal(10, 2)
+  total             Decimal            @db.Decimal(10, 2)
+  isOptional        Boolean            @default(false)
+  optedOut          Boolean            @default(false) // client unchecked this optional item in the hub
   // Snapshotted from WorkItem.requiresAgreement when picked from the price book
-  requiresAgreement Boolean @default(false)
+  requiresAgreement Boolean            @default(false)
   // Source price-book item (when picked from the price book) — lets conversion
   // read the live recurring config; null for free-typed lines
-  workItemId  String?
+  workItemId        String?
   // Snapshotted from WorkItem.recurringInterval — drives subscription creation
   // on conversion and the "Billed monthly" label on client-facing pages
   recurringInterval RecurringInterval?
-  sortOrder   Int     @default(0)
+  sortOrder         Int                @default(0)
 
   @@index([quoteId])
 }
@@ -1550,56 +1675,56 @@ enum InvoiceKind {
 }
 
 model Invoice {
-  id            String        @id @default(cuid())
-  companyId     String
-  company       Company       @relation(fields: [companyId], references: [id])
-  contactId     String?
-  contact       Contact?      @relation(fields: [contactId], references: [id])
-  jobId         String?       @unique
-  job           Job?          @relation(fields: [jobId], references: [id])
+  id                  String        @id @default(cuid())
+  companyId           String
+  company             Company       @relation(fields: [companyId], references: [id])
+  contactId           String?
+  contact             Contact?      @relation(fields: [contactId], references: [id])
+  jobId               String?       @unique
+  job                 Job?          @relation(fields: [jobId], references: [id])
   // Set when this invoice was auto-generated by a recurring subscription cycle
-  subscriptionId String?
-  subscription   Subscription? @relation(fields: [subscriptionId], references: [id])
+  subscriptionId      String?
+  subscription        Subscription? @relation(fields: [subscriptionId], references: [id])
   // Deposit invoices link back to the quote they collect against, so the quote's
   // final invoice can find and net any paid deposits.
-  quoteId       String?
-  quote         Quote?        @relation(fields: [quoteId], references: [id])
-  kind          InvoiceKind   @default(STANDARD)
-  invoiceNumber Int
-  subject       String?
-  status        InvoiceStatus @default(DRAFT)
-  subtotal      Decimal       @db.Decimal(10, 2)
+  quoteId             String?
+  quote               Quote?        @relation(fields: [quoteId], references: [id])
+  kind                InvoiceKind   @default(STANDARD)
+  invoiceNumber       Int
+  subject             String?
+  status              InvoiceStatus @default(DRAFT)
+  subtotal            Decimal       @db.Decimal(10, 2)
   // Discount applies to the subtotal before tax
-  discountType  DepositType   @default(NONE)
-  discountValue Decimal?      @db.Decimal(10, 2)
-  discount      Decimal?      @db.Decimal(10, 2) // computed amount
-  taxRate       Decimal?      @db.Decimal(5, 4)
-  tax           Decimal?      @db.Decimal(10, 2)
-  surcharge     Decimal?      @db.Decimal(10, 2)
+  discountType        DepositType   @default(NONE)
+  discountValue       Decimal?      @db.Decimal(10, 2)
+  discount            Decimal?      @db.Decimal(10, 2) // computed amount
+  taxRate             Decimal?      @db.Decimal(5, 4)
+  tax                 Decimal?      @db.Decimal(10, 2)
+  surcharge           Decimal?      @db.Decimal(10, 2)
   // Deposit already paid on the originating quote, credited off this (final)
   // invoice. `total` is stored net of this; kept for the "Deposit applied" row.
-  depositApplied Decimal?     @db.Decimal(10, 2)
-  total         Decimal       @db.Decimal(10, 2)
-  notes         String?
+  depositApplied      Decimal?      @db.Decimal(10, 2)
+  total               Decimal       @db.Decimal(10, 2)
+  notes               String?
   // Client-facing message at the top of the pay page / PDF (parity with
   // Quote.clientMessage; `notes` stays internal-facing on the editor).
-  clientMessage String?
-  issuedAt      DateTime?
-  dueDate       DateTime?
-  paidAt        DateTime?
+  clientMessage       String?
+  issuedAt            DateTime?
+  dueDate             DateTime?
+  paidAt              DateTime?
   // DEPRECATED — replaced by the per-user CelebrationSeen table; nothing reads
   // this anymore. Kept only so db push stays additive; drop in a later cleanup.
-  paidCelebratedAt DateTime?
+  paidCelebratedAt    DateTime?
   // Client opened the public /pay page (beacon-stamped — see /api/public/viewed)
-  firstViewedAt DateTime?
-  lastViewedAt  DateTime?
-  viewCount     Int           @default(0)
-  publicToken   String        @unique @default(cuid())
+  firstViewedAt       DateTime?
+  lastViewedAt        DateTime?
+  viewCount           Int           @default(0)
+  publicToken         String        @unique @default(cuid())
   // ── Autopay retry state (recurring engine — lib/auto-charge.ts) ────────────
   // Failed card-on-file attempts on this engine-generated invoice; the cron
   // retries at autoChargeNextAt (null = nothing scheduled). Gave-up = hard
   // decline or retries exhausted; cleared when the client saves a new card.
-  autoChargeAttempts  Int       @default(0)
+  autoChargeAttempts  Int           @default(0)
   autoChargeNextAt    DateTime?
   autoChargeLastError String?
   autoChargeGaveUpAt  DateTime?
@@ -1607,14 +1732,14 @@ model Invoice {
   // charge attempt — staff, /pay, or autopay — may be in flight per invoice.
   // A stale stamp (crashed charge) expires by lease, never needs cleanup.
   chargeLockedAt      DateTime?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
 
-  lineItems InvoiceLineItem[]
-  payments  Payment[]
-  reminders PaymentReminder[]
+  lineItems        InvoiceLineItem[]
+  payments         Payment[]
+  reminders        PaymentReminder[]
   // Visit jobs this invoice consolidated (Job.consolidatedInvoiceId)
-  consolidatedJobs Job[] @relation("ConsolidatedVisits")
+  consolidatedJobs Job[]             @relation("ConsolidatedVisits")
 
   @@unique([companyId, invoiceNumber])
   @@index([companyId])
@@ -1647,22 +1772,22 @@ model CelebrationSeen {
 }
 
 model InvoiceLineItem {
-  id          String  @id @default(cuid())
-  invoiceId   String
-  invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  name        String  @default("")
-  description String
-  quantity    Decimal @db.Decimal(10, 3)
+  id                String             @id @default(cuid())
+  invoiceId         String
+  invoice           Invoice            @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  name              String             @default("")
+  description       String
+  quantity          Decimal            @db.Decimal(10, 3)
   // Cost basis for margin reporting — backfilled from the price book by name
   // (same as quotes/jobs); never shown to the client. Direct invoices used to
   // drop cost data entirely, silently excluding them from profit numbers.
-  unitCost    Decimal? @db.Decimal(10, 2)
-  unitPrice   Decimal @db.Decimal(10, 2)
-  total       Decimal @db.Decimal(10, 2)
-  serviceDate DateTime?
-  workItemId  String? // source price-book item, when picked from the price book
+  unitCost          Decimal?           @db.Decimal(10, 2)
+  unitPrice         Decimal            @db.Decimal(10, 2)
+  total             Decimal            @db.Decimal(10, 2)
+  serviceDate       DateTime?
+  workItemId        String? // source price-book item, when picked from the price book
   recurringInterval RecurringInterval? // display-only snapshot from the price book
-  sortOrder   Int     @default(0)
+  sortOrder         Int                @default(0)
 
   @@index([invoiceId])
 }
@@ -1912,24 +2037,24 @@ enum PriceDisplay {
 }
 
 model WorkItem {
-  id          String       @id @default(cuid())
-  companyId   String
-  company     Company      @relation(fields: [companyId], references: [id])
-  name        String
-  description String?
-  type        WorkItemType @default(SERVICE)
-  unitCost    Decimal?     @db.Decimal(10, 2)
-  unitPrice   Decimal      @default(0) @db.Decimal(10, 2)
+  id                   String               @id @default(cuid())
+  companyId            String
+  company              Company              @relation(fields: [companyId], references: [id])
+  name                 String
+  description          String?
+  type                 WorkItemType         @default(SERVICE)
+  unitCost             Decimal?             @db.Decimal(10, 2)
+  unitPrice            Decimal              @default(0) @db.Decimal(10, 2)
   // How the price reads on client-facing surfaces (booking form)
-  priceDisplay PriceDisplay @default(FIXED)
+  priceDisplay         PriceDisplay         @default(FIXED)
   // Preset deposit for this service. Snapshots onto quotes built from the price
   // book (summed across services) and drives the deposit invoice on approval.
   // NONE = fall back to the company default. FULL = whole line due upfront.
-  depositType  DepositType @default(NONE)
-  depositValue Decimal?    @db.Decimal(10, 2) // percent (0-100) or fixed dollars
+  depositType          DepositType          @default(NONE)
+  depositValue         Decimal?             @db.Decimal(10, 2) // percent (0-100) or fixed dollars
   // How long this service takes on site — feeds the online-booking slot
   // engine. null = not offerable for self-scheduling.
-  durationMinutes Int?
+  durationMinutes      Int?
   // Recurring/subscription settings. null interval = one-time service.
   recurringInterval    RecurringInterval?
   recurringCreatesJob  Boolean              @default(false) // also spin up a job each cycle (visit-based work)
@@ -1937,20 +2062,21 @@ model WorkItem {
   // Quotes containing this service can't convert to a job until a linked
   // agreement is signed (flag snapshots onto QuoteLineItem at pick time).
   // Set automatically whenever an agreement template is attached.
-  requiresAgreement Boolean @default(false)
+  requiresAgreement    Boolean              @default(false)
   // Task list for this service (Json string[]). Jobs whose line items include
   // this service materialize these as JobChecklistItems, which must each be
   // checked off (or given a skip reason) before the job can be closed out.
-  checklist Json?
+  checklist            Json?
   // Optional agreement that auto-sends with quotes for this service
-  agreementTemplateId String?
-  agreementTemplate   ContractTemplate? @relation(fields: [agreementTemplateId], references: [id])
-  agreementTiming     AgreementTiming   @default(ON_APPROVAL)
-  isActive    Boolean      @default(true)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  agreementTemplateId  String?
+  agreementTemplate    ContractTemplate?    @relation(fields: [agreementTemplateId], references: [id])
+  agreementTiming      AgreementTiming      @default(ON_APPROVAL)
+  isActive             Boolean              @default(true)
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
 
-  subscriptions Subscription[]
+  subscriptions       Subscription[]
+  bookingTypeServices BookingTypeService[]
 
   @@index([companyId])
   @@index([companyId, name])
@@ -1970,50 +2096,50 @@ enum SubscriptionStatus {
 // generates the next invoice (and optionally a job). Snapshots name/price so it
 // survives price-book edits/deletes.
 model Subscription {
-  id          String             @id @default(cuid())
-  companyId   String
-  company     Company            @relation(fields: [companyId], references: [id])
-  contactId   String
-  contact     Contact            @relation(fields: [contactId], references: [id])
-  workItemId  String?
-  workItem    WorkItem?          @relation(fields: [workItemId], references: [id])
-  name        String
-  description String?
-  unitPrice   Decimal            @db.Decimal(10, 2)
-  quantity    Decimal            @default(1) @db.Decimal(10, 3)
+  id                 String               @id @default(cuid())
+  companyId          String
+  company            Company              @relation(fields: [companyId], references: [id])
+  contactId          String
+  contact            Contact              @relation(fields: [contactId], references: [id])
+  workItemId         String?
+  workItem           WorkItem?            @relation(fields: [workItemId], references: [id])
+  name               String
+  description        String?
+  unitPrice          Decimal              @db.Decimal(10, 2)
+  quantity           Decimal              @default(1) @db.Decimal(10, 3)
   // BILLING cadence — null = a standalone recurring-job series ("mow every
   // 2 weeks") that schedules visits via the series below but never bills
-  interval    RecurringInterval?
+  interval           RecurringInterval?
   // Bill after each completed visit instead of on a calendar schedule:
   // completing one of this series' visit jobs mints an invoice for
   // unitPrice × quantity (sent/charged or drafted per invoiceMode). Mutually
   // exclusive with `interval` — a series bills on a schedule, per visit, or
   // not at all.
-  billPerVisit Boolean           @default(false)
+  billPerVisit       Boolean              @default(false)
   // Per-visit pricing, but ONE invoice a month instead of one per visit:
   // completed visits accumulate and runMonthlyConsolidations bills them all
   // on nextRunDate (the 1st, advancing monthly) as a single invoice with a
   // dated line per visit. Only meaningful with billPerVisit.
-  consolidateMonthly Boolean     @default(false)
-  createsJob  Boolean            @default(false)
-  invoiceMode RecurringInvoiceMode @default(SEND)
-  status      SubscriptionStatus @default(ACTIVE)
+  consolidateMonthly Boolean              @default(false)
+  createsJob         Boolean              @default(false)
+  invoiceMode        RecurringInvoiceMode @default(SEND)
+  status             SubscriptionStatus   @default(ACTIVE)
   // date-only, noon-anchored; the engine bills when due (null = never bills)
-  nextRunDate DateTime?
+  nextRunDate        DateTime?
   // Stripe-style billing anchor: the day the plan's FIRST payment succeeded.
   // Set once by recordPayment, which re-points nextRunDate so every later
   // cycle lands on this day-of-month (clamped for short months). Null until
   // the first payment lands (or forever, for pre-anchor legacy plans).
-  anchoredAt  DateTime?
-  lastGeneratedAt DateTime? // guards against double-billing on repeated/overlapping runs
+  anchoredAt         DateTime?
+  lastGeneratedAt    DateTime? // guards against double-billing on repeated/overlapping runs
   // Saved service address generated visits land at (see Job.propertyId)
-  propertyId  String?
-  property    ContactAddress?    @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  propertyId         String?
+  property           ContactAddress?      @relation(fields: [propertyId], references: [id], onDelete: SetNull)
   // Autopay card pinned to this series — null = the contact's default card.
   // Resolution happens at charge time (lib/auto-charge.ts), so a swapped
   // default card takes effect on the next charge without touching the series.
-  savedCardId String?
-  savedCard   SavedCard?         @relation(fields: [savedCardId], references: [id], onDelete: SetNull)
+  savedCardId        String?
+  savedCard          SavedCard?           @relation(fields: [savedCardId], references: [id], onDelete: SetNull)
 
   // ── Visit series (visit cadence decoupled from billing) ─────────────────────
   // "Weekly mows, billed monthly": visitFrequency generates visit jobs on its
@@ -2025,11 +2151,11 @@ model Subscription {
   nextVisitDate        DateTime? // date-only, noon-anchored; next unmaterialized visit
   visitStartMinutes    Int? // minutes from midnight, company TZ; null = "Anytime"
   visitDurationMinutes Int? // visit window length in minutes; null = 60
-  visitAssigneeIds     String[] @default([]) // default team copied onto generated visits
+  visitAssigneeIds     String[]   @default([]) // default team copied onto generated visits
   lastVisitGeneratedAt DateTime?
 
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   invoices Invoice[]
   jobs     Job[]
@@ -2107,9 +2233,9 @@ model ReviewRequest {
 // Payment → Payment. Refresh tokens roll for ~100 days — a company that
 // goes idle longer than that must reconnect (lastSyncError says so).
 model QuickBooksConnection {
-  id                    String   @id @default(cuid())
-  companyId             String   @unique
-  company               Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  id                    String    @id @default(cuid())
+  companyId             String    @unique
+  company               Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
   realmId               String
   accessTokenEnc        String
   refreshTokenEnc       String
@@ -2117,7 +2243,7 @@ model QuickBooksConnection {
   refreshTokenExpiresAt DateTime
   // Push invoices/payments as they happen + nightly cron sweep. Off = only
   // the manual "Sync now" button moves data.
-  autoSync              Boolean  @default(true)
+  autoSync              Boolean   @default(true)
   qboCompanyName        String? // CompanyInfo display name, shown in settings
   // Lazily resolved on first sync: the generic Service item our invoice lines
   // bill against ("Streamflaire Services") and the income account behind it.
@@ -2132,8 +2258,8 @@ model QuickBooksConnection {
   paymentAccountId      String?
   lastSyncAt            DateTime?
   lastSyncError         String? // most recent connection-level failure; null = healthy
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
   syncRecords QuickBooksSyncRecord[]
 }
@@ -2207,15 +2333,15 @@ enum ApplicationStatus {
 // Public /apply form submissions, reviewed at /superadmin/applications.
 // Approving one mints an InviteCode and emails it to the applicant.
 model AccessApplication {
-  id          String            @id @default(cuid())
-  name        String
-  email       String
-  phone       String?
-  companyName String
-  industry    String?
-  teamSize    String?
-  website     String?
-  message     String?
+  id              String            @id @default(cuid())
+  name            String
+  email           String
+  phone           String?
+  companyName     String
+  industry        String?
+  teamSize        String?
+  website         String?
+  message         String?
   // Payment-intent screening (2026-07): every company must pass Finix
   // underwriting, so the application asks up front whether they're a real
   // business that will actually run card volume.
@@ -2225,9 +2351,9 @@ model AccessApplication {
   monthlyVolume   String? // monthly invoicing range — our revenue forecast
   yearsInBusiness String?
   entityType      String? // LLC/corp vs sole prop vs not registered
-  status      ApplicationStatus @default(PENDING)
-  decidedAt   DateTime?
-  createdAt   DateTime          @default(now())
+  status          ApplicationStatus @default(PENDING)
+  decidedAt       DateTime?
+  createdAt       DateTime          @default(now())
 
   // The company opened by the self-serve onboarding flow (null on legacy
   // invite-code applications). While the application is PENDING the company

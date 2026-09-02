@@ -24,6 +24,9 @@ type Member = {
   bookable: boolean;
   /** Per-member weekly hours; null = works the company's business hours. */
   workingHours: BusinessHours | null;
+  /** Online scheduling: personal video room + where the day starts */
+  meetingLink: string | null;
+  startAddress: string | null;
   hourlyCost: number | null;
   createdAt: string;
 };
@@ -77,6 +80,7 @@ export default function TeamClient({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [resetFor, setResetFor] = useState<string | null>(null);
+  const [extraDraft, setExtraDraft] = useState({ meetingLink: "", startAddress: "" });
   const [resetPassword, setResetPassword] = useState("");
   // Working-hours editor: which member's panel is open + their draft week
   const [hoursFor, setHoursFor] = useState<string | null>(null);
@@ -313,6 +317,7 @@ export default function TeamClient({
                     setResetFor(null);
                     setHoursCustom(m.workingHours != null);
                     setHoursDraft(m.workingHours ?? companyHours);
+                    setExtraDraft({ meetingLink: m.meetingLink ?? "", startAddress: m.startAddress ?? "" });
                   }}
                   className={`p-1.5 rounded-full hover:bg-gray-100 active:bg-gray-100 ${
                     m.workingHours ? "text-green-600" : "text-gray-400 hover:text-gray-700"
@@ -394,10 +399,40 @@ export default function TeamClient({
                   Working hours feed Find a Time suggestions, online booking availability, and
                   the route optimizer&apos;s day start.
                 </p>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <label className="block">
+                    <span className="mb-1 block text-xs font-medium text-gray-500">Video meeting link</span>
+                    <input
+                      type="url"
+                      value={extraDraft.meetingLink}
+                      onChange={(e) => setExtraDraft({ ...extraDraft, meetingLink: e.target.value })}
+                      placeholder="https://meet.google.com/…"
+                      className="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                    />
+                    <span className="mt-1 block text-[11px] text-gray-400">Sent with video-call bookings assigned to {m.name.split(" ")[0]}.</span>
+                  </label>
+                  <label className="block">
+                    <span className="mb-1 block text-xs font-medium text-gray-500">Starts the day from</span>
+                    <input
+                      type="text"
+                      value={extraDraft.startAddress}
+                      onChange={(e) => setExtraDraft({ ...extraDraft, startAddress: e.target.value })}
+                      placeholder="Leave blank for the shop"
+                      className="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                    />
+                    <span className="mt-1 block text-[11px] text-gray-400">The first drive of the day is measured from here.</span>
+                  </label>
+                </div>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={async () => {
-                      if (await patchMember(m.id, { workingHours: hoursCustom ? hoursDraft : null }))
+                      if (
+                        await patchMember(m.id, {
+                          workingHours: hoursCustom ? hoursDraft : null,
+                          meetingLink: extraDraft.meetingLink.trim() || null,
+                          startAddress: extraDraft.startAddress.trim() || null,
+                        })
+                      )
                         setHoursFor(null);
                     }}
                     disabled={busy}

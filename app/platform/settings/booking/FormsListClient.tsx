@@ -59,12 +59,15 @@ export default function FormsListClient({
   baseUrl,
   forms,
   schedulingCard,
+  typesList,
   previewMode = false,
 }: {
   companySlug: string;
   baseUrl: string;
   forms: FormRow[];
   schedulingCard?: React.ReactNode;
+  /** Booking types section (rendered above the forms) */
+  typesList?: React.ReactNode;
   /** Pre-approval: form links stay hidden so nothing public can be shared */
   previewMode?: boolean;
 }) {
@@ -185,7 +188,7 @@ export default function FormsListClient({
     <div className="mx-auto max-w-4xl p-4 lg:p-8">
       <div className="flex items-center justify-between gap-3">
         <PageTitle section="forms" icon={Globe}>
-          Forms
+          Online booking
         </PageTitle>
         <button
           onClick={() => setCreating(true)}
@@ -197,8 +200,14 @@ export default function FormsListClient({
         </button>
       </div>
       <p className="mb-5 mt-2 text-sm text-gray-500 lg:mb-6">
-        Public forms for your website — each has its own link and embed code.
+        Booking pages customers schedule themselves on, public forms for your website, and the
+        scheduling rules behind both.
       </p>
+
+      {typesList}
+
+      <h2 className="mb-2 text-[13px] font-semibold uppercase tracking-wide text-gray-500">Forms</h2>
+      <p className="mb-3 text-xs text-gray-500">Public forms for your website — each has its own link and embed code.</p>
 
       {schedulingCard}
 

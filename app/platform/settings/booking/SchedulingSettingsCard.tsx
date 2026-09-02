@@ -22,12 +22,12 @@ const WINDOW_OPTIONS = [
 ];
 
 const DRIVE_LIMIT_OPTIONS = [
-  { value: 0, label: "Off — offer any open time" },
-  { value: 15, label: "Within 15 min drive" },
-  { value: 20, label: "Within 20 min drive" },
-  { value: 30, label: "Within 30 min drive" },
-  { value: 45, label: "Within 45 min drive" },
-  { value: 60, label: "Within 1 hour drive" },
+  { value: 0, label: "No limit — any reachable time" },
+  { value: 15, label: "Up to 15 min out of the way" },
+  { value: 20, label: "Up to 20 min out of the way" },
+  { value: 30, label: "Up to 30 min out of the way" },
+  { value: 45, label: "Up to 45 min out of the way" },
+  { value: 60, label: "Up to 1 hour out of the way" },
 ];
 
 const inputCls =
@@ -177,11 +177,12 @@ export default function SchedulingSettingsCard({
           {/* Drive-time limit */}
           <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t border-gray-100 pt-4">
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-gray-900">Drive-time limit</p>
+              <p className="text-sm font-medium text-gray-900">Max drive to a booked visit</p>
               <p className="text-xs text-gray-500">
-                Only offer days where you&apos;re already working near the client&apos;s address
-                (or near your shop) — keeps online bookings from scattering your routes.
-                Clients enter their address before times show.
+                In-person bookings only ever show times the assigned person can actually reach —
+                the drive from their previous stop and on to the next one has to fit. This caps how
+                far out of the way any one leg may take them (from the shop, or a member&apos;s own
+                start address). Needs the customer&apos;s address before times show.
               </p>
             </div>
             <select

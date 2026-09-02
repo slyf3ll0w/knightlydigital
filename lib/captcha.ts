@@ -43,7 +43,7 @@ function allowedHostnames(): Set<string> {
 }
 
 /** Must match the `action` the widget was rendered with. */
-export type CaptchaAction = "signup" | "login";
+export type CaptchaAction = "signup" | "login" | "booking";
 
 export async function verifyCaptcha(
   token: string | null | undefined,

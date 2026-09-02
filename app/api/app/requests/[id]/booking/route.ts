@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, viaContactScope } from "@/lib/permissions";
 import { sendEmail, bookingConfirmedEmail, bookingDeclinedEmail } from "@/lib/email";
-import { slotLabel } from "@/lib/booking-availability";
+import { slotLabel } from "@/lib/booking-engine";
+import { resolveArrivalWindowMinutes } from "@/lib/arrival-window";
+import { manageUrlFor } from "@/lib/booking-submit";
+import { icsAttachment } from "@/lib/ics";
 import { autoAdvance } from "@/lib/pipeline";
 
 /**
@@ -32,10 +35,11 @@ export async function POST(
   const request = await prisma.request.findFirst({
     where: { id, companyId: actor.companyId, ...viaContactScope(actor) },
     include: {
-      contact: { select: { id: true, firstName: true, email: true } },
+      contact: { select: { id: true, firstName: true, email: true, phone: true } },
       appointments: {
         where: { tentative: true, status: "SCHEDULED" },
         orderBy: { scheduledAt: "asc" },
+        include: { assignedTo: { select: { name: true } } },
       },
       company: {
         select: {
@@ -43,6 +47,7 @@ export async function POST(
           email: true,
           timezone: true,
           arrivalWindowMinutes: true,
+          slug: true,
           brandColor: true,
           documentColor: true,
           brandColorSecondary: true,
@@ -93,15 +98,15 @@ export async function POST(
 
   // Tell the client what was decided (no-op until Resend is configured)
   if (request.contact.email) {
-    const windowLabel = tentative
-      ? slotLabel(
-          request.company.timezone,
-          tentative.scheduledAt,
-          new Date(
-            tentative.scheduledAt.getTime() + request.company.arrivalWindowMinutes * 60000
-          )
-        )
-      : null;
+    // Calls promise the exact time; visits promise the arrival window
+    const exactTime = tentative ? tentative.type !== "IN_PERSON" : false;
+    const windowMinutes = tentative
+      ? exactTime
+        ? 0
+        : resolveArrivalWindowMinutes(tentative.arrivalWindowMinutes, request.company.arrivalWindowMinutes)
+      : 0;
+    const windowEnd = tentative ? new Date(tentative.scheduledAt.getTime() + windowMinutes * 60000) : null;
+    const windowLabel = tentative && windowEnd ? slotLabel(request.company.timezone, tentative.scheduledAt, windowEnd) : null;
     const { subject, html } =
       action === "accept" && windowLabel
         ? bookingConfirmedEmail({
@@ -112,6 +117,13 @@ export async function POST(
             serviceName: request.title,
             windowLabel,
             address: tentative?.address,
+            extras: {
+              exactTime,
+              meetingLink: tentative?.type === "VIDEO_CALL" ? tentative.meetingLink : null,
+              phone: tentative?.type === "PHONE_CALL" ? request.contact.phone : null,
+              withName: tentative?.assignedTo?.name ?? null,
+              manageUrl: manageUrlFor(request.company, tentative?.manageToken ?? null),
+            },
           })
         : bookingDeclinedEmail({
             brand: request.company,
@@ -131,6 +143,20 @@ export async function POST(
         html,
         replyTo: request.company.email || undefined,
         fromName: request.company.name,
+        attachments:
+          action === "accept" && tentative
+            ? [
+                icsAttachment({
+                  uid: `${tentative.id}@workbenchfsm.com`,
+                  start: tentative.scheduledAt,
+                  end: tentative.scheduledEnd ?? new Date(tentative.scheduledAt.getTime() + 30 * 60000),
+                  summary: `${request.title} — ${request.company.name}`,
+                  location: tentative.address ?? tentative.meetingLink ?? null,
+                  organizerName: request.company.name,
+                  organizerEmail: request.company.email,
+                }),
+              ]
+            : undefined,
       });
     }
   }

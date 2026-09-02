@@ -346,11 +346,14 @@ export async function sendEmail({
   fromName,
   companyId,
   pageBackground = "#f3f4f6",
+  attachments,
 }: {
   to: string;
   subject: string;
   html: string;
   replyTo?: string;
+  /** File attachments (base64 content) — .ics calendar invites, PDFs. */
+  attachments?: { filename: string; content: string }[];
   /** Display name shown as the sender (e.g. the tenant company's name). Falls back to EMAIL_FROM. */
   fromName?: string;
   /** Tenant to meter this send against (lib/usage.ts). Omitted → counted as
@@ -419,6 +422,7 @@ ${html}
         html,
         text,
         ...(replyTo ? { reply_to: [replyTo] } : {}),
+        ...(attachments && attachments.length ? { attachments } : {}),
       }),
     });
     if (!res.ok) {
@@ -1373,10 +1377,45 @@ export function quoteLinkEmail({
   return { subject: `Your quote from ${companyName} — #${quoteNumber}`, html };
 }
 
-const windowBlock = (windowLabel: string, address?: string | null) => `
-      ${fieldLabel("Arrival window")}
+const windowBlock = (windowLabel: string, address?: string | null, heading = "Arrival window") => `
+      ${fieldLabel(heading)}
       <p style="margin:0;color:#111827;font-size:18px;font-weight:700;">${esc(windowLabel)}</p>
       ${address ? `<p style="margin:6px 0 0;color:#374151;font-size:14px;">${esc(address)}</p>` : ""}`;
+
+/** Extra rows a booking confirmation may carry: how we'll meet, self-serve links. */
+export type BookingExtras = {
+  /** Calls promise an exact time — the heading reads "When" instead of "Arrival window". */
+  exactTime?: boolean;
+  /** VIDEO_CALL: the join link. */
+  meetingLink?: string | null;
+  /** PHONE_CALL: the number we'll call. */
+  phone?: string | null;
+  /** Who's coming / calling. */
+  withName?: string | null;
+  /** Self-serve reschedule/cancel page (when the booking type allows it). */
+  manageUrl?: string | null;
+  /** "Paid $150.00" / "Deposit of $50.00 paid" line for paid bookings. */
+  paidNote?: string | null;
+};
+
+function bookingExtrasHtml(x: BookingExtras, companyEmail?: string | null): string {
+  const rows: string[] = [];
+  if (x.withName) rows.push(`${fieldLabel("With", 12)}<p style="margin:0;color:#111827;font-size:14px;">${esc(x.withName)}</p>`);
+  if (x.meetingLink)
+    rows.push(
+      `${fieldLabel("Join link", 12)}<p style="margin:0;font-size:14px;"><a href="${esc(x.meetingLink)}" style="color:#0369A1;word-break:break-all;">${esc(x.meetingLink)}</a></p>`
+    );
+  if (x.phone) rows.push(`${fieldLabel("We'll call you at", 12)}<p style="margin:0;color:#111827;font-size:14px;">${esc(x.phone)}</p>`);
+  if (x.paidNote) rows.push(`<p style="margin:14px 0 0;color:#15803D;font-size:14px;font-weight:600;">${esc(x.paidNote)}</p>`);
+  if (x.manageUrl) {
+    rows.push(
+      `<p style="margin:18px 0 0;font-size:13px;"><a href="${esc(x.manageUrl)}" style="color:#0369A1;font-weight:600;">Reschedule or cancel</a></p>`
+    );
+  } else if (companyEmail) {
+    rows.push(`<p style="margin:16px 0 0;color:#6b7280;font-size:13px;">Need to change the time? Reply to this email and we'll sort it out.</p>`);
+  }
+  return rows.join("");
+}
 
 /** To the client right after they self-schedule: received, awaiting confirmation. */
 export function bookingReceivedEmail({
@@ -1386,6 +1425,7 @@ export function bookingReceivedEmail({
   serviceName,
   windowLabel,
   address,
+  extras = {},
 }: {
   brand: EmailBrand;
   companyName: string;
@@ -1393,6 +1433,7 @@ export function bookingReceivedEmail({
   serviceName: string;
   windowLabel: string;
   address?: string | null;
+  extras?: BookingExtras;
 }): { subject: string; html: string } {
   const html = clientShell({
     brand,
@@ -1404,12 +1445,13 @@ export function bookingReceivedEmail({
         Your requested time is penciled in — we'll confirm it shortly and you'll get
         another email when it's locked in.
       </p>
-      ${windowBlock(windowLabel, address)}`,
+      ${windowBlock(windowLabel, address, extras.exactTime ? "When" : "Arrival window")}
+      ${bookingExtrasHtml({ ...extras, manageUrl: null }, null)}`,
   });
   return { subject: `Booking received — ${serviceName} with ${companyName}`, html };
 }
 
-/** To the client when the business hits Accept and Schedule. */
+/** To the client when a booking is confirmed — instantly, or on Accept and Schedule. */
 export function bookingConfirmedEmail({
   brand,
   companyName,
@@ -1418,6 +1460,7 @@ export function bookingConfirmedEmail({
   serviceName,
   windowLabel,
   address,
+  extras = {},
 }: {
   brand: EmailBrand;
   companyName: string;
@@ -1426,6 +1469,7 @@ export function bookingConfirmedEmail({
   serviceName: string;
   windowLabel: string;
   address?: string | null;
+  extras?: BookingExtras;
 }): { subject: string; html: string } {
   const html = clientShell({
     brand,
@@ -1435,12 +1479,83 @@ export function bookingConfirmedEmail({
     inner: `<p style="margin:0 0 12px;color:#111827;font-size:15px;">Hi ${esc(contactFirstName)},</p>
       <p style="margin:0;color:#374151;font-size:14px;">
         Good news — your <strong>${esc(serviceName)}</strong> booking with
-        ${esc(companyName)} is confirmed. We'll see you then!
+        ${esc(companyName)} is confirmed. ${extras.exactTime ? "Talk soon!" : "We'll see you then!"}
       </p>
-      ${windowBlock(windowLabel, address)}
-      ${companyEmail ? `<p style="margin:16px 0 0;color:#6b7280;font-size:13px;">Need to change the time? Reply to this email and we'll sort it out.</p>` : ""}`,
+      ${windowBlock(windowLabel, address, extras.exactTime ? "When" : "Arrival window")}
+      ${bookingExtrasHtml(extras, companyEmail)}`,
   });
   return { subject: `Confirmed: ${serviceName} — ${windowLabel}`, html };
+}
+
+/** To the client after they move their own booking (self-serve reschedule). */
+export function bookingRescheduledEmail({
+  brand,
+  companyName,
+  companyEmail,
+  contactFirstName,
+  serviceName,
+  windowLabel,
+  previousLabel,
+  address,
+  extras = {},
+}: {
+  brand: EmailBrand;
+  companyName: string;
+  companyEmail?: string | null;
+  contactFirstName: string;
+  serviceName: string;
+  windowLabel: string;
+  previousLabel: string | null;
+  address?: string | null;
+  extras?: BookingExtras;
+}): { subject: string; html: string } {
+  const html = clientShell({
+    brand,
+    companyName,
+    context: "Booking updated",
+    stamp: { text: "RESCHEDULED", ink: DOC_INK.invoice },
+    inner: `<p style="margin:0 0 12px;color:#111827;font-size:15px;">Hi ${esc(contactFirstName)},</p>
+      <p style="margin:0;color:#374151;font-size:14px;">
+        Your <strong>${esc(serviceName)}</strong> with ${esc(companyName)} has moved${previousLabel ? ` from ${esc(previousLabel)}` : ""}.
+      </p>
+      ${windowBlock(windowLabel, address, extras.exactTime ? "New time" : "New arrival window")}
+      ${bookingExtrasHtml(extras, companyEmail)}`,
+  });
+  return { subject: `Rescheduled: ${serviceName} — ${windowLabel}`, html };
+}
+
+/** To the client after they cancel their own booking. */
+export function bookingCancelledEmail({
+  brand,
+  companyName,
+  companyEmail,
+  contactFirstName,
+  serviceName,
+  windowLabel,
+  rebookUrl,
+}: {
+  brand: EmailBrand;
+  companyName: string;
+  companyEmail?: string | null;
+  contactFirstName: string;
+  serviceName: string;
+  windowLabel: string;
+  rebookUrl?: string | null;
+}): { subject: string; html: string } {
+  const html = clientShell({
+    brand,
+    companyName,
+    context: "Booking cancelled",
+    stamp: { text: "CANCELLED", ink: DOC_INK.alert },
+    inner: `<p style="margin:0 0 12px;color:#111827;font-size:15px;">Hi ${esc(contactFirstName)},</p>
+      <p style="margin:0;color:#374151;font-size:14px;">
+        Your <strong>${esc(serviceName)}</strong> with ${esc(companyName)} on
+        <strong>${esc(windowLabel)}</strong> has been cancelled.
+      </p>
+      ${rebookUrl ? accentBtn(rebookUrl, "Book another time", brand) : ""}
+      ${companyEmail ? `<p style="margin:16px 0 0;color:#6b7280;font-size:13px;">Changed your mind? Reply to this email and we'll get you back on the schedule.</p>` : ""}`,
+  });
+  return { subject: `Cancelled: ${serviceName} — ${windowLabel}`, html };
 }
 
 /** To the client when the business declines the booking. */
@@ -1475,6 +1590,48 @@ export function bookingDeclinedEmail({
       </p>`,
   });
   return { subject: `About your ${serviceName} booking with ${companyName}`, html };
+}
+
+/**
+ * To the company inbox when a customer books, moves or cancels online —
+ * the team-side twin of the client emails above.
+ */
+export function bookingTeamNoticeEmail({
+  companyName,
+  event,
+  serviceName,
+  contactName,
+  windowLabel,
+  previousLabel,
+  assigneeName,
+  detailUrl,
+  paidNote,
+}: {
+  companyName: string;
+  event: "booked" | "rescheduled" | "cancelled" | "needs_approval";
+  serviceName: string;
+  contactName: string;
+  windowLabel: string;
+  previousLabel?: string | null;
+  assigneeName?: string | null;
+  detailUrl: string;
+  paidNote?: string | null;
+}): { subject: string; html: string } {
+  const verb =
+    event === "booked" ? "booked" : event === "rescheduled" ? "rescheduled" : event === "cancelled" ? "cancelled" : "requested";
+  const label =
+    event === "needs_approval" ? "Booking to approve" : event === "cancelled" ? "Booking cancelled" : event === "rescheduled" ? "Booking moved" : "New booking";
+  const html = wbShell({
+    label,
+    inner: `<p style="margin:0 0 12px;color:#111827;font-size:15px;"><strong>${esc(contactName)}</strong> ${verb} <strong>${esc(serviceName)}</strong> online.</p>
+      ${windowBlock(windowLabel, null, event === "cancelled" ? "Was" : "When")}
+      ${previousLabel ? `<p style="margin:6px 0 0;color:#6b7280;font-size:13px;">Previously ${esc(previousLabel)}</p>` : ""}
+      ${assigneeName ? `<p style="margin:12px 0 0;color:#374151;font-size:14px;">Assigned to ${esc(assigneeName)}</p>` : ""}
+      ${paidNote ? `<p style="margin:12px 0 0;color:#15803D;font-size:14px;font-weight:600;">${esc(paidNote)}</p>` : ""}
+      ${wbBtn(detailUrl, event === "needs_approval" ? "Accept or decline" : "Open")}`,
+    footNote: `Sent to ${esc(companyName)}`,
+  });
+  return { subject: `${label}: ${serviceName} — ${contactName}, ${windowLabel}`, html };
 }
 
 /** Appointment reminder to the client: the day before, and again about an hour out. */

@@ -21,6 +21,8 @@ export default async function TeamPage() {
         isActive: true,
         bookable: true,
         workingHours: true,
+      meetingLink: true,
+      startAddress: true,
         hourlyCost: true,
         createdAt: true,
       },
@@ -39,6 +41,8 @@ export default async function TeamPage() {
       users={users.map((u) => ({
         ...u,
         workingHours: sanitizeWorkingHoursOrNull(u.workingHours),
+        meetingLink: u.meetingLink,
+        startAddress: u.startAddress,
         hourlyCost: u.hourlyCost != null ? Number(u.hourlyCost) : null,
         createdAt: u.createdAt.toISOString(),
       }))}
