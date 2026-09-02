@@ -11,6 +11,7 @@ import type { ScheduleAppearance } from "../shell";
 import PaymentStep, { type PaymentHandle } from "./PaymentStep";
 import type { FinixConfig } from "@/lib/finix-js";
 import { derivedQuoteDeposit } from "@/lib/statuses";
+import { encodePrefill, type Prefill } from "@/lib/booking-prefill";
 
 /**
  * Public booking page for one booking type — a stepper: services (SERVICE)
@@ -78,6 +79,8 @@ export default function BookingStepper({
   appearance,
   embed = false,
   payment,
+  hostedUrl,
+  prefill,
 }: {
   companySlug: string;
   type: PublicBookingType;
@@ -86,6 +89,10 @@ export default function BookingStepper({
   embed?: boolean;
   /** Card processing for paid service types; finix null = payments not live. */
   payment?: BookingPaymentConfig;
+  /** Absolute URL of the hosted booking page (embeds hand paid bookings off to it). */
+  hostedUrl?: string;
+  /** Selections carried over from an embed handoff (see prefillParam). */
+  prefill?: Prefill | null;
 }) {
   const { dark, accent, transparent } = appearance;
   const Icon = ICON[type.kind];
@@ -106,8 +113,12 @@ export default function BookingStepper({
   const [stepIdx, setStepIdx] = useState(0);
   const step = steps[stepIdx];
 
-  const [services, setServices] = useState<string[]>(type.services.length === 1 ? [type.services[0].id] : []);
-  const [address, setAddress] = useState("");
+  const [services, setServices] = useState<string[]>(
+    prefill?.services?.length ? prefill.services.filter((id) => type.services.some((s) => s.id === id)) : type.services.length === 1 ? [type.services[0].id] : []
+  );
+  const [address, setAddress] = useState(prefill?.address ?? "");
+  // A handed-off slot: selected once the fresh slot list confirms it's still open
+  const [pendingStart, setPendingStart] = useState<string | null>(prefill?.start ?? null);
   const [days, setDays] = useState<SlotDay[] | null>(null);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [outOfArea, setOutOfArea] = useState(false);
@@ -115,7 +126,13 @@ export default function BookingStepper({
   const [activeDay, setActiveDay] = useState("");
   const [slot, setSlot] = useState<SlotDay["slots"][number] | null>(null);
   const [slotsEpoch, setSlotsEpoch] = useState(0);
-  const [form, setForm] = useState({ firstName: "", lastName: "", email: "", phone: "", notes: "" });
+  const [form, setForm] = useState({
+    firstName: prefill?.firstName ?? "",
+    lastName: prefill?.lastName ?? "",
+    email: prefill?.email ?? "",
+    phone: prefill?.phone ?? "",
+    notes: prefill?.notes ?? "",
+  });
   const [captchaToken, setCaptchaToken] = useState("");
   const [honeypot, setHoneypot] = useState("");
   const [startedAt] = useState(() => Date.now());
@@ -130,6 +147,11 @@ export default function BookingStepper({
   const total = picked.reduce((sum, s) => sum + s.price, 0);
   const allFixed = picked.length > 0 && picked.every((s) => s.priceDisplay === "FIXED");
   const paying = type.paymentMode !== "NONE" && allFixed && Boolean(payment?.finix);
+  // finix.js won't mount inside a third-party iframe — embeds send paid
+  // bookings to the hosted page (new tab) with everything prefilled.
+  const handoff = embed && paying && Boolean(hostedUrl);
+  const handoffUrl = () =>
+    `${hostedUrl}?prefill=${encodePrefill({ services, address, start: slot?.start, firstName: form.firstName, lastName: form.lastName, email: form.email, phone: form.phone, notes: form.notes })}`;
   const depositAmount =
     type.paymentMode === "DEPOSIT" && payment
       ? derivedQuoteDeposit(
@@ -171,6 +193,17 @@ export default function BookingStepper({
         const d: SlotDay[] = Array.isArray(data.days) ? data.days : [];
         setDays(d);
         setSlot((prev) => (prev && d.some((x) => x.slots.some((s) => s.start === prev.start)) ? prev : null));
+        if (pendingStart) {
+          const hit = d.flatMap((x) => x.slots).find((s) => s.start === pendingStart);
+          setPendingStart(null);
+          if (hit) {
+            setSlot(hit);
+            setStepIdx(steps.length - 1);
+          } else {
+            setStepIdx(steps.indexOf("time"));
+            setError("That time was just taken — please pick another.");
+          }
+        }
       } catch {
         if (!cancelled) setDays([]);
       } finally {
@@ -181,6 +214,7 @@ export default function BookingStepper({
       cancelled = true;
       clearTimeout(t);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [companySlug, type.slug, type.kind, type.needsAddress, addressParam, servicesParam, slotsEpoch]);
 
   // Re-group by the chosen timezone (calls) — visits keep company-day grouping + labels
@@ -566,7 +600,13 @@ export default function BookingStepper({
               <label className={label}>Anything we should know?</label>
               <textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={3} className={`${input} resize-none`} />
             </div>
-            {paying && (
+            {handoff && (
+              <div className={`rounded border px-4 py-3 text-sm ${dark ? "border-white/15 text-gray-300" : "border-gray-200 text-gray-700"}`}>
+                <p className="font-semibold">Pay now · ${(type.paymentMode === "FULL" ? total : (depositAmount ?? 0)).toFixed(2)}</p>
+                <p className={`mt-1 text-xs ${muted}`}>Card payment opens in a secure window on {new URL(hostedUrl!).hostname} with everything you've entered here.</p>
+              </div>
+            )}
+            {paying && !handoff && (
               <PaymentStep
                 ref={paymentRef}
                 finix={payment?.finix ?? null}
@@ -583,7 +623,23 @@ export default function BookingStepper({
           </div>
         )}
 
-        {step === "details" ? (
+        {step === "details" && handoff ? (
+          <a
+            href={handoffUrl()}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={primaryBtn}
+            style={{ backgroundColor: accent, color: textOn(accent) }}
+            onClick={(e) => {
+              if (!form.firstName.trim() || !form.lastName.trim() || !form.email.trim()) {
+                e.preventDefault();
+                setError("Enter your name and email first.");
+              }
+            }}
+          >
+            <ExternalLink size={14} /> Continue to secure checkout
+          </a>
+        ) : step === "details" ? (
           <button type="submit" disabled={submitting || (paying && (type.paymentMode === "FULL" || (depositAmount ?? 0) > 0) && !cardReady)} className={primaryBtn} style={{ backgroundColor: accent, color: textOn(accent) }}>
             {submitting && <Loader2 size={14} className="animate-spin" />}
             {paying

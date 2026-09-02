@@ -4,6 +4,7 @@ import { resolvePublicBookingType, toPublicBookingType } from "@/lib/booking-run
 import { resolveScheduleAppearance } from "../shell";
 import ScheduleFrame from "../ScheduleFrame";
 import BookingStepper from "./BookingStepper";
+import { decodePrefill } from "@/lib/booking-prefill";
 import { bookingPaymentConfig } from "@/lib/booking-payment-config";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string; type: string }> }) {
@@ -12,8 +13,15 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 }
 
 /** /book/[slug]/schedule/[type] — the booking page for one type. */
-export default async function ScheduleTypePage({ params }: { params: Promise<{ slug: string; type: string }> }) {
+export default async function ScheduleTypePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string; type: string }>;
+  searchParams: Promise<{ prefill?: string }>;
+}) {
   const { slug, type: typeSlug } = await params;
+  const { prefill } = await searchParams;
   const [resolved, shell] = await Promise.all([resolvePublicBookingType(slug, typeSlug), resolveScheduleAppearance(slug)]);
   if (!resolved || !shell) notFound();
   const { company, type } = resolved;
@@ -27,6 +35,7 @@ export default async function ScheduleTypePage({ params }: { params: Promise<{ s
         company={{ name: company.name, timezone: company.timezone, phone: company.phone, email: company.email, menuHref: `/book/${slug}/schedule` }}
         appearance={shell.appearance}
         payment={payment}
+        prefill={decodePrefill(prefill)}
       />
     </ScheduleFrame>
   );

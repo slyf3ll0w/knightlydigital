@@ -32,6 +32,7 @@ export default async function EmbedScheduleTypePage({ params, searchParams }: { 
         company={{ name: company.name, timezone: company.timezone, phone: company.phone, email: company.email, menuHref: `/embed/${slug}/schedule` }}
         appearance={shell.appearance}
         payment={payment}
+        hostedUrl={`${process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com"}/book/${slug}/schedule/${typeSlug}`}
         embed
       />
     </EmbedScheduleShell>

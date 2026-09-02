@@ -2,8 +2,8 @@
 
 > **[BUILT 2026-09-02]** Phases A–C shipped in three commits (types + calls, per-member
 > day start, services + pay-at-booking + form migration + old engine retired).
-> Owed: prod verification, the migration script run (), and the
-> nested-iframe finix.js check for embeds (decision 5).
+> Migration applied to prod 2026-09-02 (34 types / 14 companies; Knight Detail + demo
+> forms converted). e2e online-booking.spec 10/10 vs prod. Embed finix check done — see §9.5.
 
 Design written 2026-09-02 after a full read of the existing booking build, the
 Route Manager, the payments layer, and a market pass over Calendly, Jobber,
@@ -501,9 +501,11 @@ its embed decision.
 2. Self-serve reschedule/cancel: **calls only**; in-person and paid stay request-only.
 3. `MAPBOX_TOKEN` **is set** in production.
 4. **Nothing gated** behind Workbench Plus.
-5. Embed payment: **inline by default** (hosted fields keep PCI scope unchanged);
-   verify nested-iframe tokenization in sandbox during Phase C and fall back to
-   the new-tab handoff automatically only if that test fails.
+5. Embed payment: **inline by default** — VERIFIED 2026-09-02 that finix.js refuses to
+   mount inside an iframe on a non-allowlisted origin ("Finix.PaymentForm() - Cannot be
+   run in an iframe: embedding origin not allowed"), so embeds hand paid bookings to
+   the hosted page in a new tab with every selection prefilled (`lib/booking-prefill.ts`).
+   Hosted pages take the card inline.
 6. Per-member start address: **include**.
 7. Delivery: **Phases A through C without stopping**, committed per phase,
    deployed at the end.
