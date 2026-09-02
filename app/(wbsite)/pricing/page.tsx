@@ -33,9 +33,10 @@ const pricingFaq = [
     a: (
       <p>
         No. The essentials — clients, scheduling, quotes, invoices, payments,
-        the client portal, team chat, Atlas — are free permanently. If we
-        ever ship a paid add-on, it will be genuinely additive; nothing you
-        rely on today gets taken away or metered.
+        the client portal, team chat — are free permanently. Nothing you rely
+        on today gets taken away or metered. Atlas, the AI assistant, is the
+        one exception: it comes with free trial tokens, then runs on its own
+        usage-based plan, because AI usage costs real money to provide.
       </p>
     ),
   },
@@ -166,15 +167,16 @@ export default function WBPricingPage() {
             <p className="text-[15.5px] leading-relaxed text-gray-600">
               Everything a service business needs to run — clients,
               scheduling, quotes, invoices, payments, the client portal, team
-              chat, Atlas — is in the free plan, and that&apos;s permanent.
-              We will never move an essential feature behind a paywall.
+              chat — is in the free plan, and that&apos;s permanent. We will
+              never move an essential feature behind a paywall.
             </p>
             <p className="mt-4 text-[15.5px] leading-relaxed text-gray-600">
-              Down the road, WorkBench will likely offer a{" "}
-              <span className="font-bold text-gray-900">paid add-on tier</span>{" "}
-              for power extras beyond the essentials. If we do, it will be
-              exactly that — an add-on. Nothing you rely on today gets taken
-              away or metered. The free plan is the product, not the demo.
+              <span className="font-bold text-gray-900">Atlas</span>, the AI
+              assistant, works differently: every account gets free trial
+              tokens to see it do real work, and using it beyond that runs on
+              its own usage-based plan. AI usage has a real cost to us, so
+              it&apos;s priced separately from the free core software instead
+              of quietly built into it.
             </p>
           </AnimateIn>
         </div>

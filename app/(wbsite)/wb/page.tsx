@@ -525,7 +525,8 @@ export default function WBHomePage() {
                   Every WorkBench account comes with Atlas, an AI assistant
                   that works the same tools your team does — with the same
                   permissions and a confirmation before anything goes out the
-                  door.
+                  door. Free trial tokens are included to try it; ongoing use
+                  runs on its own usage-based plan.
                 </p>
               </div>
               <ul className="flex flex-col gap-3">

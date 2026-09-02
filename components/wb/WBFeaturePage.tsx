@@ -30,6 +30,13 @@ export default function WBFeaturePage({
   features,
   faq,
   related,
+  ctaTitle = "All of it, free — for your whole team.",
+  ctaBody = (
+    <>
+      No tiers to climb and no seats to count. Apply, and we&apos;ll onboard
+      your company personally.
+    </>
+  ),
 }: {
   eyebrow: string;
   accent: Accent;
@@ -40,6 +47,8 @@ export default function WBFeaturePage({
   features: FeatureItem[];
   faq: FaqItem[];
   related: { label: string; href: string }[];
+  ctaTitle?: React.ReactNode;
+  ctaBody?: React.ReactNode;
 }) {
   const c = ACCENT[accent];
 
@@ -175,11 +184,10 @@ export default function WBFeaturePage({
             <div className="wb-grid-lines pointer-events-none absolute inset-0" aria-hidden />
             <div className="relative">
               <h2 className="mx-auto max-w-xl text-3xl font-extrabold leading-tight text-white sm:text-4xl">
-                All of it, free — for your whole team.
+                {ctaTitle}
               </h2>
               <p className="mx-auto mt-4 max-w-md text-[15px] leading-relaxed text-blue-100/85">
-                No tiers to climb and no seats to count. Apply, and we&apos;ll
-                onboard your company personally.
+                {ctaBody}
               </p>
               <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
                 <Link

@@ -34,7 +34,7 @@ const rows: CompareRow[] = [
   },
   {
     label: "AI assistant",
-    workbench: "Atlas — a built-in assistant that can schedule, quote, invoice, and message on your behalf, always with a confirmation step, included on the free plan.",
+    workbench: "Atlas — a built-in assistant that can schedule, quote, invoice, and message on your behalf, always with a confirmation step. Free trial tokens included; ongoing use is a separate usage-based plan.",
     competitor: "Has been rolling out AI features; check their current feature list for scope.",
   },
   {
@@ -57,8 +57,8 @@ const differentiators: FeatureItem[] = [
   },
   {
     icon: Bot,
-    title: "Atlas is included, not an upsell",
-    body: "The AI assistant works your scheduling, quotes, invoices, and messages under your account's own permissions, and it's part of the free plan, not a higher tier.",
+    title: "Atlas, priced for what it costs to run",
+    body: "The AI assistant works your scheduling, quotes, invoices, and messages under your account's own permissions. Free trial tokens let you try it for real before paying anything for it.",
   },
   {
     icon: PenLine,

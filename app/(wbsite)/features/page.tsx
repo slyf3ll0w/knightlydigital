@@ -15,7 +15,7 @@ import {
 export const metadata: Metadata = {
   title: "Features — WorkBench",
   description:
-    "Everything in WorkBench, end to end: online booking, lead pipeline, quotes with e-signature, scheduling and dispatch, time tracking, team chat, invoicing, card & ACH payments, recurring billing, a client hub, and the Atlas AI assistant. All of it free.",
+    "Everything in WorkBench, end to end: online booking, lead pipeline, quotes with e-signature, scheduling and dispatch, time tracking, team chat, invoicing, card & ACH payments, recurring billing, and a client hub — all free. Plus Atlas, an AI assistant with free trial tokens.",
 };
 
 // Section id → deep-dive pages worth a link once the reader has seen the
@@ -47,8 +47,9 @@ export default function WBFeaturesPage() {
             <p className="mt-6 max-w-2xl text-[17px] leading-relaxed text-gray-600">
               WorkBench covers the whole arc of a job — winning it, running
               it, getting paid for it, and keeping the client for the next
-              one. Everything on this page is in the free plan, for every
-              seat on your team.
+              one. Sections 01–04 below are in the free plan, for every seat
+              on your team; Atlas, the AI assistant, comes with free trial
+              tokens and its own usage-based plan after that.
             </p>
             <div className="mt-8 flex flex-wrap gap-2.5">
               {sections.map((s) => (
@@ -146,6 +147,10 @@ export default function WBFeaturesPage() {
                     and it confirms with you before anything goes out the
                     door. Ask it to do the busywork in plain English and get
                     your evening back.
+                  </p>
+                  <p className="mt-3 max-w-lg text-[13px] font-semibold text-blue-200/80">
+                    Free trial tokens included. Ongoing use is a separate,
+                    usage-based plan — not part of the $0 core plan.
                   </p>
                 </div>
                 <ul className="flex flex-col gap-3">

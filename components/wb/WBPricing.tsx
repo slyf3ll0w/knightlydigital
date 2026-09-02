@@ -42,7 +42,6 @@ const featureGroups: { label: string; accent: string; items: string[] }[] = [
       "Contracts & e-signatures",
       "Team chat & mobile push",
       "Unlimited users & team roles",
-      "Atlas AI assistant",
       "iPhone app with offline mode",
     ],
   },
@@ -146,6 +145,12 @@ export default function WBPricing() {
           Funded by built-in payment processing: 2.9% + 30¢ per card
           transaction, 0.75% per ACH bank transfer. No monthly fees, no
           minimums, no charge on failed payments.
+        </p>
+        <p className="mt-3 text-[13px] leading-relaxed text-gray-500">
+          <span className="font-bold text-gray-700">Atlas, the AI assistant,</span>{" "}
+          isn&apos;t part of this plan — every account gets free trial tokens
+          to try it, and ongoing use runs on its own usage-based plan since AI
+          usage has a real cost.
         </p>
       </div>
     </div>

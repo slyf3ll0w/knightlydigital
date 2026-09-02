@@ -7,7 +7,7 @@ import type { FeatureItem } from "@/lib/wb-features";
 export const metadata: Metadata = {
   title: "Atlas AI Assistant — WorkBench",
   description:
-    "Atlas is WorkBench's built-in AI assistant. It works the same scheduling, quotes, invoices, and messages your team does, with the same permissions, and confirms with you before anything goes out the door.",
+    "Atlas is WorkBench's built-in AI assistant. It works the same scheduling, quotes, invoices, and messages your team does, with the same permissions, and confirms with you before anything goes out the door. Free trial tokens included; ongoing use runs on its own usage-based plan.",
 };
 
 const atlasFeatures: FeatureItem[] = [
@@ -28,8 +28,8 @@ const atlasFeatures: FeatureItem[] = [
   },
   {
     icon: Compass,
-    title: "Included on every plan",
-    body: "Atlas isn't a paid add-on or a limited trial — it's part of the free WorkBench plan, for every seat on your team.",
+    title: "Free trial tokens, then a usage-based plan",
+    body: "Every account gets free trial tokens to see Atlas do real work. Beyond that, it runs on its own metered plan — AI usage costs real money, so it's priced separately from the free core software instead of buried in it.",
   },
 ];
 
@@ -66,14 +66,28 @@ const faq = [
     ),
   },
   {
-    q: "Is Atlas an extra cost?",
+    q: "Is Atlas free?",
     a: (
       <p>
-        No — it's part of the free plan, same as everything else on{" "}
+        Every account gets free trial tokens to try it — enough to see Atlas
+        do real work. Beyond the trial, Atlas runs on its own usage-based
+        plan, separate from the free core software on{" "}
         <Link href="/features" className="font-semibold text-[#0B57D8] hover:underline">
           the features page
         </Link>
-        .
+        . AI usage has a real cost, so it's priced on its own rather than
+        folded quietly into the free plan.
+      </p>
+    ),
+  },
+  {
+    q: "How does Atlas pricing work?",
+    a: (
+      <p>
+        Atlas usage is metered — heavier requests (like a bulk edit across
+        many records) cost more than a quick lookup. Every account starts
+        with free trial tokens; once those run out, continued use is billed
+        on Atlas's own plan rather than through the free WorkBench plan.
       </p>
     ),
   },
@@ -117,6 +131,14 @@ export default function AtlasPage() {
         { label: "Scheduling & dispatch", href: "/features/scheduling-dispatch" },
         { label: "See every feature", href: "/features" },
       ]}
+      ctaTitle="Free trial tokens, then a plan that scales with you."
+      ctaBody={
+        <>
+          The core WorkBench software is free for your whole team. Atlas
+          comes with free trial tokens to start, then its own usage-based
+          plan.
+        </>
+      }
     />
   );
 }

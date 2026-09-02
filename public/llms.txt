@@ -4,16 +4,19 @@
 > (plumbing, HVAC, electrical, cleaning, lawn care, and similar trades). It
 > covers the whole job lifecycle — online booking, lead pipeline, quotes with
 > e-signature, scheduling and dispatch, time tracking, team chat, one-click
-> invoicing, built-in card/ACH payments, recurring billing, a client portal,
-> and Atlas, a built-in AI assistant. Every feature is free for unlimited
-> users; WorkBench is funded by a flat processing fee (2.9% + 30¢ per card
-> transaction, 0.75% per ACH transfer) only when a client pays through it —
-> no monthly fees, no minimums, no paywalled tiers. A native iPhone app is
-> on the App Store; the web app runs on any device. Access is invite-only:
-> a short application and a standard payment-verification (KYC) form, then
-> a person reviews and onboards each company personally, usually within a
-> business day. Built by Streamflaire, based in the Dallas–Fort Worth, TX
-> area.
+> invoicing, built-in card/ACH payments, recurring billing, and a client
+> portal. That core software is free for unlimited users; WorkBench is
+> funded by a flat processing fee (2.9% + 30¢ per card transaction, 0.75%
+> per ACH transfer) only when a client pays through it — no monthly fees, no
+> minimums, no paywalled tiers. WorkBench also includes Atlas, a built-in AI
+> assistant — Atlas is NOT part of the free plan: every account gets free
+> trial tokens to try it, and ongoing use is billed on its own usage-based
+> plan, separate from the free core software, because AI usage has a real
+> cost. A native iPhone app is on the App Store; the web app runs on any
+> device. Access is invite-only: a short application and a standard
+> payment-verification (KYC) form, then a person reviews and onboards each
+> company personally, usually within a business day. Built by Streamflaire,
+> based in the Dallas–Fort Worth, TX area.
 
 ## Product
 
@@ -30,7 +33,7 @@
 - [Quotes & invoicing](https://workbenchfsm.com/features/quotes-and-invoicing): E-signature quotes, deposits, follow-ups, one-click invoicing, the shared price book.
 - [Client portal](https://workbenchfsm.com/features/client-portal): The magic-link client hub — messaging, agreements, notifications, review requests.
 - [Time tracking](https://workbenchfsm.com/features/time-tracking): Clock-in/out, timesheets, the team map, and labor cost flowing into job profitability.
-- [Atlas AI assistant](https://workbenchfsm.com/features/atlas): What Atlas does, its permission model, and example commands.
+- [Atlas AI assistant](https://workbenchfsm.com/features/atlas): What Atlas does, its permission model, and its pricing (free trial tokens, then its own usage-based plan — not part of the free core plan).
 
 ## Comparisons
 
