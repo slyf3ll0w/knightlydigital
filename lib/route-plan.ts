@@ -41,11 +41,21 @@ export type RouteStop = {
   lng: number | null;
 };
 
+export type RoutePin = { lat: number; lng: number; label: string };
+
 export type RouteDay = {
   enabled: boolean;
-  start: { lat: number; lng: number; label: string } | null;
+  /** The shop — where a day starts unless the member set their own start address. */
+  start: RoutePin | null;
+  /** Members who start the day somewhere else (User.startAddress), by user id. */
+  memberStarts: Record<string, RoutePin>;
   stops: RouteStop[];
 };
+
+/** Where this member's day begins: their own start address, else the shop. */
+export function dayStartFor(day: Pick<RouteDay, "start" | "memberStarts">, userId: string | null | undefined): RoutePin | null {
+  return (userId && day.memberStarts[userId]) || day.start;
+}
 
 export type RouteDrive = {
   /** legs[userId][stopId] = drive minutes into that stop from the previous
@@ -66,14 +76,24 @@ export async function resolveDriveLegs(day: RouteDay, companyId: string): Promis
   const located = day.stops.filter((s) => s.lat != null && s.lng != null);
   if (!located.length) return drive;
 
+  // One matrix over every start pin (shop + members' own) and every located
+  // stop — points dedupe through the matrix cache, so this is one call.
+  const starts = new Map<string, { lat: number; lng: number }>();
+  if (day.start) starts.set("shop", { lat: day.start.lat, lng: day.start.lng });
+  for (const [uid, pin] of Object.entries(day.memberStarts)) starts.set(uid, { lat: pin.lat, lng: pin.lng });
+  const startKeys = [...starts.keys()];
   const points = [
-    ...(day.start ? [{ lat: day.start.lat, lng: day.start.lng }] : []),
+    ...startKeys.map((k) => starts.get(k)!),
     ...located.map((s) => ({ lat: s.lat!, lng: s.lng! })),
   ];
   if (points.length < 2) return drive;
-  const offset = day.start ? 1 : 0;
+  const offset = startKeys.length;
   const matrix = await driveTimeMatrix(points, companyId);
   const indexOf = new Map(located.map((s, i) => [s.id, i + offset]));
+  const startIndex = (userId: string): number | null => {
+    const key = day.memberStarts[userId] ? userId : day.start ? "shop" : null;
+    return key == null ? null : startKeys.indexOf(key);
+  };
 
   const userIds = new Set(located.flatMap((s) => s.assigneeIds));
   for (const userId of userIds) {
@@ -83,7 +103,7 @@ export async function resolveDriveLegs(day: RouteDay, companyId: string): Promis
     if (!route.length) continue;
     const legs: Record<string, number> = {};
     let total = 0;
-    let prev = day.start ? 0 : null; // matrix index of the previous point
+    let prev = startIndex(userId); // matrix index of the previous point
     for (const stop of route) {
       const here = indexOf.get(stop.id)!;
       if (prev != null) {
@@ -264,5 +284,16 @@ export async function resolveRouteDay(actor: Actor, date: Date): Promise<RouteDa
     if (lat != null && lng != null) start = { lat, lng, label: company.name };
   }
 
-  return { enabled: geocodingEnabled(), start, stops };
+  // Members with their own start address (Team page) — geocoded on save;
+  // anyone still pending falls back to the shop.
+  const memberStarts: Record<string, RoutePin> = {};
+  const starters = await prisma.user.findMany({
+    where: { companyId: actor.companyId, isActive: true, startLat: { not: null }, startLng: { not: null } },
+    select: { id: true, name: true, startLat: true, startLng: true, startAddress: true },
+  });
+  for (const u of starters) {
+    memberStarts[u.id] = { lat: u.startLat!, lng: u.startLng!, label: u.startAddress ? `${u.name} — ${u.startAddress}` : u.name };
+  }
+
+  return { enabled: geocodingEnabled(), start, memberStarts, stops };
 }

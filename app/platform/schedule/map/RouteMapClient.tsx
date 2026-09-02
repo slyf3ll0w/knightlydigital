@@ -74,6 +74,8 @@ type UnscheduledJob = {
 type RouteDay = {
   enabled: boolean;
   start: { lat: number; lng: number; label: string } | null;
+  /** Members with their own start address, by user id (see lib/route-plan.ts) */
+  memberStarts?: Record<string, { lat: number; lng: number; label: string }>;
   stops: RouteStop[];
   /** legs[userId][stopId] = drive minutes into that stop; totals[userId] = whole route. */
   drive?: {
@@ -318,21 +320,23 @@ export default function RouteMapClient({
       layerRef.current = layer;
       const points: [number, number][] = [];
 
-      if (data.start) {
+      const startPin = (team && data.memberStarts && data.memberStarts[team]) || data.start;
+      if (startPin) {
         const icon = L.divIcon({
           html: `<div class="route-pin route-pin-start"><span>HQ</span></div>`,
           className: "",
           iconSize: [28, 28],
           iconAnchor: [14, 14],
         });
-        L.marker([data.start.lat, data.start.lng], { icon })
+        L.marker([startPin.lat, startPin.lng], { icon })
           .addTo(layer)
-          .bindPopup(`<strong>${data.start.label}</strong><br/>Start of the day`);
-        points.push([data.start.lat, data.start.lng]);
+          .bindPopup(`<strong>${startPin.label}</strong><br/>Start of the day`);
+        points.push([startPin.lat, startPin.lng]);
       }
 
       for (const g of groups) {
-        const path: [number, number][] = data.start ? [[data.start.lat, data.start.lng]] : [];
+        const gStart = (data.memberStarts && data.memberStarts[g.userId]) || data.start;
+        const path: [number, number][] = gStart ? [[gStart.lat, gStart.lng]] : [];
         g.stops.forEach((s, i) => {
           if (s.lat == null || s.lng == null) return;
           points.push([s.lat, s.lng]);

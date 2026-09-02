@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
-import { parseRouteDate, resolveRouteDay } from "@/lib/route-plan";
+import { parseRouteDate, resolveRouteDay, dayStartFor } from "@/lib/route-plan";
 import { driveTimeMatrix, roundGapMinutes, routeMinutes, solveStopOrder } from "@/lib/routing";
 import { DEFAULT_JOB_DURATION_MINUTES } from "@/lib/scheduling";
 import {
@@ -90,10 +90,12 @@ export async function POST(req: NextRequest) {
     (a, b) => new Date(a.scheduledAt ?? 0).getTime() - new Date(b.scheduledAt ?? 0).getTime()
   );
 
-  // Matrix points: shop first when we know it (index 0), stops after
-  const hasStart = day.start != null;
+  // Matrix points: the day start first when we know it (the shop, or this
+  // tech's own start address — index 0), stops after
+  const routeStart = dayStartFor(day, userId);
+  const hasStart = routeStart != null;
   const points = [
-    ...(hasStart ? [{ lat: day.start!.lat, lng: day.start!.lng }] : []),
+    ...(hasStart ? [{ lat: routeStart!.lat, lng: routeStart!.lng }] : []),
     ...current.map((s) => ({ lat: s.lat!, lng: s.lng! })),
   ];
   const offset = hasStart ? 1 : 0;

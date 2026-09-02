@@ -19,7 +19,7 @@
 import { prisma } from "@/lib/db";
 import { geocodeAddress } from "@/lib/geocoding";
 import { driveTimeMatrix } from "@/lib/routing";
-import { resolveRouteDay } from "@/lib/route-plan";
+import { dayStartFor, resolveRouteDay } from "@/lib/route-plan";
 import type { Actor } from "@/lib/permissions";
 import {
   sanitizeBusinessHours,
@@ -122,16 +122,18 @@ export async function suggestTimes(
     ? await geocodeAddress(opts.address, actor.companyId)
     : null;
 
-  // One matrix over HQ + the day's located stops + the new visit.
+  // One matrix over the day start (HQ, or the tech's own start address) +
+  // the day's located stops + the new visit.
+  const dayStart = dayStartFor(day, opts.userId);
   const located = stops.filter((s) => s.lat != null && s.lng != null);
   const points = [
-    ...(day.start ? [{ lat: day.start.lat, lng: day.start.lng }] : []),
+    ...(dayStart ? [{ lat: dayStart.lat, lng: dayStart.lng }] : []),
     ...located.map((s) => ({ lat: s.lat!, lng: s.lng! })),
     ...(target ? [target] : []),
   ];
   const matrix = target && points.length >= 2 ? await driveTimeMatrix(points, actor.companyId) : null;
-  const hqIdx = day.start ? 0 : -1;
-  const offset = day.start ? 1 : 0;
+  const hqIdx = dayStart ? 0 : -1;
+  const offset = dayStart ? 1 : 0;
   const targetIdx = target ? points.length - 1 : -1;
   const stopIdx = new Map(located.map((s, i) => [s.id, i + offset]));
 
@@ -178,7 +180,7 @@ export async function suggestTimes(
       const prev = [...stops].reverse().find((s) => s.endMs <= startMs) ?? null;
       const next = stops.find((s) => s.startMs >= endMs) ?? null;
 
-      const driveFromPrev = legMinutes(prev ? prev.id : day.start ? "hq" : null, null);
+      const driveFromPrev = legMinutes(prev ? prev.id : dayStart ? "hq" : null, null);
       const driveToNext = next ? legMinutes(null, next.id) : null;
 
       // Feasibility: the gap must absorb the drive on both sides. The first
@@ -196,7 +198,7 @@ export async function suggestTimes(
         gapKey,
         driveFromPrev,
         driveToNext,
-        prevTitle: prev ? prev.title : day.start && driveFromPrev != null ? day.start.label : null,
+        prevTitle: prev ? prev.title : dayStart && driveFromPrev != null ? dayStart.label : null,
         nextTitle: next?.title ?? null,
         totalDriveMinutes:
           driveFromPrev == null && driveToNext == null
