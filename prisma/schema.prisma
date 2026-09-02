@@ -115,9 +115,6 @@ model Company {
   // ever — it never refills.
   atlasTrialStartedAt  DateTime?
   atlasTrialTokensUsed Int       @default(0)
-  // DEPRECATED 2026-09-02 (the old turn counter) — kept through one deploy so
-  // the running code's layout select keeps working; dropped in the follow-up.
-  atlasTrialUsed       Int       @default(0)
   // Atlas paid plan (lib/assistant-billing.ts) — NOT LIVE yet: no checkout
   // is wired, the superadmin console grants/revokes it for testing. Same
   // meter as the trial, but monthly: every turn's real Gemini cost
