@@ -4,6 +4,7 @@ import { resolvePublicBookingType, toPublicBookingType } from "@/lib/booking-run
 import { resolveScheduleAppearance } from "../shell";
 import ScheduleFrame from "../ScheduleFrame";
 import BookingStepper from "./BookingStepper";
+import { bookingPaymentConfig } from "@/lib/booking-payment-config";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string; type: string }> }) {
   const { slug } = await params;
@@ -17,6 +18,7 @@ export default async function ScheduleTypePage({ params }: { params: Promise<{ s
   if (!resolved || !shell) notFound();
   const { company, type } = resolved;
   const pub = toPublicBookingType(type, company);
+  const payment = bookingPaymentConfig(type, company);
   return (
     <ScheduleFrame company={company} appearance={shell.appearance} title={pub.name} subtitle={pub.description ?? company.name} wide>
       <BookingStepper
@@ -24,6 +26,7 @@ export default async function ScheduleTypePage({ params }: { params: Promise<{ s
         type={pub}
         company={{ name: company.name, timezone: company.timezone, phone: company.phone, email: company.email, menuHref: `/book/${slug}/schedule` }}
         appearance={shell.appearance}
+        payment={payment}
       />
     </ScheduleFrame>
   );

@@ -102,6 +102,7 @@ export default function BookingFormBuilder({
   formType = "BOOKING",
   contactFieldDefs = [],
   priceBookItems = [],
+  bookingTypes = [],
 }: {
   config: BookingFormConfig;
   onChange: (config: BookingFormConfig) => void;
@@ -115,6 +116,8 @@ export default function BookingFormBuilder({
     priceDisplay?: "FIXED" | "STARTING_AT" | "HOURLY" | "QUOTE";
     durationMinutes?: number | null;
   }[];
+  /** The company's booking types (Settings → Online booking) — offered inline on BOOKING forms */
+  bookingTypes?: { id: string; name: string; kind: string; isActive: boolean; paymentMode: string }[];
 }) {
   const set = (patch: Partial<BookingFormConfig>) => onChange({ ...config, ...patch });
   const setHeader = (patch: Partial<BookingFormConfig["header"]>) =>
@@ -346,139 +349,59 @@ export default function BookingFormBuilder({
           {config.selfSchedule.enabled && (
             <>
               <div className="space-y-2 pt-1">
-                <label className={smallLabel}>Services clients can book</label>
-                {config.services.map((s) => {
-                  const wi = priceBookItems.find((w) => w.id === s.workItemId);
-                  const noDuration = !wi || wi.durationMinutes == null;
-                  return (
-                    <div key={s.id} className="border border-gray-200 rounded-lg p-3 bg-gray-50/50">
-                      <div className="flex items-center gap-2">
-                        <p className="flex-1 text-sm font-medium text-gray-900 truncate">{s.name}</p>
-                        <div className="flex items-center gap-1">
-                          <span className="text-sm text-gray-400">$</span>
-                          <input
-                            type="number"
-                            min={0}
-                            step="0.01"
-                            value={s.price}
-                            onChange={(e) => setServiceRow(s.id, { price: Number(e.target.value) || 0 })}
-                            className={`${inputClass} w-24`}
-                          />
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => set({ services: config.services.filter((x) => x.id !== s.id) })}
-                          className="text-gray-400 hover:text-red-500"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                      {noDuration ? (
-                        <p className="mt-1.5 text-xs text-amber-700">
-                          No time-on-site set — this service won&apos;t show in the slot picker.{" "}
-                          <a href="/app/settings/products" target="_blank" rel="noreferrer" className="underline">
-                            Set it in your price book
-                          </a>
-                          , then reload.
-                        </p>
-                      ) : (
-                        <p className="mt-1.5 text-xs text-gray-400">
-                          Takes {wi!.durationMinutes! % 60 === 0 ? `${wi!.durationMinutes! / 60}h` : `${wi!.durationMinutes}m`} on site
-                        </p>
-                      )}
-                    </div>
-                  );
-                })}
-                {(() => {
-                  const available = priceBookItems.filter(
-                    (w) => !config.services.some((s) => s.workItemId === w.id)
-                  );
-                  if (priceBookItems.length === 0) {
+                <label className={smallLabel}>What clients can book from this form</label>
+                {bookingTypes.length === 0 ? (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                    No booking types yet — create one under{" "}
+                    <a href="/app/settings/booking" target="_blank" rel="noreferrer" className="font-semibold underline">
+                      Online booking
+                    </a>
+                    , then reload.
+                  </div>
+                ) : (
+                  bookingTypes.map((t) => {
+                    const on = config.selfSchedule.bookingTypeIds.includes(t.id);
+                    const paid = t.paymentMode !== "NONE";
                     return (
-                      <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-                        Your price book is empty — add the services you offer there first.{" "}
-                        <a href="/app/settings/products" target="_blank" rel="noreferrer" className="font-semibold underline">
-                          Open price book
-                        </a>
-                      </div>
+                      <label
+                        key={t.id}
+                        className={`flex items-start gap-2.5 rounded-lg border p-3 ${paid ? "opacity-60" : "cursor-pointer"} ${on ? "border-green-400 bg-green-50/40" : "border-gray-200 bg-gray-50/50"}`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={on}
+                          disabled={paid}
+                          onChange={(e) =>
+                            setSelfSchedule({
+                              bookingTypeIds: e.target.checked
+                                ? [...config.selfSchedule.bookingTypeIds, t.id]
+                                : config.selfSchedule.bookingTypeIds.filter((id) => id !== t.id),
+                            })
+                          }
+                          className="mt-0.5 h-4 w-4 rounded border-gray-300 accent-green-600"
+                        />
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-sm font-medium text-gray-900">
+                            {t.name}
+                            {!t.isActive && <span className="ml-2 stamp text-gray-500">Off</span>}
+                          </span>
+                          <span className="block text-xs text-gray-500">
+                            {t.kind === "PHONE_CALL" ? "Phone call" : t.kind === "VIDEO_CALL" ? "Video call" : t.kind === "IN_PERSON" ? "In-person estimate" : "Service"}
+                            {paid ? " · collects payment — use its own booking page" : ""}
+                          </span>
+                        </span>
+                      </label>
                     );
-                  }
-                  if (available.length === 0) {
-                    return (
-                      <p className="text-xs text-gray-400">Every price-book service is already on this form.</p>
-                    );
-                  }
-                  return (
-                    <select
-                      value=""
-                      onChange={(e) => {
-                        const item = priceBookItems.find((w) => w.id === e.target.value);
-                        if (!item) return;
-                        set({
-                          services: [
-                            ...config.services,
-                            {
-                              id: `svc-${Math.random().toString(36).slice(2, 8)}`,
-                              workItemId: item.id,
-                              name: item.name,
-                              price: item.price,
-                              priceDisplay: item.priceDisplay,
-                              description: item.description ?? undefined,
-                            },
-                          ],
-                        });
-                      }}
-                      className={`${inputClass} bg-white`}
-                    >
-                      <option value="">+ Add a service from your price book...</option>
-                      {available.map((w) => (
-                        <option key={w.id} value={w.id}>
-                          {w.name} — {servicePriceLabel({ price: w.price, priceDisplay: w.priceDisplay })}
-                          {w.durationMinutes == null ? " (no duration set)" : ""}
-                        </option>
-                      ))}
-                    </select>
-                  );
-                })()}
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className={smallLabel}>Earliest booking</label>
-                  <select
-                    value={config.selfSchedule.leadHours}
-                    onChange={(e) => setSelfSchedule({ leadHours: Number(e.target.value) })}
-                    className={`${inputClass} bg-white`}
-                  >
-                    <option value={2}>2 hours from now</option>
-                    <option value={4}>4 hours from now</option>
-                    <option value={8}>8 hours from now</option>
-                    <option value={24}>1 day from now</option>
-                    <option value={48}>2 days from now</option>
-                  </select>
-                </div>
-                <div>
-                  <label className={smallLabel}>How far out</label>
-                  <select
-                    value={config.selfSchedule.horizonDays}
-                    onChange={(e) => setSelfSchedule({ horizonDays: Number(e.target.value) })}
-                    className={`${inputClass} bg-white`}
-                  >
-                    <option value={7}>1 week</option>
-                    <option value={14}>2 weeks</option>
-                    <option value={30}>30 days</option>
-                    <option value={60}>60 days</option>
-                  </select>
-                </div>
+                  })
+                )}
               </div>
               <p className="text-xs text-gray-400">
-                Open times come from your business hours, service area, and bookable team
-                members — set those under{" "}
+                Open times, who takes the booking, buffers, lead time and confirmation come from each
+                booking type — edit those under{" "}
                 <a href="/app/settings/booking" target="_blank" rel="noreferrer" className="underline">
-                  Online scheduling settings
-                </a>{" "}
-                and on the Team page. The preferred-date field is replaced by the time picker
-                while this is on.
+                  Online booking
+                </a>
+                . The preferred-date field is replaced by the time picker while this is on.
               </p>
             </>
           )}

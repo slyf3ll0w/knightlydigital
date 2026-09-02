@@ -39,6 +39,7 @@ export default function WebFormEditor({
   baseUrl,
   contactFieldDefs,
   priceBookItems = [],
+  bookingTypes = [],
   previewMode = false,
 }: {
   form: FormMeta;
@@ -54,6 +55,8 @@ export default function WebFormEditor({
     price: number;
     durationMinutes?: number | null;
   }[];
+  /** The company's booking types — offered inline on BOOKING forms */
+  bookingTypes?: { id: string; name: string; kind: string; isActive: boolean; paymentMode: string }[];
 }) {
   const [config, setConfig] = useState(form.config);
   const [name, setName] = useState(form.name);
@@ -163,6 +166,7 @@ export default function WebFormEditor({
           formType={form.type}
           contactFieldDefs={contactFieldDefs}
           priceBookItems={priceBookItems}
+          bookingTypes={bookingTypes}
         />
 
         {/* Live preview */}

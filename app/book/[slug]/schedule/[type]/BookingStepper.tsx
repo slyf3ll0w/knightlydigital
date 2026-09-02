@@ -9,6 +9,8 @@ import type { PublicBookingType } from "@/lib/booking-runtime";
 import { durationLabel } from "@/lib/booking-types";
 import type { ScheduleAppearance } from "../shell";
 import PaymentStep, { type PaymentHandle } from "./PaymentStep";
+import type { FinixConfig } from "@/lib/finix-js";
+import { derivedQuoteDeposit } from "@/lib/statuses";
 
 /**
  * Public booking page for one booking type — a stepper: services (SERVICE)
@@ -34,6 +36,14 @@ type Booked = {
 };
 
 const ICON = { PHONE_CALL: Phone, VIDEO_CALL: Video, IN_PERSON: MapPin, SERVICE: Wrench } as const;
+
+type DepositRule = { depositType: "NONE" | "PERCENT" | "FIXED" | "FULL"; depositValue: number | null };
+export type BookingPaymentConfig = {
+  finix: FinixConfig;
+  surchargeRate: number | null;
+  companyDeposit: DepositRule;
+  serviceDeposits: Record<string, DepositRule>;
+};
 
 function icsHref(summary: string, startIso: string, endIso: string, location?: string | null) {
   const fmt = (iso: string) => iso.replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
@@ -67,12 +77,15 @@ export default function BookingStepper({
   company,
   appearance,
   embed = false,
+  payment,
 }: {
   companySlug: string;
   type: PublicBookingType;
   company: { name: string; timezone: string; phone: string | null; email: string | null; menuHref: string };
   appearance: ScheduleAppearance;
   embed?: boolean;
+  /** Card processing for paid service types; finix null = payments not live. */
+  payment?: BookingPaymentConfig;
 }) {
   const { dark, accent, transparent } = appearance;
   const Icon = ICON[type.kind];
@@ -116,7 +129,15 @@ export default function BookingStepper({
   const picked = type.services.filter((s) => services.includes(s.id));
   const total = picked.reduce((sum, s) => sum + s.price, 0);
   const allFixed = picked.length > 0 && picked.every((s) => s.priceDisplay === "FIXED");
-  const paying = type.paymentMode !== "NONE" && allFixed;
+  const paying = type.paymentMode !== "NONE" && allFixed && Boolean(payment?.finix);
+  const depositAmount =
+    type.paymentMode === "DEPOSIT" && payment
+      ? derivedQuoteDeposit(
+          picked.map((s) => ({ total: s.price, deposit: payment.serviceDeposits[s.id] ?? null })),
+          total,
+          payment.companyDeposit
+        )
+      : null;
   const duration = type.kind === "SERVICE" ? picked.reduce((sum, s) => sum + (s.durationMinutes ?? type.durationMinutes), 0) : type.durationMinutes;
 
   // Fetch open times whenever the inputs that shape them change
@@ -548,10 +569,11 @@ export default function BookingStepper({
             {paying && (
               <PaymentStep
                 ref={paymentRef}
-                companySlug={companySlug}
-                typeSlug={type.slug}
+                finix={payment?.finix ?? null}
                 amount={total}
                 mode={type.paymentMode}
+                depositAmount={depositAmount}
+                surchargeRate={payment?.surchargeRate ?? null}
                 dark={dark}
                 accent={accent}
                 onReady={setCardReady}
@@ -562,9 +584,17 @@ export default function BookingStepper({
         )}
 
         {step === "details" ? (
-          <button type="submit" disabled={submitting || (paying && !cardReady)} className={primaryBtn} style={{ backgroundColor: accent, color: textOn(accent) }}>
+          <button type="submit" disabled={submitting || (paying && (type.paymentMode === "FULL" || (depositAmount ?? 0) > 0) && !cardReady)} className={primaryBtn} style={{ backgroundColor: accent, color: textOn(accent) }}>
             {submitting && <Loader2 size={14} className="animate-spin" />}
-            {paying ? (type.paymentMode === "FULL" ? `Pay $${total.toFixed(2)} & book` : "Pay deposit & book") : type.confirmation === "INSTANT" ? "Confirm booking" : "Request this time"}
+            {paying
+              ? type.paymentMode === "FULL"
+                ? `Pay ${total.toFixed(2)} & book`
+                : depositAmount && depositAmount > 0
+                  ? `Pay ${depositAmount.toFixed(2)} deposit & book`
+                  : "Confirm booking"
+              : type.confirmation === "INSTANT"
+                ? "Confirm booking"
+                : "Request this time"}
           </button>
         ) : (
           <button type="button" disabled={!canAdvance} onClick={() => setStepIdx(stepIdx + 1)} className={primaryBtn} style={{ backgroundColor: accent, color: textOn(accent) }}>

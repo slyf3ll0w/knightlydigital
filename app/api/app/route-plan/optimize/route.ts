@@ -10,7 +10,7 @@ import {
   sanitizeBusinessHours,
   timeToMinutes,
 } from "@/lib/business-hours";
-import { wallTimeToUtc } from "@/lib/booking-slots";
+import { wallTimeToUtc } from "@/lib/booking-engine";
 
 /**
  * POST /api/app/route-plan/optimize — order one tech's day by drive time.

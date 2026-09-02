@@ -11,6 +11,8 @@ import {
   type CustomField,
 } from "@/lib/booking-form";
 import { zipFromAddress } from "@/lib/business-hours";
+import type { PublicBookingType } from "@/lib/booking-runtime";
+import { durationLabel } from "@/lib/booking-types";
 
 type SlotDay = { date: string; label: string; slots: { start: string; label: string }[] };
 
@@ -53,6 +55,7 @@ export default function BookingForm({
   initialService = "",
   showHeader = false,
   companyName = "",
+  bookingTypes = [],
 }: {
   companySlug: string;
   formSlug?: string;
@@ -64,6 +67,8 @@ export default function BookingForm({
   initialService?: string;
   showHeader?: boolean;
   companyName?: string;
+  /** Booking types this form offers inline (Settings → Forms → Online scheduling) */
+  bookingTypes?: PublicBookingType[];
 }) {
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
@@ -81,10 +86,12 @@ export default function BookingForm({
   const [startedAt] = useState(() => Date.now());
 
   // Self-scheduling (BOOKING forms with the toggle on): the client picks a
-  // service, then a real arrival window instead of a preferred date.
-  const selfBook =
-    formType === "BOOKING" && config.selfSchedule.enabled && config.services.length > 0;
-  const [bookServiceId, setBookServiceId] = useState("");
+  // booking type (and services, for a SERVICE type), then a real time
+  // instead of a preferred date. Availability comes from the booking engine.
+  const selfBook = formType === "BOOKING" && config.selfSchedule.enabled && bookingTypes.length > 0;
+  const [bookServiceId, setBookServiceId] = useState(bookingTypes.length === 1 ? bookingTypes[0].id : "");
+  const [bookServices, setBookServices] = useState<string[]>([]);
+  const bookType = bookingTypes.find((t) => t.id === bookServiceId) ?? null;
   const [days, setDays] = useState<SlotDay[] | null>(null);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [outOfArea, setOutOfArea] = useState(false);
@@ -92,24 +99,28 @@ export default function BookingForm({
   const [addressRequired, setAddressRequired] = useState(false);
   const [activeDay, setActiveDay] = useState("");
   const [selectedSlot, setSelectedSlot] = useState<{ start: string; label: string } | null>(null);
-  const [booked, setBooked] = useState<{ start: string; windowEnd: string; label: string; service: string } | null>(null);
+  const [booked, setBooked] = useState<{ start: string; windowEnd: string; label: string; service: string; tentative?: boolean; exactTime?: boolean } | null>(null);
   const [slotsEpoch, setSlotsEpoch] = useState(0); // bump to force a refetch
   const zip = zipFromAddress(form.address) ?? "";
   // Only send the address once it reads complete (has a ZIP) — the drive-time
   // limit geocodes it server-side, and half-typed streets would churn the cache
   const addressParam = zip ? form.address.trim() : "";
 
+  const servicesParam = bookServices.join(",");
   useEffect(() => {
-    if (!selfBook || !bookServiceId) return;
+    if (!selfBook || !bookType) return;
+    if (bookType.kind === "SERVICE" && !servicesParam) {
+      setDays(null);
+      return;
+    }
     let cancelled = false;
     setSlotsLoading(true);
     const t = setTimeout(async () => {
       try {
-        const params = new URLSearchParams({ service: bookServiceId });
-        if (formSlug) params.set("form", formSlug);
-        if (zip) params.set("zip", zip);
+        const params = new URLSearchParams();
         if (addressParam) params.set("address", addressParam);
-        const res = await fetch(`/api/public/booking-slots/${companySlug}?${params}`);
+        if (servicesParam) params.set("services", servicesParam);
+        const res = await fetch(`/api/public/schedule/${companySlug}/${bookType.slug}/slots?${params}`);
         const data = await res.json().catch(() => null);
         if (cancelled) return;
         if (!res.ok || !data) {
@@ -136,7 +147,7 @@ export default function BookingForm({
       clearTimeout(t);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selfBook, bookServiceId, zip, addressParam, companySlug, formSlug, slotsEpoch]);
+  }, [selfBook, bookType, servicesParam, addressParam, companySlug, slotsEpoch]);
 
   const dark = theme === "dark";
   const card = transparent
@@ -165,18 +176,22 @@ export default function BookingForm({
   // addressRequired isn't "nothing open" — the drive-time limit just needs an
   // address first, and its own prompt renders inside the picker.
   const slotsExhausted =
-    selfBook && bookServiceId !== "" && days !== null && days.length === 0 && !slotsLoading && !addressRequired;
+    selfBook && bookType !== null && days !== null && days.length === 0 && !slotsLoading && !addressRequired;
   const slotPickerActive = selfBook && !outOfArea && !slotsExhausted;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     if (slotPickerActive) {
-      if (!bookServiceId) {
+      if (!bookType) {
+        setError("Pick what you'd like to book.");
+        return;
+      }
+      if (bookType.kind === "SERVICE" && bookServices.length === 0) {
         setError("Pick a service to book.");
         return;
       }
-      if (zipRequired && !zip) {
+      if ((zipRequired || bookType.needsAddress) && !zip) {
         setError("Enter your address with ZIP code so we can check our service area.");
         return;
       }
@@ -200,7 +215,7 @@ export default function BookingForm({
           website: honeypot,
           elapsedMs: Date.now() - startedAt,
           ...(slotPickerActive && selectedSlot
-            ? { serviceId: bookServiceId, slotStart: selectedSlot.start }
+            ? { bookingTypeId: bookServiceId, slotStart: selectedSlot.start, services: bookServices }
             : {}),
         }),
       });
@@ -348,7 +363,7 @@ export default function BookingForm({
           <CheckCircle size={28} style={{ color: accent }} />
         </div>
         <h2 className={`text-xl font-bold mb-2 ${dark ? "text-white" : "text-gray-900"}`}>
-          {booked ? "You're penciled in!" : formType === "SERVICE_REQUEST" ? "Order received!" : "Request received!"}
+          {booked ? (booked.tentative === false ? "You're booked!" : "You're penciled in!") : formType === "SERVICE_REQUEST" ? "Order received!" : "Request received!"}
         </h2>
         {booked ? (
           <>
@@ -356,7 +371,7 @@ export default function BookingForm({
               {booked.service} — {booked.label}
             </p>
             <p className={`text-sm mt-1 ${dark ? "text-gray-400" : "text-gray-500"}`}>
-              We&apos;ll confirm your booking shortly — watch your inbox.
+              {booked.tentative === false ? "A confirmation is on its way to your inbox." : "We'll confirm your booking shortly — watch your inbox."}
             </p>
             <a
               href={icsHref(
@@ -508,11 +523,11 @@ export default function BookingForm({
         <div>
           <label className={label}>{svc.label || "What do you need?"} *</label>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {config.services.map((s) => {
-              const selected = bookServiceId === s.id;
+            {bookingTypes.map((t) => {
+              const selected = bookServiceId === t.id;
               return (
                 <label
-                  key={s.id}
+                  key={t.id}
                   className={`${radioCard} ${selected ? "" : radioIdle}`}
                   style={selected ? { borderColor: accent } : undefined}
                 >
@@ -522,7 +537,8 @@ export default function BookingForm({
                     checked={selected}
                     required={bookServiceId === ""}
                     onChange={() => {
-                      setBookServiceId(s.id);
+                      setBookServiceId(t.id);
+                      setBookServices(t.services.length === 1 ? [t.services[0].id] : []);
                       setSelectedSlot(null);
                     }}
                     className="mt-0.5 shrink-0"
@@ -530,12 +546,12 @@ export default function BookingForm({
                   />
                   <span className="min-w-0 flex-1">
                     <span className={`flex items-baseline justify-between gap-2 text-sm font-semibold ${dark ? "text-white" : "text-gray-900"}`}>
-                      <span className="min-w-0">{s.name}</span>
-                      <span className="shrink-0" style={{ color: accent }}>{servicePriceLabel(s)}</span>
+                      <span className="min-w-0">{t.name}</span>
+                      <span className="shrink-0 text-xs font-medium" style={{ color: accent }}>{durationLabel(t.durationMinutes)}</span>
                     </span>
-                    {s.description && (
+                    {t.description && (
                       <span className={`block text-xs mt-0.5 ${dark ? "text-gray-400" : "text-gray-500"}`}>
-                        {s.description}
+                        {t.description}
                       </span>
                     )}
                   </span>
@@ -543,6 +559,40 @@ export default function BookingForm({
               );
             })}
           </div>
+          {bookType?.kind === "SERVICE" && (
+            <div className="mt-3 space-y-2">
+              {bookType.services.map((s) => {
+                const on = bookServices.includes(s.id);
+                return (
+                  <label
+                    key={s.id}
+                    className={`${radioCard} ${on ? "" : radioIdle}`}
+                    style={on ? { borderColor: accent } : undefined}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={on}
+                      onChange={(e) => {
+                        setBookServices(e.target.checked ? [...bookServices, s.id] : bookServices.filter((id) => id !== s.id));
+                        setSelectedSlot(null);
+                      }}
+                      className="mt-0.5 shrink-0"
+                      style={{ accentColor: accent }}
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className={`flex items-baseline justify-between gap-2 text-sm font-semibold ${dark ? "text-white" : "text-gray-900"}`}>
+                        <span className="min-w-0">{s.name}</span>
+                        <span className="shrink-0" style={{ color: accent }}>{s.priceLabel}</span>
+                      </span>
+                      {s.description && (
+                        <span className={`block text-xs mt-0.5 ${dark ? "text-gray-400" : "text-gray-500"}`}>{s.description}</span>
+                      )}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
       {selfBook && !slotsExhausted && (
@@ -553,11 +603,11 @@ export default function BookingForm({
               That address looks outside our service area. You can still send your request
               below and we&apos;ll see what we can do.
             </div>
-          ) : !bookServiceId ? (
+          ) : !bookType || (bookType.kind === "SERVICE" && bookServices.length === 0) ? (
             <p className={`text-sm ${dark ? "text-gray-400" : "text-gray-500"}`}>
-              Choose a service above to see open times.
+              Choose what you need above to see open times.
             </p>
-          ) : zipRequired && !zip ? (
+          ) : (zipRequired || bookType.needsAddress) && !zip ? (
             <p className={`text-sm ${dark ? "text-gray-400" : "text-gray-500"}`}>
               Enter your address (with ZIP code) above so we can check our service area and
               show open times.
@@ -610,7 +660,7 @@ export default function BookingForm({
                 })}
               </div>
               <p className={`mt-1.5 text-xs ${dark ? "text-gray-500" : "text-gray-400"}`}>
-                Times shown are arrival windows — we&apos;ll confirm your booking before it&apos;s final.
+                {bookType?.exactTime ? "Times are in our local time zone." : "Times shown are arrival windows."}{bookType?.confirmation === "APPROVAL" ? " We'll confirm your booking before it's final." : ""}
               </p>
             </div>
           )}

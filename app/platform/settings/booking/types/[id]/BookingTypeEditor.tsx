@@ -638,6 +638,7 @@ export default function BookingTypeEditor({
           </Card>
         )}
 
+        {draft.kind !== "SERVICE" && (
         <Card title="Customer options">
           <Toggle
             checked={draft.clientCanReschedule}
@@ -665,6 +666,7 @@ export default function BookingTypeEditor({
             </div>
           )}
         </Card>
+        )}
 
         <Card title="Preview" hint="what customers see over the next 7 days, and who could take each time">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">

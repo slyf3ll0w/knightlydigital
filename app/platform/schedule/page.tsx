@@ -1,7 +1,7 @@
 import { headers } from "next/headers";
 import { prisma } from "@/lib/db";
 import { requirePageActor, isManager, jobScope, canSell, appointmentScope } from "@/lib/permissions";
-import { localDayParts } from "@/lib/booking-slots";
+import { localDayParts } from "@/lib/booking-engine";
 import ScheduleClient, { type ScheduleJobDTO } from "./ScheduleClient";
 
 /**

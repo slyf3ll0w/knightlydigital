@@ -163,6 +163,12 @@ export function localDayKey(tz: string, date: Date): string {
   return localParts(tz, date).key;
 }
 
+/** Y/M/D + weekday of an instant, seen from `tz` (the schedule pages' "today"). */
+export function localDayParts(tz: string, date: Date): { y: number; m: number; d: number; day: DayKeyIndex } {
+  const { y, m, d, day } = localParts(tz, date);
+  return { y, m, d, day };
+}
+
 // ─── The check ───────────────────────────────────────────────────────────────
 
 function overlaps(aStart: number, aEnd: number, b: BusyInterval): boolean {

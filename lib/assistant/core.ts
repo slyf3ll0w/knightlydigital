@@ -1,6 +1,6 @@
 import { prisma } from "../db";
 import { type Actor, contactScope } from "../permissions";
-import { wallTimeToUtc } from "../booking-slots";
+import { wallTimeToUtc } from "../booking-engine";
 import type { AIFunctionDecl } from "../ai";
 
 /**

@@ -23,7 +23,7 @@ import type { Frequency, Prisma, PrismaClient, RecurringInterval } from "@prisma
 import { prisma } from "@/lib/db";
 import { attemptAutoCharge } from "@/lib/auto-charge";
 import { sendEmail, invoiceLinkEmail } from "@/lib/email";
-import { localDayParts, wallTimeToUtc } from "@/lib/booking-slots";
+import { localDayParts, wallTimeToUtc } from "@/lib/booking-engine";
 import { withDocNumberRetry } from "@/lib/doc-numbers";
 import { findScheduleConflicts } from "@/lib/schedule-conflicts";
 

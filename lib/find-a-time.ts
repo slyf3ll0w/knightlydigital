@@ -28,7 +28,7 @@ import {
   DAY_KEYS,
 } from "@/lib/business-hours";
 import { resolveSlotInterval, DEFAULT_JOB_DURATION_MINUTES } from "@/lib/scheduling";
-import { wallTimeToUtc } from "@/lib/booking-slots";
+import { wallTimeToUtc } from "@/lib/booking-engine";
 
 export type TimeSuggestion = {
   start: string; // ISO

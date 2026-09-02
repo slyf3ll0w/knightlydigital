@@ -106,8 +106,12 @@ export type BookingFormConfig = {
   // the slot picker.
   selfSchedule: {
     enabled: boolean;
-    leadHours: number; // earliest offered slot = now + leadHours
-    horizonDays: number; // how far out clients can book
+    /** Booking types offered inline (timing rules live on each type). */
+    bookingTypeIds: string[];
+    // Legacy per-form timing — superseded by the booking type's own rules;
+    // kept so old configs round-trip.
+    leadHours: number;
+    horizonDays: number;
   };
   // SERVICE_REQUEST extras (also the offered services for self-scheduling)
   services: FormService[];
@@ -163,7 +167,7 @@ export const DEFAULT_BOOKING_FORM: BookingFormConfig = {
     fontSize: "md",
   },
   customFields: [],
-  selfSchedule: { enabled: false, leadHours: 4, horizonDays: 30 },
+  selfSchedule: { enabled: false, bookingTypeIds: [], leadHours: 4, horizonDays: 30 },
   services: [],
   serviceRequest: { allowMultiple: false, quoteMode: "draft" },
 };
@@ -315,6 +319,9 @@ export function sanitizeBookingForm(raw: unknown): BookingFormConfig {
     customFields,
     selfSchedule: {
       enabled: selfSchedule.enabled === true,
+      bookingTypeIds: Array.isArray(selfSchedule.bookingTypeIds)
+        ? [...new Set((selfSchedule.bookingTypeIds as unknown[]).filter((v): v is string => typeof v === "string"))].slice(0, 20)
+        : [],
       leadHours:
         Number.isFinite(leadHours) && leadHours >= 0 && leadHours <= 336 ? Math.round(leadHours) : 4,
       horizonDays:

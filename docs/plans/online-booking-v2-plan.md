@@ -1,5 +1,10 @@
 # Online Booking v2 — Calendly-grade scheduling for Workbench
 
+> **[BUILT 2026-09-02]** Phases A–C shipped in three commits (types + calls, per-member
+> day start, services + pay-at-booking + form migration + old engine retired).
+> Owed: prod verification, the migration script run (), and the
+> nested-iframe finix.js check for embeds (decision 5).
+
 Design written 2026-09-02 after a full read of the existing booking build, the
 Route Manager, the payments layer, and a market pass over Calendly, Jobber,
 Housecall Pro, ServiceTitan and Zenbooker. Nothing here is built yet. The

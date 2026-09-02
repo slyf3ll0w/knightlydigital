@@ -20,7 +20,7 @@ import { prisma } from "@/lib/db";
 import { composeAddress, geocodeAddress, geocodingEnabled } from "@/lib/geocoding";
 import type { Actor } from "@/lib/permissions";
 import { appointmentScope, isManager, jobScope } from "@/lib/permissions";
-import { localDayParts, wallTimeToUtc } from "@/lib/booking-slots";
+import { localDayParts, wallTimeToUtc } from "@/lib/booking-engine";
 import { driveTimeMatrix } from "@/lib/routing";
 
 export type RouteStop = {

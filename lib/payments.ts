@@ -69,6 +69,10 @@ export interface ChargeParams {
   token?: string;
   /** The company's processor merchant account (Company.finixMerchantId). */
   merchantRef?: string;
+  /** finix.js fraud session id (Finix.Auth) when the client collected one. */
+  fraudSessionId?: string | null;
+  /** Idempotency scope override — defaults to the invoice id. */
+  idempotencyScope?: string;
   /** Buyer identity to charge under — existing ref reused, otherwise created from the details. */
   buyer?: {
     identityRef?: string | null;
@@ -192,7 +196,8 @@ class FinixProcessor implements PaymentProcessor {
         sourceInstrumentId: instrument.id,
         // One attempt per invoice+amount+minute: a double-click never double
         // charges, while a genuine retry after a decline gets a fresh id.
-        idempotencyId: `${params.metadata?.invoiceId ?? "inv"}-${finix.toCents(params.amount)}-${Math.floor(Date.now() / 60000)}`,
+        idempotencyId: `${params.idempotencyScope ?? params.metadata?.invoiceId ?? "inv"}-${finix.toCents(params.amount)}-${Math.floor(Date.now() / 60000)}`,
+        fraudSessionId: params.fraudSessionId ?? undefined,
         tags: params.metadata ?? {},
       });
 

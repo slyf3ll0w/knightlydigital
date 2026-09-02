@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { prisma } from "@/lib/db";
 import { isManager, requirePageActor } from "@/lib/permissions";
-import { localDayParts } from "@/lib/booking-slots";
+import { localDayParts } from "@/lib/booking-engine";
 import RouteMapClient from "./RouteMapClient";
 
 export const metadata: Metadata = { title: "Route Map" };

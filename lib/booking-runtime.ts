@@ -147,6 +147,24 @@ export async function resolvePublicBookingType(companySlug: string, typeSlug: st
   return { company, type };
 }
 
+/**
+ * Booking types a classic BOOKING form offers inline: the ids the form
+ * points at, still active, bookable, and not collecting payment (the inline
+ * form has no card step — paid types live on their own booking page).
+ */
+export async function formBookingTypes(
+  company: { id: string; arrivalWindowMinutes: number },
+  config: { selfSchedule: { enabled: boolean; bookingTypeIds: string[] } }
+): Promise<PublicBookingType[]> {
+  if (!config.selfSchedule.enabled || config.selfSchedule.bookingTypeIds.length === 0) return [];
+  const types = await prisma.bookingType.findMany({
+    where: { companyId: company.id, id: { in: config.selfSchedule.bookingTypeIds }, isActive: true, paymentMode: "NONE" },
+    include: bookingTypeInclude,
+    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+  });
+  return types.map((t) => toPublicBookingType(t, company)).filter((t) => t.bookable);
+}
+
 /** Public menu: every active type of the company. */
 export async function listPublicBookingTypes(companySlug: string) {
   const company = await resolvePublicCompany(companySlug);

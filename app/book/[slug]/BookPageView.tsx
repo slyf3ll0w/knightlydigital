@@ -3,6 +3,7 @@ import BookingForm from "./BookingForm";
 import { brandAccent } from "@/lib/branding";
 import { bookingAccent, FONT_SIZE_ZOOM } from "@/lib/booking-form";
 import { resolveWebForm } from "@/lib/web-forms";
+import { formBookingTypes } from "@/lib/booking-runtime";
 
 /** Hosted form page shared by /book/[slug] and /book/[slug]/[form]. */
 export default async function BookPageView({
@@ -16,6 +17,7 @@ export default async function BookPageView({
   if (!resolved) notFound();
   const { company, form } = resolved;
   const config = form.config;
+  const bookingTypes = await formBookingTypes(company, config);
 
   const dark = config.appearance.theme === "dark";
   const fontName = config.appearance.font;
@@ -71,6 +73,7 @@ export default async function BookPageView({
           accent={bookingAccent(config, brandAccent(company))}
           config={config}
           companyName={company.name}
+          bookingTypes={bookingTypes}
         />
       </div>
     </div>

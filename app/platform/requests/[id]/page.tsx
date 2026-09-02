@@ -7,7 +7,7 @@ import { shortDate, money } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
 import RequestActions from "./RequestActions";
 import BookingApprovalBanner from "./BookingApprovalBanner";
-import { slotLabel } from "@/lib/booking-availability";
+import { slotLabel } from "@/lib/booking-engine";
 
 export default async function RequestDetailPage({
   params,

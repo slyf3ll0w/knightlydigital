@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, viaContactScope } from "@/lib/permissions";
-import { ensureSubscriptionsForContact } from "@/lib/subscriptions";
-import { recordLeadWin } from "@/lib/pipeline";
 import { withDocNumberRetry } from "@/lib/doc-numbers";
+import { convertQuoteToJob } from "@/lib/quote-convert";
 import { inPreview, PREVIEW_CAP, previewCapError } from "@/lib/preview";
 
 /**
@@ -71,71 +70,8 @@ export async function POST(
     );
   }
 
-  const job = await withDocNumberRetry(() => prisma.$transaction(async (tx) => {
-    const last = await tx.job.findFirst({
-      where: { companyId },
-      orderBy: { jobNumber: "desc" },
-    });
-
-    const created = await tx.job.create({
-      data: {
-        companyId,
-        contactId: quote.contactId,
-        requestId: quote.requestId,
-        jobNumber: (last?.jobNumber ?? 0) + 1,
-        title: quote.title || `Job for ${quote.contact.firstName} ${quote.contact.lastName}`,
-        leadSource: quote.contact.leadSource,
-        // Quotes for a saved service address land the job AT that property —
-        // before this, every converted job fell back to the primary address
-        address: quote.property
-          ? [quote.property.address, quote.property.city, quote.property.state, quote.property.zip]
-              .filter(Boolean)
-              .join(", ")
-          : quote.contact.address,
-        propertyId: quote.propertyId,
-        lineItems: {
-          create: quote.lineItems
-            .filter((li) => !(li.isOptional && li.optedOut))
-            .map((li, i) => ({
-              name: li.name,
-              description: li.description || null,
-              quantity: li.quantity,
-              unitCost: li.unitCost,
-              unitPrice: li.unitPrice,
-              total: li.total,
-              // Price-book link + recurring snapshot survive conversion, so
-              // the job (and its eventual invoice) stay traceable to the
-              // service that was sold
-              workItemId: li.workItemId,
-              recurringInterval: li.recurringInterval,
-              sortOrder: i,
-            })),
-        },
-      },
-    });
-
-    await tx.quote.update({
-      where: { id: quote.id },
-      data: { jobId: created.id, status: "CONVERTED" },
-    });
-
-    // Recurring services on the quote become live subscriptions on the
-    // client. Lines sold one-time carry recurringInterval null and are
-    // skipped — the seller's choice on the quote is the contract.
-    await ensureSubscriptionsForContact(
-      tx,
-      companyId,
-      quote.contactId,
-      quote.lineItems
-        .filter((li) => !(li.isOptional && li.optedOut) && li.recurringInterval != null)
-        .map((li) => ({ workItemId: li.workItemId, quantity: Number(li.quantity) }))
-    );
-
-    // First real work closes the lead: active client, off the pipeline board
-    await recordLeadWin(tx, companyId, quote.contact);
-
-    return created;
-  }));
+  // Shared with online service bookings — see lib/quote-convert.ts
+  const job = await withDocNumberRetry(() => prisma.$transaction((tx) => convertQuoteToJob(tx, quote)));
 
   return NextResponse.json(job, { status: 201 });
 }

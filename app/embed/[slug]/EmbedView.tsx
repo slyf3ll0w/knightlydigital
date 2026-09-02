@@ -4,6 +4,7 @@ import EmbedAutoResize from "./EmbedAutoResize";
 import { brandAccent } from "@/lib/branding";
 import { bookingAccent, FONT_SIZE_ZOOM, GOOGLE_FONT_RE } from "@/lib/booking-form";
 import { resolveWebForm } from "@/lib/web-forms";
+import { formBookingTypes } from "@/lib/booking-runtime";
 
 type EmbedParams = {
   theme?: string;
@@ -34,6 +35,7 @@ export default async function EmbedView({
   if (!resolved) notFound();
   const { company, form } = resolved;
   const config = form.config;
+  const bookingTypes = await formBookingTypes(company, config);
 
   const effectiveTheme =
     transparent === "1"
@@ -89,6 +91,7 @@ export default async function EmbedView({
         initialService={typeof service === "string" ? service.slice(0, 120) : ""}
         showHeader
         companyName={company.name}
+        bookingTypes={bookingTypes}
       />
     </div>
   );

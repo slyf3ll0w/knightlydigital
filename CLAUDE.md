@@ -437,3 +437,61 @@ Railway detects Next.js automatically and runs `next start`. GitHub remote: `htt
 - **Email**: `info@streamflaire.com` (real contact address as of 2026-07-09; Resend still SENDS from streamflaremedia.com)
 - **Contact form**: `components/ContactForm.tsx` currently fakes submission. Wire to Formspree, Resend, or an API route.
 - **Social links**: Header social icons link to `#` — update when accounts are set up.
+
+## Online booking v2 (booking types)
+
+Calendly-style self-scheduling, designed in `docs/plans/online-booking-v2-plan.md`
+(2026-09-02). A **`BookingType`** is what a customer picks: kinds
+`PHONE_CALL` / `VIDEO_CALL` (exact start) / `IN_PERSON` estimate / `SERVICE`
+(arrival window, address, price-book services). Each carries its own timing
+(duration, step, buffers, lead, horizon, per-day cap), a **pool**
+(`BookingTypeMember` — `lastAssignedAt` drives least-recently-assigned round
+robin; `priority` only in PRIORITY mode), `confirmation` INSTANT|APPROVAL
+(approval = the pre-existing tentative-appointment loop), `paymentMode`
+(SERVICE only: NONE|DEPOSIT|FULL — refused unless every service is
+`priceDisplay: FIXED`), and self-serve reschedule/cancel policy.
+
+- **Engine** — `lib/booking-engine.ts` is pure and unit-tested
+  (`npx tsx scripts/test-booking-engine.ts`). `checkSlot` = hours → busy
+  (with buffers) → daily cap → drive feasibility (`prev.end + drive ≤ start`,
+  `end + drive ≤ next.start`, per-leg `Company.bookingDriveLimitMinutes`).
+  Drive = haversine estimate during the sweep; `lib/booking-runtime.ts`
+  `assignMemberForSlot` re-checks the winner against real Mapbox road
+  minutes at submit (falls through the ranking, then 409). Unlocated busy
+  items only contribute buffers; no `MAPBOX_TOKEN` = gap-fit only.
+- **Runtime** — `loadPoolWithBusy` (appointments incl. tentative, assigned
+  jobs, unassigned jobs/appointments block everyone, time blocks; located
+  via property pin → geocode cache, ≤250 geocodes/sweep), `rulesFor`,
+  `slotsForType`, `resolvePublicBookingType`, `formBookingTypes`. Member
+  day start = `User.startAddress` pin (Team page) else the shop pin — the
+  Route Manager / Find a Time / optimizer use the same via `dayStartFor`.
+- **Writes** — `lib/booking-submit.ts` (`createAppointmentBooking`:
+  contact → Request NEW|NEEDS_APPROVAL → Appointment, Serializable, stamps
+  rotation; `notifyBooking`: push + team email + client email with .ics via
+  `lib/ics.ts`). `lib/booking-checkout.ts` (`createServiceBooking`: approved
+  Quote → `convertQuoteToJob` (`lib/quote-convert.ts`, shared with the
+  staff convert route) → scheduled/assigned Job → deposit invoice when
+  paid; card charged AFTER commit via `processor.charge` under the invoice
+  charge lock, `unwind()` deletes job/quote/invoice/request on decline).
+- **Public** — `/book/[slug]/schedule` (menu), `/book/[slug]/schedule/[type]`
+  (stepper, `BookingStepper.tsx`; card step = `components/CardFields.tsx`,
+  the shared finix.js hosted-fields mount), `/book/[slug]/schedule/manage/
+  [token]` (self-serve, `Appointment.manageToken`), `/embed/[slug]/schedule
+  [/[type]]`. APIs: `/api/public/schedule/[slug]/[type]/slots` (GET),
+  `/api/public/schedule/[slug]/[type]` (POST, captcha action `booking`),
+  `/api/public/schedule/manage/[token]`. Classic BOOKING forms with
+  `config.selfSchedule.bookingTypeIds` render type cards inline and POST to
+  `/api/public/book/[slug]` with `bookingTypeId` + `slotStart` (paid types
+  are never offered inline). `schedule` is a reserved form slug.
+- **Settings** — `/app/settings/booking` ("Online booking": types list +
+  forms + scheduling rules), editor at `/app/settings/booking/types/[id]`
+  (autosave; live preview via `/api/app/booking-types/[id]/preview`).
+  API: `/api/app/booking-types[/[id]]`. Team page: bookable master switch,
+  meeting link, start address (geocoded fire-and-forget).
+- **Migration** — `node scripts/migrate-booking-types.mjs [--apply]`
+  creates inactive Phone call + In-person estimate types per company and
+  turns each self-scheduling form's services into SERVICE types (approval
+  mode). Refuses if a form is slugged `schedule`.
+- **Retired** — `lib/booking-slots.ts`, `lib/booking-availability.ts`,
+  `/api/public/booking-slots` (day-level drive clustering, no pools).
+  `wallTimeToUtc` / `localDayParts` now live in `lib/booking-engine.ts`.

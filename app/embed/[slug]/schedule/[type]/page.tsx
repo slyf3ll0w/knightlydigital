@@ -3,6 +3,7 @@ import { companyMetaBySlug } from "@/lib/client-meta";
 import { resolvePublicBookingType, toPublicBookingType } from "@/lib/booking-runtime";
 import { resolveScheduleAppearance } from "@/app/book/[slug]/schedule/shell";
 import BookingStepper from "@/app/book/[slug]/schedule/[type]/BookingStepper";
+import { bookingPaymentConfig } from "@/lib/booking-payment-config";
 import EmbedAutoResize from "../../EmbedAutoResize";
 import EmbedScheduleShell from "../EmbedScheduleShell";
 
@@ -21,6 +22,7 @@ export default async function EmbedScheduleTypePage({ params, searchParams }: { 
   if (!resolved || !shell) notFound();
   const { company, type } = resolved;
   const pub = toPublicBookingType(type, company);
+  const payment = bookingPaymentConfig(type, company);
   return (
     <EmbedScheduleShell appearance={shell.appearance}>
       <EmbedAutoResize slug={`${slug}/schedule/${typeSlug}`} />
@@ -29,6 +31,7 @@ export default async function EmbedScheduleTypePage({ params, searchParams }: { 
         type={pub}
         company={{ name: company.name, timezone: company.timezone, phone: company.phone, email: company.email, menuHref: `/embed/${slug}/schedule` }}
         appearance={shell.appearance}
+        payment={payment}
         embed
       />
     </EmbedScheduleShell>

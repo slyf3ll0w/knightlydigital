@@ -2,34 +2,27 @@ import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 import { prisma } from "@/lib/db";
 import { verifyCaptcha } from "@/lib/captcha";
-import { sendEmail, newRequestEmail, quoteLinkEmail, bookingReceivedEmail } from "@/lib/email";
+import { sendEmail, newRequestEmail, quoteLinkEmail } from "@/lib/email";
 import { companyNotifyAddress } from "@/lib/notify";
-import { companyManagerIds, notifyUsers, requestNotifyUserIds } from "@/lib/push";
+import { notifyUsers, requestNotifyUserIds } from "@/lib/push";
 import { defaultLeadAssignee } from "@/lib/permissions";
 import { resolveWebForm } from "@/lib/web-forms";
 import { getActiveFieldDefs, sanitizeCustomFields } from "@/lib/contact-fields";
 import { derivedQuoteDeposit } from "@/lib/statuses";
 import { zipFromAddress } from "@/lib/business-hours";
-import { generateSlots, pickUserForSlot } from "@/lib/booking-slots";
-import {
-  bookingDriveFilter,
-  engineInputFor,
-  getBookableUsersWithBusy,
-  localDayKey,
-  resolveBookableService,
-  slotLabel,
-} from "@/lib/booking-availability";
-import { Prisma } from "@prisma/client";
 import { enterPipeline, autoAdvance } from "@/lib/pipeline";
 import { withDocNumberRetry } from "@/lib/doc-numbers";
-
-// Submit-time double-booking race: thrown inside the transaction when the
-// picked slot is no longer free, mapped to a 409 the form handles by
-// refreshing its slot list.
-class SlotTakenError extends Error {}
+import { bookingTypeInclude, toPublicBookingType } from "@/lib/booking-runtime";
+import { KIND_META } from "@/lib/booking-types";
+import { slotLabel } from "@/lib/booking-engine";
+import { createAppointmentBooking, isSlotRace, manageUrlFor, notifyBooking, verifySlotPick, type CustomerInput } from "@/lib/booking-submit";
+import { serviceSelection } from "@/lib/booking-services";
+import { createServiceBooking } from "@/lib/booking-checkout";
 
 // Generous backstop so one runaway account or bot can't flood a company
 const MAX_REQUESTS_PER_COMPANY_PER_DAY = 200;
+
+const SLOT_TAKEN = { error: "That time was just taken — please pick another.", slotTaken: true };
 
 /**
  * Public web-form submission (inquiry / booking / service request).
@@ -38,6 +31,11 @@ const MAX_REQUESTS_PER_COMPANY_PER_DAY = 200;
  * or sent to the client for online approval). Deposits derive from the picked
  * preset services and are collected via a deposit invoice once the quote is
  * approved (see lib/deposits.ts).
+ *
+ * BOOKING forms with online scheduling on hand a picked booking type + slot
+ * to the booking engine (lib/booking-submit.ts / booking-checkout.ts) — the
+ * same path the hosted /book/[slug]/schedule pages use — and fold the form's
+ * custom answers into the booking's notes and the contact's custom fields.
  */
 export async function POST(
   req: NextRequest,
@@ -89,8 +87,9 @@ export async function POST(
     return NextResponse.json({ error: `"${config.fields.date.label}" is required.` }, { status: 400 });
   }
   // Self-scheduling forms replace the free-text service question with the
-  // service picker, so its "required" rule doesn't apply to them
-  const selfScheduling = form.type === "BOOKING" && config.selfSchedule.enabled;
+  // booking-type picker, so its "required" rule doesn't apply to them
+  const selfScheduling =
+    form.type === "BOOKING" && config.selfSchedule.enabled && config.selfSchedule.bookingTypeIds.length > 0;
   const serviceAsked = form.type !== "SERVICE_REQUEST" && config.service.show && !selfScheduling;
   if (serviceAsked && config.service.required && !service) {
     return NextResponse.json({ error: `"${config.service.label}" is required.` }, { status: 400 });
@@ -146,71 +145,6 @@ export async function POST(
     if (field.contactFieldId) mappedContactFields[field.contactFieldId] = value;
   }
 
-  // Self-scheduling (BOOKING forms with the toggle on): validate the picked
-  // service + slot against live data. Forms without the toggle never send
-  // slotStart, so the classic flow below is untouched.
-  let booking:
-    | {
-        service: { formServiceId: string; name: string; price: number; durationMinutes: number };
-        start: Date;
-        end: Date;
-        windowEnd: Date;
-      }
-    | null = null;
-  // Drive-time clustering filter, kept for the in-transaction user pick
-  let driveAllow: ((userId: string, dayKey: string) => boolean) | null = null;
-  if (form.type === "BOOKING" && config.selfSchedule.enabled && body.slotStart !== undefined) {
-    const service = await resolveBookableService(company.id, config, body.serviceId);
-    if (!service) {
-      return NextResponse.json({ error: "Pick a service to book." }, { status: 400 });
-    }
-    if (company.serviceZips.length > 0) {
-      const zip = zipFromAddress(String(address ?? ""));
-      if (!zip || !company.serviceZips.includes(zip)) {
-        return NextResponse.json(
-          { error: "That address looks outside our service area — send us a message instead and we'll see what we can do." },
-          { status: 400 }
-        );
-      }
-    }
-    const start = new Date(String(body.slotStart));
-    if (isNaN(start.getTime())) {
-      return NextResponse.json({ error: "Pick a time." }, { status: 400 });
-    }
-    const now = new Date();
-    const horizonEnd = new Date(now.getTime() + (config.selfSchedule.horizonDays + 1) * 86400000);
-    // Drive-time limit: re-derive the clustering filter from the submitted
-    // address (geocodes are cached from the slot lookup) so a crafted POST
-    // can't book a day the picker never offered.
-    const drive = await bookingDriveFilter(company, String(address ?? ""), now, horizonEnd);
-    if (drive.enabled && drive.addressRequired) {
-      return NextResponse.json(
-        { error: "Enter your service address so we can check availability near you." },
-        { status: 400 }
-      );
-    }
-    driveAllow = drive.enabled ? (drive.allow ?? null) : null;
-    const users = await getBookableUsersWithBusy(company.id, now, horizonEnd);
-    // Validate the picked time against the FULL candidate set, not the sampled
-    // per-day subset shown on the form: the display cap (maxPerDay=6) samples
-    // different slots as the day's candidate count shifts (lead-time cutoff,
-    // other bookings), so re-checking against the capped list falsely rejects
-    // genuinely-free times. A slot that was actually taken drops out of the full
-    // set too (free.length === 0), so real conflicts still 409.
-    const slots = generateSlots({
-      ...engineInputFor(company, config, service.durationMinutes, users, now, driveAllow ?? undefined),
-      maxPerDay: Number.MAX_SAFE_INTEGER,
-    });
-    const slot = slots.find((s) => s.start.getTime() === start.getTime());
-    if (!slot) {
-      return NextResponse.json(
-        { error: "That time was just taken — please pick another.", slotTaken: true },
-        { status: 409 }
-      );
-    }
-    booking = { service, start: slot.start, end: slot.end, windowEnd: slot.windowEnd };
-  }
-
   const since = new Date(Date.now() - 86400000);
   const recent = await prisma.request.count({
     where: { companyId: company.id, source: { not: "webhook" }, createdAt: { gte: since } },
@@ -222,22 +156,115 @@ export async function POST(
     );
   }
 
-  // Website leads go to the company's preset assignee, else the owner
-  const assignedToId = await defaultLeadAssignee(company.id);
   const fieldDefs =
     Object.keys(mappedContactFields).length > 0 ? await getActiveFieldDefs(company.id) : [];
   const sanitizedMapped = sanitizeCustomFields(mappedContactFields, fieldDefs);
 
+  // ── Online scheduling: a booking type + slot → the booking engine ─────────
+  if (selfScheduling && typeof body.bookingTypeId === "string" && body.slotStart !== undefined) {
+    if (!config.selfSchedule.bookingTypeIds.includes(body.bookingTypeId)) {
+      return NextResponse.json({ error: "Pick what you'd like to book." }, { status: 400 });
+    }
+    const type = await prisma.bookingType.findFirst({
+      where: { id: body.bookingTypeId, companyId: company.id, isActive: true, paymentMode: "NONE" },
+      include: bookingTypeInclude,
+    });
+    if (!type || !toPublicBookingType(type, company).bookable) {
+      return NextResponse.json({ error: "That option isn't taking bookings right now." }, { status: 400 });
+    }
+    const meta = KIND_META[type.kind];
+    const customer: CustomerInput = {
+      firstName: String(firstName).trim().slice(0, 100),
+      lastName: String(lastName).trim().slice(0, 100),
+      email: typeof email === "string" ? email.trim().slice(0, 200) : "",
+      phone: typeof phone === "string" && phone.trim() ? phone.trim().slice(0, 40) : null,
+      address: meta.needsAddress && typeof address === "string" && address.trim() ? address.trim().slice(0, 300) : null,
+      notes: [typeof message === "string" && message.trim() ? message.trim().slice(0, 2000) : null, ...customLines].filter(Boolean).join("\n") || null,
+    };
+    if (!customer.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.email)) {
+      return NextResponse.json({ error: "A valid email is required for your confirmation." }, { status: 400 });
+    }
+    if (type.kind === "PHONE_CALL" && !customer.phone) {
+      return NextResponse.json({ error: "Enter the phone number we should call." }, { status: 400 });
+    }
+    if (meta.needsAddress) {
+      const zip = customer.address ? zipFromAddress(customer.address) : null;
+      if (!customer.address || !zip) {
+        return NextResponse.json({ error: "Enter your full address, including ZIP code." }, { status: 400 });
+      }
+      if (company.serviceZips.length > 0 && !company.serviceZips.includes(zip)) {
+        return NextResponse.json(
+          { error: "That address looks outside our service area — send us a message instead and we'll see what we can do." },
+          { status: 400 }
+        );
+      }
+    }
+    const start = new Date(String(body.slotStart));
+    if (isNaN(start.getTime())) return NextResponse.json({ error: "Pick a time." }, { status: 400 });
+    const selection = type.kind === "SERVICE" ? serviceSelection(type, body.services) : null;
+    if (type.kind === "SERVICE" && !selection) return NextResponse.json({ error: "Pick a service to book." }, { status: 400 });
+
+    const now = new Date();
+    const verified = await verifySlotPick(type, company, { address: customer.address, durationMinutes: selection?.durationMinutes, start, now });
+    if (!verified) return NextResponse.json(SLOT_TAKEN, { status: 409 });
+    const { slot, rules } = verified;
+
+    let contactId: string;
+    let booking: Record<string, unknown>;
+    if (type.kind === "SERVICE" && selection) {
+      const out = await createServiceBooking({ type, company, customer, slot, rules, now, selection, paymentToken: null, fraudSessionId: null }).catch((e) => {
+        if (isSlotRace(e)) return { slotTaken: true as const };
+        throw e;
+      });
+      if ("slotTaken" in out) return NextResponse.json(SLOT_TAKEN, { status: 409 });
+      if ("declined" in out || "error" in out) return NextResponse.json({ error: out.error }, { status: 400 });
+      booking = out.booking;
+      contactId = (await prisma.contact.findFirst({ where: { companyId: company.id, email: customer.email }, select: { id: true } }))?.id ?? "";
+    } else {
+      const result = await createAppointmentBooking({ type, company, customer, slot, rules, now }).catch((e) => {
+        if (isSlotRace(e)) return null;
+        throw e;
+      });
+      if (!result) return NextResponse.json(SLOT_TAKEN, { status: 409 });
+      await notifyBooking({ type, company, contact: result.contact, appointment: result.appointment, windowEnd: slot.windowEnd, event: "booked" });
+      contactId = result.contact.id;
+      const assignee = await prisma.user.findUnique({ where: { id: result.assignedUserId }, select: { name: true } });
+      booking = {
+        start: slot.start.toISOString(),
+        end: slot.end.toISOString(),
+        windowEnd: slot.windowEnd.toISOString(),
+        label: slotLabel(company.timezone, slot.start, slot.windowEnd),
+        typeName: type.name,
+        exactTime: meta.exactTime,
+        tentative: result.appointment.tentative,
+        withName: assignee?.name ?? null,
+        meetingLink: result.appointment.meetingLink,
+        manageUrl: manageUrlFor(company, result.appointment.manageToken),
+        address: result.appointment.address,
+      };
+    }
+    // Mapped custom answers land on the contact's custom fields
+    if (contactId && Object.keys(sanitizedMapped).length > 0) {
+      const contact = await prisma.contact.findUnique({ where: { id: contactId }, select: { customFields: true } });
+      await prisma.contact
+        .update({
+          where: { id: contactId },
+          data: { customFields: { ...((contact?.customFields as Record<string, string>) ?? {}), ...sanitizedMapped } },
+        })
+        .catch(() => {});
+    }
+    return NextResponse.json({ success: true, booking: { service: (booking.typeName as string) ?? "", ...booking } }, { status: 201 });
+  }
+
+  // ── Classic flow: request (+ quote for service-request forms) ─────────────
+
+  // Website leads go to the company's preset assignee, else the owner
+  const assignedToId = await defaultLeadAssignee(company.id);
+
   const requestTitle =
     form.type === "SERVICE_REQUEST"
       ? pickedServices.map((s) => s.name).join(", ")
-      : booking
-        ? booking.service.name
-        : (serviceAsked && service) || form.name;
-
-  const bookingWindow = booking
-    ? slotLabel(company.timezone, booking.start, booking.windowEnd)
-    : null;
+      : (serviceAsked && service) || form.name;
 
   const preferred =
     config.fields.date.show && typeof preferredDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(preferredDate)
@@ -377,16 +404,12 @@ export async function POST(
           contactId: contact.id,
           requestNumber: (last?.requestNumber ?? 0) + 1,
           title: requestTitle,
-          status: booking ? "NEEDS_APPROVAL" : undefined,
-          preferredDate: booking ? booking.start : preferred,
+          preferredDate: preferred,
           details: [
             message,
             ...customLines,
             form.type === "SERVICE_REQUEST"
               ? `Services: ${pickedServices.map((s) => `${s.name} ($${s.price.toFixed(2)})`).join(", ")}`
-              : null,
-            booking
-              ? `Self-scheduled online: ${booking.service.name} ($${booking.service.price.toFixed(2)}) — requested arrival ${bookingWindow}`
               : null,
             quote
               ? `Quote #${quote.quoteNumber} created automatically (${config.serviceRequest.quoteMode === "send" ? "sent for approval" : "draft"})${quote.deposit > 0 ? ` — deposit $${quote.deposit.toFixed(2)}` : ""}.`
@@ -414,84 +437,17 @@ export async function POST(
         await autoAdvance(tx, company.id, contact.id, "QUOTE_SENT");
       }
 
-      // Self-scheduled slot → tentative appointment. Availability re-checked
-      // inside the transaction (serializable, see below) so two clients
-      // grabbing the same window can't both win.
-      if (booking) {
-        const usersNow = await getBookableUsersWithBusy(
-          company.id,
-          booking.start,
-          booking.end,
-          tx
-        );
-        const dayKey = localDayKey(company.timezone, booking.start);
-        const candidates = driveAllow
-          ? usersNow.filter((u) => driveAllow!(u.id, dayKey))
-          : usersNow;
-        const userId = pickUserForSlot(booking.start, booking.end, candidates, company.timezone);
-        if (!userId) throw new SlotTakenError();
-        const lastAppt = await tx.appointment.findFirst({
-          where: { companyId: company.id },
-          orderBy: { appointmentNumber: "desc" },
-          select: { appointmentNumber: true },
-        });
-        await tx.appointment.create({
-          data: {
-            companyId: company.id,
-            contactId: contact.id,
-            requestId: request.id,
-            assignedToId: userId,
-            appointmentNumber: (lastAppt?.appointmentNumber ?? 0) + 1,
-            title: booking.service.name,
-            type: "IN_PERSON",
-            scheduledAt: booking.start,
-            scheduledEnd: booking.end,
-            address: address || null,
-            tentative: true,
-            notes: `Booked online — promised arrival window ${bookingWindow}.`,
-          },
-        });
-      }
-
       return { contact, request, quote };
-    }, booking ? { isolationLevel: Prisma.TransactionIsolationLevel.Serializable } : undefined)
-  ).catch((e) => {
-    // Slot races: our explicit re-check, or Postgres aborting one of two
-    // serializable transactions that raced. The form refreshes its slots.
-    if (
-      e instanceof SlotTakenError ||
-      (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2034")
-    ) {
-      return null;
-    }
-    throw e;
-  });
-
-  if (result === null) {
-    return NextResponse.json(
-      { error: "That time was just taken — please pick another.", slotTaken: true },
-      { status: 409 }
-    );
-  }
-
-  // Push: self-scheduled bookings need a manager's Accept/Decline; everything
-  // else goes to the owner(s) + preset lead assignee like the email does
-  await notifyUsers(
-    booking ? await companyManagerIds(company.id) : await requestNotifyUserIds(company.id),
-    booking
-      ? {
-          title: "Booking to approve",
-          body: `${firstName} ${lastName} — ${booking.service.name}, ${bookingWindow}`,
-          url: `/app/requests/${result.request.id}`,
-          tag: `request-${result.request.id}`,
-        }
-      : {
-          title: `New request from ${firstName} ${lastName}`,
-          body: result.request.title,
-          url: `/app/requests/${result.request.id}`,
-          tag: `request-${result.request.id}`,
-        }
+    })
   );
+
+  // Push: the owner(s) + preset lead assignee, like the email
+  await notifyUsers(await requestNotifyUserIds(company.id), {
+    title: `New request from ${firstName} ${lastName}`,
+    body: result.request.title,
+    url: `/app/requests/${result.request.id}`,
+    tag: `request-${result.request.id}`,
+  });
 
   // Notify the company inbox; reply goes straight to the customer
   const notifyTo = await companyNotifyAddress(company.id, company.email);
@@ -535,40 +491,5 @@ export async function POST(
     });
   }
 
-  // Self-scheduled booking: the client gets a "received, awaiting
-  // confirmation" email right away (confirm/decline emails follow the
-  // owner's decision).
-  if (booking && email && bookingWindow) {
-    const { subject, html } = bookingReceivedEmail({
-      brand: company,
-      companyName: company.name,
-      contactFirstName: firstName,
-      serviceName: booking.service.name,
-      windowLabel: bookingWindow,
-      address: address || null,
-    });
-    await sendEmail({
-      companyId: company.id,
-      to: email,
-      subject,
-      html,
-      replyTo: company.email || undefined,
-      fromName: company.name,
-    });
-  }
-
-  return NextResponse.json(
-    {
-      success: true,
-      ...(booking && {
-        booking: {
-          start: booking.start.toISOString(),
-          windowEnd: booking.windowEnd.toISOString(),
-          label: bookingWindow,
-          service: booking.service.name,
-        },
-      }),
-    },
-    { status: 201 }
-  );
+  return NextResponse.json({ success: true }, { status: 201 });
 }
