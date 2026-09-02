@@ -6,7 +6,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/db";
 import { paymentsGateStatus } from "@/lib/payments-gate";
-import { atlasAccess, ATLAS_TRIAL_TURNS } from "@/lib/assistant-access";
+import { atlasAccess, ATLAS_ACCESS_SELECT, ATLAS_TRIAL_TOKENS } from "@/lib/assistant-access";
 import AppShell from "@/components/AppShell";
 import NativeShell from "@/components/NativeShell";
 import AppLock from "@/components/AppLock";
@@ -55,9 +55,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             brandFont: true,
             sectionColors: true,
             assistantName: true,
-            assistantEnabled: true,
-            atlasTrialStartedAt: true,
-            atlasTrialUsed: true,
+            ...ATLAS_ACCESS_SELECT,
             finixOnboardingState: true,
             paymentsWaived: true,
             suspendedAt: true,
@@ -143,7 +141,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         needsTour={!!user && !user.tourCompletedAt}
         aiEnabled={Boolean(process.env.GEMINI_API_KEY) && !!atlas && atlas.level !== "off"}
         atlas={atlas ?? undefined}
-        atlasTrialTurns={ATLAS_TRIAL_TURNS}
+        atlasTrialTokens={ATLAS_TRIAL_TOKENS}
         assistantName={company?.assistantName}
         userId={session.user.id}
       >

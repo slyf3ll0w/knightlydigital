@@ -93,6 +93,58 @@ list_subscriptions / whats_needing_attention tools, model → gemini-2.5-flash]:
   tsc + next build clean. NOT yet live-verified against Gemini — free-tier
   quota is the blocker; verify after the paid-tier flip.
 
+**Stage E — v8: parity refresh, power reads, spend-metered plan, card
+redesign [BUILT 2026-09-01]:**
+- 95 tools. Four new modules: lib/assistant/records.ts (query_records —
+  one structured search across 11 entities with filters/sort/paging up to
+  200 rows; report — aggregates by month/week/client/tech/status/category
+  without listing rows), client-extras.ts (get_client_details, addresses,
+  people, email_client, reply_in_portal, get_statement, manage_saved_card),
+  field.ts (checklists, clock, on-my-way + review sms prep, job sign-off,
+  manage_time_entry, manage_time_block, team_map, get_route_plan,
+  optimize_route, find_a_time, post_team_message), money-extras.ts
+  (refund_payment — REAL processor refunds now, charge_saved_card,
+  duplicate_document, manage_recurring_expense, quickbooks status/sync,
+  send_payout, export_data, run_recurring_billing). log_expense gained
+  repeatMonthly; delete_record gained time_entry/time_block/address/person.
+- Proposal gained `money` (amber, unmergeable "moves real money" card),
+  `confirmLabel` (verb buttons) and `href` (Open link after Confirm).
+- Loop: 12 rounds × 24 calls, 16k output cap, ATLAS_THINKING_BUDGET
+  (default 1024 on 2.5-flash), an atlasNote on the last tool round so bulk
+  work wraps up cleanly and offers "continue". Usage is summed per turn.
+- Access ladder (lib/assistant-access.ts): full → off → PLAN → trial. The
+  plan (lib/assistant-billing.ts) is NOT sold yet — superadmin grants it.
+  It meters SPEND, not messages: each turn's Gemini usage is priced with
+  lib/platform-costs unit prices and converted to "Atlas tokens"
+  (ATLAS_TOKEN_CENTS, default 0.01¢/token; ATLAS_PLAN_TOKENS, default
+  100,000 per monthly period anchored on activation). Debited after the
+  turn (overshoot ≤ one turn). Every turn is logged to AssistantTurn for
+  every access level; the superadmin company page shows the 30-day ledger,
+  the live meter, and grant/refill/revoke.
+- **Trial on the same meter [2026-09-02]**: the free trial no longer counts
+  messages — it is a one-time allowance of ATLAS_TRIAL_TOKENS (default
+  10,000 ≈ $1 of raw spend, roughly 25–60 messages) debited exactly like
+  the plan (`Company.atlasTrialTokensUsed`; `atlasTrialUsed` dropped —
+  `db:push` needs `--accept-data-loss` for that one column). `AtlasAccess`
+  trial and plan variants both carry `meter` (refillsAt null for the
+  trial); the drawer shows one TokenMeter for both plus per-reply cost on
+  every metered turn. Superadmin gained "Reset trial" (atlas-trial-reset)
+  so a burn-down can be re-run on a test company. Measured static payload
+  2026-09-02: 95 tools = 57,397 chars ≈ 15k tokens + ~2.5k system prompt
+  per model call — see cost-controls.md for the reduction plan.
+- Drawer: approval cards rebuilt on .card-ledger — colored rule (accent /
+  amber money / red permanent), status stamp, key/value ledger rows,
+  batch preview with "Show all", typed-name arming, verb-specific commit
+  button, Done/Failed footer with Open + Try again, skipped cards collapse
+  to one line. Plan meter (bar + refill date) above the composer; per-reply
+  token cost on plan accounts; plan-spent lock state.
+- Still deliberately excluded: company deletion, logo/photo upload, CSV
+  import, adding a NEW card (finix.js form), dispute evidence upload,
+  QuickBooks connect, email-domain setup.
+- Deploy order: `npm run db:push` (additive: 4 Company columns + the
+  AssistantTurn table) BEFORE the code deploy — the platform layout selects
+  the new columns on every page.
+
 ## 2. AI receptionist (DAVID BUILDS LATER — likely behind a paywall)
 
 Chat bubble on the public /book/[slug] page + embed. Answers pre-booking

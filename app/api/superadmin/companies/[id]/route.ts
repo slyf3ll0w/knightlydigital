@@ -51,6 +51,10 @@ export async function PATCH(
     action !== "assistant-on" &&
     action !== "assistant-off" &&
     action !== "assistant-default" &&
+    action !== "atlas-plan-grant" &&
+    action !== "atlas-plan-revoke" &&
+    action !== "atlas-plan-reset" &&
+    action !== "atlas-trial-reset" &&
     action !== "addon-show" &&
     action !== "addon-hide" &&
     action !== "addon-grant" &&
@@ -85,6 +89,32 @@ export async function PATCH(
     console.warn(
       `[superadmin] assistant ${assistantEnabled === null ? "reset to DEFAULT" : assistantEnabled ? "forced ON" : "forced OFF"} for "${company.name}" (${id}) by ${admin.email}`
     );
+    return NextResponse.json({ success: true });
+  }
+
+  // Atlas paid plan (lib/assistant-billing.ts) — not sold yet, so this is the
+  // only way to activate it: grant starts a metered plan anchored now, revoke
+  // ends it (trial state is untouched), reset refills the current period.
+  if (action === "atlas-plan-grant" || action === "atlas-plan-revoke" || action === "atlas-plan-reset") {
+    const data =
+      action === "atlas-plan-grant"
+        ? { atlasPlanActiveAt: new Date(), atlasPeriodStart: new Date(), atlasPeriodTokensUsed: 0 }
+        : action === "atlas-plan-revoke"
+          ? { atlasPlanActiveAt: null, atlasPlanLiverySubId: null, atlasPeriodStart: null, atlasPeriodTokensUsed: 0 }
+          : { atlasPeriodTokensUsed: 0 };
+    await prisma.company.update({ where: { id }, data });
+    console.warn(`[superadmin] atlas plan ${action.replace("atlas-plan-", "")} for "${company.name}" (${id}) by ${admin.email}`);
+    return NextResponse.json({ success: true });
+  }
+
+  // Atlas free trial reset: back to the untried paywall with a fresh
+  // allowance — the way to re-run a trial burn-down on a test company.
+  if (action === "atlas-trial-reset") {
+    await prisma.company.update({
+      where: { id },
+      data: { atlasTrialStartedAt: null, atlasTrialTokensUsed: 0 },
+    });
+    console.warn(`[superadmin] atlas trial reset for "${company.name}" (${id}) by ${admin.email}`);
     return NextResponse.json({ success: true });
   }
 

@@ -28,6 +28,14 @@ export type Proposal = {
   payload: Record<string, unknown>;
   /** Destructive action — card renders red. */
   danger?: boolean;
+  /** Moves real money (charges a card, refunds, payouts, billing runs) —
+   *  card renders amber with a money note and never merges into a batch. */
+  money?: boolean;
+  /** Verb for the commit button ("Send email", "Charge card"); the drawer
+   *  derives one from `kind` when absent. */
+  confirmLabel?: string;
+  /** Where to go after Confirm succeeds (relative /app path). */
+  href?: string;
   /** Extra authentication for destructive cards: the user must type this
    *  exact text before Confirm arms (matches the force-delete page UX). */
   confirmText?: string;

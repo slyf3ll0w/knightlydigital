@@ -2,13 +2,14 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
 import { aiEnabled } from "@/lib/ai";
-import { ATLAS_TRIAL_TURNS } from "@/lib/assistant-access";
+import { ATLAS_TRIAL_TOKENS } from "@/lib/assistant-access";
 import { inPreview, previewBlockedError } from "@/lib/preview";
 
 /**
- * POST — start the company's free Atlas trial (ATLAS_TRIAL_TURNS assistant
- * turns). One trial per company, ever; owners/admins only. The paywall panel
- * in the assistant drawer is the only caller.
+ * POST — start the company's free Atlas trial: a one-time allowance of
+ * ATLAS_TRIAL_TOKENS on the spend meter (lib/assistant-billing.ts). One
+ * trial per company, ever; owners/admins only. The paywall panel in the
+ * assistant drawer is the only caller.
  */
 export async function POST() {
   const actor = await getActor();
@@ -57,5 +58,5 @@ export async function POST() {
     );
   }
 
-  return NextResponse.json({ success: true, turns: ATLAS_TRIAL_TURNS });
+  return NextResponse.json({ success: true, tokens: ATLAS_TRIAL_TOKENS });
 }

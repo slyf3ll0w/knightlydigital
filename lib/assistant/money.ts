@@ -669,7 +669,7 @@ export const moneyTools: Tool[] = [
     decl: {
       name: "log_expense",
       description:
-        "Stage recording a business expense (managers): description, amount, optional category and date. Confirmation card required.",
+        "Stage recording a business expense (managers): description, amount, optional category and date. repeatMonthly=true also sets it up as a recurring monthly expense (rent, insurance, software) that auto-posts on the same day each month. Confirmation card required.",
       parameters: {
         type: "object",
         properties: {
@@ -677,6 +677,7 @@ export const moneyTools: Tool[] = [
           amount: { type: "number" },
           category: { type: "string", description: "e.g. Fuel, Materials, Equipment" },
           date: { type: "string", description: "YYYY-MM-DD (optional, defaults today)" },
+          repeatMonthly: { type: "boolean", description: "also create the monthly recurring template" },
         },
         required: ["description", "amount"],
       },
@@ -692,13 +693,20 @@ export const moneyTools: Tool[] = [
         ? str(args.date, 10)
         : new Date().toLocaleDateString("en-CA", { timeZone: tz });
       const category = str(args.category, 60);
+      const repeat = args.repeatMonthly === true;
       return stage(ctx, {
-        kind: "log_expense",
-        title: `Log expense: ${description} — ${money(amount)}`,
-        lines: [category && `Category: ${category}`, `Date: ${dateStr}`].filter(Boolean) as string[],
+        kind: repeat ? "log_recurring_expense" : "log_expense",
+        title: `Log ${repeat ? "monthly " : ""}expense: ${description} — ${money(amount)}`,
+        lines: [
+          category && `Category: ${category}`,
+          `Date: ${dateStr}`,
+          repeat && `Repeats on day ${Number(dateStr.slice(8, 10))} of every month`,
+        ].filter(Boolean) as string[],
         endpoint: "/api/app/expenses",
         method: "POST",
-        payload: { description, amount, category: category || undefined, incurredAt: dateStr },
+        payload: { description, amount, category: category || undefined, incurredAt: dateStr, ...(repeat ? { repeatMonthly: true } : {}) },
+        confirmLabel: "Log expense",
+        href: "/app/business",
       });
     },
   },

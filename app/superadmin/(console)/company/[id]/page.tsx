@@ -10,7 +10,8 @@ import {
 import { AccountActions } from "./AccountActions";
 import { AddonControl } from "./AddonControl";
 import { AssistantControl } from "./AssistantControl";
-import { ATLAS_TRIAL_TURNS } from "@/lib/assistant-access";
+import { ATLAS_TRIAL_TOKENS } from "@/lib/assistant-access";
+import { ATLAS_PLAN_TOKENS, assistantUsageSummary, planBalance } from "@/lib/assistant-billing";
 import { PaymentsControl } from "./PaymentsControl";
 
 export const dynamic = "force-dynamic";
@@ -79,7 +80,10 @@ export default async function CompanyReport({
       paymentsWaived: true,
       assistantEnabled: true,
       atlasTrialStartedAt: true,
-      atlasTrialUsed: true,
+      atlasTrialTokensUsed: true,
+      atlasPlanActiveAt: true,
+      atlasPeriodStart: true,
+      atlasPeriodTokensUsed: true,
       addonEnabled: true,
       addonActiveAt: true,
       addonLiverySubId: true,
@@ -89,6 +93,9 @@ export default async function CompanyReport({
     },
   });
   if (!company) notFound();
+
+  // Atlas: 30-day spend ledger + the paid plan's live meter (lib/assistant-billing.ts)
+  const [atlasUsage, atlasPlan] = [await assistantUsageSummary(company.id), planBalance(company)];
 
   const sinceDate = new Date();
   sinceDate.setMonth(sinceDate.getMonth() - range.months);
@@ -439,8 +446,28 @@ export default async function CompanyReport({
             companyId={company.id}
             assistantEnabled={company.assistantEnabled}
             atlasTrialStartedAt={company.atlasTrialStartedAt?.toISOString() ?? null}
-            atlasTrialUsed={company.atlasTrialUsed}
-            atlasTrialTurns={ATLAS_TRIAL_TURNS}
+            atlasTrialTokensUsed={company.atlasTrialTokensUsed}
+            atlasTrialTokens={ATLAS_TRIAL_TOKENS}
+            plan={
+              atlasPlan
+                ? {
+                    activeAt: company.atlasPlanActiveAt!.toISOString(),
+                    included: atlasPlan.included,
+                    used: atlasPlan.used,
+                    remaining: atlasPlan.remaining,
+                    periodEnd: atlasPlan.periodEnd.toISOString(),
+                  }
+                : null
+            }
+            planTokens={ATLAS_PLAN_TOKENS}
+            usage={{
+              days: atlasUsage.days,
+              turns: atlasUsage.turns,
+              costCents: atlasUsage.costCents,
+              atlasTokens: atlasUsage.atlasTokens,
+              toolCalls: atlasUsage.toolCalls,
+              lastAt: atlasUsage.lastAt?.toISOString() ?? null,
+            }}
           />
 
           <AddonControl

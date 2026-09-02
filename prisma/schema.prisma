@@ -104,14 +104,32 @@ model Company {
   // Atlas access (lib/assistant-access.ts). assistantEnabled is a superadmin
   // override: true = full Atlas regardless of plan (the whitelist — test
   // accounts, comped users), false = Atlas hidden entirely, null = the
-  // default paywall policy: free trial (ATLAS_TRIAL_TURNS turns), then the
-  // full-plan upsell ("Coming Soon"). Every AI turn is real spend.
+  // default paywall policy: a one-time free allowance of Atlas tokens
+  // (ATLAS_TRIAL_TOKENS), then the full-plan upsell ("Coming Soon"). Every
+  // AI turn is real spend.
   assistantEnabled     Boolean?
   // Atlas free trial: stamped when an owner/admin starts the trial from the
-  // paywall; atlasTrialUsed counts assistant turns consumed against
-  // ATLAS_TRIAL_TURNS (incremented atomically in the assistant route).
-  atlasTrialStartedAt DateTime?
-  atlasTrialUsed      Int       @default(0)
+  // paywall. atlasTrialTokensUsed is the SAME spend meter the paid plan
+  // uses (lib/assistant-billing.ts): every turn's real Gemini cost, priced
+  // as Atlas tokens, debited against ATLAS_TRIAL_TOKENS. One allowance
+  // ever — it never refills.
+  atlasTrialStartedAt  DateTime?
+  atlasTrialTokensUsed Int       @default(0)
+  // DEPRECATED 2026-09-02 (the old turn counter) — kept through one deploy so
+  // the running code's layout select keeps working; dropped in the follow-up.
+  atlasTrialUsed       Int       @default(0)
+  // Atlas paid plan (lib/assistant-billing.ts) — NOT LIVE yet: no checkout
+  // is wired, the superadmin console grants/revokes it for testing. Same
+  // meter as the trial, but monthly: every turn's real Gemini cost
+  // (usageMetadata × lib/platform-costs unit prices) converts to "Atlas
+  // tokens" (ATLAS_TOKEN_CENTS each) and debits the period allowance
+  // (ATLAS_PLAN_TOKENS per monthly period, anchored on atlasPlanActiveAt).
+  // atlasPeriodStart names the period atlasPeriodTokensUsed belongs to; the
+  // assistant route rolls it forward lazily (see debitAtlasTokens).
+  atlasPlanActiveAt     DateTime?
+  atlasPlanLiverySubId  String? // future: the Livery Subscription id backing the plan
+  atlasPeriodStart      DateTime?
+  atlasPeriodTokensUsed Int       @default(0)
   // Historical: stamped when a merchant came from the old sandbox
   // test-approve bypass (removed 2026-09-01 — everyone completes the hosted
   // underwriting form now; testers use a bypass invite code on /apply, which
@@ -1811,6 +1829,31 @@ model CompanyUsageDaily {
 
   @@unique([companyId, day])
   @@index([day])
+}
+
+// One row per Atlas assistant turn — the spend ledger behind the paid plan's
+// token meter (lib/assistant-billing.ts) and the superadmin usage readout.
+// Written for every access level (trial/plan/full) so per-company burn is
+// visible before anyone pays. Plain companyId/userId (no FKs), same as
+// CompanyUsageDaily: cost history outlives the tenant.
+model AssistantTurn {
+  id           String   @id @default(cuid())
+  companyId    String
+  userId       String
+  createdAt    DateTime @default(now())
+  access       String // "trial" | "plan" | "full"
+  model        String
+  rounds       Int      @default(1) // model calls in this turn
+  toolCalls    Int      @default(0)
+  proposals    Int      @default(0) // confirmation cards staged
+  tokensIn     Int      @default(0)
+  tokensOut    Int      @default(0)
+  tokensCached Int      @default(0)
+  costCents    Float    @default(0) // what the turn cost US
+  atlasTokens  Int      @default(0) // what the plan meter was debited
+  ok           Boolean  @default(true)
+
+  @@index([companyId, createdAt])
 }
 
 // Monthly per-merchant ACTUALS imported from Finix's Net Profit report

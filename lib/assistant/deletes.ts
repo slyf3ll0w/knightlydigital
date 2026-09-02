@@ -12,13 +12,13 @@ export const deleteTools: Tool[] = [
     decl: {
       name: "delete_record",
       description:
-        "Stage PERMANENTLY deleting a record (managers only). entity + its id — for quote/invoice/job/request use the NUMBER as the id; for client/appointment/agreement/payment/expense/service use the record id. Deletion is a last resort: suggest archiving (clients/quotes/jobs/requests) or cancelling (appointments, subscriptions) instead when the user's goal is just to hide something. Deleting a client destroys ALL their history; the card makes the user type the client's name to confirm. Always a red confirmation card.",
+        "Stage PERMANENTLY deleting a record (managers only). entity + its id — for quote/invoice/job/request use the NUMBER as the id; for client/appointment/agreement/payment/expense/service/time_entry/time_block/address/person use the record id. Deletion is a last resort: suggest archiving (clients/quotes/jobs/requests) or cancelling (appointments, subscriptions) instead when the user's goal is just to hide something. Deleting a client destroys ALL their history; the card makes the user type the client's name to confirm. Always a red confirmation card.",
       parameters: {
         type: "object",
         properties: {
           entity: {
             type: "string",
-            enum: ["client", "request", "quote", "invoice", "job", "appointment", "agreement", "payment", "expense", "service"],
+            enum: ["client", "request", "quote", "invoice", "job", "appointment", "agreement", "payment", "expense", "service", "time_entry", "time_block", "address", "person"],
           },
           id: { type: "string", description: "record id, or the quote/invoice/job/request number" },
         },
@@ -283,8 +283,78 @@ export const deleteTools: Tool[] = [
             danger: true,
           });
         }
+        case "time_entry": {
+          const t = await prisma.timeEntry.findFirst({
+            where: { id: idArg, companyId },
+            select: { id: true, startedAt: true, endedAt: true, user: { select: { name: true } }, job: { select: { jobNumber: true } } },
+          });
+          if (!t) return { error: "No time entry with that id — check query_records entity time_entries." };
+          const hrs = Math.round((((t.endedAt ?? new Date()).getTime() - t.startedAt.getTime()) / 3_600_000) * 100) / 100;
+          return stage(ctx, {
+            kind: "delete_time_entry",
+            title: `Delete ${t.user.name}'s ${hrs} h time entry${t.job ? ` on job #${t.job.jobNumber}` : ""}`,
+            lines: [`Started: ${t.startedAt.toISOString().slice(0, 10)}`, "Labor cost and timesheets change.", gone],
+            endpoint: `/api/app/time-entries/${t.id}`,
+            method: "DELETE",
+            payload: {},
+            danger: true,
+            confirmLabel: "Delete entry",
+          });
+        }
+        case "time_block": {
+          const b = await prisma.timeBlock.findFirst({
+            where: { id: idArg, companyId },
+            select: { id: true, title: true, startAt: true, user: { select: { name: true } } },
+          });
+          if (!b) return { error: "No time block with that id — check manage_time_block list." };
+          return stage(ctx, {
+            kind: "delete_time_block",
+            title: `Remove block "${b.title}" (${b.user?.name ?? "everyone"})`,
+            lines: [`Starts: ${b.startAt.toISOString().slice(0, 10)}`],
+            endpoint: `/api/app/time-blocks/${b.id}`,
+            method: "DELETE",
+            payload: {},
+            danger: true,
+            confirmLabel: "Remove block",
+          });
+        }
+        case "address": {
+          const a = await prisma.contactAddress.findFirst({
+            where: { id: idArg, contact: { companyId } },
+            select: { id: true, label: true, address: true, contactId: true, _count: { select: { jobs: true, quotes: true, appointments: true } }, contact: { select: { firstName: true, lastName: true, companyName: true } } },
+          });
+          if (!a) return { error: "No saved address with that id — check get_client_details." };
+          const linked = a._count.jobs + a._count.quotes + a._count.appointments;
+          return stage(ctx, {
+            kind: "delete_address",
+            title: `Remove address "${a.label || a.address}" from ${clientName(a.contact)}`,
+            lines: [linked ? `${linked} job(s)/quote(s)/appointment(s) lose their property link (the records stay).` : "Nothing is linked to it.", gone],
+            endpoint: `/api/app/contacts/${a.contactId}/addresses/${a.id}`,
+            method: "DELETE",
+            payload: {},
+            danger: true,
+            confirmLabel: "Remove address",
+          });
+        }
+        case "person": {
+          const p = await prisma.contactPerson.findFirst({
+            where: { id: idArg, contact: { companyId } },
+            select: { id: true, firstName: true, lastName: true, contactId: true, contact: { select: { firstName: true, lastName: true, companyName: true } } },
+          });
+          if (!p) return { error: "No additional person with that id — check get_client_details." };
+          return stage(ctx, {
+            kind: "delete_person",
+            title: `Remove ${`${p.firstName} ${p.lastName}`.trim()} from ${clientName(p.contact)}`,
+            lines: [gone],
+            endpoint: `/api/app/contacts/${p.contactId}/people/${p.id}`,
+            method: "DELETE",
+            payload: {},
+            danger: true,
+            confirmLabel: "Remove person",
+          });
+        }
         default:
-          return { error: "entity must be one of client, request, quote, invoice, job, appointment, agreement, payment, expense, service." };
+          return { error: "entity must be one of client, request, quote, invoice, job, appointment, agreement, payment, expense, service, time_entry, time_block, address, person." };
       }
     },
   },

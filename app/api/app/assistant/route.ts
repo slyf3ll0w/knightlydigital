@@ -4,14 +4,63 @@ import { getActor } from "@/lib/permissions";
 import { aiEnabled } from "@/lib/ai";
 import { limit } from "@/lib/rate-limit";
 import { runAssistant, type ChatMessage } from "@/lib/assistant";
-import { atlasAccess, ATLAS_TRIAL_TURNS } from "@/lib/assistant-access";
+import {
+  atlasAccess,
+  ATLAS_ACCESS_SELECT,
+  meterToClient,
+  type AtlasAccess,
+} from "@/lib/assistant-access";
+import {
+  centsToAtlasTokens,
+  debitAtlasTokens,
+  recordAssistantTurn,
+  turnCostCents,
+  type Debit,
+  type TurnUsage,
+} from "@/lib/assistant-billing";
 import { inPreview, previewBlockedError } from "@/lib/preview";
 
 /**
- * POST — one assistant turn (docs/plans/ai-assistant-plan.md). Read-only:
- * the tool loop in lib/assistant.ts has no write tools. History lives in the
- * client (sessionStorage); nothing is persisted here.
+ * POST — one assistant turn (docs/plans/ai-assistant-plan.md). The tool
+ * loop in lib/assistant stages proposals; nothing is written here. History
+ * lives in the client (sessionStorage).
+ *
+ * Metering (lib/assistant-access.ts + lib/assistant-billing.ts): the trial
+ * and the plan share one meter. The turn's real cost, priced from Gemini
+ * usage and converted to Atlas tokens, is debited AFTER the call — a turn
+ * is allowed while any tokens remain, so a meter can overshoot by at most
+ * one turn (a few cents), cheaper than reserving and truer than guessing.
+ * Whitelisted ("full") accounts are unmetered but still logged. Every turn
+ * lands in AssistantTurn either way, including failed ones.
  */
+
+function lockedMessage(access: Extract<AtlasAccess, { level: "locked" }>, name = "Atlas"): string {
+  if (access.reason === "plan-spent") {
+    const when = access.resetsAt
+      ? new Date(access.resetsAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+      : "next period";
+    return `${name} has used this period's tokens — the meter refills on ${when}.`;
+  }
+  return access.trialUsed
+    ? `Your free ${name} trial tokens are used up — the full plan is coming soon.`
+    : `${name} is a premium add-on — start the free trial to chat.`;
+}
+
+/** Post-debit access for the drawer: the meter moved, so send the new truth. */
+function accessAfter(before: AtlasAccess, debit: Debit | null): AtlasAccess {
+  if (!debit) return before;
+  const { level, balance } = debit;
+  if (balance.remaining > 0) return { level, meter: meterToClient(balance) };
+  return level === "plan"
+    ? {
+        level: "locked",
+        trialUsed: true,
+        reason: "plan-spent",
+        resetsAt: balance.refillsAt?.toISOString(),
+      }
+    : { level: "locked", trialUsed: true, reason: "trial-ended" };
+}
+
 export async function POST(req: NextRequest) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -21,13 +70,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "The assistant isn't available right now." }, { status: 503 });
   }
 
-  // Account-level access (lib/assistant-access.ts): the layout also gates the
-  // UI, but this is the enforcement point a direct request can't skip.
+  // Account-level access: the layout also gates the UI, but this is the
+  // enforcement point a direct request can't skip.
   const company = await prisma.company.findUnique({
     where: { id: actor.companyId },
-    select: { assistantEnabled: true, atlasTrialStartedAt: true, atlasTrialUsed: true },
+    select: { ...ATLAS_ACCESS_SELECT, assistantName: true },
   });
   const access = company ? atlasAccess(company) : null;
+  const name = company?.assistantName || "Atlas";
   if (!access || access.level === "off") {
     return NextResponse.json(
       { error: "The AI assistant isn't included on this account." },
@@ -36,12 +86,7 @@ export async function POST(req: NextRequest) {
   }
   if (access.level === "locked") {
     return NextResponse.json(
-      {
-        error: access.trialUsed
-          ? "Your free Atlas trial has ended — the full plan is coming soon."
-          : "Atlas is a premium add-on — start the free trial to chat.",
-        atlasLocked: true,
-      },
+      { error: lockedMessage(access, name), atlasLocked: true, access },
       { status: 403 }
     );
   }
@@ -74,45 +119,57 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Send at least one user message." }, { status: 400 });
   }
 
-  // Trial metering: claim a turn atomically BEFORE the AI call — the
-  // conditional updateMany means two racing requests can't both slip past the
-  // cap. A failed AI call refunds the turn below.
-  let trialRemaining: number | undefined;
-  if (access.level === "trial") {
-    const claimed = await prisma.company.updateMany({
-      where: { id: actor.companyId, atlasTrialUsed: { lt: ATLAS_TRIAL_TURNS } },
-      data: { atlasTrialUsed: { increment: 1 } },
+  const metered = access.level === "trial" || access.level === "plan";
+
+  /** Price + ledger + (metered) debit for one turn's usage. */
+  async function settle(
+    usage: TurnUsage,
+    meta: { rounds: number; toolCalls: number; proposals: number; model: string; ok: boolean }
+  ): Promise<{ atlasTokens: number; debit: Debit | null }> {
+    const costCents = turnCostCents(usage);
+    const atlasTokens = metered ? centsToAtlasTokens(costCents) : 0;
+    const debit = metered && atlasTokens > 0 ? await debitAtlasTokens(actor!.companyId, atlasTokens) : null;
+    recordAssistantTurn({
+      companyId: actor!.companyId,
+      userId: actor!.id,
+      access: access!.level as "trial" | "plan" | "full",
+      model: meta.model,
+      rounds: meta.rounds,
+      toolCalls: meta.toolCalls,
+      proposals: meta.proposals,
+      usage,
+      costCents,
+      atlasTokens,
+      ok: meta.ok,
     });
-    if (claimed.count === 0) {
-      return NextResponse.json(
-        {
-          error: "Your free Atlas trial has ended — the full plan is coming soon.",
-          atlasLocked: true,
-        },
-        { status: 403 }
-      );
-    }
-    trialRemaining = Math.max(0, access.remaining - 1);
+    return { atlasTokens, debit };
   }
 
-  const result = await runAssistant(actor, messages);
+  const result = await runAssistant(actor, messages, {
+    onFailure: (partial) => {
+      // burned tokens are still spend — meter them, then let the caller retry
+      void settle(partial.usage, { ...partial, proposals: 0, ok: false });
+    },
+  });
   if (!result) {
-    if (access.level === "trial") {
-      await prisma.company
-        .updateMany({
-          where: { id: actor.companyId, atlasTrialUsed: { gt: 0 } },
-          data: { atlasTrialUsed: { decrement: 1 } },
-        })
-        .catch(() => undefined);
-    }
     return NextResponse.json(
       { error: "The assistant couldn't answer that just now — please try again." },
       { status: 502 }
     );
   }
+
+  const { atlasTokens, debit } = await settle(result.usage, {
+    rounds: result.rounds,
+    toolCalls: result.toolCalls,
+    proposals: result.proposals.length,
+    model: result.model,
+    ok: true,
+  });
+
   return NextResponse.json({
     reply: result.reply,
     proposals: result.proposals,
-    ...(trialRemaining !== undefined ? { trialRemaining } : {}),
+    access: accessAfter(access, debit),
+    turnTokens: atlasTokens,
   });
 }

@@ -209,6 +209,9 @@ export type AIChatOptions = {
   thinkingBudget?: number;
   /** Tenant to meter this call's token usage against (lib/usage.ts). */
   companyId?: string | null;
+  /** Per-call token accounting for callers that meter a whole turn (the
+   *  assistant's plan meter) — fired alongside the platform-wide record. */
+  onUsage?: (u: { tokensIn: number; tokensOut: number; tokensCached: number }) => void;
 };
 
 /**
@@ -262,6 +265,14 @@ export async function aiChat(opts: AIChatOptions): Promise<AIPart[] | null> {
         usageMetadata?: UsageMetadata;
       };
       meterUsage(opts.companyId, data.usageMetadata);
+      if (opts.onUsage && data.usageMetadata) {
+        const u = data.usageMetadata;
+        opts.onUsage({
+          tokensIn: u.promptTokenCount ?? 0,
+          tokensOut: (u.candidatesTokenCount ?? 0) + (u.thoughtsTokenCount ?? 0),
+          tokensCached: u.cachedContentTokenCount ?? 0,
+        });
+      }
       const candidate = data.candidates?.[0];
       // Truncation eats trailing functionCalls — the visible symptom is bulk
       // work silently missing records, so make it loud in the logs.

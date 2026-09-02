@@ -7,6 +7,16 @@
  */
 import assert from "node:assert";
 import { mergeBulkProposals, toolsForActor, type Proposal } from "../lib/assistant";
+import {
+  planPeriod,
+  planBalance,
+  trialBalance,
+  centsToAtlasTokens,
+  turnCostCents,
+  ATLAS_PLAN_TOKENS,
+  ATLAS_TRIAL_TOKENS,
+} from "../lib/assistant-billing";
+import { atlasAccess } from "../lib/assistant-access";
 import type { Actor } from "../lib/permissions";
 
 const base = { id: "u1", name: "Test", companyId: "c1", salesSeePayments: true };
@@ -17,44 +27,56 @@ const salesNoMoney: Actor = { ...base, role: "SALES", salesSeePayments: false };
 
 const names = (a: Actor) => toolsForActor(a).map((t) => t.decl.name).sort();
 
-// 1. owner sees everything
+// 1. owner sees everything (v8: 95 tools — records, client extras, field ops, money extras)
 assert.deepEqual(
   names(owner),
   [
     "add_client_note", "add_job_note", "add_team_member", "assign_client",
-    "business_summary", "cancel_appointment", "close_lead", "collect_deposit",
-    "convert_quote", "create_agreement_template", "create_client",
-    "create_invoice", "create_job", "create_quote", "create_request",
-    "create_service", "delete_record", "edit_payment", "email_document",
-    "get_client_activity", "get_company_settings", "get_document",
-    "get_lead_board", "get_price_book", "get_schedule",
-    "list_agreement_templates", "list_agreements", "list_clients",
-    "list_expenses", "list_money", "list_pipeline", "list_subscriptions",
-    "list_team", "log_expense", "manage_client_fields", "manage_lead_webhook",
-    "manage_pipeline_stage", "manage_subscription", "manage_web_form",
-    "move_lead", "record_payment", "respond_to_booking", "schedule_appointment",
-    "search_clients", "send_agreement", "send_portal_invite",
-    "set_business_hours", "set_client_status", "undo_import",
-    "update_agreement", "update_agreement_template", "update_appointment",
-    "update_client", "update_client_note", "update_company_settings",
-    "update_expense", "update_invoice", "update_job", "update_job_status",
-    "update_quote", "update_request", "update_service", "update_team_member",
+    "business_summary", "cancel_appointment", "charge_saved_card", "clock",
+    "close_lead", "collect_deposit", "convert_quote", "create_agreement_template",
+    "create_client", "create_invoice", "create_job", "create_quote",
+    "create_request", "create_service", "delete_record", "duplicate_document",
+    "edit_payment", "email_client", "email_document", "export_data",
+    "find_a_time", "get_client_activity", "get_client_details",
+    "get_company_settings", "get_document", "get_job_checklist",
+    "get_lead_board", "get_price_book", "get_route_plan", "get_schedule",
+    "get_statement", "list_agreement_templates", "list_agreements",
+    "list_clients", "list_expenses", "list_money", "list_pipeline",
+    "list_subscriptions", "list_team", "log_expense", "manage_address",
+    "manage_client_fields", "manage_lead_webhook", "manage_person",
+    "manage_pipeline_stage", "manage_recurring_expense", "manage_saved_card",
+    "manage_subscription", "manage_time_block", "manage_time_entry",
+    "manage_web_form", "move_lead", "optimize_route", "post_team_message",
+    "query_records", "quickbooks", "record_job_signoff", "record_payment",
+    "refund_payment", "reply_in_portal", "report", "request_review",
+    "respond_to_booking", "run_recurring_billing", "schedule_appointment",
+    "search_clients", "send_agreement", "send_on_my_way", "send_payout",
+    "send_portal_invite", "set_business_hours", "set_client_status", "team_map",
+    "undo_import", "update_agreement", "update_agreement_template",
+    "update_appointment", "update_checklist_item", "update_client",
+    "update_client_note", "update_company_settings", "update_expense",
+    "update_invoice", "update_job", "update_job_status", "update_quote",
+    "update_request", "update_service", "update_team_member",
     "update_team_policy", "whats_needing_attention",
   ],
   "owner gets all tools"
 );
 console.log(`ok 1: owner sees all ${names(owner).length} tools`);
 
-// 2. tech: schedule/jobs reads + the job actions techs can do, nothing else
+// 2. tech: schedule/jobs reads + the field actions techs can do, nothing else
 assert.deepEqual(
   names(tech),
   [
-    "add_job_note", "get_document", "get_schedule", "list_pipeline",
-    "update_job", "update_job_status", "whats_needing_attention",
+    "add_job_note", "clock", "export_data", "find_a_time", "get_document",
+    "get_job_checklist", "get_route_plan", "get_schedule", "list_pipeline",
+    "manage_time_block", "optimize_route", "post_team_message", "query_records",
+    "record_job_signoff", "report", "request_review", "send_on_my_way",
+    "update_checklist_item", "update_job", "update_job_status",
+    "whats_needing_attention",
   ],
   "tech tools"
 );
-console.log("ok 2: tech limited to schedule + job tools");
+console.log("ok 2: tech limited to schedule + job + field tools");
 
 // 3. sales: sell + money tools (toggle on) incl. actions, but no settings or job actions
 {
@@ -121,6 +143,120 @@ console.log("ok 2: tech limited to schedule + job tools");
   const single = mergeBulkProposals([mk("a", "update_client")]);
   assert.ok(single.length === 1 && !single[0].batch, "singles pass through unchanged");
   console.log("ok 5: same-kind proposals merge into one batch card");
+}
+
+// 5b. money cards (charges, refunds, payouts) never merge — each is its own decision
+{
+  const mk = (id: string, kind: string, extra?: Partial<Proposal>): Proposal => ({
+    id, kind, title: `t-${id}`, lines: [],
+    endpoint: `/api/x/${id}`, method: "POST", payload: { id }, ...extra,
+  });
+  const merged = mergeBulkProposals([
+    mk("a", "refund_payment", { money: true }),
+    mk("b", "refund_payment", { money: true }),
+    mk("c", "update_client", { confirmLabel: "Save changes" }),
+    mk("d", "update_client"),
+  ]);
+  assert.equal(merged.length, 3, "2 money cards stay solo; 2 updates merge");
+  assert.ok(merged.filter((p) => p.money).length === 2);
+  assert.equal(merged.find((p) => p.batch)?.confirmLabel, "Save changes", "batch keeps the verb");
+  console.log("ok 5b: money cards never merge");
+}
+
+// 5c. v8 gating: money movers + field ops land only where the pages allow them
+{
+  const s = names(sales);
+  const t = names(tech);
+  const o = names(owner);
+  assert.ok(!s.includes("refund_payment") && !s.includes("charge_saved_card") && !s.includes("send_payout"),
+    "sales can't move money");
+  assert.ok(!s.includes("clock") && !s.includes("send_on_my_way") && !s.includes("update_checklist_item"),
+    "sales have no field actions");
+  assert.ok(s.includes("get_client_details") && s.includes("email_client") && s.includes("reply_in_portal"),
+    "sales work client extras + messaging");
+  assert.ok(t.includes("clock") && t.includes("get_job_checklist") && t.includes("query_records") && t.includes("report"),
+    "techs get field ops + the power reads (scoped inside)");
+  assert.ok(!t.includes("get_statement") && !t.includes("get_client_details") && !t.includes("manage_time_entry"),
+    "techs see no money, client extras, or others' hours");
+  assert.ok(!names(salesNoMoney).includes("get_statement"), "statements need money access");
+  assert.ok(o.includes("manage_time_entry") && o.includes("team_map") && o.includes("quickbooks") && o.includes("run_recurring_billing"),
+    "managers get hours, team map, QBO, billing runs");
+  console.log("ok 5c: v8 tool gating");
+}
+
+// 5d. plan metering math (lib/assistant-billing.ts) — pure
+{
+  const active = new Date("2026-01-31T15:00:00Z");
+  // Jan 31 anchor: Feb period clamps to the 28th, March period back to the 31st
+  const feb = planPeriod(active, new Date("2026-03-01T00:00:00Z"));
+  assert.equal(feb.start.toISOString(), "2026-02-28T15:00:00.000Z");
+  assert.equal(feb.end.toISOString(), "2026-03-31T15:00:00.000Z");
+  const first = planPeriod(active, new Date("2026-02-10T00:00:00Z"));
+  assert.equal(first.start.toISOString(), "2026-01-31T15:00:00.000Z");
+  assert.equal(first.end.toISOString(), "2026-02-28T15:00:00.000Z");
+  // a stale stored period reads as a fresh allowance
+  const stale = planBalance(
+    { atlasPlanActiveAt: active, atlasPeriodStart: first.start, atlasPeriodTokensUsed: 5000 },
+    new Date("2026-03-05T00:00:00Z")
+  )!;
+  assert.equal(stale.used, 0);
+  assert.equal(stale.remaining, ATLAS_PLAN_TOKENS);
+  const current = planBalance(
+    { atlasPlanActiveAt: active, atlasPeriodStart: feb.start, atlasPeriodTokensUsed: 5000 },
+    new Date("2026-03-05T00:00:00Z")
+  )!;
+  assert.equal(current.used, 5000);
+  assert.equal(current.remaining, ATLAS_PLAN_TOKENS - 5000);
+  // pricing: a typical 3-round turn (~40k in, 1.5k out) is a couple of cents → a few hundred tokens
+  const cents = turnCostCents({ tokensIn: 40_000, tokensOut: 1_500, tokensCached: 20_000 });
+  assert.ok(cents > 0.5 && cents < 5, `turn cost in a sane range: ${cents}`);
+  const tokens = centsToAtlasTokens(cents);
+  assert.ok(tokens >= 50 && tokens <= 500, `tokens per turn sane: ${tokens}`);
+  assert.equal(centsToAtlasTokens(0), 0, "no cost, no tokens");
+  assert.equal(centsToAtlasTokens(0.0001), 1, "rounds up — no free turns");
+  console.log(`ok 5d: plan periods + pricing (sample turn ≈ ${cents.toFixed(2)}¢ = ${tokens} tokens)`);
+}
+
+// 5e. the trial rides the same meter: one-time allowance, no refill, then locked
+{
+  const never = { atlasTrialStartedAt: null, atlasTrialTokensUsed: 0 };
+  assert.equal(trialBalance(never), null, "no trial until started");
+  const started = { atlasTrialStartedAt: new Date("2026-09-01T00:00:00Z"), atlasTrialTokensUsed: 1_240 };
+  const b = trialBalance(started)!;
+  assert.equal(b.included, ATLAS_TRIAL_TOKENS);
+  assert.equal(b.used, 1_240);
+  assert.equal(b.remaining, ATLAS_TRIAL_TOKENS - 1_240);
+  assert.equal(b.refillsAt, null, "the trial never refills");
+  // overshoot by one turn never goes negative
+  const over = trialBalance({ ...started, atlasTrialTokensUsed: ATLAS_TRIAL_TOKENS + 300 })!;
+  assert.equal(over.remaining, 0);
+
+  // the access ladder, default policy (assistantEnabled null, no plan)
+  const noPlan = { atlasPlanActiveAt: null, atlasPeriodStart: null, atlasPeriodTokensUsed: 0 };
+  const offer = atlasAccess({ assistantEnabled: null, ...noPlan, ...never });
+  assert.deepEqual(offer, { level: "locked", trialUsed: false, reason: "trial-offer" });
+  const running = atlasAccess({ assistantEnabled: null, ...noPlan, ...started });
+  assert.equal(running.level, "trial");
+  if (running.level === "trial") {
+    assert.equal(running.meter.remaining, ATLAS_TRIAL_TOKENS - 1_240);
+    assert.equal(running.meter.refillsAt, null);
+  }
+  const spent = atlasAccess({ assistantEnabled: null, ...noPlan, ...started, atlasTrialTokensUsed: ATLAS_TRIAL_TOKENS });
+  assert.deepEqual(spent, { level: "locked", trialUsed: true, reason: "trial-ended" });
+  // whitelist and off win over everything; a plan wins over the trial
+  assert.equal(atlasAccess({ assistantEnabled: true, ...noPlan, ...never }).level, "full");
+  assert.equal(atlasAccess({ assistantEnabled: false, ...noPlan, ...started }).level, "off");
+  const planned = atlasAccess({
+    assistantEnabled: null,
+    atlasPlanActiveAt: new Date("2026-08-15T00:00:00Z"),
+    atlasPeriodStart: null,
+    atlasPeriodTokensUsed: 0,
+    ...started,
+    atlasTrialTokensUsed: ATLAS_TRIAL_TOKENS, // spent trial is irrelevant once a plan is on
+  });
+  assert.equal(planned.level, "plan");
+  if (planned.level === "plan") assert.ok(planned.meter.refillsAt, "plan meter carries its refill date");
+  console.log(`ok 5e: trial = one-time ${ATLAS_TRIAL_TOKENS.toLocaleString()} tokens on the shared meter, ladder intact`);
 }
 
 // 6. optional live round-trip

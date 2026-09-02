@@ -1,8 +1,43 @@
 # Cost controls — AI / storage / email
 
-Status: **PLANNED, not built** (2026-07-07). None of this is needed until the Hub has
-regular real users. Build it when flipping Gemini to the paid tier, or when the first
-outside tester starts using Atlas daily — whichever comes first.
+Status: **PARTLY BUILT** (2026-09-01). #2 (per-turn usage logging) is live via
+`AssistantTurn` (lib/assistant-billing.ts) and the Atlas paid plan meters real spend
+per company (see ai-assistant-plan.md Stage E); #1's hard message cap is superseded by
+the token meter — the trial (ATLAS_TRIAL_TOKENS, 10,000 ≈ $1 once) and the plan
+(ATLAS_PLAN_TOKENS per month) both debit real per-turn cost, so a trial company can
+never cost more than ~$1 + one turn. #3–#6 still apply. Measured 2026-09-02: the static
+payload is 95 tool declarations = 57,397 chars ≈ 15k tokens + ~2.5k system prompt,
+resent on EVERY model call (a 3-round turn sends it 3×). Verify implicit caching
+(cachedContentTokenCount) after the paid flip; AssistantTurn.tokensCached shows it.
+
+## Reduction plan (2026-09-02 assessment — do in this order)
+
+1. **Confirm caching is hitting** (free): AssistantTurn.tokensCached / tokensIn per
+   turn. If ≈0, the prefix isn't byte-stable — check systemPrompt() for anything
+   that varies per call (it currently varies only by day, user name, and role).
+2. **Lazy tool loading** (biggest lever, ~60–70% of input tokens): send full
+   declarations only for a core set (query_records, report, search_clients,
+   get_document, get_client_details, get_schedule, whats_needing_attention,
+   business_summary — ~9k chars) plus one-line stubs for the rest, and a
+   `load_tools(domain)` meta-tool that swaps a domain's full declarations in for
+   the following rounds. Deterministic pre-loading by keyword (invoice/quote/pay →
+   money; schedule/route/appointment → schedule+field; form/booking → company;
+   lead/pipeline → pipeline+leads; contract/agreement → agreements; delete →
+   deletes) avoids the extra round in the common case. Needs live verification
+   that the model reaches for load_tools instead of giving up.
+3. **Compact stale tool results mid-turn**: after round N+2, replace a large
+   functionResponse (query_records rows already consumed) with a one-line stub.
+   Results are re-sent every subsequent round; a 200-row page is ~10k tokens each
+   time. Keep the last two rounds intact for bulk staging.
+4. **Prune the redundant list_* tools** (8 tools, 2,868 chars): query_records
+   covers them and the prompt already steers to it. Fewer tools also means fewer
+   wrong picks.
+5. **Thinking budget** is an output-priced knob (ATLAS_THINKING_BUDGET, default
+   1024 ≈ up to 0.25¢/round on 2.5-flash). Try 512 and compare AssistantTurn.ok +
+   proposals per turn before/after.
+6. **Explicit context caching** (Gemini cachedContents, TTL) only once a company
+   chats steadily — storage is ~$1/M tokens/hour, so the 17.5k static prefix costs
+   ~$0.42/day kept warm. Worth it above ~60 turns/day platform-wide.
 
 ## What things actually cost (measured 2026-07-07)
 
