@@ -1,0 +1,44 @@
+# WorkBench
+
+> WorkBench is free field service management software for home-service teams
+> (plumbing, HVAC, electrical, cleaning, lawn care, and similar trades). It
+> covers the whole job lifecycle — online booking, lead pipeline, quotes with
+> e-signature, scheduling and dispatch, time tracking, team chat, one-click
+> invoicing, built-in card/ACH payments, recurring billing, a client portal,
+> and Atlas, a built-in AI assistant. Every feature is free for unlimited
+> users; WorkBench is funded by a flat processing fee (2.9% + 30¢ per card
+> transaction, 0.75% per ACH transfer) only when a client pays through it —
+> no monthly fees, no minimums, no paywalled tiers. A native iPhone app is
+> on the App Store; the web app runs on any device. Access is invite-only:
+> a short application and a standard payment-verification (KYC) form, then
+> a person reviews and onboards each company personally, usually within a
+> business day. Built by Streamflaire, based in the Dallas–Fort Worth, TX
+> area.
+
+## Product
+
+- [Home](https://workbenchfsm.com/): Overview, the free pricing model, trades supported, and the mobile app.
+- [Features](https://workbenchfsm.com/features): The complete feature catalog across four stages — win the work, run the day, get paid, keep clients close — plus Atlas and mobile.
+- [Pricing](https://workbenchfsm.com/pricing): The full breakdown of the free-software / flat-processing-fee model, exact rates, and FAQ.
+- [Get started](https://workbenchfsm.com/apply): The application flow — how a company gets onboarded.
+- [Roadmap](https://workbenchfsm.com/roadmap): What's shipped and what's coming next.
+
+## Feature deep-dives
+
+- [Scheduling & dispatch](https://workbenchfsm.com/features/scheduling-dispatch): Drag-to-schedule calendars, recurring visit series, team map, roles & permissions.
+- [Payments](https://workbenchfsm.com/features/payments): Card & ACH rates, saved cards & autopay, recurring billing, payment reminders, payouts & refunds.
+- [Quotes & invoicing](https://workbenchfsm.com/features/quotes-and-invoicing): E-signature quotes, deposits, follow-ups, one-click invoicing, the shared price book.
+- [Client portal](https://workbenchfsm.com/features/client-portal): The magic-link client hub — messaging, agreements, notifications, review requests.
+- [Time tracking](https://workbenchfsm.com/features/time-tracking): Clock-in/out, timesheets, the team map, and labor cost flowing into job profitability.
+- [Atlas AI assistant](https://workbenchfsm.com/features/atlas): What Atlas does, its permission model, and example commands.
+
+## Comparisons
+
+- [WorkBench vs. Jobber](https://workbenchfsm.com/vs/jobber): Pricing model and feature comparison.
+- [WorkBench vs. Housecall Pro](https://workbenchfsm.com/vs/housecall-pro): Pricing model and feature comparison.
+- [WorkBench vs. ServiceTitan](https://workbenchfsm.com/vs/servicetitan): Pricing model and feature comparison, including who each platform fits best.
+
+## Policies
+
+- [Privacy policy](https://workbenchfsm.com/privacy)
+- [Terms of service](https://workbenchfsm.com/terms)

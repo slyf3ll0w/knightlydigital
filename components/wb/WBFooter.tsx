@@ -19,6 +19,14 @@ const columns: {
     ],
   },
   {
+    heading: "Compare",
+    links: [
+      { label: "vs. Jobber", href: "/vs/jobber" },
+      { label: "vs. Housecall Pro", href: "/vs/housecall-pro" },
+      { label: "vs. ServiceTitan", href: "/vs/servicetitan" },
+    ],
+  },
+  {
     heading: "Get started",
     links: [
       { label: "Get started", href: "/apply" },
@@ -44,7 +52,7 @@ const columns: {
 export default function WBFooter() {
   return (
     <footer className="border-t border-gray-200 bg-white">
-      <div className="mx-auto grid max-w-6xl gap-10 px-5 py-14 sm:px-8 lg:grid-cols-[minmax(220px,1fr)_repeat(4,auto)] lg:gap-16">
+      <div className="mx-auto grid max-w-6xl gap-10 px-5 py-14 sm:px-8 lg:grid-cols-[minmax(220px,1fr)_repeat(5,auto)] lg:gap-12">
         <div className="max-w-xs">
           <Image
             src="/workbench-logo.png"
