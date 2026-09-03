@@ -216,7 +216,7 @@ const railGroups: { key: string; label: string; items: NavItem[] }[] = [
       { href: "/app/business", label: "Business", icon: BarChart3, show: isManagerRole },
       { href: "/app/settings/products", label: "Services", icon: Tag, show: isManagerRole },
       { href: "/app/settings/contracts", label: "Contracts", icon: FileSignature, show: isManagerRole },
-      { href: "/app/settings/booking", label: "Online booking", icon: Globe, show: isManagerRole },
+      { href: "/app/settings/booking", label: "Booking & forms", icon: Globe, show: isManagerRole },
       { href: "/app/settings/team", label: "Team", icon: UserPlus, show: isManagerRole },
     ],
   },
@@ -2534,7 +2534,7 @@ function MoreSheet({
     ...(teamCount > 1 ? [{ href: "/app/chat", label: "Team Chat", icon: MessagesSquare }] : []),
     ...(manager
       ? [
-          { href: "/app/settings/booking", label: "Online booking", icon: Globe },
+          { href: "/app/settings/booking", label: "Booking & forms", icon: Globe },
           { href: "/app/settings/team", label: "Team", icon: UserPlus },
           { href: "/app/settings", label: "Settings", icon: Settings },
         ]

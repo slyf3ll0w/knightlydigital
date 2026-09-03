@@ -5,7 +5,7 @@ import { prisma } from "@/lib/db";
 
 /**
  * Appearance for every public booking surface: the company's booking page
- * look (Settings → Online booking → Look) decides theme, font, size and
+ * look (Settings → Booking & forms → Look) decides theme, font, size and
  * accent, so the menu, every item page and every embed read as one family.
  * Query params (embeds) may override per placement.
  */

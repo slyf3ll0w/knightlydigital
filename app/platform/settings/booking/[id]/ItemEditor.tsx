@@ -20,6 +20,7 @@ import {
   type BookingTypeSettings,
 } from "@/lib/booking-types";
 import { defaultButtonLabel, type BookingIntake, type CustomField, type CustomFieldType, type FieldOption } from "@/lib/booking-intake";
+import { KIND_ICON } from "@/lib/booking-icons";
 
 /**
  * One item's editor: sections on the left, the real public page on the
@@ -72,8 +73,8 @@ function Toggle({ checked, onChange, label, hint, disabled }: { checked: boolean
         <span className="block text-sm text-gray-800">{label}</span>
         {hint && <span className="block text-xs text-gray-500">{hint}</span>}
       </span>
-      <button type="button" role="switch" aria-checked={checked} disabled={disabled} onClick={() => onChange(!checked)} className={`relative mt-0.5 h-6 w-11 shrink-0 rounded-full transition-colors ${checked ? "bg-green-500" : "bg-gray-300"}`}>
-        <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${checked ? "translate-x-[22px]" : "translate-x-0.5"}`} />
+      <button type="button" role="switch" aria-checked={checked} disabled={disabled} onClick={() => onChange(!checked)} className={`relative mt-0.5 inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${checked ? "bg-green-500" : "bg-gray-300"}`}>
+        <span className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform ${checked ? "translate-x-[22px]" : "translate-x-0.5"}`} />
       </button>
     </label>
   );
@@ -152,6 +153,7 @@ export default function ItemEditor({
   const pending = useRef<Record<string, unknown>>({});
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const meta = KIND_META[draft.kind];
+  const KindIcon = KIND_ICON[draft.kind];
   const scheduled = draft.mode === "SCHEDULE";
   const url = `${baseUrl}/book/${company.slug}/${draft.slug}`;
   const embedSrc = `${baseUrl}/embed/${company.slug}/${draft.slug}`;
@@ -297,7 +299,8 @@ export default function ItemEditor({
         </Link>
         <div className="min-w-0 flex-1">
           <input value={draft.name} onChange={(e) => update({ name: e.target.value })} className="numeral-ledger w-full min-w-0 border-b border-transparent bg-transparent text-2xl font-semibold text-gray-900 hover:border-gray-300 focus:border-green-500 focus:outline-none" aria-label="Name" />
-          <p className="text-sm text-gray-500">
+          <p className="flex items-center gap-1.5 text-sm text-gray-500">
+            <KindIcon size={14} className="text-gray-400" />
             {meta.label}
             {scheduled ? " · customer picks a time" : " · you follow up"}
           </p>

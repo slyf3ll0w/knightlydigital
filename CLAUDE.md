@@ -494,7 +494,7 @@ redirect). The company's one look lives on `Company.bookingPage`
   `/api/public/schedule/[slug]/[item]` (POST, captcha action `booking`),
   `/api/public/schedule/manage/[token]`. Paid embeds hand off to the hosted
   page with `lib/booking-prefill.ts` (finix.js refuses foreign iframes).
-- **Settings** — `/app/settings/booking` (`BookingHome`: page link/embed,
+- **Settings** — `/app/settings/booking`, nav label "Booking & forms" (`BookingHome`: page link/embed,
   Look, Scheduling rules, then the item list — ledger rows, one New button);
   `/app/settings/booking/[id]` (`ItemEditor`: autosave, sections How it
   works / Services / Timing / Who takes these / Confirmation / Payment /

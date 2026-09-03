@@ -768,7 +768,7 @@ export const companyTools: Tool[] = [
           ...stage(ctx, {
             kind: "manage_web_form",
             title: `Create "${name}" (${KIND_META[kind as keyof typeof KIND_META].label.toLowerCase()})`,
-            lines: [kind === "MESSAGE" ? "A message form; every submission lands in Requests." : mode === "SCHEDULE" ? "Customers pick a time from your team's open slots." : "Customers send a request; you follow up to set a time.", "Starts with sensible defaults and every bookable team member."],
+            lines: [kind === "MESSAGE" ? "A contact form; every submission lands in Requests." : mode === "SCHEDULE" ? "Customers pick a time from your team's open slots." : "Customers send a request; you follow up to set a time.", "Starts with sensible defaults and every bookable team member."],
             endpoint: "/api/app/booking-types",
             method: "POST",
             payload: { name, kind, mode },
@@ -801,7 +801,7 @@ export const companyTools: Tool[] = [
       }
       const mode = str(args.mode, 10);
       if ((mode === "SCHEDULE" || mode === "REQUEST") && mode !== item.mode) {
-        if (item.kind === "MESSAGE" && mode === "SCHEDULE") return { error: "A message form can't take bookings — create a phone call, visit or service item instead." };
+        if (item.kind === "MESSAGE" && mode === "SCHEDULE") return { error: "A contact form can't take bookings — create a phone call, visit or service item instead." };
         payload.mode = mode;
         lines.push(mode === "SCHEDULE" ? "Customers pick a time" : "Customers send a request; you follow up");
       }

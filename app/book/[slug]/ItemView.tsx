@@ -11,7 +11,7 @@ import EmbedAutoResize from "@/app/embed/[slug]/EmbedAutoResize";
 
 const APP_URL = process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com";
 
-export type ItemSearchParams = AppearanceOverrides & { prefill?: string; preview?: string; service?: string };
+export type ItemSearchParams = AppearanceOverrides & { prefill?: string; preview?: string; thumb?: string; service?: string };
 
 /**
  * One item, hosted or embedded: the stepper when the customer picks a time,

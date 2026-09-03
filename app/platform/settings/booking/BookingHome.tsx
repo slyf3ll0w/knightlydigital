@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Check, ChevronDown, ChevronRight, ChevronUp, Copy, ExternalLink, Globe, Link2, Loader2, MoreHorizontal, Plus, Power, Trash2, X } from "lucide-react";
@@ -12,14 +12,17 @@ import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { DAY_KEYS, type BusinessHours } from "@/lib/business-hours";
 import { arrivalWindowChoiceLabel } from "@/lib/arrival-window";
 import { BOOKING_KINDS, KIND_META, itemMetaLine, type BookingKind, type BookingMode, type BookingConfirmation, type BookingPayment } from "@/lib/booking-types";
+import { KIND_ICON } from "@/lib/booking-icons";
 import type { BookingPageLook } from "@/lib/booking-page";
 
 /**
- * Settings → Online booking. Two ideas: the company's booking page (its link,
+ * Settings → Booking & forms. Two ideas: the company's booking page (its link,
  * its look, the scheduling rules every item shares) and the list of things
  * people can book — calls, visits, services, and plain message forms — each
- * with its own link and embed. Ledger rows, sentence-case headings, one New
- * button; the state of a row reads as quiet text, not a badge.
+ * with its own link and embed. The page card opens with a live thumbnail of
+ * the real booking page, so the company's own colors and font are the
+ * splash of color here — nothing decorative of our own. Ledger rows,
+ * sentence-case headings, one New button.
  */
 
 export type ItemRow = {
@@ -66,6 +69,7 @@ const DRIVE_LIMIT_OPTIONS = [
 
 const inputCls = "w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500";
 const smallLabel = "mb-1 block text-xs font-medium text-gray-500";
+const chipCls = (active: boolean) => `rounded-[9px] px-3 py-1.5 text-xs transition-all ${active ? "chip-pressed font-semibold" : "btn-tool-line bg-white font-medium text-gray-600 hover:text-gray-900"}`;
 
 function fmtTime(t: string): string {
   const [h, m] = t.split(":").map(Number);
@@ -94,24 +98,35 @@ function lookSummary(look: BookingPageLook): string {
   return [theme, look.font ?? "default font", size, look.accent ? `accent ${look.accent}` : "brand accent"].join(" · ");
 }
 
-function Toggle({ checked, onChange, label, hint, disabled }: { checked: boolean; onChange: (v: boolean) => void; label: string; hint?: string; disabled?: boolean }) {
+// The real page, rendered at desktop width and scaled to fit its box —
+// so whatever theme, font and accent the company saved is what shows here.
+const THUMB_W = 1180;
+const THUMB_H = 900;
+
+function PageThumb({ src, reloadKey, className = "" }: { src: string; reloadKey: string; className?: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(0.2);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const fit = () => setScale(el.clientWidth / THUMB_W);
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   return (
-    <label className={`flex items-start justify-between gap-3 ${disabled ? "opacity-50" : "cursor-pointer"}`}>
-      <span className="min-w-0">
-        <span className="block text-sm text-gray-800">{label}</span>
-        {hint && <span className="block text-xs text-gray-500">{hint}</span>}
-      </span>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={checked}
-        disabled={disabled}
-        onClick={() => onChange(!checked)}
-        className={`relative mt-0.5 h-6 w-11 shrink-0 rounded-full transition-colors ${checked ? "bg-green-500" : "bg-gray-300"}`}
-      >
-        <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${checked ? "translate-x-[22px]" : "translate-x-0.5"}`} />
-      </button>
-    </label>
+    <div ref={ref} className={`relative overflow-hidden bg-gray-100 ${className}`} aria-hidden>
+      <iframe
+        key={reloadKey}
+        src={src}
+        tabIndex={-1}
+        loading="lazy"
+        title="Booking page"
+        className="pointer-events-none absolute left-0 top-0 origin-top-left border-0"
+        style={{ width: THUMB_W, height: THUMB_H, transform: `scale(${scale})` }}
+      />
+    </div>
   );
 }
 
@@ -140,6 +155,7 @@ export default function BookingHome({
   const [copied, setCopied] = useState<string | null>(null);
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [open, setOpen] = useState<"look" | "rules" | "embed" | null>(null);
+  const [tick, setTick] = useState(0); // bumps the thumbnail after item changes
 
   // ── Booking page: look ────────────────────────────────────────────────────
   const [look, setLook] = useState<BookingPageLook>(initialLook);
@@ -188,14 +204,15 @@ export default function BookingHome({
   const [newMode, setNewMode] = useState<BookingMode>("SCHEDULE");
   const [newName, setNewName] = useState("");
 
-  async function create() {
+  async function create(kind: BookingKind = newKind, mode: BookingMode = newMode, name = newName.trim()) {
     setBusy(true);
     setError("");
-    const { ok, data } = await postJson<{ id: string }>("/api/app/booking-types", { name: newName.trim() || KIND_META[newKind].defaultName, kind: newKind, mode: newMode }, "POST");
+    const { ok, data } = await postJson<{ id: string }>("/api/app/booking-types", { name: name || KIND_META[kind].defaultName, kind, mode }, "POST");
     setBusy(false);
     if (!ok || !data?.id) return setError(data?.error ?? GENERIC_ERROR);
     router.push(`/app/settings/booking/${data.id}`);
   }
+  const hasContactForm = items.some((t) => t.kind === "MESSAGE");
   async function patch(id: string, body: Record<string, unknown>) {
     setBusy(true);
     setError("");
@@ -203,6 +220,7 @@ export default function BookingHome({
     setBusy(false);
     if (!ok) return setError(data?.error ?? GENERIC_ERROR);
     setMenuFor(null);
+    setTick((n) => n + 1);
     router.refresh();
   }
   async function remove(t: ItemRow) {
@@ -212,6 +230,7 @@ export default function BookingHome({
     setBusy(false);
     if (!ok) return setError(data?.error ?? GENERIC_ERROR);
     setMenuFor(null);
+    setTick((n) => n + 1);
     router.refresh();
   }
   async function copy(text: string, key: string) {
@@ -228,22 +247,20 @@ export default function BookingHome({
   const embedSnippet = `<iframe src="${baseUrl}/embed/${companySlug}" data-jobflow="${embedKey}" style="width:100%;max-width:640px;height:760px;border:0;" title="Book online"></iframe>
 <script>window.addEventListener("message",function(e){var d=e.data;if(e.origin==="${baseUrl ? new URL(baseUrl).origin : ""}"&&d&&d.type==="jobflow:height"&&d.slug==="${embedKey}"){var f=document.querySelector('iframe[data-jobflow="${embedKey}"]');if(f)f.style.height=d.height+"px";}});</script>`;
 
+  const onPage = items.filter((t) => t.isActive && t.showOnPage).length;
+  const pageFacts = [
+    onPage === 0 ? "Nothing on it yet" : onPage === 1 ? "One thing on it" : `${onPage} things on it`,
+    initialRules.bookableCount === 0 ? "nobody takes bookings yet" : initialRules.bookableCount === 1 ? "1 person takes bookings" : `${initialRules.bookableCount} people take bookings`,
+    hoursSummary(hours),
+  ].join(" · ");
+  const thumbKey = `${JSON.stringify(lookSaved)}:${tick}`;
+
   const stateText = (t: ItemRow) => (!t.isActive ? "Off" : t.showOnPage ? "On your page" : "Link only");
+  const stateTone = (t: ItemRow) => (t.isActive && t.showOnPage ? "text-green-700" : "text-gray-500");
 
   const actionRow = (key: string, Icon: typeof Power, label: string, onClick: () => void, danger = false) => (
     <button key={key} type="button" onClick={onClick} disabled={busy} className={`flex w-full items-center gap-3 px-4 py-3 text-left text-[15px] font-medium transition-colors active:bg-gray-50 disabled:opacity-50 ${danger ? "text-red-600" : "text-gray-800"}`}>
       <Icon size={17} className={danger ? "text-red-500" : "text-gray-400"} />
-      {label}
-    </button>
-  );
-
-  const themeBtn = (value: BookingPageLook["theme"], label: string) => (
-    <button type="button" onClick={() => setLook({ ...look, theme: value })} className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${look.theme === value ? "bg-gray-900 text-white" : "border border-gray-200 text-gray-600 hover:bg-gray-100"}`}>
-      {label}
-    </button>
-  );
-  const sizeBtn = (value: BookingPageLook["fontSize"], label: string) => (
-    <button type="button" onClick={() => setLook({ ...look, fontSize: value })} className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${look.fontSize === value ? "bg-gray-900 text-white" : "border border-gray-200 text-gray-600 hover:bg-gray-100"}`}>
       {label}
     </button>
   );
@@ -262,14 +279,14 @@ export default function BookingHome({
     <div className="mx-auto max-w-4xl p-4 lg:p-8">
       <div className="flex items-center justify-between gap-3">
         <PageTitle section="forms" icon={Globe}>
-          Online booking
+          Booking & forms
         </PageTitle>
         <button onClick={() => setCreating(true)} aria-label="New" className="flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-[10px] btn-tool bg-green-500 px-3 text-sm font-semibold text-white transition-colors hover:bg-green-600 active:bg-green-700 sm:px-4">
           <Plus size={16} />
           <span className="hidden sm:inline">New</span>
         </button>
       </div>
-      <p className="mb-6 mt-2 text-sm text-gray-500">Where customers book a time or send you a request.</p>
+      <p className="mb-6 mt-2 text-sm text-gray-500">Where customers book a time, ask for a quote or send you a message.</p>
 
       {error && (
         <div className="mb-4 flex items-center justify-between rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -282,173 +299,185 @@ export default function BookingHome({
 
       {/* ── Your booking page ─────────────────────────────────────────────── */}
       <h2 className="mb-2 text-[17px] font-bold text-gray-900">Your booking page</h2>
-      <div className="card-ledger mb-8 divide-y divide-gray-100 overflow-hidden">
-        <div className="flex items-center gap-3 px-4 py-3.5 lg:px-5">
-          <span className="min-w-0 flex-1">
+      <div className="card-ledger mb-8 overflow-hidden">
+        <div className="grid grid-cols-1 sm:grid-cols-[232px_minmax(0,1fr)]">
+          <PageThumb src={`/book/${companySlug}?preview=1&thumb=1`} reloadKey={thumbKey} className="h-[190px] w-full border-b border-gray-100 sm:h-full sm:min-h-[176px] sm:border-b-0 sm:border-r" />
+          <div className="flex min-w-0 flex-col justify-center gap-3 px-4 py-4 lg:px-5">
             {previewMode ? (
-              <span className="block text-sm text-gray-500">Your link unlocks once your account is approved.</span>
+              <p className="text-sm text-gray-500">Your link unlocks once your account is approved.</p>
             ) : (
-              <span className="block truncate text-sm text-gray-900">{pageUrl.replace(/^https?:\/\//, "")}</span>
+              <p className="numeral-ledger truncate text-[17px] font-semibold text-gray-900 lg:text-lg">{pageUrl.replace(/^https?:\/\//, "")}</p>
             )}
-            <span className="mt-0.5 block text-xs text-gray-500">
-              {items.filter((t) => t.isActive && t.showOnPage).length === 1
-                ? "Shows the one item on it."
-                : `Lists ${items.filter((t) => t.isActive && t.showOnPage).length} items.`}
-            </span>
-          </span>
-          {!previewMode && (
-            <span className="flex shrink-0 items-center gap-1">
-              <button type="button" onClick={() => copy(pageUrl, "page")} className="rounded-full p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-700" title="Copy link">
-                {copied === "page" ? <Check size={14} className="text-green-600" /> : <Link2 size={14} />}
-              </button>
-              <a href={pageUrl} target="_blank" rel="noopener noreferrer" className="rounded-full p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-700" title="Open">
-                <ExternalLink size={14} />
-              </a>
-            </span>
-          )}
-        </div>
-
-        {!previewMode && (
-          <div>
-            {disclosureRow("embed", "Embed on your website", "One snippet for the whole page; each item has its own too")}
-            {open === "embed" && (
-              <div className="space-y-2 px-4 pb-4 lg:px-5">
-                <div className="flex items-start gap-2">
-                  <textarea readOnly value={embedSnippet} rows={4} className="min-w-0 flex-1 rounded-lg bg-gray-50 px-3 py-2 font-mono text-[11px] text-gray-700" />
-                  <button type="button" onClick={() => copy(embedSnippet, "embed")} className="rounded-full p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-700" title="Copy snippet">
-                    {copied === "embed" ? <Check size={14} className="text-green-600" /> : <Copy size={14} />}
-                  </button>
-                </div>
-                <p className="text-xs text-gray-500">Paste it into your site&apos;s HTML. It resizes itself and carries your saved look; add ?theme=dark or ?transparent=1 to the src to override per placement.</p>
+            <p className="text-xs text-gray-500">{pageFacts}</p>
+            {!previewMode && (
+              <div className="flex flex-wrap items-center gap-2">
+                <a href={pageUrl} target="_blank" rel="noopener noreferrer" className="flex h-9 items-center gap-1.5 rounded-[10px] btn-tool bg-green-500 px-3.5 text-sm font-semibold text-white transition-colors hover:bg-green-600 active:bg-green-700">
+                  <ExternalLink size={14} />
+                  Open
+                </a>
+                <button type="button" onClick={() => copy(pageUrl, "page")} className="flex h-9 items-center gap-1.5 rounded-[10px] btn-tool-line bg-white px-3.5 text-sm font-medium text-gray-800">
+                  {copied === "page" ? <Check size={14} className="text-green-600" /> : <Link2 size={14} />}
+                  {copied === "page" ? "Copied" : "Copy link"}
+                </button>
               </div>
             )}
           </div>
-        )}
-
-        <div>
-          {disclosureRow("look", "Look", lookSummary(look))}
-          {open === "look" && (
-            <div className="space-y-4 px-4 pb-4 lg:px-5">
-              <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-                <div>
-                  <p className={smallLabel}>Style</p>
-                  <div className="flex items-center gap-1">
-                    {themeBtn("light", "Light")}
-                    {themeBtn("dark", "Dark")}
-                    {themeBtn("transparent", "Transparent")}
-                  </div>
-                </div>
-                <div>
-                  <p className={smallLabel}>Text size</p>
-                  <div className="flex items-center gap-1">
-                    {sizeBtn("sm", "Small")}
-                    {sizeBtn("md", "Normal")}
-                    {sizeBtn("lg", "Large")}
-                  </div>
-                </div>
-              </div>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div>
-                  <label className={smallLabel}>Font</label>
-                  <input value={look.font ?? ""} onChange={(e) => setLook({ ...look, font: e.target.value || undefined })} placeholder="Default — or any Google Font, e.g. Oxanium" className={inputCls} />
-                </div>
-                <div>
-                  <label className={smallLabel}>Accent color</label>
-                  <div className="flex items-center gap-2">
-                    <input type="color" value={look.accent ?? brandAccent} onChange={(e) => setLook({ ...look, accent: e.target.value })} className="h-9 w-12 cursor-pointer rounded-lg border border-gray-300 p-1" />
-                    <span className="font-mono text-xs text-gray-500">{look.accent ?? "Brand color"}</span>
-                    {look.accent && (
-                      <button type="button" onClick={() => setLook({ ...look, accent: undefined })} className="text-xs text-gray-400 underline hover:text-gray-600">
-                        Reset
-                      </button>
-                    )}
-                  </div>
-                </div>
-                <div>
-                  <label className={smallLabel}>Page heading</label>
-                  <input value={look.title} onChange={(e) => setLook({ ...look, title: e.target.value })} placeholder="Your company name" className={inputCls} />
-                </div>
-                <div>
-                  <label className={smallLabel}>Line under it</label>
-                  <input value={look.description} onChange={(e) => setLook({ ...look, description: e.target.value })} placeholder="Pick what you'd like to book" className={inputCls} />
-                </div>
-              </div>
-              <p className="text-xs text-gray-500">Transparent has no background of its own — it sits directly on your website.</p>
-              <button type="button" onClick={saveLook} disabled={lookSaving || !lookDirty} className="flex h-10 items-center justify-center gap-2 rounded-[10px] btn-tool bg-green-500 px-4 text-sm font-semibold text-white transition-colors hover:bg-green-600 active:bg-green-700 disabled:opacity-50">
-                {lookSaving && <Loader2 size={13} className="animate-spin" />}
-                {lookDirty ? "Save look" : "Saved"}
-              </button>
-            </div>
-          )}
         </div>
 
-        <div>
-          {disclosureRow("rules", "Scheduling rules", rulesSummary)}
-          {open === "rules" && (
-            <div className="space-y-5 px-4 pb-4 lg:px-5">
-              {initialRules.bookableCount === 0 && (
-                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-                  Nobody on your team takes online bookings yet. Turn on <strong>Bookable online</strong> for someone on the{" "}
-                  <Link href="/app/settings/team" className="font-semibold underline">
-                    Team page
-                  </Link>
-                  .
+        <div className="divide-y divide-gray-100 border-t border-gray-100">
+          {!previewMode && (
+            <div>
+              {disclosureRow("embed", "Embed on your website", "One snippet for the whole page; each item has its own too")}
+              {open === "embed" && (
+                <div className="space-y-2 px-4 pb-4 lg:px-5">
+                  <div className="flex items-start gap-2">
+                    <textarea readOnly value={embedSnippet} rows={4} className="min-w-0 flex-1 rounded-lg bg-gray-50 px-3 py-2 font-mono text-[11px] text-gray-700" />
+                    <button type="button" onClick={() => copy(embedSnippet, "embed")} className="rounded-full p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-700" title="Copy snippet">
+                      {copied === "embed" ? <Check size={14} className="text-green-600" /> : <Copy size={14} />}
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500">Paste it into your site&apos;s HTML. It resizes itself and carries your saved look; add ?theme=dark or ?transparent=1 to the src to override per placement.</p>
                 </div>
               )}
-              <div>
-                <p className="mb-2 text-sm font-medium text-gray-900">
-                  Business hours
-                  <span className="font-normal text-gray-400"> — {initialRules.timezone.replace(/_/g, " ")}</span>
-                </p>
-                <BusinessHoursEditor hours={hours} onChange={setHours} />
-                <p className="mt-2 text-xs text-gray-400">
-                  Each person can have their own hours on the{" "}
-                  <Link href="/app/settings/team" className="underline">
-                    Team page
-                  </Link>
-                  .
-                </p>
-              </div>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div>
-                  <label className={smallLabel}>Arrival window</label>
-                  <select value={window_} onChange={(e) => setWindow(Number(e.target.value))} className={inputCls}>
-                    {WINDOW_OPTIONS.map((o) => (
-                      <option key={o.value} value={o.value}>
-                        {o.label}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="mt-1 text-xs text-gray-500">What visits promise: &quot;we&apos;ll arrive between 8 and 10&quot;.</p>
-                </div>
-                <div>
-                  <label className={smallLabel}>Max drive to a booked visit</label>
-                  <select value={driveLimit} onChange={(e) => setDriveLimit(Number(e.target.value))} className={inputCls}>
-                    {DRIVE_LIMIT_OPTIONS.map((o) => (
-                      <option key={o.value} value={o.value}>
-                        {o.label}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="mt-1 text-xs text-gray-500">Visits only offer times the assigned person can reach from their previous stop and on to the next.</p>
-                </div>
-              </div>
-              <div>
-                <label className={smallLabel}>Service area ZIP codes</label>
-                <textarea value={zipsText} onChange={(e) => setZipsText(e.target.value)} rows={2} placeholder="75002, 75013, 75025…" className={`${inputCls} font-mono`} />
-                <p className="mt-1 text-xs text-gray-500">Addresses outside these are turned away before they pick a time. Empty = anywhere.</p>
-              </div>
-              <button type="button" onClick={saveRules} disabled={rulesSaving} className="flex h-10 items-center justify-center gap-2 rounded-[10px] btn-tool bg-green-500 px-4 text-sm font-semibold text-white transition-colors hover:bg-green-600 active:bg-green-700 disabled:opacity-50">
-                {rulesSaving ? <Loader2 size={13} className="animate-spin" /> : rulesSavedAt ? <Check size={13} /> : null}
-                {rulesSavedAt ? "Saved" : "Save rules"}
-              </button>
             </div>
           )}
+
+          <div>
+            {disclosureRow("look", "Look", lookSummary(look))}
+            {open === "look" && (
+              <div className="space-y-4 px-4 pb-4 lg:px-5">
+                <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+                  <div>
+                    <p className={smallLabel}>Style</p>
+                    <div className="flex items-center gap-1.5">
+                      {(["light", "dark", "transparent"] as const).map((v) => (
+                        <button key={v} type="button" onClick={() => setLook({ ...look, theme: v })} className={chipCls(look.theme === v)}>
+                          {v === "light" ? "Light" : v === "dark" ? "Dark" : "Transparent"}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <p className={smallLabel}>Text size</p>
+                    <div className="flex items-center gap-1.5">
+                      {(["sm", "md", "lg"] as const).map((v) => (
+                        <button key={v} type="button" onClick={() => setLook({ ...look, fontSize: v })} className={chipCls(look.fontSize === v)}>
+                          {v === "sm" ? "Small" : v === "md" ? "Normal" : "Large"}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className={smallLabel}>Font</label>
+                    <input value={look.font ?? ""} onChange={(e) => setLook({ ...look, font: e.target.value || undefined })} placeholder="Default — or any Google Font, e.g. Oxanium" className={inputCls} />
+                  </div>
+                  <div>
+                    <label className={smallLabel}>Accent color</label>
+                    <div className="flex items-center gap-2">
+                      <input type="color" value={look.accent ?? brandAccent} onChange={(e) => setLook({ ...look, accent: e.target.value })} className="h-9 w-12 cursor-pointer rounded-lg border border-gray-300 p-1" />
+                      <span className="font-mono text-xs text-gray-500">{look.accent ?? "Brand color"}</span>
+                      {look.accent && (
+                        <button type="button" onClick={() => setLook({ ...look, accent: undefined })} className="text-xs text-gray-400 underline hover:text-gray-600">
+                          Reset
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <label className={smallLabel}>Page heading</label>
+                    <input value={look.title} onChange={(e) => setLook({ ...look, title: e.target.value })} placeholder="Your company name" className={inputCls} />
+                  </div>
+                  <div>
+                    <label className={smallLabel}>Line under it</label>
+                    <input value={look.description} onChange={(e) => setLook({ ...look, description: e.target.value })} placeholder="Pick what you'd like to book" className={inputCls} />
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500">Transparent has no background of its own — it sits directly on your website. The picture above updates when you save.</p>
+                <button type="button" onClick={saveLook} disabled={lookSaving || !lookDirty} className="flex h-10 items-center justify-center gap-2 rounded-[10px] btn-tool bg-green-500 px-4 text-sm font-semibold text-white transition-colors hover:bg-green-600 active:bg-green-700 disabled:opacity-50">
+                  {lookSaving && <Loader2 size={13} className="animate-spin" />}
+                  {lookDirty ? "Save look" : "Saved"}
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div>
+            {disclosureRow("rules", "Scheduling rules", rulesSummary)}
+            {open === "rules" && (
+              <div className="space-y-5 px-4 pb-4 lg:px-5">
+                {initialRules.bookableCount === 0 && (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                    Nobody on your team takes online bookings yet. Turn on <strong>Bookable online</strong> for someone on the{" "}
+                    <Link href="/app/settings/team" className="font-semibold underline">
+                      Team page
+                    </Link>
+                    .
+                  </div>
+                )}
+                <div>
+                  <p className="mb-2 text-sm font-medium text-gray-900">
+                    Business hours
+                    <span className="font-normal text-gray-400"> — {initialRules.timezone.replace(/_/g, " ")}</span>
+                  </p>
+                  <BusinessHoursEditor hours={hours} onChange={setHours} />
+                  <p className="mt-2 text-xs text-gray-400">
+                    Each person can have their own hours on the{" "}
+                    <Link href="/app/settings/team" className="underline">
+                      Team page
+                    </Link>
+                    .
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className={smallLabel}>Arrival window</label>
+                    <select value={window_} onChange={(e) => setWindow(Number(e.target.value))} className={inputCls}>
+                      {WINDOW_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="mt-1 text-xs text-gray-500">What visits promise: &quot;we&apos;ll arrive between 8 and 10&quot;.</p>
+                  </div>
+                  <div>
+                    <label className={smallLabel}>Max drive to a booked visit</label>
+                    <select value={driveLimit} onChange={(e) => setDriveLimit(Number(e.target.value))} className={inputCls}>
+                      {DRIVE_LIMIT_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="mt-1 text-xs text-gray-500">Visits only offer times the assigned person can reach from their previous stop and on to the next.</p>
+                  </div>
+                </div>
+                <div>
+                  <label className={smallLabel}>Service area ZIP codes</label>
+                  <textarea value={zipsText} onChange={(e) => setZipsText(e.target.value)} rows={2} placeholder="75002, 75013, 75025…" className={`${inputCls} font-mono`} />
+                  <p className="mt-1 text-xs text-gray-500">Addresses outside these are turned away before they pick a time. Empty = anywhere.</p>
+                </div>
+                <button type="button" onClick={saveRules} disabled={rulesSaving} className="flex h-10 items-center justify-center gap-2 rounded-[10px] btn-tool bg-green-500 px-4 text-sm font-semibold text-white transition-colors hover:bg-green-600 active:bg-green-700 disabled:opacity-50">
+                  {rulesSaving ? <Loader2 size={13} className="animate-spin" /> : rulesSavedAt ? <Check size={13} /> : null}
+                  {rulesSavedAt ? "Saved" : "Save rules"}
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
       {/* ── What people can book ──────────────────────────────────────────── */}
-      <h2 className="mb-2 text-[17px] font-bold text-gray-900">What people can book</h2>
+      <div className="mb-2 flex items-baseline justify-between gap-3">
+        <h2 className="text-[17px] font-bold text-gray-900">What people can book or send</h2>
+        {items.length > 0 && (
+          <span className="text-xs text-gray-500">
+            {onPage} of {items.length} on your page
+          </span>
+        )}
+      </div>
       <div className="card-ledger overflow-hidden">
         {items.length === 0 ? (
           <div className="px-5 py-12 text-center text-sm text-gray-500">
@@ -463,11 +492,13 @@ export default function BookingHome({
               const url = itemUrl(t);
               const open = menuFor === t.id;
               const meta = itemMetaLine(t);
+              const Icon = KIND_ICON[t.kind];
               const takers = t.mode === "SCHEDULE" ? (t.takers.length ? t.takers.slice(0, 3).join(", ") + (t.takers.length > 3 ? ` +${t.takers.length - 3}` : "") : "") : "";
               const warn = t.mode === "SCHEDULE" && t.takers.length === 0 ? "Nobody is bookable, so customers see a request form instead of open times — mark someone bookable on the Team page" : t.kind === "SERVICE" && t.serviceCount === 0 ? "No services yet" : null;
               return (
                 <div key={t.id} className={t.isActive ? "" : "opacity-60"}>
                   <div className="flex items-center gap-3 px-4 py-3.5 lg:px-5">
+                    <Icon size={17} className="shrink-0 text-gray-400" />
                     <Link href={`/app/settings/booking/${t.id}`} className="min-w-0 flex-1">
                       <span className="block truncate text-[15px] font-medium text-gray-900 lg:text-sm">{t.name}</span>
                       <span className="mt-0.5 block truncate text-xs text-gray-500">
@@ -476,7 +507,7 @@ export default function BookingHome({
                       </span>
                       {warn && <span className="mt-0.5 block text-xs text-amber-700">{warn}</span>}
                     </Link>
-                    <span className="hidden shrink-0 text-xs text-gray-500 sm:block">{stateText(t)}</span>
+                    <span className={`stamp shrink-0 ${stateTone(t)}`}>{stateText(t)}</span>
                     <div className="hidden shrink-0 items-center gap-1 lg:flex">
                       {!previewMode && t.isActive && (
                         <>
@@ -521,29 +552,49 @@ export default function BookingHome({
           </div>
         )}
       </div>
+      {items.length > 0 && !hasContactForm && !previewMode && (
+        <p className="mt-3 text-xs text-gray-500">
+          Want a plain contact form for your website?{" "}
+          <button type="button" onClick={() => create("MESSAGE", "REQUEST", "")} disabled={busy} className="font-medium text-green-600 hover:underline disabled:opacity-50">
+            Add one
+          </button>
+        </p>
+      )}
 
       {/* ── New item ──────────────────────────────────────────────────────── */}
       <Modal open={creating} onClose={() => !busy && setCreating(false)} cardClassName="w-full max-w-lg rounded-lg bg-white p-5 text-left shadow-xl">
         {creating && (
           <>
-            <h2 className="mb-3 text-base font-semibold text-gray-900">What can people book?</h2>
-            <div className="divide-y divide-gray-100 rounded-lg border border-gray-200">
-              {BOOKING_KINDS.map((k) => {
-                const meta = KIND_META[k];
-                const active = newKind === k;
-                return (
-                  <label key={k} className={`flex cursor-pointer items-start gap-3 px-3 py-2.5 ${active ? "bg-green-50/60" : ""}`}>
-                    <input type="radio" name="kind" checked={active} onChange={() => setNewKind(k)} className="mt-1 accent-green-600" />
-                    <span className="min-w-0">
-                      <span className="block text-sm font-medium text-gray-900">{meta.label}</span>
-                      <span className="block text-xs text-gray-500">{meta.hint}</span>
-                    </span>
-                  </label>
-                );
-              })}
-            </div>
+            <h2 className="mb-3 text-base font-semibold text-gray-900">What are you adding?</h2>
+            {(
+              [
+                ["Book a time", BOOKING_KINDS.filter((k) => KIND_META[k].schedulable)],
+                ["Just ask", BOOKING_KINDS.filter((k) => !KIND_META[k].schedulable)],
+              ] as [string, BookingKind[]][]
+            ).map(([group, kinds]) => (
+              <div key={group} className="mb-3">
+                <p className="mb-1 text-xs font-medium text-gray-500">{group}</p>
+                <div className="divide-y divide-gray-100 rounded-lg border border-gray-200">
+                  {kinds.map((k) => {
+                    const meta = KIND_META[k];
+                    const Icon = KIND_ICON[k];
+                    const active = newKind === k;
+                    return (
+                      <label key={k} className={`flex cursor-pointer items-start gap-3 px-3 py-2.5 ${active ? "bg-green-50/60" : ""}`}>
+                        <input type="radio" name="kind" checked={active} onChange={() => setNewKind(k)} className="mt-1 accent-green-600" />
+                        <Icon size={16} className={`mt-0.5 shrink-0 ${active ? "text-green-600" : "text-gray-400"}`} />
+                        <span className="min-w-0">
+                          <span className="block text-sm font-medium text-gray-900">{meta.label}</span>
+                          <span className="block text-xs text-gray-500">{meta.hint}</span>
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
             {KIND_META[newKind].schedulable && (
-              <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1">
+              <div className="mt-1 flex flex-wrap gap-x-5 gap-y-1">
                 <label className="flex items-center gap-2 text-sm text-gray-700">
                   <input type="radio" name="mode" checked={newMode === "SCHEDULE"} onChange={() => setNewMode("SCHEDULE")} className="accent-green-600" />
                   Customer picks a time
@@ -557,7 +608,7 @@ export default function BookingHome({
             <label className="mb-1 mt-4 block text-xs font-medium text-gray-500">Name</label>
             <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder={KIND_META[newKind].defaultName} className={inputCls} />
             <div className="mt-4 flex flex-col gap-2 lg:flex-row lg:items-center">
-              <button onClick={create} disabled={busy} className="flex h-11 items-center justify-center gap-1.5 rounded-[10px] btn-tool bg-green-500 px-4 text-sm font-semibold text-white transition-colors hover:bg-green-600 active:bg-green-700 disabled:opacity-50 lg:h-10">
+              <button onClick={() => create()} disabled={busy} className="flex h-11 items-center justify-center gap-1.5 rounded-[10px] btn-tool bg-green-500 px-4 text-sm font-semibold text-white transition-colors hover:bg-green-600 active:bg-green-700 disabled:opacity-50 lg:h-10">
                 {busy && <Loader2 size={14} className="animate-spin" />}
                 Create
               </button>

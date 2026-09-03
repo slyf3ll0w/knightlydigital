@@ -192,7 +192,7 @@ export default async function RequestsPage({
             body={
               validStatus
                 ? "Try a different status, or log a request yourself."
-                : "New work starts here — requests arrive from your booking form, or log them yourself."
+                : "New work starts here — requests arrive from your booking page and contact forms, or log them yourself."
             }
             actionHref="/app/requests/new"
             actionLabel="Create a Request"

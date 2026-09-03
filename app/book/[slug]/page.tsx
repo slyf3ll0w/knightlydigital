@@ -27,7 +27,7 @@ export default async function BookingPage({ params, searchParams }: { params: Pr
   const { company, appearance } = page;
   return (
     <ScheduleFrame company={company} appearance={appearance} title={appearance.title || undefined} subtitle={appearance.description || "Pick what you'd like to book"}>
-      {page.previewing && (
+      {page.previewing && sp.thumb !== "1" && (
         <div className={`mb-4 rounded border px-3 py-2 text-center text-xs ${appearance.dark ? "border-white/15 text-gray-400" : "border-gray-200 bg-white text-gray-500"}`}>
           Preview — this is your booking page as customers see it.
         </div>

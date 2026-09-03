@@ -65,8 +65,8 @@ export const KIND_META: Record<
     defaultName: "Book a service",
   },
   MESSAGE: {
-    label: "Message",
-    hint: "A contact form. Every message lands in Requests and on your Leads board.",
+    label: "Contact form",
+    hint: "A plain form: name, contact details and a message. Every submission lands in Requests and on your Leads board.",
     exactTime: false,
     needsAddress: false,
     schedulable: false,

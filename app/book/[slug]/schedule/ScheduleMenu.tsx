@@ -1,10 +1,10 @@
 import Link from "next/link";
-import { ChevronRight, MapPin, MessageSquare, Phone, Video, Wrench } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import type { PublicBookingType } from "@/lib/booking-runtime";
 import { durationLabel } from "@/lib/booking-types";
 import type { ScheduleAppearance } from "./shell";
 
-export const KIND_ICON = { PHONE_CALL: Phone, VIDEO_CALL: Video, IN_PERSON: MapPin, SERVICE: Wrench, MESSAGE: MessageSquare } as const;
+import { KIND_ICON } from "@/lib/booking-icons";
 
 /** One row per item the company shows on its booking page. */
 export default function ScheduleMenu({
