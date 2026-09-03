@@ -29,6 +29,7 @@ export default async function BookingItemEditorPage({ params }: { params: Promis
         finixMerchantId: true,
         finixOnboardingState: true,
         surchargeEnabled: true,
+        hubBookingTypeId: true,
       },
     }),
     prisma.user.findMany({
@@ -112,6 +113,7 @@ export default async function BookingItemEditorPage({ params }: { params: Promis
         shopPinned: company.lat != null,
         paymentsReady,
         surchargeEnabled: company.surchargeEnabled,
+        hubFormId: company.hubBookingTypeId,
       }}
       baseUrl={baseUrl}
       previewMode={await inPreview(actor.companyId)}

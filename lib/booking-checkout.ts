@@ -109,7 +109,7 @@ export async function createServiceBooking(params: {
               title,
               status: "CONVERTED",
               preferredDate: slot.start,
-              source: "booking_form",
+              source: customer.contactId ? "client_hub" : "booking_form",
               bookingTypeId: type.id,
               details: [
                 `Booked online: ${title} — arrival ${label}`,
@@ -121,8 +121,11 @@ export async function createServiceBooking(params: {
                 .join("\n"),
             },
           });
-          await enterPipeline(tx, company.id, contact.id);
-          await autoAdvance(tx, company.id, contact.id, "REQUEST_CREATED");
+          // Hub bookings are repeat business, not leads — the board stays as it is
+          if (!customer.contactId) {
+            await enterPipeline(tx, company.id, contact.id);
+            await autoAdvance(tx, company.id, contact.id, "REQUEST_CREATED");
+          }
 
           const lastQuote = await tx.quote.findFirst({ where: { companyId: company.id }, orderBy: { quoteNumber: "desc" }, select: { quoteNumber: true } });
           const quote = await tx.quote.create({

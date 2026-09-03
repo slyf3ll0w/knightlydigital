@@ -175,6 +175,8 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   const { id } = await params;
   const type = await prisma.bookingType.findFirst({ where: { id, companyId: actor.companyId }, select: { id: true } });
   if (!type) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  // If this was the client hub form, the hub falls back to the plain request form
+  await prisma.company.updateMany({ where: { id: actor.companyId, hubBookingTypeId: type.id }, data: { hubBookingTypeId: null } });
   await prisma.bookingType.delete({ where: { id: type.id } });
   return NextResponse.json({ success: true });
 }

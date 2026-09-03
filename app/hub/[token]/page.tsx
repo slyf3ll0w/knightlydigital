@@ -16,6 +16,7 @@ import { money } from "@/lib/statuses";
 import { invoiceBalance } from "@/lib/payments";
 import { arrivalTimeLabel, resolveArrivalWindowMinutes } from "@/lib/arrival-window";
 import ResendContractButton from "./ResendContractButton";
+import { hubFormWords } from "@/lib/hub-form";
 
 export default async function HubHomePage({
   params,
@@ -47,7 +48,7 @@ export default async function HubHomePage({
           arrivalWindowMinutes: true,
         },
       },
-      company: { select: { timezone: true, arrivalWindowMinutes: true } },
+      company: { select: { id: true, slug: true, timezone: true, arrivalWindowMinutes: true, hubBookingTypeId: true } },
       contracts: {
         where: { status: { in: ["SENT", "SIGNED"] } },
         orderBy: { createdAt: "desc" },
@@ -57,6 +58,8 @@ export default async function HubHomePage({
     },
   });
   if (!contact) notFound();
+  // The business's chosen client hub form lends its words to the card
+  const hubForm = await hubFormWords(contact.company);
 
   const openQuotes = contact.quotes.length;
   const openBalance = contact.invoices.reduce(
@@ -248,15 +251,15 @@ export default async function HubHomePage({
       {/* Get work done */}
       <div className="anim-portal anim-delay-3 card-ledger p-8 text-center">
         <Inbox size={32} className="text-gray-300 mx-auto mb-3" />
-        <h2 className="text-lg font-bold text-gray-900 mb-1">Get work done</h2>
+        <h2 className="text-lg font-bold text-gray-900 mb-1">{hubForm?.heading ?? "Get work done"}</h2>
         <p className="text-sm text-gray-500 mb-5">
-          Send us a request and fill us in on the details.
+          {hubForm?.description ?? "Send us a request and fill us in on the details."}
         </p>
         <Link
           href={`${base}/requests/new`}
           className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors"
         >
-          New Request
+          {hubForm?.buttonLabel ?? "New Request"}
         </Link>
       </div>
 

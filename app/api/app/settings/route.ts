@@ -33,6 +33,17 @@ export async function PATCH(req: NextRequest) {
   const opt = (v: unknown): string | null | undefined =>
     v === undefined ? undefined : v ? String(v) : null;
 
+  // Client hub form: null/"" = the plain request form; an id must be one of ours
+  const hubFormId =
+    body.hubBookingTypeId === undefined
+      ? undefined
+      : body.hubBookingTypeId === null || body.hubBookingTypeId === ""
+        ? null
+        : typeof body.hubBookingTypeId === "string" &&
+            (await prisma.bookingType.findFirst({ where: { id: body.hubBookingTypeId, companyId }, select: { id: true } }))
+          ? body.hubBookingTypeId
+          : undefined;
+
   await prisma.company.update({
     where: { id: companyId },
     data: {
@@ -161,6 +172,7 @@ export async function PATCH(req: NextRequest) {
           ? Number(body.schedulingIntervalMinutes)
           : undefined,
       bookingPage: body.bookingPage !== undefined ? sanitizeBookingPage(body.bookingPage) : undefined,
+      hubBookingTypeId: hubFormId,
     },
   });
 

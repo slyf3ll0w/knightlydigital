@@ -139,6 +139,8 @@ export default function ItemEditor({
     shopPinned: boolean;
     paymentsReady: boolean;
     surchargeEnabled: boolean;
+    /** Company.hubBookingTypeId — which item existing clients get in their hub */
+    hubFormId: string | null;
   };
   baseUrl: string;
   previewMode: boolean;
@@ -148,6 +150,17 @@ export default function ItemEditor({
   const [state, setState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [error, setError] = useState("");
   const [copied, setCopied] = useState<string | null>(null);
+  // "Use as the client hub form" — a company setting, not an item field
+  const [hubForm, setHubForm] = useState<string | null>(company.hubFormId);
+  async function setAsHubForm(on: boolean) {
+    const id = on ? draft.id : null;
+    setHubForm(id);
+    const { ok, data } = await postJson("/api/app/settings", { hubBookingTypeId: id }, "PATCH");
+    if (!ok) {
+      setHubForm(company.hubFormId);
+      setError(data?.error ?? GENERIC_ERROR);
+    }
+  }
   const [previewKey, setPreviewKey] = useState(0);
   const [embedOpen, setEmbedOpen] = useState(false);
   const pending = useRef<Record<string, unknown>>({});
@@ -849,6 +862,12 @@ export default function ItemEditor({
           {/* Sharing */}
           <Card title="Sharing">
             <Toggle checked={draft.showOnPage} onChange={(v) => update({ showOnPage: v })} label="Show on my booking page" hint={draft.showOnPage ? `Listed at ${baseUrl.replace(/^https?:\/\//, "")}/book/${company.slug}.` : "Reachable only by its own link or embed."} />
+            <Toggle
+              checked={hubForm === draft.id}
+              onChange={setAsHubForm}
+              label="Use as the client hub form"
+              hint={hubForm === draft.id ? "Existing clients get this under “Get work done” in their hub, with their details already filled in." : "Clients see the plain request form in their hub unless one item is chosen."}
+            />
             <div>
               <label className={smallLabel}>Link</label>
               <div className="flex items-center gap-1">

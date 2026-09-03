@@ -503,6 +503,18 @@ redirect). The company's one look lives on `Company.bookingPage`
   [/[id]]` (PATCH takes `intake`, `mode`, `showOnPage`, members, services,
   slug). `/api/app/settings` PATCH takes `bookingPage`. Team page: bookable
   master switch, meeting link, start address.
+- **Client hub** — `Company.hubBookingTypeId` picks ONE item (any kind) that
+  existing clients see under "Get work done" in their hub instead of the
+  built-in title + details form (null = plain form; the item's DELETE clears
+  it). `lib/hub-form.ts`: `loadHubForm`, `hubFormWords`, `hubFormAppearance`
+  (hub chrome, not the booking-page look), `hubSubmitter`. Both public POST
+  routes accept `hubToken`: a valid token of THAT company skips captcha +
+  honeypot, fills name/email/phone/address from the contact (and fills the
+  contact's blanks from the form), writes `source: "client_hub"`, and never
+  touches the Leads pipeline (repeat business, not a lead). `RequestForm` /
+  `BookingStepper` take `hub` and hide fields already on file. Settings: the
+  "In the client hub" row on Booking & forms and "Use as the client hub form"
+  in the item's Sharing card. e2e: `e2e/specs/hub-form.spec.ts`.
 - **Migrations** — `scripts/migrate-booking-types.mjs` (v2, done) and
   `scripts/migrate-forms-to-items.mjs [--apply]` (v3: every WebForm → an
   item with the form's slug + questions, default form's item on the page,

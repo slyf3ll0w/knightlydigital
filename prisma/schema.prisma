@@ -80,6 +80,10 @@ model Company {
   onMyWayTemplate           String?
   bookingForm               Json? // LEGACY single-form config (pre multi-form) — superseded, kept for old rows
   bookingPage               Json? // the company's booking page look + words — see lib/booking-page.ts
+  // The client hub's "Get work done" form: one BookingType id (any kind) that
+  // existing clients see instead of the built-in title + details request form.
+  // Null = the plain form. The item's DELETE route clears it. See lib/hub-form.ts.
+  hubBookingTypeId          String?
   // Online booking (self-scheduling). businessHours: { mon: [{start:"08:00",end:"17:00"}], ... }
   // per lib/business-hours.ts; null = default weekday hours. serviceZips empty = no
   // service-area restriction. arrivalWindowMinutes = width of the promised window.

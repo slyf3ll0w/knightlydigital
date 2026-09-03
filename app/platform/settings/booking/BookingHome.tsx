@@ -138,6 +138,7 @@ export default function BookingHome({
   brandAccent,
   rules: initialRules,
   items,
+  hubFormId: initialHubFormId,
 }: {
   companySlug: string;
   baseUrl: string;
@@ -146,6 +147,8 @@ export default function BookingHome({
   brandAccent: string;
   rules: RulesProps;
   items: ItemRow[];
+  /** Company.hubBookingTypeId — the item existing clients get in their hub; null = plain form */
+  hubFormId: string | null;
 }) {
   const router = useRouter();
   const pageUrl = `${baseUrl}/book/${companySlug}`;
@@ -154,8 +157,20 @@ export default function BookingHome({
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
   const [menuFor, setMenuFor] = useState<string | null>(null);
-  const [open, setOpen] = useState<"look" | "rules" | "embed" | null>(null);
+  const [open, setOpen] = useState<"look" | "rules" | "embed" | "hub" | null>(null);
   const [tick, setTick] = useState(0); // bumps the thumbnail after item changes
+
+  // ── Client hub form ───────────────────────────────────────────────────────
+  const [hubForm, setHubForm] = useState<string | null>(initialHubFormId);
+  async function saveHubForm(id: string | null) {
+    setHubForm(id);
+    setBusy(true);
+    const { ok, data } = await postJson("/api/app/settings", { hubBookingTypeId: id }, "PATCH");
+    setBusy(false);
+    if (!ok) return setError(data?.error ?? GENERIC_ERROR);
+    router.refresh();
+  }
+  const hubFormMeta = items.find((t) => t.id === hubForm && t.isActive)?.name ?? "Plain request form";
 
   // ── Booking page: look ────────────────────────────────────────────────────
   const [look, setLook] = useState<BookingPageLook>(initialLook);
@@ -255,7 +270,7 @@ export default function BookingHome({
   ].join(" · ");
   const thumbKey = `${JSON.stringify(lookSaved)}:${tick}`;
 
-  const stateText = (t: ItemRow) => (!t.isActive ? "Off" : t.showOnPage ? "On your page" : "Link only");
+  const stateText = (t: ItemRow) => (!t.isActive ? "Off" : (t.showOnPage ? "On your page" : "Link only") + (t.id === hubForm ? " · Client hub" : ""));
   const stateTone = (t: ItemRow) => (t.isActive && t.showOnPage ? "text-green-700" : "text-gray-500");
 
   const actionRow = (key: string, Icon: typeof Power, label: string, onClick: () => void, danger = false) => (
@@ -265,7 +280,7 @@ export default function BookingHome({
     </button>
   );
 
-  const disclosureRow = (key: "look" | "rules" | "embed", title: string, meta: string) => (
+  const disclosureRow = (key: "look" | "rules" | "embed" | "hub", title: string, meta: string) => (
     <button type="button" onClick={() => setOpen(open === key ? null : key)} className="flex w-full items-center gap-3 px-4 py-3.5 text-left lg:px-5" aria-expanded={open === key}>
       <span className="min-w-0 flex-1">
         <span className="block text-sm font-medium text-gray-900">{title}</span>
@@ -463,6 +478,27 @@ export default function BookingHome({
                   {rulesSaving ? <Loader2 size={13} className="animate-spin" /> : rulesSavedAt ? <Check size={13} /> : null}
                   {rulesSavedAt ? "Saved" : "Save rules"}
                 </button>
+              </div>
+            )}
+          </div>
+
+          <div>
+            {disclosureRow("hub", "In the client hub", hubFormMeta)}
+            {open === "hub" && (
+              <div className="space-y-2 px-4 pb-4 lg:px-5">
+                <select value={hubForm ?? ""} onChange={(e) => saveHubForm(e.target.value || null)} disabled={busy} className={inputCls}>
+                  <option value="">Plain request form — what they need, plus details</option>
+                  {items
+                    .filter((t) => t.isActive)
+                    .map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name}
+                      </option>
+                    ))}
+                </select>
+                <p className="text-xs text-gray-500">
+                  What existing clients get under &ldquo;Get work done&rdquo; in their hub. They&apos;re already on file, so it skips name and contact details. Any item works: a contact form, a quote request, or a paid booking.
+                </p>
               </div>
             )}
           </div>

@@ -23,6 +23,7 @@ export default async function OnlineBookingPage() {
         brandColor: true,
         brandColorSecondary: true,
         bookingPage: true,
+        hubBookingTypeId: true,
         businessHours: true,
         serviceZips: true,
         arrivalWindowMinutes: true,
@@ -59,6 +60,7 @@ export default async function OnlineBookingPage() {
         timezone: company.timezone,
         bookableCount,
       }}
+      hubFormId={company.hubBookingTypeId}
       items={types.map((t) => {
         const intake = sanitizeIntake(t.intake, t.kind, t.mode);
         return {

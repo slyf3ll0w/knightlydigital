@@ -83,6 +83,7 @@ export default function BookingStepper({
   hostedUrl,
   prefill,
   preview = false,
+  hub = null,
 }: {
   companySlug: string;
   type: PublicBookingType;
@@ -97,6 +98,8 @@ export default function BookingStepper({
   prefill?: Prefill | null;
   /** Owner preview from the editor — inactive items render, nothing submits */
   preview?: boolean;
+  /** Client hub: the signed-in client is on file (prefill carries their details) — no captcha */
+  hub?: { token: string } | null;
 }) {
   const { dark, accent, transparent } = appearance;
   const Icon = ICON[type.kind];
@@ -307,6 +310,7 @@ export default function BookingStepper({
           paymentToken,
           fraudSessionId,
           captchaToken,
+          hubToken: hub?.token,
           website: honeypot,
           elapsedMs: Date.now() - startedAt,
         }),
@@ -328,6 +332,12 @@ export default function BookingStepper({
       setSubmitting(false);
     }
   }
+
+  // Client hub: what's already on file isn't asked again
+  const knownName = Boolean(hub && prefill?.firstName && prefill?.lastName);
+  const knownEmail = Boolean(hub && prefill?.email);
+  const knownPhone = Boolean(hub && prefill?.phone);
+  const askPhone = intake.fields.phone.show && !knownPhone;
 
   // ── Styling (matches BookingForm's themed recipe) ─────────────────────────
   const ink = dark ? "text-white" : "text-gray-900";
@@ -634,22 +644,32 @@ export default function BookingStepper({
 
         {step === "details" && (
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className={label}>First name *</label>
-                <input type="text" value={form.firstName} onChange={(e) => setForm({ ...form, firstName: e.target.value })} required autoComplete="given-name" className={input} />
+            {knownName ? (
+              <p className={`text-sm ${muted}`}>
+                Booking as {form.firstName} {form.lastName}
+                {knownEmail ? ` · ${form.email}` : knownPhone ? ` · ${form.phone}` : ""}
+              </p>
+            ) : (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className={label}>First name *</label>
+                  <input type="text" value={form.firstName} onChange={(e) => setForm({ ...form, firstName: e.target.value })} required autoComplete="given-name" className={input} />
+                </div>
+                <div>
+                  <label className={label}>Last name *</label>
+                  <input type="text" value={form.lastName} onChange={(e) => setForm({ ...form, lastName: e.target.value })} required autoComplete="family-name" className={input} />
+                </div>
               </div>
-              <div>
-                <label className={label}>Last name *</label>
-                <input type="text" value={form.lastName} onChange={(e) => setForm({ ...form, lastName: e.target.value })} required autoComplete="family-name" className={input} />
-              </div>
-            </div>
-            <div className={`grid grid-cols-1 gap-4 ${intake.fields.phone.show ? "sm:grid-cols-2" : ""}`}>
-              <div>
-                <label className={label}>{intake.fields.email.label} *</label>
-                <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required autoComplete="email" className={input} />
-              </div>
-              {intake.fields.phone.show && (
+            )}
+            {(!knownEmail || askPhone) && (
+            <div className={`grid grid-cols-1 gap-4 ${!knownEmail && askPhone ? "sm:grid-cols-2" : ""}`}>
+              {!knownEmail && (
+                <div>
+                  <label className={label}>{intake.fields.email.label} *</label>
+                  <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required autoComplete="email" className={input} />
+                </div>
+              )}
+              {askPhone && (
                 <div>
                   <label className={label}>
                     {intake.fields.phone.label}
@@ -660,6 +680,7 @@ export default function BookingStepper({
                 </div>
               )}
             </div>
+            )}
             {intake.fields.address.show && (
               <div>
                 <label className={label}>
@@ -720,7 +741,7 @@ export default function BookingStepper({
                 onReady={setCardReady}
               />
             )}
-            {!preview && <TurnstileWidget onToken={setCaptchaToken} action="booking" />}
+            {!preview && !hub && <TurnstileWidget onToken={setCaptchaToken} action="booking" />}
           </div>
         )}
 

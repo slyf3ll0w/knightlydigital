@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { CheckCircle, Loader2 } from "lucide-react";
 import TurnstileWidget from "@/components/TurnstileWidget";
 import { textOn } from "@/lib/branding";
@@ -22,6 +23,8 @@ export default function RequestForm({
   showHeader = false,
   initialService = "",
   preview = false,
+  hub = null,
+  doneHref = "",
 }: {
   companySlug: string;
   item: PublicBookingType;
@@ -32,20 +35,28 @@ export default function RequestForm({
   initialService?: string;
   /** Owner preview from the editor — nothing submits */
   preview?: boolean;
+  /** Client hub: the signed-in client is on file — no name, no fields they have, no captcha */
+  hub?: { token: string; contact: { firstName: string; lastName: string; email: string; phone: string; address: string } } | null;
+  /** Where the done screen sends them (the hub's requests list) */
+  doneHref?: string;
 }) {
   const { dark, accent, transparent } = appearance;
   const intake = item.intake;
   const f = intake.fields;
+  // In the hub, what the client already has on file isn't asked again
+  const askEmail = f.email.show && !(hub && hub.contact.email);
+  const askPhone = f.phone.show && !(hub && hub.contact.phone);
+  const askAddress = f.address.show && !(hub && hub.contact.address);
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState("");
   const [captchaToken, setCaptchaToken] = useState("");
   const [form, setForm] = useState({
-    firstName: "",
-    lastName: "",
-    email: "",
-    phone: "",
-    address: "",
+    firstName: hub?.contact.firstName ?? "",
+    lastName: hub?.contact.lastName ?? "",
+    email: hub?.contact.email ?? "",
+    phone: hub?.contact.phone ?? "",
+    address: hub?.contact.address ?? "",
     service: initialService,
     preferredDate: "",
     message: "",
@@ -95,6 +106,7 @@ export default function RequestForm({
           custom,
           selectedServices,
           captchaToken,
+          hubToken: hub?.token,
           website: honeypot,
           elapsedMs: Date.now() - startedAt,
         }),
@@ -196,6 +208,11 @@ export default function RequestForm({
         </div>
         <h2 className={`mb-2 text-xl font-bold ${ink}`}>{title}</h2>
         <p className={`text-sm ${muted}`}>{text}</p>
+        {doneHref && (
+          <Link href={doneHref} className="mt-5 inline-block text-sm font-medium hover:underline" style={{ color: accent }}>
+            See your requests
+          </Link>
+        )}
       </div>
     );
   }
@@ -219,20 +236,27 @@ export default function RequestForm({
         </label>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className={label}>First name *</label>
-          <input type="text" value={form.firstName} onChange={(e) => set("firstName", e.target.value)} required autoComplete="given-name" className={input} />
-        </div>
-        <div>
-          <label className={label}>Last name *</label>
-          <input type="text" value={form.lastName} onChange={(e) => set("lastName", e.target.value)} required autoComplete="family-name" className={input} />
-        </div>
-      </div>
-      {(f.email.show || f.phone.show) && (
+      {hub ? (
+        <p className={`text-sm ${muted}`}>
+          From {hub.contact.firstName} {hub.contact.lastName}
+          {hub.contact.email ? ` · ${hub.contact.email}` : hub.contact.phone ? ` · ${hub.contact.phone}` : ""}
+        </p>
+      ) : (
         <div className="grid grid-cols-2 gap-4">
-          {f.email.show && (
-            <div className={f.phone.show ? "" : "col-span-2"}>
+          <div>
+            <label className={label}>First name *</label>
+            <input type="text" value={form.firstName} onChange={(e) => set("firstName", e.target.value)} required autoComplete="given-name" className={input} />
+          </div>
+          <div>
+            <label className={label}>Last name *</label>
+            <input type="text" value={form.lastName} onChange={(e) => set("lastName", e.target.value)} required autoComplete="family-name" className={input} />
+          </div>
+        </div>
+      )}
+      {(askEmail || askPhone) && (
+        <div className="grid grid-cols-2 gap-4">
+          {askEmail && (
+            <div className={askPhone ? "" : "col-span-2"}>
               <label className={label}>
                 {f.email.label}
                 {f.email.required ? " *" : ""}
@@ -240,8 +264,8 @@ export default function RequestForm({
               <input type="email" value={form.email} onChange={(e) => set("email", e.target.value)} required={f.email.required} autoComplete="email" className={input} />
             </div>
           )}
-          {f.phone.show && (
-            <div className={f.email.show ? "" : "col-span-2"}>
+          {askPhone && (
+            <div className={askEmail ? "" : "col-span-2"}>
               <label className={label}>
                 {f.phone.label}
                 {f.phone.required ? " *" : ""}
@@ -251,7 +275,7 @@ export default function RequestForm({
           )}
         </div>
       )}
-      {f.address.show && (
+      {askAddress && (
         <div>
           <label className={label}>
             {f.address.label}
@@ -339,7 +363,7 @@ export default function RequestForm({
           <textarea value={form.message} onChange={(e) => set("message", e.target.value)} rows={3} required={intake.message.required} placeholder={intake.message.placeholder} className={`${input} resize-none`} />
         </div>
       )}
-      {!preview && <TurnstileWidget onToken={setCaptchaToken} />}
+      {!preview && !hub && <TurnstileWidget onToken={setCaptchaToken} />}
       <button
         type="submit"
         disabled={loading || preview}

@@ -12,6 +12,7 @@ import { enterPipeline, autoAdvance } from "@/lib/pipeline";
 import { withDocNumberRetry } from "@/lib/doc-numbers";
 import { listPublicBookingTypes, menuTypes, resolvePublicBookingType, toPublicBookingType } from "@/lib/booking-runtime";
 import { validateAnswers } from "@/lib/booking-answers";
+import { hubSubmitter } from "@/lib/hub-form";
 
 // Generous backstop so one runaway account or bot can't flood a company
 const MAX_REQUESTS_PER_COMPANY_PER_DAY = 200;
@@ -31,10 +32,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
   const { slug } = await params;
   const body = await req.json().catch(() => ({}));
 
-  if (!(await verifyCaptcha(body.captchaToken))) {
-    return NextResponse.json({ error: "Captcha verification failed. Please try again." }, { status: 400 });
-  }
-
   // The item: by slug, or (old embeds that never sent one) the company's one visible request item
   const itemSlug = typeof body.item === "string" ? body.item.slice(0, 60) : typeof body.formSlug === "string" ? body.formSlug.slice(0, 60) : "";
   let resolved = itemSlug ? await resolvePublicBookingType(slug, itemSlug) : null;
@@ -45,6 +42,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
   }
   if (!resolved) return NextResponse.json({ error: "Form not found." }, { status: 404 });
   const { company, type } = resolved;
+  // Client hub: a token of this company's contact is the auth — no captcha
+  const hubContact = await hubSubmitter(body.hubToken, company.id);
+  if (!hubContact && !(await verifyCaptcha(body.captchaToken))) {
+    return NextResponse.json({ error: "Captcha verification failed. Please try again." }, { status: 400 });
+  }
   const pub = toPublicBookingType(type, company);
   if (pub.mode !== "REQUEST" || !pub.bookable) {
     return NextResponse.json({ error: "This form isn't taking submissions right now." }, { status: 400 });
@@ -55,14 +57,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
   // Pretend success so the bot doesn't learn it was caught.
   const filledHoneypot = typeof body.website === "string" && body.website.trim() !== "";
   const tooFast = typeof body.elapsedMs === "number" && body.elapsedMs >= 0 && body.elapsedMs < 3000;
-  if (filledHoneypot || tooFast) return NextResponse.json({ success: true }, { status: 201 });
+  if (!hubContact && (filledHoneypot || tooFast)) return NextResponse.json({ success: true }, { status: 201 });
 
   const str = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
-  const firstName = str(body.firstName, 100);
-  const lastName = str(body.lastName, 100);
-  const email = intake.fields.email.show ? str(body.email, 200) : "";
-  const phone = intake.fields.phone.show ? str(body.phone, 40) : "";
-  const address = intake.fields.address.show ? str(body.address, 300) : "";
+  // From the hub, whatever the form didn't ask for comes from the contact's record
+  const firstName = str(body.firstName, 100) || hubContact?.firstName || "";
+  const lastName = str(body.lastName, 100) || hubContact?.lastName || "";
+  const email = (intake.fields.email.show ? str(body.email, 200) : "") || hubContact?.email || "";
+  const phone = (intake.fields.phone.show ? str(body.phone, 40) : "") || hubContact?.phone || "";
+  const address = (intake.fields.address.show ? str(body.address, 300) : "") || hubContact?.address || "";
   const preferredDate = intake.fields.date.show ? str(body.preferredDate, 10) : "";
   const message = intake.message.show ? str(body.message, 5000) : "";
 
@@ -106,9 +109,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
   const result = await withDocNumberRetry(() =>
     prisma.$transaction(async (tx) => {
       // Match an existing contact by phone or email; otherwise create a lead
-      let contact = await tx.contact.findFirst({
-        where: { companyId: company.id, OR: [...(phone ? [{ phone }] : []), ...(email ? [{ email }] : [])] },
-      });
+      let contact = hubContact
+        ? await tx.contact.findUnique({ where: { id: hubContact.id } })
+        : await tx.contact.findFirst({
+            where: { companyId: company.id, OR: [...(phone ? [{ phone }] : []), ...(email ? [{ email }] : [])] },
+          });
+      if (contact && hubContact) {
+        // Keep the record current with anything the form asked for that was missing
+        const fill = { ...(!contact.email && email ? { email } : {}), ...(!contact.phone && phone ? { phone } : {}), ...(!contact.address && address ? { address } : {}) };
+        if (Object.keys(fill).length > 0) contact = await tx.contact.update({ where: { id: contact.id }, data: fill });
+      }
       if (!contact) {
         contact = await tx.contact.create({
           data: {
@@ -205,23 +215,26 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
           ]
             .filter(Boolean)
             .join("\n"),
-          source: "booking_form",
+          source: hubContact ? "client_hub" : "booking_form",
         },
       });
       if (quote) await tx.quote.update({ where: { id: quote.id }, data: { requestId: request.id } });
 
       // Pipeline board: new leads enter, existing clients re-enter as repeat
       // business, and stage triggers advance the card
-      await enterPipeline(tx, company.id, contact.id);
-      await autoAdvance(tx, company.id, contact.id, "REQUEST_CREATED");
-      if (quote && intake.quoteMode === "send") await autoAdvance(tx, company.id, contact.id, "QUOTE_SENT");
+      // Hub requests are repeat business, not leads — the board stays as it is
+      if (!hubContact) {
+        await enterPipeline(tx, company.id, contact.id);
+        await autoAdvance(tx, company.id, contact.id, "REQUEST_CREATED");
+        if (quote && intake.quoteMode === "send") await autoAdvance(tx, company.id, contact.id, "QUOTE_SENT");
+      }
 
       return { contact, request, quote };
     })
   );
 
   // Push: the owner(s) + preset lead assignee, like the email
-  await notifyUsers(await requestNotifyUserIds(company.id), {
+  await notifyUsers(await requestNotifyUserIds(company.id, hubContact?.assignedToId), {
     title: `New request from ${firstName} ${lastName}`,
     body: result.request.title,
     url: `/app/requests/${result.request.id}`,
@@ -240,7 +253,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
       contactName: `${firstName} ${lastName}`,
       contactPhone: phone || null,
       contactEmail: email || null,
-      source: "booking_form",
+      source: hubContact ? "client_hub" : "booking_form",
     });
     await sendEmail({ companyId: company.id, to: notifyTo, subject, html, replyTo: email || undefined });
   }

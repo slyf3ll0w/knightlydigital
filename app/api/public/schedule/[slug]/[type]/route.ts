@@ -17,6 +17,7 @@ import {
 } from "@/lib/booking-submit";
 import { serviceSelection } from "@/lib/booking-services";
 import { createServiceBooking } from "@/lib/booking-checkout";
+import { hubSubmitter } from "@/lib/hub-form";
 
 // Generous backstop so one runaway account or bot can't flood a company
 const MAX_REQUESTS_PER_COMPANY_PER_DAY = 200;
@@ -36,12 +37,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
   const { slug, type: typeSlug } = await params;
   const body = await req.json().catch(() => ({}));
 
-  if (!(await verifyCaptcha(body.captchaToken, "booking"))) {
-    return NextResponse.json({ error: "Captcha verification failed. Please try again." }, { status: 400 });
-  }
   const resolved = await resolvePublicBookingType(slug, typeSlug);
   if (!resolved) return NextResponse.json({ error: "This booking page isn't available." }, { status: 404 });
   const { company, type } = resolved;
+  // Client hub: a token of this company's contact is the auth — no captcha
+  const hubContact = await hubSubmitter(body.hubToken, company.id);
+  if (!hubContact && !(await verifyCaptcha(body.captchaToken, "booking"))) {
+    return NextResponse.json({ error: "Captcha verification failed. Please try again." }, { status: 400 });
+  }
   const pub = toPublicBookingType(type, company);
   if (pub.mode !== "SCHEDULE") return NextResponse.json({ error: "This form doesn't take bookings — send a request instead." }, { status: 400 });
   if (!pub.bookable) return NextResponse.json({ error: "This booking type isn't taking bookings right now." }, { status: 400 });
@@ -51,7 +54,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
   // Pretend success so the bot doesn't learn it was caught.
   const filledHoneypot = typeof body.website === "string" && body.website.trim() !== "";
   const tooFast = typeof body.elapsedMs === "number" && body.elapsedMs >= 0 && body.elapsedMs < 3000;
-  if (filledHoneypot || tooFast) return NextResponse.json({ success: true }, { status: 201 });
+  if (!hubContact && (filledHoneypot || tooFast)) return NextResponse.json({ success: true }, { status: 201 });
 
   const meta = KIND_META[type.kind];
   const str = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
@@ -66,12 +69,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
     return NextResponse.json({ error: `"${intake.fields.address.label}" is required.` }, { status: 400 });
   }
 
+  // From the hub, whatever the form didn't ask for comes from the contact's record
   const customer: CustomerInput = {
-    firstName: str(body.firstName, 100),
-    lastName: str(body.lastName, 100),
-    email: str(body.email, 200),
-    phone: intake.fields.phone.show ? str(body.phone, 40) || null : null,
+    firstName: str(body.firstName, 100) || hubContact?.firstName || "",
+    lastName: str(body.lastName, 100) || hubContact?.lastName || "",
+    email: str(body.email, 200) || hubContact?.email || "",
+    phone: (intake.fields.phone.show ? str(body.phone, 40) : "") || hubContact?.phone || null,
     address: meta.needsAddress ? str(body.address, 300) || null : plainAddress || null,
+    contactId: hubContact?.id ?? null,
     notes:
       [message, serviceAnswer ? `${intake.serviceQuestion.label}: ${serviceAnswer}` : null, ...customLines].filter(Boolean).join("\n") || null,
   };
@@ -144,7 +149,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
     if ("slotTaken" in out) return NextResponse.json(SLOT_TAKEN, { status: 409 });
     if ("declined" in out) return NextResponse.json({ error: out.error, declined: true }, { status: 402 });
     if ("error" in out) return NextResponse.json({ error: out.error }, { status: out.status ?? 400 });
-    await saveMapped((await prisma.contact.findFirst({ where: { companyId: company.id, email: customer.email }, select: { id: true } }))?.id);
+    await saveMapped(hubContact?.id ?? (await prisma.contact.findFirst({ where: { companyId: company.id, email: customer.email }, select: { id: true } }))?.id);
     return NextResponse.json({ success: true, booking: out.booking }, { status: 201 });
   }
 

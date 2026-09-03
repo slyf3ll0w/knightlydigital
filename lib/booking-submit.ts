@@ -58,6 +58,8 @@ export type CustomerInput = {
   phone: string | null;
   address: string | null;
   notes: string | null;
+  /** Client hub: the signed-in contact — no matching, no lead, source client_hub */
+  contactId?: string | null;
 };
 
 /**
@@ -87,6 +89,19 @@ export async function upsertBookingContact(
   companyId: string,
   c: CustomerInput
 ) {
+  // Client hub: the contact is known. Fill in anything they were asked for
+  // because it was missing from their record.
+  if (c.contactId) {
+    const own = await tx.contact.findFirst({ where: { id: c.contactId, companyId } });
+    if (own) {
+      const fill = {
+        ...(!own.email && c.email ? { email: c.email } : {}),
+        ...(!own.phone && c.phone ? { phone: c.phone } : {}),
+        ...(!own.address && c.address ? { address: c.address } : {}),
+      };
+      return Object.keys(fill).length > 0 ? tx.contact.update({ where: { id: own.id }, data: fill }) : own;
+    }
+  }
   const existing = await tx.contact.findFirst({
     where: {
       companyId,
@@ -146,7 +161,7 @@ export async function createAppointmentBooking(params: {
             title: type.name,
             status: approval ? "NEEDS_APPROVAL" : "NEW",
             preferredDate: slot.start,
-            source: "booking_form",
+            source: customer.contactId ? "client_hub" : "booking_form",
             bookingTypeId: type.id,
             details: [
               `Booked online: ${type.name} — ${meta.exactTime ? "" : "requested arrival "}${label}`,
@@ -158,9 +173,12 @@ export async function createAppointmentBooking(params: {
           },
         });
 
-        await enterPipeline(tx, company.id, contact.id);
-        await autoAdvance(tx, company.id, contact.id, "REQUEST_CREATED");
-        if (!approval) await autoAdvance(tx, company.id, contact.id, "APPOINTMENT_SCHEDULED");
+        // Hub bookings are repeat business, not leads — the board stays as it is
+        if (!customer.contactId) {
+          await enterPipeline(tx, company.id, contact.id);
+          await autoAdvance(tx, company.id, contact.id, "REQUEST_CREATED");
+          if (!approval) await autoAdvance(tx, company.id, contact.id, "APPOINTMENT_SCHEDULED");
+        }
 
         const lastAppt = await tx.appointment.findFirst({ where: { companyId: company.id }, orderBy: { appointmentNumber: "desc" }, select: { appointmentNumber: true } });
         const selfServe = type.clientCanReschedule || type.clientCanCancel;
