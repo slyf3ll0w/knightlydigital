@@ -644,9 +644,9 @@ export default function BookingStepper({
             {submitting && <Loader2 size={14} className="animate-spin" />}
             {paying
               ? type.paymentMode === "FULL"
-                ? `Pay ${total.toFixed(2)} & book`
+                ? `Pay $${total.toFixed(2)} & book`
                 : depositAmount && depositAmount > 0
-                  ? `Pay ${depositAmount.toFixed(2)} deposit & book`
+                  ? `Pay $${depositAmount.toFixed(2)} deposit & book`
                   : "Confirm booking"
               : type.confirmation === "INSTANT"
                 ? "Confirm booking"

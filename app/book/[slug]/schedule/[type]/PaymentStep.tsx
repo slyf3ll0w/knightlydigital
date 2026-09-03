@@ -63,6 +63,7 @@ const PaymentStep = forwardRef<
         </span>
       </div>
       <CardFields
+        ref={cardRef}
         finix={finix}
         dark={dark}
         accent={accent}
