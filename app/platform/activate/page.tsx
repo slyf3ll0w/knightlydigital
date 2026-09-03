@@ -57,6 +57,7 @@ export default async function ActivatePage({
       isOwner={session.user.role === "OWNER"}
       sandbox={finixEnvironment() === "sandbox"}
       companyName={company.name}
+      email={session.user.email ?? ""}
     />
   );
 }

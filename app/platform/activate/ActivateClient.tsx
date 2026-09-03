@@ -30,6 +30,7 @@ export default function ActivateClient({
   isOwner,
   sandbox,
   companyName,
+  email,
 }: {
   status: "activate" | "pending" | "rejected";
   state: string | null;
@@ -38,6 +39,7 @@ export default function ActivateClient({
   isOwner: boolean;
   sandbox: boolean;
   companyName: string;
+  email: string;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState<"form" | null>(null);
@@ -241,12 +243,19 @@ export default function ActivateClient({
         )}
       </div>
 
-      <button
-        onClick={() => signOut({ callbackUrl: "/app/login" })}
-        className="mt-6 text-[13px] font-semibold text-gray-400 hover:text-gray-600"
-      >
-        Sign out
-      </button>
+      {/* Landing here from "Log in" means this browser already holds a
+          session for a gated company — say whose, so a different account
+          is one click away instead of a mystery. */}
+      <p className="mt-6 text-[13px] text-gray-400">
+        Signed in as <span className="font-semibold text-gray-500">{email}</span>
+        {" · "}
+        <button
+          onClick={() => signOut({ callbackUrl: "/app/login" })}
+          className="font-semibold text-gray-400 underline-offset-2 hover:text-gray-600 hover:underline"
+        >
+          Not you? Sign out
+        </button>
+      </p>
     </div>
   );
 }
