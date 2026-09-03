@@ -123,8 +123,9 @@ function lookFromConfig(cfg) {
     ...(str(a.font, 40) ? { font: str(a.font, 40) } : {}),
     fontSize: a.fontSize === "sm" || a.fontSize === "lg" ? a.fontSize : "md",
     ...(/^#[0-9a-fA-F]{6}$/.test(color) ? { accent: color } : {}),
-    title: str(cfg.header?.title, 100),
-    description: str(cfg.header?.description, 300),
+    // The form's heading stays on its item; the page itself keeps the company name
+    title: "",
+    description: "",
   };
 }
 
