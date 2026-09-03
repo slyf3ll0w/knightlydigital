@@ -46,6 +46,12 @@ export async function createCompanySignup(opts: {
   inviteId?: string | null;
   /** Stamp Company.accessPendingAt — self-serve signups awaiting review. */
   accessPending?: boolean;
+  /**
+   * Waive Finix underwriting (Company.paymentsWaived) — sandbox bypass codes.
+   * Without this the new company is held at /app/activate until KYC is done,
+   * which is exactly what a tester code is meant to skip.
+   */
+  paymentsWaived?: boolean;
   /** Link this AccessApplication to the new company (and the invite, if any). */
   applicationId?: string | null;
 }): Promise<{ companyId: string; userId: string }> {
@@ -72,7 +78,8 @@ function createInTransaction(
   opts: Parameters<typeof createCompanySignup>[0],
   slug: string
 ) {
-  const { companyName, industry, owner, inviteId, accessPending, applicationId } = opts;
+  const { companyName, industry, owner, inviteId, accessPending, applicationId, paymentsWaived } =
+    opts;
   return prisma.$transaction(async (tx) => {
     // Claim the invite atomically — a pre-check outside the transaction can
     // race a concurrent signup on the same code; the updateMany count settles it.
@@ -104,6 +111,7 @@ function createInTransaction(
         email: ownerEmail,
         industry: industry || null,
         accessPendingAt: accessPending ? new Date() : null,
+        paymentsWaived: Boolean(paymentsWaived),
         // WorkBench default branding, seeded as real values so every surface
         // (app accent, client pages, emails) starts on-brand until the
         // company customizes: blue primary, orange secondary, white docs.

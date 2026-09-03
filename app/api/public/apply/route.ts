@@ -88,13 +88,13 @@ export async function POST(req: NextRequest) {
 
   // Optional invite code — a typo should surface, not silently open a
   // pending-review account the tester didn't want.
-  let invite: { id: string } | null = null;
+  let invite: { id: string; bypassApproval: boolean } | null = null;
   if (typeof inviteCode === "string" && inviteCode.trim()) {
     const check = await checkInviteCode(inviteCode);
     if (!check.ok) {
       return NextResponse.json({ error: check.reason }, { status: 403 });
     }
-    invite = { id: check.id };
+    invite = { id: check.id, bypassApproval: check.bypassApproval };
   }
 
   // Email already tied to an account that already opened a company through
@@ -138,6 +138,8 @@ export async function POST(req: NextRequest) {
   // A code — regular invite or sandbox bypass — is the approval: the
   // application books as decided and the company opens without the pending
   // banner. No code = PENDING review, account open with accessPendingAt.
+  // A sandbox bypass code additionally waives Finix underwriting, so the
+  // tester lands straight on the dashboard instead of /app/activate.
   const application = await prisma.accessApplication.create({
     data: {
       name,
@@ -165,6 +167,7 @@ export async function POST(req: NextRequest) {
       owner,
       inviteId: invite?.id ?? null,
       accessPending: !invite,
+      paymentsWaived: invite?.bypassApproval ?? false,
       applicationId: application.id,
     });
   } catch (e) {

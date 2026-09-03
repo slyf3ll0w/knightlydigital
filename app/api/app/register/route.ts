@@ -112,6 +112,8 @@ export async function POST(req: NextRequest) {
       companyName,
       industry,
       inviteId: invite.id,
+      // Sandbox bypass codes also waive Finix underwriting (testers skip KYC).
+      paymentsWaived: invite.bypassApproval,
       owner: account
         ? { account: { id: account.id, email: account.email }, ownerName: ownerName ?? "Owner" }
         : { newLogin: { email, hash: hash!, name: String(yourName).trim() } },

@@ -2327,9 +2327,11 @@ model InviteCode {
   code            String    @unique // human-typable, e.g. WB-7K2M-9QX4
   note            String? // superadmin's memo: who this is for
   email           String? // where it was sent — informational, not enforced
-  // Sandbox tester codes: entered on the public /apply form, the signup skips
+  // Sandbox tester codes: entered on /apply or /app/register, the signup skips
   // the human application review entirely (no accessPendingAt, application
-  // auto-APPROVED). Same single-use/expiry/revoke mechanics as regular codes.
+  // auto-APPROVED) AND waives Finix underwriting (Company.paymentsWaived), so
+  // the tester lands on the dashboard instead of the /app/activate KYC gate.
+  // Same single-use/expiry/revoke mechanics as regular codes.
   bypassApproval  Boolean   @default(false)
   expiresAt       DateTime? // null = never expires
   usedAt          DateTime?

@@ -98,10 +98,12 @@ export default function InvitesClient({ invites }: { invites: Invite[] }) {
     <div>
       <h1 className="text-xl font-bold text-gray-900">Invite codes</h1>
       <p className="mt-1 text-sm text-gray-500">
-        Every code authorizes exactly one company signup — standard codes at{" "}
-        <span className="font-mono text-xs">/app/register</span>, bypass codes on the{" "}
-        <span className="font-mono text-xs">/apply</span> form (where any valid code also
-        skips the pending-approval review).
+        Every code authorizes exactly one company signup. Standard codes admit a real
+        customer (they still complete payment verification); sandbox bypass codes skip the
+        pending-approval review <em>and</em> payment verification, so a tester lands straight
+        on the dashboard. Either kind works at{" "}
+        <span className="font-mono text-xs">/app/register</span> or on the{" "}
+        <span className="font-mono text-xs">/apply</span> form.
       </p>
 
       {error && (
@@ -122,12 +124,12 @@ export default function InvitesClient({ invites }: { invites: Invite[] }) {
               className={`${inputClass} bg-white`}
             >
               <option value="signup">Standard — signup code for /app/register</option>
-              <option value="bypass">Sandbox bypass — skips account approval on /apply</option>
+              <option value="bypass">Sandbox bypass — skips approval + payment verification</option>
             </select>
             <p className="mt-1 text-[11px] text-gray-400">
               {kind === "bypass"
-                ? "For testers: entered on the Get-started form, the account opens with no pending-approval review."
-                : "Authorizes one company signup at /app/register (also works on /apply)."}
+                ? "For testers: the account opens with no pending-approval review and Finix underwriting waived — no /app/activate gate."
+                : "Authorizes one company signup at /app/register (also works on /apply). Payment verification still required."}
             </p>
           </div>
           <div>
