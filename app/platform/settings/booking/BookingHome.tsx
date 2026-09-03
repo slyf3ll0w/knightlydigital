@@ -464,7 +464,7 @@ export default function BookingHome({
               const open = menuFor === t.id;
               const meta = itemMetaLine(t);
               const takers = t.mode === "SCHEDULE" ? (t.takers.length ? t.takers.slice(0, 3).join(", ") + (t.takers.length > 3 ? ` +${t.takers.length - 3}` : "") : "") : "";
-              const warn = t.mode === "SCHEDULE" && t.takers.length === 0 ? "Nobody can take these — add a bookable team member" : t.kind === "SERVICE" && t.serviceCount === 0 ? "No services yet" : null;
+              const warn = t.mode === "SCHEDULE" && t.takers.length === 0 ? "Nobody is bookable, so customers see a request form instead of open times — mark someone bookable on the Team page" : t.kind === "SERVICE" && t.serviceCount === 0 ? "No services yet" : null;
               return (
                 <div key={t.id} className={t.isActive ? "" : "opacity-60"}>
                   <div className="flex items-center gap-3 px-4 py-3.5 lg:px-5">

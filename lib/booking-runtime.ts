@@ -122,15 +122,19 @@ export function toPublicBookingType(
     priceDisplay: s.workItem.priceDisplay,
     durationMinutes: s.workItem.durationMinutes,
   }));
-  const intake = effectiveIntake(sanitizeIntake(type.intake, type.kind, type.mode), type);
-  const scheduled = type.mode === "SCHEDULE";
+  // A scheduled item nobody can take (no bookable member) doesn't go dark:
+  // it renders as a request form until someone is bookable again — the
+  // same fallback the old self-scheduling forms had.
+  const scheduled = type.mode === "SCHEDULE" && eligibleMembers(type).length > 0;
+  const mode: BookingMode = scheduled ? "SCHEDULE" : "REQUEST";
+  const intake = effectiveIntake(sanitizeIntake(type.intake, type.kind, mode), { kind: type.kind, mode });
   return {
     id: type.id,
     slug: type.slug,
     name: type.name,
     description: type.description,
     kind: type.kind,
-    mode: type.mode,
+    mode,
     showOnPage: type.showOnPage,
     exactTime: meta.exactTime,
     needsAddress: scheduled && meta.needsAddress,
@@ -141,10 +145,10 @@ export function toPublicBookingType(
     clientCanReschedule: scheduled && type.clientCanReschedule,
     clientCanCancel: scheduled && type.clientCanCancel,
     cutoffHours: type.cutoffHours,
-    bookable: (!scheduled || eligibleMembers(type).length > 0) && (type.kind !== "SERVICE" || services.length > 0),
+    bookable: type.kind !== "SERVICE" || services.length > 0,
     intake,
     heading: intake.heading || type.name,
-    buttonLabel: intake.buttonLabel || defaultButtonLabel(type),
+    buttonLabel: intake.buttonLabel || defaultButtonLabel({ kind: type.kind, mode, confirmation: type.confirmation }),
     services,
   };
 }
