@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
   images: {
@@ -43,4 +44,18 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+// Sentry build plugin: readable stack traces in error reports. Source-map
+// upload only runs when SENTRY_AUTH_TOKEN is set (Railway); without it the
+// wrapper changes nothing about the build.
+export default withSentryConfig(nextConfig, {
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  silent: true,
+  disableLogger: true,
+  // With a token: upload maps to Sentry, then strip them from the deploy so
+  // they're never served publicly. Without one: skip source maps entirely.
+  sourcemaps: process.env.SENTRY_AUTH_TOKEN
+    ? { deleteSourcemapsAfterUpload: true }
+    : { disable: true },
+});

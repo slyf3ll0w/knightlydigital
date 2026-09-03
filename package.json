@@ -32,6 +32,7 @@
     "@capawesome/capacitor-badge": "^8.0.2",
     "@prisma/client": "^5.22.0",
     "@react-pdf/renderer": "^4.6.0",
+    "@sentry/nextjs": "^10.73.0",
     "@types/bcryptjs": "^2.4.6",
     "autoprefixer": "^10",
     "aws4fetch": "^1.0.20",
