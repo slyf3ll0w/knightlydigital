@@ -12,7 +12,7 @@ import { NextResponse } from "next/server";
  * they can't act on.
  *
  * Where it's enforced:
- *  - booking forms / slots  → lib/web-forms.ts resolveWebForm() returns null
+ *  - booking pages / slots  → lib/public-company.ts resolvePublicCompany() returns null
  *                             (the form 404s, so the page and POST both die)
  *  - lead webhook           → 404, same as a bad token (ad platforms just see
  *                             a dead endpoint)

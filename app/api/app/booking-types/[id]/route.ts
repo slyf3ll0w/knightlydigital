@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
 import { bookingTypeInclude } from "@/lib/booking-runtime";
+import { sanitizeIntake } from "@/lib/booking-intake";
 import {
   applyBookingTypePatch,
   sanitizeMembers,
@@ -25,10 +27,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 }
 
 /**
- * PATCH — edit settings, the pool ({ members: [{userId, priority}] }),
- * the services ({ services: [workItemId] }), or the slug. Payment can only
- * be turned on for SERVICE types whose services are all fixed-price — a
- * "From $150" item can't be charged a number the customer never agreed to.
+ * PATCH — edit settings, the questions ({ intake }), the pool
+ * ({ members: [{userId, priority}] }), the services ({ services: [workItemId] }),
+ * or the slug. Payment can only be turned on for SERVICE items whose services
+ * are all fixed-price — a "From $150" item can't be charged a number the
+ * customer never agreed to.
  */
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const actor = await getActor();
@@ -43,7 +46,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     name: type.name,
     description: type.description,
     kind: type.kind,
+    mode: type.mode,
     isActive: type.isActive,
+    showOnPage: type.showOnPage,
     durationMinutes: type.durationMinutes,
     stepMinutes: type.stepMinutes,
     bufferBeforeMinutes: type.bufferBeforeMinutes,
@@ -63,6 +68,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   };
   const { settings, error } = applyBookingTypePatch(current, body);
   if (error) return NextResponse.json({ error }, { status: 400 });
+
+  // Questions + words: stored sanitized against the (possibly new) kind/mode
+  const intake =
+    body.intake !== undefined
+      ? sanitizeIntake(body.intake, settings.kind, settings.mode)
+      : settings.mode !== type.mode && type.intake
+        ? sanitizeIntake(type.intake, settings.kind, settings.mode)
+        : undefined;
 
   // Services (SERVICE kinds): must be this company's active price-book items
   const serviceIds = type.kind === "SERVICE" ? sanitizeServiceIds(body.services) : null;
@@ -117,7 +130,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         where: { companyId: actor.companyId, slug, id: { not: type.id } },
         select: { id: true },
       });
-      if (clash) return NextResponse.json({ error: "That link is already used by another booking type." }, { status: 400 });
+      if (clash) return NextResponse.json({ error: "That link is already used by another item." }, { status: 400 });
     }
   }
 
@@ -139,7 +152,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
     return tx.bookingType.update({
       where: { id: type.id },
-      data: { ...settings, ...(slug ? { slug } : {}), ...(sortOrder !== undefined ? { sortOrder } : {}) },
+      data: {
+        ...settings,
+        ...(intake ? { intake: intake as unknown as Prisma.InputJsonValue } : {}),
+        ...(slug ? { slug } : {}),
+        ...(sortOrder !== undefined ? { sortOrder } : {}),
+      },
       include: bookingTypeInclude,
     });
   });
@@ -147,7 +165,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 }
 
 /**
- * DELETE — remove a booking type. Bookings it produced (appointments, jobs,
+ * DELETE — remove an item. Bookings it produced (appointments, jobs,
  * requests) stay; their bookingTypeId nulls out.
  */
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

@@ -438,18 +438,25 @@ Railway detects Next.js automatically and runs `next start`. GitHub remote: `htt
 - **Contact form**: `components/ContactForm.tsx` currently fakes submission. Wire to Formspree, Resend, or an API route.
 - **Social links**: Header social icons link to `#` — update when accounts are set up.
 
-## Online booking v2 (booking types)
+## Online booking (items + booking page)
 
-Calendly-style self-scheduling, designed in `docs/plans/online-booking-v2-plan.md`
-(2026-09-02). A **`BookingType`** is what a customer picks: kinds
-`PHONE_CALL` / `VIDEO_CALL` (exact start) / `IN_PERSON` estimate / `SERVICE`
-(arrival window, address, price-book services). Each carries its own timing
-(duration, step, buffers, lead, horizon, per-day cap), a **pool**
-(`BookingTypeMember` — `lastAssignedAt` drives least-recently-assigned round
-robin; `priority` only in PRIORITY mode), `confirmation` INSTANT|APPROVAL
-(approval = the pre-existing tentative-appointment loop), `paymentMode`
-(SERVICE only: NONE|DEPOSIT|FULL — refused unless every service is
-`priceDisplay: FIXED`), and self-serve reschedule/cancel policy.
+One list, one page. Designed in `docs/plans/online-booking-v2-plan.md` (§10
+records the 2026-09-03 merge of web forms into it). A **`BookingType`** is an
+*item* on the company's booking page: kinds `PHONE_CALL` / `VIDEO_CALL`
+(exact start) / `IN_PERSON` visit / `SERVICE` (price-book services) /
+`MESSAGE` (contact form). Each has a `mode`: **SCHEDULE** (customer picks a
+time from the engine) or **REQUEST** (they ask, the business follows up — the
+old web-form flow; MESSAGE is always REQUEST, paid items always SCHEDULE).
+Every item carries its own **intake** (`BookingType.intake` JSON,
+`lib/booking-intake.ts`: standard fields, "what do you need?" question,
+message box, ≤10 custom questions incl. save-to-client-field, heading, button
+label, quoteMode draft|send, allowMultiple) — `effectiveIntake` applies the
+kind/mode rules (scheduled → email required; PHONE_CALL → phone required;
+needsAddress → address is its own step) and BOTH renderers and BOTH submit
+routes go through it. `showOnPage` hides link-only items from the menu;
+`legacyFormId` remembers the WebForm an item came from (old settings links
+redirect). The company's one look lives on `Company.bookingPage`
+(`lib/booking-page.ts`: theme/font/size/accent/title/description).
 
 - **Engine** — `lib/booking-engine.ts` is pure and unit-tested
   (`npx tsx scripts/test-booking-engine.ts`). `checkSlot` = hours → busy
@@ -457,41 +464,51 @@ robin; `priority` only in PRIORITY mode), `confirmation` INSTANT|APPROVAL
   `end + drive ≤ next.start`, per-leg `Company.bookingDriveLimitMinutes`).
   Drive = haversine estimate during the sweep; `lib/booking-runtime.ts`
   `assignMemberForSlot` re-checks the winner against real Mapbox road
-  minutes at submit (falls through the ranking, then 409). Unlocated busy
-  items only contribute buffers; no `MAPBOX_TOKEN` = gap-fit only.
-- **Runtime** — `loadPoolWithBusy` (appointments incl. tentative, assigned
-  jobs, unassigned jobs/appointments block everyone, time blocks; located
-  via property pin → geocode cache, ≤250 geocodes/sweep), `rulesFor`,
-  `slotsForType`, `resolvePublicBookingType`, `formBookingTypes`. Member
-  day start = `User.startAddress` pin (Team page) else the shop pin — the
-  Route Manager / Find a Time / optimizer use the same via `dayStartFor`.
-- **Writes** — `lib/booking-submit.ts` (`createAppointmentBooking`:
-  contact → Request NEW|NEEDS_APPROVAL → Appointment, Serializable, stamps
-  rotation; `notifyBooking`: push + team email + client email with .ics via
-  `lib/ics.ts`). `lib/booking-checkout.ts` (`createServiceBooking`: approved
-  Quote → `convertQuoteToJob` (`lib/quote-convert.ts`, shared with the
-  staff convert route) → scheduled/assigned Job → deposit invoice when
-  paid; card charged AFTER commit via `processor.charge` under the invoice
-  charge lock, `unwind()` deletes job/quote/invoice/request on decline).
-- **Public** — `/book/[slug]/schedule` (menu), `/book/[slug]/schedule/[type]`
-  (stepper, `BookingStepper.tsx`; card step = `components/CardFields.tsx`,
-  the shared finix.js hosted-fields mount), `/book/[slug]/schedule/manage/
-  [token]` (self-serve, `Appointment.manageToken`), `/embed/[slug]/schedule
-  [/[type]]`. APIs: `/api/public/schedule/[slug]/[type]/slots` (GET),
-  `/api/public/schedule/[slug]/[type]` (POST, captcha action `booking`),
-  `/api/public/schedule/manage/[token]`. Classic BOOKING forms with
-  `config.selfSchedule.bookingTypeIds` render type cards inline and POST to
-  `/api/public/book/[slug]` with `bookingTypeId` + `slotStart` (paid types
-  are never offered inline). `schedule` is a reserved form slug.
-- **Settings** — `/app/settings/booking` ("Online booking": types list +
-  forms + scheduling rules), editor at `/app/settings/booking/types/[id]`
-  (autosave; live preview via `/api/app/booking-types/[id]/preview`).
-  API: `/api/app/booking-types[/[id]]`. Team page: bookable master switch,
-  meeting link, start address (geocoded fire-and-forget).
-- **Migration** — `node scripts/migrate-booking-types.mjs [--apply]`
-  creates inactive Phone call + In-person estimate types per company and
-  turns each self-scheduling form's services into SERVICE types (approval
-  mode). Refuses if a form is slugged `schedule`.
-- **Retired** — `lib/booking-slots.ts`, `lib/booking-availability.ts`,
-  `/api/public/booking-slots` (day-level drive clustering, no pools).
-  `wallTimeToUtc` / `localDayParts` now live in `lib/booking-engine.ts`.
+  minutes at submit (falls through the ranking, then 409). No
+  `MAPBOX_TOKEN` = gap-fit only. Pools: `BookingTypeMember`
+  (`lastAssignedAt` = least-recently-assigned round robin; `priority` only in
+  PRIORITY mode).
+- **Runtime** — `lib/booking-runtime.ts`: `toPublicBookingType` (what the page
+  may know, intake already effective, heading/buttonLabel resolved),
+  `resolvePublicBookingType(slug, item, {includeInactive, skipGate})`,
+  `listPublicBookingTypes`, `menuTypes` (active + showOnPage + bookable),
+  `loadPoolWithBusy`, `rulesFor`, `slotsForType`. `lib/booking-public.ts`
+  adds the owner **preview** (`?preview=1` + a signed-in manager of that
+  company: inactive items render, approval gate skipped; nothing submits).
+  `lib/public-company.ts` is the suspended/pre-approval gate.
+- **Writes** — scheduled: `lib/booking-submit.ts` (calls/visits → Request +
+  Appointment, `.ics` mail, manage token) and `lib/booking-checkout.ts`
+  (SERVICE → approved Quote → `convertQuoteToJob` → Job; card charged AFTER
+  commit, `unwind()` on decline). Request mode: `/api/public/book/[slug]`
+  POST `{ item, … }` → contact + Request (+ draft/sent Quote for SERVICE).
+  `lib/booking-answers.ts` validates the service question + custom answers
+  for both paths; mapped answers land on `Contact.customFields`.
+- **Public** — `/book/[slug]` = the booking page: one visible item renders
+  directly (so the old default-form URL still shows a form), several → the
+  menu (`ScheduleMenu`). `/book/[slug]/[item]` = `ItemView` → `BookingStepper`
+  (SCHEDULE) or `RequestForm` (REQUEST) inside `ScheduleFrame`. Embeds mirror
+  it at `/embed/[slug][/[item]]` (resize key = `slug` or `slug/item`, legacy
+  `jobflow:height` message). The v2 `/schedule[/type]` paths permanently
+  redirect; `/book/[slug]/schedule/manage/[token]` stays (it's in sent
+  emails). APIs: `/api/public/schedule/[slug]/[item]/slots` (GET, `?preview=1`),
+  `/api/public/schedule/[slug]/[item]` (POST, captcha action `booking`),
+  `/api/public/schedule/manage/[token]`. Paid embeds hand off to the hosted
+  page with `lib/booking-prefill.ts` (finix.js refuses foreign iframes).
+- **Settings** — `/app/settings/booking` (`BookingHome`: page link/embed,
+  Look, Scheduling rules, then the item list — ledger rows, one New button);
+  `/app/settings/booking/[id]` (`ItemEditor`: autosave, sections How it
+  works / Services / Timing / Who takes these / Confirmation / Payment /
+  Questions / Words / After they book / Open times / Sharing; the right pane
+  is an iframe of the real page in preview). API: `/api/app/booking-types
+  [/[id]]` (PATCH takes `intake`, `mode`, `showOnPage`, members, services,
+  slug). `/api/app/settings` PATCH takes `bookingPage`. Team page: bookable
+  master switch, meeting link, start address.
+- **Migrations** — `scripts/migrate-booking-types.mjs` (v2, done) and
+  `scripts/migrate-forms-to-items.mjs [--apply]` (v3: every WebForm → an
+  item with the form's slug + questions, default form's item on the page,
+  others link-only, look copied to `Company.bookingPage`, sleeping v2
+  defaults pruned). `WebForm` + `Company.bookingForm` + `BookingRequest` are
+  dead — drop in a later contract step.
+- **Retired** — `lib/web-forms.ts`, `lib/booking-form.ts`, `/api/app/web-forms`,
+  the form builder/editor, `BookingForm.tsx`, `lib/booking-slots.ts`,
+  `lib/booking-availability.ts`, `/api/public/booking-slots`.

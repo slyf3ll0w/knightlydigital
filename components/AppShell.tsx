@@ -64,7 +64,7 @@ import { hapticImpact } from "@/lib/haptics";
 import { syncAppBadge } from "@/lib/badge";
 import { switchToMembership } from "@/lib/company-switch";
 import { WALLPAPER_PATTERNS } from "@/lib/wallpapers";
-import { GOOGLE_FONT_RE } from "@/lib/booking-form";
+import { GOOGLE_FONT_RE } from "@/lib/booking-page";
 
 function luminanceOf(hex: string): number | null {
   const m = /^#?([0-9a-f]{6})$/i.exec(hex);

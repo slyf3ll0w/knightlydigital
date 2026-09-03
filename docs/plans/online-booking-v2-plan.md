@@ -509,3 +509,51 @@ its embed decision.
 6. Per-member start address: **include**.
 7. Delivery: **Phases A through C without stopping**, committed per phase,
    deployed at the end.
+
+---
+
+## 10. One list (2026-09-03) — web forms folded into items
+
+David's call after seeing the page: "the online booking page is wack …
+tell me a way we can simplify it while still keeping the creative freedom".
+Chosen: **Option B**. Jobber made the same move in 2026 (request forms and
+online booking are one experience; each form is *request* / *assessment
+booking* / *job booking*).
+
+**Model.** Two ideas replace seven. (1) *Your booking page* — one per
+company at `/book/[slug]`, one look (`Company.bookingPage`), the shared
+scheduling rules. (2) *What people can book* — one list of `BookingType`
+items. Kinds gained `MESSAGE`; every item has `mode` SCHEDULE|REQUEST,
+`showOnPage`, and an `intake` (questions + words) that used to live only on
+forms. A REQUEST item is the old web form: MESSAGE ≙ inquiry form,
+IN_PERSON+REQUEST ≙ booking form (preferred date), SERVICE+REQUEST ≙
+service-request form (draft/sent quote). `effectiveIntake` applies the
+kind/mode rules so the renderers and the submit routes never drift.
+
+**Public.** `/book/[slug]` renders the single visible item directly (the
+default form's URL keeps showing a form) or the menu. `/book/[slug]/[item]`
+(and `/embed/…`) → stepper or one-step `RequestForm`. v2 `/schedule` paths
+redirect. Old form slugs are preserved (the form's link wins a clash; the
+type moves to `-2`). Owner preview: `?preview=1` + manager session renders
+inactive items and skips the gate; the editor's right pane is that iframe.
+
+**Settings.** One page: page link + embed, Look, Scheduling rules (all
+disclosure rows in one ledger), then the list. One New button. Rows are
+name + one gray meta line + quiet state text ("On your page" / "Link only"
+/ "Off"); no icon chips, no uppercase eyebrows, no badge piles (David's
+standing anti-"AI look" rules). The editor autosaves; sections gained
+*How it works*, *Questions*, *Words*, *Sharing* (show on page, slug, embed).
+
+**Migration** (`scripts/migrate-forms-to-items.mjs`): per company, default
+form's appearance → `bookingPage`; each form → an item with the form's
+slug, questions and words, `legacyFormId`; only the default form's item on
+the page; self-scheduling forms hand their questions to the types they
+pointed at (first type takes the form's slug); companies with no forms get
+one "Free estimate" request item (the old auto-default); untouched inactive
+v2 defaults deleted. `WebForm` rows stay until a later column drop.
+
+**Calls made without asking** (David said "let's do Option B" and stopped):
+the list is titled "What people can book"; migrated non-default forms and
+new MESSAGE items default to link-only? — no: new items default to
+`showOnPage: true`, migrated non-default forms are link-only (they were
+never on `/book/[slug]` before); the 27 sleeping v2 defaults are pruned.

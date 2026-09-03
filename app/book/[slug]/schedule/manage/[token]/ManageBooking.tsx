@@ -95,7 +95,7 @@ export default function ManageBooking({ token, appearance }: { token: string; ap
   if (!info) return <div className="rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error || "This link isn't valid any more."}</div>;
 
   const active = info.status === "SCHEDULED";
-  const rebook = `/book/${info.companySlug}/schedule/${info.typeSlug}`;
+  const rebook = `/book/${info.companySlug}/${info.typeSlug}`;
 
   return (
     <div className={`${card} space-y-4 p-6`}>

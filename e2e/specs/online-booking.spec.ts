@@ -1,7 +1,8 @@
-// Online booking v2: booking types, the availability engine over a real
-// company, the public slot API, self-serve links, and the captcha gate that
-// keeps scripted bookings out (a green "captcha rejected" here is proof the
-// public booking POST can't be flooded by bots).
+// Online booking v3: one list of items (scheduled + request mode), the
+// availability engine over a real company, the public pages and slot API,
+// self-serve links, and the captcha gate that keeps scripted bookings out
+// (a green "captcha rejected" here is proof the public POSTs can't be
+// flooded by bots).
 import { test, expect } from "@playwright/test";
 import { readState } from "../env";
 import { Api, deleteContact, runTag } from "../helpers/api";
@@ -9,15 +10,15 @@ import { db, disconnectDb } from "../helpers/db";
 
 const state = readState();
 
-test.describe("online booking (booking types)", () => {
+test.describe("online booking (items)", () => {
   let api: Api;
   let phoneTypeId: string;
   let phoneTypeSlug: string;
   let serviceTypeId: string;
   let serviceTypeSlug: string;
+  let messageItemId: string;
+  let messageItemSlug: string;
   let workItemId: string;
-  let formId: string;
-  let formSlug: string;
 
   test.beforeAll(async () => {
     api = Api.forOwnerA(state);
@@ -37,17 +38,17 @@ test.describe("online booking (booking types)", () => {
     serviceTypeId = svc.id;
     serviceTypeSlug = svc.slug;
     await api.patch(`/api/app/booking-types/${serviceTypeId}`, { services: [workItemId], leadHours: 0, horizonDays: 14 });
-    const form = await api.post("/api/app/web-forms", { name: `${runTag} Booking`, type: "BOOKING" });
-    formId = form.id;
-    formSlug = form.slug;
+    const msg = await api.post("/api/app/booking-types", { name: `${runTag} Contact`, kind: "MESSAGE" });
+    messageItemId = msg.id;
+    messageItemSlug = msg.slug;
   });
 
   test.afterAll(async () => {
     await api.raw("PATCH", `/api/app/team/${state.ownerA.userId}`, { bookable: false });
     for (const [label, path] of [
-      ["form", `/api/app/web-forms/${formId}`],
-      ["phone type", `/api/app/booking-types/${phoneTypeId}`],
-      ["service type", `/api/app/booking-types/${serviceTypeId}`],
+      ["phone item", `/api/app/booking-types/${phoneTypeId}`],
+      ["service item", `/api/app/booking-types/${serviceTypeId}`],
+      ["message item", `/api/app/booking-types/${messageItemId}`],
       ["work item", `/api/app/work-items/${workItemId}`],
     ] as const) {
       if (!path.endsWith("undefined")) {
@@ -58,15 +59,19 @@ test.describe("online booking (booking types)", () => {
     await disconnectDb();
   });
 
-  test("a new type starts with sane defaults and the bookable owner in its pool", async () => {
+  test("a new item starts with sane defaults and the bookable owner in its pool", async () => {
     const t = await api.get(`/api/app/booking-types/${phoneTypeId}`);
     expect(t.kind).toBe("PHONE_CALL");
+    expect(t.mode).toBe("SCHEDULE");
     expect(t.confirmation).toBe("INSTANT");
     expect(t.clientCanReschedule).toBe(true);
+    expect(t.showOnPage).toBe(true);
     expect(t.members.some((m: { userId: string }) => m.userId === state.ownerA.userId)).toBe(true);
+    const m = await api.get(`/api/app/booking-types/${messageItemId}`);
+    expect(m.mode).toBe("REQUEST"); // a message form never schedules
   });
 
-  test("settings preview shows open times for the phone type", async () => {
+  test("settings preview shows open times for the phone item", async () => {
     await api.patch(`/api/app/booking-types/${phoneTypeId}`, { leadHours: 0, horizonDays: 14 });
     const p = await api.get(`/api/app/booking-types/${phoneTypeId}/preview`);
     expect(p.eligible.length).toBeGreaterThan(0);
@@ -85,7 +90,6 @@ test.describe("online booking (booking types)", () => {
     try {
       const res = await api.raw("PATCH", `/api/app/booking-types/${serviceTypeId}`, { services: [workItemId, hourly.id], paymentMode: "FULL" });
       expect(res.status).toBe(400);
-      // Pool/services untouched by the rejected patch
       const t = await api.get(`/api/app/booking-types/${serviceTypeId}`);
       expect(t.paymentMode).toBe("NONE");
     } finally {
@@ -93,7 +97,39 @@ test.describe("online booking (booking types)", () => {
     }
   });
 
-  test("public slot API: calls list exact times; in-person types need an address first", async () => {
+  test("questions save on the item and the public page renders them", async () => {
+    await api.patch(`/api/app/booking-types/${messageItemId}`, {
+      intake: { heading: `${runTag} Say hello`, customFields: [{ id: "budget", label: `${runTag} Budget`, type: "text", required: false }] },
+    });
+    const t = await api.get(`/api/app/booking-types/${messageItemId}`);
+    expect(t.intake.customFields[0].label).toBe(`${runTag} Budget`);
+    const page = await fetch(`${state.baseUrl}/book/${state.companyASlug}/${messageItemSlug}`);
+    expect(page.status).toBe(200);
+    const html = await page.text();
+    expect(html).toContain(`${runTag} Say hello`);
+    expect(html).toContain(`${runTag} Budget`);
+  });
+
+  test("the booking page lists items that are on it, and hides link-only ones", async () => {
+    await api.patch(`/api/app/booking-types/${messageItemId}`, { showOnPage: false });
+    const page = await fetch(`${state.baseUrl}/book/${state.companyASlug}`);
+    expect(page.status).toBe(200);
+    const html = await page.text();
+    expect(html).toContain(`${runTag} Phone call`);
+    expect(html).not.toContain(`${runTag} Say hello`);
+    // link-only items still answer at their own link
+    const own = await fetch(`${state.baseUrl}/book/${state.companyASlug}/${messageItemSlug}`);
+    expect(own.status).toBe(200);
+    await api.patch(`/api/app/booking-types/${messageItemId}`, { showOnPage: true });
+  });
+
+  test("the v2 /schedule links redirect to the item pages", async () => {
+    const res = await fetch(`${state.baseUrl}/book/${state.companyASlug}/schedule/${phoneTypeSlug}`, { redirect: "manual" });
+    expect([301, 308]).toContain(res.status);
+    expect(res.headers.get("location")).toContain(`/book/${state.companyASlug}/${phoneTypeSlug}`);
+  });
+
+  test("public slot API: calls list exact times; in-person items need an address first", async () => {
     const call = await fetch(`${state.baseUrl}/api/public/schedule/${state.companyASlug}/${phoneTypeSlug}/slots`);
     expect(call.status).toBe(200);
     const cj = (await call.json()) as { exactTime: boolean; days: { slots: { label: string }[] }[] };
@@ -109,11 +145,9 @@ test.describe("online booking (booking types)", () => {
     expect(sj.days).toEqual([]);
   });
 
-  test("public slot API: an address unlocks arrival windows for the service type", async () => {
+  test("public slot API: an address unlocks arrival windows for the service item", async () => {
     const address = encodeURIComponent("123 Main St, Plano, TX 75024");
-    const res = await fetch(
-      `${state.baseUrl}/api/public/schedule/${state.companyASlug}/${serviceTypeSlug}/slots?services=${workItemId}&address=${address}`
-    );
+    const res = await fetch(`${state.baseUrl}/api/public/schedule/${state.companyASlug}/${serviceTypeSlug}/slots?services=${workItemId}&address=${address}`);
     expect(res.status).toBe(200);
     const j = (await res.json()) as { exactTime: boolean; outOfArea: boolean; days: { slots: { label: string }[] }[] };
     expect(j.exactTime).toBe(false);
@@ -123,24 +157,26 @@ test.describe("online booking (booking types)", () => {
     expect(j.days[0].slots[0].label).toContain("–"); // arrival window
   });
 
-  test("inactive types disappear from the public surface", async () => {
+  test("a request-mode item has no slots and its page still renders", async () => {
+    await api.patch(`/api/app/booking-types/${serviceTypeId}`, { mode: "REQUEST" });
+    const slots = await fetch(`${state.baseUrl}/api/public/schedule/${state.companyASlug}/${serviceTypeSlug}/slots?services=${workItemId}`);
+    expect(slots.status).toBe(404);
+    const page = await fetch(`${state.baseUrl}/book/${state.companyASlug}/${serviceTypeSlug}`);
+    expect(page.status).toBe(200);
+    expect(await page.text()).toContain(`${runTag} Bookable Service`);
+    await api.patch(`/api/app/booking-types/${serviceTypeId}`, { mode: "SCHEDULE" });
+  });
+
+  test("inactive items disappear from the public surface", async () => {
     await api.patch(`/api/app/booking-types/${phoneTypeId}`, { isActive: false });
     const res = await fetch(`${state.baseUrl}/api/public/schedule/${state.companyASlug}/${phoneTypeSlug}/slots`);
     expect(res.status).toBe(404);
+    const page = await fetch(`${state.baseUrl}/book/${state.companyASlug}/${phoneTypeSlug}`);
+    expect(page.status).toBe(404);
     await api.patch(`/api/app/booking-types/${phoneTypeId}`, { isActive: true });
   });
 
-  test("classic form offers a booking type inline once pointed at one", async () => {
-    await api.patch(`/api/app/web-forms/${formId}`, {
-      config: { selfSchedule: { enabled: true, bookingTypeIds: [phoneTypeId] } },
-    });
-    const page = await fetch(`${state.baseUrl}/book/${state.companyASlug}/${formSlug}`);
-    expect(page.status).toBe(200);
-    const html = await page.text();
-    expect(html).toContain(`${runTag} Phone call`);
-  });
-
-  test("captcha gate rejects scripted public bookings", async () => {
+  test("captcha gate rejects scripted public bookings and requests", async () => {
     const email = `e2e-${Date.now()}@example.invalid`;
     const res = await fetch(`${state.baseUrl}/api/public/schedule/${state.companyASlug}/${phoneTypeSlug}`, {
       method: "POST",
@@ -163,8 +199,15 @@ test.describe("online booking (booking types)", () => {
           "TURNSTILE_SECRET_KEY / NEXT_PUBLIC_TURNSTILE_SITE_KEY are not both set on this deployment."
       );
     }
-    const body = await res.json();
-    expect(String(body.error)).toMatch(/captcha/i);
+    expect(String((await res.json()).error)).toMatch(/captcha/i);
+
+    const req = await fetch(`${state.baseUrl}/api/public/book/${state.companyASlug}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ item: messageItemSlug, captchaToken: "e2e-bogus-token", firstName: runTag, lastName: "CaptchaProbe", email, message: "hi", elapsedMs: 60_000 }),
+    });
+    expect(req.status).toBe(400);
+    expect(String((await req.json()).error)).toMatch(/captcha/i);
   });
 
   test("manage link 404s for an unknown token", async () => {

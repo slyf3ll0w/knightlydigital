@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
 import { bookingTypeInclude } from "@/lib/booking-runtime";
-import { BOOKING_KINDS, defaultSettingsForKind, slugifyTypeName, type BookingKind } from "@/lib/booking-types";
+import { BOOKING_KINDS, defaultSettingsForKind, slugifyTypeName, type BookingKind, type BookingMode } from "@/lib/booking-types";
 
-const MAX_TYPES = 20;
+const MAX_TYPES = 25;
 
-/** GET — every booking type of the company (settings list). */
+/** GET — every item on the company's booking page (settings list). */
 export async function GET() {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -20,9 +20,10 @@ export async function GET() {
 }
 
 /**
- * POST — create a booking type: { name, kind }. Starts with sensible
- * kind defaults and every currently bookable member in the pool, so the
- * owner lands in the editor with something that already works.
+ * POST — create an item: { name, kind, mode? }. Starts with sensible kind
+ * defaults and every currently bookable member in the pool, so the owner
+ * lands in the editor with something that already works. Message items
+ * are always "we'll follow up"; everything else picks a time by default.
  */
 export async function POST(req: NextRequest) {
   const actor = await getActor();
@@ -31,11 +32,12 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json().catch(() => ({}));
   const kind: BookingKind = BOOKING_KINDS.includes(body.kind) ? body.kind : "PHONE_CALL";
-  const settings = defaultSettingsForKind(kind, typeof body.name === "string" ? body.name.slice(0, 80) : undefined);
+  const mode: BookingMode | undefined = body.mode === "REQUEST" || body.mode === "SCHEDULE" ? body.mode : undefined;
+  const settings = defaultSettingsForKind(kind, typeof body.name === "string" ? body.name.slice(0, 80) : undefined, mode);
 
   const count = await prisma.bookingType.count({ where: { companyId: actor.companyId } });
   if (count >= MAX_TYPES) {
-    return NextResponse.json({ error: `Limit of ${MAX_TYPES} booking types reached.` }, { status: 400 });
+    return NextResponse.json({ error: `Limit of ${MAX_TYPES} items reached.` }, { status: 400 });
   }
 
   const base = slugifyTypeName(settings.name);

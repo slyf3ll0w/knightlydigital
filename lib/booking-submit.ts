@@ -109,7 +109,7 @@ export async function upsertBookingContact(
   });
 }
 
-const APPT_TYPE = { PHONE_CALL: "PHONE_CALL", VIDEO_CALL: "VIDEO_CALL", IN_PERSON: "IN_PERSON", SERVICE: "IN_PERSON" } as const;
+const APPT_TYPE = { PHONE_CALL: "PHONE_CALL", VIDEO_CALL: "VIDEO_CALL", IN_PERSON: "IN_PERSON", SERVICE: "IN_PERSON", MESSAGE: "IN_PERSON" } as const;
 
 /**
  * Book an appointment-kind type (call / video / in-person estimate) in one
@@ -322,7 +322,7 @@ export async function notifyBooking(input: BookingNoticeInput): Promise<void> {
     });
     const mail =
       event === "cancelled"
-        ? bookingCancelledEmail({ ...base, rebookUrl: `${APP_URL}/book/${company.slug}/schedule/${type.slug}` })
+        ? bookingCancelledEmail({ ...base, rebookUrl: `${APP_URL}/book/${company.slug}/${type.slug}` })
         : event === "rescheduled"
           ? bookingRescheduledEmail({ ...base, previousLabel, extras })
           : approval

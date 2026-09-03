@@ -67,7 +67,7 @@ const ROOTS = new Set([
 const LABELS: [prefix: string, label: string][] = [
   ["/app/settings/products", "Services"],
   ["/app/settings/contracts", "Contracts"],
-  ["/app/settings/booking", "Forms"],
+  ["/app/settings/booking", "Online booking"],
   ["/app/settings/team", "Team"],
   ["/app/settings/profile", "My Profile"],
   ["/app/settings/pipeline", "Lead Pipeline"],

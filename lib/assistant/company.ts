@@ -19,6 +19,8 @@ import {
   timeToMinutes,
 } from "../business-hours";
 import { type Tool, str, num, money, stage, siteBase } from "./core";
+import { sanitizeIntake } from "@/lib/booking-intake";
+import { KIND_META } from "@/lib/booking-types";
 
 /** kebab-case a label into a stable config key/id. */
 function slugId(label: string): string {
@@ -127,21 +129,18 @@ export const companyTools: Tool[] = [
           where: { companyId: actor.companyId, isActive: true, bookable: true },
           select: { name: true },
         }),
-        prisma.webForm.findMany({
+        prisma.bookingType.findMany({
           where: { companyId: actor.companyId, isActive: true },
-          select: { name: true, type: true, config: true },
+          select: { name: true, kind: true, mode: true, showOnPage: true, services: { select: { workItem: { select: { name: true, isActive: true } } } } },
+          orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
         }),
       ]);
       if (!company) return { error: "Company not found" };
-      type FormCfg = { selfSchedule?: { enabled?: boolean }; services?: { name?: string }[] };
-      const selfScheduleOn = forms.some((f) => {
-        const c = f.config as FormCfg;
-        return f.type === "BOOKING" && c?.selfSchedule?.enabled === true;
-      });
-      // only services placed on a self-scheduling form are actually bookable online
+      const selfScheduleOn = forms.some((f) => f.mode === "SCHEDULE");
+      // only services on a scheduled item are actually bookable online
       const bookableServices = forms
-        .filter((f) => f.type === "BOOKING" && (f.config as FormCfg)?.selfSchedule?.enabled)
-        .flatMap((f) => ((f.config as FormCfg).services ?? []).map((s) => s?.name).filter(Boolean));
+        .filter((f) => f.mode === "SCHEDULE" && f.kind === "SERVICE")
+        .flatMap((f) => f.services.filter((s) => s.workItem.isActive).map((s) => s.workItem.name));
       return {
         servicesBookableOnline: selfScheduleOn ? bookableServices : [],
         industry: company.industry,
@@ -156,7 +155,7 @@ export const companyTools: Tool[] = [
         onlineBookingEnabled: selfScheduleOn,
         bookableTeamMembers: bookable.map((u) => u.name),
         reviewLinkConfigured: Boolean(company.reviewLink),
-        forms: forms.map((f) => ({ name: f.name, type: f.type })),
+        bookingItems: forms.map((f) => ({ name: f.name, kind: f.kind, mode: f.mode, onBookingPage: f.showOnPage })),
       };
     },
   },
@@ -637,29 +636,27 @@ export const companyTools: Tool[] = [
     },
   },
 
-  // ── web forms ───────────────────────────────────────────────────────────────
+  // ── online booking items ───────────────────────────────────────────────────
 
   {
     decl: {
-      name: "manage_web_form",
+      name: "manage_booking_item",
       description:
-        "The company's website/booking forms (managers). action 'list' shows all forms with ids, share links, and settings. 'embed' returns a form's ready-to-paste website embed code — output it verbatim. 'create' adds a form (name + formType INQUIRY/BOOKING/SERVICE_REQUEST) with sensible defaults — customize it with a follow-up 'update' after it exists. 'update' edits a form (formId from list): headline/intro, button label, theme, standard field visibility, online self-scheduling (BOOKING forms), the service list shown on the form (setServices REPLACES it; names matching the price book link automatically), custom questions (addCustomFields/removeCustomFieldLabels), isActive, or isDefault. 'duplicate' copies a form. Create/update/duplicate show a confirmation card; list/embed answer directly.",
+        "The items on the company's online booking page (managers): phone calls, video calls, visits, services, and plain message forms — each with its own link and embed. action 'list' shows every item with id, link, mode (customer picks a time vs. the business follows up), state, questions and services. 'embed' returns an item's ready-to-paste website embed code (or the whole booking page's when no item is named) — output it verbatim. 'create' adds an item (name + kind PHONE_CALL/VIDEO_CALL/IN_PERSON/SERVICE/MESSAGE, optional mode SCHEDULE/REQUEST) with sensible defaults. 'update' edits an item (itemId from list): name, isActive, showOnPage, mode, heading/intro/buttonLabel, standard question visibility (fields), custom questions (addCustomFields/removeCustomFieldLabels), the price-book services offered (setServiceNames REPLACES them; names must match the price book), timing (leadHours/horizonDays), confirmation INSTANT/APPROVAL. Create/update show a confirmation card; list/embed answer directly. Business hours, service area and the drive limit are company settings, not item settings.",
       parameters: {
         type: "object",
         properties: {
-          action: { type: "string", enum: ["list", "create", "update", "duplicate", "embed"] },
-          formId: { type: "string" },
+          action: { type: "string", enum: ["list", "create", "update", "embed"] },
+          itemId: { type: "string" },
           name: { type: "string" },
-          formType: { type: "string", enum: ["INQUIRY", "BOOKING", "SERVICE_REQUEST"] },
+          kind: { type: "string", enum: ["PHONE_CALL", "VIDEO_CALL", "IN_PERSON", "SERVICE", "MESSAGE"] },
+          mode: { type: "string", enum: ["SCHEDULE", "REQUEST"], description: "SCHEDULE = customer picks a time; REQUEST = they ask, the business follows up" },
           headline: { type: "string" },
           intro: { type: "string" },
           buttonLabel: { type: "string" },
-          buttonColor: { type: "string", description: "#rrggbb (overrides the brand color)" },
-          theme: { type: "string", enum: ["light", "dark", "transparent"] },
-          fontSize: { type: "string", enum: ["sm", "md", "lg"] },
           fields: {
             type: "object",
-            description: "standard field visibility, e.g. {\"address\":{\"show\":true,\"required\":false}}",
+            description: "standard question visibility, e.g. {\"address\":{\"show\":true,\"required\":false}}",
             properties: {
               email: { type: "object", properties: { show: { type: "boolean" }, required: { type: "boolean" } } },
               phone: { type: "object", properties: { show: { type: "boolean" }, required: { type: "boolean" } } },
@@ -667,22 +664,10 @@ export const companyTools: Tool[] = [
               date: { type: "object", properties: { show: { type: "boolean" }, required: { type: "boolean" } } },
             },
           },
-          selfScheduleEnabled: { type: "boolean", description: "online self-scheduling (BOOKING forms)" },
-          leadHours: { type: "number", description: "min hours of notice for online bookings (0-336)" },
-          horizonDays: { type: "number", description: "how far out clients can book (1-90)" },
-          setServices: {
-            type: "array",
-            description: "REPLACES the form's service list",
-            items: {
-              type: "object",
-              properties: {
-                name: { type: "string" },
-                price: { type: "number" },
-                description: { type: "string" },
-              },
-              required: ["name"],
-            },
-          },
+          leadHours: { type: "number", description: "min hours of notice for bookings (0-336)" },
+          horizonDays: { type: "number", description: "how far out customers can book (1-90)" },
+          confirmation: { type: "string", enum: ["INSTANT", "APPROVAL"] },
+          setServiceNames: { type: "array", items: { type: "string" }, description: "REPLACES the item's services; each must be a price-book service name" },
           addCustomFields: {
             type: "array",
             items: {
@@ -698,7 +683,7 @@ export const companyTools: Tool[] = [
           },
           removeCustomFieldLabels: { type: "array", items: { type: "string" } },
           isActive: { type: "boolean" },
-          isDefault: { type: "boolean" },
+          showOnPage: { type: "boolean" },
         },
         required: ["action"],
       },
@@ -706,75 +691,63 @@ export const companyTools: Tool[] = [
     allowed: (a) => isManager(a.role),
     run: async (actor, args, ctx) => {
       const action = str(args.action, 10);
-      type Cfg = Record<string, unknown> & {
-        header?: { title?: string; description?: string };
-        button?: { label?: string; color?: string };
-        appearance?: { theme?: string; fontSize?: string; font?: string };
-        fields?: Record<string, { show?: boolean; required?: boolean; label?: string }>;
-        selfSchedule?: { enabled?: boolean; leadHours?: number; horizonDays?: number };
-        services?: Record<string, unknown>[];
-        customFields?: Record<string, unknown>[];
+      const baseUrl = siteBase();
+      const company = await prisma.company.findUnique({ where: { id: actor.companyId }, select: { slug: true, name: true } });
+      const companySlug = company?.slug ?? "";
+      const link = (slug: string) => `${baseUrl}/book/${companySlug}/${slug}`;
+      const embedFor = (slug: string | null, title: string) => {
+        const key = slug ? `${companySlug}/${slug}` : companySlug;
+        const src = slug ? `${baseUrl}/embed/${companySlug}/${slug}` : `${baseUrl}/embed/${companySlug}`;
+        return `<iframe src="${src}" data-jobflow="${key}" style="width:100%;max-width:640px;height:760px;border:0;" title="${title}"></iframe>\n<script>window.addEventListener("message",function(e){var d=e.data;if(e.origin==="${baseUrl}"&&d&&d.type==="jobflow:height"&&d.slug==="${key}"){var f=document.querySelector('iframe[data-jobflow="${key}"]');if(f)f.style.height=d.height+"px";}});</script>`;
       };
 
-      const baseUrl = siteBase();
-      const formPath = (companySlug: string, f: { slug: string; isDefault: boolean }) =>
-        f.isDefault ? companySlug : `${companySlug}/${f.slug}`;
-
       if (action === "list") {
-        const [rows, company] = await Promise.all([
-          prisma.webForm.findMany({
-            where: { companyId: actor.companyId },
-            take: 15, orderBy: { createdAt: "asc" },
-            select: { id: true, name: true, type: true, slug: true, isDefault: true, isActive: true, config: true },
-          }),
-          prisma.company.findUnique({ where: { id: actor.companyId }, select: { slug: true } }),
-        ]);
+        const rows = await prisma.bookingType.findMany({
+          where: { companyId: actor.companyId },
+          orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+          include: { services: { include: { workItem: { select: { name: true } } } }, members: { include: { user: { select: { name: true, isActive: true, bookable: true } } } } },
+        });
         return {
-          forms: rows.map((f) => {
-            const c = (f.config ?? {}) as Cfg;
+          bookingPage: `${baseUrl}/book/${companySlug}`,
+          items: rows.map((t) => {
+            const intake = sanitizeIntake(t.intake, t.kind, t.mode);
             return {
-              id: f.id, name: f.name, type: f.type,
-              link: `${baseUrl}/book/${formPath(company?.slug ?? "", f)}`,
-              isDefault: f.isDefault, isActive: f.isActive,
-              headline: c.header?.title,
-              selfSchedule: c.selfSchedule?.enabled === true,
-              services: (c.services ?? []).map((s) => (s as { name?: string }).name).filter(Boolean),
-              customFields: (c.customFields ?? []).map((s) => (s as { label?: string }).label).filter(Boolean),
+              id: t.id,
+              name: t.name,
+              kind: t.kind,
+              mode: t.mode,
+              link: link(t.slug),
+              isActive: t.isActive,
+              showOnPage: t.showOnPage,
+              confirmation: t.mode === "SCHEDULE" ? t.confirmation : undefined,
+              paymentMode: t.mode === "SCHEDULE" && t.kind === "SERVICE" ? t.paymentMode : undefined,
+              durationMinutes: t.mode === "SCHEDULE" ? t.durationMinutes : undefined,
+              headline: intake.heading || undefined,
+              services: t.services.map((s) => s.workItem.name),
+              customQuestions: intake.customFields.map((c) => c.label),
+              takers: t.members.filter((m) => m.user.isActive && m.user.bookable).map((m) => m.user.name),
             };
           }),
         };
       }
 
       if (action === "embed") {
-        const [rows, company] = await Promise.all([
-          prisma.webForm.findMany({
-            where: { companyId: actor.companyId, isActive: true },
-            take: 15, orderBy: { createdAt: "asc" },
-            select: { id: true, name: true, slug: true, isDefault: true },
-          }),
-          prisma.company.findUnique({ where: { id: actor.companyId }, select: { slug: true, name: true } }),
-        ]);
-        if (rows.length === 0) return { error: "No forms exist yet — create one first." };
-        const wanted = str(args.formId, 40) || str(args.name, 80);
-        const form = wanted
-          ? rows.find((f) => f.id === wanted) ??
-            rows.find((f) => f.name.toLowerCase() === wanted.toLowerCase())
-          : rows.length === 1
-            ? rows[0]
-            : rows.find((f) => f.isDefault);
-        if (!form) {
+        const wanted = str(args.itemId, 40) || str(args.name, 80);
+        if (!wanted) {
           return {
-            error: "Say which form — pass its formId or exact name.",
-            forms: rows.map((f) => ({ id: f.id, name: f.name })),
+            target: "the whole booking page",
+            directLink: `${baseUrl}/book/${companySlug}`,
+            embedCode: embedFor(null, `Book online — ${company?.name ?? ""}`),
+            note: "Give the user the embedCode VERBATIM (both tags, unmodified) to paste into their site's HTML, plus the directLink as a no-embed alternative.",
           };
         }
-        const suffix = formPath(company?.slug ?? "", form);
-        const origin = baseUrl;
-        const embedCode = `<iframe src="${baseUrl}/embed/${suffix}" data-jobflow="${suffix}" style="width:100%;max-width:560px;height:760px;border:0;" title="${form.name} — ${company?.name ?? ""}"></iframe>\n<script>window.addEventListener("message",function(e){var d=e.data;if(e.origin==="${origin}"&&d&&d.type==="jobflow:height"&&d.slug==="${suffix}"){var f=document.querySelector('iframe[data-jobflow="${suffix}"]');if(f)f.style.height=d.height+"px";}});</script>`;
+        const rows = await prisma.bookingType.findMany({ where: { companyId: actor.companyId, isActive: true }, select: { id: true, name: true, slug: true } });
+        const item = rows.find((t) => t.id === wanted) ?? rows.find((t) => t.name.toLowerCase() === wanted.toLowerCase());
+        if (!item) return { error: "Say which item — pass its itemId or exact name (use action 'list').", items: rows.map((t) => ({ id: t.id, name: t.name })) };
         return {
-          form: form.name,
-          directLink: `${baseUrl}/book/${suffix}`,
-          embedCode,
+          item: item.name,
+          directLink: link(item.slug),
+          embedCode: embedFor(item.slug, `${item.name} — ${company?.name ?? ""}`),
           note: "Give the user the embedCode VERBATIM (both tags, unmodified) to paste into their site's HTML, plus the directLink as a no-embed alternative.",
         };
       }
@@ -782,223 +755,155 @@ export const companyTools: Tool[] = [
       if (action === "create") {
         const name = str(args.name, 80);
         if (!name) return { error: "name is required" };
-        const existing = await prisma.webForm.findFirst({
+        const existing = await prisma.bookingType.findFirst({
           where: { companyId: actor.companyId, name: { equals: name, mode: "insensitive" } },
           select: { id: true, name: true },
         });
         if (existing) {
-          return {
-            error: `A form named "${existing.name}" already exists (id ${existing.id}) — don't create it again. Use action 'update' to change it or 'embed' for its website code.`,
-          };
+          return { error: `An item named "${existing.name}" already exists (id ${existing.id}) — don't create it again. Use action 'update' to change it or 'embed' for its website code.` };
         }
-        const formType = ["INQUIRY", "BOOKING", "SERVICE_REQUEST"].includes(str(args.formType, 20))
-          ? str(args.formType, 20)
-          : "INQUIRY";
+        const kind = ["PHONE_CALL", "VIDEO_CALL", "IN_PERSON", "SERVICE", "MESSAGE"].includes(str(args.kind, 20)) ? str(args.kind, 20) : "PHONE_CALL";
+        const mode = str(args.mode, 10) === "REQUEST" ? "REQUEST" : "SCHEDULE";
         return {
           ...stage(ctx, {
             kind: "manage_web_form",
-            title: `Create ${formType.toLowerCase().replace("_", " ")} form "${name}"`,
-            lines: [
-              "Starts with sensible defaults for its type.",
-              "Once confirmed, ask me for the embed code or any customization.",
-            ],
-            endpoint: "/api/app/web-forms",
+            title: `Create "${name}" (${KIND_META[kind as keyof typeof KIND_META].label.toLowerCase()})`,
+            lines: [kind === "MESSAGE" ? "A message form; every submission lands in Requests." : mode === "SCHEDULE" ? "Customers pick a time from your team's open slots." : "Customers send a request; you follow up to set a time.", "Starts with sensible defaults and every bookable team member."],
+            endpoint: "/api/app/booking-types",
             method: "POST",
-            payload: { name, type: formType },
+            payload: { name, kind, mode },
           }),
-          note: "After the user confirms this card, the form exists — use action 'list' to get its id, 'update' to customize, 'embed' for its website code. Never stage this create again.",
+          note: "After the user confirms this card, the item exists — use action 'list' to get its id, 'update' to customize, 'embed' for its website code. Never stage this create again.",
         };
       }
 
-      const form = await prisma.webForm.findFirst({
-        where: { id: str(args.formId, 40), companyId: actor.companyId },
-        select: { id: true, name: true, type: true, isDefault: true, config: true },
+      const item = await prisma.bookingType.findFirst({
+        where: { id: str(args.itemId, 40), companyId: actor.companyId },
+        include: { services: { include: { workItem: { select: { name: true } } } } },
       });
-      if (!form) return { error: "No form with that id — use action 'list' first." };
-
-      if (action === "duplicate") {
-        return stage(ctx, {
-          kind: "manage_web_form",
-          title: `Duplicate form "${form.name}"`,
-          lines: ["The copy keeps all settings, gets its own link, and is never the default."],
-          endpoint: `/api/app/web-forms/${form.id}/duplicate`,
-          method: "POST",
-          payload: {},
-        });
-      }
-      if (action !== "update") return { error: "action must be list, create, update, or duplicate" };
+      if (!item) return { error: "No item with that id — use action 'list' first." };
+      if (action !== "update") return { error: "action must be list, create, update, or embed" };
 
       const payload: Record<string, unknown> = {};
       const lines: string[] = [];
       const name = str(args.name, 80);
-      if (name && name !== form.name) {
+      if (name && name !== item.name) {
         payload.name = name;
         lines.push(`Rename to: ${name}`);
       }
       if (typeof args.isActive === "boolean") {
-        if (!args.isActive && form.isDefault) return { error: "The default form can't be disabled — make another form the default first." };
         payload.isActive = args.isActive;
-        lines.push(args.isActive ? "Enable the form" : "Disable the form (link stops accepting submissions)");
+        lines.push(args.isActive ? "Turn it on" : "Turn it off (link stops answering)");
       }
-      if (args.isDefault === true) {
-        payload.isDefault = true;
-        lines.push("Make this the default form (used by /book and the embed).");
+      if (typeof args.showOnPage === "boolean") {
+        payload.showOnPage = args.showOnPage;
+        lines.push(args.showOnPage ? "Show it on the booking page" : "Hide it from the booking page (link only)");
+      }
+      const mode = str(args.mode, 10);
+      if ((mode === "SCHEDULE" || mode === "REQUEST") && mode !== item.mode) {
+        if (item.kind === "MESSAGE" && mode === "SCHEDULE") return { error: "A message form can't take bookings — create a phone call, visit or service item instead." };
+        payload.mode = mode;
+        lines.push(mode === "SCHEDULE" ? "Customers pick a time" : "Customers send a request; you follow up");
+      }
+      const confirmation = str(args.confirmation, 10);
+      if (confirmation === "INSTANT" || confirmation === "APPROVAL") {
+        payload.confirmation = confirmation;
+        lines.push(confirmation === "INSTANT" ? "Confirm bookings instantly" : "Hold bookings for approval");
+      }
+      const lead = num(args.leadHours);
+      if (lead !== null && lead >= 0 && lead <= 336) {
+        payload.leadHours = lead;
+        lines.push(`Booking notice: ${lead}h minimum`);
+      }
+      const horizon = num(args.horizonDays);
+      if (horizon !== null && horizon >= 1 && horizon <= 90) {
+        payload.horizonDays = horizon;
+        lines.push(`Booking window: ${horizon} days out`);
+      }
+      if (Array.isArray(args.setServiceNames)) {
+        if (item.kind !== "SERVICE") return { error: "Only service items offer price-book services." };
+        const wanted = args.setServiceNames.map((n) => str(n, 100)).filter(Boolean);
+        const book = await prisma.workItem.findMany({ where: { companyId: actor.companyId, isActive: true, type: "SERVICE" }, select: { id: true, name: true } });
+        const ids: string[] = [];
+        const missing: string[] = [];
+        for (const w of wanted) {
+          const match = book.find((b) => b.name.trim().toLowerCase() === w.trim().toLowerCase());
+          if (match) ids.push(match.id);
+          else missing.push(w);
+        }
+        if (missing.length > 0) return { error: `Not in the price book: ${missing.join(", ")}. Add them under Products & Services first (manage_price_book), then retry.` };
+        if (ids.length === 0) return { error: "setServiceNames needs at least one price-book service." };
+        payload.services = ids;
+        lines.push(`Services offered: ${wanted.join(", ")}`);
       }
 
-      // config-level edits: start from the live config, overlay changes, send the whole thing
-      const cfg = JSON.parse(JSON.stringify(form.config ?? {})) as Cfg;
-      let cfgChanged = false;
+      // Questions + words live in the intake blob: start from the live one, overlay, send whole
+      const intake = sanitizeIntake(item.intake, item.kind, (payload.mode as "SCHEDULE" | "REQUEST" | undefined) ?? item.mode);
+      let intakeChanged = false;
       const headline = str(args.headline, 100);
       if (headline) {
-        cfg.header = { ...(cfg.header ?? {}), title: headline };
-        lines.push(`Headline: ${headline}`);
-        cfgChanged = true;
+        intake.heading = headline;
+        lines.push(`Heading: ${headline}`);
+        intakeChanged = true;
       }
-      const intro = str(args.intro, 300);
+      const intro = str(args.intro, 500);
       if (intro) {
-        cfg.header = { ...(cfg.header ?? {}), description: intro };
+        payload.description = intro;
         lines.push(`Intro: ${intro.slice(0, 100)}`);
-        cfgChanged = true;
       }
       const buttonLabel = str(args.buttonLabel, 40);
       if (buttonLabel) {
-        cfg.button = { ...(cfg.button ?? {}), label: buttonLabel };
+        intake.buttonLabel = buttonLabel;
         lines.push(`Button: ${buttonLabel}`);
-        cfgChanged = true;
-      }
-      const buttonColor = str(args.buttonColor, 7);
-      if (buttonColor) {
-        if (!/^#[0-9a-fA-F]{6}$/.test(buttonColor)) {
-          return { error: `buttonColor must be a 6-digit hex like #0B57D8 (got "${buttonColor}").` };
-        }
-        cfg.button = { ...(cfg.button ?? {}), color: buttonColor };
-        lines.push(`Button color: ${buttonColor}`);
-        cfgChanged = true;
-      }
-      const theme = str(args.theme, 12);
-      if (["light", "dark", "transparent"].includes(theme)) {
-        cfg.appearance = { ...(cfg.appearance ?? {}), theme };
-        lines.push(`Theme: ${theme}`);
-        cfgChanged = true;
-      }
-      const fontSize = str(args.fontSize, 3);
-      if (["sm", "md", "lg"].includes(fontSize)) {
-        cfg.appearance = { ...(cfg.appearance ?? {}), fontSize };
-        lines.push(`Font size: ${fontSize}`);
-        cfgChanged = true;
+        intakeChanged = true;
       }
       if (args.fields && typeof args.fields === "object") {
         const fieldArgs = args.fields as Record<string, { show?: unknown; required?: unknown }>;
         for (const key of ["email", "phone", "address", "date"] as const) {
-          const f = fieldArgs[key];
-          if (!f || typeof f !== "object") continue;
-          const current = (cfg.fields?.[key] ?? {}) as { show?: boolean; required?: boolean; label?: string };
-          const next = { ...current };
-          if (typeof f.show === "boolean") next.show = f.show;
-          if (typeof f.required === "boolean") next.required = f.required;
-          cfg.fields = { ...(cfg.fields ?? {}), [key]: next };
-          lines.push(`${key[0].toUpperCase()}${key.slice(1)} field: ${next.show === false ? "hidden" : next.required ? "shown, required" : "shown, optional"}`);
-          cfgChanged = true;
+          const fa = fieldArgs[key];
+          if (!fa || typeof fa !== "object") continue;
+          const next = { ...intake.fields[key] };
+          if (typeof fa.show === "boolean") next.show = fa.show;
+          if (typeof fa.required === "boolean") next.required = fa.required;
+          intake.fields[key] = next;
+          lines.push(`${key[0].toUpperCase()}${key.slice(1)} question: ${next.show === false ? "hidden" : next.required ? "shown, required" : "shown, optional"}`);
+          intakeChanged = true;
         }
-      }
-      if (typeof args.selfScheduleEnabled === "boolean" || num(args.leadHours) !== null || num(args.horizonDays) !== null) {
-        if (form.type !== "BOOKING" && args.selfScheduleEnabled === true) {
-          return { error: "Online self-scheduling only works on BOOKING forms." };
-        }
-        const ss = { ...(cfg.selfSchedule ?? {}) };
-        if (typeof args.selfScheduleEnabled === "boolean") {
-          ss.enabled = args.selfScheduleEnabled;
-          lines.push(args.selfScheduleEnabled ? "Online self-scheduling: ON" : "Online self-scheduling: OFF");
-        }
-        const lead = num(args.leadHours);
-        if (lead !== null && lead >= 0 && lead <= 336) {
-          ss.leadHours = lead;
-          lines.push(`Booking notice: ${lead}h minimum`);
-        }
-        const horizon = num(args.horizonDays);
-        if (horizon !== null && horizon >= 1 && horizon <= 90) {
-          ss.horizonDays = horizon;
-          lines.push(`Booking window: ${horizon} days out`);
-        }
-        cfg.selfSchedule = ss;
-        cfgChanged = true;
-      }
-      if (Array.isArray(args.setServices)) {
-        const wanted = args.setServices.slice(0, 30).map((s) => {
-          const r = (s ?? {}) as Record<string, unknown>;
-          return { name: str(r.name, 100), price: num(r.price), description: str(r.description, 200) };
-        }).filter((s) => s.name);
-        if (wanted.length === 0) return { error: "setServices needs at least one service with a name." };
-        const book = await prisma.workItem.findMany({
-          where: { companyId: actor.companyId, isActive: true },
-          select: { id: true, name: true, unitPrice: true, priceDisplay: true, description: true },
-        });
-        const services = wanted.map((s, i) => {
-          const match = book.find((w) => w.name.trim().toLowerCase() === s.name.trim().toLowerCase());
-          const price = s.price ?? (match ? Number(match.unitPrice) : null);
-          return {
-            id: `${slugId(s.name)}-${i}`,
-            ...(match ? { workItemId: match.id, priceDisplay: match.priceDisplay } : {}),
-            name: s.name,
-            price: price !== null && price >= 0 ? price : 0,
-            ...(s.description || match?.description ? { description: s.description || match?.description || "" } : {}),
-          };
-        });
-        cfg.services = services;
-        lines.push(`Services on form: ${services.map((s) => s.name).join(", ")}`);
-        const unmatched = services.filter((s) => !("workItemId" in s)).map((s) => s.name);
-        if (unmatched.length > 0) lines.push(`Not in the price book (shown as-is): ${unmatched.join(", ")}`);
-        cfgChanged = true;
       }
       if (Array.isArray(args.removeCustomFieldLabels) && args.removeCustomFieldLabels.length > 0) {
         const remove = args.removeCustomFieldLabels.map((l) => str(l, 60).toLowerCase()).filter(Boolean);
-        const before = (cfg.customFields ?? []).length;
-        cfg.customFields = (cfg.customFields ?? []).filter(
-          (f) => !remove.includes(str((f as { label?: string }).label, 60).toLowerCase())
-        );
-        if ((cfg.customFields ?? []).length !== before) {
+        const before = intake.customFields.length;
+        intake.customFields = intake.customFields.filter((f) => !remove.includes(f.label.toLowerCase()));
+        if (intake.customFields.length !== before) {
           lines.push(`Removed question(s): ${remove.join(", ")}`);
-          cfgChanged = true;
+          intakeChanged = true;
         }
       }
       if (Array.isArray(args.addCustomFields) && args.addCustomFields.length > 0) {
-        const existing = cfg.customFields ?? [];
         const added: string[] = [];
         for (const raw of args.addCustomFields.slice(0, 10)) {
           const r = (raw ?? {}) as Record<string, unknown>;
           const label = str(r.label, 60);
           if (!label) continue;
-          if (existing.length + added.length >= 10) return { error: "Forms are limited to 10 custom questions." };
-          const type = ["text", "textarea", "select", "radio"].includes(str(r.fieldType, 10))
-            ? str(r.fieldType, 10)
-            : "text";
-          const options = (Array.isArray(r.options) ? r.options : [])
-            .map((o) => str(o, 80)).filter(Boolean).slice(0, 12).map((o) => ({ label: o }));
-          if ((type === "select" || type === "radio") && options.length < 2) {
-            return { error: `Question "${label}" is a ${type} — it needs at least 2 options.` };
-          }
-          existing.push({
-            id: slugId(label),
-            label,
-            type,
-            required: r.required === true,
-            ...(options.length > 0 ? { options } : {}),
-          });
+          if (intake.customFields.length >= 10) return { error: "Items are limited to 10 custom questions." };
+          const type = ["text", "textarea", "select", "radio"].includes(str(r.fieldType, 10)) ? (str(r.fieldType, 10) as "text" | "textarea" | "select" | "radio") : "text";
+          const options = (Array.isArray(r.options) ? r.options : []).map((o) => str(o, 80)).filter(Boolean).slice(0, 12).map((o) => ({ label: o }));
+          if ((type === "select" || type === "radio") && options.length < 2) return { error: `Question "${label}" is a ${type} — it needs at least 2 options.` };
+          intake.customFields.push({ id: slugId(label), label, type, required: r.required === true, ...(options.length > 0 ? { options } : {}) });
           added.push(label);
         }
         if (added.length > 0) {
-          cfg.customFields = existing;
           lines.push(`New question(s): ${added.join(", ")}`);
-          cfgChanged = true;
+          intakeChanged = true;
         }
       }
-      if (cfgChanged) payload.config = cfg;
+      if (intakeChanged) payload.intake = intake;
       if (lines.length === 0) return { error: "Nothing to change — provide at least one setting." };
       return stage(ctx, {
         kind: "manage_web_form",
-        title: `Update form "${form.name}"`,
+        title: `Update "${item.name}"`,
         lines,
-        endpoint: `/api/app/web-forms/${form.id}`,
+        endpoint: `/api/app/booking-types/${item.id}`,
         method: "PATCH",
         payload,
       });

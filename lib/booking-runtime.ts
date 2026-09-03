@@ -4,8 +4,8 @@ import { sanitizeBusinessHours, sanitizeWorkingHoursOrNull } from "@/lib/busines
 import { composeAddress, geocodeAddress, geocodingEnabled } from "@/lib/geocoding";
 import { driveTimeMatrix } from "@/lib/routing";
 import { resolveArrivalWindowMinutes } from "@/lib/arrival-window";
-import { resolvePublicCompany } from "@/lib/web-forms";
-import { servicePriceLabel } from "@/lib/booking-form";
+import { resolvePublicCompany } from "@/lib/public-company";
+import { defaultButtonLabel, effectiveIntake, sanitizeIntake, type BookingIntake } from "@/lib/booking-intake";
 import {
   checkSlot,
   generateSlots,
@@ -16,7 +16,7 @@ import {
   type LatLng,
   type Slot,
 } from "@/lib/booking-engine";
-import { KIND_META, type BookingKind } from "@/lib/booking-types";
+import { KIND_META, servicePriceLabel, type BookingKind, type BookingMode } from "@/lib/booking-types";
 import { estimateDriveBetween } from "@/lib/geo-estimate";
 
 /**
@@ -72,13 +72,15 @@ export function activeServices(type: LoadedBookingType) {
   return type.services.filter((s) => s.workItem.isActive);
 }
 
-/** What the public page may know about a type — no ids of people, no costs. */
+/** What the public page may know about an item — no ids of people, no costs. */
 export type PublicBookingType = {
   id: string;
   slug: string;
   name: string;
   description: string | null;
   kind: BookingKind;
+  mode: BookingMode;
+  showOnPage: boolean;
   exactTime: boolean;
   needsAddress: boolean;
   durationMinutes: number;
@@ -90,6 +92,11 @@ export type PublicBookingType = {
   cutoffHours: number;
   /** false when no eligible member / no bookable service — page shows a note */
   bookable: boolean;
+  /** Questions + words, with the kind/mode rules already applied */
+  intake: BookingIntake;
+  /** Heading + button as they should render (owner's words or the defaults) */
+  heading: string;
+  buttonLabel: string;
   services: {
     id: string;
     name: string;
@@ -115,59 +122,60 @@ export function toPublicBookingType(
     priceDisplay: s.workItem.priceDisplay,
     durationMinutes: s.workItem.durationMinutes,
   }));
+  const intake = effectiveIntake(sanitizeIntake(type.intake, type.kind, type.mode), type);
+  const scheduled = type.mode === "SCHEDULE";
   return {
     id: type.id,
     slug: type.slug,
     name: type.name,
     description: type.description,
     kind: type.kind,
+    mode: type.mode,
+    showOnPage: type.showOnPage,
     exactTime: meta.exactTime,
-    needsAddress: meta.needsAddress,
+    needsAddress: scheduled && meta.needsAddress,
     durationMinutes: type.durationMinutes,
     arrivalWindowMinutes: meta.exactTime ? 0 : resolveArrivalWindowMinutes(type.arrivalWindowMinutes, company.arrivalWindowMinutes),
     confirmation: type.confirmation,
-    paymentMode: type.paymentMode,
-    clientCanReschedule: type.clientCanReschedule,
-    clientCanCancel: type.clientCanCancel,
+    paymentMode: scheduled ? type.paymentMode : "NONE",
+    clientCanReschedule: scheduled && type.clientCanReschedule,
+    clientCanCancel: scheduled && type.clientCanCancel,
     cutoffHours: type.cutoffHours,
-    bookable: eligibleMembers(type).length > 0 && (type.kind !== "SERVICE" || services.length > 0),
+    bookable: (!scheduled || eligibleMembers(type).length > 0) && (type.kind !== "SERVICE" || services.length > 0),
+    intake,
+    heading: intake.heading || type.name,
+    buttonLabel: intake.buttonLabel || defaultButtonLabel(type),
     services,
   };
 }
 
-/** Public resolution: company gate + active type by slug. */
-export async function resolvePublicBookingType(companySlug: string, typeSlug: string) {
-  const company = await resolvePublicCompany(companySlug);
+export type ResolveOpts = {
+  /** Owner preview from the editor: inactive items render too */
+  includeInactive?: boolean;
+  /** Owner preview: skip the public-company (approval/suspension) gate */
+  skipGate?: boolean;
+};
+
+async function resolveCompanyFor(companySlug: string, opts: ResolveOpts) {
+  if (opts.skipGate) return prisma.company.findUnique({ where: { slug: companySlug } });
+  return resolvePublicCompany(companySlug);
+}
+
+/** Public resolution: company gate + active item by slug. */
+export async function resolvePublicBookingType(companySlug: string, typeSlug: string, opts: ResolveOpts = {}) {
+  const company = await resolveCompanyFor(companySlug, opts);
   if (!company) return null;
   const type = await prisma.bookingType.findFirst({
-    where: { companyId: company.id, slug: typeSlug, isActive: true },
+    where: { companyId: company.id, slug: typeSlug, ...(opts.includeInactive ? {} : { isActive: true }) },
     include: bookingTypeInclude,
   });
   if (!type) return null;
   return { company, type };
 }
 
-/**
- * Booking types a classic BOOKING form offers inline: the ids the form
- * points at, still active, bookable, and not collecting payment (the inline
- * form has no card step — paid types live on their own booking page).
- */
-export async function formBookingTypes(
-  company: { id: string; arrivalWindowMinutes: number },
-  config: { selfSchedule: { enabled: boolean; bookingTypeIds: string[] } }
-): Promise<PublicBookingType[]> {
-  if (!config.selfSchedule.enabled || config.selfSchedule.bookingTypeIds.length === 0) return [];
-  const types = await prisma.bookingType.findMany({
-    where: { companyId: company.id, id: { in: config.selfSchedule.bookingTypeIds }, isActive: true, paymentMode: "NONE" },
-    include: bookingTypeInclude,
-    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
-  });
-  return types.map((t) => toPublicBookingType(t, company)).filter((t) => t.bookable);
-}
-
-/** Public menu: every active type of the company. */
-export async function listPublicBookingTypes(companySlug: string) {
-  const company = await resolvePublicCompany(companySlug);
+/** Every active item of the company (the settings list filters further). */
+export async function listPublicBookingTypes(companySlug: string, opts: ResolveOpts = {}) {
+  const company = await resolveCompanyFor(companySlug, opts);
   if (!company) return null;
   const types = await prisma.bookingType.findMany({
     where: { companyId: company.id, isActive: true },
@@ -175,6 +183,11 @@ export async function listPublicBookingTypes(companySlug: string) {
     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
   });
   return { company, types: types.map((t) => toPublicBookingType(t, company)) };
+}
+
+/** The items the company's booking page lists: active, shown, and bookable. */
+export function menuTypes(types: PublicBookingType[]): PublicBookingType[] {
+  return types.filter((t) => t.showOnPage && t.bookable);
 }
 
 // ─── Members + busy intervals ────────────────────────────────────────────────

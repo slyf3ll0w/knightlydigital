@@ -32,7 +32,7 @@ import { resizeImageFile } from "@/lib/resize-image";
 import { INDUSTRIES } from "@/lib/pricebooks";
 import { DEFAULT_ON_MY_WAY_TEMPLATE, ON_MY_WAY_PLACEHOLDERS } from "@/lib/messaging";
 import { textOn } from "@/lib/branding";
-import { GOOGLE_FONT_RE } from "@/lib/booking-form";
+import { GOOGLE_FONT_RE } from "@/lib/booking-page";
 import { resolveWallpaper } from "@/lib/wallpapers";
 import { confirmSheet } from "@/components/ConfirmSheet";
 import PageTitle from "@/components/PageTitle";

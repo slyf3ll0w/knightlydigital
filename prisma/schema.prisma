@@ -78,7 +78,8 @@ model Company {
   // "On my way" text template ({{placeholder}} substitution per lib/messaging.ts);
   // null = the built-in default. Sent from the tech's own phone via an sms: link.
   onMyWayTemplate           String?
-  bookingForm               Json? // booking/embed form config (custom fields etc.) — see lib/booking-form.ts
+  bookingForm               Json? // LEGACY single-form config (pre multi-form) — superseded, kept for old rows
+  bookingPage               Json? // the company's booking page look + words — see lib/booking-page.ts
   // Online booking (self-scheduling). businessHours: { mon: [{start:"08:00",end:"17:00"}], ... }
   // per lib/business-hours.ts; null = default weekday hours. serviceZips empty = no
   // service-area restriction. arrivalWindowMinutes = width of the promised window.
@@ -1092,6 +1093,14 @@ enum BookingKind {
   VIDEO_CALL
   IN_PERSON // estimate / consult at the customer's address
   SERVICE // customer picks services from the price book
+  MESSAGE // a plain "contact us" form — no scheduling, no services
+}
+
+// How an item is fulfilled: the customer picks a real time (engine), or they
+// leave a request and the business follows up (the pre-v2 web-form flow).
+enum BookingMode {
+  SCHEDULE
+  REQUEST
 }
 
 enum BookingConfirmation {
@@ -1140,6 +1149,14 @@ model BookingType {
   clientCanReschedule  Boolean             @default(false)
   clientCanCancel      Boolean             @default(false)
   cutoffHours          Int                 @default(24)
+  // Online booking v3: one list of bookable items. REQUEST items are the old
+  // web forms (no time picker); showOnPage hides link-only items from the
+  // company's booking menu; intake = questions + words (lib/booking-intake.ts);
+  // legacyFormId = the WebForm row this item was migrated from.
+  mode                 BookingMode         @default(SCHEDULE)
+  showOnPage           Boolean             @default(true)
+  intake               Json?
+  legacyFormId         String?
   createdAt            DateTime            @default(now())
   updatedAt            DateTime            @updatedAt
 
@@ -1151,6 +1168,7 @@ model BookingType {
 
   @@unique([companyId, slug])
   @@index([companyId])
+  @@index([legacyFormId])
 }
 
 // The pool: who takes bookings of this type. lastAssignedAt drives round

@@ -1,18 +1,6 @@
-import { notFound } from "next/navigation";
-import { companyMetaBySlug } from "@/lib/client-meta";
-import { resolvePublicBookingType, toPublicBookingType } from "@/lib/booking-runtime";
-import { resolveScheduleAppearance } from "../shell";
-import ScheduleFrame from "../ScheduleFrame";
-import BookingStepper from "./BookingStepper";
-import { decodePrefill } from "@/lib/booking-prefill";
-import { bookingPaymentConfig } from "@/lib/booking-payment-config";
+import { permanentRedirect } from "next/navigation";
 
-export async function generateMetadata({ params }: { params: Promise<{ slug: string; type: string }> }) {
-  const { slug } = await params;
-  return companyMetaBySlug(slug, "Book a time");
-}
-
-/** /book/[slug]/schedule/[type] — the booking page for one type. */
+/** /book/[slug]/schedule/[type] was the v2 item page — items live at /book/[slug]/[item] now. */
 export default async function ScheduleTypePage({
   params,
   searchParams,
@@ -20,23 +8,7 @@ export default async function ScheduleTypePage({
   params: Promise<{ slug: string; type: string }>;
   searchParams: Promise<{ prefill?: string }>;
 }) {
-  const { slug, type: typeSlug } = await params;
+  const { slug, type } = await params;
   const { prefill } = await searchParams;
-  const [resolved, shell] = await Promise.all([resolvePublicBookingType(slug, typeSlug), resolveScheduleAppearance(slug)]);
-  if (!resolved || !shell) notFound();
-  const { company, type } = resolved;
-  const pub = toPublicBookingType(type, company);
-  const payment = bookingPaymentConfig(type, company);
-  return (
-    <ScheduleFrame company={company} appearance={shell.appearance} title={pub.name} subtitle={pub.description ?? company.name} wide>
-      <BookingStepper
-        companySlug={slug}
-        type={pub}
-        company={{ name: company.name, timezone: company.timezone, phone: company.phone, email: company.email, menuHref: `/book/${slug}/schedule` }}
-        appearance={shell.appearance}
-        payment={payment}
-        prefill={decodePrefill(prefill)}
-      />
-    </ScheduleFrame>
-  );
+  permanentRedirect(`/book/${slug}/${type}${prefill ? `?prefill=${encodeURIComponent(prefill)}` : ""}`);
 }

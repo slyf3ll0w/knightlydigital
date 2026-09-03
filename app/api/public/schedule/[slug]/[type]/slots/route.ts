@@ -2,17 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 import { limit, clientIp } from "@/lib/rate-limit";
 import { zipFromAddress } from "@/lib/business-hours";
 import { groupSlotsByDay } from "@/lib/booking-engine";
-import { resolvePublicBookingType, slotsForType, toPublicBookingType } from "@/lib/booking-runtime";
+import { resolvePublicBookingType, slotsForType, toPublicBookingType, type ResolveOpts } from "@/lib/booking-runtime";
 import { KIND_META } from "@/lib/booking-types";
 import { serviceSelection } from "@/lib/booking-services";
+import { getActor, isManager } from "@/lib/permissions";
 
 /**
- * Public slot lookup for a booking type.
- *   GET /api/public/schedule/[companySlug]/[typeSlug]/slots?address=&services=a,b
+ * Public slot lookup for a scheduled item.
+ *   GET /api/public/schedule/[companySlug]/[itemSlug]/slots?address=&services=a,b
  * Returns { outOfArea } when the ZIP misses the service area, or
  * { days: [{ date, label, slots: [{ start, end, windowEnd, label }] }],
  *   exactTime, timezone, driveAware }. Labels are in company time; the
  * client re-labels call times in the visitor's zone.
+ * ?preview=1 from the settings editor (a signed-in manager of the company)
+ * also answers for inactive items.
  */
 export async function GET(req: NextRequest, { params }: { params: Promise<{ slug: string; type: string }> }) {
   const { slug, type: typeSlug } = await params;
@@ -20,14 +23,25 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ slug
   if (!limit(`booking-slots:${ip}`, 60, 60000).ok) {
     return NextResponse.json({ error: "Too many requests." }, { status: 429 });
   }
+  const q = req.nextUrl.searchParams;
 
-  const resolved = await resolvePublicBookingType(slug, typeSlug);
+  let opts: ResolveOpts = {};
+  let previewCompanyId: string | null = null;
+  if (q.get("preview") === "1") {
+    const actor = await getActor();
+    if (actor && isManager(actor.role)) {
+      opts = { includeInactive: true, skipGate: true };
+      previewCompanyId = actor.companyId;
+    }
+  }
+  let resolved = await resolvePublicBookingType(slug, typeSlug, opts);
+  if (resolved && opts.skipGate && resolved.company.id !== previewCompanyId) resolved = await resolvePublicBookingType(slug, typeSlug);
   if (!resolved) return NextResponse.json({ error: "Not found." }, { status: 404 });
   const { company, type } = resolved;
   const pub = toPublicBookingType(type, company);
+  if (pub.mode !== "SCHEDULE") return NextResponse.json({ error: "Not found." }, { status: 404 });
   if (!pub.bookable) return NextResponse.json({ days: [], exactTime: pub.exactTime, timezone: company.timezone, unavailable: true });
 
-  const q = req.nextUrl.searchParams;
   const meta = KIND_META[type.kind];
   const address = (q.get("address") ?? "").slice(0, 300).trim();
   const zip = zipFromAddress(address);

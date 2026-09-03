@@ -1,10 +1,10 @@
 import type { ScheduleAppearance } from "./shell";
 
 /**
- * Page chrome shared by the hosted scheduling pages (menu, booking, manage):
+ * Page chrome shared by the hosted booking pages (menu, item, manage):
  * company logo + name on top, themed ground, Google Font + zoom from the
- * default form's appearance. Embeds render the same children without this
- * frame (see /embed/[slug]/schedule).
+ * company's booking page look. Embeds render the same children without
+ * this frame (see /embed/[slug]).
  */
 export default function ScheduleFrame({
   company,

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { GOOGLE_FONT_RE, sanitizeBookingForm } from "@/lib/booking-form";
+import { GOOGLE_FONT_RE } from "@/lib/booking-page";
+import { sanitizeBookingPage } from "@/lib/booking-page";
 import { sanitizeBusinessHours, sanitizeServiceZips } from "@/lib/business-hours";
 import { sanitizeDeposit } from "@/lib/deposits";
 import { SLOT_INTERVAL_CHOICES } from "@/lib/scheduling";
@@ -159,7 +160,7 @@ export async function PATCH(req: NextRequest) {
         (SLOT_INTERVAL_CHOICES as readonly number[]).includes(Number(body.schedulingIntervalMinutes))
           ? Number(body.schedulingIntervalMinutes)
           : undefined,
-      bookingForm: body.bookingForm !== undefined ? sanitizeBookingForm(body.bookingForm) : undefined,
+      bookingPage: body.bookingPage !== undefined ? sanitizeBookingPage(body.bookingPage) : undefined,
     },
   });
 

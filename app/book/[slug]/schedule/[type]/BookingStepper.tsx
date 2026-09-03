@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, CalendarPlus, Check, CheckCircle, Clock, ExternalLink, Globe, Loader2, MapPin, Phone, Video, Wrench } from "lucide-react";
+import { ArrowLeft, CalendarPlus, Check, CheckCircle, Clock, ExternalLink, Globe, Loader2, MapPin, MessageSquare, Phone, Video, Wrench } from "lucide-react";
 import TurnstileWidget from "@/components/TurnstileWidget";
 import { textOn } from "@/lib/branding";
 import { zipFromAddress } from "@/lib/business-hours";
 import type { PublicBookingType } from "@/lib/booking-runtime";
 import { durationLabel } from "@/lib/booking-types";
+import type { CustomField } from "@/lib/booking-intake";
 import type { ScheduleAppearance } from "../shell";
 import PaymentStep, { type PaymentHandle } from "./PaymentStep";
 import type { FinixConfig } from "@/lib/finix-js";
@@ -36,7 +37,7 @@ type Booked = {
   paidNote?: string | null;
 };
 
-const ICON = { PHONE_CALL: Phone, VIDEO_CALL: Video, IN_PERSON: MapPin, SERVICE: Wrench } as const;
+const ICON = { PHONE_CALL: Phone, VIDEO_CALL: Video, IN_PERSON: MapPin, SERVICE: Wrench, MESSAGE: MessageSquare } as const;
 
 type DepositRule = { depositType: "NONE" | "PERCENT" | "FIXED" | "FULL"; depositValue: number | null };
 export type BookingPaymentConfig = {
@@ -81,6 +82,7 @@ export default function BookingStepper({
   payment,
   hostedUrl,
   prefill,
+  preview = false,
 }: {
   companySlug: string;
   type: PublicBookingType;
@@ -93,6 +95,8 @@ export default function BookingStepper({
   hostedUrl?: string;
   /** Selections carried over from an embed handoff (see prefillParam). */
   prefill?: Prefill | null;
+  /** Owner preview from the editor — inactive items render, nothing submits */
+  preview?: boolean;
 }) {
   const { dark, accent, transparent } = appearance;
   const Icon = ICON[type.kind];
@@ -132,7 +136,10 @@ export default function BookingStepper({
     email: prefill?.email ?? "",
     phone: prefill?.phone ?? "",
     notes: prefill?.notes ?? "",
+    service: prefill?.service ?? "",
   });
+  const [custom, setCustom] = useState<Record<string, string>>(prefill?.custom ?? {});
+  const intake = type.intake;
   const [captchaToken, setCaptchaToken] = useState("");
   const [honeypot, setHoneypot] = useState("");
   const [startedAt] = useState(() => Date.now());
@@ -151,7 +158,7 @@ export default function BookingStepper({
   // bookings to the hosted page (new tab) with everything prefilled.
   const handoff = embed && paying && Boolean(hostedUrl);
   const handoffUrl = () =>
-    `${hostedUrl}?prefill=${encodePrefill({ services, address, start: slot?.start, firstName: form.firstName, lastName: form.lastName, email: form.email, phone: form.phone, notes: form.notes })}`;
+    `${hostedUrl}?prefill=${encodePrefill({ services, address, start: slot?.start, firstName: form.firstName, lastName: form.lastName, email: form.email, phone: form.phone, notes: form.notes, service: form.service, custom })}`;
   const depositAmount =
     type.paymentMode === "DEPOSIT" && payment
       ? derivedQuoteDeposit(
@@ -181,6 +188,7 @@ export default function BookingStepper({
         const params = new URLSearchParams();
         if (addressParam) params.set("address", addressParam);
         if (servicesParam) params.set("services", servicesParam);
+        if (preview) params.set("preview", "1");
         const res = await fetch(`/api/public/schedule/${companySlug}/${type.slug}/slots?${params}`);
         const data = await res.json().catch(() => null);
         if (cancelled) return;
@@ -264,13 +272,14 @@ export default function BookingStepper({
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (preview) return;
     setError("");
     if (!slot) {
       setError("Pick a time that works for you.");
       return;
     }
-    if (type.kind === "PHONE_CALL" && !form.phone.trim()) {
-      setError("Enter the phone number we should call.");
+    if (intake.fields.phone.required && !form.phone.trim()) {
+      setError(type.kind === "PHONE_CALL" ? "Enter the phone number we should call." : `Enter your ${intake.fields.phone.label.toLowerCase()}.`);
       return;
     }
     setSubmitting(true);
@@ -291,6 +300,7 @@ export default function BookingStepper({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...form,
+          custom,
           address: type.needsAddress ? address : undefined,
           slotStart: slot.start,
           services: type.kind === "SERVICE" ? services : undefined,
@@ -332,6 +342,56 @@ export default function BookingStepper({
       selected ? "text-white" : dark ? "border-white/15 text-gray-200 hover:border-white/30" : "border-gray-300 text-gray-700 hover:border-gray-400"
     }`;
   const primaryBtn = "w-full py-3 font-semibold text-sm rounded transition-opacity hover:opacity-90 active:opacity-80 flex items-center justify-center gap-2 disabled:opacity-50";
+  const choiceCls = (on: boolean) =>
+    `flex cursor-pointer items-start gap-3 rounded border px-4 py-3 transition-colors ${dark ? "bg-white/5" : ""} ${on ? "" : dark ? "border-white/15 hover:border-white/30" : "border-gray-300 hover:border-gray-400"}`;
+  const choices = (name: string, options: { label: string; description?: string }[], value: string, required: boolean, onChange: (v: string) => void) => (
+    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+      {options.map((o) => {
+        const on = value === o.label;
+        return (
+          <label key={o.label} className={choiceCls(on)} style={on ? { borderColor: accent } : undefined}>
+            <input type="radio" name={name} value={o.label} checked={on} required={required} onChange={() => onChange(o.label)} className="mt-0.5 shrink-0" style={{ accentColor: accent }} />
+            <span className="min-w-0">
+              <span className={`block text-sm font-semibold ${ink}`}>{o.label}</span>
+              {o.description && <span className={`mt-0.5 block text-xs ${muted}`}>{o.description}</span>}
+            </span>
+          </label>
+        );
+      })}
+    </div>
+  );
+  const customField = (c: CustomField) => {
+    const value = custom[c.id] ?? "";
+    const onChange = (v: string) => setCustom((m) => ({ ...m, [c.id]: v }));
+    const head = (
+      <label className={label}>
+        {c.label}
+        {c.required ? " *" : ""}
+      </label>
+    );
+    return (
+      <div key={c.id}>
+        {head}
+        {c.type === "textarea" ? (
+          <textarea value={value} onChange={(e) => onChange(e.target.value)} rows={3} required={c.required} placeholder={c.placeholder} maxLength={1000} className={`${input} resize-none`} />
+        ) : c.type === "select" ? (
+          <select value={value} onChange={(e) => onChange(e.target.value)} required={c.required} className={`${input} ${dark ? "[&>option]:text-gray-900" : ""}`}>
+            <option value="">Select...</option>
+            {(c.options ?? []).map((o) => (
+              <option key={o.label} value={o.label}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        ) : c.type === "radio" ? (
+          choices(`custom-${c.id}`, c.options ?? [], value, c.required, onChange)
+        ) : (
+          <input type="text" value={value} onChange={(e) => onChange(e.target.value)} required={c.required} placeholder={c.placeholder} maxLength={500} className={input} />
+        )}
+      </div>
+    );
+  };
+  const sq = intake.serviceQuestion;
 
   // ── Done ──────────────────────────────────────────────────────────────────
   if (booked) {
@@ -433,7 +493,7 @@ export default function BookingStepper({
         )}
       </dl>
       <p className={`mt-4 text-xs ${muted}`}>{type.confirmation === "INSTANT" ? "Confirmed instantly." : "We'll confirm your booking before it's final."}</p>
-      {!embed && (
+      {!embed && company.menuHref && (
         <a href={company.menuHref} className={`mt-3 inline-flex items-center gap-1 text-xs ${muted} hover:underline`}>
           <ArrowLeft size={12} /> Book something else
         </a>
@@ -584,22 +644,63 @@ export default function BookingStepper({
                 <input type="text" value={form.lastName} onChange={(e) => setForm({ ...form, lastName: e.target.value })} required autoComplete="family-name" className={input} />
               </div>
             </div>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className={`grid grid-cols-1 gap-4 ${intake.fields.phone.show ? "sm:grid-cols-2" : ""}`}>
               <div>
-                <label className={label}>Email *</label>
+                <label className={label}>{intake.fields.email.label} *</label>
                 <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required autoComplete="email" className={input} />
               </div>
+              {intake.fields.phone.show && (
+                <div>
+                  <label className={label}>
+                    {intake.fields.phone.label}
+                    {intake.fields.phone.required ? " *" : ""}
+                    {type.kind === "PHONE_CALL" ? " (we'll call this number)" : ""}
+                  </label>
+                  <input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} required={intake.fields.phone.required} autoComplete="tel" className={input} />
+                </div>
+              )}
+            </div>
+            {intake.fields.address.show && (
               <div>
                 <label className={label}>
-                  Phone{type.kind === "PHONE_CALL" ? " * (we'll call this number)" : ""}
+                  {intake.fields.address.label}
+                  {intake.fields.address.required ? " *" : ""}
                 </label>
-                <input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} required={type.kind === "PHONE_CALL"} autoComplete="tel" className={input} />
+                <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} required={intake.fields.address.required} autoComplete="street-address" className={input} />
               </div>
-            </div>
-            <div>
-              <label className={label}>Anything we should know?</label>
-              <textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={3} className={`${input} resize-none`} />
-            </div>
+            )}
+            {sq.show && (
+              <div>
+                <label className={label}>
+                  {sq.label}
+                  {sq.required ? " *" : ""}
+                </label>
+                {sq.type === "radio" && sq.options.length > 0 ? (
+                  choices("service", sq.options, form.service, sq.required, (v) => setForm({ ...form, service: v }))
+                ) : sq.type === "select" && sq.options.length > 0 ? (
+                  <select value={form.service} onChange={(e) => setForm({ ...form, service: e.target.value })} required={sq.required} className={`${input} ${dark ? "[&>option]:text-gray-900" : ""}`}>
+                    <option value="">Select...</option>
+                    {sq.options.map((o) => (
+                      <option key={o.label} value={o.label}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input type="text" value={form.service} onChange={(e) => setForm({ ...form, service: e.target.value })} required={sq.required} placeholder={sq.placeholder} className={input} />
+                )}
+              </div>
+            )}
+            {intake.customFields.map(customField)}
+            {intake.message.show && (
+              <div>
+                <label className={label}>
+                  {intake.message.label}
+                  {intake.message.required ? " *" : ""}
+                </label>
+                <textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={3} required={intake.message.required} placeholder={intake.message.placeholder} className={`${input} resize-none`} />
+              </div>
+            )}
             {handoff && (
               <div className={`rounded border px-4 py-3 text-sm ${dark ? "border-white/15 text-gray-300" : "border-gray-200 text-gray-700"}`}>
                 <p className="font-semibold">Pay now · ${(type.paymentMode === "FULL" ? total : (depositAmount ?? 0)).toFixed(2)}</p>
@@ -619,7 +720,7 @@ export default function BookingStepper({
                 onReady={setCardReady}
               />
             )}
-            <TurnstileWidget onToken={setCaptchaToken} action="booking" />
+            {!preview && <TurnstileWidget onToken={setCaptchaToken} action="booking" />}
           </div>
         )}
 
@@ -640,7 +741,7 @@ export default function BookingStepper({
             <ExternalLink size={14} /> Continue to secure checkout
           </a>
         ) : step === "details" ? (
-          <button type="submit" disabled={submitting || (paying && (type.paymentMode === "FULL" || (depositAmount ?? 0) > 0) && !cardReady)} className={primaryBtn} style={{ backgroundColor: accent, color: textOn(accent) }}>
+          <button type="submit" disabled={preview || submitting || (paying && (type.paymentMode === "FULL" || (depositAmount ?? 0) > 0) && !cardReady)} className={primaryBtn} style={{ backgroundColor: accent, color: textOn(accent) }}>
             {submitting && <Loader2 size={14} className="animate-spin" />}
             {paying
               ? type.paymentMode === "FULL"
@@ -648,9 +749,7 @@ export default function BookingStepper({
                 : depositAmount && depositAmount > 0
                   ? `Pay $${depositAmount.toFixed(2)} deposit & book`
                   : "Confirm booking"
-              : type.confirmation === "INSTANT"
-                ? "Confirm booking"
-                : "Request this time"}
+              : type.buttonLabel}
           </button>
         ) : (
           <button type="button" disabled={!canAdvance} onClick={() => setStepIdx(stepIdx + 1)} className={primaryBtn} style={{ backgroundColor: accent, color: textOn(accent) }}>

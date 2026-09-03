@@ -1,15 +1,17 @@
 /**
- * Booking types — the Calendly-style "event types" behind online scheduling.
- * Client-safe: shapes, kind metadata, and the sanitizer the settings PATCH
- * runs. No Prisma here; the server side lives in lib/booking-runtime.ts.
+ * Booking types — the items on a company's booking page: calls, visits,
+ * services, and plain message forms. Client-safe: shapes, kind metadata, and
+ * the sanitizer the settings PATCH runs. No Prisma here; the server side
+ * lives in lib/booking-runtime.ts, questions/words in lib/booking-intake.ts.
  */
 
-export type BookingKind = "PHONE_CALL" | "VIDEO_CALL" | "IN_PERSON" | "SERVICE";
+export type BookingKind = "PHONE_CALL" | "VIDEO_CALL" | "IN_PERSON" | "SERVICE" | "MESSAGE";
+export type BookingMode = "SCHEDULE" | "REQUEST";
 export type BookingConfirmation = "INSTANT" | "APPROVAL";
 export type BookingPayment = "NONE" | "DEPOSIT" | "FULL";
 export type BookingAssignment = "ROUND_ROBIN" | "PRIORITY";
 
-export const BOOKING_KINDS: BookingKind[] = ["PHONE_CALL", "VIDEO_CALL", "IN_PERSON", "SERVICE"];
+export const BOOKING_KINDS: BookingKind[] = ["PHONE_CALL", "VIDEO_CALL", "IN_PERSON", "SERVICE", "MESSAGE"];
 
 export const KIND_META: Record<
   BookingKind,
@@ -20,41 +22,56 @@ export const KIND_META: Record<
     exactTime: boolean;
     /** Needs the customer's address (service area + drive time). */
     needsAddress: boolean;
+    /** Can the customer pick a time for it at all? */
+    schedulable: boolean;
     defaultDuration: number;
     defaultName: string;
   }
 > = {
   PHONE_CALL: {
     label: "Phone call",
-    hint: "We call the number they enter at the time they pick.",
+    hint: "You call the number they enter, at the time they pick.",
     exactTime: true,
     needsAddress: false,
+    schedulable: true,
     defaultDuration: 30,
     defaultName: "Phone call",
   },
   VIDEO_CALL: {
     label: "Video call",
-    hint: "Meeting link goes out with the confirmation.",
+    hint: "A meeting link goes out with the confirmation.",
     exactTime: true,
     needsAddress: false,
+    schedulable: true,
     defaultDuration: 30,
     defaultName: "Video call",
   },
   IN_PERSON: {
-    label: "In-person estimate",
-    hint: "A visit at their address, offered as an arrival window.",
+    label: "Visit",
+    hint: "An estimate or consult at their address, as an arrival window.",
     exactTime: false,
     needsAddress: true,
+    schedulable: true,
     defaultDuration: 60,
-    defaultName: "In-person estimate",
+    defaultName: "Free estimate",
   },
   SERVICE: {
     label: "Service",
-    hint: "They pick services from your price book and land on the schedule.",
+    hint: "They pick from your price book. Book it straight onto the schedule, or send a quote.",
     exactTime: false,
     needsAddress: true,
+    schedulable: true,
     defaultDuration: 60,
     defaultName: "Book a service",
+  },
+  MESSAGE: {
+    label: "Message",
+    hint: "A contact form. Every message lands in Requests and on your Leads board.",
+    exactTime: false,
+    needsAddress: false,
+    schedulable: false,
+    defaultDuration: 30,
+    defaultName: "Contact us",
   },
 };
 
@@ -64,8 +81,8 @@ export const LEAD_CHOICES = [0, 1, 2, 4, 8, 24, 48, 72] as const;
 export const HORIZON_CHOICES = [7, 14, 30, 60, 90] as const;
 export const CUTOFF_CHOICES = [0, 2, 4, 12, 24, 48] as const;
 
-/** Slugs that collide with the public routes under /book/[slug]/schedule/. */
-export const RESERVED_TYPE_SLUGS = new Set(["manage", "new", "embed"]);
+/** Slugs that collide with the public routes under /book/[slug]/. */
+export const RESERVED_TYPE_SLUGS = new Set(["schedule", "manage", "new", "embed"]);
 
 export function slugifyTypeName(name: string): string {
   const s =
@@ -77,12 +94,32 @@ export function slugifyTypeName(name: string): string {
   return RESERVED_TYPE_SLUGS.has(s) ? `${s}-1` : s;
 }
 
-/** The editable fields of a booking type (everything but id/company/slug). */
+/** How a service's price reads to customers (mirrors WorkItem.priceDisplay). */
+export type ServicePriceDisplay = "FIXED" | "STARTING_AT" | "HOURLY" | "QUOTE";
+
+/** "$150.00", "From $150.00", "$95.00/hr", or "Get a quote". */
+export function servicePriceLabel(s: { price: number; priceDisplay?: ServicePriceDisplay | null }): string {
+  const amount = `$${s.price.toFixed(2)}`;
+  switch (s.priceDisplay) {
+    case "STARTING_AT":
+      return `From ${amount}`;
+    case "HOURLY":
+      return `${amount}/hr`;
+    case "QUOTE":
+      return "Get a quote";
+    default:
+      return amount;
+  }
+}
+
+/** The editable fields of a booking type (everything but id/company/slug/intake). */
 export type BookingTypeSettings = {
   name: string;
   description: string | null;
   kind: BookingKind;
+  mode: BookingMode;
   isActive: boolean;
+  showOnPage: boolean;
   durationMinutes: number;
   stepMinutes: number;
   bufferBeforeMinutes: number;
@@ -131,7 +168,7 @@ export function applyBookingTypePatch(
 
   if (r.name !== undefined) {
     const name = String(r.name).trim().slice(0, 80);
-    if (!name) return { settings: current, error: "Give the booking type a name." };
+    if (!name) return { settings: current, error: "Give it a name." };
     next.name = name;
   }
   if (r.description !== undefined) {
@@ -141,7 +178,9 @@ export function applyBookingTypePatch(
   if (opts.allowKind && r.kind !== undefined) {
     next.kind = oneOf(r.kind, BOOKING_KINDS, current.kind);
   }
+  if (r.mode !== undefined) next.mode = oneOf(r.mode, ["SCHEDULE", "REQUEST"] as const, current.mode);
   if (r.isActive !== undefined) next.isActive = Boolean(r.isActive);
+  if (r.showOnPage !== undefined) next.showOnPage = Boolean(r.showOnPage);
   if (r.durationMinutes !== undefined) next.durationMinutes = clampInt(r.durationMinutes, 5, 720, current.durationMinutes);
   if (r.stepMinutes !== undefined) {
     const s = clampInt(r.stepMinutes, 15, 60, current.stepMinutes);
@@ -173,25 +212,36 @@ export function applyBookingTypePatch(
   if (r.clientCanCancel !== undefined) next.clientCanCancel = Boolean(r.clientCanCancel);
   if (r.cutoffHours !== undefined) next.cutoffHours = clampInt(r.cutoffHours, 0, 168, current.cutoffHours);
 
-  // Kind-driven invariants
+  // Kind- and mode-driven invariants
   const meta = KIND_META[next.kind];
+  if (!meta.schedulable) next.mode = "REQUEST";
   if (meta.exactTime) next.arrivalWindowMinutes = 0;
   if (next.kind !== "SERVICE") next.paymentMode = "NONE";
+  // A card is only taken when a real time is booked
+  if (next.mode === "REQUEST") next.paymentMode = "NONE";
   // Money changes hands at booking → the booking can't sit unconfirmed
   if (next.paymentMode !== "NONE") next.confirmation = "INSTANT";
+  // Self-serve links only exist for scheduled bookings
+  if (next.mode === "REQUEST") {
+    next.clientCanReschedule = false;
+    next.clientCanCancel = false;
+  }
 
   return { settings: next };
 }
 
-/** Defaults for a freshly created type of `kind`. */
-export function defaultSettingsForKind(kind: BookingKind, name?: string): BookingTypeSettings {
+/** Defaults for a freshly created item of `kind`. */
+export function defaultSettingsForKind(kind: BookingKind, name?: string, mode?: BookingMode): BookingTypeSettings {
   const meta = KIND_META[kind];
   const call = meta.exactTime;
+  const m: BookingMode = meta.schedulable ? (mode ?? "SCHEDULE") : "REQUEST";
   return {
     name: name?.trim() || meta.defaultName,
     description: null,
     kind,
+    mode: m,
     isActive: true,
+    showOnPage: true,
     durationMinutes: meta.defaultDuration,
     stepMinutes: 30,
     bufferBeforeMinutes: 0,
@@ -205,8 +255,8 @@ export function defaultSettingsForKind(kind: BookingKind, name?: string): Bookin
     meetingLink: null,
     paymentMode: "NONE",
     assignment: "ROUND_ROBIN",
-    clientCanReschedule: call,
-    clientCanCancel: call,
+    clientCanReschedule: call && m === "SCHEDULE",
+    clientCanCancel: call && m === "SCHEDULE",
     cutoffHours: 24,
   };
 }
@@ -235,4 +285,31 @@ export function durationLabel(minutes: number): string {
   if (minutes < 60) return `${minutes} min`;
   const h = minutes / 60;
   return h % 1 === 0 ? `${h} hr` : `${h.toFixed(1)} hr`;
+}
+
+/** One quiet line describing an item — the list row's meta text. */
+export function itemMetaLine(t: {
+  kind: BookingKind;
+  mode: BookingMode;
+  durationMinutes: number;
+  stepMinutes: number;
+  confirmation: BookingConfirmation;
+  paymentMode: BookingPayment;
+  serviceCount?: number;
+  questionCount?: number;
+}): string {
+  const meta = KIND_META[t.kind];
+  const parts: string[] = [meta.label];
+  if (t.kind === "SERVICE" && t.serviceCount != null) parts.push(`${t.serviceCount} service${t.serviceCount === 1 ? "" : "s"}`);
+  if (t.mode === "SCHEDULE") {
+    parts.push(durationLabel(t.durationMinutes));
+    if (meta.exactTime && t.stepMinutes !== 30) parts.push(`every ${t.stepMinutes} min`);
+    if (t.paymentMode === "FULL") parts.push("pay in full");
+    else if (t.paymentMode === "DEPOSIT") parts.push("deposit at booking");
+    parts.push(t.confirmation === "INSTANT" ? "instant" : "you approve");
+  } else {
+    parts.push(t.kind === "SERVICE" ? "sends a quote" : "you follow up");
+  }
+  if (t.questionCount) parts.push(`${t.questionCount} question${t.questionCount === 1 ? "" : "s"}`);
+  return parts.join(" · ");
 }

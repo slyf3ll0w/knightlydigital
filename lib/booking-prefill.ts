@@ -15,6 +15,10 @@ export type Prefill = {
   email?: string;
   phone?: string;
   notes?: string;
+  /** Answer to the item's "what do you need?" question */
+  service?: string;
+  /** Custom question answers keyed by field id */
+  custom?: Record<string, string>;
 };
 
 export function encodePrefill(p: Prefill): string {
@@ -42,6 +46,16 @@ export function decodePrefill(raw: string | null | undefined): Prefill | null {
       email: str(p.email, 200),
       phone: str(p.phone, 40),
       notes: str(p.notes, 2000),
+      service: str(p.service, 200),
+      custom:
+        p.custom && typeof p.custom === "object"
+          ? Object.fromEntries(
+              Object.entries(p.custom)
+                .filter(([k, v]) => typeof k === "string" && typeof v === "string")
+                .slice(0, 10)
+                .map(([k, v]) => [k.slice(0, 40), (v as string).slice(0, 1000)])
+            )
+          : undefined,
     };
   } catch {
     return null;
