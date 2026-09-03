@@ -59,7 +59,8 @@ test.describe("client hub form", () => {
     const res = await fetch(`${state.baseUrl}/api/public/book/${state.companyASlug}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ item: itemSlug, hubToken, email: "hub-e2e@example.invalid", message: "Hub e2e message", elapsedMs: 60_000 }),
+      // The contact has no phone and the default contact form requires one, so the hub asks — like a real client would answer
+      body: JSON.stringify({ item: itemSlug, hubToken, email: "hub-e2e@example.invalid", phone: "5550001234", message: "Hub e2e message", elapsedMs: 60_000 }),
     });
     expect(res.status, await res.clone().text()).toBe(201);
 
