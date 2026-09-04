@@ -13,7 +13,6 @@ type Invite = {
   expiresAt: string | null;
   usedAt: string | null;
   revokedAt: string | null;
-  bypassApproval: boolean;
   usedByCompany: string | null;
   applicationCompany: string | null;
 };
@@ -36,7 +35,6 @@ export default function InvitesClient({ invites }: { invites: Invite[] }) {
   const [email, setEmail] = useState("");
   const [sendNow, setSendNow] = useState(false);
   const [expiresInDays, setExpiresInDays] = useState("30");
-  const [kind, setKind] = useState<"signup" | "bypass">("signup");
 
   async function create(e: React.FormEvent) {
     e.preventDefault();
@@ -51,7 +49,6 @@ export default function InvitesClient({ invites }: { invites: Invite[] }) {
           email,
           sendEmail: sendNow,
           expiresInDays: Number(expiresInDays),
-          bypassApproval: kind === "bypass",
         }),
       });
       const data = await res.json();
@@ -98,12 +95,13 @@ export default function InvitesClient({ invites }: { invites: Invite[] }) {
     <div>
       <h1 className="text-xl font-bold text-gray-900">Invite codes</h1>
       <p className="mt-1 text-sm text-gray-500">
-        Every code authorizes exactly one company signup. Standard codes admit a real
-        customer (they still complete payment verification); sandbox bypass codes skip the
-        pending-approval review <em>and</em> payment verification, so a tester lands straight
-        on the dashboard. Either kind works at{" "}
-        <span className="font-mono text-xs">/app/register</span> or on the{" "}
-        <span className="font-mono text-xs">/apply</span> form.
+        Every code authorizes exactly one company signup <em>without</em> payment
+        verification: the account opens with no pending-approval review and Finix
+        underwriting waived, so the business lands straight on the dashboard. Codes are
+        entered on the unlisted <span className="font-mono text-xs">/invite</span> page
+        (the copy-link button below builds that URL) or at{" "}
+        <span className="font-mono text-xs">/app/register</span>; the public{" "}
+        <span className="font-mono text-xs">/apply</span> form has no code field.
       </p>
 
       {error && (
@@ -116,22 +114,6 @@ export default function InvitesClient({ invites }: { invites: Invite[] }) {
       <form onSubmit={create} className="mt-6 rounded-xl border border-gray-200 bg-white p-5">
         <h2 className="text-sm font-semibold text-gray-900">New invite code</h2>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          <div>
-            <label className="mb-1 block text-xs font-medium text-gray-500">Type</label>
-            <select
-              value={kind}
-              onChange={(e) => setKind(e.target.value as "signup" | "bypass")}
-              className={`${inputClass} bg-white`}
-            >
-              <option value="signup">Standard — signup code for /app/register</option>
-              <option value="bypass">Sandbox bypass — skips approval + payment verification</option>
-            </select>
-            <p className="mt-1 text-[11px] text-gray-400">
-              {kind === "bypass"
-                ? "For testers: the account opens with no pending-approval review and Finix underwriting waived — no /app/activate gate."
-                : "Authorizes one company signup at /app/register (also works on /apply). Payment verification still required."}
-            </p>
-          </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-gray-500">Who's it for? (memo)</label>
             <input
@@ -206,11 +188,6 @@ export default function InvitesClient({ invites }: { invites: Invite[] }) {
                 <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${status.chip}`}>
                   {status.label}
                 </span>
-                {invite.bypassApproval && (
-                  <span className="rounded-full bg-purple-100 px-2 py-0.5 text-[11px] font-semibold text-purple-700">
-                    Bypass
-                  </span>
-                )}
                 <span className="min-w-0 flex-1 truncate text-sm text-gray-500">
                   {invite.usedAt && invite.usedByCompany
                     ? `Used by ${invite.usedByCompany} on ${new Date(invite.usedAt).toLocaleDateString()}`
@@ -235,7 +212,7 @@ export default function InvitesClient({ invites }: { invites: Invite[] }) {
                   <button
                     onClick={() =>
                       copy(
-                        `${window.location.origin}${invite.bypassApproval ? "/apply" : "/app/register"}?code=${encodeURIComponent(invite.code)}`,
+                        `${window.location.origin}/invite?code=${encodeURIComponent(invite.code)}`,
                         `${invite.id}-link`
                       )
                     }

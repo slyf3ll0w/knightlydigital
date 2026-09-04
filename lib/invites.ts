@@ -2,9 +2,13 @@ import crypto from "crypto";
 import { prisma } from "@/lib/db";
 
 /**
- * Invite-gated onboarding. Registration requires a live InviteCode, minted
- * by a superadmin (directly or by approving an /apply application). Codes
- * are single-use and claimed atomically inside the register transaction.
+ * Invite codes — the sanctioned way around underwriting. A code is minted by
+ * a superadmin (directly, or by approving a legacy application) and handed to
+ * a business we want on WorkBench without card processing: entering it on
+ * the unlisted /invite page (or /app/register) opens the company with the
+ * human review skipped AND Finix underwriting waived (Company.paymentsWaived),
+ * so they land on the dashboard instead of the /app/activate KYC gate.
+ * Codes are single-use and claimed atomically inside the signup transaction.
  */
 
 // No 0/O/1/I/L — codes get read over the phone and typed on job sites.
@@ -25,9 +29,7 @@ export function normalizeInviteCode(raw: string): string {
   return raw.trim().toUpperCase();
 }
 
-export type InviteCheck =
-  | { ok: true; id: string; bypassApproval: boolean }
-  | { ok: false; reason: string };
+export type InviteCheck = { ok: true; id: string } | { ok: false; reason: string };
 
 export async function checkInviteCode(raw: unknown): Promise<InviteCheck> {
   const code = typeof raw === "string" ? normalizeInviteCode(raw) : "";
@@ -39,5 +41,5 @@ export async function checkInviteCode(raw: unknown): Promise<InviteCheck> {
   if (invite.expiresAt && invite.expiresAt < new Date()) {
     return { ok: false, reason: "That invite code has expired." };
   }
-  return { ok: true, id: invite.id, bypassApproval: invite.bypassApproval };
+  return { ok: true, id: invite.id };
 }

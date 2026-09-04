@@ -6,8 +6,9 @@ import { pricebookForIndustry } from "@/lib/pricebooks";
  * Company creation shared by the two ways in:
  *  - /api/app/register — invite-code signup (and "New company" attach)
  *  - /api/public/apply — self-serve onboarding (application + account in one
- *    step; the company opens in pending-approval mode unless a bypass code
- *    was used)
+ *    step; the company opens in pending-approval mode and is held at the
+ *    /app/activate underwriting gate) — also serves the unlisted /invite
+ *    page, where an invite code skips both
  *
  * Both paths seed the same defaults (branding, starter price book) and land
  * sign-in in the new company. Keeping this in one place stops the two signup
@@ -47,9 +48,9 @@ export async function createCompanySignup(opts: {
   /** Stamp Company.accessPendingAt — self-serve signups awaiting review. */
   accessPending?: boolean;
   /**
-   * Waive Finix underwriting (Company.paymentsWaived) — sandbox bypass codes.
-   * Without this the new company is held at /app/activate until KYC is done,
-   * which is exactly what a tester code is meant to skip.
+   * Waive Finix underwriting (Company.paymentsWaived) — every invite-code
+   * signup. Without this the new company is held at /app/activate until KYC
+   * is done, which is exactly what an invite code is meant to skip.
    */
   paymentsWaived?: boolean;
   /** Link this AccessApplication to the new company (and the invite, if any). */

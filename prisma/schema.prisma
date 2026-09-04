@@ -134,8 +134,8 @@ model Company {
   atlasPeriodTokensUsed     Int         @default(0)
   // Historical: stamped when a merchant came from the old sandbox
   // test-approve bypass (removed 2026-09-01 — everyone completes the hosted
-  // underwriting form now; testers use a bypass invite code on /apply, which
-  // only skips the application review). Kept for existing rows.
+  // underwriting form now; an invite code on /invite waives underwriting
+  // instead). Kept for existing rows.
   finixSandboxApproved      Boolean     @default(false)
   // ── Premium add-on, sold through Livery (lib/addon.ts) ──
   // addonEnabled is the superadmin VISIBILITY switch: the upsell page and its
@@ -2331,11 +2331,10 @@ model InviteCode {
   code            String    @unique // human-typable, e.g. WB-7K2M-9QX4
   note            String? // superadmin's memo: who this is for
   email           String? // where it was sent — informational, not enforced
-  // Sandbox tester codes: entered on /apply or /app/register, the signup skips
-  // the human application review entirely (no accessPendingAt, application
-  // auto-APPROVED) AND waives Finix underwriting (Company.paymentsWaived), so
-  // the tester lands on the dashboard instead of the /app/activate KYC gate.
-  // Same single-use/expiry/revoke mechanics as regular codes.
+  // LEGACY (2026-09-04): there used to be "standard" vs "sandbox bypass"
+  // codes; now EVERY code skips the human review AND waives Finix
+  // underwriting (see lib/invites.ts). Column kept because boot-time db push
+  // can't drop it; nothing reads it any more.
   bypassApproval  Boolean   @default(false)
   expiresAt       DateTime? // null = never expires
   usedAt          DateTime?

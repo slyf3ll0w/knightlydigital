@@ -750,7 +750,7 @@ export function inviteCodeEmail({
   name: string | null;
   code: string;
 }): { subject: string; html: string } {
-  const signupUrl = `${APP_URL}/app/register?code=${encodeURIComponent(code)}`;
+  const signupUrl = `${APP_URL}/invite?code=${encodeURIComponent(code)}`;
   const html = wbShell({
     label: "You're in",
     inner: `

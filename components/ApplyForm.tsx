@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { signIn } from "next-auth/react";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import TurnstileWidget, { type TurnstileHandle } from "@/components/TurnstileWidget";
@@ -33,8 +33,9 @@ const ENTITY_TYPES = [
  * underwriting, so this form's job is to predict (a) is this a real business
  * and (b) will they actually run card volume.
  *
- * The optional invite code (regular or sandbox-bypass) skips the review
- * pending state — the code is the approval.
+ * No invite-code field here: businesses we admit without card processing
+ * use the unlisted /invite page (components/InviteSignupForm.tsx), which
+ * posts to the same endpoint with a code.
  */
 export default function ApplyForm() {
   const [loading, setLoading] = useState(false);
@@ -58,15 +59,7 @@ export default function ApplyForm() {
     entityType: "",
     website: "",
     message: "",
-    inviteCode: "",
   });
-
-  // Bypass-code links arrive as /apply?code=WB-XXXX-XXXX — prefill it. Read
-  // after mount (not in the initializer) so SSR and first client render match.
-  useEffect(() => {
-    const code = new URLSearchParams(window.location.search).get("code");
-    if (code) setForm((f) => ({ ...f, inviteCode: code.toUpperCase() }));
-  }, []);
 
   function set(field: keyof typeof form, value: string) {
     setForm((f) => ({ ...f, [field]: value }));
@@ -367,25 +360,6 @@ export default function ApplyForm() {
             onChange={(e) => set("message", e.target.value)}
             className={inputClass}
             placeholder="How you heard about WorkBench, what you're using today…"
-          />
-        </div>
-        <div className="sm:col-span-2">
-          <label className={labelClass}>
-            Invite code{" "}
-            <span className="font-normal text-gray-400">
-              (optional — skips the review if someone gave you one)
-            </span>
-          </label>
-          <input
-            type="text"
-            maxLength={40}
-            value={form.inviteCode}
-            onChange={(e) => set("inviteCode", e.target.value.toUpperCase())}
-            className={`${inputClass} font-mono tracking-wider uppercase`}
-            placeholder="WB-XXXX-XXXX"
-            autoCapitalize="characters"
-            autoCorrect="off"
-            spellCheck={false}
           />
         </div>
       </div>

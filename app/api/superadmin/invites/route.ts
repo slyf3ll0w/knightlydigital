@@ -5,7 +5,11 @@ import { getSuperadmin } from "@/lib/superadmin";
 import { generateInviteCode } from "@/lib/invites";
 import { sendEmail as sendEmailNow, inviteCodeEmail } from "@/lib/email";
 
-/** Mint a standalone invite code (no application), optionally emailing it. */
+/**
+ * Mint a standalone invite code (no application), optionally emailing it.
+ * Every code skips the application review AND waives Finix underwriting for
+ * the company it opens (lib/invites.ts) — there's no "standard" kind any more.
+ */
 export async function POST(req: NextRequest) {
   const admin = await getSuperadmin();
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -15,9 +19,6 @@ export async function POST(req: NextRequest) {
   const email = typeof body.email === "string" ? body.email.trim().slice(0, 254) : "";
   const expiresInDays = Number(body.expiresInDays) || 0;
   const shouldEmail = body.sendEmail === true;
-  // Sandbox bypass codes skip the human application review AND waive Finix
-  // underwriting for the company they open (see lib/signup.ts).
-  const bypassApproval = body.bypassApproval === true;
 
   if (shouldEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return NextResponse.json({ error: "A valid email is required to send the code." }, { status: 400 });
@@ -35,7 +36,6 @@ export async function POST(req: NextRequest) {
           note: note || null,
           email: email || null,
           expiresAt,
-          bypassApproval,
         },
       });
       break;
