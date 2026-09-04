@@ -10,7 +10,8 @@ import EmptyState from "@/components/EmptyState";
 import KpiStrip from "@/components/KpiStrip";
 import MobileSearch from "@/components/MobileSearch";
 import Monogram from "@/components/Monogram";
-import { FilterRow, FilterChip, SegmentedRow, Segment } from "@/components/FilterChips";
+import FilterBar, { listHref } from "@/components/FilterBar";
+import { pickSort, JOB_SORTS, jobOrderBy } from "@/lib/list-sort";
 import Pager from "@/components/Pager";
 import type { JobStatus } from "@prisma/client";
 
@@ -26,7 +27,7 @@ const PAGE_SIZE = 100;
 export default async function JobsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; unscheduled?: string; q?: string; page?: string }>;
+  searchParams: Promise<{ status?: string; unscheduled?: string; q?: string; page?: string; sort?: string }>;
 }) {
   const actor = await requirePageActor();
   const companyId = actor.companyId;
@@ -34,7 +35,8 @@ export default async function JobsPage({
   const showMoney = canSeePricing(actor.role);
   const canCreate = isManager(actor.role) || actor.role === "USER";
 
-  const { status, unscheduled, q, page: pageParam } = await searchParams;
+  const { status, unscheduled, q, page: pageParam, sort: sortRaw } = await searchParams;
+  const sort = pickSort(sortRaw, JOB_SORTS);
   const page = Math.max(1, parseInt(pageParam ?? "1", 10) || 1);
   const validStatus = ["ACTIVE", "REQUIRES_INVOICING", "ARCHIVED"].includes(status ?? "")
     ? (status as JobStatus)
@@ -68,7 +70,7 @@ export default async function JobsPage({
     prisma.job.findMany({
       where: listWhere,
       include: { contact: true, lineItems: true },
-      orderBy: { updatedAt: "desc" },
+      orderBy: jobOrderBy(sort),
       take: PAGE_SIZE,
       skip: (page - 1) * PAGE_SIZE,
     }),
@@ -133,38 +135,23 @@ export default async function JobsPage({
         action="/app/jobs"
         placeholder="Search jobs, clients, addresses…"
         defaultValue={query}
-        params={{ status: validStatus, unscheduled }}
+        params={{ status: validStatus, unscheduled, sort: sortRaw }}
       />
 
       <KpiStrip kpis={kpis} desktopCols={3} hue={SECTION_HUES.jobs} />
 
-      {/* Filter tabs — phones get a segmented control (all options visible,
-          nothing scrolled off-screen); desktop keeps the chip rail */}
-      <SegmentedRow className="mb-4 lg:hidden">
-        {statusFilters.map((f) => (
-          <Segment
-            key={f.value}
-            active={(validStatus ?? "") === f.value && !unscheduled}
-            href={f.value ? `/app/jobs?status=${f.value}` : "/app/jobs"}
-          >
-            {f.mobile}
-          </Segment>
-        ))}
-      </SegmentedRow>
-      <div className="hidden lg:block">
-        <FilterRow>
-          {statusFilters.map((f) => (
-            <FilterChip
-              key={f.value}
-              hue={SECTION_HUES.jobs}
-              active={(validStatus ?? "") === f.value && !unscheduled}
-              href={f.value ? `/app/jobs?status=${f.value}` : "/app/jobs"}
-            >
-              {f.label}
-            </FilterChip>
-          ))}
-        </FilterRow>
-      </div>
+      <FilterBar
+        hue={SECTION_HUES.jobs}
+        options={statusFilters}
+        value={unscheduled ? "unscheduled" : (validStatus ?? "")}
+        href={(v) => listHref("/app/jobs", { q: query, sort: sortRaw }, { status: v })}
+        sort={{
+          options: JOB_SORTS,
+          value: sort,
+          href: (v) =>
+            listHref("/app/jobs", { status: validStatus, unscheduled, q: query }, { sort: v }),
+        }}
+      />
 
       <div className="card-ledger overflow-hidden">
         {jobs.length === 0 ? (
@@ -264,7 +251,7 @@ export default async function JobsPage({
       </div>
       <Pager
         basePath="/app/jobs"
-        params={{ status: validStatus, unscheduled, q: query }}
+        params={{ status: validStatus, unscheduled, q: query, sort: sortRaw }}
         page={page}
         pageSize={PAGE_SIZE}
         total={listCount}

@@ -3,8 +3,8 @@ import { requirePageActor, canSell, viaContactScope } from "@/lib/permissions";
 import Link from "next/link";
 import { Plus, ChevronRight, FileText, Download } from "lucide-react";
 import PageTitle from "@/components/PageTitle";
-import { FilterRow, FilterChip } from "@/components/FilterChips";
-import FilterSelect from "@/components/FilterSelect";
+import FilterBar, { listHref } from "@/components/FilterBar";
+import { pickSort, QUOTE_SORTS, quoteOrderBy } from "@/lib/list-sort";
 import { SECTION_HUES } from "@/lib/section-colors";
 import { money, shortDate } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
@@ -32,13 +32,14 @@ const PAGE_SIZE = 100;
 export default async function QuotesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; q?: string; page?: string }>;
+  searchParams: Promise<{ status?: string; q?: string; page?: string; sort?: string }>;
 }) {
   const actor = await requirePageActor((a) => canSell(a.role));
   const companyId = actor.companyId;
   const scope = viaContactScope(actor);
 
-  const { status, q, page: pageParam } = await searchParams;
+  const { status, q, page: pageParam, sort: sortRaw } = await searchParams;
+  const sort = pickSort(sortRaw, QUOTE_SORTS);
   const validStatus = validValues.includes(status ?? "") ? (status as QuoteStatus) : undefined;
   const query = q?.trim() || undefined;
   const page = Math.max(1, parseInt(pageParam ?? "1", 10) || 1);
@@ -68,7 +69,7 @@ export default async function QuotesPage({
     prisma.quote.findMany({
       where: listWhere,
       include: { contact: true },
-      orderBy: { createdAt: "desc" },
+      orderBy: quoteOrderBy(sort),
       take: PAGE_SIZE,
       skip: (page - 1) * PAGE_SIZE,
     }),
@@ -148,38 +149,22 @@ export default async function QuotesPage({
         action="/app/quotes"
         placeholder="Search quotes, clients…"
         defaultValue={query}
-        params={{ status: validStatus }}
+        params={{ status: validStatus, sort: sortRaw }}
       />
 
       <KpiStrip kpis={kpis} desktopCols={4} hue={SECTION_HUES.quotes} />
 
-      {/* Status filter — seven statuses are too many for a segmented row, so
-          phones get a compact dropdown (David's call); desktop keeps the
-          chip rail */}
-      <div className="mb-4 flex lg:hidden">
-        <FilterSelect
-          value={validStatus ?? ""}
-          options={statusFilters.map((f) => ({
-            value: f.value,
-            label: f.mobile,
-            href: f.value ? `/app/quotes?status=${f.value}` : "/app/quotes",
-          }))}
-        />
-      </div>
-      <div className="hidden lg:block">
-        <FilterRow>
-          {statusFilters.map((f) => (
-            <FilterChip
-              key={f.value}
-              hue={SECTION_HUES.quotes}
-              active={(validStatus ?? "") === f.value}
-              href={f.value ? `/app/quotes?status=${f.value}` : "/app/quotes"}
-            >
-              {f.label}
-            </FilterChip>
-          ))}
-        </FilterRow>
-      </div>
+      <FilterBar
+        hue={SECTION_HUES.quotes}
+        options={statusFilters}
+        value={validStatus ?? ""}
+        href={(v) => listHref("/app/quotes", { q: query, sort: sortRaw }, { status: v })}
+        sort={{
+          options: QUOTE_SORTS,
+          value: sort,
+          href: (v) => listHref("/app/quotes", { status: validStatus, q: query }, { sort: v }),
+        }}
+      />
 
       <div className="card-ledger overflow-hidden">
         {quotes.length === 0 ? (
@@ -273,7 +258,7 @@ export default async function QuotesPage({
       </div>
       <Pager
         basePath="/app/quotes"
-        params={{ status: validStatus, q: query }}
+        params={{ status: validStatus, q: query, sort: sortRaw }}
         page={page}
         pageSize={PAGE_SIZE}
         total={listCount}

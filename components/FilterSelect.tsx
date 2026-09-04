@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Check, ChevronDown, ListFilter } from "lucide-react";
+import { ArrowUpDown, Check, ChevronDown, ListFilter } from "lucide-react";
 
 /**
  * Phone-only filter dropdown for list pages with too many statuses for a
@@ -18,11 +18,19 @@ export default function FilterSelect({
   options,
   value,
   className = "",
+  icon = "filter",
+  align = "left",
 }: {
   options: FilterOption[];
   value: string;
   className?: string;
+  /** "sort" swaps the funnel for an up/down arrow — same control, used for
+   *  the sort menu on every list page (see FilterBar). */
+  icon?: "filter" | "sort";
+  /** Which edge the menu hangs from; "right" for a trigger at the far right. */
+  align?: "left" | "right";
 }) {
+  const Icon = icon === "sort" ? ArrowUpDown : ListFilter;
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -60,7 +68,7 @@ export default function FilterSelect({
             : undefined
         }
       >
-        <ListFilter size={14} className={filtered ? "" : "text-gray-500"} />
+        <Icon size={14} className={filtered ? "" : "text-gray-500"} />
         {active.label}
         <ChevronDown
           size={14}
@@ -72,7 +80,9 @@ export default function FilterSelect({
       {open && (
         <div
           role="listbox"
-          className="sheet-material absolute left-0 top-full z-30 mt-1 w-max min-w-[12rem] whitespace-nowrap rounded-lg border border-gray-200 py-1.5 shadow-xl"
+          className={`sheet-material absolute top-full z-30 mt-1 w-max min-w-[12rem] whitespace-nowrap rounded-lg border border-gray-200 py-1.5 shadow-xl ${
+            align === "right" ? "right-0" : "left-0"
+          }`}
         >
           {options.map((o) => {
             const isActive = o.value === active.value;

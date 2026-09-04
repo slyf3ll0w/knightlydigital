@@ -2,8 +2,9 @@ import { prisma } from "@/lib/db";
 import Link from "next/link";
 import { Plus, ChevronRight, UserCheck, Inbox } from "lucide-react";
 import PageTitle from "@/components/PageTitle";
-import { FilterRow, FilterChip, FilterDivider } from "@/components/FilterChips";
-import FilterSelect from "@/components/FilterSelect";
+import { FilterChip } from "@/components/FilterChips";
+import FilterBar, { listHref } from "@/components/FilterBar";
+import { pickSort, REQUEST_SORTS, requestOrderBy } from "@/lib/list-sort";
 import { SECTION_HUES } from "@/lib/section-colors";
 import { shortDate } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
@@ -28,12 +29,13 @@ const statusFilters: { value: string; label: string; mobile: string }[] = [
 export default async function RequestsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; assignee?: string; q?: string; page?: string }>;
+  searchParams: Promise<{ status?: string; assignee?: string; q?: string; page?: string; sort?: string }>;
 }) {
   const actor = await requirePageActor((a) => canSell(a.role));
   const companyId = actor.companyId;
 
-  const { status, assignee, q, page: pageParam } = await searchParams;
+  const { status, assignee, q, page: pageParam, sort: sortRaw } = await searchParams;
+  const sort = pickSort(sortRaw, REQUEST_SORTS);
   const page = Math.max(1, parseInt(pageParam ?? "1", 10) || 1);
   const query = q?.trim() || undefined;
   const search = query
@@ -67,7 +69,7 @@ export default async function RequestsPage({
     prisma.request.findMany({
       where: listWhere,
       include: { contact: true },
-      orderBy: { createdAt: "desc" },
+      orderBy: requestOrderBy(sort),
       take: PAGE_SIZE,
       skip: (page - 1) * PAGE_SIZE,
     }),
@@ -76,14 +78,7 @@ export default async function RequestsPage({
     prisma.request.count({ where: { companyId, ...scope, status: "NEEDS_APPROVAL" } }),
   ]);
 
-  const qs = (opts: { status?: string; mine?: boolean }) => {
-    const p = new URLSearchParams();
-    const s = opts.status ?? validStatus ?? "";
-    if (s) p.set("status", s);
-    if (opts.mine ?? mineOnly) p.set("assignee", "me");
-    const str = p.toString();
-    return str ? `/app/requests?${str}` : "/app/requests";
-  };
+  const cur = { status: validStatus, assignee: mineOnly ? "me" : undefined, q: query, sort: sortRaw };
 
   return (
     <div className="p-4 lg:p-8 max-w-6xl mx-auto">
@@ -105,7 +100,7 @@ export default async function RequestsPage({
         action="/app/requests"
         placeholder="Search requests, clients…"
         defaultValue={query}
-        params={{ status: validStatus, assignee: mineOnly ? "me" : undefined }}
+        params={{ status: validStatus, assignee: mineOnly ? "me" : undefined, sort: sortRaw }}
       />
 
       <KpiStrip
@@ -132,56 +127,29 @@ export default async function RequestsPage({
         ]}
       />
 
-      {/* Status filter — five options crowded the segmented row, so phones
-          get a compact dropdown (David's call) with the My-leads scope
-          toggle beside it. Desktop keeps the chip rail. */}
-      <div className="mb-4 flex items-center gap-2 lg:hidden">
-        <FilterSelect
-          value={validStatus ?? ""}
-          options={statusFilters.map((f) => ({
-            value: f.value,
-            label: f.mobile,
-            href: qs({ status: f.value }),
-          }))}
-        />
-        {showAll && (
-          <FilterChip
-            hue={SECTION_HUES.requests}
-            active={mineOnly}
-            href={qs({ mine: !mineOnly })}
-          >
-            <UserCheck size={13} />
-            My leads
-          </FilterChip>
-        )}
-      </div>
-      <div className="hidden lg:block">
-        <FilterRow>
-          {statusFilters.map((f) => (
+      <FilterBar
+        hue={SECTION_HUES.requests}
+        options={statusFilters}
+        value={validStatus ?? ""}
+        href={(v) => listHref("/app/requests", cur, { status: v })}
+        scope={
+          showAll ? (
             <FilterChip
-              key={f.value}
               hue={SECTION_HUES.requests}
-              active={(validStatus ?? "") === f.value}
-              href={qs({ status: f.value })}
+              active={mineOnly}
+              href={listHref("/app/requests", cur, { assignee: mineOnly ? undefined : "me" })}
             >
-              {f.label}
+              <UserCheck size={13} />
+              Mine
             </FilterChip>
-          ))}
-          {showAll && (
-            <>
-              <FilterDivider />
-              <FilterChip
-                hue={SECTION_HUES.requests}
-                active={mineOnly}
-                href={qs({ mine: !mineOnly })}
-              >
-                <UserCheck size={13} />
-                My leads
-              </FilterChip>
-            </>
-          )}
-        </FilterRow>
-      </div>
+          ) : undefined
+        }
+        sort={{
+          options: REQUEST_SORTS,
+          value: sort,
+          href: (v) => listHref("/app/requests", cur, { sort: v }),
+        }}
+      />
 
       <div className="card-ledger overflow-hidden">
         {requests.length === 0 ? (
@@ -252,7 +220,7 @@ export default async function RequestsPage({
         basePath="/app/requests"
         params={{
           status: validStatus,
-          assignee: mineOnly ? "me" : undefined,
+          assignee: mineOnly ? "me" : undefined, sort: sortRaw,
           q: query,
         }}
         page={page}

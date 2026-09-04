@@ -3,8 +3,10 @@ import Link from "next/link";
 import { Plus, ChevronRight, UserCheck, Upload, ListPlus, Users, Download } from "lucide-react";
 import PageTitle from "@/components/PageTitle";
 import { SECTION_HUES } from "@/lib/section-colors";
-import { FilterRow, FilterChip, FilterDivider } from "@/components/FilterChips";
-import FilterSelect from "@/components/FilterSelect";
+import { FilterChip } from "@/components/FilterChips";
+import FilterBar, { listHref } from "@/components/FilterBar";
+import MobileSearch from "@/components/MobileSearch";
+import { pickSort, CLIENT_SORTS, clientOrderBy } from "@/lib/list-sort";
 import Pager from "@/components/Pager";
 import { shortDate } from "@/lib/statuses";
 import ContactStatus from "@/components/ContactStatus";
@@ -25,12 +27,13 @@ const PAGE_SIZE = 100;
 export default async function ContactsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; status?: string; assignee?: string; page?: string }>;
+  searchParams: Promise<{ q?: string; status?: string; assignee?: string; page?: string; sort?: string }>;
 }) {
   const actor = await requirePageActor((a) => canSell(a.role));
   const companyId = actor.companyId;
 
-  const { q, status, assignee, page: pageParam } = await searchParams;
+  const { q, status, assignee, page: pageParam, sort: sortRaw } = await searchParams;
+  const sort = pickSort(sortRaw, CLIENT_SORTS);
   const page = Math.max(1, parseInt(pageParam ?? "1", 10) || 1);
   const validStatus = ["ARCHIVED"].includes(status ?? "")
     ? (status as "ARCHIVED")
@@ -57,27 +60,14 @@ export default async function ContactsPage({
     prisma.contact.findMany({
       where: listWhere,
       include: { assignedTo: { select: { name: true } } },
-      orderBy: { updatedAt: "desc" },
+      orderBy: clientOrderBy(sort),
       take: PAGE_SIZE,
       skip: (page - 1) * PAGE_SIZE,
     }),
     prisma.contact.count({ where: listWhere }),
   ]);
 
-  const statusQS = (v: string) => {
-    const p = new URLSearchParams();
-    if (v) p.set("status", v);
-    if (mineOnly) p.set("assignee", "me");
-    const s = p.toString();
-    return s ? `/app/contacts?${s}` : "/app/contacts";
-  };
-  const assigneeQS = (mine: boolean) => {
-    const p = new URLSearchParams();
-    if (validStatus) p.set("status", validStatus);
-    if (mine) p.set("assignee", "me");
-    const s = p.toString();
-    return s ? `/app/contacts?${s}` : "/app/contacts";
-  };
+  const cur = { q, status: validStatus, assignee: mineOnly ? "me" : undefined, sort: sortRaw };
 
   return (
     <div className="p-4 lg:p-8 max-w-6xl mx-auto">
@@ -130,66 +120,36 @@ export default async function ContactsPage({
         </div>
       </div>
 
-      {/* Search */}
-      <form method="get" className="mb-4">
-        <input
-          type="text"
-          name="q"
-          defaultValue={q ?? ""}
-          placeholder="Search name, company, address, custom fields…"
-          className="w-full max-w-sm rounded-[10px] border border-gray-300 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-        />
-        {validStatus && <input type="hidden" name="status" value={validStatus} />}
-      </form>
+      <MobileSearch
+        action="/app/contacts"
+        placeholder="Search name, company, address, custom fields…"
+        defaultValue={q}
+        params={{ status: validStatus, assignee: mineOnly ? "me" : undefined, sort: sortRaw }}
+      />
 
-      {/* Filters — phones get the compact dropdown + scope chips on one row
-          (the full-width chip rail crowded the screen); desktop keeps it */}
-      <div className="mb-4 flex items-center gap-2 lg:hidden">
-        <FilterSelect
-          value={validStatus ?? ""}
-          options={statusFilters.map((f) => ({
-            value: f.value,
-            label: f.label,
-            href: statusQS(f.value),
-          }))}
-        />
-        {showAll && (
-          <FilterChip hue={SECTION_HUES.clients} active={mineOnly} href={assigneeQS(!mineOnly)}>
-            <UserCheck size={13} />
-            Mine
-          </FilterChip>
-        )}
-        <FilterChip hue={SECTION_HUES.clients} active={false} href="/app/leads">
-          Leads board →
-        </FilterChip>
-      </div>
-      <div className="hidden lg:block">
-        <FilterRow>
-          {statusFilters.map((f) => (
+      <FilterBar
+        hue={SECTION_HUES.clients}
+        options={statusFilters}
+        value={validStatus ?? ""}
+        href={(v) => listHref("/app/contacts", cur, { status: v })}
+        scope={
+          showAll ? (
             <FilterChip
-              key={f.value}
               hue={SECTION_HUES.clients}
-              active={(validStatus ?? "") === f.value}
-              href={statusQS(f.value)}
+              active={mineOnly}
+              href={listHref("/app/contacts", cur, { assignee: mineOnly ? undefined : "me" })}
             >
-              {f.label}
+              <UserCheck size={13} />
+              Mine
             </FilterChip>
-          ))}
-          {showAll && (
-            <>
-              <FilterDivider />
-              <FilterChip hue={SECTION_HUES.clients} active={mineOnly} href={assigneeQS(!mineOnly)}>
-                <UserCheck size={13} />
-                Mine
-              </FilterChip>
-            </>
-          )}
-          <FilterDivider />
-          <FilterChip hue={SECTION_HUES.clients} active={false} href="/app/leads">
-            Leads board →
-          </FilterChip>
-        </FilterRow>
-      </div>
+          ) : undefined
+        }
+        sort={{
+          options: CLIENT_SORTS,
+          value: sort,
+          href: (v) => listHref("/app/contacts", cur, { sort: v }),
+        }}
+      />
 
       <div className="card-ledger overflow-hidden">
         {contacts.length === 0 ? (
@@ -267,6 +227,7 @@ export default async function ContactsPage({
           q: q?.trim() || undefined,
           status: validStatus,
           assignee: mineOnly ? "me" : undefined,
+          sort: sortRaw,
         }}
         page={page}
         pageSize={PAGE_SIZE}

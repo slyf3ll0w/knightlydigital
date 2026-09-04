@@ -3,7 +3,8 @@ import { requirePageActor, canSeeMoney, viaContactScope } from "@/lib/permission
 import Link from "next/link";
 import { Plus, ChevronRight, DollarSign, Receipt, Download } from "lucide-react";
 import PageTitle from "@/components/PageTitle";
-import { FilterRow, FilterChip, SegmentedRow, Segment } from "@/components/FilterChips";
+import FilterBar, { listHref } from "@/components/FilterBar";
+import { pickSort, INVOICE_SORTS, invoiceOrderBy } from "@/lib/list-sort";
 import { SECTION_HUES } from "@/lib/section-colors";
 import { money, shortDate } from "@/lib/statuses";
 import { pastDueFilter } from "@/lib/due-dates";
@@ -30,13 +31,14 @@ const PAGE_SIZE = 100;
 export default async function InvoicesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; q?: string; page?: string }>;
+  searchParams: Promise<{ status?: string; q?: string; page?: string; sort?: string }>;
 }) {
   const actor = await requirePageActor(canSeeMoney);
   const companyId = actor.companyId;
   const scope = viaContactScope(actor);
 
-  const { status, q, page: pageParam } = await searchParams;
+  const { status, q, page: pageParam, sort: sortRaw } = await searchParams;
+  const sort = pickSort(sortRaw, INVOICE_SORTS);
   const page = Math.max(1, parseInt(pageParam ?? "1", 10) || 1);
   const validStatus = ["DRAFT", "AWAITING_PAYMENT", "PAST_DUE", "PAID", "ARCHIVED"].includes(
     status ?? ""
@@ -86,7 +88,7 @@ export default async function InvoicesPage({
     prisma.invoice.findMany({
       where: listWhere,
       include: { contact: true, payments: true },
-      orderBy: { createdAt: "desc" },
+      orderBy: invoiceOrderBy(sort),
       take: PAGE_SIZE,
       skip: (page - 1) * PAGE_SIZE,
     }),
@@ -178,38 +180,22 @@ export default async function InvoicesPage({
         action="/app/invoices"
         placeholder="Search invoices, clients…"
         defaultValue={query}
-        params={{ status: validStatus }}
+        params={{ status: validStatus, sort: sortRaw }}
       />
 
       <KpiStrip kpis={kpis} desktopCols={3} hue={SECTION_HUES.invoices} />
 
-      {/* Filter tabs — phones get the segmented control, desktop keeps the
-          chip rail */}
-      <SegmentedRow className="mb-4 lg:hidden">
-        {statusFilters.map((f) => (
-          <Segment
-            key={f.value}
-            active={(validStatus ?? "") === f.value}
-            href={f.value ? `/app/invoices?status=${f.value}` : "/app/invoices"}
-          >
-            {f.mobile}
-          </Segment>
-        ))}
-      </SegmentedRow>
-      <div className="hidden lg:block">
-        <FilterRow>
-          {statusFilters.map((f) => (
-            <FilterChip
-              key={f.value}
-              hue={SECTION_HUES.invoices}
-              active={(validStatus ?? "") === f.value}
-              href={f.value ? `/app/invoices?status=${f.value}` : "/app/invoices"}
-            >
-              {f.label}
-            </FilterChip>
-          ))}
-        </FilterRow>
-      </div>
+      <FilterBar
+        hue={SECTION_HUES.invoices}
+        options={statusFilters}
+        value={validStatus ?? ""}
+        href={(v) => listHref("/app/invoices", { q: query, sort: sortRaw }, { status: v })}
+        sort={{
+          options: INVOICE_SORTS,
+          value: sort,
+          href: (v) => listHref("/app/invoices", { status: validStatus, q: query }, { sort: v }),
+        }}
+      />
 
       <div className="card-ledger overflow-hidden">
         {invoices.length === 0 ? (
@@ -325,7 +311,7 @@ export default async function InvoicesPage({
       </div>
       <Pager
         basePath="/app/invoices"
-        params={{ status: validStatus, q: query }}
+        params={{ status: validStatus, q: query, sort: sortRaw }}
         page={page}
         pageSize={PAGE_SIZE}
         total={listCount}
