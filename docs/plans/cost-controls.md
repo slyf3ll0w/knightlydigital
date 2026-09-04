@@ -3,9 +3,10 @@
 Status: **PARTLY BUILT** (2026-09-01). #2 (per-turn usage logging) is live via
 `AssistantTurn` (lib/assistant-billing.ts) and the Atlas paid plan meters real spend
 per company (see ai-assistant-plan.md Stage E); #1's hard message cap is superseded by
-the token meter — the trial (ATLAS_TRIAL_TOKENS, 10,000 ≈ $1 once) and the plan
-(ATLAS_PLAN_TOKENS per month) both debit real per-turn cost, so a trial company can
-never cost more than ~$1 + one turn. #3–#6 still apply. Measured 2026-09-02: the static
+the token meter — the free tier (ATLAS_FREE_TOKENS, 10,000 ≈ $1 per calendar month,
+every account, since 2026-09-04) and the plan (ATLAS_PLAN_TOKENS, 150,000 ≈ $15 per
+billing month for $20) both debit real per-turn cost, so a free company can never
+cost more than ~$1/month + one turn. #3–#6 still apply. Measured 2026-09-02: the static
 payload is 95 tool declarations = 57,397 chars ≈ 15k tokens + ~2.5k system prompt,
 resent on EVERY model call (a 3-round turn sends it 3×). Verify implicit caching
 (cachedContentTokenCount) after the paid flip; AssistantTurn.tokensCached shows it.

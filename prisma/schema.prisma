@@ -109,25 +109,31 @@ model Company {
   // Atlas access (lib/assistant-access.ts). assistantEnabled is a superadmin
   // override: true = full Atlas regardless of plan (the whitelist — test
   // accounts, comped users), false = Atlas hidden entirely, null = the
-  // default paywall policy: a one-time free allowance of Atlas tokens
-  // (ATLAS_TRIAL_TOKENS), then the full-plan upsell ("Coming Soon"). Every
-  // AI turn is real spend.
+  // default policy: a free monthly allowance of Atlas tokens
+  // (ATLAS_FREE_TOKENS, refilled on the 1st), then the paid-plan upsell.
+  // Every AI turn is real spend.
   assistantEnabled          Boolean?
-  // Atlas free trial: stamped when an owner/admin starts the trial from the
-  // paywall. atlasTrialTokensUsed is the SAME spend meter the paid plan
-  // uses (lib/assistant-billing.ts): every turn's real Gemini cost, priced
-  // as Atlas tokens, debited against ATLAS_TRIAL_TOKENS. One allowance
-  // ever — it never refills.
+  // Atlas free tier (lib/assistant-billing.ts): every company gets
+  // ATLAS_FREE_TOKENS per calendar month, no sign-up step. Every turn's real
+  // Gemini cost, priced as Atlas tokens, debits atlasFreeTokensUsed;
+  // atlasFreePeriodStart names the month it belongs to and the assistant
+  // route rolls it forward lazily (see debitAtlasTokens).
+  atlasFreePeriodStart      DateTime?
+  atlasFreeTokensUsed       Int         @default(0)
+  // LEGACY (2026-09-04): the one-time free trial these two backed was
+  // replaced by the monthly free tier above. Unread by code; drop them with
+  // `node scripts/db-push-prod.mjs --accept-data-loss` then delete here.
   atlasTrialStartedAt       DateTime?
   atlasTrialTokensUsed      Int         @default(0)
   // Atlas paid plan (lib/assistant-billing.ts) — NOT LIVE yet: no checkout
   // is wired, the superadmin console grants/revokes it for testing. Same
-  // meter as the trial, but monthly: every turn's real Gemini cost
+  // meter as the free tier, bigger allowance: every turn's real Gemini cost
   // (usageMetadata × lib/platform-costs unit prices) converts to "Atlas
   // tokens" (ATLAS_TOKEN_CENTS each) and debits the period allowance
-  // (ATLAS_PLAN_TOKENS per monthly period, anchored on atlasPlanActiveAt).
-  // atlasPeriodStart names the period atlasPeriodTokensUsed belongs to; the
-  // assistant route rolls it forward lazily (see debitAtlasTokens).
+  // (ATLAS_PLAN_TOKENS per billing month, anchored on atlasPlanActiveAt —
+  // the billing day). atlasPeriodStart names the period
+  // atlasPeriodTokensUsed belongs to; the assistant route rolls it forward
+  // lazily (see debitAtlasTokens).
   atlasPlanActiveAt         DateTime?
   atlasPlanLiverySubId      String? // future: the Livery Subscription id backing the plan
   atlasPeriodStart          DateTime?

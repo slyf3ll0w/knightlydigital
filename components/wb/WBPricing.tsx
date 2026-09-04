@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Check } from "lucide-react";
+import { ATLAS_FREE_TOKENS, ATLAS_PLAN_TOKENS, formatPlanPrice, tokenCount } from "@/lib/atlas-pricing";
 
 /**
  * The WorkBench pricing card. The billing toggle is the joke: Annual is
@@ -97,7 +98,7 @@ export default function WBPricing() {
             {[
               "No credit card required",
               "No trial clock",
-              "No paid tier to upgrade into",
+              "No feature tier to upgrade into",
             ].map((item) => (
               <li key={item} className="flex items-center gap-3 text-[14px] text-white">
                 <Check className="h-4 w-4 flex-none text-[#FF8B33]" strokeWidth={3} />
@@ -148,9 +149,12 @@ export default function WBPricing() {
         </p>
         <p className="mt-3 text-[13px] leading-relaxed text-gray-500">
           <span className="font-bold text-gray-700">Atlas, the AI assistant,</span>{" "}
-          isn&apos;t part of this plan — every account gets free trial tokens
-          to try it, and ongoing use runs on its own usage-based plan since AI
-          usage has a real cost.
+          is the one metered thing: every account gets {tokenCount(ATLAS_FREE_TOKENS)}{" "}
+          Atlas tokens free each month, and Atlas Full adds {tokenCount(ATLAS_PLAN_TOKENS)} a
+          month for {formatPlanPrice()}, since AI usage has a real cost.{" "}
+          <a href="#atlas" className="font-semibold text-[#0B57D8] hover:underline">
+            Atlas pricing ↓
+          </a>
         </p>
       </div>
     </div>

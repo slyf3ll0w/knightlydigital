@@ -10,8 +10,13 @@ import {
 import { AccountActions } from "./AccountActions";
 import { AddonControl } from "./AddonControl";
 import { AssistantControl } from "./AssistantControl";
-import { ATLAS_TRIAL_TOKENS } from "@/lib/assistant-access";
-import { ATLAS_PLAN_TOKENS, assistantUsageSummary, planBalance } from "@/lib/assistant-billing";
+import {
+  ATLAS_PLAN_TOKENS,
+  assistantUsageSummary,
+  formatPlanPrice,
+  freeBalance,
+  planBalance,
+} from "@/lib/assistant-billing";
 import { PaymentsControl } from "./PaymentsControl";
 
 export const dynamic = "force-dynamic";
@@ -79,8 +84,8 @@ export default async function CompanyReport({
       finixSandboxApproved: true,
       paymentsWaived: true,
       assistantEnabled: true,
-      atlasTrialStartedAt: true,
-      atlasTrialTokensUsed: true,
+      atlasFreePeriodStart: true,
+      atlasFreeTokensUsed: true,
       atlasPlanActiveAt: true,
       atlasPeriodStart: true,
       atlasPeriodTokensUsed: true,
@@ -95,7 +100,11 @@ export default async function CompanyReport({
   if (!company) notFound();
 
   // Atlas: 30-day spend ledger + the paid plan's live meter (lib/assistant-billing.ts)
-  const [atlasUsage, atlasPlan] = [await assistantUsageSummary(company.id), planBalance(company)];
+  const [atlasUsage, atlasPlan, atlasFree] = [
+    await assistantUsageSummary(company.id),
+    planBalance(company),
+    freeBalance(company),
+  ];
 
   const sinceDate = new Date();
   sinceDate.setMonth(sinceDate.getMonth() - range.months);
@@ -445,9 +454,12 @@ export default async function CompanyReport({
           <AssistantControl
             companyId={company.id}
             assistantEnabled={company.assistantEnabled}
-            atlasTrialStartedAt={company.atlasTrialStartedAt?.toISOString() ?? null}
-            atlasTrialTokensUsed={company.atlasTrialTokensUsed}
-            atlasTrialTokens={ATLAS_TRIAL_TOKENS}
+            free={{
+              included: atlasFree.included,
+              used: atlasFree.used,
+              remaining: atlasFree.remaining,
+              periodEnd: atlasFree.periodEnd.toISOString(),
+            }}
             plan={
               atlasPlan
                 ? {
@@ -460,6 +472,7 @@ export default async function CompanyReport({
                 : null
             }
             planTokens={ATLAS_PLAN_TOKENS}
+            planPrice={formatPlanPrice()}
             usage={{
               days: atlasUsage.days,
               turns: atlasUsage.turns,

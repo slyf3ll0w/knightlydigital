@@ -112,7 +112,19 @@ redesign [BUILT 2026-09-01]:**
 - Loop: 12 rounds × 24 calls, 16k output cap, ATLAS_THINKING_BUDGET
   (default 1024 on 2.5-flash), an atlasNote on the last tool round so bulk
   work wraps up cleanly and offers "continue". Usage is summed per turn.
-- Access ladder (lib/assistant-access.ts): full → off → PLAN → trial. The
+- **Monthly free tier replaces the trial [2026-09-04]** (David): every
+  account gets ATLAS_FREE_TOKENS (10,000) per calendar month on the meter,
+  refilled on the 1st, no "start trial" step — `Company.atlasFreePeriodStart`
+  + `atlasFreeTokensUsed` (the trial columns are unread legacy until dropped
+  manually). Plan defaults moved to ATLAS_PLAN_TOKENS 150,000 for
+  ATLAS_PLAN_PRICE_CENTS 2000 ($20/month), refilled on the billing day
+  (planPeriod anchored on atlasPlanActiveAt) — still not sold; the drawer
+  upsell shows the price with a Coming Soon button. Access levels are now
+  full / off / plan / free / locked(free-spent | plan-spent, resetsAt).
+  Rates live in lib/atlas-pricing.ts (no Prisma) so the marketing site
+  quotes the same numbers. Superadmin: "Refill free tier" replaces "Reset
+  trial". The /api/app/assistant/trial route is gone.
+- Access ladder (lib/assistant-access.ts): full → off → PLAN → free. The
   plan (lib/assistant-billing.ts) is NOT sold yet — superadmin grants it.
   It meters SPEND, not messages: each turn's Gemini usage is priced with
   lib/platform-costs unit prices and converted to "Atlas tokens"

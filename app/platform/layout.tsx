@@ -6,7 +6,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/db";
 import { paymentsGateStatus } from "@/lib/payments-gate";
-import { atlasAccess, ATLAS_ACCESS_SELECT, ATLAS_TRIAL_TOKENS } from "@/lib/assistant-access";
+import { atlasAccess, ATLAS_ACCESS_SELECT, ATLAS_PRICING } from "@/lib/assistant-access";
 import AppShell from "@/components/AppShell";
 import NativeShell from "@/components/NativeShell";
 import AppLock from "@/components/AppLock";
@@ -103,7 +103,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     redirect("/app/activate");
   }
   // Atlas paywall state (lib/assistant-access.ts) — the drawer shows the
-  // trial/upsell for "locked", chat for "trial"/"full", nothing for "off".
+  // spent-meter notice for "locked", chat for "free"/"plan"/"full", nothing for "off".
   const atlas = company ? atlasAccess(company) : null;
 
   // ── The one status banner ──────────────────────────────────────────────────
@@ -141,7 +141,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         needsTour={!!user && !user.tourCompletedAt}
         aiEnabled={Boolean(process.env.GEMINI_API_KEY) && !!atlas && atlas.level !== "off"}
         atlas={atlas ?? undefined}
-        atlasTrialTokens={ATLAS_TRIAL_TOKENS}
+        atlasPricing={ATLAS_PRICING}
         assistantName={company?.assistantName}
         userId={session.user.id}
       >

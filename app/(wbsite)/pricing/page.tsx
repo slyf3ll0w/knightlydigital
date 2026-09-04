@@ -3,7 +3,12 @@ import Link from "next/link";
 import { AnimateIn } from "@/components/AnimateIn";
 import WBFaq from "@/components/wb/WBFaq";
 import WBPricing from "@/components/wb/WBPricing";
-import { ArrowRight, CreditCard, HandCoins, Puzzle, ShieldCheck } from "lucide-react";
+import { ArrowRight, Compass, CreditCard, HandCoins, Puzzle, ShieldCheck, Sparkles } from "lucide-react";
+import { ATLAS_FREE_TOKENS, ATLAS_PLAN_TOKENS, formatPlanPrice, tokenCount } from "@/lib/atlas-pricing";
+
+const freeTokens = tokenCount(ATLAS_FREE_TOKENS);
+const planTokens = tokenCount(ATLAS_PLAN_TOKENS);
+const planPrice = formatPlanPrice();
 
 const pricingFaq = [
   {
@@ -35,8 +40,22 @@ const pricingFaq = [
         No. The essentials — clients, scheduling, quotes, invoices, payments,
         the client portal, team chat — are free permanently. Nothing you rely
         on today gets taken away or metered. Atlas, the AI assistant, is the
-        one exception: it comes with free trial tokens, then runs on its own
-        usage-based plan, because AI usage costs real money to provide.
+        one thing with a meter, because AI usage costs real money to provide:
+        every account gets {freeTokens} Atlas tokens free each month, and
+        heavier users can move to Atlas Full for {planPrice}/month.
+      </p>
+    ),
+  },
+  {
+    q: "What's an Atlas token?",
+    a: (
+      <p>
+        A unit of AI work. A quick question costs a couple hundred tokens; a
+        big job like rescheduling a whole day or editing forty records costs
+        more, and every reply shows what it used. Your {freeTokens} free
+        tokens refill on the 1st of every month, no card and no sign-up step.
+        Atlas Full is {planTokens} tokens a month for {planPrice}, refilled on
+        your billing day, and Atlas never spends past either allowance.
       </p>
     ),
   },
@@ -172,13 +191,108 @@ export default function WBPricingPage() {
             </p>
             <p className="mt-4 text-[15.5px] leading-relaxed text-gray-600">
               <span className="font-bold text-gray-900">Atlas</span>, the AI
-              assistant, works differently: every account gets free trial
-              tokens to see it do real work, and using it beyond that runs on
-              its own usage-based plan. AI usage has a real cost to us, so
+              assistant, is the one thing with a meter: every account gets{" "}
+              {freeTokens} Atlas tokens free every month, and heavier users
+              can move up to Atlas Full. AI usage has a real cost to us, so
               it&apos;s priced separately from the free core software instead
               of quietly built into it.
             </p>
           </AnimateIn>
+        </div>
+      </section>
+
+      {/* ── Atlas tiers ── */}
+      <section id="atlas" className="scroll-mt-24 border-t border-gray-200 bg-white">
+        <div className="mx-auto max-w-6xl px-5 py-20 sm:px-8 sm:py-24">
+          <AnimateIn>
+            <div className="flex items-center gap-3">
+              <Compass className="h-6 w-6 text-[#0B57D8]" strokeWidth={1.9} />
+              <h2 className="text-3xl font-extrabold leading-tight sm:text-4xl">
+                Atlas, the AI assistant
+              </h2>
+            </div>
+            <p className="mt-4 max-w-2xl text-[15.5px] leading-relaxed text-gray-600">
+              Atlas is metered in tokens because every request is real AI
+              work. A quick question is a couple hundred tokens; a bulk edit
+              across forty records is a couple thousand. Every reply shows
+              what it used, and Atlas never spends past your allowance.
+            </p>
+          </AnimateIn>
+          <div className="mt-10 grid gap-6 lg:grid-cols-2">
+            <AnimateIn>
+              <div className="flex h-full flex-col rounded-3xl border border-gray-200 bg-white p-8">
+                <p className="text-[13px] font-bold uppercase tracking-wide text-[#0B57D8]">
+                  Atlas Free
+                </p>
+                <p
+                  className="mt-4 text-5xl font-extrabold leading-none text-gray-900"
+                  style={{ fontFamily: '"Nunito", sans-serif' }}
+                >
+                  $0
+                </p>
+                <p className="mt-3 text-[15px] font-bold text-gray-900">
+                  {freeTokens} tokens every month
+                </p>
+                <p className="mt-2 text-[14px] leading-relaxed text-gray-500">
+                  Included with every account, no card and no sign-up step.
+                  Refills on the 1st of the month.
+                </p>
+                <ul className="mt-6 flex flex-col gap-2.5 text-[14px] text-gray-600">
+                  {[
+                    "Every Atlas tool — schedule, money, clients, routes",
+                    "Roughly 25–60 messages a month",
+                    "Shared by your whole team",
+                  ].map((item) => (
+                    <li key={item} className="flex items-start gap-2.5">
+                      <Sparkles className="mt-0.5 h-4 w-4 flex-none text-[#0B57D8]" strokeWidth={2.5} />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </AnimateIn>
+            <AnimateIn delay={120}>
+              <div className="relative flex h-full flex-col overflow-hidden rounded-3xl bg-gradient-to-br from-[#0050D4] to-[#003FA5] p-8 text-white">
+                <div className="wb-grid-lines pointer-events-none absolute inset-0" aria-hidden />
+                <div className="relative flex h-full flex-col">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-[13px] font-bold uppercase tracking-wide text-blue-200">
+                      Atlas Full
+                    </p>
+                    <span className="rounded-full bg-white/15 px-2.5 py-1 text-[11.5px] font-bold text-blue-100">
+                      Coming soon
+                    </span>
+                  </div>
+                  <p
+                    className="mt-4 text-5xl font-extrabold leading-none text-white"
+                    style={{ fontFamily: '"Nunito", sans-serif' }}
+                  >
+                    {planPrice}
+                    <span className="text-xl font-bold text-blue-200">/month</span>
+                  </p>
+                  <p className="mt-3 text-[15px] font-bold text-white">
+                    {planTokens} tokens every month
+                  </p>
+                  <p className="mt-2 text-[14px] leading-relaxed text-blue-100/80">
+                    Fifteen times the free allowance, refilled on your billing
+                    day. For the office that hands Atlas the whole day.
+                  </p>
+                  <ul className="mt-6 flex flex-col gap-2.5 text-[14px] text-white">
+                    {[
+                      "Everything in Atlas Free",
+                      "Room for bulk work — a hundred records at a time",
+                      "Cancel any time; your free tokens stay",
+                    ].map((item) => (
+                      <li key={item} className="flex items-start gap-2.5">
+                        <Sparkles className="mt-0.5 h-4 w-4 flex-none text-[#FF8B33]" strokeWidth={2.5} />
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </AnimateIn>
+          </div>
         </div>
       </section>
 

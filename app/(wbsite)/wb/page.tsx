@@ -525,8 +525,8 @@ export default function WBHomePage() {
                   Every WorkBench account comes with Atlas, an AI assistant
                   that works the same tools your team does — with the same
                   permissions and a confirmation before anything goes out the
-                  door. Free trial tokens are included to try it; ongoing use
-                  runs on its own usage-based plan.
+                  door. Every account gets 10,000 Atlas tokens free each
+                  month; Atlas Full adds 150,000 a month for $20.
                 </p>
               </div>
               <ul className="flex flex-col gap-3">

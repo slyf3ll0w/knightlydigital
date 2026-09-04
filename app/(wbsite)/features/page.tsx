@@ -15,7 +15,7 @@ import {
 export const metadata: Metadata = {
   title: "Features — WorkBench",
   description:
-    "Everything in WorkBench, end to end: online booking, lead pipeline, quotes with e-signature, scheduling and dispatch, time tracking, team chat, invoicing, card & ACH payments, recurring billing, and a client hub — all free. Plus Atlas, an AI assistant with free trial tokens.",
+    "Everything in WorkBench, end to end: online booking, lead pipeline, quotes with e-signature, scheduling and dispatch, time tracking, team chat, invoicing, card & ACH payments, recurring billing, and a client hub — all free. Plus Atlas, an AI assistant with 10,000 free tokens every month.",
 };
 
 // Section id → deep-dive pages worth a link once the reader has seen the
@@ -48,8 +48,8 @@ export default function WBFeaturesPage() {
               WorkBench covers the whole arc of a job — winning it, running
               it, getting paid for it, and keeping the client for the next
               one. Sections 01–04 below are in the free plan, for every seat
-              on your team; Atlas, the AI assistant, comes with free trial
-              tokens and its own usage-based plan after that.
+              on your team; Atlas, the AI assistant, gives every account free
+              tokens each month, with a bigger paid allowance for heavy users.
             </p>
             <div className="mt-8 flex flex-wrap gap-2.5">
               {sections.map((s) => (
@@ -149,8 +149,8 @@ export default function WBFeaturesPage() {
                     your evening back.
                   </p>
                   <p className="mt-3 max-w-lg text-[13px] font-semibold text-blue-200/80">
-                    Free trial tokens included. Ongoing use is a separate,
-                    usage-based plan — not part of the $0 core plan.
+                    10,000 free tokens every month on every account. Atlas
+                    Full: 150,000 a month for $20 — the one thing with a meter.
                   </p>
                 </div>
                 <ul className="flex flex-col gap-3">

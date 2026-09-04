@@ -20,13 +20,13 @@ const softwareAppJsonLd = {
   operatingSystem: "Web, iOS",
   url: "https://workbenchfsm.com",
   description:
-    "WorkBench is free field service management software for home-service teams: online booking, lead pipeline, scheduling and dispatch, quotes with e-signature, time tracking, team chat, one-click invoicing, built-in card and ACH payments, recurring billing, and a client portal. It also includes Atlas, an AI assistant billed separately on a usage-based plan (with free trial tokens to start).",
+    "WorkBench is free field service management software for home-service teams: online booking, lead pipeline, scheduling and dispatch, quotes with e-signature, time tracking, team chat, one-click invoicing, built-in card and ACH payments, recurring billing, and a client portal. It also includes Atlas, an AI assistant with 10,000 free tokens every month and a $20/month plan for 150,000.",
   offers: {
     "@type": "Offer",
     price: "0",
     priceCurrency: "USD",
     description:
-      "The core software (booking, scheduling, quotes, invoicing, payments, client portal, team chat) is free for every seat, funded by payment processing: 2.9% + 30¢ per card transaction, 0.75% per ACH transfer — no monthly fees or minimums. Atlas, the AI assistant, is not included in this free offer: it comes with free trial tokens and is otherwise billed on its own usage-based plan.",
+      "The core software (booking, scheduling, quotes, invoicing, payments, client portal, team chat) is free for every seat, funded by payment processing: 2.9% + 30¢ per card transaction, 0.75% per ACH transfer — no monthly fees or minimums. Atlas, the AI assistant, is metered separately: every account gets 10,000 Atlas tokens free each month, and Atlas Full is $20/month for 150,000 tokens.",
   },
   featureList: [
     "Online booking widget",

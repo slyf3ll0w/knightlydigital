@@ -6,28 +6,32 @@ company; the money-mover prompts at the bottom need a sandbox-approved merchant.
 
 ## 0. Setup (5 minutes)
 
-1. Deploy order: `npx prisma db push --accept-data-loss` (drops the old
-   `atlasTrialUsed` turn counter, adds `atlasTrialTokensUsed`; the Stage E
-   columns + `AssistantTurn` table are additive) → then the code deploy.
+1. Deploy order (2026-09-04 free tier): the code deploy is enough — boot's
+   `prisma db push` adds `atlasFreePeriodStart` + `atlasFreeTokensUsed`. The
+   two legacy trial columns stay until David drops them by hand
+   (`node scripts/db-push-prod.mjs --accept-data-loss` after deleting them
+   from the schema).
 2. Pick a NON-whitelisted test company (the whitelist bypasses every meter).
-   Superadmin → company → Atlas assistant card should read **Paywalled — trial
-   not started**. If the company is whitelisted, "Reset to default" first.
-3. Open the app as that company's owner. The Atlas bubble shows the paywall.
+   Superadmin → company → Atlas assistant card should read **Free tier — 0 of
+   10,000 tokens used**. If the company is whitelisted, "Reset to default" first.
+3. Open the app as that company's owner. The Atlas bubble opens straight into
+   chat with the meter above the composer.
 
-## 1. The meter (trial, then plan)
+## 1. The meter (free tier, then plan)
 
 | Step | Expect |
 |---|---|
-| Owner presses **Start my free trial** | meter above the composer: "10,000 of 10,000 free tokens left · Full plan coming soon" |
-| Sign in as a TECH on the same company, open Atlas | paywall says "Ask your account owner or an admin to start the free trial" (before the owner starts it); after, the tech chats on the shared meter |
+| Open Atlas on a fresh, non-whitelisted company | no paywall, no "start trial" step — the composer is live with a meter above it: "10,000 of 10,000 free tokens left · refills <1st of next month>" |
+| Sign in as a TECH on the same company, open Atlas | same shared meter — the allowance is per company, every role chats on it |
 | Ask "What's on the schedule today?" | reply ends with a small coin line like "142 tokens"; meter drops by the same amount |
 | Ask a bulk job (see §4) | one reply costs 1,000–2,000 tokens — the point of metering spend instead of messages |
-| Superadmin → company page | Atlas card: "trial — N of 10,000 tokens used", 30-day ledger with turns / our cost / tokens metered / tool calls, avg $/turn |
-| Superadmin **Reset trial** | company back to "trial not started" with a fresh 10,000; drawer shows the offer again after a refresh |
-| Burn it down fast: set `ATLAS_TRIAL_TOKENS=300` on Railway, reset trial, chat twice | second or third reply flips the drawer to "Your free trial tokens are used up" + Coming Soon card; the input strip becomes the notice; a direct POST to /api/app/assistant returns 403 `atlasLocked` |
-| Superadmin **Grant plan (test)** on the spent-trial company | drawer meter: "100,000 of 100,000 tokens left · refills <date>"; spent trial is ignored while a plan is on |
-| **Refill period** / **Revoke plan** | refill zeroes the period; revoke returns the company to its trial state (still spent → locked) |
-| Set `ATLAS_PLAN_TOKENS=200`, refill, chat twice | "This period's tokens are used up … refill on <date>" lock state; MoreSheet/bubble teaser says "Out of tokens for this period" |
+| Superadmin → company page | Atlas card: chip "Free tier", "free tier — N of 10,000 tokens used", a free-tier bar with the refill date, 30-day ledger with turns / our cost / tokens metered / tool calls, avg $/turn |
+| Superadmin **Refill free tier** | this month's usage zeroed; drawer meter back to 10,000 after a refresh |
+| Burn it down fast: set `ATLAS_FREE_TOKENS=300` on Railway, refill, chat twice | second or third reply flips the drawer to "This month's free tokens are used up … your next 300 arrive on <date>" + the Atlas Full card ($20/mo · 150,000 tokens · Coming soon); the input strip becomes the notice; a direct POST to /api/app/assistant returns 403 `atlasLocked` with `access.reason = "free-spent"` |
+| Month rollover (simulate: set `atlasFreePeriodStart` to last month in the DB) | next turn rolls the period forward and starts the count from that turn's cost; the bar reads fresh |
+| Superadmin **Grant plan (test)** on the spent company | drawer meter: "150,000 of 150,000 tokens left · refills <same day next month>"; spent free tier is ignored while a plan is on |
+| **Refill period** / **Revoke plan** | refill zeroes the period; revoke returns the company to its free tier (still spent this month → locked until the 1st) |
+| Set `ATLAS_PLAN_TOKENS=200`, refill, chat twice | "This period's tokens are used up … refill on <date>" lock state (no upsell card); MoreSheet/bubble teaser says "Out of tokens" |
 
 Whitelisted accounts: no meter, no coin line, but every turn still lands in
 the superadmin ledger (access = full, atlasTokens = 0, costCents real).

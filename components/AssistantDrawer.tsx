@@ -28,10 +28,13 @@ import {
 import AtlasIcon, { AtlasMark } from "@/components/AtlasIcon";
 import { hapticImpact, hapticNotify } from "@/lib/haptics";
 import type { Proposal } from "@/lib/assistant";
-import type { AtlasAccess } from "@/lib/assistant-access";
+import type { AtlasAccess, AtlasPricing } from "@/lib/assistant-access";
 
-/** Paywall / meter state as the shell hands it over (lib/assistant-access.ts). */
+/** Meter state as the shell hands it over (lib/assistant-access.ts). */
 export type AtlasDrawerAccess = AtlasAccess;
+
+/** Fallback allowances if the shell didn't pass any — mirrors the env defaults. */
+const DEFAULT_PRICING: AtlasPricing = { freeTokens: 10_000, planTokens: 150_000, planPriceCents: 2_000 };
 
 /**
  * Owner assistant chat drawer (docs/plans/ai-assistant-plan.md). Reads are
@@ -59,7 +62,7 @@ type Msg = {
   role: "user" | "assistant";
   content: string;
   proposals?: CardProposal[];
-  /** Atlas tokens this reply cost (metered accounts: trial + plan). */
+  /** Atlas tokens this reply cost (metered accounts: free tier + plan). */
   tokens?: number;
   /** Follow-up Atlas queued (queue_next_step) — the drawer sends it by
    *  itself once every card in this reply is confirmed. */
@@ -99,6 +102,10 @@ function fmtTokens(n: number): string {
 
 function fmtDay(iso: string): string {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function fmtPrice(cents: number): string {
+  return cents % 100 === 0 ? `$${cents / 100}` : `$${(cents / 100).toFixed(2)}`;
 }
 
 /** Render /app/... paths in assistant text as real links. */
@@ -356,14 +363,14 @@ function ProposalCard({
 
 // ── meter ────────────────────────────────────────────────────────────────────
 
-/** Token meter above the composer — the trial (one-time allowance) and the
- *  plan (monthly, refills) share it; only the right-hand note differs. */
+/** Token meter above the composer — the free tier (monthly, refills on the
+ *  1st) and the plan (monthly, refills on the billing day) share it. */
 function TokenMeter({
   meter,
-  trial,
+  free,
 }: {
-  meter: Extract<AtlasAccess, { level: "plan" | "trial" }>["meter"];
-  trial: boolean;
+  meter: Extract<AtlasAccess, { level: "plan" | "free" }>["meter"];
+  free: boolean;
 }) {
   const pct = Math.min(100, Math.round((meter.used / Math.max(1, meter.included)) * 100));
   const low = meter.remaining <= meter.included * 0.1;
@@ -372,11 +379,9 @@ function TokenMeter({
       <div className="flex items-center justify-between text-[10px] font-semibold">
         <span className={`flex items-center gap-1 ${low ? "text-amber-600" : "text-gray-500"}`}>
           <Coins size={11} />
-          {fmtTokens(meter.remaining)} of {fmtTokens(meter.included)} {trial ? "free " : ""}tokens left
+          {fmtTokens(meter.remaining)} of {fmtTokens(meter.included)} {free ? "free " : ""}tokens left
         </span>
-        <span className="text-gray-400">
-          {trial ? "Full plan coming soon" : meter.refillsAt ? `refills ${fmtDay(meter.refillsAt)}` : ""}
-        </span>
+        <span className="text-gray-400">refills {fmtDay(meter.refillsAt)}</span>
       </div>
       <div className="mt-1 h-1 overflow-hidden rounded-full bg-gray-200">
         <div
@@ -397,8 +402,7 @@ export default function AssistantDrawer({
   storageScope = "",
   accent,
   access = { level: "full" },
-  trialTokens = 10000,
-  canStartTrial = false,
+  pricing = DEFAULT_PRICING,
 }: {
   open: boolean;
   onClose: () => void;
@@ -409,12 +413,10 @@ export default function AssistantDrawer({
   storageScope?: string;
   /** Company brand accent for the Atlas mark; defaults to Streamflaire green. */
   accent?: string;
-  /** Paywall / meter state from the server layout (lib/assistant-access.ts). */
+  /** Meter state from the server layout (lib/assistant-access.ts). */
   access?: AtlasDrawerAccess;
-  /** Tokens in the one-time free trial allowance — paywall copy. */
-  trialTokens?: number;
-  /** Owners/admins can start the company's free trial. */
-  canStartTrial?: boolean;
+  /** The allowances (free tokens, plan tokens, plan price) — for copy. */
+  pricing?: AtlasPricing;
 }) {
   const router = useRouter();
   const storageKey = `sf-assistant-chat:${storageScope || "shared"}`;
@@ -422,10 +424,9 @@ export default function AssistantDrawer({
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  // Server truth arrives as a prop; sends and trial-start move it locally so
-  // the drawer reacts without waiting on a refresh.
+  // Server truth arrives as a prop; each send moves it locally so the drawer
+  // reacts without waiting on a refresh.
   const [liveAccess, setLiveAccess] = useState<AtlasDrawerAccess>(access);
-  const [startingTrial, setStartingTrial] = useState(false);
   useEffect(() => setLiveAccess(access), [access]);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -495,11 +496,12 @@ export default function AssistantDrawer({
         | null;
       if (!res.ok || !data?.reply) {
         if (data?.access) setLiveAccess(data.access);
-        else if (data?.atlasLocked) setLiveAccess({ level: "locked", trialUsed: true, reason: "trial-ended" });
+        else if (data?.atlasLocked)
+          setLiveAccess({ level: "locked", reason: "free-spent", resetsAt: new Date().toISOString() });
         setError(data?.error ?? "Something went wrong — please try again.");
       } else {
         if (data.access) setLiveAccess(data.access);
-        // metered accounts (trial + plan) see what each reply cost; the
+        // metered accounts (free tier + plan) see what each reply cost; the
         // server sends 0 for whitelisted accounts
         const metered = typeof data.turnTokens === "number" && data.turnTokens > 0;
         persist([
@@ -625,36 +627,8 @@ export default function AssistantDrawer({
     inputRef.current?.focus();
   }
 
-  async function startTrial() {
-    if (startingTrial) return;
-    setError("");
-    setStartingTrial(true);
-    try {
-      const res = await fetch("/api/app/assistant/trial", { method: "POST" });
-      const data = (await res.json().catch(() => null)) as
-        | { success?: boolean; tokens?: number; error?: string }
-        | null;
-      if (!res.ok || !data?.success) {
-        setError(data?.error ?? "Couldn't start the trial — please try again.");
-        return;
-      }
-      const included = data.tokens ?? trialTokens;
-      setLiveAccess({
-        level: "trial",
-        meter: { included, used: 0, remaining: included, refillsAt: null },
-      });
-      router.refresh();
-    } catch {
-      setError("Couldn't start the trial — please try again.");
-    } finally {
-      setStartingTrial(false);
-    }
-  }
-
   const locked = liveAccess.level === "locked";
-  const lockReason = liveAccess.level === "locked" ? liveAccess.reason : null;
-  const trialEnded = lockReason === "trial-ended";
-  const planSpent = lockReason === "plan-spent";
+  const planSpent = liveAccess.level === "locked" && liveAccess.reason === "plan-spent";
   const resetsAt = liveAccess.level === "locked" ? liveAccess.resetsAt : undefined;
 
   if (!open) return null;
@@ -692,10 +666,10 @@ export default function AssistantDrawer({
 
         {/* messages — top padding clears the floating controls */}
         <div className="flex-1 space-y-3 overflow-y-auto px-4 pb-4 pt-14">
-          {/* ── Paywall: Atlas is a premium add-on. Fresh drawer shows the
-                 trial offer / Coming-Soon upsell / spent-meter notice; if a
-                 chat is already on screen the messages stay and the input
-                 strip below carries the notice instead. ── */}
+          {/* ── Out of tokens: a fresh drawer shows the spent-meter notice
+                 (+ the plan upsell on the free tier); if a chat is already
+                 on screen the messages stay and the input strip below
+                 carries the notice instead. ── */}
           {locked && messages.length === 0 && (
             <div className="pt-2">
               <div className="mb-6 text-center">
@@ -717,64 +691,45 @@ export default function AssistantDrawer({
                   </div>
                   <p className="mt-1 text-xs leading-relaxed text-gray-500">
                     {name} paused so your plan never spends past its allowance.
-                    {resetsAt ? ` Your tokens refill on ${fmtDay(resetsAt)}.` : ""}
+                    {resetsAt ? ` Your ${fmtTokens(pricing.planTokens)} tokens refill on ${fmtDay(resetsAt)}.` : ""}
                   </p>
-                </div>
-              ) : !trialEnded ? (
-                <div className="card-ledger p-4">
-                  <div className="flex items-center gap-2">
-                    <Sparkles size={15} className="text-amber-500" />
-                    <p className="text-sm font-bold text-gray-900">Try {name} free</p>
-                  </div>
-                  <p className="mt-1 text-xs leading-relaxed text-gray-500">
-                    {fmtTokens(trialTokens)} tokens on us — no card needed, right on your free plan.
-                    Quick questions cost a few tokens, big jobs cost more, and every reply shows
-                    what it used.
-                  </p>
-                  {canStartTrial ? (
-                    <button
-                      type="button"
-                      onClick={startTrial}
-                      disabled={startingTrial}
-                      className="btn-tool mt-3 flex w-full items-center justify-center gap-1.5 rounded-[10px] bg-green-500 px-3 py-2 text-xs font-semibold transition-colors hover:bg-green-600 disabled:opacity-50"
-                    >
-                      {startingTrial ? (
-                        <Loader2 size={12} className="animate-spin" />
-                      ) : (
-                        <Sparkles size={12} />
-                      )}
-                      Start my free trial
-                    </button>
-                  ) : (
-                    <p className="mt-3 rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-500">
-                      Ask your account owner or an admin to start the free trial.
-                    </p>
-                  )}
                 </div>
               ) : (
-                <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4">
-                  <p className="text-sm font-bold text-amber-900">Your free trial tokens are used up.</p>
-                  <p className="mt-1 text-xs leading-relaxed text-amber-800">
-                    Thanks for trying {name} — the full plan is almost here.
+                <div className="card-ledger p-4">
+                  <div className="flex items-center gap-2">
+                    <Coins size={15} className="text-amber-500" />
+                    <p className="text-sm font-bold text-gray-900">This month&apos;s free tokens are used up.</p>
+                  </div>
+                  <p className="mt-1 text-xs leading-relaxed text-gray-500">
+                    Every account gets {fmtTokens(pricing.freeTokens)} free tokens a month, and{" "}
+                    {name} paused so it never spends past them.
+                    {resetsAt ? ` Your next ${fmtTokens(pricing.freeTokens)} arrive on ${fmtDay(resetsAt)}.` : ""}
                   </p>
                 </div>
               )}
               {!planSpent && (
                 <div className="mt-3 rounded-2xl border border-dashed border-gray-300 p-4">
-                  <div className="flex items-center gap-2">
-                    <Lock size={14} className="text-gray-400" />
-                    <p className="text-sm font-bold text-gray-900">{name} Full</p>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <Sparkles size={14} className="text-amber-500" />
+                      <p className="text-sm font-bold text-gray-900">{name} Full</p>
+                    </div>
+                    <p className="numeral-ledger text-sm font-bold text-gray-900">
+                      {fmtPrice(pricing.planPriceCents)}
+                      <span className="text-[11px] font-semibold text-gray-400">/mo</span>
+                    </p>
                   </div>
                   <p className="mt-1 text-xs leading-relaxed text-gray-500">
-                    A monthly token allowance that refills — the same meter as the trial, and{" "}
-                    {name} never spends past it. Every tool, the whole business on tap.
+                    {fmtTokens(pricing.planTokens)} tokens every month, refilled on your billing day —
+                    fifteen times the free tier, on the same meter, and {name} never spends past it.
                   </p>
                   <button
                     type="button"
                     disabled
-                    className="mt-3 w-full cursor-not-allowed rounded-[10px] border border-gray-300 bg-gray-50 px-3 py-2 text-xs font-bold text-gray-400"
+                    className="mt-3 flex w-full cursor-not-allowed items-center justify-center gap-1.5 rounded-[10px] border border-gray-300 bg-gray-50 px-3 py-2 text-xs font-bold text-gray-400"
                   >
-                    Coming Soon!
+                    <Lock size={12} />
+                    Coming soon
                   </button>
                 </div>
               )}
@@ -900,15 +855,13 @@ export default function AssistantDrawer({
             <p className="text-center text-xs font-semibold text-gray-600">
               {planSpent
                 ? `${name} is out of tokens for this period${resetsAt ? ` — refills ${fmtDay(resetsAt)}` : ""}.`
-                : trialEnded
-                  ? `Your free trial tokens are used up — ${name} Full is coming soon!`
-                  : `Start the free trial above to chat with ${name}.`}
+                : `${name} is out of free tokens for this month${resetsAt ? ` — refills ${fmtDay(resetsAt)}` : ""}.`}
             </p>
           </div>
         ) : (
         <div className="shrink-0 border-t border-gray-200 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-          {(liveAccess.level === "trial" || liveAccess.level === "plan") && (
-            <TokenMeter meter={liveAccess.meter} trial={liveAccess.level === "trial"} />
+          {(liveAccess.level === "free" || liveAccess.level === "plan") && (
+            <TokenMeter meter={liveAccess.meter} free={liveAccess.level === "free"} />
           )}
           <div className="flex items-end gap-2">
             <textarea

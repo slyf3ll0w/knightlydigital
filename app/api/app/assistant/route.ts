@@ -25,8 +25,8 @@ import { inPreview, previewBlockedError } from "@/lib/preview";
  * loop in lib/assistant stages proposals; nothing is written here. History
  * lives in the client (sessionStorage).
  *
- * Metering (lib/assistant-access.ts + lib/assistant-billing.ts): the trial
- * and the plan share one meter. The turn's real cost, priced from Gemini
+ * Metering (lib/assistant-access.ts + lib/assistant-billing.ts): the free
+ * tier and the plan share one meter. The turn's real cost, priced from Gemini
  * usage and converted to Atlas tokens, is debited AFTER the call — a turn
  * is allowed while any tokens remain, so a meter can overshoot by at most
  * one turn (a few cents), cheaper than reserving and truer than guessing.
@@ -35,15 +35,10 @@ import { inPreview, previewBlockedError } from "@/lib/preview";
  */
 
 function lockedMessage(access: Extract<AtlasAccess, { level: "locked" }>, name = "Atlas"): string {
-  if (access.reason === "plan-spent") {
-    const when = access.resetsAt
-      ? new Date(access.resetsAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })
-      : "next period";
-    return `${name} has used this period's tokens — the meter refills on ${when}.`;
-  }
-  return access.trialUsed
-    ? `Your free ${name} trial tokens are used up — the full plan is coming soon.`
-    : `${name} is a premium add-on — start the free trial to chat.`;
+  const when = new Date(access.resetsAt).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return access.reason === "plan-spent"
+    ? `${name} has used this period's tokens — the meter refills on ${when}.`
+    : `${name} has used this month's free tokens — they refill on ${when}.`;
 }
 
 /** Post-debit access for the drawer: the meter moved, so send the new truth. */
@@ -51,14 +46,11 @@ function accessAfter(before: AtlasAccess, debit: Debit | null): AtlasAccess {
   if (!debit) return before;
   const { level, balance } = debit;
   if (balance.remaining > 0) return { level, meter: meterToClient(balance) };
-  return level === "plan"
-    ? {
-        level: "locked",
-        trialUsed: true,
-        reason: "plan-spent",
-        resetsAt: balance.refillsAt?.toISOString(),
-      }
-    : { level: "locked", trialUsed: true, reason: "trial-ended" };
+  return {
+    level: "locked",
+    reason: level === "plan" ? "plan-spent" : "free-spent",
+    resetsAt: balance.refillsAt.toISOString(),
+  };
 }
 
 export async function POST(req: NextRequest) {
@@ -119,7 +111,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Send at least one user message." }, { status: 400 });
   }
 
-  const metered = access.level === "trial" || access.level === "plan";
+  const metered = access.level === "free" || access.level === "plan";
 
   /** Price + ledger + (metered) debit for one turn's usage. */
   async function settle(
@@ -132,7 +124,7 @@ export async function POST(req: NextRequest) {
     recordAssistantTurn({
       companyId: actor!.companyId,
       userId: actor!.id,
-      access: access!.level as "trial" | "plan" | "full",
+      access: access!.level as "free" | "plan" | "full",
       model: meta.model,
       rounds: meta.rounds,
       toolCalls: meta.toolCalls,

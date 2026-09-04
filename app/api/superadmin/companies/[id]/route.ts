@@ -54,7 +54,7 @@ export async function PATCH(
     action !== "atlas-plan-grant" &&
     action !== "atlas-plan-revoke" &&
     action !== "atlas-plan-reset" &&
-    action !== "atlas-trial-reset" &&
+    action !== "atlas-free-reset" &&
     action !== "addon-show" &&
     action !== "addon-hide" &&
     action !== "addon-grant" &&
@@ -94,7 +94,7 @@ export async function PATCH(
 
   // Atlas paid plan (lib/assistant-billing.ts) — not sold yet, so this is the
   // only way to activate it: grant starts a metered plan anchored now, revoke
-  // ends it (trial state is untouched), reset refills the current period.
+  // ends it (free-tier usage is untouched), reset refills the current period.
   if (action === "atlas-plan-grant" || action === "atlas-plan-revoke" || action === "atlas-plan-reset") {
     const data =
       action === "atlas-plan-grant"
@@ -107,14 +107,14 @@ export async function PATCH(
     return NextResponse.json({ success: true });
   }
 
-  // Atlas free trial reset: back to the untried paywall with a fresh
-  // allowance — the way to re-run a trial burn-down on a test company.
-  if (action === "atlas-trial-reset") {
+  // Atlas free-tier refill: zero this month's usage — the way to re-run a
+  // burn-down on a test company without waiting for the 1st.
+  if (action === "atlas-free-reset") {
     await prisma.company.update({
       where: { id },
-      data: { atlasTrialStartedAt: null, atlasTrialTokensUsed: 0 },
+      data: { atlasFreeTokensUsed: 0 },
     });
-    console.warn(`[superadmin] atlas trial reset for "${company.name}" (${id}) by ${admin.email}`);
+    console.warn(`[superadmin] atlas free tier refilled for "${company.name}" (${id}) by ${admin.email}`);
     return NextResponse.json({ success: true });
   }
 

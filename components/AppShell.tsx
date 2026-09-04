@@ -52,7 +52,7 @@ import { AtlasMark } from "@/components/AtlasIcon";
 import Modal from "@/components/Modal";
 import TourGuide from "@/components/TourGuide";
 import AssistantDrawer from "@/components/AssistantDrawer";
-import type { AtlasAccess } from "@/lib/assistant-access";
+import type { AtlasAccess, AtlasPricing } from "@/lib/assistant-access";
 import { resolveAccent, shade, textOn } from "@/lib/branding";
 import {
   SECTION_HUES,
@@ -1328,12 +1328,13 @@ interface AppShellProps {
   teamCount?: number;
   needsTour?: boolean;
   aiEnabled?: boolean;
-  /** Atlas paywall state (lib/assistant-access.ts): "full" = unmetered,
-   *  "trial" = free trial running, "locked" = paywall (trial offer or the
-   *  Coming-Soon upsell). "off" never reaches here — aiEnabled is false. */
+  /** Atlas meter state (lib/assistant-access.ts): "full" = unmetered,
+   *  "free" = the monthly free tier, "plan" = the paid plan, "locked" = out
+   *  of tokens until the refill. "off" never reaches here — aiEnabled is
+   *  false. */
   atlas?: AtlasAccess;
-  /** Tokens in the one-time free trial allowance — for the paywall copy. */
-  atlasTrialTokens?: number;
+  /** The allowances (free tokens, plan tokens, plan price) — for copy. */
+  atlasPricing?: AtlasPricing;
   assistantName?: string | null;
   userId?: string | null;
   /** Pre-approval preview: Atlas is hidden entirely (every turn costs money);
@@ -1359,15 +1360,13 @@ export default function AppShell({
   needsTour = false,
   aiEnabled = false,
   atlas = { level: "full" },
-  atlasTrialTokens = 10000,
+  atlasPricing,
   assistantName,
   userId,
   previewMode = false,
 }: AppShellProps) {
   const assistantAvailable = aiEnabled && !previewMode && atlas.level !== "off";
   const atlasLocked = atlas.level === "locked";
-  // Out of plan tokens reads differently from "never tried it"
-  const atlasSpent = atlas.level === "locked" && atlas.reason === "plan-spent";
   const userRole = role ?? "OWNER";
   const manager = isManagerRole(userRole);
   // Rail color is no longer its own customization — it follows the THEME:
@@ -1901,7 +1900,6 @@ export default function AppShell({
         isActive={isActive}
         aiEnabled={assistantAvailable}
         atlasLocked={atlasLocked}
-        atlasSpent={atlasSpent}
         assistantName={assistantName || "Atlas"}
         assistantAccent={brandColorSecondary || brandColor || undefined}
         openAssistant={() => setAssistantOpen(true)}
@@ -2169,11 +2167,9 @@ export default function AppShell({
                   Hi, I&apos;m {assistantName || "Atlas"} 👋
                 </p>
                 <p className="mt-0.5 text-xs leading-relaxed text-gray-500">
-                  {atlasSpent
-                    ? "Out of tokens for this period — I'm back when the meter refills."
-                    : atlasLocked
-                      ? "Your AI teammate for the whole business — try me free."
-                      : "Ask me anything about your business — or tell me what to do and I'll handle it."}
+                  {atlasLocked
+                    ? "Out of tokens for now — I'm back when the meter refills."
+                    : "Ask me anything about your business — or tell me what to do and I'll handle it."}
                 </p>
               </button>
               <button
@@ -2208,8 +2204,7 @@ export default function AppShell({
           storageScope={userId ?? ""}
           accent={brandColorSecondary || brandColor || undefined}
           access={atlas}
-          trialTokens={atlasTrialTokens}
-          canStartTrial={manager}
+          pricing={atlasPricing}
         />
       )}
 
@@ -2436,7 +2431,6 @@ function MoreSheet({
   isActive,
   aiEnabled,
   atlasLocked = false,
-  atlasSpent = false,
   assistantName,
   assistantAccent,
   openAssistant,
@@ -2452,7 +2446,6 @@ function MoreSheet({
   isActive: (href: string) => boolean;
   aiEnabled: boolean;
   atlasLocked?: boolean;
-  atlasSpent?: boolean;
   assistantName: string;
   assistantAccent?: string;
   openAssistant: () => void;
@@ -2589,11 +2582,9 @@ function MoreSheet({
                   {assistantName}
                 </span>
                 <span className="block truncate text-xs text-gray-500">
-                  {atlasSpent
+                  {atlasLocked
                     ? "Out of tokens until the meter refills"
-                    : atlasLocked
-                      ? "Premium add-on — try it free"
-                      : "Ask anything — or hand off a task"}
+                    : "Ask anything — or hand off a task"}
                 </span>
               </span>
               <ChevronRight size={16} className="text-gray-300 shrink-0" />

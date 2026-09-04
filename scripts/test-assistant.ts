@@ -10,11 +10,12 @@ import { mergeBulkProposals, toolsForActor, type Proposal, type ToolCtx } from "
 import {
   planPeriod,
   planBalance,
-  trialBalance,
+  freePeriod,
+  freeBalance,
   centsToAtlasTokens,
   turnCostCents,
   ATLAS_PLAN_TOKENS,
-  ATLAS_TRIAL_TOKENS,
+  ATLAS_FREE_TOKENS,
 } from "../lib/assistant-billing";
 import { atlasAccess } from "../lib/assistant-access";
 import type { Actor } from "../lib/permissions";
@@ -43,10 +44,10 @@ assert.deepEqual(
     "get_statement", "list_agreement_templates", "list_agreements",
     "list_clients", "list_expenses", "list_money", "list_pipeline",
     "list_subscriptions", "list_team", "log_expense", "manage_address",
-    "manage_client_fields", "manage_lead_webhook", "manage_person",
+    "manage_booking_item", "manage_client_fields", "manage_lead_webhook", "manage_person",
     "manage_pipeline_stage", "manage_recurring_expense", "manage_saved_card",
     "manage_subscription", "manage_time_block", "manage_time_entry",
-    "manage_web_form", "move_lead", "optimize_route", "post_team_message",
+    "move_lead", "optimize_route", "post_team_message",
     "query_records", "queue_next_step", "quickbooks", "record_job_signoff", "record_payment",
     "refund_payment", "reply_in_portal", "report", "request_review",
     "respond_to_booking", "run_recurring_billing", "schedule_appointment",
@@ -94,7 +95,7 @@ console.log("ok 2: tech limited to schedule + job + field tools");
   assert.ok(!n.includes("edit_payment") && !n.includes("manage_subscription"),
     "sales can't refund or manage subscriptions");
   assert.ok(!n.includes("list_expenses") && !n.includes("update_expense"), "expense tools are manager-only");
-  assert.ok(!n.includes("undo_import") && !n.includes("manage_web_form") && !n.includes("manage_client_fields"),
+  assert.ok(!n.includes("undo_import") && !n.includes("manage_booking_item") && !n.includes("manage_client_fields"),
     "import/forms/fields are manager-only");
   assert.ok(n.includes("list_clients"), "sales can list clients (scoped to their leads)");
   assert.ok(
@@ -217,46 +218,69 @@ console.log("ok 2: tech limited to schedule + job + field tools");
   console.log(`ok 5d: plan periods + pricing (sample turn ≈ ${cents.toFixed(2)}¢ = ${tokens} tokens)`);
 }
 
-// 5e. the trial rides the same meter: one-time allowance, no refill, then locked
+// 5e. the free tier rides the same meter: a calendar-month allowance for every
+//     account, refilled on the 1st, then locked with the plan upsell
 {
-  const never = { atlasTrialStartedAt: null, atlasTrialTokensUsed: 0 };
-  assert.equal(trialBalance(never), null, "no trial until started");
-  const started = { atlasTrialStartedAt: new Date("2026-09-01T00:00:00Z"), atlasTrialTokensUsed: 1_240 };
-  const b = trialBalance(started)!;
-  assert.equal(b.included, ATLAS_TRIAL_TOKENS);
+  const sep = new Date("2026-09-14T15:00:00Z");
+  const p = freePeriod(sep);
+  assert.equal(p.start.toISOString(), "2026-09-01T00:00:00.000Z");
+  assert.equal(p.end.toISOString(), "2026-10-01T00:00:00.000Z");
+  assert.equal(freePeriod(new Date("2026-12-31T23:59:59Z")).end.toISOString(), "2027-01-01T00:00:00.000Z");
+
+  const fresh = { atlasFreePeriodStart: null, atlasFreeTokensUsed: 0 };
+  const b0 = freeBalance(fresh, sep);
+  assert.equal(b0.included, ATLAS_FREE_TOKENS, "every account has the allowance — no sign-up step");
+  assert.equal(b0.remaining, ATLAS_FREE_TOKENS);
+  assert.equal(b0.refillsAt.toISOString(), "2026-10-01T00:00:00.000Z");
+  const used = { atlasFreePeriodStart: p.start, atlasFreeTokensUsed: 1_240 };
+  const b = freeBalance(used, sep);
   assert.equal(b.used, 1_240);
-  assert.equal(b.remaining, ATLAS_TRIAL_TOKENS - 1_240);
-  assert.equal(b.refillsAt, null, "the trial never refills");
+  assert.equal(b.remaining, ATLAS_FREE_TOKENS - 1_240);
+  // last month's usage reads as a fresh allowance once the month rolls
+  const stale = freeBalance(
+    { atlasFreePeriodStart: new Date("2026-08-01T00:00:00Z"), atlasFreeTokensUsed: ATLAS_FREE_TOKENS },
+    sep
+  );
+  assert.equal(stale.used, 0, "stale period → refilled");
   // overshoot by one turn never goes negative
-  const over = trialBalance({ ...started, atlasTrialTokensUsed: ATLAS_TRIAL_TOKENS + 300 })!;
+  const over = freeBalance({ ...used, atlasFreeTokensUsed: ATLAS_FREE_TOKENS + 300 }, sep);
   assert.equal(over.remaining, 0);
 
   // the access ladder, default policy (assistantEnabled null, no plan)
   const noPlan = { atlasPlanActiveAt: null, atlasPeriodStart: null, atlasPeriodTokensUsed: 0 };
-  const offer = atlasAccess({ assistantEnabled: null, ...noPlan, ...never });
-  assert.deepEqual(offer, { level: "locked", trialUsed: false, reason: "trial-offer" });
-  const running = atlasAccess({ assistantEnabled: null, ...noPlan, ...started });
-  assert.equal(running.level, "trial");
-  if (running.level === "trial") {
-    assert.equal(running.meter.remaining, ATLAS_TRIAL_TOKENS - 1_240);
-    assert.equal(running.meter.refillsAt, null);
+  const running = atlasAccess({ assistantEnabled: null, ...noPlan, ...used }, sep);
+  assert.equal(running.level, "free");
+  if (running.level === "free") {
+    assert.equal(running.meter.remaining, ATLAS_FREE_TOKENS - 1_240);
+    assert.equal(running.meter.refillsAt, "2026-10-01T00:00:00.000Z");
   }
-  const spent = atlasAccess({ assistantEnabled: null, ...noPlan, ...started, atlasTrialTokensUsed: ATLAS_TRIAL_TOKENS });
-  assert.deepEqual(spent, { level: "locked", trialUsed: true, reason: "trial-ended" });
-  // whitelist and off win over everything; a plan wins over the trial
-  assert.equal(atlasAccess({ assistantEnabled: true, ...noPlan, ...never }).level, "full");
-  assert.equal(atlasAccess({ assistantEnabled: false, ...noPlan, ...started }).level, "off");
-  const planned = atlasAccess({
-    assistantEnabled: null,
-    atlasPlanActiveAt: new Date("2026-08-15T00:00:00Z"),
-    atlasPeriodStart: null,
-    atlasPeriodTokensUsed: 0,
-    ...started,
-    atlasTrialTokensUsed: ATLAS_TRIAL_TOKENS, // spent trial is irrelevant once a plan is on
-  });
+  const spent = atlasAccess(
+    { assistantEnabled: null, ...noPlan, ...used, atlasFreeTokensUsed: ATLAS_FREE_TOKENS },
+    sep
+  );
+  assert.deepEqual(spent, { level: "locked", reason: "free-spent", resetsAt: "2026-10-01T00:00:00.000Z" });
+  // whitelist and off win over everything; a plan wins over the free tier
+  assert.equal(atlasAccess({ assistantEnabled: true, ...noPlan, ...fresh }, sep).level, "full");
+  assert.equal(atlasAccess({ assistantEnabled: false, ...noPlan, ...used }, sep).level, "off");
+  const planned = atlasAccess(
+    {
+      assistantEnabled: null,
+      atlasPlanActiveAt: new Date("2026-08-15T00:00:00Z"),
+      atlasPeriodStart: null,
+      atlasPeriodTokensUsed: 0,
+      ...used,
+      atlasFreeTokensUsed: ATLAS_FREE_TOKENS, // spent free tier is irrelevant once a plan is on
+    },
+    sep
+  );
   assert.equal(planned.level, "plan");
-  if (planned.level === "plan") assert.ok(planned.meter.refillsAt, "plan meter carries its refill date");
-  console.log(`ok 5e: trial = one-time ${ATLAS_TRIAL_TOKENS.toLocaleString()} tokens on the shared meter, ladder intact`);
+  if (planned.level === "plan") {
+    assert.equal(planned.meter.included, ATLAS_PLAN_TOKENS);
+    assert.equal(planned.meter.refillsAt, "2026-09-15T00:00:00.000Z", "plan refills on the billing day");
+  }
+  console.log(
+    `ok 5e: free tier = ${ATLAS_FREE_TOKENS.toLocaleString()} tokens/month on the shared meter, plan ${ATLAS_PLAN_TOKENS.toLocaleString()}/billing month, ladder intact`
+  );
 }
 
 // 5f. queue_next_step: refuses with nothing staged, records the follow-up otherwise

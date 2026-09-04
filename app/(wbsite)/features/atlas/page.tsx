@@ -3,11 +3,15 @@ import Link from "next/link";
 import { Compass } from "lucide-react";
 import WBFeaturePage from "@/components/wb/WBFeaturePage";
 import type { FeatureItem } from "@/lib/wb-features";
+import { ATLAS_FREE_TOKENS, ATLAS_PLAN_TOKENS, formatPlanPrice, tokenCount } from "@/lib/atlas-pricing";
+
+const freeTokens = tokenCount(ATLAS_FREE_TOKENS);
+const planTokens = tokenCount(ATLAS_PLAN_TOKENS);
+const planPrice = formatPlanPrice();
 
 export const metadata: Metadata = {
   title: "Atlas AI Assistant — WorkBench",
-  description:
-    "Atlas is WorkBench's built-in AI assistant. It works the same scheduling, quotes, invoices, and messages your team does, with the same permissions, and confirms with you before anything goes out the door. Free trial tokens included; ongoing use runs on its own usage-based plan.",
+  description: `Atlas is WorkBench's built-in AI assistant. It works the same scheduling, quotes, invoices, and messages your team does, with the same permissions, and confirms with you before anything goes out the door. ${freeTokens} free tokens every month on every account; Atlas Full is ${planPrice}/month for ${planTokens}.`,
 };
 
 const atlasFeatures: FeatureItem[] = [
@@ -28,8 +32,8 @@ const atlasFeatures: FeatureItem[] = [
   },
   {
     icon: Compass,
-    title: "Free trial tokens, then a usage-based plan",
-    body: "Every account gets free trial tokens to see Atlas do real work. Beyond that, it runs on its own metered plan — AI usage costs real money, so it's priced separately from the free core software instead of buried in it.",
+    title: `${freeTokens} free tokens a month, on every account`,
+    body: `No card, no sign-up step, no trial clock — the allowance refills on the 1st. Atlas Full is ${planTokens} tokens a month for ${planPrice}, refilled on your billing day. AI usage costs real money, so it's priced separately from the free core software instead of buried in it.`,
   },
 ];
 
@@ -69,25 +73,28 @@ const faq = [
     q: "Is Atlas free?",
     a: (
       <p>
-        Every account gets free trial tokens to try it — enough to see Atlas
-        do real work. Beyond the trial, Atlas runs on its own usage-based
-        plan, separate from the free core software on{" "}
-        <Link href="/features" className="font-semibold text-[#0B57D8] hover:underline">
-          the features page
+        Every account gets {freeTokens} Atlas tokens free every month —
+        enough for roughly 25 to 60 messages, shared by your whole team, and
+        it refills on the 1st with no card and no sign-up step. Heavier
+        users can move to Atlas Full: {planTokens} tokens a month for{" "}
+        {planPrice}. The core software stays free either way — see{" "}
+        <Link href="/pricing#atlas" className="font-semibold text-[#0B57D8] hover:underline">
+          Atlas pricing
         </Link>
-        . AI usage has a real cost, so it's priced on its own rather than
-        folded quietly into the free plan.
+        .
       </p>
     ),
   },
   {
-    q: "How does Atlas pricing work?",
+    q: "What's a token, and why meter it?",
     a: (
       <p>
-        Atlas usage is metered — heavier requests (like a bulk edit across
-        many records) cost more than a quick lookup. Every account starts
-        with free trial tokens; once those run out, continued use is billed
-        on Atlas's own plan rather than through the free WorkBench plan.
+        A token is a unit of AI work, priced at what the request actually
+        costs to run. A quick lookup is a couple hundred tokens; a bulk edit
+        across forty records is a couple thousand. Every reply shows what it
+        used, and Atlas pauses rather than spend past your allowance —
+        counting messages instead would overcharge the quick questions and
+        undercharge the big jobs.
       </p>
     ),
   },
@@ -131,12 +138,12 @@ export default function AtlasPage() {
         { label: "Scheduling & dispatch", href: "/features/scheduling-dispatch" },
         { label: "See every feature", href: "/features" },
       ]}
-      ctaTitle="Free trial tokens, then a plan that scales with you."
+      ctaTitle={`${freeTokens} free tokens a month. ${planPrice} when you want more.`}
       ctaBody={
         <>
           The core WorkBench software is free for your whole team. Atlas
-          comes with free trial tokens to start, then its own usage-based
-          plan.
+          comes with {freeTokens} free tokens every month on every account;
+          Atlas Full is {planTokens} a month for {planPrice}.
         </>
       }
     />

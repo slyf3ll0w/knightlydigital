@@ -34,7 +34,7 @@ const rows: CompareRow[] = [
   },
   {
     label: "AI assistant",
-    workbench: "Atlas — a built-in assistant that can schedule, quote, invoice, and message on your behalf, always with a confirmation step. Free trial tokens included; ongoing use is a separate usage-based plan.",
+    workbench: "Atlas — a built-in assistant that can schedule, quote, invoice, and message on your behalf, always with a confirmation step. 10,000 free tokens every month; Atlas Full is $20/month for 150,000.",
     competitor: "Has been rolling out AI features; check their current feature list for scope.",
   },
   {
@@ -58,7 +58,7 @@ const differentiators: FeatureItem[] = [
   {
     icon: Bot,
     title: "Atlas, priced for what it costs to run",
-    body: "The AI assistant works your scheduling, quotes, invoices, and messages under your account's own permissions. Free trial tokens let you try it for real before paying anything for it.",
+    body: "The AI assistant works your scheduling, quotes, invoices, and messages under your account's own permissions. Every account gets 10,000 free tokens a month — real work, not a demo — and the $20 plan only exists for offices that want more.",
   },
   {
     icon: PenLine,

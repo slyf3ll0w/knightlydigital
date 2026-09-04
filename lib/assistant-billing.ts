@@ -1,9 +1,9 @@
 import { prisma } from "@/lib/db";
 import { unitPrices } from "@/lib/platform-costs";
+import { ATLAS_TOKEN_CENTS, ATLAS_FREE_TOKENS, ATLAS_PLAN_TOKENS } from "@/lib/atlas-pricing";
 
 /**
- * Atlas metering — SPEND, framed as tokens. One meter for the free trial
- * and the paid plan.
+ * Atlas metering — SPEND, framed as tokens. One meter, two allowances.
  *
  * A message costs anywhere from a fraction of a cent (a quick lookup) to
  * several cents (a 40-record bulk edit), so counting messages is unfair in
@@ -18,13 +18,15 @@ import { unitPrices } from "@/lib/platform-costs";
  *   lookup ≈ 300–500, a bulk edit ≈ 1,000–2,000.
  *
  * Two allowances draw on the meter:
- *   - the free trial: ATLAS_TRIAL_TOKENS once, ever (default 10,000 ≈ $1
- *     of raw spend per company — roughly 25–60 messages, enough to see
- *     Atlas do real work while capping what a trial can cost us);
- *   - the paid plan: ATLAS_PLAN_TOKENS per monthly period (default
- *     100,000, about $10 of raw spend), anchored on the day the plan
- *     activated. Margin lives in the gap between the plan's price and the
- *     tokens it includes — no multiplier to keep in sync.
+ *   - the FREE tier, every account, no sign-up step: ATLAS_FREE_TOKENS per
+ *     calendar month (default 10,000 ≈ $1 of raw spend, roughly 25–60
+ *     messages), refilled on the 1st. Enough to use Atlas for real every
+ *     month while capping what a free account can cost us.
+ *   - the PAID plan: ATLAS_PLAN_TOKENS per billing month (default 150,000,
+ *     about $15 of raw spend) for ATLAS_PLAN_PRICE_CENTS (default $20),
+ *     the period anchored on the day the plan activated — i.e. the billing
+ *     day. Margin lives in the gap between the plan's price and the tokens
+ *     it includes — no multiplier to keep in sync.
  * Every rate is env-tunable so pricing is a Railway variable change, not a
  * deploy.
  *
@@ -33,20 +35,23 @@ import { unitPrices } from "@/lib/platform-costs";
  * turn — a few cents — which is cheaper than reserving and truer than
  * guessing.
  *
- * NOT LIVE: nothing sells the plan yet. Superadmin grants it for testing.
+ * NOT LIVE: nothing sells the plan yet. Superadmin grants it for testing;
+ * the in-app upsell shows the price with a Coming Soon button.
  */
 
-const envNum = (v: string | undefined, fallback: number) => {
-  const n = Number(v);
-  return v !== undefined && v !== "" && Number.isFinite(n) && n > 0 ? n : fallback;
-};
-
-/** Our cost, in cents, that one Atlas token represents. */
-export const ATLAS_TOKEN_CENTS = envNum(process.env.ATLAS_TOKEN_CENTS, 0.01);
-/** Tokens in the one-time free trial allowance. */
-export const ATLAS_TRIAL_TOKENS = Math.round(envNum(process.env.ATLAS_TRIAL_TOKENS, 10_000));
-/** Tokens included in each monthly plan period. */
-export const ATLAS_PLAN_TOKENS = Math.round(envNum(process.env.ATLAS_PLAN_TOKENS, 100_000));
+// The rates live in lib/atlas-pricing.ts (no Prisma) so the marketing site
+// and client components can quote them; re-exported here for the callers
+// that only know the billing module.
+export {
+  ATLAS_TOKEN_CENTS,
+  ATLAS_FREE_TOKENS,
+  ATLAS_PLAN_TOKENS,
+  ATLAS_PLAN_PRICE_CENTS,
+  ATLAS_PRICING,
+  formatTokens,
+  formatPlanPrice,
+  type AtlasPricing,
+} from "@/lib/atlas-pricing";
 
 export type TurnUsage = { tokensIn: number; tokensOut: number; tokensCached: number };
 
@@ -67,36 +72,51 @@ export function centsToAtlasTokens(cents: number): number {
   return Math.max(1, Math.ceil(cents / ATLAS_TOKEN_CENTS));
 }
 
-/** "12,400 tokens" — one formatter so every surface agrees. */
-export function formatTokens(n: number): string {
-  return `${Math.max(0, Math.round(n)).toLocaleString("en-US")} tokens`;
-}
-
 // ── balances ─────────────────────────────────────────────────────────────────
 
-/** What a meter looks like from the outside — trial and plan agree. */
+/** What a meter looks like from the outside — free tier and plan agree. */
 export type MeterBalance = {
   included: number;
   used: number;
   remaining: number;
-  /** When the allowance refills; null for the one-time trial. */
-  refillsAt: Date | null;
+  /** When the allowance refills. */
+  refillsAt: Date;
+  periodStart: Date;
+  periodEnd: Date;
 };
 
-export type TrialCompany = {
-  atlasTrialStartedAt: Date | null;
-  atlasTrialTokensUsed: number;
+// ── free tier periods ────────────────────────────────────────────────────────
+
+/**
+ * The calendar month containing `now`, in UTC: the 1st at 00:00 through the
+ * 1st of the next month. A few hours of timezone drift at the boundary
+ * doesn't matter for a spend meter.
+ */
+export function freePeriod(now: Date = new Date()): { start: Date; end: Date } {
+  const y = now.getUTCFullYear();
+  const m = now.getUTCMonth();
+  return { start: new Date(Date.UTC(y, m, 1)), end: new Date(Date.UTC(y, m + 1, 1)) };
+}
+
+export type FreeCompany = {
+  atlasFreePeriodStart: Date | null;
+  atlasFreeTokensUsed: number;
 };
 
-/** The trial's live balance, or null when the trial was never started. */
-export function trialBalance(company: TrialCompany): MeterBalance | null {
-  if (!company.atlasTrialStartedAt) return null;
-  const used = Math.max(0, company.atlasTrialTokensUsed);
+/** The free tier's live balance — every company has one; a stale stored
+ *  period (last month's) reads as a fresh allowance. */
+export function freeBalance(company: FreeCompany, now: Date = new Date()): MeterBalance {
+  const { start, end } = freePeriod(now);
+  const current =
+    !!company.atlasFreePeriodStart && company.atlasFreePeriodStart.getTime() >= start.getTime();
+  const used = current ? Math.max(0, company.atlasFreeTokensUsed) : 0;
   return {
-    included: ATLAS_TRIAL_TOKENS,
+    included: ATLAS_FREE_TOKENS,
     used,
-    remaining: Math.max(0, ATLAS_TRIAL_TOKENS - used),
-    refillsAt: null,
+    remaining: Math.max(0, ATLAS_FREE_TOKENS - used),
+    refillsAt: end,
+    periodStart: start,
+    periodEnd: end,
   };
 }
 
@@ -148,13 +168,8 @@ export type PlanCompany = {
   atlasPeriodTokensUsed: number;
 };
 
-export type PlanBalance = MeterBalance & {
-  periodStart: Date;
-  periodEnd: Date;
-};
-
 /** The plan's live balance, treating a stale stored period as a fresh one. */
-export function planBalance(company: PlanCompany, now: Date = new Date()): PlanBalance | null {
+export function planBalance(company: PlanCompany, now: Date = new Date()): MeterBalance | null {
   if (!company.atlasPlanActiveAt) return null;
   const { start, end } = planPeriod(company.atlasPlanActiveAt, now);
   const current =
@@ -172,26 +187,53 @@ export function planBalance(company: PlanCompany, now: Date = new Date()): PlanB
 
 // ── debit ────────────────────────────────────────────────────────────────────
 
-export type MeterCompany = TrialCompany & PlanCompany;
+export type MeterCompany = FreeCompany & PlanCompany;
 
 /** Prisma select covering everything the meter needs. */
 export const METER_SELECT = {
-  atlasTrialStartedAt: true,
-  atlasTrialTokensUsed: true,
+  atlasFreePeriodStart: true,
+  atlasFreeTokensUsed: true,
   atlasPlanActiveAt: true,
   atlasPeriodStart: true,
   atlasPeriodTokensUsed: true,
 } as const;
 
-export type Debit = { level: "plan" | "trial"; balance: MeterBalance };
+export type Debit = { level: "plan" | "free"; balance: MeterBalance };
+
+/**
+ * Add `tokens` to one meter's period counter, rolling the period forward
+ * first if the stored one is stale. Two racing turns can't double-reset a
+ * period: the rollover is a conditional write keyed on the old period
+ * start, and the loser just increments on top.
+ */
+async function rollAndDebit(
+  companyId: string,
+  fields:
+    | { start: "atlasFreePeriodStart"; used: "atlasFreeTokensUsed" }
+    | { start: "atlasPeriodStart"; used: "atlasPeriodTokensUsed" },
+  storedStart: Date | null,
+  periodStart: Date,
+  tokens: number
+): Promise<void> {
+  const stale = !storedStart || storedStart.getTime() < periodStart.getTime();
+  if (stale) {
+    const rolled = await prisma.company.updateMany({
+      where: { id: companyId, [fields.start]: storedStart },
+      data: { [fields.start]: periodStart, [fields.used]: tokens },
+    });
+    if (rolled.count > 0) return;
+    // someone else rolled it first — just add ours on top
+  }
+  await prisma.company.update({
+    where: { id: companyId },
+    data: { [fields.used]: { increment: tokens } },
+  });
+}
 
 /**
  * Debit a finished turn from whichever meter the company is on — the plan
- * when one is active (rolling the period forward if the stored one is
- * stale), otherwise the trial. Two racing turns can't double-reset a plan
- * period: the rollover is a conditional write keyed on the old period
- * start. Returns the post-debit balance, or null when the company is on
- * neither meter (whitelisted / never started).
+ * when one is active, otherwise the free tier. Returns the post-debit
+ * balance, or null when the company doesn't exist.
  */
 export async function debitAtlasTokens(companyId: string, tokens: number): Promise<Debit | null> {
   const now = new Date();
@@ -200,42 +242,28 @@ export async function debitAtlasTokens(companyId: string, tokens: number): Promi
 
   if (company.atlasPlanActiveAt) {
     const { start } = planPeriod(company.atlasPlanActiveAt, now);
-    const stale =
-      !company.atlasPeriodStart || company.atlasPeriodStart.getTime() < start.getTime();
-    if (stale) {
-      const rolled = await prisma.company.updateMany({
-        where: { id: companyId, atlasPeriodStart: company.atlasPeriodStart },
-        data: { atlasPeriodStart: start, atlasPeriodTokensUsed: tokens },
-      });
-      if (rolled.count === 0) {
-        // someone else rolled it first — just add ours on top
-        await prisma.company.update({
-          where: { id: companyId },
-          data: { atlasPeriodTokensUsed: { increment: tokens } },
-        });
-      }
-    } else {
-      await prisma.company.update({
-        where: { id: companyId },
-        data: { atlasPeriodTokensUsed: { increment: tokens } },
-      });
-    }
+    await rollAndDebit(
+      companyId,
+      { start: "atlasPeriodStart", used: "atlasPeriodTokensUsed" },
+      company.atlasPeriodStart,
+      start,
+      tokens
+    );
     const after = await prisma.company.findUnique({ where: { id: companyId }, select: METER_SELECT });
     const balance = after ? planBalance(after, now) : null;
     return balance ? { level: "plan", balance } : null;
   }
 
-  if (company.atlasTrialStartedAt) {
-    const after = await prisma.company.update({
-      where: { id: companyId },
-      data: { atlasTrialTokensUsed: { increment: tokens } },
-      select: METER_SELECT,
-    });
-    const balance = trialBalance(after);
-    return balance ? { level: "trial", balance } : null;
-  }
-
-  return null;
+  const { start } = freePeriod(now);
+  await rollAndDebit(
+    companyId,
+    { start: "atlasFreePeriodStart", used: "atlasFreeTokensUsed" },
+    company.atlasFreePeriodStart,
+    start,
+    tokens
+  );
+  const after = await prisma.company.findUnique({ where: { id: companyId }, select: METER_SELECT });
+  return after ? { level: "free", balance: freeBalance(after, now) } : null;
 }
 
 // ── ledger ───────────────────────────────────────────────────────────────────
@@ -247,7 +275,7 @@ export async function debitAtlasTokens(companyId: string, tokens: number): Promi
 export function recordAssistantTurn(row: {
   companyId: string;
   userId: string;
-  access: "trial" | "plan" | "full";
+  access: "free" | "plan" | "full";
   model: string;
   rounds: number;
   toolCalls: number;
