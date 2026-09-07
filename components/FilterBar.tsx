@@ -85,8 +85,9 @@ export default function FilterBar({
 
   return (
     <div className={`mb-4 ${className}`}>
-      {/* Phone */}
-      <div className="flex flex-col gap-2 lg:hidden">
+      {/* Phone — sticks under the header as a glass capsule while the list
+          scrolls beneath (the iOS 26 floating segmented control). */}
+      <div className="filter-sticky flex flex-col gap-2 lg:hidden">
         {segmented ? (
           <>
             <SegmentedRow>

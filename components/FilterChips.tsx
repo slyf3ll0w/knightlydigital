@@ -37,8 +37,8 @@ export function SegmentedRow({
 }) {
   return (
     <div
-      className={`grid gap-1 rounded-[12px] border border-gray-200 bg-gray-100 p-1 text-[13px] ${
-        cols ? "" : "auto-cols-fr grid-flow-col"
+      className={`glass-control grid gap-1 border border-gray-200 bg-gray-100 p-1 text-[13px] ${
+        cols ? "rounded-[18px]" : "auto-cols-fr grid-flow-col rounded-full"
       } ${className}`}
       style={cols ? { gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` } : undefined}
     >
@@ -61,7 +61,7 @@ export function Segment({
   // Text size comes from the SegmentedRow track (13px default) so dense
   // pages can shrink every segment at once
   const base =
-    "flex min-w-0 items-center justify-center gap-1 whitespace-nowrap rounded-[9px] px-1 py-1.5 transition-all";
+    "flex min-w-0 items-center justify-center gap-1 whitespace-nowrap rounded-full px-1 py-1.5 transition-all";
   const cls = active
     ? `${base} font-semibold shadow-[0_1px_3px_rgba(9,13,19,0.18)]`
     : `${base} font-medium text-gray-600 active:opacity-70`;

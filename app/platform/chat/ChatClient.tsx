@@ -21,6 +21,7 @@ import {
 import Avatar from "@/components/Avatar";
 import Modal from "@/components/Modal";
 import { hapticImpact } from "@/lib/haptics";
+import { useMeasuredHeight } from "@/lib/use-measured-height";
 import { confirmSheet } from "@/components/ConfirmSheet";
 
 // Mirrors TAPBACKS in lib/chat.ts (server module)
@@ -186,6 +187,9 @@ export default function ChatClient({
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  // Phones: the composer floats over the thread, so the list pads its
+  // bottom by the composer's live height (it grows with the draft).
+  const [composerRef, composerH] = useMeasuredHeight();
   const stickToBottomRef = useRef(true);
   // First pin after opening a thread jumps; later arrivals glide (iMessage)
   const instantPinRef = useRef(true);
@@ -616,7 +620,7 @@ export default function ChatClient({
   const conversation = (
     <div className="relative flex h-full min-h-0 flex-col bg-white lg:rounded-[8px] lg:border lg:border-gray-200 lg:shadow-sm">
       {/* Header */}
-      <div className="flex shrink-0 items-center gap-2.5 border-b border-gray-100 px-3 py-2.5 lg:px-4">
+      <div className="chat-head glass-bar flex shrink-0 items-center gap-2.5 border-b border-gray-100 px-3 py-2.5 lg:px-4">
         <button
           type="button"
           onClick={() => setMobileOpen(false)}
@@ -688,7 +692,12 @@ export default function ChatClient({
       </div>
 
       {/* Messages */}
-      <div ref={scrollRef} onScroll={onScroll} className="min-h-0 flex-1 space-y-0.5 overflow-y-auto overscroll-y-contain px-3 py-3 max-lg:pb-[calc(5.5rem+env(safe-area-inset-bottom))] lg:px-4">
+      <div
+        ref={scrollRef}
+        onScroll={onScroll}
+        className="chat-body composer-pad min-h-0 flex-1 space-y-0.5 overflow-y-auto overscroll-y-contain px-3 py-3 lg:px-4"
+        style={{ "--composer-h": `${composerH}px` } as React.CSSProperties}
+      >
         {loadingThread && (
           <p className="py-10 text-center text-sm text-gray-400">
             <Loader2 size={16} className="mr-1.5 inline animate-spin" />
@@ -890,6 +899,7 @@ export default function ChatClient({
           messages (.chat-composer pins it to the bottom; the list pads for
           it); on desktop the plain bar under the thread. */}
       <form
+        ref={composerRef}
         onSubmit={send}
         className="chat-composer shrink-0 border-t border-gray-100 px-3 py-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] lg:px-4"
       >

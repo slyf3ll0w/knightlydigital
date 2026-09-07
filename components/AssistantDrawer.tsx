@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import AtlasIcon, { AtlasMark } from "@/components/AtlasIcon";
 import { hapticImpact, hapticNotify } from "@/lib/haptics";
+import { useMeasuredHeight } from "@/lib/use-measured-height";
 import type { Proposal } from "@/lib/assistant";
 import type { AtlasAccess, AtlasPricing } from "@/lib/assistant-access";
 
@@ -430,6 +431,9 @@ export default function AssistantDrawer({
   useEffect(() => setLiveAccess(access), [access]);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  // Phones: the input strip floats over the conversation (glass), so the
+  // message list pads its bottom by the strip's live height.
+  const [composerRef, composerH] = useMeasuredHeight();
 
   useEffect(() => {
     try {
@@ -649,23 +653,31 @@ export default function AssistantDrawer({
               type="button"
               onClick={reset}
               title="New chat"
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 shadow-sm transition-colors hover:bg-gray-50 hover:text-gray-900"
+              className="glass-control glass-hit flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 shadow-sm transition-colors hover:bg-gray-50 hover:text-gray-900"
             >
-              <RotateCcw size={16} />
+              <span className="glass-press flex">
+                <RotateCcw size={16} />
+              </span>
             </button>
           )}
           <button
             type="button"
             onClick={onClose}
             aria-label="Close assistant"
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-600 shadow-sm transition-colors hover:bg-gray-50 hover:text-gray-900"
+            className="glass-control glass-hit flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-600 shadow-sm transition-colors hover:bg-gray-50 hover:text-gray-900"
           >
-            <X size={20} strokeWidth={2.2} />
+            <span className="glass-press flex">
+              <X size={20} strokeWidth={2.2} />
+            </span>
           </button>
         </div>
 
-        {/* messages — top padding clears the floating controls */}
-        <div className="flex-1 space-y-3 overflow-y-auto px-4 pb-4 pt-14">
+        {/* messages — top padding clears the floating controls; on phones
+            the bottom pads for the floating composer (--composer-h) */}
+        <div
+          className="composer-pad flex-1 space-y-3 overflow-y-auto px-4 pb-4 pt-14"
+          style={{ "--composer-h": `${composerH}px` } as React.CSSProperties}
+        >
           {/* ── Out of tokens: a fresh drawer shows the spent-meter notice
                  (+ the plan upsell on the free tier); if a chat is already
                  on screen the messages stay and the input strip below
@@ -851,7 +863,10 @@ export default function AssistantDrawer({
 
         {/* input — or the notice strip once the paywall is down */}
         {locked ? (
-          <div className="shrink-0 border-t border-gray-200 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          <div
+            ref={composerRef}
+            className="atlas-composer glass-bar shrink-0 border-t border-gray-200 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+          >
             <p className="text-center text-xs font-semibold text-gray-600">
               {planSpent
                 ? `${name} is out of tokens for this period${resetsAt ? ` — refills ${fmtDay(resetsAt)}` : ""}.`
@@ -859,7 +874,10 @@ export default function AssistantDrawer({
             </p>
           </div>
         ) : (
-        <div className="shrink-0 border-t border-gray-200 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        <div
+          ref={composerRef}
+          className="atlas-composer glass-bar shrink-0 border-t border-gray-200 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+        >
           {(liveAccess.level === "free" || liveAccess.level === "plan") && (
             <TokenMeter meter={liveAccess.meter} free={liveAccess.level === "free"} />
           )}

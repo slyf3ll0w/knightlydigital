@@ -1500,12 +1500,20 @@ export default function AppShell({
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  // Bell-dot memory: "Clear all" in the notifications sheet snapshots the
-  // badge counts, and the dot only returns when a count grows PAST its
-  // snapshot (something genuinely new arrived). Counts that shrink ratchet
-  // the snapshot down so the next new item still fires the dot.
+  // Bell-dot memory: OPENING the notifications sheet (or "Clear all")
+  // snapshots the badge counts, and the dot only returns when a count grows
+  // PAST its snapshot (something genuinely new arrived). Counts that shrink
+  // ratchet the snapshot down so the next new item still fires the dot.
+  // `undefined` = storage not read yet: the dot stays hidden until then so a
+  // fresh load never flashes it on a count the user has already seen. (The
+  // old behavior only snapshotted on "Clear all", which the sheet hides when
+  // the feed is empty — so a stale count with nothing to show, e.g. a
+  // past-due invoice older than the feed's 30-day window, lit the dot with
+  // no way to clear it.)
   const bellSnapKey = `wb-bell-snap:${userId ?? "shared"}`;
-  const [bellSnap, setBellSnap] = useState<{ r: number; p: number; l: number } | null>(null);
+  const [bellSnap, setBellSnap] = useState<{ r: number; p: number; l: number } | null | undefined>(
+    undefined
+  );
   useEffect(() => {
     try {
       setBellSnap(JSON.parse(localStorage.getItem(bellSnapKey) ?? "null"));
@@ -1530,9 +1538,10 @@ export default function AppShell({
     }
   }, [counts, bellSnap, bellSnapKey]);
   const bellDot =
-    counts.requests > (bellSnap?.r ?? 0) ||
-    counts.pastDue > (bellSnap?.p ?? 0) ||
-    counts.leads > (bellSnap?.l ?? 0);
+    bellSnap !== undefined &&
+    (counts.requests > (bellSnap?.r ?? 0) ||
+      counts.pastDue > (bellSnap?.p ?? 0) ||
+      counts.leads > (bellSnap?.l ?? 0));
   const snapshotBell = () => {
     const snap = { r: counts.requests, p: counts.pastDue, l: counts.leads };
     setBellSnap(snap);
@@ -1978,6 +1987,7 @@ export default function AppShell({
             type="button"
             onClick={() => {
               hapticImpact("LIGHT");
+              snapshotBell();
               setNotifsOpen(true);
             }}
             aria-label="Notifications"
@@ -2061,7 +2071,10 @@ export default function AppShell({
               was phone-only chrome before). Same sheet, anchored top-right. */}
           <button
             type="button"
-            onClick={() => setNotifsOpen(true)}
+            onClick={() => {
+              snapshotBell();
+              setNotifsOpen(true);
+            }}
             aria-label="Notifications"
             className="bell-swing hidden lg:flex relative p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
           >

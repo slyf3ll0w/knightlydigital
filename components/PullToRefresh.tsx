@@ -156,14 +156,16 @@ export default function PullToRefresh({
     <div aria-hidden className="relative z-0 h-0 overflow-visible lg:hidden">
       <div
         ref={spinnerRef}
-        className="absolute left-1/2 top-4 -ml-3 opacity-0"
+        className="absolute left-1/2 top-3 -ml-[18px] opacity-0"
         style={{ transition: "opacity 0.15s ease" }}
       >
-        <Loader2
-          size={24}
-          className={refreshing ? "animate-spin" : ""}
-          style={{ color: "var(--wb-accent, #0B57D8)" }}
-        />
+        <div className="glass-control flex h-9 w-9 items-center justify-center rounded-full">
+          <Loader2
+            size={20}
+            className={refreshing ? "animate-spin" : ""}
+            style={{ color: "var(--wb-accent, #0B57D8)" }}
+          />
+        </div>
       </div>
     </div>
   );

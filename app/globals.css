@@ -2380,3 +2380,84 @@ html[data-mode="dark"] .app-ui .card-tool {
     border-color: transparent;
   }
 }
+
+/* ── Liquid Glass, second tier (2026-09-07): sticky filter capsules, the
+   phone bottom sheets that were still solid, chat/Atlas bars, the
+   pull-to-refresh spinner. Same rules as the block above. ── */
+@media (max-width: 1023px) {
+  /* Phone-only glass SHEET (the schedule "Unscheduled jobs" drawer): the
+     .sheet-material recipe, but inert on desktop where the same element is
+     a solid sidebar card. */
+  .app-ui .phone-sheet {
+    background-color: color-mix(in srgb, var(--wb-primary, #0a1428) 5%, rgba(255, 255, 255, 0.55));
+    background-image: linear-gradient(rgba(255, 255, 255, 0.62), rgba(255, 255, 255, 0.62));
+    background-size: 100% 1px;
+    background-repeat: no-repeat;
+    background-position: top;
+    -webkit-backdrop-filter: saturate(190%) blur(28px);
+    backdrop-filter: saturate(190%) blur(28px);
+  }
+  html[data-mode="dark"] .app-ui .phone-sheet {
+    background-color: color-mix(in srgb, var(--wb-primary, #606673) 10%, rgba(42, 50, 61, 0.62));
+    background-image: linear-gradient(rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.16));
+  }
+
+  /* Glass BAR — a full-width frosted strip with a hairline (chat's thread
+     header floating over the messages, Atlas's input strip over the
+     conversation). */
+  .app-ui .glass-bar {
+    background-color: color-mix(in srgb, var(--wb-primary, #0a1428) 4%, rgba(255, 255, 255, 0.72));
+    -webkit-backdrop-filter: saturate(180%) blur(24px);
+    backdrop-filter: saturate(180%) blur(24px);
+    border-color: rgba(60, 60, 67, 0.18);
+  }
+  html[data-mode="dark"] .app-ui .glass-bar {
+    background-color: color-mix(in srgb, var(--wb-primary, #606673) 8%, rgba(42, 50, 61, 0.72));
+    border-color: rgba(84, 84, 88, 0.5);
+  }
+
+  /* Chat conversation: header floats over the thread; the list pads for
+     it, and for the measured composer below via --composer-h. */
+  .app-ui .chat-head {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 10;
+  }
+  .app-ui .chat-body {
+    padding-top: 4rem;
+  }
+  .app-ui .composer-pad {
+    padding-bottom: calc(var(--composer-h, 80px) + 12px);
+  }
+
+  /* Atlas drawer: the input strip floats over the conversation as a glass
+     bar (meter + input + disclaimer all ride it). */
+  .app-ui .atlas-composer {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 10;
+  }
+
+  /* Sticky filter capsule: the list's filter row stays put under the
+     header while rows scroll beneath its glass. */
+  .app-ui .filter-sticky {
+    position: sticky;
+    top: 0.5rem;
+    z-index: 20;
+  }
+}
+
+/* Sticky-hover guard: a tapped glass circle must not turn solid gray from a
+   lingering :hover utility (iOS keeps :hover on after a tap). */
+@media (max-width: 1023px) {
+  .app-ui .glass-control:hover {
+    background-color: color-mix(in srgb, var(--wb-primary, #0a1428) 5%, rgba(255, 255, 255, 0.58));
+  }
+  html[data-mode="dark"] .app-ui .glass-control:hover {
+    background-color: color-mix(in srgb, var(--wb-primary, #606673) 10%, rgba(42, 50, 61, 0.64));
+  }
+}

@@ -56,17 +56,9 @@ export default function FilterSelect({
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-haspopup="listbox"
-        className={`flex items-center gap-1.5 rounded-[12px] border px-3.5 py-2 text-[13px] font-semibold transition-colors ${
-          filtered ? "border-transparent" : "border-gray-200 bg-gray-100 text-gray-800"
+        className={`flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-[13px] font-semibold transition-colors ${
+          filtered ? "glass-tinted border-transparent" : "glass-control border-gray-200 bg-gray-100 text-gray-800"
         }`}
-        style={
-          filtered
-            ? {
-                backgroundColor: "var(--mobile-accent, #0b57d8)",
-                color: "var(--mobile-on-accent, #ffffff)",
-              }
-            : undefined
-        }
       >
         <Icon size={14} className={filtered ? "" : "text-gray-500"} />
         {active.label}
