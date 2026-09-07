@@ -63,7 +63,9 @@
 
   /* ── Tool button — solid primary actions. Desktop trades the press-flat
      offset for lift physics: rises a hair on hover, settles on press. The
-     phone build keeps its hard-offset signature below (David's pick). */
+     phone build is a plain native press (soft depth, scales under the
+     thumb) so it sits quietly next to the glass chrome — the hard-offset
+     signature retired with the Liquid Glass pass (2026-09-07). */
   .btn-tool {
     box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
     transition:
@@ -130,23 +132,22 @@
     .chip-tool {
       box-shadow: none;
     }
-    /* Solid primaries keep the signature: a subtle hard offset that presses
-       flat under the thumb (the Daylight & Dusk button). No hover states on
-       touch — just raised → flat. */
+    /* Solid primaries: soft depth, no hover on touch, a small scale press
+       under the thumb (the native button feel). */
     .btn-tool {
-      box-shadow: 2px 2px 0 var(--tool-shadow, #0a1428);
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.1);
       transition:
-        transform 0.09s ease,
-        box-shadow 0.09s ease,
+        transform 0.11s ease,
+        box-shadow 0.11s ease,
         background-color 0.15s ease;
     }
     .btn-tool:hover {
       transform: none;
-      box-shadow: 2px 2px 0 var(--tool-shadow, #0a1428);
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.1);
     }
     .btn-tool:active {
-      transform: translate(2px, 2px);
-      box-shadow: 0 0 0 var(--tool-shadow, #0a1428);
+      transform: scale(0.97);
+      box-shadow: none;
     }
     /* Secondary/outlined buttons stay soft — one signature per screen */
     .btn-tool-line {
@@ -2196,8 +2197,9 @@ html[data-mode="dark"] .app-ui .card-tool {
    Must sit AFTER the dark bridge — same specificity, later wins.
    ═══════════════════════════════════════════════════════════════════════ */
 @media (max-width: 1023px) {
-  /* Ring around the raised create button — solid, matched to the chrome it
-     pokes through (Venmo's notch effect without a real notch). */
+  /* Chrome-matched ring for the unread dots on tab icons (once also the
+     notch ring around the create button, before it became its own glass
+     capsule). */
   .app-ui {
     --fab-ring: color-mix(in srgb, var(--wb-primary, #0A1428) 4%, #ffffff);
   }
@@ -2259,3 +2261,122 @@ html[data-mode="dark"] .app-ui .card-tool {
   }
 }
 
+
+/* ═══════════════════════════════════════════════════════════════════════
+   LIQUID GLASS CONTROLS — phones only (2026-09-07). The iOS 26 idiom: the
+   controls that FLOAT over scrolling content are frosted capsules — the tab
+   bar, the create button, header buttons, docked primary actions, the chat
+   composer. Content-layer buttons (forms, lists, action circles) stay solid
+   and tinted, exactly as Apple keeps them: glass only earns its keep when
+   something moves underneath it. Desktop console untouched.
+
+   Must be the LAST block in the file: .glass-tinted has to beat the accent
+   bridge (.app-ui .bg-green-500 and its :hover/:active) at equal
+   specificity, and that only works by coming later.
+
+   iOS Safari drops backdrop-filter on any element that holds a transform —
+   so press feedback scales the INNER .glass-press wrapper, never the glass
+   element itself (a scaled glass button flickers solid mid-press on a real
+   iPhone; Chromium emulation hides the bug). Never add a transform to a
+   .glass-control / .glass-tinted element or its ancestors.
+   ═══════════════════════════════════════════════════════════════════════ */
+@media (max-width: 1023px) {
+  /* Rim light on every existing glass surface (sheets, menus, pickers): a
+     1px catch of light along the top edge. Painted as a background layer,
+     not a box-shadow, so it never fights the Tailwind shadow utilities the
+     sheets already carry. */
+  .app-ui .sheet-material {
+    background-image: linear-gradient(rgba(255, 255, 255, 0.62), rgba(255, 255, 255, 0.62));
+    background-size: 100% 1px;
+    background-repeat: no-repeat;
+    background-position: top;
+  }
+  html[data-mode="dark"] .app-ui .sheet-material {
+    background-image: linear-gradient(rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.16));
+  }
+
+  /* Glass control — the clear frosted capsule/circle: brand-tinted frost,
+     bright hairline rim, rim light, soft drop. */
+  .app-ui .glass-control {
+    background-color: color-mix(in srgb, var(--wb-primary, #0a1428) 5%, rgba(255, 255, 255, 0.58));
+    -webkit-backdrop-filter: saturate(190%) blur(28px);
+    backdrop-filter: saturate(190%) blur(28px);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.75),
+      inset 0 -1px 0 rgba(15, 23, 42, 0.04),
+      0 1px 2px rgba(15, 23, 42, 0.06),
+      0 10px 30px rgba(15, 23, 42, 0.14);
+    transition: background-color 0.15s ease;
+  }
+  .app-ui .glass-control:active {
+    background-color: color-mix(in srgb, var(--wb-primary, #0a1428) 5%, rgba(255, 255, 255, 0.74));
+  }
+  html[data-mode="dark"] .app-ui .glass-control {
+    background-color: color-mix(in srgb, var(--wb-primary, #606673) 10%, rgba(42, 50, 61, 0.64));
+    border-color: rgba(255, 255, 255, 0.14);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.16),
+      0 1px 2px rgba(0, 0, 0, 0.25),
+      0 10px 30px rgba(0, 0, 0, 0.35);
+  }
+  html[data-mode="dark"] .app-ui .glass-control:active {
+    background-color: color-mix(in srgb, var(--wb-primary, #606673) 10%, rgba(58, 68, 82, 0.72));
+  }
+
+  /* Tinted glass — the PROMINENT floating action (create button, docked
+     Complete Job / Create Invoice): the accent at ~84% over the blur so
+     content ghosts through while contrast holds. Beats the accent bridge
+     and its hover/active shades on purpose. */
+  .app-ui .glass-tinted,
+  .app-ui .glass-tinted:hover {
+    background-color: color-mix(in srgb, var(--mobile-accent, #0b57d8) 84%, transparent);
+    color: var(--mobile-on-accent, #ffffff);
+    -webkit-backdrop-filter: saturate(160%) blur(20px);
+    backdrop-filter: saturate(160%) blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.38);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.35),
+      0 1px 2px rgba(15, 23, 42, 0.1),
+      0 10px 26px color-mix(in srgb, var(--mobile-accent, #0b57d8) 38%, transparent);
+    transition: background-color 0.15s ease;
+  }
+  .app-ui .glass-tinted:active {
+    background-color: color-mix(in srgb, var(--mobile-accent, #0b57d8) 97%, transparent);
+    color: var(--mobile-on-accent, #ffffff);
+    transform: none;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.25),
+      0 4px 14px color-mix(in srgb, var(--mobile-accent, #0b57d8) 30%, transparent);
+  }
+
+  /* Press feedback for glass: the inner wrapper shrinks, the glass stays
+     transform-free. Put .glass-hit on the button, .glass-press on the span. */
+  .app-ui .glass-press {
+    transition: transform 0.12s ease;
+  }
+  .app-ui .glass-hit:active .glass-press {
+    transform: scale(0.88);
+  }
+
+  /* Tab bar: the selected tab rides a faint accent capsule. */
+  .app-ui .tab-on-pill {
+    background-color: var(--mobile-accent-soft, rgba(11, 87, 216, 0.1));
+  }
+
+  /* Chat composer: floats over the last messages instead of sitting under
+     them — the message list pads its bottom so nothing hides behind it. */
+  .app-ui .chat-composer {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-top: 0;
+    background: transparent;
+  }
+  .app-ui .chat-composer textarea,
+  .app-ui .chat-composer textarea:focus {
+    background-color: transparent;
+    border-color: transparent;
+  }
+}

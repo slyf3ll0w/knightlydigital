@@ -614,7 +614,7 @@ export default function ChatClient({
   );
 
   const conversation = (
-    <div className="flex h-full min-h-0 flex-col bg-white lg:rounded-[8px] lg:border lg:border-gray-200 lg:shadow-sm">
+    <div className="relative flex h-full min-h-0 flex-col bg-white lg:rounded-[8px] lg:border lg:border-gray-200 lg:shadow-sm">
       {/* Header */}
       <div className="flex shrink-0 items-center gap-2.5 border-b border-gray-100 px-3 py-2.5 lg:px-4">
         <button
@@ -688,7 +688,7 @@ export default function ChatClient({
       </div>
 
       {/* Messages */}
-      <div ref={scrollRef} onScroll={onScroll} className="min-h-0 flex-1 space-y-0.5 overflow-y-auto overscroll-y-contain px-3 py-3 lg:px-4">
+      <div ref={scrollRef} onScroll={onScroll} className="min-h-0 flex-1 space-y-0.5 overflow-y-auto overscroll-y-contain px-3 py-3 max-lg:pb-[calc(5.5rem+env(safe-area-inset-bottom))] lg:px-4">
         {loadingThread && (
           <p className="py-10 text-center text-sm text-gray-400">
             <Loader2 size={16} className="mr-1.5 inline animate-spin" />
@@ -886,13 +886,15 @@ export default function ChatClient({
         )}
       </div>
 
-      {/* Composer */}
+      {/* Composer — on phones a glass capsule floating over the last
+          messages (.chat-composer pins it to the bottom; the list pads for
+          it); on desktop the plain bar under the thread. */}
       <form
         onSubmit={send}
-        className="shrink-0 border-t border-gray-100 px-3 py-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] lg:px-4"
+        className="chat-composer shrink-0 border-t border-gray-100 px-3 py-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] lg:px-4"
       >
         {error && <p className="mb-1.5 text-xs text-red-600">{error}</p>}
-        <div className="flex items-end gap-2">
+        <div className="flex items-end gap-2 glass-control max-lg:rounded-[27px] max-lg:p-1.5 max-lg:pl-1">
           <textarea
             ref={inputRef}
             value={draft}
@@ -914,13 +916,13 @@ export default function ChatClient({
             rows={1}
             maxLength={4000}
             placeholder={active?.kind === "dm" ? `Message ${active.name.split(" ")[0]}…` : `Message ${active?.name ?? "your team"}…`}
-            className="max-h-[120px] min-h-[42px] flex-1 resize-none rounded-3xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-[15px] focus:border-green-400 focus:bg-white focus:outline-none"
+            className="max-h-[120px] min-h-[42px] flex-1 resize-none rounded-3xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-[15px] focus:border-green-400 focus:bg-white focus:outline-none max-lg:px-3.5"
           />
           <button
             type="submit"
             disabled={!draft.trim()}
             aria-label="Send"
-            className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-full bg-green-500 text-white transition-all hover:bg-green-600 active:scale-95 active:bg-green-700 disabled:opacity-40"
+            className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-full bg-green-500 text-white transition-all hover:bg-green-600 active:scale-95 active:bg-green-700 disabled:opacity-40 max-lg:shadow-[0_1px_2px_rgba(15,23,42,0.12)]"
           >
             <SendHorizonal size={18} />
           </button>

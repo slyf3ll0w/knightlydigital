@@ -1946,10 +1946,12 @@ export default function AppShell({
                 goBack();
               }}
               aria-label={`Back to ${mobileBack.label}`}
-              className="lg:hidden -ml-2 flex h-9 min-w-0 shrink items-center pr-1 text-[color:var(--mobile-accent)] active:opacity-50 transition-opacity"
+              className="glass-control glass-hit lg:hidden -ml-1 flex h-10 min-w-0 shrink items-center rounded-full pl-1 pr-3.5 text-[color:var(--mobile-accent)]"
             >
-              <ChevronLeft size={27} strokeWidth={2.1} className="-mr-0.5 shrink-0" />
-              <span className="truncate text-[16px] font-medium">{mobileBack.label}</span>
+              <span className="glass-press flex min-w-0 items-center">
+                <ChevronLeft size={24} strokeWidth={2.2} className="-mr-0.5 shrink-0" />
+                <span className="truncate text-[15px] font-semibold">{mobileBack.label}</span>
+              </span>
             </button>
           ) : (
             <button
@@ -1979,20 +1981,24 @@ export default function AppShell({
               setNotifsOpen(true);
             }}
             aria-label="Notifications"
-            className="lg:hidden ml-auto relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-600 active:bg-gray-100 transition-colors"
+            className="glass-control glass-hit lg:hidden ml-auto relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-gray-700"
           >
-            <Bell size={21} />
+            <span className="glass-press flex">
+              <Bell size={20} />
+            </span>
             {bellDot && (
-              <span className="absolute right-1 top-0.5 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white" />
+              <span className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-[color:var(--fab-ring)]" />
             )}
           </button>
           <Link
             href={manager ? "/app/settings" : "/app/settings/profile"}
             onClick={() => hapticImpact("LIGHT")}
             aria-label={manager ? "Settings" : "My Profile"}
-            className="lg:hidden -ml-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-600 active:bg-gray-100 transition-colors"
+            className="glass-control glass-hit lg:hidden -ml-1.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-gray-700"
           >
-            <Settings size={21} />
+            <span className="glass-press flex">
+              <Settings size={20} />
+            </span>
           </Link>
 
           {/* Desktop left slot: the page's title rises into the bar once the
@@ -2097,7 +2103,7 @@ export default function AppShell({
         {/* Scrollable content */}
         <main
           ref={mainRef}
-          className="app-main relative flex-1 overflow-y-auto pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-0"
+          className="app-main relative flex-1 overflow-y-auto pb-[calc(5.75rem+env(safe-area-inset-bottom))] lg:pb-0"
         >
           {children}
         </main>
@@ -2246,9 +2252,11 @@ function MobileTabBar({
     setSheetOpen(false);
   }, [pathname]);
 
+  // Each tab is a pill inside the glass capsule; the selected one carries a
+  // faint accent wash (.tab-on-pill) — the iOS 26 selection capsule.
   const tabClass = (active: boolean) =>
-    `flex-1 flex flex-col items-center gap-1 pt-2 pb-2.5 text-[10.5px] transition-colors ${
-      active ? "tab-ink-on font-semibold" : "tab-ink font-medium"
+    `my-1.5 flex flex-1 flex-col items-center justify-center gap-0.5 rounded-full text-[10.5px] transition-colors ${
+      active ? "tab-on-pill tab-ink-on font-semibold" : "tab-ink font-medium"
     }`;
 
   const tabLink = (
@@ -2348,7 +2356,7 @@ function MobileTabBar({
           </div>
           {/* The FAB's + twirls to an × here, on top of the sheet — the real
               FAB sits underneath it and can't show the animation itself */}
-          <div className="flex justify-center pt-1 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+          <div className="flex justify-end pr-3 pt-1 pb-[calc(0.625rem+env(safe-area-inset-bottom))]">
             <button
               type="button"
               onClick={() => {
@@ -2356,58 +2364,66 @@ function MobileTabBar({
                 setSheetOpen(false);
               }}
               aria-label="Close"
-              className="flex h-11 w-11 items-center justify-center rounded-full bg-gray-100 text-gray-600 active:scale-90 transition-transform"
+              className="glass-control glass-hit flex h-[58px] w-[58px] items-center justify-center rounded-full text-gray-700"
             >
-              <Plus size={20} strokeWidth={2.5} className={sheetOpen ? "anim-x-twirl" : ""} />
+              <span className="glass-press flex">
+                <Plus size={24} strokeWidth={2.5} className={sheetOpen ? "anim-x-twirl" : ""} />
+              </span>
             </button>
           </div>
         </div>
       )}
 
-      {/* ── Mobile bottom tab bar ─────────────────────────────────────────── */}
-      <nav className="mobile-tab-bar lg:hidden fixed bottom-0 inset-x-0 z-30 bg-chrome border-t border-gray-200 flex items-stretch pb-[env(safe-area-inset-bottom)]">
-        {tabLink("/app/dashboard", "Home", HomeFill)}
-        {tabLink("/app/schedule", "Schedule", ScheduleFill)}
+      {/* ── Mobile bottom tab bar — the iOS 26 layout: a floating glass
+          capsule of tabs inset from the screen edges, and the create button
+          as its own tinted-glass circle beside it (no more notch). Nothing
+          here may carry a transform — see the Liquid Glass block in
+          globals.css. ── */}
+      <nav className="mobile-tab-bar lg:hidden fixed inset-x-3 bottom-[calc(0.625rem+env(safe-area-inset-bottom))] z-30 flex items-stretch gap-2.5">
+        <div className="glass-control flex h-[58px] min-w-0 flex-1 items-stretch rounded-full px-1.5">
+          {tabLink("/app/dashboard", "Home", HomeFill)}
+          {tabLink("/app/schedule", "Schedule", ScheduleFill)}
+          {tabLink("/app/chat", "Chat", ChatFill, chatUnread > 0)}
+          <button
+            type="button"
+            onClick={() => {
+              hapticImpact("LIGHT");
+              openMore();
+            }}
+            className={tabClass(false)}
+          >
+            <span className="relative">
+              <MoreFill size={24} />
+              {pastDue > 0 && (
+                <span className="absolute -right-1 -top-0.5 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-[color:var(--fab-ring)]" />
+              )}
+            </span>
+            More
+          </button>
+        </div>
         {creates.length > 0 && (
-          <div className="relative w-[72px] shrink-0">
-            <button
-              onClick={() => {
-                setSheetOpen((v) => {
-                  if (!v) hapticImpact("MEDIUM");
-                  return !v;
-                });
-              }}
-              aria-label="Create"
-              data-tour="create"
-              className="absolute left-1/2 -translate-x-1/2 -top-6 flex h-14 w-14 items-center justify-center rounded-full border-4 border-[color:var(--fab-ring)] bg-[color:var(--mobile-accent)] text-[color:var(--mobile-on-accent)] shadow-[0_6px_16px_rgba(10,20,40,0.24)] active:scale-95 transition-transform"
-            >
+          <button
+            onClick={() => {
+              setSheetOpen((v) => {
+                if (!v) hapticImpact("MEDIUM");
+                return !v;
+              });
+            }}
+            aria-label="Create"
+            data-tour="create"
+            className="glass-tinted glass-hit flex h-[58px] w-[58px] shrink-0 items-center justify-center rounded-full"
+          >
+            <span className="glass-press flex">
               <Plus
-                size={24}
+                size={26}
                 strokeWidth={2.5}
                 className={`transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
                   sheetOpen ? "rotate-[135deg]" : ""
                 }`}
               />
-            </button>
-          </div>
+            </span>
+          </button>
         )}
-        {tabLink("/app/chat", "Chat", ChatFill, chatUnread > 0)}
-        <button
-          type="button"
-          onClick={() => {
-            hapticImpact("LIGHT");
-            openMore();
-          }}
-          className={tabClass(false)}
-        >
-          <span className="relative">
-            <MoreFill size={24} />
-            {pastDue > 0 && (
-              <span className="absolute -right-1 -top-0.5 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-[color:var(--fab-ring)]" />
-            )}
-          </span>
-          More
-        </button>
       </nav>
     </>
   );
