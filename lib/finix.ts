@@ -80,6 +80,8 @@ async function parseFinixResponse<T>(res: Response): Promise<T> {
   return data as T;
 }
 
+const FINIX_TIMEOUT_MS = 20_000;
+
 async function finixFetch<T>(
   path: string,
   init?: { method?: "GET" | "POST" | "PUT"; body?: unknown }
@@ -91,6 +93,9 @@ async function finixFetch<T>(
       "Content-Type": "application/json",
     },
     body: init?.body === undefined ? undefined : JSON.stringify(init.body),
+    // A stalled processor call must not pin a request slot indefinitely —
+    // the Payments page and the charge paths await these in-request.
+    signal: AbortSignal.timeout(FINIX_TIMEOUT_MS),
   });
   return parseFinixResponse<T>(res);
 }

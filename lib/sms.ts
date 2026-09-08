@@ -54,6 +54,8 @@ export async function sendSms({
         Authorization: `Bearer ${TELNYX_API_KEY}`,
         "Content-Type": "application/json",
       },
+      // Same rule as email: an awaited send must be bounded
+      signal: AbortSignal.timeout(15_000),
       body: JSON.stringify({
         to: e164,
         text,

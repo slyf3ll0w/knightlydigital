@@ -415,6 +415,9 @@ ${html}
         Authorization: `Bearer ${RESEND_API_KEY}`,
         "Content-Type": "application/json",
       },
+      // Dozens of request handlers await this send inline — never let a
+      // slow mail API hold the request open indefinitely
+      signal: AbortSignal.timeout(15_000),
       body: JSON.stringify({
         from,
         to: [to],

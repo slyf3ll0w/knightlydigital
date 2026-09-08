@@ -66,11 +66,13 @@ export default async function InvoicesPage({
     : {};
 
   // Surface past-due invoices automatically (awaiting payment + the whole due
-  // day has passed — an invoice due today isn't late yet)
-  await prisma.invoice.updateMany({
-    where: { companyId, status: "AWAITING_PAYMENT", dueDate: pastDueFilter() },
-    data: { status: "PAST_DUE" },
-  });
+  // day has passed — an invoice due today isn't late yet). The hourly cron
+  // does the same flip; this is the catch-up for the hour in between. Probe
+  // first (indexed, lock-free) so a plain list render never takes row locks.
+  const pastDueWhere = { companyId, status: "AWAITING_PAYMENT" as const, dueDate: pastDueFilter() };
+  if (await prisma.invoice.findFirst({ where: pastDueWhere, select: { id: true } })) {
+    await prisma.invoice.updateMany({ where: pastDueWhere, data: { status: "PAST_DUE" } });
+  }
 
   // "All" means the live ledger — archived invoices only show on their own tab
   // (or in a search, so a shelved invoice is still findable)

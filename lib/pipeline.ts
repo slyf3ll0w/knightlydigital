@@ -101,10 +101,15 @@ export async function ensureStages(companyId: string) {
       orderBy: { sortOrder: "asc" },
     });
   }
-  await prisma.contact.updateMany({
-    where: { companyId, status: "LEAD", pipelineStageId: null },
-    data: { pipelineStageId: stages[0].id, stageChangedAt: new Date() },
-  });
+  // Stray-lead sweep: probe before writing so the board's every render isn't
+  // an updateMany against the contacts table
+  const strayWhere = { companyId, status: "LEAD" as const, pipelineStageId: null };
+  if (await prisma.contact.findFirst({ where: strayWhere, select: { id: true } })) {
+    await prisma.contact.updateMany({
+      where: strayWhere,
+      data: { pipelineStageId: stages[0].id, stageChangedAt: new Date() },
+    });
+  }
   return stages;
 }
 

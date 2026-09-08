@@ -55,10 +55,15 @@ export async function GET(
     include: { sender: { select: { name: true } } },
   });
 
-  await prisma.portalMessage.updateMany({
-    where: { contactId: contact.id, direction: "INBOUND", readByTeamAt: null },
-    data: { readByTeamAt: new Date() },
-  });
+  // Mark inbound as read — but only when this poll actually saw something
+  // unread. The thread polls every 15 s; an unconditional write per poll is
+  // a row-lock probe for nothing.
+  if (messages.some((m) => m.direction === "INBOUND" && !m.readByTeamAt)) {
+    await prisma.portalMessage.updateMany({
+      where: { contactId: contact.id, direction: "INBOUND", readByTeamAt: null },
+      data: { readByTeamAt: new Date() },
+    });
+  }
 
   return NextResponse.json({ messages: messages.map(serialize) });
 }

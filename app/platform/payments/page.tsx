@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import { prisma } from "@/lib/db";
 import { requirePageActor, canSeeMoney, isManager } from "@/lib/permissions";
 import Link from "next/link";
@@ -120,23 +121,28 @@ export default async function PaymentsDashboardPage({
 
   // Reconcile recorded payments whose transfer has since failed at the
   // processor (a missed FAILED webhook) — same unwind the webhook applies.
+  // The rows drop out of this render immediately; the delete + invoice
+  // recompute runs after the response is sent so a GET never holds row
+  // locks while the page is still streaming.
   const failedPayments = payments.filter((p) => {
     const t = p.processorRef ? transferStates.get(p.processorRef) : undefined;
     return t?.state === "FAILED" || t?.state === "CANCELED";
   });
-  for (const p of failedPayments) {
-    try {
-      await prisma.$transaction(async (tx) => {
-        await tx.payment.delete({ where: { id: p.id } });
-        await recomputeInvoiceStatus(tx, p.invoiceId);
-      });
-    } catch (err) {
-      console.error("[payments] failed-transfer reconciliation failed", err);
-    }
-  }
   if (failedPayments.length > 0) {
     const failedIds = new Set(failedPayments.map((p) => p.id));
     payments = payments.filter((p) => !failedIds.has(p.id));
+    after(async () => {
+      for (const p of failedPayments) {
+        try {
+          await prisma.$transaction(async (tx) => {
+            await tx.payment.delete({ where: { id: p.id } });
+            await recomputeInvoiceStatus(tx, p.invoiceId);
+          });
+        } catch (err) {
+          console.error("[payments] failed-transfer reconciliation failed", err);
+        }
+      }
+    });
   }
 
   const today = new Date();

@@ -52,10 +52,14 @@ export async function GET(req: NextRequest) {
     include: { sender: { select: { name: true } } },
   });
 
-  await prisma.portalMessage.updateMany({
-    where: { contactId: contact.id, direction: "OUTBOUND", readByClientAt: null },
-    data: { readByClientAt: new Date() },
-  });
+  // Read receipt for the client side — same rule as the team thread: write
+  // only when this poll actually saw an unread outbound message.
+  if (messages.some((m) => m.direction === "OUTBOUND" && !m.readByClientAt)) {
+    await prisma.portalMessage.updateMany({
+      where: { contactId: contact.id, direction: "OUTBOUND", readByClientAt: null },
+      data: { readByClientAt: new Date() },
+    });
+  }
 
   return NextResponse.json({ messages: messages.map(serialize) });
 }
