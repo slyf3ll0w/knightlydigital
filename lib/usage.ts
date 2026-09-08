@@ -141,12 +141,17 @@ export async function rollupStorageSnapshots(): Promise<number> {
       GROUP BY j."companyId"
     ) p ON p."companyId" = c.id
   `;
-  for (const r of rows) {
-    await prisma.companyUsageDaily.upsert({
-      where: { companyId_day: { companyId: r.companyId, day } },
-      create: { companyId: r.companyId, day, storageBytes: r.bytes },
-      update: { storageBytes: r.bytes },
-    });
+  // Batched: one round trip per 50 companies instead of one per company
+  for (let i = 0; i < rows.length; i += 50) {
+    await prisma.$transaction(
+      rows.slice(i, i + 50).map((r) =>
+        prisma.companyUsageDaily.upsert({
+          where: { companyId_day: { companyId: r.companyId, day } },
+          create: { companyId: r.companyId, day, storageBytes: r.bytes },
+          update: { storageBytes: r.bytes },
+        })
+      )
+    );
   }
   return rows.length;
 }

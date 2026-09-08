@@ -139,9 +139,18 @@ async function collectFindings(now: Date): Promise<{
     });
 
   // ── Invoices: math + status vs balance ─────────────────────────────────────
-  // One pass over all non-archived invoices with payments + line items.
+  // One pass over all non-archived invoices with payments + line items —
+  // fetched in id-ordered windows so the sweep's memory stays flat however
+  // many tenants and invoices there are.
+  const INVOICE_WINDOW = 1000;
+  let invoicesChecked = 0;
+  let invoiceCursor: string | undefined;
+  for (;;) {
   const invoices = await prisma.invoice.findMany({
     where: { status: { not: "ARCHIVED" } },
+    orderBy: { id: "asc" },
+    take: INVOICE_WINDOW,
+    ...(invoiceCursor ? { cursor: { id: invoiceCursor }, skip: 1 } : {}),
     select: {
       id: true,
       companyId: true,
@@ -230,6 +239,10 @@ async function collectFindings(now: Date): Promise<{
       );
     }
   }
+  invoicesChecked += invoices.length;
+  if (invoices.length < INVOICE_WINDOW) break;
+  invoiceCursor = invoices[invoices.length - 1].id;
+  }
 
   // ── Payments: duplicate processor refs + near-duplicate charges ────────────
   const dupRefs = await prisma.payment.groupBy({
@@ -291,7 +304,10 @@ async function collectFindings(now: Date): Promise<{
   }
 
   // ── Refunds ────────────────────────────────────────────────────────────────
+  // Shape checks only, so a 90-day window is plenty — older refunds were
+  // already checked by the sweeps that ran when they were fresh.
   const refunds = await prisma.refund.findMany({
+    where: { createdAt: { gte: new Date(now.getTime() - 90 * 86400_000) } },
     select: {
       id: true,
       companyId: true,
@@ -456,7 +472,7 @@ async function collectFindings(now: Date): Promise<{
     }
   }
 
-  return { findings, companies: companies.length, invoicesChecked: invoices.length };
+  return { findings, companies: companies.length, invoicesChecked };
 }
 
 /**

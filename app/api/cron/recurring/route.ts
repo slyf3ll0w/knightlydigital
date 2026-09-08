@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import {
@@ -19,91 +20,126 @@ import { rollupStorageSnapshots } from "@/lib/usage";
 import { runNightlyReconciliation } from "@/lib/reconcile";
 
 /**
- * Daily billing cron. A scheduler (Railway cron service, or an external pinger
- * like cron-job.org) POSTs here once a day with the shared secret. It does two
- * sweeps: (1) generate the next cycle for every due subscription, and (2) send
- * payment reminders for unpaid/overdue invoices (due, +3, +7, +14 days). Both
- * are idempotent — running twice in a day won't double-bill or double-remind.
+ * Hourly billing cron. A scheduler (Railway cron service, or an external
+ * pinger like cron-job.org) POSTs here with the shared secret. Every sweep is
+ * idempotent — running twice in an hour won't double-bill or double-remind —
+ * and each one claims its rows in the DB, so a sweep that is cut short simply
+ * resumes on the next tick.
  *
  *   curl -X POST https://<host>/api/cron/recurring \
  *        -H "Authorization: Bearer $CRON_SECRET"
  *
  * Set CRON_SECRET in the environment. If it's unset the endpoint is disabled
  * (503) so an unconfigured deploy can't be triggered anonymously.
+ *
+ * Three guards keep one slow hour from cascading:
+ *  - overlap: a tick that arrives while the previous one is still running is
+ *    refused (409) instead of racing it;
+ *  - isolation: a sweep that throws is logged and the rest still run — one
+ *    bad row in reminders must never stop autopay retries;
+ *  - budget: sweeps that would start after BUDGET_MS are deferred to the next
+ *    tick, so the request always finishes inside any proxy timeout.
  */
 export const dynamic = "force-dynamic";
+
+const BUDGET_MS = 8 * 60_000;
+
+// Single-container deployment: an in-process flag is the overlap guard. The
+// per-row DB claims underneath make an overlap safe anyway — this just stops
+// it being wasteful.
+let running = false;
+
+function authorized(header: string | null, secret: string): boolean {
+  const expected = Buffer.from(`Bearer ${secret}`);
+  const given = Buffer.from(header ?? "");
+  return given.length === expected.length && timingSafeEqual(given, expected);
+}
 
 export async function POST(req: NextRequest) {
   const secret = process.env.CRON_SECRET;
   if (!secret) {
     return NextResponse.json({ error: "Cron is not configured." }, { status: 503 });
   }
-
-  const auth = req.headers.get("authorization");
-  if (auth !== `Bearer ${secret}`) {
+  if (!authorized(req.headers.get("authorization"), secret)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  if (running) {
+    return NextResponse.json({ ok: false, skipped: "previous run still in progress" }, { status: 409 });
+  }
+  running = true;
+  const started = Date.now();
   const now = new Date();
-  const subscriptions = await runDueSubscriptions(now);
-  // Monthly-consolidated series: bill the month's completed visits on the 1st
-  const consolidations = await runMonthlyConsolidations(now);
-  // Materialize upcoming visit-series jobs (~4-week rolling horizon)
-  const visits = await generateDueVisits(now);
-  // Autopay retries: re-attempt declined card-on-file charges on their
-  // +1d/+3d/+7d schedule (soft declines only — hard declines gave up already)
-  const autoChargeRetries = await runAutoChargeRetries(now);
-  // "Your card expires soon" nudges for clients on autopay (once per card)
-  const cardNudges = await runCardExpiryNudges(now);
-  // Standing monthly expenses (rent, insurance…) post to the expense log on
-  // their day of the month
-  const recurringExpenses = await runRecurringExpenses(now);
-  const reminders = await runDueReminders(now);
-  // Sales follow-ups: quotes sitting unanswered get a nudge at 3 and 7 days
-  const quoteFollowUps = await runQuoteFollowUps(now);
-  // Online-booking appointment reminders (1 day / 1 hour before). The 1-hour
-  // stage only lands if this cron runs hourly — daily runs still cover the
-  // day-before stage.
-  const appointmentReminders = await runAppointmentReminders(now);
-  // Job-visit reminders (same cadence): clients are told the arrival window,
-  // never the dispatch-exact time
-  const visitReminders = await runVisitReminders(now);
-  // Crew heads-up push ~1 hour before each visit, with On My Way / Directions
-  // action buttons — needs the hourly cron to land, like the 1-hour stages
-  const techHeadsUp = await runTechHeadsUp(now);
-  // QuickBooks sweep: catches invoices issued/edited outside the payment
-  // hook. No-op unless QBO env vars are set and companies have connected.
-  const quickbooks = await runQuickBooksNightlySync();
-  // Team-map retention: location history older than 30 days is deleted —
-  // deliberate; keep the window short.
-  const prunedPings = await prisma.locationPing.deleteMany({
-    where: { recordedAt: { lt: new Date(now.getTime() - 30 * 86400000) } },
-  });
-  // Per-company storage snapshot for the superadmin cost dashboard. On an
-  // hourly cron this just overwrites today's level — harmless.
-  const storageCompanies = await rollupStorageSnapshots().catch((err) => {
-    console.error("[cron] storage rollup failed", err);
-    return 0;
-  });
-  // Financial reconciliation: re-derives every money invariant and emails the
-  // platform operator on drift. Self-gates to once a day; never throws.
-  const reconcile = await runNightlyReconciliation(now);
+  const results: Record<string, unknown> = {};
+  const deferred: string[] = [];
+
+  const step = async (name: string, fn: () => Promise<unknown>) => {
+    if (Date.now() - started > BUDGET_MS) {
+      deferred.push(name);
+      return;
+    }
+    try {
+      results[name] = await fn();
+    } catch (err) {
+      console.error(`[cron] ${name} failed`, err);
+      results[name] = { error: err instanceof Error ? err.message : "failed" };
+    }
+  };
+
+  try {
+    // Money first: the sweeps that bill or retry charges run before anything
+    // that merely notifies, so a slow hour defers nudges, not revenue.
+    await step("subscriptions", () => runDueSubscriptions(now));
+    // Monthly-consolidated series: bill the month's completed visits on the 1st
+    await step("consolidations", () => runMonthlyConsolidations(now));
+    // Autopay retries: re-attempt declined card-on-file charges on their
+    // +1d/+3d/+7d schedule (soft declines only — hard declines gave up already)
+    await step("autoChargeRetries", () => runAutoChargeRetries(now));
+    // Materialize upcoming visit-series jobs (~4-week rolling horizon)
+    await step("visits", () => generateDueVisits(now));
+    // Standing monthly expenses (rent, insurance…) post to the expense log on
+    // their day of the month
+    await step("recurringExpenses", () => runRecurringExpenses(now));
+    await step("reminders", () => runDueReminders(now));
+    // Crew heads-up push ~1 hour before each visit, with On My Way / Directions
+    // action buttons — needs the hourly cron to land, like the 1-hour stages
+    await step("techHeadsUp", () => runTechHeadsUp(now));
+    // Online-booking appointment reminders (1 day / 1 hour before). The 1-hour
+    // stage only lands if this cron runs hourly — daily runs still cover the
+    // day-before stage.
+    await step("appointmentReminders", () => runAppointmentReminders(now));
+    // Job-visit reminders (same cadence): clients are told the arrival window,
+    // never the dispatch-exact time
+    await step("visitReminders", () => runVisitReminders(now));
+    // Sales follow-ups: quotes sitting unanswered get a nudge at 3 and 7 days
+    await step("quoteFollowUps", () => runQuoteFollowUps(now));
+    // "Your card expires soon" nudges for clients on autopay (once per card)
+    await step("cardNudges", () => runCardExpiryNudges(now));
+    // QuickBooks sweep: catches invoices issued/edited outside the payment
+    // hook. No-op unless QBO env vars are set and companies have connected.
+    await step("quickbooks", () => runQuickBooksNightlySync());
+    // Team-map retention: location history older than 30 days is deleted —
+    // deliberate; keep the window short.
+    await step("prunedPings", async () => {
+      const r = await prisma.locationPing.deleteMany({
+        where: { recordedAt: { lt: new Date(now.getTime() - 30 * 86400000) } },
+      });
+      return r.count;
+    });
+    // Per-company storage snapshot for the superadmin cost dashboard. On an
+    // hourly cron this just overwrites today's level — harmless.
+    await step("storageCompanies", () => rollupStorageSnapshots());
+    // Financial reconciliation: re-derives every money invariant and emails the
+    // platform operator on drift. Self-gates to once a day; never throws.
+    await step("reconcile", () => runNightlyReconciliation(now));
+  } finally {
+    running = false;
+  }
+
   return NextResponse.json({
     ok: true,
-    subscriptions,
-    consolidations,
-    visits,
-    autoChargeRetries,
-    cardNudges,
-    recurringExpenses,
-    reminders,
-    quoteFollowUps,
-    appointmentReminders,
-    visitReminders,
-    techHeadsUp,
-    quickbooks,
-    prunedPings: prunedPings.count,
-    storageCompanies,
-    reconcile,
+    ms: Date.now() - started,
+    ...(deferred.length ? { deferred } : {}),
+    ...results,
   });
 }

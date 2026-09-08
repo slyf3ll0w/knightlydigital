@@ -12,8 +12,14 @@ const ranges = [
   { value: "30", label: "30 days" },
   { value: "90", label: "90 days" },
   { value: "365", label: "12 months" },
-  { value: "all", label: "All time" },
+  { value: "all", label: "2 years" },
 ];
+
+// "All time" used to hydrate every payment the company ever took, with its
+// invoice, job, contact and line items, into one render. Two years is the
+// longest window the attribution charts are useful over, and it bounds the
+// page's memory to a size that can't take the container down.
+const MAX_RANGE_DAYS = 730;
 
 type Bucket = { revenue: number; count: number };
 
@@ -140,18 +146,23 @@ export default async function InsightsPage({
   const companyId = actor.companyId;
 
   const { range } = await searchParams;
-  const days = range === "all" ? null : parseInt(range ?? "90") || 90;
-  const since = days ? new Date(Date.now() - days * 86400000) : undefined;
+  const days = Math.min(
+    MAX_RANGE_DAYS,
+    range === "all" ? MAX_RANGE_DAYS : parseInt(range ?? "90") || 90
+  );
+  const since: Date | undefined = new Date(Date.now() - days * 86400000);
 
-  // Revenue = recorded payments, attributed via the invoice's job and contact
+  // Revenue = recorded payments, attributed via the invoice's job and contact.
+  // Only the columns the attribution below reads — not whole rows.
   const payments = await prisma.payment.findMany({
-    where: { companyId, ...(since ? { paidAt: { gte: since } } : {}) },
-    include: {
+    where: { companyId, paidAt: { gte: since } },
+    select: {
+      amount: true,
       invoice: {
-        include: {
-          job: true,
-          contact: true,
-          lineItems: true,
+        select: {
+          job: { select: { leadSource: true, address: true } },
+          contact: { select: { leadSource: true, city: true } },
+          lineItems: { select: { name: true, description: true, total: true } },
         },
       },
     },
