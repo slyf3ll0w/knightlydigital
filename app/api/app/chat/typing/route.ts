@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const rl = limit(`chat-typing:${actor.id}`, 60, 60 * 1000);
+  const rl = await limit(`chat-typing:${actor.id}`, 60, 60 * 1000);
   if (!rl.ok) {
     return NextResponse.json({ error: "Too many requests — slow down." }, { status: 429 });
   }

@@ -2,4 +2,4 @@
 cmds = ["npm ci", "npm run build"]
 
 [start]
-cmd = "npm run db:push && npm run db:seed && npm run start"
+cmd = "npm run start"

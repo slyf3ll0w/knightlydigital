@@ -48,7 +48,7 @@ export async function POST(
   // so ad platforms just see a dead webhook.
   if (company.suspendedAt) return NextResponse.json({ error: "Not found." }, { status: 404 });
 
-  const rl = limit(`lead-webhook:${company.id}`, MAX_LEADS_PER_COMPANY_PER_HOUR, 3600000);
+  const rl = await limit(`lead-webhook:${company.id}`, MAX_LEADS_PER_COMPANY_PER_HOUR, 3600000);
   if (!rl.ok) {
     return NextResponse.json(
       { error: "Too many requests. Try again later." },

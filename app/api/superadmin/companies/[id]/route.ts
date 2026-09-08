@@ -173,7 +173,7 @@ export async function DELETE(
 
   // 5 attempts/hour — this endpoint verifies a password and must not be
   // farmable, even by a compromised superadmin session.
-  const rl = limit(`superadmin-delete:${admin.id}`, 5, 60 * 60 * 1000);
+  const rl = await limit(`superadmin-delete:${admin.id}`, 5, 60 * 60 * 1000);
   if (!rl.ok) {
     return NextResponse.json({ error: "Too many attempts — try again later." }, { status: 429 });
   }

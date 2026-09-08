@@ -20,7 +20,7 @@ import { getActor, isManager } from "@/lib/permissions";
 export async function GET(req: NextRequest, { params }: { params: Promise<{ slug: string; type: string }> }) {
   const { slug, type: typeSlug } = await params;
   const ip = clientIp(req.headers);
-  if (!limit(`booking-slots:${ip}`, 60, 60000).ok) {
+  if (!(await limit(`booking-slots:${ip}`, 60, 60000)).ok) {
     return NextResponse.json({ error: "Too many requests." }, { status: 429 });
   }
   const q = req.nextUrl.searchParams;

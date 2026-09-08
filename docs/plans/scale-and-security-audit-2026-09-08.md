@@ -3,7 +3,43 @@
 Audit of the app as deployed on Railway at commit `cf1576b`. Two questions:
 "will too many users online at once crash or slow the server?" and "is security
 good enough to be live?" Findings are grouped into fix batches at the bottom.
-Nothing in this document has been shipped yet.
+
+## Status — 2026-09-08, same day
+
+Batches A–G were worked through in one pass (commits `3e3eea7` Batch A,
+`3428e9b` B, `71598eb` C, then D–G). What shipped vs. what was deliberately
+left, by item number from the batch list below:
+
+| Item | Result |
+|---|---|
+| A 1–5 | **Shipped.** next-auth 4.24.15; frame headers on every path but `/embed`; chat sweep once per boot per company; `getSession`/`loadActor` memoised with React `cache()` (+ layout reuses it via `peekActor`); Payment + Invoice indexes. |
+| B 6–8 | **Shipped.** `lib/db.ts` pins `connection_limit=20&pool_timeout=20` unless the URL already does; Railway `NODE_OPTIONS=--max-old-space-size=4096`; `AbortSignal.timeout` on Finix (20 s), Resend (15 s), Telnyx (15 s). |
+| B 9 | **Partial.** Failed-transfer unwind moved into `next/server` `after()` (no writes during render). The 3 Finix reads + evidence/funding fan-out still happen in SSR but are now time-bounded. Full client-side split of the live section is still open. |
+| B 10 | **Shipped.** Invoices past-due flip, leads stray sweep, team/hub read receipts all probe before writing. |
+| C 11–14 | **Shipped.** `listChannels`/`totalUnread` = 2 queries total; chat GET writes the seen-marker only when unread > 0; poll 8 s (typing TTL 9 s); nav-counts throttled 3 s; typing map swept on write. Hub thread already had the visibility guard. |
+| D 15 | **Shipped.** Insights capped at 730 days (`All time` → `2 years`) and selects only the attribution columns. |
+| D 16–19 | **Left.** Dashboard queries already select narrowly (audit overstated); leads/schedule/timesheets are inherently whole-board; contact pickers need a typeahead UI (`lib/contact-search.ts` exists) — a UI project, not a query tweak; import chunking untouched. |
+| E 20 | **Shipped.** Cron: in-process overlap guard (409), per-sweep try/catch isolation, 8-minute budget (later sweeps deferred to the next tick), money sweeps ordered first, `timingSafeEqual` on the secret. |
+| E 21 | **Shipped.** Reconcile walks invoices in id-ordered windows of 1000; refunds windowed to 90 days. |
+| E 22 | **Partial.** Usage rollup upserts batched 50 per transaction. QuickBooks per-tenant pulls left alone (QBO Ph2 not sandbox-verified — don't touch blind). |
+| F 23–25 | **Shipped.** Session 14 d rolling (`updateAge` 24 h); `Account.passwordChangedAt` + `token.authAt` — `loadActor` treats any session minted before the last password change as stale (cookie cleared via `/api/app/session-reset`, APIs 401); `normalizeEmail` rejects `%` and other never-legal chars, `emailWhere` escapes `_` (Prisma strips one backslash level, so the source uses `\\_` — verified against prod). |
+| F 26 | **Shipped.** 120/hour per company on invoice send, quote send, client message, portal invite; `SMS_DAILY_CAP` (default 500/company/day) enforced inside `sendSms`. |
+| F 27–28 | **Shipped.** Cron secret timing-safe; Telnyx webhook rejects timestamps older than 5 min. |
+| F 29 | **Partial.** HSTS `preload` added. CSP not added — needs an origin inventory (Finix, Turnstile, Mapbox, Sentry, fonts, R2) and a report endpoint first; a wrong CSP breaks the card form. |
+| G 30 | **Shipped.** `railway.json` `deploy.preDeployCommand: npm run db:predeploy` (= `db:push` + `db:seed` + backfills, 15-min timeout); container start is plain `next start`. Schema changes now apply once per deploy, not on every restart, and a second replica no longer races `db push`. |
+| G 31 | **Shipped (dark).** `lib/rate-limit.ts` is async and uses Upstash Redis REST when `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` are set, falling back to the in-memory map otherwise (and on Redis errors). All 16 call sites await it. **Until those vars exist, stay on one container.** |
+| G 32 | **Left.** Mapbox matrix cache stays per-process (accepted). |
+| G 33 | **No change needed.** `bcryptjs` is already used through its async API, which yields to the event loop between rounds; cost 12 stays. |
+| G 34 | **Shipped (lighter form).** Public `/pay/:token/pdf` and `/quote/:token/pdf` get a 30/hour per-IP GET bucket in middleware. No worker thread. |
+
+**David owes / optional env:** `UPSTASH_REDIS_REST_URL` + `_TOKEN` (only when
+going multi-container), `SMS_DAILY_CAP` (default 500), confirm
+`TURNSTILE_SECRET_KEY` is set in Railway (captcha fails open without it).
+
+**Post-deploy checks to run** (see Verification recipes): pre-deploy command
+ran (`railway logs` shows `db:predeploy`), `/api/health` 200, frame headers on
+`/pay/x` + `/superadmin/login` and NOT on `/embed/x`, malformed-Bearer request
+to `/app/dashboard` returns a redirect not a 500, e2e suite 34/34.
 
 ## Snapshot of production at audit time
 

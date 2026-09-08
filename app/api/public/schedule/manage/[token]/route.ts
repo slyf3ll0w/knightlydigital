@@ -93,7 +93,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ toke
 export async function POST(req: NextRequest, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   const ip = clientIp(req.headers);
-  if (!limit(`booking-manage:${ip}`, 20, 3600000).ok) {
+  if (!(await limit(`booking-manage:${ip}`, 20, 3600000)).ok) {
     return NextResponse.json({ error: "Too many requests." }, { status: 429 });
   }
   const appt = await loadByToken(token);

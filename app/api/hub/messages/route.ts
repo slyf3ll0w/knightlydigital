@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
 
   // Token + IP rate limits: a hub link is shareable, so both dimensions
   const ip = clientIp(req.headers);
-  if (!limit(`hub-msg:${token}`, 30, 3600_000).ok || !limit(`hub-msg-ip:${ip}`, 60, 3600_000).ok) {
+  if (!(await limit(`hub-msg:${token}`, 30, 3600_000)).ok || !(await limit(`hub-msg-ip:${ip}`, 60, 3600_000)).ok) {
     return NextResponse.json(
       { error: "Too many messages — give us a few minutes to catch up." },
       { status: 429 }

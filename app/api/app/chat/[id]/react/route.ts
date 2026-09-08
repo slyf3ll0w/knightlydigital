@@ -9,7 +9,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const rl = limit(`chat-react:${actor.id}`, 60, 60 * 1000);
+  const rl = await limit(`chat-react:${actor.id}`, 60, 60 * 1000);
   if (!rl.ok) {
     return NextResponse.json({ error: "Too many reactions — slow down." }, { status: 429 });
   }

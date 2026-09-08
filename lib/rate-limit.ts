@@ -1,12 +1,14 @@
 /**
- * In-memory sliding-window rate limiter.
+ * Fixed-window rate limiter.
  *
- * Suits the current single-container Railway deployment: no external service,
- * counters reset on deploy (fine — limits exist to stop abuse, not bill usage).
- * If the app ever scales to multiple instances, swap the store for Upstash
- * Redis behind this same `limit()` signature.
+ * Store: Upstash Redis (REST) when UPSTASH_REDIS_REST_URL + _TOKEN are set —
+ * counters are then shared across every container, so login brute-force and
+ * spend caps hold even with replicas. Without those vars it falls back to a
+ * process-local Map, which is exactly right for one container and silently
+ * halves every limit for each extra one.
  *
- * Edge-safe: pure Maps, no Node APIs, so the middleware can use it.
+ * Edge-safe: fetch + Maps only, no Node APIs, so the middleware can use it.
+ * A Redis outage degrades to the in-memory store rather than failing open.
  */
 
 type Window = { count: number; resetAt: number };
@@ -29,10 +31,7 @@ export interface RateLimitResult {
   retryAfterSeconds: number;
 }
 
-/**
- * Count a hit against `key` and report whether it's within `max` per `windowMs`.
- */
-export function limit(key: string, max: number, windowMs: number): RateLimitResult {
+function memoryLimit(key: string, max: number, windowMs: number): RateLimitResult {
   const now = Date.now();
   sweep(now);
 
@@ -51,6 +50,53 @@ export function limit(key: string, max: number, windowMs: number): RateLimitResu
     };
   }
   return { ok: true, remaining: max - bucket.count, retryAfterSeconds: 0 };
+}
+
+const REDIS_URL = process.env.UPSTASH_REDIS_REST_URL;
+const REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
+
+async function redis(path: string, body?: unknown): Promise<unknown> {
+  const res = await fetch(`${REDIS_URL}${path}`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${REDIS_TOKEN}`, "Content-Type": "application/json" },
+    body: body === undefined ? undefined : JSON.stringify(body),
+    // A slow limiter must never become the slow part of a request
+    signal: AbortSignal.timeout(2000),
+  });
+  if (!res.ok) throw new Error(`upstash ${res.status}`);
+  return res.json();
+}
+
+async function redisLimit(key: string, max: number, windowMs: number): Promise<RateLimitResult> {
+  const k = `rl:${key}`;
+  const [incr, pttl] = (await redis("/pipeline", [["INCR", k], ["PTTL", k]])) as {
+    result: number;
+  }[];
+  const count = incr.result;
+  let ttlMs = pttl.result;
+  // First hit in a window (or a key that somehow lost its expiry): arm it
+  if (count === 1 || ttlMs < 0) {
+    await redis(`/pexpire/${encodeURIComponent(k)}/${windowMs}`);
+    ttlMs = windowMs;
+  }
+  if (count > max) {
+    return { ok: false, remaining: 0, retryAfterSeconds: Math.max(1, Math.ceil(ttlMs / 1000)) };
+  }
+  return { ok: true, remaining: max - count, retryAfterSeconds: 0 };
+}
+
+/**
+ * Count a hit against `key` and report whether it's within `max` per `windowMs`.
+ */
+export async function limit(key: string, max: number, windowMs: number): Promise<RateLimitResult> {
+  if (REDIS_URL && REDIS_TOKEN) {
+    try {
+      return await redisLimit(key, max, windowMs);
+    } catch (err) {
+      console.error("[rate-limit] redis unavailable, using in-memory store:", err);
+    }
+  }
+  return memoryLimit(key, max, windowMs);
 }
 
 /**

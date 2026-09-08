@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
   const companyId = actor.companyId;
 
   // brute-forcing the password through this endpoint should be impossible
-  const rl = limit(`company-delete:${actor.id}`, 5, 60 * 60 * 1000);
+  const rl = await limit(`company-delete:${actor.id}`, 5, 60 * 60 * 1000);
   if (!rl.ok) {
     return NextResponse.json({ error: "Too many attempts — try again later." }, { status: 429 });
   }

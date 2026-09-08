@@ -15,7 +15,7 @@ import { suspendedResponse } from "@/lib/suspension";
  */
 export async function POST(req: NextRequest) {
   const ip = clientIp(req.headers);
-  if (!limit(`hub-resched:${ip}`, 20, 3600_000).ok) {
+  if (!(await limit(`hub-resched:${ip}`, 20, 3600_000)).ok) {
     return NextResponse.json({ error: "Too many requests — please try again later." }, { status: 429 });
   }
 

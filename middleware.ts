@@ -108,6 +108,16 @@ const rateLimits: { match: (path: string) => boolean; max: number; windowMs: num
     windowMs: 60 * 60_000,
     name: "public",
   },
+  {
+    // Client-facing PDF downloads render with @react-pdf on the request
+    // thread — hundreds of ms of CPU each, reachable by anyone with a link.
+    // A GET rule, unlike everything above.
+    match: (p) => /^\/(pay|quote)\/[^/]+\/pdf$/.test(p),
+    max: 30,
+    windowMs: 60 * 60_000,
+    name: "public-pdf",
+    methods: ["GET"],
+  },
 ];
 
 // Old agency paths — everything stays on workbenchfsm.com now
@@ -193,11 +203,15 @@ export async function middleware(req: NextRequest) {
     ]);
   }
 
-  // ── Rate limiting (POST-like methods only) ─────────────────────────────────
-  if (req.method !== "GET" && req.method !== "HEAD") {
+  // ── Rate limiting ──────────────────────────────────────────────────────────
+  // Rules apply to every non-GET/HEAD method unless they name their own
+  // methods — the public PDF rule is the one GET that earns a bucket.
+  {
+    const isWrite = req.method !== "GET" && req.method !== "HEAD";
     for (const rule of rateLimits) {
-      if (rule.match(path) && (!rule.methods || rule.methods.includes(req.method))) {
-        const result = limit(`${rule.name}:${clientIp(req.headers)}`, rule.max, rule.windowMs);
+      const methodOk = rule.methods ? rule.methods.includes(req.method) : isWrite;
+      if (methodOk && rule.match(path)) {
+        const result = await limit(`${rule.name}:${clientIp(req.headers)}`, rule.max, rule.windowMs);
         if (!result.ok) {
           // The login form is a native document POST (see login/page.tsx), so
           // a JSON 429 would render as a bare JSON page. Bounce back to the
@@ -289,5 +303,7 @@ export const config = {
     "/api/superadmin/session",
     "/api/public/:path*",
     "/api/hub/:path*",
+    "/pay/:token/pdf",
+    "/quote/:token/pdf",
   ],
 };

@@ -53,7 +53,7 @@ async function cardList(contactId: string) {
 
 export async function POST(req: NextRequest) {
   const ip = clientIp(req.headers);
-  if (!limit(`hub-pm:${ip}`, 10, 3600_000).ok) {
+  if (!(await limit(`hub-pm:${ip}`, 10, 3600_000)).ok) {
     return NextResponse.json(
       { error: "Too many attempts — please try again later." },
       { status: 429 }
