@@ -25,9 +25,15 @@ const nextConfig: NextConfig = {
         ],
       },
       {
-        // The app itself must never render inside someone else's frame
-        source: "/app/:path*",
-        headers: [{ key: "X-Frame-Options", value: "SAMEORIGIN" }],
+        // Nothing renders inside someone else's frame — the app, the console,
+        // and every client-facing money page (/pay hosts a live card form).
+        // The only exception is /embed below, so the matcher excludes it
+        // rather than relying on header-override order.
+        source: "/((?!embed/).*)",
+        headers: [
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          { key: "Content-Security-Policy", value: "frame-ancestors 'self'" },
+        ],
       },
       {
         // The embeddable booking form is explicitly frameable anywhere

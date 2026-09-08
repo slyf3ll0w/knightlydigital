@@ -53,6 +53,13 @@ export function serializeMessage(m: MessageRow) {
 
 // ── Channels ─────────────────────────────────────────────────────────────────
 
+// Companies whose legacy broadcast rows have been swept this process. The
+// sweep is a one-time migration, but it used to run as an unconditional
+// updateMany on EVERY chat poll and nav-count fetch — a write-lock probe on
+// the fastest-growing table, thousands of times a minute at scale. Once per
+// boot per company is plenty: a restart just re-checks a no-op.
+const legacySwept = new Set<string>();
+
 /** The company's Everyone channel, created on first use. Also sweeps any
  *  legacy channel-less broadcast messages into it (pre-channels rows). */
 export async function ensureEveryoneChannel(companyId: string) {
@@ -64,10 +71,13 @@ export async function ensureEveryoneChannel(companyId: string) {
       data: { companyId, isEveryone: true },
     });
   }
-  await prisma.teamMessage.updateMany({
-    where: { companyId, channelId: null, recipientId: null },
-    data: { channelId: channel.id },
-  });
+  if (!legacySwept.has(companyId)) {
+    legacySwept.add(companyId);
+    await prisma.teamMessage.updateMany({
+      where: { companyId, channelId: null, recipientId: null },
+      data: { channelId: channel.id },
+    });
+  }
   return channel;
 }
 

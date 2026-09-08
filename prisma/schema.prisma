@@ -1772,6 +1772,9 @@ model Invoice {
   @@unique([companyId, invoiceNumber])
   @@index([companyId])
   @@index([companyId, status])
+  // Past-due checks (nav-counts on every navigation, invoices list) filter
+  // companyId + status + dueDate
+  @@index([companyId, status, dueDate])
   @@index([quoteId])
   @@index([status, autoChargeNextAt])
 }
@@ -1860,6 +1863,8 @@ model Payment {
   refunds Refund[]
 
   @@index([companyId])
+  // Dashboard / business / insights / payments all range-scan paidAt per company
+  @@index([companyId, paidAt])
   @@index([invoiceId])
   @@index([contactId])
 }

@@ -2,8 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth-options";
+import { getSession, peekActor } from "@/lib/permissions";
 import { prisma } from "@/lib/db";
 import { paymentsGateStatus } from "@/lib/payments-gate";
 import { atlasAccess, ATLAS_ACCESS_SELECT, ATLAS_PRICING } from "@/lib/assistant-access";
@@ -24,7 +23,9 @@ export const metadata: Metadata = {
 };
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const session = await getServerSession(authOptions);
+  // Memoised per request (lib/permissions) — the page's requirePageActor
+  // reuses this decode and the user lookup below instead of repeating them.
+  const session = await getSession();
 
   // No session: render without AppShell (login/register pages render standalone)
   // Middleware + individual pages handle auth redirects for protected routes.
@@ -38,7 +39,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     );
 
   // Fresh from DB (not JWT) so logo/brand and role changes apply without re-login
-  const [company, user, teamCount] = await Promise.all([
+  const [company, { user }, teamCount] = await Promise.all([
     session.user.companyId
       ? prisma.company.findUnique({
           where: { id: session.user.companyId },
@@ -63,12 +64,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           },
         })
       : null,
-    session.user.id
-      ? prisma.user.findUnique({
-          where: { id: session.user.id },
-          select: { role: true, name: true, tourCompletedAt: true },
-        })
-      : null,
+    peekActor(),
     // Team chat only makes sense with someone to talk to (>1 active member)
     session.user.companyId
       ? prisma.user.count({ where: { companyId: session.user.companyId, isActive: true } })

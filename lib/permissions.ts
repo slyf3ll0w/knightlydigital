@@ -1,7 +1,15 @@
+import { cache } from "react";
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/db";
+
+/**
+ * Per-request memo of the NextAuth session. The platform layout, the page,
+ * and any nested server component all ask for it; without the memo each one
+ * re-reads the cookie and re-decrypts the JWT.
+ */
+export const getSession = cache(() => getServerSession(authOptions));
 
 /**
  * Role-based permissions.
@@ -46,9 +54,21 @@ export const assignableRoles: Role[] = ["OWNER", "ADMIN", "USER", "SALES", "TECH
  * and platform suspension must be enforced from the DB. Every /api/app route
  * and platform page goes through this — one indexed lookup per request.
  */
-async function loadActor(): Promise<{ actor: Actor | null; suspended: boolean; stale: boolean }> {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) return { actor: null, suspended: false, stale: false };
+type LoadedActor = {
+  actor: Actor | null;
+  suspended: boolean;
+  stale: boolean;
+  /** The raw user row (even when inactive) — the layout's shell chrome
+   *  reads name/role/tour state from it without a second lookup. */
+  user: { name: string; role: string; tourCompletedAt: Date | null } | null;
+};
+
+// React cache(): memoised per request, so the layout, the page, and every
+// nested server component that calls getActor/requirePageActor share ONE
+// session decode and ONE user lookup instead of repeating both.
+const loadActor = cache(async (): Promise<LoadedActor> => {
+  const session = await getSession();
+  if (!session?.user?.id) return { actor: null, suspended: false, stale: false, user: null };
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
     select: {
@@ -57,13 +77,17 @@ async function loadActor(): Promise<{ actor: Actor | null; suspended: boolean; s
       role: true,
       companyId: true,
       isActive: true,
+      tourCompletedAt: true,
       company: { select: { salesSeePayments: true, suspendedAt: true } },
     },
   });
   // stale = the JWT points at a User that no longer exists (deleted from the
   // superadmin console) — the cookie itself is the problem, not the account.
-  if (!user) return { actor: null, suspended: false, stale: true };
-  if (!user.isActive || !user.companyId) return { actor: null, suspended: false, stale: false };
+  if (!user) return { actor: null, suspended: false, stale: true, user: null };
+  const raw = { name: user.name, role: user.role, tourCompletedAt: user.tourCompletedAt };
+  if (!user.isActive || !user.companyId) {
+    return { actor: null, suspended: false, stale: false, user: raw };
+  }
   return {
     actor: {
       id: user.id,
@@ -74,7 +98,13 @@ async function loadActor(): Promise<{ actor: Actor | null; suspended: boolean; s
     },
     suspended: Boolean(user.company?.suspendedAt),
     stale: false,
+    user: raw,
   };
+});
+
+/** Layout-side read: the memoised actor load with no redirect side effects. */
+export function peekActor(): Promise<LoadedActor> {
+  return loadActor();
 }
 
 /** Suspended companies get null everywhere — every /api/app route dies 401. */
@@ -95,7 +125,7 @@ export async function requirePageActor(allowed?: (a: Actor) => boolean): Promise
   // the fields the server would demand) — clear the dead cookie instead.
   if (stale) redirect("/api/app/session-reset");
   if (!actor) {
-    const session = await getServerSession(authOptions);
+    const session = await getSession();
     redirect(session ? "/app/register" : "/app/login");
   }
   if (allowed && !allowed(actor)) redirect("/app/dashboard");
