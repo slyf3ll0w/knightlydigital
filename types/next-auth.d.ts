@@ -9,6 +9,8 @@ declare module "next-auth" {
       role: string;
       companyId: string | null;
       companyName: string | null;
+      /** ms epoch the session was minted; 0 for pre-upgrade sessions. */
+      authAt: number;
     } & DefaultSession["user"];
   }
   interface User {
@@ -16,6 +18,7 @@ declare module "next-auth" {
     role?: string;
     companyId?: string | null;
     companyName?: string | null;
+    authAt?: number;
   }
 }
 

@@ -79,11 +79,18 @@ const loadActor = cache(async (): Promise<LoadedActor> => {
       isActive: true,
       tourCompletedAt: true,
       company: { select: { salesSeePayments: true, suspendedAt: true } },
+      account: { select: { passwordChangedAt: true } },
     },
   });
   // stale = the JWT points at a User that no longer exists (deleted from the
   // superadmin console) — the cookie itself is the problem, not the account.
   if (!user) return { actor: null, suspended: false, stale: true, user: null };
+  // …or at a session minted before the account's password last changed. A
+  // recovery reset must evict whoever else was holding a cookie.
+  const changedAt = user.account?.passwordChangedAt?.getTime() ?? 0;
+  if (changedAt && (session.user.authAt ?? 0) < changedAt) {
+    return { actor: null, suspended: false, stale: true, user: null };
+  }
   const raw = { name: user.name, role: user.role, tourCompletedAt: user.tourCompletedAt };
   if (!user.isActive || !user.companyId) {
     return { actor: null, suspended: false, stale: false, user: raw };

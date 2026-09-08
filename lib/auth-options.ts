@@ -81,11 +81,21 @@ export const authOptions: NextAuthOptions = {
       },
     }),
   ],
-  session: { strategy: "jwt" },
+  session: {
+    strategy: "jwt",
+    // Two weeks, rolled forward on use (NextAuth's default is 30 days with no
+    // revocation — long for an app that holds payment data).
+    maxAge: 14 * 24 * 60 * 60,
+    updateAge: 24 * 60 * 60,
+  },
   callbacks: {
     async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id;
+        // When this session was minted. loadActor compares it with the
+        // account's passwordChangedAt so a password reset evicts every
+        // session that predates it — including an attacker's.
+        token.authAt = Date.now();
         token.accountId = (user as { accountId?: string | null }).accountId ?? null;
         token.role = (user as { role?: string }).role;
         token.companyId = (user as { companyId?: string | null }).companyId;
@@ -151,6 +161,9 @@ export const authOptions: NextAuthOptions = {
       session.user.role = token.role as string;
       session.user.companyId = (token.companyId as string | null) ?? null;
       session.user.companyName = (token.companyName as string | null) ?? null;
+      // Sessions minted before authAt existed carry 0: they stay valid until
+      // the account's password changes, then fall out like any other.
+      session.user.authAt = typeof token.authAt === "number" ? token.authAt : 0;
       return session;
     },
   },

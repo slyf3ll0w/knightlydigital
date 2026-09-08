@@ -11,7 +11,27 @@
  * sender here is expected to check it before calling sendSms.
  */
 
-import { recordSmsSent, smsSegmentCount } from "@/lib/usage";
+import { prisma } from "@/lib/db";
+import { recordSmsSent, smsSegmentCount, usageDay } from "@/lib/usage";
+
+// Per-company daily send ceiling. Usage is metered per segment already; this
+// turns the meter into a cap so a runaway loop or a hijacked login can't run
+// up the Telnyx bill. Generous for a 1–8 tech shop; raise per-tenant later.
+const SMS_DAILY_CAP = Math.max(1, parseInt(process.env.SMS_DAILY_CAP ?? "500", 10) || 500);
+
+async function underDailyCap(companyId: string): Promise<boolean> {
+  try {
+    const row = await prisma.companyUsageDaily.findUnique({
+      where: { companyId_day: { companyId, day: usageDay() } },
+      select: { smsSent: true },
+    });
+    if ((row?.smsSent ?? 0) < SMS_DAILY_CAP) return true;
+    console.warn(`[sms] daily cap (${SMS_DAILY_CAP}) reached for company ${companyId}`);
+    return false;
+  } catch {
+    return true; // metering must never block a send on its own failure
+  }
+}
 
 const TELNYX_API_KEY = process.env.TELNYX_API_KEY;
 const MESSAGING_PROFILE_ID = process.env.TELNYX_MESSAGING_PROFILE_ID;
@@ -47,6 +67,7 @@ export async function sendSms({
   if (!smsEnabled()) return false;
   const e164 = toE164(to);
   if (!e164) return false;
+  if (companyId && !(await underDailyCap(companyId))) return false;
   try {
     const res = await fetch("https://api.telnyx.com/v2/messages", {
       method: "POST",

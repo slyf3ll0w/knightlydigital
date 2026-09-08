@@ -15,9 +15,16 @@ import type { Prisma } from "@prisma/client";
  * scan is not worth trading correctness for.
  */
 
+// Loose shape check: one @, something either side, no whitespace, and none
+// of the characters that are never legal in an address. `%` matters most:
+// `emailWhere` compiles to ILIKE, where % is a wildcard — an unescaped "%"
+// used to match the oldest row in the whole table.
+const EMAIL_SHAPE = /^[^\s@%,;<>()\\"/]+@[^\s@%,;<>()\\"/]+\.[^\s@%,;<>()\\"/]+$/;
+
 /** Trim + lowercase + length-clamp an address for storage. "" if unusable. */
 export function normalizeEmail(raw: unknown): string {
-  return typeof raw === "string" ? raw.trim().toLowerCase().slice(0, 254) : "";
+  const email = typeof raw === "string" ? raw.trim().toLowerCase().slice(0, 254) : "";
+  return EMAIL_SHAPE.test(email) ? email : "";
 }
 
 /**
@@ -26,5 +33,9 @@ export function normalizeEmail(raw: unknown): string {
  * pre-existing case-duplicate pair always resolves to the same account.
  */
 export function emailWhere(email: string): Prisma.UserWhereInput {
-  return { email: { equals: email, mode: "insensitive" } };
+  // `_` is legal in addresses but a single-char wildcard under ILIKE. Prisma
+  // strips one level of backslash before the value reaches Postgres, so the
+  // literal-underscore escape is `\\_` here (verified against prod). % never
+  // gets this far — normalizeEmail rejects it.
+  return { email: { equals: email.replace(/_/g, "\\\\_"), mode: "insensitive" } };
 }

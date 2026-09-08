@@ -241,6 +241,9 @@ model Account {
   // Plain string on purpose: memberships get deleted with their company, and
   // login falls back to the oldest active membership when this row is gone.
   lastActiveUserId String?
+  // Stamped by setPasswordForUser; sessions minted before it are stale
+  // (lib/permissions.ts loadActor) — a reset evicts every older cookie.
+  passwordChangedAt DateTime?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 

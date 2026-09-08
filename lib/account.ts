@@ -104,7 +104,11 @@ export async function setPasswordForUser(userId: string, newPassword: string): P
   const account = await ensureAccountForUser(user);
   if (account) {
     await prisma.$transaction([
-      prisma.account.update({ where: { id: account.id }, data: { passwordHash: hash } }),
+      // passwordChangedAt evicts every session minted before now (loadActor)
+      prisma.account.update({
+        where: { id: account.id },
+        data: { passwordHash: hash, passwordChangedAt: new Date() },
+      }),
       prisma.user.updateMany({ where: { accountId: account.id }, data: { passwordHash: null } }),
     ]);
   } else {

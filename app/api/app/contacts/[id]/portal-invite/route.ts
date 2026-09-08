@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { limit } from "@/lib/rate-limit";
 import { getActor, canSell, contactScope } from "@/lib/permissions";
 import { sendEmail, hubAccessEmail } from "@/lib/email";
 import { inPreview, previewBlockedError } from "@/lib/preview";
@@ -11,6 +12,15 @@ export async function POST(
 ) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // Sends cost money (email/SMS) and land in a client's inbox — cap per
+  // company so one compromised login can't mailbomb or run up the bill
+  const sendRl = await limit(`send:${actor.companyId}`, 120, 60 * 60 * 1000);
+  if (!sendRl.ok) {
+    return NextResponse.json(
+      { error: "Too many sends in the last hour — try again shortly." },
+      { status: 429, headers: { "Retry-After": String(sendRl.retryAfterSeconds) } }
+    );
+  }
   if (await inPreview(actor.companyId))
     return NextResponse.json(previewBlockedError("Inviting clients to their portal"), { status: 403 });
   if (!canSell(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
