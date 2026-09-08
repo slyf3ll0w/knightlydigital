@@ -127,6 +127,11 @@ function tint(hex: string, amount: number): string {
 // decides), manage = OWNER/ADMIN.
 type NavItem = { href: string; label: string; icon: typeof Home; show?: (role: string) => boolean };
 
+// Nav-count refresh throttle (module-level: survives re-renders, resets on
+// full reload). See the nav-counts effect below.
+const NAV_COUNTS_MIN_GAP_MS = 3000;
+let lastNavCountsAt = 0;
+
 const isManagerRole = (r: string) => r === "OWNER" || r === "ADMIN";
 const sellRoles = (r: string) => isManagerRole(r) || r === "USER" || r === "SALES";
 const moneyRoles = (r: string) => isManagerRole(r) || r === "USER" || r === "SALES";
@@ -1561,9 +1566,13 @@ export default function AppShell({
   }, [pathname]);
 
   // Nav badges (new requests, past-due invoices) — refreshed on every
-  // navigation so the counts stay honest without polling.
+  // navigation so the counts stay honest without polling. Rapid tab-hopping
+  // shouldn't fan out a burst of count queries, so hops inside a short
+  // window reuse the last answer.
   useEffect(() => {
     if (isAuthPage) return;
+    if (Date.now() - lastNavCountsAt < NAV_COUNTS_MIN_GAP_MS) return;
+    lastNavCountsAt = Date.now();
     let cancelled = false;
     fetch("/api/app/nav-counts")
       .then((r) => (r.ok ? r.json() : null))

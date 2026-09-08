@@ -55,7 +55,9 @@ type Channel = {
   lastMessage: { body: string; userName: string; at: string; deleted: boolean } | null;
 };
 
-const POLL_MS = 4000;
+// Each tick is a full channel snapshot + thread list for the server; 8 s is
+// the slowest cadence that still feels live (server-side typing TTL is 9 s)
+const POLL_MS = 8000;
 const TYPING_PING_MS = 2500;
 const LONG_PRESS_MS = 350;
 

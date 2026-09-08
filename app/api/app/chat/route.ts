@@ -41,8 +41,15 @@ export async function GET(req: NextRequest) {
     }),
   ]);
 
-  await markChannelSeen(actor.id, channel);
+  // Fetching a channel marks it read — but only write the watermark when
+  // there was something unread to clear. Every open tab polls this route,
+  // and most ticks find nothing new.
   const channels = await listChannels(actor);
+  const active = channels.find((c) => c.id === channel.id);
+  if (!active || active.unread > 0) {
+    await markChannelSeen(actor.id, channel);
+    if (active) active.unread = 0;
+  }
 
   return NextResponse.json({
     channelId: channel.id,

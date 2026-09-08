@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import type { Actor } from "@/lib/permissions";
 
@@ -182,6 +183,60 @@ export type ChannelSummary = {
   lastMessage: { body: string; userName: string; at: string; deleted: boolean } | null;
 };
 
+/**
+ * Unread counts for many channels in ONE query. Each channel has its own
+ * "seen" watermark, so the filter is an OR of (channel, since) pairs and the
+ * result is grouped — replaces a count() per channel on every chat poll and
+ * every nav-count fetch.
+ */
+async function unreadByChannel(
+  actorId: string,
+  channels: { id: string; since: Date | null }[]
+): Promise<Map<string, number>> {
+  if (channels.length === 0) return new Map();
+  const rows = await prisma.teamMessage.groupBy({
+    by: ["channelId"],
+    where: {
+      deletedAt: null,
+      userId: { not: actorId },
+      OR: channels.map((c) => ({
+        channelId: c.id,
+        ...(c.since ? { createdAt: { gt: c.since } } : {}),
+      })),
+    },
+    _count: { _all: true },
+  });
+  const out = new Map<string, number>();
+  for (const r of rows) if (r.channelId) out.set(r.channelId, r._count._all);
+  return out;
+}
+
+/** Latest message per channel in ONE query (Postgres DISTINCT ON). */
+async function lastMessageByChannel(
+  channelIds: string[]
+): Promise<Map<string, ChannelSummary["lastMessage"]>> {
+  const out = new Map<string, ChannelSummary["lastMessage"]>();
+  if (channelIds.length === 0) return out;
+  const rows = await prisma.$queryRaw<
+    { channelId: string; body: string; deletedAt: Date | null; createdAt: Date; userName: string }[]
+  >`
+    SELECT DISTINCT ON (m."channelId")
+      m."channelId", m.body, m."deletedAt", m."createdAt", u.name AS "userName"
+    FROM "TeamMessage" m
+    JOIN "User" u ON u.id = m."userId"
+    WHERE m."channelId" IN (${Prisma.join(channelIds)})
+    ORDER BY m."channelId", m."createdAt" DESC`;
+  for (const r of rows) {
+    out.set(r.channelId, {
+      body: r.deletedAt ? "" : r.body.slice(0, 120),
+      userName: r.userName,
+      at: r.createdAt.toISOString(),
+      deleted: !!r.deletedAt,
+    });
+  }
+  return out;
+}
+
 /** The actor's thread list: Everyone first, then their DMs/groups by recency. */
 export async function listChannels(actor: Actor): Promise<ChannelSummary[]> {
   const everyone = await ensureEveryoneChannel(actor.companyId);
@@ -208,31 +263,15 @@ export async function listChannels(actor: Actor): Promise<ChannelSummary[]> {
   ]);
   const nameById = new Map(users.map((u) => [u.id, u.name]));
 
-  const lastMessageFor = async (channelId: string) => {
-    const m = await prisma.teamMessage.findFirst({
-      where: { channelId },
-      orderBy: { createdAt: "desc" },
-      select: { body: true, deletedAt: true, createdAt: true, user: { select: { name: true } } },
-    });
-    return m
-      ? {
-          body: m.deletedAt ? "" : m.body.slice(0, 120),
-          userName: m.user.name,
-          at: m.createdAt.toISOString(),
-          deleted: !!m.deletedAt,
-        }
-      : null;
-  };
-
-  const unreadCount = (channelId: string, since: Date | null) =>
-    prisma.teamMessage.count({
-      where: {
-        channelId,
-        deletedAt: null,
-        userId: { not: actor.id },
-        ...(since ? { createdAt: { gt: since } } : {}),
-      },
-    });
+  // Two queries for the whole list, however many threads the actor is in
+  const watermarks = [
+    { id: everyone.id, since: me?.chatLastSeenAt ?? null },
+    ...memberships.map((ms) => ({ id: ms.channel.id, since: ms.lastSeenAt })),
+  ];
+  const [unread, last] = await Promise.all([
+    unreadByChannel(actor.id, watermarks),
+    lastMessageByChannel(watermarks.map((w) => w.id)),
+  ]);
 
   const out: ChannelSummary[] = [];
   out.push({
@@ -241,32 +280,30 @@ export async function listChannels(actor: Actor): Promise<ChannelSummary[]> {
     name: "Everyone",
     memberIds: users.map((u) => u.id),
     memberCount: users.length,
-    unread: await unreadCount(everyone.id, me?.chatLastSeenAt ?? null),
-    lastMessage: await lastMessageFor(everyone.id),
+    unread: unread.get(everyone.id) ?? 0,
+    lastMessage: last.get(everyone.id) ?? null,
   });
 
-  const rest = await Promise.all(
-    memberships.map(async (ms) => {
-      const c = ms.channel;
-      const others = c.members.filter((m) => m.userId !== actor.id);
-      const isGroup = c.members.length > 2 || !!c.name;
-      const display = c.name
-        ? c.name
-        : isGroup
-          ? others.map((o) => (nameById.get(o.userId) ?? o.user.name).split(" ")[0]).join(", ")
-          : (others[0] ? nameById.get(others[0].userId) ?? others[0].user.name : "Chat");
-      return {
-        id: c.id,
-        kind: (isGroup ? "group" : "dm") as "group" | "dm",
-        name: display,
-        memberIds: c.members.map((m) => m.userId),
-        memberCount: c.members.length,
-        unread: await unreadCount(c.id, ms.lastSeenAt),
-        lastMessage: await lastMessageFor(c.id),
-        _sort: c.lastMessageAt?.getTime() ?? 0,
-      };
-    })
-  );
+  const rest = memberships.map((ms) => {
+    const c = ms.channel;
+    const others = c.members.filter((m) => m.userId !== actor.id);
+    const isGroup = c.members.length > 2 || !!c.name;
+    const display = c.name
+      ? c.name
+      : isGroup
+        ? others.map((o) => (nameById.get(o.userId) ?? o.user.name).split(" ")[0]).join(", ")
+        : (others[0] ? nameById.get(others[0].userId) ?? others[0].user.name : "Chat");
+    return {
+      id: c.id,
+      kind: (isGroup ? "group" : "dm") as "group" | "dm",
+      name: display,
+      memberIds: c.members.map((m) => m.userId),
+      memberCount: c.members.length,
+      unread: unread.get(c.id) ?? 0,
+      lastMessage: last.get(c.id) ?? null,
+      _sort: c.lastMessageAt?.getTime() ?? 0,
+    };
+  });
   rest.sort((a, b) => b._sort - a._sort);
   out.push(...rest.map(({ _sort, ...r }) => r));
   return out;
@@ -276,16 +313,35 @@ export async function listChannels(actor: Actor): Promise<ChannelSummary[]> {
 // Ephemeral by design: an in-memory map (like the prisma singleton) that a
 // poll reads back. Zero database writes; entries expire after a few seconds.
 
-const TYPING_TTL_MS = 5000;
+// Slightly longer than the poll interval so a "typing…" pill survives one
+// missed tick; the client pings every 2.5 s while keys are moving.
+const TYPING_TTL_MS = 9000;
 
 type TypingMap = Map<string, Map<string, number>>; // channelId -> userId -> stamp
 
 const globalForTyping = globalThis as unknown as { __chatTyping?: TypingMap };
 const typing: TypingMap = (globalForTyping.__chatTyping ??= new Map());
 
+// Expired entries used to be reaped only when a channel was READ, so a
+// channel typed in once and never polled again leaked its entry for the
+// life of the process. Sweep the whole map on write, at most once a minute.
+let lastTypingSweep = 0;
+function sweepTyping(now: number) {
+  if (now - lastTypingSweep < 60_000) return;
+  lastTypingSweep = now;
+  for (const [channelId, users] of typing) {
+    for (const [userId, stamp] of users) {
+      if (now - stamp > TYPING_TTL_MS) users.delete(userId);
+    }
+    if (users.size === 0) typing.delete(channelId);
+  }
+}
+
 export function markTyping(channelId: string, actorId: string): void {
+  const now = Date.now();
+  sweepTyping(now);
   const users = typing.get(channelId) ?? new Map<string, number>();
-  users.set(actorId, Date.now());
+  users.set(actorId, now);
   typing.set(channelId, users);
 }
 
@@ -326,25 +382,12 @@ export async function totalUnread(actor: Actor): Promise<number> {
       select: { channelId: true, lastSeenAt: true },
     }),
   ]);
-  const counts = await Promise.all([
-    prisma.teamMessage.count({
-      where: {
-        channelId: everyone.id,
-        deletedAt: null,
-        userId: { not: actor.id },
-        ...(me?.chatLastSeenAt ? { createdAt: { gt: me.chatLastSeenAt } } : {}),
-      },
-    }),
-    ...memberships.map((ms) =>
-      prisma.teamMessage.count({
-        where: {
-          channelId: ms.channelId,
-          deletedAt: null,
-          userId: { not: actor.id },
-          ...(ms.lastSeenAt ? { createdAt: { gt: ms.lastSeenAt } } : {}),
-        },
-      })
-    ),
+  // One grouped query, not one count per channel
+  const unread = await unreadByChannel(actor.id, [
+    { id: everyone.id, since: me?.chatLastSeenAt ?? null },
+    ...memberships.map((ms) => ({ id: ms.channelId, since: ms.lastSeenAt })),
   ]);
-  return counts.reduce((s, n) => s + n, 0);
+  let total = 0;
+  for (const n of unread.values()) total += n;
+  return total;
 }
