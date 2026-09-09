@@ -1,16 +1,18 @@
 /**
  * Drive-time engine for the Route Manager. Two layers:
  *
- *  - driveTimeMatrix(): minutes between every pair of stops. Real road times
- *    from the Mapbox Matrix API when MAPBOX_TOKEN is set (≤25 coordinates per
- *    call — a hard Mapbox limit that comfortably fits a tech's day); falls
- *    back to a haversine estimate (straight line × road factor / average
- *    speed) when the token is missing, the call fails, or the day is bigger
- *    than the API allows. Callers can't tell which one they got — both are
- *    "minutes[from][to]" — so the optimizer works with or without the key.
+ *  - driveMatrix(): minutes AND kilometers between every pair of stops.
+ *    Real road figures from the Mapbox Matrix API when MAPBOX_TOKEN is set
+ *    (≤25 coordinates per call — a hard Mapbox limit that comfortably fits a
+ *    tech's day); falls back to a haversine estimate (straight line × road
+ *    factor / average speed) when the token is missing, the call fails, or
+ *    the day is bigger than the API allows. `measured` says which one you
+ *    got, so display copy can hedge ("~12 min") only when it should.
+ *    driveTimeMatrix() is the minutes-only view older callers use.
  *
- *  - solveStopOrder(): open-path TSP (start fixed, no return leg) via
- *    nearest-neighbor construction + 2-opt improvement. Days are ≤25 stops,
+ *  - solveStopOrder(): TSP over the matrix — open path by default (start
+ *    fixed, end anywhere), or a round trip that comes back to the start.
+ *    Nearest-neighbor construction + 2-opt improvement. Days are ≤25 stops,
  *    so exhaustive 2-opt with full-path recost (drive times are asymmetric)
  *    is instant and within a few percent of optimal.
  */
@@ -24,17 +26,28 @@ export type { RoutePoint } from "@/lib/geo-estimate";
 import { haversineKm, estimateDriveMinutes, type RoutePoint } from "@/lib/geo-estimate";
 export { haversineKm, estimateDriveMinutes };
 
-function haversineMatrix(points: RoutePoint[]): number[][] {
-  return points.map((from) =>
-    points.map((to) => estimateDriveMinutes(haversineKm(from, to)))
-  );
+export type DriveMatrix = {
+  minutes: number[][];
+  km: number[][];
+  /** true = Mapbox road figures; false = straight-line estimate. */
+  measured: boolean;
+};
+
+const ROAD_FACTOR = 1.3;
+
+function haversineDriveMatrix(points: RoutePoint[]): DriveMatrix {
+  return {
+    minutes: points.map((from) => points.map((to) => estimateDriveMinutes(haversineKm(from, to)))),
+    km: points.map((from) => points.map((to) => haversineKm(from, to) * ROAD_FACTOR)),
+    measured: false,
+  };
 }
 
 // Same day, same pins → same matrix. Route pages re-fetch on every visit and
 // every optimize preview re-asks for the identical point set, so a short
 // in-process cache keeps casual browsing from eating the monthly element
 // budget. Keyed on rounded coordinates (≈1 m at 5 decimals).
-const matrixCache = new Map<string, { at: number; matrix: number[][] }>();
+const matrixCache = new Map<string, { at: number; matrix: DriveMatrix }>();
 const MATRIX_CACHE_MS = 10 * 60_000;
 const MATRIX_CACHE_MAX = 200;
 
@@ -43,16 +56,19 @@ function matrixCacheKey(points: RoutePoint[]): string {
 }
 
 /**
- * Pairwise drive-time matrix in minutes. Never throws — worst case is the
+ * Pairwise drive matrix (minutes + km). Never throws — worst case is the
  * haversine estimate.
  */
-export async function driveTimeMatrix(
+export async function driveMatrix(
   points: RoutePoint[],
   /** Tenant to meter the (platform-billed) matrix call against. */
   companyId?: string | null
-): Promise<number[][]> {
-  if (points.length < 2) return points.map(() => points.map(() => 0));
-  if (!MAPBOX_TOKEN || points.length > 25) return haversineMatrix(points);
+): Promise<DriveMatrix> {
+  if (points.length < 2) {
+    const zero = points.map(() => points.map(() => 0));
+    return { minutes: zero, km: zero.map((r) => [...r]), measured: Boolean(MAPBOX_TOKEN) };
+  }
+  if (!MAPBOX_TOKEN || points.length > 25) return haversineDriveMatrix(points);
 
   const key = matrixCacheKey(points);
   const hit = matrixCache.get(key);
@@ -60,28 +76,36 @@ export async function driveTimeMatrix(
 
   // Free-tier kill switch (lib/mapbox-budget.ts) — over the monthly element
   // cap the optimizer silently runs on the haversine estimate instead.
-  if (!(await matrixBudgetOk(points.length * points.length))) return haversineMatrix(points);
+  if (!(await matrixBudgetOk(points.length * points.length))) return haversineDriveMatrix(points);
 
   try {
     const coords = points.map((p) => `${p.lng},${p.lat}`).join(";");
     const url =
       `https://api.mapbox.com/directions-matrix/v1/mapbox/driving/${coords}` +
-      `?annotations=duration&access_token=${MAPBOX_TOKEN}`;
+      `?annotations=duration,distance&access_token=${MAPBOX_TOKEN}`;
     const res = await fetch(url);
     recordMatrixCall(companyId, points.length * points.length);
     if (!res.ok) {
       console.error("[routing] mapbox matrix failed:", res.status, await res.text());
-      return haversineMatrix(points);
+      return haversineDriveMatrix(points);
     }
-    const data = (await res.json()) as { durations?: (number | null)[][] };
+    const data = (await res.json()) as {
+      durations?: (number | null)[][];
+      distances?: (number | null)[][];
+    };
     const durations = data.durations;
-    if (!durations || durations.length !== points.length) return haversineMatrix(points);
+    if (!durations || durations.length !== points.length) return haversineDriveMatrix(points);
     // null cells = unroutable pair (island, bad snap) — patch with the estimate
-    const matrix = durations.map((row, i) =>
-      row.map((sec, j) =>
-        sec == null ? estimateDriveMinutes(haversineKm(points[i], points[j])) : sec / 60
-      )
+    const minutes = durations.map((row, i) =>
+      row.map((sec, j) => (sec == null ? estimateDriveMinutes(haversineKm(points[i], points[j])) : sec / 60))
     );
+    const km = points.map((_, i) =>
+      points.map((_, j) => {
+        const m = data.distances?.[i]?.[j];
+        return m == null ? haversineKm(points[i], points[j]) * ROAD_FACTOR : m / 1000;
+      })
+    );
+    const matrix: DriveMatrix = { minutes, km, measured: true };
     if (matrixCache.size >= MATRIX_CACHE_MAX) {
       matrixCache.delete(matrixCache.keys().next().value!);
     }
@@ -89,23 +113,30 @@ export async function driveTimeMatrix(
     return matrix;
   } catch (err) {
     console.error("[routing] mapbox matrix threw:", err);
-    return haversineMatrix(points);
+    return haversineDriveMatrix(points);
   }
 }
 
-/** Total minutes along an ordered open path. */
-export function routeMinutes(matrix: number[][], order: number[]): number {
+/** Minutes-only view of driveMatrix() for callers that only schedule. */
+export async function driveTimeMatrix(points: RoutePoint[], companyId?: string | null): Promise<number[][]> {
+  return (await driveMatrix(points, companyId)).minutes;
+}
+
+/** Total along an ordered path; `closeLoop` adds the leg back to the start. */
+export function routeMinutes(matrix: number[][], order: number[], closeLoop = false): number {
   let total = 0;
   for (let i = 1; i < order.length; i++) total += matrix[order[i - 1]][order[i]];
+  if (closeLoop && order.length > 1) total += matrix[order[order.length - 1]][order[0]];
   return total;
 }
 
 /**
  * Best visiting order over `matrix`, starting at index `startIndex` (fixed —
- * the shop, or wherever the day begins) and ending wherever the route ends.
- * Returns the full order including the start index.
+ * the shop, or wherever the day begins). Open path ends wherever it ends;
+ * `roundTrip` costs the drive back to the start too, so the last stop lands
+ * near home. Returns the full order including the start index.
  */
-export function solveStopOrder(matrix: number[][], startIndex = 0): number[] {
+export function solveStopOrder(matrix: number[][], startIndex = 0, roundTrip = false): number[] {
   const n = matrix.length;
   if (n <= 2) return Array.from({ length: n }, (_, i) => i);
 
@@ -129,7 +160,7 @@ export function solveStopOrder(matrix: number[][], startIndex = 0): number[] {
   // 2-opt: reverse any middle segment that shortens the path. Full recost per
   // candidate because drive times are asymmetric; n ≤ 25 keeps this instant.
   let improved = true;
-  let bestCost = routeMinutes(matrix, order);
+  let bestCost = routeMinutes(matrix, order, roundTrip);
   while (improved) {
     improved = false;
     for (let i = 1; i < n - 1; i++) {
@@ -139,7 +170,7 @@ export function solveStopOrder(matrix: number[][], startIndex = 0): number[] {
           ...order.slice(i, j + 1).reverse(),
           ...order.slice(j + 1),
         ];
-        const cost = routeMinutes(matrix, candidate);
+        const cost = routeMinutes(matrix, candidate, roundTrip);
         if (cost < bestCost - 0.01) {
           order.splice(0, n, ...candidate);
           bestCost = cost;
@@ -155,4 +186,8 @@ export function solveStopOrder(matrix: number[][], startIndex = 0): number[] {
 export function roundGapMinutes(minutes: number): number {
   if (minutes <= 0) return 0;
   return Math.ceil(minutes / 5) * 5;
+}
+
+export function kmToMiles(km: number): number {
+  return km * 0.621371;
 }

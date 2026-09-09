@@ -12,10 +12,15 @@ import {
   ChevronLeft,
   ChevronRight,
   CornerDownRight,
+  GripVertical,
   Inbox,
+  Link2,
   Loader2,
   MapPin,
+  Navigation,
+  Printer,
   Route as RouteIcon,
+  Send,
   Wand2,
   X,
 } from "lucide-react";
@@ -25,14 +30,25 @@ import { hapticImpact } from "@/lib/haptics";
 import { SECTION_HUES } from "@/lib/section-colors";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { localInputToISO } from "@/lib/statuses";
+import { isApplePlatform } from "@/lib/messaging";
 import "leaflet/dist/leaflet.css";
 
 /**
- * Routes — the schedule Day view on a map (Jobber's map view, spec §6,
- * previously parked). Numbered pins in visit order, one route per tech, with
- * the same control grammar as the calendar page so the two read as siblings.
- * "Optimize" previews a drive-time order via /api/app/route-plan/optimize
- * and writes nothing until Apply.
+ * Routes — the schedule Day view on a map. Numbered pins in visit order,
+ * one route per tech drawn along real roads (Mapbox Directions; dashed
+ * straight lines when that's unavailable), with the same control grammar as
+ * the calendar page so the two read as siblings.
+ *
+ *  - Drag a stop's grip to reorder it inside a route (opens the Optimize
+ *    preview with that order — nothing is written until Apply) or drop it on
+ *    another tech's card to hand it over.
+ *  - "Optimize" solves the order by drive time; the preview supports a
+ *    "Day starts at" anchor, round trip back to base, and texting every
+ *    client whose time changed on Apply.
+ *  - Per stop: Navigate (Google Maps, Apple Maps on Apple devices). Per
+ *    route: send the whole day to a phone as one multi-stop directions link,
+ *    copy that link, or print the day sheet.
+ *  - Managers see who's clocked in and where, refreshed every minute.
  */
 
 /** Quick "Day starts at" presets for the Optimize preview. */
@@ -71,19 +87,23 @@ type UnscheduledJob = {
   assigneeIds: string[];
 };
 
+type Pin = { lat: number; lng: number; label: string };
+
 type RouteDay = {
   enabled: boolean;
-  start: { lat: number; lng: number; label: string } | null;
-  /** Members with their own start address, by user id (see lib/route-plan.ts) */
-  memberStarts?: Record<string, { lat: number; lng: number; label: string }>;
+  start: Pin | null;
+  memberStarts?: Record<string, Pin>;
   stops: RouteStop[];
-  /** legs[userId][stopId] = drive minutes into that stop; totals[userId] = whole route. */
   drive?: {
     legs: Record<string, Record<string, number>>;
     totals: Record<string, number>;
+    km?: Record<string, Record<string, number>>;
+    kmTotals?: Record<string, number>;
+    measured?: boolean;
   };
-  /** The backlog: active jobs with no date at all — pull them onto this day. */
   unscheduled?: UnscheduledJob[];
+  /** Road polyline per tech, [lat, lng] pairs. */
+  geometry?: Record<string, [number, number][]>;
 };
 
 type OptimizeStop = {
@@ -103,13 +123,29 @@ type OptimizeStop = {
 type OptimizeResult = {
   userName: string;
   stops: OptimizeStop[];
-  anchorTime: string; // "HH:mm" the proposed day starts at
+  anchorTime: string;
+  roundTrip: boolean;
+  measured: boolean;
+  totalDistanceMiles: number;
+  returnMinutes: number | null;
   currentDriveMinutes: number;
   totalDriveMinutes: number;
   savedMinutes: number;
   skipped: string[];
   warnings: string[];
   applied: boolean;
+  notified: number;
+};
+
+type TeamPosition = {
+  userId: string;
+  name: string;
+  jobId: string | null;
+  jobTitle: string | null;
+  startedAt: string;
+  lat: number | null;
+  lng: number | null;
+  positionAt: string | null;
 };
 
 // Same family as the section palette — distinct at pin size, no two neighbors
@@ -145,12 +181,6 @@ function fmtDateLabel(dateStr: string): string {
   });
 }
 
-function todayStr(): string {
-  const t = new Date();
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${t.getFullYear()}-${pad(t.getMonth() + 1)}-${pad(t.getDate())}`;
-}
-
 function shiftDate(dateStr: string, days: number): string {
   const [y, m, d] = dateStr.split("-").map(Number);
   const dt = new Date(y, m - 1, d + days);
@@ -168,28 +198,78 @@ function spanLabel(stops: RouteStop[]): string {
   return `${fmtTime(first.scheduledAt)} – ${fmtTime(end)}`;
 }
 
+function miles(km: number | undefined): string | null {
+  if (km === undefined || km <= 0) return null;
+  const mi = km * 0.621371;
+  return mi < 10 ? `${mi.toFixed(1)} mi` : `${Math.round(mi)} mi`;
+}
+
+/** One stop → the phone's maps app. */
+function navigateHref(stop: { lat: number | null; lng: number | null; address: string | null }, apple: boolean): string | null {
+  const dest = stop.lat != null && stop.lng != null ? `${stop.lat},${stop.lng}` : stop.address ? stop.address : null;
+  if (!dest) return null;
+  if (apple) return `https://maps.apple.com/?daddr=${encodeURIComponent(dest)}&dirflg=d`;
+  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dest)}&travelmode=driving`;
+}
+
+/**
+ * The whole route as one Google Maps directions link (origin → waypoints →
+ * destination). Google caps waypoints at 9 in the URL API, so a longer day
+ * sends the first ten stops — the tech re-opens for the rest.
+ */
+function routeHref(start: Pin | null, stops: RouteStop[]): string | null {
+  const pts = stops
+    .filter((s) => s.lat != null && s.lng != null)
+    .map((s) => `${s.lat},${s.lng}`);
+  if (pts.length === 0) return null;
+  const origin = start ? `${start.lat},${start.lng}` : pts.shift()!;
+  if (pts.length === 0) return null;
+  const chain = pts.slice(0, 10);
+  const destination = chain.pop()!;
+  const params = new URLSearchParams({ api: "1", origin, destination, travelmode: "driving" });
+  if (chain.length) params.set("waypoints", chain.join("|"));
+  return `https://www.google.com/maps/dir/?${params.toString()}`;
+}
+
+type ListDrag = {
+  pointerId: number;
+  fromGroup: string;
+  stopId: string;
+  y: number;
+  /** Where it would land: same group index, or another group's card. */
+  over: { group: string; index: number } | null;
+  active: boolean;
+  startY: number;
+};
+
 export default function RouteMapClient({
   date,
+  today,
   team,
   users,
   meId,
   meName,
   canDispatch,
   canOptimize,
+  canSeeTeam,
 }: {
   date: string;
+  /** Today on the company's clock (YYYY-MM-DD). */
+  today: string;
   team: string;
   users: { id: string; name: string }[];
   meId: string;
   meName: string;
   canDispatch: boolean;
   canOptimize: boolean;
+  canSeeTeam: boolean;
 }) {
   const router = useRouter();
   const hue = SECTION_HUES.schedule;
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LeafletMap | null>(null);
   const layerRef = useRef<LayerGroup | null>(null);
+  const liveLayerRef = useRef<LayerGroup | null>(null);
   const markersRef = useRef<Map<string, Marker>>(new Map());
   const fittedKeyRef = useRef("");
 
@@ -198,9 +278,18 @@ export default function RouteMapClient({
   const [error, setError] = useState("");
   const [preview, setPreview] = useState<(OptimizeResult & { userId: string }) | null>(null);
   const [previewBusy, setPreviewBusy] = useState(false);
+  const [notifyOnApply, setNotifyOnApply] = useState(true);
   const [applied, setApplied] = useState("");
   const [trayOpen, setTrayOpen] = useState(false);
   const [addingId, setAddingId] = useState("");
+  const [team_, setTeamPositions] = useState<TeamPosition[]>([]);
+  const [apple, setApple] = useState(false);
+  const [copied, setCopied] = useState("");
+  const [listDrag, setListDrag] = useState<ListDrag | null>(null);
+  const listDragRef = useRef<ListDrag | null>(null);
+  const [reassigning, setReassigning] = useState("");
+
+  useEffect(() => setApple(isApplePlatform()), []);
 
   const go = useCallback(
     (next: { date?: string; team?: string }) => {
@@ -215,7 +304,7 @@ export default function RouteMapClient({
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/app/route-plan?date=${date}`);
+      const res = await fetch(`/api/app/route-plan?date=${date}&geometry=1`);
       if (!res.ok) {
         setError(GENERIC_ERROR);
         return;
@@ -233,6 +322,31 @@ export default function RouteMapClient({
     refresh();
   }, [refresh]);
 
+  // Live positions (managers), only for today — yesterday's map has no "now"
+  useEffect(() => {
+    if (!canSeeTeam || date !== today) {
+      setTeamPositions([]);
+      return;
+    }
+    let cancelled = false;
+    const tick = async () => {
+      try {
+        const res = await fetch("/api/app/team-map");
+        if (!res.ok) return;
+        const d = (await res.json()) as { team: TeamPosition[] };
+        if (!cancelled) setTeamPositions(d.team ?? []);
+      } catch {
+        /* quiet */
+      }
+    };
+    tick();
+    const id = window.setInterval(tick, 60_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [canSeeTeam, date, today]);
+
   // ── Groups: one route per tech, ordered by time ───────────────────────────
   const roster = useMemo(
     () => (canDispatch ? users : [{ id: meId, name: meName }]),
@@ -245,7 +359,7 @@ export default function RouteMapClient({
       (a, b) => new Date(a.scheduledAt ?? 0).getTime() - new Date(b.scheduledAt ?? 0).getTime()
     );
     const visible = team ? roster.filter((u) => u.id === team) : roster;
-    const out: { userId: string; name: string; color: string; stops: RouteStop[] }[] = [];
+    const out: { userId: string; name: string; color: string; stops: RouteStop[]; start: Pin | null }[] = [];
     for (const u of visible) {
       const stops = sorted.filter((s) => s.assigneeIds.includes(u.id));
       if (stops.length) {
@@ -254,13 +368,14 @@ export default function RouteMapClient({
           name: u.name,
           color: TECH_COLORS[Math.max(0, roster.findIndex((r) => r.id === u.id)) % TECH_COLORS.length],
           stops,
+          start: (data.memberStarts && data.memberStarts[u.id]) || data.start,
         });
       }
     }
     if (canDispatch && !team) {
       const unassigned = sorted.filter((s) => s.assigneeIds.length === 0);
       if (unassigned.length) {
-        out.push({ userId: "", name: "Unassigned", color: UNASSIGNED_COLOR, stops: unassigned });
+        out.push({ userId: "", name: "Unassigned", color: UNASSIGNED_COLOR, stops: unassigned, start: null });
       }
     }
     return out;
@@ -278,6 +393,9 @@ export default function RouteMapClient({
       ),
     [groups]
   );
+
+  const measured = data?.drive?.measured !== false;
+  const tilde = measured ? "" : "~";
 
   // ── Map lifecycle ─────────────────────────────────────────────────────────
   useEffect(() => {
@@ -302,6 +420,7 @@ export default function RouteMapClient({
       mapRef.current?.remove();
       mapRef.current = null;
       layerRef.current = null;
+      liveLayerRef.current = null;
       markersRef.current.clear();
     };
   }, []);
@@ -352,20 +471,24 @@ export default function RouteMapClient({
             s.kind === "job"
               ? `<br/><a href="/app/jobs/${s.id}">Open job →</a>`
               : `<br/><a href="/app/appointments/${s.id}">Open appointment →</a>`;
+          const nav = navigateHref(s, apple);
+          const navLink = nav ? ` · <a href="${nav}" target="_blank" rel="noopener">Navigate →</a>` : "";
           const marker = L.marker([s.lat, s.lng], { icon })
             .addTo(layer)
             .bindPopup(
-              `<strong>${i + 1}. ${s.title}</strong><br/>${when} · ${s.contactName}${link}`
+              `<strong>${i + 1}. ${s.title}</strong><br/>${when} · ${s.contactName}${link}${navLink}`
             );
           markersRef.current.set(`${g.userId}:${s.id}`, marker);
         });
-        if (path.length > 1 && g.userId !== "") {
-          L.polyline(path, {
-            color: g.color,
-            weight: 2.5,
-            opacity: 0.5,
-            dashArray: "5 7",
-          }).addTo(layer);
+        if (g.userId !== "") {
+          // Real roads when Directions gave us a line; dashed as-the-crow-flies otherwise
+          const road = data.geometry?.[g.userId];
+          if (road && road.length > 1) {
+            L.polyline(road, { color: "#fff", weight: 6, opacity: 0.7 }).addTo(layer);
+            L.polyline(road, { color: g.color, weight: 3.5, opacity: 0.85 }).addTo(layer);
+          } else if (path.length > 1) {
+            L.polyline(path, { color: g.color, weight: 2.5, opacity: 0.5, dashArray: "5 7" }).addTo(layer);
+          }
         }
       }
 
@@ -379,7 +502,48 @@ export default function RouteMapClient({
     return () => {
       cancelled = true;
     };
-  }, [data, groups, date, team]);
+  }, [data, groups, date, team, apple]);
+
+  // Live tech markers — separate layer so the minute refresh doesn't redraw pins
+  useEffect(() => {
+    let cancelled = false;
+    async function drawLive() {
+      const L = (await import("leaflet")).default;
+      const map = mapRef.current;
+      if (!map || cancelled) return;
+      liveLayerRef.current?.remove();
+      const layer = L.layerGroup().addTo(map);
+      liveLayerRef.current = layer;
+      const now = Date.now();
+      for (const t of team_) {
+        if (t.lat == null || t.lng == null) continue;
+        if (team && t.userId !== team) continue;
+        const idx = roster.findIndex((r) => r.id === t.userId);
+        const color = TECH_COLORS[Math.max(0, idx) % TECH_COLORS.length];
+        // Behind plan: clocked into something whose slot already ended
+        const stop = data?.stops.find((s) => s.id === t.jobId);
+        const late = stop?.scheduledEnd ? new Date(stop.scheduledEnd).getTime() < now : false;
+        const ago = t.positionAt ? Math.max(0, Math.round((now - new Date(t.positionAt).getTime()) / 60000)) : null;
+        const icon = L.divIcon({
+          html: `<div class="route-live${late ? " route-live-late" : ""}" style="--tech:${color}"><span>${initials(t.name)}</span></div>`,
+          className: "",
+          iconSize: [34, 34],
+          iconAnchor: [17, 17],
+        });
+        L.marker([t.lat, t.lng], { icon, zIndexOffset: 1000 })
+          .addTo(layer)
+          .bindPopup(
+            `<strong>${t.name}</strong><br/>${t.jobTitle ? `At ${t.jobTitle} since ${fmtTime(t.startedAt)}` : "Clocked in"}${
+              late ? `<br/><span style="color:#DC2626;font-weight:600">Running past the planned end</span>` : ""
+            }${ago !== null ? `<br/><span style="color:#6B7280">seen ${ago === 0 ? "just now" : `${ago} min ago`}</span>` : ""}`
+          );
+      }
+    }
+    drawLive();
+    return () => {
+      cancelled = true;
+    };
+  }, [team_, roster, team, data]);
 
   const focusStop = useCallback((groupUserId: string, stop: RouteStop) => {
     if (stop.lat == null || stop.lng == null) return;
@@ -391,13 +555,14 @@ export default function RouteMapClient({
 
   // ── Optimize flow ─────────────────────────────────────────────────────────
   const runOptimize = useCallback(
-    async (userId: string, order?: string[], anchorTime?: string) => {
+    async (userId: string, order?: string[], anchorTime?: string, roundTrip?: boolean) => {
       setPreviewBusy(true);
       const { ok, data: result } = await postJson<OptimizeResult>("/api/app/route-plan/optimize", {
         date,
         userId,
         ...(order ? { order } : {}),
         ...(anchorTime ? { anchorTime } : {}),
+        ...(roundTrip !== undefined ? { roundTrip } : {}),
       });
       setPreviewBusy(false);
       if (!ok || !result || result.stops == null) {
@@ -418,6 +583,8 @@ export default function RouteMapClient({
       userId: preview.userId,
       order: preview.stops.map((s) => s.id),
       anchorTime: preview.anchorTime,
+      roundTrip: preview.roundTrip,
+      notify: notifyOnApply,
       apply: true,
     });
     setPreviewBusy(false);
@@ -426,11 +593,15 @@ export default function RouteMapClient({
       return;
     }
     hapticImpact("LIGHT");
-    setApplied(`${preview.userName}'s route updated — the calendar now follows this order.`);
+    setApplied(
+      `${preview.userName}'s route updated — the calendar now follows this order.${
+        notifyOnApply ? ` ${result.notified} client${result.notified === 1 ? "" : "s"} told about the new time.` : ""
+      }`
+    );
     setPreview(null);
     refresh();
     router.refresh();
-  }, [preview, date, refresh, router]);
+  }, [preview, date, refresh, router, notifyOnApply]);
 
   const movePreviewStop = useCallback(
     (index: number, dir: -1 | 1) => {
@@ -439,7 +610,7 @@ export default function RouteMapClient({
       const j = index + dir;
       if (j < 0 || j >= ids.length) return;
       [ids[index], ids[j]] = [ids[j], ids[index]];
-      runOptimize(preview.userId, ids, preview.anchorTime);
+      runOptimize(preview.userId, ids, preview.anchorTime, preview.roundTrip);
     },
     [preview, runOptimize]
   );
@@ -449,9 +620,152 @@ export default function RouteMapClient({
     [canOptimize, canDispatch, meId]
   );
 
+  // ── Hand a stop to another tech ───────────────────────────────────────────
+  const reassign = useCallback(
+    async (stop: RouteStop, fromUserId: string, toUserId: string) => {
+      setReassigning(stop.id);
+      const body: Record<string, unknown> =
+        stop.kind === "job"
+          ? { assigneeIds: [...stop.assigneeIds.filter((id) => id !== fromUserId && id !== toUserId), ...(toUserId ? [toUserId] : [])] }
+          : { assignedToId: toUserId || null };
+      const { ok, data: res } = await postJson<{ error?: string; conflicts?: string[] }>(
+        stop.kind === "job" ? `/api/app/jobs/${stop.id}` : `/api/app/appointments/${stop.id}`,
+        body,
+        "PATCH"
+      );
+      setReassigning("");
+      if (!ok) {
+        setError(res?.error ?? GENERIC_ERROR);
+        return;
+      }
+      hapticImpact("LIGHT");
+      const toName = users.find((u) => u.id === toUserId)?.name ?? "Unassigned";
+      setApplied(
+        `${stop.title} handed to ${toName}.${res?.conflicts?.length ? ` Heads up — it overlaps: ${res.conflicts.join("; ")}` : ""}`
+      );
+      refresh();
+      router.refresh();
+    },
+    [users, refresh, router]
+  );
+
+  // ── Drag-to-reorder (grip handle, pointer events; works with a finger) ────
+  const beginListDrag = (e: React.PointerEvent, group: string, stopId: string) => {
+    if (e.button !== 0 && e.pointerType === "mouse") return;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    const d: ListDrag = { pointerId: e.pointerId, fromGroup: group, stopId, y: e.clientY, startY: e.clientY, over: null, active: false };
+    listDragRef.current = d;
+    setListDrag(d);
+  };
+
+  useEffect(() => {
+    const onMove = (e: PointerEvent) => {
+      const d = listDragRef.current;
+      if (!d || e.pointerId !== d.pointerId) return;
+      if (!d.active && Math.abs(e.clientY - d.startY) < 4) return;
+      const el = document.elementFromPoint(e.clientX, e.clientY);
+      const row = el?.closest<HTMLElement>("[data-stop-row]");
+      const card = el?.closest<HTMLElement>("[data-route-group]");
+      let over: ListDrag["over"] = null;
+      if (row) {
+        const rect = row.getBoundingClientRect();
+        const idx = Number(row.dataset.index);
+        over = { group: row.dataset.group ?? "", index: e.clientY > rect.top + rect.height / 2 ? idx + 1 : idx };
+      } else if (card) {
+        over = { group: card.dataset.routeGroup ?? "", index: -1 };
+      }
+      const next = { ...d, y: e.clientY, over, active: true };
+      listDragRef.current = next;
+      setListDrag(next);
+      if (next.active) e.preventDefault();
+    };
+    const onUp = (e: PointerEvent) => {
+      const d = listDragRef.current;
+      if (!d || e.pointerId !== d.pointerId) return;
+      listDragRef.current = null;
+      setListDrag(null);
+      if (!d.active || !d.over) return;
+      const from = groups.find((g) => g.userId === d.fromGroup);
+      const stop = from?.stops.find((s) => s.id === d.stopId);
+      if (!from || !stop) return;
+      if (d.over.group !== d.fromGroup) {
+        if (!canDispatch) return;
+        reassign(stop, d.fromGroup, d.over.group);
+        return;
+      }
+      if (d.over.index < 0) return;
+      const ids = from.stops.map((s) => s.id);
+      const fromIdx = ids.indexOf(d.stopId);
+      let to = d.over.index;
+      if (to > fromIdx) to -= 1;
+      if (to === fromIdx) return;
+      ids.splice(fromIdx, 1);
+      ids.splice(to, 0, d.stopId);
+      if (!mayOptimize(from.userId)) return;
+      // The reorder lands as an Optimize preview with this exact order —
+      // Apply gives every stop its new time, nothing moves until then
+      const routable = from.stops.filter((s) => s.lat != null && (s.kind === "job" || !s.tentative)).map((s) => s.id);
+      runOptimize(from.userId, ids.filter((id) => routable.includes(id)));
+    };
+    document.addEventListener("pointermove", onMove, { passive: false });
+    document.addEventListener("pointerup", onUp);
+    document.addEventListener("pointercancel", onUp);
+    return () => {
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onUp);
+      document.removeEventListener("pointercancel", onUp);
+    };
+  }, [groups, canDispatch, mayOptimize, reassign, runOptimize]);
+
+  // Preview list reorder (same grip, local until Apply)
+  const previewDrag = useRef<{ pointerId: number; id: string; startY: number; active: boolean; over: number | null } | null>(null);
+  const [previewOver, setPreviewOver] = useState<{ id: string; over: number | null } | null>(null);
+  const beginPreviewDrag = (e: React.PointerEvent, id: string) => {
+    if (e.button !== 0 && e.pointerType === "mouse") return;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    previewDrag.current = { pointerId: e.pointerId, id, startY: e.clientY, active: false, over: null };
+  };
+  useEffect(() => {
+    const onMove = (e: PointerEvent) => {
+      const d = previewDrag.current;
+      if (!d || e.pointerId !== d.pointerId) return;
+      if (!d.active && Math.abs(e.clientY - d.startY) < 4) return;
+      d.active = true;
+      const row = document.elementFromPoint(e.clientX, e.clientY)?.closest<HTMLElement>("[data-preview-row]");
+      if (row) {
+        const rect = row.getBoundingClientRect();
+        const idx = Number(row.dataset.index);
+        d.over = e.clientY > rect.top + rect.height / 2 ? idx + 1 : idx;
+      }
+      setPreviewOver({ id: d.id, over: d.over });
+      e.preventDefault();
+    };
+    const onUp = (e: PointerEvent) => {
+      const d = previewDrag.current;
+      if (!d || e.pointerId !== d.pointerId) return;
+      previewDrag.current = null;
+      setPreviewOver(null);
+      if (!d.active || d.over === null || !preview) return;
+      const ids = preview.stops.map((s) => s.id);
+      const fromIdx = ids.indexOf(d.id);
+      let to = d.over;
+      if (to > fromIdx) to -= 1;
+      if (to === fromIdx) return;
+      ids.splice(fromIdx, 1);
+      ids.splice(to, 0, d.id);
+      runOptimize(preview.userId, ids, preview.anchorTime, preview.roundTrip);
+    };
+    document.addEventListener("pointermove", onMove, { passive: false });
+    document.addEventListener("pointerup", onUp);
+    document.addEventListener("pointercancel", onUp);
+    return () => {
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onUp);
+      document.removeEventListener("pointercancel", onUp);
+    };
+  }, [preview, runOptimize]);
+
   // ── Day-first: pull an unscheduled job onto this day ──────────────────────
-  // It lands as "Anytime" (day picked, no clock time) — Optimize then slots
-  // it into the route with everything else.
   const addToDay = useCallback(
     async (job: UnscheduledJob) => {
       setAddingId(job.id);
@@ -484,12 +798,19 @@ export default function RouteMapClient({
     return () => window.removeEventListener("keydown", onKey);
   }, [preview]);
 
+  const copyRoute = async (href: string, key: string) => {
+    try {
+      await navigator.clipboard.writeText(href);
+      setCopied(key);
+      window.setTimeout(() => setCopied(""), 1800);
+    } catch {
+      window.open(href, "_blank", "noopener");
+    }
+  };
+
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="px-4 py-5 lg:px-8">
-      {/* Map chrome tuned to the app: pin numerals in Oxanium, muted tiles so
-          the basemap sits behind the brand colors, ledger-card popups, and
-          zoom buttons on the same hairline-border language as every control. */}
+    <div className="route-page px-4 py-5 lg:px-8">
       <style>{`
         .route-pin {
           width: 28px; height: 28px; border-radius: 9999px;
@@ -503,6 +824,19 @@ export default function RouteMapClient({
         }
         .route-pin-start { background: ${INK}; border-radius: 9px; }
         .route-pin-start span { font-size: 10px; letter-spacing: 0.03em; }
+        .route-live {
+          width: 34px; height: 34px; border-radius: 9999px; background: #fff;
+          border: 3px solid var(--tech); box-shadow: 0 0 0 4px color-mix(in srgb, var(--tech) 25%, transparent), 0 2px 6px rgba(10,20,40,.35);
+          display: flex; align-items: center; justify-content: center;
+          animation: route-live-pulse 2.4s ease-in-out infinite;
+        }
+        .route-live span { font-size: 11px; font-weight: 800; color: var(--tech); font-family: "Oxanium", ui-sans-serif, sans-serif; }
+        .route-live-late { border-color: #DC2626; }
+        .route-live-late span { color: #DC2626; }
+        @keyframes route-live-pulse {
+          0%, 100% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--tech) 25%, transparent), 0 2px 6px rgba(10,20,40,.35); }
+          50% { box-shadow: 0 0 0 9px color-mix(in srgb, var(--tech) 10%, transparent), 0 2px 6px rgba(10,20,40,.35); }
+        }
         .route-map .leaflet-tile { filter: saturate(0.55) contrast(1.03); }
         .route-map .leaflet-bar {
           border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden;
@@ -518,16 +852,22 @@ export default function RouteMapClient({
         .route-map .leaflet-popup-content a { color: #15803d; font-weight: 600; }
         .route-map .leaflet-container { font-family: inherit; }
         .route-map .leaflet-control-attribution { font-size: 9px; opacity: 0.75; }
+        @media print {
+          .route-page .route-map, .route-page .route-controls, .route-page .route-tray, .route-page .no-print { display: none !important; }
+          .route-page .route-list { max-height: none !important; overflow: visible !important; width: 100% !important; }
+          .route-page .card-ledger { break-inside: avoid; box-shadow: none; border: 1px solid #ddd; }
+        }
       `}</style>
 
-      <div className="mb-4">
+      <div className="mb-4 flex items-center justify-between gap-2">
         <PageTitle section="schedule" icon={RouteIcon}>
           Routes
         </PageTitle>
+        <p className="hidden text-sm font-semibold text-gray-700 print:block">{fmtDateLabel(date)}</p>
       </div>
 
       {/* Controls — same grammar as the calendar page */}
-      <div className="mb-4 flex flex-wrap items-center gap-x-2 gap-y-2">
+      <div className="route-controls mb-4 flex flex-wrap items-center gap-x-2 gap-y-2">
         <div className="flex items-center gap-1">
           <button
             onClick={() => go({ date: shiftDate(date, -1) })}
@@ -543,9 +883,9 @@ export default function RouteMapClient({
           >
             <ChevronRight size={18} className="text-gray-600" />
           </button>
-          {date !== todayStr() && (
+          {date !== today && (
             <button
-              onClick={() => go({ date: todayStr() })}
+              onClick={() => go({ date: today })}
               className="rounded-[10px] btn-tool-line bg-white px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
             >
               Today
@@ -566,6 +906,14 @@ export default function RouteMapClient({
         {loading && <Loader2 size={15} className="animate-spin text-gray-400" />}
 
         <div className="ml-auto flex items-center gap-2">
+          <button
+            onClick={() => window.print()}
+            className="hidden items-center gap-1.5 rounded-[10px] btn-tool-line bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 lg:flex"
+            title="Print the day sheet"
+          >
+            <Printer size={14} />
+            Print
+          </button>
           <FilterChip
             hue={hue}
             active={false}
@@ -592,7 +940,7 @@ export default function RouteMapClient({
       </div>
 
       {data && !data.enabled && (
-        <div className="mb-3 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+        <div className="no-print mb-3 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
           <MapPin size={15} className="mt-0.5 shrink-0" />
           <span>
             Map pins and drive times need a Mapbox token — add{" "}
@@ -601,8 +949,13 @@ export default function RouteMapClient({
           </span>
         </div>
       )}
+      {data?.enabled && !measured && groups.length > 0 && (
+        <div className="no-print mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          Drive times shown are straight-line estimates right now (road times weren&apos;t available). Figures are marked with ~.
+        </div>
+      )}
       {error && (
-        <div className="mb-3 flex items-center justify-between rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <div className="no-print mb-3 flex items-center justify-between rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
           {error}
           <button onClick={() => setError("")} className="p-0.5 text-red-400 hover:text-red-600">
             <X size={14} />
@@ -610,18 +963,10 @@ export default function RouteMapClient({
         </div>
       )}
       {applied && (
-        <div className="msg-enter mb-3 flex items-center justify-between gap-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800">
+        <div className="msg-enter no-print mb-3 flex items-center justify-between gap-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800">
           <div className="flex min-w-0 items-center gap-3">
-            {/* The banner draws its own little route — line traces stop to
-                stop, pins pop as it reaches them (route-trace/route-pin-pop) */}
             <svg width="56" height="22" viewBox="0 0 64 24" fill="none" aria-hidden className="shrink-0">
-              <path
-                className="route-trace"
-                d="M4 18C16 4 24 22 34 10S52 16 60 6"
-                stroke="#16A34A"
-                strokeWidth="2"
-                strokeLinecap="round"
-              />
+              <path className="route-trace" d="M4 18C16 4 24 22 34 10S52 16 60 6" stroke="#16A34A" strokeWidth="2" strokeLinecap="round" />
               <circle className="route-pin-pop" cx="4" cy="18" r="3" fill="#16A34A" />
               <circle className="route-pin-pop pin-2" cx="34" cy="10" r="3" fill="#16A34A" />
               <circle className="route-pin-pop pin-3" cx="60" cy="6" r="3.5" fill="#16A34A" />
@@ -634,15 +979,13 @@ export default function RouteMapClient({
         </div>
       )}
       {unlocated.length > 0 && (
-        <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+        <div className="no-print mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
           No map pin yet (check the address): {unlocated.join(", ")}
         </div>
       )}
 
       {/* Map + routes */}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
-        {/* isolate: Leaflet's internal z-indexes (panes 400+, controls 1000)
-            must not escape this box, or they float above page modals */}
         <div className="route-map card-ledger relative isolate h-[44dvh] w-full overflow-hidden lg:h-[calc(100dvh-15.5rem)] lg:flex-1">
           <div ref={containerRef} className="absolute inset-0" />
           {loading && !data && (
@@ -650,13 +993,16 @@ export default function RouteMapClient({
               <Loader2 size={22} className="animate-spin text-gray-400" />
             </div>
           )}
+          {canSeeTeam && date === today && team_.length > 0 && (
+            <div className="pointer-events-none absolute bottom-2 left-2 z-[500] rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-semibold text-gray-700 shadow">
+              {team_.length} on the clock · live
+            </div>
+          )}
         </div>
 
-        <div className="w-full space-y-3 lg:w-[380px] lg:max-h-[calc(100dvh-15.5rem)] lg:overflow-y-auto lg:pr-0.5">
-          {/* Day-first tray: the unscheduled backlog, one tap from joining
-              this day. Pull a job on, then Optimize gives it its time. */}
+        <div className="route-list w-full space-y-3 lg:w-[380px] lg:max-h-[calc(100dvh-15.5rem)] lg:overflow-y-auto lg:pr-0.5">
           {canDispatch && (data?.unscheduled?.length ?? 0) > 0 && (
-            <div className="card-ledger overflow-hidden">
+            <div className="route-tray card-ledger overflow-hidden">
               <button
                 type="button"
                 onClick={() => setTrayOpen((v) => !v)}
@@ -667,9 +1013,7 @@ export default function RouteMapClient({
                     <Inbox size={14} />
                   </span>
                   <span className="min-w-0">
-                    <span className="block truncate text-sm font-bold text-gray-900">
-                      Unscheduled jobs
-                    </span>
+                    <span className="block truncate text-sm font-bold text-gray-900">Unscheduled jobs</span>
                     <span className="numeral-ledger block text-[11px] text-gray-500">
                       {data!.unscheduled!.length} waiting — add them to this day
                     </span>
@@ -680,8 +1024,6 @@ export default function RouteMapClient({
                   className={`shrink-0 text-gray-400 transition-transform ${trayOpen || groups.length === 0 ? "rotate-90" : ""}`}
                 />
               </button>
-              {/* An empty day opens the tray on its own — building the day
-                  from the backlog IS the task at that point */}
               {(trayOpen || groups.length === 0) && (
                 <ul className="max-h-64 divide-y divide-gray-100 overflow-y-auto border-t border-gray-100">
                   {data!.unscheduled!.map((j) => (
@@ -702,11 +1044,7 @@ export default function RouteMapClient({
                         disabled={addingId === j.id}
                         className="flex shrink-0 items-center gap-1.5 rounded-[10px] btn-tool-line bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-800 transition-colors hover:bg-gray-50 disabled:opacity-50"
                       >
-                        {addingId === j.id ? (
-                          <Loader2 size={13} className="animate-spin" />
-                        ) : (
-                          <CalendarPlus size={13} />
-                        )}
+                        {addingId === j.id ? <Loader2 size={13} className="animate-spin" /> : <CalendarPlus size={13} />}
                         Add to day
                       </button>
                     </li>
@@ -735,119 +1073,172 @@ export default function RouteMapClient({
             </div>
           )}
 
-          {groups.map((g) => (
-            <div key={g.userId || "unassigned"} className="card-ledger overflow-hidden">
-              <div className="flex items-center justify-between gap-2 border-b border-gray-100 px-4 py-3">
-                <div className="flex min-w-0 items-center gap-2.5">
-                  <span
-                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white"
-                    style={{ background: g.color }}
-                  >
-                    {g.userId ? initials(g.name) : "—"}
-                  </span>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-bold text-gray-900">{g.name}</p>
-                    <p className="numeral-ledger text-[11px] text-gray-500">
-                      {g.stops.length} stop{g.stops.length === 1 ? "" : "s"} · {spanLabel(g.stops)}
-                      {(data?.drive?.totals[g.userId] ?? 0) > 0 &&
-                        ` · ~${Math.round(data!.drive!.totals[g.userId])} min drive`}
-                    </p>
-                    {/* Day-first nudge: flexible stops are waiting for the
-                        optimizer to hand them their clock time */}
-                    {mayOptimize(g.userId) &&
-                      g.stops.filter((s) => s.scheduledAnytime).length > 0 && (
+          {groups.map((g) => {
+            const href = routeHref(g.start, g.stops);
+            const dropHere = listDrag?.active && listDrag.over?.group === g.userId && listDrag.fromGroup !== g.userId;
+            const mi = miles(data?.drive?.kmTotals?.[g.userId]);
+            return (
+              <div
+                key={g.userId || "unassigned"}
+                data-route-group={g.userId}
+                className={`card-ledger overflow-hidden transition-shadow ${dropHere ? "ring-2 ring-green-400" : ""}`}
+              >
+                <div className="flex items-center justify-between gap-2 border-b border-gray-100 px-4 py-3">
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <span
+                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white"
+                      style={{ background: g.color }}
+                    >
+                      {g.userId ? initials(g.name) : "—"}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-bold text-gray-900">{g.name}</p>
+                      <p className="numeral-ledger text-[11px] text-gray-500">
+                        {g.stops.length} stop{g.stops.length === 1 ? "" : "s"} · {spanLabel(g.stops)}
+                        {(data?.drive?.totals[g.userId] ?? 0) > 0 && ` · ${tilde}${Math.round(data!.drive!.totals[g.userId])} min drive`}
+                        {mi && ` · ${tilde}${mi}`}
+                      </p>
+                      {mayOptimize(g.userId) && g.stops.filter((s) => s.scheduledAnytime).length > 0 && (
                         <p className="text-[11px] font-medium text-amber-700">
-                          {g.stops.filter((s) => s.scheduledAnytime).length} waiting for a time —
-                          Optimize slots them
+                          {g.stops.filter((s) => s.scheduledAnytime).length} waiting for a time — Optimize slots them
                         </p>
+                      )}
+                      {dropHere && <p className="text-[11px] font-semibold text-green-700">Drop to hand it to {g.name}</p>}
+                    </div>
+                  </div>
+                  <div className="no-print flex shrink-0 items-center gap-1">
+                    {href && (
+                      <>
+                        <a
+                          href={href}
+                          target="_blank"
+                          rel="noopener"
+                          title="Open the whole route in Google Maps"
+                          className="flex h-8 w-8 items-center justify-center rounded-[10px] btn-tool-line bg-white text-gray-700 hover:bg-gray-50"
+                          aria-label="Send route to phone"
+                        >
+                          <Send size={13} />
+                        </a>
+                        <button
+                          onClick={() => copyRoute(href, g.userId)}
+                          title="Copy the route link"
+                          className="flex h-8 w-8 items-center justify-center rounded-[10px] btn-tool-line bg-white text-gray-700 hover:bg-gray-50"
+                          aria-label="Copy route link"
+                        >
+                          {copied === g.userId ? <span className="text-[10px] font-bold text-green-700">✓</span> : <Link2 size={13} />}
+                        </button>
+                      </>
+                    )}
+                    {mayOptimize(g.userId) &&
+                      g.stops.filter((s) => s.lat != null && (s.kind === "job" || !s.tentative)).length >= 2 && (
+                        <button
+                          onClick={() => runOptimize(g.userId)}
+                          disabled={previewBusy}
+                          className="flex items-center gap-1.5 rounded-[10px] btn-tool-line bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-800 transition-colors hover:bg-gray-50 disabled:opacity-50"
+                        >
+                          {previewBusy ? <Loader2 size={13} className="animate-spin" /> : <Wand2 size={13} />}
+                          Optimize
+                        </button>
                       )}
                   </div>
                 </div>
-                {mayOptimize(g.userId) &&
-                  g.stops.filter(
-                    (s) => s.lat != null && (s.kind === "job" || !s.tentative)
-                  ).length >= 2 && (
-                    <button
-                      onClick={() => runOptimize(g.userId)}
-                      disabled={previewBusy}
-                      className="flex shrink-0 items-center gap-1.5 rounded-[10px] btn-tool-line bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-800 transition-colors hover:bg-gray-50 disabled:opacity-50"
-                    >
-                      {previewBusy ? <Loader2 size={13} className="animate-spin" /> : <Wand2 size={13} />}
-                      Optimize
-                    </button>
-                  )}
-              </div>
-              <ul className="divide-y divide-gray-100">
-                {g.stops.map((s, i) => {
-                  const leg = data?.drive?.legs[g.userId]?.[s.id];
-                  return (
-                  <li key={s.id}>
-                    {leg != null && leg > 0 && (
-                      <p className="numeral-ledger flex items-center gap-1.5 px-4 pt-2 text-[10.5px] text-gray-400">
-                        <CornerDownRight size={11} className="shrink-0" />
-                        ~{leg} min drive{i === 0 ? " from HQ" : ""}
-                      </p>
-                    )}
-                    <div
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => focusStop(g.userId, s)}
-                      onKeyDown={(e) => e.key === "Enter" && focusStop(g.userId, s)}
-                      className="flex w-full cursor-pointer items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-gray-50 active:bg-gray-50"
-                    >
-                      <span
-                        className="numeral-ledger flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
-                        style={{ background: s.lat == null ? "#D1D5DB" : g.color }}
-                      >
-                        {i + 1}
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="flex items-center gap-1.5 truncate text-sm font-semibold text-gray-900">
-                          <span className="truncate">{s.title}</span>
-                          {s.kind === "appointment" && (
-                            <span className="stamp shrink-0 text-purple-700">Appt</span>
-                          )}
-                          {s.lat == null && (
-                            <span className="stamp shrink-0 text-amber-700">No pin</span>
-                          )}
-                        </p>
-                        <p className="truncate text-xs text-gray-500">
-                          {s.contactName}
-                          {s.address ? ` · ${s.address}` : ""}
-                        </p>
-                      </div>
-                      <div className="shrink-0 text-right">
-                        {s.scheduledAnytime ? (
-                          <span className="stamp text-amber-700">Anytime</span>
-                        ) : (
-                          <p className="numeral-ledger text-xs font-semibold text-gray-900">
-                            {fmtTime(s.scheduledAt)}
+                <ul className="divide-y divide-gray-100">
+                  {g.stops.map((s, i) => {
+                    const leg = data?.drive?.legs[g.userId]?.[s.id];
+                    const legMi = miles(data?.drive?.km?.[g.userId]?.[s.id]);
+                    const nav = navigateHref(s, apple);
+                    const dragging = listDrag?.active && listDrag.stopId === s.id;
+                    const insertBefore = listDrag?.active && listDrag.over?.group === g.userId && listDrag.over.index === i && listDrag.fromGroup === g.userId;
+                    const canGrip = g.userId ? mayOptimize(g.userId) || canDispatch : canDispatch;
+                    return (
+                      <li key={s.id} data-stop-row data-group={g.userId} data-index={i} className={insertBefore ? "border-t-2 border-t-green-500" : ""}>
+                        {leg != null && leg > 0 && (
+                          <p className="numeral-ledger flex items-center gap-1.5 px-4 pt-2 text-[10.5px] text-gray-400">
+                            <CornerDownRight size={11} className="shrink-0" />
+                            {tilde}{leg} min drive{legMi ? ` · ${tilde}${legMi}` : ""}{i === 0 ? " from HQ" : ""}
                           </p>
                         )}
-                        {s.kind === "job" || !s.scheduledAnytime ? (
-                          <Link
-                            href={s.kind === "job" ? `/app/jobs/${s.id}` : `/app/appointments/${s.id}`}
-                            onClick={(e) => e.stopPropagation()}
-                            className="text-[11px] font-semibold text-green-700 hover:underline"
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => focusStop(g.userId, s)}
+                          onKeyDown={(e) => e.key === "Enter" && focusStop(g.userId, s)}
+                          className={`flex w-full cursor-pointer items-center gap-2 px-3 py-2.5 text-left transition-colors hover:bg-gray-50 active:bg-gray-50 ${
+                            dragging ? "opacity-40" : ""
+                          } ${reassigning === s.id ? "opacity-50" : ""}`}
+                        >
+                          {canGrip ? (
+                            <button
+                              type="button"
+                              onPointerDown={(e) => {
+                                e.stopPropagation();
+                                beginListDrag(e, g.userId, s.id);
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                              aria-label="Drag to reorder or hand to another tech"
+                              className="no-print -ml-1 shrink-0 cursor-grab touch-none rounded p-1 text-gray-300 hover:text-gray-500 active:cursor-grabbing"
+                            >
+                              <GripVertical size={14} />
+                            </button>
+                          ) : (
+                            <span className="w-1" />
+                          )}
+                          <span
+                            className="numeral-ledger flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
+                            style={{ background: s.lat == null ? "#D1D5DB" : g.color }}
                           >
-                            Open
-                          </Link>
-                        ) : (
-                          !s.scheduledAnytime &&
-                          s.scheduledEnd && (
-                            <p className="numeral-ledger text-[10px] text-gray-400">
-                              – {fmtTime(s.scheduledEnd)}
+                            {i + 1}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="flex items-center gap-1.5 truncate text-sm font-semibold text-gray-900">
+                              <span className="truncate">{s.title}</span>
+                              {s.kind === "appointment" && <span className="stamp shrink-0 text-purple-700">Appt</span>}
+                              {s.lat == null && <span className="stamp shrink-0 text-amber-700">No pin</span>}
                             </p>
-                          )
-                        )}
-                      </div>
-                    </div>
-                  </li>
-                  );
-                })}
-              </ul>
-            </div>
-          ))}
+                            <p className="truncate text-xs text-gray-500">
+                              {s.contactName}
+                              {s.address ? ` · ${s.address}` : ""}
+                            </p>
+                          </div>
+                          <div className="shrink-0 text-right">
+                            {s.scheduledAnytime ? (
+                              <span className="stamp text-amber-700">Anytime</span>
+                            ) : (
+                              <p className="numeral-ledger text-xs font-semibold text-gray-900">{fmtTime(s.scheduledAt)}</p>
+                            )}
+                            <span className="no-print flex items-center justify-end gap-2">
+                              {nav && (
+                                <a
+                                  href={nav}
+                                  target="_blank"
+                                  rel="noopener"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="flex items-center gap-0.5 text-[11px] font-semibold text-blue-700 hover:underline"
+                                >
+                                  <Navigation size={10} />
+                                  Go
+                                </a>
+                              )}
+                              <Link
+                                href={s.kind === "job" ? `/app/jobs/${s.id}` : `/app/appointments/${s.id}`}
+                                onClick={(e) => e.stopPropagation()}
+                                className="text-[11px] font-semibold text-green-700 hover:underline"
+                              >
+                                Open
+                              </Link>
+                            </span>
+                          </div>
+                        </div>
+                      </li>
+                    );
+                  })}
+                  {listDrag?.active && listDrag.over?.group === g.userId && listDrag.fromGroup === g.userId && listDrag.over.index >= g.stops.length && (
+                    <li className="h-0 border-t-2 border-t-green-500" />
+                  )}
+                </ul>
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -860,18 +1251,13 @@ export default function RouteMapClient({
           <div className="flex max-h-[88dvh] w-full max-w-lg flex-col rounded-t-2xl bg-white shadow-xl lg:rounded-2xl">
             <div className="flex items-start justify-between border-b border-gray-100 px-5 py-4">
               <div>
-                <h2 className="font-display text-base font-bold text-gray-900">
-                  {preview.userName}&apos;s route, optimized
-                </h2>
-                <p className="mt-0.5 flex items-center gap-1.5 text-xs text-gray-500">
+                <h2 className="font-display text-base font-bold text-gray-900">{preview.userName}&apos;s route, optimized</h2>
+                <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-gray-500">
                   <span className="numeral-ledger">
                     Drive time {preview.currentDriveMinutes} min → {preview.totalDriveMinutes} min
+                    {preview.totalDistanceMiles > 0 && ` · ${preview.measured ? "" : "~"}${preview.totalDistanceMiles} mi`}
                   </span>
-                  {preview.savedMinutes > 0 && (
-                    <span className="stamp charge-pop text-green-700">
-                      saves ~{preview.savedMinutes} min
-                    </span>
-                  )}
+                  {preview.savedMinutes > 0 && <span className="stamp charge-pop text-green-700">saves ~{preview.savedMinutes} min</span>}
                 </p>
               </div>
               <button
@@ -892,8 +1278,7 @@ export default function RouteMapClient({
                     value={preview.anchorTime}
                     disabled={previewBusy}
                     onChange={(e) =>
-                      e.target.value &&
-                      runOptimize(preview.userId, preview.stops.map((s) => s.id), e.target.value)
+                      e.target.value && runOptimize(preview.userId, preview.stops.map((s) => s.id), e.target.value, preview.roundTrip)
                     }
                     className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-green-500"
                   />
@@ -904,9 +1289,7 @@ export default function RouteMapClient({
                     <button
                       key={p.value}
                       disabled={previewBusy}
-                      onClick={() =>
-                        runOptimize(preview.userId, preview.stops.map((s) => s.id), p.value)
-                      }
+                      onClick={() => runOptimize(preview.userId, preview.stops.map((s) => s.id), p.value, preview.roundTrip)}
                       className={`rounded-full border px-2.5 py-0.5 text-[11px] font-semibold transition-colors disabled:opacity-50 ${
                         preview.anchorTime === p.value
                           ? "border-green-500 bg-green-50 text-green-700"
@@ -917,6 +1300,19 @@ export default function RouteMapClient({
                     </button>
                   ))}
                 </div>
+                <label className="flex items-center gap-2 pt-1 text-xs text-gray-600">
+                  <input
+                    type="checkbox"
+                    checked={preview.roundTrip}
+                    disabled={previewBusy}
+                    onChange={(e) => runOptimize(preview.userId, undefined, preview.anchorTime, e.target.checked)}
+                    className="rounded text-green-600 focus:ring-green-500"
+                  />
+                  End the day back at the start
+                  {preview.roundTrip && preview.returnMinutes != null && (
+                    <span className="numeral-ledger text-gray-400">(+{preview.returnMinutes} min home)</span>
+                  )}
+                </label>
               </div>
               {preview.warnings.length > 0 && (
                 <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
@@ -926,16 +1322,26 @@ export default function RouteMapClient({
                 </div>
               )}
               {preview.skipped.length > 0 && (
-                <p className="mb-3 text-xs text-gray-500">
-                  Left in place (no map pin): {preview.skipped.join(", ")}
-                </p>
+                <p className="mb-3 text-xs text-gray-500">Left in place (no map pin): {preview.skipped.join(", ")}</p>
               )}
               <ol className="space-y-1.5">
                 {preview.stops.map((s, i) => (
                   <li
                     key={s.id}
-                    className="flex items-center gap-3 rounded-[12px] border border-gray-200 px-3 py-2"
+                    data-preview-row
+                    data-index={i}
+                    className={`flex items-center gap-2 rounded-[12px] border border-gray-200 px-2 py-2 ${
+                      previewOver?.id === s.id ? "opacity-40" : ""
+                    } ${previewOver && previewOver.over === i ? "border-t-2 border-t-green-500" : ""}`}
                   >
+                    <button
+                      type="button"
+                      onPointerDown={(e) => beginPreviewDrag(e, s.id)}
+                      aria-label="Drag to reorder"
+                      className="shrink-0 cursor-grab touch-none rounded p-0.5 text-gray-300 hover:text-gray-500 active:cursor-grabbing"
+                    >
+                      <GripVertical size={14} />
+                    </button>
                     <span
                       className="numeral-ledger flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
                       style={{ background: INK }}
@@ -945,15 +1351,11 @@ export default function RouteMapClient({
                     <div className="min-w-0 flex-1">
                       <p className="flex items-center gap-1.5 truncate text-sm font-semibold text-gray-900">
                         <span className="truncate">{s.title}</span>
-                        {s.kind === "appointment" && (
-                          <span className="stamp shrink-0 text-purple-700">Appt</span>
-                        )}
+                        {s.kind === "appointment" && <span className="stamp shrink-0 text-purple-700">Appt</span>}
                       </p>
                       <p className="numeral-ledger text-xs text-gray-500">
                         {!s.scheduledAnytime && s.currentStart && (
-                          <span className="mr-1.5 text-gray-400 line-through">
-                            {fmtTime(s.currentStart)}
-                          </span>
+                          <span className="mr-1.5 text-gray-400 line-through">{fmtTime(s.currentStart)}</span>
                         )}
                         <span className="font-semibold text-gray-800">
                           {fmtTime(s.proposedStart)} – {fmtTime(s.proposedEnd)}
@@ -962,9 +1364,7 @@ export default function RouteMapClient({
                     </div>
                     <div className="flex shrink-0 items-center gap-1.5">
                       {s.driveMinutesFromPrev != null && (
-                        <span className="numeral-ledger text-[11px] text-gray-400">
-                          +{s.driveMinutesFromPrev}m
-                        </span>
+                        <span className="numeral-ledger text-[11px] text-gray-400">+{s.driveMinutesFromPrev}m</span>
                       )}
                       <span className="flex flex-col">
                         <button
@@ -988,18 +1388,23 @@ export default function RouteMapClient({
                   </li>
                 ))}
               </ol>
-              <p className="mt-3 text-xs text-gray-400">
-                Applying rewrites the calendar times — durations are kept, drive time spaces the
-                stops, and moved visits re-send their reminders at the new times. Unconfirmed
-                bookings, calls, and blocked time never move.
+              <label className="mt-3 flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={notifyOnApply}
+                  onChange={(e) => setNotifyOnApply(e.target.checked)}
+                  className="rounded text-green-600 focus:ring-green-500"
+                />
+                Text or email each client whose time changes
+              </label>
+              <p className="mt-2 text-xs text-gray-400">
+                Applying rewrites the calendar times — durations are kept, drive time spaces the stops, and moved visits re-send their
+                reminders at the new times. Unconfirmed bookings, calls, and blocked time never move.
               </p>
             </div>
 
             <div className="flex items-center justify-end gap-2 border-t border-gray-100 px-5 py-3.5 pb-[max(0.875rem,env(safe-area-inset-bottom))]">
-              <button
-                onClick={() => setPreview(null)}
-                className="rounded-[10px] px-3 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100"
-              >
+              <button onClick={() => setPreview(null)} className="rounded-[10px] px-3 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100">
                 Cancel
               </button>
               <button

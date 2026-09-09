@@ -1,6 +1,6 @@
 import { prisma } from "../db";
 import { type Actor, isManager, jobScope } from "../permissions";
-import { parseRouteDate, resolveRouteDay, resolveDriveLegs } from "../route-plan";
+import { parseRouteDate, resolveRouteDay, resolveDriveLegs, type RouteDrive } from "../route-plan";
 import { suggestTimes } from "../find-a-time";
 import { type Tool, str, num, day, clientName, companyTz, fmtWhen, stage } from "./core";
 
@@ -396,7 +396,10 @@ export const fieldTools: Tool[] = [
       const tz = await companyTz(actor.companyId);
       const date = parseRouteDate(str(args.date, 10) || null, tz);
       const dayPlan = await resolveRouteDay(actor, date);
-      const drive = dayPlan.stops.length > 0 ? await resolveDriveLegs(dayPlan, actor.companyId) : { legs: {}, totals: {} };
+      const drive: RouteDrive =
+        dayPlan.stops.length > 0
+          ? await resolveDriveLegs(dayPlan, actor.companyId)
+          : { legs: {}, totals: {}, km: {}, kmTotals: {}, measured: false };
       const members = await prisma.user.findMany({ where: { companyId: actor.companyId, isActive: true }, select: { id: true, name: true } });
       const nameOf = (id: string) => members.find((m) => m.id === id)?.name ?? id;
       return {

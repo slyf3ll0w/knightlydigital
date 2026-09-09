@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, jobScope } from "@/lib/permissions";
-import { parseRouteDate, resolveDriveLegs, resolveRouteDay } from "@/lib/route-plan";
+import { dayStartFor, parseRouteDate, resolveDriveLegs, resolveRouteDay } from "@/lib/route-plan";
+import { directionsEnabled, routeGeometry } from "@/lib/directions";
 
 /**
  * GET /api/app/route-plan?date=YYYY-MM-DD — one day of field work as
@@ -45,6 +46,30 @@ export async function GET(req: NextRequest) {
     }),
   ]);
   const drive = await resolveDriveLegs(day, actor.companyId);
+
+  // Road geometry per tech (opt-in: the map page asks, the calendar's
+  // drive-gap fetch doesn't pay for lines it never draws)
+  let geometry: Record<string, [number, number][]> | undefined;
+  if (req.nextUrl.searchParams.get("geometry") === "1" && directionsEnabled()) {
+    geometry = {};
+    const userIds = [...new Set(day.stops.flatMap((s) => s.assigneeIds))];
+    await Promise.all(
+      userIds.map(async (userId) => {
+        const start = dayStartFor(day, userId);
+        const route = day.stops
+          .filter((s) => s.assigneeIds.includes(userId) && s.lat != null && s.lng != null)
+          .sort((a, b) => new Date(a.scheduledAt ?? 0).getTime() - new Date(b.scheduledAt ?? 0).getTime());
+        const points = [
+          ...(start ? [{ lat: start.lat, lng: start.lng }] : []),
+          ...route.map((s) => ({ lat: s.lat!, lng: s.lng! })),
+        ];
+        if (points.length < 2) return;
+        const g = await routeGeometry(points, actor.companyId);
+        if (g) geometry![userId] = g.coords;
+      })
+    );
+  }
+
   const unscheduled = unscheduledRows.map((j) => ({
     id: j.id,
     jobNumber: j.jobNumber,
@@ -53,5 +78,5 @@ export async function GET(req: NextRequest) {
     address: j.address ?? j.contact.address ?? null,
     assigneeIds: j.assignments.map((a) => a.userId),
   }));
-  return NextResponse.json({ ...day, drive, unscheduled });
+  return NextResponse.json({ ...day, drive, unscheduled, geometry });
 }

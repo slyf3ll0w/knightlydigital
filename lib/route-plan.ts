@@ -21,7 +21,7 @@ import { composeAddress, geocodeAddress, geocodingEnabled } from "@/lib/geocodin
 import type { Actor } from "@/lib/permissions";
 import { appointmentScope, isManager, jobScope } from "@/lib/permissions";
 import { localDayParts, wallTimeToUtc } from "@/lib/booking-engine";
-import { driveTimeMatrix } from "@/lib/routing";
+import { driveMatrix } from "@/lib/routing";
 
 export type RouteStop = {
   id: string;
@@ -63,6 +63,11 @@ export type RouteDrive = {
   legs: Record<string, Record<string, number>>;
   /** totals[userId] = whole-route drive minutes (same legs, summed). */
   totals: Record<string, number>;
+  /** km[userId][stopId] = road distance into that stop; kmTotals[userId] = the day. */
+  km: Record<string, Record<string, number>>;
+  kmTotals: Record<string, number>;
+  /** true = Mapbox road figures; false = straight-line estimate (hedge the copy). */
+  measured: boolean;
 };
 
 /**
@@ -72,7 +77,7 @@ export type RouteDrive = {
  * copy should hedge ("~12 min") either way.
  */
 export async function resolveDriveLegs(day: RouteDay, companyId: string): Promise<RouteDrive> {
-  const drive: RouteDrive = { legs: {}, totals: {} };
+  const drive: RouteDrive = { legs: {}, totals: {}, km: {}, kmTotals: {}, measured: false };
   const located = day.stops.filter((s) => s.lat != null && s.lng != null);
   if (!located.length) return drive;
 
@@ -88,7 +93,9 @@ export async function resolveDriveLegs(day: RouteDay, companyId: string): Promis
   ];
   if (points.length < 2) return drive;
   const offset = startKeys.length;
-  const matrix = await driveTimeMatrix(points, companyId);
+  const dm = await driveMatrix(points, companyId);
+  const matrix = dm.minutes;
+  drive.measured = dm.measured;
   const indexOf = new Map(located.map((s, i) => [s.id, i + offset]));
   const startIndex = (userId: string): number | null => {
     const key = day.memberStarts[userId] ? userId : day.start ? "shop" : null;
@@ -102,7 +109,9 @@ export async function resolveDriveLegs(day: RouteDay, companyId: string): Promis
       .sort((a, b) => new Date(a.scheduledAt ?? 0).getTime() - new Date(b.scheduledAt ?? 0).getTime());
     if (!route.length) continue;
     const legs: Record<string, number> = {};
+    const kms: Record<string, number> = {};
     let total = 0;
+    let kmTotal = 0;
     let prev = startIndex(userId); // matrix index of the previous point
     for (const stop of route) {
       const here = indexOf.get(stop.id)!;
@@ -110,13 +119,32 @@ export async function resolveDriveLegs(day: RouteDay, companyId: string): Promis
         const minutes = Math.round(matrix[prev][here]);
         legs[stop.id] = minutes;
         total += minutes;
+        const km = Math.round(dm.km[prev][here] * 10) / 10;
+        kms[stop.id] = km;
+        kmTotal += km;
       }
       prev = here;
     }
     drive.legs[userId] = legs;
     drive.totals[userId] = total;
+    drive.km[userId] = kms;
+    drive.kmTotals[userId] = Math.round(kmTotal * 10) / 10;
   }
   return drive;
+}
+
+/** Promise.all with at most `limit` in flight; results keep input order. */
+async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const out: R[] = new Array(items.length);
+  let next = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (next < items.length) {
+      const i = next++;
+      out[i] = await fn(items[i]);
+    }
+  });
+  await Promise.all(workers);
+  return out;
 }
 
 export function parseRouteDate(s?: string | null, tz?: string | null): Date {
@@ -191,9 +219,10 @@ export async function resolveRouteDay(actor: Actor, date: Date): Promise<RouteDa
     }),
   ]);
 
-  const stops: RouteStop[] = [];
-
-  for (const j of jobs) {
+  // Geocoding used to run one stop at a time — a 40-stop day was 40 serial
+  // round-trips on every page load. A handful in flight at once is plenty
+  // (the cache absorbs repeats) without hammering the geocoder.
+  const jobStops = await mapLimit(jobs, 6, async (j): Promise<RouteStop> => {
     let lat: number | null = null;
     let lng: number | null = null;
 
@@ -221,7 +250,7 @@ export async function resolveRouteDay(actor: Actor, date: Date): Promise<RouteDa
       lng = hit?.lng ?? null;
     }
 
-    stops.push({
+    return {
       id: j.id,
       kind: "job",
       jobNumber: j.jobNumber,
@@ -236,10 +265,10 @@ export async function resolveRouteDay(actor: Actor, date: Date): Promise<RouteDa
       assigneeIds: j.assignments.map((a) => a.userId),
       lat,
       lng,
-    });
-  }
+    };
+  });
 
-  for (const a of appointments) {
+  const apptStops = await mapLimit(appointments, 6, async (a): Promise<RouteStop> => {
     let lat = a.property?.lat ?? null;
     let lng = a.property?.lng ?? null;
     if (lat == null && a.address) {
@@ -247,7 +276,7 @@ export async function resolveRouteDay(actor: Actor, date: Date): Promise<RouteDa
       lat = hit?.lat ?? null;
       lng = hit?.lng ?? null;
     }
-    stops.push({
+    return {
       id: a.id,
       kind: "appointment",
       jobNumber: null,
@@ -262,8 +291,10 @@ export async function resolveRouteDay(actor: Actor, date: Date): Promise<RouteDa
       assigneeIds: a.assignedToId ? [a.assignedToId] : [],
       lat,
       lng,
-    });
-  }
+    };
+  });
+
+  const stops: RouteStop[] = [...jobStops, ...apptStops];
 
   // Shop pin: geocode lazily the first time a route view loads after the
   // address exists (or after it changed — the settings PATCH clears the stamp).

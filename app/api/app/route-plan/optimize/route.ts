@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
 import { parseRouteDate, resolveRouteDay, dayStartFor } from "@/lib/route-plan";
-import { driveTimeMatrix, roundGapMinutes, routeMinutes, solveStopOrder } from "@/lib/routing";
+import { driveMatrix, kmToMiles, roundGapMinutes, routeMinutes, solveStopOrder } from "@/lib/routing";
+import { notifyClientOfMove } from "@/lib/schedule-notify";
 import { DEFAULT_JOB_DURATION_MINUTES } from "@/lib/scheduling";
 import {
   DAY_KEYS,
@@ -99,11 +100,15 @@ export async function POST(req: NextRequest) {
     ...current.map((s) => ({ lat: s.lat!, lng: s.lng! })),
   ];
   const offset = hasStart ? 1 : 0;
-  const matrix = await driveTimeMatrix(points, actor.companyId);
+  const dm = await driveMatrix(points, actor.companyId);
+  const matrix = dm.minutes;
+  // Round trip: cost the drive back to the start so the last stop lands
+  // near home (only meaningful when we know where the day starts)
+  const roundTrip = body.roundTrip === true && hasStart;
 
   const currentOrder = current.map((_, i) => i + offset);
   const currentPath = hasStart ? [0, ...currentOrder] : currentOrder;
-  const currentDriveMinutes = routeMinutes(matrix, currentPath);
+  const currentDriveMinutes = routeMinutes(matrix, currentPath, roundTrip);
 
   // Target order: manual (validated same set) or solved
   let orderedStops: typeof current;
@@ -120,7 +125,8 @@ export async function POST(req: NextRequest) {
   } else {
     const solved = solveStopOrder(
       matrix,
-      hasStart ? 0 : currentPath[0]
+      hasStart ? 0 : currentPath[0],
+      roundTrip
     ).filter((i) => i >= offset);
     orderedStops = solved.map((i) => current[i - offset]);
   }
@@ -129,7 +135,14 @@ export async function POST(req: NextRequest) {
     ...(hasStart ? [0] : []),
     ...orderedStops.map((s) => current.indexOf(s) + offset),
   ];
-  const totalDriveMinutes = routeMinutes(matrix, orderedPath);
+  const totalDriveMinutes = routeMinutes(matrix, orderedPath, roundTrip);
+  const totalDistanceKm = routeMinutes(dm.km, orderedPath, roundTrip);
+  const returnMinutes = roundTrip ? matrix[orderedPath[orderedPath.length - 1]][0] : 0;
+
+  // The tech's hours today — the anchor for an all-Anytime day, and the
+  // close we warn about running past
+  const week = resolveWorkingHours(user.workingHours, sanitizeBusinessHours(tzCompany?.businessHours));
+  const dayRanges = week[DAY_KEYS[date.getDay()]] ?? [];
 
   // Anchor: an explicit start time wins (the "day starts at" control —
   // per-day, per-run; Jobber can't do this); otherwise keep the day starting
@@ -151,9 +164,7 @@ export async function POST(req: NextRequest) {
   } else if (timed.length) {
     anchor = new Date(Math.min(...timed.map((s) => new Date(s.scheduledAt!).getTime())));
   } else {
-    const week = resolveWorkingHours(user.workingHours, sanitizeBusinessHours(tzCompany?.businessHours));
-    const ranges = week[DAY_KEYS[date.getDay()]] ?? [];
-    const startMin = (ranges.length ? timeToMinutes(ranges[0].start) : null) ?? 8 * 60;
+    const startMin = (dayRanges.length ? timeToMinutes(dayRanges[0].start) : null) ?? 8 * 60;
     anchor = wallTimeToUtc(tz, date.getFullYear(), date.getMonth() + 1, date.getDate(), startMin);
   }
 
@@ -289,7 +300,33 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Can this day physically be driven? Past the tech's close, or on
+  // guessed figures because Mapbox wasn't reachable — say so.
+  if (proposed.length) {
+    const lastEnd = new Date(proposed[proposed.length - 1].proposedEnd);
+    const homeAt = new Date(lastEnd.getTime() + returnMinutes * 60000);
+    const closeMin = dayRanges.length ? timeToMinutes(dayRanges[dayRanges.length - 1].end) : null;
+    if (closeMin !== null) {
+      let localMin = 0;
+      for (const part of new Intl.DateTimeFormat("en-US", { timeZone: tz, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(homeAt)) {
+        if (part.type === "hour") localMin += Number(part.value) * 60;
+        if (part.type === "minute") localMin += Number(part.value);
+      }
+      if (localMin > closeMin) {
+        warnings.unshift(
+          `${roundTrip ? "Back at the start" : "Last stop wraps"} around ${fmt(homeAt)}, past ${user.name}'s ${fmt(
+            wallTimeToUtc(tz, date.getFullYear(), date.getMonth() + 1, date.getDate(), closeMin)
+          )} finish.`
+        );
+      }
+    }
+  }
+  if (!dm.measured) {
+    warnings.push("Drive times are straight-line estimates right now — real road times weren't available.");
+  }
+
   let applied = false;
+  let notified = 0;
   if (body.apply === true) {
     // Clearing reminder stamps re-arms the day-before/1-hour client reminders
     // for the new times (both models carry the same stamp columns).
@@ -310,10 +347,33 @@ export async function POST(req: NextRequest) {
       })
     );
     applied = true;
+
+    // Tell every client whose arrival actually changed (Anytime → a real
+    // time counts; a stop that kept its slot to the minute stays quiet)
+    if (body.notify === true) {
+      for (const p of proposed) {
+        const before = p.scheduledAt ? new Date(p.scheduledAt).getTime() : null;
+        const moved = p.scheduledAnytime || before === null || Math.abs(before - new Date(p.proposedStart).getTime()) >= 60000;
+        if (!moved) continue;
+        const r = await notifyClientOfMove({
+          companyId: actor.companyId,
+          kind: p.kind,
+          id: p.id,
+          previousStart: p.scheduledAt ? new Date(p.scheduledAt) : null,
+          previousAnytime: p.scheduledAnytime,
+        }).catch(() => ({ sent: false }));
+        if (r.sent) notified++;
+      }
+    }
   }
 
   return NextResponse.json({
     userName: user.name,
+    roundTrip,
+    measured: dm.measured,
+    totalDistanceMiles: Math.round(kmToMiles(totalDistanceKm) * 10) / 10,
+    returnMinutes: roundTrip ? Math.round(returnMinutes) : null,
+    notified,
     stops: proposed.map((p) => ({
       id: p.id,
       kind: p.kind,

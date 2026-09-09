@@ -30,7 +30,8 @@ export default async function RouteMapPage({
   });
   const { y, m, d } = localDayParts(company?.timezone || "America/Chicago", new Date());
   const pad = (n: number) => String(n).padStart(2, "0");
-  const dateStr = dateParam ?? `${y}-${pad(m)}-${pad(d)}`;
+  const todayStr = `${y}-${pad(m)}-${pad(d)}`;
+  const dateStr = dateParam ?? todayStr;
 
   const users = canFilterTeam
     ? await prisma.user.findMany({
@@ -43,12 +44,14 @@ export default async function RouteMapPage({
   return (
     <RouteMapClient
       date={dateStr}
+      today={todayStr}
       team={canFilterTeam ? (team ?? "") : ""}
       users={users}
       meId={actor.id}
       meName={actor.name}
       canDispatch={canFilterTeam}
       canOptimize={actor.role !== "SALES"}
+      canSeeTeam={isManager(actor.role)}
     />
   );
 }

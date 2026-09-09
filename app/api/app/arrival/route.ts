@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, jobScope } from "@/lib/permissions";
 import { geocodeAddress } from "@/lib/geocoding";
+import { localDayParts, wallTimeToUtc } from "@/lib/booking-engine";
 
 /**
  * Arrival awareness (components/ArrivalNudge.tsx): "what's my next stop, and
@@ -22,9 +23,18 @@ export async function GET() {
   // Sales don't clock time on jobs — nothing to prompt
   if (actor.role === "SALES") return NextResponse.json({ job: null, clockedInJobId: null });
 
+  // "Today" on the COMPANY's clock, not the server's — every other route
+  // surface already does this; a tenant west of the server was otherwise
+  // being nudged toward tomorrow's first stop late in the evening
   const now = new Date();
-  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const endOfDay = new Date(startOfDay.getTime() + 86400000);
+  const tzRow = await prisma.company.findUnique({
+    where: { id: actor.companyId },
+    select: { timezone: true },
+  });
+  const tz = tzRow?.timezone || "America/Chicago";
+  const { y, m, d } = localDayParts(tz, now);
+  const startOfDay = wallTimeToUtc(tz, y, m, d, 0);
+  const endOfDay = wallTimeToUtc(tz, y, m, d, 24 * 60);
 
   const [openEntry, job] = await Promise.all([
     prisma.timeEntry.findFirst({
