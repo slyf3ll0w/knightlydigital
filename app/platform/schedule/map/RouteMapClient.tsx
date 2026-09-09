@@ -63,7 +63,7 @@ const ANCHOR_PRESETS: { value: string; label: string }[] = [
 
 type RouteStop = {
   id: string;
-  kind: "job" | "appointment";
+  kind: "job" | "appointment" | "block";
   jobNumber: number | null;
   title: string;
   status: string;
@@ -461,7 +461,10 @@ export default function RouteMapClient({
           points.push([s.lat, s.lng]);
           path.push([s.lat, s.lng]);
           const icon = L.divIcon({
-            html: `<div class="route-pin" style="background:${g.color}"><span>${i + 1}</span></div>`,
+            html:
+              s.kind === "block"
+                ? `<div class="route-pin route-pin-block" style="border-color:${g.color}"><span>${i + 1}</span></div>`
+                : `<div class="route-pin" style="background:${g.color}"><span>${i + 1}</span></div>`,
             className: "",
             iconSize: [28, 28],
             iconAnchor: [14, 14],
@@ -470,7 +473,9 @@ export default function RouteMapClient({
           const link =
             s.kind === "job"
               ? `<br/><a href="/app/jobs/${s.id}">Open job →</a>`
-              : `<br/><a href="/app/appointments/${s.id}">Open appointment →</a>`;
+              : s.kind === "appointment"
+                ? `<br/><a href="/app/appointments/${s.id}">Open appointment →</a>`
+                : `<br/><span style="color:#6B7280">Blocked off — routed around</span>`;
           const nav = navigateHref(s, apple);
           const navLink = nav ? ` · <a href="${nav}" target="_blank" rel="noopener">Navigate →</a>` : "";
           const marker = L.marker([s.lat, s.lng], { icon })
@@ -823,6 +828,8 @@ export default function RouteMapClient({
           font-variant-numeric: lining-nums tabular-nums;
         }
         .route-pin-start { background: ${INK}; border-radius: 9px; }
+        .route-pin-block { background: #fff; border-width: 3px; border-style: dashed; }
+        .route-pin-block span { color: #374151; }
         .route-pin-start span { font-size: 10px; letter-spacing: 0.03em; }
         .route-live {
           width: 34px; height: 34px; border-radius: 9999px; background: #fff;
@@ -1193,10 +1200,11 @@ export default function RouteMapClient({
                             <p className="flex items-center gap-1.5 truncate text-sm font-semibold text-gray-900">
                               <span className="truncate">{s.title}</span>
                               {s.kind === "appointment" && <span className="stamp shrink-0 text-purple-700">Appt</span>}
+                              {s.kind === "block" && <span className="stamp shrink-0 text-gray-600">Busy</span>}
                               {s.lat == null && <span className="stamp shrink-0 text-amber-700">No pin</span>}
                             </p>
                             <p className="truncate text-xs text-gray-500">
-                              {s.contactName}
+                              {s.kind === "block" ? "Blocked off" : s.contactName}
                               {s.address ? ` · ${s.address}` : ""}
                             </p>
                           </div>
@@ -1219,13 +1227,15 @@ export default function RouteMapClient({
                                   Go
                                 </a>
                               )}
-                              <Link
-                                href={s.kind === "job" ? `/app/jobs/${s.id}` : `/app/appointments/${s.id}`}
-                                onClick={(e) => e.stopPropagation()}
-                                className="text-[11px] font-semibold text-green-700 hover:underline"
-                              >
-                                Open
-                              </Link>
+                              {s.kind !== "block" && (
+                                <Link
+                                  href={s.kind === "job" ? `/app/jobs/${s.id}` : `/app/appointments/${s.id}`}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="text-[11px] font-semibold text-green-700 hover:underline"
+                                >
+                                  Open
+                                </Link>
+                              )}
                             </span>
                           </div>
                         </div>

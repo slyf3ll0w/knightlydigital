@@ -15,6 +15,8 @@ export type BlockInfo = {
   startAt: string;
   endAt: string;
   allDay: boolean;
+  /** Optional "where I'll be" — routing treats a located block as a stop. */
+  address: string | null;
   canEdit: boolean;
 };
 

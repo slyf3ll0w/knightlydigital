@@ -25,7 +25,9 @@ import { driveMatrix } from "@/lib/routing";
 
 export type RouteStop = {
   id: string;
-  kind: "job" | "appointment";
+  /** "block" = blocked-off time with an address — a fixed stop the route
+      drives to and from, never reordered or re-timed. */
+  kind: "job" | "appointment" | "block";
   jobNumber: number | null;
   title: string;
   status: string;
@@ -294,7 +296,40 @@ export async function resolveRouteDay(actor: Actor, date: Date): Promise<RouteDa
     };
   });
 
-  const stops: RouteStop[] = [...jobStops, ...apptStops];
+  // Blocked-off time WITH a location (dentist, supplier run) is a real stop
+  // on that tech's route — drive time to and from it counts. Company-wide
+  // blocks have no single driver, so only personal ones ride along.
+  const blocks = await prisma.timeBlock.findMany({
+    where: {
+      companyId: actor.companyId,
+      userId: { not: null },
+      lat: { not: null },
+      lng: { not: null },
+      startAt: { lt: dayEnd },
+      endAt: { gt: dayStart },
+      ...(isManager(actor.role) || actor.role === "USER" ? {} : { userId: actor.id }),
+    },
+    select: { id: true, userId: true, title: true, address: true, startAt: true, endAt: true, allDay: true, lat: true, lng: true },
+  });
+  const blockStops: RouteStop[] = blocks.map((b) => ({
+    id: b.id,
+    kind: "block",
+    jobNumber: null,
+    title: b.title || "Blocked off",
+    status: "BLOCK",
+    contactName: "",
+    address: b.address,
+    // Clamp multi-day blocks to this day so the walk stays inside it
+    scheduledAt: new Date(Math.max(b.startAt.getTime(), dayStart.getTime())).toISOString(),
+    scheduledEnd: new Date(Math.min(b.endAt.getTime(), dayEnd.getTime())).toISOString(),
+    scheduledAnytime: b.allDay,
+    tentative: false,
+    assigneeIds: [b.userId!],
+    lat: b.lat,
+    lng: b.lng,
+  }));
+
+  const stops: RouteStop[] = [...jobStops, ...apptStops, ...blockStops];
 
   // Shop pin: geocode lazily the first time a route view loads after the
   // address exists (or after it changed — the settings PATCH clears the stamp).

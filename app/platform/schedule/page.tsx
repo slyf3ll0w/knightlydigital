@@ -118,6 +118,7 @@ type BlockRow = {
   startAt: Date;
   endAt: Date;
   allDay: boolean;
+  address?: string | null;
   user: { name: string } | null;
 };
 
@@ -135,6 +136,7 @@ function blockToDTOs(b: BlockRow, fetchStart: Date, fetchEnd: Date, canEdit: boo
     startAt: b.startAt.toISOString(),
     endAt: b.endAt.toISOString(),
     allDay: b.allDay,
+    address: b.address ?? null,
     canEdit,
   };
   const segs: ScheduleJobDTO[] = [];

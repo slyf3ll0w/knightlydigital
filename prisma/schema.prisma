@@ -1309,6 +1309,12 @@ model TimeBlock {
   startAt     DateTime
   endAt       DateTime
   allDay      Boolean  @default(false)
+  // Optional "where I'll be" (dentist, supplier run, a personal errand) so
+  // the route engine can drive to and from it: Find a Time and the
+  // calendar's drive gaps treat a located block like a fixed stop.
+  address     String?
+  lat         Float?
+  lng         Float?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

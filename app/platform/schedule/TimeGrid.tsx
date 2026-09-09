@@ -209,9 +209,11 @@ export default function TimeGrid({
                     ? drag.selection
                     : null;
                 const colLegs = legs?.[col.key];
-                // Stops in clock order for the gap labels (blocks aren't stops)
+                // Stops in clock order for the gap labels — work, plus any
+                // blocked time the route engine gave a drive leg (it has an
+                // address, so the tech really goes there)
                 const stops = blocks
-                  .filter((b) => b.j.kind !== "block")
+                  .filter((b) => b.j.kind !== "block" || Boolean(colLegs?.[b.j.id]))
                   .sort((a, b) => a.startMin - b.startMin);
 
                 return (

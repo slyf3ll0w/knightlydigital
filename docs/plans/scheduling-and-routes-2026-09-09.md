@@ -37,6 +37,24 @@ that adapts to the view; and he flagged Routes as "lacking".
 - `RouteMapClient.tsx`: road polylines (dashed fallback), grip drag-to-reorder (→ preview) and drag onto another tech's card (reassign), Navigate per stop (Apple Maps on Apple), send-whole-route / copy link, print day sheet, live clocked-in techs (managers, today only) with "running past planned end", `~` only when estimated, today from company TZ.
 - `arrival` API now uses the company's day, not the server's.
 
+## Follow-up (same day, after David's phone test)
+
+- **Notify-on-move never dead-ends.** `lib/schedule-notify.ts` now always
+  posts the new time into the client's portal thread (PortalMessage
+  OUTBOUND + hub push), then texts when SMS is live and emails when there's
+  an address. "Couldn't send" only happens if the portal write itself
+  fails. The toast reports which channels went out.
+- **Phone toast restacked.** Text on top, Undo + Text client on their own
+  row, sits above the tab bar and the + button. Drag ghost card clamped to
+  the viewport.
+- **Blocked time can carry a location.** `TimeBlock.address/lat/lng`
+  (geocoded on save). The Block Time sheet has "Where (optional)". A
+  personal block with a pin is a fixed stop in `resolveRouteDay` (kind
+  `block`, status `BLOCK`), so Find a Time, the calendar's drive gaps, the
+  route map (dashed pin, "Busy") and road geometry all drive to and from
+  it. Optimize never moves it. Company-wide blocks don't route (no single
+  driver).
+
 ## Not done (deliberate)
 
 - Whole-crew multi-tech balancing (optimize is still one tech per call).

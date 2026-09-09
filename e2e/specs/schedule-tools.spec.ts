@@ -121,18 +121,34 @@ test.describe("schedule tools", () => {
     await api.json("POST", "/api/app/schedule/shift-day", { date: ymd(daysFrom(40)), toDate: ymd(daysFrom(41)) }, 400);
   });
 
-  test("notify-on-move refuses politely when the client has no way to be reached", async () => {
+  test("notify-on-move always lands in the portal thread, even with no phone or email", async () => {
     const job = await api.post("/api/app/jobs", {
       contactId,
       title: `${runTag} notify`,
       scheduledAt: hoursFrom(20).toISOString(),
       scheduledEnd: hoursFrom(21).toISOString(),
     });
-    // Harness contacts have neither email nor phone — the send must not 500
-    const res = await api.json("POST", "/api/app/schedule/notify-move", { kind: "job", id: job.id }, 422);
-    expect(res.reason).toBe("no_contact_method");
+    // Harness contacts have neither email nor phone — the portal thread is
+    // the record either way (and cascades away with the contact)
+    const res = await api.json("POST", "/api/app/schedule/notify-move", { kind: "job", id: job.id }, 200);
+    expect(res.via).toContain("portal");
+    const thread = await db().portalMessage.findMany({ where: { contactId, direction: "OUTBOUND" } });
+    expect(thread.some((m) => m.body.includes(`${runTag} notify`))).toBe(true);
     await api.json("POST", "/api/app/schedule/notify-move", { kind: "job", id: "nope" }, 404);
     await api.json("POST", "/api/app/schedule/notify-move", { kind: "thing", id: job.id }, 400);
+  });
+
+  test("blocked time can carry a location", async () => {
+    const block = await api.post("/api/app/time-blocks", {
+      title: `${runTag} dentist`,
+      startAt: hoursFrom(30).toISOString(),
+      endAt: hoursFrom(31).toISOString(),
+      address: "1600 Pennsylvania Ave NW, Washington, DC 20500",
+    });
+    expect(block.address).toContain("Pennsylvania");
+    const cleared = await api.patch(`/api/app/time-blocks/${block.id}`, { address: "" });
+    expect(cleared.address ?? null).toBeNull();
+    await api.delete(`/api/app/time-blocks/${block.id}`);
   });
 
   test("route plan carries distance and a measured flag", async () => {

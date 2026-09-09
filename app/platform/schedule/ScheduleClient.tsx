@@ -91,6 +91,7 @@ type BlockForm = {
   endDate: string;
   startTime: string;
   endTime: string;
+  address: string; // optional "where I'll be" — routing drives around it
 };
 
 type Snapshot = {
@@ -623,6 +624,7 @@ export default function ScheduleClient({
         endDate: d,
         startTime: prefill ? `${pad(Math.floor(prefill.startMin / 60))}:${pad(prefill.startMin % 60)}` : "09:00",
         endTime: prefill ? `${pad(Math.floor(prefill.endMin / 60))}:${pad(prefill.endMin % 60)}` : "17:00",
+        address: "",
       },
     });
   }
@@ -643,6 +645,7 @@ export default function ScheduleClient({
         endDate: toParam(e),
         startTime: `${pad(s.getHours())}:${pad(s.getMinutes())}`,
         endTime: `${pad(e.getHours())}:${pad(e.getMinutes())}`,
+        address: b.address ?? "",
       },
     });
   }
@@ -677,6 +680,7 @@ export default function ScheduleClient({
       allDay: f.allDay,
       startAt: startAt.toISOString(),
       endAt: endAt.toISOString(),
+      address: f.address.trim() || null,
     };
     if (canBlockForOthers) body.forUserId = f.who === "everyone" ? null : f.who;
 
@@ -771,7 +775,7 @@ export default function ScheduleClient({
           enabled: boolean;
           start: { label: string } | null;
           memberStarts: Record<string, { label: string }>;
-          stops: { id: string; contactName: string; scheduledAt: string; scheduledAnytime: boolean; assigneeIds: string[] }[];
+          stops: { id: string; title: string; contactName: string; scheduledAt: string; scheduledAnytime: boolean; assigneeIds: string[] }[];
           drive: { legs: Record<string, Record<string, number>> };
         };
         if (cancelled) return;
@@ -781,11 +785,19 @@ export default function ScheduleClient({
             .filter((s) => s.assigneeIds.includes(userId) && !s.scheduledAnytime)
             .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
           const col: DriveLegs[string] = {};
+          // Blocked time shows on the calendar as per-day segments
+          // (`blockId#n`), while the route engine keys the stop by the
+          // block's own id — map it onto whichever segment sits on this day
+          const calendarId = (stopId: string) =>
+            items.find((it) => it.kind === "block" && it.block?.id === stopId && it.scheduledAt && sameDay(new Date(it.scheduledAt), anchor))?.id ?? stopId;
           mine.forEach((s, i) => {
             const minutes = legMap[s.id];
             if (minutes === undefined || minutes === null) return;
-            const from = i === 0 ? (data.memberStarts?.[userId] ? "home" : data.start ? "the shop" : "start") : mine[i - 1].contactName;
-            col[s.id] = { minutes, from, measured: Boolean(data.enabled) };
+            const from =
+              i === 0
+                ? data.memberStarts?.[userId] ? "home" : data.start ? "the shop" : "start"
+                : mine[i - 1].contactName || mine[i - 1].title;
+            col[calendarId(s.id)] = { minutes, from, measured: Boolean(data.enabled) };
           });
           out[`u-${userId}`] = col;
         }
@@ -797,6 +809,7 @@ export default function ScheduleClient({
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wantLegs, date, jobs]);
 
   // ── Derived ───────────────────────────────────────────────────────────────
@@ -1238,8 +1251,13 @@ export default function ScheduleClient({
     return (
       <div
         aria-hidden
-        className="pointer-events-none fixed z-[70] max-w-[240px] rounded-[12px] border border-green-300 bg-white px-3 py-2 text-sm shadow-[0_12px_30px_rgba(9,13,19,0.25)]"
-        style={{ left: st.x + 14, top: st.y - (st.touch ? 64 : -14) }}
+        className="pointer-events-none fixed z-[70] w-[220px] max-w-[70vw] rounded-[12px] border border-green-300 bg-white px-3 py-2 text-sm shadow-[0_12px_30px_rgba(9,13,19,0.25)]"
+        style={{
+          // Keep the card on screen: a finger near the right edge used to
+          // push it past the viewport and the page shifted sideways
+          left: Math.max(8, Math.min(st.x + 14, (typeof window !== "undefined" ? window.innerWidth : 400) - 228)),
+          top: Math.max(8, st.y - (st.touch ? 72 : -14)),
+        }}
       >
         <p className="truncate font-semibold text-gray-900">{label}</p>
         {sub && <p className="truncate text-xs text-gray-500">{sub}</p>}
@@ -1706,6 +1724,20 @@ export default function ScheduleClient({
                 </p>
               )
             )}
+            <div>
+              <label className="mb-0.5 block text-xs font-medium text-gray-500">Where (optional)</label>
+              <input
+                type="text"
+                value={blockSheet.form.address}
+                disabled={!blockSheet.canEdit}
+                placeholder="Address — so jobs get scheduled around the drive"
+                onChange={(e) => setBlockSheet((s) => s && { ...s, form: { ...s.form, address: e.target.value } })}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-50 disabled:text-gray-500"
+              />
+              {blockSheet.form.who !== "everyone" && blockSheet.form.address.trim() && (
+                <p className="mt-1 text-xs text-gray-500">Find a Time and the route map will count the drive to and from here.</p>
+              )}
+            </div>
             <label className="flex items-center gap-2 text-sm text-gray-700">
               <input
                 type="checkbox"

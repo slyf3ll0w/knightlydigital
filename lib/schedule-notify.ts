@@ -2,13 +2,18 @@ import { prisma } from "@/lib/db";
 import { bookingRescheduledEmail, emailEnabled, sendEmail } from "@/lib/email";
 import { sendSms, smsEnabled } from "@/lib/sms";
 import { arrivalSlotLabel, resolveArrivalWindowMinutes } from "@/lib/arrival-window";
+import { notifyContact } from "@/lib/push";
 
 /**
  * "Tell the client their visit moved" — the one place the calendar's
  * Undo toast, the day-shift action, and the route optimizer's Apply all
- * send from. Text first (when the tenant has SMS and the client hasn't
- * opted out), email otherwise; both when both are possible so the client
- * has a written record either way.
+ * send from.
+ *
+ * The message always lands in the client's portal thread (the same
+ * two-way thread the Messages inbox uses), with a push to their hub if
+ * they've enabled it — so it's on the record and reachable even when the
+ * tenant has no SMS provider. On top of that: a text when SMS is live and
+ * the client hasn't opted out, and the branded email when they have one.
  *
  * Jobs speak in arrival windows (the promise the company makes); phone and
  * video appointments are exact times. Anytime visits say "during the day".
@@ -26,9 +31,9 @@ const companySelect = {
   logoUrl: true,
 } as const;
 
-const contactSelect = { firstName: true, email: true, phone: true, smsOptOut: true } as const;
+const contactSelect = { id: true, firstName: true, email: true, phone: true, smsOptOut: true, hubToken: true } as const;
 
-export type MoveNoticeResult = { sent: boolean; via: ("sms" | "email")[]; reason?: string };
+export type MoveNoticeResult = { sent: boolean; via: ("portal" | "sms" | "email")[]; reason?: string };
 
 function dayLabel(tz: string, d: Date): string {
   return new Intl.DateTimeFormat("en-US", { timeZone: tz, weekday: "short", month: "short", day: "numeric" }).format(d);
@@ -41,10 +46,12 @@ export async function notifyClientOfMove(params: {
   /** Where it was before the move, for the "moved from" line. */
   previousStart?: Date | null;
   previousAnytime?: boolean;
+  /** Team member the portal message shows as the sender (null = the company). */
+  senderId?: string | null;
 }): Promise<MoveNoticeResult> {
   const { companyId, kind, id } = params;
 
-  let contact: { firstName: string; email: string | null; phone: string | null; smsOptOut: boolean };
+  let contact: { id: string; firstName: string; email: string | null; phone: string | null; smsOptOut: boolean; hubToken: string };
   let company: {
     id: string; name: string; email: string | null; timezone: string; arrivalWindowMinutes: number;
     brandColor: string | null; documentColor: string | null; brandColorSecondary: string | null; logoUrl: string | null;
@@ -114,17 +121,41 @@ export async function notifyClientOfMove(params: {
       : arrivalSlotLabel(tz, params.previousStart, windowMinutes)
     : null;
 
-  const canEmail = emailEnabled() && Boolean(contact.email);
-  const canSms = smsEnabled() && Boolean(contact.phone) && !contact.smsOptOut;
-  if (!canEmail && !canSms) {
-    return { sent: false, via: [], reason: contact.smsOptOut && !contact.email ? "opted_out" : "no_contact_method" };
+  const via: ("portal" | "sms" | "email")[] = [];
+  const where = address ? ` at ${address}` : "";
+  const line = `Hi ${contact.firstName}, ${company.name} has moved your ${title} to ${windowLabel}${where}${
+    previousLabel ? ` (was ${previousLabel})` : ""
+  }. Reply here if that doesn't work.`;
+
+  // 1. The portal thread — always. It's the record, and the hub shows it
+  //    the next time they open a link from the company.
+  try {
+    await prisma.portalMessage.create({
+      data: {
+        companyId,
+        contactId: contact.id,
+        direction: "OUTBOUND",
+        senderId: params.senderId ?? null,
+        body: line,
+        via: "portal",
+      },
+    });
+    via.push("portal");
+    await notifyContact(contact.id, {
+      title: company.name,
+      body: line.length > 140 ? `${line.slice(0, 139)}…` : line,
+      url: `/hub/${contact.hubToken}/messages`,
+      tag: `portal-thread-${contact.id}`,
+    }).catch(() => {});
+  } catch (err) {
+    console.error("[schedule-notify] portal post failed:", err);
   }
 
-  const via: ("sms" | "email")[] = [];
+  const canEmail = emailEnabled() && Boolean(contact.email);
+  const canSms = smsEnabled() && Boolean(contact.phone) && !contact.smsOptOut;
 
   if (canSms && contact.phone) {
-    const where = address ? ` at ${address}` : "";
-    const text = `Hi ${contact.firstName}, ${company.name} has moved your ${title} to ${windowLabel}${where}. Reply if that doesn't work. Reply STOP to opt out.`;
+    const text = `${line} Reply STOP to opt out.`;
     if (await sendSms({ companyId, to: contact.phone, text })) via.push("sms");
   }
 
@@ -151,5 +182,8 @@ export async function notifyClientOfMove(params: {
     if (ok) via.push("email");
   }
 
-  return { sent: via.length > 0, via, reason: via.length ? undefined : "send_failed" };
+  if (via.length === 0) {
+    return { sent: false, via, reason: contact.smsOptOut && !contact.email ? "opted_out" : "send_failed" };
+  }
+  return { sent: true, via };
 }

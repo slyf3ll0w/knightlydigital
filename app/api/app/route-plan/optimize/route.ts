@@ -357,7 +357,8 @@ export async function POST(req: NextRequest) {
         if (!moved) continue;
         const r = await notifyClientOfMove({
           companyId: actor.companyId,
-          kind: p.kind,
+          // Only jobs and appointments are ever routed (blocks are fixed points)
+          kind: p.kind as "job" | "appointment",
           id: p.id,
           previousStart: p.scheduledAt ? new Date(p.scheduledAt) : null,
           previousAnytime: p.scheduledAnytime,

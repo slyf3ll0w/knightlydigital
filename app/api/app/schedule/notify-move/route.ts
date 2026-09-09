@@ -44,6 +44,7 @@ export async function POST(req: NextRequest) {
     id,
     previousStart,
     previousAnytime: Boolean(body.previousAnytime),
+    senderId: actor.id,
   });
 
   if (!result.sent) {

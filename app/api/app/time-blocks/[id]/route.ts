@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, isManager, type Actor } from "@/lib/permissions";
+import { geocodeAddress } from "@/lib/geocoding";
 
 /**
  * PATCH / DELETE a time block. Managers may touch any block in the company
@@ -34,6 +35,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (body.startAt !== undefined) data.startAt = new Date(body.startAt);
   if (body.endAt !== undefined) data.endAt = new Date(body.endAt);
   if (body.allDay !== undefined) data.allDay = Boolean(body.allDay);
+  if (body.address !== undefined) {
+    const address = typeof body.address === "string" ? body.address.trim().slice(0, 240) || null : null;
+    data.address = address;
+    if (address !== block.address) {
+      const pin = address ? await geocodeAddress(address, actor.companyId) : null;
+      data.lat = pin?.lat ?? null;
+      data.lng = pin?.lng ?? null;
+    }
+  }
 
   const start = (data.startAt ?? block.startAt) as Date;
   const end = (data.endAt ?? block.endAt) as Date;

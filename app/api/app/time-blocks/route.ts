@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
+import { geocodeAddress } from "@/lib/geocoding";
 
 /**
  * POST — block off time on the schedule. Everyone may block their own
@@ -45,6 +46,11 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Optional location — geocoded now so routing can treat the block as a
+  // stop; an address that won't resolve is still kept for the humans
+  const address = typeof body.address === "string" ? body.address.trim().slice(0, 240) || null : null;
+  const pin = address ? await geocodeAddress(address, actor.companyId) : null;
+
   const block = await prisma.timeBlock.create({
     data: {
       companyId: actor.companyId,
@@ -57,6 +63,9 @@ export async function POST(req: NextRequest) {
       startAt: start,
       endAt: end,
       allDay: Boolean(body.allDay),
+      address,
+      lat: pin?.lat ?? null,
+      lng: pin?.lng ?? null,
     },
   });
 
