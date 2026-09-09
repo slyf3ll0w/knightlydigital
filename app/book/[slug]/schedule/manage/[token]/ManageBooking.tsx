@@ -83,7 +83,7 @@ export default function ManageBooking({ token, appearance }: { token: string; ap
   const muted = dark ? "text-gray-400" : "text-gray-500";
   const card = transparent ? "bg-transparent" : dark ? "bg-[#101410] border border-white/10 rounded-lg shadow-sm" : "card-ledger shadow-sm";
   const chip = (selected: boolean) =>
-    `px-2 py-2 rounded border text-xs font-medium transition-colors ${selected ? "text-white" : dark ? "border-white/15 text-gray-200 hover:border-white/30" : "border-gray-300 text-gray-700 hover:border-gray-400"}`;
+    `px-2 py-2 rounded border text-xs font-medium transition-colors ${selected ? "" : dark ? "border-white/15 text-gray-200 hover:border-white/30" : "border-gray-300 text-gray-700 hover:border-gray-400"}`;
 
   if (loading && !info) {
     return (
@@ -161,7 +161,7 @@ export default function ManageBooking({ token, appearance }: { token: string; ap
                 {info.days.map((d) => {
                   const on = d.date === activeDay;
                   return (
-                    <button key={d.date} type="button" onClick={() => setActiveDay(d.date)} className={`shrink-0 rounded border px-3 py-1.5 text-xs font-semibold ${on ? "text-white" : dark ? "border-white/15 text-gray-300" : "border-gray-300 text-gray-600"}`} style={on ? { backgroundColor: accent, borderColor: accent } : undefined}>
+                    <button key={d.date} type="button" onClick={() => setActiveDay(d.date)} className={`shrink-0 rounded border px-3 py-1.5 text-xs font-semibold ${on ? "" : dark ? "border-white/15 text-gray-300" : "border-gray-300 text-gray-600"}`} style={on ? { backgroundColor: accent, borderColor: accent, color: textOn(accent) } : undefined}>
                       {d.label}
                     </button>
                   );
@@ -171,7 +171,7 @@ export default function ManageBooking({ token, appearance }: { token: string; ap
                 {(info.days.find((d) => d.date === activeDay)?.slots ?? []).map((s) => {
                   const on = slot?.start === s.start;
                   return (
-                    <button key={s.start} type="button" onClick={() => setSlot(s)} className={chip(on)} style={on ? { backgroundColor: accent, borderColor: accent } : undefined}>
+                    <button key={s.start} type="button" onClick={() => setSlot(s)} className={chip(on)} style={on ? { backgroundColor: accent, borderColor: accent, color: textOn(accent) } : undefined}>
                       {s.label}
                     </button>
                   );

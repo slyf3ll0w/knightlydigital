@@ -120,3 +120,17 @@ export function textOn(hex: string): string {
   const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
   return luminance > 160 ? "#111827" : "#ffffff";
 }
+
+/**
+ * The accent a public booking surface can actually wear. A company whose
+ * brand is black and white (or any accent close to the page ground) used to
+ * paint icons, links, progress dots and selected chips in a color that
+ * vanished into the page. Try the chosen accent, then the other brand color;
+ * when neither clears 3:1 against the surface, use the surface's own ink —
+ * black on light, white on dark — so a black-and-white brand stays
+ * black-and-white instead of turning WorkBench orange.
+ */
+export function readableAccent(accent: string, alternates: Array<string | null | undefined>, dark: boolean): string {
+  const surface = dark ? "#101410" : "#ffffff";
+  return resolveAccent([accent, ...alternates], surface, dark ? "#ffffff" : "#111827");
+}

@@ -349,7 +349,7 @@ export default function BookingStepper({
     : "w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500";
   const chip = (selected: boolean) =>
     `px-2 py-2 rounded border text-xs font-medium transition-colors ${
-      selected ? "text-white" : dark ? "border-white/15 text-gray-200 hover:border-white/30" : "border-gray-300 text-gray-700 hover:border-gray-400"
+      selected ? "" : dark ? "border-white/15 text-gray-200 hover:border-white/30" : "border-gray-300 text-gray-700 hover:border-gray-400"
     }`;
   const primaryBtn = "w-full py-3 font-semibold text-sm rounded transition-opacity hover:opacity-90 active:opacity-80 flex items-center justify-center gap-2 disabled:opacity-50";
   const choiceCls = (on: boolean) =>
@@ -618,7 +618,7 @@ export default function BookingStepper({
                   {shownDays.map((d) => {
                     const active = d.date === activeDay;
                     return (
-                      <button key={d.date} type="button" onClick={() => setActiveDay(d.date)} className={`shrink-0 rounded border px-3 py-1.5 text-xs font-semibold transition-colors ${active ? "text-white" : dark ? "border-white/15 text-gray-300 hover:border-white/30" : "border-gray-300 text-gray-600 hover:border-gray-400"}`} style={active ? { backgroundColor: accent, borderColor: accent } : undefined}>
+                      <button key={d.date} type="button" onClick={() => setActiveDay(d.date)} className={`shrink-0 rounded border px-3 py-1.5 text-xs font-semibold transition-colors ${active ? "" : dark ? "border-white/15 text-gray-300 hover:border-white/30" : "border-gray-300 text-gray-600 hover:border-gray-400"}`} style={active ? { backgroundColor: accent, borderColor: accent, color: textOn(accent) } : undefined}>
                         {d.label}
                       </button>
                     );
@@ -628,7 +628,7 @@ export default function BookingStepper({
                   {(shownDays.find((d) => d.date === activeDay)?.slots ?? []).map((s) => {
                     const selected = slot?.start === s.start;
                     return (
-                      <button key={s.start} type="button" onClick={() => setSlot(s)} className={chip(selected)} style={selected ? { backgroundColor: accent, borderColor: accent } : undefined}>
+                      <button key={s.start} type="button" onClick={() => setSlot(s)} className={chip(selected)} style={selected ? { backgroundColor: accent, borderColor: accent, color: textOn(accent) } : undefined}>
                         {s.label}
                       </button>
                     );

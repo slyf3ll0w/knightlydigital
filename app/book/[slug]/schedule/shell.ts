@@ -1,4 +1,4 @@
-import { brandAccent } from "@/lib/branding";
+import { brandAccent, readableAccent } from "@/lib/branding";
 import { FONT_SIZE_ZOOM, GOOGLE_FONT_RE, googleFontHref, sanitizeBookingPage } from "@/lib/booking-page";
 import { resolvePublicCompany } from "@/lib/public-company";
 import { prisma } from "@/lib/db";
@@ -34,12 +34,16 @@ export function appearanceFor(
       : overrides.theme === "dark" || overrides.theme === "light"
         ? overrides.theme
         : look.theme;
-  const accent = /^#?[0-9a-fA-F]{6}$/.test(overrides.accent ?? "")
+  const chosen = /^#?[0-9a-fA-F]{6}$/.test(overrides.accent ?? "")
     ? `#${(overrides.accent as string).replace("#", "")}`
     : (look.accent ?? brandAccent(company));
+  const dark = theme === "dark";
+  // Black-and-white brands (or any accent near the page ground) would otherwise
+  // paint icons, links and selected chips in an invisible color.
+  const accent = readableAccent(chosen, [company.brandColorSecondary, company.brandColor], dark);
   const fontName = GOOGLE_FONT_RE.test(overrides.font ?? "") ? (overrides.font as string).trim() : (look.font ?? null);
   return {
-    dark: theme === "dark",
+    dark,
     transparent: theme === "transparent",
     accent,
     fontName,
