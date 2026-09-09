@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
-import { Api, createContact, deleteContact, readState, runTag } from "../helpers/api";
-import { db } from "../helpers/db";
+import { readState } from "../env";
+import { Api, createContact, deleteContact, runTag } from "../helpers/api";
+import { db, disconnectDb } from "../helpers/db";
 
 // Schedule tools: the API behind the calendar's palette, learned durations,
 // "Move the day", the notify-on-move gate, and the route plan's distance
@@ -31,6 +32,7 @@ test.describe("schedule tools", () => {
 
   test.afterAll(async () => {
     if (contactId) await deleteContact(api, contactId);
+    await disconnectDb();
   });
 
   test("palette finds clients, requests, and unscheduled jobs by name", async () => {
