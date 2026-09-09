@@ -2,7 +2,10 @@ import { headers } from "next/headers";
 import { prisma } from "@/lib/db";
 import { requirePageActor, isManager, jobScope, canSell, appointmentScope } from "@/lib/permissions";
 import { localDayParts } from "@/lib/booking-engine";
-import ScheduleClient, { type ScheduleJobDTO } from "./ScheduleClient";
+import { DAY_KEYS, earliestOpenMinutes, sanitizeBusinessHours, timeToMinutes } from "@/lib/business-hours";
+import { resolveSlotInterval } from "@/lib/scheduling";
+import ScheduleClient from "./ScheduleClient";
+import type { ScheduleJobDTO, WeekHours } from "./schedule-lib";
 
 /**
  * Schedule — month / week / day calendar (Jobber-style, spec §6).
@@ -30,6 +33,7 @@ function parseDateParam(s: string | undefined, tz: string): Date {
 
 type JobWithContact = {
   id: string;
+  contactId: string;
   jobNumber: number;
   title: string;
   status: string;
@@ -55,6 +59,7 @@ function toDTO(j: JobWithContact): ScheduleJobDTO {
     scheduledEnd: j.scheduledEnd ? j.scheduledEnd.toISOString() : null,
     scheduledAnytime: j.scheduledAnytime,
     contactName: `${j.contact.firstName} ${j.contact.lastName}`.trim(),
+    contactId: j.contactId,
     recurring: !!j.subscriptionId,
     conflictNote: j.conflictNote ?? null,
     assignees: (j.assignments ?? [])
@@ -69,6 +74,9 @@ function toDTO(j: JobWithContact): ScheduleJobDTO {
 
 type ApptWithContact = {
   id: string;
+  contactId: string;
+  requestId: string | null;
+  assignedToId: string | null;
   title: string;
   status: string;
   type: string;
@@ -92,8 +100,11 @@ function apptToDTO(a: ApptWithContact): ScheduleJobDTO {
     scheduledEnd: a.scheduledEnd ? a.scheduledEnd.toISOString() : null,
     scheduledAnytime: a.scheduledAnytime,
     contactName: `${a.contact.firstName} ${a.contact.lastName}`.trim(),
+    contactId: a.contactId,
+    requestId: a.requestId,
     tentative: a.tentative,
     assignees: a.assignedTo?.name?.trim() ? [a.assignedTo.name.trim()] : [],
+    assigneeIds: a.assignedToId ? [a.assignedToId] : [],
     phone: a.contact.phone,
     // Directions only make sense for an on-site visit
     address: a.type === "IN_PERSON" ? a.contact.address : null,
@@ -159,15 +170,16 @@ function blockToDTOs(b: BlockRow, fetchStart: Date, fetchEnd: Date, canEdit: boo
 export default async function SchedulePage({
   searchParams,
 }: {
-  searchParams: Promise<{ view?: string; date?: string; team?: string }>;
+  searchParams: Promise<{ view?: string; date?: string; team?: string; board?: string }>;
 }) {
   const actor = await requirePageActor();
   const companyId = actor.companyId;
   // Sales/tech are already scoped to their own work — no team filter for them
   const canFilterTeam = isManager(actor.role) || actor.role === "USER";
 
-  const { view: viewParam, date: dateParam, team: teamParam } = await searchParams;
+  const { view: viewParam, date: dateParam, team: teamParam, board: boardParam } = await searchParams;
   const team = canFilterTeam ? teamParam : undefined;
+  const board = canFilterTeam && boardParam === "team";
   const explicitView = viewParam === "month" || viewParam === "week" || viewParam === "day";
   let view: "month" | "week" | "day" =
     viewParam === "week" || viewParam === "day" ? viewParam : "month";
@@ -179,11 +191,22 @@ export default async function SchedulePage({
     const ua = (await headers()).get("user-agent") ?? "";
     if (/iPhone|iPod|Windows Phone|Android(?=.*Mobile)/i.test(ua)) view = "day";
   }
-  const companyTz = await prisma.company.findUnique({
+  const company = await prisma.company.findUnique({
     where: { id: companyId },
-    select: { timezone: true },
+    select: { timezone: true, businessHours: true, schedulingIntervalMinutes: true },
   });
-  const anchor = parseDateParam(dateParam, companyTz?.timezone || "America/Chicago");
+  const anchor = parseDateParam(dateParam, company?.timezone || "America/Chicago");
+
+  // Open hours per weekday, in minutes — shades the grid, anchors the
+  // pickers, and sizes the month view's capacity bars
+  const businessHours = sanitizeBusinessHours(company?.businessHours);
+  const hours: WeekHours = DAY_KEYS.map((k) =>
+    (businessHours[k] ?? [])
+      .map((r) => ({ start: timeToMinutes(r.start), end: timeToMinutes(r.end) }))
+      .filter((r): r is { start: number; end: number } => r.start !== null && r.end !== null && r.end > r.start)
+  );
+  const intervalMinutes = resolveSlotInterval({ companyIntervalMinutes: company?.schedulingIntervalMinutes });
+  const dayStartMinutes = earliestOpenMinutes(businessHours);
 
   // Visible range (server TZ = company TZ via Railway TZ env)
   let start: Date;
@@ -295,15 +318,26 @@ export default async function SchedulePage({
     blockToDTOs(b, fetchStart, fetchEnd, isManager(actor.role) || b.userId === actor.id)
   );
 
+  // Crew minutes available per weekday: every active member × the open hours
+  // (a solo operator or a scoped tech counts as one)
+  const crewSize = Math.max(1, users.length);
+  const capacityByDow = hours.map((ranges) => crewSize * ranges.reduce((s, r) => s + (r.end - r.start), 0));
+
   return (
     <ScheduleClient
       view={view}
       explicitView={explicitView}
       date={`${anchor.getFullYear()}-${pad(anchor.getMonth() + 1)}-${pad(anchor.getDate())}`}
       team={team ?? ""}
+      board={board}
       jobs={[...jobs.map(toDTO), ...appointments.map(apptToDTO), ...blockDTOs]}
       unscheduled={unscheduled.map(toDTO)}
       users={users}
+      hours={hours}
+      intervalMinutes={intervalMinutes}
+      dayStartMinutes={dayStartMinutes}
+      capacityByDow={capacityByDow}
+      canDispatch={canFilterTeam}
       canCreateJob={canFilterTeam}
       // Viewing is for everyone (scoped above); creating stays a sales action
       canCreateAppointment={canSell(actor.role)}

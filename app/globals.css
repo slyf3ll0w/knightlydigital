@@ -451,6 +451,16 @@ html[data-mode="dark"] .app-ui .bg-chrome {
   }
 }
 
+/* ── Calendar drag (app/platform/schedule/useCalendarDrag.ts): while a
+   pointer drag is live, nothing on the page should select or show a text
+   cursor, and the grab cursor follows the pointer everywhere. ── */
+body.cal-dragging,
+body.cal-dragging * {
+  -webkit-user-select: none;
+  user-select: none;
+  cursor: grabbing !important;
+}
+
 /* ── Glass material — the translucent blurred surface for everything that
    FLOATS above content: action/create/More sheets, dropdown and context
    menus, tapback pickers. Brand-tinted the same way .bg-chrome is, so it
