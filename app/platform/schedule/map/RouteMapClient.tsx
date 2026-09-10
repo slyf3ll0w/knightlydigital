@@ -774,12 +774,18 @@ export default function RouteMapClient({
   const addToDay = useCallback(
     async (job: UnscheduledJob) => {
       setAddingId(job.id);
+      // Optimize works per tech, so an unassigned job would land on the
+      // "Unassigned" card with nothing to press. Hand it to the tech the page
+      // is filtered to (or to me when I'm the whole team); otherwise say so.
+      const assignTo = job.assigneeIds.length ? "" : team || (users.length <= 1 ? meId : "");
+      const assigned = job.assigneeIds.length > 0 || assignTo !== "";
       const { ok, data: res } = await postJson<{ error?: string }>(
         `/api/app/jobs/${job.id}`,
         {
           scheduledAt: localInputToISO(`${date}T12:00`),
           scheduledEnd: null,
           scheduledAnytime: true,
+          ...(assignTo ? { assigneeIds: [...job.assigneeIds, assignTo] } : {}),
         },
         "PATCH"
       );
@@ -789,11 +795,15 @@ export default function RouteMapClient({
         return;
       }
       hapticImpact("LIGHT");
-      setApplied(`Job #${job.jobNumber} added to ${fmtDateLabel(date)} — hit Optimize to slot it.`);
+      setApplied(
+        assigned
+          ? `Job #${job.jobNumber} added to ${fmtDateLabel(date)} — hit Optimize to slot it.`
+          : `Job #${job.jobNumber} added to ${fmtDateLabel(date)} — assign it to a tech, then Optimize slots it.`
+      );
       refresh();
       router.refresh();
     },
-    [date, refresh, router]
+    [date, team, users, meId, refresh, router]
   );
 
   useEffect(() => {
@@ -1067,7 +1077,7 @@ export default function RouteMapClient({
               <p className="text-sm font-semibold text-gray-900">Nothing scheduled this day</p>
               <p className="mt-1 text-xs text-gray-500">
                 {canDispatch && (data?.unscheduled?.length ?? 0) > 0
-                  ? "Build the day: add jobs from the unscheduled list above, then Optimize orders the route and hands out times."
+                  ? "Build the day: add jobs from the unscheduled list above and hand each to a tech — Optimize then orders the route and hands out times."
                   : "Jobs with a scheduled date show up here as a route."}
               </p>
               <Link
@@ -1084,6 +1094,14 @@ export default function RouteMapClient({
             const href = routeHref(g.start, g.stops);
             const dropHere = listDrag?.active && listDrag.over?.group === g.userId && listDrag.fromGroup !== g.userId;
             const mi = miles(data?.drive?.kmTotals?.[g.userId]);
+            // Optimize needs two stops it can place on the map for this tech
+            const pinned = g.stops.filter((s) => s.lat != null && (s.kind === "job" || !s.tentative)).length;
+            const optimizeBlocker =
+              g.stops.length < 2
+                ? "Optimize needs two or more stops."
+                : pinned < 2
+                  ? "Optimize needs a map pin on at least two stops — give the “No pin” stops a street address."
+                  : null;
             return (
               <div
                 key={g.userId || "unassigned"}
@@ -1109,6 +1127,14 @@ export default function RouteMapClient({
                         <p className="text-[11px] font-medium text-amber-700">
                           {g.stops.filter((s) => s.scheduledAnytime).length} waiting for a time — Optimize slots them
                         </p>
+                      )}
+                      {g.userId === "" && canDispatch && !dropHere && (
+                        <p className="text-[11px] font-medium text-amber-700">
+                          Optimize works per tech — assign these stops to order them.
+                        </p>
+                      )}
+                      {g.userId !== "" && mayOptimize(g.userId) && g.stops.length >= 2 && pinned < 2 && (
+                        <p className="text-[11px] font-medium text-amber-700">{optimizeBlocker}</p>
                       )}
                       {dropHere && <p className="text-[11px] font-semibold text-green-700">Drop to hand it to {g.name}</p>}
                     </div>
@@ -1136,11 +1162,11 @@ export default function RouteMapClient({
                         </button>
                       </>
                     )}
-                    {mayOptimize(g.userId) &&
-                      g.stops.filter((s) => s.lat != null && (s.kind === "job" || !s.tentative)).length >= 2 && (
+                    {mayOptimize(g.userId) && g.stops.length >= 1 && (
                         <button
                           onClick={() => runOptimize(g.userId)}
-                          disabled={previewBusy}
+                          disabled={previewBusy || pinned < 2}
+                          title={optimizeBlocker ?? "Order this route by drive time"}
                           className="flex items-center gap-1.5 rounded-[10px] btn-tool-line bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-800 transition-colors hover:bg-gray-50 disabled:opacity-50"
                         >
                           {previewBusy ? <Loader2 size={13} className="animate-spin" /> : <Wand2 size={13} />}
@@ -1208,6 +1234,27 @@ export default function RouteMapClient({
                               {s.address ? ` · ${s.address}` : ""}
                             </p>
                           </div>
+                          {g.userId === "" && canDispatch && s.kind !== "block" && users.length > 0 && (
+                            <select
+                              value=""
+                              disabled={reassigning === s.id}
+                              aria-label="Assign to"
+                              onClick={(e) => e.stopPropagation()}
+                              onKeyDown={(e) => e.stopPropagation()}
+                              onChange={(e) => {
+                                e.stopPropagation();
+                                if (e.target.value) reassign(s, "", e.target.value);
+                              }}
+                              className="no-print max-w-[112px] shrink-0 rounded-[8px] border border-gray-300 bg-white px-2 py-1 text-xs font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50"
+                            >
+                              <option value="">Assign to…</option>
+                              {users.map((u) => (
+                                <option key={u.id} value={u.id}>
+                                  {u.id === meId ? `${u.name} (me)` : u.name}
+                                </option>
+                              ))}
+                            </select>
+                          )}
                           <div className="shrink-0 text-right">
                             {s.scheduledAnytime ? (
                               <span className="stamp text-amber-700">Anytime</span>
