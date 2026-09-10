@@ -75,8 +75,11 @@ const TurnstileWidget = forwardRef<
       watchdog.current = setTimeout(() => {
         // A visible challenge means Turnstile is waiting on the user, not
         // stuck — give it another window rather than declaring failure.
-        const iframe = ref.current?.querySelector("iframe");
-        if (iframe && iframe.offsetHeight > 0) {
+        // Turnstile renders its iframe inside a CLOSED shadow root, so
+        // querySelector("iframe") never finds it; the container's own
+        // height is the only observable signal (0 while invisible, the
+        // checkbox's height once a challenge is shown).
+        if ((ref.current?.offsetHeight ?? 0) > 0) {
           armWatchdog();
           return;
         }
