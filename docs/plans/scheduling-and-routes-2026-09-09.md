@@ -58,7 +58,9 @@ that adapts to the view; and he flagged Routes as "lacking".
 ## Not done (deliberate)
 
 - Whole-crew multi-tech balancing (optimize is still one tech per call).
-- Two-way Google/Outlook sync, per-user booking links for calls.
+- Two-way Google/Outlook sync, per-user booking links for calls. (One-way
+  sync — .ics feed + Google push — shipped 2026-09-11, see
+  `google-calendar-sync-2026-09-11.md`; two-way is still open.)
 - Phone drag-to-time (phones drag rows between days; time changes go through the sheet).
 
 ## Verify

@@ -302,6 +302,11 @@ FINIX_APPLICATION_ID=       # public (finix.js uses it client-side)
 QBO_CLIENT_ID=       # Intuit app keys from developer.intuit.com
 QBO_CLIENT_SECRET=
 QBO_ENVIRONMENT=sandbox  # "production" once Intuit grants production keys
+# Optional — Google Calendar push (lib/google-calendar.ts); the "Google
+# Calendar" half of My Profile → Calendar sync is hidden until both are set.
+# Redirect URI to register: ${NEXTAUTH_URL}/api/app/integrations/google-calendar/callback
+GOOGLE_CALENDAR_CLIENT_ID=
+GOOGLE_CALENDAR_CLIENT_SECRET=
 # Optional — per-company custom sending domains (lib/email-domains.ts). Needs a
 # paid Resend plan (extra domains); Settings card + API stay hidden until set.
 EMAIL_DOMAINS_ENABLED=   # "1" to enable
@@ -313,6 +318,35 @@ EMAIL_DOMAINS_ENABLED=   # "1" to enable
 LIVERY_ADDON_CHECKOUT_URL=  # e.g. https://paywithlivery.com/l/workbench-plus
 LIVERY_WEBHOOK_SECRET=      # whsec_… from Livery → Settings → Developers
 ```
+
+## Calendar sync (ICS feed + Google Calendar push)
+
+Design: `docs/plans/google-calendar-sync-2026-09-11.md`. Per USER, any role,
+from My Profile → **Calendar sync** (`components/CalendarSyncCard.tsx`).
+Both halves render the same events — `lib/calendar-events.ts`
+`loadUserCalendarEvents`: jobs the user is assigned to, appointments
+assigned to them, their personal + company-wide time blocks; pure mappers +
+fingerprints in `lib/calendar-event-shape.ts`.
+
+- **Subscribe link** (`lib/calendar-feed.ts`, `CalendarFeed` table): a
+  32-byte token IS the credential. `GET /api/public/calendar/<token>.ics`
+  (no auth, 60 d back / 365 d ahead, bare 404 on anything else);
+  `/api/app/profile/calendar-feed` GET/POST (create or rotate)/DELETE.
+  Multi-event ICS via `buildIcsCalendar` in `lib/ics.ts`.
+- **Google push** (`lib/google-calendar.ts`, `GoogleCalendarConnection` +
+  `GoogleCalendarEvent`): OAuth like QuickBooks (signed state, AES-GCM
+  tokens off AUTH_SECRET), routes under `/api/app/integrations/google-calendar/`
+  (connect / callback / status / sync / disconnect). Sync is a RECONCILE —
+  `syncUserGoogleCalendar` diffs events vs link rows by fingerprint and
+  inserts/patches/deletes only changes; missing links adopt prior events by
+  the `workbench` private property so reconnects don't duplicate. Triggers:
+  the Prisma `$use` middleware in `lib/db.ts` (any Job / JobAssignment /
+  Appointment / TimeBlock write → `scheduleGoogleCalendarSync`, 4 s debounce
+  per company, lazy import, no-op with no connections), the hourly cron step
+  `googleCalendar`, and "Sync now". One way only. Disconnect deletes the
+  pushed events, revokes, forgets the tokens.
+- Tests: `npx tsx scripts/test-calendar-sync.ts` (needs a placeholder
+  DATABASE_URL), `npm run e2e -- calendar-feed`.
 
 ## Recurring subscriptions
 

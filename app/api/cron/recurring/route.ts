@@ -15,6 +15,7 @@ import {
 } from "@/lib/reminders";
 import { runAutoChargeRetries, runCardExpiryNudges } from "@/lib/auto-charge";
 import { runQuickBooksNightlySync } from "@/lib/quickbooks";
+import { runGoogleCalendarSweep } from "@/lib/google-calendar";
 import { runRecurringExpenses } from "@/lib/expenses";
 import { rollupStorageSnapshots } from "@/lib/usage";
 import { runNightlyReconciliation } from "@/lib/reconcile";
@@ -118,6 +119,10 @@ export async function POST(req: NextRequest) {
     // QuickBooks sweep: catches invoices issued/edited outside the payment
     // hook. No-op unless QBO env vars are set and companies have connected.
     await step("quickbooks", () => runQuickBooksNightlySync());
+    // Google Calendar push: reconciles every connected user's schedule —
+    // catches visit-series generation and anything the write trigger missed.
+    // No-op unless GOOGLE_CALENDAR_* env vars are set and users have connected.
+    await step("googleCalendar", () => runGoogleCalendarSweep());
     // Team-map retention: location history older than 30 days is deleted —
     // deliberate; keep the window short.
     await step("prunedPings", async () => {

@@ -166,7 +166,9 @@ In-person (in-person requires an address).
   booking form/hub (needs availability windows + conflict checking).
 - Appointment confirmation + reminder emails to the client (1 hr/1 day
   before, Jobber-style) — fold into email automations Phase 2 below.
-- ICS calendar attachments / Google Calendar sync.
+- ICS calendar attachments / Google Calendar sync — **SHIPPED 2026-09-11**
+  as per-user calendar sync (subscribe feed + one-way Google push), see
+  `docs/plans/google-calendar-sync-2026-09-11.md`.
 - Auto-generated video meeting links (Zoom/Meet integrations).
 
 ### 3d. Client CSV importer — SHIPPED 2026-06-11

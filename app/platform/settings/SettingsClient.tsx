@@ -296,7 +296,7 @@ const WORKSPACE_LINKS = [
   {
     href: "/app/settings/profile",
     label: "My Profile",
-    sub: "Your name, password, and email signature",
+    sub: "Your name, password, email signature, and calendar sync",
     hueKey: "business",
     icon: UserRound,
   },

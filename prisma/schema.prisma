@@ -216,6 +216,7 @@ model Company {
   timeEntries       TimeEntry[]
   locationPings     LocationPing[]
   quickBooks        QuickBooksConnection?
+  googleCalendars   GoogleCalendarConnection[]
   inviteCode        InviteCode?
   application       AccessApplication?
   clientMessages    ClientMessage[]
@@ -322,6 +323,8 @@ model User {
   feedbackTickets      FeedbackTicket[]
   portalMessages       PortalMessage[]
   celebrationsSeen     CelebrationSeen[]
+  calendarFeed         CalendarFeed?
+  googleCalendar       GoogleCalendarConnection?
 
   // Same address may exist at several companies (one row per membership),
   // but only once within a company.
@@ -2317,6 +2320,71 @@ enum QuickBooksEntityType {
 enum QuickBooksSyncStatus {
   SYNCED
   ERROR
+}
+
+// ─── Calendar sync (docs/plans/google-calendar-sync-2026-09-11.md) ──────────
+
+// Private .ics subscribe link — one per user. The token IS the credential
+// (32 random bytes, base64url); the public feed route 404s on anything else.
+// Regenerating rotates the token; deleting the row turns the feed off.
+model CalendarFeed {
+  id            String    @id @default(cuid())
+  userId        String    @unique
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token         String    @unique
+  lastFetchedAt DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+// One-way push of a user's schedule into their Google account's primary
+// calendar (lib/google-calendar.ts). Tokens are AES-256-GCM encrypted at rest
+// like QuickBooksConnection; Google refresh tokens don't expire on a clock,
+// but a revoked/expired grant surfaces as lastSyncError + reconnect.
+model GoogleCalendarConnection {
+  id                   String               @id @default(cuid())
+  userId               String               @unique
+  user                 User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyId            String
+  company              Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  googleEmail          String
+  calendarId           String               @default("primary")
+  accessTokenEnc       String
+  refreshTokenEnc      String
+  accessTokenExpiresAt DateTime
+  scope                String
+  // Pause without disconnecting: events already pushed stay put, nothing
+  // new goes out until re-enabled.
+  syncEnabled          Boolean              @default(true)
+  lastSyncAt           DateTime?
+  lastSyncError        String? // most recent failure; null = healthy
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+
+  events GoogleCalendarEvent[]
+
+  @@index([companyId])
+}
+
+enum CalendarEventKind {
+  JOB
+  APPOINTMENT
+  BLOCK
+}
+
+// Local schedule row ↔ Google event id. fingerprint = sha256 of the rendered
+// event, so the reconcile sweep only PATCHes what actually changed.
+model GoogleCalendarEvent {
+  id            String                   @id @default(cuid())
+  connectionId  String
+  connection    GoogleCalendarConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  kind          CalendarEventKind
+  localId       String
+  googleEventId String
+  fingerprint   String
+  updatedAt     DateTime                 @updatedAt
+
+  @@unique([connectionId, kind, localId])
 }
 
 // Local row ↔ QBO entity mapping. qboSyncToken is QBO's optimistic-lock

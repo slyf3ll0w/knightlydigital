@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Camera, Check, ImagePlus, Loader2, Trash2 } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { PushToggleCard } from "@/components/PushNotifications";
 import { AppLockToggleCard } from "@/components/AppLock";
+import CalendarSyncCard from "@/components/CalendarSyncCard";
 import Avatar from "@/components/Avatar";
 import AvatarCropModal from "@/components/AvatarCropModal";
 import { saveCredential } from "@/lib/save-credential";
@@ -444,6 +445,11 @@ export default function ProfileClient({
       <PushToggleCard />
 
       <AppLockToggleCard />
+
+      {/* useSearchParams inside → Suspense keeps the static shell happy */}
+      <Suspense fallback={null}>
+        <CalendarSyncCard />
+      </Suspense>
 
       <div className="card-ledger p-5 mt-5 flex flex-wrap items-center justify-between gap-3">
         <div>
