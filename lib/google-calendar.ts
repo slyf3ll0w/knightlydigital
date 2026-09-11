@@ -5,7 +5,8 @@
  * One connection per USER (not per company): a tech connects their own
  * Google account and Workbench writes their schedule — the same events the
  * .ics feed renders (lib/calendar-events.ts) — into that account's primary
- * calendar. One way only; nothing in Google writes back here.
+ * calendar. The other direction — Google busy time mirrored into Workbench
+ * as read-only time blocks — lives in lib/google-calendar-pull.ts.
  *
  * Sync is a RECONCILE, not write-through: `syncUserGoogleCalendar` diffs the
  * user's current events against the GoogleCalendarEvent link rows
@@ -131,7 +132,7 @@ interface TokenResponse {
   scope?: string;
 }
 
-class GoogleAuthError extends Error {
+export class GoogleAuthError extends Error {
   constructor(
     message: string,
     public readonly reconnect: boolean
@@ -186,6 +187,9 @@ export async function connectUser(opts: { userId: string; companyId: string; cod
     scope: tokens.scope ?? SCOPES.join(" "),
     syncEnabled: true,
     lastSyncError: null,
+    // A (re)connect may be a different Google account — start the mirror over
+    pullSyncToken: null,
+    lastPullError: null,
   };
   const connection = await prisma.googleCalendarConnection.upsert({
     where: { userId: opts.userId },
@@ -196,7 +200,7 @@ export async function connectUser(opts: { userId: string; companyId: string; cod
   return connection;
 }
 
-async function accessTokenFor(connection: GoogleCalendarConnection): Promise<{ token: string; connection: GoogleCalendarConnection }> {
+export async function accessTokenFor(connection: GoogleCalendarConnection): Promise<{ token: string; connection: GoogleCalendarConnection }> {
   if (connection.accessTokenExpiresAt.getTime() - Date.now() > 60_000) {
     return { token: decryptToken(connection.accessTokenEnc), connection };
   }
@@ -267,7 +271,7 @@ export function toGoogleEvent(ev: CalendarEvent): GoogleEventBody {
   };
 }
 
-class GoogleApiError extends Error {
+export class GoogleApiError extends Error {
   constructor(
     message: string,
     public readonly status: number
@@ -276,7 +280,7 @@ class GoogleApiError extends Error {
   }
 }
 
-async function googleFetch<T>(token: string, path: string, init: RequestInit = {}): Promise<T> {
+export async function googleFetch<T>(token: string, path: string, init: RequestInit = {}): Promise<T> {
   const res = await fetch(`${CALENDAR_API}${path}`, {
     ...init,
     headers: {
@@ -301,7 +305,7 @@ async function googleFetch<T>(token: string, path: string, init: RequestInit = {
   return text ? (JSON.parse(text) as T) : (undefined as T);
 }
 
-const calPath = (calendarId: string) => `/calendars/${encodeURIComponent(calendarId)}/events`;
+export const calPath = (calendarId: string) => `/calendars/${encodeURIComponent(calendarId)}/events`;
 
 // ─── Reconcile ───────────────────────────────────────────────────────────────
 
@@ -328,7 +332,7 @@ export async function syncUserGoogleCalendar(userId: string): Promise<SyncSummar
   return p;
 }
 
-async function mapLimit<T>(items: T[], n: number, fn: (item: T) => Promise<void>): Promise<void> {
+export async function mapLimit<T>(items: T[], n: number, fn: (item: T) => Promise<void>): Promise<void> {
   let i = 0;
   const workers = Array.from({ length: Math.min(n, items.length) }, async () => {
     while (i < items.length) {
@@ -521,7 +525,7 @@ async function listMarkedEvents(token: string, calendarId: string): Promise<Map<
   return out;
 }
 
-async function recordError(connectionId: string, err: unknown): Promise<void> {
+export async function recordError(connectionId: string, err: unknown): Promise<void> {
   const message = err instanceof Error ? err.message : "Sync failed";
   const reconnect = err instanceof GoogleAuthError && err.reconnect;
   console.error("[google-calendar] sync failed", connectionId, message);
@@ -563,6 +567,8 @@ export async function disconnectUser(userId: string): Promise<void> {
   } catch (err) {
     console.error("[google-calendar] disconnect cleanup failed", err);
   }
+  // The mirrored Google busy blocks go with the connection
+  await prisma.timeBlock.deleteMany({ where: { userId, source: "GOOGLE" } });
   await prisma.googleCalendarConnection.deleteMany({ where: { id: connection.id } });
   invalidateConnectionsCache();
 }
@@ -594,7 +600,7 @@ export async function runGoogleCalendarSweep(): Promise<{ users: number; created
 let connectionsCache: { companyIds: Set<string>; at: number } | null = null;
 const CACHE_TTL_MS = 60_000;
 
-function invalidateConnectionsCache() {
+export function invalidateConnectionsCache() {
   connectionsCache = null;
 }
 

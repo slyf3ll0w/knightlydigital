@@ -17,6 +17,10 @@ export async function GET() {
           syncEnabled: true,
           lastSyncAt: true,
           lastSyncError: true,
+          pullEnabled: true,
+          shareTitles: true,
+          lastPullAt: true,
+          lastPullError: true,
           createdAt: true,
           _count: { select: { events: true } },
         },
@@ -24,6 +28,7 @@ export async function GET() {
     : null;
 
   if (!connection) return NextResponse.json({ configured, connected: false });
+  const busyCount = await prisma.timeBlock.count({ where: { userId: actor.id, source: "GOOGLE" } });
   return NextResponse.json({
     configured,
     connected: true,
@@ -33,5 +38,10 @@ export async function GET() {
     lastSyncError: connection.lastSyncError,
     connectedAt: connection.createdAt,
     eventCount: connection._count.events,
+    pullEnabled: connection.pullEnabled,
+    shareTitles: connection.shareTitles,
+    lastPullAt: connection.lastPullAt,
+    lastPullError: connection.lastPullError,
+    busyCount,
   });
 }

@@ -345,6 +345,16 @@ fingerprints in `lib/calendar-event-shape.ts`.
   per company, lazy import, no-op with no connections), the hourly cron step
   `googleCalendar`, and "Sync now". One way only. Disconnect deletes the
   pushed events, revokes, forgets the tokens.
+- **Google → Workbench** (`lib/google-calendar-pull.ts`): the account's
+  busy events become personal `TimeBlock` rows with `source: GOOGLE` +
+  `externalId`, so booking availability / Find a Time / conflicts / the
+  route engine respect them for free. Read-only here (time-block routes 409
+  on them), never pushed back out, titles "Busy" unless
+  `GoogleCalendarConnection.shareTitles`. Incremental via Google
+  `syncToken`; polled every 5 min from `instrumentation.ts`, hourly cron
+  step `googleCalendarPull`, and on connect / "Sync now".
+  `PATCH /api/app/integrations/google-calendar/settings` takes
+  `pullEnabled` / `shareTitles` (re-reads the window).
 - Tests: `npx tsx scripts/test-calendar-sync.ts` (needs a placeholder
   DATABASE_URL), `npm run e2e -- calendar-feed`.
 

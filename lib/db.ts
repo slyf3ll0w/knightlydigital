@@ -48,6 +48,13 @@ if (!globalForTrigger.calendarSyncTriggerInstalled) {
     if (params.model && SCHEDULE_MODELS.has(params.model) && WRITE_ACTIONS.has(params.action)) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const args = (params.args ?? {}) as any;
+      // Mirrored Google busy blocks are written BY the sync — nothing to push
+      if (
+        params.model === "TimeBlock" &&
+        (args.data?.source === "GOOGLE" || args.where?.source === "GOOGLE" || args.create?.source === "GOOGLE")
+      ) {
+        return result;
+      }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const row = result as any;
       const companyId: string | null =

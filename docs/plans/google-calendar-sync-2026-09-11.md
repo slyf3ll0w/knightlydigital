@@ -95,12 +95,51 @@ returns a normalized list, the single source both renderers use:
 - **Disconnect** deletes Workbench-created events from Google first (best
   effort), revokes the token, deletes the connection (links cascade).
 
+## Two-way — Google → Workbench (shipped same day, David's ask after the
+## first live connect)
+
+`lib/google-calendar-pull.ts`. Every BUSY event on the connected account's
+primary calendar becomes a personal **TimeBlock with `source: GOOGLE`**
+(`externalId` = Google event id). Materializing as ordinary time blocks
+means every existing consumer of blocked time — the schedule grid, online
+booking availability, Find a Time, conflict badges, the route engine, the
+assistant's field tools — respects Google busy time with zero changes.
+
+- **What counts as busy:** status ≠ cancelled, not our own pushed copy
+  (private property `wb=1`), `transparency ≠ transparent` (Google's
+  default for all-day events is Free, so PTO only comes through when the
+  user marks it Busy), not declined by the user, not a working-location /
+  birthday event, inside the window (7 d back, 180 d ahead).
+- **Titles are private by default:** blocks say "Busy"; the connection's
+  `shareTitles` switch (card checkbox "Show the event names to my team")
+  carries the Google summary instead. `pullEnabled` off = mirrored blocks
+  deleted immediately. Either change clears the sync cursor and re-reads.
+- **Fresh via Google incremental sync:** first pull reads the window and
+  stores `nextSyncToken`; later pulls send the token and get only changes
+  (near-free when nothing changed); 410 = expired → one full re-read, which
+  is authoritative for the window (stale mirrored blocks deleted).
+- **Triggers:** `instrumentation.ts` polls every 5 min in the Node server
+  (`runGoogleCalendarPullSweep`), the hourly cron step `googleCalendarPull`
+  runs before the push step, connect runs pull → push, "Sync now" runs
+  pull → push. No Google webhook channels (they expire weekly and need
+  renewal bookkeeping; polling with a sync token is cheaper and simpler).
+- **Read-only in the app:** `/api/app/time-blocks/[id]` PATCH/DELETE answer
+  409 for GOOGLE blocks ("change it in Google"); the schedule DTO sets
+  `canEdit: false` + `source`, chips read "Busy · Google", the block sheet
+  explains. The push loaders filter `source: MANUAL` and the Prisma write
+  trigger skips GOOGLE writes, so nothing loops.
+- **No new scope:** `calendar.events` already covers reading the primary
+  calendar, so existing connections keep working without a reconnect.
+- Disconnect deletes the mirrored blocks along with the pushed events.
+
 ## Not doing (deliberate)
 
-- Two-way (Google → Workbench busy time). Needs Google push channels or
-  polling plus a "foreign busy" concept in the booking engine. Next tier.
+- Google push-notification channels (see Triggers above — polling wins).
+- Reading calendars other than primary.
 - Outlook/Microsoft Graph push — the ICS feed covers Outlook read-only.
 - Per-user secondary calendars — always the account's primary calendar.
+- Geocoding Google event locations into route stops — a mirrored block has
+  no pin, so the route engine treats it as time, not a place.
 - Reminders/notifications on the Google side — `reminders.useDefault: false`
   with none, so Google doesn't double-remind on top of Workbench pushes.
 

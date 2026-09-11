@@ -1297,6 +1297,11 @@ model Appointment {
 // userId is null, company-wide (holiday, team meeting; owners/admins only).
 // Blocks render striped on the calendar and subtract from online-booking
 // availability like any other busy interval.
+enum TimeBlockSource {
+  MANUAL // made in Workbench
+  GOOGLE // mirrored from the user's Google Calendar (lib/google-calendar-pull.ts)
+}
+
 model TimeBlock {
   id          String   @id @default(cuid())
   companyId   String
@@ -1318,11 +1323,17 @@ model TimeBlock {
   address     String?
   lat         Float?
   lng         Float?
+  // Two-way calendar sync: GOOGLE blocks mirror one event in the user's own
+  // Google Calendar (externalId = the Google event id). Read-only in the app
+  // — the pull rewrites/deletes them — and never pushed back out.
+  source      TimeBlockSource @default(MANUAL)
+  externalId  String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@index([companyId, startAt])
   @@index([userId])
+  @@index([userId, source, externalId])
 }
 
 // ─── Jobs ─────────────────────────────────────────────────────────────────────
@@ -2358,6 +2369,15 @@ model GoogleCalendarConnection {
   syncEnabled          Boolean              @default(true)
   lastSyncAt           DateTime?
   lastSyncError        String? // most recent failure; null = healthy
+  // Two-way: mirror the Google account's busy events into Workbench as
+  // GOOGLE time blocks (lib/google-calendar-pull.ts). shareTitles = the
+  // block carries the Google event name instead of "Busy" (teammates see it).
+  pullEnabled          Boolean              @default(true)
+  shareTitles          Boolean              @default(false)
+  // Google incremental sync cursor; null = next pull is a full window read
+  pullSyncToken        String?
+  lastPullAt           DateTime?
+  lastPullError        String?
   createdAt            DateTime             @default(now())
   updatedAt            DateTime             @updatedAt
 

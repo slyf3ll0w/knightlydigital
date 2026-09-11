@@ -119,6 +119,7 @@ type BlockRow = {
   endAt: Date;
   allDay: boolean;
   address?: string | null;
+  source?: "MANUAL" | "GOOGLE";
   user: { name: string } | null;
 };
 
@@ -128,6 +129,9 @@ type BlockRow = {
  * React keys; the real block travels in `block` for the edit sheet.
  */
 function blockToDTOs(b: BlockRow, fetchStart: Date, fetchEnd: Date, canEdit: boolean): ScheduleJobDTO[] {
+  const source = b.source ?? "MANUAL";
+  // Mirrored Google events change in Google, not here
+  const mirrored = source === "GOOGLE";
   const info = {
     id: b.id,
     userId: b.userId,
@@ -137,8 +141,10 @@ function blockToDTOs(b: BlockRow, fetchStart: Date, fetchEnd: Date, canEdit: boo
     endAt: b.endAt.toISOString(),
     allDay: b.allDay,
     address: b.address ?? null,
-    canEdit,
+    canEdit: canEdit && !mirrored,
+    source,
   };
+  const label = mirrored ? `${b.title} · Google` : b.title;
   const segs: ScheduleJobDTO[] = [];
   const day = new Date(Math.max(b.startAt.getTime(), fetchStart.getTime()));
   day.setHours(0, 0, 0, 0);
@@ -153,7 +159,7 @@ function blockToDTOs(b: BlockRow, fetchStart: Date, fetchEnd: Date, canEdit: boo
         id: `${b.id}#${i}`,
         kind: "block",
         jobNumber: null,
-        title: b.title,
+        title: label,
         status: "BLOCK",
         apptType: null,
         // all-day segments follow the date-only convention: anchored at noon

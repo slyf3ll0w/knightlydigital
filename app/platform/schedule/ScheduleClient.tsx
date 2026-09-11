@@ -163,6 +163,8 @@ export default function ScheduleClient({
     id: string | null;
     canEdit: boolean;
     userName: string | null;
+    /** Mirrored from the person's Google Calendar — read-only, edit it there */
+    mirrored?: boolean;
     form: BlockForm;
   }>(null);
   const [blockBusy, setBlockBusy] = useState(false);
@@ -637,6 +639,7 @@ export default function ScheduleClient({
       id: b.id,
       canEdit: b.canEdit,
       userName: b.userName,
+      mirrored: b.source === "GOOGLE",
       form: {
         title: b.title === "Blocked off" ? "" : b.title,
         who: b.userId ?? "everyone",
@@ -1679,13 +1682,15 @@ export default function ScheduleClient({
         {blockSheet && (
           <>
             <h2 className="text-base font-semibold text-gray-900">
-              {blockSheet.id === null ? "Block Off Time" : blockSheet.canEdit ? "Edit Blocked Time" : "Blocked Time"}
+              {blockSheet.id === null ? "Block Off Time" : blockSheet.canEdit ? "Edit Blocked Time" : blockSheet.mirrored ? "Busy in Google Calendar" : "Blocked Time"}
             </h2>
             {!blockSheet.canEdit && (
               <p className="text-sm text-gray-500">
-                {blockSheet.form.who === "everyone"
-                  ? "Blocked off for the whole team by an owner or admin."
-                  : "Only owners and admins can change someone else's blocked time."}
+                {blockSheet.mirrored
+                  ? `From ${blockSheet.userName ? `${blockSheet.userName}'s` : "their"} Google Calendar. Change it in Google and it updates here within a few minutes.`
+                  : blockSheet.form.who === "everyone"
+                    ? "Blocked off for the whole team by an owner or admin."
+                    : "Only owners and admins can change someone else's blocked time."}
               </p>
             )}
             {blockErr && <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{blockErr}</div>}

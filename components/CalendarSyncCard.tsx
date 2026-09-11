@@ -24,6 +24,11 @@ type GoogleState =
       lastSyncAt: string | null;
       lastSyncError: string | null;
       eventCount: number;
+      pullEnabled: boolean;
+      shareTitles: boolean;
+      lastPullAt: string | null;
+      lastPullError: string | null;
+      busyCount: number;
     };
 
 const btnPrimary =
@@ -169,6 +174,16 @@ export default function CalendarSyncCard() {
     loadGoogle();
   }
 
+  async function setPullSetting(patch: { pullEnabled?: boolean; shareTitles?: boolean }) {
+    if (!google?.connected) return;
+    setBusy("google");
+    setNotice(null);
+    const r = await postJson("/api/app/integrations/google-calendar/settings", patch, "PATCH");
+    setBusy("");
+    if (!r.ok) return setNotice({ tone: "err", text: r.data?.error ?? GENERIC_ERROR });
+    loadGoogle();
+  }
+
   async function disconnect() {
     if (
       !(await confirmSheet({
@@ -287,13 +302,13 @@ export default function CalendarSyncCard() {
               <h3 className="text-sm font-semibold text-gray-900">Google Calendar</h3>
               {google.connected ? (
                 <p className="text-xs text-gray-500 mt-0.5 max-w-md">
-                  Connected as <span className="font-medium text-gray-700">{google.googleEmail}</span>. Changes on
-                  the schedule show up in Google within seconds; Google never writes back.
+                  Connected as <span className="font-medium text-gray-700">{google.googleEmail}</span>. Schedule
+                  changes reach Google within seconds; busy time in Google shows up here as blocked time.
                 </p>
               ) : (
                 <p className="text-xs text-gray-500 mt-0.5 max-w-md">
-                  Puts your schedule straight into your Google account&apos;s calendar and keeps it updated as
-                  things move. One way — nothing in Google changes Workbench.
+                  Puts your schedule into your Google account&apos;s calendar and keeps it updated as things
+                  move, and brings your Google busy time in here so nobody books over it.
                 </p>
               )}
             </div>
@@ -326,6 +341,47 @@ export default function CalendarSyncCard() {
                     : "Adding your schedule to Google now…"}
                 </p>
               )}
+              {google.lastPullError && (
+                <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                  Reading Google: {google.lastPullError}
+                </div>
+              )}
+              <div className="mb-3 space-y-2">
+                <label className="flex items-start gap-2 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                    checked={google.pullEnabled}
+                    disabled={busy === "google"}
+                    onChange={(e) => setPullSetting({ pullEnabled: e.target.checked })}
+                  />
+                  <span>
+                    Show my Google events here as busy time
+                    <span className="block text-xs text-gray-500">
+                      {google.pullEnabled
+                        ? `${google.busyCount} busy block${google.busyCount === 1 ? "" : "s"} on your schedule · checked ${ago(google.lastPullAt)}. Events marked Free in Google are skipped.`
+                        : "Your Google events stay in Google only."}
+                    </span>
+                  </span>
+                </label>
+                {google.pullEnabled && (
+                  <label className="flex items-start gap-2 text-sm text-gray-700">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5 h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                      checked={google.shareTitles}
+                      disabled={busy === "google"}
+                      onChange={(e) => setPullSetting({ shareTitles: e.target.checked })}
+                    />
+                    <span>
+                      Show the event names to my team
+                      <span className="block text-xs text-gray-500">
+                        Off = teammates just see &ldquo;Busy&rdquo; on the company calendar.
+                      </span>
+                    </span>
+                  </label>
+                )}
+              </div>
               <div className="flex flex-wrap items-center gap-2">
                 <button type="button" onClick={syncNow} disabled={busy === "google"} className={btnLine}>
                   {busy === "google" ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}

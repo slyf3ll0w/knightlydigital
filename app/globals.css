@@ -1036,6 +1036,19 @@ html[data-mode="dark"] .app-ui .card-tool {
   border-color: color-mix(in srgb, var(--wb-primary, #0A1428) 8%, #E5E7EB);
 }
 
+/* ── Calendar grid surfaces (app/platform/schedule/TimeGrid.tsx). The grid
+   used to shade closed hours with bg-gray-100/70 and rule hours with
+   border-gray-100/80 — opacity variants the dark bridge never remaps, so in
+   dark mode the closed hours became bright gray slabs and the open hours
+   got white dashed lines, and the events were the quietest thing on the
+   page. These four classes name the intent and are redefined in the dark
+   block below: the OPEN hours are the lit area, closed hours sink, and the
+   rules are hairlines. ── */
+.cal-offhours { background-color: rgba(15, 23, 42, 0.045); }
+.cal-hourline { border-color: rgba(15, 23, 42, 0.09); }
+.cal-halfline { border-color: rgba(15, 23, 42, 0.055); }
+.cal-today { background-color: color-mix(in srgb, var(--wb-ink, #0B57D8) 6%, transparent); }
+
 /* ── Blocked-off time on the schedule — diagonal hatching reads as
    "unavailable" rather than work. rgba so it holds up in dark mode. ── */
 .bg-blocked {
@@ -2116,6 +2129,14 @@ html[data-mode="dark"] .app-ui .card-tool {
   /* ── Hairlines ── */
   html[data-mode="dark"] .app-ui .border-gray-50 { border-color: rgba(255, 255, 255, 0.05); }
   html[data-mode="dark"] .app-ui .border-gray-100 { border-color: rgba(255, 255, 255, 0.07); }
+  /* Calendar grid: closed hours sink below the surface, rules are hairlines,
+     today is a whisper of the brand ink — the events carry the color. */
+  html[data-mode="dark"] .app-ui .cal-offhours { background-color: rgba(0, 0, 0, 0.36); }
+  html[data-mode="dark"] .app-ui .cal-hourline { border-color: rgba(255, 255, 255, 0.075); }
+  html[data-mode="dark"] .app-ui .cal-halfline { border-color: rgba(255, 255, 255, 0.045); }
+  html[data-mode="dark"] .app-ui .cal-today { background-color: color-mix(in srgb, var(--wb-ink, #3B82F6) 6%, transparent); }
+  /* Blocked-off hatch hover (bg-gray-200/70 is unbridged) */
+  html[data-mode="dark"] .app-ui .hover\:bg-gray-200\/70:hover { background-color: rgba(255, 255, 255, 0.08); }
   html[data-mode="dark"] .app-ui .border-gray-200, html[data-mode="dark"] .app-ui .border-gray-200\/80 { border-color: var(--t-line); }
   html[data-mode="dark"] .app-ui .border-gray-300 { border-color: rgba(255, 255, 255, 0.15); }
   html[data-mode="dark"] .app-ui .focus\:border-gray-300:focus { border-color: rgba(255, 255, 255, 0.22); }

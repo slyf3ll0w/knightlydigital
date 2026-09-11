@@ -18,6 +18,7 @@ import {
 } from "../lib/calendar-event-shape";
 import { buildIcsCalendar } from "../lib/ics";
 import { toGoogleEvent } from "../lib/google-calendar";
+import { classifyGoogleEvent } from "../lib/google-calendar-pull";
 
 const TZ = "America/Chicago";
 const contact = { firstName: "Ray", lastName: "Delgado", phone: "214-555-0100", address: "1 Main St, Allen, TX" };
@@ -197,6 +198,34 @@ test("Google event payload: dateTime + zone, all-day dates, private marker, no d
   assert.deepEqual(ga.end, { date: "2026-09-15" });
   assert.equal(ga.status, "tentative");
   assert.equal(ga.transparency, "transparent");
+});
+
+test("Google → Workbench: busy timed event becomes a block; free/cancelled/ours/declined don't", () => {
+  const opts = { tz: TZ, from: new Date("2026-09-10T00:00:00Z"), to: new Date("2026-12-01T00:00:00Z"), shareTitles: false };
+  const timed = { id: "g1", summary: "Dentist", start: { dateTime: "2026-09-15T14:00:00-05:00" }, end: { dateTime: "2026-09-15T15:00:00-05:00" } };
+  const b = classifyGoogleEvent(timed, opts)!;
+  assert.ok(b);
+  assert.equal(b.title, "Busy", "private by default");
+  assert.equal(b.externalId, "g1");
+  assert.equal(b.allDay, false);
+  assert.equal(b.startAt.toISOString(), "2026-09-15T19:00:00.000Z");
+  assert.equal(classifyGoogleEvent(timed, { ...opts, shareTitles: true })!.title, "Dentist");
+  assert.equal(classifyGoogleEvent({ ...timed, status: "cancelled" }, opts), null);
+  assert.equal(classifyGoogleEvent({ ...timed, transparency: "transparent" as const }, opts), null, "shows as Free");
+  assert.equal(classifyGoogleEvent({ ...timed, extendedProperties: { private: { wb: "1" } } }, opts), null, "our own push");
+  assert.equal(classifyGoogleEvent({ ...timed, attendees: [{ self: true, responseStatus: "declined" }] }, opts), null);
+  assert.equal(classifyGoogleEvent({ ...timed, start: { dateTime: "2027-03-01T14:00:00Z" }, end: { dateTime: "2027-03-01T15:00:00Z" } }, opts), null, "outside window");
+  assert.equal(classifyGoogleEvent({ id: "g2", start: { dateTime: "2026-09-15T15:00:00Z" }, end: { dateTime: "2026-09-15T14:00:00Z" } }, opts), null, "ends before start");
+});
+
+test("Google → Workbench: all-day busy event spans local midnight to 23:59:59 on the last day", () => {
+  const opts = { tz: TZ, from: new Date("2026-09-10T00:00:00Z"), to: new Date("2026-12-01T00:00:00Z"), shareTitles: true };
+  // Google's end date is exclusive: 16th..18th = two days
+  const b = classifyGoogleEvent({ id: "g3", summary: "PTO", transparency: "opaque" as const, start: { date: "2026-09-16" }, end: { date: "2026-09-18" } }, opts)!;
+  assert.equal(b.allDay, true);
+  assert.equal(b.startAt.toISOString(), "2026-09-16T05:00:00.000Z", "00:00 CDT");
+  assert.equal(b.endAt.toISOString(), "2026-09-18T04:59:59.000Z", "23:59:59 CDT on the 17th");
+  assert.equal(b.title, "PTO");
 });
 
 console.log(`\n${passed} passed`);

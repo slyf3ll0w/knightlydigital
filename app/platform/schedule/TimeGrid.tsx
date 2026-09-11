@@ -230,7 +230,7 @@ export default function TimeGrid({
                       const minute = Math.max(0, Math.round((((e.clientY - rect.top) / HOUR_PX) * 60) / 15) * 15);
                       onEmptyClick(col.date, minute, col.userId);
                     }}
-                    className={`relative border-l border-gray-100 ${col.isToday ? "bg-green-50/40" : ""}`}
+                    className={`relative border-l border-gray-100 ${col.isToday ? "cal-today" : ""}`}
                     style={{ height: 24 * HOUR_PX }}
                   >
                     {/* Off-hours shading */}
@@ -238,7 +238,7 @@ export default function TimeGrid({
                       <div
                         key={`c-${i}`}
                         aria-hidden
-                        className="pointer-events-none absolute inset-x-0 bg-gray-100/70"
+                        className="pointer-events-none absolute inset-x-0 cal-offhours"
                         style={{ top: (c.start / 60) * HOUR_PX, height: ((c.end - c.start) / 60) * HOUR_PX }}
                       />
                     ))}
@@ -247,10 +247,10 @@ export default function TimeGrid({
                       <div
                         key={h}
                         aria-hidden
-                        className="pointer-events-none absolute inset-x-0 border-b border-gray-100/80"
+                        className="pointer-events-none absolute inset-x-0 border-b cal-hourline"
                         style={{ top: h * HOUR_PX, height: HOUR_PX }}
                       >
-                        <div className="absolute inset-x-0 top-1/2 border-b border-dashed border-gray-100/60" />
+                        <div className="absolute inset-x-0 top-1/2 border-b border-dashed cal-halfline" />
                       </div>
                     ))}
 

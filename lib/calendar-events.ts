@@ -112,6 +112,8 @@ export async function loadUserCalendarEvents(
     prisma.timeBlock.findMany({
       where: {
         companyId,
+        // Mirrored Google busy blocks stay out — pushing them back would loop
+        source: "MANUAL",
         OR: [{ userId }, { userId: null }],
         startAt: { lte: window.to },
         endAt: { gte: window.from },
@@ -158,7 +160,7 @@ export async function loadCalendarEventsByIds(
       : [],
     ids.BLOCK.length
       ? prisma.timeBlock.findMany({
-          where: { id: { in: ids.BLOCK }, companyId, OR: [{ userId }, { userId: null }] },
+          where: { id: { in: ids.BLOCK }, companyId, source: "MANUAL", OR: [{ userId }, { userId: null }] },
           select: blockSelect,
         })
       : [],

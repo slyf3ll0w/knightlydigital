@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getActor } from "@/lib/permissions";
 import { connectUser, syncUserGoogleCalendar, verifyState } from "@/lib/google-calendar";
+import { pullUserGoogleCalendar } from "@/lib/google-calendar-pull";
 
 /**
  * Google redirects back here after consent with ?code and ?state. The
@@ -42,8 +43,11 @@ export async function GET(req: NextRequest) {
     return profileRedirect(req, { gcal: "exchange_failed" });
   }
 
-  // First push runs in the background — the card polls status for progress
-  syncUserGoogleCalendar(actor.id).catch((err) => console.error("[google-calendar] initial sync failed", err));
+  // First pull + push run in the background — the card polls status for progress
+  pullUserGoogleCalendar(actor.id)
+    .catch((err) => console.error("[google-calendar] initial pull failed", err))
+    .then(() => syncUserGoogleCalendar(actor.id))
+    .catch((err) => console.error("[google-calendar] initial sync failed", err));
 
   return profileRedirect(req, { gcal: "connected" });
 }

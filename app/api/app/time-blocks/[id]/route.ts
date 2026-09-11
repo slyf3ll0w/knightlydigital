@@ -6,7 +6,11 @@ import { geocodeAddress } from "@/lib/geocoding";
 /**
  * PATCH / DELETE a time block. Managers may touch any block in the company
  * (including company-wide ones); everyone else only their own personal blocks.
+ * Blocks mirrored from Google Calendar (source GOOGLE) are read-only here —
+ * the pull would just rewrite them — so both verbs answer 409 for those.
  */
+
+const MIRRORED = "This comes from Google Calendar — change it there and it updates here within a few minutes.";
 
 async function findEditable(actor: Actor, id: string) {
   return prisma.timeBlock.findFirst({
@@ -25,6 +29,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const { id } = await params;
   const block = await findEditable(actor, id);
   if (!block) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (block.source === "GOOGLE") return NextResponse.json({ error: MIRRORED }, { status: 409 });
 
   const body = await req.json();
   const data: Record<string, unknown> = {};
@@ -87,6 +92,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   const { id } = await params;
   const block = await findEditable(actor, id);
   if (!block) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (block.source === "GOOGLE") return NextResponse.json({ error: MIRRORED }, { status: 409 });
 
   await prisma.timeBlock.delete({ where: { id: block.id } });
   return NextResponse.json({ ok: true });

@@ -18,6 +18,8 @@ export type BlockInfo = {
   /** Optional "where I'll be" — routing treats a located block as a stop. */
   address: string | null;
   canEdit: boolean;
+  /** GOOGLE = mirrored from the user's Google Calendar; read-only here. */
+  source: "MANUAL" | "GOOGLE";
 };
 
 export type ScheduleJobDTO = {
