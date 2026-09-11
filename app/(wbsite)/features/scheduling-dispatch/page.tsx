@@ -51,6 +51,22 @@ const faq = [
     ),
   },
   {
+    q: "Does it sync with Google Calendar?",
+    a: (
+      <p>
+        Yes, both ways. Each person connects their own Google account from My
+        Profile. Their WorkBench jobs, appointments, and blocked time appear in
+        Google Calendar and stay updated as the schedule moves, and anything
+        marked Busy in their Google Calendar shows up in WorkBench as blocked
+        time so online booking and dispatch don't book over it. It only reads
+        event times and free/busy status; event names stay private unless the
+        person chooses to share them, and disconnecting removes everything
+        WorkBench added. Apple Calendar and Outlook users get a private
+        subscribe link instead.
+      </p>
+    ),
+  },
+  {
     q: "What happens when a job's schedule changes?",
     a: (
       <p>
@@ -72,7 +88,7 @@ export default function SchedulingDispatchPage() {
           The calendar is the <span className="text-[#F86A0A]">command center</span>, not a report.
         </>
       }
-      intro="Month, week, and day views with drag-to-schedule, time blocks, and per-tech filtering. Recurring visit series generate real jobs weeks ahead, and every job carries its own notes, photos, and status — so the office and the crew are always looking at the same thing."
+      intro="Month, week, and day views with drag-to-schedule, time blocks, and per-tech filtering. Recurring visit series generate real jobs weeks ahead, every job carries its own notes, photos, and status, and each person can sync their schedule with their own Google Calendar — so the office and the crew are always looking at the same thing."
       screenshot={{
         src: "/screens/desktop-schedule.jpg",
         alt: "WorkBench schedule with drag-to-schedule calendar views",

@@ -8,7 +8,7 @@ export const metadata: Metadata = {
     "How WorkBench collects, uses, and protects your information — and why we never sell it.",
 };
 
-const LAST_UPDATED = "July 27, 2026";
+const LAST_UPDATED = "September 11, 2026";
 
 /* Public privacy policy for WorkBench. This URL is required by the App Store,
    the Play Store, and our payment processor (Finix) onboarding, so it must stay
@@ -63,49 +63,58 @@ const sections: { heading: string; paragraphs: (string | React.ReactNode)[] }[] 
     ],
   },
   {
-    heading: "7. Service providers",
+    heading: "7. Google Calendar sync",
+    paragraphs: [
+      "WorkBench can connect to a team member’s own Google Calendar. This is optional, per person, and turned on only by that person from My Profile → Calendar sync. When connected, WorkBench (a) writes that person’s WorkBench schedule — the jobs they are assigned to, their appointments, and their blocked-off time — into their Google Calendar and keeps those entries updated, and (b) reads the events on their primary Google Calendar so that time they are already busy is shown as blocked time in WorkBench and is not booked over.",
+      "What we read and keep. From Google we read each event’s start and end time, whether it is marked busy or free, its status, and its title. We store only the start/end times and, by default, the label “Busy” — the event title is stored only if the person turns on “Show the event names to my team.” Events marked Free in Google are ignored. We do not read attendees, descriptions, attachments, or any calendar other than the primary one, and we do not use Google Calendar data for advertising, profiling, or training AI models.",
+      "Access tokens. The Google access and refresh tokens that let WorkBench do this are stored encrypted (AES-256-GCM) and used only for the purposes above. Disconnecting Google Calendar in WorkBench deletes the tokens, removes the events WorkBench created in Google, and deletes the mirrored busy time from WorkBench. You can also revoke WorkBench’s access at any time from your Google Account permissions page.",
+      "Limited Use disclosure. WorkBench’s use and transfer to any other app of information received from Google APIs will adhere to the Google API Services User Data Policy, including the Limited Use requirements. In plain terms: Google user data is used only to provide the calendar sync feature the person turned on, is never sold, is never used for ads, and is not shared with anyone except as needed to provide that feature, with the person’s consent, for security purposes, or to comply with the law.",
+    ],
+  },
+  {
+    heading: "8. Service providers",
     paragraphs: [
       "We rely on a small number of vendors to run the Service, and they only receive the data required to do their job: cloud hosting and database infrastructure (Railway), payment processing (Finix Payments, Inc.), transactional email delivery (Resend), bot and spam protection (Cloudflare Turnstile), push-notification delivery (Apple Push Notification service and Firebase Cloud Messaging), and AI processing (Google). Each vendor is bound by its own terms and privacy commitments.",
     ],
   },
   {
-    heading: "8. Cookies",
+    heading: "9. Cookies",
     paragraphs: [
       "We use essential cookies only — primarily a session cookie that keeps you signed in. We do not use advertising or cross-site tracking cookies.",
     ],
   },
   {
-    heading: "9. Data retention and deletion",
+    heading: "10. Data retention and deletion",
     paragraphs: [
       "We keep your information for as long as your account is active. Business owners can permanently delete their account and company data at any time from Settings inside the app (Danger Zone → Delete account). Team members can ask the business owner, or contact us, to remove their account. Some records may persist briefly in encrypted backups before being cycled out, and we may retain limited transaction records where the law or our payment partner requires it.",
     ],
   },
   {
-    heading: "10. Your rights",
+    heading: "11. Your rights",
     paragraphs: [
       "Depending on where you live, you may have the right to access, correct, export, or delete your personal information, and to object to certain processing. You can exercise most of these directly in the app — editing your profile and company records, or deleting your account. For anything you can’t do yourself, email us and we’ll help. We won’t discriminate against you for exercising these rights.",
     ],
   },
   {
-    heading: "11. Security",
+    heading: "12. Security",
     paragraphs: [
       "All traffic to the Service is encrypted in transit (HTTPS). Passwords are stored hashed, access to production systems is restricted, sensitive payment data is handled by our PCI-compliant payment partner rather than stored by us, and client-facing links use unguessable tokens. No system is perfectly secure, but we take reasonable measures appropriate to the data we hold, and we will notify affected users of any breach as required by law.",
     ],
   },
   {
-    heading: "12. Children",
+    heading: "13. Children",
     paragraphs: [
       "WorkBench is a business tool intended for adults. It is not directed to children under 13, and we do not knowingly collect information from children.",
     ],
   },
   {
-    heading: "13. Changes to this policy",
+    heading: "14. Changes to this policy",
     paragraphs: [
       "We may update this policy as the Service evolves. When we do, we will update the date at the top of this page, and for significant changes we will notify you in the app or by email.",
     ],
   },
   {
-    heading: "14. Contact us",
+    heading: "15. Contact us",
     paragraphs: [
       <span key="contact">
         Questions about this policy or your data? Email{" "}

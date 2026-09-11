@@ -3,6 +3,7 @@ import {
   Banknote,
   BellRing,
   BookOpen,
+  CalendarCheck,
   CalendarClock,
   CalendarRange,
   Camera,
@@ -100,6 +101,11 @@ export const sections: FeatureSection[] = [
         icon: CalendarClock,
         title: "Scheduling & dispatch",
         body: "Month, week, and day views with drag-to-schedule, time blocks, and per-tech filtering. The calendar is the command center, not a read-only report.",
+      },
+      {
+        icon: CalendarCheck,
+        title: "Google Calendar sync",
+        body: "Each team member can connect their own Google Calendar: their WorkBench jobs and appointments show up in Google, and anything they're busy with in Google shows up here as blocked time so nobody books over it. Apple Calendar and Outlook get a private subscribe link.",
       },
       {
         icon: CalendarRange,
