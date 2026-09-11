@@ -7,6 +7,7 @@ import Modal from "@/components/Modal";
 import SuggestedTimes from "@/components/SuggestedTimes";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { slotTimeOptions } from "@/lib/scheduling";
+import { looksLikeAppointment } from "@/lib/appointment-hint";
 import { durationLabel, pad, parseParam, type PaletteEntity } from "./schedule-lib";
 
 /** What was dropped where — the sheet fills itself in from this. */
@@ -422,6 +423,24 @@ export default function PlaceSheet({
                 onChange={(ev) => setTitle(ev.target.value)}
                 placeholder={kind === "job" ? "e.g. Gutter cleaning" : "e.g. Discovery call"}
               />
+              {/* A job titled "Friday appointment" would end in a Complete Job →
+                  invoice flow that makes no sense for a sales visit — nudge
+                  toward the record that ends with an optional quote instead */}
+              {kind === "job" && canCreateAppointment && looksLikeAppointment(title) && (
+                <p className="mt-1 text-xs text-amber-700">
+                  Sounds like an appointment — those end with an optional quote, never an invoice.{" "}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setKind("appointment");
+                      if (!durationTouched) setDuration(apptType === "IN_PERSON" ? 60 : 30);
+                    }}
+                    className="font-semibold underline"
+                  >
+                    Make it an appointment
+                  </button>
+                </p>
+              )}
               {hint && kind === "job" && (
                 <p className="mt-1 text-xs text-gray-500">
                   Usually about {durationLabel(hint.minutes)}

@@ -10,12 +10,14 @@ export const metadata: Metadata = { title: "New Appointment" };
 export default async function NewAppointmentPage({
   searchParams,
 }: {
-  searchParams: Promise<{ contactId?: string; requestId?: string; date?: string }>;
+  searchParams: Promise<{ contactId?: string; requestId?: string; date?: string; title?: string }>;
 }) {
   const actor = await requirePageActor((a) => canSell(a.role));
   const companyId = actor.companyId;
 
-  const { contactId, requestId, date } = await searchParams;
+  // ?title= carries a typed title over from the job form's "sounds like an
+  // appointment" nudge
+  const { contactId, requestId, date, title } = await searchParams;
 
   const [contacts, users, request, company] = await Promise.all([
     prisma.contact.findMany({
@@ -58,6 +60,7 @@ export default async function NewAppointmentPage({
       prefilledContactId={request?.contactId ?? contactId ?? ""}
       requestId={request?.id ?? ""}
       requestTitle={request?.title ?? ""}
+      prefilledTitle={typeof title === "string" ? title.trim().slice(0, 120) : ""}
       prefilledDate={date ?? ""}
       intervalMinutes={resolveSlotInterval({
         companyIntervalMinutes: company?.schedulingIntervalMinutes,

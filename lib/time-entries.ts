@@ -58,3 +58,8 @@ export function sanitizeGps(body: {
 export function mapsHref(lat: number, lng: number): string {
   return `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
 }
+
+/** Google Maps search link for a street address — same endpoint, typed query. */
+export function mapsSearchHref(address: string): string {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+}

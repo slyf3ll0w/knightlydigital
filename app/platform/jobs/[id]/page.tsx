@@ -25,6 +25,8 @@ import ScheduleJob from "./ScheduleJob";
 import AssignTeam from "./AssignTeam";
 import PhotoUpload from "./PhotoUpload";
 import JobChecklist from "./JobChecklist";
+import ConvertToAppointmentNotice from "./ConvertToAppointment";
+import { looksLikeAppointment } from "@/lib/appointment-hint";
 import Fold from "@/components/Fold";
 
 export default async function JobDetailPage({
@@ -115,6 +117,24 @@ export default async function JobDetailPage({
     .filter((e) => !e.endedAt && e.userId !== actor.id)
     .map((e) => e.user.name);
   const canClock = actor.role !== "SALES";
+
+  // A sales visit booked as a job can be re-booked as an appointment while
+  // nothing has happened on it yet (mirrors the API's own guard). The banner
+  // only nags when the title itself reads like one; the "..." menu always
+  // offers it for a qualifying job.
+  const canConvertToAppointment =
+    canEdit &&
+    canSell(actor.role) &&
+    job.status === "ACTIVE" &&
+    !!job.scheduledAt &&
+    !job.invoice &&
+    !job.quote &&
+    !job.subscription &&
+    job.lineItems.length === 0 &&
+    job.timeEntries.length === 0 &&
+    job.photos.length === 0 &&
+    !job.completionSignedAt;
+  const readsLikeAppointment = canConvertToAppointment && looksLikeAppointment(job.title);
 
   const onMyWayMessage = renderMessageTemplate(
     company?.onMyWayTemplate || DEFAULT_ON_MY_WAY_TEMPLATE,
@@ -224,10 +244,13 @@ export default async function JobDetailPage({
               canEdit={canEdit}
               scheduledAt={job.scheduledAt?.toISOString() ?? null}
               planBilled={!!job.subscription?.interval && !job.subscription.billPerVisit}
+              canConvertToAppointment={canConvertToAppointment}
             />
           </div>
         )}
       </div>
+
+      {readsLikeAppointment && <ConvertToAppointmentNotice jobId={job.id} />}
 
       {/* Phone quick actions — call / text / directions, one tap from the job */}
       <JobActionRow

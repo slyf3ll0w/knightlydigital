@@ -39,6 +39,7 @@ export default function AppointmentActions({
   appointmentId,
   status,
   contactId,
+  contactName = "",
   requestId,
   canDelete,
   scheduledAt,
@@ -52,6 +53,7 @@ export default function AppointmentActions({
   appointmentId: string;
   status: string;
   contactId: string;
+  contactName?: string;
   requestId: string | null;
   canDelete: boolean;
   scheduledAt: string;
@@ -165,24 +167,38 @@ export default function AppointmentActions({
 
   const quoteHref = `/app/quotes/new?contactId=${contactId}${requestId ? `&requestId=${requestId}` : ""}`;
 
+  // Wrapping up: an appointment is a conversation, not billable work — it
+  // never turns into an invoice. The optional next step is a quote; if the
+  // client approves it on the spot, the quote is what becomes the job.
+  async function complete() {
+    const ok = await patch({ status: "COMPLETED" });
+    if (!ok) return;
+    const writeQuote = await confirmSheet({
+      title: "Appointment complete",
+      message: `Want to write a quote${contactName ? ` for ${contactName}` : ""}? If they approve it on the spot, it becomes a job. You can also do this later from this page.`,
+      confirmLabel: "Create Quote",
+      cancelLabel: "Not now",
+    });
+    if (writeQuote) router.push(quoteHref);
+  }
+
+  // Primary action — a docked tinted-glass pill above the tab bar on phones
+  // (always at the thumb), a normal header button on desktop. Same classes
+  // the job page's Complete Job pill uses; centered without a transform.
+  const primaryCls =
+    "flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors disabled:opacity-50 glass-tinted max-lg:fixed max-lg:inset-x-0 max-lg:mx-auto max-lg:w-max max-lg:bottom-[calc(5.5rem+env(safe-area-inset-bottom))] max-lg:z-30 max-lg:rounded-full max-lg:px-6 max-lg:py-3 max-lg:text-[15px]";
+
   return (
     <div className="flex flex-col items-end gap-2">
       <div className="flex items-center gap-2">
         {status === "SCHEDULED" && (
-          <button
-            onClick={() => patch({ status: "COMPLETED" })}
-            disabled={busy}
-            className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors disabled:opacity-50"
-          >
+          <button onClick={complete} disabled={busy} className={primaryCls}>
             {busy ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-            Mark Completed
+            Complete Appointment
           </button>
         )}
         {status === "COMPLETED" && (
-          <Link
-            href={quoteHref}
-            className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors"
-          >
+          <Link href={quoteHref} className={primaryCls}>
             <FileText size={14} />
             Create Quote
           </Link>

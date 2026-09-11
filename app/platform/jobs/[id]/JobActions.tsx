@@ -2,9 +2,10 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { MoreHorizontal, CheckCircle, Receipt, Archive, RotateCcw, Trash2, Loader2, Pencil, CopyPlus } from "lucide-react";
+import { MoreHorizontal, CheckCircle, Receipt, Archive, RotateCcw, Trash2, Loader2, Pencil, CopyPlus, CalendarClock } from "lucide-react";
 import { confirmSheet, alertSheet } from "@/components/ConfirmSheet";
 import { sendOrQueue } from "@/lib/outbox";
+import { convertJobToAppointment } from "./ConvertToAppointment";
 
 export default function JobActions({
   jobId,
@@ -15,6 +16,7 @@ export default function JobActions({
   canEdit = false,
   scheduledAt = null,
   planBilled = false,
+  canConvertToAppointment = false,
 }: {
   jobId: string;
   status: string;
@@ -26,6 +28,9 @@ export default function JobActions({
   // Billed automatically by a recurring plan's cycle invoice — manual
   // invoicing would double-bill, so those actions are hidden
   planBilled?: boolean;
+  // An untouched, scheduled job (no invoice/quote/plan/work on it) that a
+  // seller may re-book as a sales appointment instead
+  canConvertToAppointment?: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -107,6 +112,18 @@ export default function JobActions({
         return;
       }
       router.push(`/app/jobs/${data.id}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // A sales visit booked as a job: re-book it as the record that ends with
+  // an optional quote instead of an invoice
+  async function toAppointment() {
+    setOpen(false);
+    setBusy(true);
+    try {
+      await convertJobToAppointment(jobId, router);
     } finally {
       setBusy(false);
     }
@@ -217,6 +234,15 @@ export default function JobActions({
                 >
                   <CopyPlus size={14} className="text-gray-400" />
                   Duplicate Job
+                </button>
+              )}
+              {canConvertToAppointment && status === "ACTIVE" && (
+                <button
+                  onClick={toAppointment}
+                  className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                >
+                  <CalendarClock size={14} className="text-gray-400" />
+                  Make It an Appointment
                 </button>
               )}
               {status !== "ARCHIVED" && (

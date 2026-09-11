@@ -22,6 +22,7 @@ import {
   DEFAULT_JOB_DURATION_MINUTES,
 } from "@/lib/scheduling";
 import { ARRIVAL_WINDOW_CHOICES, arrivalWindowChoiceLabel } from "@/lib/arrival-window";
+import { looksLikeAppointment } from "@/lib/appointment-hint";
 
 type ContactAddress = {
   id: string;
@@ -248,6 +249,23 @@ function NewJobForm() {
               className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               placeholder="e.g. AC tune-up, Lawn maintenance, Roof inspection"
             />
+            {/* Estimates and meetings aren't billable work: steer them to the
+                record that ends with an optional quote instead of an invoice */}
+            {looksLikeAppointment(form.title) && (
+              <p className="mt-1.5 text-xs text-amber-700">
+                Sounds like an appointment (an estimate or a meeting) rather than billable work.
+                Appointments end with an optional quote, never an invoice.{" "}
+                <Link
+                  href={`/app/appointments/new?${new URLSearchParams({
+                    ...(form.contactId ? { contactId: form.contactId } : {}),
+                    title: form.title.trim(),
+                  }).toString()}`}
+                  className="font-semibold underline"
+                >
+                  Book it as an appointment
+                </Link>
+              </p>
+            )}
           </div>
 
           <div>

@@ -7,6 +7,7 @@ import { appointmentTypeLabel } from "@/lib/statuses";
 import { resolveSlotInterval } from "@/lib/scheduling";
 import { earliestOpenMinutes, sanitizeBusinessHours } from "@/lib/business-hours";
 import StatusChip from "@/components/StatusChip";
+import JobActionRow from "@/components/JobActionRow";
 import AppointmentActions from "./AppointmentActions";
 
 const typeIcons = { PHONE_CALL: Phone, VIDEO_CALL: Video, IN_PERSON: MapPin } as const;
@@ -63,7 +64,9 @@ export default async function AppointmentDetailPage({
       }`;
 
   return (
-    <div className="p-4 lg:p-8 max-w-3xl mx-auto">
+    // pb-20: phone bottom padding so the docked action pill never covers the
+    // last card (same treatment as the job page)
+    <div className="p-4 pb-20 lg:p-8 max-w-3xl mx-auto">
       <div className="flex items-center gap-3 mb-4">
         <Link href="/app/schedule" className="hidden lg:block text-gray-400 hover:text-gray-600">
           <ArrowLeft size={18} />
@@ -102,6 +105,7 @@ export default async function AppointmentDetailPage({
           appointmentId={appt.id}
           status={appt.status}
           contactId={appt.contactId}
+          contactName={`${appt.contact.firstName} ${appt.contact.lastName}`.trim()}
           requestId={appt.requestId}
           canDelete={isManager(actor.role)}
           scheduledAt={appt.scheduledAt.toISOString()}
@@ -122,6 +126,14 @@ export default async function AppointmentDetailPage({
           dayStartMinutes={earliestOpenMinutes(sanitizeBusinessHours(company?.businessHours))}
         />
       </div>
+
+      {/* Phone quick actions — call / text / directions, one tap from the
+          appointment (the same row the job page has; directions only when
+          there's somewhere to drive to) */}
+      <JobActionRow
+        phone={appt.contact.phone}
+        address={appt.type === "IN_PERSON" ? (appt.address ?? appt.contact.address) : null}
+      />
 
       <div className="card-ledger p-5 mb-5 space-y-3">
         <div className="flex items-start gap-3">

@@ -17,11 +17,12 @@ import {
   Megaphone,
   Timer,
   Repeat,
+  Navigation,
 } from "lucide-react";
 import { money, appointmentTypeLabel } from "@/lib/statuses";
 import { invoiceBalance } from "@/lib/payments";
 import { SECTION_HUES } from "@/lib/section-colors";
-import { formatDuration, mapsHref } from "@/lib/time-entries";
+import { formatDuration, mapsHref, mapsSearchHref } from "@/lib/time-entries";
 import { renderMessageTemplate, DEFAULT_ON_MY_WAY_TEMPLATE } from "@/lib/messaging";
 import { arrivalTimeLabel, resolveArrivalWindowMinutes } from "@/lib/arrival-window";
 import EmptyState from "@/components/EmptyState";
@@ -393,7 +394,9 @@ export default async function DashboardPage() {
       value: 0,
       sort: a.scheduledAnytime ? 0 : new Date(a.scheduledAt).getTime(),
       phone: a.contact.phone,
-      address: a.type === "IN_PERSON" ? a.contact.address : null,
+      // Where the meeting IS — the appointment's own address first (a job
+      // site, a coffee shop), the client's home only as the fallback
+      address: a.type === "IN_PERSON" ? (a.address ?? a.contact.address) : null,
     })),
   ].sort((x, y) => x.sort - y.sort);
 
@@ -809,31 +812,46 @@ export default async function DashboardPage() {
             {/* the rail: runs behind the stop markers, trimmed at both ends */}
             <div className="absolute left-[68px] top-3 bottom-3 w-px bg-gray-200" aria-hidden />
             {laterToday.map((item) => (
-              // Swipe a stop left for Call / Directions without opening it
-              <SwipeRowContact key={item.id} phone={item.phone} address={item.address}>
-                <Link
-                  href={item.href}
-                  className="flex items-center gap-3 py-2.5 transition-opacity active:opacity-70"
-                >
-                  <span className="numeral-ledger w-[52px] shrink-0 text-[13px] font-semibold text-gray-700">
-                    {item.time}
-                  </span>
-                  <span
-                    className={`relative z-10 h-2.5 w-2.5 shrink-0 rounded-full ${
-                      item.apptType ? "bg-blue-400" : "bg-green-500"
-                    }`}
-                    aria-hidden
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-gray-900">{item.title}</p>
-                    {item.sub && <p className="truncate text-xs text-gray-500">{item.sub}</p>}
-                  </div>
-                  {seePrices && item.value > 0 && (
-                    <p className="numeral-ledger shrink-0 text-[13px] font-semibold text-gray-900">
-                      {money(item.value)}
-                    </p>
+              // Swipe a stop left for Call without opening it; Directions is
+              // a real button on the row (a sibling of the link, never nested
+              // inside it) so one tap opens the map instead of the stop.
+              <SwipeRowContact key={item.id} phone={item.phone}>
+                <div className="flex items-center gap-2">
+                  <Link
+                    href={item.href}
+                    className="flex min-w-0 flex-1 items-center gap-3 py-2.5 transition-opacity active:opacity-70"
+                  >
+                    <span className="numeral-ledger w-[52px] shrink-0 text-[13px] font-semibold text-gray-700">
+                      {item.time}
+                    </span>
+                    <span
+                      className={`relative z-10 h-2.5 w-2.5 shrink-0 rounded-full ${
+                        item.apptType ? "bg-blue-400" : "bg-green-500"
+                      }`}
+                      aria-hidden
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-gray-900">{item.title}</p>
+                      {item.sub && <p className="truncate text-xs text-gray-500">{item.sub}</p>}
+                    </div>
+                    {seePrices && item.value > 0 && (
+                      <p className="numeral-ledger shrink-0 text-[13px] font-semibold text-gray-900">
+                        {money(item.value)}
+                      </p>
+                    )}
+                  </Link>
+                  {item.address && (
+                    <a
+                      href={mapsSearchHref(item.address)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`Directions to ${item.address}`}
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-green-100 text-green-700 transition-transform active:scale-95"
+                    >
+                      <Navigation size={16} strokeWidth={2.1} />
+                    </a>
                   )}
-                </Link>
+                </div>
               </SwipeRowContact>
             ))}
           </div>

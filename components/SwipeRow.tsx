@@ -75,10 +75,13 @@ export default function SwipeRow({
 
   return (
     <div className="relative overflow-hidden">
-      {/* Action tray behind the row's right edge */}
+      {/* Action tray behind the row's right edge. Hidden outright while the
+          row is at rest: rows are transparent there (so page decorations
+          like a timeline rail show through), and a visible-but-covered tray
+          reads as a real button whose taps the row on top swallows. */}
       <div
         className="absolute inset-y-0 right-0 flex items-stretch"
-        style={{ width: trayW }}
+        style={{ width: trayW, visibility: offset === 0 && !dragging ? "hidden" : "visible" }}
         aria-hidden={offset === 0}
       >
         {actions.map(({ key, label, icon: Icon, href, external, bg }) => (

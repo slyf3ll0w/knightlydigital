@@ -57,6 +57,7 @@ export default function AppointmentForm({
   prefilledContactId,
   requestId,
   requestTitle,
+  prefilledTitle = "",
   prefilledDate,
   intervalMinutes = 30,
   dayStartMinutes,
@@ -67,13 +68,16 @@ export default function AppointmentForm({
   prefilledContactId: string;
   requestId: string;
   requestTitle: string;
+  prefilledTitle?: string;
   prefilledDate: string;
   intervalMinutes?: number;
   dayStartMinutes?: number;
 }) {
   const router = useRouter();
   const [contactId, setContactId] = useState(prefilledContactId);
-  const [title, setTitle] = useState(requestTitle ? `Estimate — ${requestTitle}` : "Estimate");
+  const [title, setTitle] = useState(
+    prefilledTitle || (requestTitle ? `Estimate — ${requestTitle}` : "Estimate")
+  );
   const [type, setType] = useState<string>("PHONE_CALL");
   const [start, setStart] = useState(prefilledDate ? `${prefilledDate}T09:00` : "");
   const [end, setEnd] = useState("");
