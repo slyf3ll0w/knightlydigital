@@ -19,7 +19,7 @@ import {
 } from "@/lib/email";
 import { companyNotifyAddress } from "@/lib/notify";
 import { notifyUsers, notifyContact, requestNotifyUserIds } from "@/lib/push";
-import { sendSms, smsEnabled } from "@/lib/sms";
+import { sendSms, smsEnabled, canText } from "@/lib/sms";
 
 const baseUrl = () =>
   (process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com").replace(/\/+$/, "");
@@ -38,6 +38,7 @@ export type PortalThreadContact = {
   email: string | null;
   phone: string | null;
   smsOptOut: boolean;
+  smsConsentAt: Date | null;
   hubToken: string;
   assignedToId: string | null;
   company: {
@@ -134,10 +135,10 @@ export async function notifyClientOfReply(
   // SMS mirror: the message itself, from the pool number — replying to the
   // text drops their answer straight back into the thread via the webhook.
   let smsSent = false;
-  if (smsEnabled() && contact.phone && !contact.smsOptOut) {
+  if (smsEnabled() && contact.phone && canText(contact)) {
     smsSent = await sendSms({
       to: contact.phone,
-      text: `${contact.company.name}: ${preview(body, 300)}`,
+      text: `WorkBench: ${contact.company.name}: ${preview(body, 260)} Reply STOP to opt out.`,
       companyId: contact.companyId,
     });
   }

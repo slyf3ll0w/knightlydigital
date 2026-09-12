@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { limit } from "@/lib/rate-limit";
 import { getActor, canSell, viaContactScope } from "@/lib/permissions";
 import { sendEmail, quoteLinkEmail } from "@/lib/email";
-import { sendSms, quoteLinkText } from "@/lib/sms";
+import { sendSms, canText, quoteLinkText } from "@/lib/sms";
 import { quoteDepositAmount, money } from "@/lib/statuses";
 import { autoSendQuoteAgreements } from "@/lib/agreements";
 import { autoAdvance } from "@/lib/pipeline";
@@ -95,7 +95,7 @@ export async function POST(
 
   // Best-effort text with the same link — never fails the send.
   let texted = false;
-  if (quote.contact.phone && !quote.contact.smsOptOut) {
+  if (quote.contact.phone && canText(quote.contact)) {
     texted = await sendSms({
       companyId: quote.companyId,
       to: quote.contact.phone,

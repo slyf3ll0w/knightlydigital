@@ -231,6 +231,26 @@ export default async function ContactDetailPage({
                 {contact.phone}
               </a>
             )}
+            {contact.phone && (
+              <span
+                className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                  contact.smsOptOut
+                    ? "bg-red-50 text-red-700"
+                    : contact.smsConsentAt
+                      ? "bg-green-50 text-green-700"
+                      : "bg-gray-100 text-gray-500"
+                }`}
+                title={
+                  contact.smsOptOut
+                    ? "Replied STOP — automated texts are off"
+                    : contact.smsConsentAt
+                      ? `Agreed to texts${contact.smsConsentNote ? ` · ${contact.smsConsentNote}` : ""}`
+                      : "No text consent on file — edit the client to record it"
+                }
+              >
+                {contact.smsOptOut ? "Texts: opted out" : contact.smsConsentAt ? "Texts: allowed" : "Texts: no consent"}
+              </span>
+            )}
             {contact.email && (
               <a
                 href={`mailto:${contact.email}`}

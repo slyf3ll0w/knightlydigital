@@ -7,12 +7,19 @@
  * Sends go out via the messaging profile's number pool (sticky sender), not a
  * hardcoded from-number — adding numbers to the pool needs no code changes.
  * Telnyx auto-handles STOP/HELP at their edge; our own record of opt-outs
- * lives on Contact.smsOptOut (flipped by the inbound webhook), and every
- * sender here is expected to check it before calling sendSms.
+ * lives on Contact.smsOptOut (flipped by the inbound webhook). Consent lives
+ * on Contact.smsConsentAt. Every sender is expected to gate on canText()
+ * (lib/sms-consent.ts) before calling sendSms.
+ *
+ * Every template opens with "WorkBench:" — the toll-free number is verified
+ * under the WorkBench brand, so that is the name the recipient opted in to;
+ * the business they hired is named right after.
  */
 
 import { prisma } from "@/lib/db";
 import { recordSmsSent, smsSegmentCount, usageDay } from "@/lib/usage";
+
+export { canText, smsConsentLabel, SMS_TERMS_URL } from "@/lib/sms-consent";
 
 // Per-company daily send ceiling. Usage is metered per segment already; this
 // turns the meter into a cap so a runaway loop or a hijacked login can't run
@@ -102,6 +109,7 @@ export async function sendSms({
  * ------------------------------------------------------------------------ */
 
 const OPT_OUT = "Reply STOP to opt out.";
+const BRAND = "WorkBench:";
 
 /** Appointment reminder: the day before, and again about an hour out. */
 export function appointmentReminderText({
@@ -121,8 +129,8 @@ export function appointmentReminderText({
 }): string {
   const where = address ? ` at ${address}` : "";
   return stage === "day"
-    ? `Hi ${firstName}, a reminder from ${companyName}: ${serviceName}, ${windowLabel}${where}. ${OPT_OUT}`
-    : `Hi ${firstName}, ${companyName} will arrive soon for ${serviceName} (${windowLabel}). ${OPT_OUT}`;
+    ? `${BRAND} Hi ${firstName}, a reminder from ${companyName}: ${serviceName}, ${windowLabel}${where}. ${OPT_OUT}`
+    : `${BRAND} Hi ${firstName}, ${companyName} will arrive soon for ${serviceName} (${windowLabel}). ${OPT_OUT}`;
 }
 
 /** Quote link — texted alongside the email when a quote is sent. */
@@ -139,7 +147,7 @@ export function quoteLinkText({
   total: number;
   viewUrl: string;
 }): string {
-  return `Hi ${firstName}, ${companyName} sent you quote #${quoteNumber} for $${total.toFixed(2)}. View & approve: ${viewUrl} ${OPT_OUT}`;
+  return `${BRAND} Hi ${firstName}, ${companyName} sent you quote #${quoteNumber} for $${total.toFixed(2)}. View & approve: ${viewUrl} ${OPT_OUT}`;
 }
 
 /** Invoice pay link — texted alongside the email when an invoice is sent. */
@@ -156,5 +164,5 @@ export function invoiceLinkText({
   total: number;
   payUrl: string;
 }): string {
-  return `Hi ${firstName}, ${companyName} sent you invoice #${invoiceNumber} for $${total.toFixed(2)}. View & pay: ${payUrl} ${OPT_OUT}`;
+  return `${BRAND} Hi ${firstName}, ${companyName} sent you invoice #${invoiceNumber} for $${total.toFixed(2)}. View & pay: ${payUrl} ${OPT_OUT}`;
 }

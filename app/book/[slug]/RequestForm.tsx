@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { smsConsentLabel, SMS_TERMS_URL } from "@/lib/sms-consent";
 import Link from "next/link";
 import { CheckCircle, Loader2 } from "lucide-react";
 import TurnstileWidget from "@/components/TurnstileWidget";
@@ -25,6 +26,7 @@ export default function RequestForm({
   preview = false,
   hub = null,
   doneHref = "",
+  businessName = "",
 }: {
   companySlug: string;
   item: PublicBookingType;
@@ -39,6 +41,8 @@ export default function RequestForm({
   hub?: { token: string; contact: { firstName: string; lastName: string; email: string; phone: string; address: string } } | null;
   /** Where the done screen sends them (the hub's requests list) */
   doneHref?: string;
+  /** Names the business in the SMS consent checkbox ("...from Acme Plumbing via WorkBench") */
+  businessName?: string;
 }) {
   const { dark, accent, transparent } = appearance;
   const intake = item.intake;
@@ -51,6 +55,8 @@ export default function RequestForm({
   const [done, setDone] = useState(false);
   const [error, setError] = useState("");
   const [captchaToken, setCaptchaToken] = useState("");
+  // Unchecked by default on purpose — carriers require an affirmative opt-in
+  const [smsConsent, setSmsConsent] = useState(false);
   const [form, setForm] = useState({
     firstName: hub?.contact.firstName ?? "",
     lastName: hub?.contact.lastName ?? "",
@@ -106,6 +112,7 @@ export default function RequestForm({
           custom,
           selectedServices,
           captchaToken,
+          smsConsent,
           hubToken: hub?.token,
           website: honeypot,
           elapsedMs: Date.now() - startedAt,
@@ -274,6 +281,17 @@ export default function RequestForm({
             </div>
           )}
         </div>
+      )}
+      {askPhone && (
+        <label className={`flex items-start gap-2.5 text-[13px] leading-snug ${dark ? "text-gray-300" : "text-gray-600"}`}>
+          <input type="checkbox" checked={smsConsent} onChange={(e) => setSmsConsent(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 rounded" style={{ accentColor: accent }} />
+          <span>
+            {smsConsentLabel(businessName || "this business")}{" "}
+            <a href={SMS_TERMS_URL} target="_blank" rel="noreferrer" className="underline">
+              Text terms
+            </a>
+          </span>
+        </label>
       )}
       {askAddress && (
         <div>

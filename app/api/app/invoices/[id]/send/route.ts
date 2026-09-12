@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { limit } from "@/lib/rate-limit";
 import { getActor, canSeeMoney, viaContactScope } from "@/lib/permissions";
 import { sendEmail, invoiceLinkEmail } from "@/lib/email";
-import { sendSms, invoiceLinkText } from "@/lib/sms";
+import { sendSms, canText, invoiceLinkText } from "@/lib/sms";
 import { inPreview, previewBlockedError } from "@/lib/preview";
 
 /**
@@ -79,7 +79,7 @@ export async function POST(
 
   // Best-effort text with the same link — never fails the send.
   let texted = false;
-  if (invoice.contact.phone && !invoice.contact.smsOptOut) {
+  if (invoice.contact.phone && canText(invoice.contact)) {
     texted = await sendSms({
       companyId: invoice.companyId,
       to: invoice.contact.phone,

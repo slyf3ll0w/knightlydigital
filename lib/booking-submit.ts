@@ -60,6 +60,8 @@ export type CustomerInput = {
   notes: string | null;
   /** Client hub: the signed-in contact — no matching, no lead, source client_hub */
   contactId?: string | null;
+  /** The SMS checkbox on the form (unchecked by default) — stamps Contact.smsConsentAt once */
+  smsConsent?: boolean;
 };
 
 /**
@@ -98,6 +100,7 @@ export async function upsertBookingContact(
         ...(!own.email && c.email ? { email: c.email } : {}),
         ...(!own.phone && c.phone ? { phone: c.phone } : {}),
         ...(!own.address && c.address ? { address: c.address } : {}),
+        ...(c.smsConsent && !own.smsConsentAt && (own.phone || c.phone) ? { smsConsentAt: new Date(), smsConsentSource: "hub" } : {}),
       };
       return Object.keys(fill).length > 0 ? tx.contact.update({ where: { id: own.id }, data: fill }) : own;
     }
@@ -108,7 +111,11 @@ export async function upsertBookingContact(
       OR: [...(c.phone ? [{ phone: c.phone }] : []), ...(c.email ? [{ email: c.email }] : [])],
     },
   });
-  if (existing) return existing;
+  if (existing) {
+    return c.smsConsent && !existing.smsConsentAt && (existing.phone || c.phone)
+      ? tx.contact.update({ where: { id: existing.id }, data: { smsConsentAt: new Date(), smsConsentSource: "booking" } })
+      : existing;
+  }
   return tx.contact.create({
     data: {
       companyId,
@@ -118,6 +125,7 @@ export async function upsertBookingContact(
       email: c.email || null,
       phone: c.phone || null,
       address: c.address || null,
+      ...(c.smsConsent && c.phone ? { smsConsentAt: new Date(), smsConsentSource: "booking" } : {}),
       leadSource: "Online booking",
       assignedToId: await defaultLeadAssignee(companyId),
     },

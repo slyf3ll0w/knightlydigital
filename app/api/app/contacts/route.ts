@@ -87,6 +87,17 @@ export async function POST(req: NextRequest) {
       notes: notes || null,
       leadSource: leadSource || null,
       ...(paymentTermsDays !== undefined && { paymentTermsDays }),
+      // Staff-recorded SMS consent (the client said yes in person / on the phone)
+      ...(body.smsConsent === true && phone
+        ? {
+            smsConsentAt: new Date(),
+            smsConsentSource: "manual",
+            smsConsentNote:
+              typeof body.smsConsentNote === "string" && body.smsConsentNote.trim()
+                ? body.smsConsentNote.trim().slice(0, 300)
+                : null,
+          }
+        : {}),
       assignedToId,
       customFields:
         body.customFields !== undefined

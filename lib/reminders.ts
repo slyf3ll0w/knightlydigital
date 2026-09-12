@@ -17,7 +17,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { sendEmail, emailEnabled, paymentReminderEmail, appointmentReminderEmail, quoteFollowUpEmail } from "@/lib/email";
-import { sendSms, smsEnabled, appointmentReminderText } from "@/lib/sms";
+import { sendSms, smsEnabled, canText, appointmentReminderText } from "@/lib/sms";
 import { notifyUser, notifyUsers } from "@/lib/push";
 import { arrivalSlotLabel, resolveArrivalWindowMinutes } from "@/lib/arrival-window";
 import { pastDueFilter } from "@/lib/due-dates";
@@ -292,7 +292,7 @@ export async function runAppointmentReminders(
       OR: [{ reminderDaySentAt: null }, { reminderHourSentAt: null }],
     },
     include: {
-      contact: { select: { firstName: true, email: true, phone: true, smsOptOut: true } },
+      contact: { select: { firstName: true, email: true, phone: true, smsOptOut: true, smsConsentAt: true } },
       company: {
         select: {
           name: true,
@@ -335,7 +335,7 @@ export async function runAppointmentReminders(
 
       const canEmail = emailEnabled() && Boolean(appt.contact.email);
       const canSms =
-        smsEnabled() && Boolean(appt.contact.phone) && !appt.contact.smsOptOut && !smsQuiet;
+        smsEnabled() && canText(appt.contact) && !smsQuiet;
       // Nothing can actually go out right now (unconfigured providers, or a
       // phone-only client inside quiet hours) — leave the stage unclaimed so a
       // later cron run still in the window picks it up.
@@ -456,7 +456,7 @@ export async function runVisitReminders(
       OR: [{ reminderDaySentAt: null }, { reminderHourSentAt: null }],
     },
     include: {
-      contact: { select: { firstName: true, email: true, phone: true, smsOptOut: true } },
+      contact: { select: { firstName: true, email: true, phone: true, smsOptOut: true, smsConsentAt: true } },
       assignments: { select: { userId: true } },
       company: {
         select: {
@@ -500,7 +500,7 @@ export async function runVisitReminders(
 
       const canEmail = emailEnabled() && Boolean(job.contact.email);
       const canSms =
-        smsEnabled() && Boolean(job.contact.phone) && !job.contact.smsOptOut && !smsQuiet;
+        smsEnabled() && canText(job.contact) && !smsQuiet;
       if (!canEmail && !canSms) continue;
 
       // Claim before sending — same compare-and-set as appointments

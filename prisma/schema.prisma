@@ -692,6 +692,14 @@ model Contact {
   // automated texts (reminders, quote/invoice links) skip them. Telnyx also
   // blocks at their edge; this flag keeps our senders honest and visible.
   smsOptOut            Boolean        @default(false)
+  // Express consent to automated texts (toll-free verification requires
+  // documented, unchecked-by-default opt-in): stamped when the client ticks
+  // the SMS box on a booking form, or when staff record consent on the
+  // contact. Null = never consented → no automated text goes out, even with
+  // a phone on file. lib/sms-consent.ts canText() is the one gate.
+  smsConsentAt         DateTime?
+  smsConsentSource     String? // "booking" | "hub" | "manual"
+  smsConsentNote       String? // how the client agreed, when staff recorded it
   hubToken             String         @unique @default(cuid())
   // Last time the client opened their hub (beacon-stamped, no push — shown on
   // the contact page as "Portal · last visit")

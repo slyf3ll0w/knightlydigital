@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, CalendarPlus, Check, CheckCircle, Clock, ExternalLink, Globe, Loader2, MapPin, MessageSquare, Phone, Video, Wrench } from "lucide-react";
 import TurnstileWidget from "@/components/TurnstileWidget";
 import { textOn } from "@/lib/branding";
+import { smsConsentLabel, SMS_TERMS_URL } from "@/lib/sms-consent";
 import { zipFromAddress } from "@/lib/business-hours";
 import type { PublicBookingType } from "@/lib/booking-runtime";
 import { durationLabel } from "@/lib/booking-types";
@@ -146,6 +147,8 @@ export default function BookingStepper({
   const [captchaToken, setCaptchaToken] = useState("");
   const [honeypot, setHoneypot] = useState("");
   const [startedAt] = useState(() => Date.now());
+  // Unchecked by default on purpose — carriers require an affirmative opt-in
+  const [smsConsent, setSmsConsent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [booked, setBooked] = useState<Booked | null>(null);
@@ -310,6 +313,7 @@ export default function BookingStepper({
           paymentToken,
           fraudSessionId,
           captchaToken,
+          smsConsent,
           hubToken: hub?.token,
           website: honeypot,
           elapsedMs: Date.now() - startedAt,
@@ -680,6 +684,17 @@ export default function BookingStepper({
                 </div>
               )}
             </div>
+            )}
+            {askPhone && (
+              <label className={`flex items-start gap-2.5 text-[13px] leading-snug ${dark ? "text-gray-300" : "text-gray-600"}`}>
+                <input type="checkbox" checked={smsConsent} onChange={(e) => setSmsConsent(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 rounded" style={{ accentColor: accent }} />
+                <span>
+                  {smsConsentLabel(company.name)}{" "}
+                  <a href={SMS_TERMS_URL} target="_blank" rel="noreferrer" className="underline">
+                    Text terms
+                  </a>
+                </span>
+              </label>
             )}
             {intake.fields.address.show && (
               <div>

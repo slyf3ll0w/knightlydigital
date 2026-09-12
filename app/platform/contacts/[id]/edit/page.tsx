@@ -33,6 +33,8 @@ export default async function EditContactPage({
         notes: contact.notes ?? "",
         leadSource: contact.leadSource ?? "",
         paymentTermsDays: contact.paymentTermsDays,
+        smsConsent: Boolean(contact.smsConsentAt),
+        smsConsentNote: contact.smsConsentNote ?? "",
         status: contact.status,
         customFields: (contact.customFields as Record<string, string>) ?? {},
       }}

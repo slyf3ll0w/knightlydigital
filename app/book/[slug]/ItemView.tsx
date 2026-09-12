@@ -65,6 +65,7 @@ export default async function ItemView({
       showHeader={embed}
       initialService={typeof searchParams.service === "string" ? searchParams.service.slice(0, 120) : ""}
       preview={previewing}
+      businessName={company.name}
     />
   );
 

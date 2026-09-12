@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { bookingRescheduledEmail, emailEnabled, sendEmail } from "@/lib/email";
-import { sendSms, smsEnabled } from "@/lib/sms";
+import { sendSms, smsEnabled, canText } from "@/lib/sms";
 import { arrivalSlotLabel, resolveArrivalWindowMinutes } from "@/lib/arrival-window";
 import { notifyContact } from "@/lib/push";
 
@@ -31,7 +31,7 @@ const companySelect = {
   logoUrl: true,
 } as const;
 
-const contactSelect = { id: true, firstName: true, email: true, phone: true, smsOptOut: true, hubToken: true } as const;
+const contactSelect = { id: true, firstName: true, email: true, phone: true, smsOptOut: true, smsConsentAt: true, hubToken: true } as const;
 
 export type MoveNoticeResult = { sent: boolean; via: ("portal" | "sms" | "email")[]; reason?: string };
 
@@ -51,7 +51,7 @@ export async function notifyClientOfMove(params: {
 }): Promise<MoveNoticeResult> {
   const { companyId, kind, id } = params;
 
-  let contact: { id: string; firstName: string; email: string | null; phone: string | null; smsOptOut: boolean; hubToken: string };
+  let contact: { id: string; firstName: string; email: string | null; phone: string | null; smsOptOut: boolean; smsConsentAt: Date | null; hubToken: string };
   let company: {
     id: string; name: string; email: string | null; timezone: string; arrivalWindowMinutes: number;
     brandColor: string | null; documentColor: string | null; brandColorSecondary: string | null; logoUrl: string | null;
@@ -152,10 +152,10 @@ export async function notifyClientOfMove(params: {
   }
 
   const canEmail = emailEnabled() && Boolean(contact.email);
-  const canSms = smsEnabled() && Boolean(contact.phone) && !contact.smsOptOut;
+  const canSms = smsEnabled() && canText(contact);
 
   if (canSms && contact.phone) {
-    const text = `${line} Reply STOP to opt out.`;
+    const text = `WorkBench: ${line} Reply STOP to opt out.`;
     if (await sendSms({ companyId, to: contact.phone, text })) via.push("sms");
   }
 
@@ -183,7 +183,7 @@ export async function notifyClientOfMove(params: {
   }
 
   if (via.length === 0) {
-    return { sent: false, via, reason: contact.smsOptOut && !contact.email ? "opted_out" : "send_failed" };
+    return { sent: false, via, reason: (contact.smsOptOut || !contact.smsConsentAt) && !contact.email ? "opted_out" : "send_failed" };
   }
   return { sent: true, via };
 }

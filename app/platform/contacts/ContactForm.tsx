@@ -34,6 +34,8 @@ export type ContactFormInitial = {
   notes: string;
   leadSource: string;
   paymentTermsDays: number;
+  smsConsent: boolean;
+  smsConsentNote: string;
   status: string;
   customFields: Record<string, string>;
 };
@@ -72,6 +74,8 @@ export default function ContactForm({
     notes: initial?.notes ?? "",
     leadSource: initial?.leadSource ?? "",
     paymentTermsDays: String(initial?.paymentTermsDays ?? 30),
+    smsConsent: initial?.smsConsent ?? false,
+    smsConsentNote: initial?.smsConsentNote ?? "",
     status: initial?.status ?? "LEAD",
     assignedToId: "",
   });
@@ -124,6 +128,8 @@ export default function ContactForm({
       notes: form.notes,
       leadSource: form.leadSource,
       paymentTermsDays: terms,
+      smsConsent: form.smsConsent,
+      smsConsentNote: form.smsConsentNote,
       customFields,
     };
 
@@ -248,6 +254,33 @@ export default function ContactForm({
                 onChange={(e) => set("phone", e.target.value)}
                 className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               />
+            </div>
+            <div className="col-span-2">
+              <label className="flex items-start gap-2.5 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={form.smsConsent}
+                  onChange={(e) => setForm((s) => ({ ...s, smsConsent: e.target.checked }))}
+                  className="mt-0.5 h-4 w-4 rounded"
+                />
+                <span>
+                  <span className="font-medium">Texts allowed</span>
+                  <span className="block text-xs text-gray-500 mt-0.5">
+                    This client agreed to automated texts from you via WorkBench (appointment
+                    reminders, quote and invoice links). Leave it off until they say yes — a STOP
+                    reply turns it off again.
+                  </span>
+                </span>
+              </label>
+              {form.smsConsent && (
+                <input
+                  type="text"
+                  value={form.smsConsentNote}
+                  onChange={(e) => set("smsConsentNote", e.target.value)}
+                  placeholder="How they agreed — e.g. asked on the phone 9/12"
+                  className="mt-2 w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                />
+              )}
             </div>
           </div>
         </div>

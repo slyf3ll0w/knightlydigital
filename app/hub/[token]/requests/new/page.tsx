@@ -84,7 +84,7 @@ export default async function HubNewRequestPage({
           hub={{ token }}
         />
       ) : (
-        <RequestForm companySlug={company.slug} item={pub} appearance={appearance} hub={{ token, contact: person }} doneHref={`${base}/requests`} />
+        <RequestForm companySlug={company.slug} item={pub} appearance={appearance} hub={{ token, contact: person }} doneHref={`${base}/requests`} businessName={company.name} />
       )}
     </div>
   );

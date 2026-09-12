@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
   if (!result.sent) {
     const msg =
       result.reason === "opted_out"
-        ? "This client has opted out of texts and has no email on file."
+        ? "This client hasn't agreed to texts (or opted out) and has no email on file."
         : result.reason === "no_contact_method"
           ? "No phone or email on file for this client."
           : result.reason === "unscheduled"

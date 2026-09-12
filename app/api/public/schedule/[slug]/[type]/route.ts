@@ -77,6 +77,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
     phone: (intake.fields.phone.show ? str(body.phone, 40) : "") || hubContact?.phone || null,
     address: meta.needsAddress ? str(body.address, 300) || null : plainAddress || null,
     contactId: hubContact?.id ?? null,
+    smsConsent: body.smsConsent === true,
     notes:
       [message, serviceAnswer ? `${intake.serviceQuestion.label}: ${serviceAnswer}` : null, ...customLines].filter(Boolean).join("\n") || null,
   };

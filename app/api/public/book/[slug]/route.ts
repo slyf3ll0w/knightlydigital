@@ -65,6 +65,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
   const lastName = str(body.lastName, 100) || hubContact?.lastName || "";
   const email = (intake.fields.email.show ? str(body.email, 200) : "") || hubContact?.email || "";
   const phone = (intake.fields.phone.show ? str(body.phone, 40) : "") || hubContact?.phone || "";
+  // The SMS checkbox is unchecked by default; only an explicit true counts
+  const smsConsent = body.smsConsent === true && Boolean(phone);
   const address = (intake.fields.address.show ? str(body.address, 300) : "") || hubContact?.address || "";
   const preferredDate = intake.fields.date.show ? str(body.preferredDate, 10) : "";
   const message = intake.message.show ? str(body.message, 5000) : "";
@@ -119,6 +121,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
         const fill = { ...(!contact.email && email ? { email } : {}), ...(!contact.phone && phone ? { phone } : {}), ...(!contact.address && address ? { address } : {}) };
         if (Object.keys(fill).length > 0) contact = await tx.contact.update({ where: { id: contact.id }, data: fill });
       }
+      if (contact && smsConsent && !contact.smsConsentAt) {
+        // Fresh opt-in from a known client — stamp it once; nothing here ever clears consent
+        contact = await tx.contact.update({
+          where: { id: contact.id },
+          data: { smsConsentAt: new Date(), smsConsentSource: hubContact ? "hub" : "booking" },
+        });
+      }
       if (!contact) {
         contact = await tx.contact.create({
           data: {
@@ -132,6 +141,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
             leadSource: "Online booking",
             assignedToId,
             customFields: sanitizedMapped,
+            ...(smsConsent ? { smsConsentAt: new Date(), smsConsentSource: hubContact ? "hub" : "booking" } : {}),
           },
         });
       } else if (Object.keys(sanitizedMapped).length > 0) {
