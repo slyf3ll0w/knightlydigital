@@ -25,9 +25,9 @@ const sections: { heading: string; paragraphs: (string | React.ReactNode)[] }[] 
     ],
   },
   {
-    heading: "2. How you opted in",
+    heading: "2. Why you receive them",
     paragraphs: [
-      "You receive these texts only after you agreed to them. That happens in one of two ways: you ticked the text-message box (unchecked by default) when you booked or requested service through a business's WorkBench booking page, or you told the business directly that they may text you and they recorded that on your record.",
+      "These are informational messages about work you asked a business to do. You receive them because you gave that business your mobile number when you booked, requested service, or became their customer, or because you ticked the text-message box (unchecked by default) on a business's WorkBench booking page. If you leave that box unchecked when a business first adds you through its booking page, the business does not text you through WorkBench unless you later ask it to.",
       "Consent is not a condition of purchase. A business can serve you without texting you.",
     ],
   },

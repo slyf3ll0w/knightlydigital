@@ -3,15 +3,23 @@
  * shared by every place consent is collected. Kept free of server imports so
  * the public booking forms (client components) can use it too.
  *
- * Why it exists: toll-free verification (and the carriers behind it) require
- * documented, unchecked-by-default opt-in before a business texts a consumer.
- * A phone number on file is not consent. So: no smsConsentAt → no automated
- * text, ever, even with Telnyx live. STOP (Contact.smsOptOut) always wins.
+ * The model (same as Jobber's): texts are ON by default for any client with a
+ * phone on file. Everything we send is informational — appointment reminders,
+ * schedule changes, quote and invoice links — and for that class the CTIA
+ * messaging principles / TCPA treat the number the client gave the business as
+ * the consent. The business attests to that once, company-wide, when it turns
+ * text notifications on (Company.smsAcknowledgedAt; enforced in sendSms).
+ *
+ * Two things turn a client off: a STOP reply (Contact.smsOptOut, flipped by
+ * the inbound webhook, always wins) and Contact.smsDisabled (staff switched
+ * them off, or they left the SMS box unchecked when a booking form created
+ * them). Contact.smsConsentAt is an audit record of an explicit opt-in when
+ * there was one; it is not required to text.
  */
 
 export const SMS_TERMS_URL = "https://workbenchfsm.com/sms-terms";
 
-/** Checkbox label on the public booking / request forms. */
+/** Checkbox label on the public booking / request forms (unchecked by default). */
 export function smsConsentLabel(businessName: string): string {
   return `Text me appointment reminders and updates from ${businessName} via WorkBench. Msg & data rates may apply. Msg frequency varies. Reply STOP to opt out, HELP for help.`;
 }
@@ -19,10 +27,10 @@ export function smsConsentLabel(businessName: string): string {
 export type SmsConsentFields = {
   phone: string | null;
   smsOptOut: boolean;
-  smsConsentAt: Date | null;
+  smsDisabled: boolean;
 };
 
-/** A dialable phone, consent on file, and no STOP on record. */
+/** A dialable phone, not switched off, and no STOP on record. */
 export function canText(c: SmsConsentFields): boolean {
-  return Boolean(c.phone) && c.smsConsentAt !== null && !c.smsOptOut;
+  return Boolean(c.phone) && !c.smsOptOut && !c.smsDisabled;
 }

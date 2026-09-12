@@ -28,7 +28,7 @@ export const clientExtraTools: Tool[] = [
       const full = await prisma.contact.findUnique({
         where: { id: contact.id },
         select: {
-          customFields: true, smsOptOut: true, hubLastVisitAt: true, paymentTermsDays: true,
+          customFields: true, smsOptOut: true, smsDisabled: true, hubLastVisitAt: true, paymentTermsDays: true,
           addresses: { orderBy: { createdAt: "asc" }, select: { id: true, label: true, address: true, city: true, state: true, zip: true, _count: { select: { jobs: true } } } },
           people: { orderBy: { sortOrder: "asc" }, select: { id: true, firstName: true, lastName: true, role: true, email: true, phone: true, notes: true } },
           savedCards: { orderBy: { isDefault: "desc" }, select: { id: true, label: true, brand: true, expMonth: true, expYear: true, isDefault: true } },
@@ -46,6 +46,7 @@ export const clientExtraTools: Tool[] = [
         ...(canMoney ? { cardsOnFile: full.savedCards.map((c) => ({ id: c.id, label: c.label, brand: c.brand, expires: c.expMonth && c.expYear ? `${c.expMonth}/${c.expYear}` : null, isDefault: c.isDefault })), paymentTermsDays: full.paymentTermsDays } : {}),
         customFields: full.customFields ?? {},
         smsOptOut: full.smsOptOut,
+        textsOff: full.smsOptOut || full.smsDisabled,
         portalLastVisit: full.hubLastVisitAt ? fmtWhen(tz, full.hubLastVisitAt, false) : null,
         portalThread: full.portalMessages.reverse().map((m) => ({ from: m.direction === "INBOUND" ? "client" : m.sender?.name ?? "us", at: fmtWhen(tz, m.createdAt, false), unread: m.direction === "INBOUND" && !m.readByTeamAt, body: m.body.length > 240 ? `${m.body.slice(0, 240)}…` : m.body })),
         emailsSent: full.clientMessages.map((m) => ({ subject: m.subject, at: fmtWhen(tz, m.createdAt, false), by: m.sender?.name ?? null, opened: Boolean(m.emailOpenedAt || m.viewCount > 0) })),

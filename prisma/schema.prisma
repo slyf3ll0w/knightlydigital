@@ -19,6 +19,11 @@ model Company {
   city                      String?
   state                     String?
   zip                       String?
+  // Provider texts (Telnyx) go out for this company only after a manager has
+  // turned text notifications on in Settings → Features — the one-time
+  // acknowledgement that clients gave the business their numbers. Null = off;
+  // lib/sms.ts sendSms refuses until it is set.
+  smsAcknowledgedAt         DateTime?
   // Geocoded shop location (lib/geocoding.ts) — the Route Manager's default
   // start point for a tech's day. Refreshed when the address fields change;
   // null until geocoded (or when geocoding is disabled/failed).
@@ -692,13 +697,18 @@ model Contact {
   // automated texts (reminders, quote/invoice links) skip them. Telnyx also
   // blocks at their edge; this flag keeps our senders honest and visible.
   smsOptOut            Boolean        @default(false)
-  // Express consent to automated texts (toll-free verification requires
-  // documented, unchecked-by-default opt-in): stamped when the client ticks
-  // the SMS box on a booking form, or when staff record consent on the
-  // contact. Null = never consented → no automated text goes out, even with
-  // a phone on file. lib/sms-consent.ts canText() is the one gate.
+  // Texts are ON by default for any client with a phone on file: reminders,
+  // schedule changes and quote/invoice links are informational, so the number
+  // the client gave the business is the consent (the company attests to that
+  // once — Company.smsAcknowledgedAt). smsDisabled = staff switched texts off
+  // for this client, or the client left the SMS box unchecked when a booking
+  // form created them. lib/sms-consent.ts canText() is the one gate.
+  smsDisabled          Boolean        @default(false)
+  // Audit trail of an explicit opt-in, when there was one: the client ticked
+  // the SMS box on a booking form, or staff switched texts back on. Not
+  // required to text — see smsDisabled.
   smsConsentAt         DateTime?
-  smsConsentSource     String? // "booking" | "hub" | "manual"
+  smsConsentSource     String? // "booking" | "hub" | "manual" | "booking_declined"
   smsConsentNote       String? // how the client agreed, when staff recorded it
   hubToken             String         @unique @default(cuid())
   // Last time the client opened their hub (beacon-stamped, no push — shown on

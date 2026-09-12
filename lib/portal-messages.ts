@@ -38,7 +38,7 @@ export type PortalThreadContact = {
   email: string | null;
   phone: string | null;
   smsOptOut: boolean;
-  smsConsentAt: Date | null;
+  smsDisabled: boolean;
   hubToken: string;
   assignedToId: string | null;
   company: {

@@ -35,6 +35,17 @@ export async function PATCH(req: NextRequest) {
           ? body.hubBookingTypeId
           : undefined;
 
+  // Text notifications: the one-time on switch (stamped once, never re-dated)
+  // or off. Its own update so the settings form's partial saves never touch it.
+  if (body.smsAcknowledged === true) {
+    await prisma.company.updateMany({
+      where: { id: companyId, smsAcknowledgedAt: null },
+      data: { smsAcknowledgedAt: new Date() },
+    });
+  } else if (body.smsAcknowledged === false) {
+    await prisma.company.update({ where: { id: companyId }, data: { smsAcknowledgedAt: null } });
+  }
+
   await prisma.company.update({
     where: { id: companyId },
     data: {

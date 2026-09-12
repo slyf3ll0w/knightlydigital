@@ -7,9 +7,11 @@
  * Sends go out via the messaging profile's number pool (sticky sender), not a
  * hardcoded from-number — adding numbers to the pool needs no code changes.
  * Telnyx auto-handles STOP/HELP at their edge; our own record of opt-outs
- * lives on Contact.smsOptOut (flipped by the inbound webhook). Consent lives
- * on Contact.smsConsentAt. Every sender is expected to gate on canText()
- * (lib/sms-consent.ts) before calling sendSms.
+ * lives on Contact.smsOptOut (flipped by the inbound webhook). Texts are on by
+ * default; Contact.smsDisabled is the per-client off switch. Every sender is
+ * expected to gate on canText() (lib/sms-consent.ts) before calling sendSms,
+ * and sendSms itself refuses until the company has turned text notifications
+ * on (Company.smsAcknowledgedAt — the one-time consent attestation).
  *
  * Every template opens with "WorkBench:" — the toll-free number is verified
  * under the WorkBench brand, so that is the name the recipient opted in to;
@@ -37,6 +39,22 @@ async function underDailyCap(companyId: string): Promise<boolean> {
     return false;
   } catch {
     return true; // metering must never block a send on its own failure
+  }
+}
+
+// The company-level switch: a manager turns text notifications on once in
+// Settings → Features, acknowledging that their clients gave them their
+// numbers. Until then nothing goes out for that tenant, whatever the contact
+// row says. Fails closed — the attestation is what makes the send legitimate.
+async function companyTextsOn(companyId: string): Promise<boolean> {
+  try {
+    const row = await prisma.company.findUnique({
+      where: { id: companyId },
+      select: { smsAcknowledgedAt: true },
+    });
+    return Boolean(row?.smsAcknowledgedAt);
+  } catch {
+    return false;
   }
 }
 
@@ -74,7 +92,10 @@ export async function sendSms({
   if (!smsEnabled()) return false;
   const e164 = toE164(to);
   if (!e164) return false;
-  if (companyId && !(await underDailyCap(companyId))) return false;
+  if (companyId) {
+    if (!(await companyTextsOn(companyId))) return false;
+    if (!(await underDailyCap(companyId))) return false;
+  }
   try {
     const res = await fetch("https://api.telnyx.com/v2/messages", {
       method: "POST",

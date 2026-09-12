@@ -36,6 +36,7 @@ import { GOOGLE_FONT_RE } from "@/lib/booking-page";
 import { resolveWallpaper } from "@/lib/wallpapers";
 import { confirmSheet } from "@/components/ConfirmSheet";
 import PageTitle from "@/components/PageTitle";
+import SmsNotificationsCard from "./SmsNotificationsCard";
 import {
   SECTION_HUES,
   SECTION_HUE_DEFAULTS,
@@ -66,6 +67,7 @@ type Company = {
   timezone: string;
   assistantName: string | null;
   schedulingIntervalMinutes: number | null;
+  smsAcknowledgedAt: string | null;
 };
 
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
@@ -1936,6 +1938,9 @@ export default function SettingsClient({
           </div>
         </div>
         )}
+
+        {/* Text notifications — provider SMS from WorkBench's toll-free number */}
+        {show("features") && <SmsNotificationsCard initialOnAt={company.smsAcknowledgedAt} />}
 
         {/* On my way texts */}
         {show("features") && (

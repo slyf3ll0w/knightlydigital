@@ -31,7 +31,7 @@ const companySelect = {
   logoUrl: true,
 } as const;
 
-const contactSelect = { id: true, firstName: true, email: true, phone: true, smsOptOut: true, smsConsentAt: true, hubToken: true } as const;
+const contactSelect = { id: true, firstName: true, email: true, phone: true, smsOptOut: true, smsDisabled: true, hubToken: true } as const;
 
 export type MoveNoticeResult = { sent: boolean; via: ("portal" | "sms" | "email")[]; reason?: string };
 
@@ -51,7 +51,7 @@ export async function notifyClientOfMove(params: {
 }): Promise<MoveNoticeResult> {
   const { companyId, kind, id } = params;
 
-  let contact: { id: string; firstName: string; email: string | null; phone: string | null; smsOptOut: boolean; smsConsentAt: Date | null; hubToken: string };
+  let contact: { id: string; firstName: string; email: string | null; phone: string | null; smsOptOut: boolean; smsDisabled: boolean; hubToken: string };
   let company: {
     id: string; name: string; email: string | null; timezone: string; arrivalWindowMinutes: number;
     brandColor: string | null; documentColor: string | null; brandColorSecondary: string | null; logoUrl: string | null;
@@ -183,7 +183,7 @@ export async function notifyClientOfMove(params: {
   }
 
   if (via.length === 0) {
-    return { sent: false, via, reason: (contact.smsOptOut || !contact.smsConsentAt) && !contact.email ? "opted_out" : "send_failed" };
+    return { sent: false, via, reason: (contact.smsOptOut || contact.smsDisabled) && !contact.email ? "opted_out" : "send_failed" };
   }
   return { sent: true, via };
 }

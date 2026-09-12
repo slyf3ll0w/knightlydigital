@@ -95,21 +95,24 @@ export async function PATCH(
     if (current.status !== status) statusChange = status;
   }
 
-  // SMS consent: staff can record it (stamped once, never re-dated on later
-  // edits) or withdraw it. The note is free text about how the client agreed.
+  // Texts allowed: on by default; staff can switch a client off (smsDisabled)
+  // or back on. Switching a client back on stamps a "manual" consent record
+  // the first time so the audit trail shows when and that staff did it. The
+  // note is free text about how the client agreed.
   let consentPatch: Record<string, unknown> = {};
   if (body.smsConsent === false) {
-    consentPatch = { smsConsentAt: null, smsConsentSource: null, smsConsentNote: null };
+    consentPatch = { smsDisabled: true };
   } else if (body.smsConsent === true) {
     const cur = await prisma.contact.findFirst({
       where: { id, companyId: actor.companyId, ...contactScope(actor) },
-      select: { smsConsentAt: true },
+      select: { smsConsentAt: true, smsDisabled: true },
     });
     consentPatch = {
-      ...(cur && !cur.smsConsentAt ? { smsConsentAt: new Date(), smsConsentSource: "manual" } : {}),
-      ...(body.smsConsentNote !== undefined && { smsConsentNote: opt(body.smsConsentNote) }),
+      smsDisabled: false,
+      ...(cur && cur.smsDisabled && !cur.smsConsentAt ? { smsConsentAt: new Date(), smsConsentSource: "manual" } : {}),
     };
   }
+  if (body.smsConsentNote !== undefined) consentPatch.smsConsentNote = opt(body.smsConsentNote);
 
   const contact = await prisma.contact.updateMany({
     where: { id, companyId: actor.companyId, ...contactScope(actor) },

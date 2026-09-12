@@ -74,7 +74,7 @@ export default function ContactForm({
     notes: initial?.notes ?? "",
     leadSource: initial?.leadSource ?? "",
     paymentTermsDays: String(initial?.paymentTermsDays ?? 30),
-    smsConsent: initial?.smsConsent ?? false,
+    smsConsent: initial?.smsConsent ?? true,
     smsConsentNote: initial?.smsConsentNote ?? "",
     status: initial?.status ?? "LEAD",
     assignedToId: "",
@@ -266,9 +266,9 @@ export default function ContactForm({
                 <span>
                   <span className="font-medium">Texts allowed</span>
                   <span className="block text-xs text-gray-500 mt-0.5">
-                    This client agreed to automated texts from you via WorkBench (appointment
-                    reminders, quote and invoice links). Leave it off until they say yes — a STOP
-                    reply turns it off again.
+                    Appointment reminders, schedule changes, and quote/invoice links go to the
+                    number above by text (from WorkBench, naming you). On by default — switch it
+                    off if this client asked not to be texted. A STOP reply turns it off on its own.
                   </span>
                 </span>
               </label>
@@ -277,7 +277,7 @@ export default function ContactForm({
                   type="text"
                   value={form.smsConsentNote}
                   onChange={(e) => set("smsConsentNote", e.target.value)}
-                  placeholder="How they agreed — e.g. asked on the phone 9/12"
+                  placeholder="Optional note — e.g. asked on the phone 9/12"
                   className="mt-2 w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                 />
               )}

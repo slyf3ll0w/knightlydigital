@@ -48,6 +48,7 @@ export default async function ContactDetailPage({
             logoUrl: true,
             finixMerchantId: true,
             finixOnboardingState: true,
+            smsAcknowledgedAt: true,
           },
         },
         savedCards: {
@@ -236,19 +237,29 @@ export default async function ContactDetailPage({
                 className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
                   contact.smsOptOut
                     ? "bg-red-50 text-red-700"
-                    : contact.smsConsentAt
-                      ? "bg-green-50 text-green-700"
-                      : "bg-gray-100 text-gray-500"
+                    : contact.smsDisabled || !contact.company.smsAcknowledgedAt
+                      ? "bg-gray-100 text-gray-500"
+                      : "bg-green-50 text-green-700"
                 }`}
                 title={
                   contact.smsOptOut
-                    ? "Replied STOP — automated texts are off"
-                    : contact.smsConsentAt
-                      ? `Agreed to texts${contact.smsConsentNote ? ` · ${contact.smsConsentNote}` : ""}`
-                      : "No text consent on file — edit the client to record it"
+                    ? "Replied STOP — automated texts are off until they reply START"
+                    : contact.smsDisabled
+                      ? contact.smsConsentSource === "booking_declined"
+                        ? "Left the text box unchecked when they booked — edit the client to turn texts on"
+                        : "Texts switched off for this client — edit the client to turn them on"
+                      : !contact.company.smsAcknowledgedAt
+                        ? "Turn on text notifications in Settings → Features to start texting clients"
+                        : `Reminders and links go out by text${contact.smsConsentNote ? ` · ${contact.smsConsentNote}` : ""}`
                 }
               >
-                {contact.smsOptOut ? "Texts: opted out" : contact.smsConsentAt ? "Texts: allowed" : "Texts: no consent"}
+                {contact.smsOptOut
+                  ? "Texts: opted out"
+                  : contact.smsDisabled
+                    ? "Texts: off"
+                    : !contact.company.smsAcknowledgedAt
+                      ? "Texts: not set up"
+                      : "Texts: on"}
               </span>
             )}
             {contact.email && (

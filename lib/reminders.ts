@@ -292,7 +292,7 @@ export async function runAppointmentReminders(
       OR: [{ reminderDaySentAt: null }, { reminderHourSentAt: null }],
     },
     include: {
-      contact: { select: { firstName: true, email: true, phone: true, smsOptOut: true, smsConsentAt: true } },
+      contact: { select: { firstName: true, email: true, phone: true, smsOptOut: true, smsDisabled: true } },
       company: {
         select: {
           name: true,
@@ -456,7 +456,7 @@ export async function runVisitReminders(
       OR: [{ reminderDaySentAt: null }, { reminderHourSentAt: null }],
     },
     include: {
-      contact: { select: { firstName: true, email: true, phone: true, smsOptOut: true, smsConsentAt: true } },
+      contact: { select: { firstName: true, email: true, phone: true, smsOptOut: true, smsDisabled: true } },
       assignments: { select: { userId: true } },
       company: {
         select: {
