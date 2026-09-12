@@ -381,6 +381,14 @@ export default async function JobDetailPage({
                   </p>
                 </div>
               )}
+              {job.outsourced && (
+                <div className="flex items-start gap-3">
+                  <User size={15} className="text-gray-400 mt-0.5 shrink-0" />
+                  <p className="text-sm text-gray-800">
+                    Outsourced{job.outsourcedTo ? ` to ${job.outsourcedTo}` : " to a subcontractor"}
+                  </p>
+                </div>
+              )}
               {job.description && (
                 <div className="pt-2 border-t border-gray-100">
                   <p className="text-sm text-gray-700 whitespace-pre-wrap">{job.description}</p>
@@ -583,6 +591,8 @@ export default async function JobDetailPage({
               jobId={job.id}
               users={teamUsers}
               assignedIds={job.assignments.map((a) => a.userId)}
+              outsourced={job.outsourced}
+              outsourcedTo={job.outsourcedTo}
             />
           )}
 

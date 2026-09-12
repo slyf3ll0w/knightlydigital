@@ -142,6 +142,23 @@ export async function PATCH(
   });
   if (restartGeocode) void geocodeMemberStart(target.id);
 
+  // Switched ON to take bookings → join every booking item. Items only copy
+  // whoever was bookable when they were created, so without this a member
+  // switched on later was bookable in name only (customers saw a request form
+  // instead of open times). Remove them from individual items in the editor.
+  if (data.bookable === true && !target.bookable) {
+    const types = await prisma.bookingType.findMany({
+      where: { companyId: actor.companyId },
+      select: { id: true },
+    });
+    if (types.length > 0) {
+      await prisma.bookingTypeMember.createMany({
+        data: types.map((t) => ({ bookingTypeId: t.id, userId: target.id })),
+        skipDuplicates: true,
+      });
+    }
+  }
+
   if (passwordToSet !== null) {
     await setPasswordForUser(target.id, passwordToSet);
   }

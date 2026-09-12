@@ -1407,6 +1407,11 @@ model Job {
   // approval). Proof-of-completion for disputes.
   completionSignatureName String?
   completionSignedAt      DateTime?
+  // Work handed to a subcontractor: nobody on the team is on it. The one way
+  // a scheduled job may stand without a crew (lib/job-crew.ts insists on one
+  // everywhere else), and it stays off everyone's calendar sync.
+  outsourced              Boolean         @default(false)
+  outsourcedTo            String?
   createdAt               DateTime        @default(now())
   updatedAt               DateTime        @updatedAt
 

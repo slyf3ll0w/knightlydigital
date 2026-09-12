@@ -42,6 +42,10 @@ export type ScheduleJobDTO = {
   conflictNote?: string | null;
   assignees?: string[]; // who's on it — initials chips on the phone agenda
   assigneeIds?: string[]; // prefills the drop-to-schedule sheet's crew picker
+  outsourced?: boolean; // a subcontractor is doing it — empty crew on purpose
+  // Scheduled, nobody on it, not outsourced, and the company has more than
+  // one member (a one-person company's jobs are auto-assigned) → badge it
+  needsCrew?: boolean;
   // Phone agenda swipe actions (call / directions); absent on blocks
   phone?: string | null;
   address?: string | null;

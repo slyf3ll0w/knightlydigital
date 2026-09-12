@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle as AlertTriangleIcon, Car } from "lucide-react";
+import { AlertTriangle as AlertTriangleIcon, Car, UserX as UserXIcon } from "lucide-react";
 import {
   HOUR_PX,
   durationLabel,
@@ -333,11 +333,12 @@ export default function TimeGrid({
                             left: `calc(${(c / cols) * 100}% + 2px)`,
                             width: `calc(${(1 / cols) * 100}% - 4px)`,
                           }}
-                          title={`${j.contactName} — ${j.title}${j.conflictNote ? `\n⚠ Overlaps: ${j.conflictNote}` : ""}`}
+                          title={`${j.contactName} — ${j.title}${j.conflictNote ? `\n⚠ Overlaps: ${j.conflictNote}` : ""}${j.needsCrew ? "\n⚠ Nobody assigned" : ""}`}
                         >
                           <span className="block truncate font-semibold">
                             <TypeGlyph apptType={j.apptType} recurring={j.recurring} />{" "}
                             {j.conflictNote && <AlertTriangleIcon size={11} className="inline shrink-0 text-amber-600" />}{" "}
+                            {j.needsCrew && <UserXIcon size={11} className="inline shrink-0 text-amber-600" aria-label="Nobody assigned" />}{" "}
                             {j.kind === "block" ? j.title || "Blocked off" : j.contactName}
                           </span>
                           <span className="block truncate">

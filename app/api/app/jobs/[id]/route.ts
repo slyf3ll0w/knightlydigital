@@ -5,6 +5,7 @@ import { getActor, isManager, jobScope } from "@/lib/permissions";
 import { findScheduleConflicts } from "@/lib/schedule-conflicts";
 import { ensureSubscriptionsForContact } from "@/lib/subscriptions";
 import { syncJobChecklist } from "@/lib/job-checklist";
+import { cleanOutsourcedTo, crewMissing, NEEDS_CREW_CODE, NEEDS_CREW_ERROR, resolveCrew } from "@/lib/job-crew";
 
 export async function PATCH(
   req: NextRequest,
@@ -22,9 +23,48 @@ export async function PATCH(
 
   const job = await prisma.job.findFirst({
     where: { id, companyId: actor.companyId, ...jobScope(actor) },
-    select: { id: true, contactId: true },
+    select: {
+      id: true,
+      contactId: true,
+      scheduledAt: true,
+      outsourced: true,
+      outsourcedTo: true,
+      assignments: { select: { userId: true } },
+    },
   });
   if (!job) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  // Crew + outsourced: work out where the job ENDS UP before writing anything.
+  // A scheduled job with nobody on it (and not outsourced) is rejected when
+  // this request is what schedules it or changes its crew — it would sit on
+  // nobody's schedule or calendar sync. A one-person company never hits this:
+  // resolveCrew lands the job on its one member (and quietly heals older
+  // unassigned jobs on any edit).
+  const currentCrew = job.assignments.map((a) => a.userId);
+  const touchesCrew = fullEdit && (Array.isArray(body.assigneeIds) || body.outsourced !== undefined);
+  const nextOutsourced = fullEdit && body.outsourced !== undefined ? Boolean(body.outsourced) : job.outsourced;
+  const nextScheduledAt =
+    body.scheduledAt !== undefined ? (body.scheduledAt ? new Date(body.scheduledAt) : null) : job.scheduledAt;
+  const nextCrew = touchesCrew
+    ? await resolveCrew(
+        prisma,
+        actor.companyId,
+        Array.isArray(body.assigneeIds) ? body.assigneeIds : nextOutsourced ? [] : currentCrew,
+        { outsourced: nextOutsourced }
+      )
+    : currentCrew.length === 0 && !nextOutsourced
+      ? await resolveCrew(prisma, actor.companyId, [], {})
+      : currentCrew;
+  const crewChanged = JSON.stringify([...nextCrew].sort()) !== JSON.stringify([...currentCrew].sort());
+  // Gate on scheduling / an explicit crew change only: flipping "outsourced"
+  // OFF may leave the crew empty for a moment (the Team card is about to be
+  // ticked) — refusing that would trap the job in the outsourced state.
+  if (
+    (body.scheduledAt !== undefined || (fullEdit && Array.isArray(body.assigneeIds))) &&
+    crewMissing({ scheduledAt: nextScheduledAt, crew: nextCrew, outsourced: nextOutsourced })
+  ) {
+    return NextResponse.json({ error: NEEDS_CREW_ERROR, code: NEEDS_CREW_CODE }, { status: 400 });
+  }
 
   // A window that ends before it starts is always a typo (the appointment
   // route has rejected this for a while; jobs never did)
@@ -60,6 +100,14 @@ export async function PATCH(
       ...(body.address !== undefined && { address: body.address }),
       ...(body.leadSource !== undefined && { leadSource: body.leadSource || null }),
       ...(propertyPatch ?? {}),
+      ...((body.outsourced !== undefined || body.outsourcedTo !== undefined) && {
+        outsourced: nextOutsourced,
+        outsourcedTo: nextOutsourced
+          ? body.outsourcedTo !== undefined
+            ? cleanOutsourcedTo(body.outsourcedTo)
+            : job.outsourcedTo
+          : null,
+      }),
     }),
     ...(body.scheduledAt !== undefined && {
       scheduledAt: body.scheduledAt ? new Date(body.scheduledAt) : null,
@@ -140,16 +188,13 @@ export async function PATCH(
     );
   }
 
-  // Replace team assignments (managers + Sales/Tech combo only)
-  if (fullEdit && Array.isArray(body.assigneeIds)) {
-    const users = await prisma.user.findMany({
-      where: { id: { in: body.assigneeIds }, companyId: actor.companyId, isActive: true },
-      select: { id: true },
-    });
+  // Replace team assignments (resolved above — managers + Sales/Tech combo
+  // for explicit changes; the solo-company fallback applies to anyone)
+  if (crewChanged) {
     await prisma.$transaction([
       prisma.jobAssignment.deleteMany({ where: { jobId: id } }),
       prisma.jobAssignment.createMany({
-        data: users.map((u) => ({ jobId: id, userId: u.id })),
+        data: nextCrew.map((userId) => ({ jobId: id, userId })),
       }),
     ]);
   }
@@ -160,7 +205,7 @@ export async function PATCH(
   if (
     body.scheduledAt !== undefined ||
     body.scheduledEnd !== undefined ||
-    Array.isArray(body.assigneeIds)
+    crewChanged
   ) {
     const fresh = await prisma.job.findUnique({
       where: { id: job.id },

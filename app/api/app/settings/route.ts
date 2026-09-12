@@ -7,18 +7,9 @@ import { sanitizeDeposit } from "@/lib/deposits";
 import { SLOT_INTERVAL_CHOICES } from "@/lib/scheduling";
 import { getActor, isManager } from "@/lib/permissions";
 import { geocodeCompany } from "@/lib/geocoding";
+import { isValidTimezone } from "@/lib/timezone";
 import { isWallpaper } from "@/lib/wallpapers";
 import { sanitizeSectionColors } from "@/lib/section-colors";
-
-function isValidTimezone(tz: unknown): tz is string {
-  if (typeof tz !== "string" || !tz) return false;
-  try {
-    new Intl.DateTimeFormat("en-US", { timeZone: tz });
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 export async function PATCH(req: NextRequest) {
   const actor = await getActor();

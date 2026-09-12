@@ -328,10 +328,22 @@ export default function ScheduleClient({
 
     setSaving(true);
     setError("");
-    const { ok, data } = await postJson<{ conflicts?: string[] }>(endpoint, body, "PATCH");
+    const { ok, data } = await postJson<{ conflicts?: string[]; code?: string }>(endpoint, body, "PATCH");
     setSaving(false);
     if (!ok) {
       patchLocal(item.id, { ...prev, assignees: item.assignees });
+      // Nobody's on it: instead of a dead-end error, open the sheet at the
+      // spot it was dropped so the crew can be picked right there
+      if (data?.code === "NEEDS_CREW" && item.kind === "job" && next.scheduledAt) {
+        const at = new Date(next.scheduledAt);
+        setPlaceIntent({
+          entity: { type: "job", job: { ...item, scheduledAt: null, assigneeIds: next.assigneeIds } },
+          date: toParam(at),
+          minute: next.scheduledAnytime ? null : minutesOf(at),
+          durationMin: next.scheduledEnd ? Math.max(15, Math.round((new Date(next.scheduledEnd).getTime() - at.getTime()) / 60000)) : undefined,
+        });
+        return false;
+      }
       setError(data?.error ?? GENERIC_ERROR);
       return false;
     }
@@ -1030,6 +1042,12 @@ export default function ScheduleClient({
                 {it.conflictNote && (
                   <span className="stamp mt-1.5 text-amber-700" title={it.conflictNote}>
                     Double-booked
+                  </span>
+                )}
+                {it.kind === "job" && it.outsourced && <span className="stamp mt-1.5 text-gray-500">Subcontractor</span>}
+                {it.needsCrew && (
+                  <span className="stamp mt-1.5 text-amber-700" title="Nobody is assigned — it's on no one's schedule or calendar">
+                    Unassigned
                   </span>
                 )}
               </span>

@@ -8,6 +8,8 @@ import SuggestedTimes from "@/components/SuggestedTimes";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { slotTimeOptions } from "@/lib/scheduling";
 import { looksLikeAppointment } from "@/lib/appointment-hint";
+import ServiceChips, { type ServiceLite } from "@/components/ServiceChips";
+import { titleFromServices } from "@/lib/service-title";
 import { durationLabel, pad, parseParam, type PaletteEntity } from "./schedule-lib";
 
 /** What was dropped where — the sheet fills itself in from this. */
@@ -28,6 +30,10 @@ export type PlaceResult = {
 };
 
 type ContactHit = { id: string; name: string; address: string | null; phone: string | null; lead: boolean; sub: string };
+
+type ServiceChip = ServiceLite;
+
+const APPT_DEFAULT_TITLE = { PHONE_CALL: "Phone call", VIDEO_CALL: "Video call", IN_PERSON: "In-person visit" } as const;
 
 const DURATIONS = [15, 30, 45, 60, 90, 120, 180, 240, 300, 360, 480];
 
@@ -80,6 +86,13 @@ export default function PlaceSheet({
   const [durationTouched, setDurationTouched] = useState(false);
   const [hint, setHint] = useState<{ minutes: number; source: string; samples: number } | null>(null);
   const [assignees, setAssignees] = useState<string[]>([]);
+  // Outsourced = a subcontractor does it; the one legitimate empty crew
+  const [outsourced, setOutsourced] = useState(false);
+  const [outsourcedTo, setOutsourcedTo] = useState("");
+  // Price-book services: one tap names and prices the job (no typing)
+  const [workItems, setWorkItems] = useState<ServiceChip[] | null>(null);
+  const [services, setServices] = useState<ServiceChip[]>([]);
+  const [titleTouched, setTitleTouched] = useState(false);
   const [apptType, setApptType] = useState<"PHONE_CALL" | "VIDEO_CALL" | "IN_PERSON">("PHONE_CALL");
   const [address, setAddress] = useState("");
   const [contact, setContact] = useState<ContactHit | null>(null);
@@ -103,7 +116,13 @@ export default function PlaceSheet({
     setHint(null);
     setContactQ("");
     setContactHits([]);
+    setServices([]);
+    setTitleTouched(false);
+    setOutsourced(false);
+    setOutsourcedTo("");
     const crew = intent.userId ? [intent.userId] : [];
+    // A one-person company never picks a crew — it's them
+    const solo = users.length === 1 ? [users[0].id] : [];
 
     if (ent.type === "contact") {
       const lead = ent.lead && canCreateAppointment;
@@ -113,24 +132,27 @@ export default function PlaceSheet({
       setDuration(intent.durationMin ?? (lead ? 30 : 60));
       setAddress(ent.address ?? "");
       setContact({ id: ent.id, name: ent.name, address: ent.address, phone: ent.phone, lead: ent.lead, sub: ent.sub });
-      setAssignees(crew.length ? crew : lead ? [meId] : []);
+      setAssignees(crew.length ? crew : lead ? [meId] : solo);
     } else if (ent.type === "request") {
       setKind(canCreateJob ? "job" : "appointment");
       setTitle(ent.title);
+      setTitleTouched(Boolean(ent.title.trim()));
       setApptType("IN_PERSON");
       setDuration(intent.durationMin ?? 60);
       setAddress(ent.address ?? "");
       setContact({ id: ent.contactId, name: ent.name, address: ent.address, phone: ent.phone, lead: false, sub: ent.sub });
-      setAssignees(crew);
+      setAssignees(crew.length ? crew : solo);
     } else if (ent.type === "job") {
       setKind("job");
       setTitle(ent.job.title);
       setDuration(intent.durationMin ?? 60);
       setAddress(ent.job.address ?? "");
       setContact({ id: ent.job.contactId ?? "", name: ent.job.contactName, address: ent.job.address ?? null, phone: ent.job.phone ?? null, lead: false, sub: "" });
+      setOutsourced(Boolean(ent.job.outsourced));
       // Keep the job's crew; a tech-column drop adds that tech
       const prev = ent.job.assigneeIds ?? [];
-      setAssignees(intent.userId && !prev.includes(intent.userId) ? [...prev, intent.userId] : prev);
+      const next = intent.userId && !prev.includes(intent.userId) ? [...prev, intent.userId] : prev;
+      setAssignees(next.length || ent.job.outsourced ? next : solo);
     } else if (ent.type === "new") {
       setKind(canCreateJob ? "job" : "appointment");
       setTitle("");
@@ -140,7 +162,7 @@ export default function PlaceSheet({
       setContact(null);
       const parts = ent.name.split(/\s+/);
       setNewContact({ firstName: parts[0] ?? "", lastName: parts.slice(1).join(" "), phone: "", email: "" });
-      setAssignees(crew);
+      setAssignees(crew.length ? crew : solo);
     } else {
       // Painted a range on the grid first — who comes next
       setKind(ent.kind);
@@ -150,10 +172,37 @@ export default function PlaceSheet({
       setAddress("");
       setContact(null);
       setContactQ(" ");
-      setAssignees(crew.length ? crew : ent.kind === "appointment" ? [meId] : []);
+      setAssignees(crew.length ? crew : ent.kind === "appointment" ? [meId] : solo);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [intent]);
+
+  // Price book, fetched once the first time a job could be created here
+  useEffect(() => {
+    if (!intent || !canCreateJob || existingJob || workItems !== null) return;
+    let cancelled = false;
+    fetch("/api/app/work-items")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((items: ServiceChip[]) => {
+        if (!cancelled) setWorkItems(Array.isArray(items) ? items : []);
+      })
+      .catch(() => {
+        if (!cancelled) setWorkItems([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [intent, canCreateJob]);
+
+  /** Tap a service: it names the job (unless a title was typed) and sets its length. */
+  function toggleService(w: ServiceChip) {
+    const next = services.some((s) => s.id === w.id) ? services.filter((s) => s.id !== w.id) : [...services, w];
+    setServices(next);
+    if (!titleTouched) setTitle(titleFromServices(next.map((s) => s.name)));
+    const minutes = next.reduce((sum, s) => sum + (s.durationMinutes ?? 0), 0);
+    if (!durationTouched && minutes > 0) setDuration(minutes);
+  }
 
   // Learned duration for the typed title (jobs only)
   useEffect(() => {
@@ -223,8 +272,16 @@ export default function PlaceSheet({
     if (!intent) return;
     setErr("");
     if (!date) return setErr("Pick a date.");
-    if (!existingJob && !title.trim()) return setErr(kind === "job" ? "Give the job a title." : "Give the appointment a title.");
     if (kind === "appointment" && apptType === "IN_PERSON" && !address.trim()) return setErr("In-person appointments need an address.");
+    // Titles are optional (services / a default name the job); a crew is not —
+    // a scheduled job with nobody on it is on nobody's schedule or calendar
+    if (kind === "job" && users.length > 0 && assignees.length === 0 && !outsourced) {
+      return setErr("Pick who's doing this job, or mark it outsourced.");
+    }
+    // Blank appointment title → the type's plain label; blank job title → the
+    // services picked (or the API's generic fallback)
+    const finalTitle =
+      title.trim() || (kind === "appointment" ? APPT_DEFAULT_TITLE[apptType] : titleFromServices(services.map((s) => s.name)));
 
     setBusy(true);
     try {
@@ -263,7 +320,11 @@ export default function PlaceSheet({
 
       if (existingJob) {
         const body: Record<string, unknown> = { scheduledAt, scheduledEnd, scheduledAnytime: anytime };
-        if (users.length > 0) body.assigneeIds = assignees;
+        if (users.length > 0) {
+          body.assigneeIds = outsourced ? [] : assignees;
+          body.outsourced = outsourced;
+          if (outsourced && outsourcedTo.trim()) body.outsourcedTo = outsourcedTo.trim();
+        }
         const { ok, data } = await postJson<{ conflicts?: string[] }>(`/api/app/jobs/${existingJob.id}`, body, "PATCH");
         if (!ok) return setErr(data?.error ?? GENERIC_ERROR);
         onDone({ kind: "job", id: existingJob.id, label: existingJob.title, conflicts: data?.conflicts ?? [], contactName: existingJob.contactName });
@@ -271,23 +332,37 @@ export default function PlaceSheet({
       }
 
       if (kind === "job") {
-        const { ok, data } = await postJson<{ id: string; conflicts?: string[] }>("/api/app/jobs", {
+        const { ok, data } = await postJson<{ id: string; title?: string; conflicts?: string[] }>("/api/app/jobs", {
           contactId,
           requestId,
-          title: title.trim(),
+          title: finalTitle || undefined,
           scheduledAt,
           scheduledEnd,
           scheduledAnytime: anytime,
           address: address.trim() || undefined,
-          assigneeIds: assignees,
+          assigneeIds: outsourced ? [] : assignees,
+          outsourced,
+          outsourcedTo: outsourced ? outsourcedTo.trim() || undefined : undefined,
+          // Picked services price the job and build its checklist — same
+          // payload shape as the New Job page
+          lineItems: services.map((s, i) => ({
+            name: s.name,
+            description: s.description ?? undefined,
+            quantity: 1,
+            unitPrice: Number(s.unitPrice) || 0,
+            unitCost: s.unitCost === null || s.unitCost === undefined || s.unitCost === "" ? null : Number(s.unitCost) || 0,
+            workItemId: s.id,
+            recurringInterval: s.recurringInterval ?? null,
+            sortOrder: i,
+          })),
         });
         if (!ok || !data?.id) return setErr(data?.error ?? GENERIC_ERROR);
-        onDone({ kind: "job", id: data.id, label: title.trim(), conflicts: data.conflicts ?? [], contactName });
+        onDone({ kind: "job", id: data.id, label: data.title || finalTitle, conflicts: data.conflicts ?? [], contactName });
       } else {
         const { ok, data } = await postJson<{ id: string; conflicts?: string[] }>("/api/app/appointments", {
           contactId,
           requestId,
-          title: title.trim(),
+          title: finalTitle,
           type: apptType,
           scheduledAt,
           scheduledEnd,
@@ -296,7 +371,7 @@ export default function PlaceSheet({
           assignedToId: assignees[0] ?? meId,
         });
         if (!ok || !data?.id) return setErr(data?.error ?? GENERIC_ERROR);
-        onDone({ kind: "appointment", id: data.id, label: title.trim(), conflicts: data.conflicts ?? [], contactName });
+        onDone({ kind: "appointment", id: data.id, label: finalTitle, conflicts: data.conflicts ?? [], contactName });
       }
     } finally {
       setBusy(false);
@@ -413,15 +488,30 @@ export default function PlaceSheet({
             )
           )}
 
-          {/* What */}
+          {/* What — tap a saved service; typing a title is optional */}
+          {!existingJob && kind === "job" && (
+            <ServiceChips items={workItems} selectedIds={services.map((s) => s.id)} onToggle={toggleService} />
+          )}
           {!existingJob && (
             <div>
-              <label className="mb-0.5 block text-xs font-medium text-gray-500">{kind === "job" ? "Job title" : "Title"}</label>
+              <label className="mb-0.5 block text-xs font-medium text-gray-500">
+                {kind === "job" ? "Job title" : "Title"}
+                <span className="ml-1 font-normal text-gray-400">optional</span>
+              </label>
               <input
                 className={inputCls}
                 value={title}
-                onChange={(ev) => setTitle(ev.target.value)}
-                placeholder={kind === "job" ? "e.g. Gutter cleaning" : "e.g. Discovery call"}
+                onChange={(ev) => {
+                  setTitle(ev.target.value);
+                  setTitleTouched(ev.target.value.trim().length > 0);
+                }}
+                placeholder={
+                  kind === "job"
+                    ? workItems && workItems.length > 0
+                      ? "Defaults to the service picked"
+                      : "e.g. Gutter cleaning"
+                    : APPT_DEFAULT_TITLE[apptType]
+                }
               />
               {/* A job titled "Friday appointment" would end in a Complete Job →
                   invoice flow that makes no sense for a sales visit — nudge
@@ -545,25 +635,45 @@ export default function PlaceSheet({
             </div>
           )}
 
-          {/* Crew */}
+          {/* Crew — a scheduled job needs somebody on it (or a subcontractor) */}
           {users.length > 0 && (
             <div>
               <label className="mb-1 block text-xs font-medium text-gray-500">{kind === "job" ? "Assign to" : "With"}</label>
               {kind === "job" ? (
-                <div className="max-h-40 space-y-0.5 overflow-y-auto rounded-lg border border-gray-200 p-1.5">
-                  {users.map((u) => (
-                    <label key={u.id} className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-50">
-                      <input
-                        type="checkbox"
-                        checked={assignees.includes(u.id)}
-                        onChange={(ev) =>
-                          setAssignees((a) => (ev.target.checked ? [...a, u.id] : a.filter((id) => id !== u.id)))
-                        }
-                        className="rounded text-green-600 focus:ring-green-500"
-                      />
-                      {u.id === meId ? `${u.name} (me)` : u.name}
-                    </label>
-                  ))}
+                <div className="space-y-1.5">
+                  <div className={`max-h-40 space-y-0.5 overflow-y-auto rounded-lg border border-gray-200 p-1.5 ${outsourced ? "opacity-50" : ""}`}>
+                    {users.map((u) => (
+                      <label key={u.id} className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-50">
+                        <input
+                          type="checkbox"
+                          checked={!outsourced && assignees.includes(u.id)}
+                          disabled={outsourced}
+                          onChange={(ev) =>
+                            setAssignees((a) => (ev.target.checked ? [...a, u.id] : a.filter((id) => id !== u.id)))
+                          }
+                          className="rounded text-green-600 focus:ring-green-500"
+                        />
+                        {u.id === meId ? `${u.name} (me)` : u.name}
+                      </label>
+                    ))}
+                  </div>
+                  <label className="flex cursor-pointer items-center gap-2 px-2 text-sm text-gray-700">
+                    <input
+                      type="checkbox"
+                      checked={outsourced}
+                      onChange={(ev) => setOutsourced(ev.target.checked)}
+                      className="rounded text-green-600 focus:ring-green-500"
+                    />
+                    Outsourced to a subcontractor
+                  </label>
+                  {outsourced && (
+                    <input
+                      className={inputCls}
+                      value={outsourcedTo}
+                      onChange={(ev) => setOutsourcedTo(ev.target.value)}
+                      placeholder="Who's doing it (optional)"
+                    />
+                  )}
                 </div>
               ) : (
                 <select className={`${inputCls} bg-white`} value={assignees[0] ?? meId} onChange={(ev) => setAssignees([ev.target.value])}>

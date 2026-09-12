@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { ensureSubscriptionsForContact } from "@/lib/subscriptions";
 import { recordLeadWin } from "@/lib/pipeline";
+import { resolveCrew } from "@/lib/job-crew";
 
 /**
  * Quote → Job, the one conversion path (Jobber's "Convert to Job"). Used by
@@ -47,6 +48,9 @@ export type ConvertOptions = {
 
 export async function convertQuoteToJob(tx: Prisma.TransactionClient, quote: ConvertibleQuote, opts: ConvertOptions = {}) {
   const companyId = quote.companyId;
+  // A one-person company's jobs land on that person (calendar sync, tech
+  // visibility); bigger teams assign from the job page after conversion
+  const crew = await resolveCrew(tx, companyId, opts.assigneeIds ?? []);
   const last = await tx.job.findFirst({ where: { companyId }, orderBy: { jobNumber: "desc" }, select: { jobNumber: true } });
   const active = quote.lineItems.filter((li) => !(li.isOptional && li.optedOut));
 
@@ -71,7 +75,7 @@ export async function convertQuoteToJob(tx: Prisma.TransactionClient, quote: Con
       arrivalWindowMinutes: opts.arrivalWindowMinutes ?? null,
       bookingTypeId: opts.bookingTypeId ?? null,
       bookedOnlineAt: opts.bookedOnlineAt ?? null,
-      ...(opts.assigneeIds?.length ? { assignments: { create: opts.assigneeIds.map((userId) => ({ userId })) } } : {}),
+      ...(crew.length ? { assignments: { create: crew.map((userId) => ({ userId })) } } : {}),
       lineItems: {
         create: active.map((li, i) => ({
           name: li.name,

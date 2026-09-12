@@ -85,6 +85,7 @@ type UnscheduledJob = {
   contactName: string;
   address: string | null;
   assigneeIds: string[];
+  outsourced?: boolean; // subcontractor job — may go on the day with no crew
 };
 
 type Pin = { lat: number; lng: number; label: string };
@@ -779,6 +780,13 @@ export default function RouteMapClient({
       // is filtered to (or to me when I'm the whole team); otherwise say so.
       const assignTo = job.assigneeIds.length ? "" : team || (users.length <= 1 ? meId : "");
       const assigned = job.assigneeIds.length > 0 || assignTo !== "";
+      // A scheduled job needs someone on it (the API refuses otherwise) —
+      // say what to do instead of bouncing off the server
+      if (!assigned && !job.outsourced) {
+        setAddingId("");
+        setError("Filter the map to a tech first — a job can't go on the schedule with nobody on it.");
+        return;
+      }
       const { ok, data: res } = await postJson<{ error?: string }>(
         `/api/app/jobs/${job.id}`,
         {

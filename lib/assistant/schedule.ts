@@ -21,6 +21,7 @@ import {
   LINE_ITEMS_PARAM,
 } from "./core";
 import { itemsPayload } from "./pipeline";
+import { DEFAULT_JOB_TITLE } from "../job-crew";
 
 /** Resolve an array of member ids/names against the active team (full-replace crew). */
 async function resolveCrew(
@@ -123,28 +124,30 @@ export const scheduleTools: Tool[] = [
     decl: {
       name: "create_job",
       description:
-        "Stage a new job for a client, optionally scheduled (omit date to leave it unscheduled, omit time for 'anytime that day') and optionally with a crew (team member names or ids). Confirmation card required.",
+        "Stage a new job for a client, optionally scheduled (omit date to leave it unscheduled, omit time for 'anytime that day') and optionally with a crew (team member names or ids). Title is optional. A scheduled job needs a crew unless the company is a one-person operation (auto-assigned) or the job is outsourced. Confirmation card required.",
       parameters: {
         type: "object",
         properties: {
           clientId: { type: "string" },
-          title: { type: "string" },
+          title: { type: "string", description: "optional — defaults to a generic label" },
           description: { type: "string" },
           date: { type: "string", description: "YYYY-MM-DD (optional)" },
           time: { type: "string", description: "HH:MM 24h company-local (optional)" },
           durationMinutes: { type: "number" },
           address: { type: "string", description: "defaults to the client's address" },
           crew: { type: "array", items: { type: "string" }, description: "team member names or ids" },
+          outsourced: { type: "boolean", description: "a subcontractor is doing it — no crew needed" },
         },
-        required: ["clientId", "title"],
+        required: ["clientId"],
       },
     },
     allowed: (a) => isManager(a.role) || a.role === "USER", // matches the jobs POST route
     run: async (actor, args, ctx) => {
       const contact = await findContact(actor, str(args.clientId, 40));
       if (!contact) return { error: "No client with that id (or not visible to this user)." };
-      const title = str(args.title, 120);
-      if (!title) return { error: "title is required" };
+      // Optional — the API derives one when blank (services → request → generic)
+      const title = str(args.title, 120) || DEFAULT_JOB_TITLE;
+      const outsourced = args.outsourced === true;
       let scheduleFields: Record<string, unknown> = {};
       let whenLabel = "unscheduled";
       if (str(args.date, 10)) {
@@ -163,6 +166,7 @@ export const scheduleTools: Tool[] = [
           `Client: ${clientName(contact)}`,
           address && `Address: ${address}`,
           crew.names.length > 0 && `Crew: ${crew.names.join(", ")}`,
+          outsourced && "Outsourced to a subcontractor",
           str(args.description, 300) && `Notes: ${str(args.description, 150)}`,
         ].filter(Boolean) as string[],
         endpoint: "/api/app/jobs",
@@ -173,6 +177,7 @@ export const scheduleTools: Tool[] = [
           description: str(args.description, 2000) || undefined,
           address,
           ...(crew.ids.length > 0 ? { assigneeIds: crew.ids } : {}),
+          ...(outsourced ? { outsourced: true } : {}),
           ...scheduleFields,
         },
       });

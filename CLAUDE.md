@@ -319,13 +319,68 @@ LIVERY_ADDON_CHECKOUT_URL=  # e.g. https://paywithlivery.com/l/workbench-plus
 LIVERY_WEBHOOK_SECRET=      # whsec_… from Livery → Settings → Developers
 ```
 
+## Job crew + titles (`lib/job-crew.ts`)
+
+Two things every job-creating path used to leave to whoever was typing:
+
+- **Crew.** `resolveCrew(db, companyId, requestedIds, { outsourced })` filters
+  ids to the company's active members and, when nothing is left, lands the
+  job on the **one member of a one-person company** (`soloMemberId`). Used by
+  `POST /api/app/jobs`, `PATCH /api/app/jobs/[id]` (also heals an older
+  unassigned job on any edit), `convertQuoteToJob`, and both subscription
+  job generators. A **scheduled** job with nobody on it is refused
+  (`400 { code: "NEEDS_CREW" }`, `NEEDS_CREW_ERROR`) by the create route and
+  by a PATCH that schedules it or changes its crew — it would be on nobody's
+  schedule, calendar sync, or booking availability. The schedule's drag/drop
+  catches that code and opens the place sheet at the drop spot instead of
+  erroring. The one legitimate empty crew is **`Job.outsourced`** (+ optional
+  `outsourcedTo` name): a subcontractor is doing it. Toggle lives in the
+  place sheet, New Job, and the job page's Team card; outsourced jobs stay
+  off everyone's calendar sync. Multi-person companies see an
+  **Unassigned** badge on scheduled crew-less jobs (`ScheduleJobDTO.needsCrew`).
+  `scripts/backfill-solo-crew.mjs` (in `db:backfill`) assigned every
+  pre-existing unassigned job in one-person companies to that person.
+- **Title.** Optional everywhere (`deriveJobTitle`): typed title → the
+  services on the job ("Mow", "Mow + Edge", "Mow + 2 more") → the request's
+  title → `"Service visit"`. The place sheet shows price-book **service
+  chips** (one tap names, prices, and times the job); New Job auto-names
+  from the line items until a title is typed. Atlas `create_job` no longer
+  requires one. Job *edit* still requires a title (a job always has one).
+- Tests: `npx tsx scripts/test-job-crew.ts`.
+- **Service chips** (`components/ServiceChips.tsx`, `lib/service-title.ts`
+  `titleFromServices`): the shared tap-to-pick price-book row. Used by the
+  place sheet, New Request (title optional once a service is picked), and
+  New Series (one tap = name + visit length + price; name optional).
+
+## Solo-operator defaults (one-person companies)
+
+A one-person company should never have to remember a switch that only
+matters with a team. Beyond crew auto-assign above:
+
+- **Takes bookings**: `User.bookable` is off by default for added members,
+  but signup (`lib/signup.ts`) creates the owner **bookable**, and switching
+  a member ON from the Team page (`PATCH /api/app/team/[id]`) joins them to
+  every existing booking item (items only snapshot the bookable members
+  present at creation, so a later switch used to be bookable in name only —
+  customers got a request form instead of open times). Remove them per item
+  in the item editor. `scripts/backfill-solo-bookable.mjs` (in
+  `db:backfill`) did this for pre-existing one-person companies.
+- **Timezone**: signup and the apply form send the browser's zone
+  (`lib/timezone.ts` `browserTimezone` / `isValidTimezone`) and
+  `createCompanySignup` stores it — before this every company started on
+  America/Chicago until someone found the setting. Pre-existing companies
+  keep whatever they have; Settings → timezone still edits it.
+
 ## Calendar sync (ICS feed + Google Calendar push)
 
 Design: `docs/plans/google-calendar-sync-2026-09-11.md`. Per USER, any role,
 from My Profile → **Calendar sync** (`components/CalendarSyncCard.tsx`).
 Both halves render the same events — `lib/calendar-events.ts`
-`loadUserCalendarEvents`: jobs the user is assigned to, appointments
-assigned to them, their personal + company-wide time blocks; pure mappers +
+`loadUserCalendarEvents`: jobs the user is assigned to (plus, for the one
+member of a one-person company, scheduled jobs nobody was assigned to —
+never outsourced ones; `jobCrewFilter` is shared with the reconcile
+loader so the deleter can't undo the pusher), appointments assigned to
+them, their personal + company-wide time blocks; pure mappers +
 fingerprints in `lib/calendar-event-shape.ts`.
 
 - **Subscribe link** (`lib/calendar-feed.ts`, `CalendarFeed` table): a

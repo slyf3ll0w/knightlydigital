@@ -40,6 +40,7 @@ export async function GET(req: NextRequest) {
         address: true,
         contact: { select: { firstName: true, lastName: true, address: true } },
         assignments: { select: { userId: true } },
+        outsourced: true,
       },
       orderBy: { createdAt: "desc" },
       take: 50,
@@ -77,6 +78,7 @@ export async function GET(req: NextRequest) {
     contactName: `${j.contact.firstName} ${j.contact.lastName}`.trim(),
     address: j.address ?? j.contact.address ?? null,
     assigneeIds: j.assignments.map((a) => a.userId),
+    outsourced: j.outsourced,
   }));
   return NextResponse.json({ ...day, drive, unscheduled, geometry });
 }

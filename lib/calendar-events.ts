@@ -9,7 +9,9 @@
  * Nothing here is shown that the user can't already open in the app.
  */
 
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { soloMemberId } from "@/lib/job-crew";
 import {
   toCalendarEventFromAppointment,
   toCalendarEventFromJob,
@@ -65,6 +67,20 @@ export type UserCalendarScope = {
 };
 
 /**
+ * Which jobs are "theirs": the ones they're assigned to — and, for the one
+ * member of a one-person company, every scheduled job nobody was ever
+ * assigned to (older jobs from before auto-assignment) except outsourced
+ * work. Used by BOTH loaders below; they must agree or the reconcile
+ * deleter undoes the pusher.
+ */
+async function jobCrewFilter(scope: UserCalendarScope): Promise<Prisma.JobWhereInput> {
+  const mine: Prisma.JobWhereInput = { assignments: { some: { userId: scope.userId } } };
+  const solo = await soloMemberId(prisma, scope.companyId);
+  if (solo !== scope.userId) return mine;
+  return { OR: [mine, { assignments: { none: {} }, outsourced: false }] };
+}
+
+/**
  * Who the feed/push is for. Null when the user is gone, inactive, or their
  * company is suspended — callers treat that as "no calendar".
  */
@@ -87,12 +103,13 @@ export async function loadUserCalendarEvents(
   window: { from: Date; to: Date }
 ): Promise<CalendarEvent[]> {
   const { userId, companyId, tz } = scope;
+  const crewFilter = await jobCrewFilter(scope);
   const [jobs, appointments, blocks] = await Promise.all([
     prisma.job.findMany({
       where: {
         companyId,
         scheduledAt: { gte: window.from, lte: window.to },
-        assignments: { some: { userId } },
+        ...crewFilter,
       },
       select: jobSelect,
       orderBy: { scheduledAt: "asc" },
@@ -145,10 +162,11 @@ export async function loadCalendarEventsByIds(
   ids: { JOB: string[]; APPOINTMENT: string[]; BLOCK: string[] }
 ): Promise<CalendarEvent[]> {
   const { userId, companyId, tz } = scope;
+  const crewFilter = ids.JOB.length ? await jobCrewFilter(scope) : {};
   const [jobs, appointments, blocks] = await Promise.all([
     ids.JOB.length
       ? prisma.job.findMany({
-          where: { id: { in: ids.JOB }, companyId, scheduledAt: { not: null }, assignments: { some: { userId } } },
+          where: { id: { in: ids.JOB }, companyId, scheduledAt: { not: null }, ...crewFilter },
           select: jobSelect,
         })
       : [],

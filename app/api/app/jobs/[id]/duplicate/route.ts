@@ -52,6 +52,9 @@ export async function POST(
           propertyId: source.propertyId,
           leadSource: source.leadSource,
           status: "ACTIVE",
+          // Same subcontractor as the original — the copy needs no crew either
+          outsourced: source.outsourced,
+          outsourcedTo: source.outsourcedTo,
           lineItems: {
             create: source.lineItems.map((li, i) => ({
               name: li.name,

@@ -45,6 +45,7 @@ type JobWithContact = {
   address: string | null;
   contact: { firstName: string; lastName: string; phone: string | null; address: string | null };
   assignments?: { userId: string; user: { name: string | null } }[];
+  outsourced?: boolean;
 };
 
 function toDTO(j: JobWithContact): ScheduleJobDTO {
@@ -66,6 +67,7 @@ function toDTO(j: JobWithContact): ScheduleJobDTO {
       .map((a) => a.user.name?.trim() ?? "")
       .filter(Boolean),
     assigneeIds: (j.assignments ?? []).map((a) => a.userId),
+    outsourced: Boolean(j.outsourced),
     // Phone agenda swipe actions (call / directions)
     phone: j.contact.phone,
     address: j.address ?? j.contact.address,
@@ -331,6 +333,12 @@ export default async function SchedulePage({
   const crewSize = Math.max(1, users.length);
   const capacityByDow = hours.map((ranges) => crewSize * ranges.reduce((s, r) => s + (r.end - r.start), 0));
 
+  // A scheduled job nobody is on (and not outsourced) is a dispatch miss in a
+  // multi-person company — it's on no one's schedule or calendar sync. A
+  // one-person company never gets here (jobs auto-assign to its one member).
+  const badgeCrew = (d: ScheduleJobDTO): ScheduleJobDTO =>
+    users.length > 1 && !d.outsourced && (d.assigneeIds?.length ?? 0) === 0 ? { ...d, needsCrew: true } : d;
+
   return (
     <ScheduleClient
       view={view}
@@ -338,7 +346,7 @@ export default async function SchedulePage({
       date={`${anchor.getFullYear()}-${pad(anchor.getMonth() + 1)}-${pad(anchor.getDate())}`}
       team={team ?? ""}
       board={board}
-      jobs={[...jobs.map(toDTO), ...appointments.map(apptToDTO), ...blockDTOs]}
+      jobs={[...jobs.map(toDTO).map(badgeCrew), ...appointments.map(apptToDTO), ...blockDTOs]}
       unscheduled={unscheduled.map(toDTO)}
       users={users}
       hours={hours}

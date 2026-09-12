@@ -8,6 +8,7 @@ import { checkInviteCode } from "@/lib/invites";
 import { normalizeEmail } from "@/lib/user-email";
 import { ensureAccountForUser, findOrAdoptAccountByEmail } from "@/lib/account";
 import { createCompanySignup, InviteClaimedError } from "@/lib/signup";
+import { isValidTimezone } from "@/lib/timezone";
 
 /**
  * POST — create a company. Three ways in, all invite-gated:
@@ -111,6 +112,9 @@ export async function POST(req: NextRequest) {
     created = await createCompanySignup({
       companyName,
       industry,
+      // The browser's zone — so a Denver company isn't on Central time until
+      // someone finds the setting
+      timezone: isValidTimezone(body.timezone) ? body.timezone : null,
       inviteId: invite.id,
       // An invite code IS the approval: it also waives Finix underwriting, so
       // the company opens without card processing and skips /app/activate.

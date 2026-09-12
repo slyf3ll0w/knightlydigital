@@ -5,6 +5,7 @@ import { signIn } from "next-auth/react";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import TurnstileWidget, { type TurnstileHandle } from "@/components/TurnstileWidget";
 import { saveCredential } from "@/lib/save-credential";
+import { browserTimezone } from "@/lib/timezone";
 
 const TEAM_SIZES = ["Just me", "2–5", "6–15", "16+"];
 const PAYMENTS_TODAY = [
@@ -73,7 +74,8 @@ export default function ApplyForm() {
       const res = await fetch("/api/public/apply", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, captchaToken }),
+        // The browser's zone becomes the company's (editable in Settings)
+        body: JSON.stringify({ ...form, captchaToken, timezone: browserTimezone() }),
       });
       const data = await res.json();
       if (!res.ok) {

@@ -8,6 +8,14 @@ import { ensureSubscriptionsForContact } from "@/lib/subscriptions";
 import { syncJobChecklist } from "@/lib/job-checklist";
 import { withDocNumberRetry } from "@/lib/doc-numbers";
 import { inPreview, PREVIEW_CAP, previewCapError } from "@/lib/preview";
+import {
+  cleanOutsourcedTo,
+  crewMissing,
+  deriveJobTitle,
+  NEEDS_CREW_CODE,
+  NEEDS_CREW_ERROR,
+  resolveCrew,
+} from "@/lib/job-crew";
 
 export async function GET() {
   const actor = await getActor();
@@ -63,11 +71,10 @@ export async function POST(req: NextRequest) {
   const companyId = actor.companyId;
 
   const body = await req.json();
-  const { contactId, requestId, title, description, scheduledAt, scheduledEnd, scheduledAnytime, address, leadSource, propertyId } = body;
-  // Optional up-front crew assignment — only users in this company count
-  const assigneeIds: string[] = Array.isArray(body.assigneeIds)
-    ? body.assigneeIds.filter((v: unknown): v is string => typeof v === "string")
-    : [];
+  const { contactId, requestId, description, scheduledAt, scheduledEnd, scheduledAnytime, address, leadSource, propertyId } = body;
+  // Outsourced = a subcontractor is doing it; the one legitimate "no crew"
+  const outsourced = Boolean(body.outsourced);
+  const outsourcedTo = outsourced ? cleanOutsourcedTo(body.outsourcedTo) : null;
   // Optional services from the price book (or free-typed). A job with no
   // line items is still valid — but pricing it here builds its checklist and
   // can start a recurring plan, same as the quote and invoice paths.
@@ -83,8 +90,8 @@ export async function POST(req: NextRequest) {
   }[];
   const namedLines = lineItems.filter((li) => (li.name ?? "").trim());
 
-  if (!contactId || !title) {
-    return NextResponse.json({ error: "Client and title are required." }, { status: 400 });
+  if (!contactId) {
+    return NextResponse.json({ error: "Pick who this job is for." }, { status: 400 });
   }
   // A window that ends before it starts is always a typo — the only schedule
   // shape we hard-reject (conflicts below are a non-blocking heads-up)
@@ -101,10 +108,16 @@ export async function POST(req: NextRequest) {
   });
   if (!contact) return NextResponse.json({ error: "Client not found." }, { status: 404 });
 
+  let requestTitle: string | null = null;
   if (requestId) {
-    const request = await prisma.request.findFirst({ where: { id: requestId, companyId } });
+    const request = await prisma.request.findFirst({ where: { id: requestId, companyId }, select: { title: true } });
     if (!request) return NextResponse.json({ error: "Request not found." }, { status: 404 });
+    requestTitle = request.title;
   }
+
+  // The title is optional: blank falls back to the services picked, then the
+  // request it came from, then a generic label — nobody has to type one.
+  const title = deriveJobTitle({ title: body.title, lineItemNames: namedLines.map((li) => li.name), requestTitle });
 
   // Saved service address (property): must belong to this contact. The
   // property's address becomes the job-site snapshot unless one was typed.
@@ -116,13 +129,15 @@ export async function POST(req: NextRequest) {
     ? [property.address, property.city, property.state, property.zip].filter(Boolean).join(", ")
     : null;
 
-  const validAssignees =
-    assigneeIds.length > 0
-      ? await prisma.user.findMany({
-          where: { id: { in: assigneeIds }, companyId, isActive: true },
-          select: { id: true },
-        })
-      : [];
+  // Crew: requested ids filtered to this company's active members; a
+  // one-person company lands on its one person automatically. A scheduled
+  // job with nobody on it (and not outsourced) is rejected — it would be on
+  // nobody's schedule, nobody's calendar sync, and block nobody's booking
+  // availability.
+  const crew = await resolveCrew(prisma, companyId, body.assigneeIds, { outsourced });
+  if (crewMissing({ scheduledAt: scheduledAt ? new Date(scheduledAt) : null, crew, outsourced })) {
+    return NextResponse.json({ error: NEEDS_CREW_ERROR, code: NEEDS_CREW_CODE }, { status: 400 });
+  }
 
   // Wrapped so two dispatchers creating jobs at once both succeed
   const job = await withDocNumberRetry(() => prisma.$transaction(async (tx) => {
@@ -152,8 +167,10 @@ export async function POST(req: NextRequest) {
             : null,
         address: address || propertyLine || contact.address || null,
         propertyId: property?.id ?? null,
-        ...(validAssignees.length > 0 && {
-          assignments: { create: validAssignees.map((u) => ({ userId: u.id })) },
+        outsourced,
+        outsourcedTo,
+        ...(crew.length > 0 && {
+          assignments: { create: crew.map((userId) => ({ userId })) },
         }),
         ...(namedLines.length > 0 && {
           lineItems: {
@@ -207,7 +224,7 @@ export async function POST(req: NextRequest) {
   // Non-blocking double-booking heads-up — the same check every other
   // schedule write runs; creation was the one path with none at all.
   let conflicts: string[] = [];
-  if (scheduledAt && !scheduledAnytime && validAssignees.length > 0) {
+  if (scheduledAt && !scheduledAnytime && crew.length > 0) {
     const checkStart = new Date(scheduledAt);
     conflicts = await findScheduleConflicts({
       companyId,
@@ -215,7 +232,7 @@ export async function POST(req: NextRequest) {
       // No end picked = the calendar's 1-hour default window (same as the
       // PATCH route) — a timed job without an end still holds real time.
       end: scheduledEnd ? new Date(scheduledEnd) : new Date(checkStart.getTime() + 3600_000),
-      userIds: validAssignees.map((u) => u.id),
+      userIds: crew,
       excludeJobId: job.id,
     }).catch(() => []);
   }

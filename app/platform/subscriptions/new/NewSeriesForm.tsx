@@ -6,12 +6,15 @@ import Link from "next/link";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import ContactPicker from "@/components/ContactPicker";
+import ServiceChips, { type ServiceLite } from "@/components/ServiceChips";
+import { titleFromServices } from "@/lib/service-title";
 
 /**
  * Create a recurring series directly — the "mow the lawn every 2 weeks"
  * button Jobber calls a recurring job. Visits are the default; billing is an
- * opt-in section so a series can be visits-only, and the price book isn't
- * involved at all.
+ * opt-in section so a series can be visits-only. Tapping a price-book
+ * service names the series, sets the visit length and the price to bill —
+ * typing a name is optional.
  */
 
 type Contact = {
@@ -69,10 +72,12 @@ const inputCls =
 export default function NewSeriesForm({
   contacts,
   team,
+  services,
   prefilledContactId,
 }: {
   contacts: Contact[];
   team: { id: string; name: string }[];
+  services: ServiceLite[];
   prefilledContactId: string;
 }) {
   const router = useRouter();
@@ -81,12 +86,17 @@ export default function NewSeriesForm({
   const [contactId, setContactId] = useState(prefilledContactId);
   const [propertyId, setPropertyId] = useState("");
   const [name, setName] = useState("");
+  // Typed a name → stop auto-naming after the picked service
+  const [nameTouched, setNameTouched] = useState(false);
+  const [service, setService] = useState<ServiceLite | null>(null);
   const [description, setDescription] = useState("");
   const [frequency, setFrequency] = useState("BIWEEKLY");
   const [firstVisit, setFirstVisit] = useState("");
   const [visitTime, setVisitTime] = useState("");
   const [visitDuration, setVisitDuration] = useState("60");
-  const [assignees, setAssignees] = useState<string[]>([]);
+  // A one-person company never picks a crew — it's them (the visit generator
+  // lands on them regardless; this just shows it)
+  const [assignees, setAssignees] = useState<string[]>(team.length === 1 ? [team[0].id] : []);
   const [billing, setBilling] = useState<"none" | "perjob" | "plan">("none");
   const [unitPrice, setUnitPrice] = useState("");
   const [interval, setInterval] = useState("MONTHLY");
@@ -94,10 +104,28 @@ export default function NewSeriesForm({
 
   const savedAddresses = contacts.find((c) => c.id === contactId)?.addresses ?? [];
 
+  /** One tap: the service names the series, sets the visit length and the price. */
+  function pickService(w: ServiceLite) {
+    const next = service?.id === w.id ? null : w;
+    setService(next);
+    if (!nameTouched) setName(next ? next.name : "");
+    if (next) {
+      if (next.durationMinutes && next.durationMinutes > 0) setVisitDuration(String(next.durationMinutes));
+      const price = Number(next.unitPrice) || 0;
+      if (price > 0) setUnitPrice(String(price));
+    }
+  }
+
+  const durationOptions =
+    visitDuration && !DURATION_OPTIONS.some((d) => d.value === visitDuration)
+      ? [...DURATION_OPTIONS, { value: visitDuration, label: `${Number(visitDuration)} min` }].sort((a, b) => Number(a.value) - Number(b.value))
+      : DURATION_OPTIONS;
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!contactId) return setError("Pick a client.");
-    if (!name.trim()) return setError("Give the series a name (e.g. Lawn mowing).");
+    const finalName = name.trim() || titleFromServices([service?.name]);
+    if (!finalName) return setError("Pick a service, or give the series a name (e.g. Lawn mowing).");
     if (!firstVisit) return setError("Pick the first visit date.");
     if (billing !== "none" && !(parseFloat(unitPrice) > 0)) {
       return setError("Enter the price to bill, or turn billing off.");
@@ -108,7 +136,7 @@ export default function NewSeriesForm({
       "/api/app/subscriptions",
       {
         contactId,
-        name: name.trim(),
+        name: finalName,
         description,
         propertyId: propertyId || null,
         visitFrequency: frequency,
@@ -161,12 +189,18 @@ export default function NewSeriesForm({
               }}
             />
           </div>
+          <ServiceChips items={services} selectedIds={service ? [service.id] : []} onToggle={pickService} />
           <div>
-            <label className="block text-xs text-gray-500 mb-1">Series name *</label>
+            <label className="block text-xs text-gray-500 mb-1">
+              Series name{services.length > 0 ? " (optional)" : " *"}
+            </label>
             <input
               value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Lawn mowing, Pool service"
+              onChange={(e) => {
+                setName(e.target.value);
+                setNameTouched(e.target.value.trim().length > 0);
+              }}
+              placeholder={services.length > 0 ? "Defaults to the service picked" : "e.g. Lawn mowing, Pool service"}
               maxLength={150}
               className={inputCls}
             />
@@ -239,7 +273,7 @@ export default function NewSeriesForm({
                 onChange={(e) => setVisitDuration(e.target.value)}
                 className={inputCls}
               >
-                {DURATION_OPTIONS.map((d) => (
+                {durationOptions.map((d) => (
                   <option key={d.value} value={d.value}>
                     {d.label}
                   </option>
@@ -275,7 +309,9 @@ export default function NewSeriesForm({
                 ))}
               </div>
               <p className="text-xs text-gray-400 mt-1.5">
-                Copied onto every generated visit — individual visits can still be reassigned.
+                {team.length === 1
+                  ? "It's just you — every visit lands on your schedule."
+                  : "Copied onto every generated visit — individual visits can still be reassigned."}
               </p>
             </div>
           )}

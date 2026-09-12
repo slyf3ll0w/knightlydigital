@@ -8,6 +8,7 @@ import TurnstileWidget, { TurnstileHandle, captchaEnabled } from "@/components/T
 import { INDUSTRIES } from "@/lib/pricebooks";
 import { saveCredential } from "@/lib/save-credential";
 import { switchToMembership } from "@/lib/company-switch";
+import { browserTimezone } from "@/lib/timezone";
 
 /**
  * Single-page signup: just the account essentials plus industry, which seeds
@@ -65,7 +66,9 @@ export default function RegisterPage() {
     const res = await fetch("/api/app/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, industry, captchaToken }),
+      // The browser's zone becomes the company's — reminders, booking slots
+      // and arrival windows all run on it (editable in Settings)
+      body: JSON.stringify({ ...form, industry, captchaToken, timezone: browserTimezone() }),
     });
 
     const data = await res.json();

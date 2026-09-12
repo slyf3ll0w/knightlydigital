@@ -55,6 +55,12 @@ export async function createCompanySignup(opts: {
   paymentsWaived?: boolean;
   /** Link this AccessApplication to the new company (and the invite, if any). */
   applicationId?: string | null;
+  /**
+   * IANA zone captured from the signing-up browser (already validated by the
+   * caller). Null keeps the schema default — every reminder, booking slot and
+   * arrival window runs on this, so guessing wrong is a silent, hour-off bug.
+   */
+  timezone?: string | null;
 }): Promise<{ companyId: string; userId: string }> {
   // uniqueSlug's check-then-create can race if two same-name companies
   // register in the same instant; the DB @unique constraint catches the
@@ -79,7 +85,7 @@ function createInTransaction(
   opts: Parameters<typeof createCompanySignup>[0],
   slug: string
 ) {
-  const { companyName, industry, owner, inviteId, accessPending, applicationId, paymentsWaived } =
+  const { companyName, industry, owner, inviteId, accessPending, applicationId, paymentsWaived, timezone } =
     opts;
   return prisma.$transaction(async (tx) => {
     // Claim the invite atomically — a pre-check outside the transaction can
@@ -111,6 +117,7 @@ function createInTransaction(
         // Default notification inbox: the owner's email, editable in Settings.
         email: ownerEmail,
         industry: industry || null,
+        ...(timezone ? { timezone } : {}),
         accessPendingAt: accessPending ? new Date() : null,
         paymentsWaived: Boolean(paymentsWaived),
         // WorkBench default branding, seeded as real values so every surface
@@ -126,6 +133,10 @@ function createInTransaction(
             name: ownerName,
             accountId,
             role: "OWNER",
+            // A brand-new company IS its owner: they take the bookings until
+            // there's a team to share them with (off by default for members
+            // added later — owners opt those in from the Team page).
+            bookable: true,
           },
         },
         // Industry-matched starter price book; "Other"/unknown industries start empty

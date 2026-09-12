@@ -21,6 +21,7 @@
 import { randomBytes } from "crypto";
 import type { Frequency, Prisma, PrismaClient, RecurringInterval } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { resolveCrew } from "@/lib/job-crew";
 import { attemptAutoCharge } from "@/lib/auto-charge";
 import { sendEmail, invoiceLinkEmail } from "@/lib/email";
 import { localDayParts, wallTimeToUtc } from "@/lib/booking-engine";
@@ -322,6 +323,9 @@ async function generateCycle(sub: DueSub, now: Date): Promise<"billed" | "drafte
         orderBy: { jobNumber: "desc" },
         select: { jobNumber: true },
       });
+      // A one-person company's cycle jobs land on that person (nobody is
+      // watching a background-generated job to assign it by hand)
+      const cycleCrew = await resolveCrew(tx, sub.companyId, []);
       await tx.job.create({
         data: {
           companyId: sub.companyId,
@@ -331,6 +335,7 @@ async function generateCycle(sub: DueSub, now: Date): Promise<"billed" | "drafte
           title: sub.name,
           leadSource: sub.contact.leadSource,
           address: sub.contact.address,
+          ...(cycleCrew.length > 0 && { assignments: { create: cycleCrew.map((userId) => ({ userId })) } }),
           lineItems: {
             create: {
               name: sub.name,
@@ -940,16 +945,9 @@ export async function generateDueVisits(
         });
         if (claimed.count === 0) return 0;
 
-        // Default assignees, filtered to live team members
-        const assigneeIds =
-          sub.visitAssigneeIds.length > 0
-            ? (
-                await tx.user.findMany({
-                  where: { id: { in: sub.visitAssigneeIds }, companyId: sub.companyId, isActive: true },
-                  select: { id: true },
-                })
-              ).map((u) => u.id)
-            : [];
+        // Default assignees, filtered to live team members; a one-person
+        // company's visits land on that person even with no defaults set
+        const assigneeIds = await resolveCrew(tx, sub.companyId, sub.visitAssigneeIds);
 
         const tz = sub.company.timezone;
         let cursor = fresh.nextVisitDate;

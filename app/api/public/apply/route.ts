@@ -7,6 +7,7 @@ import { checkInviteCode } from "@/lib/invites";
 import { normalizeEmail } from "@/lib/user-email";
 import { findOrAdoptAccountByEmail } from "@/lib/account";
 import { createCompanySignup, InviteClaimedError } from "@/lib/signup";
+import { isValidTimezone } from "@/lib/timezone";
 
 // Where new-application notifications land (a person reads every one).
 const APPLICATION_INBOX = process.env.APPLICATION_INBOX ?? "info@streamflaire.com";
@@ -168,6 +169,8 @@ export async function POST(req: NextRequest) {
     await createCompanySignup({
       companyName,
       industry,
+      // The applicant's browser zone (validated; a bad value keeps the default)
+      timezone: isValidTimezone(body.timezone) ? body.timezone : null,
       owner,
       inviteId: invite?.id ?? null,
       accessPending: !invite,

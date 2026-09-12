@@ -6,6 +6,8 @@ import Link from "next/link";
 import { Loader2, ArrowLeft } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import ContactPicker from "@/components/ContactPicker";
+import ServiceChips, { type ServiceLite } from "@/components/ServiceChips";
+import { titleFromServices } from "@/lib/service-title";
 
 type Contact = { id: string; firstName: string; lastName: string };
 
@@ -22,6 +24,15 @@ function NewRequestForm() {
     title: "",
     details: "",
   });
+  // Tap-to-pick services name the request until a title is typed
+  const [services, setServices] = useState<ServiceLite[]>([]);
+  const [titleTouched, setTitleTouched] = useState(false);
+
+  function toggleService(w: ServiceLite) {
+    const next = services.some((s) => s.id === w.id) ? services.filter((s) => s.id !== w.id) : [...services, w];
+    setServices(next);
+    if (!titleTouched) set("title", titleFromServices(next.map((s) => s.name)));
+  }
 
   useEffect(() => {
     fetch("/api/app/contacts")
@@ -40,10 +51,15 @@ function NewRequestForm() {
       setError("Please select a client.");
       return;
     }
+    const title = form.title.trim() || titleFromServices(services.map((s) => s.name));
+    if (!title) {
+      setError("Pick a service, or type what the client needs.");
+      return;
+    }
     setError("");
     setLoading(true);
 
-    const { ok, data } = await postJson<{ id: string }>("/api/app/requests", form);
+    const { ok, data } = await postJson<{ id: string }>("/api/app/requests", { ...form, title });
     setLoading(false);
 
     if (!ok || !data?.id) {
@@ -88,13 +104,18 @@ function NewRequestForm() {
             </Link>
           </div>
 
+          <ServiceChips selectedIds={services.map((s) => s.id)} onToggle={toggleService} label="What they need" />
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Title <span className="text-xs font-normal text-gray-400">(optional when a service is picked)</span>
+            </label>
             <input
               type="text"
               value={form.title}
-              onChange={(e) => set("title", e.target.value)}
-              required
+              onChange={(e) => {
+                set("title", e.target.value);
+                setTitleTouched(e.target.value.trim().length > 0);
+              }}
               className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               placeholder="e.g. Driveway and patio pressure wash"
             />

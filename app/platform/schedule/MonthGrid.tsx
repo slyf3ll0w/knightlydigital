@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle as AlertTriangleIcon } from "lucide-react";
+import { AlertTriangle as AlertTriangleIcon, UserX as UserXIcon } from "lucide-react";
 import {
   DAY_NAMES,
   durationLabel,
@@ -131,10 +131,11 @@ export default function MonthGrid({
               className={`flex cursor-grab select-none items-center gap-1 truncate rounded-lg border-l-2 px-1.5 py-0.5 text-xs font-medium active:cursor-grabbing ${itemTone(it)} ${
                 movingId === it.id ? "opacity-40" : ""
               }`}
-              title={`${it.contactName} — ${it.title}${it.conflictNote ? `\n⚠ Overlaps: ${it.conflictNote}` : ""}`}
+              title={`${it.contactName} — ${it.title}${it.conflictNote ? `\n⚠ Overlaps: ${it.conflictNote}` : ""}${it.needsCrew ? "\n⚠ Nobody assigned" : ""}`}
             >
               <TypeGlyph apptType={it.apptType} recurring={it.recurring} />
               {it.conflictNote && <AlertTriangleIcon size={11} className="shrink-0 text-amber-600" />}
+              {it.needsCrew && <UserXIcon size={11} className="shrink-0 text-amber-600" aria-label="Nobody assigned" />}
               <span className="truncate">
                 {it.scheduledAnytime ? "" : `${fmtTime(new Date(it.scheduledAt!))} `}
                 {it.kind === "block" ? it.title || "Blocked off" : `${it.contactName} — ${it.title}`}

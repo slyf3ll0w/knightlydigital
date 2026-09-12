@@ -23,6 +23,7 @@ import {
 } from "@/lib/scheduling";
 import { ARRIVAL_WINDOW_CHOICES, arrivalWindowChoiceLabel } from "@/lib/arrival-window";
 import { looksLikeAppointment } from "@/lib/appointment-hint";
+import { titleFromServices } from "@/lib/service-title";
 
 type ContactAddress = {
   id: string;
@@ -61,6 +62,11 @@ function NewJobForm() {
   const [workItems, setWorkItems] = useState<PickerWorkItem[]>([]);
   const [lineItems, setLineItems] = useState<EditorLineItem[]>([]);
   const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
+  // Outsourced = a subcontractor does it; the one legitimate empty crew
+  const [outsourced, setOutsourced] = useState(false);
+  const [outsourcedTo, setOutsourcedTo] = useState("");
+  // Typed a title → stop auto-naming the job after its services
+  const [titleTouched, setTitleTouched] = useState(false);
   const [interval, setInterval] = useState(DEFAULT_SLOT_INTERVAL_MINUTES);
   const [dayStart, setDayStart] = useState(8 * 60);
   // Day-first scheduling: a date handed in from the schedule starts as
@@ -87,9 +93,12 @@ function NewJobForm() {
     // Team list is manager-only; non-managers just don't see the assign section
     fetch("/api/app/team")
       .then((r) => (r.ok ? r.json() : []))
-      .then((users: TeamUser[]) =>
-        setTeam(Array.isArray(users) ? users.filter((u) => u.isActive) : [])
-      )
+      .then((users: TeamUser[]) => {
+        const active = Array.isArray(users) ? users.filter((u) => u.isActive) : [];
+        setTeam(active);
+        // A one-person company never picks a crew — it's them
+        if (active.length === 1) setAssigneeIds([active[0].id]);
+      })
       .catch(() => {});
     // Price book for the services section
     fetch("/api/app/work-items")
@@ -158,11 +167,21 @@ function NewJobForm() {
       setError("Please select a contact.");
       return;
     }
+    // A scheduled job needs somebody on it (or a subcontractor) — otherwise
+    // it's on nobody's schedule, calendar sync, or booking availability
+    if (form.scheduledAt && team.length > 0 && assigneeIds.length === 0 && !outsourced) {
+      setError("Pick who's doing this job, or mark it outsourced.");
+      return;
+    }
     setError("");
     setLoading(true);
 
     const { ok, data } = await postJson<{ id: string; conflicts?: string[] }>("/api/app/jobs", {
       ...form,
+      // Optional: blank → named after the services (or a generic label) server-side
+      title: form.title.trim() || undefined,
+      outsourced,
+      outsourcedTo: outsourced ? outsourcedTo.trim() || undefined : undefined,
       // date-only scheduling anchors at noon (same convention as ScheduleJob)
       scheduledAt: anytime
         ? form.scheduledAt
@@ -172,7 +191,7 @@ function NewJobForm() {
       scheduledEnd: anytime ? "" : localInputToISO(form.scheduledEnd),
       scheduledAnytime: anytime && Boolean(form.scheduledAt),
       arrivalWindowMinutes: window_ === "" ? null : Number(window_),
-      assigneeIds,
+      assigneeIds: outsourced ? [] : assigneeIds,
       lineItems: lineItems
         .filter((li) => li.name.trim())
         .map((li, i) => ({
@@ -240,14 +259,18 @@ function NewJobForm() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Job title *</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Job title <span className="text-xs font-normal text-gray-400">(optional)</span>
+            </label>
             <input
               type="text"
               value={form.title}
-              onChange={(e) => set("title", e.target.value)}
-              required
+              onChange={(e) => {
+                set("title", e.target.value);
+                setTitleTouched(e.target.value.trim().length > 0);
+              }}
               className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-              placeholder="e.g. AC tune-up, Lawn maintenance, Roof inspection"
+              placeholder="Defaults to the service picked below"
             />
             {/* Estimates and meetings aren't billable work: steer them to the
                 record that ends with an optional quote instead of an invoice */}
@@ -319,7 +342,11 @@ function NewJobForm() {
           </div>
           <LineItemsEditor
             items={lineItems}
-            onChange={setLineItems}
+            onChange={(items) => {
+              setLineItems(items);
+              // Picking services names the job until a title is typed
+              if (!titleTouched) set("title", titleFromServices(items.map((li) => li.name.trim()).filter(Boolean)));
+            }}
             workItems={workItems}
             allowEmpty
           />
@@ -432,7 +459,7 @@ function NewJobForm() {
           {team.length > 0 && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Assign to</label>
-              <div className="space-y-1.5">
+              <div className={`space-y-1.5 ${outsourced ? "opacity-50" : ""}`}>
                 {team.map((u) => (
                   <label
                     key={u.id}
@@ -440,7 +467,8 @@ function NewJobForm() {
                   >
                     <input
                       type="checkbox"
-                      checked={assigneeIds.includes(u.id)}
+                      checked={!outsourced && assigneeIds.includes(u.id)}
+                      disabled={outsourced}
                       onChange={() =>
                         setAssigneeIds((ids) =>
                           ids.includes(u.id) ? ids.filter((x) => x !== u.id) : [...ids, u.id]
@@ -452,9 +480,28 @@ function NewJobForm() {
                   </label>
                 ))}
               </div>
+              <label className="mt-2 flex items-center gap-2 text-sm text-gray-700 select-none w-fit">
+                <input
+                  type="checkbox"
+                  checked={outsourced}
+                  onChange={(e) => setOutsourced(e.target.checked)}
+                  className="h-3.5 w-3.5 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                />
+                Outsourced to a subcontractor
+              </label>
+              {outsourced && (
+                <input
+                  type="text"
+                  value={outsourcedTo}
+                  onChange={(e) => setOutsourcedTo(e.target.value)}
+                  className="mt-2 w-full sm:w-64 px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  placeholder="Who's doing it (optional)"
+                />
+              )}
               <p className="text-xs text-gray-400 mt-1">
-                Assigned techs see this job on their schedule, and their online-booking
-                availability blocks off this time.
+                {team.length === 1
+                  ? "It's just you, so your jobs land on your schedule and calendar sync automatically."
+                  : "Assigned techs see this job on their schedule, get it in their calendar sync, and their online-booking availability blocks off this time. A scheduled job needs someone on it unless it's outsourced."}
               </p>
             </div>
           )}
