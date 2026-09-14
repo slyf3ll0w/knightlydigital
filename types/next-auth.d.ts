@@ -11,6 +11,8 @@ declare module "next-auth" {
       companyName: string | null;
       /** ms epoch the session was minted; 0 for pre-upgrade sessions. */
       authAt: number;
+      /** How this session was minted — "password" for pre-upgrade sessions. */
+      signInMethod: "password" | "google";
     } & DefaultSession["user"];
   }
   interface User {
@@ -29,5 +31,7 @@ declare module "next-auth/jwt" {
     role?: string;
     companyId?: string | null;
     companyName?: string | null;
+    authAt?: number;
+    signInMethod?: "password" | "google";
   }
 }

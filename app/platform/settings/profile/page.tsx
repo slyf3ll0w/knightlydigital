@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { prisma } from "@/lib/db";
 import { requirePageActor, roleLabel } from "@/lib/permissions";
+import { googleSignInAvailableFor } from "@/lib/sign-in-options";
 import ProfileClient from "./ProfileClient";
 
 export const metadata: Metadata = { title: "My Profile" };
@@ -8,7 +10,7 @@ export const metadata: Metadata = { title: "My Profile" };
 export default async function ProfilePage() {
   const actor = await requirePageActor();
 
-  const [user, pending] = await Promise.all([
+  const [user, pending, ua] = await Promise.all([
     prisma.user.findUnique({
       where: { id: actor.id },
       select: {
@@ -19,6 +21,17 @@ export default async function ProfilePage() {
         avatarMime: true,
         emailSignature: true,
         company: { select: { name: true, phone: true, website: true } },
+        // The login behind this membership: whether it has a password, and
+        // which third-party sign-ins are connected (Connected sign-ins card).
+        account: {
+          select: {
+            passwordHash: true,
+            identities: {
+              orderBy: { createdAt: "asc" },
+              select: { provider: true, email: true, createdAt: true, lastUsedAt: true },
+            },
+          },
+        },
       },
     }),
     // An email change already sent and still waiting on the new address. An
@@ -28,6 +41,7 @@ export default async function ProfilePage() {
       orderBy: { createdAt: "desc" },
       select: { newEmail: true },
     }),
+    headers().then((h) => h.get("user-agent")),
   ]);
 
   // What client emails fall back to while no custom signature is saved
@@ -51,6 +65,16 @@ export default async function ProfilePage() {
       emailSignature={user?.emailSignature ?? ""}
       defaultSignature={defaultSignature}
       pendingEmail={pending?.newEmail ?? null}
+      // Legacy rows without an Account still sign in by their own hash —
+      // treat them as "has a password" so the change-password card shows.
+      hasPassword={user?.account ? Boolean(user.account.passwordHash) : true}
+      identities={(user?.account?.identities ?? []).map((i) => ({
+        provider: i.provider,
+        email: i.email,
+        createdAt: i.createdAt.toISOString(),
+        lastUsedAt: i.lastUsedAt?.toISOString() ?? null,
+      }))}
+      googleEnabled={googleSignInAvailableFor(ua)}
     />
   );
 }

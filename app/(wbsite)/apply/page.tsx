@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { AnimateIn } from "@/components/AnimateIn";
 import ApplyForm from "@/components/ApplyForm";
+import { googleSignInAvailableFor } from "@/lib/sign-in-options";
 import { ClipboardList, ShieldCheck, Wrench } from "lucide-react";
 
 export const metadata: Metadata = {
@@ -30,7 +32,9 @@ const steps = [
   },
 ];
 
-export default function WBApplyPage() {
+export default async function WBApplyPage() {
+  // Google sign-up is a web-only redirect for now (hidden in the native shell)
+  const googleEnabled = googleSignInAvailableFor((await headers()).get("user-agent"));
   return (
     <>
       {/* ── Hero ── */}
@@ -75,7 +79,7 @@ export default function WBApplyPage() {
       {/* ── Application form ── */}
       <section className="mx-auto max-w-3xl px-5 pb-20 sm:px-8">
         <AnimateIn>
-          <ApplyForm />
+          <ApplyForm googleEnabled={googleEnabled} />
         </AnimateIn>
       </section>
     </>

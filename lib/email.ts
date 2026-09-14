@@ -595,6 +595,37 @@ export function teamAddedEmail({
 }
 
 /**
+ * Security notice: a third-party sign-in (Google, Apple) was just connected
+ * to an EXISTING login. Goes to the account's own address — the one person
+ * who can tell whether they did it.
+ */
+export function signInMethodLinkedEmail({
+  provider,
+  providerEmail,
+}: {
+  provider: string;
+  providerEmail: string | null;
+}): { subject: string; html: string } {
+  const html = wbShell({
+    label: "Security notice",
+    inner: `
+      <p style="margin:0 0 12px;color:#111827;font-size:15px;">Hi,</p>
+      <p style="margin:0 0 16px;color:#374151;font-size:14px;">
+        <strong>Sign in with ${esc(provider)}</strong> was just connected to
+        your WorkBench login${providerEmail ? ` (${esc(providerEmail)})` : ""}.
+        From now on that ${esc(provider)} account opens WorkBench without a
+        password.
+      </p>
+      ${wbBtn(`${APP_URL}/app/settings/profile`, "Review sign-in methods")}
+      <p style="margin:16px 0 0;color:#6b7280;font-size:12px;">
+        Wasn't you? Disconnect it under Settings → My Profile → Connected
+        sign-ins, change your password, and contact support.
+      </p>`,
+  });
+  return { subject: `Sign in with ${provider} was connected to your WorkBench login`, html };
+}
+
+/**
  * Confirm a new sign-in address. Goes TO the new address — clicking the link
  * is what proves the person asking actually owns that inbox.
  */

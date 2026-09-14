@@ -119,12 +119,33 @@ export default function RegisterPage() {
             <img src="/workbench-logo.png" alt="WorkBench" className="h-7 w-auto mb-8" />
 
             <h1 className="mb-1 text-2xl font-bold tracking-tight text-gray-900">
-              {attachMode ? "Add another company" : "Create your account"}
+              {attachMode
+                ? session?.user?.companyId
+                  ? "Add another company"
+                  : "Set up your business"
+                : "Create your account"}
             </h1>
             <p className="text-sm text-gray-500 mb-6">
-              {attachMode
-                ? "It joins your existing sign-in — switch between companies from your profile picture."
-                : "Free forever — we make money when you get paid, not before."}
+              {attachMode ? (
+                session?.user?.companyId ? (
+                  "It joins your existing sign-in — switch between companies from your profile picture."
+                ) : (
+                  // A Google sign-in with no company yet lands here (middleware).
+                  // Most of them have no invite code — the public application
+                  // is the door for them.
+                  <>
+                    You&apos;re signed in as{" "}
+                    <span className="font-semibold text-gray-700">{session?.user?.email}</span>, with
+                    no business on it yet. Have an invite code? Enter it below. Otherwise{" "}
+                    <a href="/apply" className="font-semibold text-[#0B57D8] hover:underline">
+                      apply for an account
+                    </a>{" "}
+                    — it takes about two minutes.
+                  </>
+                )
+              ) : (
+                "Free forever — we make money when you get paid, not before."
+              )}
             </p>
 
             {error && (

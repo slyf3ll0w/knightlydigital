@@ -240,20 +240,45 @@ model Company {
 // re-points it. Identity (name, avatar, email, password) is account-level and
 // fanned out to the member rows so every existing per-row read keeps working.
 model Account {
-  id               String   @id @default(cuid())
-  email            String   @unique // always stored lowercased (lib/user-email.ts)
-  passwordHash     String
+  id                String    @id @default(cuid())
+  email             String    @unique // always stored lowercased (lib/user-email.ts)
+  // Null = no password yet: the account was opened with a social sign-in
+  // (AccountIdentity) and has never set one. Password login refuses a null
+  // hash; "Forgot password" is how such an account adds one.
+  passwordHash      String?
   // The User row (membership) the last session used — sign-in lands here.
   // Plain string on purpose: memberships get deleted with their company, and
   // login falls back to the oldest active membership when this row is gone.
-  lastActiveUserId String?
+  lastActiveUserId  String?
   // Stamped by setPasswordForUser; sessions minted before it are stale
   // (lib/permissions.ts loadActor) — a reset evicts every older cookie.
   passwordChangedAt DateTime?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
-  users User[]
+  users      User[]
+  identities AccountIdentity[]
+}
+
+// A third-party sign-in (Google today, Apple next) bound to an Account. The
+// provider's stable subject id is the key — never the email, which a person
+// can change on the provider side. Matching by email happens exactly once, at
+// first sign-in, and only when the provider vouches the address is verified
+// (lib/social-login.ts).
+model AccountIdentity {
+  id                String    @id @default(cuid())
+  accountId         String
+  account           Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  provider          String // "google" | "apple"
+  providerAccountId String // OIDC `sub`
+  // Address the provider reported when linked — informational (support, the
+  // Connected sign-ins card); the login address stays Account.email.
+  email             String?
+  createdAt         DateTime  @default(now())
+  lastUsedAt        DateTime?
+
+  @@unique([provider, providerAccountId])
+  @@index([accountId])
 }
 
 model User {
@@ -310,18 +335,18 @@ model User {
   notes                JobNote[]
   contactNotes         ContactNote[]
   clientMessages       ClientMessage[]
-  assignedContacts     Contact[]             @relation("AssignedContacts")
-  appointments         Appointment[]         @relation("AppointmentAssignee")
+  assignedContacts     Contact[]                 @relation("AssignedContacts")
+  appointments         Appointment[]             @relation("AppointmentAssignee")
   bookingTypeMembers   BookingTypeMember[]
   teamMessages         TeamMessage[]
-  receivedTeamMessages TeamMessage[]         @relation("ReceivedTeamMessages")
+  receivedTeamMessages TeamMessage[]             @relation("ReceivedTeamMessages")
   chatThreadStates     ChatThreadState[]
   chatChannelMembers   ChatChannelMember[]
   pushSubscriptions    PushSubscription[]
   passwordResetTokens  PasswordResetToken[]
   emailChangeTokens    EmailChangeToken[]
   superadminLoginCodes SuperadminLoginCode[]
-  timeBlocks           TimeBlock[]           @relation("TimeBlockUser")
+  timeBlocks           TimeBlock[]               @relation("TimeBlockUser")
   timeEntries          TimeEntry[]
   locationPings        LocationPing[]
   checklistChecks      JobChecklistItem[]
@@ -1321,20 +1346,20 @@ enum TimeBlockSource {
 }
 
 model TimeBlock {
-  id          String   @id @default(cuid())
+  id          String          @id @default(cuid())
   companyId   String
-  company     Company  @relation(fields: [companyId], references: [id])
+  company     Company         @relation(fields: [companyId], references: [id])
   // null = everyone in the company
   userId      String?
-  user        User?    @relation("TimeBlockUser", fields: [userId], references: [id], onDelete: Cascade)
+  user        User?           @relation("TimeBlockUser", fields: [userId], references: [id], onDelete: Cascade)
   createdById String
-  title       String   @default("Blocked off")
+  title       String          @default("Blocked off")
   // All-day blocks still store the full day span (00:00 → 23:59:59) so the
   // booking-availability math needs no special case; the flag only moves
   // rendering into the calendar's "Anytime" row.
   startAt     DateTime
   endAt       DateTime
-  allDay      Boolean  @default(false)
+  allDay      Boolean         @default(false)
   // Optional "where I'll be" (dentist, supplier run, a personal errand) so
   // the route engine can drive to and from it: Find a Time and the
   // calendar's drive gaps treat a located block like a fixed stop.
@@ -1346,8 +1371,8 @@ model TimeBlock {
   // — the pull rewrites/deletes them — and never pushed back out.
   source      TimeBlockSource @default(MANUAL)
   externalId  String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
 
   @@index([companyId, startAt])
   @@index([userId])
@@ -2376,33 +2401,33 @@ model CalendarFeed {
 // like QuickBooksConnection; Google refresh tokens don't expire on a clock,
 // but a revoked/expired grant surfaces as lastSyncError + reconnect.
 model GoogleCalendarConnection {
-  id                   String               @id @default(cuid())
-  userId               String               @unique
-  user                 User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                   String    @id @default(cuid())
+  userId               String    @unique
+  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   companyId            String
-  company              Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company              Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
   googleEmail          String
-  calendarId           String               @default("primary")
+  calendarId           String    @default("primary")
   accessTokenEnc       String
   refreshTokenEnc      String
   accessTokenExpiresAt DateTime
   scope                String
   // Pause without disconnecting: events already pushed stay put, nothing
   // new goes out until re-enabled.
-  syncEnabled          Boolean              @default(true)
+  syncEnabled          Boolean   @default(true)
   lastSyncAt           DateTime?
   lastSyncError        String? // most recent failure; null = healthy
   // Two-way: mirror the Google account's busy events into Workbench as
   // GOOGLE time blocks (lib/google-calendar-pull.ts). shareTitles = the
   // block carries the Google event name instead of "Busy" (teammates see it).
-  pullEnabled          Boolean              @default(true)
-  shareTitles          Boolean              @default(false)
+  pullEnabled          Boolean   @default(true)
+  shareTitles          Boolean   @default(false)
   // Google incremental sync cursor; null = next pull is a full window read
   pullSyncToken        String?
   lastPullAt           DateTime?
   lastPullError        String?
-  createdAt            DateTime             @default(now())
-  updatedAt            DateTime             @updatedAt
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
   events GoogleCalendarEvent[]
 

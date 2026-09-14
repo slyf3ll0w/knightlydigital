@@ -1,9 +1,10 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { signIn } from "next-auth/react";
+import { useEffect, useRef, useState } from "react";
+import { signIn, signOut, useSession } from "next-auth/react";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import TurnstileWidget, { type TurnstileHandle } from "@/components/TurnstileWidget";
+import GoogleSignInButton, { OrDivider } from "@/components/GoogleSignInButton";
 import { saveCredential } from "@/lib/save-credential";
 import { browserTimezone } from "@/lib/timezone";
 
@@ -37,8 +38,19 @@ const ENTITY_TYPES = [
  * No invite-code field here: businesses we admit without card processing
  * use the unlisted /invite page (components/InviteSignupForm.tsx), which
  * posts to the same endpoint with a code.
+ *
+ * Google path: "Continue with Google" opens a password-less login and comes
+ * back here signed in but company-less (lib/social-login.ts). The form then
+ * drops email/password — the login already exists — and the same POST opens
+ * the company against that login. A visitor who's already signed in WITH a
+ * company sees a pointer to the app instead (second companies are added
+ * from inside it, not here).
  */
-export default function ApplyForm() {
+export default function ApplyForm({ googleEnabled = false }: { googleEnabled?: boolean }) {
+  const { data: session, status, update } = useSession();
+  const signedIn = status === "authenticated" && Boolean(session?.user?.accountId);
+  // Signed in without a company: the login exists, only the business is missing.
+  const attachMode = signedIn && !session?.user?.companyId;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
@@ -66,6 +78,13 @@ export default function ApplyForm() {
     setForm((f) => ({ ...f, [field]: value }));
   }
 
+  // Google told us who they are — start the name from that (still editable).
+  useEffect(() => {
+    if (attachMode && session?.user?.name) {
+      setForm((f) => (f.name ? f : { ...f, name: session.user.name ?? "" }));
+    }
+  }, [attachMode, session?.user?.name]);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
@@ -86,8 +105,17 @@ export default function ApplyForm() {
         return;
       }
 
-      // Account is open — sign in and continue to payment verification.
       setDone(true);
+
+      if (attachMode) {
+        // Already signed in (Google) — re-point the session at the new
+        // company, then continue to payment verification.
+        await update({ switchToUserId: data.userId });
+        window.location.href = "/app/activate";
+        return;
+      }
+
+      // Account is open — sign in and continue to payment verification.
       await signIn("credentials", {
         email: form.email,
         password: form.password,
@@ -124,19 +152,73 @@ export default function ApplyForm() {
     "w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-[15px] focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#0B57D8]";
   const labelClass = "mb-1.5 block text-[13.5px] font-semibold text-gray-800";
 
+  // Signed in with a company already: this form would open a SECOND one.
+  // Point at the app instead (second companies live in the switcher).
+  if (signedIn && !attachMode) {
+    return (
+      <div className="rounded-3xl border border-gray-200 bg-white px-6 py-12 text-center sm:px-12">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50">
+          <CheckCircle2 className="h-5 w-5 text-[#0B57D8]" strokeWidth={2} />
+        </div>
+        <h2 className="mx-auto mt-5 max-w-md text-2xl font-extrabold">You already have an account.</h2>
+        <p className="mx-auto mt-3 max-w-md text-[15px] leading-relaxed text-gray-600">
+          You&apos;re signed in as <span className="font-semibold">{session?.user?.email}</span>
+          {session?.user?.companyName ? (
+            <>
+              {" "}with <span className="font-semibold">{session.user.companyName}</span>
+            </>
+          ) : null}
+          . To add another company, open WorkBench and tap your profile picture.
+        </p>
+        <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
+          <a
+            href="/app/dashboard"
+            className="wb-btn-tool inline-flex items-center rounded-lg bg-[#0B57D8] px-6 py-3 text-[15px] font-bold text-white"
+          >
+            Open WorkBench
+          </a>
+          <button
+            type="button"
+            onClick={() => signOut({ callbackUrl: "/apply" })}
+            className="text-sm font-semibold text-gray-500 hover:text-gray-800"
+          >
+            Not you? Sign out
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <form onSubmit={handleSubmit} className="rounded-3xl border border-gray-200 bg-white p-6 sm:p-10">
       <h2 className="text-2xl font-extrabold">Tell us about your business</h2>
       <p className="mt-2 text-[15px] leading-relaxed text-gray-600">
-        This creates your account — complete the short payment-verification
-        step that follows and you&apos;re in. A person also reviews every
-        application within a business day; your account keeps working while
-        that happens.
+        {attachMode ? (
+          <>
+            You&apos;re signed in as{" "}
+            <span className="font-semibold text-gray-800">{session?.user?.email}</span> — this
+            opens your business on that login.{" "}
+          </>
+        ) : (
+          <>This creates your account — </>
+        )}
+        complete the short payment-verification step that follows and
+        you&apos;re in. A person also reviews every application within a
+        business day; your account keeps working while that happens.
       </p>
 
       {error && (
         <div className="mt-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {error}
+        </div>
+      )}
+
+      {/* Google opens the login first, then comes back here for the business
+          details (attachMode). Only shown before there's a session. */}
+      {googleEnabled && !signedIn && (
+        <div className="mt-6">
+          <GoogleSignInButton enabled callbackUrl="/apply" label="Sign up with Google" />
+          <OrDivider className="mt-5" />
         </div>
       )}
 
@@ -155,38 +237,43 @@ export default function ApplyForm() {
         </div>
         {/* autocomplete="username" (not "email") — this is the account
             identifier the new password gets stored against, and password
-            managers won't offer to save a signup without one. */}
-        <div>
-          <label htmlFor="apply-email" className={labelClass}>Email</label>
-          <input
-            id="apply-email"
-            name="username"
-            type="email"
-            required
-            maxLength={254}
-            autoComplete="username"
-            value={form.email}
-            onChange={(e) => set("email", e.target.value)}
-            className={inputClass}
-            placeholder="you@acmehvac.com"
-          />
-        </div>
-        <div>
-          <label htmlFor="apply-password" className={labelClass}>Choose a password</label>
-          <input
-            id="apply-password"
-            name="password"
-            type="password"
-            required
-            minLength={8}
-            maxLength={72}
-            autoComplete="new-password"
-            value={form.password}
-            onChange={(e) => set("password", e.target.value)}
-            className={inputClass}
-            placeholder="Min. 8 characters"
-          />
-        </div>
+            managers won't offer to save a signup without one. Both fields
+            vanish in attachMode: the login already exists. */}
+        {!attachMode && (
+          <div>
+            <label htmlFor="apply-email" className={labelClass}>Email</label>
+            <input
+              id="apply-email"
+              name="username"
+              type="email"
+              required
+              maxLength={254}
+              autoComplete="username"
+              value={form.email}
+              onChange={(e) => set("email", e.target.value)}
+              className={inputClass}
+              placeholder="you@acmehvac.com"
+            />
+          </div>
+        )}
+        {!attachMode && (
+          <div>
+            <label htmlFor="apply-password" className={labelClass}>Choose a password</label>
+            <input
+              id="apply-password"
+              name="password"
+              type="password"
+              required
+              minLength={8}
+              maxLength={72}
+              autoComplete="new-password"
+              value={form.password}
+              onChange={(e) => set("password", e.target.value)}
+              className={inputClass}
+              placeholder="Min. 8 characters"
+            />
+          </div>
+        )}
         <div>
           <label className={labelClass}>Business name</label>
           <input
@@ -376,7 +463,7 @@ export default function ApplyForm() {
         className="wb-btn-tool mt-6 inline-flex items-center gap-2 rounded-lg bg-[#0B57D8] px-6 py-3 text-[15px] font-bold text-white disabled:opacity-50"
       >
         {loading && <Loader2 size={15} className="animate-spin" />}
-        Create my account
+        {attachMode ? "Open my business" : "Create my account"}
       </button>
       <p className="mt-4 text-[13px] text-gray-400">
         Free forever — we make money when you get paid, not before. A person

@@ -78,6 +78,28 @@ export async function findOrAdoptAccountByEmail(rawEmail: string) {
   return ensureAccountForUser(legacy);
 }
 
+/**
+ * Memberships an account may hold a tenant session as: active, non-staff.
+ * Rows WITH a company come first — a company-less row (a social sign-up
+ * that hasn't opened its business yet) is only ever the fallback.
+ */
+export async function eligibleMembershipsFor(accountId: string) {
+  const rows = await prisma.user.findMany({
+    where: { accountId, isActive: true, role: { not: "SUPERADMIN" } },
+    orderBy: { createdAt: "asc" },
+    include: { company: { select: { name: true } } },
+  });
+  return [...rows.filter((r) => r.companyId), ...rows.filter((r) => !r.companyId)];
+}
+
+/** Where a fresh session lands: the last-used membership, else the first eligible. */
+export function pickMembership<T extends { id: string }>(
+  rows: T[],
+  lastActiveUserId: string | null | undefined
+): T | null {
+  return rows.find((r) => r.id === lastActiveUserId) ?? rows[0] ?? null;
+}
+
 /** Check a password for the person behind a User row (account hash first). */
 export async function verifyPasswordForUser(userId: string, password: string): Promise<boolean> {
   if (!password) return false;

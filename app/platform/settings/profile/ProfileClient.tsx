@@ -10,6 +10,7 @@ import { AppLockToggleCard } from "@/components/AppLock";
 import CalendarSyncCard from "@/components/CalendarSyncCard";
 import Avatar from "@/components/Avatar";
 import AvatarCropModal from "@/components/AvatarCropModal";
+import ConnectedSignInsCard, { type ConnectedIdentity } from "@/components/ConnectedSignInsCard";
 import { saveCredential } from "@/lib/save-credential";
 
 const inputCls =
@@ -25,6 +26,9 @@ export default function ProfileClient({
   emailSignature: initialSignature,
   defaultSignature,
   pendingEmail: initialPendingEmail,
+  hasPassword,
+  identities,
+  googleEnabled,
 }: {
   userId: string;
   hasAvatar: boolean;
@@ -36,6 +40,12 @@ export default function ProfileClient({
   defaultSignature: string;
   /** An email change already sent and waiting on the new address, if any. */
   pendingEmail: string | null;
+  /** False for a Google-only login that never set a password. */
+  hasPassword: boolean;
+  /** Third-party sign-ins connected to this login. */
+  identities: ConnectedIdentity[];
+  /** Google sign-in configured and usable from this browser (not the native shell). */
+  googleEnabled: boolean;
 }) {
   const router = useRouter();
   const [name, setName] = useState(initialName);
@@ -385,7 +395,21 @@ export default function ProfileClient({
         )}
       </div>
 
-      <div className="card-ledger p-5">
+      {/* A Google-only login has no current password to confirm — the reset
+          link is its way to add one (setPasswordForUser takes it from there). */}
+      {!hasPassword && (
+        <div className="card-ledger p-5">
+          <h2 className="text-[13px] font-semibold text-gray-500 mb-1">Password</h2>
+          <p className="text-sm text-gray-600">
+            This login opens with Google and has no password yet. To add one, use{" "}
+            <Link href="/app/forgot-password" className="font-semibold text-[#0B57D8] hover:underline">
+              Forgot password
+            </Link>{" "}
+            on the login page — the link we email lets you set it.
+          </p>
+        </div>
+      )}
+      <div className="card-ledger p-5" hidden={!hasPassword}>
         <h2 className="text-[13px] font-semibold text-gray-500 mb-4">
           Change password
         </h2>
@@ -441,6 +465,15 @@ export default function ProfileClient({
           Update Password
         </button>
       </div>
+
+      {/* useSearchParams inside → Suspense keeps the static shell happy */}
+      <Suspense fallback={null}>
+        <ConnectedSignInsCard
+          googleEnabled={googleEnabled}
+          hasPassword={hasPassword}
+          initialIdentities={identities}
+        />
+      </Suspense>
 
       <PushToggleCard />
 

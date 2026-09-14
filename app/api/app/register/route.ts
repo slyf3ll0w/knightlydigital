@@ -93,7 +93,11 @@ export async function POST(req: NextRequest) {
   if (!account) {
     const existing = await findOrAdoptAccountByEmail(email);
     if (existing) {
-      const valid = await bcrypt.compare(String(password), existing.passwordHash);
+      // A null hash is a Google-only login — same generic refusal, so the
+      // form never reveals that the address exists without a password.
+      const valid = existing.passwordHash
+        ? await bcrypt.compare(String(password), existing.passwordHash)
+        : false;
       if (!valid) {
         return NextResponse.json(
           { error: "Unable to register. Please try again, or sign in if you already have an account." },

@@ -110,6 +110,30 @@ function createInTransaction(
     const ownerEmail = "account" in owner ? owner.account.email : owner.newLogin.email;
     const ownerName = "account" in owner ? owner.ownerName : owner.newLogin.name;
 
+    // A Google sign-up carries a company-less placeholder membership until
+    // it opens its business (lib/social-login.ts). That row BECOMES the
+    // OWNER row rather than getting a sibling: the live session already
+    // points at its id, and no orphan is left behind.
+    const placeholder =
+      "account" in owner
+        ? await tx.user.findFirst({
+            where: { accountId, companyId: null, isActive: true, role: { not: "SUPERADMIN" } },
+            orderBy: { createdAt: "asc" },
+            select: { id: true },
+          })
+        : null;
+
+    const ownerRow = {
+      email: ownerEmail,
+      name: ownerName,
+      accountId,
+      role: "OWNER" as const,
+      // A brand-new company IS its owner: they take the bookings until
+      // there's a team to share them with (off by default for members
+      // added later — owners opt those in from the Team page).
+      bookable: true,
+    };
+
     const company = await tx.company.create({
       data: {
         name: companyName,
@@ -127,28 +151,26 @@ function createInTransaction(
         brandColorSecondary: "#F86808",
         documentColor: "#FFFFFF",
         sidebarTheme: "white",
-        users: {
-          create: {
-            email: ownerEmail,
-            name: ownerName,
-            accountId,
-            role: "OWNER",
-            // A brand-new company IS its owner: they take the bookings until
-            // there's a team to share them with (off by default for members
-            // added later — owners opt those in from the Team page).
-            bookable: true,
-          },
-        },
+        ...(placeholder ? {} : { users: { create: ownerRow } }),
         // Industry-matched starter price book; "Other"/unknown industries start empty
         workItems: { create: pricebookForIndustry(industry ?? undefined) },
       },
       include: { users: { select: { id: true } } },
     });
 
+    let ownerUserId = company.users[0]?.id as string;
+    if (placeholder) {
+      await tx.user.update({
+        where: { id: placeholder.id },
+        data: { ...ownerRow, companyId: company.id },
+      });
+      ownerUserId = placeholder.id;
+    }
+
     // Sign-in (and the switch after an in-app create) lands in the new company.
     await tx.account.update({
       where: { id: accountId },
-      data: { lastActiveUserId: company.users[0].id },
+      data: { lastActiveUserId: ownerUserId },
     });
 
     if (inviteId) {
@@ -173,6 +195,6 @@ function createInTransaction(
       });
     }
 
-    return { companyId: company.id, userId: company.users[0].id };
+    return { companyId: company.id, userId: ownerUserId };
   });
 }

@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { signIn } from "next-auth/react";
+import { signIn, signOut, useSession } from "next-auth/react";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import TurnstileWidget, { type TurnstileHandle } from "@/components/TurnstileWidget";
+import GoogleSignInButton, { OrDivider } from "@/components/GoogleSignInButton";
 import { saveCredential } from "@/lib/save-credential";
 
 /**
@@ -20,12 +21,19 @@ import { saveCredential } from "@/lib/save-credential";
  * Links arrive as /invite?code=WB-XXXX-XXXX (the console's copy-link and the
  * invite email both point here); the code prefills.
  */
-export default function InviteSignupForm() {
+export default function InviteSignupForm({ googleEnabled = false }: { googleEnabled?: boolean }) {
+  const { data: session, status, update } = useSession();
+  const signedIn = status === "authenticated" && Boolean(session?.user?.accountId);
+  // Signed in without a company (came back from Google): the login exists,
+  // the code just opens the business on it. Same shape as ApplyForm.
+  const attachMode = signedIn && !session?.user?.companyId;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
   const [captchaToken, setCaptchaToken] = useState("");
   const captchaRef = useRef<TurnstileHandle>(null);
+  // The Google round-trip must come back to THIS url, code included.
+  const [returnUrl, setReturnUrl] = useState("/invite");
   const [form, setForm] = useState({
     inviteCode: "",
     name: "",
@@ -41,7 +49,14 @@ export default function InviteSignupForm() {
   useEffect(() => {
     const code = new URLSearchParams(window.location.search).get("code");
     if (code) setForm((f) => ({ ...f, inviteCode: code.toUpperCase() }));
+    setReturnUrl(window.location.pathname + window.location.search);
   }, []);
+
+  useEffect(() => {
+    if (attachMode && session?.user?.name) {
+      setForm((f) => (f.name ? f : { ...f, name: session.user.name ?? "" }));
+    }
+  }, [attachMode, session?.user?.name]);
 
   function set(field: keyof typeof form, value: string) {
     setForm((f) => ({ ...f, [field]: value }));
@@ -66,8 +81,16 @@ export default function InviteSignupForm() {
         return;
       }
 
-      // Account is open and underwriting is waived — sign in, straight to the app.
       setDone(true);
+
+      if (attachMode) {
+        // Already signed in (Google) — re-point the session at the new company.
+        await update({ switchToUserId: data.userId });
+        window.location.href = "/app";
+        return;
+      }
+
+      // Account is open and underwriting is waived — sign in, straight to the app.
       await signIn("credentials", {
         email: form.email,
         password: form.password,
@@ -101,17 +124,64 @@ export default function InviteSignupForm() {
     "w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-[15px] focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#0B57D8]";
   const labelClass = "mb-1.5 block text-[13.5px] font-semibold text-gray-800";
 
+  // Signed in with a company already — this code would open a SECOND one,
+  // which lives in the app's switcher (New company), not here.
+  if (signedIn && !attachMode) {
+    return (
+      <div className="rounded-3xl border border-gray-200 bg-white px-6 py-12 text-center sm:px-12">
+        <h2 className="mx-auto max-w-md text-2xl font-extrabold">You&apos;re already signed in.</h2>
+        <p className="mx-auto mt-3 max-w-md text-[15px] leading-relaxed text-gray-600">
+          Signed in as <span className="font-semibold">{session?.user?.email}</span>. To use an
+          invite code for another company, open WorkBench, tap your profile
+          picture and choose New company.
+        </p>
+        <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
+          <a
+            href="/app/register"
+            className="wb-btn-tool inline-flex items-center rounded-lg bg-[#0B57D8] px-6 py-3 text-[15px] font-bold text-white"
+          >
+            Add a company
+          </a>
+          <button
+            type="button"
+            onClick={() => signOut({ callbackUrl: returnUrl })}
+            className="text-sm font-semibold text-gray-500 hover:text-gray-800"
+          >
+            Not you? Sign out
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <form onSubmit={handleSubmit} className="rounded-3xl border border-gray-200 bg-white p-6 sm:p-10">
       <h2 className="text-2xl font-extrabold">Create your account</h2>
       <p className="mt-2 text-[15px] leading-relaxed text-gray-600">
-        Your invite code opens the account on the spot — no application review
-        and no payment verification. Just the basics below and you&apos;re in.
+        {attachMode ? (
+          <>
+            Signed in as <span className="font-semibold text-gray-800">{session?.user?.email}</span>.
+            Your invite code opens the business on that login — no application
+            review and no payment verification.
+          </>
+        ) : (
+          <>
+            Your invite code opens the account on the spot — no application review
+            and no payment verification. Just the basics below and you&apos;re in.
+          </>
+        )}
       </p>
 
       {error && (
         <div className="mt-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {error}
+        </div>
+      )}
+
+      {googleEnabled && !signedIn && (
+        <div className="mt-6">
+          <GoogleSignInButton enabled callbackUrl={returnUrl} label="Sign up with Google" />
+          <OrDivider className="mt-5" />
         </div>
       )}
 
@@ -146,38 +216,43 @@ export default function InviteSignupForm() {
         </div>
         {/* autocomplete="username" (not "email") — this is the account
             identifier the new password gets stored against, and password
-            managers won't offer to save a signup without one. */}
-        <div>
-          <label htmlFor="invite-email" className={labelClass}>Email</label>
-          <input
-            id="invite-email"
-            name="username"
-            type="email"
-            required
-            maxLength={254}
-            autoComplete="username"
-            value={form.email}
-            onChange={(e) => set("email", e.target.value)}
-            className={inputClass}
-            placeholder="you@acmehvac.com"
-          />
-        </div>
-        <div>
-          <label htmlFor="invite-password" className={labelClass}>Choose a password</label>
-          <input
-            id="invite-password"
-            name="password"
-            type="password"
-            required
-            minLength={8}
-            maxLength={72}
-            autoComplete="new-password"
-            value={form.password}
-            onChange={(e) => set("password", e.target.value)}
-            className={inputClass}
-            placeholder="Min. 8 characters"
-          />
-        </div>
+            managers won't offer to save a signup without one. Both fields
+            vanish in attachMode: the login already exists. */}
+        {!attachMode && (
+          <div>
+            <label htmlFor="invite-email" className={labelClass}>Email</label>
+            <input
+              id="invite-email"
+              name="username"
+              type="email"
+              required
+              maxLength={254}
+              autoComplete="username"
+              value={form.email}
+              onChange={(e) => set("email", e.target.value)}
+              className={inputClass}
+              placeholder="you@acmehvac.com"
+            />
+          </div>
+        )}
+        {!attachMode && (
+          <div>
+            <label htmlFor="invite-password" className={labelClass}>Choose a password</label>
+            <input
+              id="invite-password"
+              name="password"
+              type="password"
+              required
+              minLength={8}
+              maxLength={72}
+              autoComplete="new-password"
+              value={form.password}
+              onChange={(e) => set("password", e.target.value)}
+              className={inputClass}
+              placeholder="Min. 8 characters"
+            />
+          </div>
+        )}
         <div>
           <label className={labelClass}>Business name</label>
           <input
@@ -229,11 +304,13 @@ export default function InviteSignupForm() {
         className="wb-btn-tool mt-6 inline-flex items-center gap-2 rounded-lg bg-[#0B57D8] px-6 py-3 text-[15px] font-bold text-white disabled:opacity-50"
       >
         {loading && <Loader2 size={15} className="animate-spin" />}
-        Create my account
+        {attachMode ? "Open my business" : "Create my account"}
       </button>
       <p className="mt-4 text-[13px] text-gray-400">
-        Invite codes are single-use. Already have a WorkBench login? Enter that
-        email and password here and this business is added to it.
+        Invite codes are single-use.{" "}
+        {attachMode
+          ? "This business is added to the login you're signed in with."
+          : "Already have a WorkBench login? Enter that email and password here and this business is added to it."}
       </p>
     </form>
   );

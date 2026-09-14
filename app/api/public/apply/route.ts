@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/db";
 import { verifyCaptcha } from "@/lib/captcha";
 import { sendEmail, newApplicationEmail } from "@/lib/email";
@@ -28,6 +30,12 @@ const APPLICATION_INBOX = process.env.APPLICATION_INBOX ?? "info@streamflaire.co
  * state, application booked APPROVED, and Finix underwriting waived — the
  * business gets in without card processing and lands on the dashboard.
  *
+ * Google path: a visitor who signed in with Google first arrives here holding
+ * a company-less session (lib/social-login.ts). No email or password is
+ * asked — the login exists — and the company opens on that Account. A
+ * session that already has a company is refused (second companies are added
+ * from inside the app, /app/register).
+ *
  * Captcha-gated here, rate-limited (3/hr/IP, "apply" bucket) in middleware.
  */
 export async function POST(req: NextRequest) {
@@ -50,7 +58,6 @@ export async function POST(req: NextRequest) {
     inviteCode,
     captchaToken,
   } = body;
-  const email = normalizeEmail(body.email);
 
   if (!(await verifyCaptcha(captchaToken))) {
     return NextResponse.json(
@@ -59,16 +66,45 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  if (!name || !email || !companyName || !password) {
+  // Signed-in (Google) mode: the session's Account owns the new company and
+  // supplies the email; the typed password field doesn't exist.
+  const session = await getServerSession(authOptions);
+  let sessionAccount: { id: string; email: string } | null = null;
+  if (session?.user?.accountId) {
+    if (session.user.companyId) {
+      return NextResponse.json(
+        { error: "You're already signed in with a company. To add another, open WorkBench and choose New company from your profile picture." },
+        { status: 409 }
+      );
+    }
+    sessionAccount = await prisma.account.findUnique({
+      where: { id: session.user.accountId },
+      select: { id: true, email: true },
+    });
+    if (!sessionAccount) {
+      return NextResponse.json(
+        { error: "Your sign-in is no longer valid. Sign out and try again." },
+        { status: 401 }
+      );
+    }
+  }
+
+  const email = sessionAccount ? sessionAccount.email : normalizeEmail(body.email);
+
+  if (!name || !email || !companyName || (!sessionAccount && !password)) {
     return NextResponse.json(
-      { error: "Name, email, business name, and password are required." },
+      {
+        error: sessionAccount
+          ? "Name and business name are required."
+          : "Name, email, business name, and password are required.",
+      },
       { status: 400 }
     );
   }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email))) {
     return NextResponse.json({ error: "Please enter a valid email address." }, { status: 400 });
   }
-  if (String(password).length < 8 || String(password).length > 72) {
+  if (!sessionAccount && (String(password).length < 8 || String(password).length > 72)) {
     return NextResponse.json({ error: "Password must be 8–72 characters." }, { status: 400 });
   }
   if (
@@ -121,13 +157,18 @@ export async function POST(req: NextRequest) {
 
   // Existing login with this email: the typed password must match, then the
   // new company attaches to it (same behavior as the register page). The
-  // generic message on mismatch never confirms the address exists.
-  const existing = await findOrAdoptAccountByEmail(email);
+  // generic message on mismatch never confirms the address exists — nor
+  // that it exists as a password-less (Google-only) login.
+  const existing = sessionAccount ? null : await findOrAdoptAccountByEmail(email);
   let owner:
     | { account: { id: string; email: string }; ownerName: string }
     | { newLogin: { email: string; hash: string; name: string } };
-  if (existing) {
-    const valid = await bcrypt.compare(String(password), existing.passwordHash);
+  if (sessionAccount) {
+    owner = { account: sessionAccount, ownerName: String(name).trim() };
+  } else if (existing) {
+    const valid = existing.passwordHash
+      ? await bcrypt.compare(String(password), existing.passwordHash)
+      : false;
     if (!valid) {
       return NextResponse.json(
         { error: "Unable to sign you up. Please try again, or sign in if you already have an account." },
@@ -165,8 +206,9 @@ export async function POST(req: NextRequest) {
     },
   });
 
+  let created: { companyId: string; userId: string };
   try {
-    await createCompanySignup({
+    created = await createCompanySignup({
       companyName,
       industry,
       // The applicant's browser zone (validated; a bad value keeps the default)
@@ -211,5 +253,7 @@ export async function POST(req: NextRequest) {
   });
   await sendEmail({ to: APPLICATION_INBOX, ...notification });
 
-  return NextResponse.json({ success: true });
+  // userId = the new OWNER membership; the signed-in (Google) form re-points
+  // its session at it (useSession().update({ switchToUserId })).
+  return NextResponse.json({ success: true, userId: created.userId });
 }
