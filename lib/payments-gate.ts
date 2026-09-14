@@ -21,6 +21,39 @@ export function paymentsGateEnabled(): boolean {
   return getProcessor().name === "finix" && finixConfigured();
 }
 
+/**
+ * "Online payments: coming soon." A company let in past underwriting (the
+ * universal invite code, a minted invite, or a superadmin waiver) hasn't
+ * been approved to move money, so every surface that offers card/bank
+ * payment steps aside: the Settings card says Coming soon instead of opening
+ * the Finix form, pay pages are view-only, invoice emails say View. Clears
+ * the moment Finix approves them (after a superadmin requires verification).
+ */
+export function onlinePaymentsHeld(company: {
+  paymentsWaived: boolean;
+  finixOnboardingState: string | null;
+}): boolean {
+  return company.paymentsWaived && company.finixOnboardingState !== "APPROVED";
+}
+
+/**
+ * Can this company take a card or bank payment right now? The one four-part
+ * test every client-facing pay surface should use: platform processor is
+ * Finix and live, and this company's merchant is approved.
+ */
+export function canChargeOnline(company: {
+  finixMerchantId: string | null;
+  finixOnboardingState: string | null;
+}): boolean {
+  const processor = getProcessor();
+  return (
+    processor.name === "finix" &&
+    processor.live &&
+    Boolean(company.finixMerchantId) &&
+    company.finixOnboardingState === "APPROVED"
+  );
+}
+
 export function paymentsGateStatus(company: {
   paymentsWaived: boolean;
   finixOnboardingState: string | null;

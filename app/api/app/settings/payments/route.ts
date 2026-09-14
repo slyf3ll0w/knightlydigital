@@ -10,6 +10,7 @@ import {
   FinixError,
 } from "@/lib/finix";
 import { syncFromFinix } from "@/lib/finix-status";
+import { onlinePaymentsHeld } from "@/lib/payments-gate";
 
 /**
  * Online-payments setup (Finix merchant onboarding).
@@ -20,10 +21,13 @@ import { syncFromFinix } from "@/lib/finix-status";
  *        webhooks — the webhook route is a faster path, not a required one.
  * POST — owner-only: create the company's hosted onboarding form (first click)
  *        or mint a fresh session link (links expire hourly). Returns { url }.
- *        There is deliberately NO in-app way to skip the form — sandbox
- *        testers get a bypass invite code on /apply instead (that skips the
- *        application review, never underwriting), and the E2E harness
- *        provisions its merchant server-side via e2e/provision.mts.
+ *        There is deliberately NO in-app way to skip the form, and the E2E
+ *        harness provisions its merchant server-side via e2e/provision.mts.
+ *
+ * Companies let in on an invite code (paymentsWaived) get { comingSoon: true }
+ * from GET and a 403 from POST: online payments are held back for them until
+ * a superadmin requires verification and Finix approves them
+ * (lib/payments-gate.ts onlinePaymentsHeld).
  */
 
 export async function GET() {
@@ -34,6 +38,14 @@ export async function GET() {
   const processor = getProcessor();
   if (processor.name !== "finix" || !finixConfigured()) {
     return NextResponse.json({ available: false });
+  }
+
+  const held = await prisma.company.findUnique({
+    where: { id: actor.companyId },
+    select: { paymentsWaived: true, finixOnboardingState: true },
+  });
+  if (held && onlinePaymentsHeld(held)) {
+    return NextResponse.json({ available: true, comingSoon: true, environment: finixEnvironment() });
   }
 
   const status = await syncFromFinix(actor.companyId);
@@ -71,11 +83,18 @@ export async function POST(req: Request) {
       phone: true,
       finixOnboardingFormId: true,
       finixOnboardingState: true,
+      paymentsWaived: true,
     },
   });
   if (!company) return NextResponse.json({ error: "Company not found." }, { status: 404 });
   if (company.finixOnboardingState === "APPROVED") {
     return NextResponse.json({ error: "Payments are already set up." }, { status: 400 });
+  }
+  if (onlinePaymentsHeld(company)) {
+    return NextResponse.json(
+      { error: "Online payments are coming soon for your account — we'll let you know when you can turn them on." },
+      { status: 403 }
+    );
   }
 
   // The old { action: "test-approve" } sandbox shortcut is gone on purpose:

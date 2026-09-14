@@ -129,8 +129,9 @@ export async function POST(req: NextRequest) {
 
   // Invite code (only the /invite page sends one) — a typo should surface,
   // not silently open a pending-review, underwriting-gated account the
-  // invitee didn't want.
-  let invite: { id: string } | null = null;
+  // invitee didn't want. The universal tester code checks out with a null
+  // id (nothing to claim) and opens the company the same way.
+  let invite: { id: string | null } | null = null;
   if (typeof inviteCode === "string" && inviteCode.trim()) {
     const check = await checkInviteCode(inviteCode);
     if (!check.ok) {

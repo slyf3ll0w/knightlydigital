@@ -178,12 +178,15 @@ export function invoiceLinkText({
   invoiceNumber,
   total,
   payUrl,
+  payable = true,
 }: {
   companyName: string;
   firstName: string;
   invoiceNumber: number;
   total: number;
   payUrl: string;
+  /** False when the company can't take online payments — "View" not "View & pay". */
+  payable?: boolean;
 }): string {
-  return `${BRAND} Hi ${firstName}, ${companyName} sent you invoice #${invoiceNumber} for $${total.toFixed(2)}. View & pay: ${payUrl} ${OPT_OUT}`;
+  return `${BRAND} Hi ${firstName}, ${companyName} sent you invoice #${invoiceNumber} for ${total.toFixed(2)}. ${payable ? "View & pay" : "View"}: ${payUrl} ${OPT_OUT}`;
 }

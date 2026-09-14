@@ -1121,7 +1121,11 @@ export function contractSignedCopyEmail({
   return { subject: `Your signed copy: ${title} — ${companyName}`, html };
 }
 
-/** Payment-link email to a client whose service-request form auto-sent an invoice. */
+/**
+ * Invoice email with the client's link. `payable` false (the company can't
+ * take online payments — lib/payments-gate.ts canChargeOnline) turns the
+ * button into a plain View: the page behind it has no pay form either.
+ */
 export function invoiceLinkEmail({
   brand,
   companyName,
@@ -1129,6 +1133,7 @@ export function invoiceLinkEmail({
   total,
   payUrl,
   serviceNames,
+  payable = true,
 }: {
   brand: EmailBrand;
   companyName: string;
@@ -1136,6 +1141,7 @@ export function invoiceLinkEmail({
   total: number;
   payUrl: string;
   serviceNames: string[];
+  payable?: boolean;
 }): { subject: string; html: string } {
   const html = clientShell({
     brand,
@@ -1150,7 +1156,7 @@ export function invoiceLinkEmail({
       </p>
       ${itemsBlock(serviceNames)}
       ${totalsLedger(brand, "Total", total)}
-      ${accentBtn(payUrl, "View &amp; Pay Invoice", brand)}
+      ${accentBtn(payUrl, payable ? "View &amp; Pay Invoice" : "View Invoice", brand)}
       <p style="margin:12px 0 0;color:#6b7280;font-size:12px;">
         Prefer a copy for your records? <a href="${payUrl}/pdf" style="color:#6b7280;">Download the PDF</a>.
       </p>`,
@@ -1723,6 +1729,7 @@ export function paymentReminderEmail({
   payUrl,
   dueDate,
   stage,
+  payable = true,
 }: {
   brand: EmailBrand;
   companyName: string;
@@ -1732,6 +1739,8 @@ export function paymentReminderEmail({
   payUrl: string;
   dueDate: Date;
   stage: "due" | "overdue_3" | "overdue_7" | "overdue_14";
+  /** False when the company can't take online payments — the button just views. */
+  payable?: boolean;
 }): { subject: string; html: string } {
   const due = dueDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
   const copy = {
@@ -1771,7 +1780,7 @@ export function paymentReminderEmail({
     inner: `
       <p style="margin:0;color:#111827;font-size:15px;">${esc(copy.lead)}</p>
       ${totalsLedger(brand, "Balance due", balance)}
-      ${accentBtn(payUrl, "View &amp; Pay Invoice", brand)}
+      ${accentBtn(payUrl, payable ? "View &amp; Pay Invoice" : "View Invoice", brand)}
       ${companyEmail ? `<p style="margin:20px 0 0;color:#6b7280;font-size:13px;">Already paid or have a question? Reply to this email or reach ${esc(companyName)} at ${esc(companyEmail)}.</p>` : ""}`,
   });
   return { subject: copy.subject, html };

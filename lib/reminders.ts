@@ -15,6 +15,7 @@
  */
 
 import { Prisma } from "@prisma/client";
+import { canChargeOnline } from "@/lib/payments-gate";
 import { prisma } from "@/lib/db";
 import { sendEmail, emailEnabled, paymentReminderEmail, appointmentReminderEmail, quoteFollowUpEmail } from "@/lib/email";
 import { sendSms, smsEnabled, canText, appointmentReminderText } from "@/lib/sms";
@@ -77,6 +78,8 @@ export async function runDueReminders(now: Date = new Date()): Promise<ReminderS
           documentColor: true,
           brandColorSecondary: true,
           logoUrl: true,
+          finixMerchantId: true,
+          finixOnboardingState: true,
         },
       },
     },
@@ -128,6 +131,7 @@ export async function runDueReminders(now: Date = new Date()): Promise<ReminderS
         payUrl: `${baseUrl}/pay/${inv.publicToken}`,
         dueDate: inv.dueDate,
         stage: stage.type,
+        payable: canChargeOnline(inv.company),
       });
       const ok = await sendEmail({
         companyId: inv.companyId,
@@ -192,6 +196,8 @@ export async function runQuoteFollowUps(
           documentColor: true,
           brandColorSecondary: true,
           logoUrl: true,
+          finixMerchantId: true,
+          finixOnboardingState: true,
         },
       },
     },
@@ -303,6 +309,8 @@ export async function runAppointmentReminders(
           documentColor: true,
           brandColorSecondary: true,
           logoUrl: true,
+          finixMerchantId: true,
+          finixOnboardingState: true,
         },
       },
     },
@@ -468,6 +476,8 @@ export async function runVisitReminders(
           documentColor: true,
           brandColorSecondary: true,
           logoUrl: true,
+          finixMerchantId: true,
+          finixOnboardingState: true,
         },
       },
     },

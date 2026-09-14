@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { canChargeOnline } from "@/lib/payments-gate";
 import { prisma } from "@/lib/db";
 import { limit } from "@/lib/rate-limit";
 import { getActor, canSeeMoney, viaContactScope } from "@/lib/permissions";
@@ -53,6 +54,8 @@ export async function POST(
   }
 
   const baseUrl = process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com";
+  // No online payments for this company → the link views, it doesn't pay.
+  const payable = canChargeOnline(invoice.company);
   const { subject, html } = invoiceLinkEmail({
     brand: invoice.company,
     companyName: invoice.company.name,
@@ -60,6 +63,7 @@ export async function POST(
     total: Number(invoice.total),
     payUrl: `${baseUrl}/pay/${invoice.publicToken}`,
     serviceNames: invoice.lineItems.map((li) => li.name || li.description || "Service"),
+    payable,
   });
 
   const emailed = await sendEmail({
@@ -89,6 +93,7 @@ export async function POST(
         invoiceNumber: invoice.invoiceNumber,
         total: Number(invoice.total),
         payUrl: `${baseUrl}/pay/${invoice.publicToken}`,
+        payable,
       }),
     });
   }

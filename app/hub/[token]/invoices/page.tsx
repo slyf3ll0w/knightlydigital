@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ChevronRight, CreditCard } from "lucide-react";
 import { money, shortDate } from "@/lib/statuses";
 import { invoiceBalance } from "@/lib/payments";
+import { canChargeOnline } from "@/lib/payments-gate";
 import EmptyState from "@/components/EmptyState";
 
 export default async function HubInvoicesPage({
@@ -21,11 +22,15 @@ export default async function HubInvoicesPage({
         include: { payments: true },
         orderBy: { createdAt: "desc" },
       },
+      company: { select: { finixMerchantId: true, finixOnboardingState: true } },
     },
   });
   if (!contact) notFound();
 
-  const paymentMethodCard = (
+  // A card on file only means something when the business can charge it —
+  // no online payments (yet), no "save a card" invitation.
+  const online = canChargeOnline(contact.company);
+  const paymentMethodCard = online && (
     <Link
       href={`/hub/${token}/payment-method`}
       className="lift-hover flex items-center gap-3 card-ledger p-4 transition-shadow hover:shadow-md"
@@ -111,7 +116,15 @@ export default async function HubInvoicesPage({
       </h2>
       {contact.invoices.length === 0 ? (
         <div className="card-ledger overflow-hidden">
-          <EmptyState art="invoices" title="No invoices yet" body="Invoices we send you appear here — pay online in a couple of taps." />
+          <EmptyState
+            art="invoices"
+            title="No invoices yet"
+            body={
+              online
+                ? "Invoices we send you appear here — pay online in a couple of taps."
+                : "Invoices we send you appear here."
+            }
+          />
         </div>
       ) : (
         <>
@@ -119,7 +132,7 @@ export default async function HubInvoicesPage({
           {section("Paid", paid)}
         </>
       )}
-      <div className="mt-6">{paymentMethodCard}</div>
+      {paymentMethodCard && <div className="mt-6">{paymentMethodCard}</div>}
     </div>
   );
 }

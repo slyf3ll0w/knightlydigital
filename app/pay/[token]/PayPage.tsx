@@ -268,14 +268,7 @@ export default function PayPage({
     setError("");
     setLoading(true);
 
-    if (!finix) {
-      // Processor not live for this company — the API answers with the
-      // pay-the-business-directly message.
-      await submitPayment();
-      return;
-    }
-
-    if (!formRef.current) {
+    if (!finix || !formRef.current) {
       setLoading(false);
       setError("The payment form is still loading. Please try again in a moment.");
       return;
@@ -459,10 +452,41 @@ export default function PayPage({
             </div>
           )}
 
+          {/* No online payments for this company (not approved to charge, or
+              let in on an invite code with payments held back) — the sheet
+              stays a document: how to settle up, and no pay button at all. */}
+          {!isPaid && !finix && (
+            <div className="mt-8 border-t-2 border-gray-900 pt-5">
+              <h2 className="text-sm font-semibold text-gray-700 mb-2">How to pay</h2>
+              <p className="text-sm leading-relaxed text-gray-600">
+                {invoice.company.name} isn&apos;t taking online payments yet — please settle
+                this invoice with them directly.
+                {(invoice.company.phone || invoice.company.email) && (
+                  <>
+                    {" "}
+                    Reach them at{" "}
+                    {invoice.company.phone && (
+                      <a href={`tel:${invoice.company.phone}`} className="font-medium text-gray-800 underline">
+                        {invoice.company.phone}
+                      </a>
+                    )}
+                    {invoice.company.phone && invoice.company.email && " or "}
+                    {invoice.company.email && (
+                      <a href={`mailto:${invoice.company.email}`} className="font-medium text-gray-800 underline">
+                        {invoice.company.email}
+                      </a>
+                    )}
+                    .
+                  </>
+                )}
+              </p>
+            </div>
+          )}
+
           {/* Payment — the bottom of the same sheet, like the remittance stub
               on a paper invoice. A settled invoice has no stub — the stamp
               says everything. */}
-          {!isPaid && (
+          {!isPaid && finix && (
           <div className="mt-8 border-t-2 border-gray-900 pt-5">
           {/* Amount — full balance by default, or a partial payment */}
           <h2 className="text-sm font-semibold text-gray-700 mb-3">Payment amount</h2>
@@ -555,8 +579,7 @@ export default function PayPage({
             <div className="mb-3 px-4 py-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">{error}</div>
           )}
 
-          {finix ? (
-            <div className="mb-4">
+          <div className="mb-4">
               {/* finix.js renders its hosted card/bank fields into this container */}
               <div ref={containerRef} />
               {!scriptReady && (
@@ -579,20 +602,11 @@ export default function PayPage({
                   </span>
                 </label>
               )}
-            </div>
-          ) : (
-            <div className="p-4 bg-gray-50 border border-dashed border-gray-300 rounded text-center mb-4">
-              <p className="text-xs text-gray-400">
-                Online payments aren&apos;t enabled for this invoice yet.
-                <br />
-                <span className="text-gray-300">Contact {invoice.company.name} to arrange payment.</span>
-              </p>
-            </div>
-          )}
+          </div>
 
           <button
             onClick={handlePay}
-            disabled={loading || !amountValid || (finix != null && (!scriptReady || formHasErrors))}
+            disabled={loading || !amountValid || !scriptReady || formHasErrors}
             className="w-full py-3 font-semibold text-sm rounded transition-opacity hover:opacity-90 flex items-center justify-center gap-2 disabled:opacity-50"
             style={{
               backgroundColor: brandAccent(invoice.company),
@@ -609,8 +623,8 @@ export default function PayPage({
 
           <div className="flex items-center justify-center gap-1 mt-3 text-xs text-gray-400">
             <Lock size={11} />
-            {finix ? "Payments secured by Finix" : "Secure payment"}
-            {finix?.environment === "sandbox" && (
+            Payments secured by Finix
+            {finix.environment === "sandbox" && (
               <span className="ml-1 px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-medium">Test mode</span>
             )}
           </div>

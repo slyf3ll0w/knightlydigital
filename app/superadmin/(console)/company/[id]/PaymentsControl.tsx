@@ -77,7 +77,7 @@ export function PaymentsControl({
       </div>
       <p className="mt-2 text-xs leading-relaxed text-gray-500">
         {paymentsWaived
-          ? "This company skips the underwriting gate — they can use the app without Finix approval (card payments still require approval to actually charge)."
+          ? "This company skips the underwriting gate (invite or universal code, or waived here). Online payments show as Coming soon in their Settings, their pay pages are view-only and invoice emails say View instead of Pay. Require verification to send the owner through the Finix form — once approved, payments switch on."
           : "Companies without Finix approval are held at the activation gate until underwriting approves them."}
       </p>
       <button

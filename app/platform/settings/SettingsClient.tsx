@@ -318,11 +318,14 @@ const TIMEZONES = [
  * Online payments setup (Finix merchant onboarding). Status comes from
  * GET /api/app/settings/payments — which also re-syncs from Finix, so
  * loading this card is what keeps onboarding state fresh. Hidden entirely
- * while the platform processor isn't live (pre-launch).
+ * while the platform processor isn't live (pre-launch). Companies let in on
+ * an invite code see a Coming-soon card instead of the application — online
+ * payments open up for them once we switch them on (superadmin console).
  */
 function PaymentsOnlineCard({ isOwner }: { isOwner: boolean }) {
   const [status, setStatus] = useState<{
     available: boolean;
+    comingSoon?: boolean;
     environment?: "sandbox" | "live";
     started?: boolean;
     state?: string | null;
@@ -374,6 +377,30 @@ function PaymentsOnlineCard({ isOwner }: { isOwner: boolean }) {
 
   // Pre-launch (processor not configured) — say nothing rather than tease
   if (!status || !status.available) return null;
+
+  if (status.comingSoon) {
+    return (
+      <div className="card-ledger p-5 space-y-3">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold text-gray-700">Online Payments</h2>
+            <p className="text-xs text-gray-400 mt-0.5">
+              Let clients pay invoices by card or bank transfer, straight from their pay link
+            </p>
+          </div>
+          <span className="shrink-0 text-[11px] font-semibold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-600">
+            Coming soon
+          </span>
+        </div>
+        <p className="text-sm text-gray-600">
+          Card and bank payments aren&apos;t switched on for your account yet. Your invoices
+          still send with a link the client can view and download, and you record payments
+          you collect directly. We&apos;ll let you know the moment online payments open up
+          for you.
+        </p>
+      </div>
+    );
+  }
 
   const state = status.state ?? null;
   const approved = state === "APPROVED";

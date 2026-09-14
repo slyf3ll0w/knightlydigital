@@ -19,6 +19,7 @@
  */
 
 import { randomBytes } from "crypto";
+import { canChargeOnline } from "@/lib/payments-gate";
 import type { Frequency, Prisma, PrismaClient, RecurringInterval } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { resolveCrew } from "@/lib/job-crew";
@@ -247,6 +248,8 @@ async function settleGeneratedInvoice(opts: {
         documentColor: true,
         brandColorSecondary: true,
         logoUrl: true,
+        finixMerchantId: true,
+        finixOnboardingState: true,
       },
     });
     if (company) {
@@ -257,6 +260,7 @@ async function settleGeneratedInvoice(opts: {
         invoiceNumber: opts.invoiceNumber,
         total: opts.amount,
         payUrl: `${baseUrl}/pay/${opts.publicToken}`,
+        payable: canChargeOnline(company),
         serviceNames: [opts.serviceName],
       });
       await sendEmail({

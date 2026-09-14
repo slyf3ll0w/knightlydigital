@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { canChargeOnline } from "@/lib/payments-gate";
 import { prisma } from "@/lib/db";
 import { autoSendQuoteAgreements } from "@/lib/agreements";
 import { createDepositInvoice, type DepositInvoiceResult } from "@/lib/deposits";
@@ -172,6 +173,7 @@ export async function POST(
       invoiceNumber: deposit.invoice.invoiceNumber,
       total: deposit.amount,
       payUrl: `${baseUrl}/pay/${deposit.invoice.publicToken}`,
+      payable: canChargeOnline(quote.company),
       serviceNames: [`Deposit for Quote #${quote.quoteNumber}`],
     });
     await sendEmail({
