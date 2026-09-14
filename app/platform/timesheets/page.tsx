@@ -84,13 +84,16 @@ export default async function TimesheetsPage({
   return (
     <div className="p-4 lg:p-8 max-w-4xl mx-auto">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-        <div>
-          <PageTitle>Timesheets</PageTitle>
-          <p className="text-sm text-gray-500 mt-0.5">
-            {manager ? "Hours across your team" : "Your hours"} · week of{" "}
-            {weekStart.toLocaleDateString("en-US", { month: "long", day: "numeric" })}
-          </p>
-        </div>
+        <PageTitle
+          sub={
+            <>
+              {manager ? "Team hours" : "Your hours"} · week of{" "}
+              {weekStart.toLocaleDateString("en-US", { month: "long", day: "numeric" })}
+            </>
+          }
+        >
+          Timesheets
+        </PageTitle>
         <div className="flex items-center gap-1">
           <Link
             href={`/app/timesheets?week=${prevWeek}`}

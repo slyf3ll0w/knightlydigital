@@ -274,12 +274,14 @@ export default async function InsightsPage({
 
   return (
     <div className="mx-auto max-w-6xl p-4 lg:p-8">
-      <PageTitle section="business" icon={BarChart3}>
+      <PageTitle
+        section="business"
+        icon={BarChart3}
+        className="mb-3 lg:mb-5"
+        sub="Revenue by source, service, and area."
+      >
         Insights
       </PageTitle>
-      <p className="mb-3 mt-1.5 text-sm text-gray-500 lg:mb-5">
-        Where your revenue comes from — by source, service, and area.
-      </p>
 
       {/* Range picker — a scrolling chip rail on phones (four buttons in one
           flex row used to squeeze into unreadable slivers), the same control

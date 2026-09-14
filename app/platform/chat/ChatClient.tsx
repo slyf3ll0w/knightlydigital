@@ -218,7 +218,13 @@ export default function ChatClient({
       const res = await fetch(`/api/app/chat?channel=${encodeURIComponent(forChannel)}`);
       if (!res.ok) return;
       const data = await res.json();
-      if (Array.isArray(data.channels)) setChannels(data.channels);
+      if (Array.isArray(data.channels)) {
+        setChannels(data.channels);
+        // The server just marked this channel seen — tell the shell the new
+        // unread total so the Chat tab / menu dot clears immediately.
+        const chat = (data.channels as Channel[]).reduce((n, c) => n + (c.unread ?? 0), 0);
+        window.dispatchEvent(new CustomEvent("wb:nav-counts", { detail: { chat } }));
+      }
       if (Array.isArray(data.team)) setRoster(data.team);
       if (Array.isArray(data.messages)) msgCacheRef.current.set(forChannel, data.messages);
       if (activeRef.current !== forChannel) return; // user switched mid-flight

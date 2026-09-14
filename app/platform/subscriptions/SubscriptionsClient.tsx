@@ -296,35 +296,34 @@ export default function SubscriptionsClient({
 
   return (
     <div className="p-4 lg:p-8 max-w-4xl mx-auto">
-      <div className="flex items-center justify-between gap-3 mb-1">
-        <PageTitle>Recurring</PageTitle>
+      <div className="flex items-start justify-between gap-3 mb-6">
+        <PageTitle sub="Auto-charged plans, plus series billed per completed visit.">Recurring</PageTitle>
         {canManage && (
           <div className="flex items-center gap-2">
             {active.length > 0 && (
               <button
                 onClick={runAll}
                 disabled={runningAll}
-                className="flex items-center gap-1.5 px-3 py-2 btn-tool-line bg-white text-sm font-medium text-gray-700 rounded-[10px] hover:bg-gray-50 transition-colors disabled:opacity-50"
+                className="flex shrink-0 items-center gap-1.5 px-3 py-2 btn-tool-line bg-white text-sm font-medium text-gray-700 rounded-[10px] hover:bg-gray-50 transition-colors disabled:opacity-50"
                 title="Generate invoices for any subscriptions that are due now"
+                aria-label="Run due now"
               >
                 {runningAll ? <Loader2 size={14} className="animate-spin" /> : <RotateCw size={14} />}
-                Run due now
+                <span className="hidden sm:inline">Run due now</span>
+                <span className="sm:hidden">Run</span>
               </button>
             )}
             <Link
               href="/app/subscriptions/new"
-              className="flex items-center gap-1.5 px-3 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors"
+              className="flex shrink-0 items-center gap-1.5 px-3 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors"
             >
               <Repeat size={14} />
-              New Series
+              <span className="hidden sm:inline">New Series</span>
+              <span className="sm:hidden">New</span>
             </Link>
           </div>
         )}
       </div>
-      <p className="text-sm text-gray-500 mb-6">
-        Monthly plans that auto-charge, and per-job series billed for completed work.
-      </p>
-
       {error && (
         <div className="mb-4 px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>
       )}
@@ -344,9 +343,9 @@ export default function SubscriptionsClient({
                 <span className="numeral-ledger">{money(readyTotal)}</span>
               </p>
               <p className="text-xs text-gray-500">
-                {readyJobs.length} completed visit{readyJobs.length === 1 ? "" : "s"} across{" "}
-                {readyGroups.length} client{readyGroups.length === 1 ? "" : "s"} — one invoice
-                per series, charged to cards on file automatically.
+                {readyJobs.length} completed visit{readyJobs.length === 1 ? "" : "s"} ·{" "}
+                {readyGroups.length} client{readyGroups.length === 1 ? "" : "s"}. One invoice per
+                series, charged to the card on file.
               </p>
             </div>
             {canManage && (
@@ -384,14 +383,14 @@ export default function SubscriptionsClient({
       {subs.length === 0 ? (
         <div className="card-ledger py-16 text-center">
           <Repeat size={36} className="text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-500 text-sm mb-1">No recurring series yet.</p>
-          <p className="text-gray-400 text-xs">
-            Start one with <span className="font-medium text-gray-500">New Series</span> (a repeating
-            job, billed or not), or mark a service recurring in{" "}
+          <p className="text-gray-700 text-sm font-semibold mb-1.5">No recurring series yet</p>
+          <p className="mx-auto max-w-[30ch] text-[13px] leading-relaxed text-gray-500">
+            Start one with <span className="font-medium text-gray-700">New Series</span>, or mark a
+            service as recurring in{" "}
             <Link href="/app/settings/products" className="text-green-600 hover:underline">
               Products &amp; Services
             </Link>{" "}
-            — selling it starts a subscription automatically.
+            so selling it starts a plan.
           </p>
         </div>
       ) : (

@@ -219,24 +219,31 @@ export default function ExpensesClient({
 
   return (
     <div className="p-4 lg:p-8 max-w-3xl mx-auto">
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-1">
-        <div className="flex items-center gap-3">
-          <Link href="/app/insights" className="text-gray-400 hover:text-gray-600">
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
+        <div className="flex items-start gap-3">
+          <Link href="/app/insights" className="mt-1.5 text-gray-400 hover:text-gray-600">
             <ArrowLeft size={18} />
           </Link>
-          <PageTitle>Expenses</PageTitle>
+          <PageTitle
+            sub={
+              <>
+                {money(total30)} in the last 30 days ·{" "}
+                <span className="whitespace-nowrap">owners and admins only</span>
+              </>
+            }
+          >
+            Expenses
+          </PageTitle>
         </div>
         <button
           onClick={() => setShowAdd((v) => !v)}
-          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors"
+          className="flex shrink-0 items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors"
         >
           <Plus size={15} />
-          Log Expense
+          <span className="hidden sm:inline">Log Expense</span>
+          <span className="sm:hidden">Log</span>
         </button>
       </div>
-      <p className="text-sm text-gray-500 mb-6 ml-8">
-        {money(total30)} spent in the last 30 days · visible to owners and admins only
-      </p>
 
       {error && (
         <div className="mb-4 flex items-center justify-between rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">

@@ -292,8 +292,12 @@ export default function BookingHome({
 
   return (
     <div className="mx-auto max-w-4xl p-4 lg:p-8">
-      <div className="flex items-center justify-between gap-3">
-        <PageTitle section="forms" icon={Globe}>
+      <div className="mb-6 flex items-start justify-between gap-3">
+        <PageTitle
+          section="forms"
+          icon={Globe}
+          sub="Where customers book a time, ask for a quote, or send a message."
+        >
           Booking & forms
         </PageTitle>
         <button onClick={() => setCreating(true)} aria-label="New" className="flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-[10px] btn-tool bg-green-500 px-3 text-sm font-semibold text-white transition-colors hover:bg-green-600 active:bg-green-700 sm:px-4">
@@ -301,7 +305,6 @@ export default function BookingHome({
           <span className="hidden sm:inline">New</span>
         </button>
       </div>
-      <p className="mb-6 mt-2 text-sm text-gray-500">Where customers book a time, ask for a quote or send you a message.</p>
 
       {error && (
         <div className="mb-4 flex items-center justify-between rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">

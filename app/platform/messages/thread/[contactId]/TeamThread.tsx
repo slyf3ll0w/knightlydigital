@@ -55,6 +55,13 @@ export default function TeamThread({
     bottomRef.current?.scrollIntoView({ block: "nearest" });
   }, [messages.length]);
 
+  // The server page marks this thread's inbound messages read as it renders
+  // — recount the nav badges on mount so the Messages dot clears right away
+  // instead of after the next navigation past the shell's throttle.
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("wb:nav-counts"));
+  }, [contactId]);
+
   useEffect(() => {
     let stopped = false;
     const poll = async () => {
@@ -65,6 +72,11 @@ export default function TeamThread({
         if (!res.ok) return;
         const data = (await res.json()) as { messages: ThreadMessage[] };
         if (stopped || !data.messages?.length) return;
+        // Opening the thread marks its inbound messages read server-side —
+        // recount the nav badges so the Messages dot clears right away.
+        if (data.messages.some((m) => m.direction === "INBOUND")) {
+          window.dispatchEvent(new CustomEvent("wb:nav-counts"));
+        }
         setMessages((prev) => {
           const seen = new Set(prev.map((m) => m.id));
           const fresh = data.messages.filter((m) => !seen.has(m.id));

@@ -1613,9 +1613,27 @@ export default function AppShell({
       if (away >= 30_000 && navigator.onLine) load(true);
     };
     document.addEventListener("visibilitychange", onVisibility);
+    // Pages that clear an unread themselves (opening a chat thread, replying
+    // to a client message) announce it here so the dot goes away NOW instead
+    // of after the next navigation past the 45 s throttle. A detail object
+    // patches those counts in place; no detail forces a full recount.
+    const onCounts = (e: Event) => {
+      const detail = (e as CustomEvent<Partial<typeof counts> | undefined>).detail;
+      if (detail && typeof detail === "object") {
+        setCounts((prev) => {
+          const next = { ...prev, ...detail };
+          syncAppBadge(next.requests + next.chat + next.messages);
+          return next;
+        });
+      } else {
+        load(true);
+      }
+    };
+    window.addEventListener("wb:nav-counts", onCounts);
     return () => {
       cancelled = true;
       document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("wb:nav-counts", onCounts);
     };
   }, [pathname, isAuthPage]);
 

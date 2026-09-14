@@ -1429,11 +1429,13 @@ html[data-mode="dark"] .app-ui .card-tool {
 }
 
 /* ── Title rule — a short primary→accent margin rule drawn in under every
-   PageTitle as the page lands: the one place the two brand colors meet. ── */
+   PageTitle as the page lands: the one place the two brand colors meet.
+   Laid out in flow (block + margin) so whatever follows the heading — a
+   subtitle, a count, a stamp — is pushed below it instead of struck
+   through. ── */
 .title-rule {
-  position: absolute;
-  left: 0;
-  bottom: -8px;
+  display: block;
+  margin-top: 7px;
   height: 3px;
   width: 34px;
   border-radius: 2px;

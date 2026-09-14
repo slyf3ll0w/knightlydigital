@@ -112,13 +112,11 @@ export default function SupportClient({
   const isBug = formType === "BUG";
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
+    <div className="max-w-3xl mx-auto space-y-6 p-4 lg:p-8">
       <div>
-        <PageTitle rule={false}>Help &amp; Feedback</PageTitle>
-        <p className="text-sm text-gray-500 mt-1">
-          Spotted something broken, or have an idea that would make WorkBench better? Tell us —
-          every ticket is read by the team.
-        </p>
+        <PageTitle sub="Report a bug or share an idea. The team reads every ticket.">
+          Help &amp; Feedback
+        </PageTitle>
       </div>
 
       {sent && (
@@ -149,7 +147,7 @@ export default function SupportClient({
             </span>
             <p className="mt-3 text-[15px] font-semibold text-gray-900">Report a bug</p>
             <p className="mt-1 text-xs text-gray-500">
-              Something isn&apos;t working right? Describe what happened so we can fix it.
+              Something not working? Tell us what happened so we can fix it.
             </p>
           </button>
           <button
@@ -161,8 +159,8 @@ export default function SupportClient({
             </span>
             <p className="mt-3 text-[15px] font-semibold text-gray-900">Suggest a feature</p>
             <p className="mt-1 text-xs text-gray-500">
-              A new capability or a quality-of-life tweak — approved ideas land on the Upcoming
-              Features board.
+              A new capability or a small tweak. Approved ideas land on the Upcoming Features
+              board.
             </p>
           </button>
         </div>
