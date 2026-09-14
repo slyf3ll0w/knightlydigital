@@ -500,7 +500,7 @@ export default async function DashboardPage() {
                   "radial-gradient(130% 90% at 100% 0%, color-mix(in srgb, currentColor 14%, transparent), transparent 60%)",
               }}
             />
-            <Link href={upNext.href} className="relative block active:opacity-95">
+            <Link prefetch={false} href={upNext.href} className="relative block active:opacity-95">
               <div className="flex items-start justify-between gap-3">
                 <p className="text-[13px] font-medium opacity-80">
                   {upNext === clockedHero
@@ -546,7 +546,7 @@ export default async function DashboardPage() {
           dollars; cents live on the Invoices page. */}
       {seePerformance && (
         <div className="anim-fade-up anim-delay-1 order-3 mb-8 grid grid-cols-3 divide-x divide-gray-200 lg:hidden">
-          <Link href="/app/invoices" className="min-w-0 pr-3">
+          <Link prefetch={false} href="/app/invoices" className="min-w-0 pr-3">
             <p className="numeral-ledger truncate text-[22px] leading-none font-semibold text-gray-900">
               <CountUp value={moneyRound(monthRevenue)} />
             </p>
@@ -554,7 +554,7 @@ export default async function DashboardPage() {
               Collected · {now.toLocaleDateString("en-US", { month: "short" })}
             </p>
           </Link>
-          <Link href="/app/invoices?status=AWAITING_PAYMENT" className="min-w-0 px-3">
+          <Link prefetch={false} href="/app/invoices?status=AWAITING_PAYMENT" className="min-w-0 px-3">
             <p
               className={`numeral-ledger truncate text-[22px] leading-none font-semibold ${
                 receivableTotal > 0 ? "text-red-600" : "text-gray-900"
@@ -564,7 +564,7 @@ export default async function DashboardPage() {
             </p>
             <p className="mt-1 text-[11px] font-medium text-gray-500">Outstanding</p>
           </Link>
-          <Link href="/app/jobs" className="min-w-0 pl-3">
+          <Link prefetch={false} href="/app/jobs" className="min-w-0 pl-3">
             <p className="numeral-ledger truncate text-[22px] leading-none font-semibold text-gray-900">
               <CountUp value={moneyRound(weekRevenue)} />
             </p>
@@ -574,7 +574,7 @@ export default async function DashboardPage() {
       )}
       {seePerformance && (
         <div className="anim-fade-up anim-delay-1 mb-8 hidden gap-3 lg:grid lg:grid-cols-3">
-          <Link
+          <Link prefetch={false}
             href="/app/invoices"
             className="card-ledger block p-4 transition-shadow hover:shadow-md"
           >
@@ -587,7 +587,7 @@ export default async function DashboardPage() {
             <p className="mt-1.5 text-xs text-gray-500">this month</p>
             {dailyRevenue.length > 1 && monthRevenue > 0 && <Sparkline values={dailyRevenue} />}
           </Link>
-          <Link
+          <Link prefetch={false}
             href="/app/invoices?status=AWAITING_PAYMENT"
             className="card-ledger block p-4 transition-shadow hover:shadow-md"
           >
@@ -607,7 +607,7 @@ export default async function DashboardPage() {
               {receivableClients} {receivableClients === 1 ? "client owes" : "clients owe"} you
             </p>
           </Link>
-          <Link
+          <Link prefetch={false}
             href="/app/jobs"
             className="card-ledger col-span-2 block p-4 transition-shadow hover:shadow-md lg:col-span-1"
           >
@@ -671,7 +671,7 @@ export default async function DashboardPage() {
               </div>
             ))}
             <div className="grid grid-cols-2 divide-x divide-gray-50">
-              <Link
+              <Link prefetch={false}
                 href="/app/team-map"
                 className="flex items-center justify-center gap-1.5 px-5 py-2.5 text-xs font-semibold text-green-700 hover:bg-gray-50 transition-colors"
               >
@@ -679,7 +679,7 @@ export default async function DashboardPage() {
                 Team map
                 <ArrowRight size={11} />
               </Link>
-              <Link
+              <Link prefetch={false}
                 href="/app/timesheets"
                 className="flex items-center justify-center gap-1.5 px-5 py-2.5 text-xs font-semibold text-green-700 hover:bg-gray-50 transition-colors"
               >
@@ -706,7 +706,7 @@ export default async function DashboardPage() {
         ) : (
           <div className="card-tool divide-y divide-gray-100 overflow-hidden lg:hidden">
             {needsMobile.map((n) => (
-              <Link
+              <Link prefetch={false}
                 key={n.href}
                 href={n.href}
                 className="flex items-center gap-3 px-4 py-3 transition-colors active:bg-gray-100"
@@ -741,7 +741,7 @@ export default async function DashboardPage() {
         ) : (
           <div className="hidden lg:grid lg:grid-cols-4 gap-3">
             {needs.map((n) => (
-              <Link
+              <Link prefetch={false}
                 key={n.href}
                 href={n.href}
                 className={`card-ledger group p-4 transition-shadow hover:shadow-md ${
@@ -789,7 +789,7 @@ export default async function DashboardPage() {
               </span>
             )}
           </p>
-          <Link
+          <Link prefetch={false}
             href="/app/schedule"
             className="flex items-center gap-1 text-[13px] font-semibold text-green-700"
           >
@@ -800,7 +800,7 @@ export default async function DashboardPage() {
         {todayItems.length === 0 ? (
           <p className="text-sm text-gray-500">
             Nothing scheduled — enjoy the quiet or{" "}
-            <Link href="/app/jobs/new" className="font-semibold text-green-700">
+            <Link prefetch={false} href="/app/jobs/new" className="font-semibold text-green-700">
               book a job
             </Link>
             .
@@ -817,7 +817,7 @@ export default async function DashboardPage() {
               // inside it) so one tap opens the map instead of the stop.
               <SwipeRowContact key={item.id} phone={item.phone}>
                 <div className="flex items-center gap-2">
-                  <Link
+                  <Link prefetch={false}
                     href={item.href}
                     className="flex min-w-0 flex-1 items-center gap-3 py-2.5 transition-opacity active:opacity-70"
                   >
@@ -865,7 +865,7 @@ export default async function DashboardPage() {
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
           <h2 className="font-display font-bold text-gray-900">Today</h2>
-          <Link href="/app/schedule" className="font-display text-sm text-green-600 hover:underline font-semibold">
+          <Link prefetch={false} href="/app/schedule" className="font-display text-sm text-green-600 hover:underline font-semibold">
             Schedule →
           </Link>
         </div>
@@ -888,7 +888,7 @@ export default async function DashboardPage() {
                   ? apptIcons[item.apptType as keyof typeof apptIcons]
                   : null;
                 return (
-                  <Link
+                  <Link prefetch={false}
                     key={item.id}
                     href={item.href}
                     className="flex items-center gap-4 py-3 -mx-2 px-2 rounded-md hover:bg-gray-50 transition-colors"
@@ -925,7 +925,7 @@ export default async function DashboardPage() {
 
       {/* Quiet pointers to the roadmap + feedback — deliberately not in the sidebar */}
       <div className="order-last mt-10 pt-5 border-t border-gray-200 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-center">
-        <Link
+        <Link prefetch={false}
           href="/app/roadmap"
           className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-400 hover:text-green-700 transition-colors"
         >
@@ -933,7 +933,7 @@ export default async function DashboardPage() {
           See what&apos;s coming next — Upcoming Features
           <ArrowRight size={11} />
         </Link>
-        <Link
+        <Link prefetch={false}
           href="/app/support"
           className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-400 hover:text-green-700 transition-colors"
         >
