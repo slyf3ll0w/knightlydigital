@@ -226,7 +226,7 @@ self.addEventListener("message", (event) => {
   if (msg.type === "PREFETCH" && Array.isArray(msg.urls)) {
     event.waitUntil(
       (async () => {
-        for (const u of msg.urls.slice(0, 40)) {
+        for (const u of msg.urls.slice(0, 20)) {
           try {
             const request = new Request(u, { credentials: "same-origin" });
             const target = new URL(request.url);

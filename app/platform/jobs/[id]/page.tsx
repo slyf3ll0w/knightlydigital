@@ -202,7 +202,7 @@ export default async function JobDetailPage({
           <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">{job.title}</h1>
           {canOpenContact ? (
             <Link
-              href={`/app/contacts/${job.contact.id}`}
+              prefetch={false} href={`/app/contacts/${job.contact.id}`}
               className="text-sm text-green-700 hover:underline"
             >
               {job.contact.firstName} {job.contact.lastName}
@@ -293,7 +293,7 @@ export default async function JobDetailPage({
         {job.quote && (
           <div>
             <span className="text-xs font-medium text-gray-500 block">From quote</span>
-            <Link href={`/app/quotes/${job.quote.id}`} className="text-green-700 hover:underline">
+            <Link prefetch={false} href={`/app/quotes/${job.quote.id}`} className="text-green-700 hover:underline">
               Quote #{job.quote.quoteNumber} ({quoteStatusLabel[job.quote.status]})
             </Link>
           </div>
@@ -301,7 +301,7 @@ export default async function JobDetailPage({
         {job.request && (
           <div>
             <span className="text-xs font-medium text-gray-500 block">From request</span>
-            <Link href={`/app/requests/${job.request.id}`} className="text-green-700 hover:underline">
+            <Link prefetch={false} href={`/app/requests/${job.request.id}`} className="text-green-700 hover:underline">
               {job.request.title}
             </Link>
           </div>
@@ -618,7 +618,7 @@ export default async function JobDetailPage({
                     )}
                   </div>
                   {job.invoice ? (
-                    <Link href={`/app/invoices/${job.invoice.id}`} className="block hover:opacity-80">
+                    <Link prefetch={false} href={`/app/invoices/${job.invoice.id}`} className="block hover:opacity-80">
                       <p className="text-sm font-medium text-gray-800">
                         Invoice #{job.invoice.invoiceNumber}
                       </p>
@@ -703,7 +703,7 @@ export default async function JobDetailPage({
                 </>
               );
               return canOpenContact ? (
-                <Link href={`/app/contacts/${job.contact.id}`} className="block hover:opacity-80">
+                <Link prefetch={false} href={`/app/contacts/${job.contact.id}`} className="block hover:opacity-80">
                   {card}
                 </Link>
               ) : (

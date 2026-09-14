@@ -29,7 +29,7 @@ export default async function ContractDetailPage({
     <div className="p-4 lg:p-8 max-w-3xl mx-auto">
       <div className="flex items-center gap-3 mb-4">
         <Link
-          href={`/app/contacts/${contract.contactId}`}
+          prefetch={false} href={`/app/contacts/${contract.contactId}`}
           className="hidden lg:block text-gray-400 hover:text-gray-600"
         >
           <ArrowLeft size={18} />
@@ -41,7 +41,7 @@ export default async function ContractDetailPage({
         <div className="min-w-0">
           <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">{contract.title}</h1>
           <Link
-            href={`/app/contacts/${contract.contactId}`}
+            prefetch={false} href={`/app/contacts/${contract.contactId}`}
             className="text-sm text-green-700 hover:underline"
           >
             {contract.contact.firstName} {contract.contact.lastName}

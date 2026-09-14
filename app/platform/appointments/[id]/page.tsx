@@ -82,7 +82,7 @@ export default async function AppointmentDetailPage({
       {appt.tentative && appt.status === "SCHEDULED" && appt.request && (
         <div className="mb-6 rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-900">
           This time was self-scheduled online and isn&apos;t confirmed yet —{" "}
-          <Link href={`/app/requests/${appt.request.id}`} className="font-semibold underline">
+          <Link prefetch={false} href={`/app/requests/${appt.request.id}`} className="font-semibold underline">
             accept or decline the booking on the request
           </Link>
           .
@@ -96,7 +96,7 @@ export default async function AppointmentDetailPage({
             <TypeIcon size={14} className="text-blue-500" />
             {appointmentTypeLabel[appt.type]}
             <span className="text-gray-300">·</span>
-            <Link href={`/app/contacts/${appt.contact.id}`} className="text-green-700 hover:underline">
+            <Link prefetch={false} href={`/app/contacts/${appt.contact.id}`} className="text-green-700 hover:underline">
               {appt.contact.firstName} {appt.contact.lastName}
             </Link>
           </p>
@@ -182,7 +182,7 @@ export default async function AppointmentDetailPage({
         {appt.request && (
           <div className="pt-2 border-t border-gray-100 text-sm">
             <span className="text-xs font-medium text-gray-500 block mb-0.5">From request</span>
-            <Link href={`/app/requests/${appt.request.id}`} className="text-green-700 hover:underline">
+            <Link prefetch={false} href={`/app/requests/${appt.request.id}`} className="text-green-700 hover:underline">
               {appt.request.title}
             </Link>
             {appt.request.quotes.length > 0 && (
@@ -194,7 +194,7 @@ export default async function AppointmentDetailPage({
                   {appt.request.quotes.map((q) => (
                     <span key={q.id} className="flex items-center gap-1.5">
                       <Link
-                        href={`/app/quotes/${q.id}`}
+                        prefetch={false} href={`/app/quotes/${q.id}`}
                         className="text-green-700 hover:underline"
                       >
                         Quote #{q.quoteNumber}

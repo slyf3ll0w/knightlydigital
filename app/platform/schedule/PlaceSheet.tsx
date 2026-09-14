@@ -401,7 +401,7 @@ export default function PlaceSheet({
             <div className="flex items-baseline justify-between gap-3">
               <h2 className="text-base font-semibold text-gray-900">{heading}</h2>
               {existingJob && (
-                <Link href={`/app/jobs/${existingJob.id}`} className="shrink-0 text-xs font-medium text-green-700 hover:underline">
+                <Link prefetch={false} href={`/app/jobs/${existingJob.id}`} className="shrink-0 text-xs font-medium text-green-700 hover:underline">
                   View job
                 </Link>
               )}

@@ -191,7 +191,7 @@ export default async function JobsPage({
                 return (
                   <Link
                     key={j.id}
-                    href={`/app/jobs/${j.id}`}
+                    prefetch={false} href={`/app/jobs/${j.id}`}
                     className="block lg:grid lg:grid-cols-[1fr_70px_150px_160px_100px_40px] lg:gap-4 lg:items-center px-4 py-3 lg:py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
                   >
                     {/* Phone card: two lines only — glance and go. Address,

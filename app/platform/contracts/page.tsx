@@ -36,7 +36,7 @@ export default async function ContractsPage() {
           {list.map((c) => (
             <Link
               key={c.id}
-              href={`/app/contracts/${c.id}`}
+              prefetch={false} href={`/app/contracts/${c.id}`}
               className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors"
             >
               <Monogram name={`${c.contact.firstName} ${c.contact.lastName}`} size={40} />

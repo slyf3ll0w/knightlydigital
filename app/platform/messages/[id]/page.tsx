@@ -32,7 +32,7 @@ export default async function MessageDetailPage({
     <div className="p-4 lg:p-8 max-w-3xl mx-auto">
       <div className="flex items-center gap-3 mb-4">
         <Link
-          href={`/app/contacts/${message.contact.id}`}
+          prefetch={false} href={`/app/contacts/${message.contact.id}`}
           className="hidden lg:block text-gray-400 hover:text-gray-600"
         >
           <ArrowLeft size={18} />
@@ -46,7 +46,7 @@ export default async function MessageDetailPage({
             {message.subject}
           </h1>
           <Link
-            href={`/app/contacts/${message.contact.id}`}
+            prefetch={false} href={`/app/contacts/${message.contact.id}`}
             className="text-sm text-green-700 hover:underline"
           >
             {message.contact.firstName} {message.contact.lastName}

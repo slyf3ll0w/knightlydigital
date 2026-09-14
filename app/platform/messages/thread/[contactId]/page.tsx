@@ -44,7 +44,7 @@ export default async function MessageThreadPage({
         <Monogram name={name} size={40} />
         <div className="min-w-0 flex-1">
           <Link
-            href={`/app/contacts/${contact.id}`}
+            prefetch={false} href={`/app/contacts/${contact.id}`}
             className="text-base font-semibold text-gray-900 hover:underline truncate block"
           >
             {name}

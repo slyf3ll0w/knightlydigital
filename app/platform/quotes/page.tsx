@@ -194,7 +194,7 @@ export default async function QuotesPage({
               {quotes.map((q) => (
                 <Link
                   key={q.id}
-                  href={`/app/quotes/${q.id}`}
+                  prefetch={false} href={`/app/quotes/${q.id}`}
                   className="block lg:grid lg:grid-cols-[1fr_70px_140px_150px_100px_40px] lg:gap-4 lg:items-center px-4 py-3 lg:py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
                 >
                   {/* Phone row: monogram anchor, name + total, then

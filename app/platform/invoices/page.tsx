@@ -230,7 +230,7 @@ export default async function InvoicesPage({
                 return (
                   <Link
                     key={inv.id}
-                    href={`/app/invoices/${inv.id}`}
+                    prefetch={false} href={`/app/invoices/${inv.id}`}
                     className="block lg:grid lg:grid-cols-[1fr_70px_130px_150px_100px_100px_40px] lg:gap-4 lg:items-center px-4 py-3 lg:py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
                   >
                     {/* Phone row: monogram anchor, name + the amount that

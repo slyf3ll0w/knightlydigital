@@ -162,7 +162,7 @@ export default async function TimesheetsPage({
                           <div className="flex items-baseline justify-between gap-3">
                             {e.job ? (
                               <Link
-                                href={`/app/jobs/${e.job.id}`}
+                                prefetch={false} href={`/app/jobs/${e.job.id}`}
                                 className="min-w-0 flex-1 truncate text-[15.5px] font-semibold text-gray-900 active:text-green-700"
                               >
                                 {e.job.title}
@@ -233,7 +233,7 @@ export default async function TimesheetsPage({
                           <div className="flex-1 min-w-0">
                             {e.job ? (
                               <Link
-                                href={`/app/jobs/${e.job.id}`}
+                                prefetch={false} href={`/app/jobs/${e.job.id}`}
                                 className="text-gray-900 font-medium hover:text-green-700 truncate block"
                               >
                                 {e.job.title}

@@ -139,7 +139,7 @@ export default function JobEditForm({
   return (
     <div className="p-4 lg:p-8 max-w-3xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
-        <Link href={`/app/jobs/${job.id}`} className="hidden lg:block text-gray-400 hover:text-gray-600">
+        <Link prefetch={false} href={`/app/jobs/${job.id}`} className="hidden lg:block text-gray-400 hover:text-gray-600">
           <ArrowLeft size={18} />
         </Link>
         <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">Edit Job</h1>
@@ -273,7 +273,7 @@ export default function JobEditForm({
             Save Changes
           </button>
           <Link
-            href={`/app/jobs/${job.id}`}
+            prefetch={false} href={`/app/jobs/${job.id}`}
             className="px-5 py-2.5 btn-tool-line bg-white text-sm font-medium text-gray-600 rounded-[10px] hover:bg-gray-50 transition-colors"
           >
             Cancel

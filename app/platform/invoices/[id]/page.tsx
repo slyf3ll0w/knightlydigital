@@ -118,7 +118,7 @@ export default async function InvoiceDetailPage({
           </h1>
           {invoice.contact && (
             <Link
-              href={`/app/contacts/${invoice.contact.id}`}
+              prefetch={false} href={`/app/contacts/${invoice.contact.id}`}
               className="text-sm text-green-700 hover:underline"
             >
               {invoice.contact.firstName} {invoice.contact.lastName}
@@ -151,7 +151,7 @@ export default async function InvoiceDetailPage({
       {/* Close-job nudge */}
       {showCloseJobNudge && (
         <Link
-          href={`/app/jobs/${invoice.job!.id}`}
+          prefetch={false} href={`/app/jobs/${invoice.job!.id}`}
           className="flex items-center justify-between px-4 py-3 bg-green-50 border border-green-200 rounded-lg mb-6 hover:bg-green-100 transition-colors"
         >
           <p className="text-sm font-medium text-green-800">
@@ -170,7 +170,7 @@ export default async function InvoiceDetailPage({
         {invoice.job && (
           <div>
             <span className="text-xs font-medium text-gray-500 block">Invoice for</span>
-            <Link href={`/app/jobs/${invoice.job.id}`} className="text-green-700 hover:underline">
+            <Link prefetch={false} href={`/app/jobs/${invoice.job.id}`} className="text-green-700 hover:underline">
               Job #{invoice.job.jobNumber}
             </Link>
           </div>
@@ -178,7 +178,7 @@ export default async function InvoiceDetailPage({
         {sourceQuote && (
           <div>
             <span className="text-xs font-medium text-gray-500 block">From quote</span>
-            <Link href={`/app/quotes/${sourceQuote.id}`} className="text-green-700 hover:underline">
+            <Link prefetch={false} href={`/app/quotes/${sourceQuote.id}`} className="text-green-700 hover:underline">
               Quote #{sourceQuote.quoteNumber}
             </Link>
           </div>

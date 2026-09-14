@@ -28,7 +28,7 @@ import { flushOutbox, outboxCount, subscribeOutbox } from "@/lib/outbox";
  */
 
 const PREFETCH_AT_KEY = "sfh-offline-prefetch-at";
-const PREFETCH_MIN_MS = 15 * 60_000;
+const PREFETCH_MIN_MS = 60 * 60_000;
 
 /** Ask the service worker something over a MessageChannel; null on timeout/no SW. */
 function swMessage<T>(msg: Record<string, unknown>): Promise<T | null> {
@@ -138,11 +138,22 @@ export default function OfflineSupport() {
       }
     };
 
-    // Idle so warming never competes with the page the user is actually on
+    // Warming is a burst of full server renders (up to ~20 pages) riding the
+    // same connection as the page the user is looking at. Hold it until the
+    // open has clearly settled — requestIdleCallback fires within a frame or
+    // two of hydration, long before a phone has finished the real work — and
+    // skip it entirely when the network says it can't spare the bandwidth
+    // (Data Saver, or a 2G/3G-class link). Chrome/Android expose
+    // navigator.connection; iOS doesn't, and undefined means "go ahead".
+    const conn = (navigator as unknown as { connection?: { saveData?: boolean; effectiveType?: string } })
+      .connection;
+    const canSpareBandwidth = () =>
+      !conn?.saveData && !(conn?.effectiveType && /(^|-)2g$|^3g$/.test(conn.effectiveType));
+    const WARM_DELAY_MS = 12_000;
     const idle: (cb: () => void) => void =
       (window as unknown as { requestIdleCallback?: (cb: () => void) => void }).requestIdleCallback ??
       ((cb) => void setTimeout(cb, 3000));
-    idle(() => void warm());
+    const warmTimer = setTimeout(() => idle(() => void (canSpareBandwidth() && warm())), WARM_DELAY_MS);
 
     const onOnline = () => void warm();
     const onVisible = () => {
@@ -151,6 +162,7 @@ export default function OfflineSupport() {
     window.addEventListener("online", onOnline);
     document.addEventListener("visibilitychange", onVisible);
     return () => {
+      clearTimeout(warmTimer);
       window.removeEventListener("online", onOnline);
       document.removeEventListener("visibilitychange", onVisible);
     };

@@ -130,7 +130,7 @@ export default async function RequestDetailPage({
                 {request.appointments.map((a) => (
                   <Link
                     key={a.id}
-                    href={`/app/appointments/${a.id}`}
+                    prefetch={false} href={`/app/appointments/${a.id}`}
                     className="flex items-center justify-between gap-3 text-sm"
                   >
                     <span className="text-green-700 hover:underline truncate">
@@ -168,7 +168,7 @@ export default async function RequestDetailPage({
                 {request.quotes.map((q) => (
                   <Link
                     key={q.id}
-                    href={`/app/quotes/${q.id}`}
+                    prefetch={false} href={`/app/quotes/${q.id}`}
                     className="flex items-center justify-between text-sm text-green-700 hover:underline"
                   >
                     <span>Quote #{q.quoteNumber}</span>
@@ -178,7 +178,7 @@ export default async function RequestDetailPage({
                 {request.jobs.map((j) => (
                   <Link
                     key={j.id}
-                    href={`/app/jobs/${j.id}`}
+                    prefetch={false} href={`/app/jobs/${j.id}`}
                     className="flex items-center justify-between text-sm text-green-700 hover:underline"
                   >
                     <span>Job #{j.jobNumber}</span>
@@ -194,7 +194,7 @@ export default async function RequestDetailPage({
         <div className="space-y-4">
           <div className="card-ledger p-5">
             <Link
-              href={`/app/contacts/${c.id}`}
+              prefetch={false} href={`/app/contacts/${c.id}`}
               className="text-base font-semibold text-green-700 hover:underline"
             >
               {c.firstName} {c.lastName}

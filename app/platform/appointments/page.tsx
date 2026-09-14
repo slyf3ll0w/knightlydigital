@@ -66,7 +66,7 @@ export default async function AppointmentsPage() {
           {list.map((a) => (
             <Link
               key={a.id}
-              href={`/app/appointments/${a.id}`}
+              prefetch={false} href={`/app/appointments/${a.id}`}
               className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors"
             >
               <Monogram name={`${a.contact.firstName} ${a.contact.lastName}`} size={40} />

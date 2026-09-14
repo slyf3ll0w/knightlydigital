@@ -814,7 +814,7 @@ function ActionSheet({
         {/* Quick actions */}
         <div className="grid grid-cols-2 gap-2 mt-4">
           <Link
-            href={`/app/contacts/${card.id}`}
+            prefetch={false} href={`/app/contacts/${card.id}`}
             className="flex items-center justify-center gap-1.5 px-3 py-2.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium text-gray-800"
           >
             <UserRound size={15} />

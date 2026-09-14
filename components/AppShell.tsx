@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import {
@@ -45,13 +46,15 @@ import Avatar from "@/components/Avatar";
 import SwipeBack from "@/components/SwipeBack";
 import PullToRefresh from "@/components/PullToRefresh";
 import ConfirmSheetHost from "@/components/ConfirmSheet";
-import NotificationsSheet from "@/components/NotificationsSheet";
 import { HomeFill, ScheduleFill, ChatFill, MoreFill } from "@/components/TabIcons";
 import { mobileBackFor } from "@/lib/mobile-nav";
 import { AtlasMark } from "@/components/AtlasIcon";
 import Modal from "@/components/Modal";
 import TourGuide from "@/components/TourGuide";
-import AssistantDrawer from "@/components/AssistantDrawer";
+// Code-split: neither is needed to paint a page, and the Atlas drawer alone
+// is a ~900-line client bundle. Loaded on first open (see assistantMounted).
+const NotificationsSheet = dynamic(() => import("@/components/NotificationsSheet"), { ssr: false });
+const AssistantDrawer = dynamic(() => import("@/components/AssistantDrawer"), { ssr: false });
 import type { AtlasAccess, AtlasPricing } from "@/lib/assistant-access";
 import { resolveAccent, shade, textOn } from "@/lib/branding";
 import {
@@ -128,8 +131,12 @@ function tint(hex: string, amount: number): string {
 type NavItem = { href: string; label: string; icon: typeof Home; show?: (role: string) => boolean };
 
 // Nav-count refresh throttle (module-level: survives re-renders, resets on
-// full reload). See the nav-counts effect below.
-const NAV_COUNTS_MIN_GAP_MS = 3000;
+// full reload). See the nav-counts effect below. 45 s: the badges (new
+// requests, past-due invoices, unread chat) drift slowly, so re-counting on
+// every single tab hop was one extra server round trip per page change on a
+// phone for an answer that hadn't changed. The foreground listener below
+// still refreshes them the moment the app comes back after a real absence.
+const NAV_COUNTS_MIN_GAP_MS = 45_000;
 let lastNavCountsAt = 0;
 
 const isManagerRole = (r: string) => r === "OWNER" || r === "ADMIN";
@@ -400,7 +407,7 @@ function CreateMenu({ role, previewMode }: { role: string; previewMode?: boolean
               mobile create sheet, where color is wayfinding across a grid.
               A nine-row desktop list reads by label. */}
           {items.map(({ href, label, icon: Icon }, i) => (
-            <Link
+            <Link prefetch={false}
               key={href}
               href={withCreateContext(href, pathname)}
               onClick={() => setOpen(false)}
@@ -466,7 +473,7 @@ function UserMenu({
             compact
           />
           <div className="my-1 border-t border-gray-100" />
-          <Link
+          <Link prefetch={false}
             href="/app/support"
             onClick={() => setOpen(false)}
             className="flex items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
@@ -648,7 +655,7 @@ function MembershipRows({
         </button>
       ))}
       <div className="my-1 border-t border-gray-100" />
-      <Link
+      <Link prefetch={false}
         href="/app/register"
         onClick={() => {
           hapticImpact("LIGHT");
@@ -667,7 +674,7 @@ function MembershipRows({
         </span>
       </Link>
       <div className="my-1 border-t border-gray-100" />
-      <Link
+      <Link prefetch={false}
         href="/app/settings/profile"
         onClick={() => {
           hapticImpact("LIGHT");
@@ -1565,35 +1572,65 @@ export default function AppShell({
     setNotifsOpen(false);
   }, [pathname]);
 
-  // Nav badges (new requests, past-due invoices) — refreshed on every
-  // navigation so the counts stay honest without polling. Rapid tab-hopping
-  // shouldn't fan out a burst of count queries, so hops inside a short
-  // window reuse the last answer.
+  // Nav badges (new requests, past-due invoices) — refreshed on navigation
+  // and when the app returns to the foreground, throttled so tab-hopping
+  // doesn't fan out a burst of count queries (NAV_COUNTS_MIN_GAP_MS).
   useEffect(() => {
     if (isAuthPage) return;
-    if (Date.now() - lastNavCountsAt < NAV_COUNTS_MIN_GAP_MS) return;
-    lastNavCountsAt = Date.now();
     let cancelled = false;
-    fetch("/api/app/nav-counts")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (d && !cancelled) {
-          setCounts({
-            requests: d.requests ?? 0,
-            pastDue: d.pastDue ?? 0,
-            chat: d.chat ?? 0,
-            leads: d.leads ?? 0,
-            messages: d.messages ?? 0,
-          });
-          // Native shell: mirror the actionable unreads onto the app icon
-          syncAppBadge((d.requests ?? 0) + (d.chat ?? 0) + (d.messages ?? 0));
-        }
-      })
-      .catch(() => {});
+    const load = (force = false) => {
+      if (!force && Date.now() - lastNavCountsAt < NAV_COUNTS_MIN_GAP_MS) return;
+      lastNavCountsAt = Date.now();
+      fetch("/api/app/nav-counts")
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => {
+          if (d && !cancelled) {
+            setCounts({
+              requests: d.requests ?? 0,
+              pastDue: d.pastDue ?? 0,
+              chat: d.chat ?? 0,
+              leads: d.leads ?? 0,
+              messages: d.messages ?? 0,
+            });
+            // Native shell: mirror the actionable unreads onto the app icon
+            syncAppBadge((d.requests ?? 0) + (d.chat ?? 0) + (d.messages ?? 0));
+          }
+        })
+        .catch(() => {});
+    };
+    load();
+    // Back from the pocket: the badges are the first thing a phone user
+    // glances at, so a real absence (not an app-switch flicker) re-counts
+    // regardless of the throttle.
+    let hiddenAt: number | null = null;
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") {
+        hiddenAt = Date.now();
+        return;
+      }
+      const away = hiddenAt == null ? 0 : Date.now() - hiddenAt;
+      hiddenAt = null;
+      if (away >= 30_000 && navigator.onLine) load(true);
+    };
+    document.addEventListener("visibilitychange", onVisibility);
     return () => {
       cancelled = true;
+      document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [pathname, isAuthPage]);
+
+  // The Atlas drawer and the notifications sheet are big client bundles that
+  // most opens never touch — code-split them (next/dynamic) and don't even
+  // mount them until first opened. Once mounted they stay, so close
+  // animations and drawer state survive like before.
+  const [assistantMounted, setAssistantMounted] = useState(false);
+  const [notifsMounted, setNotifsMounted] = useState(false);
+  useEffect(() => {
+    if (assistantOpen) setAssistantMounted(true);
+  }, [assistantOpen]);
+  useEffect(() => {
+    if (notifsOpen) setNotifsMounted(true);
+  }, [notifsOpen]);
 
   function isActive(href: string) {
     if (href === "/app/dashboard") return pathname === href;
@@ -1647,7 +1684,7 @@ export default function AppShell({
     const active = isActive(href);
     const badge = badgeCount(href);
     return (
-      <Link
+      <Link prefetch={false}
         key={href}
         href={href}
         data-tour={tourKeys[href]}
@@ -2009,7 +2046,7 @@ export default function AppShell({
               <span className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-[color:var(--fab-ring)]" />
             )}
           </button>
-          <Link
+          <Link prefetch={false}
             href={manager ? "/app/settings" : "/app/settings/profile"}
             onClick={() => hapticImpact("LIGHT")}
             aria-label={manager ? "Settings" : "My Profile"}
@@ -2053,7 +2090,7 @@ export default function AppShell({
           {/* Team chat — always one click away without spending sidebar space.
               Shown even for solo companies: the chat page nudges them to add
               a teammate, and hiding it entirely read as "chat is gone". */}
-          <Link
+          <Link prefetch={false}
             href="/app/chat"
             className={`hidden lg:flex relative items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
               isActive("/app/chat")
@@ -2093,7 +2130,7 @@ export default function AppShell({
             )}
           </button>
 
-          <Link
+          <Link prefetch={false}
             href={manager ? "/app/settings" : "/app/settings/profile"}
             className="gear-turn hidden lg:flex p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
             title={manager ? "Settings" : "My Profile"}
@@ -2161,13 +2198,15 @@ export default function AppShell({
           would otherwise trap this fixed sheet) */}
       <CompanySwitcherSheet open={companySheetOpen} onClose={() => setCompanySheetOpen(false)} />
 
-      {/* Recent notifications — behind the header bell */}
-      <NotificationsSheet
-        open={notifsOpen}
-        onClose={() => setNotifsOpen(false)}
-        userId={userId}
-        onClearAll={snapshotBell}
-      />
+      {/* Recent notifications — behind the header bell (mounted on first open) */}
+      {notifsMounted && (
+        <NotificationsSheet
+          open={notifsOpen}
+          onClose={() => setNotifsOpen(false)}
+          userId={userId}
+          onClearAll={snapshotBell}
+        />
+      )}
 
       <MobileTabBar
         role={userRole}
@@ -2224,7 +2263,7 @@ export default function AppShell({
           </button>
         </>
       )}
-      {assistantAvailable && (
+      {assistantAvailable && assistantMounted && (
         <AssistantDrawer
           open={assistantOpen}
           onClose={() => setAssistantOpen(false)}
@@ -2349,7 +2388,7 @@ function MobileTabBar({
               const colFromCenter = Math.abs((i % 3) - 1);
               const delay = 60 + rowFromBottom * 60 + colFromCenter * 35;
               return (
-                <Link
+                <Link prefetch={false}
                   key={href}
                   href={href}
                   onClick={() => setSheetOpen(false)}
@@ -2509,7 +2548,7 @@ function MoreSheet({
     // and chips elsewhere on phones hold the one-accent discipline.
     const tint = sectionTints[href];
     return (
-      <Link
+      <Link prefetch={false}
         key={href}
         href={href}
         onClick={() => hapticImpact("LIGHT")}
@@ -2589,7 +2628,7 @@ function MoreSheet({
         <div className="mx-auto mt-2.5 h-1 w-9 shrink-0 rounded-full bg-gray-300" />
         <div className="overflow-y-auto px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-3">
           {/* Profile card */}
-          <Link
+          <Link prefetch={false}
             href="/app/settings/profile"
             onClick={() => hapticImpact("LIGHT")}
             className="card-tool flex items-center gap-3 px-4 py-3.5 active:bg-gray-50 transition-colors"

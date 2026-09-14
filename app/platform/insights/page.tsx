@@ -397,7 +397,7 @@ export default async function InsightsPage({
               <div key={d.contactId ?? "none"} className="flex items-center justify-between gap-3 px-4 py-2.5 lg:px-5">
                 {d.contactId ? (
                   <Link
-                    href={`/app/contacts/${d.contactId}`}
+                    prefetch={false} href={`/app/contacts/${d.contactId}`}
                     className="min-w-0 truncate text-sm text-gray-800 hover:underline"
                   >
                     {d.name}

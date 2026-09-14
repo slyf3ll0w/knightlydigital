@@ -59,6 +59,16 @@ export default withSentryConfig(nextConfig, {
   authToken: process.env.SENTRY_AUTH_TOKEN,
   silent: true,
   disableLogger: true,
+  // The SDK is errors-only (tracesSampleRate 0, no Replay), but its default
+  // build still ships the tracing + replay code paths — ~40% of the app's
+  // first-load JS on a phone. Tree-shake them out.
+  bundleSizeOptimizations: {
+    excludeDebugStatements: true,
+    excludeTracing: true,
+    excludeReplayIframe: true,
+    excludeReplayShadowDom: true,
+    excludeReplayWorker: true,
+  },
   // With a token: upload maps to Sentry, then strip them from the deploy so
   // they're never served publicly. Without one: skip source maps entirely.
   sourcemaps: process.env.SENTRY_AUTH_TOKEN

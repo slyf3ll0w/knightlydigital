@@ -178,7 +178,7 @@ export default async function ContactsPage({
               {contacts.map((c) => (
                 <Link
                   key={c.id}
-                  href={`/app/contacts/${c.id}`}
+                  prefetch={false} href={`/app/contacts/${c.id}`}
                   className="flex lg:grid lg:grid-cols-[1fr_1fr_110px_120px_120px_40px] gap-3 lg:gap-4 items-center px-4 py-3 lg:py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
                 >
                   {/* Monogram anchors the phone row (identity color, not a

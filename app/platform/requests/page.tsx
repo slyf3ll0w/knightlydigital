@@ -177,7 +177,7 @@ export default async function RequestsPage({
             {requests.map((r) => (
               <Link
                 key={r.id}
-                href={`/app/requests/${r.id}`}
+                prefetch={false} href={`/app/requests/${r.id}`}
                 className="block lg:grid lg:grid-cols-[1fr_1fr_140px_130px_40px] lg:gap-4 lg:items-center px-4 py-3 lg:py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
               >
                 {/* Phone row: monogram anchor, the work leads, the client

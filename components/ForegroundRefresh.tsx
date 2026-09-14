@@ -18,7 +18,7 @@ import { useRouter } from "next/navigation";
  * safe to fire mid-anything. Skipped while offline — the RSC fetch would just
  * die, and OfflineSupport owns that experience.
  */
-const STALE_AFTER_MS = 15_000;
+const STALE_AFTER_MS = 3 * 60_000;
 
 export default function ForegroundRefresh() {
   const router = useRouter();

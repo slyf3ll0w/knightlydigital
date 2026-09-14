@@ -87,7 +87,7 @@ export default async function QuoteDetailPage({
             {quote.title || `Quote #${quote.quoteNumber}`}
           </h1>
           <p className="text-sm text-gray-500 mt-0.5">
-            <Link href={`/app/contacts/${quote.contactId}`} className="text-green-700 hover:underline">
+            <Link prefetch={false} href={`/app/contacts/${quote.contactId}`} className="text-green-700 hover:underline">
               {quote.contact.firstName} {quote.contact.lastName}
             </Link>
           </p>
@@ -160,7 +160,7 @@ export default async function QuoteDetailPage({
             </span>
             {depositInvoice ? (
               <Link
-                href={`/app/invoices/${depositInvoice.id}`}
+                prefetch={false} href={`/app/invoices/${depositInvoice.id}`}
                 className={`font-medium hover:underline ${
                   depositInvoice.status === "PAID" ? "text-green-700" : "text-amber-700"
                 }`}
@@ -194,7 +194,7 @@ export default async function QuoteDetailPage({
           <div>
             <span className="text-xs font-medium text-gray-500 block">From request</span>
             <Link
-              href={`/app/requests/${quote.requestId}`}
+              prefetch={false} href={`/app/requests/${quote.requestId}`}
               className="text-green-700 hover:underline"
             >
               {quote.request.title}
@@ -204,7 +204,7 @@ export default async function QuoteDetailPage({
         {quote.job && (
           <div>
             <span className="text-xs font-medium text-gray-500 block">Used for</span>
-            <Link href={`/app/jobs/${quote.jobId}`} className="text-green-700 hover:underline">
+            <Link prefetch={false} href={`/app/jobs/${quote.jobId}`} className="text-green-700 hover:underline">
               Job #{quote.job.jobNumber}
             </Link>
           </div>
@@ -225,7 +225,7 @@ export default async function QuoteDetailPage({
         <div className="px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg mb-6 text-sm text-amber-800">
           <span className="font-semibold">Client requested changes:</span> {quote.changeRequest}
           <span className="block mt-1 text-amber-700">
-            <Link href={`/app/quotes/${quote.id}/edit`} className="font-semibold underline">
+            <Link prefetch={false} href={`/app/quotes/${quote.id}/edit`} className="font-semibold underline">
               Edit the quote
             </Link>{" "}
             and email it to them again — it goes back to Awaiting Response.

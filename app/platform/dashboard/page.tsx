@@ -639,7 +639,7 @@ export default async function DashboardPage() {
                   <p className="text-sm font-semibold text-gray-900 truncate">{e.user.name}</p>
                   {e.job ? (
                     <Link
-                      href={`/app/jobs/${e.job.id}`}
+                      prefetch={false} href={`/app/jobs/${e.job.id}`}
                       className="text-xs text-green-700 hover:underline truncate block"
                     >
                       {e.job.title}

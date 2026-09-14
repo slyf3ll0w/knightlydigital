@@ -326,7 +326,7 @@ export default function QuoteActions({
           mobile, where the action row is already tight after a send */}
       {editable && (
         <Link
-          href={`/app/quotes/${quoteId}/edit`}
+          prefetch={false} href={`/app/quotes/${quoteId}/edit`}
           className="hidden lg:block p-2 btn-tool-line bg-white rounded-[10px] text-gray-600 hover:bg-gray-50 transition-colors"
           title="Edit quote"
         >
@@ -444,7 +444,7 @@ export default function QuoteActions({
             )}
             {editable && (
               <Link
-                href={`/app/quotes/${quoteId}/edit`}
+                prefetch={false} href={`/app/quotes/${quoteId}/edit`}
                 className="flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
               >
                 <Pencil size={14} className="text-gray-400" />

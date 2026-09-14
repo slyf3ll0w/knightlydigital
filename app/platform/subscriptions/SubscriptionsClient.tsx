@@ -364,7 +364,7 @@ export default function SubscriptionsClient({
             {readyGroups.map((g) => (
               <div key={g.contact.id} className="px-4 lg:px-5 py-2.5 flex items-center gap-3 text-sm">
                 <Link
-                  href={`/app/contacts/${g.contact.id}`}
+                  prefetch={false} href={`/app/contacts/${g.contact.id}`}
                   className="min-w-0 flex-1 truncate text-gray-800 hover:underline"
                 >
                   {g.contact.firstName} {g.contact.lastName}
@@ -650,7 +650,7 @@ export default function SubscriptionsClient({
                     </div>
                     <div className="mt-1 flex items-center justify-between gap-3">
                       <p className="min-w-0 flex-1 truncate text-xs text-gray-500">
-                        <Link href={`/app/contacts/${s.contact.id}`} className="hover:underline">
+                        <Link prefetch={false} href={`/app/contacts/${s.contact.id}`} className="hover:underline">
                           {s.contact.firstName} {s.contact.lastName}
                         </Link>
                         {" · "}
@@ -765,7 +765,7 @@ export default function SubscriptionsClient({
                         )}
                       </p>
                       <p className="text-xs text-gray-500">
-                        <Link href={`/app/contacts/${s.contact.id}`} className="hover:underline">
+                        <Link prefetch={false} href={`/app/contacts/${s.contact.id}`} className="hover:underline">
                           {s.contact.firstName} {s.contact.lastName}
                         </Link>
                         {" · "}

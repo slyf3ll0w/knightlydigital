@@ -585,7 +585,7 @@ export default async function PaymentsDashboardPage({
                 {payments.map((p) => (
                   <Link
                     key={p.id}
-                    href={`/app/invoices/${p.invoiceId}`}
+                    prefetch={false} href={`/app/invoices/${p.invoiceId}`}
                     className="flex lg:grid lg:grid-cols-[110px_1fr_90px_130px_110px_56px] gap-4 items-center px-4 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
                   >
                     <span className="text-sm text-gray-500 w-20 lg:w-auto shrink-0">

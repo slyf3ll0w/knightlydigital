@@ -1055,7 +1055,7 @@ export default function RouteMapClient({
                     <li key={j.id} className="flex items-center gap-3 px-4 py-2.5">
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-semibold text-gray-900">
-                          <Link href={`/app/jobs/${j.id}`} className="hover:underline">
+                          <Link prefetch={false} href={`/app/jobs/${j.id}`} className="hover:underline">
                             {j.title}
                           </Link>
                         </p>
