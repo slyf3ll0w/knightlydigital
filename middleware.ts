@@ -258,7 +258,11 @@ export async function middleware(req: NextRequest) {
     path.startsWith("/app/reset-password") ||
     // The confirm link is opened from whatever mail app holds the NEW
     // address — often another device, never carrying the app session.
-    path.startsWith("/app/verify-email");
+    path.startsWith("/app/verify-email") ||
+    // Where Google Calendar's OAuth callback lands when consent ran in the
+    // system browser (the native shell can't load accounts.google.com), so
+    // it arrives with no app session by design.
+    path.startsWith("/app/calendar-connected");
   if (isPublic) return NextResponse.next();
 
   const token = await getToken({ req, secret: process.env.AUTH_SECRET });

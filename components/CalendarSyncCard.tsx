@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { CalendarCheck, Check, Copy, Link2, Loader2, RefreshCw } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { confirmSheet } from "@/components/ConfirmSheet";
+import { getCapacitor } from "@/components/NativeShell";
 
 /**
  * My Profile → "Calendar sync" (docs/plans/google-calendar-sync-2026-09-11.md).
@@ -58,6 +59,32 @@ const CALLBACK_MESSAGES: Record<string, { tone: "ok" | "err"; text: string }> = 
   missing_params: { tone: "err", text: "Google sent us back without a code. Try again." },
 };
 
+/**
+ * Google's consent screen can't load in the native webview — accounts.google.com
+ * is outside capacitor.config.ts's allowNavigation, and outside iOS app-bound
+ * domains. So in the shell we ask the server for the consent URL and hand it to
+ * Capacitor's Browser plugin (already bundled) instead of following a redirect
+ * the webview would refuse. The callback finishes in that browser without the
+ * app session, which is why it authenticates off the signed state.
+ */
+async function startGoogleConnect(): Promise<string | null> {
+  const browser = getCapacitor()?.Plugins?.Browser;
+  if (!browser?.open) {
+    // Web: an ordinary redirect is all this ever needed.
+    window.location.assign("/api/app/integrations/google-calendar/connect");
+    return null;
+  }
+  try {
+    const res = await fetch("/api/app/integrations/google-calendar/connect?mode=url");
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data?.url) return data?.error ?? GENERIC_ERROR;
+    await browser.open({ url: data.url });
+    return null;
+  } catch {
+    return "Couldn't reach Google. Check your connection and try again.";
+  }
+}
+
 export default function CalendarSyncCard() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -97,6 +124,28 @@ export default function CalendarSyncCard() {
     if (msg) setNotice(msg);
     router.replace("/app/settings/profile#calendar-sync", { scroll: false });
   }, [searchParams, router]);
+
+  const connectGoogle = useCallback(async () => {
+    setBusy("google");
+    setNotice(null);
+    const err = await startGoogleConnect();
+    setBusy("");
+    if (err) setNotice({ tone: "err", text: err });
+  }, []);
+
+  // In the shell, consent happens in a browser sheet over the app — the
+  // callback never reloads this page, so pick the connection up on the way back.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible") loadGoogle();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
+  }, [loadGoogle]);
 
   // The first push after connecting runs in the background — poll until it lands
   useEffect(() => {
@@ -313,10 +362,10 @@ export default function CalendarSyncCard() {
               )}
             </div>
             {!google.connected && (
-              <a href="/api/app/integrations/google-calendar/connect" className={btnPrimary}>
-                <CalendarCheck size={13} />
+              <button type="button" onClick={connectGoogle} disabled={busy === "google"} className={btnPrimary}>
+                {busy === "google" ? <Loader2 size={13} className="animate-spin" /> : <CalendarCheck size={13} />}
                 Connect Google Calendar
-              </a>
+              </button>
             )}
           </div>
 
@@ -328,9 +377,14 @@ export default function CalendarSyncCard() {
                   {!google.syncEnabled && (
                     <>
                       {" "}
-                      <a href="/api/app/integrations/google-calendar/connect" className="font-semibold underline underline-offset-2">
+                      <button
+                        type="button"
+                        onClick={connectGoogle}
+                        disabled={busy === "google"}
+                        className="font-semibold underline underline-offset-2 disabled:opacity-50"
+                      >
                         Reconnect
-                      </a>
+                      </button>
                     </>
                   )}
                 </div>
