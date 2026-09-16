@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getActor, jobScope } from "@/lib/permissions";
+import { canSeeMoney, getActor, isManager, jobScope } from "@/lib/permissions";
 import { sendReviewRequest } from "@/lib/payments";
 import { syncJobChecklist, countOpenChecklistItems } from "@/lib/job-checklist";
 import { billCompletedVisit } from "@/lib/subscriptions";
+import { autoCloseAt, formatDuration } from "@/lib/time-entries";
 
 export async function PATCH(
   req: NextRequest,
@@ -23,8 +24,25 @@ export async function PATCH(
     return NextResponse.json({ error: "Invalid status." }, { status: 400 });
   }
 
-  const job = await prisma.job.findFirst({ where: { id, companyId, ...jobScope(actor) } });
+  const job = await prisma.job.findFirst({
+    where: { id, companyId, ...jobScope(actor) },
+    include: { invoice: { select: { id: true } }, subscription: { select: { interval: true, billPerVisit: true } } },
+  });
   if (!job) return NextResponse.json({ error: "Job not found." }, { status: 404 });
+
+  // "Close without invoicing" is a money decision: a job nothing bills for
+  // (no invoice, not covered by a plan's cycle invoice) can only be closed
+  // by someone who sees money. A tech completes it instead — that parks it
+  // in Requires Invoicing where the office still bills it.
+  if (status === "ARCHIVED" && job.status !== "ARCHIVED" && !canSeeMoney(actor)) {
+    const coveredByPlan = Boolean(job.subscription?.interval && !job.subscription.billPerVisit);
+    if (!job.invoice && !coveredByPlan) {
+      return NextResponse.json(
+        { error: "Closing a job without an invoice is up to the office — mark it complete instead." },
+        { status: 403 }
+      );
+    }
+  }
 
   // Close-out gate: an ACTIVE job can't complete or close while its service
   // checklist has tasks that are neither checked off nor given a skip reason.
@@ -73,6 +91,31 @@ export async function PATCH(
   }
 
   await prisma.job.update({ where: { id }, data: { status: effectiveStatus, ...extra } });
+
+  // Finishing the job clocks the tech out of it. Left open, the entry would
+  // run until their NEXT clock-in — sometimes the following morning — and
+  // labor cost would carry a 16-hour "visit". A manager closing the job
+  // clocks out everyone still on it; a tech only closes their own entry.
+  if (job.status === "ACTIVE" && (effectiveStatus === "REQUIRES_INVOICING" || effectiveStatus === "ARCHIVED")) {
+    const closingAt = new Date();
+    const open = await prisma.timeEntry.findMany({
+      where: { jobId: id, endedAt: null, ...(isManager(actor.role) ? {} : { userId: actor.id }) },
+      select: { id: true, userId: true, startedAt: true },
+    });
+    for (const e of open) {
+      const endedAt = autoCloseAt(e.startedAt, closingAt);
+      await prisma.$transaction([
+        prisma.timeEntry.update({ where: { id: e.id }, data: { endedAt } }),
+        prisma.jobNote.create({
+          data: {
+            jobId: id,
+            userId: e.userId,
+            body: `Clocked out — ${formatDuration(endedAt.getTime() - e.startedAt.getTime())} (job ${status === "ARCHIVED" ? "closed" : "completed"}).`,
+          },
+        }),
+      ]);
+    }
+  }
 
   // Per-visit billed series: completing the visit mints (and sends/charges)
   // its invoice, then archives the job. A billing failure never blocks the

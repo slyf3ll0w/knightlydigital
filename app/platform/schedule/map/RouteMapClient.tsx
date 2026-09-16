@@ -133,6 +133,8 @@ type OptimizeResult = {
   totalDriveMinutes: number;
   savedMinutes: number;
   skipped: string[];
+  /** Stops kept at their current time (already started, in progress, or running into tomorrow). */
+  pinned?: string[];
   warnings: string[];
   applied: boolean;
   notified: number;
@@ -1370,7 +1372,7 @@ export default function RouteMapClient({
                     type="checkbox"
                     checked={preview.roundTrip}
                     disabled={previewBusy}
-                    onChange={(e) => runOptimize(preview.userId, undefined, preview.anchorTime, e.target.checked)}
+                    onChange={(e) => runOptimize(preview.userId, preview.stops.map((s) => s.id), preview.anchorTime, e.target.checked)}
                     className="rounded text-green-600 focus:ring-green-500"
                   />
                   End the day back at the start
@@ -1388,6 +1390,9 @@ export default function RouteMapClient({
               )}
               {preview.skipped.length > 0 && (
                 <p className="mb-3 text-xs text-gray-500">Left in place (no map pin): {preview.skipped.join(", ")}</p>
+              )}
+              {(preview.pinned?.length ?? 0) > 0 && (
+                <p className="mb-3 text-xs text-gray-500">Kept at their current time: {preview.pinned!.join(", ")}</p>
               )}
               <ol className="space-y-1.5">
                 {preview.stops.map((s, i) => (

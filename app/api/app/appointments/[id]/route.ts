@@ -98,7 +98,17 @@ export async function PATCH(
   }
   if (body.remindClient !== undefined) data.remindClient = Boolean(body.remindClient);
 
-  if (body.assignedToId !== undefined && isManager(actor.role)) {
+  // Reassigning is a dispatcher's call (managers + USER, same as the job
+  // PATCH). Anyone else sending a DIFFERENT assignee gets told no instead of
+  // a 200 that quietly kept the old tech — the appointment edit form echoes
+  // the current assignee back, so an unchanged value is not a reassignment.
+  if (body.assignedToId !== undefined) {
+    const requested = body.assignedToId ? String(body.assignedToId) : null;
+    if (requested !== appt.assignedToId && !(isManager(actor.role) || actor.role === "USER")) {
+      return NextResponse.json({ error: "Only managers and dispatchers can reassign appointments." }, { status: 403 });
+    }
+  }
+  if (body.assignedToId !== undefined && (isManager(actor.role) || actor.role === "USER")) {
     if (!body.assignedToId) {
       data.assignedToId = null;
     } else {

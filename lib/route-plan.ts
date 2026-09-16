@@ -22,6 +22,7 @@ import type { Actor } from "@/lib/permissions";
 import { appointmentScope, isManager, jobScope } from "@/lib/permissions";
 import { localDayParts, wallTimeToUtc } from "@/lib/booking-engine";
 import { driveMatrix } from "@/lib/routing";
+import { routedChain } from "@/lib/route-walk";
 
 export type RouteStop = {
   id: string;
@@ -104,11 +105,12 @@ export async function resolveDriveLegs(day: RouteDay, companyId: string): Promis
     return key == null ? null : startKeys.indexOf(key);
   };
 
+  // Timed stops only: an "Anytime"/all-day stop has no place in the
+  // sequence, so a leg measured from it would label the wrong gap on the
+  // calendar (and flag a false "tight" one). Find-a-Time skips them too.
   const userIds = new Set(located.flatMap((s) => s.assigneeIds));
   for (const userId of userIds) {
-    const route = located
-      .filter((s) => s.assigneeIds.includes(userId))
-      .sort((a, b) => new Date(a.scheduledAt ?? 0).getTime() - new Date(b.scheduledAt ?? 0).getTime());
+    const route = routedChain(located, userId);
     if (!route.length) continue;
     const legs: Record<string, number> = {};
     const kms: Record<string, number> = {};

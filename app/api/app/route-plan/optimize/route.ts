@@ -12,6 +12,14 @@ import {
   timeToMinutes,
 } from "@/lib/business-hours";
 import { wallTimeToUtc } from "@/lib/booking-engine";
+import {
+  ceilToMinutes,
+  clampedDurationMinutes,
+  dayInterval,
+  runsPastDay,
+  walkDay,
+  type Interval,
+} from "@/lib/route-walk";
 
 /**
  * POST /api/app/route-plan/optimize — order one tech's day by drive time.
@@ -31,7 +39,10 @@ import { wallTimeToUtc } from "@/lib/booking-engine";
  * stops, "Anytime" stops get real times) inside one transaction, clearing
  * client-reminder stamps so moved visits remind at their new times.
  * Tentative (unconfirmed) bookings, phone/video appointments, and time
- * blocks are never moved — overlaps come back as warnings instead.
+ * blocks are never moved — the walk steps over the routed tech's own and
+ * warns about teammates'. Stops that already started today, are on the
+ * clock, or run into the next day are pinned (`pinned` in the response):
+ * they hold their times and the route is laid out around them.
  *
  * Who may run it mirrors the job PATCH: managers + USER for any tech, TECH
  * for their own route only, SALES never.
@@ -65,6 +76,10 @@ export async function POST(req: NextRequest) {
   const tz = tzCompany?.timezone || "America/Chicago";
   const date = parseRouteDate(typeof body.date === "string" ? body.date : null, tz);
   const day = await resolveRouteDay(actor, date);
+  const dayStart = wallTimeToUtc(tz, date.getFullYear(), date.getMonth() + 1, date.getDate(), 0);
+  const dayEnd = wallTimeToUtc(tz, date.getFullYear(), date.getMonth() + 1, date.getDate(), 24 * 60);
+  const now = new Date();
+  const isToday = now.getTime() >= dayStart.getTime() && now.getTime() < dayEnd.getTime();
 
   // Routable: the tech's jobs + their confirmed in-person appointments.
   // Tentative bookings hold their promised slot — they only warn. Phone/video
@@ -77,11 +92,42 @@ export async function POST(req: NextRequest) {
         ? s.status === "ACTIVE"
         : s.status === "SCHEDULED" && !s.tentative && s.address != null)
   );
-  const stops = assigned.filter((s) => s.lat != null && s.lng != null);
+  const mapped = assigned.filter((s) => s.lat != null && s.lng != null);
   const skipped = assigned.filter((s) => s.lat == null).map((s) => s.title);
+
+  // Pinned: on the route's day but not up for re-timing — a visit that has
+  // already started (its time is in the past, or a tech is on the clock
+  // there) and a job that runs into tomorrow (its span isn't one day's
+  // work; re-timing it would drag the rest of the day after it). They hold
+  // their times and the walk steps around them.
+  const openClockJobIds = new Set(
+    (
+      await prisma.timeEntry.findMany({
+        where: { jobId: { in: mapped.filter((s) => s.kind === "job").map((s) => s.id) }, endedAt: null },
+        select: { jobId: true },
+      })
+    ).map((e) => e.jobId!)
+  );
+  const pinReason = (s: (typeof mapped)[number]): string | null => {
+    if (s.kind === "job" && openClockJobIds.has(s.id)) return "in progress";
+    if (isToday && !s.scheduledAnytime && s.scheduledAt && new Date(s.scheduledAt).getTime() < now.getTime())
+      return "already started";
+    if (runsPastDay(s, dayEnd.getTime())) return "runs into the next day";
+    return null;
+  };
+  const pinnedStops = mapped.map((s) => ({ stop: s, reason: pinReason(s) })).filter((p) => p.reason);
+  const pinned = pinnedStops.map((p) => `${p.stop.title} (${p.reason})`);
+  const stops = mapped.filter((s) => !pinnedStops.some((p) => p.stop.id === s.id));
   if (stops.length < 2) {
     return NextResponse.json(
-      { error: "Need at least two mapped stops to build a route.", skipped },
+      {
+        error:
+          pinned.length && mapped.length >= 2
+            ? "Need at least two stops that haven't started yet to build a route."
+            : "Need at least two mapped stops to build a route.",
+        skipped,
+        pinned,
+      },
       { status: 400 }
     );
   }
@@ -167,43 +213,27 @@ export async function POST(req: NextRequest) {
     const startMin = (dayRanges.length ? timeToMinutes(dayRanges[0].start) : null) ?? 8 * 60;
     anchor = wallTimeToUtc(tz, date.getFullYear(), date.getMonth() + 1, date.getDate(), startMin);
   }
+  // Today's route can't start in the past — an 8 AM anchor at 1 PM would
+  // re-time this afternoon's stops into the morning that's already gone
+  if (isToday && anchor.getTime() < now.getTime()) {
+    anchor = new Date(ceilToMinutes(now.getTime(), 5));
+  }
 
-  const durationOf = (s: (typeof current)[number]): number => {
-    if (!s.scheduledAnytime && s.scheduledAt && s.scheduledEnd) {
-      const mins = (new Date(s.scheduledEnd).getTime() - new Date(s.scheduledAt).getTime()) / 60000;
-      if (mins > 0) return mins;
-    }
-    // Appointments default to their 30-minute convention, jobs to an hour
-    return s.kind === "appointment" ? 30 : DEFAULT_JOB_DURATION_MINUTES;
-  };
+  // Appointments default to their 30-minute convention, jobs to an hour;
+  // a span that leaves the day is cut at the day's edge (see route-walk)
+  const fallbackMinutes = (s: { kind: string }) => (s.kind === "appointment" ? 30 : DEFAULT_JOB_DURATION_MINUTES);
+  const durationOf = (s: (typeof current)[number]): number =>
+    clampedDurationMinutes(s, dayStart.getTime(), dayEnd.getTime(), fallbackMinutes(s));
 
-  // Walk the day: the first stop keeps the anchor (the shop→first leg happens
-  // before the day starts), every later stop begins after the previous one
-  // ends plus the rounded drive gap.
-  const matrixIndex = (s: (typeof current)[number]) => current.indexOf(s) + offset;
-  let cursor = anchor.getTime();
-  const proposed = orderedStops.map((s, i) => {
-    const driveMin = i === 0 ? 0 : matrix[matrixIndex(orderedStops[i - 1])][matrixIndex(s)];
-    const startMs = i === 0 ? cursor : cursor + roundGapMinutes(driveMin) * 60000;
-    const endMs = startMs + durationOf(s) * 60000;
-    cursor = endMs;
-    return {
-      ...s,
-      driveMinutesFromPrev: i === 0 ? null : Math.round(driveMin),
-      proposedStart: new Date(startMs).toISOString(),
-      proposedEnd: new Date(endMs).toISOString(),
-    };
-  });
-
-  // Fixed commitments we never move — warn when the proposed route runs over.
-  // Routed in-person appointments are excluded (they move with the route);
-  // what's left is phone/video calls and tentative bookings. Moved stops can
-  // carry CO-ASSIGNEES (a two-tech job), so their commitments are scanned
-  // too — applying tech A's route must not silently bury tech B's day.
+  // Fixed commitments we never move. Routed in-person appointments are
+  // excluded (they move with the route); what's left is phone/video calls,
+  // tentative bookings, blocked time, pinned stops and timed jobs that
+  // aren't on this route. The routed tech's own commitments shape the walk
+  // (stops step around them); teammates' only warn. Moved stops can carry
+  // CO-ASSIGNEES (a two-tech job), so their commitments are scanned too —
+  // applying tech A's route must not silently bury tech B's day.
   const routedIds = new Set(orderedStops.map((s) => s.id));
   const scanUserIds = [...new Set([userId, ...orderedStops.flatMap((s) => s.assigneeIds)])];
-  const dayStart = wallTimeToUtc(tz, date.getFullYear(), date.getMonth() + 1, date.getDate(), 0);
-  const dayEnd = wallTimeToUtc(tz, date.getFullYear(), date.getMonth() + 1, date.getDate(), 24 * 60);
   const [apptsRaw, blocks, otherJobsRaw, scanUsers] = await Promise.all([
     prisma.appointment.findMany({
       where: {
@@ -252,6 +282,43 @@ export async function POST(req: NextRequest) {
   ]);
   const appts = apptsRaw.filter((a) => !routedIds.has(a.id));
   const otherJobs = otherJobsRaw.filter((j) => !routedIds.has(j.id));
+
+  // What the routed tech's day already has nailed down — the walk lays the
+  // route out around these instead of on top of them
+  const clip = (start: Date, end: Date | null, fallbackMin: number): Interval | null =>
+    dayInterval(
+      { scheduledAt: start.toISOString(), scheduledEnd: end?.toISOString() ?? null, scheduledAnytime: false },
+      dayStart.getTime(),
+      dayEnd.getTime(),
+      fallbackMin
+    );
+  const fixed: Interval[] = [
+    ...blocks.filter((b) => b.userId === userId || b.userId == null).map((b) => clip(b.startAt, b.endAt, 60)),
+    ...appts.filter((a) => a.assignedToId === userId).map((a) => clip(a.scheduledAt, a.scheduledEnd, 30)),
+    ...otherJobs
+      .filter((j) => j.scheduledAt && j.assignments.some((x) => x.userId === userId))
+      .map((j) => clip(j.scheduledAt!, j.scheduledEnd, DEFAULT_JOB_DURATION_MINUTES)),
+    ...pinnedStops.map((p) => dayInterval(p.stop, dayStart.getTime(), dayEnd.getTime(), fallbackMinutes(p.stop))),
+  ].filter((x): x is Interval => x != null);
+
+  // Walk the day: the first stop keeps the anchor (the shop→first leg happens
+  // before the day starts), every later stop begins after the previous one
+  // ends plus the rounded drive gap, stepping over fixed commitments.
+  const matrixIndex = (s: (typeof current)[number]) => current.indexOf(s) + offset;
+  const walked = walkDay({
+    anchorMs: anchor.getTime(),
+    stops: orderedStops.map((s) => ({ id: s.id, durationMin: durationOf(s) })),
+    driveMinutes: (prev, i) => matrix[matrixIndex(orderedStops[prev])][matrixIndex(orderedStops[i])],
+    gapMinutes: roundGapMinutes,
+    fixed,
+  });
+  const proposed = orderedStops.map((s, i) => ({
+    ...s,
+    driveMinutesFromPrev: walked[i].driveMin == null ? null : Math.round(walked[i].driveMin!),
+    proposedStart: new Date(walked[i].startMs).toISOString(),
+    proposedEnd: new Date(walked[i].endMs).toISOString(),
+  }));
+
   const fmt = (d: Date) =>
     d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: tz });
   // Name the teammate when the buried commitment isn't the routed tech's own
@@ -399,6 +466,7 @@ export async function POST(req: NextRequest) {
     totalDriveMinutes: Math.round(totalDriveMinutes),
     savedMinutes: Math.max(0, Math.round(currentDriveMinutes - totalDriveMinutes)),
     skipped,
+    pinned,
     warnings: warnings.slice(0, 8),
     applied,
   });
