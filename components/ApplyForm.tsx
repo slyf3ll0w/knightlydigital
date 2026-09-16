@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { CheckCircle2, Loader2, Ticket } from "lucide-react";
 import TurnstileWidget, { type TurnstileHandle } from "@/components/TurnstileWidget";
-import GoogleSignInButton, { OrDivider } from "@/components/GoogleSignInButton";
+import GoogleSignInButton, { OrDivider, useGoogleSignInOffered } from "@/components/GoogleSignInButton";
 import { saveCredential } from "@/lib/save-credential";
 import { browserTimezone } from "@/lib/timezone";
 
@@ -57,9 +57,12 @@ const ENTITY_TYPES = [
  */
 export default function ApplyForm({
   googleEnabled = false,
+  googleNativeClientId = null,
   appearance = "site",
 }: {
   googleEnabled?: boolean;
+  /** Android app only — switches the Google button to the native sheet. */
+  googleNativeClientId?: string | null;
   appearance?: "site" | "app";
 }) {
   const inApp = appearance === "app";
@@ -70,6 +73,9 @@ export default function ApplyForm({
   const attachMode = signedIn && !session?.user?.companyId;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  // Gates the button AND its "or" rule: on the native path the answer only
+  // arrives after mount (older shells ship no plugin).
+  const googleOffered = useGoogleSignInOffered(googleEnabled, googleNativeClientId);
   const [done, setDone] = useState(false);
   const [captchaToken, setCaptchaToken] = useState("");
   const captchaRef = useRef<TurnstileHandle>(null);
@@ -328,9 +334,15 @@ export default function ApplyForm({
 
       {/* Google opens the login first, then comes back here for the business
           details (attachMode). Only shown before there's a session. */}
-      {googleEnabled && !signedIn && (
+      {googleOffered && !signedIn && (
         <div className="mt-6">
-          <GoogleSignInButton enabled callbackUrl={selfUrl} label="Sign up with Google" />
+          <GoogleSignInButton
+            enabled
+            callbackUrl={selfUrl}
+            label="Sign up with Google"
+            nativeClientId={googleNativeClientId}
+            onError={setError}
+          />
           <OrDivider className="mt-5" />
         </div>
       )}

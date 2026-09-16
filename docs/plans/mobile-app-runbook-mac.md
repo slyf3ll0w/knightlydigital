@@ -22,6 +22,12 @@ https://streamflaire.com; nothing is bundled).*
   Android works on Windows with no Android Studio. Older versions of the CLI
   also emitted a root `icons/` folder + `public/manifest.webmanifest`; if
   those reappear, delete them — we use `app/manifest.ts`.
+- **Run `npx cap sync android` before any build.** Ordinary hygiene, but the
+  sign-in plugin makes it load-bearing: its `capacitor:sync:before` hook reads
+  `plugins.SocialLogin.providers` from `capacitor.config.ts` and writes the
+  gradle properties that keep Facebook/Twitter out of the APK. Those
+  properties live inside `node_modules`, so they are NOT committed and a
+  fresh clone that skips sync builds the bloated variant.
 - `native-shell/error.html` — offline retry screen (served via errorPath).
 - `components/NativeShell.tsx` — mounted in the platform layout: status bar
   color, Android back button, notification-tap deep links (`data.url`), and

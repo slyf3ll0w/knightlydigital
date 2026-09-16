@@ -29,6 +29,7 @@ export default function ProfileClient({
   hasPassword,
   identities,
   googleEnabled,
+  googleNativeClientId = null,
 }: {
   userId: string;
   hasAvatar: boolean;
@@ -46,6 +47,8 @@ export default function ProfileClient({
   identities: ConnectedIdentity[];
   /** Google sign-in configured and usable from this browser (not the native shell). */
   googleEnabled: boolean;
+  /** Android app only — connect Google through the plugin, not a redirect. */
+  googleNativeClientId?: string | null;
 }) {
   const router = useRouter();
   const [name, setName] = useState(initialName);
@@ -470,6 +473,7 @@ export default function ProfileClient({
       <Suspense fallback={null}>
         <ConnectedSignInsCard
           googleEnabled={googleEnabled}
+          googleNativeClientId={googleNativeClientId}
           hasPassword={hasPassword}
           initialIdentities={identities}
         />

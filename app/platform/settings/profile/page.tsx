@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { prisma } from "@/lib/db";
 import { requirePageActor, roleLabel } from "@/lib/permissions";
-import { googleSignInAvailableFor } from "@/lib/sign-in-options";
+import { googleNativeClientIdFor, googleSignInAvailableFor } from "@/lib/sign-in-options";
 import ProfileClient from "./ProfileClient";
 
 export const metadata: Metadata = { title: "My Profile" };
@@ -75,6 +75,7 @@ export default async function ProfilePage() {
         lastUsedAt: i.lastUsedAt?.toISOString() ?? null,
       }))}
       googleEnabled={googleSignInAvailableFor(ua)}
+      googleNativeClientId={googleNativeClientIdFor(ua)}
     />
   );
 }

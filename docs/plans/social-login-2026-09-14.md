@@ -31,8 +31,9 @@
   Settings → My Profile → **Connected sign-ins** card (connect /
   disconnect; disconnect refused when it's the only way in) and a
   "no password yet → Forgot password" card replacing Change password.
-- **Native shell**: buttons hide when the user agent is the Capacitor
+- **Native shell**: buttons hid when the user agent was the Capacitor
   shell (`lib/sign-in-options.ts`) — web OAuth can't run in the webview.
+  Android now has its own path instead (below); iOS still hides.
 - `lib/signup.ts` adopts the company-less placeholder row as the OWNER row
   instead of creating a sibling (no orphans; the live session id stays
   valid).
@@ -68,13 +69,42 @@
   Disconnect refused when no password; Forgot password sets one.
 - Native shell (Android app): no Google button on the login page.
 
+## Android native Google (built, ships in versionCode 4)
+
+Google refuses OAuth inside an embedded webview, so the shell never runs the
+redirect. Instead `@capgo/capacitor-social-login` opens the OS Credential
+Manager sheet and returns an OIDC **ID token**, which is the only proof of
+identity on that path — so it is verified before it means anything:
+
+- `lib/google-id-token.ts` — signature against Google’s JWKS, issuer,
+  audience, expiry. Audience is the **web** `GOOGLE_SIGNIN_CLIENT_ID`:
+  Credential Manager is initialized with it as the *server* client id, so the
+  token is addressed to our backend. That is why there is no new env var.
+- `lib/auth-options.ts` — a `google-native` credentials provider (no redirect
+  to run) that verifies, then calls the SAME `resolveSocialSignIn` rules as
+  the web. One rule set, three doors in.
+- `lib/native-google-signin.ts` — reaches the plugin through
+  `window.Capacitor.Plugins`, never an `@capacitor/*` import, so the web
+  bundle is untouched (same pattern as `NativeShell.tsx`).
+- **Connect** from Settings is `POST /api/app/profile/identities`, not a
+  sign-in. A credentials provider would re-mint the JWT and could land the
+  person on a different company than the one they were looking at —
+  connecting a sign-in method must not move you.
+- **Old installs**: versionCode 3 is live with no plugin and loads this same
+  web code. `useGoogleSignInOffered` resolves after mount and hides the whole
+  block — button and "or" rule — when the plugin is missing.
+- **Android only** (`isAndroidShellUserAgent`): both shells share the
+  `StreamflaireHubShell` UA suffix, so the platform comes from the rest of the
+  string. iOS waits for Apple (rule 4.8).
+
+Console setup owed before the release is live: two **Android** OAuth clients
+for `com.streamflaire.hub`, one per signing key — upload
+(`D9:C7:8B:33:AC:C8:FF:32:33:BE:BC:28:55:52:D0:88:63:41:88:11`) and the Play
+app-signing key from Play Console → Setup → App signing. Play re-signs every
+upload, so the second one is what real users present.
+
 ## Next
 
-- **Android**: native Google sign-in via a Capacitor plugin
-  (`@capgo/capacitor-social-login`) → page posts the ID token to a second
-  Credentials-style provider that verifies it and calls
-  `resolveSocialSignIn`. Needs a Play update (SHA-1 of upload + app-signing
-  keys registered as Android OAuth clients).
 - **Apple** (web: no build; iOS: one build, and App Store rule 4.8 means
   Google can't appear in the iOS app until Apple does): Services ID +
   `.p8` key + Team ID; generate the client secret JWT at boot from env so

@@ -7,7 +7,7 @@ import { Loader2, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 import TurnstileWidget, { TurnstileHandle, captchaEnabled } from "@/components/TurnstileWidget";
 import { Input } from "@/components/Input";
-import GoogleSignInButton, { OrDivider } from "@/components/GoogleSignInButton";
+import GoogleSignInButton, { OrDivider, useGoogleSignInOffered } from "@/components/GoogleSignInButton";
 
 // Human-readable copy for the ?error= code NextAuth redirects back with —
 // the password path's codes, then the Google path's (lib/social-login.ts
@@ -32,11 +32,23 @@ function errorMessage(code: string): string {
 // across that reload so a typo'd password only costs the password.
 const EMAIL_KEY = "wb-login-email";
 
-/** The login card — a client form; page.tsx (server) decides `googleEnabled`. */
-export default function LoginForm({ googleEnabled }: { googleEnabled: boolean }) {
+/** The login card — a client form; page.tsx (server) decides the Google props. */
+export default function LoginForm({
+  googleEnabled,
+  googleNativeClientId = null,
+}: {
+  googleEnabled: boolean;
+  /** Android app only — switches the Google button to the native sheet. */
+  googleNativeClientId?: string | null;
+}) {
   const router = useRouter();
   const { data: session, status } = useSession();
   const [showPassword, setShowPassword] = useState(false);
+  // Whether to render the Google block at all. On the native path this
+  // resolves after mount (older shells have no plugin), so it gates the
+  // divider too — a lone "or" rule above the password form would be worse
+  // than no Google at all.
+  const googleOffered = useGoogleSignInOffered(googleEnabled, googleNativeClientId);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [csrfToken, setCsrfToken] = useState("");
@@ -156,9 +168,14 @@ export default function LoginForm({ googleEnabled }: { googleEnabled: boolean })
                 their Google address — new accounts, owner-added teammates,
                 and existing logins alike (lib/social-login.ts). The password
                 form below is untouched: it stays a native POST. */}
-            {googleEnabled && (
+            {googleOffered && (
               <>
-                <GoogleSignInButton enabled callbackUrl="/app/dashboard" />
+                <GoogleSignInButton
+                  enabled
+                  callbackUrl="/app/dashboard"
+                  nativeClientId={googleNativeClientId}
+                  onError={setError}
+                />
                 <OrDivider className="my-5" />
               </>
             )}

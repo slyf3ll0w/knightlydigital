@@ -7,6 +7,7 @@ import { verifyCaptcha } from "@/lib/captcha";
 import { normalizeEmail } from "@/lib/user-email";
 import { eligibleMembershipsFor, findOrAdoptAccountByEmail, pickMembership } from "@/lib/account";
 import { isGoogleSignInConfigured } from "@/lib/sign-in-options";
+import { verifyGoogleIdToken } from "@/lib/google-id-token";
 import { resolveSocialSignIn, type SocialSignInUser } from "@/lib/social-login";
 
 /**
@@ -15,10 +16,12 @@ import { resolveSocialSignIn, type SocialSignInUser } from "@/lib/social-login";
  * the JWT at a sibling row via the "update" trigger below; nothing downstream
  * (loadActor, company scoping) has to know more than one membership exists.
  *
- * Two ways to prove you own an Account: the password (Credentials provider,
- * a native form POST so password managers see it) and a Google sign-in
- * (OAuth redirect; lib/social-login.ts binds the Google subject id to the
- * Account). Both mint the same JWT shape.
+ * Three ways to prove you own an Account: the password (Credentials provider,
+ * a native form POST so password managers see it), a Google sign-in on the
+ * web (OAuth redirect) and a Google sign-in in the Android app (the shell's
+ * plugin hands us an ID token, verified here). All three land in
+ * lib/social-login.ts, which binds the Google subject id to the Account, and
+ * all three mint the same JWT shape.
  */
 
 /** What the OAuth callback knows about the session the visitor already holds. */
@@ -119,6 +122,51 @@ export function buildAuthOptions(ctx: AuthRequestContext | null = null): NextAut
             }),
           ]
         : []),
+      // The Android shell's path. Google refuses OAuth inside an embedded
+      // webview, so the app signs in through the native Credential Manager
+      // (@capgo/capacitor-social-login) and posts the resulting ID token
+      // here. Credentials-shaped because there is no redirect to run — but
+      // the token is verified against Google's JWKS before it means anything,
+      // and then the SAME rules as the web path decide the account.
+      ...(isGoogleSignInConfigured()
+        ? [
+            CredentialsProvider({
+              id: "google-native",
+              name: "Google",
+              credentials: { idToken: { label: "Google ID token" } },
+              async authorize(credentials) {
+                const idToken = credentials?.idToken;
+                if (!idToken) return null;
+
+                // Signature, issuer, audience, expiry. Null = never happened.
+                const claims = await verifyGoogleIdToken(idToken);
+                if (!claims) return null;
+
+                // No linkIntent: connecting an identity to the account you
+                // are already signed into goes through
+                // POST /api/app/profile/identities, which leaves the session
+                // alone. Here a company-less session still passes its account
+                // id, so a social sign-up that comes back through the login
+                // page rejoins its own account (rule 2) instead of forking.
+                const result = await resolveSocialSignIn(
+                  {
+                    provider: "google",
+                    providerAccountId: claims.sub,
+                    email: claims.email,
+                    emailVerified: claims.emailVerified,
+                    name: claims.name,
+                  },
+                  { currentAccountId: ctx?.currentAccountId ?? null, linkIntent: false }
+                );
+
+                // Thrown reasons reach the client as signIn()'s `error`, so
+                // the app shows the same copy as the web ?error= codes.
+                if (!result.ok) throw new Error(result.reason);
+                return result.user satisfies SocialSignInUser;
+              },
+            }),
+          ]
+        : []),
     ],
     session: {
       strategy: "jwt",
@@ -186,7 +234,10 @@ export function buildAuthOptions(ctx: AuthRequestContext | null = null): NextAut
           token.role = (user as { role?: string }).role;
           token.companyId = (user as { companyId?: string | null }).companyId;
           token.companyName = (user as { companyName?: string | null }).companyName ?? null;
-          token.signInMethod = account?.provider === "google" ? "google" : "password";
+          token.signInMethod =
+            account?.provider === "google" || account?.provider === "google-native"
+              ? "google"
+              : "password";
         }
 
         // Company switch: the client calls useSession().update({ switchToUserId })

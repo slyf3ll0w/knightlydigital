@@ -1,34 +1,101 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { signIn } from "next-auth/react";
 import { Loader2 } from "lucide-react";
+import { isNativeGoogleAvailable, nativeGoogleIdToken } from "@/lib/native-google-signin";
 
 /**
- * "Continue with Google" — the web OAuth redirect. Renders nothing unless the
- * page says Google is available (env configured AND not the native shell;
- * lib/sign-in-options.ts), so pages pass that answer in as a prop instead
- * of every form asking the server.
+ * "Continue with Google". Two paths behind one button:
+ *
+ * - **Web** — the OAuth redirect (signIn("google")).
+ * - **Android app** — the native account sheet; the ID token it returns goes
+ *   to the "google-native" provider. A non-null `nativeClientId` is what
+ *   selects this path (lib/sign-in-options.ts decides who gets it).
+ *
+ * Renders nothing unless the page says Google is available (env configured,
+ * and not a surface where it can't run), so pages pass that answer in as a
+ * prop instead of every form asking the server.
  *
  * Google's brand rules for the button: white, thin grey border, the
  * four-color G at the left, "Continue with Google" in a system font.
  */
+
+/**
+ * Whether to render the Google block at all — the button AND the "or" rule
+ * beside it, which is why this is a hook the parent calls rather than
+ * something the button decides on its own.
+ *
+ * On the native path the answer only arrives after mount: it depends on
+ * whether this particular shell build ships the sign-in plugin. Installs
+ * older than that build (versionCode 3 is live on Play without it) load this
+ * same web code, and they must keep seeing the plain password form.
+ */
+export function useGoogleSignInOffered(enabled: boolean, nativeClientId?: string | null): boolean {
+  const [nativeReady, setNativeReady] = useState(false);
+  useEffect(() => {
+    if (enabled && nativeClientId) setNativeReady(isNativeGoogleAvailable());
+  }, [enabled, nativeClientId]);
+  if (!enabled) return false;
+  return nativeClientId ? nativeReady : true;
+}
 export default function GoogleSignInButton({
   enabled,
   callbackUrl,
+  nativeClientId = null,
   label = "Continue with Google",
   className = "",
+  onError,
 }: {
   enabled: boolean;
-  /** Where the OAuth round-trip lands on success. */
+  /** Where the round-trip — web redirect or native sheet — lands on success. */
   callbackUrl: string;
+  /** Set only in the Android shell; switches this button to the plugin. */
+  nativeClientId?: string | null;
   label?: string;
   className?: string;
+  /** Native path only: the web path navigates away to report its errors. */
+  onError?: (message: string) => void;
 }) {
   const [busy, setBusy] = useState(false);
-  if (!enabled) return null;
+  const offered = useGoogleSignInOffered(enabled, nativeClientId);
+  if (!offered) return null;
+
+  async function goNative(clientId: string) {
+    setBusy(true);
+    onError?.("");
+    const token = await nativeGoogleIdToken(clientId);
+    if (!token.ok) {
+      setBusy(false);
+      // Backing out of the account sheet is not a failure to report.
+      if (!token.canceled) onError?.(googleErrorMessage(""));
+      return;
+    }
+
+    // redirect:false so a refused sign-in (the rules in lib/social-login.ts)
+    // comes back as a code we can explain in place, instead of a page bounce
+    // that reads as the app breaking.
+    const res = await signIn("google-native", {
+      idToken: token.idToken,
+      redirect: false,
+    }).catch(() => null);
+
+    if (!res || res.error) {
+      setBusy(false);
+      onError?.(googleErrorMessage(res?.error ?? ""));
+      return;
+    }
+
+    // The session cookie is set now; a hard navigation is what makes every
+    // server component on the way in see it.
+    window.location.assign(callbackUrl);
+  }
 
   function go() {
+    if (nativeClientId) {
+      void goNative(nativeClientId);
+      return;
+    }
     setBusy(true);
     // Full-page redirect to Google; the callback mints the session and lands
     // on callbackUrl. Errors come back to /app/login?error= (lib/auth-options).
@@ -55,6 +122,21 @@ export default function GoogleSignInButton({
       {label}
     </button>
   );
+}
+
+/**
+ * The refusal codes lib/social-login.ts can return, in the words the person
+ * needs. The web path renders these from ?error= on the login page; the
+ * native path has no redirect, so the button shows them in place.
+ */
+export function googleErrorMessage(code: string): string {
+  if (code === "unverified-email")
+    return "That Google account's email address isn't verified, so we can't use it to sign in. Verify it with Google, or log in with your password.";
+  if (code === "no-email")
+    return "Google didn't share an email address for that account. Try another Google account, or log in with your password.";
+  if (code === "staff-only")
+    return "That sign-in isn't available for this account. Log in with your email and password instead.";
+  return "Google sign-in didn't go through — please try again.";
 }
 
 /** The "or" rule between the Google button and the password form. */

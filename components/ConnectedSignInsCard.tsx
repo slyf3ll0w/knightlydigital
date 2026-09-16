@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { Check, Loader2 } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
+import { isNativeGoogleAvailable, nativeGoogleIdToken } from "@/lib/native-google-signin";
 import { confirmSheet } from "@/components/ConfirmSheet";
 
 export type ConnectedIdentity = {
@@ -25,16 +26,25 @@ function linkErrorMessage(code: string): string {
 
 /**
  * Settings → My Profile: which third-party sign-ins open this login.
- * Connect = a normal Google round-trip while signed in (the callback binds
- * the identity to THIS account, lib/auth-options.ts); Disconnect = DELETE,
- * refused server-side when it would leave no way in.
+ *
+ * Connect on the web = a normal Google round-trip while signed in (the
+ * callback binds the identity to THIS account, lib/auth-options.ts). In the
+ * Android app there is no redirect to come back from, so the native sheet
+ * produces an ID token and POSTs it — which also keeps the session exactly
+ * where it is, instead of re-minting it onto whichever company the resolver
+ * would have picked.
+ *
+ * Disconnect = DELETE, refused server-side when it would leave no way in.
  */
 export default function ConnectedSignInsCard({
   googleEnabled,
+  googleNativeClientId = null,
   hasPassword,
   initialIdentities,
 }: {
   googleEnabled: boolean;
+  /** Android app only — connect through the plugin instead of a redirect. */
+  googleNativeClientId?: string | null;
   hasPassword: boolean;
   initialIdentities: ConnectedIdentity[];
 }) {
@@ -44,6 +54,12 @@ export default function ConnectedSignInsCard({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [flash, setFlash] = useState("");
+  // Only true in a shell that actually ships the plugin; versionCode 3 is
+  // live on Play without it and loads this same code.
+  const [nativeReady, setNativeReady] = useState(false);
+  useEffect(() => {
+    if (googleNativeClientId) setNativeReady(isNativeGoogleAvailable());
+  }, [googleNativeClientId]);
 
   // Read the callback's verdict once, then scrub it so a refresh doesn't
   // resurrect a stale message.
@@ -58,9 +74,34 @@ export default function ConnectedSignInsCard({
 
   const google = identities.find((i) => i.provider === "google");
 
-  function connectGoogle() {
+  async function connectGoogle() {
     setBusy(true);
     setError("");
+
+    if (googleNativeClientId && nativeReady) {
+      const token = await nativeGoogleIdToken(googleNativeClientId);
+      if (!token.ok) {
+        setBusy(false);
+        // Backing out of the account sheet is not a failure to report.
+        if (!token.canceled) setError("Couldn't connect Google sign-in — please try again.");
+        return;
+      }
+      const res = await postJson<{ identities: ConnectedIdentity[] }>(
+        "/api/app/profile/identities",
+        {
+          provider: "google",
+          idToken: token.idToken,
+        }
+      );
+      setBusy(false);
+      if (!res.ok) return setError(res.data?.error ?? GENERIC_ERROR);
+      // The route returns the fresh list, so the card updates without a
+      // reload — there was no navigation to piggyback on.
+      if (Array.isArray(res.data?.identities)) setIdentities(res.data.identities);
+      setFlash("Google sign-in connected.");
+      return;
+    }
+
     signIn("google", { callbackUrl: "/app/settings/profile" }).catch(() => setBusy(false));
   }
 
@@ -84,7 +125,10 @@ export default function ConnectedSignInsCard({
     setFlash(`${label} sign-in disconnected.`);
   }
 
-  if (!googleEnabled && identities.length === 0) return null;
+  // In a shell too old for the plugin there is no way to connect, so the
+  // card is only worth showing if something is already connected.
+  const canConnect = googleEnabled && (!googleNativeClientId || nativeReady);
+  if (!canConnect && identities.length === 0) return null;
 
   return (
     <div className="card-ledger p-5 mt-5">
@@ -137,10 +181,10 @@ export default function ConnectedSignInsCard({
           >
             {busy ? <Loader2 size={13} className="animate-spin" /> : "Disconnect"}
           </button>
-        ) : googleEnabled ? (
+        ) : canConnect ? (
           <button
             type="button"
-            onClick={connectGoogle}
+            onClick={() => void connectGoogle()}
             disabled={busy}
             className="px-4 py-2 btn-tool-line bg-white text-sm font-medium text-gray-700 rounded-[10px] hover:bg-gray-50 transition-colors shrink-0 disabled:opacity-50"
           >

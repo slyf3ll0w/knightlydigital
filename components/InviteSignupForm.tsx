@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import TurnstileWidget, { type TurnstileHandle } from "@/components/TurnstileWidget";
-import GoogleSignInButton, { OrDivider } from "@/components/GoogleSignInButton";
+import GoogleSignInButton, { OrDivider, useGoogleSignInOffered } from "@/components/GoogleSignInButton";
 import { saveCredential } from "@/lib/save-credential";
 
 /**
@@ -21,7 +21,14 @@ import { saveCredential } from "@/lib/save-credential";
  * Links arrive as /invite?code=WB-XXXX-XXXX (the console's copy-link and the
  * invite email both point here); the code prefills.
  */
-export default function InviteSignupForm({ googleEnabled = false }: { googleEnabled?: boolean }) {
+export default function InviteSignupForm({
+  googleEnabled = false,
+  googleNativeClientId = null,
+}: {
+  googleEnabled?: boolean;
+  /** Android app only — switches the Google button to the native sheet. */
+  googleNativeClientId?: string | null;
+}) {
   const { data: session, status, update } = useSession();
   const signedIn = status === "authenticated" && Boolean(session?.user?.accountId);
   // Signed in without a company (came back from Google): the login exists,
@@ -29,6 +36,9 @@ export default function InviteSignupForm({ googleEnabled = false }: { googleEnab
   const attachMode = signedIn && !session?.user?.companyId;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  // Gates the button AND its "or" rule: on the native path the answer only
+  // arrives after mount (older shells ship no plugin).
+  const googleOffered = useGoogleSignInOffered(googleEnabled, googleNativeClientId);
   const [done, setDone] = useState(false);
   const [captchaToken, setCaptchaToken] = useState("");
   const captchaRef = useRef<TurnstileHandle>(null);
@@ -178,9 +188,15 @@ export default function InviteSignupForm({ googleEnabled = false }: { googleEnab
         </div>
       )}
 
-      {googleEnabled && !signedIn && (
+      {googleOffered && !signedIn && (
         <div className="mt-6">
-          <GoogleSignInButton enabled callbackUrl={returnUrl} label="Sign up with Google" />
+          <GoogleSignInButton
+            enabled
+            callbackUrl={returnUrl}
+            label="Sign up with Google"
+            nativeClientId={googleNativeClientId}
+            onError={setError}
+          />
           <OrDivider className="mt-5" />
         </div>
       )}

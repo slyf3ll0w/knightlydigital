@@ -46,6 +46,15 @@ const config: CapacitorConfig = {
     PushNotifications: {
       presentationOptions: ['badge', 'sound', 'alert'],
     },
+    // Google sign-in inside the app (lib/native-google-signin.ts). Google
+    // refuses OAuth in an embedded webview, so the shell uses the native
+    // Credential Manager and posts the ID token to the "google-native"
+    // provider. Only Google is compiled in: the other providers would drag
+    // the Facebook and Twitter SDKs into the APK, which is dead weight and a
+    // Play Data-safety declaration we would then owe for nothing.
+    SocialLogin: {
+      providers: { google: true, facebook: false, apple: false, twitter: false },
+    },
     // App-icon badge (lib/badge.ts syncs it to the nav unread counts).
     // persist keeps the count across launches; autoClear off because the
     // count reflects server-side unreads, not "app was opened".

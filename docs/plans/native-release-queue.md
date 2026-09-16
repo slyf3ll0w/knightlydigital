@@ -28,7 +28,8 @@ Does NOT need a build, even though it looks native:
 
 The installed plugins (`android/app/capacitor.build.gradle` is the list):
 app, browser, camera, haptics, keyboard, push-notifications, splash-screen,
-status-bar, biometric-auth, app-shortcuts, badge.
+status-bar, biometric-auth, app-shortcuts, badge, social-login. `npx cap sync
+android` should report **12** for Android.
 
 > Worked example, 2026-09-16. The App Links deep-link fix *looked* native —
 > intent filters, universal links. It needed no build: the intent filter and
@@ -77,17 +78,38 @@ different file: `android/app/src/main/res/values/strings.xml` (`app_name` +
 - The Play Console listing name is separate and already says WorkBench; this
   is only the label under the icon.
 
-**Native Google sign-in.** `lib/sign-in-options.ts` hides the Google button
-whenever the user agent is the shell, because Google refuses OAuth in embedded
-webviews and a hop to the system browser would leave the session cookie in the
-wrong browser. Web Google sign-in is already live (35ac856).
-- Plugin: `@capgo/capacitor-social-login` — *this is a new plugin, hence the
-  build*. The page posts the ID token to a second Credentials-style provider
-  that verifies it and calls `resolveSocialSignIn`.
-- Register the SHA-1 of **both** the upload key and the Play app-signing key
-  as Android OAuth clients, or sign-in fails only in the released build.
-- Full design: `social-login-2026-09-14.md` § Next.
-- Drop the shell check in `googleSignInAvailableFor` in the same release.
+**Native Google sign-in.** Built and in the tree — `@capgo/capacitor-social-login`
+is installed and synced, which is the new plugin that makes this a build.
+Google refuses OAuth in embedded webviews, so the app uses the native
+Credential Manager and posts the resulting ID token to a `google-native`
+credentials provider that verifies it against Google’s JWKS and runs the same
+`resolveSocialSignIn` rules as the web. Web Google sign-in is already live
+(35ac856); the native half is Android-only on purpose.
+
+Code: `lib/native-google-signin.ts` (the plugin bridge), `lib/google-id-token.ts`
+(verification), the provider in `lib/auth-options.ts`, `POST
+/api/app/profile/identities` (connect from Settings without re-minting the
+session), and the client id routing in `lib/sign-in-options.ts`.
+
+**Before the release goes live, in Google Cloud Console** (same project as the
+web sign-in client) — without this the button appears and fails:
+- Credentials → Create OAuth client ID → **Android**, package name
+  `com.streamflaire.hub`, SHA-1 of the **upload key**:
+  `D9:C7:8B:33:AC:C8:FF:32:33:BE:BC:28:55:52:D0:88:63:41:88:11`
+- A **second** Android client with the SHA-1 of the **Play app-signing key**
+  (Play Console → Setup → App signing). Play re-signs every upload, so the
+  installed app presents that fingerprint, not the upload one — miss it and
+  sign-in works in your sideloaded build and fails for every real user.
+- No new env var: the plugin initializes with the existing *web*
+  `GOOGLE_SIGNIN_CLIENT_ID`, which is also the audience the server verifies.
+
+Old installs are safe: versionCode 3 has no plugin and loads this same web
+code, so the button checks the plugin exists before rendering and those users
+keep the password form (`useGoogleSignInOffered`).
+
+iOS deliberately excluded — `isAndroidShellUserAgent` gates it, because App
+Store rule 4.8 needs Sign in with Apple first. Full design:
+`social-login-2026-09-14.md`.
 
 ## App Store — waiting for the next build
 
