@@ -97,11 +97,22 @@ export async function attemptAutoCharge(params: {
   // the retry schedule, their failure leaves ours to fire on the next pass.
   if (!(await acquireChargeLock(params.invoiceId))) return "locked";
   try {
+    // The attempt number keys the processor idempotency id (see
+    // chargeStored): re-running the same attempt after an outage replays
+    // rather than re-charges; a new attempt after a decline gets a fresh id.
+    const attemptRow = await prisma.invoice.findUnique({
+      where: { id: params.invoiceId },
+      select: { autoChargeAttempts: true },
+    });
     const result = await processor.chargeStored({
       customerRef: instrumentRef,
       amount: params.amount,
       description: params.chargeDescription,
-      metadata: { invoiceId: params.invoiceId, subscriptionId: sub.id },
+      metadata: {
+        invoiceId: params.invoiceId,
+        subscriptionId: sub.id,
+        attempt: String((attemptRow?.autoChargeAttempts ?? 0) + 1),
+      },
     });
 
     if (result.success) {

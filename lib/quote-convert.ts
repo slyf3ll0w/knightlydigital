@@ -58,8 +58,27 @@ export type ConvertResult = {
   subscriptionIds: string[];
 };
 
+/** Thrown (inside the transaction, so nothing is written) when the quote was
+ *  already converted by a racing request. */
+export class QuoteAlreadyConvertedError extends Error {
+  constructor() {
+    super("Quote was already converted.");
+    this.name = "QuoteAlreadyConvertedError";
+  }
+}
+
 export async function convertQuoteToJob(tx: Prisma.TransactionClient, quote: ConvertibleQuote, opts: ConvertOptions = {}): Promise<ConvertResult> {
   const companyId = quote.companyId;
+  // Claim the conversion FIRST. The route checks `jobId` on a quote it loaded
+  // before the transaction, so a double-tap on a phone (or two staff) both
+  // passed that check and each minted a Job # — one orphaned on the schedule.
+  // The claim only lands while the quote is unconverted; everything below
+  // rides the same transaction, so a lost claim writes nothing.
+  const claim = await tx.quote.updateMany({
+    where: { id: quote.id, jobId: null, status: { not: "CONVERTED" } },
+    data: { status: "CONVERTED" },
+  });
+  if (claim.count === 0) throw new QuoteAlreadyConvertedError();
   // A one-person company's jobs land on that person (calendar sync, tech
   // visibility); bigger teams assign from the job page after conversion
   const crew = await resolveCrew(tx, companyId, opts.assigneeIds ?? []);

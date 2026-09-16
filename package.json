@@ -6,11 +6,12 @@
     "dev": "next dev",
     "build": "prisma generate && next build",
     "start": "next start",
-    "db:backfill": "node scripts/rename-superadmin-email.mjs && node scripts/backfill-doc-numbers.mjs && node scripts/backfill-saved-cards.mjs && node scripts/backfill-solo-crew.mjs && node scripts/backfill-solo-bookable.mjs && node scripts/backfill-phone-digits.mjs",
+    "db:backfill": "node scripts/rename-superadmin-email.mjs && node scripts/backfill-doc-numbers.mjs && node scripts/backfill-saved-cards.mjs && node scripts/backfill-solo-crew.mjs && node scripts/backfill-solo-bookable.mjs && node scripts/backfill-phone-digits.mjs && node scripts/ensure-deposit-invoice-index.mjs",
     "db:predeploy": "npm run db:push && npm run db:seed && npm run db:backfill",
     "db:push": "prisma db push --accept-data-loss",
     "db:seed": "tsx prisma/seed.ts",
     "db:generate": "prisma generate",
+    "test:unit": "node scripts/run-unit-tests.mjs",
     "e2e": "playwright test",
     "e2e:provision": "tsx e2e/provision.mts"
   },

@@ -320,7 +320,8 @@ export default function QuoteActions({
         !hasJob && (
           <button
             onClick={convertToJob}
-            className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors"
+            disabled={busy}
+            className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors disabled:opacity-60"
           >
             <Briefcase size={13} />
             Convert to Job
@@ -423,7 +424,8 @@ export default function QuoteActions({
             {status === "APPROVED" && !hasJob && (
               <button
                 onClick={convertToJob}
-                className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                disabled={busy}
+                className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-60"
               >
                 <Briefcase size={14} className="text-gray-400" />
                 Convert to Job

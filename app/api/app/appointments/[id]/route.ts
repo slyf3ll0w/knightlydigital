@@ -112,11 +112,19 @@ export async function PATCH(
     if (!body.assignedToId) {
       data.assignedToId = null;
     } else {
+      // Techs can't open appointments at all (pages + this route need
+      // canSell), so one assigned to them would be invisible to the person
+      // meant to show up.
       const target = await prisma.user.findFirst({
-        where: { id: body.assignedToId, companyId: actor.companyId, isActive: true },
+        where: { id: body.assignedToId, companyId: actor.companyId, isActive: true, role: { not: "TECH" } },
         select: { id: true },
       });
-      if (!target) return NextResponse.json({ error: "Team member not found." }, { status: 400 });
+      if (!target) {
+        return NextResponse.json(
+          { error: "Appointments can only be assigned to team members who handle sales (not techs)." },
+          { status: 400 }
+        );
+      }
       data.assignedToId = target.id;
     }
   }

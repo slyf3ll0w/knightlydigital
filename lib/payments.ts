@@ -257,14 +257,22 @@ class FinixProcessor implements PaymentProcessor {
         };
       }
 
+      const cents = finix.toCents(params.amount);
+      // Autopay passes its attempt number: every retry of the SAME attempt
+      // (a processor outage re-books the attempt without burning it) replays
+      // the same idempotency id, so a charge that Finix completed after our
+      // 20 s abort is returned, not repeated. A new attempt (after a real
+      // decline) gets a fresh id, so it never replays that decline. Staff
+      // "charge card" sends no attempt and keeps the minute window.
+      const attempt = params.metadata?.attempt;
+      const idempotencyId = attempt
+        ? `${invoiceId}-stored-${cents}-a${attempt}`
+        : `${invoiceId}-stored-${cents}-${Math.floor(Date.now() / 60000)}`;
       const transfer = await finix.createTransfer({
-        amountCents: finix.toCents(params.amount),
+        amountCents: cents,
         merchantId,
         sourceInstrumentId: params.customerRef,
-        // Minute-windowed like charge(): a double-fire never double-charges,
-        // while a genuine retry (autopay retries run days apart) gets a fresh
-        // id instead of replaying the original decline forever.
-        idempotencyId: `${invoiceId}-stored-${finix.toCents(params.amount)}-${Math.floor(Date.now() / 60000)}`,
+        idempotencyId,
         tags: params.metadata ?? {},
       });
 
@@ -293,15 +301,31 @@ class FinixProcessor implements PaymentProcessor {
       // as an API error). Auth/config/rate-limit/5xx, timeouts (AbortSignal),
       // and network failures never reached a decision — flag them transient
       // so autopay retries without burning an attempt or emailing the client.
-      if (err instanceof finix.FinixError) {
+      if (err instanceof finix.FinixError && !isTransientProcessorStatus(err.status)) {
+        return { success: false, error: err.message, transient: false };
+      }
+      // Transient: the request may still have gone through on Finix's side
+      // (an abort after the transfer was created). Look for a transfer tagged
+      // with this invoice for this amount that we haven't recorded — if it
+      // exists, the money moved and this attempt succeeded.
+      const settled = await findUnrecordedTransferForInvoice(invoiceId, finix.toCents(params.amount)).catch(() => null);
+      if (settled) {
+        const instrument = await finix.getPaymentInstrument(params.customerRef).catch(() => null);
         return {
-          success: false,
-          error: err.message,
-          transient: isTransientProcessorStatus(err.status),
+          success: true,
+          transactionId: settled.id,
+          amount: params.amount,
+          pending: settled.state === "PENDING",
+          cardBrand: instrument?.brand ?? null,
+          cardType: instrument?.card_type ?? null,
         };
       }
       console.error("[payments] finix stored charge failed", err);
-      return { success: false, error: "Auto-charge failed.", transient: true };
+      return {
+        success: false,
+        error: err instanceof finix.FinixError ? err.message : "Auto-charge failed.",
+        transient: true,
+      };
     }
   }
 
@@ -682,6 +706,54 @@ export function refundSplit(
       : Math.min(surcharge, Math.round(surcharge * (remainingAmount / amount) * 100) / 100);
   const refundedSurcharge = Math.round((surcharge - remainingSurcharge) * 100) / 100;
   return { remainingAmount, remainingSurcharge, refundedSurcharge };
+}
+
+/**
+ * A transfer Finix holds for this invoice (tagged `invoiceId`) that no
+ * Payment row records yet — the "did the money move?" check after a charge
+ * call that timed out or blew up. Matched by amount so an earlier, already-
+ * recorded partial payment on the same invoice can never be mistaken for
+ * this one, and limited to the last hour. Reversals and failed/cancelled
+ * transfers never count. Null when Finix isn't live or nothing matches.
+ */
+export async function findUnrecordedTransferForInvoice(
+  invoiceId: string,
+  amountCents: number
+): Promise<finix.FinixTransfer | null> {
+  if (!finix.finixConfigured()) return null;
+  const inv = await prisma.invoice.findUnique({
+    where: { id: invoiceId },
+    select: { company: { select: { finixIdentityId: true, finixMerchantId: true } } },
+  });
+  const company = inv?.company;
+  let identityId = company?.finixIdentityId ?? null;
+  const mid = company?.finixMerchantId ?? null;
+  if (!identityId && mid) {
+    identityId = (await finix.getMerchant(mid).catch(() => null))?.identity ?? null;
+  }
+  if (!identityId) return null;
+
+  const [transfers, recorded] = await Promise.all([
+    finix.listTransfersForIdentity(identityId, 50).catch(() => [] as finix.FinixTransfer[]),
+    prisma.payment.findMany({
+      where: { invoiceId, processorRef: { not: null } },
+      select: { processorRef: true },
+    }),
+  ]);
+  const known = new Set(recorded.map((p) => p.processorRef));
+  const cutoff = Date.now() - 60 * 60 * 1000;
+  return (
+    transfers.find(
+      (t) =>
+        t.tags?.invoiceId === invoiceId &&
+        t.amount === amountCents &&
+        t.state !== "FAILED" &&
+        t.state !== "CANCELED" &&
+        t.type !== "REVERSAL" &&
+        !known.has(t.id) &&
+        (!t.created_at || new Date(t.created_at).getTime() >= cutoff)
+    ) ?? null
+  );
 }
 
 /**
