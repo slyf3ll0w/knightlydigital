@@ -7,10 +7,11 @@ import { CalendarCheck, CircleAlert } from "lucide-react";
  * accounts.google.com in its webview, so consent happens in Safari/Chrome
  * and comes back without the WorkBench session (see the callback route).
  *
- * Public (middleware.ts) for exactly that reason: there is no session here
- * to gate on, and the connection itself was already authorised by the signed
- * state. Nothing on this page reads or writes account data — it only says
- * what happened and sends the user back to the app.
+ * Lives outside /app for two reasons: there is no session here to gate on,
+ * and /app/* URLs are claimed by the mobile shells as App Links, which would
+ * hand this callback to the app and swallow the result. The connection itself
+ * was already authorised by the signed state; nothing on this page reads or
+ * writes account data — it only says what happened and sends the user back.
  */
 
 const OUTCOMES: Record<string, { ok: boolean; title: string; body: string }> = {

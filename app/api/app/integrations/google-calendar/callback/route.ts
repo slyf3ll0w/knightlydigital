@@ -17,7 +17,7 @@ import { pullUserGoogleCalendar } from "@/lib/google-calendar-pull";
  *
  * Signed-in callers land back on My Profile. Callers without a session
  * finished in the system browser, so they get the standalone
- * /app/calendar-connected page telling them to return to the app.
+ * /calendar-connected page telling them to return to the app.
  */
 export const dynamic = "force-dynamic";
 
@@ -25,7 +25,7 @@ function landing(req: NextRequest, signedIn: boolean, gcal: string) {
   // Behind Railway's proxy req.nextUrl.origin is the internal host —
   // NEXTAUTH_URL is the real public origin.
   const base = process.env.NEXTAUTH_URL ?? req.nextUrl.origin;
-  const url = new URL(signedIn ? "/app/settings/profile" : "/app/calendar-connected", base);
+  const url = new URL(signedIn ? "/app/settings/profile" : "/calendar-connected", base);
   url.searchParams.set("gcal", gcal);
   if (signedIn) url.hash = "calendar-sync";
   return NextResponse.redirect(url);

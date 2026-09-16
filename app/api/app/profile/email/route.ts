@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
   });
 
   const base = process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com";
-  const verifyUrl = `${base}/app/verify-email?token=${token}`;
+  const verifyUrl = `${base}/verify-email?token=${token}`;
 
   const verify = emailChangeVerifyEmail({ name: user.name, newEmail, verifyUrl });
   await sendEmail({ to: newEmail, subject: verify.subject, html: verify.html });

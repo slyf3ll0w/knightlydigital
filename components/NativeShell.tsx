@@ -164,6 +164,43 @@ export default function NativeShell() {
       (h) => (tapHandle = h)
     );
 
+    // Deep links — an /app/* URL opened from OUTSIDE the app (an email link,
+    // a shared link) reaches the shell as an App Link / Universal Link, i.e.
+    // as an intent, NOT as a webview navigation. Capacitor stores it and
+    // fires appUrlOpen, but nothing navigates on its own: without this the
+    // shell just loads its configured start URL (/app/dashboard) and the
+    // destination is silently lost. Fires once per launch on a cold start
+    // (retained until this listener attaches) and again on every later link.
+    //
+    // Links meant for someone who is signed OUT never come through here —
+    // password reset and friends live outside /app precisely so the intent
+    // filters cannot claim them. See middleware.ts.
+    let urlOpenHandle: Handle | undefined;
+    listen(
+      CapApp,
+      "appUrlOpen",
+      ({ url: raw }: { url?: string }) => {
+        if (!raw) return;
+        let url: URL;
+        try {
+          url = new URL(raw, window.location.href);
+        } catch {
+          return;
+        }
+        if (!/^https?:$/.test(url.protocol)) return;
+        // Anything the shell does not own (a client-facing page that slipped
+        // through) belongs in the system browser, same rule as link clicks.
+        if (shouldOpenExternally(url)) {
+          Browser?.open?.({ url: url.href }).catch(() => {});
+          return;
+        }
+        const target = url.pathname + url.search + url.hash;
+        const here = window.location.pathname + window.location.search + window.location.hash;
+        if (target !== here) window.location.assign(target);
+      },
+      (h) => (urlOpenHandle = h)
+    );
+
     // Intercept clicks on links that must leave the shell.
     const onClick = (e: MouseEvent) => {
       if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey) return;
@@ -190,6 +227,7 @@ export default function NativeShell() {
     return () => {
       backHandle?.remove();
       tapHandle?.remove();
+      urlOpenHandle?.remove();
       shortcutHandle?.remove();
       kbHandles.forEach((h) => h.remove());
       document.documentElement.classList.remove("kb-open");

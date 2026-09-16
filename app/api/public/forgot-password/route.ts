@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
   // username field — password managers need an identifier to file the new
   // password under. It grants nothing on its own; the token is the credential,
   // and the link only ever lands in this address's own inbox.
-  const resetUrl = `${base}/app/reset-password?token=${token}&email=${encodeURIComponent(user.email)}`;
+  const resetUrl = `${base}/reset-password?token=${token}&email=${encodeURIComponent(user.email)}`;
   const { subject, html } = passwordResetEmail({ name: user.name, resetUrl });
   await sendEmail({ to: user.email, subject, html });
 

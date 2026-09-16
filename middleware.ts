@@ -250,19 +250,33 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
+  // ── Links that must NOT open the mobile app ────────────────────────────────
+  // The shells claim every /app/* URL as an App Link / Universal Link (the
+  // assetlinks + AASA handlers above). A phone with WorkBench installed hands
+  // such a link to the shell, which loads its own start URL (/app/dashboard)
+  // and ignores the path — so a password-reset link opened on that phone just
+  // lands on the login screen and the reset never happens.
+  //
+  // Every link we send to someone who is BY DEFINITION signed out therefore
+  // lives OUTSIDE /app, where the intent filters can't reach it: see
+  // app/(auth)/. These 308s keep already-sent emails working; the senders
+  // point at the new paths directly.
+  const movedOutOfApp: Record<string, string> = {
+    "/app/reset-password": "/reset-password",
+    "/app/verify-email": "/verify-email",
+    "/app/calendar-connected": "/calendar-connected",
+  };
+  if (path in movedOutOfApp) {
+    const to = new URL(movedOutOfApp[path], req.url);
+    to.search = req.nextUrl.search;
+    return NextResponse.redirect(to, 308);
+  }
+
   // Public app routes — no auth needed
   const isPublic =
     path.startsWith("/app/login") ||
     path.startsWith("/app/register") ||
-    path.startsWith("/app/forgot-password") ||
-    path.startsWith("/app/reset-password") ||
-    // The confirm link is opened from whatever mail app holds the NEW
-    // address — often another device, never carrying the app session.
-    path.startsWith("/app/verify-email") ||
-    // Where Google Calendar's OAuth callback lands when consent ran in the
-    // system browser (the native shell can't load accounts.google.com), so
-    // it arrives with no app session by design.
-    path.startsWith("/app/calendar-connected");
+    path.startsWith("/app/forgot-password");
   if (isPublic) return NextResponse.next();
 
   const token = await getToken({ req, secret: process.env.AUTH_SECRET });

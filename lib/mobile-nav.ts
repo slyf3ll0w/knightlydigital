@@ -24,7 +24,6 @@ const STANDALONE = new Set([
   "/app/suspended",
   "/app/activate",
   "/app/forgot-password",
-  "/app/reset-password",
 ]);
 
 /**
