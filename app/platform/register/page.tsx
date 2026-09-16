@@ -137,7 +137,7 @@ export default function RegisterPage() {
                     You&apos;re signed in as{" "}
                     <span className="font-semibold text-gray-700">{session?.user?.email}</span>, with
                     no business on it yet. Have an invite code? Enter it below. Otherwise{" "}
-                    <a href="/apply" className="font-semibold text-[#0B57D8] hover:underline">
+                    <a href="/app/get-started" className="font-semibold text-[#0B57D8] hover:underline">
                       apply for an account
                     </a>{" "}
                     — it takes about two minutes.
@@ -170,7 +170,7 @@ export default function RegisterPage() {
                 />
                 <p className="mt-1.5 text-xs text-gray-400">
                   This page is for invite codes. Don&apos;t have one?{" "}
-                  <Link href="/apply" className="font-semibold text-[#0B57D8] hover:underline">
+                  <Link href="/app/get-started" className="font-semibold text-[#0B57D8] hover:underline">
                     Get started
                   </Link>{" "}
                   — no code needed.

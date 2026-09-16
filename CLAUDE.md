@@ -147,6 +147,24 @@ NextAuth v4 with Credentials provider. JWT sessions.
 - No company → redirected to `/app/register`
 - Middleware in `middleware.ts` protects `/app/*` and `/superadmin/*`
 
+**Ways in (all four end in `lib/signup.ts` `createCompanySignup`):**
+
+| Door | Form | Notes |
+| --- | --- | --- |
+| `/apply` | `components/ApplyForm.tsx` | Marketing site. Full application. |
+| `/app/get-started` | same form, `appearance="app"` | In-app door. **The mobile shell only keeps `/app/*` in the webview**, so every signup link shown inside the app must point here — `/apply` gets ejected to the system browser. |
+| `/invite` | `components/InviteSignupForm.tsx` | Unlisted, code-only, noindex. |
+| `/app/register` | own page | Invite-only; also "New company" for a signed-in account. |
+
+An **invite code** (a minted `WB-XXXX-XXXX`, or the shared tester code
+`UNIVERSAL_INVITE_CODE` — default `Workbench123`) IS the approval: no human
+review (`accessPendingAt` null) and no Finix underwriting
+(`paymentsWaived`), landing on the dashboard instead of `/app/activate`.
+Every door takes one, and an owner already stuck at the gate can redeem one
+there (`POST /api/app/activate/invite`). What a code does NOT grant is
+taking money online — `onlinePaymentsHeld` keeps that off until Finix
+approves them (`lib/payments-gate.ts`).
+
 ## Offline mode (phase 1 — read-only snapshot)
 
 Field techs can view previously loaded pages without a connection; writes are

@@ -255,7 +255,9 @@ export default function LoginForm({ googleEnabled }: { googleEnabled: boolean })
 
         <p className="mt-6 text-center text-sm text-gray-500">
           Don&apos;t have an account?{" "}
-          <Link href="/apply" className="font-semibold text-[#0B57D8] hover:underline">
+          {/* Stays inside the app: /apply is a marketing-site path, and the
+              native shell hands those to the system browser. */}
+          <Link href="/app/get-started" className="font-semibold text-[#0B57D8] hover:underline">
             Get started free
           </Link>
         </p>

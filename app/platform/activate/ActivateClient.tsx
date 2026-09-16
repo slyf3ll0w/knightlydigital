@@ -11,6 +11,7 @@ import {
   Clock,
   Loader2,
   ShieldCheck,
+  Ticket,
   XCircle,
 } from "lucide-react";
 
@@ -42,8 +43,10 @@ export default function ActivateClient({
   email: string;
 }) {
   const router = useRouter();
-  const [busy, setBusy] = useState<"form" | null>(null);
+  const [busy, setBusy] = useState<"form" | "code" | null>(null);
   const [error, setError] = useState("");
+  const [code, setCode] = useState("");
+  const [codeError, setCodeError] = useState("");
 
   async function openForm() {
     setError("");
@@ -62,6 +65,34 @@ export default function ActivateClient({
       window.location.href = data.url;
     } catch {
       setError("Couldn't open the verification form. Please try again.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  // An invite code IS the approval — it waives underwriting at signup. Anyone
+  // who signed up before being given one (or who was pointed at the public
+  // application, which sends everyone here) can redeem it now instead of
+  // asking us to clear them by hand from the superadmin console.
+  async function redeemCode(e: React.FormEvent) {
+    e.preventDefault();
+    setCodeError("");
+    setBusy("code");
+    try {
+      const res = await fetch("/api/app/activate/invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setCodeError(data.error ?? "That invite code isn’t valid.");
+        return;
+      }
+      // The gate reads off the company row — a full load re-runs it.
+      window.location.href = "/app/dashboard";
+    } catch {
+      setCodeError("Couldn’t check that code. Please try again.");
     } finally {
       setBusy(null);
     }
@@ -134,6 +165,39 @@ export default function ActivateClient({
               Your account opens the moment you complete the form; card &amp; bank payments
               switch on when the underwriter approves you, usually within a business day.
             </p>
+            {isOwner && (
+              <form onSubmit={redeemCode} className="mt-7 border-t border-gray-200 pt-6">
+                <label htmlFor="activate-code" className="flex items-center gap-1.5 text-[13.5px] font-semibold text-gray-800">
+                  <Ticket size={14} className="text-gray-400" /> Have an invite code?
+                </label>
+                <p className="mt-1 text-[13px] text-gray-500">
+                  A code from us skips this step — you&apos;ll go straight into
+                  WorkBench, with online card payments switched on later.
+                </p>
+                <div className="mt-2.5 flex gap-2">
+                  <input
+                    id="activate-code"
+                    type="text"
+                    maxLength={40}
+                    value={code}
+                    onChange={(e) => setCode(e.target.value)}
+                    className="min-w-0 flex-1 rounded-lg border border-gray-300 px-3.5 py-2.5 font-mono text-[15px] tracking-wide focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#0B57D8]"
+                    placeholder="Invite code"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
+                  />
+                  <button
+                    type="submit"
+                    disabled={busy !== null || !code.trim()}
+                    className="shrink-0 rounded-lg border border-gray-300 px-4 py-2.5 text-[14px] font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    {busy === "code" ? <Loader2 size={15} className="animate-spin" /> : "Use code"}
+                  </button>
+                </div>
+                {codeError && <p className="mt-2 text-[13px] text-red-600">{codeError}</p>}
+              </form>
+            )}
           </>
         )}
 
@@ -231,8 +295,9 @@ export default function ActivateClient({
 
         {/* The old "Sandbox tools" test-approve shortcut is gone on purpose —
             everyone completes the verification form, sandbox included. The
-            sanctioned tester shortcut is a bypass invite code on /apply, and
-            that only skips the application review, never underwriting. */}
+            sanctioned shortcut is an invite code: at signup (/app/get-started,
+            /apply, /invite) or in the box above, and it waives underwriting
+            outright — online payments are what stay switched off. */}
         {sandbox && status === "pending" && (
           <button
             onClick={() => router.refresh()}

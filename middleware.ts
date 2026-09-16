@@ -29,6 +29,15 @@ const rateLimits: { match: (path: string) => boolean; max: number; windowMs: num
     name: "invite-check",
   },
   {
+    // Redeeming a code against a company already held at the gate. It grants
+    // no more than signing up with the same code would have, but it is a
+    // guessable-secret endpoint, so keep the budget small.
+    match: (p) => p.startsWith("/api/app/activate/invite"),
+    max: 10,
+    windowMs: 60 * 60_000,
+    name: "invite-redeem",
+  },
+  {
     // Superadmin sign-in: code issue + session mint both do a bcrypt compare
     // (and may send an email) — keep them as tight as the login bucket.
     // POST-only so signing OUT (DELETE /session) never burns login attempts.
@@ -276,6 +285,7 @@ export async function middleware(req: NextRequest) {
   const isPublic =
     path.startsWith("/app/login") ||
     path.startsWith("/app/register") ||
+    path.startsWith("/app/get-started") ||
     path.startsWith("/app/forgot-password");
   if (isPublic) return NextResponse.next();
 
@@ -316,6 +326,7 @@ export const config = {
     "/api/auth/callback/credentials",
     "/api/app/register",
     "/api/app/invite-check",
+    "/api/app/activate/invite",
     "/api/app/profile/email",
     "/api/superadmin/login-code",
     "/api/superadmin/session",
