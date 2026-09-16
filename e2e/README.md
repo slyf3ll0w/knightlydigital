@@ -13,6 +13,15 @@ cookie (Turnstile blocks scripted logins by design). Contacts created during a
 run are force-deleted afterwards; nothing emails a real person (test contacts
 have no email address).
 
+## Where it runs
+
+- **CI (the normal path):** `.github/workflows/e2e-staging.yml` runs this
+  suite against the **staging** Railway environment on every push to the
+  `staging` branch, after waiting for that commit to be live. Secrets come
+  from GitHub Actions (`scripts/set-ci-secrets.sh` fills them from Railway).
+- **Locally:** the setup below, against staging (`E2E_BASE_URL=https://streamflaire-staging.up.railway.app`)
+  or production (which also runs sandbox Finix today).
+
 ## One-time setup
 
 1. Create `e2e/.env.e2e` (gitignored) with values from the Railway dashboard

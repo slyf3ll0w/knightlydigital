@@ -572,6 +572,31 @@ against the deployed app (see `e2e/README.md`) and is the post-deploy check.
 
 Railway detects Next.js automatically and runs `next start`. GitHub remote: `https://github.com/slyf3ll0w/knightlydigital`
 
+**Two Railway environments, two branches (set up 2026-09-16):**
+
+| Branch | Railway env | URL | Database |
+| --- | --- | --- | --- |
+| `staging` | staging | https://streamflaire-staging.up.railway.app | its own Postgres (empty at birth; `db:predeploy` builds the schema) |
+| `main` | production | https://workbenchfsm.com | production |
+
+Both run Finix in **sandbox** mode. Staging has its own `AUTH_SECRET`,
+`CRON_SECRET` and `SUPERADMIN_PASSWORD` (rotated at creation), its own hourly
+cron service pointed at the staging URL, and otherwise a copy of production's
+variables (Resend, Telnyx, Mapbox, R2, Sentry — so real emails send from
+staging; keep tester traffic there, not on prod).
+
+**The release flow:** push to `staging` first. GitHub Actions runs `CI`
+(tsc, `npm run test:unit`, `next build`) on every push, and `E2E (staging)`
+waits for that commit to be live on staging (`/api/health` reports
+`commit`), provisions the two e2e tenants, and runs the Playwright suite
+against it. Green → fast-forward `main` (`git push origin staging:main`) and
+production deploys. Secrets the e2e job needs live in GitHub Actions secrets;
+`scripts/set-ci-secrets.sh` copies them from Railway without printing them
+(re-run when a staging secret rotates). Known staging gaps: the Turnstile
+site key must have the staging hostname added in Cloudflare before public
+forms render the captcha there; Google OAuth redirect URIs don't include
+staging (Calendar connect won't complete there).
+
 **Mobile**: the shell is thin — the webview loads the live site, so a Railway
 deploy updates the apps too, `components/NativeShell.tsx` included. Only the
 native project (`android/**`, `ios/**`, `capacitor.config.ts`, or adding a

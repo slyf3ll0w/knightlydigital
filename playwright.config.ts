@@ -20,8 +20,9 @@ export default defineConfig({
   use: {
     baseURL: process.env.E2E_BASE_URL ?? "https://workbenchfsm.com",
     // Microsoft Edge (preinstalled + signed): Windows Application Control on
-    // this machine blocks Playwright's downloaded Chromium builds.
-    channel: "msedge",
+    // David's machine blocks Playwright's downloaded Chromium builds. CI
+    // (Linux) uses the Chromium Playwright installs.
+    ...(process.env.CI ? {} : { channel: "msedge" }),
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },

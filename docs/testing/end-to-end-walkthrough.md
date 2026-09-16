@@ -1,144 +1,202 @@
-# Streamflaire Hub — End-to-End Walkthrough
+# Workbench — Tester Walkthrough
 
-A scripted, full-lifecycle test for confirming every system works cohesively —
-especially the form → quote → **deposit** → job → invoice → payment →
-subscription chain. Run it as a real owner would, with a second person acting
-as the customer.
+A scripted, full-lifecycle run through Workbench as a real home-service
+company would use it. It is the human half of the verification story: the
+unit tests (`npm run test:unit`) and the Playwright suite (`npm run e2e`)
+prove the money math and the API rules; this walkthrough proves the product
+hangs together for a person on a phone. Run it on **staging** before a
+release, and hand it to new testers with the reporting notes at the end.
+
+Last rewritten 2026-09-16 (after the ops-flow review). Refresh it whenever a
+flow it names changes.
 
 ## How to run
 
-- **Environment:** the live deploy (`https://streamflaire.com`). A new company
-  is a fully isolated tenant, so nothing here touches real data. Delete it (or
-  keep it as a sandbox) when done.
-- **People:** you = the business owner (and later a Tech login). A friend = the
-  customer, using the public links (booking form, quote approval, pay page) from
-  their own browser/phone.
+- **Where:** staging (`https://<staging domain>`, see `docs/plans/roadmap.md`
+  / the Railway project) — same code as production, separate database,
+  Finix in sandbox mode (fake money). Production also runs sandbox Finix
+  today, but keep testers off it.
+- **People:** you = the business owner (and later a Tech login). A second
+  person = the customer, on their own phone, using only the public links
+  (booking page, quote link, pay link, client hub).
+- **Devices:** owner on desktop AND the mobile app (or the site in a phone
+  browser); customer on a phone. Most bugs found so far were phone-only.
 - **Key URLs:**
-  - Register: `/platform/register` · Login: `/platform/login`
-  - Public service/booking form: `/book/[companySlug]` (or `/book/[companySlug]/[formSlug]`)
-  - Quote approval: `/quote/[token]` · Pay page: `/pay/[token]` · Client portal: `/portal/[companySlug]`
+  - Get started: `/app/get-started` (needs an invite code — `Workbench123`
+    is the shared tester code) · Login: `/app/login`
+  - Booking page: `/book/[companySlug]`
+  - Quote approval: `/quote/[token]` · Pay page: `/pay/[token]`
+  - Client hub: `/hub/[token]` (link is on the client's page → Client portal card)
+- **Sandbox cards:** any Visa test number (e.g. `4895 1421 8399 3001`, any
+  future expiry, any CVC). Amount-triggered outcomes on the cents: `.02`
+  declines, `.93` insufficient funds. Nothing here moves real money.
 
-## Caveats to expect (not bugs)
+## What "done" looks like
 
-- **Payments are in "manual" mode** — there's no real card processing yet. The
-  pay page shows instructions; the business records payments by hand. Test the
-  *record-payment* path, not a live charge.
-- **Emails are Resend-gated** — outbound mail (quote link, deposit pay link,
-  reminders) may not actually deliver. Verify the in-app state instead of relying
-  on the inbox, and use the public links directly.
-- **Captcha** on public forms depends on Turnstile keys being set; if the form
-  submits without a captcha it's because keys aren't configured yet.
+Every checkbox below has an **Expect** line. Tick it only if what you see
+matches. Anything else is a finding — write it down as you go (see Reporting
+at the end), don't try to work around it and keep going silently.
 
 ## Scenario
 
-**Cedar & Sun Lawn Care**, Springfield MO. Owner + one Tech. Services that
-deliberately cover every deposit type and an agreement gate.
+**Cedar & Sun Lawn Care**, Springfield MO. Owner + one Tech. Services chosen
+so every deposit type, recurring billing, and an agreement gate get exercised.
 
 ---
 
-## Walkthrough
+## 1. Sign up & first run
+- [ ] Owner: `/app/get-started` with the invite code. **Expect:** lands on the
+      dashboard, no "activate" gate, no Finix underwriting step.
+- [ ] Complete onboarding (industry → starter price book).
+- [ ] **Expect:** Settings → Company shows the browser's timezone already set;
+      Team shows you as bookable.
 
-### 1. Register & onboarding
-- [ ] Register a new company at `/platform/register` (creates Company + OWNER).
-- [ ] Complete onboarding (industry → starter price book seeds).
-- [ ] Land on the dashboard. **Expect:** "Needs you" home shows a calm/all-caught-up
-      state on a fresh account; manila sidebar renders with ink text.
+## 2. Settings
+- [ ] Company profile: name, address, phone, email, brand color.
+- [ ] Settings → Default deposit: 25%. Surcharge ON at 3%.
+- [ ] Settings → Online payments: complete the sandbox Finix form (auto-approves
+      in ~2 min). **Expect:** the card shows APPROVED before you move on.
+- [ ] **Expect:** brand color shows on the sidebar active state, the quote,
+      invoice and pay pages.
 
-### 2. Settings
-- [ ] Company profile: name, address, phone, email, **brand color**.
-- [ ] **Default deposit** (Settings → Default Deposit): set e.g. 25%.
-- [ ] Surcharge on + a review link.
-- [ ] **Expect:** brand color flows to the sidebar active state, quote/invoice/pay
-      pages; a too-light brand color still stays legible on the manila rail.
+## 3. Price book (cover every deposit type)
+- [ ] "Mowing" — **recurring monthly**, no deposit (inherits the 25% default).
+- [ ] "Yard Cleanup" — one-time, **fixed $50 deposit**.
+- [ ] "Aeration" — one-time, **25% deposit**.
+- [ ] "Seasonal Contract" — **full payment upfront**, **requires an agreement**
+      (create the agreement template first under Settings → Agreements).
+- [ ] **Expect:** each row shows the right deposit / recurring / agreement badge.
 
-### 3. Price book (preset services) — cover every deposit type
-- [ ] Service A "Mowing" — **recurring monthly**, no deposit (inherits company default).
-- [ ] Service B "Yard Cleanup" — one-time, **fixed $50 deposit**.
-- [ ] Service C "Aeration" — one-time, **25% deposit**.
-- [ ] Service D "Seasonal Contract" — **full payment upfront**, **requires an agreement**
-      (create an agreement template first under Settings → Contracts).
-- [ ] **Expect:** each shows the right deposit/recurring/agreement badge in the list.
+## 4. Team & roles
+- [ ] Add a Tech (Settings → Team) and a Sales + Tech (USER) member.
+- [ ] **Expect (later, step 12):** the Tech sees only assigned jobs, no prices,
+      no invoices, no "Close job without invoicing"; the USER member can invoice
+      any job they complete.
 
-### 4. Team & roles
-- [ ] Add a Tech user (Settings → Team).
-- [ ] (Later, step 11) log in as the Tech in a separate browser. **Expect:** Tech
-      sees only assigned jobs + schedule, no pricing/invoices, no Create options.
+## 5. Online booking (customer)
+- [ ] Settings → Booking & forms: one SERVICE item listing Cleanup + Aeration
+      with "collect a deposit", and one IN_PERSON visit item set to
+      **Hold for approval**. Copy the booking page link.
+- [ ] Customer books the visit item. **Expect:** they see "Awaiting
+      confirmation"; owner gets a push + a red approval banner on the request.
+- [ ] Owner **Accepts**. **Expect:** appointment turns solid on the schedule,
+      customer gets the confirmation email (and an .ics). If the email could
+      not be sent the app must SAY so — silent success here is a finding.
+- [ ] Customer books the SERVICE item and pays the deposit with a sandbox card.
+      **Expect:** a scheduled Job + a PAID deposit invoice; the deposit invoice
+      total is principal, the payment shows the 3% surcharge separately; the
+      customer is now an Active client (not a lead).
+- [ ] Book the same SERVICE item again with a `.02` card. **Expect:** declined
+      message; NO job, quote or plan left behind (check Jobs and Recurring).
+- [ ] Book twice with the customer's phone typed two different ways
+      (`(417) 555-0100` and `417.555.0100 x2`). **Expect:** ONE client record.
 
-### 5. Web form → quote (NEW behavior)
-- [ ] Build a **Service-Request form** (Settings → Forms) listing services A–C;
-      set quote mode to **"Auto-send to client for approval."**
-- [ ] Friend opens `/book/[slug]` and submits, picking **Cleanup + Aeration**.
-- [ ] **Expect:**
-  - A new **lead** + **request** appear.
-  - A **Quote** is created (NOT an invoice), status *Awaiting response*.
-  - Quote deposit = sum of the picked services' deposits ($50 fixed + 25% of
-    aeration), capped at total. Confirm the number.
-  - The request note says "Quote #N created automatically (sent for approval)."
+## 6. Quote by hand
+- [ ] New quote: Mowing (preset) + "Stump grinding" (custom, typed price) + an
+      **optional** item + Seasonal Contract. Valid until **today**.
+- [ ] **Expect:** deposit auto-derives (Contract = full, Aeration 25% …) and a
+      manual override sticks. Send it (real email to the customer).
+- [ ] Try Mark Approved on a DRAFT quote. **Expect:** refused — send it first.
 
-### 6. Build a quote manually
-- [ ] New quote for a client: add a preset line (Mowing) + a **custom** line
-      ("Stump grinding", typed price) + an **optional** item.
-- [ ] Watch the deposit auto-derive from the preset/company default; override it once
-      to confirm the manual override sticks.
-- [ ] Attach the Seasonal Contract agreement; send the quote.
+## 7. Customer approves
+- [ ] Customer opens `/quote/[token]` **after noon** on the valid-until day.
+      **Expect:** still approvable (valid through the end of the day).
+- [ ] Customer opts out of the optional item, signs with their own name,
+      approves. (A wrong name must be refused.)
+- [ ] **Expect:** quote → Approved, total recomputed without the opted-out item;
+      a DEPOSIT invoice exists for the new amount; the customer receives the
+      deposit pay-link email; the lead card is in Converted.
+- [ ] Owner: edit is now locked (approved quotes are signed documents).
 
-### 7. Client approves (friend)
-- [ ] Friend opens `/quote/[token]`, **opts out of the optional item**, signs, approves.
-- [ ] **Expect:**
-  - Quote → *Approved*; total recomputed without the opted-out item.
-  - A **DEPOSIT invoice** is auto-created for the deposit amount (status
-    *Awaiting payment*), linked to the quote.
-  - Quote detail header shows **Deposit · $X · Invoiced (#N)**.
+## 8. Deposit money paths
+- [ ] Customer pays the deposit on `/pay/[token]`. **Expect:** no "Another
+      amount" option on a deposit; card + 3% surcharge; invoice → Paid.
+- [ ] Owner: **refund** that payment in full from the invoice. **Expect:** the
+      invoice reopens with balance = deposit amount exactly (not deposit +
+      surcharge); refund it partially on a second run and check the balance
+      math on the pay page.
+- [ ] Owner: try to **delete** the quote. **Expect:** refused ("archive it
+      instead") because it has an invoice.
 
-### 8. Collect the deposit
-- [ ] From the quote, use **"Collect deposit"** (re-issues/links the deposit invoice).
-- [ ] Record a manual payment on the deposit invoice.
-- [ ] **Expect:** deposit invoice → *Paid*; quote header shows **Paid**.
+## 9. Agreement gate & convert
+- [ ] Convert → **Expect:** blocked until the Seasonal Contract agreement is
+      signed. Customer signs at `/contract/[token]`; convert again.
+- [ ] Double-tap Convert on the phone. **Expect:** ONE job, never two.
+- [ ] **Expect:** a Job exists; Recurring shows a Mowing plan for the customer.
 
-### 9. Convert quote → job
-- [ ] Convert. If the Seasonal Contract agreement isn't signed, **expect the
-      conversion to be gated** until it is — sign it via `/contract/[token]`, then convert.
-- [ ] **Expect:** a Job is created; a **Subscription** is created for the recurring
-      Mowing service; the lead becomes an Active client.
+## 10. Schedule & dispatch
+- [ ] Place the job on the Tech for tomorrow; add a manual "Lunch" block
+      12–1 on the Tech.
+- [ ] Route Manager → Optimize the Tech's day. **Expect:** no stop overlaps the
+      lunch block; "Doesn't fit" appears (and Apply disables) if you pin a stop
+      that runs into the next day.
+- [ ] Move the whole day to the day after with "Text clients". Tap **Undo**.
+      **Expect:** everything moves back AND the clients are texted again.
+- [ ] Drag a visit to resize only (same start). **Expect:** no "Text client"
+      offer — nothing moved.
+- [ ] Try to assign an appointment to the Tech. **Expect:** techs aren't offered.
 
-### 10. Schedule & estimates (focus area)
-- [ ] Create an **Appointment / estimate** (phone / video / in-person) for a lead;
-      put it on the **Schedule** (month/week/day). Confirm it shows as a blue block.
-- [ ] Schedule the Job (assign the Tech, set date/time or "Anytime").
-- [ ] Drag an unscheduled job onto the calendar. **Expect:** schedule updates;
-      team filter works.
-- [ ] Complete the estimate → **expect** the "complete → quote" path offered.
+## 11. Tech runs the job (phone)
+- [ ] As Tech: clock in, add a note + before/after photo, mark complete.
+- [ ] **Expect:** job → Requires invoicing; the clock entry is CLOSED at
+      completion time (Timesheets shows a realistic duration).
+- [ ] As Tech: **Expect** no "Close job without invoicing" item.
 
-### 11. Run the job → final invoice (deposit netting)
-- [ ] As Tech: open the assigned job, add a note + before/after photo, mark complete
-      → job becomes *Requires invoicing*.
-- [ ] As Owner: create the **final invoice** from the job.
-- [ ] **Expect (the key check):** the invoice shows a **"Deposit applied −$X"**
-      credit line and the **balance = total − deposit already paid**. The Invoices
-      list foot total reflects it.
-- [ ] Record final payment → invoice *Paid*; review request fires if configured.
+## 12. Final invoice (deposit netting — the key check)
+- [ ] Owner (or the USER member): Create Invoice from the job.
+- [ ] **Expect:** "Deposit applied −$X" line; balance = total − deposit paid.
+      If you refunded part of the deposit in step 8, only what is still paid
+      is credited.
+- [ ] Delete that invoice. **Expect:** the job goes BACK to Requires
+      invoicing (not stuck Closed). Recreate it.
+- [ ] Record a manual payment larger than the balance. **Expect:** refused.
+      Pay it off. **Expect:** Paid, review-request email if configured.
 
-### 12. Subscriptions
-- [ ] Subscriptions page → **"Run due now."**
-- [ ] **Expect:** the recurring Mowing subscription generates the next cycle's
-      invoice (and a job if "creates job" was set); no double-billing on a second run.
+## 13. Recurring billing
+- [ ] Recurring → the Mowing plan: Bill now. **Expect:** one invoice, charged
+      to the saved card (or emailed as a pay link if there is no card).
+- [ ] Pause the plan, wait a moment, resume. **Expect:** visits reappear from
+      the next on-cadence date — no month-long hole.
+- [ ] Cancel a per-visit series that has completed visits. **Expect:** they
+      still show under Ready to bill and can be billed.
+- [ ] Archive the client. **Expect:** their plans pause; nothing bills or
+      reminds them afterwards (check the plan status).
 
-### 13. Cohesion sweep
-- [ ] **Dashboard "Needs you":** correct counts/verbs (past-due red first, etc.).
-- [ ] **Ledger lists:** serif figure columns align; double-ruled footers total
-      correctly (Invoices total + balance, Quotes value, Jobs total, Clients count).
-- [ ] **Insights:** revenue / receivables / conversion numbers match what we did.
-- [ ] **Client portal** (`/portal/[slug]`): friend can see their quotes/invoices/visits.
-- [ ] Numbers reconcile: deposit paid + final balance == quote total (no double count).
+## 14. Client hub & messaging
+- [ ] From the customer's page, copy the portal link; open it on the
+      customer's phone. **Expect:** quotes, invoices, visits, saved cards.
+- [ ] Owner: **Reset portal link**. **Expect:** the old link stops working
+      immediately; the new one works.
+- [ ] Customer sends a message from the hub; owner replies from Messages.
+      **Expect:** both sides see the thread; owner gets a push.
+- [ ] (If SMS is live) customer texts "Cancel Friday's visit please".
+      **Expect:** it lands in the thread; the client is NOT opted out. Text
+      exactly "STOP". **Expect:** opted out.
 
-## Things to watch (common cohesion break points)
-- Deposit math when optional items are opted out (deposit caps at the new total).
-- Full-upfront deposit → final invoice nets to ~$0.
-- Recurring service: subscription starts on **conversion**, not at form submit.
-- Role visibility (Tech can't see money; Sales sees only their leads).
-- Agreement gate actually blocks conversion until signed.
-- Brand-color legibility on the manila sidebar + client-facing pages.
+## 15. Cohesion sweep
+- [ ] Dashboard "Needs you": counts match what you did (unpaid, ready to bill,
+      awaiting approval).
+- [ ] Invoices / Quotes / Jobs list footers total correctly.
+- [ ] Insights: revenue and receivables reconcile with the invoices you paid.
+- [ ] Numbers reconcile: deposit paid + final balance == quote total.
+
+## Things to watch (where cohesion breaks)
+- Deposit math after opt-outs and after a refund.
+- Full-upfront deposit → final invoice nets to $0 and is marked Paid.
+- Role visibility (Tech never sees money; USER can invoice jobs they finish).
+- Emails: every "sent" the app claims should arrive; every failure should be
+  reported on screen or in the activity trail, never swallowed.
+- Timezones: due dates, "valid until", and schedule days must match the
+  company's timezone, not the server's.
+
+## Reporting a finding
+
+For each: **where** (page + what you tapped), **what you expected**, **what
+happened**, **device/browser**, and a screenshot. Money findings also need
+the numbers (quote total, deposit, payment, balance shown). File them in
+`docs/testing/findings-<date>.md` or the tracker the team is using; each one
+gets fixed WITH a regression test.
 
 ## Cleanup
-- Delete the test company (superadmin) when finished, or keep it as a living
-  sandbox/demo. Note its slug here if kept: `__________`.
+- Staging data can stay. If you ran this on production, delete the company
+  from the superadmin console.

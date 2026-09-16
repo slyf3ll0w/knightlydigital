@@ -1,0 +1,73 @@
+# Push to `staging` → Railway deploys the staging environment → this waits
+# for THAT commit to be live, provisions the two e2e tenants (idempotent),
+# and runs the Playwright suite against it. Green here is the gate before
+# fast-forwarding main (production). Public repo → runners are free.
+name: E2E (staging)
+
+on:
+  push:
+    branches: [staging]
+  workflow_dispatch:
+
+concurrency:
+  group: e2e-staging
+  cancel-in-progress: false
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      CI: "1"
+      E2E_BASE_URL: ${{ secrets.E2E_BASE_URL }}
+      AUTH_SECRET: ${{ secrets.E2E_AUTH_SECRET }}
+      CRON_SECRET: ${{ secrets.E2E_CRON_SECRET }}
+      DATABASE_URL: ${{ secrets.E2E_DATABASE_URL }}
+      PAYMENT_PROCESSOR: finix
+      FINIX_ENVIRONMENT: sandbox
+      FINIX_API_USERNAME: ${{ secrets.FINIX_SANDBOX_API_USERNAME }}
+      FINIX_API_PASSWORD: ${{ secrets.FINIX_SANDBOX_API_PASSWORD }}
+      FINIX_APPLICATION_ID: ${{ secrets.FINIX_SANDBOX_APPLICATION_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Prisma client
+        run: npx prisma generate
+
+      - name: Wait for this commit to be live on staging
+        run: |
+          for i in $(seq 1 60); do
+            live=$(curl -fsS -m 10 "$E2E_BASE_URL/api/health" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>process.stdout.write(String(JSON.parse(s).commit||"")))' || true)
+            echo "attempt $i: live=$live want=$GITHUB_SHA"
+            if [ "$live" = "$GITHUB_SHA" ]; then exit 0; fi
+            sleep 20
+          done
+          echo "staging never came up with $GITHUB_SHA" >&2
+          exit 1
+
+      - name: Provision e2e tenants (idempotent)
+        run: npx tsx e2e/provision.mts
+
+      - name: Browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Playwright
+        run: npx playwright test
+
+      - name: Report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            e2e/report
+            e2e/artifacts
+          retention-days: 14

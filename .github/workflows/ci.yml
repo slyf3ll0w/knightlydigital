@@ -1,0 +1,46 @@
+# Every push and pull request: type-check, unit tests, production build.
+# Public repo → GitHub-hosted Linux runners are free.
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: tsc · unit tests · build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # `next build` only needs these to exist; nothing connects to a database.
+      DATABASE_URL: postgresql://u:p@localhost:5432/unused
+      AUTH_SECRET: ci-placeholder-secret
+      NEXTAUTH_URL: http://localhost:3000
+      PAYMENT_PROCESSOR: manual
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Prisma client
+        run: npx prisma generate
+
+      - name: Type-check
+        run: npx tsc --noEmit -p tsconfig.json
+
+      - name: Unit tests
+        run: npm run test:unit
+
+      - name: Build
+        run: npx next build

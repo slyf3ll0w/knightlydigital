@@ -23,7 +23,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "database unreachable" }, { status: 503 });
   }
 
-  if (req.nextUrl.searchParams.get("cron") !== "1") return NextResponse.json({ ok: true });
+  // `commit` lets CI wait for a specific build to be live before running the
+  // e2e suite against it (Railway injects RAILWAY_GIT_COMMIT_SHA).
+  const commit = process.env.RAILWAY_GIT_COMMIT_SHA ?? null;
+  if (req.nextUrl.searchParams.get("cron") !== "1") return NextResponse.json({ ok: true, commit });
 
   const latest = await prisma.reconcileRun.findFirst({
     orderBy: { startedAt: "desc" },
