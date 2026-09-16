@@ -5,7 +5,7 @@ import {
   billSubscriptionNow,
   generateDueVisits,
   deleteFutureVisits,
-  addVisitInterval,
+  resumedVisitCursor,
   firstOfNextMonth,
   rollCursorForward,
 } from "@/lib/subscriptions";
@@ -251,13 +251,13 @@ export async function PATCH(
 
   // Resuming (or editing) with a stale date: roll forward on-cadence so the
   // series keeps its weekday instead of dumping missed visits into the past.
+  // (Pause rewound nextVisitDate to the first visit it deleted — see
+  // deleteFutureVisits — so a resume within the horizon refills the calendar
+  // from there instead of leaving a hole until the old cursor.)
   if (finalFrequency && finalNextVisit) {
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
-    let rolled = finalNextVisit;
-    while (rolled < todayStart) {
-      rolled = addVisitInterval(rolled, finalFrequency as never);
-    }
+    const rolled = resumedVisitCursor(finalNextVisit, finalFrequency as never, todayStart);
     if (rolled !== finalNextVisit) {
       data.nextVisitDate = rolled;
       finalNextVisit = rolled;

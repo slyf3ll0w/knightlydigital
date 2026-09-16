@@ -33,25 +33,25 @@ import { defaultSavedCard } from "@/lib/saved-cards";
 import { logActivity } from "@/lib/activity";
 import { notifyUsers } from "@/lib/push";
 import { sendEmail, autopayFailedEmail, cardExpiringEmail } from "@/lib/email";
+import { classifyDecline, MAX_AUTO_CHARGE_ATTEMPTS, nextRetryAt } from "@/lib/autopay-rules";
 
-/** Hours until the next retry, keyed by how many attempts have failed. */
-const RETRY_DELAY_HOURS: Record<number, number> = { 1: 24, 2: 72, 3: 168 };
-/** Total attempts (1 initial + 3 retries) before autopay gives up. */
-export const MAX_AUTO_CHARGE_ATTEMPTS = 4;
+// Policy (decline classification, retry schedule) is lib/autopay-rules.ts —
+// pure and unit-tested; re-exported for the existing importers.
+export { classifyDecline, MAX_AUTO_CHARGE_ATTEMPTS } from "@/lib/autopay-rules";
 
 /**
- * Hard declines: the card itself is dead — retrying can never succeed until
- * the client saves a different card. Matched against the processor decline
- * code first, falling back to the message. Unknown codes default to soft
- * (retryable): the attempt cap bounds the damage either way.
+ * "processor_down" = the charge never reached a decision (outage, timeout,
+ * bad credentials, rate limit, payments not enabled). Not a decline: no
+ * attempt is burned, the client hears nothing, and the retry sweep tries
+ * again in 24 h.
  */
-const HARD_DECLINE = /lost|stolen|invalid|expired|fraud|pick.?up|restricted|closed|not.?permitted|security|revocation|no.?such|unsupported/i;
-
-export function classifyDecline(error: string, code?: string | null): "hard" | "soft" {
-  return HARD_DECLINE.test(code ?? "") || HARD_DECLINE.test(error) ? "hard" : "soft";
-}
-
-export type AutoChargeOutcome = "charged" | "failed" | "no_card" | "not_live" | "locked";
+export type AutoChargeOutcome =
+  | "charged"
+  | "failed"
+  | "no_card"
+  | "not_live"
+  | "locked"
+  | "processor_down";
 
 /**
  * Charge one engine-generated invoice to the client's card on file. Success
@@ -123,6 +123,13 @@ export async function attemptAutoCharge(params: {
       return "charged";
     }
 
+    if (result.transient) {
+      await bookProcessorDown(params.invoiceId, result.error).catch((e) =>
+        console.error("[auto-charge] processor-down booking failed", params.invoiceId, e)
+      );
+      return "processor_down";
+    }
+
     await handleAutoChargeFailure({
       companyId: params.companyId,
       invoiceId: params.invoiceId,
@@ -135,6 +142,22 @@ export async function attemptAutoCharge(params: {
   } finally {
     await releaseChargeLock(params.invoiceId);
   }
+}
+
+/**
+ * The processor didn't answer: keep the attempt count and give-up state as
+ * they were, note the error, and re-book the charge for tomorrow. Nothing is
+ * emailed — the client's card was never judged, and a 40-minute outage on
+ * the 1st must not tell every plan client their card declined.
+ */
+async function bookProcessorDown(invoiceId: string, error: string): Promise<void> {
+  await prisma.invoice.update({
+    where: { id: invoiceId },
+    data: {
+      autoChargeNextAt: new Date(Date.now() + 24 * 3600_000),
+      autoChargeLastError: `Processor unavailable — ${error}`.slice(0, 500),
+    },
+  });
 }
 
 /** Book the retry state, audit it, and run first-failure / give-up dunning. */
@@ -170,10 +193,8 @@ async function handleAutoChargeFailure(params: {
 
   const attempts = invoice.autoChargeAttempts + 1;
   const kind = classifyDecline(params.error, params.code);
-  const giveUp = kind === "hard" || attempts >= MAX_AUTO_CHARGE_ATTEMPTS;
-  const nextAt = giveUp
-    ? null
-    : new Date(now.getTime() + (RETRY_DELAY_HOURS[attempts] ?? 168) * 3600_000);
+  const nextAt = nextRetryAt({ attempts, kind, now });
+  const giveUp = nextAt === null;
 
   await prisma.invoice.update({
     where: { id: params.invoiceId },
@@ -270,15 +291,19 @@ export async function runAutoChargeRetries(now: Date = new Date()): Promise<Retr
       status: { in: ["AWAITING_PAYMENT", "PAST_DUE"] },
       subscriptionId: { not: null },
       company: { is: { suspendedAt: null } },
+      // An archived client is closed out — nothing keeps charging their card
+      contact: { is: { status: { not: "ARCHIVED" } } },
     },
     select: {
       id: true,
       companyId: true,
       subscriptionId: true,
       subject: true,
+      invoiceNumber: true,
       total: true,
       payments: { select: { amount: true, surchargeAmount: true } },
       company: { select: { name: true } },
+      contact: { select: { firstName: true, lastName: true } },
     },
     orderBy: { autoChargeNextAt: "asc" },
     take: 200,
@@ -319,12 +344,20 @@ export async function runAutoChargeRetries(now: Date = new Date()): Promise<Retr
       });
       if (outcome === "charged") summary.charged++;
       else if (outcome === "failed") summary.failed++;
-      else if (outcome === "locked") {
-        // Another charge path (staff, /pay) holds this invoice right now —
-        // the 1-hour lease from the claim above is the natural retry.
+      else if (outcome === "locked" || outcome === "processor_down") {
+        // locked: another charge path (staff, /pay) holds this invoice right
+        // now — the 1-hour lease from the claim above is the natural retry.
+        // processor_down: attemptAutoCharge already re-booked it for +24 h.
         continue;
+      } else if (outcome === "no_card") {
+        // The card on file is gone (client removed it after the decline).
+        // Retrying daily changes nothing until they save another — and
+        // saving one calls reviveAutopayForContact, which puts this invoice
+        // straight back on the schedule. So stop here and tell the owner,
+        // instead of pushing +24 h forever with nobody the wiser.
+        await giveUpNoCard(inv, now);
       } else {
-        // No card / processor down: push the retry forward a day rather than
+        // Processor not configured: push the retry forward a day rather than
         // burning an attempt on a charge that never reached the processor.
         await prisma.invoice.update({
           where: { id: inv.id },
@@ -337,6 +370,48 @@ export async function runAutoChargeRetries(now: Date = new Date()): Promise<Retr
     }
   }
   return summary;
+}
+
+/** Autopay has no card to charge: stop the schedule, audit it, and tell the owners once. */
+async function giveUpNoCard(
+  inv: {
+    id: string;
+    companyId: string;
+    invoiceNumber: number;
+    total: unknown;
+    payments: { amount: unknown; surchargeAmount: unknown }[];
+    contact: { firstName: string | null; lastName: string | null } | null;
+  },
+  now: Date
+): Promise<void> {
+  const error = "No card on file";
+  await prisma.invoice.update({
+    where: { id: inv.id },
+    data: { autoChargeNextAt: null, autoChargeGaveUpAt: now, autoChargeLastError: error },
+  });
+  const balance = invoiceBalance(inv as Parameters<typeof invoiceBalance>[0]);
+  logActivity({
+    companyId: inv.companyId,
+    userName: "Autopay",
+    entityType: "invoice",
+    entityId: inv.id,
+    action: "auto_charge_failed",
+    detail: `$${balance.toFixed(2)} — ${error} (autopay stopped until the client saves a card)`,
+  });
+  const owners = await prisma.user.findMany({
+    where: { companyId: inv.companyId, role: "OWNER", isActive: true },
+    select: { id: true },
+  });
+  const clientName = [inv.contact?.firstName, inv.contact?.lastName].filter(Boolean).join(" ");
+  await notifyUsers(
+    owners.map((o) => o.id),
+    {
+      title: `Autopay stopped — invoice #${inv.invoiceNumber}`,
+      body: `${clientName ? `${clientName} · ` : ""}$${balance.toFixed(2)} — no card on file`,
+      url: `/app/invoices/${inv.id}`,
+      tag: `autopay-${inv.id}`,
+    }
+  ).catch((e) => console.error("[auto-charge] owner notify failed", e));
 }
 
 /**
