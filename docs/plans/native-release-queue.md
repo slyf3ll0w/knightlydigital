@@ -9,6 +9,49 @@ Build mechanics live in `mobile-app-runbook-mac.md` (§ PLAY STORE for the
 Android/Windows path, § Mac steps for iOS). This file is only *what is
 waiting* — not how to build.
 
+## Picking this up cold — 2026-09-16
+
+Everything below for **Google Play is written and pushed**. The repo is one
+command from an uploadable bundle; what is left is Console clicking, not code.
+
+In order:
+
+1. **Google Cloud Console first, before the release is live.** Two *Android*
+   OAuth clients for package `com.streamflaire.hub`, in the same project as the
+   web sign-in client:
+   - upload key SHA-1 `D9:C7:8B:33:AC:C8:FF:32:33:BE:BC:28:55:52:D0:88:63:41:88:11`
+   - Play app-signing key SHA-1, from Play Console → Setup → App signing
+
+   Play re-signs every upload, so the second fingerprint is the one installed
+   apps present. Register only the first and Google sign-in works perfectly in
+   a sideloaded build and fails for every real user. No new env var: the
+   plugin initializes with the existing *web* `GOOGLE_SIGNIN_CLIENT_ID`.
+
+2. **Build**: `npx cap sync android` (mandatory — see the runbook), then
+   `cd android && .\gradlew bundleRelease`. versionCode is already 4 / "1.3".
+
+3. **Upload** to Play, production, US only, full rollout. Managed publishing is
+   off, so it goes live on approval.
+
+4. **Verify on the phone after the update installs** — none of it is visible
+   before then, because all three are compiled into the APK:
+   - the launcher icon is the blue WorkBench "W", not the green swoosh
+   - the label under it reads "WorkBench", not "Streamflaire Hub"
+   - the splash is WorkBench
+   - `/app/login` shows "Continue with Google", and it opens the *system*
+     account sheet, not a browser tab
+   - Settings → My Profile → Connected sign-ins → Connect Google links
+     without bouncing you to a different company
+
+Already verified on this machine, so no need to redo: `tsc`, `next build`, the
+plugin is absent from the web bundle, and `gradlew :app:assembleDebug` passes
+with no Facebook/Twitter classes in the APK.
+
+What is deliberately NOT in this release: anything iOS. That queue is separate
+and still needs the Mac.
+
+---
+
 ## First: does it actually need a build?
 
 The shell is thin (`mobile-app-plan.md`): the webview loads the live site, so
