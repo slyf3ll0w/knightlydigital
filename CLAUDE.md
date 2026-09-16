@@ -530,6 +530,13 @@ With no card at all the engine still falls back to the pay-by-link email.
 
 Railway detects Next.js automatically and runs `next start`. GitHub remote: `https://github.com/slyf3ll0w/knightlydigital`
 
+**Mobile**: the shell is thin — the webview loads the live site, so a Railway
+deploy updates the apps too, `components/NativeShell.tsx` included. Only the
+native project (`android/**`, `ios/**`, `capacitor.config.ts`, or adding a
+Capacitor plugin) needs a store build. Park anything that does in
+`docs/plans/native-release-queue.md` rather than cutting a build for one item;
+build mechanics are in `docs/plans/mobile-app-runbook-mac.md`.
+
 ## Business details to update (marketing site)
 
 - **Phone**: Replace `(214) 555-0100` / `tel:2145550100`
