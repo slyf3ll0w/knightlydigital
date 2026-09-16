@@ -50,6 +50,19 @@ rejects reuse; `versionName` is cosmetic). Next upload is versionCode 4.
 
 ## Google Play — waiting for the next build
 
+**App icon and splash still say Streamflaire.** Fixed in the tree — the
+regenerated `android/app/src/main/res/mipmap-*` and `drawable-*/splash.png`
+are committed and ride the next upload; nothing more to do at build time.
+- Cause: the `assets/` sources were rebranded at 56a7f70 and again at a30edc8,
+  but a30edc8 ran the generator with `--ios` only — so Android kept the icons
+  generated at 44596b0, six days before the rebrand. iOS was regenerated in
+  that same commit and is correct.
+- Regenerate with `npx @capacitor/assets generate --android` (runs on Windows,
+  no Android Studio needed). **Run it for both platforms whenever `assets/`
+  changes** — the one-platform split is exactly what caused this.
+- The green-swoosh icon is on real phones today, so this is the only
+  user-visible item in this section.
+
 **Native Google sign-in.** `lib/sign-in-options.ts` hides the Google button
 whenever the user agent is the shell, because Google refuses OAuth in embedded
 webviews and a hop to the system browser would leave the session cookie in the
