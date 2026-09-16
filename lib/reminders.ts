@@ -95,7 +95,16 @@ export async function runDueReminders(now: Date = new Date()): Promise<ReminderS
 
       const daysPastDue = Math.floor((now.getTime() - inv.dueDate.getTime()) / DAY);
       const sentTypes = new Set(inv.reminders.map((r) => r.type));
-      const eligible = STAGES.filter((s) => daysPastDue >= s.days && !sentTypes.has(s.type));
+      // A "due today" nudge minutes after the invoice itself (Net-0 terms,
+      // engine invoices issued this morning) reads as nagging — give the
+      // invoice email a day to land before the reminder cadence starts.
+      const issuedToday = !!inv.issuedAt && now.getTime() - inv.issuedAt.getTime() < DAY;
+      const eligible = STAGES.filter(
+        (s) =>
+          daysPastDue >= s.days &&
+          !sentTypes.has(s.type) &&
+          !(s.type === "due" && issuedToday)
+      );
       if (eligible.length === 0) continue;
 
       const stage = eligible[eligible.length - 1]; // most advanced unsent stage

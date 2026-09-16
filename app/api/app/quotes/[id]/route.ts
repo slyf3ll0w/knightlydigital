@@ -13,6 +13,8 @@ import { computeQuoteTotals } from "@/lib/quote-totals";
 import { queueQuickBooksUnwind } from "@/lib/quickbooks";
 import { autoAdvance, recordLeadWin } from "@/lib/pipeline";
 import { logActivity } from "@/lib/activity";
+import { sanitizeDeposit, syncDepositInvoice } from "@/lib/deposits";
+import { withDocNumberRetry } from "@/lib/doc-numbers";
 
 const allowedStatuses = [
   "DRAFT",
@@ -129,7 +131,14 @@ export async function PATCH(
       taxRate,
     });
 
-    const updated = await prisma.$transaction(async (tx) => {
+    // Deposit settings clamp server-side (PERCENT 0–100, FIXED ≥ 0) — an
+    // unclamped 150% deposit would mint a deposit invoice above the quote.
+    const deposit = sanitizeDeposit(body);
+
+    // Retried because re-pricing an outstanding deposit invoice can mint one
+    // (see syncDepositInvoice); the whole edit is one transaction, so a
+    // retry starts clean.
+    const updated = await withDocNumberRetry(() => prisma.$transaction(async (tx) => {
       // Revision snapshot: a quote the client has SEEN is about to be
       // rewritten — keep the old version. Draft edits never snapshot.
       if (quote.sentAt) {
@@ -175,7 +184,7 @@ export async function PATCH(
         });
       }
       await tx.quoteLineItem.deleteMany({ where: { quoteId: quote.id } });
-      return tx.quote.update({
+      const saved = await tx.quote.update({
         where: { id: quote.id },
         data: {
           title: body.title || null,
@@ -187,14 +196,8 @@ export async function PATCH(
           taxRate,
           tax,
           total,
-          depositType:
-            body.depositType === "PERCENT" || body.depositType === "FIXED" || body.depositType === "FULL"
-              ? body.depositType
-              : "NONE",
-          depositValue:
-            body.depositType === "PERCENT" || body.depositType === "FIXED"
-              ? body.depositValue ?? null
-              : null,
+          depositType: deposit.depositType,
+          depositValue: deposit.depositValue,
           clientMessage: body.clientMessage || null,
           disclaimer: body.disclaimer || null,
           notes: body.notes || null,
@@ -216,7 +219,20 @@ export async function PATCH(
           },
         },
       });
-    });
+      // An unpaid deposit invoice minted before this edit (Collect deposit on
+      // a draft, or an earlier approval that was change-requested) follows
+      // the new total, so approval doesn't reuse a stale amount.
+      await syncDepositInvoice(tx, {
+        id: saved.id,
+        companyId: saved.companyId,
+        contactId: saved.contactId,
+        quoteNumber: saved.quoteNumber,
+        total: Number(saved.total),
+        depositType: saved.depositType,
+        depositValue: saved.depositValue == null ? null : Number(saved.depositValue),
+      });
+      return saved;
+    }));
     return NextResponse.json(updated);
   }
 
@@ -277,8 +293,30 @@ export async function DELETE(
   const companyId = actor.companyId;
 
   const { id } = await params;
-  const quote = await prisma.quote.findFirst({ where: { id, companyId } });
+  const quote = await prisma.quote.findFirst({
+    where: { id, companyId },
+    include: {
+      _count: { select: { invoices: true, contracts: true } },
+    },
+  });
   if (!quote) return NextResponse.json({ error: "Quote not found." }, { status: 404 });
+
+  // A quote with invoices (a deposit — possibly PAID) or signed agreements
+  // hanging off it is a paper trail, not a draft: deleting it orphans the
+  // deposit invoice (Invoice.quote is SetNull), so the final invoice can no
+  // longer find and credit the deposit and the client is billed for it twice.
+  if (quote._count.invoices > 0 || quote._count.contracts > 0) {
+    const what =
+      quote._count.invoices > 0 && quote._count.contracts > 0
+        ? "a deposit invoice and an agreement"
+        : quote._count.invoices > 0
+          ? "a deposit invoice"
+          : "an agreement";
+    return NextResponse.json(
+      { error: `This quote has ${what} attached — archive it instead of deleting it.` },
+      { status: 409 }
+    );
+  }
 
   // Converted quotes can go too — the job it became stays
   await prisma.quote.delete({ where: { id } });

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
-import { recomputeInvoiceStatus, estimateFeeCents } from "@/lib/payments";
+import { recomputeInvoiceStatus, estimateFeeCents, refundSplit } from "@/lib/payments";
 import { estimateProcessingCostCents } from "@/lib/platform-costs";
 import { reverseTransfer, toCents, FinixError } from "@/lib/finix";
 import { queueQuickBooksPaymentRefresh } from "@/lib/quickbooks";
@@ -51,14 +51,18 @@ export async function POST(
     );
   }
 
-  const remaining = Math.round((paymentAmount - refundAmount) * 100) / 100;
+  // The surcharge shrinks with the principal (zero on a full refund) — the
+  // invoice balance adds every surcharge back on top of the total, so leaving
+  // it alone would keep the client owing the refunded surcharge.
+  const split = refundSplit(payment, refundAmount);
+  const remaining = split.remainingAmount;
 
   // Reserve the refund atomically before touching the processor: the update
   // only lands if the amount is still what we validated against, so a
   // concurrent refund of the same payment loses the race and gets a 409.
   const reserved = await prisma.payment.updateMany({
     where: { id, companyId: actor.companyId, amount: payment.amount },
-    data: { amount: remaining },
+    data: { amount: remaining, surchargeAmount: split.remainingSurcharge },
   });
   if (reserved.count === 0) {
     return NextResponse.json(
@@ -117,6 +121,7 @@ export async function POST(
           companyId: actor.companyId,
           paymentId: id,
           amount: refundAmount,
+          surchargeAmount: split.refundedSurcharge > 0 ? split.refundedSurcharge : null,
           reversalRef: reversal.id,
         },
       });
@@ -142,7 +147,10 @@ export async function POST(
     return NextResponse.json({ success: true, payment: updated, reversalId: reversal.id });
   } catch (err) {
     await prisma.payment
-      .update({ where: { id }, data: { amount: payment.amount } })
+      .update({
+        where: { id },
+        data: { amount: payment.amount, surchargeAmount: payment.surchargeAmount },
+      })
       .catch((restoreErr) => {
         console.error("[payments] refund reservation rollback failed", restoreErr);
       });

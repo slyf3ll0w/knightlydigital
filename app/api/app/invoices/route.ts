@@ -6,6 +6,7 @@ import { getActor, canSeeMoney, contactScope } from "@/lib/permissions";
 import { recordLeadWin } from "@/lib/pipeline";
 import { ensureSubscriptionsForContact } from "@/lib/subscriptions";
 import { paidDepositTotal } from "@/lib/deposits";
+import { dueDateFromTerms } from "@/lib/due-dates";
 import { intQuantity, unitPriceValue, resolveLineItemCosts } from "@/lib/work-items";
 import { computeQuoteTotals } from "@/lib/quote-totals";
 import { inPreview, previewBlockedError } from "@/lib/preview";
@@ -134,7 +135,7 @@ export async function POST(req: NextRequest) {
   const due = dueDate
     ? new Date(dueDate.length === 10 ? `${dueDate}T12:00:00` : dueDate)
     : contact
-      ? new Date(issuedAt.getTime() + contact.paymentTermsDays * 86400000)
+      ? dueDateFromTerms(issuedAt, contact.paymentTermsDays)
       : null;
 
   // Wrapped so a concurrent invoice create in the same company re-derives the
@@ -156,8 +157,8 @@ export async function POST(req: NextRequest) {
         // Retire any NEVER-PAID deposit invoice for this quote — it's superseded
         // by this final invoice, which bills the full remaining scope. Leaving it
         // outstanding would bill AND dun the client twice for the deposit. Only
-        // touch deposit invoices with zero payments; anything with payment
-        // history is left intact (its paid amount is already netted above).
+        // delete deposit invoices with zero payments; anything with payment
+        // history is kept (its paid amount is already netted above).
         const staleDeposits = await tx.invoice.findMany({
           where: { quoteId: quote.id, kind: "DEPOSIT", status: { not: "PAID" }, payments: { none: {} } },
           select: { id: true },
@@ -167,6 +168,19 @@ export async function POST(req: NextRequest) {
           await tx.invoiceLineItem.deleteMany({ where: { invoiceId: { in: ids } } });
           await tx.invoice.deleteMany({ where: { id: { in: ids } } });
         }
+        // A PARTIALLY paid deposit invoice is superseded too: what was paid is
+        // credited above and the rest is billed here, so shelve it — otherwise
+        // the client keeps getting dunned for a deposit remainder that this
+        // invoice already asks for.
+        await tx.invoice.updateMany({
+          where: {
+            quoteId: quote.id,
+            kind: "DEPOSIT",
+            status: { in: ["AWAITING_PAYMENT", "PAST_DUE", "DRAFT"] },
+            payments: { some: {} },
+          },
+          data: { status: "ARCHIVED" },
+        });
       }
     }
     const netTotal = Math.round((total - depositApplied) * 100) / 100;

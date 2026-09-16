@@ -4,7 +4,7 @@
 // zero/negative guards. Invoice detail has no GET route (pages read it
 // server-side), so state assertions look straight at the database.
 import { test, expect } from "@playwright/test";
-import { Api, createContact, deleteContact } from "../helpers/api";
+import { Api, createContact, deleteContact, runTag } from "../helpers/api";
 import { db, disconnectDb } from "../helpers/db";
 
 test.describe("invoice money paths", () => {
@@ -114,5 +114,75 @@ test.describe("invoice money paths", () => {
     );
     await api.post("/api/app/invoices", { contactId, lineItems: [] }, 400);
     await api.delete(`/api/app/invoices/${invoice.id}`);
+  });
+
+  test("guards: overpayment, and payments on paid or archived invoices, are rejected", async () => {
+    const invoice = await api.post("/api/app/invoices", {
+      contactId,
+      lineItems: [{ description: "Overpay check", quantity: 1, unitPrice: 50 }],
+    });
+    // More than the balance never silently flips the invoice to PAID.
+    await api.post("/api/app/payments", { invoiceId: invoice.id, amount: 60, method: "CASH" }, 400);
+    await api.post("/api/app/payments", { invoiceId: invoice.id, amount: 20, method: "CASH" });
+    await api.post("/api/app/payments", { invoiceId: invoice.id, amount: 30.01, method: "CASH" }, 400);
+    const p = await api.post("/api/app/payments", { invoiceId: invoice.id, amount: 30, method: "CASH" });
+    expect(p.fullyPaid).toBe(true);
+    // Settled: nothing more can be recorded against it.
+    await api.post("/api/app/payments", { invoiceId: invoice.id, amount: 1, method: "CASH" }, 400);
+
+    const shelved = await api.post("/api/app/invoices", {
+      contactId,
+      lineItems: [{ description: "Archived check", quantity: 1, unitPrice: 50 }],
+    });
+    await api.patch(`/api/app/invoices/${shelved.id}/status`, { status: "ARCHIVED" });
+    await api.post("/api/app/payments", { invoiceId: shelved.id, amount: 10, method: "CASH" }, 400);
+
+    await api.delete(`/api/app/invoices/${invoice.id}?force=1`);
+    await api.delete(`/api/app/invoices/${shelved.id}?force=1`);
+  });
+
+  test("a partially paid deposit is credited on the final invoice and the deposit invoice retired", async () => {
+    // $400 quote with a $100 fixed deposit, approved by the client → the
+    // deposit invoice is minted automatically.
+    const quote = await api.post("/api/app/quotes", {
+      contactId,
+      title: "E2E deposit credit",
+      depositType: "FIXED",
+      depositValue: 100,
+      lineItems: [{ description: "Fence repair", quantity: 1, unitPrice: 400 }],
+    });
+    await api.patch(`/api/app/quotes/${quote.id}`, { status: "AWAITING_RESPONSE" });
+    await api.json(
+      "POST",
+      `/api/public/quote/${quote.publicToken}`,
+      { action: "approve", signatureName: `${runTag} Invoice`, optedOutItemIds: [] },
+      200
+    );
+    const deposit = await db().invoice.findFirstOrThrow({
+      where: { quoteId: quote.id, kind: "DEPOSIT" },
+      select: { id: true, total: true, status: true },
+    });
+    expect(Number(deposit.total)).toBeCloseTo(100, 2);
+
+    // The client pays only part of the deposit.
+    await api.post("/api/app/payments", { invoiceId: deposit.id, amount: 40, method: "CHECK" });
+    expect((await invoiceState(deposit.id)).status).not.toBe("PAID");
+
+    // Work done, final invoice for the job: the $40 is credited, the deposit
+    // invoice is shelved so the client isn't dunned for the other $60 twice.
+    const job = await api.post(`/api/app/quotes/${quote.id}/convert`);
+    const final = await api.post("/api/app/invoices", {
+      contactId,
+      jobId: job.id,
+      lineItems: [{ description: "Fence repair", quantity: 1, unitPrice: 400 }],
+    });
+    expect(Number(final.depositApplied)).toBeCloseTo(40, 2);
+    expect(Number(final.total)).toBeCloseTo(360, 2);
+    expect((await invoiceState(deposit.id)).status).toBe("ARCHIVED");
+
+    await api.delete(`/api/app/invoices/${final.id}?force=1`);
+    await api.delete(`/api/app/invoices/${deposit.id}?force=1`);
+    await api.delete(`/api/app/jobs/${job.id}`);
+    await api.delete(`/api/app/quotes/${quote.id}`);
   });
 });

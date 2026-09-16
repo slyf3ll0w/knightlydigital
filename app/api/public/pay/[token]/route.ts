@@ -70,13 +70,25 @@ export async function POST(
 
   // Partial payments: the client may pay any amount from $1 up to the balance.
   // Omitted/invalid amount = the full balance (the original behavior, and what
-  // stale pay pages send). Clamp to cents so float math can't overshoot.
+  // stale pay pages send). Clamp to cents so float math can't overshoot. The
+  // $1 floor only applies to a PARTIAL payment — a remaining balance under a
+  // dollar must still be payable, or it sits PAST_DUE collecting reminders.
   let payAmount = balance;
   if (typeof requestedAmount === "number" && isFinite(requestedAmount)) {
     payAmount = Math.round(requestedAmount * 100) / 100;
-    if (payAmount < 1 || payAmount > balance) {
+    const isFull = Math.abs(payAmount - balance) < 0.005;
+    if (isFull) payAmount = balance;
+    if (payAmount <= 0 || payAmount > balance || (!isFull && payAmount < 1)) {
       return NextResponse.json(
         { error: `Enter an amount between $1.00 and the balance ($${balance.toFixed(2)}).` },
+        { status: 400 }
+      );
+    }
+    // Deposits are all-or-nothing: the final invoice nets what was paid, but a
+    // half-paid deposit leaves the job's start ambiguous for the business.
+    if (!isFull && invoice.kind === "DEPOSIT") {
+      return NextResponse.json(
+        { error: "Deposits are paid in full — the amount can't be split." },
         { status: 400 }
       );
     }

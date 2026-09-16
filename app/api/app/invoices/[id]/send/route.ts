@@ -6,6 +6,7 @@ import { getActor, canSeeMoney, viaContactScope } from "@/lib/permissions";
 import { sendEmail, invoiceLinkEmail } from "@/lib/email";
 import { sendSms, canText, invoiceLinkText } from "@/lib/sms";
 import { inPreview, previewBlockedError } from "@/lib/preview";
+import { dueDateFromTerms } from "@/lib/due-dates";
 
 /**
  * POST — email the client their invoice pay link and mark the invoice sent.
@@ -107,7 +108,7 @@ export async function POST(
     ...(invoice.issuedAt ? {} : { issuedAt: now }),
     ...(invoice.dueDate
       ? {}
-      : { dueDate: new Date(now.getTime() + invoice.contact.paymentTermsDays * 86400000) }),
+      : { dueDate: dueDateFromTerms(now, invoice.contact.paymentTermsDays) }),
   };
   if (Object.keys(patch).length > 0) {
     await prisma.invoice.update({ where: { id: invoice.id }, data: patch });

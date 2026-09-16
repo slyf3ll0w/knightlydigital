@@ -164,8 +164,10 @@ export async function POST(
     await recordLeadWin(prisma, quote.companyId, boardContact);
   }
 
-  // Email the client the deposit pay link when a deposit invoice was just created
-  if (deposit?.created && quote.contact.email) {
+  // Email the client the deposit pay link whenever a deposit is still owed —
+  // just minted, or minted earlier by "Collect deposit" (possibly re-priced
+  // by an edit since). Approval is the moment they expect to be asked.
+  if (deposit && deposit.outstanding > 0 && quote.contact.email) {
     const baseUrl = process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com";
     const { subject, html } = invoiceLinkEmail({
       brand: quote.company,

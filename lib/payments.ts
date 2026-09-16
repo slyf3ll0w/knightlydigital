@@ -403,7 +403,9 @@ export async function recordPayment(params: RecordPaymentParams) {
           : {},
     });
 
-    if (invoice.kind === "DEPOSIT" && invoice.quoteId && fullyPaid) {
+    // Every payment on a deposit invoice (not just the one that completes it)
+    // is money toward the job: credit it on the final invoice if one exists.
+    if (invoice.kind === "DEPOSIT" && invoice.quoteId) {
       await recomputeDepositApplied(tx, invoice.quoteId);
     }
 
@@ -630,6 +632,37 @@ export function invoiceBalance(invoice: {
     0
   );
   return Math.round((Number(invoice.total) + surcharges - paid) * 100) / 100;
+}
+
+/**
+ * Split a refund across a payment's principal and its card surcharge.
+ * Payment.amount INCLUDES the surcharge, and invoiceBalance adds every
+ * surcharge back on top of the total — so a refund that only shrinks `amount`
+ * leaves the surcharge in the balance: after a full refund the client owes
+ * total + the old surcharge, and /pay surcharges that again. The surcharge
+ * shrinks in proportion to what remains (zero on a full refund); the refunded
+ * surcharge portion is stored on the Refund row so a failed reversal can put
+ * both numbers back.
+ */
+export function refundSplit(
+  payment: {
+    amount: number | { toString(): string };
+    surchargeAmount?: number | { toString(): string } | null;
+  },
+  refundAmount: number
+): { remainingAmount: number; remainingSurcharge: number | null; refundedSurcharge: number } {
+  const amount = Number(payment.amount);
+  const surcharge = payment.surchargeAmount == null ? null : Number(payment.surchargeAmount);
+  const remainingAmount = Math.max(0, Math.round((amount - refundAmount) * 100) / 100);
+  if (surcharge == null || surcharge <= 0 || amount <= 0) {
+    return { remainingAmount, remainingSurcharge: surcharge, refundedSurcharge: 0 };
+  }
+  const remainingSurcharge =
+    remainingAmount <= 0
+      ? 0
+      : Math.min(surcharge, Math.round(surcharge * (remainingAmount / amount) * 100) / 100);
+  const refundedSurcharge = Math.round((surcharge - remainingSurcharge) * 100) / 100;
+  return { remainingAmount, remainingSurcharge, refundedSurcharge };
 }
 
 /**

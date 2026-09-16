@@ -27,6 +27,7 @@ import { attemptAutoCharge } from "@/lib/auto-charge";
 import { sendEmail, invoiceLinkEmail } from "@/lib/email";
 import { localDayParts, wallTimeToUtc } from "@/lib/booking-engine";
 import { withDocNumberRetry } from "@/lib/doc-numbers";
+import { dueDateFromTerms } from "@/lib/due-dates";
 import { findScheduleConflicts } from "@/lib/schedule-conflicts";
 
 type Tx = Prisma.TransactionClient | PrismaClient;
@@ -362,7 +363,7 @@ async function generateCycle(sub: DueSub, now: Date): Promise<"billed" | "drafte
       select: { invoiceNumber: true },
     });
     const money = await applyCompanyTax(tx, sub.companyId, lineTotal);
-    const dueDate = new Date(now.getTime() + sub.contact.paymentTermsDays * 86400000);
+    const dueDate = dueDateFromTerms(now, sub.contact.paymentTermsDays);
     const invoice = await tx.invoice.create({
       data: {
         companyId: sub.companyId,
@@ -492,9 +493,7 @@ export async function billCompletedVisit(
         tax: money.tax,
         total: money.total,
         issuedAt: send ? now : null,
-        dueDate: send
-          ? new Date(now.getTime() + sub.contact.paymentTermsDays * 86400000)
-          : null,
+        dueDate: send ? dueDateFromTerms(now, sub.contact.paymentTermsDays) : null,
         lineItems: {
           create: {
             name: sub.name,
@@ -615,9 +614,7 @@ async function billSeriesPool(
           subtotal: 0,
           total: 0,
           issuedAt: send ? now : null,
-          dueDate: send
-            ? new Date(now.getTime() + sub.contact.paymentTermsDays * 86400000)
-            : null,
+          dueDate: send ? dueDateFromTerms(now, sub.contact.paymentTermsDays) : null,
         },
       });
       await tx.job.updateMany({

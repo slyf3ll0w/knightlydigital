@@ -193,6 +193,13 @@ async function handleReversalFailed(refund: Refund) {
 
   const refundAmount = Number(refund.amount);
   const restored = Math.round((Number(payment.amount) + refundAmount) * 100) / 100;
+  // The refund also carved its share out of the payment's surcharge (see
+  // refundSplit); put that back too or the invoice balance stays short.
+  const refundedSurcharge = Number(refund.surchargeAmount ?? 0);
+  const restoredSurcharge =
+    refundedSurcharge > 0
+      ? Math.round((Number(payment.surchargeAmount ?? 0) + refundedSurcharge) * 100) / 100
+      : undefined;
   const restoredCents = Math.round(restored * 100);
   const method = payment.method === "ACH" ? "ACH" : "CARD";
   const note = `Refund of $${refundAmount.toFixed(2)} failed — payment restored`;
@@ -203,6 +210,7 @@ async function handleReversalFailed(refund: Refund) {
       where: { id: payment.id },
       data: {
         amount: restored,
+        ...(restoredSurcharge !== undefined ? { surchargeAmount: restoredSurcharge } : {}),
         details: payment.details ? `${payment.details} · ${note}` : note,
         ...(payment.feeCents == null
           ? {}

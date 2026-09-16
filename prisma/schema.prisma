@@ -1953,6 +1953,9 @@ model Refund {
   paymentId   String
   payment     Payment  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
   amount      Decimal  @db.Decimal(10, 2)
+  // Portion of `amount` that was card surcharge — restored alongside the
+  // principal when the reversal fails. Null on rows written before 2026-09.
+  surchargeAmount Decimal? @db.Decimal(10, 2)
   reversalRef String? // Finix reversal transfer id
   createdAt   DateTime @default(now())
 

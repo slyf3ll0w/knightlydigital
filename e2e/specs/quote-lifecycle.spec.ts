@@ -77,4 +77,60 @@ test.describe("quote lifecycle", () => {
     // Double-convert must fail.
     await api.post(`/api/app/quotes/${quote.id}/convert`, undefined, 400);
   });
+
+  test("an unpaid deposit invoice follows quote edits; a quote with invoices can't be deleted", async () => {
+    // 50% deposit on a $1,000 draft, collected before the client approves.
+    const quote = await api.post("/api/app/quotes", {
+      contactId,
+      title: "E2E deposit re-price",
+      depositType: "PERCENT",
+      depositValue: 50,
+      lineItems: [{ description: "Deck build", quantity: 1, unitPrice: 1000 }],
+    });
+    const collected = await api.post(`/api/app/quotes/${quote.id}/collect-deposit`);
+    expect(collected.created).toBe(true);
+    expect(Number(collected.amount)).toBeCloseTo(500, 2);
+    const before = await db().invoice.findUniqueOrThrow({
+      where: { id: collected.invoiceId },
+      select: { publicToken: true, total: true },
+    });
+
+    // The quote is revised to $3,000 → the same deposit invoice (same pay
+    // link) now asks for $1,500 instead of the stale $500.
+    await api.patch(`/api/app/quotes/${quote.id}`, {
+      title: "E2E deposit re-price",
+      depositType: "PERCENT",
+      depositValue: 50,
+      lineItems: [{ description: "Deck build", quantity: 1, unitPrice: 3000 }],
+    });
+    const after = await db().invoice.findUniqueOrThrow({
+      where: { id: collected.invoiceId },
+      select: { publicToken: true, total: true, lineItems: { select: { total: true } } },
+    });
+    expect(after.publicToken).toBe(before.publicToken);
+    expect(Number(after.total)).toBeCloseTo(1500, 2);
+    expect(Number(after.lineItems[0].total)).toBeCloseTo(1500, 2);
+
+    // Deposit percentages are clamped server-side: 150% never mints a
+    // deposit above the quote.
+    await api.patch(`/api/app/quotes/${quote.id}`, {
+      title: "E2E deposit re-price",
+      depositType: "PERCENT",
+      depositValue: 150,
+      lineItems: [{ description: "Deck build", quantity: 1, unitPrice: 3000 }],
+    });
+    const clamped = await db().quote.findUniqueOrThrow({
+      where: { id: quote.id },
+      select: { depositValue: true },
+    });
+    expect(Number(clamped.depositValue)).toBe(100);
+
+    // With an invoice attached the quote is a paper trail: delete is refused,
+    // archive is the way.
+    await api.delete(`/api/app/quotes/${quote.id}`, 409);
+    await api.patch(`/api/app/quotes/${quote.id}`, { status: "ARCHIVED" });
+
+    await api.delete(`/api/app/invoices/${collected.invoiceId}?force=1`);
+    await api.delete(`/api/app/quotes/${quote.id}`);
+  });
 });

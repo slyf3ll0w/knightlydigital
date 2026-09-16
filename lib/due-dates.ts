@@ -36,3 +36,17 @@ export function isPastDue(dueDate: Date | null | undefined, now: Date = new Date
 export function pastDueFilter(now: Date = new Date()): { lt: Date } {
   return { lt: startOfDayUtc(now) };
 }
+
+/**
+ * Due date from payment terms: the UTC calendar day of `issuedAt` plus N days,
+ * anchored at noon UTC like every user-picked due date. The old
+ * `now + N*86400000` wrote a wall-clock instant, so a Net-7 invoice issued at
+ * 9pm went PAST_DUE at 9pm on the 7th day and Net-0 invoices came due — and
+ * got the "due" reminder — the minute they were issued.
+ */
+export function dueDateFromTerms(issuedAt: Date, days: number): Date {
+  const n = Math.max(0, Math.round(Number(days) || 0));
+  return new Date(
+    Date.UTC(issuedAt.getUTCFullYear(), issuedAt.getUTCMonth(), issuedAt.getUTCDate() + n, 12)
+  );
+}
