@@ -17,6 +17,7 @@ export default function JobActions({
   scheduledAt = null,
   planBilled = false,
   canConvertToAppointment = false,
+  canCloseUnbilled = false,
 }: {
   jobId: string;
   status: string;
@@ -31,6 +32,9 @@ export default function JobActions({
   // An untouched, scheduled job (no invoice/quote/plan/work on it) that a
   // seller may re-book as a sales appointment instead
   canConvertToAppointment?: boolean;
+  // May close a job nothing bills for (no invoice, no plan) — a money call,
+  // so techs only see "Close Job" once an invoice exists
+  canCloseUnbilled?: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -245,7 +249,7 @@ export default function JobActions({
                   Make It an Appointment
                 </button>
               )}
-              {status !== "ARCHIVED" && (
+              {status !== "ARCHIVED" && (hasInvoice || planBilled || canCloseUnbilled) && (
                 <button
                   onClick={() => setStatus("ARCHIVED")}
                   className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"

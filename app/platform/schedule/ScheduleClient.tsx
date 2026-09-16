@@ -276,6 +276,10 @@ export default function ScheduleClient({
   }, [items, unscheduled]);
 
   const showToast = (t: Omit<ToastState, "id">) => setToast({ ...t, id: ++toastSeq.current });
+  // Undo handlers are closures from before the toast existed — this is how
+  // they learn whether "Text client" was tapped in the meantime
+  const toastRef = useRef<ToastState | null>(null);
+  toastRef.current = toast;
 
   // ── Optimistic moves ──────────────────────────────────────────────────────
 
@@ -366,13 +370,32 @@ export default function ScheduleClient({
           : crewChanged
             ? " · unassigned"
             : "";
-      const canNotify = timeChanged && item.kind !== "block" && Boolean(item.phone || item.contactId);
+      // A resize-only drag keeps the arrival — there's no "new time" to text
+      // ("moved to 9:00 (was 9:00)" reads like a glitch)
+      const startChanged = prev.scheduledAt !== next.scheduledAt || prev.scheduledAnytime !== next.scheduledAnytime;
+      const canNotify = startChanged && item.kind !== "block" && Boolean(item.phone || item.contactId);
       showToast({
         text: opts.label ?? `Moved ${item.contactName || item.title}`,
         sub: `${when}${crewNote}`,
         onUndo: async () => {
+          const told = Boolean(toastRef.current?.notified);
           const fresh = allItems.get(item.id) ?? item;
-          await commitMove({ ...fresh, ...next, assigneeIds: next.assigneeIds }, prev, { undoable: false });
+          const ok = await commitMove({ ...fresh, ...next, assigneeIds: next.assigneeIds }, prev, { undoable: false });
+          // The client was already told the new time — undoing it quietly
+          // would leave them showing up at the wrong hour
+          if (ok && told) {
+            const r = await postJson<{ via?: string[] }>("/api/app/schedule/notify-move", {
+              kind: item.kind,
+              id: item.id,
+              previousStart: next.scheduledAt,
+              previousAnytime: next.scheduledAnytime,
+            });
+            showToast(
+              r.ok
+                ? { text: `Moved back — ${item.contactName || "client"} told`, sub: `Sent by ${(r.data?.via ?? []).join(" + ") || "message"}` }
+                : { text: `Moved back — couldn't reach ${item.contactName || "the client"}`, sub: "Let them know the original time stands.", tone: "warn" }
+            );
+          }
           startTransition(() => router.refresh());
         },
         onNotify: canNotify
@@ -744,6 +767,7 @@ export default function ScheduleClient({
     const { ok, data } = await postJson<{
       moved: number;
       notified: number;
+      left: number;
       conflicts: string[];
       undo: { kind: string; id: string }[];
     }>("/api/app/schedule/shift-day", {
@@ -760,13 +784,26 @@ export default function ScheduleClient({
     }
     const toDate = shiftSheet.toDate;
     const ids = data.undo.map((u) => u.id);
+    // Clients who were told about the move get told about the undo too
+    const told = shiftSheet.notify && data.notified > 0;
     setShiftSheet(null);
     setConflicts(data.conflicts ?? []);
+    const stayed = data.left ? ` · ${data.left} already started, stayed put` : "";
     showToast({
       text: `Moved ${data.moved} to ${parseParam(toDate).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}`,
-      sub: shiftSheet.notify ? `${data.notified} client${data.notified === 1 ? "" : "s"} told` : undefined,
+      sub: shiftSheet.notify ? `${data.notified} client${data.notified === 1 ? "" : "s"} told${stayed}` : stayed.slice(3) || undefined,
       onUndo: async () => {
-        await postJson("/api/app/schedule/shift-day", { date: toDate, toDate: date, ids, includeAppointments: true });
+        const r = await postJson<{ notified?: number }>("/api/app/schedule/shift-day", {
+          date: toDate,
+          toDate: date,
+          ids,
+          includeAppointments: true,
+          notify: told,
+        });
+        if (r.ok && told) {
+          const n = r.data?.notified ?? 0;
+          showToast({ text: "Moved back", sub: `${n} client${n === 1 ? "" : "s"} told the original time stands` });
+        }
         startTransition(() => router.refresh());
       },
     });
@@ -1642,6 +1679,7 @@ export default function ScheduleClient({
               <p className="mt-0.5 text-sm text-gray-500">
                 Everything on {dayLabelFor(anchor)}
                 {team ? ` for ${users.find((u) => u.id === team)?.name ?? "this tech"}` : ""} keeps its time and length, just on a different date. Rained out, sick day, truck in the shop.
+                {sameDay(anchor, today) ? " Visits that already started (or are on the clock) stay where they are." : ""}
               </p>
             </div>
             {shiftErr && <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{shiftErr}</div>}

@@ -63,3 +63,18 @@ export function mapsHref(lat: number, lng: number): string {
 export function mapsSearchHref(address: string): string {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
 }
+
+/** Longest span an entry closed on the tech's BEHALF may run (a forgotten clock-out). */
+export const AUTO_CLOSE_MAX_MS = 12 * 3600_000;
+
+/**
+ * Where an entry the tech never closed themselves ends: the moment we're
+ * closing it (next clock-in, job completed), capped at 12 hours after it
+ * started — never before it started. A clock-in forgotten on Friday must not
+ * become a 60-hour entry when Monday's tap closes it.
+ */
+export function autoCloseAt(startedAt: Date, closingAt: Date): Date {
+  const start = startedAt.getTime();
+  const capped = Math.min(closingAt.getTime(), start + AUTO_CLOSE_MAX_MS);
+  return new Date(Math.max(start, capped));
+}
