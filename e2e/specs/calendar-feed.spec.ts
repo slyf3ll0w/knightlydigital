@@ -67,8 +67,12 @@ test.describe("calendar subscribe feed", () => {
     await b.raw("DELETE", "/api/app/profile/calendar-feed");
   });
 
-  test("unassigning the job drops it from the feed", async () => {
-    await api.patch(`/api/app/jobs/${jobId}`, { assigneeIds: [] });
+  test("handing the job to a subcontractor drops it from the feed", async () => {
+    // The harness is a one-person company: clearing the crew would land the
+    // job straight back on the owner (solo auto-assign), and a solo member's
+    // feed carries unassigned scheduled jobs anyway. Outsourced is the one
+    // legitimate empty crew, and outsourced jobs stay off everyone's calendar.
+    await api.patch(`/api/app/jobs/${jobId}`, { assigneeIds: [], outsourced: true, outsourcedTo: "Sub Co" });
     const res = await fetch(`${state.baseUrl}${new URL(feedUrl).pathname}`);
     expect(await res.text()).not.toContain(`wb-job-${jobId}@`);
   });
