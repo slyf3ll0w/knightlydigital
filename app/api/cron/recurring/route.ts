@@ -1,4 +1,5 @@
 import { timingSafeEqual } from "crypto";
+import * as Sentry from "@sentry/nextjs";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import {
@@ -18,6 +19,7 @@ import { runQuickBooksNightlySync } from "@/lib/quickbooks";
 import { runGoogleCalendarSweep } from "@/lib/google-calendar";
 import { runGoogleCalendarPullSweep } from "@/lib/google-calendar-pull";
 import { runRecurringExpenses } from "@/lib/expenses";
+import { expireApprovalBookings } from "@/lib/approval-bookings";
 import { rollupStorageSnapshots } from "@/lib/usage";
 import { runNightlyReconciliation } from "@/lib/reconcile";
 
@@ -45,6 +47,13 @@ import { runNightlyReconciliation } from "@/lib/reconcile";
 export const dynamic = "force-dynamic";
 
 const BUDGET_MS = 8 * 60_000;
+
+/**
+ * Sweeps that bill or collect. A failure here is a revenue problem, so the
+ * response says so (`ok: false`, 500) — a scheduler that alerts on non-2xx
+ * hears about it, and `console.error` alone never reaches anyone.
+ */
+const MONEY_STEPS = new Set(["subscriptions", "consolidations", "autoChargeRetries"]);
 
 // Single-container deployment: an in-process flag is the overlap guard. The
 // per-row DB claims underneath make an overlap safe anyway — this just stops
@@ -74,6 +83,7 @@ export async function POST(req: NextRequest) {
   const now = new Date();
   const results: Record<string, unknown> = {};
   const deferred: string[] = [];
+  const failed: string[] = [];
 
   const step = async (name: string, fn: () => Promise<unknown>) => {
     if (Date.now() - started > BUDGET_MS) {
@@ -84,6 +94,8 @@ export async function POST(req: NextRequest) {
       results[name] = await fn();
     } catch (err) {
       console.error(`[cron] ${name} failed`, err);
+      Sentry.captureException(err, { tags: { cron: name } });
+      failed.push(name);
       results[name] = { error: err instanceof Error ? err.message : "failed" };
     }
   };
@@ -110,6 +122,9 @@ export async function POST(req: NextRequest) {
     // stage only lands if this cron runs hourly — daily runs still cover the
     // day-before stage.
     await step("appointmentReminders", () => runAppointmentReminders(now));
+    // "Hold for approval" bookings nobody answered: auto-decline 2 h before
+    // the slot (frees it, tells the client), and a morning nudge while any wait
+    await step("approvalBookings", () => expireApprovalBookings(now));
     // Job-visit reminders (same cadence): clients are told the arrival window,
     // never the dispatch-exact time
     await step("visitReminders", () => runVisitReminders(now));
@@ -143,10 +158,15 @@ export async function POST(req: NextRequest) {
     running = false;
   }
 
-  return NextResponse.json({
-    ok: true,
-    ms: Date.now() - started,
-    ...(deferred.length ? { deferred } : {}),
-    ...results,
-  });
+  const moneyFailed = failed.some((name) => MONEY_STEPS.has(name));
+  return NextResponse.json(
+    {
+      ok: !moneyFailed,
+      ms: Date.now() - started,
+      ...(deferred.length ? { deferred } : {}),
+      ...(failed.length ? { failed } : {}),
+      ...results,
+    },
+    { status: moneyFailed ? 500 : 200 }
+  );
 }

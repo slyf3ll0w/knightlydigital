@@ -40,6 +40,34 @@ export function normalizeAddressKey(query: string): string {
   return query.toLowerCase().replace(/[.#]/g, "").replace(/\s+/g, " ").trim().slice(0, 300);
 }
 
+/** ISO country the forward geocoder is restricted to (Mapbox `country=`). */
+const GEOCODE_COUNTRY = (process.env.GEOCODE_COUNTRY ?? "us").toLowerCase();
+
+export type GeocodeFeature = {
+  geometry?: { coordinates?: [number, number] };
+  properties?: {
+    match_code?: { confidence?: string };
+    context?: { region?: { region_code?: string } };
+  };
+};
+
+/**
+ * Is this the address the user typed, or the geocoder's best guess at
+ * something else? Low-confidence matches and results in another state (when
+ * the company's state is known) are rejected — a wrong pin is worse than no
+ * pin, because everything downstream (route order, drive times, ETAs) trusts
+ * it. Pure so it can be unit-tested.
+ */
+export function acceptGeocodeMatch(feature: GeocodeFeature | undefined, homeState: string | null): boolean {
+  if (!feature?.geometry?.coordinates) return false;
+  const confidence = feature.properties?.match_code?.confidence?.toLowerCase();
+  if (confidence === "low") return false;
+  const region = feature.properties?.context?.region?.region_code?.toUpperCase();
+  const home = homeState?.trim().toUpperCase();
+  if (home && home.length === 2 && region && region !== home) return false;
+  return true;
+}
+
 /**
  * Resolve a free-text address to coordinates. Cache-first; a miss calls
  * Mapbox and records the outcome either way. Returns null when the string is
@@ -64,19 +92,39 @@ export async function geocodeAddress(
   // missing token, and nothing is cached so the address retries next month.
   if (!(await geocodeBudgetOk())) return null;
 
+  // Bias the lookup toward where this company works: country-restricted,
+  // and near the shop when we know where that is. A bare "412 Oak St"
+  // otherwise resolves to the best-known Oak St anywhere in the world and
+  // quietly inserts a six-hour drive into the route walk.
+  const home = companyId
+    ? await prisma.company.findUnique({
+        where: { id: companyId },
+        select: { lat: true, lng: true, state: true },
+      })
+    : null;
+
   let result: LatLng | null = null;
   try {
-    const url =
-      `https://api.mapbox.com/search/geocode/v6/forward` +
-      `?q=${encodeURIComponent(key)}&limit=1&access_token=${MAPBOX_TOKEN}`;
+    const params = new URLSearchParams({
+      q: key,
+      limit: "1",
+      country: GEOCODE_COUNTRY,
+      access_token: MAPBOX_TOKEN ?? "",
+    });
+    if (home?.lat != null && home?.lng != null) params.set("proximity", `${home.lng},${home.lat}`);
+    const url = `https://api.mapbox.com/search/geocode/v6/forward?${params.toString()}`;
     const res = await fetch(url);
     recordGeocodeCall(companyId); // a request was sent — meter it, ok or not
     if (res.ok) {
-      const data = (await res.json()) as {
-        features?: { geometry?: { coordinates?: [number, number] } }[];
-      };
-      const coords = data.features?.[0]?.geometry?.coordinates;
-      if (coords && Number.isFinite(coords[0]) && Number.isFinite(coords[1])) {
+      const data = (await res.json()) as { features?: GeocodeFeature[] };
+      const feature = data.features?.[0];
+      const coords = feature?.geometry?.coordinates;
+      if (
+        coords &&
+        Number.isFinite(coords[0]) &&
+        Number.isFinite(coords[1]) &&
+        acceptGeocodeMatch(feature, home?.state ?? null)
+      ) {
         result = { lat: coords[1], lng: coords[0] };
       }
     } else {

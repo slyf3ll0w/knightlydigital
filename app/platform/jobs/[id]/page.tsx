@@ -6,7 +6,7 @@ import { quoteStatusLabel, money, shortDate } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
 import CallTextButtons from "@/components/CallTextButtons";
 import JobActionRow from "@/components/JobActionRow";
-import { requirePageActor, jobScope, canSeePricing, canSell, isManager } from "@/lib/permissions";
+import { requirePageActor, jobScope, canSeeMoney, canSeePricing, canSell, isManager } from "@/lib/permissions";
 import { resolveSlotInterval } from "@/lib/scheduling";
 import { earliestOpenMinutes, sanitizeBusinessHours } from "@/lib/business-hours";
 import { renderMessageTemplate, DEFAULT_ON_MY_WAY_TEMPLATE } from "@/lib/messaging";
@@ -245,6 +245,7 @@ export default async function JobDetailPage({
               scheduledAt={job.scheduledAt?.toISOString() ?? null}
               planBilled={!!job.subscription?.interval && !job.subscription.billPerVisit}
               canConvertToAppointment={canConvertToAppointment}
+              canCloseUnbilled={canSeeMoney(actor)}
             />
           </div>
         )}

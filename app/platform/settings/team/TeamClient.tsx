@@ -6,6 +6,7 @@ import { CalendarClock, KeyRound, Loader2, Plus, UserPlus, X } from "lucide-reac
 import Avatar from "@/components/Avatar";
 import BusinessHoursEditor from "@/components/BusinessHoursEditor";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
+import { alertSheet } from "@/components/ConfirmSheet";
 import type { BusinessHours } from "@/lib/business-hours";
 
 /**
@@ -112,11 +113,26 @@ export default function TeamClient({
   async function patchMember(id: string, body: Record<string, unknown>) {
     setBusy(true);
     setError("");
-    const { ok, data } = await postJson(`/api/app/team/${id}`, body, "PATCH");
+    const { ok, data } = await postJson<{
+      deactivation?: { unassignedJobs: number; series: { id: string; name: string }[] };
+    }>(`/api/app/team/${id}`, body, "PATCH");
     setBusy(false);
     if (!ok) {
       setError(data?.error ?? GENERIC_ERROR);
       return false;
+    }
+    // Deactivating pulls the person off upcoming work — say what moved so the
+    // dispatcher goes and re-places it instead of finding out on the day.
+    const d = data?.deactivation;
+    if (d && (d.unassignedJobs > 0 || d.series.length > 0)) {
+      const parts: string[] = [];
+      if (d.unassignedJobs > 0) {
+        parts.push(`${d.unassignedJobs} upcoming visit${d.unassignedJobs === 1 ? "" : "s"} now need${d.unassignedJobs === 1 ? "s" : ""} someone assigned`);
+      }
+      if (d.series.length > 0) {
+        parts.push(`removed as default crew from ${d.series.map((s) => s.name).join(", ")}`);
+      }
+      alertSheet({ message: `Deactivated. ${parts.join("; ")}.` });
     }
     router.refresh();
     return true;

@@ -1,19 +1,20 @@
 import { randomBytes } from "crypto";
+import * as Sentry from "@sentry/nextjs";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import type { EngineRules, Slot } from "@/lib/booking-engine";
 import { slotLabel } from "@/lib/booking-engine";
 import type { LoadedBookingType } from "@/lib/booking-runtime";
 import { assignMemberForSlot } from "@/lib/booking-runtime";
-import { APP_URL, SlotTakenError, upsertBookingContact, type BookingCompanyRow, type CustomerInput } from "@/lib/booking-submit";
+import { APP_URL, SlotTakenError, upsertBookingContact, withSerializationRetry, type BookingCompanyRow, type CustomerInput } from "@/lib/booking-submit";
 import type { ServiceSelection } from "@/lib/booking-services";
 import { computeQuoteTotals } from "@/lib/quote-totals";
 import { derivedQuoteDeposit } from "@/lib/statuses";
 import { createDepositInvoice } from "@/lib/deposits";
 import { convertQuoteToJob } from "@/lib/quote-convert";
-import { enterPipeline, autoAdvance } from "@/lib/pipeline";
+import { enterPipeline, autoAdvance, recordLeadWin } from "@/lib/pipeline";
 import { withDocNumberRetry } from "@/lib/doc-numbers";
-import { acquireChargeLock, calculateSurcharge, getProcessor, recordPayment, releaseChargeLock } from "@/lib/payments";
+import { acquireChargeLock, calculateSurcharge, findUnrecordedTransferForInvoice, getProcessor, recordPayment, releaseChargeLock, type ChargeResult } from "@/lib/payments";
 import { sendEmail, bookingConfirmedEmail, bookingTeamNoticeEmail } from "@/lib/email";
 import { companyNotifyAddress } from "@/lib/notify";
 import { companyManagerIds, notifyUsers } from "@/lib/push";
@@ -93,7 +94,9 @@ export async function createServiceBooking(params: {
   // ── The booking transaction ─────────────────────────────────────────────
   let result: Awaited<ReturnType<typeof book>>;
   async function book() {
-    return withDocNumberRetry(() =>
+    // Serialization aborts (two customers booking this company at once) are
+    // retried before anyone is told the slot was taken.
+    return withSerializationRetry(() => withDocNumberRetry(() =>
       prisma.$transaction(
         async (tx) => {
           const contact = await upsertBookingContact(tx, company.id, customer);
@@ -164,7 +167,7 @@ export async function createServiceBooking(params: {
             include: { lineItems: true, contact: true, property: true },
           });
 
-          const job = await convertQuoteToJob(tx, quote, {
+          const { job, subscriptionIds } = await convertQuoteToJob(tx, quote, {
             scheduledAt: slot.start,
             scheduledEnd: slot.end,
             assigneeIds: [assigned.userId],
@@ -173,14 +176,16 @@ export async function createServiceBooking(params: {
             requestId: request.id,
             bookingTypeId: type.id,
             bookedOnlineAt: now,
+            // The lead is only won once the card (if any) has actually charged
+            deferLeadWin: collect,
           });
 
           const depositInvoice = collect ? await createDepositInvoice(tx, quote) : null;
-          return { contact, request, quote, job, depositInvoice, assignedUserId: assigned.userId };
+          return { contact, request, quote, job, subscriptionIds, depositInvoice, assignedUserId: assigned.userId };
         },
         { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
       )
-    );
+    ));
   }
   try {
     result = await book();
@@ -200,24 +205,40 @@ export async function createServiceBooking(params: {
       return { declined: true, error: "That payment is already processing — please try again in a moment." };
     }
     try {
-      const charge = await getProcessor().charge({
-        amount: amount + surchargeAmount,
-        method: "card",
-        surcharge: surchargeAmount,
-        description: `${title} — ${company.name} (booked online)`,
-        metadata: { invoiceId: inv.id, companyId: company.id, bookingTypeId: type.id },
-        token: params.paymentToken ?? undefined,
-        merchantRef: company.finixMerchantId ?? undefined,
-        fraudSessionId: params.fraudSessionId,
-        idempotencyScope: `book-${inv.id}`,
-        buyer: {
-          identityRef: result.contact.finixBuyerIdentityId,
-          firstName: result.contact.firstName,
-          lastName: result.contact.lastName,
-          email: result.contact.email,
-          phone: result.contact.phone,
-        },
-      });
+      let charge: ChargeResult;
+      try {
+        charge = await getProcessor().charge({
+          amount: amount + surchargeAmount,
+          method: "card",
+          surcharge: surchargeAmount,
+          description: `${title} — ${company.name} (booked online)`,
+          metadata: { invoiceId: inv.id, companyId: company.id, bookingTypeId: type.id },
+          token: params.paymentToken ?? undefined,
+          merchantRef: company.finixMerchantId ?? undefined,
+          fraudSessionId: params.fraudSessionId,
+          idempotencyScope: `book-${inv.id}`,
+          buyer: {
+            identityRef: result.contact.finixBuyerIdentityId,
+            firstName: result.contact.firstName,
+            lastName: result.contact.lastName,
+            email: result.contact.email,
+            phone: result.contact.phone,
+          },
+        });
+      } catch (err) {
+        // The processor call blew up (timeout, 5xx, network) — we don't know
+        // whether the card was charged. Look for a transfer tagged with this
+        // invoice before deciding: found = the money moved, carry on as paid;
+        // not found = nothing moved, so the booking is unwound rather than
+        // left as a confirmed job nobody paid for.
+        console.error("[booking] charge threw:", err);
+        const settled = await findUnrecordedTransferForInvoice(inv.id, Math.round((amount + surchargeAmount) * 100)).catch(() => null);
+        if (!settled) {
+          await unwind(result);
+          return { declined: true, error: "We couldn't reach the payment processor, so your card was not charged. Please try again in a moment." };
+        }
+        charge = { success: true, transactionId: settled.id, amount: amount + surchargeAmount, pending: settled.state === "PENDING" };
+      }
       if (!charge.success) {
         await unwind(result);
         return { declined: true, error: charge.error };
@@ -225,18 +246,34 @@ export async function createServiceBooking(params: {
       if (charge.buyerIdentityRef && !result.contact.finixBuyerIdentityId) {
         await prisma.contact.update({ where: { id: result.contact.id }, data: { finixBuyerIdentityId: charge.buyerIdentityRef } }).catch(() => {});
       }
-      await recordPayment({
-        companyId: company.id,
-        invoiceId: inv.id,
-        amount,
-        method: "CARD",
-        processorRef: charge.transactionId,
-        surchargeAmount,
-        cardBrand: charge.cardBrand,
-        cardType: charge.cardType,
-        details: "Paid at online booking",
-        receiptPending: charge.pending,
-      });
+      // The card IS charged from here on: a hiccup recording it must never
+      // unwind the booking (that would leave a charge with nothing to show for
+      // it) — retry once, then log loudly and finish the booking.
+      const paid = charge;
+      const record = () =>
+        recordPayment({
+          companyId: company.id,
+          invoiceId: inv.id,
+          amount,
+          method: "CARD",
+          processorRef: paid.transactionId,
+          surchargeAmount,
+          cardBrand: paid.cardBrand,
+          cardType: paid.cardType,
+          details: "Paid at online booking",
+          receiptPending: paid.pending,
+        });
+      try {
+        await record();
+      } catch (first) {
+        console.error("[booking] recording the payment failed once, retrying:", first);
+        try {
+          await record();
+        } catch (second) {
+          console.error("[booking] PAYMENT NOT RECORDED — transfer", paid.transactionId, "invoice", inv.id, second);
+          Sentry.captureException(second, { extra: { transferId: paid.transactionId, invoiceId: inv.id } });
+        }
+      }
       if (surchargeAmount > 0) {
         const cur = await prisma.invoice.findUnique({ where: { id: inv.id }, select: { surcharge: true } });
         await prisma.invoice.update({ where: { id: inv.id }, data: { surcharge: Math.round((Number(cur?.surcharge ?? 0) + surchargeAmount) * 100) / 100 } });
@@ -244,6 +281,13 @@ export async function createServiceBooking(params: {
       paidNote = `${type.paymentMode === "FULL" ? "Paid" : "Deposit paid"}: $${amount.toFixed(2)}${surchargeAmount > 0 ? ` + $${surchargeAmount.toFixed(2)} card fee` : ""}`;
     } finally {
       await releaseChargeLock(inv.id);
+    }
+    // Card charged: now the lead is won (deferred out of the booking tx above)
+    try {
+      const fresh = await prisma.contact.findUnique({ where: { id: result.contact.id }, select: { id: true, status: true, pipelineStageId: true } });
+      if (fresh) await recordLeadWin(prisma, company.id, fresh);
+    } catch (err) {
+      console.error("[booking] lead win after charge failed:", err);
     }
   }
 
@@ -337,11 +381,14 @@ export async function createServiceBooking(params: {
 }
 
 /**
- * A declined card releases the time: remove the job, quote, deposit invoice
- * and request the booking created. The contact stays — it's a real person
- * who may retry. Best-effort; leftovers are visible to the owner either way.
+ * A declined card releases the time: remove the job, quote, deposit invoice,
+ * request and any recurring subscriptions the booking started — otherwise
+ * the cron would keep minting visits and invoices for a plan nobody bought.
+ * The contact stays — it's a real person who may retry (their lead card was
+ * never marked Won: that side effect waits for a successful charge).
+ * Best-effort; leftovers are visible to the owner either way.
  */
-async function unwind(r: { job: { id: string }; quote: { id: string }; request: { id: string }; depositInvoice: { invoice: { id: string } } | null }) {
+async function unwind(r: { job: { id: string }; quote: { id: string }; request: { id: string }; subscriptionIds: string[]; depositInvoice: { invoice: { id: string } } | null }) {
   try {
     await prisma.$transaction(async (tx) => {
       await tx.quote.update({ where: { id: r.quote.id }, data: { jobId: null, status: "ARCHIVED" } });
@@ -349,6 +396,7 @@ async function unwind(r: { job: { id: string }; quote: { id: string }; request: 
       await tx.job.delete({ where: { id: r.job.id } });
       await tx.quote.delete({ where: { id: r.quote.id } });
       await tx.request.delete({ where: { id: r.request.id } });
+      if (r.subscriptionIds.length) await tx.subscription.deleteMany({ where: { id: { in: r.subscriptionIds } } });
     });
   } catch (err) {
     console.error("[booking] unwind after decline failed:", err);

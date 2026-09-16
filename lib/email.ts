@@ -323,8 +323,10 @@ function htmlToText(html: string): string {
 }
 
 /** Company email is off until Finix approval (mirrors lib/preview.ts without
- *  importing the payments stack — this file must stay import-cycle-free). */
-async function companyEmailBlocked(companyId: string): Promise<boolean> {
+ *  importing the payments stack — this file must stay import-cycle-free).
+ *  Exported so sweeps that CLAIM a one-shot send (reminder stages) can check
+ *  before claiming — a claim whose send is blocked is a reminder lost forever. */
+export async function companyEmailBlocked(companyId: string): Promise<boolean> {
   if (process.env.PAYMENT_PROCESSOR !== "finix") return false;
   try {
     const c = await prisma.company.findUnique({

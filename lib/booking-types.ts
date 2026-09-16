@@ -217,6 +217,10 @@ export function applyBookingTypePatch(
   if (!meta.schedulable) next.mode = "REQUEST";
   if (meta.exactTime) next.arrivalWindowMinutes = 0;
   if (next.kind !== "SERVICE") next.paymentMode = "NONE";
+  // A booked service is an approved quote converted to a scheduled job in
+  // one transaction (lib/booking-checkout.ts) — there is no tentative path
+  // for it, so "hold for approval" would be a promise the checkout can't keep
+  if (next.kind === "SERVICE") next.confirmation = "INSTANT";
   // A card is only taken when a real time is booked
   if (next.mode === "REQUEST") next.paymentMode = "NONE";
   // Money changes hands at booking → the booking can't sit unconfirmed

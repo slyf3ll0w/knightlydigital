@@ -12,6 +12,7 @@ import {
 import { computeQuoteTotals } from "@/lib/quote-totals";
 import { inPreview, PREVIEW_CAP, previewCapError } from "@/lib/preview";
 import { withDocNumberRetry } from "@/lib/doc-numbers";
+import { sanitizeDeposit } from "@/lib/deposits";
 
 export async function POST(req: NextRequest) {
   const actor = await getActor();
@@ -55,8 +56,21 @@ export async function POST(req: NextRequest) {
   if (!contact) return NextResponse.json({ error: "Client not found." }, { status: 404 });
 
   if (requestId) {
-    const request = await prisma.request.findFirst({ where: { id: requestId, companyId } });
+    // The request must be this client's — a quote linked to another
+    // client's request would convert THEIR request when it's approved.
+    const request = await prisma.request.findFirst({
+      where: { id: requestId, companyId },
+      select: { id: true, contactId: true, status: true },
+    });
     if (!request) return NextResponse.json({ error: "Request not found." }, { status: 404 });
+    if (request.contactId !== contact.id) {
+      return NextResponse.json({ error: "That request belongs to a different client." }, { status: 400 });
+    }
+    // A self-scheduled booking still awaiting approval holds a tentative
+    // appointment; converting around it would strand that slot forever
+    if (request.status === "NEEDS_APPROVAL") {
+      return NextResponse.json({ error: "Accept or decline the booking first." }, { status: 409 });
+    }
   }
 
   // Saved service address (property) — must belong to this contact; carried
@@ -128,11 +142,9 @@ export async function POST(req: NextRequest) {
         taxRate: taxRate || null,
         tax,
         total,
-        depositType:
-          depositType === "PERCENT" || depositType === "FIXED" || depositType === "FULL"
-            ? depositType
-            : "NONE",
-        depositValue: depositType === "PERCENT" || depositType === "FIXED" ? depositValue ?? null : null,
+        // Clamped server-side (PERCENT 0–100, FIXED ≥ 0) — an unclamped 150%
+        // deposit would mint a deposit invoice above the quote.
+        ...sanitizeDeposit({ depositType, depositValue }),
         clientMessage: clientMessage || null,
         disclaimer: disclaimer || null,
         notes: notes || null,
@@ -157,9 +169,11 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Converting a request to a quote marks the request Converted (Jobber behavior)
+    // Converting a request to a quote marks the request Converted (Jobber
+    // behavior). Only an open request flips — never one awaiting booking
+    // approval (checked above) or already closed
     if (requestId) {
-      await tx.request.update({ where: { id: requestId }, data: { status: "CONVERTED" } });
+      await tx.request.updateMany({ where: { id: requestId, status: "NEW" }, data: { status: "CONVERTED" } });
     }
 
     return created;

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, viaContactScope } from "@/lib/permissions";
 import { withDocNumberRetry } from "@/lib/doc-numbers";
-import { convertQuoteToJob } from "@/lib/quote-convert";
+import { convertQuoteToJob, QuoteAlreadyConvertedError } from "@/lib/quote-convert";
 import { inPreview, PREVIEW_CAP, previewCapError } from "@/lib/preview";
 
 /**
@@ -70,8 +70,17 @@ export async function POST(
     );
   }
 
-  // Shared with online service bookings — see lib/quote-convert.ts
-  const job = await withDocNumberRetry(() => prisma.$transaction((tx) => convertQuoteToJob(tx, quote)));
-
-  return NextResponse.json(job, { status: 201 });
+  // Shared with online service bookings — see lib/quote-convert.ts. The
+  // conversion claims the quote inside the transaction, so a double-tap or a
+  // second staff member converting at the same moment gets a clean "already
+  // converted" instead of a second Job #.
+  try {
+    const { job } = await withDocNumberRetry(() => prisma.$transaction((tx) => convertQuoteToJob(tx, quote)));
+    return NextResponse.json(job, { status: 201 });
+  } catch (e) {
+    if (e instanceof QuoteAlreadyConvertedError) {
+      return NextResponse.json({ error: "Quote was already converted." }, { status: 400 });
+    }
+    throw e;
+  }
 }

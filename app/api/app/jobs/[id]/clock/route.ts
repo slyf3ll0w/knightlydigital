@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, jobScope } from "@/lib/permissions";
-import { formatDuration, resolveOccurredAt, sanitizeGps } from "@/lib/time-entries";
+import { autoCloseAt, formatDuration, resolveOccurredAt, sanitizeGps } from "@/lib/time-entries";
 
 /**
  * Clock in / clock out on a job. Techs and managers alike — anyone who can
@@ -71,8 +71,9 @@ export async function POST(
     }
     const entry = await prisma.$transaction(async (tx) => {
       if (open) {
-        // Switched jobs without clocking out — close the old span first.
-        const endedAt = when > open.startedAt ? when : open.startedAt;
+        // Switched jobs without clocking out — close the old span first,
+        // capped so a forgotten clock-out can't become a multi-day entry
+        const endedAt = autoCloseAt(open.startedAt, when);
         await tx.timeEntry.update({ where: { id: open.id }, data: { endedAt } });
         if (open.jobId) {
           await tx.jobNote.create({

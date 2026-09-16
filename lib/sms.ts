@@ -19,6 +19,7 @@
  */
 
 import { prisma } from "@/lib/db";
+import { phoneDigits } from "@/lib/phone";
 import { recordSmsSent, smsSegmentCount, usageDay } from "@/lib/usage";
 
 export { canText, smsConsentLabel, SMS_TERMS_URL } from "@/lib/sms-consent";
@@ -83,11 +84,14 @@ export async function sendSms({
   to,
   text,
   companyId,
+  contactId,
 }: {
   to: string;
   text: string;
   /** Tenant to meter this send against (lib/usage.ts) — SMS bills per segment. */
   companyId?: string | null;
+  /** The client being texted, when known — lets the inbound webhook route their reply. */
+  contactId?: string | null;
 }): Promise<boolean> {
   if (!smsEnabled()) return false;
   const e164 = toE164(to);
@@ -116,11 +120,46 @@ export async function sendSms({
       console.error("[sms] telnyx send failed:", res.status, await res.text());
     } else {
       recordSmsSent(companyId, smsSegmentCount(text));
+      await logSmsSend({ companyId, contactId, to: e164, res });
     }
     return res.ok;
   } catch (err) {
     console.error("[sms] telnyx send threw:", err);
     return false;
+  }
+}
+
+/**
+ * Remember who texted this number (SmsSend): the pool numbers are shared
+ * across tenants, so when the client replies the webhook needs to know
+ * which company they are talking to. Best-effort — a failed log must not
+ * turn a delivered text into a reported failure.
+ */
+async function logSmsSend({
+  companyId,
+  contactId,
+  to,
+  res,
+}: {
+  companyId?: string | null;
+  contactId?: string | null;
+  to: string;
+  res: Response;
+}): Promise<void> {
+  if (!companyId) return;
+  const toDigits = phoneDigits(to);
+  if (!toDigits) return;
+  let fromNumber: string | null = null;
+  try {
+    const body = (await res.json()) as { data?: { from?: { phone_number?: string } } };
+    fromNumber = body?.data?.from?.phone_number ?? null;
+  } catch {
+    /* Telnyx always answers JSON; the from-number is a nicety */
+  }
+  try {
+    await prisma.smsSend.create({ data: { companyId, contactId: contactId ?? null, toDigits, fromNumber } });
+  } catch (err) {
+    console.error("[sms] send log failed:", err);
   }
 }
 

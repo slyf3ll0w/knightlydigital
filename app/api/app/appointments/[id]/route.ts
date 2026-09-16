@@ -98,15 +98,33 @@ export async function PATCH(
   }
   if (body.remindClient !== undefined) data.remindClient = Boolean(body.remindClient);
 
-  if (body.assignedToId !== undefined && isManager(actor.role)) {
+  // Reassigning is a dispatcher's call (managers + USER, same as the job
+  // PATCH). Anyone else sending a DIFFERENT assignee gets told no instead of
+  // a 200 that quietly kept the old tech — the appointment edit form echoes
+  // the current assignee back, so an unchanged value is not a reassignment.
+  if (body.assignedToId !== undefined) {
+    const requested = body.assignedToId ? String(body.assignedToId) : null;
+    if (requested !== appt.assignedToId && !(isManager(actor.role) || actor.role === "USER")) {
+      return NextResponse.json({ error: "Only managers and dispatchers can reassign appointments." }, { status: 403 });
+    }
+  }
+  if (body.assignedToId !== undefined && (isManager(actor.role) || actor.role === "USER")) {
     if (!body.assignedToId) {
       data.assignedToId = null;
     } else {
+      // Techs can't open appointments at all (pages + this route need
+      // canSell), so one assigned to them would be invisible to the person
+      // meant to show up.
       const target = await prisma.user.findFirst({
-        where: { id: body.assignedToId, companyId: actor.companyId, isActive: true },
+        where: { id: body.assignedToId, companyId: actor.companyId, isActive: true, role: { not: "TECH" } },
         select: { id: true },
       });
-      if (!target) return NextResponse.json({ error: "Team member not found." }, { status: 400 });
+      if (!target) {
+        return NextResponse.json(
+          { error: "Appointments can only be assigned to team members who handle sales (not techs)." },
+          { status: 400 }
+        );
+      }
       data.assignedToId = target.id;
     }
   }

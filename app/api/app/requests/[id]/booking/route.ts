@@ -7,6 +7,7 @@ import { resolveArrivalWindowMinutes } from "@/lib/arrival-window";
 import { manageUrlFor } from "@/lib/booking-submit";
 import { icsAttachment } from "@/lib/ics";
 import { autoAdvance } from "@/lib/pipeline";
+import { logActivity } from "@/lib/activity";
 
 /**
  * Approve or decline a self-scheduled online booking.
@@ -97,6 +98,7 @@ export async function POST(
   }
 
   // Tell the client what was decided (no-op until Resend is configured)
+  let emailed: boolean | null = null;
   if (request.contact.email) {
     // Calls promise the exact time; visits promise the arrival window
     const exactTime = tentative ? tentative.type !== "IN_PERSON" : false;
@@ -136,7 +138,7 @@ export async function POST(
     // Accepting without a tentative appointment (edge: it was deleted) sends
     // nothing rather than a wrong "confirmed" email
     if (action === "decline" || windowLabel) {
-      await sendEmail({
+      emailed = await sendEmail({
         companyId: request.companyId,
         to: request.contact.email,
         subject,
@@ -161,5 +163,20 @@ export async function POST(
     }
   }
 
-  return NextResponse.json({ success: true, action });
+  if (emailed === false) {
+    logActivity({
+      companyId: request.companyId,
+      userId: actor.id,
+      userName: actor.name,
+      entityType: "contact",
+      entityId: request.contact.id,
+      action: "email_failed",
+      detail: `Booking ${action === "accept" ? "confirmation" : "decline"} email for request #${request.requestNumber} could not be sent.`,
+    });
+  }
+
+  // `emailed`: true = the client was told; false = they weren't (no email
+  // key, company blocked, provider error) and the office should reach out;
+  // null = nothing to send (no email on file).
+  return NextResponse.json({ success: true, action, emailed });
 }

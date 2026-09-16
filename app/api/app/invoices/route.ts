@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 import type { RecurringInterval } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { getActor, canSeeMoney, contactScope } from "@/lib/permissions";
+import { getActor, canSeeMoney, contactScope, jobScope } from "@/lib/permissions";
 import { recordLeadWin } from "@/lib/pipeline";
 import { ensureSubscriptionsForContact } from "@/lib/subscriptions";
 import { paidDepositTotal } from "@/lib/deposits";
+import { dueDateFromTerms } from "@/lib/due-dates";
 import { intQuantity, unitPriceValue, resolveLineItemCosts } from "@/lib/work-items";
 import { computeQuoteTotals } from "@/lib/quote-totals";
 import { inPreview, previewBlockedError } from "@/lib/preview";
@@ -62,8 +63,24 @@ export async function POST(req: NextRequest) {
   }
   const costedLineItems = await resolveLineItemCosts(companyId, typedLineItems);
 
+  // A job-linked invoice is scoped by the JOB (whoever may see the job may
+  // bill it, and its client comes with it); a standalone invoice by contact
+  // visibility. Mixing them left a Sales + Tech member with an empty editor
+  // and a rejected client on jobs they had just completed.
+  const scopedJob = jobId
+    ? await prisma.job.findFirst({
+        where: { id: jobId, companyId, ...jobScope(actor) },
+        select: { contactId: true },
+      })
+    : null;
+  if (jobId && !scopedJob) return NextResponse.json({ error: "Job not found." }, { status: 404 });
+  if (jobId && contactId && scopedJob && scopedJob.contactId !== contactId) {
+    return NextResponse.json({ error: "That client doesn't match the job." }, { status: 400 });
+  }
   const contact = contactId
-    ? await prisma.contact.findFirst({ where: { id: contactId, companyId, ...contactScope(actor) } })
+    ? await prisma.contact.findFirst({
+        where: { id: contactId, companyId, ...(scopedJob ? {} : contactScope(actor)) },
+      })
     : null;
   if (contactId && !contact) {
     return NextResponse.json({ error: "Contact not found." }, { status: 404 });
@@ -134,7 +151,7 @@ export async function POST(req: NextRequest) {
   const due = dueDate
     ? new Date(dueDate.length === 10 ? `${dueDate}T12:00:00` : dueDate)
     : contact
-      ? new Date(issuedAt.getTime() + contact.paymentTermsDays * 86400000)
+      ? dueDateFromTerms(issuedAt, contact.paymentTermsDays)
       : null;
 
   // Wrapped so a concurrent invoice create in the same company re-derives the
@@ -156,8 +173,8 @@ export async function POST(req: NextRequest) {
         // Retire any NEVER-PAID deposit invoice for this quote — it's superseded
         // by this final invoice, which bills the full remaining scope. Leaving it
         // outstanding would bill AND dun the client twice for the deposit. Only
-        // touch deposit invoices with zero payments; anything with payment
-        // history is left intact (its paid amount is already netted above).
+        // delete deposit invoices with zero payments; anything with payment
+        // history is kept (its paid amount is already netted above).
         const staleDeposits = await tx.invoice.findMany({
           where: { quoteId: quote.id, kind: "DEPOSIT", status: { not: "PAID" }, payments: { none: {} } },
           select: { id: true },
@@ -167,6 +184,19 @@ export async function POST(req: NextRequest) {
           await tx.invoiceLineItem.deleteMany({ where: { invoiceId: { in: ids } } });
           await tx.invoice.deleteMany({ where: { id: { in: ids } } });
         }
+        // A PARTIALLY paid deposit invoice is superseded too: what was paid is
+        // credited above and the rest is billed here, so shelve it — otherwise
+        // the client keeps getting dunned for a deposit remainder that this
+        // invoice already asks for.
+        await tx.invoice.updateMany({
+          where: {
+            quoteId: quote.id,
+            kind: "DEPOSIT",
+            status: { in: ["AWAITING_PAYMENT", "PAST_DUE", "DRAFT"] },
+            payments: { some: {} },
+          },
+          data: { status: "ARCHIVED" },
+        });
       }
     }
     const netTotal = Math.round((total - depositApplied) * 100) / 100;

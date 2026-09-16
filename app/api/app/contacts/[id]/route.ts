@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getActor, canSell, contactScope, isManager } from "@/lib/permissions";
 import { getActiveFieldDefs, sanitizeCustomFields } from "@/lib/contact-fields";
 import { enterPipeline } from "@/lib/pipeline";
+import { pauseSubscriptionsForContact } from "@/lib/subscriptions";
 import { queueQuickBooksInvoiceUnwind } from "@/lib/quickbooks";
 
 export async function PATCH(
@@ -146,7 +147,20 @@ export async function PATCH(
     await enterPipeline(prisma, actor.companyId, id);
   }
 
-  return NextResponse.json({ success: true });
+  // Archiving closes the client out: their recurring series pause and their
+  // untouched future visits leave the calendar, so nothing keeps billing,
+  // visiting, or dunning someone the company is done with. (Reminder and
+  // autopay sweeps also skip ARCHIVED contacts as a backstop.)
+  let seriesPaused = 0;
+  if (statusChange === "ARCHIVED") {
+    const r = await pauseSubscriptionsForContact(id, actor.companyId).catch((e) => {
+      console.error("[contacts] pausing series on archive failed", id, e);
+      return { paused: 0, visitsDeleted: 0 };
+    });
+    seriesPaused = r.paused;
+  }
+
+  return NextResponse.json({ success: true, ...(seriesPaused ? { seriesPaused } : {}) });
 }
 
 /**

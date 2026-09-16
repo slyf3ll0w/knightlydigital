@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { requirePageActor, canSeeMoney, contactScope, viaContactScope } from "@/lib/permissions";
+import { requirePageActor, canSeeMoney, contactScope, jobScope } from "@/lib/permissions";
 import InvoiceEditor from "./InvoiceEditor";
 
 export default async function NewInvoicePage({
@@ -25,9 +25,12 @@ export default async function NewInvoicePage({
       where: { id: companyId },
       select: { defaultTaxRate: true },
     }),
+    // Job-linked invoices follow JOB visibility (a Sales + Tech member can
+    // complete any job, so they can bill any job) — contact scope alone left
+    // the prefill empty and the POST rejecting the client.
     jobId
       ? prisma.job.findFirst({
-          where: { id: jobId, companyId, ...viaContactScope(actor) },
+          where: { id: jobId, companyId, ...jobScope(actor) },
           include: {
             contact: true,
             lineItems: { orderBy: { sortOrder: "asc" } },

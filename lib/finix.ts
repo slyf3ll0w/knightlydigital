@@ -332,6 +332,7 @@ export interface FinixTransfer {
   failure_code: string | null;
   failure_message?: string | null;
   ready_to_settle_at?: string | null; // ~1 business day after the charge
+  created_at?: string;
   tags?: Record<string, string>;
 }
 

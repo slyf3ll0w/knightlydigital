@@ -1,7 +1,7 @@
 import { headers } from "next/headers";
 import { prisma } from "@/lib/db";
 import { requirePageActor, isManager, jobScope, canSell, appointmentScope } from "@/lib/permissions";
-import { localDayParts } from "@/lib/booking-engine";
+import { localDayParts, wallTimeToUtc } from "@/lib/booking-engine";
 import { DAY_KEYS, earliestOpenMinutes, sanitizeBusinessHours, timeToMinutes } from "@/lib/business-hours";
 import { resolveSlotInterval } from "@/lib/scheduling";
 import ScheduleClient from "./ScheduleClient";
@@ -130,7 +130,7 @@ type BlockRow = {
  * one clamped segment per visible day. Segment ids are `${blockId}#${n}` for
  * React keys; the real block travels in `block` for the edit sheet.
  */
-function blockToDTOs(b: BlockRow, fetchStart: Date, fetchEnd: Date, canEdit: boolean): ScheduleJobDTO[] {
+function blockToDTOs(b: BlockRow, fetchStart: Date, fetchEnd: Date, canEdit: boolean, tz: string): ScheduleJobDTO[] {
   const source = b.source ?? "MANUAL";
   // Mirrored Google events change in Google, not here
   const mirrored = source === "GOOGLE";
@@ -148,12 +148,18 @@ function blockToDTOs(b: BlockRow, fetchStart: Date, fetchEnd: Date, canEdit: boo
   };
   const label = mirrored ? `${b.title} · Google` : b.title;
   const segs: ScheduleJobDTO[] = [];
-  const day = new Date(Math.max(b.startAt.getTime(), fetchStart.getTime()));
-  day.setHours(0, 0, 0, 0);
+  // Split at the COMPANY's midnights, not the server's. Splitting in server
+  // time for a tenant west of it put the cut a few hours into their evening:
+  // the segment for a middle day started "yesterday" and the day itself came
+  // up empty (Google busy blocks spanning a weekend vanished from Saturday).
+  const first = localDayParts(tz, new Date(Math.max(b.startAt.getTime(), fetchStart.getTime())));
   const stop = Math.min(b.endAt.getTime(), fetchEnd.getTime());
-  for (let i = 0; day.getTime() < stop && i < 120; i++) {
-    const dayEnd = new Date(day);
-    dayEnd.setDate(dayEnd.getDate() + 1);
+  for (let i = 0; i < 120; i++) {
+    // Date.UTC inside wallTimeToUtc normalizes day overflow, so d + i walks
+    // across month ends on its own
+    const day = wallTimeToUtc(tz, first.y, first.m, first.d + i, 0);
+    if (day.getTime() >= stop) break;
+    const dayEnd = wallTimeToUtc(tz, first.y, first.m, first.d + i + 1, 0);
     const segStart = new Date(Math.max(b.startAt.getTime(), day.getTime()));
     const segEnd = new Date(Math.min(b.endAt.getTime(), dayEnd.getTime()));
     if (segEnd > segStart) {
@@ -165,14 +171,13 @@ function blockToDTOs(b: BlockRow, fetchStart: Date, fetchEnd: Date, canEdit: boo
         status: "BLOCK",
         apptType: null,
         // all-day segments follow the date-only convention: anchored at noon
-        scheduledAt: (b.allDay ? new Date(day.getTime() + 12 * 3600000) : segStart).toISOString(),
+        scheduledAt: (b.allDay ? wallTimeToUtc(tz, first.y, first.m, first.d + i, 12 * 60) : segStart).toISOString(),
         scheduledEnd: segEnd.toISOString(),
         scheduledAnytime: b.allDay,
         contactName: b.userId ? (b.user?.name ?? "") : "Everyone",
         block: info,
       });
     }
-    day.setDate(day.getDate() + 1);
   }
   return segs;
 }
@@ -205,7 +210,8 @@ export default async function SchedulePage({
     where: { id: companyId },
     select: { timezone: true, businessHours: true, schedulingIntervalMinutes: true },
   });
-  const anchor = parseDateParam(dateParam, company?.timezone || "America/Chicago");
+  const tz = company?.timezone || "America/Chicago";
+  const anchor = parseDateParam(dateParam, tz);
 
   // Open hours per weekday, in minutes — shades the grid, anchors the
   // pickers, and sizes the month view's capacity bars
@@ -325,7 +331,7 @@ export default async function SchedulePage({
   ]);
 
   const blockDTOs = blocks.flatMap((b) =>
-    blockToDTOs(b, fetchStart, fetchEnd, isManager(actor.role) || b.userId === actor.id)
+    blockToDTOs(b, fetchStart, fetchEnd, isManager(actor.role) || b.userId === actor.id, tz)
   );
 
   // Crew minutes available per weekday: every active member × the open hours

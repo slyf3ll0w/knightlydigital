@@ -17,7 +17,9 @@ import { wallTimeToUtc } from "@/lib/booking-engine";
  *   includeAppointments?: bool, // default true
  *   notify?: bool               // text/email each client the new time
  * }
- * Managers and USER only. Completed / archived / cancelled items stay put.
+ * Managers and USER only. Completed / archived / cancelled items stay put,
+ * and so does anything on TODAY that already started or is on the clock
+ * (`left` in the response counts them).
  * Every moved visit gets its reminder stamps cleared so it reminds again at
  * the new time. Returns what moved, who was told, and any double-booking
  * heads-ups on the destination day.
@@ -66,7 +68,7 @@ export async function POST(req: NextRequest) {
     return wallTimeToUtc(tz, ty, tm, td, localMin);
   };
 
-  const [jobs, appointments] = await Promise.all([
+  const [jobsRaw, appointmentsRaw] = await Promise.all([
     prisma.job.findMany({
       where: {
         companyId,
@@ -107,8 +109,32 @@ export async function POST(req: NextRequest) {
       : Promise.resolve([]),
   ]);
 
+  // Moving TODAY mid-day must not drag this morning's finished visits (or
+  // the one a tech is on right now) to tomorrow — and text those clients
+  // about it. Anything timed that has already started, or has an open clock
+  // entry, stays put; the response says how many were left behind.
+  const now = new Date();
+  const isToday = now.getTime() >= dayStart.getTime() && now.getTime() < dayEnd.getTime();
+  const onTheClock = new Set(
+    isToday && jobsRaw.length
+      ? (
+          await prisma.timeEntry.findMany({
+            where: { jobId: { in: jobsRaw.map((j) => j.id) }, endedAt: null },
+            select: { jobId: true },
+          })
+        ).map((e) => e.jobId!)
+      : []
+  );
+  const started = (at: Date, anytime: boolean) => isToday && !anytime && at.getTime() < now.getTime();
+  const jobs = jobsRaw.filter((j) => !onTheClock.has(j.id) && !started(j.scheduledAt!, j.scheduledAnytime));
+  const appointments = appointmentsRaw.filter((a) => !started(a.scheduledAt, a.scheduledAnytime));
+  const left = jobsRaw.length - jobs.length + (appointmentsRaw.length - appointments.length);
+
   if (jobs.length + appointments.length === 0) {
-    return NextResponse.json({ error: "Nothing on that day to move." }, { status: 400 });
+    return NextResponse.json(
+      { error: left ? "Everything on that day has already started." : "Nothing on that day to move.", left },
+      { status: 400 }
+    );
   }
 
   const moved: { kind: "job" | "appointment"; id: string; previousStart: string; previousAnytime: boolean }[] = [];
@@ -180,6 +206,7 @@ export async function POST(req: NextRequest) {
     moved: moved.length,
     jobs: jobs.length,
     appointments: appointments.length,
+    left,
     notified,
     conflicts: [...conflicts].slice(0, 8),
     undo: moved,

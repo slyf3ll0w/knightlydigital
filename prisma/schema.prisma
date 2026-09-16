@@ -678,6 +678,10 @@ model Contact {
   companyName          String? // the client's business name (CRM imports usually have one)
   email                String?
   phone                String?
+  // Digits-only copy of `phone` (last 10 for US numbers) kept in sync by the
+  // Contact write hook in lib/db.ts — duplicate matching and inbound-SMS
+  // routing compare on this, never on the freeform column.
+  phoneDigits          String?
   address              String?
   city                 String?
   state                String?
@@ -765,6 +769,7 @@ model Contact {
   @@index([companyId, assignedToId])
   @@index([companyId, importBatchId])
   @@index([companyId, pipelineStageId])
+  @@index([companyId, phoneDigits])
 }
 
 // A vaulted card on a client's account (Finix payment instrument, PIxxx).
@@ -1953,6 +1958,9 @@ model Refund {
   paymentId   String
   payment     Payment  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
   amount      Decimal  @db.Decimal(10, 2)
+  // Portion of `amount` that was card surcharge — restored alongside the
+  // principal when the reversal fails. Null on rows written before 2026-09.
+  surchargeAmount Decimal? @db.Decimal(10, 2)
   reversalRef String? // Finix reversal transfer id
   createdAt   DateTime @default(now())
 
@@ -2543,4 +2551,21 @@ model AccessApplication {
   inviteCode InviteCode?
 
   @@index([status])
+}
+
+// Every provider (Telnyx) text we send, by recipient — the inbound webhook
+// routes a reply to the company that last texted that number, and scopes a
+// STOP to the companies that have actually texted it. Pool numbers are
+// shared across tenants, so the phone number alone can't say who a client
+// is replying to.
+model SmsSend {
+  id         String   @id @default(cuid())
+  companyId  String
+  contactId  String?
+  toDigits   String // last 10 digits of the recipient
+  fromNumber String? // the pool number Telnyx sent from (E.164)
+  createdAt  DateTime @default(now())
+
+  @@index([toDigits, createdAt])
+  @@index([companyId, createdAt])
 }

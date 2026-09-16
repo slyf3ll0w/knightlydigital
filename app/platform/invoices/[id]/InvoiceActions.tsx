@@ -488,7 +488,7 @@ export default function InvoiceActions({
                 Email to client again
               </button>
             )}
-            {status !== "PAID" && (
+            {status !== "PAID" && status !== "ARCHIVED" && (
               <>
                 <div className="my-1 border-t border-gray-100" />
                 <button

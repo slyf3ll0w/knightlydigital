@@ -33,14 +33,16 @@ export default async function SubscriptionsPage() {
       orderBy: { name: "asc" },
     }),
     // The Ready-to-bill queue: completed per-visit-series work nothing has
-    // invoiced yet (directly or via a consolidated invoice)
+    // invoiced yet (directly or via a consolidated invoice). Any series
+    // status — a visit finished before the series was paused or cancelled
+    // is still owed, and billAllReadyWork bills it.
     prisma.job.findMany({
       where: {
         companyId: actor.companyId,
         completedAt: { not: null },
         invoice: { is: null },
         consolidatedInvoiceId: null,
-        subscription: { is: { billPerVisit: true, status: { not: "CANCELLED" } } },
+        subscription: { is: { billPerVisit: true } },
       },
       select: {
         id: true,

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getActor, canSeeMoney, viaContactScope } from "@/lib/permissions";
 import { invoiceBalance } from "@/lib/payments";
 import { logActivity } from "@/lib/activity";
+import { dueDateFromTerms } from "@/lib/due-dates";
 
 export async function PATCH(
   req: NextRequest,
@@ -61,7 +62,7 @@ export async function PATCH(
       // Marking sent is issuing too: without a due date the invoice can never
       // go PAST_DUE and payment reminders skip it.
       ...(status === "AWAITING_PAYMENT" && !invoice.dueDate && invoice.contact
-        ? { dueDate: new Date(Date.now() + invoice.contact.paymentTermsDays * 86400000) }
+        ? { dueDate: dueDateFromTerms(new Date(), invoice.contact.paymentTermsDays) }
         : {}),
       // Archiving shelves the invoice as-is (a paid one keeps its paidAt);
       // live-status flips derive paidAt from the new state.

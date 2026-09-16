@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { ExternalLink, Copy, Mail, Loader2, Check } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ExternalLink, Copy, Mail, Loader2, Check, RotateCcw } from "lucide-react";
+import { confirmSheet } from "@/components/ConfirmSheet";
 
 /**
  * Client-portal access controls on the contact page: open it, copy the link,
@@ -13,17 +15,46 @@ export default function PortalAccessCard({
   hubUrl,
   hasEmail,
   lastVisitLabel,
+  canReset = false,
 }: {
   contactId: string;
   hubUrl: string;
   hasEmail: boolean;
   /** shortDate of Contact.hubLastVisitAt — null until the client first opens their hub */
   lastVisitLabel?: string | null;
+  /** Managers may rotate the link (it's the client's login). */
+  canReset?: boolean;
 }) {
+  const router = useRouter();
   const [busy, setBusy] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const [sent, setSent] = useState(false);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState("");
+
+  async function resetLink() {
+    const ok = await confirmSheet({
+      title: "Reset the portal link?",
+      message:
+        "Every link this client has today stops working immediately. You'll need to send them the new one.",
+      confirmLabel: "Reset Link",
+      destructive: true,
+    });
+    if (!ok) return;
+    setResetting(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/app/contacts/${contactId}/portal-reset`, { method: "POST" });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setError(data?.error ?? "Couldn't reset the link.");
+        return;
+      }
+      router.refresh();
+    } finally {
+      setResetting(false);
+    }
+  }
 
   async function copyLink() {
     await navigator.clipboard.writeText(hubUrl);
@@ -88,6 +119,16 @@ export default function PortalAccessCard({
           {busy ? <Loader2 size={13} className="animate-spin" /> : sent ? <Check size={13} /> : <Mail size={13} />}
           {sent ? "Email sent!" : "Email portal access"}
         </button>
+        {canReset && (
+          <button
+            onClick={resetLink}
+            disabled={resetting}
+            className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-red-600 hover:underline font-medium disabled:text-gray-400"
+          >
+            {resetting ? <Loader2 size={13} className="animate-spin" /> : <RotateCcw size={13} />}
+            Reset portal link
+          </button>
+        )}
       </div>
       {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
     </div>

@@ -21,62 +21,32 @@
 import { randomBytes } from "crypto";
 import { canChargeOnline } from "@/lib/payments-gate";
 import type { Frequency, Prisma, PrismaClient, RecurringInterval } from "@prisma/client";
+import {
+  addInterval,
+  addVisitInterval,
+  cursorAfterCycle,
+  rewoundVisitCursor,
+} from "@/lib/billing-cursor";
 import { prisma } from "@/lib/db";
 import { resolveCrew } from "@/lib/job-crew";
 import { attemptAutoCharge } from "@/lib/auto-charge";
 import { sendEmail, invoiceLinkEmail } from "@/lib/email";
 import { localDayParts, wallTimeToUtc } from "@/lib/booking-engine";
 import { withDocNumberRetry } from "@/lib/doc-numbers";
+import { dueDateFromTerms } from "@/lib/due-dates";
 import { findScheduleConflicts } from "@/lib/schedule-conflicts";
 
 type Tx = Prisma.TransactionClient | PrismaClient;
 
-/**
- * Add N calendar months, clamping the day-of-month to the target month's length
- * so month-end anchors don't overflow. Plain `setMonth(+1)` on Jan 31 rolls to
- * "Feb 31" → Mar 3, silently skipping February and drifting the anchor forever;
- * this keeps Jan 31 → Feb 28/29, Mar 31 → Apr 30, etc. Time-of-day is preserved.
- */
-function addMonthsClamped(date: Date, months: number): Date {
-  const d = new Date(date);
-  const targetDay = d.getDate();
-  d.setDate(1); // avoid transient overflow while shifting the month
-  d.setMonth(d.getMonth() + months);
-  const lastDayOfTargetMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
-  d.setDate(Math.min(targetDay, lastDayOfTargetMonth));
-  return d;
-}
-
-/** Add one billing interval to a date. SEMIANNUAL = +6 months ("biannually"). */
-export function addInterval(date: Date, interval: RecurringInterval): Date {
-  switch (interval) {
-    case "MONTHLY":
-      return addMonthsClamped(date, 1);
-    case "QUARTERLY":
-      return addMonthsClamped(date, 3);
-    case "SEMIANNUAL":
-      return addMonthsClamped(date, 6);
-    case "ANNUAL":
-      // +12 months (not setFullYear) so Feb 29 clamps to Feb 28 next year
-      return addMonthsClamped(date, 12);
-  }
-}
-
-/**
- * Advance a billing cursor by whole intervals until it's out of the past —
- * used when resuming a paused/cancelled series so the client isn't
- * retro-billed one full cycle per sweep for the time the series sat paused.
- * Keeps the original anchor day (day-of-month) rather than re-anchoring.
- */
-export function rollCursorForward(
-  cursor: Date,
-  interval: RecurringInterval,
-  from: Date = new Date()
-): Date {
-  let next = cursor;
-  while (next < from) next = addInterval(next, interval);
-  return next;
-}
+// Cursor math lives in lib/billing-cursor.ts (pure, unit-tested); re-exported
+// here so the existing call sites keep importing from the engine.
+export {
+  addInterval,
+  rollCursorForward,
+  addVisitInterval,
+  cursorAfterCycle,
+  resumedVisitCursor,
+} from "@/lib/billing-cursor";
 
 /** Human label for an interval, e.g. for badges and client-facing pages. */
 export function intervalLabel(interval: RecurringInterval): string {
@@ -86,22 +56,6 @@ export function intervalLabel(interval: RecurringInterval): string {
     SEMIANNUAL: "6 months",
     ANNUAL: "year",
   }[interval];
-}
-
-/** Add one visit-cadence step. Weekly/biweekly are exact-day; the rest clamp. */
-export function addVisitInterval(date: Date, frequency: Frequency): Date {
-  switch (frequency) {
-    case "WEEKLY":
-      return new Date(date.getTime() + 7 * 86400000);
-    case "BIWEEKLY":
-      return new Date(date.getTime() + 14 * 86400000);
-    case "MONTHLY":
-      return addMonthsClamped(date, 1);
-    case "QUARTERLY":
-      return addMonthsClamped(date, 3);
-    case "ANNUALLY":
-      return addMonthsClamped(date, 12);
-  }
 }
 
 export const visitFrequencyLabel: Record<Frequency, string> = {
@@ -136,16 +90,17 @@ export async function ensureSubscriptionsForContact(
   companyId: string,
   contactId: string,
   picks: { workItemId?: string | null; quantity?: number }[]
-): Promise<void> {
+): Promise<string[]> {
+  const createdIds: string[] = [];
   const ids = Array.from(
     new Set(picks.map((p) => p.workItemId).filter((id): id is string => !!id))
   );
-  if (ids.length === 0) return;
+  if (ids.length === 0) return createdIds;
 
   const items = await tx.workItem.findMany({
     where: { id: { in: ids }, companyId, recurringInterval: { not: null } },
   });
-  if (items.length === 0) return;
+  if (items.length === 0) return createdIds;
 
   // quantity by workItemId (first occurrence wins; recurring lines are 1 service)
   const qtyById = new Map<string, number>();
@@ -163,7 +118,7 @@ export async function ensureSubscriptionsForContact(
     });
     if (existing) continue;
 
-    await tx.subscription.create({
+    const sub = await tx.subscription.create({
       data: {
         companyId,
         contactId,
@@ -178,8 +133,11 @@ export async function ensureSubscriptionsForContact(
         status: "ACTIVE",
         nextRunDate: firstRunDate(interval),
       },
+      select: { id: true },
     });
+    createdIds.push(sub.id);
   }
+  return createdIds;
 }
 
 type DueSub = Prisma.SubscriptionGetPayload<{ include: { contact: true } }>;
@@ -237,6 +195,10 @@ async function settleGeneratedInvoice(opts: {
   // "failed" already emailed the client its own payment-issue note — don't
   // stack a second, contradictory "here's your invoice" email on top.
   if (outcome === "failed") return "billed";
+  // The processor didn't answer (outage, bad credentials, rate limit): the
+  // card was never judged, so no attempt is burned and the client hears
+  // nothing — the retry sweep charges it tomorrow. Booked by attemptAutoCharge.
+  if (outcome === "processor_down") return "billed";
 
   if (opts.contact.email) {
     const company = await prisma.company.findUnique({
@@ -312,7 +274,9 @@ async function generateCycle(sub: DueSub, now: Date): Promise<"billed" | "drafte
     const claimed = await tx.subscription.updateMany({
       where: { id: sub.id, status: "ACTIVE", nextRunDate: fresh.nextRunDate },
       data: {
-        nextRunDate: addInterval(fresh.nextRunDate, interval),
+        // One catch-up cycle after an outage, then the next FUTURE occurrence
+        // — not one back-dated cycle per hourly tick (cursorAfterCycle).
+        nextRunDate: cursorAfterCycle(fresh.nextRunDate, interval, now),
         lastGeneratedAt: now,
       },
     });
@@ -362,7 +326,7 @@ async function generateCycle(sub: DueSub, now: Date): Promise<"billed" | "drafte
       select: { invoiceNumber: true },
     });
     const money = await applyCompanyTax(tx, sub.companyId, lineTotal);
-    const dueDate = new Date(now.getTime() + sub.contact.paymentTermsDays * 86400000);
+    const dueDate = dueDateFromTerms(now, sub.contact.paymentTermsDays);
     const invoice = await tx.invoice.create({
       data: {
         companyId: sub.companyId,
@@ -492,9 +456,7 @@ export async function billCompletedVisit(
         tax: money.tax,
         total: money.total,
         issuedAt: send ? now : null,
-        dueDate: send
-          ? new Date(now.getTime() + sub.contact.paymentTermsDays * 86400000)
-          : null,
+        dueDate: send ? dueDateFromTerms(now, sub.contact.paymentTermsDays) : null,
         lineItems: {
           create: {
             name: sub.name,
@@ -615,9 +577,7 @@ async function billSeriesPool(
           subtotal: 0,
           total: 0,
           issuedAt: send ? now : null,
-          dueDate: send
-            ? new Date(now.getTime() + sub.contact.paymentTermsDays * 86400000)
-            : null,
+          dueDate: send ? dueDateFromTerms(now, sub.contact.paymentTermsDays) : null,
         },
       });
       await tx.job.updateMany({
@@ -740,7 +700,7 @@ export interface ReadyWorkSummary {
 }
 
 /**
- * The "Bill ready work" button: bill every ACTIVE per-visit series that has
+ * The "Bill ready work" button: bill every per-visit series that has
  * completed, unbilled visits — one invoice per series, dated line per visit,
  * settled through the auto-charge path. The owner's clicking cadence IS the
  * billing cadence: daily gives per-visit billing, monthly gives the
@@ -750,10 +710,12 @@ export async function billAllReadyWork(
   companyId: string,
   now: Date = new Date()
 ): Promise<ReadyWorkSummary> {
+  // Any status: a visit completed before the series was paused or cancelled
+  // is real work the client owes for — the Ready-to-bill queue shows it, so
+  // this button must bill it.
   const subs = await prisma.subscription.findMany({
     where: {
       companyId,
-      status: "ACTIVE",
       billPerVisit: true,
       jobs: {
         some: {
@@ -810,6 +772,7 @@ export async function runMonthlyConsolidations(
       consolidateMonthly: true,
       nextRunDate: { not: null, lte: now },
       company: { is: { suspendedAt: null } },
+      contact: { is: { status: { not: "ARCHIVED" } } },
       ...(companyId ? { companyId } : {}),
     },
     include: { contact: true },
@@ -843,19 +806,21 @@ export async function billSubscriptionNow(
   companyId: string
 ): Promise<"billed" | "drafted" | "charged" | "empty" | null> {
   const sub = await prisma.subscription.findFirst({
-    where: { id, companyId, status: "ACTIVE" },
+    where: { id, companyId },
     include: { contact: true },
   });
   if (!sub) return null;
   const now = new Date();
   // Per-visit series (instant, queued, or monthly-consolidated): bill the
   // accumulated completed visits right now — the monthly cursor, if any, is
-  // left alone ("empty" = nothing completed since the last invoice).
+  // left alone ("empty" = nothing completed since the last invoice). Works
+  // for paused/cancelled series too: completed visits are owed regardless.
   if (sub.billPerVisit) {
     return billSeriesPool({ ...sub }, now);
   }
-  // A standalone recurring-job series has no cycle to force
-  if (!sub.interval) return null;
+  // A standalone recurring-job series has no cycle to force; a paused or
+  // cancelled plan has no cycle either.
+  if (!sub.interval || sub.status !== "ACTIVE") return null;
   // Make it due so the shared cycle path (with its idempotency guard) runs it
   const originalNext = sub.nextRunDate;
   if (!sub.nextRunDate || sub.nextRunDate > now) {
@@ -912,6 +877,7 @@ export async function generateDueVisits(
       visitFrequency: { not: null },
       nextVisitDate: { not: null, lte: horizon },
       company: { is: { suspendedAt: null } },
+      contact: { is: { status: { not: "ARCHIVED" } } },
       ...(companyId ? { companyId } : {}),
     },
     include: { contact: true, property: true, company: { select: { timezone: true } } },
@@ -1083,12 +1049,61 @@ export async function deleteFutureVisits(
       notes: { none: {} },
       photos: { none: {} },
     },
-    select: { id: true },
+    select: { id: true, scheduledAt: true },
+    orderBy: { scheduledAt: "asc" },
   });
   if (candidates.length === 0) return 0;
   const ids = candidates.map((j) => j.id);
   await prisma.job.deleteMany({ where: { id: { in: ids } } });
+
+  // Rewind the visit cursor to the first day we just cleared. The generator
+  // had already walked nextVisitDate ~4 weeks ahead; left there, a resume a
+  // few days later re-materializes nothing until that point — a hole in the
+  // calendar the size of the horizon. Noon in the company's timezone, the
+  // same shape the create/edit routes store.
+  const earliest = candidates[0].scheduledAt;
+  const sub = await prisma.subscription.findUnique({
+    where: { id: subscriptionId },
+    select: { nextVisitDate: true, company: { select: { timezone: true } } },
+  });
+  if (sub && earliest) {
+    const { y, m, d } = localDayParts(sub.company.timezone, earliest);
+    const earliestDay = wallTimeToUtc(sub.company.timezone, y, m, d, 12 * 60);
+    const rewound = rewoundVisitCursor(sub.nextVisitDate, earliestDay);
+    if (rewound && rewound.getTime() !== sub.nextVisitDate?.getTime()) {
+      await prisma.subscription.update({
+        where: { id: subscriptionId },
+        data: { nextVisitDate: rewound },
+      });
+    }
+  }
   return ids.length;
+}
+
+/**
+ * Archiving a client: pause every ACTIVE series they hold and clear their
+ * untouched future visits, so nothing keeps billing, visiting, or dunning
+ * someone the company has closed out. Un-archiving does not resume them —
+ * that is a deliberate click on the series.
+ */
+export async function pauseSubscriptionsForContact(
+  contactId: string,
+  companyId: string
+): Promise<{ paused: number; visitsDeleted: number }> {
+  const active = await prisma.subscription.findMany({
+    where: { contactId, companyId, status: "ACTIVE" },
+    select: { id: true, visitFrequency: true },
+  });
+  if (active.length === 0) return { paused: 0, visitsDeleted: 0 };
+  await prisma.subscription.updateMany({
+    where: { id: { in: active.map((s) => s.id) }, status: "ACTIVE" },
+    data: { status: "PAUSED" },
+  });
+  let visitsDeleted = 0;
+  for (const s of active) {
+    if (s.visitFrequency) visitsDeleted += await deleteFutureVisits(s.id, companyId);
+  }
+  return { paused: active.length, visitsDeleted };
 }
 
 export interface RunSummary {
@@ -1117,6 +1132,9 @@ export async function runDueSubscriptions(
       interval: { not: null },
       nextRunDate: { not: null, lte: now },
       company: { is: { suspendedAt: null } },
+      // Archiving a client pauses their series (pauseSubscriptionsForContact);
+      // this is the backstop for any series that slipped through.
+      contact: { is: { status: { not: "ARCHIVED" } } },
       ...(companyId ? { companyId } : {}),
     },
     include: { contact: true },

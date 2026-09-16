@@ -145,13 +145,27 @@ async function handleTransfer(transferId: string) {
   // closed account). Pull the payment record back out so the invoice reopens.
   const payment = await prisma.payment.findFirst({
     where: { processorRef: transfer.id },
-    include: { invoice: { select: { invoiceNumber: true } } },
+    include: { invoice: { select: { invoiceNumber: true, subscriptionId: true } } },
   });
   if (!payment) return;
 
   await prisma.$transaction(async (tx) => {
     await tx.payment.delete({ where: { id: payment.id } });
     await recomputeInvoiceStatus(tx, payment.invoiceId);
+    // A subscription invoice reopened this way would otherwise sit with no
+    // retry booked (the successful charge cleared autoChargeNextAt) — autopay
+    // dead until someone notices. Re-book it for tomorrow; the retry sweep
+    // classifies whatever the card says then.
+    if (payment.invoice?.subscriptionId) {
+      await tx.invoice.update({
+        where: { id: payment.invoiceId },
+        data: {
+          autoChargeNextAt: new Date(Date.now() + 24 * 3600_000),
+          autoChargeGaveUpAt: null,
+          autoChargeLastError: "Bank returned the payment",
+        },
+      });
+    }
   });
 
   // A bounced debit never really paid anything, so QuickBooks can't go on
@@ -193,6 +207,13 @@ async function handleReversalFailed(refund: Refund) {
 
   const refundAmount = Number(refund.amount);
   const restored = Math.round((Number(payment.amount) + refundAmount) * 100) / 100;
+  // The refund also carved its share out of the payment's surcharge (see
+  // refundSplit); put that back too or the invoice balance stays short.
+  const refundedSurcharge = Number(refund.surchargeAmount ?? 0);
+  const restoredSurcharge =
+    refundedSurcharge > 0
+      ? Math.round((Number(payment.surchargeAmount ?? 0) + refundedSurcharge) * 100) / 100
+      : undefined;
   const restoredCents = Math.round(restored * 100);
   const method = payment.method === "ACH" ? "ACH" : "CARD";
   const note = `Refund of $${refundAmount.toFixed(2)} failed — payment restored`;
@@ -203,6 +224,7 @@ async function handleReversalFailed(refund: Refund) {
       where: { id: payment.id },
       data: {
         amount: restored,
+        ...(restoredSurcharge !== undefined ? { surchargeAmount: restoredSurcharge } : {}),
         details: payment.details ? `${payment.details} · ${note}` : note,
         ...(payment.feeCents == null
           ? {}

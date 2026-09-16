@@ -44,10 +44,41 @@ export type ConvertOptions = {
   requestId?: string | null;
   bookingTypeId?: string | null;
   bookedOnlineAt?: Date | null;
+  /**
+   * Skip the lead-win side effect. Online bookings that still have to charge
+   * a card call recordLeadWin themselves once the charge succeeds — a
+   * declined card must not leave the lead marked Won.
+   */
+  deferLeadWin?: boolean;
 };
 
-export async function convertQuoteToJob(tx: Prisma.TransactionClient, quote: ConvertibleQuote, opts: ConvertOptions = {}) {
+export type ConvertResult = {
+  job: Prisma.JobGetPayload<Record<string, never>>;
+  /** Subscriptions this conversion started (so a caller that unwinds can remove them). */
+  subscriptionIds: string[];
+};
+
+/** Thrown (inside the transaction, so nothing is written) when the quote was
+ *  already converted by a racing request. */
+export class QuoteAlreadyConvertedError extends Error {
+  constructor() {
+    super("Quote was already converted.");
+    this.name = "QuoteAlreadyConvertedError";
+  }
+}
+
+export async function convertQuoteToJob(tx: Prisma.TransactionClient, quote: ConvertibleQuote, opts: ConvertOptions = {}): Promise<ConvertResult> {
   const companyId = quote.companyId;
+  // Claim the conversion FIRST. The route checks `jobId` on a quote it loaded
+  // before the transaction, so a double-tap on a phone (or two staff) both
+  // passed that check and each minted a Job # — one orphaned on the schedule.
+  // The claim only lands while the quote is unconverted; everything below
+  // rides the same transaction, so a lost claim writes nothing.
+  const claim = await tx.quote.updateMany({
+    where: { id: quote.id, jobId: null, status: { not: "CONVERTED" } },
+    data: { status: "CONVERTED" },
+  });
+  if (claim.count === 0) throw new QuoteAlreadyConvertedError();
   // A one-person company's jobs land on that person (calendar sync, tech
   // visibility); bigger teams assign from the job page after conversion
   const crew = await resolveCrew(tx, companyId, opts.assigneeIds ?? []);
@@ -97,7 +128,7 @@ export async function convertQuoteToJob(tx: Prisma.TransactionClient, quote: Con
   await tx.quote.update({ where: { id: quote.id }, data: { jobId: created.id, status: "CONVERTED" } });
 
   // Recurring services on the quote become live subscriptions on the client.
-  await ensureSubscriptionsForContact(
+  const subscriptionIds = await ensureSubscriptionsForContact(
     tx,
     companyId,
     quote.contactId,
@@ -105,7 +136,7 @@ export async function convertQuoteToJob(tx: Prisma.TransactionClient, quote: Con
   );
 
   // First real work closes the lead: active client, off the pipeline board
-  await recordLeadWin(tx, companyId, quote.contact);
+  if (!opts.deferLeadWin) await recordLeadWin(tx, companyId, quote.contact);
 
-  return created;
+  return { job: created, subscriptionIds };
 }

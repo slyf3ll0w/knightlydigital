@@ -17,7 +17,14 @@
 import { Prisma } from "@prisma/client";
 import { canChargeOnline } from "@/lib/payments-gate";
 import { prisma } from "@/lib/db";
-import { sendEmail, emailEnabled, paymentReminderEmail, appointmentReminderEmail, quoteFollowUpEmail } from "@/lib/email";
+import {
+  sendEmail,
+  emailEnabled,
+  companyEmailBlocked,
+  paymentReminderEmail,
+  appointmentReminderEmail,
+  quoteFollowUpEmail,
+} from "@/lib/email";
 import { sendSms, smsEnabled, canText, appointmentReminderText } from "@/lib/sms";
 import { notifyUser, notifyUsers } from "@/lib/push";
 import { arrivalSlotLabel, resolveArrivalWindowMinutes } from "@/lib/arrival-window";
@@ -25,6 +32,24 @@ import { pastDueFilter } from "@/lib/due-dates";
 import { invoiceBalance } from "@/lib/payments";
 
 const DAY = 86400000;
+
+/**
+ * Per-run memo of the per-company email gate. A stage is claimed (one-shot,
+ * never retried) BEFORE the send, so a company whose email is blocked — Finix
+ * still PROVISIONING and payments not waived — must be skipped before the
+ * claim, or every reminder that came due while they waited is burned.
+ */
+function emailGate(): (companyId: string) => Promise<boolean> {
+  const memo = new Map<string, Promise<boolean>>();
+  return (companyId) => {
+    let p = memo.get(companyId);
+    if (!p) {
+      p = companyEmailBlocked(companyId);
+      memo.set(companyId, p);
+    }
+    return p;
+  };
+}
 
 // Ordered by threshold. Each invoice gets at most one email per run — the most
 // advanced unsent stage — so an already-overdue invoice isn't spammed with the
@@ -63,7 +88,8 @@ export async function runDueReminders(now: Date = new Date()): Promise<ReminderS
     where: {
       status: { in: ["AWAITING_PAYMENT", "PAST_DUE"] },
       dueDate: { not: null, lte: now },
-      contact: { is: { email: { not: null } } },
+      // Archived clients are closed out — no dunning
+      contact: { is: { email: { not: null }, status: { not: "ARCHIVED" } } },
       company: { is: { suspendedAt: null } },
     },
     include: {
@@ -87,15 +113,28 @@ export async function runDueReminders(now: Date = new Date()): Promise<ReminderS
   });
 
   const summary: ReminderSummary = { checked: invoices.length, sent: 0, markedPastDue: flipped.count, errors: 0 };
+  const blocked = emailGate();
 
   for (const inv of invoices) {
     try {
       const balance = invoiceBalance(inv);
       if (balance <= 0 || !inv.contact?.email || !inv.dueDate) continue;
+      // Company can't email yet: leave the stage unclaimed so it sends the
+      // day they can, instead of vanishing.
+      if (await blocked(inv.companyId)) continue;
 
       const daysPastDue = Math.floor((now.getTime() - inv.dueDate.getTime()) / DAY);
       const sentTypes = new Set(inv.reminders.map((r) => r.type));
-      const eligible = STAGES.filter((s) => daysPastDue >= s.days && !sentTypes.has(s.type));
+      // A "due today" nudge minutes after the invoice itself (Net-0 terms,
+      // engine invoices issued this morning) reads as nagging — give the
+      // invoice email a day to land before the reminder cadence starts.
+      const issuedToday = !!inv.issuedAt && now.getTime() - inv.issuedAt.getTime() < DAY;
+      const eligible = STAGES.filter(
+        (s) =>
+          daysPastDue >= s.days &&
+          !sentTypes.has(s.type) &&
+          !(s.type === "due" && issuedToday)
+      );
       if (eligible.length === 0) continue;
 
       const stage = eligible[eligible.length - 1]; // most advanced unsent stage
@@ -404,6 +443,7 @@ export async function runAppointmentReminders(
       if (canSms && appt.contact.phone) {
         smsOk = await sendSms({
           companyId: appt.companyId,
+          contactId: appt.contactId,
           to: appt.contact.phone,
           text: appointmentReminderText({
             companyName: appt.company.name,
@@ -558,6 +598,7 @@ export async function runVisitReminders(
       if (canSms && job.contact.phone) {
         smsOk = await sendSms({
           companyId: job.companyId,
+          contactId: job.contactId,
           to: job.contact.phone,
           text: appointmentReminderText({
             companyName: job.company.name,

@@ -140,6 +140,7 @@ export async function notifyClientOfReply(
       to: contact.phone,
       text: `WorkBench: ${contact.company.name}: ${preview(body, 260)} Reply STOP to opt out.`,
       companyId: contact.companyId,
+      contactId: contact.id,
     });
   }
   if (smsSent) return;

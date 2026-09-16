@@ -91,12 +91,14 @@ export async function PATCH(
     }
   }
 
-  const validStatuses = ["ACTIVE", "REQUIRES_INVOICING", "ARCHIVED"];
+  // Status is NOT editable here — /api/app/jobs/[id]/status owns it, with
+  // the close-out checklist gate, completed/closed stamps, the plan-billed
+  // redirect and per-visit billing. Accepting it on a general edit let all
+  // of that be skipped with one API call.
   const data = {
     ...(fullEdit && {
       ...(body.title && { title: body.title }),
       ...(body.description !== undefined && { description: body.description }),
-      ...(body.status && validStatuses.includes(body.status) && { status: body.status }),
       ...(body.address !== undefined && { address: body.address }),
       ...(body.leadSource !== undefined && { leadSource: body.leadSource || null }),
       ...(propertyPatch ?? {}),

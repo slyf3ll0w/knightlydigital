@@ -91,12 +91,24 @@ export default function QuoteActions({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
       });
-      if (res.ok && newStatus === "APPROVED") {
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        alertSheet({ message: data?.error ?? "Couldn't update the quote." });
+        return;
+      }
+      if (newStatus === "APPROVED") {
         hapticNotify("SUCCESS");
         // Body-attached like the send ritual — the refresh below swaps the
         // action buttons and would kill state-held overlays. The refreshed
         // page mounts <Celebration>, so this reads slam → confetti.
         showApproveRitual();
+        // Approval mints the deposit invoice and emails its pay link; when
+        // that email can't go out the office has to send it by hand.
+        if (data?.emailed === false && data?.deposit?.invoiceNumber) {
+          alertSheet({
+            message: `Approved. Deposit invoice #${data.deposit.invoiceNumber} was created, but the pay link couldn't be emailed — send it from the invoice.`,
+          });
+        }
       }
     } finally {
       setBusy(false);
@@ -174,6 +186,11 @@ export default function QuoteActions({
       if (!res.ok) {
         alertSheet({ message: data?.error ?? "Couldn't create the deposit invoice." });
         return;
+      }
+      if (data?.emailed === false) {
+        alertSheet({
+          message: `Deposit invoice #${data.invoiceNumber} is ready, but the pay link couldn't be emailed — send it from the invoice.`,
+        });
       }
       if (data?.invoiceId) {
         router.push(`/app/invoices/${data.invoiceId}`);
@@ -303,7 +320,8 @@ export default function QuoteActions({
         !hasJob && (
           <button
             onClick={convertToJob}
-            className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors"
+            disabled={busy}
+            className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors disabled:opacity-60"
           >
             <Briefcase size={13} />
             Convert to Job
@@ -394,7 +412,7 @@ export default function QuoteActions({
               </button>
             )}
             <div className="my-1 border-t border-gray-100" />
-            {status !== "APPROVED" && status !== "CONVERTED" && (
+            {(status === "AWAITING_RESPONSE" || status === "CHANGES_REQUESTED") && (
               <button
                 onClick={() => setStatus("APPROVED")}
                 className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
@@ -406,7 +424,8 @@ export default function QuoteActions({
             {status === "APPROVED" && !hasJob && (
               <button
                 onClick={convertToJob}
-                className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                disabled={busy}
+                className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-60"
               >
                 <Briefcase size={14} className="text-gray-400" />
                 Convert to Job

@@ -39,10 +39,11 @@ export default async function AppointmentDetailPage({
         assignedTo: { select: { name: true } },
       },
     }),
-    // Only managers may reassign, so only they need the roster
+    // Only managers may reassign, so only they need the roster (techs can't
+    // open appointments, so they're never offered)
     isManager(actor.role)
       ? prisma.user.findMany({
-          where: { companyId: actor.companyId, isActive: true },
+          where: { companyId: actor.companyId, isActive: true, role: { not: "TECH" } },
           select: { id: true, name: true },
           orderBy: { name: "asc" },
         })

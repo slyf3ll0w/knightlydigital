@@ -530,9 +530,28 @@ ActivityLog (`auto_charge_failed`, userName "Autopay"); give-up → owner push
 again. Saving a new card (hub, staff, or /pay checkout) calls
 `reviveAutopayForContact` so stalled invoices retry on the next cron pass.
 `runCardExpiryNudges` (same cron) emails autopay clients once per card ~30
-days before it expires. NOTE: `chargeStored`'s Finix idempotency id is
-minute-windowed — never remove that, or retries replay the original decline.
-With no card at all the engine still falls back to the pay-by-link email.
+days before it expires. NOTE: `chargeStored`'s Finix idempotency id is keyed
+by the autopay ATTEMPT number (`metadata.attempt`, passed by
+`attemptAutoCharge`): re-running the same attempt after a processor outage
+(`transient` → `processor_down`, no attempt burned) replays the original
+transfer instead of charging twice, and a new attempt after a decline gets a
+fresh id so it never replays that decline. Staff "charge card" sends no
+attempt and keeps the old minute window. Keep both rules. After a transient
+failure `findUnrecordedTransferForInvoice` checks Finix for a transfer
+tagged with the invoice before giving up. With no card at all the engine
+still falls back to the pay-by-link email.
+
+## Unit tests (no framework — plain `tsx` scripts)
+
+Each is `npx tsx scripts/<name>.ts`; the ones that import Prisma-backed
+modules need a placeholder `DATABASE_URL=postgresql://u:p@localhost:5432/unused`
+(never queried). Run them all before a push that touches money, scheduling
+or booking: `test-money` (refund split, deposit credit, due dates),
+`test-ops-guards` (quote expiry, geocode acceptance, serialization retry),
+`test-subscriptions` (billing/visit cursor math, decline classification),
+`test-sms-keywords`, `test-route-plan`, `test-booking-engine`,
+`test-job-crew`, `test-calendar-sync`. The Playwright suite in `e2e/` runs
+against the deployed app (see `e2e/README.md`) and is the post-deploy check.
 
 ## Database setup (Railway)
 

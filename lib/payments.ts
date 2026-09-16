@@ -20,9 +20,11 @@ import { estimateProcessingCostCents } from "@/lib/platform-costs";
 import { notifyUsers } from "@/lib/push";
 import { queueQuickBooksPaymentSync } from "@/lib/quickbooks";
 import { sendEmail, reviewRequestEmail, paymentReceiptEmail } from "@/lib/email";
-import { isPastDue } from "@/lib/due-dates";
+import { isPastDue, dueDateFromTerms } from "@/lib/due-dates";
 import { paymentMethodLabel } from "@/lib/statuses";
 import type { PaymentMethod, Prisma } from "@prisma/client";
+import { isTransientProcessorStatus } from "@/lib/autopay-rules";
+import { anchoredNextRunDate } from "@/lib/billing-cursor";
 
 // ─── Processor interface ─────────────────────────────────────────────────────
 
@@ -52,6 +54,10 @@ export type ChargeResult =
       /** Processor decline code (e.g. Finix failure_code) — drives the
        *  hard-vs-soft classification in lib/auto-charge.ts. */
       code?: string | null;
+      /** The processor never judged the card — outage, timeout, bad
+       *  credentials, rate limit, or payments not enabled. Autopay treats
+       *  this as "try again later", never as a decline. */
+      transient?: boolean;
     };
 
 export type CheckoutSession =
@@ -244,17 +250,29 @@ class FinixProcessor implements PaymentProcessor {
       });
       const merchantId = invoice?.company.finixMerchantId;
       if (!this.live || !merchantId || invoice?.company.finixOnboardingState !== "APPROVED") {
-        return { success: false, error: "Online payments are not enabled for this business." };
+        return {
+          success: false,
+          error: "Online payments are not enabled for this business.",
+          transient: true,
+        };
       }
 
+      const cents = finix.toCents(params.amount);
+      // Autopay passes its attempt number: every retry of the SAME attempt
+      // (a processor outage re-books the attempt without burning it) replays
+      // the same idempotency id, so a charge that Finix completed after our
+      // 20 s abort is returned, not repeated. A new attempt (after a real
+      // decline) gets a fresh id, so it never replays that decline. Staff
+      // "charge card" sends no attempt and keeps the minute window.
+      const attempt = params.metadata?.attempt;
+      const idempotencyId = attempt
+        ? `${invoiceId}-stored-${cents}-a${attempt}`
+        : `${invoiceId}-stored-${cents}-${Math.floor(Date.now() / 60000)}`;
       const transfer = await finix.createTransfer({
-        amountCents: finix.toCents(params.amount),
+        amountCents: cents,
         merchantId,
         sourceInstrumentId: params.customerRef,
-        // Minute-windowed like charge(): a double-fire never double-charges,
-        // while a genuine retry (autopay retries run days apart) gets a fresh
-        // id instead of replaying the original decline forever.
-        idempotencyId: `${invoiceId}-stored-${finix.toCents(params.amount)}-${Math.floor(Date.now() / 60000)}`,
+        idempotencyId,
         tags: params.metadata ?? {},
       });
 
@@ -279,9 +297,35 @@ class FinixProcessor implements PaymentProcessor {
         cardType: instrument?.card_type ?? null,
       };
     } catch (err) {
-      if (err instanceof finix.FinixError) return { success: false, error: err.message };
+      // A 4xx with a message is Finix judging the request (a decline surfaced
+      // as an API error). Auth/config/rate-limit/5xx, timeouts (AbortSignal),
+      // and network failures never reached a decision — flag them transient
+      // so autopay retries without burning an attempt or emailing the client.
+      if (err instanceof finix.FinixError && !isTransientProcessorStatus(err.status)) {
+        return { success: false, error: err.message, transient: false };
+      }
+      // Transient: the request may still have gone through on Finix's side
+      // (an abort after the transfer was created). Look for a transfer tagged
+      // with this invoice for this amount that we haven't recorded — if it
+      // exists, the money moved and this attempt succeeded.
+      const settled = await findUnrecordedTransferForInvoice(invoiceId, finix.toCents(params.amount)).catch(() => null);
+      if (settled) {
+        const instrument = await finix.getPaymentInstrument(params.customerRef).catch(() => null);
+        return {
+          success: true,
+          transactionId: settled.id,
+          amount: params.amount,
+          pending: settled.state === "PENDING",
+          cardBrand: instrument?.brand ?? null,
+          cardType: instrument?.card_type ?? null,
+        };
+      }
       console.error("[payments] finix stored charge failed", err);
-      return { success: false, error: "Auto-charge failed." };
+      return {
+        success: false,
+        error: err instanceof finix.FinixError ? err.message : "Auto-charge failed.",
+        transient: true,
+      };
     }
   }
 
@@ -361,7 +405,7 @@ export async function recordPayment(params: RecordPaymentParams) {
   const result = await prisma.$transaction(async (tx) => {
     const invoice = await tx.invoice.findFirst({
       where: { id: params.invoiceId, companyId: params.companyId },
-      include: { payments: true },
+      include: { payments: true, contact: { select: { paymentTermsDays: true } } },
     });
     if (!invoice) throw new Error("Invoice not found");
 
@@ -394,16 +438,30 @@ export async function recordPayment(params: RecordPaymentParams) {
       (params.surchargeAmount ?? 0);
     const fullyPaid = paidSoFar >= Number(invoice.total) + surchargesSoFar - 0.005;
 
+    // A payment on a draft issues it: without issuedAt/dueDate a partially
+    // paid draft could never go PAST_DUE or get a reminder for the rest.
+    const issuedNow = new Date();
+    const issueStamp =
+      invoice.status === "DRAFT"
+        ? {
+            ...(invoice.issuedAt ? {} : { issuedAt: issuedNow }),
+            ...(invoice.dueDate
+              ? {}
+              : { dueDate: dueDateFromTerms(issuedNow, invoice.contact?.paymentTermsDays ?? 0) }),
+          }
+        : {};
     await tx.invoice.update({
       where: { id: invoice.id },
       data: fullyPaid
-        ? { status: "PAID", paidAt: params.paidAt ?? new Date() }
+        ? { status: "PAID", paidAt: params.paidAt ?? new Date(), ...issueStamp }
         : invoice.status === "DRAFT"
-          ? { status: "AWAITING_PAYMENT" }
+          ? { status: "AWAITING_PAYMENT", ...issueStamp }
           : {},
     });
 
-    if (invoice.kind === "DEPOSIT" && invoice.quoteId && fullyPaid) {
+    // Every payment on a deposit invoice (not just the one that completes it)
+    // is money toward the job: credit it on the final invoice if one exists.
+    if (invoice.kind === "DEPOSIT" && invoice.quoteId) {
       await recomputeDepositApplied(tx, invoice.quoteId);
     }
 
@@ -470,41 +528,28 @@ export async function recordPayment(params: RecordPaymentParams) {
 
 /**
  * Anchor a scheduled plan to its first successful payment: stamp anchoredAt
- * and re-point nextRunDate one interval out from the payment day, so every
- * later cycle lands on that day-of-month. One-shot — an already-anchored (or
- * non-interval) subscription is left alone. Month math mirrors
- * lib/subscriptions.ts addInterval/addMonthsClamped; duplicated here because
- * importing lib/subscriptions from this file would create an import cycle
- * (subscriptions → auto-charge → payments).
+ * and, when the payment came with signup (within ANCHOR_GRACE_DAYS of the
+ * cycle start), re-point nextRunDate one interval out from the payment day
+ * so every later cycle lands on that day-of-month. A LATE first payment
+ * keeps the existing cursor: the cycle the invoice covered already ran, and
+ * re-anchoring would skip everything up to the new date. One-shot — an
+ * already-anchored (or non-interval) subscription is left alone. The math
+ * is lib/billing-cursor.ts (pure), which this file can import without the
+ * subscriptions → auto-charge → payments cycle.
  */
 async function anchorPlanFromFirstPayment(subscriptionId: string, paidAt: Date): Promise<void> {
   const sub = await prisma.subscription.findUnique({
     where: { id: subscriptionId },
-    select: { interval: true, anchoredAt: true },
+    select: { interval: true, anchoredAt: true, nextRunDate: true },
   });
   if (!sub?.interval || sub.anchoredAt) return;
 
-  const anchor = new Date(paidAt);
-  anchor.setHours(12, 0, 0, 0); // noon-anchored like every engine date
-  const months = { MONTHLY: 1, QUARTERLY: 3, SEMIANNUAL: 6, ANNUAL: 12 }[sub.interval];
-  const targetDay = anchor.getDate();
-  const intervalFromAnchor = (steps: number): Date => {
-    const d = new Date(anchor);
-    d.setDate(1); // avoid transient overflow while shifting the month
-    d.setMonth(d.getMonth() + months * steps);
-    const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
-    d.setDate(Math.min(targetDay, lastDay));
-    return d;
-  };
-  // Roll forward past today: recordPayment accepts a backdated paidAt (staff
-  // recording an old check), and a cursor left in the past bills one cycle
-  // per hourly sweep — auto-charging each — until it catches up. Same guard
-  // as rollCursorForward on the resume path, keeping the anchor day-of-month.
-  const now = new Date();
-  let steps = 1;
-  let next = intervalFromAnchor(steps);
-  while (next < now) next = intervalFromAnchor(++steps);
-
+  const { anchor, next } = anchoredNextRunDate({
+    paidAt,
+    interval: sub.interval,
+    currentCursor: sub.nextRunDate,
+    now: new Date(),
+  });
   await prisma.subscription.update({
     where: { id: subscriptionId },
     data: { anchoredAt: anchor, nextRunDate: next },
@@ -630,6 +675,85 @@ export function invoiceBalance(invoice: {
     0
   );
   return Math.round((Number(invoice.total) + surcharges - paid) * 100) / 100;
+}
+
+/**
+ * Split a refund across a payment's principal and its card surcharge.
+ * Payment.amount INCLUDES the surcharge, and invoiceBalance adds every
+ * surcharge back on top of the total — so a refund that only shrinks `amount`
+ * leaves the surcharge in the balance: after a full refund the client owes
+ * total + the old surcharge, and /pay surcharges that again. The surcharge
+ * shrinks in proportion to what remains (zero on a full refund); the refunded
+ * surcharge portion is stored on the Refund row so a failed reversal can put
+ * both numbers back.
+ */
+export function refundSplit(
+  payment: {
+    amount: number | { toString(): string };
+    surchargeAmount?: number | { toString(): string } | null;
+  },
+  refundAmount: number
+): { remainingAmount: number; remainingSurcharge: number | null; refundedSurcharge: number } {
+  const amount = Number(payment.amount);
+  const surcharge = payment.surchargeAmount == null ? null : Number(payment.surchargeAmount);
+  const remainingAmount = Math.max(0, Math.round((amount - refundAmount) * 100) / 100);
+  if (surcharge == null || surcharge <= 0 || amount <= 0) {
+    return { remainingAmount, remainingSurcharge: surcharge, refundedSurcharge: 0 };
+  }
+  const remainingSurcharge =
+    remainingAmount <= 0
+      ? 0
+      : Math.min(surcharge, Math.round(surcharge * (remainingAmount / amount) * 100) / 100);
+  const refundedSurcharge = Math.round((surcharge - remainingSurcharge) * 100) / 100;
+  return { remainingAmount, remainingSurcharge, refundedSurcharge };
+}
+
+/**
+ * A transfer Finix holds for this invoice (tagged `invoiceId`) that no
+ * Payment row records yet — the "did the money move?" check after a charge
+ * call that timed out or blew up. Matched by amount so an earlier, already-
+ * recorded partial payment on the same invoice can never be mistaken for
+ * this one, and limited to the last hour. Reversals and failed/cancelled
+ * transfers never count. Null when Finix isn't live or nothing matches.
+ */
+export async function findUnrecordedTransferForInvoice(
+  invoiceId: string,
+  amountCents: number
+): Promise<finix.FinixTransfer | null> {
+  if (!finix.finixConfigured()) return null;
+  const inv = await prisma.invoice.findUnique({
+    where: { id: invoiceId },
+    select: { company: { select: { finixIdentityId: true, finixMerchantId: true } } },
+  });
+  const company = inv?.company;
+  let identityId = company?.finixIdentityId ?? null;
+  const mid = company?.finixMerchantId ?? null;
+  if (!identityId && mid) {
+    identityId = (await finix.getMerchant(mid).catch(() => null))?.identity ?? null;
+  }
+  if (!identityId) return null;
+
+  const [transfers, recorded] = await Promise.all([
+    finix.listTransfersForIdentity(identityId, 50).catch(() => [] as finix.FinixTransfer[]),
+    prisma.payment.findMany({
+      where: { invoiceId, processorRef: { not: null } },
+      select: { processorRef: true },
+    }),
+  ]);
+  const known = new Set(recorded.map((p) => p.processorRef));
+  const cutoff = Date.now() - 60 * 60 * 1000;
+  return (
+    transfers.find(
+      (t) =>
+        t.tags?.invoiceId === invoiceId &&
+        t.amount === amountCents &&
+        t.state !== "FAILED" &&
+        t.state !== "CANCELED" &&
+        t.type !== "REVERSAL" &&
+        !known.has(t.id) &&
+        (!t.created_at || new Date(t.created_at).getTime() >= cutoff)
+    ) ?? null
+  );
 }
 
 /**

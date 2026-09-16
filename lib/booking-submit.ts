@@ -27,6 +27,7 @@ import {
   type LoadedBookingType,
 } from "@/lib/booking-runtime";
 import { KIND_META } from "@/lib/booking-types";
+import { phoneDigits } from "@/lib/phone";
 
 /**
  * The write side of online scheduling: turn a validated slot pick into a
@@ -107,10 +108,12 @@ export async function upsertBookingContact(
       return Object.keys(fill).length > 0 ? tx.contact.update({ where: { id: own.id }, data: fill }) : own;
     }
   }
+  // Same person however they typed it: digits-only phone, case-insensitive email
+  const digits = phoneDigits(c.phone);
   const existing = await tx.contact.findFirst({
     where: {
       companyId,
-      OR: [...(c.phone ? [{ phone: c.phone }] : []), ...(c.email ? [{ email: c.email }] : [])],
+      OR: [...(digits ? [{ phoneDigits: digits }] : []), ...(c.email ? [{ email: { equals: c.email, mode: "insensitive" as const } }] : [])],
     },
   });
   if (existing) {
@@ -161,7 +164,7 @@ export async function createAppointmentBooking(params: {
   const approval = type.confirmation === "APPROVAL";
   const label = slotLabel(company.timezone, slot.start, slot.windowEnd);
 
-  return withDocNumberRetry(() =>
+  return withSerializationRetry(() => withDocNumberRetry(() =>
     prisma.$transaction(
       async (tx) => {
         const contact = await upsertBookingContact(tx, company.id, customer);
@@ -226,12 +229,33 @@ export async function createAppointmentBooking(params: {
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
     )
-  );
+  ));
 }
 
 /** Is `e` the "slot lost" race (our check or a Postgres serialization abort)? */
 export function isSlotRace(e: unknown): boolean {
   return e instanceof SlotTakenError || (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2034");
+}
+
+/**
+ * Serializable transactions abort (P2034) whenever two of them touch the
+ * same rows — including two DIFFERENT customers booking the same company at
+ * the same moment (both read the request-number max and the ±24 h window).
+ * That's not a lost slot, so retry a couple of times before telling anyone
+ * "that time was just taken". A genuine SlotTakenError is never retried.
+ */
+export async function withSerializationRetry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {
+  let last: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fn();
+    } catch (e) {
+      if (!(e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2034")) throw e;
+      last = e;
+      await new Promise((r) => setTimeout(r, 40 * (i + 1) + Math.random() * 60));
+    }
+  }
+  throw last;
 }
 
 export type BookingNoticeInput = {

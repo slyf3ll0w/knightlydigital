@@ -33,9 +33,10 @@ export default async function NewAppointmentPage({
       },
       orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
     }),
+    // Techs can't open appointments (canSell), so they're never offered
     isManager(actor.role)
       ? prisma.user.findMany({
-          where: { companyId, isActive: true },
+          where: { companyId, isActive: true, role: { not: "TECH" } },
           select: { id: true, name: true },
           orderBy: { name: "asc" },
         })

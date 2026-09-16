@@ -88,6 +88,9 @@ export default function PayPage({
   const parsedAmount = Math.round((Number(amountText) || 0) * 100) / 100;
   const payAmount = partial ? parsedAmount : balance;
   const amountValid = !partial || (parsedAmount >= 1 && parsedAmount <= balance);
+  // Deposits are all-or-nothing (the server refuses a split too), and a
+  // balance under the $1 partial floor can only be paid whole.
+  const canSplit = invoice.kind !== "DEPOSIT" && balance > 1;
   const surcharge = method === "CARD" && invoice.company.surchargeEnabled && amountValid
     ? Math.round(payAmount * surchargeRate * 100) / 100
     : 0;
@@ -490,6 +493,7 @@ export default function PayPage({
           <div className="mt-8 border-t-2 border-gray-900 pt-5">
           {/* Amount — full balance by default, or a partial payment */}
           <h2 className="text-sm font-semibold text-gray-700 mb-3">Payment amount</h2>
+          {canSplit && (
           <div className="grid grid-cols-2 gap-3 mb-3">
             <button
               type="button"
@@ -514,7 +518,8 @@ export default function PayPage({
               Another amount
             </button>
           </div>
-          {partial && (
+          )}
+          {canSplit && partial && (
             <div className="mb-4">
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">$</span>

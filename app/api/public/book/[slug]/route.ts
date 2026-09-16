@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 import { prisma } from "@/lib/db";
+import { phoneDigits } from "@/lib/phone";
 import { verifyCaptcha } from "@/lib/captcha";
 import { sendEmail, newRequestEmail, quoteLinkEmail } from "@/lib/email";
 import { companyNotifyAddress } from "@/lib/notify";
@@ -13,6 +14,7 @@ import { withDocNumberRetry } from "@/lib/doc-numbers";
 import { listPublicBookingTypes, menuTypes, resolvePublicBookingType, toPublicBookingType } from "@/lib/booking-runtime";
 import { validateAnswers } from "@/lib/booking-answers";
 import { hubSubmitter } from "@/lib/hub-form";
+import { limit, clientIp } from "@/lib/rate-limit";
 
 // Generous backstop so one runaway account or bot can't flood a company
 const MAX_REQUESTS_PER_COMPANY_PER_DAY = 200;
@@ -42,6 +44,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
   }
   if (!resolved) return NextResponse.json({ error: "Form not found." }, { status: 404 });
   const { company, type } = resolved;
+  // Per-IP ceiling first: the captcha fails open until TURNSTILE_SECRET_KEY is
+  // set, and even with it a script can replay tokens for a while.
+  const ip = clientIp(req.headers);
+  if (!(await limit(`public-book-ip:${ip}`, 20, 3600_000)).ok) {
+    return NextResponse.json({ error: "Too many requests — please try again later." }, { status: 429 });
+  }
   // Client hub: a token of this company's contact is the auth — no captcha
   const hubContact = await hubSubmitter(body.hubToken, company.id);
   if (!hubContact && !(await verifyCaptcha(body.captchaToken))) {
@@ -117,7 +125,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
       let contact = hubContact
         ? await tx.contact.findUnique({ where: { id: hubContact.id } })
         : await tx.contact.findFirst({
-            where: { companyId: company.id, OR: [...(phone ? [{ phone }] : []), ...(email ? [{ email }] : [])] },
+            where: {
+              companyId: company.id,
+              OR: [...(phoneDigits(phone) ? [{ phoneDigits: phoneDigits(phone) }] : []), ...(email ? [{ email: { equals: email, mode: "insensitive" as const } }] : [])],
+            },
           });
       if (contact && hubContact) {
         // Keep the record current with anything the form asked for that was missing

@@ -12,7 +12,7 @@
 import { randomBytes } from "crypto";
 import type { DepositType, Prisma, PrismaClient } from "@prisma/client";
 import { quoteDepositAmount } from "@/lib/statuses";
-import { isPastDue } from "@/lib/due-dates";
+import { dueDateFromTerms, isPastDue } from "@/lib/due-dates";
 
 type Tx = Prisma.TransactionClient | PrismaClient;
 
@@ -51,7 +51,98 @@ export type DepositInvoiceResult = {
   invoice: { id: string; invoiceNumber: number; publicToken: string; total: number };
   amount: number;
   created: boolean; // false when an existing deposit invoice was returned
+  /** Still owed on the deposit invoice (0 once paid) — approval re-sends the
+   *  pay link while this is > 0, whether or not the invoice was just minted. */
+  outstanding: number;
 };
+
+type ExistingDeposit = {
+  id: string;
+  invoiceNumber: number;
+  publicToken: string;
+  total: { toString(): string } | number;
+  status: string;
+  payments: {
+    amount: { toString(): string } | number;
+    surchargeAmount: { toString(): string } | number | null;
+  }[];
+};
+
+const existingDepositSelect = {
+  id: true,
+  invoiceNumber: true,
+  publicToken: true,
+  total: true,
+  status: true,
+  payments: { select: { amount: true, surchargeAmount: true } },
+} as const;
+
+function depositOutstanding(inv: ExistingDeposit): number {
+  const paid = inv.payments.reduce((s, p) => s + Number(p.amount), 0);
+  const surcharges = inv.payments.reduce((s, p) => s + Number(p.surchargeAmount ?? 0), 0);
+  return Math.max(0, Math.round((Number(inv.total) + surcharges - paid) * 100) / 100);
+}
+
+/**
+ * Bring an already-minted, never-paid deposit invoice in line with what the
+ * quote says the deposit is now. "Collect deposit" can run before approval,
+ * and the quote can be revised after that (a change request is the normal
+ * path) — without this the client approves a $3,000 quote and is asked for
+ * the $500 deposit computed on the $1,000 draft. Updated in place so the pay
+ * link already in the inbox keeps working and simply shows the new amount.
+ * Anything with payment history, or that the business archived, is left
+ * alone. Returns null when the deposit was removed (amount now 0).
+ */
+async function syncExistingDeposit(
+  tx: Tx,
+  existing: ExistingDeposit,
+  amount: number,
+  quoteNumber: number
+): Promise<ExistingDeposit | null> {
+  if (existing.payments.length > 0 || existing.status === "ARCHIVED" || existing.status === "PAID") {
+    return existing;
+  }
+  if (amount <= 0) {
+    await tx.invoiceLineItem.deleteMany({ where: { invoiceId: existing.id } });
+    await tx.invoice.delete({ where: { id: existing.id } });
+    return null;
+  }
+  if (Math.abs(Number(existing.total) - amount) < 0.005) return existing;
+  await tx.invoiceLineItem.deleteMany({ where: { invoiceId: existing.id } });
+  return tx.invoice.update({
+    where: { id: existing.id },
+    data: {
+      subtotal: amount,
+      total: amount,
+      lineItems: {
+        create: [
+          {
+            name: "Deposit",
+            description: `Deposit for Quote #${quoteNumber}`,
+            quantity: 1,
+            unitPrice: amount,
+            total: amount,
+            sortOrder: 0,
+          },
+        ],
+      },
+    },
+    select: existingDepositSelect,
+  });
+}
+
+/**
+ * After a quote edit: re-price (or drop) its unpaid deposit invoice. Never
+ * creates one — that is approval's / "Collect deposit"'s job.
+ */
+export async function syncDepositInvoice(tx: Tx, quote: DepositQuote): Promise<void> {
+  const existing = await tx.invoice.findFirst({
+    where: { quoteId: quote.id, kind: "DEPOSIT" },
+    select: existingDepositSelect,
+  });
+  if (!existing) return;
+  await syncExistingDeposit(tx, existing, quoteDepositAmount(quote), quote.quoteNumber);
+}
 
 /**
  * Create (or return the existing) deposit invoice for a quote. Idempotent: a
@@ -63,20 +154,28 @@ export async function createDepositInvoice(
   quote: DepositQuote
 ): Promise<DepositInvoiceResult | null> {
   const amount = quoteDepositAmount(quote);
-  if (amount <= 0) return null;
 
-  // One deposit invoice per quote
-  const existing = await tx.invoice.findFirst({
+  // One deposit invoice per quote — re-priced if the quote changed under it
+  const found = await tx.invoice.findFirst({
     where: { quoteId: quote.id, kind: "DEPOSIT" },
-    select: { id: true, invoiceNumber: true, publicToken: true, total: true },
+    select: existingDepositSelect,
   });
-  if (existing) {
+  if (found) {
+    const existing = await syncExistingDeposit(tx, found, amount, quote.quoteNumber);
+    if (!existing) return null;
     return {
-      invoice: { ...existing, total: Number(existing.total) },
+      invoice: {
+        id: existing.id,
+        invoiceNumber: existing.invoiceNumber,
+        publicToken: existing.publicToken,
+        total: Number(existing.total),
+      },
       amount: Number(existing.total),
       created: false,
+      outstanding: depositOutstanding(existing),
     };
   }
+  if (amount <= 0) return null;
 
   const last = await tx.invoice.findFirst({
     where: { companyId: quote.companyId },
@@ -98,7 +197,7 @@ export async function createDepositInvoice(
       subtotal: amount,
       total: amount,
       issuedAt: now,
-      dueDate: now,
+      dueDate: dueDateFromTerms(now, 0),
       lineItems: {
         create: [
           {
@@ -119,24 +218,47 @@ export async function createDepositInvoice(
     invoice: { ...created, total: Number(created.total) },
     amount,
     created: true,
+    outstanding: amount,
   };
 }
 
 /**
- * Total of PAID deposit invoices for a quote — the credit to net off the quote's
- * final invoice so the client isn't billed twice for the deposit.
+ * Money actually received against a quote's deposit invoices — the credit to
+ * net off the final invoice so the client isn't billed twice. Counts every
+ * payment on every DEPOSIT invoice (paid, partially paid, or archived after a
+ * partial payment), principal only: Payment.amount includes the card
+ * surcharge, which isn't money toward the job. Capped at each invoice's total.
  */
+export function depositCredit(
+  deposits: {
+    total: number | { toString(): string };
+    payments: {
+      amount: number | { toString(): string };
+      surchargeAmount?: number | { toString(): string } | null;
+    }[];
+  }[]
+): number {
+  const sum = deposits.reduce((s, d) => {
+    const principal = d.payments.reduce(
+      (p, x) => p + Number(x.amount) - Number(x.surchargeAmount ?? 0),
+      0
+    );
+    return s + Math.min(Math.max(0, principal), Number(d.total));
+  }, 0);
+  return Math.round(sum * 100) / 100;
+}
+
 export async function paidDepositTotal(tx: Tx, quoteId: string): Promise<number> {
   const deposits = await tx.invoice.findMany({
-    where: { quoteId, kind: "DEPOSIT", status: "PAID" },
-    select: { total: true },
+    where: { quoteId, kind: "DEPOSIT" },
+    select: { total: true, payments: { select: { amount: true, surchargeAmount: true } } },
   });
-  return Math.round(deposits.reduce((s, d) => s + Number(d.total), 0) * 100) / 100;
+  return depositCredit(deposits);
 }
 
 /**
- * Re-derive the deposit credit on a quote's final invoice from its
- * currently-PAID deposit invoices. The final invoice stores `total` net of
+ * Re-derive the deposit credit on a quote's final invoice from the payments
+ * received on its deposit invoices. The final invoice stores `total` net of
  * `depositApplied`, so both move together when a deposit pays after the final
  * invoice was created, or when a pending ACH deposit payment later bounces.
  */
