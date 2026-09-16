@@ -599,8 +599,9 @@ export default function ItemEditor({
             </Card>
           )}
 
-          {/* Confirmation */}
-          {scheduled && (
+          {/* Confirmation — services always confirm instantly (a booked service
+              is a scheduled job; there is no tentative path for it) */}
+          {scheduled && draft.kind !== "SERVICE" && (
             <Card title="Confirmation">
               <div className="space-y-2">
                 <Radio name="confirmation" checked={draft.confirmation === "INSTANT"} onChange={() => update({ confirmation: "INSTANT" })} label="Confirm instantly" hint="The booking lands on the schedule and the customer gets a confirmation right away." disabled={draft.paymentMode !== "NONE"} />

@@ -87,6 +87,7 @@ export async function POST(
   if (invoice.contact.phone && canText(invoice.contact)) {
     texted = await sendSms({
       companyId: invoice.companyId,
+      contactId: invoice.contactId,
       to: invoice.contact.phone,
       text: invoiceLinkText({
         companyName: invoice.company.name,

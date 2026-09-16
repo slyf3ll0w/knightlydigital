@@ -73,7 +73,8 @@ export default async function OnlineBookingPage() {
           showOnPage: t.showOnPage,
           durationMinutes: t.durationMinutes,
           stepMinutes: t.stepMinutes,
-          confirmation: t.confirmation,
+          // Services always confirm instantly (lib/booking-types.ts) — older rows may still say APPROVAL
+          confirmation: t.kind === "SERVICE" ? "INSTANT" : t.confirmation,
           paymentMode: t.paymentMode,
           serviceCount: t.services.filter((s) => s.workItem.isActive).length,
           questionCount: intake.customFields.length,

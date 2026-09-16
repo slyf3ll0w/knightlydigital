@@ -137,16 +137,17 @@ export async function ensureSubscriptionsForContact(
   companyId: string,
   contactId: string,
   picks: { workItemId?: string | null; quantity?: number }[]
-): Promise<void> {
+): Promise<string[]> {
+  const createdIds: string[] = [];
   const ids = Array.from(
     new Set(picks.map((p) => p.workItemId).filter((id): id is string => !!id))
   );
-  if (ids.length === 0) return;
+  if (ids.length === 0) return createdIds;
 
   const items = await tx.workItem.findMany({
     where: { id: { in: ids }, companyId, recurringInterval: { not: null } },
   });
-  if (items.length === 0) return;
+  if (items.length === 0) return createdIds;
 
   // quantity by workItemId (first occurrence wins; recurring lines are 1 service)
   const qtyById = new Map<string, number>();
@@ -164,7 +165,7 @@ export async function ensureSubscriptionsForContact(
     });
     if (existing) continue;
 
-    await tx.subscription.create({
+    const sub = await tx.subscription.create({
       data: {
         companyId,
         contactId,
@@ -179,8 +180,11 @@ export async function ensureSubscriptionsForContact(
         status: "ACTIVE",
         nextRunDate: firstRunDate(interval),
       },
+      select: { id: true },
     });
+    createdIds.push(sub.id);
   }
+  return createdIds;
 }
 
 type DueSub = Prisma.SubscriptionGetPayload<{ include: { contact: true } }>;

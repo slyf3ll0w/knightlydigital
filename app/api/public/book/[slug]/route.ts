@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 import { prisma } from "@/lib/db";
+import { phoneDigits } from "@/lib/phone";
 import { verifyCaptcha } from "@/lib/captcha";
 import { sendEmail, newRequestEmail, quoteLinkEmail } from "@/lib/email";
 import { companyNotifyAddress } from "@/lib/notify";
@@ -124,7 +125,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
       let contact = hubContact
         ? await tx.contact.findUnique({ where: { id: hubContact.id } })
         : await tx.contact.findFirst({
-            where: { companyId: company.id, OR: [...(phone ? [{ phone }] : []), ...(email ? [{ email }] : [])] },
+            where: {
+              companyId: company.id,
+              OR: [...(phoneDigits(phone) ? [{ phoneDigits: phoneDigits(phone) }] : []), ...(email ? [{ email: { equals: email, mode: "insensitive" as const } }] : [])],
+            },
           });
       if (contact && hubContact) {
         // Keep the record current with anything the form asked for that was missing

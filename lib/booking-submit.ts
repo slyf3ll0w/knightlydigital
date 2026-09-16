@@ -27,6 +27,7 @@ import {
   type LoadedBookingType,
 } from "@/lib/booking-runtime";
 import { KIND_META } from "@/lib/booking-types";
+import { phoneDigits } from "@/lib/phone";
 
 /**
  * The write side of online scheduling: turn a validated slot pick into a
@@ -107,10 +108,12 @@ export async function upsertBookingContact(
       return Object.keys(fill).length > 0 ? tx.contact.update({ where: { id: own.id }, data: fill }) : own;
     }
   }
+  // Same person however they typed it: digits-only phone, case-insensitive email
+  const digits = phoneDigits(c.phone);
   const existing = await tx.contact.findFirst({
     where: {
       companyId,
-      OR: [...(c.phone ? [{ phone: c.phone }] : []), ...(c.email ? [{ email: c.email }] : [])],
+      OR: [...(digits ? [{ phoneDigits: digits }] : []), ...(c.email ? [{ email: { equals: c.email, mode: "insensitive" as const } }] : [])],
     },
   });
   if (existing) {

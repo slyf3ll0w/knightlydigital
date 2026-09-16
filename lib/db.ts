@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import { phoneDigits } from "@/lib/phone";
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
@@ -40,9 +41,36 @@ globalForPrisma.prisma = prisma;
 const SCHEDULE_MODELS = new Set(["Job", "JobAssignment", "Appointment", "TimeBlock"]);
 const WRITE_ACTIONS = new Set(["create", "update", "upsert", "delete", "createMany", "updateMany", "deleteMany"]);
 
+// ─── Contact.phoneDigits ─────────────────────────────────────────────────────
+// Every write that sets Contact.phone also sets the digits-only mirror the
+// matchers compare on (lib/phone.ts). Living here means the booking forms,
+// the lead webhook, CSV import, staff edits and the hub all stay consistent
+// without each remembering to do it. Nested writes (contacts created through
+// another model's relation) are not seen; scripts/backfill-phone-digits.mjs
+// catches those on the next deploy.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mirrorPhoneDigits(data: any): void {
+  if (!data || typeof data !== "object" || !("phone" in data)) return;
+  const raw = data.phone;
+  const phone = raw && typeof raw === "object" && "set" in raw ? raw.set : raw;
+  if (phone !== null && phone !== undefined && typeof phone !== "string") return;
+  data.phoneDigits = phoneDigits(phone);
+}
+
 const globalForTrigger = globalThis as unknown as { calendarSyncTriggerInstalled?: boolean };
 if (!globalForTrigger.calendarSyncTriggerInstalled) {
   globalForTrigger.calendarSyncTriggerInstalled = true;
+  prisma.$use(async (params, next) => {
+    if (params.model === "Contact" && WRITE_ACTIONS.has(params.action)) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const args = (params.args ?? {}) as any;
+      if (params.action === "createMany" && Array.isArray(args.data)) args.data.forEach(mirrorPhoneDigits);
+      else mirrorPhoneDigits(args.data);
+      mirrorPhoneDigits(args.create);
+      mirrorPhoneDigits(args.update);
+    }
+    return next(params);
+  });
   prisma.$use(async (params, next) => {
     const result = await next(params);
     if (params.model && SCHEDULE_MODELS.has(params.model) && WRITE_ACTIONS.has(params.action)) {

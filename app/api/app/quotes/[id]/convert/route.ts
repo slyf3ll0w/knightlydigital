@@ -71,7 +71,7 @@ export async function POST(
   }
 
   // Shared with online service bookings — see lib/quote-convert.ts
-  const job = await withDocNumberRetry(() => prisma.$transaction((tx) => convertQuoteToJob(tx, quote)));
+  const { job } = await withDocNumberRetry(() => prisma.$transaction((tx) => convertQuoteToJob(tx, quote)));
 
   return NextResponse.json(job, { status: 201 });
 }

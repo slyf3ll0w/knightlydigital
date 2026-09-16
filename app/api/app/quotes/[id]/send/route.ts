@@ -98,6 +98,7 @@ export async function POST(
   if (quote.contact.phone && canText(quote.contact)) {
     texted = await sendSms({
       companyId: quote.companyId,
+      contactId: quote.contactId,
       to: quote.contact.phone,
       text: quoteLinkText({
         companyName: quote.company.name,
