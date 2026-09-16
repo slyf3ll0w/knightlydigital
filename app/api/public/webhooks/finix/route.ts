@@ -145,13 +145,27 @@ async function handleTransfer(transferId: string) {
   // closed account). Pull the payment record back out so the invoice reopens.
   const payment = await prisma.payment.findFirst({
     where: { processorRef: transfer.id },
-    include: { invoice: { select: { invoiceNumber: true } } },
+    include: { invoice: { select: { invoiceNumber: true, subscriptionId: true } } },
   });
   if (!payment) return;
 
   await prisma.$transaction(async (tx) => {
     await tx.payment.delete({ where: { id: payment.id } });
     await recomputeInvoiceStatus(tx, payment.invoiceId);
+    // A subscription invoice reopened this way would otherwise sit with no
+    // retry booked (the successful charge cleared autoChargeNextAt) — autopay
+    // dead until someone notices. Re-book it for tomorrow; the retry sweep
+    // classifies whatever the card says then.
+    if (payment.invoice?.subscriptionId) {
+      await tx.invoice.update({
+        where: { id: payment.invoiceId },
+        data: {
+          autoChargeNextAt: new Date(Date.now() + 24 * 3600_000),
+          autoChargeGaveUpAt: null,
+          autoChargeLastError: "Bank returned the payment",
+        },
+      });
+    }
   });
 
   // A bounced debit never really paid anything, so QuickBooks can't go on

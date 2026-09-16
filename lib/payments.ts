@@ -23,6 +23,8 @@ import { sendEmail, reviewRequestEmail, paymentReceiptEmail } from "@/lib/email"
 import { isPastDue, dueDateFromTerms } from "@/lib/due-dates";
 import { paymentMethodLabel } from "@/lib/statuses";
 import type { PaymentMethod, Prisma } from "@prisma/client";
+import { isTransientProcessorStatus } from "@/lib/autopay-rules";
+import { anchoredNextRunDate } from "@/lib/billing-cursor";
 
 // ─── Processor interface ─────────────────────────────────────────────────────
 
@@ -52,6 +54,10 @@ export type ChargeResult =
       /** Processor decline code (e.g. Finix failure_code) — drives the
        *  hard-vs-soft classification in lib/auto-charge.ts. */
       code?: string | null;
+      /** The processor never judged the card — outage, timeout, bad
+       *  credentials, rate limit, or payments not enabled. Autopay treats
+       *  this as "try again later", never as a decline. */
+      transient?: boolean;
     };
 
 export type CheckoutSession =
@@ -244,7 +250,11 @@ class FinixProcessor implements PaymentProcessor {
       });
       const merchantId = invoice?.company.finixMerchantId;
       if (!this.live || !merchantId || invoice?.company.finixOnboardingState !== "APPROVED") {
-        return { success: false, error: "Online payments are not enabled for this business." };
+        return {
+          success: false,
+          error: "Online payments are not enabled for this business.",
+          transient: true,
+        };
       }
 
       const transfer = await finix.createTransfer({
@@ -279,9 +289,19 @@ class FinixProcessor implements PaymentProcessor {
         cardType: instrument?.card_type ?? null,
       };
     } catch (err) {
-      if (err instanceof finix.FinixError) return { success: false, error: err.message };
+      // A 4xx with a message is Finix judging the request (a decline surfaced
+      // as an API error). Auth/config/rate-limit/5xx, timeouts (AbortSignal),
+      // and network failures never reached a decision — flag them transient
+      // so autopay retries without burning an attempt or emailing the client.
+      if (err instanceof finix.FinixError) {
+        return {
+          success: false,
+          error: err.message,
+          transient: isTransientProcessorStatus(err.status),
+        };
+      }
       console.error("[payments] finix stored charge failed", err);
-      return { success: false, error: "Auto-charge failed." };
+      return { success: false, error: "Auto-charge failed.", transient: true };
     }
   }
 
@@ -484,41 +504,28 @@ export async function recordPayment(params: RecordPaymentParams) {
 
 /**
  * Anchor a scheduled plan to its first successful payment: stamp anchoredAt
- * and re-point nextRunDate one interval out from the payment day, so every
- * later cycle lands on that day-of-month. One-shot — an already-anchored (or
- * non-interval) subscription is left alone. Month math mirrors
- * lib/subscriptions.ts addInterval/addMonthsClamped; duplicated here because
- * importing lib/subscriptions from this file would create an import cycle
- * (subscriptions → auto-charge → payments).
+ * and, when the payment came with signup (within ANCHOR_GRACE_DAYS of the
+ * cycle start), re-point nextRunDate one interval out from the payment day
+ * so every later cycle lands on that day-of-month. A LATE first payment
+ * keeps the existing cursor: the cycle the invoice covered already ran, and
+ * re-anchoring would skip everything up to the new date. One-shot — an
+ * already-anchored (or non-interval) subscription is left alone. The math
+ * is lib/billing-cursor.ts (pure), which this file can import without the
+ * subscriptions → auto-charge → payments cycle.
  */
 async function anchorPlanFromFirstPayment(subscriptionId: string, paidAt: Date): Promise<void> {
   const sub = await prisma.subscription.findUnique({
     where: { id: subscriptionId },
-    select: { interval: true, anchoredAt: true },
+    select: { interval: true, anchoredAt: true, nextRunDate: true },
   });
   if (!sub?.interval || sub.anchoredAt) return;
 
-  const anchor = new Date(paidAt);
-  anchor.setHours(12, 0, 0, 0); // noon-anchored like every engine date
-  const months = { MONTHLY: 1, QUARTERLY: 3, SEMIANNUAL: 6, ANNUAL: 12 }[sub.interval];
-  const targetDay = anchor.getDate();
-  const intervalFromAnchor = (steps: number): Date => {
-    const d = new Date(anchor);
-    d.setDate(1); // avoid transient overflow while shifting the month
-    d.setMonth(d.getMonth() + months * steps);
-    const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
-    d.setDate(Math.min(targetDay, lastDay));
-    return d;
-  };
-  // Roll forward past today: recordPayment accepts a backdated paidAt (staff
-  // recording an old check), and a cursor left in the past bills one cycle
-  // per hourly sweep — auto-charging each — until it catches up. Same guard
-  // as rollCursorForward on the resume path, keeping the anchor day-of-month.
-  const now = new Date();
-  let steps = 1;
-  let next = intervalFromAnchor(steps);
-  while (next < now) next = intervalFromAnchor(++steps);
-
+  const { anchor, next } = anchoredNextRunDate({
+    paidAt,
+    interval: sub.interval,
+    currentCursor: sub.nextRunDate,
+    now: new Date(),
+  });
   await prisma.subscription.update({
     where: { id: subscriptionId },
     data: { anchoredAt: anchor, nextRunDate: next },
