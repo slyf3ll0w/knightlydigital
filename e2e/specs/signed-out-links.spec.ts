@@ -28,8 +28,11 @@ test.describe("signed-out links stay outside /app", () => {
       const page = await context.newPage();
       const res = await page.goto(`${state.baseUrl}${path}${query}`);
       expect(res!.status()).toBe(200);
-      await expect(page).toHaveURL(new RegExp(`${path}\b`));
-      await expect(page).not.toHaveURL(/\/app\//);
+      // Landed on the page itself, not bounced: /app/* is what the shells
+      // claim, so a path drifting back under it is the whole regression.
+      const landed = new URL(page.url()).pathname;
+      expect(landed).toBe(path);
+      expect(landed.startsWith("/app")).toBe(false);
       await expect(page.getByText(proof)).toBeVisible();
       await context.close();
     });
