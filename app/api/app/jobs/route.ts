@@ -110,8 +110,13 @@ export async function POST(req: NextRequest) {
 
   let requestTitle: string | null = null;
   if (requestId) {
-    const request = await prisma.request.findFirst({ where: { id: requestId, companyId }, select: { title: true } });
+    const request = await prisma.request.findFirst({ where: { id: requestId, companyId }, select: { title: true, status: true } });
     if (!request) return NextResponse.json({ error: "Request not found." }, { status: 404 });
+    // A self-scheduled booking still awaiting approval holds a tentative
+    // appointment; converting around it would strand that slot forever
+    if (request.status === "NEEDS_APPROVAL") {
+      return NextResponse.json({ error: "Accept or decline the booking first." }, { status: 409 });
+    }
     requestTitle = request.title;
   }
 
@@ -190,8 +195,10 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // Only an open request flips to Converted — never one awaiting booking
+    // approval (checked above) or already closed
     if (requestId) {
-      await tx.request.update({ where: { id: requestId }, data: { status: "CONVERTED" } });
+      await tx.request.updateMany({ where: { id: requestId, status: "NEW" }, data: { status: "CONVERTED" } });
     }
 
     // Recurring services sold on this job start the client's plan — same rule

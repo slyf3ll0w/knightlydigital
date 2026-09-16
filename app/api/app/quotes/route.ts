@@ -57,6 +57,11 @@ export async function POST(req: NextRequest) {
   if (requestId) {
     const request = await prisma.request.findFirst({ where: { id: requestId, companyId } });
     if (!request) return NextResponse.json({ error: "Request not found." }, { status: 404 });
+    // A self-scheduled booking still awaiting approval holds a tentative
+    // appointment; converting around it would strand that slot forever
+    if (request.status === "NEEDS_APPROVAL") {
+      return NextResponse.json({ error: "Accept or decline the booking first." }, { status: 409 });
+    }
   }
 
   // Saved service address (property) — must belong to this contact; carried
@@ -157,9 +162,11 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Converting a request to a quote marks the request Converted (Jobber behavior)
+    // Converting a request to a quote marks the request Converted (Jobber
+    // behavior). Only an open request flips — never one awaiting booking
+    // approval (checked above) or already closed
     if (requestId) {
-      await tx.request.update({ where: { id: requestId }, data: { status: "CONVERTED" } });
+      await tx.request.updateMany({ where: { id: requestId, status: "NEW" }, data: { status: "CONVERTED" } });
     }
 
     return created;

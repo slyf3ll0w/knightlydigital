@@ -140,7 +140,8 @@ export function toPublicBookingType(
     needsAddress: scheduled && meta.needsAddress,
     durationMinutes: type.durationMinutes,
     arrivalWindowMinutes: meta.exactTime ? 0 : resolveArrivalWindowMinutes(type.arrivalWindowMinutes, company.arrivalWindowMinutes),
-    confirmation: type.confirmation,
+    // Items saved before SERVICE was pinned to instant confirmation
+    confirmation: type.kind === "SERVICE" ? "INSTANT" : type.confirmation,
     paymentMode: scheduled ? type.paymentMode : "NONE",
     clientCanReschedule: scheduled && type.clientCanReschedule,
     clientCanCancel: scheduled && type.clientCanCancel,

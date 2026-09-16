@@ -5,27 +5,28 @@ import {
   notifyTeamOfClientMessage,
   portalThreadContactInclude,
 } from "@/lib/portal-messages";
+import { classifySmsKeyword } from "@/lib/sms-keywords";
+import { phoneDigits } from "@/lib/phone";
 
 /**
  * Telnyx inbound-message webhook (set as the webhook URL on the WorkBench
  * messaging profile). Two jobs:
  *
- * 1. Keep Contact.smsOptOut honest — a client texting STOP to any pool
- *    number opts them out of automated texts everywhere their number
- *    appears; START/UNSTOP opts them back in. Telnyx also enforces opt-outs
- *    at their edge, so this flag is about our senders not even attempting
- *    the send (and the state being visible in the app).
- * 2. Land conversational texts in the portal message thread — a client
- *    replying to an SMS mirror answers straight into /app/messages, no
- *    portal visit needed.
+ * 1. Keep Contact.smsOptOut honest — a client texting STOP (the whole
+ *    message, nothing else — lib/sms-keywords.ts) opts them out of automated
+ *    texts from the companies that have texted them; START/UNSTOP opts them
+ *    back in. Telnyx also enforces opt-outs at their edge, so this flag is
+ *    about our senders not even attempting the send (and the state being
+ *    visible in the app).
+ * 2. Land every other text in the portal message thread — a client replying
+ *    to an SMS mirror answers straight into /app/messages, no portal visit
+ *    needed. The pool numbers are shared across tenants, so the reply goes
+ *    to the company that last texted that number (SmsSend log).
  *
  * Signature check (Ed25519 over `${timestamp}|${rawBody}`) requires
  * TELNYX_PUBLIC_KEY. Without it we fail closed and process nothing —
  * unauthenticated posts must never be able to flip opt-out flags.
  */
-
-const STOP_RE = /^\s*(stop|stopall|unsubscribe|cancel|end|quit)\b/i;
-const START_RE = /^\s*(start|unstop|yes)\b/i;
 
 function verifySignature(req: NextRequest, raw: string): boolean {
   const publicKey = process.env.TELNYX_PUBLIC_KEY;
@@ -78,17 +79,13 @@ export async function POST(req: NextRequest) {
   if (event.data?.event_type === "message.received") {
     const from = event.data.payload?.from?.phone_number ?? "";
     const text = (event.data.payload?.text ?? "").trim();
-    const last10 = from.replace(/\D/g, "").slice(-10);
-    const optOut = STOP_RE.test(text) ? true : START_RE.test(text) ? false : null;
-    if (optOut !== null && last10.length === 10) {
-      // Contact.phone is freeform ("(214) 555-0100") — match on the digits.
-      await prisma.$executeRaw`
-        UPDATE "Contact"
-        SET "smsOptOut" = ${optOut}
-        WHERE regexp_replace(coalesce("phone", ''), '[^0-9]', '', 'g') LIKE ${"%" + last10}`;
-    } else if (text && last10.length === 10) {
-      // Conversational text → the portal message thread
-      await landInboundSms(last10, text.slice(0, 5000));
+    const digits = phoneDigits(from);
+    const keyword = classifySmsKeyword(text);
+    if (digits && (keyword === "STOP" || keyword === "START")) {
+      await setOptOut(digits, keyword === "STOP");
+    } else if (digits && text && keyword !== "HELP") {
+      // Everything that isn't a bare keyword is a message for the business
+      await landInboundSms(digits, text.slice(0, 5000));
     }
   }
 
@@ -97,31 +94,70 @@ export async function POST(req: NextRequest) {
 }
 
 /**
+ * STOP / START: flip smsOptOut on every contact with this number at the
+ * companies that have texted it (SmsSend). A number nobody has texted yet
+ * has no company to scope to — a STOP from it still lands everywhere the
+ * number appears, since Telnyx blocks the number at their edge regardless.
+ */
+async function setOptOut(digits: string, optOut: boolean): Promise<void> {
+  try {
+    const senders = await prisma.smsSend.findMany({
+      where: { toDigits: digits },
+      distinct: ["companyId"],
+      select: { companyId: true },
+    });
+    await prisma.contact.updateMany({
+      where: {
+        phoneDigits: digits,
+        ...(senders.length ? { companyId: { in: senders.map((s) => s.companyId) } } : {}),
+      },
+      data: { smsOptOut: optOut },
+    });
+  } catch (err) {
+    console.error("[telnyx] opt-out update failed:", err);
+  }
+}
+
+/**
  * Attach an inbound text to the right contact's thread. The sender is only
  * identified by phone number, and the pool numbers are shared across
- * companies — so when several contacts carry this number (multi-tenant, or
- * duplicates within one company), prefer the one already in a portal
- * conversation (most recent thread activity), then the most recently
- * updated contact. Errors never bubble: a failed thread write must not make
- * Telnyx retry (and re-run the opt-out block).
+ * companies — so the reply goes to the company that most recently texted
+ * this number (SmsSend), and within it to the contact that text went to.
+ * Numbers with no send on record (texted before the log existed) fall back
+ * to the contact already in a portal conversation (most recent thread
+ * activity), then the most recently updated contact. Errors never bubble: a
+ * failed thread write must not make Telnyx retry.
  */
-async function landInboundSms(last10: string, text: string): Promise<void> {
+async function landInboundSms(digits: string, text: string): Promise<void> {
   try {
-    const candidates = await prisma.$queryRaw<{ id: string }[]>`
-      SELECT "id" FROM "Contact"
-      WHERE regexp_replace(coalesce("phone", ''), '[^0-9]', '', 'g') LIKE ${"%" + last10}
-      ORDER BY "updatedAt" DESC
-      LIMIT 25`;
+    const candidates = await prisma.contact.findMany({
+      where: { phoneDigits: digits },
+      orderBy: { updatedAt: "desc" },
+      select: { id: true, companyId: true },
+      take: 25,
+    });
     if (candidates.length === 0) return;
 
     let contactId = candidates[0].id;
     if (candidates.length > 1) {
-      const lastActive = await prisma.portalMessage.findFirst({
-        where: { contactId: { in: candidates.map((c) => c.id) } },
+      const lastSend = await prisma.smsSend.findFirst({
+        where: { toDigits: digits, companyId: { in: candidates.map((c) => c.companyId) } },
         orderBy: { createdAt: "desc" },
-        select: { contactId: true },
+        select: { companyId: true, contactId: true },
       });
-      if (lastActive) contactId = lastActive.contactId;
+      const byLastSend =
+        lastSend &&
+        (candidates.find((c) => c.id === lastSend.contactId) ?? candidates.find((c) => c.companyId === lastSend.companyId));
+      if (byLastSend) {
+        contactId = byLastSend.id;
+      } else {
+        const lastActive = await prisma.portalMessage.findFirst({
+          where: { contactId: { in: candidates.map((c) => c.id) } },
+          orderBy: { createdAt: "desc" },
+          select: { contactId: true },
+        });
+        if (lastActive) contactId = lastActive.contactId;
+      }
     }
 
     // Telnyx retries webhooks on slow responses — drop exact duplicates

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 import { prisma } from "@/lib/db";
+import { phoneDigits } from "@/lib/phone";
 import { defaultLeadAssignee } from "@/lib/permissions";
 import { sendEmail, newRequestEmail } from "@/lib/email";
 import { companyNotifyAddress } from "@/lib/notify";
@@ -102,7 +103,7 @@ export async function POST(
       let contact = await tx.contact.findFirst({
         where: {
           companyId: company.id,
-          OR: [...(phone ? [{ phone }] : []), ...(email ? [{ email }] : [])],
+          OR: [...(phoneDigits(phone) ? [{ phoneDigits: phoneDigits(phone) }] : []), ...(email ? [{ email: { equals: email, mode: "insensitive" as const } }] : [])],
         },
       });
       if (!contact) {

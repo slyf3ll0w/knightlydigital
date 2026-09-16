@@ -18,6 +18,7 @@ import { runQuickBooksNightlySync } from "@/lib/quickbooks";
 import { runGoogleCalendarSweep } from "@/lib/google-calendar";
 import { runGoogleCalendarPullSweep } from "@/lib/google-calendar-pull";
 import { runRecurringExpenses } from "@/lib/expenses";
+import { expireApprovalBookings } from "@/lib/approval-bookings";
 import { rollupStorageSnapshots } from "@/lib/usage";
 import { runNightlyReconciliation } from "@/lib/reconcile";
 
@@ -110,6 +111,9 @@ export async function POST(req: NextRequest) {
     // stage only lands if this cron runs hourly — daily runs still cover the
     // day-before stage.
     await step("appointmentReminders", () => runAppointmentReminders(now));
+    // "Hold for approval" bookings nobody answered: auto-decline 2 h before
+    // the slot (frees it, tells the client), and a morning nudge while any wait
+    await step("approvalBookings", () => expireApprovalBookings(now));
     // Job-visit reminders (same cadence): clients are told the arrival window,
     // never the dispatch-exact time
     await step("visitReminders", () => runVisitReminders(now));

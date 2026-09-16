@@ -44,9 +44,21 @@ export type ConvertOptions = {
   requestId?: string | null;
   bookingTypeId?: string | null;
   bookedOnlineAt?: Date | null;
+  /**
+   * Skip the lead-win side effect. Online bookings that still have to charge
+   * a card call recordLeadWin themselves once the charge succeeds — a
+   * declined card must not leave the lead marked Won.
+   */
+  deferLeadWin?: boolean;
 };
 
-export async function convertQuoteToJob(tx: Prisma.TransactionClient, quote: ConvertibleQuote, opts: ConvertOptions = {}) {
+export type ConvertResult = {
+  job: Prisma.JobGetPayload<Record<string, never>>;
+  /** Subscriptions this conversion started (so a caller that unwinds can remove them). */
+  subscriptionIds: string[];
+};
+
+export async function convertQuoteToJob(tx: Prisma.TransactionClient, quote: ConvertibleQuote, opts: ConvertOptions = {}): Promise<ConvertResult> {
   const companyId = quote.companyId;
   // A one-person company's jobs land on that person (calendar sync, tech
   // visibility); bigger teams assign from the job page after conversion
@@ -97,7 +109,7 @@ export async function convertQuoteToJob(tx: Prisma.TransactionClient, quote: Con
   await tx.quote.update({ where: { id: quote.id }, data: { jobId: created.id, status: "CONVERTED" } });
 
   // Recurring services on the quote become live subscriptions on the client.
-  await ensureSubscriptionsForContact(
+  const subscriptionIds = await ensureSubscriptionsForContact(
     tx,
     companyId,
     quote.contactId,
@@ -105,7 +117,7 @@ export async function convertQuoteToJob(tx: Prisma.TransactionClient, quote: Con
   );
 
   // First real work closes the lead: active client, off the pipeline board
-  await recordLeadWin(tx, companyId, quote.contact);
+  if (!opts.deferLeadWin) await recordLeadWin(tx, companyId, quote.contact);
 
-  return created;
+  return { job: created, subscriptionIds };
 }

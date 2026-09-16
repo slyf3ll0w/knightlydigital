@@ -11,7 +11,7 @@ import { computeQuoteTotals } from "@/lib/quote-totals";
 import { derivedQuoteDeposit } from "@/lib/statuses";
 import { createDepositInvoice } from "@/lib/deposits";
 import { convertQuoteToJob } from "@/lib/quote-convert";
-import { enterPipeline, autoAdvance } from "@/lib/pipeline";
+import { enterPipeline, autoAdvance, recordLeadWin } from "@/lib/pipeline";
 import { withDocNumberRetry } from "@/lib/doc-numbers";
 import { acquireChargeLock, calculateSurcharge, getProcessor, recordPayment, releaseChargeLock } from "@/lib/payments";
 import { sendEmail, bookingConfirmedEmail, bookingTeamNoticeEmail } from "@/lib/email";
@@ -164,7 +164,7 @@ export async function createServiceBooking(params: {
             include: { lineItems: true, contact: true, property: true },
           });
 
-          const job = await convertQuoteToJob(tx, quote, {
+          const { job, subscriptionIds } = await convertQuoteToJob(tx, quote, {
             scheduledAt: slot.start,
             scheduledEnd: slot.end,
             assigneeIds: [assigned.userId],
@@ -173,10 +173,12 @@ export async function createServiceBooking(params: {
             requestId: request.id,
             bookingTypeId: type.id,
             bookedOnlineAt: now,
+            // The lead is only won once the card (if any) has actually charged
+            deferLeadWin: collect,
           });
 
           const depositInvoice = collect ? await createDepositInvoice(tx, quote) : null;
-          return { contact, request, quote, job, depositInvoice, assignedUserId: assigned.userId };
+          return { contact, request, quote, job, subscriptionIds, depositInvoice, assignedUserId: assigned.userId };
         },
         { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
       )
@@ -244,6 +246,13 @@ export async function createServiceBooking(params: {
       paidNote = `${type.paymentMode === "FULL" ? "Paid" : "Deposit paid"}: $${amount.toFixed(2)}${surchargeAmount > 0 ? ` + $${surchargeAmount.toFixed(2)} card fee` : ""}`;
     } finally {
       await releaseChargeLock(inv.id);
+    }
+    // Card charged: now the lead is won (deferred out of the booking tx above)
+    try {
+      const fresh = await prisma.contact.findUnique({ where: { id: result.contact.id }, select: { id: true, status: true, pipelineStageId: true } });
+      if (fresh) await recordLeadWin(prisma, company.id, fresh);
+    } catch (err) {
+      console.error("[booking] lead win after charge failed:", err);
     }
   }
 
@@ -337,11 +346,14 @@ export async function createServiceBooking(params: {
 }
 
 /**
- * A declined card releases the time: remove the job, quote, deposit invoice
- * and request the booking created. The contact stays — it's a real person
- * who may retry. Best-effort; leftovers are visible to the owner either way.
+ * A declined card releases the time: remove the job, quote, deposit invoice,
+ * request and any recurring subscriptions the booking started — otherwise
+ * the cron would keep minting visits and invoices for a plan nobody bought.
+ * The contact stays — it's a real person who may retry (their lead card was
+ * never marked Won: that side effect waits for a successful charge).
+ * Best-effort; leftovers are visible to the owner either way.
  */
-async function unwind(r: { job: { id: string }; quote: { id: string }; request: { id: string }; depositInvoice: { invoice: { id: string } } | null }) {
+async function unwind(r: { job: { id: string }; quote: { id: string }; request: { id: string }; subscriptionIds: string[]; depositInvoice: { invoice: { id: string } } | null }) {
   try {
     await prisma.$transaction(async (tx) => {
       await tx.quote.update({ where: { id: r.quote.id }, data: { jobId: null, status: "ARCHIVED" } });
@@ -349,6 +361,7 @@ async function unwind(r: { job: { id: string }; quote: { id: string }; request: 
       await tx.job.delete({ where: { id: r.job.id } });
       await tx.quote.delete({ where: { id: r.quote.id } });
       await tx.request.delete({ where: { id: r.request.id } });
+      if (r.subscriptionIds.length) await tx.subscription.deleteMany({ where: { id: { in: r.subscriptionIds } } });
     });
   } catch (err) {
     console.error("[booking] unwind after decline failed:", err);

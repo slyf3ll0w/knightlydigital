@@ -404,6 +404,7 @@ export async function runAppointmentReminders(
       if (canSms && appt.contact.phone) {
         smsOk = await sendSms({
           companyId: appt.companyId,
+          contactId: appt.contactId,
           to: appt.contact.phone,
           text: appointmentReminderText({
             companyName: appt.company.name,
@@ -558,6 +559,7 @@ export async function runVisitReminders(
       if (canSms && job.contact.phone) {
         smsOk = await sendSms({
           companyId: job.companyId,
+          contactId: job.contactId,
           to: job.contact.phone,
           text: appointmentReminderText({
             companyName: job.company.name,
