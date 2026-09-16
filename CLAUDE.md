@@ -531,15 +531,20 @@ again. Saving a new card (hub, staff, or /pay checkout) calls
 `reviveAutopayForContact` so stalled invoices retry on the next cron pass.
 `runCardExpiryNudges` (same cron) emails autopay clients once per card ~30
 days before it expires. NOTE: `chargeStored`'s Finix idempotency id is keyed
-by the autopay ATTEMPT number (`metadata.attempt`, passed by
-`attemptAutoCharge`): re-running the same attempt after a processor outage
-(`transient` → `processor_down`, no attempt burned) replays the original
-transfer instead of charging twice, and a new attempt after a decline gets a
-fresh id so it never replays that decline. Staff "charge card" sends no
-attempt and keeps the old minute window. Keep both rules. After a transient
-failure `findUnrecordedTransferForInvoice` checks Finix for a transfer
-tagged with the invoice before giving up. With no card at all the engine
-still falls back to the pay-by-link email.
+by invoice + amount + a hash of the INSTRUMENT + the autopay ATTEMPT number
+(`metadata.attempt`, passed by `attemptAutoCharge`): re-running the same
+attempt after a processor outage (`transient` → `processor_down`, no attempt
+burned) replays the original transfer instead of charging twice; a new
+attempt after a decline, a bank return (the Finix webhook bumps the count),
+or a new card (different instrument) is a fresh request, so a decline is
+never replayed. Staff "charge card" sends no attempt and keeps the old
+minute window. Keep all of that. After a transient failure
+`findUnrecordedTransferForInvoice` checks Finix for a transfer tagged with
+the invoice before giving up; `processor_down` is bounded — three days
+running and autopay stops with an owner push (`MAX_PROCESSOR_DOWN_DAYS`).
+"Not enabled for this business" is `code: "not_enabled"` → `not_live` →
+the pay-link email, not a retry. With no card at all the engine still falls
+back to the pay-by-link email.
 
 ## Unit tests (no framework — plain `tsx` scripts)
 

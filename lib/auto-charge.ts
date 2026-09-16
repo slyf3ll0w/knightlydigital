@@ -134,8 +134,13 @@ export async function attemptAutoCharge(params: {
       return "charged";
     }
 
+    // This business can't take cards at all (merchant not approved / later
+    // deactivated) — same as "processor not live": fall back to the pay-link
+    // email rather than re-booking a charge that can never succeed.
+    if (result.code === "not_enabled") return "not_live";
+
     if (result.transient) {
-      await bookProcessorDown(params.invoiceId, result.error).catch((e) =>
+      await bookProcessorDown(params.invoiceId, params.companyId, result.error).catch((e) =>
         console.error("[auto-charge] processor-down booking failed", params.invoiceId, e)
       );
       return "processor_down";
@@ -161,12 +166,56 @@ export async function attemptAutoCharge(params: {
  * emailed — the client's card was never judged, and a 40-minute outage on
  * the 1st must not tell every plan client their card declined.
  */
-async function bookProcessorDown(invoiceId: string, error: string): Promise<void> {
+/** Consecutive processor-down days before autopay stops and the owner is told. */
+export const MAX_PROCESSOR_DOWN_DAYS = 3;
+const PROCESSOR_DOWN_RE = /^Processor unavailable \(day (\d+)\)/;
+
+async function bookProcessorDown(invoiceId: string, companyId: string, error: string): Promise<void> {
+  const inv = await prisma.invoice.findUnique({
+    where: { id: invoiceId },
+    select: { invoiceNumber: true, autoChargeLastError: true },
+  });
+  const prevDays = Number(inv?.autoChargeLastError?.match(PROCESSOR_DOWN_RE)?.[1] ?? 0);
+  const days = prevDays + 1;
+  // Bounded: a processor that answers nothing for days is not an outage
+  // any more (credentials rotted, merchant closed). Stop re-booking, say so.
+  if (days >= MAX_PROCESSOR_DOWN_DAYS) {
+    await prisma.invoice.update({
+      where: { id: invoiceId },
+      data: {
+        autoChargeNextAt: null,
+        autoChargeGaveUpAt: new Date(),
+        autoChargeLastError: `Processor unavailable (day ${days}) — ${error}`.slice(0, 500),
+      },
+    });
+    logActivity({
+      companyId,
+      userName: "Autopay",
+      entityType: "invoice",
+      entityId: invoiceId,
+      action: "auto_charge_failed",
+      detail: `Couldn't reach the payment processor ${days} days running — autopay stopped. Send the pay link or check Online Payments in Settings.`,
+    });
+    const owners = await prisma.user.findMany({
+      where: { companyId, role: "OWNER", isActive: true },
+      select: { id: true },
+    });
+    await notifyUsers(
+      owners.map((o) => o.id),
+      {
+        title: `Autopay stopped — invoice #${inv?.invoiceNumber ?? ""}`,
+        body: `The payment processor hasn't answered for ${days} days. Send the client the pay link, and check Online Payments in Settings.`,
+        url: `/app/invoices/${invoiceId}`,
+        tag: `autopay-processor-${invoiceId}`,
+      }
+    ).catch((e) => console.error("[auto-charge] processor-down push failed", e));
+    return;
+  }
   await prisma.invoice.update({
     where: { id: invoiceId },
     data: {
       autoChargeNextAt: new Date(Date.now() + 24 * 3600_000),
-      autoChargeLastError: `Processor unavailable — ${error}`.slice(0, 500),
+      autoChargeLastError: `Processor unavailable (day ${days}) — ${error}`.slice(0, 500),
     },
   });
 }

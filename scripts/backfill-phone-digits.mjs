@@ -17,11 +17,17 @@ async function main() {
     FROM (
       SELECT "id",
         CASE
-          WHEN length(d) >= 10 THEN right(d, 10)
+          WHEN length(d) = 11 AND left(d, 1) = '1' THEN right(d, 10)
           WHEN length(d) >= 7 THEN d
           ELSE NULL
         END AS digits
-      FROM (SELECT "id", regexp_replace(coalesce("phone", ''), '[^0-9]', '', 'g') AS d FROM "Contact") x
+      FROM (
+        SELECT "id",
+          regexp_replace(
+            regexp_replace(coalesce("phone", ''), '\s*(x|ext\.?|extension|#)\s*[0-9]+\s*$', '', 'i'),
+            '[^0-9]', '', 'g') AS d
+        FROM "Contact"
+      ) x
     ) sub
     WHERE "Contact"."id" = sub."id"
       AND "Contact"."phoneDigits" IS DISTINCT FROM sub.digits`;

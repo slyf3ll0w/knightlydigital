@@ -125,8 +125,12 @@ export async function POST(req: NextRequest) {
         ).map((e) => e.jobId!)
       : []
   );
-  const started = (at: Date, anytime: boolean) => isToday && !anytime && at.getTime() < now.getTime();
-  const jobs = jobsRaw.filter((j) => !onTheClock.has(j.id) && !started(j.scheduledAt!, j.scheduledAnytime));
+  // An explicit id list (undo, or a deliberate pick in the sheet) is the
+  // dispatcher's decision — the "already started" protection is for the
+  // whole-day sweep, where it stops a mid-day move from dragging this
+  // morning's finished visits along.
+  const started = (at: Date, anytime: boolean) => !onlyIds && isToday && !anytime && at.getTime() < now.getTime();
+  const jobs = jobsRaw.filter((j) => (onlyIds || !onTheClock.has(j.id)) && !started(j.scheduledAt!, j.scheduledAnytime));
   const appointments = appointmentsRaw.filter((a) => !started(a.scheduledAt, a.scheduledAnytime));
   const left = jobsRaw.length - jobs.length + (appointmentsRaw.length - appointments.length);
 

@@ -800,7 +800,9 @@ export default function ScheduleClient({
           includeAppointments: true,
           notify: told,
         });
-        if (r.ok && told) {
+        if (!r.ok) {
+          setError(r.data?.error ?? "Couldn't move the day back — check the schedule.");
+        } else if (told) {
           const n = r.data?.notified ?? 0;
           showToast({ text: "Moved back", sub: `${n} client${n === 1 ? "" : "s"} told the original time stands` });
         }

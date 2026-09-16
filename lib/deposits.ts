@@ -78,6 +78,9 @@ const existingDepositSelect = {
 } as const;
 
 function depositOutstanding(inv: ExistingDeposit): number {
+  // Shelved by the business (collecting on site, say): nothing to ask for
+  // online — /pay refuses archived invoices, so a re-sent link would error.
+  if (inv.status === "ARCHIVED") return 0;
   const paid = inv.payments.reduce((s, p) => s + Number(p.amount), 0);
   const surcharges = inv.payments.reduce((s, p) => s + Number(p.surchargeAmount ?? 0), 0);
   return Math.max(0, Math.round((Number(inv.total) + surcharges - paid) * 100) / 100);

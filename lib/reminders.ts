@@ -244,10 +244,14 @@ export async function runQuoteFollowUps(
   });
 
   const summary = { checked: quotes.length, sent: 0, errors: 0 };
+  const blocked = emailGate();
 
   for (const quote of quotes) {
     try {
       if (!quote.sentAt || !quote.contact?.email) continue;
+      // Same rule as payment reminders: a company that can't email yet keeps
+      // the stage unclaimed instead of burning it.
+      if (await blocked(quote.companyId)) continue;
       const daysSinceSent = Math.floor((now.getTime() - quote.sentAt.getTime()) / DAY);
       const sentTypes = new Set(quote.reminders.map((r) => r.type));
       const eligible = QUOTE_STAGES.filter((s) => daysSinceSent >= s.days && !sentTypes.has(s.type));

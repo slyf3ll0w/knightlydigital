@@ -12,7 +12,14 @@
  * or null when there's nothing dialable to compare on.
  */
 export function phoneDigits(phone: string | null | undefined): string | null {
-  const digits = (phone ?? "").replace(/\D/g, "");
-  if (digits.length >= 10) return digits.slice(-10);
+  // "214-555-0100 x12" — the extension is not part of the number; folding it
+  // in would mis-key the contact (…0100 x12 → 4555010012) so no inbound text
+  // or duplicate check ever matches them again.
+  const base = (phone ?? "").replace(/\s*(?:x|ext\.?|extension|#)\s*\d+\s*$/i, "");
+  const digits = base.replace(/\D/g, "");
+  // Only a leading country code 1 is dropped (11 digits → last 10). Longer
+  // strings are kept whole rather than truncated: two unrelated numbers that
+  // happen to share their last 10 digits must not become one person.
+  if (digits.length === 11 && digits[0] === "1") return digits.slice(1);
   return digits.length >= 7 ? digits : null;
 }

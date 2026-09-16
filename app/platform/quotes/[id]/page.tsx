@@ -4,6 +4,7 @@ import { requirePageActor, canSell, viaContactScope } from "@/lib/permissions";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { money, shortDate, quoteDepositAmount } from "@/lib/statuses";
+import { quoteExpired } from "@/lib/quote-expiry";
 import StatusChip from "@/components/StatusChip";
 import ViewedFact from "@/components/ViewedFact";
 import QuoteActions from "./QuoteActions";
@@ -40,6 +41,10 @@ export default async function QuoteDetailPage({
   });
 
   if (!quote) notFound();
+
+  // Valid through the END of the valid-until day in the company's timezone
+  const companyTz = await prisma.company.findUnique({ where: { id: companyId }, select: { timezone: true } });
+  const expired = quoteExpired(quote.validUntil, companyTz?.timezone ?? "America/Chicago");
 
   // Agreement gate: any price-book item flagged "requires agreement" (that
   // the client didn't opt out of) means conversion waits on a signature
@@ -139,15 +144,14 @@ export default async function QuoteDetailPage({
             <span className="text-xs font-medium text-gray-500 block">Valid until</span>
             <span
               className={
-                quote.validUntil < new Date() &&
+                expired &&
                 ["DRAFT", "AWAITING_RESPONSE", "CHANGES_REQUESTED"].includes(quote.status)
                   ? "font-medium text-red-700"
                   : "text-gray-800"
               }
             >
               {shortDate(quote.validUntil)}
-              {quote.validUntil < new Date() &&
-              ["DRAFT", "AWAITING_RESPONSE", "CHANGES_REQUESTED"].includes(quote.status)
+              {expired && ["DRAFT", "AWAITING_RESPONSE", "CHANGES_REQUESTED"].includes(quote.status)
                 ? " · Expired"
                 : ""}
             </span>

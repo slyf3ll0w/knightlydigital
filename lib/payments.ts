@@ -13,6 +13,7 @@
  *    Payment row, recalculates the invoice balance, and flips invoice status.
  */
 
+import { createHash } from "crypto";
 import { prisma } from "@/lib/db";
 import { recomputeDepositApplied } from "@/lib/deposits";
 import * as finix from "@/lib/finix";
@@ -250,10 +251,15 @@ class FinixProcessor implements PaymentProcessor {
       });
       const merchantId = invoice?.company.finixMerchantId;
       if (!this.live || !merchantId || invoice?.company.finixOnboardingState !== "APPROVED") {
+        // Not an outage — this business simply can't take cards (merchant
+        // never approved, later deactivated, or the platform processor is
+        // off). Flagged so autopay falls back to the pay-link email instead
+        // of re-booking "tomorrow" forever with nobody told.
         return {
           success: false,
           error: "Online payments are not enabled for this business.",
-          transient: true,
+          code: "not_enabled",
+          transient: false,
         };
       }
 
@@ -264,9 +270,13 @@ class FinixProcessor implements PaymentProcessor {
       // 20 s abort is returned, not repeated. A new attempt (after a real
       // decline) gets a fresh id, so it never replays that decline. Staff
       // "charge card" sends no attempt and keeps the minute window.
+      // The instrument is part of the key: a new card saved after a run of
+      // declines (reviveAutopayForContact resets the attempt count) must be a
+      // NEW request to Finix, never a replay of the old card's decline.
       const attempt = params.metadata?.attempt;
+      const instrumentKey = createHash("sha1").update(params.customerRef).digest("hex").slice(0, 10);
       const idempotencyId = attempt
-        ? `${invoiceId}-stored-${cents}-a${attempt}`
+        ? `${invoiceId}-stored-${cents}-${instrumentKey}-a${attempt}`
         : `${invoiceId}-stored-${cents}-${Math.floor(Date.now() / 60000)}`;
       const transfer = await finix.createTransfer({
         amountCents: cents,

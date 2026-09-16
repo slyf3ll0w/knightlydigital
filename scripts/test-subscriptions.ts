@@ -144,6 +144,23 @@ test("a deleted visit later than the cursor never moves it forward", () => {
     noon(2026, 5, 8).getTime()
   );
 });
+test("rewind steps the cursor back ON-CADENCE, not onto a dragged visit's day", () => {
+  // Weekly Fridays, cursor May 29; the earliest deleted visit had been dragged
+  // to Wednesday May 6 → cursor lands on the last Friday ≤ May 6 (May 1), so
+  // a resume keeps the series on Fridays instead of moving it to Wednesdays.
+  assert.equal(
+    rewoundVisitCursor(noon(2026, 5, 29), noon(2026, 5, 6), "WEEKLY")!.getTime(),
+    noon(2026, 5, 1).getTime()
+  );
+  assert.equal(
+    rewoundVisitCursor(noon(2026, 5, 29), noon(2026, 5, 8), "WEEKLY")!.getTime(),
+    noon(2026, 5, 8).getTime()
+  );
+  assert.equal(
+    rewoundVisitCursor(noon(2026, 8, 15), noon(2026, 5, 20), "MONTHLY")!.getTime(),
+    noon(2026, 5, 15).getTime()
+  );
+});
 test("nothing deleted: cursor untouched", () => {
   assert.equal(rewoundVisitCursor(noon(2026, 5, 29), null)!.getTime(), noon(2026, 5, 29).getTime());
   assert.equal(rewoundVisitCursor(null, null), null);

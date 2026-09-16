@@ -26,6 +26,8 @@ import { companyManagerIds, notifyUsers } from "@/lib/push";
  * transaction; a request already moved on is skipped.
  */
 export const EXPIRE_HOURS = 2;
+/** A fresh booking is never expired before the office had this long to see it. */
+export const MIN_AGE_HOURS = 1;
 export const NUDGE_HOUR = 8;
 
 export async function expireApprovalBookings(now: Date): Promise<{ expired: number; nudged: number }> {
@@ -33,14 +35,22 @@ export async function expireApprovalBookings(now: Date): Promise<{ expired: numb
   let nudged = 0;
 
   // ── 1. Expire ─────────────────────────────────────────────────────────
+  // Expire when the slot is within EXPIRE_HOURS and the booking has sat
+  // unreviewed for at least MIN_AGE_HOURS (a short-notice booking placed 90
+  // minutes out must not be declined on the very next tick), or once the
+  // slot has actually passed.
   const cutoff = new Date(now.getTime() + EXPIRE_HOURS * 3600_000);
+  const oldEnough = new Date(now.getTime() - MIN_AGE_HOURS * 3600_000);
   const stale = await prisma.appointment.findMany({
     where: {
       tentative: true,
       status: "SCHEDULED",
-      scheduledAt: { lte: cutoff },
       request: { status: "NEEDS_APPROVAL" },
       company: { suspendedAt: null },
+      OR: [
+        { scheduledAt: { lte: cutoff }, createdAt: { lte: oldEnough } },
+        { scheduledAt: { lte: now } },
+      ],
     },
     include: {
       request: { select: { id: true, title: true, contactId: true } },

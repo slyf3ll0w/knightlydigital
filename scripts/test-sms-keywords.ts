@@ -26,6 +26,7 @@ for (const t of [
   "End of day is fine",
   "Quit worrying, I'll be home",
   "Can you cancel?",
+  "cancel Tuesday and move it to Friday",
   "stop the mowing but keep the hedges",
   "please unsubscribe me from the newsletter",
   "",
@@ -34,7 +35,15 @@ for (const t of [
 }
 
 // Phone normalization: same person however they typed it
+// Whole-body CTIA words (Telnyx honors these at the carrier edge) still opt out
+for (const t of ["CANCEL", "quit", "End", "STOPALL", "cancel."]) {
+  assert.equal(classifySmsKeyword(t), "STOP", `"${t}" is a whole-body opt-out`);
+}
+
 assert.equal(phoneDigits("(214) 555-0100"), "2145550100");
+assert.equal(phoneDigits("214-555-0100 x12"), "2145550100"); // extension is not part of the number
+assert.equal(phoneDigits("214-555-0100 ext. 401"), "2145550100");
+assert.equal(phoneDigits("+44 20 7946 0958"), "442079460958"); // not truncated to a fake US number
 assert.equal(phoneDigits("+1 214.555.0100"), "2145550100");
 assert.equal(phoneDigits("12145550100"), "2145550100");
 assert.equal(phoneDigits("2145550100"), "2145550100");

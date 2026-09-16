@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { companyMeta } from "@/lib/client-meta";
 import ViewBeacon from "@/components/ViewBeacon";
 import QuoteAcceptPage from "./QuoteAcceptPage";
+import { quoteExpired } from "@/lib/quote-expiry";
 
 export async function generateMetadata({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
@@ -65,6 +66,7 @@ export default async function PublicQuotePage({
       company: {
         select: {
           name: true,
+          timezone: true,
           phone: true,
           email: true,
           address: true,
@@ -98,7 +100,13 @@ export default async function PublicQuotePage({
   return (
     <>
       <ViewBeacon kind="quote" token={token} disabled={preview === "1"} />
-      <QuoteAcceptPage quote={JSON.parse(JSON.stringify(quote))} preview={preview === "1"} />
+      <QuoteAcceptPage
+        quote={JSON.parse(JSON.stringify(quote))}
+        preview={preview === "1"}
+        // Same rule the approve route applies: valid through the END of the
+        // valid-until day in the company's timezone, not from noon.
+        expired={quoteExpired(quote.validUntil, quote.company.timezone)}
+      />
     </>
   );
 }

@@ -74,9 +74,12 @@ function shortDate(iso: string) {
 export default function QuoteAcceptPage({
   quote,
   preview = false,
+  expired: expiredProp,
 }: {
   quote: Quote;
   preview?: boolean;
+  /** Decided server-side in the company's timezone (lib/quote-expiry). */
+  expired?: boolean;
 }) {
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState<"approved" | "changes" | null>(null);
@@ -93,7 +96,7 @@ export default function QuoteAcceptPage({
   // Signed off (converted = approved-then-scheduled) — the paper still shows,
   // stamped, with actions gone; the client keeps a viewable copy.
   const approved = quote.status === "APPROVED" || quote.status === "CONVERTED";
-  const expired = Boolean(quote.validUntil && new Date(quote.validUntil) < new Date());
+  const expired = expiredProp ?? Boolean(quote.validUntil && new Date(quote.validUntil) < new Date());
   const accent = brandAccent(quote.company);
 
   // Live totals as the client toggles optional items

@@ -1064,12 +1064,14 @@ export async function deleteFutureVisits(
   const earliest = candidates[0].scheduledAt;
   const sub = await prisma.subscription.findUnique({
     where: { id: subscriptionId },
-    select: { nextVisitDate: true, company: { select: { timezone: true } } },
+    select: { nextVisitDate: true, visitFrequency: true, company: { select: { timezone: true } } },
   });
-  if (sub && earliest) {
+  // No cadence any more (the series' visit schedule was just cleared) →
+  // nothing to rewind; writing a cursor back would resurrect it.
+  if (sub && sub.visitFrequency && earliest) {
     const { y, m, d } = localDayParts(sub.company.timezone, earliest);
     const earliestDay = wallTimeToUtc(sub.company.timezone, y, m, d, 12 * 60);
-    const rewound = rewoundVisitCursor(sub.nextVisitDate, earliestDay);
+    const rewound = rewoundVisitCursor(sub.nextVisitDate, earliestDay, sub.visitFrequency);
     if (rewound && rewound.getTime() !== sub.nextVisitDate?.getTime()) {
       await prisma.subscription.update({
         where: { id: subscriptionId },

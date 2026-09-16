@@ -156,12 +156,18 @@ async function handleTransfer(transferId: string) {
     // retry booked (the successful charge cleared autoChargeNextAt) — autopay
     // dead until someone notices. Re-book it for tomorrow; the retry sweep
     // classifies whatever the card says then.
-    if (payment.invoice?.subscriptionId) {
+    // Only when the bounced payment WAS an autopay charge — a /pay payment
+    // on a plan invoice with no card on file must not start a retry loop
+    // that ends in a "no card on file" push. The bounce counts as a failed
+    // attempt, so the next charge is a new request to Finix, not a replay of
+    // the transfer that just came back.
+    if (payment.invoice?.subscriptionId && payment.details?.startsWith("Auto-charged")) {
       await tx.invoice.update({
         where: { id: payment.invoiceId },
         data: {
           autoChargeNextAt: new Date(Date.now() + 24 * 3600_000),
           autoChargeGaveUpAt: null,
+          autoChargeAttempts: { increment: 1 },
           autoChargeLastError: "Bank returned the payment",
         },
       });

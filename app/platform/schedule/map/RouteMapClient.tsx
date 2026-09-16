@@ -279,7 +279,7 @@ export default function RouteMapClient({
   const [data, setData] = useState<RouteDay | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [preview, setPreview] = useState<(OptimizeResult & { userId: string }) | null>(null);
+  const [preview, setPreview] = useState<(OptimizeResult & { userId: string; manualOrder?: boolean }) | null>(null);
   const [previewBusy, setPreviewBusy] = useState(false);
   const [notifyOnApply, setNotifyOnApply] = useState(true);
   const [applied, setApplied] = useState("");
@@ -563,7 +563,7 @@ export default function RouteMapClient({
 
   // ── Optimize flow ─────────────────────────────────────────────────────────
   const runOptimize = useCallback(
-    async (userId: string, order?: string[], anchorTime?: string, roundTrip?: boolean) => {
+    async (userId: string, order?: string[], anchorTime?: string, roundTrip?: boolean, manualOrder = Boolean(order)) => {
       setPreviewBusy(true);
       const { ok, data: result } = await postJson<OptimizeResult>("/api/app/route-plan/optimize", {
         date,
@@ -578,7 +578,10 @@ export default function RouteMapClient({
         return;
       }
       setError("");
-      setPreview({ ...result, userId });
+      // manualOrder: the stops were hand-ordered (drag in the preview or a
+      // reorder on the map), so later re-runs must keep that order instead
+      // of re-solving it.
+      setPreview({ ...result, userId, manualOrder });
     },
     [date]
   );
@@ -1372,7 +1375,17 @@ export default function RouteMapClient({
                     type="checkbox"
                     checked={preview.roundTrip}
                     disabled={previewBusy}
-                    onChange={(e) => runOptimize(preview.userId, preview.stops.map((s) => s.id), preview.anchorTime, e.target.checked)}
+                    onChange={(e) =>
+                      // Hand-ordered previews keep their order; a solved one
+                      // is re-solved so the last stop lands near home.
+                      runOptimize(
+                        preview.userId,
+                        preview.manualOrder ? preview.stops.map((s) => s.id) : undefined,
+                        preview.anchorTime,
+                        e.target.checked,
+                        Boolean(preview.manualOrder)
+                      )
+                    }
                     className="rounded text-green-600 focus:ring-green-500"
                   />
                   End the day back at the start
@@ -1479,7 +1492,7 @@ export default function RouteMapClient({
               </button>
               <button
                 onClick={applyPreview}
-                disabled={previewBusy}
+                disabled={previewBusy || preview.warnings.some((w) => w.startsWith("Doesn't fit"))}
                 className="flex items-center gap-2 rounded-[10px] btn-tool bg-green-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-600 active:bg-green-700 disabled:opacity-50"
               >
                 {previewBusy && <Loader2 size={14} className="animate-spin" />}

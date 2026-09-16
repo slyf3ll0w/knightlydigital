@@ -84,6 +84,10 @@ export async function POST(req: NextRequest) {
   const results: Record<string, unknown> = {};
   const deferred: string[] = [];
   const failed: string[] = [];
+  // Steps that finished but reported per-row errors (a plan that couldn't
+  // bill, a retry that blew up). Those never throw — each sweep catches and
+  // counts — so without this they'd be invisible to Sentry forever.
+  const degraded: string[] = [];
 
   const step = async (name: string, fn: () => Promise<unknown>) => {
     if (Date.now() - started > BUDGET_MS) {
@@ -91,7 +95,17 @@ export async function POST(req: NextRequest) {
       return;
     }
     try {
-      results[name] = await fn();
+      const out = await fn();
+      results[name] = out;
+      const errors = (out as { errors?: unknown } | null)?.errors;
+      if (typeof errors === "number" && errors > 0) {
+        degraded.push(name);
+        Sentry.captureMessage(`[cron] ${name}: ${errors} row error${errors === 1 ? "" : "s"}`, {
+          level: "error",
+          tags: { cron: name },
+          extra: { summary: out },
+        });
+      }
     } catch (err) {
       console.error(`[cron] ${name} failed`, err);
       Sentry.captureException(err, { tags: { cron: name } });
@@ -158,13 +172,14 @@ export async function POST(req: NextRequest) {
     running = false;
   }
 
-  const moneyFailed = failed.some((name) => MONEY_STEPS.has(name));
+  const moneyFailed = failed.some((name) => MONEY_STEPS.has(name)) || degraded.some((name) => MONEY_STEPS.has(name));
   return NextResponse.json(
     {
       ok: !moneyFailed,
       ms: Date.now() - started,
       ...(deferred.length ? { deferred } : {}),
       ...(failed.length ? { failed } : {}),
+      ...(degraded.length ? { degraded } : {}),
       ...results,
     },
     { status: moneyFailed ? 500 : 200 }

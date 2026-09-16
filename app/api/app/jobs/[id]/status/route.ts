@@ -96,10 +96,16 @@ export async function PATCH(
   // run until their NEXT clock-in — sometimes the following morning — and
   // labor cost would carry a 16-hour "visit". A manager closing the job
   // clocks out everyone still on it; a tech only closes their own entry.
-  if (job.status === "ACTIVE" && (effectiveStatus === "REQUIRES_INVOICING" || effectiveStatus === "ARCHIVED")) {
+  // Dispatchers (USER) close jobs from the office too — they clock out
+  // everyone on it, like a manager; a tech only closes their own entry.
+  const closesForEveryone = isManager(actor.role) || actor.role === "USER";
+  if (
+    job.status !== effectiveStatus &&
+    (effectiveStatus === "REQUIRES_INVOICING" || effectiveStatus === "ARCHIVED")
+  ) {
     const closingAt = new Date();
     const open = await prisma.timeEntry.findMany({
-      where: { jobId: id, endedAt: null, ...(isManager(actor.role) ? {} : { userId: actor.id }) },
+      where: { jobId: id, endedAt: null, ...(closesForEveryone ? {} : { userId: actor.id }) },
       select: { id: true, userId: true, startedAt: true },
     });
     for (const e of open) {

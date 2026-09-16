@@ -9,7 +9,11 @@
  */
 export type SmsKeyword = "STOP" | "START" | "HELP" | null;
 
-const STOP_RE = /^\s*(stop|stopall|unsubscribe)\s*[.!]*\s*$/i;
+// cancel/end/quit are CTIA opt-out words Telnyx honors at its edge; as a
+// WHOLE body they must flip smsOptOut too, or the app keeps trying to text
+// someone the carrier already blocks. Whole-body anchoring is what keeps
+// "Cancel Friday's visit" a normal message.
+const STOP_RE = /^\s*(stop|stopall|unsubscribe|cancel|end|quit)\s*[.!]*\s*$/i;
 const START_RE = /^\s*(start|unstop)\s*[.!]*\s*$/i;
 const HELP_RE = /^\s*(help|info)\s*[.!?]*\s*$/i;
 

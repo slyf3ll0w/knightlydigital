@@ -52,6 +52,9 @@ const WRITE_ACTIONS = new Set(["create", "update", "upsert", "delete", "createMa
 function mirrorPhoneDigits(data: any): void {
   if (!data || typeof data !== "object" || !("phone" in data)) return;
   const raw = data.phone;
+  // `{ phone: undefined }` means "leave phone alone" to Prisma — so leave the
+  // mirror alone too, instead of nulling it.
+  if (raw === undefined) return;
   const phone = raw && typeof raw === "object" && "set" in raw ? raw.set : raw;
   if (phone !== null && phone !== undefined && typeof phone !== "string") return;
   data.phoneDigits = phoneDigits(phone);

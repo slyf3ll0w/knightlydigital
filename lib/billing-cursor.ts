@@ -133,11 +133,35 @@ export function addVisitInterval(date: Date, frequency: Frequency): Date {
  */
 export function rewoundVisitCursor(
   current: Date | null,
-  earliestDeleted: Date | null
+  earliestDeleted: Date | null,
+  frequency?: Frequency | null
 ): Date | null {
   if (!earliestDeleted) return current;
-  if (!current || earliestDeleted < current) return earliestDeleted;
-  return current;
+  if (!current) return earliestDeleted;
+  if (earliestDeleted >= current) return current;
+  if (!frequency) return earliestDeleted;
+  // Step the existing cursor BACK on-cadence until it covers the earliest
+  // deleted visit, rather than adopting that visit's own day: a dispatcher
+  // may have dragged it off-cadence (Friday mow moved to Wednesday), and
+  // resuming from Wednesday would make the whole series Wednesdays.
+  let c = current;
+  for (let i = 0; i < 400 && c > earliestDeleted; i++) c = subVisitInterval(c, frequency);
+  return c;
+}
+
+function subVisitInterval(date: Date, frequency: Frequency): Date {
+  switch (frequency) {
+    case "WEEKLY":
+      return new Date(date.getTime() - 7 * DAY_MS);
+    case "BIWEEKLY":
+      return new Date(date.getTime() - 14 * DAY_MS);
+    case "MONTHLY":
+      return addMonthsClamped(date, -1);
+    case "QUARTERLY":
+      return addMonthsClamped(date, -3);
+    case "ANNUALLY":
+      return addMonthsClamped(date, -12);
+  }
 }
 
 /**

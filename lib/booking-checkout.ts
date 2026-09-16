@@ -196,6 +196,18 @@ export async function createServiceBooking(params: {
 
   // ── Charge (after commit) ───────────────────────────────────────────────
   let paidNote: string | null = null;
+  if (collect && !result.depositInvoice) {
+    // "Collect a deposit" was on, but the picked services carry no deposit
+    // rule, so nothing is owed and there is no card step — the booking is
+    // final right now, and the lead win deferred out of the transaction
+    // above has to land here or the contact stays a LEAD on the board.
+    try {
+      const fresh = await prisma.contact.findUnique({ where: { id: result.contact.id }, select: { id: true, status: true, pipelineStageId: true } });
+      if (fresh) await recordLeadWin(prisma, company.id, fresh);
+    } catch (err) {
+      console.error("[booking] lead win (no deposit owed) failed:", err);
+    }
+  }
   if (collect && result.depositInvoice) {
     const inv = result.depositInvoice.invoice;
     const amount = result.depositInvoice.amount;
@@ -250,11 +262,16 @@ export async function createServiceBooking(params: {
       // unwind the booking (that would leave a charge with nothing to show for
       // it) — retry once, then log loudly and finish the booking.
       const paid = charge;
+      // Payment.amount is the GROSS charge (principal + surcharge) everywhere
+      // else — invoiceBalance and the deposit credit both subtract the
+      // surcharge back out. Recording the bare principal here left the
+      // deposit invoice short by the surcharge (never PAID, dunned) and
+      // under-credited the final invoice by the same amount.
       const record = () =>
         recordPayment({
           companyId: company.id,
           invoiceId: inv.id,
-          amount,
+          amount: amount + surchargeAmount,
           method: "CARD",
           processorRef: paid.transactionId,
           surchargeAmount,

@@ -319,6 +319,18 @@ export async function POST(req: NextRequest) {
     proposedEnd: new Date(walked[i].endMs).toISOString(),
   }));
 
+  // The walk steps over fixed commitments clipped to the day, so a stop
+  // pushed past an install that runs into tomorrow (or an evening block to
+  // midnight) lands AT midnight — on the next date. That is never a route
+  // anyone meant: refuse to apply it, and say so in the preview.
+  const spillsOver = walked.some((w) => w.startMs >= dayEnd.getTime() || w.endMs > dayEnd.getTime());
+  if (spillsOver && body.apply === true) {
+    return NextResponse.json(
+      { error: "This order doesn't fit in the day — some stops would land after midnight. Move or unpin a stop and try again." },
+      { status: 409 }
+    );
+  }
+
   const fmt = (d: Date) =>
     d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: tz });
   // Name the teammate when the buried commitment isn't the routed tech's own
@@ -379,7 +391,8 @@ export async function POST(req: NextRequest) {
         if (part.type === "hour") localMin += Number(part.value) * 60;
         if (part.type === "minute") localMin += Number(part.value);
       }
-      if (localMin > closeMin) {
+      const closeAt = wallTimeToUtc(tz, date.getFullYear(), date.getMonth() + 1, date.getDate(), closeMin);
+      if (localMin > closeMin || homeAt.getTime() > closeAt.getTime()) {
         warnings.unshift(
           `${roundTrip ? "Back at the start" : "Last stop wraps"} around ${fmt(homeAt)}, past ${user.name}'s ${fmt(
             wallTimeToUtc(tz, date.getFullYear(), date.getMonth() + 1, date.getDate(), closeMin)
@@ -387,6 +400,9 @@ export async function POST(req: NextRequest) {
         );
       }
     }
+  }
+  if (spillsOver) {
+    warnings.unshift("Doesn't fit: some stops would land after midnight. This order can't be applied as-is.");
   }
   if (!dm.measured) {
     warnings.push("Drive times are straight-line estimates right now — real road times weren't available.");

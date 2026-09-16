@@ -153,9 +153,8 @@ export async function PATCH(
     // unclamped 150% deposit would mint a deposit invoice above the quote.
     const deposit = sanitizeDeposit(body);
 
-    // Retried because re-pricing an outstanding deposit invoice can mint one
-    // (see syncDepositInvoice); the whole edit is one transaction, so a
-    // retry starts clean.
+    // One transaction for the edit plus the deposit-invoice re-price (see
+    // syncDepositInvoice); the doc-number retry is only a safety net.
     const updated = await withDocNumberRetry(() => prisma.$transaction(async (tx) => {
       // Revision snapshot: a quote the client has SEEN is about to be
       // rewritten — keep the old version. Draft edits never snapshot.
@@ -256,6 +255,22 @@ export async function PATCH(
 
   const justSent = body.status === "AWAITING_RESPONSE" && !quote.sentAt;
   const approving = body.status === "APPROVED" && quote.status !== "APPROVED";
+
+  // Approval is a claim, like the client's online sign-off: if the client
+  // approved a moment ago (or a colleague did), this request must not run
+  // the approval side effects a second time.
+  if (approving) {
+    const claim = await prisma.quote.updateMany({
+      where: { id, status: { in: [...APPROVABLE_STATUSES] } },
+      data: { status: "APPROVED", approvedAt: new Date() },
+    });
+    if (claim.count === 0) {
+      return NextResponse.json(
+        { error: "This quote was just approved — reload to see it." },
+        { status: 409 }
+      );
+    }
+  }
 
   const updated = await prisma.quote.update({
     where: { id },
