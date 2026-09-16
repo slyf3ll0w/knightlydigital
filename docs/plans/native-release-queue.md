@@ -41,11 +41,12 @@ android` should report **12** for Android.
 
 | | Version | State |
 |---|---|---|
-| Google Play | versionCode 3 / 1.2 | Live since 2026-09-14 |
+| Google Play | versionCode 3 / 1.2 | Live since 2026-09-14; **4 / 1.3 is built in the tree, not yet uploaded** |
 | App Store | 1.2 (build 5) | **Never submitted** |
 
 Bump `versionCode` in `android/app/build.gradle` on every Play upload (Play
-rejects reuse; `versionName` is cosmetic). Next upload is versionCode 4.
+rejects reuse; `versionName` is cosmetic). Already bumped to **4 / "1.3"** for
+the release below — bump again to 5 after it uploads.
 
 ---
 
