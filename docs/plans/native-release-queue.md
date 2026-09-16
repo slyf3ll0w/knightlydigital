@@ -63,6 +63,20 @@ are committed and ride the next upload; nothing more to do at build time.
 - The green-swoosh icon is on real phones today, so this is the only
   user-visible item in this section.
 
+**The home-screen label still reads "Streamflaire Hub".** Same root cause, a
+different file: `android/app/src/main/res/values/strings.xml` (`app_name` +
+`title_activity_main`). Fixed in the tree, ships with versionCode 4.
+- `appName: 'WorkBench'` in `capacitor.config.ts` only seeds these strings when
+  the native project is first created — **`npx cap sync` never rewrites them**,
+  so the config looking right proves nothing. ae17618 ("Rebrand iOS app to
+  WorkBench") set `CFBundleDisplayName` and touched zero Android files.
+- `package_name` and `custom_url_scheme` in that file stay
+  `com.streamflaire.hub` — that is the appId, and changing it would be a new
+  app on Play. Same for the `StreamflaireHubShell` UA suffix, which the server
+  keys on to detect the shell.
+- The Play Console listing name is separate and already says WorkBench; this
+  is only the label under the icon.
+
 **Native Google sign-in.** `lib/sign-in-options.ts` hides the Google button
 whenever the user agent is the shell, because Google refuses OAuth in embedded
 webviews and a hop to the system browser would leave the session cookie in the
