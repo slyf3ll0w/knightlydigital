@@ -6,6 +6,7 @@ import { createDepositInvoice } from "@/lib/deposits";
 import { sendEmail, invoiceLinkEmail } from "@/lib/email";
 import { inPreview, previewBlockedError } from "@/lib/preview";
 import { withDocNumberRetry } from "@/lib/doc-numbers";
+import { logActivity } from "@/lib/activity";
 
 /**
  * POST — manually issue (or re-send) the deposit invoice for a quote. The
@@ -52,7 +53,10 @@ export async function POST(
     return NextResponse.json({ error: "This quote has no deposit set." }, { status: 400 });
   }
 
-  // Email the client the pay link (whether freshly created or re-sent)
+  // Email the client the pay link (whether freshly created or re-sent). A
+  // failed send is reported, not swallowed: the button's whole promise is
+  // "the client has the link".
+  let emailed: boolean | null = null;
   if (quote.contact.email) {
     const baseUrl = process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com";
     const { subject, html } = invoiceLinkEmail({
@@ -64,7 +68,7 @@ export async function POST(
       payable: canChargeOnline(quote.company),
       serviceNames: [`Deposit for Quote #${quote.quoteNumber}`],
     });
-    await sendEmail({
+    emailed = await sendEmail({
       companyId: quote.companyId,
       to: quote.contact.email,
       subject,
@@ -72,10 +76,27 @@ export async function POST(
       replyTo: quote.company.email || undefined,
       fromName: quote.company.name,
     });
+    if (!emailed) {
+      logActivity({
+        companyId,
+        userId: actor.id,
+        userName: actor.name,
+        entityType: "invoice",
+        entityId: deposit.invoice.id,
+        action: "email_failed",
+        detail: `Deposit pay link for Quote #${quote.quoteNumber} could not be emailed — send it from the invoice.`,
+      });
+    }
   }
 
   return NextResponse.json(
-    { invoiceId: deposit.invoice.id, invoiceNumber: deposit.invoice.invoiceNumber, amount: deposit.amount, created: deposit.created },
+    {
+      invoiceId: deposit.invoice.id,
+      invoiceNumber: deposit.invoice.invoiceNumber,
+      amount: deposit.amount,
+      created: deposit.created,
+      emailed,
+    },
     { status: deposit.created ? 201 : 200 }
   );
 }

@@ -142,6 +142,39 @@ export async function PATCH(
   });
   if (restartGeocode) void geocodeMemberStart(target.id);
 
+  // Deactivated: take them off upcoming work. Their future visit assignments
+  // go (the jobs show Unassigned / NEEDS_CREW so a dispatcher re-places
+  // them), and every visit series that still lists them as default crew
+  // drops them so the generator stops assigning a person who's gone.
+  let deactivation: { unassignedJobs: number; series: { id: string; name: string }[] } | null = null;
+  if (data.isActive === false && target.isActive) {
+    const now = new Date();
+    const unassigned = await prisma.jobAssignment.deleteMany({
+      where: {
+        userId: target.id,
+        job: { companyId: actor.companyId, status: "ACTIVE", scheduledAt: { gte: now } },
+      },
+    });
+    const series = await prisma.subscription.findMany({
+      where: {
+        companyId: actor.companyId,
+        visitAssigneeIds: { has: target.id },
+        status: { not: "CANCELLED" },
+      },
+      select: { id: true, name: true, visitAssigneeIds: true },
+    });
+    for (const s of series) {
+      await prisma.subscription.update({
+        where: { id: s.id },
+        data: { visitAssigneeIds: s.visitAssigneeIds.filter((uid) => uid !== target.id) },
+      });
+    }
+    deactivation = {
+      unassignedJobs: unassigned.count,
+      series: series.map((s) => ({ id: s.id, name: s.name })),
+    };
+  }
+
   // Switched ON to take bookings → join every booking item. Items only copy
   // whoever was bookable when they were created, so without this a member
   // switched on later was bookable in name only (customers saw a request form
@@ -163,5 +196,5 @@ export async function PATCH(
     await setPasswordForUser(target.id, passwordToSet);
   }
 
-  return NextResponse.json(updated);
+  return NextResponse.json({ ...updated, ...(deactivation ? { deactivation } : {}) });
 }

@@ -127,11 +127,13 @@ export async function PATCH(
 
   // Recompute status: full coverage → PAID; otherwise sent invoices land on
   // AWAITING_PAYMENT or PAST_DUE by the (possibly new) due date
+  // An archived invoice stays shelved unless the edit makes it fully paid —
+  // re-deriving it as PAST_DUE would silently resurrect it and resume dunning.
   const fullyPaid = principalPaid > 0 && principalPaid >= netTotal - 0.005;
   let status: InvoiceStatus = invoice.status;
   if (fullyPaid) {
     status = "PAID";
-  } else if (invoice.status !== "DRAFT") {
+  } else if (invoice.status !== "DRAFT" && invoice.status !== "ARCHIVED") {
     status = isPastDue(due) ? "PAST_DUE" : "AWAITING_PAYMENT";
   }
   const lastPaidAt = invoice.payments.reduce<Date | null>(
@@ -229,6 +231,17 @@ export async function DELETE(
     await prisma.$transaction([
       prisma.payment.deleteMany({ where: { invoiceId: invoice.id } }),
       prisma.invoice.delete({ where: { id: invoice.id } }),
+      // Invoicing closed the job (REQUIRES_INVOICING → ARCHIVED); with the
+      // bill gone it needs invoicing again, or it sits "Closed" with no
+      // invoice and no way back into the queue.
+      ...(invoice.jobId
+        ? [
+            prisma.job.updateMany({
+              where: { id: invoice.jobId, companyId: actor.companyId, status: "ARCHIVED" },
+              data: { status: "REQUIRES_INVOICING", closedAt: null },
+            }),
+          ]
+        : []),
     ]);
   } catch (e) {
     console.error("[invoice delete] failed", { invoiceId: invoice.id, error: e });

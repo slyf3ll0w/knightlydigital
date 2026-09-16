@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 import type { RecurringInterval } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { getActor, canSeeMoney, contactScope } from "@/lib/permissions";
+import { getActor, canSeeMoney, contactScope, jobScope } from "@/lib/permissions";
 import { recordLeadWin } from "@/lib/pipeline";
 import { ensureSubscriptionsForContact } from "@/lib/subscriptions";
 import { paidDepositTotal } from "@/lib/deposits";
@@ -63,8 +63,24 @@ export async function POST(req: NextRequest) {
   }
   const costedLineItems = await resolveLineItemCosts(companyId, typedLineItems);
 
+  // A job-linked invoice is scoped by the JOB (whoever may see the job may
+  // bill it, and its client comes with it); a standalone invoice by contact
+  // visibility. Mixing them left a Sales + Tech member with an empty editor
+  // and a rejected client on jobs they had just completed.
+  const scopedJob = jobId
+    ? await prisma.job.findFirst({
+        where: { id: jobId, companyId, ...jobScope(actor) },
+        select: { contactId: true },
+      })
+    : null;
+  if (jobId && !scopedJob) return NextResponse.json({ error: "Job not found." }, { status: 404 });
+  if (jobId && contactId && scopedJob && scopedJob.contactId !== contactId) {
+    return NextResponse.json({ error: "That client doesn't match the job." }, { status: 400 });
+  }
   const contact = contactId
-    ? await prisma.contact.findFirst({ where: { id: contactId, companyId, ...contactScope(actor) } })
+    ? await prisma.contact.findFirst({
+        where: { id: contactId, companyId, ...(scopedJob ? {} : contactScope(actor)) },
+      })
     : null;
   if (contactId && !contact) {
     return NextResponse.json({ error: "Contact not found." }, { status: 404 });

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CalendarCheck, Loader2 } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
-import { confirmSheet } from "@/components/ConfirmSheet";
+import { confirmSheet, alertSheet } from "@/components/ConfirmSheet";
 
 /**
  * Approval banner for self-scheduled online bookings: the client picked an
@@ -38,11 +38,24 @@ export default function BookingApprovalBanner({
     }
     setBusy(action);
     setError("");
-    const { ok, data } = await postJson(`/api/app/requests/${requestId}/booking`, { action });
+    const { ok, data } = await postJson<{ error?: string; emailed?: boolean | null }>(
+      `/api/app/requests/${requestId}/booking`,
+      { action }
+    );
     setBusy(null);
     if (!ok) {
       setError(data?.error ?? GENERIC_ERROR);
       return;
+    }
+    if (data?.emailed === false) {
+      // The decision landed; the client just wasn't told. Say so instead of
+      // letting the office assume the confirmation went out.
+      alertSheet({
+        message:
+          action === "accept"
+            ? "Booking accepted — but the confirmation email couldn't be sent. Let the client know their time is confirmed."
+            : "Booking declined — but the email couldn't be sent. Let the client know.",
+      });
     }
     router.refresh();
   }

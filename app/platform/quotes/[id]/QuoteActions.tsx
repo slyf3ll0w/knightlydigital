@@ -91,12 +91,24 @@ export default function QuoteActions({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
       });
-      if (res.ok && newStatus === "APPROVED") {
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        alertSheet({ message: data?.error ?? "Couldn't update the quote." });
+        return;
+      }
+      if (newStatus === "APPROVED") {
         hapticNotify("SUCCESS");
         // Body-attached like the send ritual — the refresh below swaps the
         // action buttons and would kill state-held overlays. The refreshed
         // page mounts <Celebration>, so this reads slam → confetti.
         showApproveRitual();
+        // Approval mints the deposit invoice and emails its pay link; when
+        // that email can't go out the office has to send it by hand.
+        if (data?.emailed === false && data?.deposit?.invoiceNumber) {
+          alertSheet({
+            message: `Approved. Deposit invoice #${data.deposit.invoiceNumber} was created, but the pay link couldn't be emailed — send it from the invoice.`,
+          });
+        }
       }
     } finally {
       setBusy(false);
@@ -174,6 +186,11 @@ export default function QuoteActions({
       if (!res.ok) {
         alertSheet({ message: data?.error ?? "Couldn't create the deposit invoice." });
         return;
+      }
+      if (data?.emailed === false) {
+        alertSheet({
+          message: `Deposit invoice #${data.invoiceNumber} is ready, but the pay link couldn't be emailed — send it from the invoice.`,
+        });
       }
       if (data?.invoiceId) {
         router.push(`/app/invoices/${data.invoiceId}`);
@@ -394,7 +411,7 @@ export default function QuoteActions({
               </button>
             )}
             <div className="my-1 border-t border-gray-100" />
-            {status !== "APPROVED" && status !== "CONVERTED" && (
+            {(status === "AWAITING_RESPONSE" || status === "CHANGES_REQUESTED") && (
               <button
                 onClick={() => setStatus("APPROVED")}
                 className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"

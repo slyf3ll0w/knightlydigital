@@ -1,14 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { canChargeOnline } from "@/lib/payments-gate";
 import { prisma } from "@/lib/db";
-import { autoSendQuoteAgreements } from "@/lib/agreements";
-import { createDepositInvoice, type DepositInvoiceResult } from "@/lib/deposits";
 import { computeQuoteTotals } from "@/lib/quote-totals";
-import { sendEmail, invoiceLinkEmail } from "@/lib/email";
-import { recordLeadWin } from "@/lib/pipeline";
 import { signatureMatchesName } from "@/lib/signature";
-import { withDocNumberRetry } from "@/lib/doc-numbers";
 import { suspendedResponse } from "@/lib/suspension";
+import { finishQuoteApproval } from "@/lib/quote-approval";
+import { quoteExpired } from "@/lib/quote-expiry";
 
 /**
  * Public quote response endpoint (client-facing, no auth — the [id] segment
@@ -55,7 +51,7 @@ export async function POST(
 
   // Expired quotes can't be approved online — prices may be stale. Requesting
   // changes stays open: that's exactly how the client asks for a fresh one.
-  if (action === "approve" && quote.validUntil && quote.validUntil < new Date()) {
+  if (action === "approve" && quote.validUntil && quoteExpired(quote.validUntil, quote.company.timezone)) {
     return NextResponse.json(
       {
         error: `This quote expired on ${quote.validUntil.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}. Use "Request changes" or contact ${quote.company.name} for an updated quote.`,
@@ -117,17 +113,12 @@ export async function POST(
     taxRate: quote.taxRate == null ? null : Number(quote.taxRate),
   });
 
-  // Retried from out here because the deposit invoice derives an invoice
-  // number; the writes inside are idempotent, so a second attempt is safe.
-  const deposit: DepositInvoiceResult | null = await withDocNumberRetry(() => prisma.$transaction(async (tx) => {
-    if (validOptOuts.length > 0) {
-      await tx.quoteLineItem.updateMany({
-        where: { id: { in: validOptOuts } },
-        data: { optedOut: true },
-      });
-    }
-    await tx.quote.update({
-      where: { id: quote.id },
+  // The sign-off itself is one claim: only a quote still awaiting a response
+  // flips, so two taps (or a stale tab after the office marked it approved)
+  // can't run the approval side effects twice.
+  const claimed = await prisma.$transaction(async (tx) => {
+    const claim = await tx.quote.updateMany({
+      where: { id: quote.id, status: { in: ["AWAITING_RESPONSE", "CHANGES_REQUESTED", "DRAFT"] } },
       data: {
         status: "APPROVED",
         approvedAt: new Date(),
@@ -138,55 +129,22 @@ export async function POST(
         total,
       },
     });
-
-    // Auto-issue the deposit invoice on approval (idempotent; no-op if no deposit)
-    return createDepositInvoice(tx, {
-      id: quote.id,
-      companyId: quote.companyId,
-      contactId: quote.contactId,
-      quoteNumber: quote.quoteNumber,
-      total,
-      depositType: quote.depositType,
-      depositValue: quote.depositValue == null ? null : Number(quote.depositValue),
-    });
-  }));
-
-  // Approval issues any attached agreements set to "on approval"
-  await autoSendQuoteAgreements(quote.id, "ON_APPROVAL");
-
-  // Pipeline board: an approved quote converts the lead — their card lands in
-  // the Converted section and they become an active client
-  const boardContact = await prisma.contact.findUnique({
-    where: { id: quote.contactId },
-    select: { id: true, status: true, pipelineStageId: true },
+    if (claim.count === 0) return false;
+    if (validOptOuts.length > 0) {
+      await tx.quoteLineItem.updateMany({
+        where: { id: { in: validOptOuts } },
+        data: { optedOut: true },
+      });
+    }
+    return true;
   });
-  if (boardContact) {
-    await recordLeadWin(prisma, quote.companyId, boardContact);
+  if (!claimed) {
+    return NextResponse.json({ error: "Quote is not in a reviewable state." }, { status: 400 });
   }
 
-  // Email the client the deposit pay link whenever a deposit is still owed —
-  // just minted, or minted earlier by "Collect deposit" (possibly re-priced
-  // by an edit since). Approval is the moment they expect to be asked.
-  if (deposit && deposit.outstanding > 0 && quote.contact.email) {
-    const baseUrl = process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com";
-    const { subject, html } = invoiceLinkEmail({
-      brand: quote.company,
-      companyName: quote.company.name,
-      invoiceNumber: deposit.invoice.invoiceNumber,
-      total: deposit.amount,
-      payUrl: `${baseUrl}/pay/${deposit.invoice.publicToken}`,
-      payable: canChargeOnline(quote.company),
-      serviceNames: [`Deposit for Quote #${quote.quoteNumber}`],
-    });
-    await sendEmail({
-      companyId: quote.companyId,
-      to: quote.contact.email,
-      subject,
-      html,
-      replyTo: quote.company.email || undefined,
-      fromName: quote.company.name,
-    });
-  }
+  // Deposit invoice, on-approval agreements, pipeline win, deposit pay-link
+  // email — the same steps the office's "Mark Approved" runs.
+  await finishQuoteApproval(quote.id);
 
   return NextResponse.json({ success: true });
 }

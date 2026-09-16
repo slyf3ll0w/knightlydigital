@@ -55,14 +55,23 @@ export async function POST(req: NextRequest) {
         })
       : null;
 
-  // Assignee defaults to whoever books it; managers may pick someone else
+  // Assignee defaults to whoever books it; managers may pick someone else —
+  // anyone but a TECH, who can't open appointments at all (the pages and
+  // PATCH require canSell), so an appointment on them would be invisible to
+  // the one person meant to show up.
   let assignedToId = actor.id;
   if (isManager(actor.role) && body.assignedToId) {
     const target = await prisma.user.findFirst({
-      where: { id: body.assignedToId, companyId, isActive: true },
+      where: { id: body.assignedToId, companyId, isActive: true, role: { not: "TECH" } },
       select: { id: true },
     });
-    if (target) assignedToId = target.id;
+    if (!target) {
+      return NextResponse.json(
+        { error: "Appointments can only be assigned to team members who handle sales (not techs)." },
+        { status: 400 }
+      );
+    }
+    assignedToId = target.id;
   }
 
   const start = new Date(scheduledAt);

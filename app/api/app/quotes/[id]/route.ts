@@ -11,10 +11,11 @@ import {
 } from "@/lib/work-items";
 import { computeQuoteTotals } from "@/lib/quote-totals";
 import { queueQuickBooksUnwind } from "@/lib/quickbooks";
-import { autoAdvance, recordLeadWin } from "@/lib/pipeline";
+import { autoAdvance } from "@/lib/pipeline";
 import { logActivity } from "@/lib/activity";
 import { sanitizeDeposit, syncDepositInvoice } from "@/lib/deposits";
 import { withDocNumberRetry } from "@/lib/doc-numbers";
+import { APPROVABLE_STATUSES, finishQuoteApproval } from "@/lib/quote-approval";
 
 const allowedStatuses = [
   "DRAFT",
@@ -77,6 +78,23 @@ export async function PATCH(
     if (quote.status === "APPROVED" && body.status !== "ARCHIVED") {
       return NextResponse.json(
         { error: "The client approved this quote — it can only be archived, not reverted." },
+        { status: 400 }
+      );
+    }
+    // "Mark Approved" records a sign-off the client gave in person or by
+    // phone — on a quote they were actually shown. A draft nobody sent or an
+    // archived quote has nothing to approve.
+    if (
+      body.status === "APPROVED" &&
+      !(APPROVABLE_STATUSES as readonly string[]).includes(quote.status)
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            quote.status === "DRAFT"
+              ? "Send the quote (or mark it as sent) before marking it approved."
+              : "Archived quotes can't be approved — reopen it first.",
+        },
         { status: 400 }
       );
     }
@@ -237,17 +255,24 @@ export async function PATCH(
   }
 
   const justSent = body.status === "AWAITING_RESPONSE" && !quote.sentAt;
+  const approving = body.status === "APPROVED" && quote.status !== "APPROVED";
 
   const updated = await prisma.quote.update({
     where: { id },
     data: {
       ...(body.status && { status: body.status }),
       ...(justSent && { sentAt: new Date() }),
-      ...(body.status === "APPROVED" && { approvedAt: new Date() }),
+      ...(approving && { approvedAt: new Date() }),
       ...(body.notes !== undefined && { notes: body.notes }),
       ...(body.validUntil !== undefined && { validUntil: parseValidUntil(body.validUntil) }),
     },
   });
+
+  // The same side effects the client's online sign-off runs: deposit
+  // invoice, on-approval agreements, pipeline win, deposit pay-link email.
+  const approval = approving
+    ? await finishQuoteApproval(quote.id, { id: actor.id, name: actor.name })
+    : null;
 
   // Sending the quote auto-issues any attached agreements set to "with quote"
   if (justSent) {
@@ -266,21 +291,28 @@ export async function PATCH(
     });
   }
 
-  // Pipeline board: a sent quote advances the lead's card; an approved quote
-  // converts them — card to the Converted section, contact becomes a client
+  // Pipeline board: a sent quote advances the lead's card (approval's win is
+  // recorded inside finishQuoteApproval)
   if (body.status === "AWAITING_RESPONSE") {
     await autoAdvance(prisma, companyId, quote.contactId, "QUOTE_SENT");
-  } else if (body.status === "APPROVED") {
-    const boardContact = await prisma.contact.findUnique({
-      where: { id: quote.contactId },
-      select: { id: true, status: true, pipelineStageId: true },
-    });
-    if (boardContact) {
-      await recordLeadWin(prisma, companyId, boardContact);
-    }
   }
 
-  return NextResponse.json(updated);
+  return NextResponse.json({
+    ...updated,
+    ...(approval
+      ? {
+          deposit: approval.deposit
+            ? {
+                invoiceId: approval.deposit.invoice.id,
+                invoiceNumber: approval.deposit.invoice.invoiceNumber,
+                amount: approval.deposit.amount,
+                outstanding: approval.deposit.outstanding,
+              }
+            : null,
+          emailed: approval.emailed,
+        }
+      : {}),
+  });
 }
 
 export async function DELETE(

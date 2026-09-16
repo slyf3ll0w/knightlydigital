@@ -20,7 +20,7 @@ import { estimateProcessingCostCents } from "@/lib/platform-costs";
 import { notifyUsers } from "@/lib/push";
 import { queueQuickBooksPaymentSync } from "@/lib/quickbooks";
 import { sendEmail, reviewRequestEmail, paymentReceiptEmail } from "@/lib/email";
-import { isPastDue } from "@/lib/due-dates";
+import { isPastDue, dueDateFromTerms } from "@/lib/due-dates";
 import { paymentMethodLabel } from "@/lib/statuses";
 import type { PaymentMethod, Prisma } from "@prisma/client";
 
@@ -361,7 +361,7 @@ export async function recordPayment(params: RecordPaymentParams) {
   const result = await prisma.$transaction(async (tx) => {
     const invoice = await tx.invoice.findFirst({
       where: { id: params.invoiceId, companyId: params.companyId },
-      include: { payments: true },
+      include: { payments: true, contact: { select: { paymentTermsDays: true } } },
     });
     if (!invoice) throw new Error("Invoice not found");
 
@@ -394,12 +394,24 @@ export async function recordPayment(params: RecordPaymentParams) {
       (params.surchargeAmount ?? 0);
     const fullyPaid = paidSoFar >= Number(invoice.total) + surchargesSoFar - 0.005;
 
+    // A payment on a draft issues it: without issuedAt/dueDate a partially
+    // paid draft could never go PAST_DUE or get a reminder for the rest.
+    const issuedNow = new Date();
+    const issueStamp =
+      invoice.status === "DRAFT"
+        ? {
+            ...(invoice.issuedAt ? {} : { issuedAt: issuedNow }),
+            ...(invoice.dueDate
+              ? {}
+              : { dueDate: dueDateFromTerms(issuedNow, invoice.contact?.paymentTermsDays ?? 0) }),
+          }
+        : {};
     await tx.invoice.update({
       where: { id: invoice.id },
       data: fullyPaid
-        ? { status: "PAID", paidAt: params.paidAt ?? new Date() }
+        ? { status: "PAID", paidAt: params.paidAt ?? new Date(), ...issueStamp }
         : invoice.status === "DRAFT"
-          ? { status: "AWAITING_PAYMENT" }
+          ? { status: "AWAITING_PAYMENT", ...issueStamp }
           : {},
     });
 

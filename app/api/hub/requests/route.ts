@@ -5,6 +5,7 @@ import { companyNotifyAddress } from "@/lib/notify";
 import { notifyUsers, requestNotifyUserIds } from "@/lib/push";
 import { withDocNumberRetry } from "@/lib/doc-numbers";
 import { suspendedResponse } from "@/lib/suspension";
+import { limit, clientIp } from "@/lib/rate-limit";
 
 /**
  * Public: a client submits a work request from their hub ("Request more work").
@@ -21,6 +22,15 @@ export async function POST(req: NextRequest) {
 
   if (!token || !title) {
     return NextResponse.json({ error: "Title is required." }, { status: 400 });
+  }
+  // Same ceilings as hub messages: a leaked link (or a bored client) can't
+  // flood the office with requests.
+  const ip = clientIp(req.headers);
+  if (
+    !(await limit(`hub-req:${token}`, 20, 3600_000)).ok ||
+    !(await limit(`hub-req-ip:${ip}`, 60, 3600_000)).ok
+  ) {
+    return NextResponse.json({ error: "Too many requests — please try again later." }, { status: 429 });
   }
 
   const contact = await prisma.contact.findUnique({

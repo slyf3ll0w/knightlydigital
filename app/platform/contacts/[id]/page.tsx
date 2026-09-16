@@ -606,6 +606,7 @@ export default async function ContactDetailPage({
             hubUrl={hubUrl}
             hasEmail={!!contact.email}
             lastVisitLabel={contact.hubLastVisitAt ? shortDate(contact.hubLastVisitAt) : null}
+            canReset={isManager(actor.role)}
           />
         </div>
       </div>
