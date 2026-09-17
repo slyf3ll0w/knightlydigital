@@ -49,6 +49,7 @@ import ConfirmSheetHost from "@/components/ConfirmSheet";
 import { HomeFill, ScheduleFill, ChatFill, MoreFill } from "@/components/TabIcons";
 import { mobileBackFor } from "@/lib/mobile-nav";
 import { AtlasMark } from "@/components/AtlasIcon";
+import { AssistantProvider } from "@/components/AssistantContext";
 import Modal from "@/components/Modal";
 import TourGuide from "@/components/TourGuide";
 // Code-split: neither is needed to paint a page, and the Atlas drawer alone
@@ -2182,7 +2183,19 @@ export default function AppShell({
           ref={mainRef}
           className="app-main relative flex-1 overflow-y-auto pb-[calc(5.75rem+env(safe-area-inset-bottom))] lg:pb-0"
         >
-          {children}
+          {/* Pages that want their own way into Atlas (the phone home row)
+              read this instead of re-deriving the meter state. */}
+          <AssistantProvider
+            value={{
+              available: assistantAvailable,
+              locked: atlasLocked,
+              name: assistantName || "Atlas",
+              accent: brandColorSecondary || brandColor || undefined,
+              open: () => setAssistantOpen(true),
+            }}
+          >
+            {children}
+          </AssistantProvider>
         </main>
         <SwipeBack
           enabled={mobileBack !== null}

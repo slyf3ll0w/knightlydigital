@@ -112,7 +112,6 @@ export default async function HubInvoicesPage({
     <div>
       <h2 className="numeral-ledger relative mb-6 w-fit text-[22px] font-bold text-gray-900">
         Your invoices
-        <span aria-hidden className="title-rule" />
       </h2>
       {contact.invoices.length === 0 ? (
         <div className="card-ledger overflow-hidden">

@@ -66,7 +66,6 @@ export default async function HubNewRequestPage({
         <div className="min-w-0">
           <h2 className="numeral-ledger relative w-fit text-[22px] font-bold text-gray-900">
             {pub.heading}
-            <span aria-hidden className="title-rule" />
           </h2>
           {pub.description && <p className="mt-1.5 text-sm text-gray-500">{pub.description}</p>}
         </div>

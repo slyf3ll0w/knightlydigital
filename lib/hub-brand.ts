@@ -6,7 +6,7 @@
  *
  * With these on the hub root, everything the hub already wears from
  * globals.css — .bg-paper's grid, .card-ledger hairlines and top-light, the
- * green→accent utility bridge, .stamp, .title-rule, the mobile tab inks —
+ * green→accent utility bridge, .stamp, the mobile tab inks —
  * picks up the tenant's colors instead of the WorkBench-blue fallbacks.
  */
 

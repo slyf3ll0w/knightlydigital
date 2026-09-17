@@ -1428,32 +1428,6 @@ html[data-mode="dark"] .app-ui .card-tool {
   animation: none;
 }
 
-/* ── Title rule — a short primary→accent margin rule drawn in under every
-   PageTitle as the page lands: the one place the two brand colors meet.
-   Laid out in flow (block + margin) so whatever follows the heading — a
-   subtitle, a count, a stamp — is pushed below it instead of struck
-   through. ── */
-.title-rule {
-  display: block;
-  margin-top: 7px;
-  height: 3px;
-  width: 34px;
-  border-radius: 2px;
-  background: linear-gradient(90deg, var(--wb-primary, #0A1428), var(--wb-accent, #0B57D8));
-  transform-origin: left center;
-  animation: titleRuleDraw 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.08s both;
-}
-@keyframes titleRuleDraw {
-  from {
-    opacity: 0;
-    transform: scaleX(0);
-  }
-  to {
-    opacity: 1;
-    transform: scaleX(1);
-  }
-}
-
 /* ── Row chevron lean — any list row ending in a lucide chevron nudges it
    toward the destination on hover. One rule, every list in the app. ── */
 .app-ui a > .lucide-chevron-right {
@@ -1551,11 +1525,6 @@ html[data-mode="dark"] .app-ui .card-tool {
   }
   .rail-count {
     animation: none;
-  }
-  .title-rule {
-    animation: none;
-    opacity: 1;
-    transform: none;
   }
   .app-ui a > .lucide-chevron-right,
   .lift-hover,

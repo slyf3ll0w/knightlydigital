@@ -54,7 +54,6 @@ export default async function HubPaymentMethodPage({
     <div>
       <h2 className="numeral-ledger relative mb-3 w-fit text-[22px] font-bold text-gray-900">
         Payment methods
-        <span aria-hidden className="title-rule" />
       </h2>
       <p className="text-sm text-gray-500 mb-4">
         Cards on file let {contact.company.name} charge agreed work without

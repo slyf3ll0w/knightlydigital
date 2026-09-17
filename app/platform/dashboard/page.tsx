@@ -29,6 +29,7 @@ import EmptyState from "@/components/EmptyState";
 import CountUp from "@/components/CountUp";
 import DashboardSetupCard from "./DashboardSetupCard";
 import UpNextActions from "./UpNextActions";
+import AtlasHomeButton from "@/components/AtlasHomeButton";
 import SwipeRowContact from "@/components/SwipeRowContact";
 import { PushNudge } from "@/components/PushNotifications";
 import {
@@ -572,6 +573,9 @@ export default async function DashboardPage() {
           </Link>
         </div>
       )}
+      {/* Atlas's seat on the phone home — desktop has the floating bubble.
+          Renders nothing when Atlas is off for the company. */}
+      <AtlasHomeButton className="anim-fade-up anim-delay-1 order-3 mb-8" />
       {seePerformance && (
         <div className="anim-fade-up anim-delay-1 mb-8 hidden gap-3 lg:grid lg:grid-cols-3">
           <Link prefetch={false}

@@ -89,7 +89,6 @@ export default async function HubRequestsPage({
       <div className="flex items-center justify-between mb-6">
         <h2 className="numeral-ledger relative w-fit text-[22px] font-bold text-gray-900">
           Your requests
-          <span aria-hidden className="title-rule" />
         </h2>
         <Link
           href={`${base}/requests/new`}

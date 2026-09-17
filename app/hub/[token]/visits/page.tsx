@@ -117,7 +117,6 @@ export default async function HubVisitsPage({
     <div>
       <h2 className="numeral-ledger relative mb-6 w-fit text-[22px] font-bold text-gray-900">
         Upcoming visits
-        <span aria-hidden className="title-rule" />
       </h2>
       {rows.length === 0 ? (
         <div className="card-ledger overflow-hidden">

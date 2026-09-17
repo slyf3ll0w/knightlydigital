@@ -63,7 +63,6 @@ export default function HubRequestForm({ token }: { token: string }) {
         </Link>
         <h2 className="numeral-ledger relative w-fit text-[22px] font-bold text-gray-900">
           New request
-          <span aria-hidden className="title-rule" />
         </h2>
       </div>
 

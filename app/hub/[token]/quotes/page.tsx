@@ -42,7 +42,6 @@ export default async function HubQuotesPage({
     <div>
       <h2 className="numeral-ledger relative mb-6 w-fit text-[22px] font-bold text-gray-900">
         Your quotes
-        <span aria-hidden className="title-rule" />
       </h2>
       <div className="card-ledger overflow-hidden">
         {contact.quotes.length === 0 ? (
