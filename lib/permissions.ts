@@ -132,8 +132,10 @@ export async function requirePageActor(allowed?: (a: Actor) => boolean): Promise
   // the fields the server would demand) — clear the dead cookie instead.
   if (stale) redirect("/api/app/session-reset");
   if (!actor) {
+    // Signed in but no company membership (a Google sign-up that hasn't
+    // opened its business): finish signing up. Same target as middleware.
     const session = await getSession();
-    redirect(session ? "/app/register" : "/app/login");
+    redirect(session ? "/app/get-started" : "/app/login");
   }
   if (allowed && !allowed(actor)) redirect("/app/dashboard");
   return actor;

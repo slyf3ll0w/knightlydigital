@@ -14,7 +14,8 @@ import GoogleSignInButton, { OrDivider, useGoogleSignInOffered } from "@/compone
 // rejections and NextAuth's own OAuth failures).
 function errorMessage(code: string): string {
   if (code === "captcha") return "Security check didn't go through — give it a moment, then try again.";
-  if (code === "CredentialsSignin") return "Invalid email or password.";
+  if (code === "CredentialsSignin")
+    return "Invalid email or password. If you signed up with Google, use the Google button above.";
   if (code === "rate-limit") return "Too many attempts — wait a few minutes, then try again.";
   if (code === "unverified-email")
     return "That Google account's email address isn't verified, so we can't use it to sign in. Verify it with Google, or log in with your password.";
@@ -146,15 +147,22 @@ export default function LoginForm({
               <div className="mb-4 px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
                 You&apos;re signed in as{" "}
                 <span className="font-semibold">{session?.user?.email}</span>, which doesn&apos;t
-                have a company workspace.{" "}
+                have a business on it yet.{" "}
+                <Link
+                  href="/app/get-started"
+                  className="font-semibold text-amber-900 underline hover:no-underline"
+                >
+                  Finish setting up
+                </Link>
+                ,{" "}
                 <button
                   type="button"
                   onClick={() => signOut({ redirect: false })}
                   className="font-semibold text-amber-900 underline hover:no-underline"
                 >
-                  Sign out
-                </button>{" "}
-                or sign in below with another account.
+                  sign out
+                </button>
+                , or sign in below with another account.
               </div>
             )}
 

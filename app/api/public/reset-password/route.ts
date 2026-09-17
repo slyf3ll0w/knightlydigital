@@ -33,16 +33,26 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Consume the token FIRST, atomically (the count settles a double submit),
+  // then set the password. The other order left a live, reusable token for
+  // the rest of its hour if anything failed between the two steps; this
+  // order at worst burns a token the person can re-request.
+  const consumed = await prisma.passwordResetToken.updateMany({
+    where: { id: record.id, usedAt: null },
+    data: { usedAt: new Date() },
+  });
+  if (consumed.count === 0) {
+    return NextResponse.json(
+      { error: "This reset link is invalid or has expired. Please request a new one." },
+      { status: 400 }
+    );
+  }
+  await prisma.passwordResetToken.deleteMany({
+    where: { userId: record.userId, usedAt: null, id: { not: record.id } },
+  });
   // The new password lands on the Account — one login across every company
-  // this person belongs to (lib/account.ts) — then the token is consumed and
-  // any other outstanding reset tokens dropped.
+  // this person belongs to (lib/account.ts).
   await setPasswordForUser(record.userId, password);
-  await prisma.$transaction([
-    prisma.passwordResetToken.update({ where: { id: record.id }, data: { usedAt: new Date() } }),
-    prisma.passwordResetToken.deleteMany({
-      where: { userId: record.userId, usedAt: null, id: { not: record.id } },
-    }),
-  ]);
 
   return NextResponse.json({ success: true });
 }

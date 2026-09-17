@@ -251,6 +251,23 @@ export default function ApplyForm({
     : "w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-[15px] focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#0B57D8]";
   const labelClass = "mb-1.5 block text-[13.5px] font-semibold text-gray-800";
 
+  // Coming back from Google, the session takes a beat to load. Until it
+  // does, the form can't know whether to ask for an email + password — hold
+  // the fields back rather than flash the wrong version and swap.
+  if (status === "loading") {
+    return (
+      <div
+        className={
+          inApp
+            ? "py-16 text-center"
+            : "rounded-3xl border border-gray-200 bg-white px-6 py-16 text-center sm:px-12"
+        }
+      >
+        <Loader2 className="mx-auto h-5 w-5 animate-spin text-gray-400" />
+      </div>
+    );
+  }
+
   // Signed in with a company already: this form would open a SECOND one.
   // Point at the app instead (second companies live in the switcher).
   if (signedIn && !attachMode) {

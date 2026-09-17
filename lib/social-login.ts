@@ -12,9 +12,16 @@ import { sendEmail, signInMethodLinkedEmail } from "@/lib/email";
  * sign-in plugin posting an ID token. Every path ends in resolveSocialSignIn:
  *
  *   1. Known identity (provider + subject id)  → that Account.
- *   2. Unknown identity, signed-in caller      → link it to the caller's Account.
+ *   2. Unknown identity, LINK intent           → the signed-in caller's Account
+ *                                                (Settings → My Profile only).
  *   3. Unknown identity, verified email match  → link it to that Account.
  *   4. Unknown identity, nobody home           → open a password-less Account.
+ *
+ * Step 2 needs the caller to have asked for a link; a plain sign-in never
+ * binds to whatever session the browser happens to hold. (A sign-up that
+ * comes back through the login page is a KNOWN identity — step 1 covers it.
+ * Without the intent check, a second person tapping Google on a shared
+ * computer would weld their Google account to the first person's login.)
  *
  * Step 3 is the only email-based match and it requires the provider to vouch
  * the address is verified; an unverified address never links to anything (an
@@ -112,9 +119,8 @@ export async function resolveSocialSignIn(
     await prisma.accountIdentity
       .update({ where: { id: identity.id }, data: { lastUsedAt: new Date(), email: email || undefined } })
       .catch(() => {});
-  } else if (ctx.currentAccountId) {
-    // Signed-in caller (profile link, or a company-less session that came
-    // back through the login page): the identity joins THEIR account.
+  } else if (ctx.linkIntent && ctx.currentAccountId) {
+    // "Connect Google" from inside the app: the identity joins THEIR account.
     accountId = ctx.currentAccountId;
     outcome = "linked";
   } else {

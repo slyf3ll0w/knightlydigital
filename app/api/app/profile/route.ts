@@ -16,7 +16,7 @@ export async function PATCH(req: NextRequest) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const body = await req.json();
+  const body = await req.json().catch(() => ({}));
   const identity: Record<string, unknown> = {};
 
   if (body.name !== undefined) {

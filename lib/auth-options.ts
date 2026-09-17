@@ -66,29 +66,33 @@ export function buildAuthOptions(ctx: AuthRequestContext | null = null): NextAut
           const email = normalizeEmail(credentials.email);
           if (!email) return null;
           const account = await findOrAdoptAccountByEmail(email);
-          if (!account) return null;
 
           // Superadmin rows never get a tenant session at all — the platform
           // console has its own cookie session, minted only at /superadmin/login
           // (password + emailed code). Generic failure so this endpoint never
           // confirms which addresses are staff. An account whose only
           // memberships are superadmin (or deactivated) fails the same way.
-          const rows = await eligibleMembershipsFor(account.id);
-          const user = pickMembership(rows, account.lastActiveUserId);
-          if (!user) return null;
+          const rows = account ? await eligibleMembershipsFor(account.id) : [];
+          const user = account ? pickMembership(rows, account.lastActiveUserId) : null;
 
-          // Captcha-gate the login BEFORE the password check, so password
-          // validity is never revealed without a human-verified token
-          // (verifyCaptcha passes when Turnstile isn't configured). Accounts
-          // created moments ago skip it so the register page's auto sign-in
-          // works — its Turnstile token was already consumed by the register
-          // API, and an attacker who just created the account knows its
-          // password anyway.
-          const justRegistered = Date.now() - account.createdAt.getTime() < 2 * 60 * 1000;
+          // Captcha-gate the login BEFORE any verdict on the address — the
+          // unknown-email and known-email paths must fail identically, or
+          // the captcha error alone tells a prober which addresses exist.
+          // (verifyCaptcha passes when Turnstile isn't configured.) Sign-ups
+          // from moments ago skip it so the signup pages' auto sign-in works:
+          // their Turnstile token was already consumed by the signup API, and
+          // whoever just created the account (or just attached a new company
+          // to an existing login — a fresh membership row) knows its password
+          // anyway.
+          const fresh = (d: Date) => Date.now() - d.getTime() < 2 * 60 * 1000;
+          const justRegistered = Boolean(
+            account && (fresh(account.createdAt) || (user && fresh(user.createdAt)))
+          );
           if (!justRegistered) {
             const captchaOk = await verifyCaptcha(credentials.captchaToken, "login");
             if (!captchaOk) throw new Error("captcha");
           }
+          if (!account || !user) return null;
 
           // No hash = a social-only account. Same generic failure: the form
           // must not reveal that the address exists but has no password.
@@ -145,9 +149,9 @@ export function buildAuthOptions(ctx: AuthRequestContext | null = null): NextAut
                 // No linkIntent: connecting an identity to the account you
                 // are already signed into goes through
                 // POST /api/app/profile/identities, which leaves the session
-                // alone. Here a company-less session still passes its account
-                // id, so a social sign-up that comes back through the login
-                // page rejoins its own account (rule 2) instead of forking.
+                // alone. This is a plain sign-in: the Google identity decides
+                // the account (a sign-up coming back through the login page
+                // is a known identity — rule 1), never the session held.
                 const result = await resolveSocialSignIn(
                   {
                     provider: "google",
@@ -191,9 +195,9 @@ export function buildAuthOptions(ctx: AuthRequestContext | null = null): NextAut
         if (!sub) return false;
 
         // Linking from Settings → My Profile means a full (company) session;
-        // a company-less session bouncing through the login page is a plain
-        // sign-in that may land on whichever account the Google identity
-        // already belongs to.
+        // anything else (signed out, or a company-less session bouncing
+        // through the login page) is a plain sign-in, decided by the Google
+        // identity alone — the session held is never bound to.
         const linkIntent = Boolean(ctx?.currentAccountId && ctx?.currentCompanyId);
         const result = await resolveSocialSignIn(
           {

@@ -25,9 +25,13 @@ export async function POST(req: NextRequest) {
   const user = await prisma.user.findFirst({
     where: { ...emailWhere(email), isActive: true },
     orderBy: { createdAt: "asc" },
-    select: { id: true, name: true, email: true },
+    select: { id: true, name: true, email: true, account: { select: { passwordHash: true } } },
   });
   if (!user) return ok;
+  // A Google-only login has no password to "reset" — the same link SETS its
+  // first one (setPasswordForUser lands it on the Account either way), so
+  // the email says that instead of implying a password they never had.
+  const hasPassword = user.account ? Boolean(user.account.passwordHash) : true;
 
   // Invalidate any still-live tokens for this user before issuing a new one.
   await prisma.passwordResetToken.deleteMany({
@@ -50,7 +54,7 @@ export async function POST(req: NextRequest) {
   // password under. It grants nothing on its own; the token is the credential,
   // and the link only ever lands in this address's own inbox.
   const resetUrl = `${base}/reset-password?token=${token}&email=${encodeURIComponent(user.email)}`;
-  const { subject, html } = passwordResetEmail({ name: user.name, resetUrl });
+  const { subject, html } = passwordResetEmail({ name: user.name, resetUrl, hasPassword });
   await sendEmail({ to: user.email, subject, html });
 
   return ok;

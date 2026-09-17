@@ -573,10 +573,39 @@ export default function AssistantDrawer({
       });
       if (res.ok) return null;
       const data = (await res.json().catch(() => null)) as { error?: string } | null;
+      // Cards live in sessionStorage across page loads, so a card can outlive
+      // the record it was staged against (deleted from its page, or by an
+      // earlier card). Say that, instead of surfacing a bare 404.
+      if (res.status === 404) {
+        return "That record no longer exists — it was removed after Atlas suggested this. Ask again for a fresh card.";
+      }
       return data?.error ?? "That didn't go through — try it from the page instead.";
     } catch {
       return "Network error — nothing was saved.";
     }
+  }
+
+  /**
+   * A delete card confirmed while the deleted record's own page is open:
+   * refreshing that page would call notFound() and land on a 404. Step up
+   * to the list the record lived in instead. The record id is the last
+   * id-shaped segment of the DELETE endpoint (/api/app/quotes/<id>,
+   * /api/app/contacts/<id>/addresses/<addrId> → only the address id counts,
+   * so deleting an address never leaves the contact's page).
+   */
+  function leaveDeletedRecordPage(items: { endpoint: string; method: string }[]): boolean {
+    const pathname = window.location.pathname;
+    for (const item of items) {
+      if (item.method !== "DELETE") continue;
+      const segments = item.endpoint.split("?")[0].split("/").filter(Boolean);
+      const id = [...segments].reverse().find((s) => /^[a-z0-9]{20,}$/i.test(s));
+      if (!id) continue;
+      const at = pathname.indexOf(`/${id}`);
+      if (at <= 0) continue;
+      router.replace(pathname.slice(0, at) || "/app/dashboard");
+      return true;
+    }
+    return false;
   }
 
   async function confirm(msgIdx: number, prop: Proposal, opts?: { skipRefresh?: boolean }) {
@@ -600,6 +629,7 @@ export default function AssistantDrawer({
             : `${ok} of ${prop.batch.length} applied — ${failed} failed (${firstError})`,
       });
       hapticNotify(failed === 0 ? "SUCCESS" : "ERROR");
+      if (leaveDeletedRecordPage(prop.batch)) return;
       if (!opts?.skipRefresh) router.refresh();
       return;
     }
@@ -610,6 +640,7 @@ export default function AssistantDrawer({
     } else {
       setCard(msgIdx, prop.id, { state: "done", resultNote: "Done" });
       hapticNotify("SUCCESS");
+      if (leaveDeletedRecordPage([prop])) return;
       if (!opts?.skipRefresh) router.refresh();
     }
   }

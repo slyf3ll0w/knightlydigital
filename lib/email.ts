@@ -540,13 +540,17 @@ export function contractSignedNotifyEmail({
 export function passwordResetEmail({
   name,
   resetUrl,
+  hasPassword = true,
 }: {
   name: string;
   resetUrl: string;
+  /** False for a Google-only login: the link sets its first password. */
+  hasPassword?: boolean;
 }): { subject: string; html: string } {
   const html = wbShell({
-    label: "Password reset",
-    inner: `
+    label: hasPassword ? "Password reset" : "Set a password",
+    inner: hasPassword
+      ? `
       <p style="margin:0 0 12px;color:#111827;font-size:15px;">Hi ${esc(name)},</p>
       <p style="margin:0 0 16px;color:#374151;font-size:14px;">
         We received a request to reset your WorkBench password. Click the
@@ -557,9 +561,25 @@ export function passwordResetEmail({
       <p style="margin:16px 0 0;color:#6b7280;font-size:12px;">
         If you didn't request this, you can safely ignore this email — your
         password won't change until you open the link and set a new one.
+      </p>`
+      : `
+      <p style="margin:0 0 12px;color:#111827;font-size:15px;">Hi ${esc(name)},</p>
+      <p style="margin:0 0 16px;color:#374151;font-size:14px;">
+        Your WorkBench login opens with Google and doesn't have a password yet.
+        Click the button below to set one — after that you can log in with
+        either. This link expires in 1 hour and can be used once.
+      </p>
+      ${wbBtn(resetUrl, "Set a Password")}
+      <p style="margin:16px 0 0;color:#6b7280;font-size:12px;">
+        If you didn't request this, you can safely ignore this email — nothing
+        changes until you open the link. Signing in with Google keeps working
+        either way.
       </p>`,
   });
-  return { subject: "Reset your WorkBench password", html };
+  return {
+    subject: hasPassword ? "Reset your WorkBench password" : "Set a password for your WorkBench login",
+    html,
+  };
 }
 
 /**

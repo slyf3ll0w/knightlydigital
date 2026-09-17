@@ -21,7 +21,7 @@ import { isValidTimezone } from "@/lib/timezone";
  *    the old "email already exists" way.
  */
 export async function POST(req: NextRequest) {
-  const body = await req.json();
+  const body = await req.json().catch(() => ({}));
   const { companyName, yourName, password, captchaToken } = body;
   // Stored lowercased so the address they type at sign-in (and at password
   // reset, which also normalizes) always finds this account.
@@ -46,7 +46,11 @@ export async function POST(req: NextRequest) {
       select: { id: true, name: true, email: true, passwordHash: true, accountId: true },
     });
     const owned = current ? await ensureAccountForUser(current) : null;
-    if (owned) {
+    // A password reset evicts every older session (lib/permissions.ts) —
+    // here too, or an evicted cookie could still open a company.
+    const evicted =
+      owned?.passwordChangedAt && (session.user.authAt ?? 0) < owned.passwordChangedAt.getTime();
+    if (owned && !evicted) {
       account = owned;
       ownerName = current!.name;
     }
@@ -100,7 +104,10 @@ export async function POST(req: NextRequest) {
         : false;
       if (!valid) {
         return NextResponse.json(
-          { error: "Unable to register. Please try again, or sign in if you already have an account." },
+          {
+            error:
+              "Unable to register. If you already have an account — including one opened with Google — log in instead, or use Forgot password.",
+          },
           { status: 400 }
         );
       }

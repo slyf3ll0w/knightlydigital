@@ -343,7 +343,19 @@ export default function ProfileClient({
           confirmation link to the new address — it only takes effect once you open that link.
         </p>
 
-        {pendingEmail ? (
+        {!hasPassword ? (
+          // The change is password-confirmed (a borrowed session must not be
+          // able to walk the login off to another inbox), and a Google-only
+          // login has no password to confirm with yet.
+          <p className="text-sm text-gray-600">
+            Changing the sign-in email needs your password, and this login doesn&apos;t
+            have one yet. Set one first with{" "}
+            <Link href="/app/forgot-password" className="font-semibold text-[#0B57D8] hover:underline">
+              Forgot password
+            </Link>{" "}
+            on the login page, then come back here.
+          </p>
+        ) : pendingEmail ? (
           <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5">
             <p className="text-sm text-amber-800">
               Waiting for <span className="font-semibold">{pendingEmail}</span> to confirm. Check

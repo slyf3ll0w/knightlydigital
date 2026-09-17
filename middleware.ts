@@ -287,7 +287,29 @@ export async function middleware(req: NextRequest) {
     path.startsWith("/app/register") ||
     path.startsWith("/app/get-started") ||
     path.startsWith("/app/forgot-password");
-  if (isPublic) return NextResponse.next();
+
+  // The invite-code page is for people who typed the URL with a code in
+  // hand. A signed-in session with no company yet (a Google sign-up) belongs
+  // on the full signup form instead — same form as an email/password signup,
+  // with the Google login standing in for the email + password fields. The
+  // code, if any, rides along.
+  if (path === "/app/register") {
+    const token = await getToken({ req, secret: process.env.AUTH_SECRET });
+    if (token && !token.companyId) {
+      const to = new URL("/app/get-started", req.url);
+      to.search = req.nextUrl.search;
+      return NextResponse.redirect(to);
+    }
+  }
+
+  if (isPublic) {
+    // The platform layout renders the auth pages without the sidebar shell
+    // even for a signed-in visitor (a company owner on Forgot password);
+    // layouts can't see the URL, so it rides on a header.
+    const requestHeaders = new Headers(req.headers);
+    requestHeaders.set("x-wb-path", path);
+    return NextResponse.next({ request: { headers: requestHeaders } });
+  }
 
   const token = await getToken({ req, secret: process.env.AUTH_SECRET });
 
@@ -295,9 +317,11 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL("/app/login", req.url));
   }
 
-  // Users without a company go to register
+  // Signed in, no company yet: finish signing up. Google sign-ups land here
+  // straight from the OAuth callback (lib/social-login.ts opens the login
+  // first; /app/get-started opens the business on it).
   if (!token.companyId) {
-    return NextResponse.redirect(new URL("/app/register", req.url));
+    return NextResponse.redirect(new URL("/app/get-started", req.url));
   }
 
   // The platform layout needs the request path to run the payment-verification

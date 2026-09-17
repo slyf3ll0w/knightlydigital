@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { signIn, useSession } from "next-auth/react";
+import { signIn, signOut, useSession } from "next-auth/react";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import TurnstileWidget, { TurnstileHandle, captchaEnabled } from "@/components/TurnstileWidget";
@@ -25,7 +25,7 @@ const STOCK_IMAGE =
   "https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&w=1600&q=80";
 
 export default function RegisterPage() {
-  const { data: session, update } = useSession();
+  const { data: session, status, update } = useSession();
   // Attach mode: a signed-in user adding a company to their existing login
   const attachMode = Boolean(session?.user?.id);
   const [loading, setLoading] = useState(false);
@@ -41,6 +41,19 @@ export default function RegisterPage() {
     password: "",
     industry: "",
   });
+
+  // A company-less session that gains a company while parked here (a
+  // teammate added them, or the signup finished in another tab) belongs in
+  // the app, not on a form that would open a second company.
+  // (A session that arrives WITH a company is the switcher’s "New company"
+  // attach mode and stays.) Only the transition none → some moves on.
+  const seenCompany = useRef<string | null | undefined>(undefined);
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    const now = session?.user?.companyId ?? null;
+    if (seenCompany.current === null && now) window.location.href = "/app/dashboard";
+    seenCompany.current = now;
+  }, [status, session?.user?.companyId]);
 
   // Approval emails link here as /app/register?code=WB-XXXX-XXXX — prefill it.
   // Read after mount (not in the initializer) so SSR and first client render match.
@@ -294,6 +307,18 @@ export default function RegisterPage() {
               </button>
             </form>
 
+            {attachMode && (
+              <p className="text-sm text-gray-500 text-center mt-4">
+                Not {session?.user?.email}?{" "}
+                <button
+                  type="button"
+                  onClick={() => signOut({ callbackUrl: "/app/login" })}
+                  className="font-semibold text-[#0B57D8] hover:underline"
+                >
+                  Sign out
+                </button>
+              </p>
+            )}
             {!attachMode && (
               <>
                 <p className="text-sm text-gray-500 text-center mt-4">

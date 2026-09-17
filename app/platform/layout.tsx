@@ -29,7 +29,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   // No session: render without AppShell (login/register pages render standalone)
   // Middleware + individual pages handle auth redirects for protected routes.
-  if (!session)
+  //
+  // No COMPANY yet (a Google sign-up that hasn't opened its business —
+  // lib/social-login.ts): same thing. Middleware only ever lets such a
+  // session reach the public onboarding pages, and wrapping those in the
+  // sidebar shell showed a half-built app around the signup form.
+  if (!session || !session.user.companyId)
     return (
       <>
         <NativeShell />
@@ -80,8 +85,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // contact-support screen (via requireActorPage), not the verification form.
   const path = (await headers()).get("x-wb-path") ?? "";
   const gate = company && !company.suspendedAt ? paymentsGateStatus(company) : "off";
-  if (path === "/app/activate") {
-    // The gate page renders standalone — no sidebar to navigate away with.
+  // The gate page renders standalone — no sidebar to navigate away with. So
+  // do the auth pages a signed-in person can still open (Forgot password,
+  // the signup door): a reset form inside the app's sidebar reads as a
+  // broken app page.
+  const standalone = new Set(["/app/activate", "/app/forgot-password", "/app/get-started"]);
+  if (standalone.has(path)) {
     return (
       <>
         <NativeShell />

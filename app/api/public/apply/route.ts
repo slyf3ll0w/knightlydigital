@@ -77,16 +77,21 @@ export async function POST(req: NextRequest) {
         { status: 409 }
       );
     }
-    sessionAccount = await prisma.account.findUnique({
+    const held = await prisma.account.findUnique({
       where: { id: session.user.accountId },
-      select: { id: true, email: true },
+      select: { id: true, email: true, passwordChangedAt: true },
     });
-    if (!sessionAccount) {
+    // A password reset evicts every older session (lib/permissions.ts) —
+    // including here, or an evicted cookie could still open a company.
+    const evicted =
+      held?.passwordChangedAt && (session.user.authAt ?? 0) < held.passwordChangedAt.getTime();
+    if (!held || evicted) {
       return NextResponse.json(
         { error: "Your sign-in is no longer valid. Sign out and try again." },
         { status: 401 }
       );
     }
+    sessionAccount = { id: held.id, email: held.email };
   }
 
   const email = sessionAccount ? sessionAccount.email : normalizeEmail(body.email);
@@ -141,11 +146,17 @@ export async function POST(req: NextRequest) {
   }
 
   // Email already tied to an account that already opened a company through
-  // this flow? Point them at sign-in instead of stacking applications.
-  const openApplication = await prisma.accessApplication.findFirst({
-    where: { email, companyId: { not: null } },
-    select: { id: true },
-  });
+  // this flow? Point them at sign-in instead of stacking applications. Not
+  // for a signed-in (Google) caller: they are provably the owner of that
+  // email and hold no company right now (the 409 above rules that out), so
+  // an old application — say, for a company since closed — must not dead-end
+  // them here.
+  const openApplication = sessionAccount
+    ? null
+    : await prisma.accessApplication.findFirst({
+        where: { email, companyId: { not: null } },
+        select: { id: true },
+      });
   if (openApplication) {
     return NextResponse.json(
       {
@@ -172,7 +183,10 @@ export async function POST(req: NextRequest) {
       : false;
     if (!valid) {
       return NextResponse.json(
-        { error: "Unable to sign you up. Please try again, or sign in if you already have an account." },
+        {
+          error:
+            "Unable to sign you up. If you already have an account — including one opened with Google — log in instead, or use Forgot password.",
+        },
         { status: 400 }
       );
     }
@@ -252,7 +266,14 @@ export async function POST(req: NextRequest) {
     website: application.website,
     message: application.message,
   });
-  await sendEmail({ to: APPLICATION_INBOX, ...notification });
+  // The company exists by now — a mail-provider blip must not turn that into
+  // a 500 the form reads as "try again" (the retry would then hit the
+  // already-applied check above).
+  try {
+    await sendEmail({ to: APPLICATION_INBOX, ...notification });
+  } catch (e) {
+    console.error("[apply] application notice failed", e);
+  }
 
   // userId = the new OWNER membership; the signed-in (Google) form re-points
   // its session at it (useSession().update({ switchToUserId })).

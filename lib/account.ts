@@ -30,13 +30,19 @@ type LinkableUser = {
  * Create/link the Account for a legacy User row, adopting every row that
  * shares the address (case-insensitive) so all of that person's memberships
  * hang off one login. Idempotent; race-safe via the unique on Account.email.
+ *
+ * A row with no password hash still gets (or joins) an Account — one with
+ * no password, exactly like a Google sign-up's. Refusing used to strand such
+ * rows: a Google sign-in on that address opened a second, membership-less
+ * login, and a password reset wrote the hash onto the row where no sign-in
+ * path ever reads it.
  */
 export async function ensureAccountForUser(user: LinkableUser) {
   if (user.accountId) {
     return prisma.account.findUnique({ where: { id: user.accountId } });
   }
   const email = normalizeEmail(user.email);
-  if (!email || !user.passwordHash) return null;
+  if (!email) return null;
 
   let account = await prisma.account.findUnique({ where: { email } });
   if (!account) {
