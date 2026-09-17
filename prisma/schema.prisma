@@ -2569,3 +2569,58 @@ model SmsSend {
   @@index([toDigits, createdAt])
   @@index([companyId, createdAt])
 }
+
+// ─── Packaging board (superadmin planning tool) ──────────────────────────────
+
+// A column on /superadmin/packaging: a subscription tier, a paid add-on, or
+// the undeletable "Unassigned" backlog every feature starts in. This board is
+// a PLANNING surface only — nothing here gates a real entitlement (that stays
+// Company.addonActiveAt / lib/addon.ts). It exists so the packaging decision
+// can be made by dragging cards, and so the /pricing page can be built from
+// whatever the board says when it's settled.
+enum PackagingLaneKind {
+  TIER
+  ADDON
+  BACKLOG
+}
+
+model PackagingLane {
+  id        String            @id @default(cuid())
+  name      String
+  kind      PackagingLaneKind @default(TIER)
+  // Free text on purpose — a plan's price is "$0", "$29/mo", "2.9% + 30¢",
+  // or "TBD" while it's being decided. Formatting is the board's job.
+  price     String?
+  priceNote String? // "per company, billed monthly", "per seat", …
+  blurb     String? // the one-line pitch that becomes the tier's subtitle
+  accent    String? // header hex; null = the stock blue/orange rotation
+  sort      Int               @default(0)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  cards PackagingCard[]
+
+  @@index([sort])
+}
+
+model PackagingCard {
+  id     String @id @default(cuid())
+  laneId String
+  lane   PackagingLane @relation(fields: [laneId], references: [id], onDelete: Cascade)
+
+  title String
+  body  String?
+  // Where the feature came from in the marketing catalog ("Win the work",
+  // "Get paid", …) — drives the card's tint and groups the backlog.
+  group String?
+  icon  String? // lucide-react export name, for the pricing page later
+  // Stable key for catalog-sourced cards (section id + slug of the title) so
+  // re-syncing lib/wb-features.ts never duplicates a card the owner has
+  // already placed. Null for cards typed in by hand.
+  catalogKey String? @unique
+  sort       Int     @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([laneId, sort])
+}
