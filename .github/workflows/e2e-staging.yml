@@ -15,6 +15,10 @@ concurrency:
 
 jobs:
   e2e:
+    # Railway only deploys the `staging` branch to the staging environment, so a
+    # manual dispatch from any other branch can never satisfy the "commit is
+    # live" wait below. Skip instead of polling for 20 minutes and failing.
+    if: github.ref == 'refs/heads/staging'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
