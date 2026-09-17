@@ -4,6 +4,9 @@
 import { expect } from "@playwright/test";
 import { readState, type E2eState } from "../env";
 
+/** Statuses Railway's edge returns when the container is briefly unreachable. */
+const EDGE_STATUSES = new Set([502, 503, 504]);
+
 export class Api {
   constructor(
     private baseUrl: string,
@@ -17,15 +20,39 @@ export class Api {
     return new Api(state.baseUrl, `${state.cookieName}=${state.ownerB.token}`);
   }
 
+  /** One request, retried through Railway edge blips. A 502/503/504 (or a
+   *  dropped socket) from the edge means the app never saw the request —
+   *  run 35228403507 failed a whole spec file on a single 502 — so every
+   *  verb is retried, POSTs included: the data is throwaway and runTag-
+   *  scoped, and a duplicate is far cheaper than a red gate. Real app
+   *  errors (4xx, 500) surface on the first try as before. */
   async raw(method: string, path: string, body?: unknown): Promise<Response> {
-    return fetch(`${this.baseUrl}${path}`, {
-      method,
-      headers: {
-        Cookie: this.cookie,
-        ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
-      },
-      body: body !== undefined ? JSON.stringify(body) : undefined,
-    });
+    const attempts = 4;
+    for (let i = 1; ; i++) {
+      let res: Response | undefined;
+      let err: unknown;
+      try {
+        res = await fetch(`${this.baseUrl}${path}`, {
+          method,
+          headers: {
+            Cookie: this.cookie,
+            ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
+          },
+          body: body !== undefined ? JSON.stringify(body) : undefined,
+        });
+      } catch (e) {
+        err = e;
+      }
+      const edgeBlip = res ? EDGE_STATUSES.has(res.status) : true;
+      if (!edgeBlip) return res!;
+      if (i >= attempts) {
+        if (res) return res;
+        throw err;
+      }
+      const why = res ? `${res.status}` : `${(err as Error)?.message ?? err}`;
+      console.warn(`[e2e] ${method} ${path} → ${why}, retry ${i}/${attempts - 1}`);
+      await new Promise((r) => setTimeout(r, 1000 * 2 ** (i - 1)));
+    }
   }
 
   /** Request + status assertion + parsed JSON in one step. */
