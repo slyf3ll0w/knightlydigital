@@ -37,12 +37,18 @@ export default async function SuperadminLayout({ children }: { children: React.R
                 Platform console
               </span>
             </Link>
-            <nav className="flex items-center gap-8">
+            <nav className="flex items-center gap-6">
               <Link
                 href="/superadmin"
                 className="wb-navlink text-[14px] font-semibold text-gray-600 transition-colors hover:text-gray-900"
               >
                 Profitability
+              </Link>
+              <Link
+                href="/superadmin/packaging"
+                className="wb-navlink text-[14px] font-semibold text-gray-600 transition-colors hover:text-gray-900"
+              >
+                Packaging
               </Link>
               <Link
                 href="/superadmin/applications"
