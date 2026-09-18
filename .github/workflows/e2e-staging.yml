@@ -9,9 +9,12 @@ on:
     branches: [staging]
   workflow_dispatch:
 
+# Only the newest staging push matters: Railway supersedes the earlier deploy,
+# so a run still waiting for an overtaken commit could never pass — it used to
+# poll for 20 minutes, fail, and send a red notification for nothing.
 concurrency:
   group: e2e-staging
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   e2e:
@@ -34,6 +37,10 @@ jobs:
       FINIX_APPLICATION_ID: ${{ secrets.FINIX_SANDBOX_APPLICATION_ID }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Full history: the wait step checks whether a newer staging commit
+          # that went live instead of this one already contains it.
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -47,27 +54,40 @@ jobs:
         run: npx prisma generate
 
       - name: Wait for this commit to be live on staging
+        id: wait
         run: |
           for i in $(seq 1 60); do
             live=$(curl -fsS -m 10 "$E2E_BASE_URL/api/health" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>process.stdout.write(String(JSON.parse(s).commit||"")))' || true)
             echo "attempt $i: live=$live want=$GITHUB_SHA"
             if [ "$live" = "$GITHUB_SHA" ]; then exit 0; fi
+            # A newer staging push went live instead and already contains this
+            # commit: that push's own run is the gate. Pass without testing,
+            # rather than fail for a deploy that was never going to happen.
+            if [ -n "$live" ] && git fetch -q origin staging && git cat-file -e "$live" 2>/dev/null \
+               && git merge-base --is-ancestor "$GITHUB_SHA" "$live"; then
+              echo "superseded: $live is live and contains $GITHUB_SHA — its own run gates it"
+              echo "superseded=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
             sleep 20
           done
           echo "staging never came up with $GITHUB_SHA" >&2
           exit 1
 
       - name: Provision e2e tenants (idempotent)
+        if: steps.wait.outputs.superseded != 'true'
         run: npx tsx e2e/provision.mts
 
       - name: Browser
+        if: steps.wait.outputs.superseded != 'true'
         run: npx playwright install --with-deps chromium
 
       - name: Playwright
+        if: steps.wait.outputs.superseded != 'true'
         run: npx playwright test
 
       - name: Report
-        if: failure()
+        if: failure() && steps.wait.outputs.superseded != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
