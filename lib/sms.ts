@@ -4,18 +4,24 @@
  * without TELNYX_API_KEY + TELNYX_MESSAGING_PROFILE_ID every send is a silent
  * no-op, so the code ships dark and lights up when the keys land.
  *
- * Sends go out via the messaging profile's number pool (sticky sender), not a
- * hardcoded from-number — adding numbers to the pool needs no code changes.
- * Telnyx auto-handles STOP/HELP at their edge; our own record of opt-outs
- * lives on Contact.smsOptOut (flipped by the inbound webhook). Texts are on by
- * default; Contact.smsDisabled is the per-client off switch. Every sender is
- * expected to gate on canText() (lib/sms-consent.ts) before calling sendSms,
- * and sendSms itself refuses until the company has turned text notifications
- * on (Company.smsAcknowledgedAt — the one-time consent attestation).
+ * Every text goes out FROM THE COMPANY'S OWN NUMBER (Company.lineNumber,
+ * lib/business-line.ts) — carriers register A2P texting per business,
+ * two-party, so a shared WorkBench sender was never going to clear (Telnyx
+ * rejected it 2026-09-14). sendSms therefore refuses until the tenant has a
+ * number AND its 10DLC registration is ACTIVE, on top of the two older gates:
+ * canText() (lib/sms-consent.ts — per-client) which every sender checks
+ * first, and Company.smsAcknowledgedAt (the one-time consent attestation a
+ * manager makes in Settings). Telnyx auto-handles STOP/HELP at their edge;
+ * our own record of opt-outs lives on Contact.smsOptOut (flipped by the
+ * inbound webhook). Texts are on by default; Contact.smsDisabled is the
+ * per-client off switch.
  *
- * Every template opens with "WorkBench:" — the toll-free number is verified
- * under the WorkBench brand, so that is the name the recipient opted in to;
- * the business they hired is named right after.
+ * Templates name the business, never WorkBench: the number is registered
+ * under the business's brand, so that is who the recipient opted in to.
+ *
+ * TELNYX_ALLOW_UNREGISTERED=1 (staging only) lets a provisioned-but-not-yet-
+ * registered number send — Telnyx delivers those to the account's verified
+ * test numbers, which is how the line is smoke-tested before TCR clears.
  */
 
 import { prisma } from "@/lib/db";
@@ -43,20 +49,38 @@ async function underDailyCap(companyId: string): Promise<boolean> {
   }
 }
 
-// The company-level switch: a manager turns text notifications on once in
-// Settings → Features, acknowledging that their clients gave them their
-// numbers. Until then nothing goes out for that tenant, whatever the contact
-// row says. Fails closed — the attestation is what makes the send legitimate.
-async function companyTextsOn(companyId: string): Promise<boolean> {
+// The company-level gates, resolved to the number a text may go out from:
+//  - smsAcknowledgedAt: a manager turned text notifications on once in
+//    Settings, acknowledging that their clients gave them their numbers;
+//  - lineNumber + an ACTIVE MessagingRegistration: the business has its own
+//    registered number (lib/business-line.ts).
+// Null = nothing goes out for that tenant, whatever the contact row says.
+// Fails closed — the attestation and the registration are what make the
+// send legitimate.
+async function companySender(companyId: string): Promise<string | null> {
   try {
     const row = await prisma.company.findUnique({
       where: { id: companyId },
-      select: { smsAcknowledgedAt: true },
+      select: {
+        smsAcknowledgedAt: true,
+        lineNumber: true,
+        messagingRegistration: { select: { status: true } },
+      },
     });
-    return Boolean(row?.smsAcknowledgedAt);
+    if (!row?.smsAcknowledgedAt) return null;
+    const number = row.lineNumber;
+    if (!number || number.startsWith("pending:")) return null;
+    const registered = row.messagingRegistration?.status === "ACTIVE";
+    if (!registered && process.env.TELNYX_ALLOW_UNREGISTERED !== "1") return null;
+    return number;
   } catch {
-    return false;
+    return null;
   }
+}
+
+/** Can this company send provider texts right now? (UI hint; sendSms re-checks.) */
+export async function companyCanSendSms(companyId: string): Promise<boolean> {
+  return smsEnabled() && Boolean(await companySender(companyId));
 }
 
 const TELNYX_API_KEY = process.env.TELNYX_API_KEY;
@@ -96,10 +120,11 @@ export async function sendSms({
   if (!smsEnabled()) return false;
   const e164 = toE164(to);
   if (!e164) return false;
-  if (companyId) {
-    if (!(await companyTextsOn(companyId))) return false;
-    if (!(await underDailyCap(companyId))) return false;
-  }
+  // Every text belongs to a business; there is no platform sender any more.
+  if (!companyId) return false;
+  const from = await companySender(companyId);
+  if (!from) return false;
+  if (!(await underDailyCap(companyId))) return false;
   try {
     const res = await fetch("https://api.telnyx.com/v2/messages", {
       method: "POST",
@@ -110,6 +135,7 @@ export async function sendSms({
       // Same rule as email: an awaited send must be bounded
       signal: AbortSignal.timeout(15_000),
       body: JSON.stringify({
+        from,
         to: e164,
         text,
         messaging_profile_id: MESSAGING_PROFILE_ID,
@@ -120,7 +146,7 @@ export async function sendSms({
       console.error("[sms] telnyx send failed:", res.status, await res.text());
     } else {
       recordSmsSent(companyId, smsSegmentCount(text));
-      await logSmsSend({ companyId, contactId, to: e164, res });
+      await logSmsSend({ companyId, contactId, to: e164, from });
     }
     return res.ok;
   } catch (err) {
@@ -130,34 +156,26 @@ export async function sendSms({
 }
 
 /**
- * Remember who texted this number (SmsSend): the pool numbers are shared
- * across tenants, so when the client replies the webhook needs to know
- * which company they are talking to. Best-effort — a failed log must not
- * turn a delivered text into a reported failure.
+ * Remember who texted this number (SmsSend): the inbound webhook scopes a
+ * STOP to the companies that actually texted it, and it's the audit trail
+ * behind "Texted Maria". Best-effort — a failed log must not turn a
+ * delivered text into a reported failure.
  */
 async function logSmsSend({
   companyId,
   contactId,
   to,
-  res,
+  from,
 }: {
-  companyId?: string | null;
+  companyId: string;
   contactId?: string | null;
   to: string;
-  res: Response;
+  from: string;
 }): Promise<void> {
-  if (!companyId) return;
   const toDigits = phoneDigits(to);
   if (!toDigits) return;
-  let fromNumber: string | null = null;
   try {
-    const body = (await res.json()) as { data?: { from?: { phone_number?: string } } };
-    fromNumber = body?.data?.from?.phone_number ?? null;
-  } catch {
-    /* Telnyx always answers JSON; the from-number is a nicety */
-  }
-  try {
-    await prisma.smsSend.create({ data: { companyId, contactId: contactId ?? null, toDigits, fromNumber } });
+    await prisma.smsSend.create({ data: { companyId, contactId: contactId ?? null, toDigits, fromNumber: from } });
   } catch (err) {
     console.error("[sms] send log failed:", err);
   }
@@ -169,7 +187,6 @@ async function logSmsSend({
  * ------------------------------------------------------------------------ */
 
 const OPT_OUT = "Reply STOP to opt out.";
-const BRAND = "WorkBench:";
 
 /** Appointment reminder: the day before, and again about an hour out. */
 export function appointmentReminderText({
@@ -189,8 +206,8 @@ export function appointmentReminderText({
 }): string {
   const where = address ? ` at ${address}` : "";
   return stage === "day"
-    ? `${BRAND} Hi ${firstName}, a reminder from ${companyName}: ${serviceName}, ${windowLabel}${where}. ${OPT_OUT}`
-    : `${BRAND} Hi ${firstName}, ${companyName} will arrive soon for ${serviceName} (${windowLabel}). ${OPT_OUT}`;
+    ? `Hi ${firstName}, a reminder from ${companyName}: ${serviceName}, ${windowLabel}${where}. ${OPT_OUT}`
+    : `Hi ${firstName}, ${companyName} will arrive soon for ${serviceName} (${windowLabel}). ${OPT_OUT}`;
 }
 
 /** Quote link — texted alongside the email when a quote is sent. */
@@ -207,7 +224,7 @@ export function quoteLinkText({
   total: number;
   viewUrl: string;
 }): string {
-  return `${BRAND} Hi ${firstName}, ${companyName} sent you quote #${quoteNumber} for $${total.toFixed(2)}. View & approve: ${viewUrl} ${OPT_OUT}`;
+  return `Hi ${firstName}, ${companyName} sent you quote #${quoteNumber} for $${total.toFixed(2)}. View & approve: ${viewUrl} ${OPT_OUT}`;
 }
 
 /** Invoice pay link — texted alongside the email when an invoice is sent. */
@@ -227,5 +244,5 @@ export function invoiceLinkText({
   /** False when the company can't take online payments — "View" not "View & pay". */
   payable?: boolean;
 }): string {
-  return `${BRAND} Hi ${firstName}, ${companyName} sent you invoice #${invoiceNumber} for ${total.toFixed(2)}. ${payable ? "View & pay" : "View"}: ${payUrl} ${OPT_OUT}`;
+  return `Hi ${firstName}, ${companyName} sent you invoice #${invoiceNumber} for $${total.toFixed(2)}. ${payable ? "View & pay" : "View"}: ${payUrl} ${OPT_OUT}`;
 }

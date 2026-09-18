@@ -155,7 +155,7 @@ export async function notifyClientOfMove(params: {
   const canSms = smsEnabled() && canText(contact);
 
   if (canSms && contact.phone) {
-    const text = `WorkBench: ${line} Reply STOP to opt out.`;
+    const text = `${line} Reply STOP to opt out.`;
     if (await sendSms({ companyId, contactId: contact.id, to: contact.phone, text })) via.push("sms");
   }
 

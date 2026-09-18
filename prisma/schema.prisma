@@ -158,6 +158,14 @@ model Company {
   addonEnabled              Boolean     @default(false)
   addonActiveAt             DateTime?
   addonLiverySubId          String? // Livery Subscription id backing the entitlement
+  // ── Business line (lib/business-line.ts) — the tenant's own local number,
+  // bought through Telnyx, carrying their automated texts AND a forwarded
+  // business phone line. Texts send from it only once MessagingRegistration
+  // is ACTIVE (10DLC); voice forwarding works from the minute it provisions.
+  lineNumber                String?     @unique // E.164
+  lineNumberId              String? // Telnyx phone_numbers resource id
+  lineForwardTo             String? // E.164 cell that inbound calls ring (null = calls not forwarded yet)
+  lineProvisionedAt         DateTime?
   // Platform suspension (superadmin-only): set → the tenant app and public
   // booking/leads/payments are disabled, data stays intact until support
   // reinstates. Deletion is separate and permanent.
@@ -194,39 +202,40 @@ model Company {
   createdAt                 DateTime    @default(now())
   updatedAt                 DateTime    @updatedAt
 
-  users             User[]
-  contacts          Contact[]
-  requests          Request[]
-  jobs              Job[]
-  quotes            Quote[]
-  invoices          Invoice[]
-  payments          Payment[]
-  refunds           Refund[]
-  workItems         WorkItem[]
-  subscriptions     Subscription[]
-  bookingRequests   BookingRequest[]
-  reviewRequests    ReviewRequest[]
-  appointments      Appointment[]
-  contactFieldDefs  ContactFieldDef[]
-  webForms          WebForm[]
-  bookingTypes      BookingType[]
-  contractTemplates ContractTemplate[]
-  contracts         Contract[]
-  expenses          Expense[]
-  recurringExpenses RecurringExpense[]
-  teamMessages      TeamMessage[]
-  chatChannels      ChatChannel[]
-  pipelineStages    PipelineStage[]
-  timeBlocks        TimeBlock[]
-  timeEntries       TimeEntry[]
-  locationPings     LocationPing[]
-  quickBooks        QuickBooksConnection?
-  googleCalendars   GoogleCalendarConnection[]
-  inviteCode        InviteCode?
-  application       AccessApplication?
-  clientMessages    ClientMessage[]
-  feedbackTickets   FeedbackTicket[]
-  portalMessages    PortalMessage[]
+  users                 User[]
+  contacts              Contact[]
+  requests              Request[]
+  jobs                  Job[]
+  quotes                Quote[]
+  invoices              Invoice[]
+  payments              Payment[]
+  refunds               Refund[]
+  workItems             WorkItem[]
+  subscriptions         Subscription[]
+  bookingRequests       BookingRequest[]
+  reviewRequests        ReviewRequest[]
+  appointments          Appointment[]
+  contactFieldDefs      ContactFieldDef[]
+  webForms              WebForm[]
+  bookingTypes          BookingType[]
+  contractTemplates     ContractTemplate[]
+  contracts             Contract[]
+  expenses              Expense[]
+  recurringExpenses     RecurringExpense[]
+  teamMessages          TeamMessage[]
+  chatChannels          ChatChannel[]
+  pipelineStages        PipelineStage[]
+  timeBlocks            TimeBlock[]
+  timeEntries           TimeEntry[]
+  locationPings         LocationPing[]
+  quickBooks            QuickBooksConnection?
+  googleCalendars       GoogleCalendarConnection[]
+  inviteCode            InviteCode?
+  application           AccessApplication?
+  clientMessages        ClientMessage[]
+  feedbackTickets       FeedbackTicket[]
+  portalMessages        PortalMessage[]
+  messagingRegistration MessagingRegistration?
 
   @@index([slug])
 }
@@ -1952,17 +1961,17 @@ model Payment {
 // A reversal that later FAILS at the processor deletes its row and restores
 // the amount (see the Finix webhook), so surviving rows are money that moved.
 model Refund {
-  id          String   @id @default(cuid())
-  companyId   String
-  company     Company  @relation(fields: [companyId], references: [id])
-  paymentId   String
-  payment     Payment  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
-  amount      Decimal  @db.Decimal(10, 2)
+  id              String   @id @default(cuid())
+  companyId       String
+  company         Company  @relation(fields: [companyId], references: [id])
+  paymentId       String
+  payment         Payment  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  amount          Decimal  @db.Decimal(10, 2)
   // Portion of `amount` that was card surcharge — restored alongside the
   // principal when the reversal fails. Null on rows written before 2026-09.
   surchargeAmount Decimal? @db.Decimal(10, 2)
-  reversalRef String? // Finix reversal transfer id
-  createdAt   DateTime @default(now())
+  reversalRef     String? // Finix reversal transfer id
+  createdAt       DateTime @default(now())
 
   @@index([companyId])
   @@index([paymentId])
@@ -2570,6 +2579,62 @@ model SmsSend {
   @@index([companyId, createdAt])
 }
 
+// ─── Business line: 10DLC registration ──────────────────────────────────────
+
+// Where a company's texting stands with the carriers. Voice never waits on
+// this — only lib/sms.ts sendSms gates on ACTIVE.
+//   BRAND_PENDING    brand submitted, TCR still verifying the EIN (or the
+//                    sole-prop owner still has to enter the OTP PIN)
+//   CAMPAIGN_PENDING brand verified, campaign submitted, carriers reviewing
+//   ACTIVE           campaign accepted and the number is bound to it
+//   REJECTED         a step failed — rejectionReason says why; Resubmit starts over
+enum LineRegistrationStatus {
+  BRAND_PENDING
+  CAMPAIGN_PENDING
+  ACTIVE
+  REJECTED
+}
+
+// One per company: the business registered behind Company.lineNumber, plus
+// the Telnyx/TCR ids and statuses lib/business-line.ts advances through.
+// The business fields are stored so a rejected submission can be edited and
+// resubmitted without retyping, and so support can see what was filed.
+model MessagingRegistration {
+  id               String                 @id @default(cuid())
+  companyId        String                 @unique
+  company          Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  status           LineRegistrationStatus @default(BRAND_PENDING)
+  entityType       String // "PRIVATE_PROFIT" (has EIN) | "SOLE_PROPRIETOR"
+  legalName        String
+  displayName      String
+  ein              String? // 9 digits, PRIVATE_PROFIT only
+  street           String
+  city             String
+  state            String
+  postalCode       String
+  website          String?
+  vertical         String // TCR vertical, e.g. CONSTRUCTION / PROFESSIONAL
+  contactFirstName String
+  contactLastName  String
+  contactEmail     String
+  contactPhone     String // E.164; the sole-prop OTP goes here
+  brandId          String? // Telnyx brand id
+  tcrBrandId       String?
+  brandStatus      String? // Telnyx identityStatus: VERIFIED | UNVERIFIED | SELF_DECLARED | VETTED_VERIFIED
+  campaignId       String? // Telnyx campaign id
+  tcrCampaignId    String?
+  campaignStatus   String? // Telnyx campaignStatus (TCR_PENDING … MNO_PROVISIONED)
+  assignmentStatus String? // number ↔ campaign: PENDING_ASSIGNMENT | ASSIGNED | FAILED_ASSIGNMENT
+  rejectionReason  String?
+  submittedAt      DateTime               @default(now())
+  approvedAt       DateTime?
+  lastCheckedAt    DateTime?
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+
+  @@index([status])
+}
+
 // ─── Packaging board (superadmin planning tool) ──────────────────────────────
 
 // A column on /superadmin/packaging: a subscription tier, a paid add-on, or
@@ -2604,21 +2669,21 @@ model PackagingLane {
 }
 
 model PackagingCard {
-  id     String @id @default(cuid())
+  id     String        @id @default(cuid())
   laneId String
   lane   PackagingLane @relation(fields: [laneId], references: [id], onDelete: Cascade)
 
-  title String
-  body  String?
+  title      String
+  body       String?
   // Where the feature came from in the marketing catalog ("Win the work",
   // "Get paid", …) — drives the card's tint and groups the backlog.
-  group String?
-  icon  String? // lucide-react export name, for the pricing page later
+  group      String?
+  icon       String? // lucide-react export name, for the pricing page later
   // Stable key for catalog-sourced cards (section id + slug of the title) so
   // re-syncing lib/wb-features.ts never duplicates a card the owner has
   // already placed. Null for cards typed in by hand.
-  catalogKey String? @unique
-  sort       Int     @default(0)
+  catalogKey String?  @unique
+  sort       Int      @default(0)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 

@@ -4,6 +4,7 @@ import { verifyPasswordForUser } from "@/lib/account";
 import { getSuperadmin } from "@/lib/superadmin";
 import { limit } from "@/lib/rate-limit";
 import { companyHasProtectedUser, deleteCompanyCascade } from "@/lib/company-delete";
+import { LineError, releaseLine } from "@/lib/business-line";
 
 /**
  * Superadmin account controls.
@@ -57,6 +58,7 @@ export async function PATCH(
     action !== "atlas-free-reset" &&
     action !== "addon-show" &&
     action !== "addon-hide" &&
+    action !== "line-release" &&
     action !== "addon-grant" &&
     action !== "addon-revoke"
   ) {
@@ -139,6 +141,21 @@ export async function PATCH(
     console.warn(
       `[superadmin] add-on entitlement ${grant ? "GRANTED (manual)" : "REVOKED"} for "${company.name}" (${id}) by ${admin.email}`
     );
+    return NextResponse.json({ success: true });
+  }
+
+  // Business line (lib/business-line.ts): give the number back to Telnyx and
+  // drop the 10DLC registration with it. Irreversible — for cancelled
+  // add-ons after a grace period, or a botched registration that needs a
+  // clean start (a new number = a new campaign binding).
+  if (action === "line-release") {
+    try {
+      await releaseLine(id);
+    } catch (err) {
+      if (err instanceof LineError) return NextResponse.json({ error: err.message }, { status: err.status });
+      throw err;
+    }
+    console.warn(`[superadmin] business line RELEASED for "${company.name}" (${id}) by ${admin.email}`);
     return NextResponse.json({ success: true });
   }
 

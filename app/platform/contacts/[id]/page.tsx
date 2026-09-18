@@ -50,6 +50,8 @@ export default async function ContactDetailPage({
             finixMerchantId: true,
             finixOnboardingState: true,
             smsAcknowledgedAt: true,
+            lineNumber: true,
+            messagingRegistration: { select: { status: true } },
           },
         },
         savedCards: {
@@ -200,6 +202,18 @@ export default async function ContactDetailPage({
     })),
   ].sort((a, b) => b.date.getTime() - a.date.getTime());
 
+  // Provider texts need the attestation switch AND a registered business line
+  // (lib/business-line.ts); the chip below says which one is missing.
+  const lineNumber = contact.company.lineNumber;
+  const hasLine = Boolean(lineNumber && !lineNumber.startsWith("pending:"));
+  const lineRegistered = contact.company.messagingRegistration?.status === "ACTIVE";
+  const textsReady = Boolean(contact.company.smsAcknowledgedAt) && hasLine && lineRegistered;
+  const textsSetupHint = !hasLine
+    ? "Set up a business line in Settings → Features to start texting clients"
+    : !lineRegistered
+      ? "Texting registration is still with the carriers — reminders switch to text once it clears"
+      : "Turn on text notifications in Settings → Features to start texting clients";
+
   return (
     <div className="p-4 lg:p-8 max-w-4xl mx-auto">
       {/* Header */}
@@ -238,7 +252,7 @@ export default async function ContactDetailPage({
                 className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
                   contact.smsOptOut
                     ? "bg-red-50 text-red-700"
-                    : contact.smsDisabled || !contact.company.smsAcknowledgedAt
+                    : contact.smsDisabled || !textsReady
                       ? "bg-gray-100 text-gray-500"
                       : "bg-green-50 text-green-700"
                 }`}
@@ -249,8 +263,8 @@ export default async function ContactDetailPage({
                       ? contact.smsConsentSource === "booking_declined"
                         ? "Left the text box unchecked when they booked — edit the client to turn texts on"
                         : "Texts switched off for this client — edit the client to turn them on"
-                      : !contact.company.smsAcknowledgedAt
-                        ? "Turn on text notifications in Settings → Features to start texting clients"
+                      : !textsReady
+                        ? textsSetupHint
                         : `Reminders and links go out by text${contact.smsConsentNote ? ` · ${contact.smsConsentNote}` : ""}`
                 }
               >
@@ -258,8 +272,10 @@ export default async function ContactDetailPage({
                   ? "Texts: opted out"
                   : contact.smsDisabled
                     ? "Texts: off"
-                    : !contact.company.smsAcknowledgedAt
-                      ? "Texts: not set up"
+                    : !textsReady
+                      ? hasLine && !lineRegistered
+                        ? "Texts: pending"
+                        : "Texts: not set up"
                       : "Texts: on"}
               </span>
             )}

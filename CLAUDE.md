@@ -245,6 +245,56 @@ on hub pages; the messages page carries the notifications/install nudge
 (iOS needs Add to Home Screen first). sw.js honors `payload.icon` and
 routes notification clicks to the matching surface (/app vs /hub/<token>).
 
+## Business line (per-tenant phone number: texting + forwarded calls)
+
+Design + the why: `docs/plans/business-line-2026-09-15.md`. Built 2026-09-18.
+Carriers register A2P texting per business (two-party opt-in), so the old
+shared WorkBench toll-free sender could never clear — Telnyx rejected it
+2026-09-14. Each company now buys its own local number and registers its own
+10DLC brand + campaign. **Voice needs no registry**, so call forwarding is live
+the minute the number provisions; texting waits for the campaign (3–7 business
+days). The free `sms:`/`tel:` deep links (`lib/messaging.ts`) stay free and
+untouched.
+
+- **Data**: `Company.lineNumber` (E.164, `@unique` — a `pending:<companyId>`
+  claim token sits there while an order is in flight, so a double-click can't
+  buy two numbers), `lineNumberId` (Telnyx id), `lineForwardTo`,
+  `lineProvisionedAt`; `MessagingRegistration` (one per company: the filed
+  business details, brand/campaign ids, Telnyx statuses, `status`
+  BRAND_PENDING → CAMPAIGN_PENDING → ACTIVE | REJECTED + `rejectionReason`).
+- **`lib/telnyx.ts`** — REST client: number search/order/release, per-number
+  voice (call forwarding) + messaging-profile settings, 10DLC brand /
+  campaignBuilder / phone_number_campaigns / sole-prop OTP. Errors surface
+  Telnyx's own `detail` (a TCR rejection is only useful verbatim).
+- **`lib/business-line.ts`** — `provisionLine` (gated on `hasAddon`; searches
+  the area code, orders onto the WorkBench messaging profile, forwards
+  calls), `setLineForwarding`, `submitRegistration` (creates the brand; an
+  EIN brand usually verifies on the spot, so the campaign is created and the
+  number bound in the same call), `refreshRegistration` (re-reads Telnyx and
+  advances — run by the hourly cron step `lineRegistrations`, the card's
+  "Check now", and `POST /api/public/webhooks/telnyx/10dlc`, whose payload is
+  never trusted: it only names a brand/campaign we then re-read),
+  `releaseLine` (superadmin `line-release`). `deriveRegistration` is the
+  pure state machine — `npx tsx scripts/test-business-line.ts`.
+- **Send path** (`lib/sms.ts`): `sendSms` sends `from` the company's line and
+  refuses without one, without an ACTIVE registration, or without
+  `smsAcknowledgedAt`. Templates name the business, never "WorkBench".
+  `TELNYX_ALLOW_UNREGISTERED=1` (staging) lets an unregistered line send to
+  the account's verified test numbers.
+- **Inbound** (`/api/public/webhooks/telnyx`): the `to` number resolves the
+  company FIRST, the contact match is scoped to it, and an unknown texter
+  becomes a contact ("Unknown caller · (214) 555-0100") so nothing is lost.
+- **UI**: Settings → Features `BusinessLineCard.tsx` (get a number →
+  forwarding → registration form → status chip / rejection + resubmit / OTP
+  entry for sole props); routes `/api/app/line` (GET, PATCH forwardTo),
+  `/line/provision`, `/line/register`, `/line/refresh`, `/line/otp`.
+  Superadmin company page: `LineControl.tsx` (raw Telnyx statuses + Release).
+- **Entitlement**: Workbench Plus (`hasAddon`). Comp a company with the
+  superadmin **addon-grant** action — never ship the gate open.
+- **Not built yet**: outbound calling from the app (click-to-call / WebRTC),
+  voicemail transcription, missed-call text-back, number porting, auto-release
+  on add-on cancellation, E911 address on the number.
+
 ## Payment processor (Finix)
 
 Two processors implement the `PaymentProcessor` seam in `lib/payments.ts`,
@@ -335,6 +385,15 @@ EMAIL_DOMAINS_ENABLED=   # "1" to enable
 # Company.addonActiveAt, managed by the Livery webhooks.
 LIVERY_ADDON_CHECKOUT_URL=  # e.g. https://paywithlivery.com/l/workbench-plus
 LIVERY_WEBHOOK_SECRET=      # whsec_… from Livery → Settings → Developers
+# Telnyx — provider texting + business lines (lib/sms.ts, lib/business-line.ts).
+# All three needed: without API key + profile every send is a no-op and the
+# Business Line card is hidden; without the public key the inbound webhook
+# fails closed (no replies land, no STOPs recorded).
+TELNYX_API_KEY=
+TELNYX_MESSAGING_PROFILE_ID=   # every purchased number joins this profile; its webhook URL = ${NEXTAUTH_URL}/api/public/webhooks/telnyx
+TELNYX_PUBLIC_KEY=             # Mission Control → Account → Keys & Credentials → Public Key (webhook signatures)
+TELNYX_10DLC_MOCK=             # "1" on staging: brands/campaigns register as mocks (no TCR fees)
+TELNYX_ALLOW_UNREGISTERED=     # "1" on staging: a line may text before its campaign clears (verified numbers only)
 ```
 
 ## Job crew + titles (`lib/job-crew.ts`)
@@ -555,7 +614,7 @@ or booking: `test-money` (refund split, deposit credit, due dates),
 `test-ops-guards` (quote expiry, geocode acceptance, serialization retry),
 `test-subscriptions` (billing/visit cursor math, decline classification),
 `test-sms-keywords`, `test-route-plan`, `test-booking-engine`,
-`test-job-crew`, `test-calendar-sync`. The Playwright suite in `e2e/` runs
+`test-job-crew`, `test-calendar-sync`, `test-business-line`. The Playwright suite in `e2e/` runs
 against the deployed app (see `e2e/README.md`) and is the post-deploy check.
 
 ## Database setup (Railway)

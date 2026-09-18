@@ -9,6 +9,7 @@ import {
 } from "@/lib/platform-costs";
 import { AccountActions } from "./AccountActions";
 import { AddonControl } from "./AddonControl";
+import { LineControl } from "./LineControl";
 import { AssistantControl } from "./AssistantControl";
 import {
   ATLAS_PLAN_TOKENS,
@@ -95,6 +96,23 @@ export default async function CompanyReport({
       industry: true,
       suspendedAt: true,
       suspendedReason: true,
+      lineNumber: true,
+      lineForwardTo: true,
+      lineProvisionedAt: true,
+      messagingRegistration: {
+        select: {
+          status: true,
+          entityType: true,
+          legalName: true,
+          brandStatus: true,
+          campaignStatus: true,
+          assignmentStatus: true,
+          rejectionReason: true,
+          submittedAt: true,
+          approvedAt: true,
+          lastCheckedAt: true,
+        },
+      },
     },
   });
   if (!company) notFound();
@@ -488,6 +506,23 @@ export default async function CompanyReport({
             addonEnabled={company.addonEnabled}
             addonActiveAt={company.addonActiveAt?.toISOString() ?? null}
             addonLiverySubId={company.addonLiverySubId}
+          />
+
+          <LineControl
+            companyId={company.id}
+            number={company.lineNumber?.startsWith("pending:") ? null : company.lineNumber}
+            forwardTo={company.lineForwardTo}
+            provisionedAt={company.lineProvisionedAt?.toISOString() ?? null}
+            registration={
+              company.messagingRegistration
+                ? {
+                    ...company.messagingRegistration,
+                    submittedAt: company.messagingRegistration.submittedAt.toISOString(),
+                    approvedAt: company.messagingRegistration.approvedAt?.toISOString() ?? null,
+                    lastCheckedAt: company.messagingRegistration.lastCheckedAt?.toISOString() ?? null,
+                  }
+                : null
+            }
           />
 
           <AccountActions

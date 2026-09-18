@@ -22,6 +22,7 @@ import { runRecurringExpenses } from "@/lib/expenses";
 import { expireApprovalBookings } from "@/lib/approval-bookings";
 import { rollupStorageSnapshots } from "@/lib/usage";
 import { runNightlyReconciliation } from "@/lib/reconcile";
+import { runLineRegistrationSweep } from "@/lib/business-line";
 
 /**
  * Hourly billing cron. A scheduler (Railway cron service, or an external
@@ -154,6 +155,10 @@ export async function POST(req: NextRequest) {
     // No-op unless GOOGLE_CALENDAR_* env vars are set and users have connected.
     await step("googleCalendarPull", () => runGoogleCalendarPullSweep());
     await step("googleCalendar", () => runGoogleCalendarSweep());
+    // Business-line 10DLC registrations: poll Telnyx for every pending brand/
+    // campaign and advance it (create campaign, bind number, mark active).
+    // No-op without Telnyx keys or with nothing pending.
+    await step("lineRegistrations", () => runLineRegistrationSweep());
     // Team-map retention: location history older than 30 days is deleted —
     // deliberate; keep the window short.
     await step("prunedPings", async () => {

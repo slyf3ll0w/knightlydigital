@@ -11,7 +11,14 @@ import { SMS_TERMS_URL } from "@/lib/sms-consent";
  * texts (reminders, schedule changes, quote/invoice links) legitimate without
  * a per-client opt-in. lib/sms.ts sendSms refuses while it is off.
  */
-export default function SmsNotificationsCard({ initialOnAt }: { initialOnAt: string | null }) {
+export default function SmsNotificationsCard({
+  initialOnAt,
+  hasLine = false,
+}: {
+  initialOnAt: string | null;
+  /** The company has a business line — texts send from it (copy changes; the switch is the same). */
+  hasLine?: boolean;
+}) {
   const [onAt, setOnAt] = useState<string | null>(initialOnAt);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -42,8 +49,9 @@ export default function SmsNotificationsCard({ initialOnAt }: { initialOnAt: str
         </h2>
         <p className="text-xs text-gray-500 mt-0.5">
           Appointment reminders, schedule changes, and quote and invoice links go to your clients
-          by text from WorkBench&apos;s number, naming your business. Every client with a phone
-          number gets them unless you switch that client off or they reply STOP.
+          by text from {hasLine ? "your business line" : "your business line (set one up above)"}, in
+          your business&apos;s name. Every client with a phone number gets them unless you switch
+          that client off or they reply STOP.
         </p>
       </div>
       {onAt ? (

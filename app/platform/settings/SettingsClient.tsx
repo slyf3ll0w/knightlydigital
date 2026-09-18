@@ -38,6 +38,8 @@ import { resolveWallpaper } from "@/lib/wallpapers";
 import { confirmSheet } from "@/components/ConfirmSheet";
 import PageTitle from "@/components/PageTitle";
 import SmsNotificationsCard from "./SmsNotificationsCard";
+import BusinessLineCard from "./BusinessLineCard";
+import type { LineSummary } from "@/lib/business-line-shared";
 import {
   SECTION_HUES,
   SECTION_HUE_DEFAULTS,
@@ -937,10 +939,13 @@ export default function SettingsClient({
   isOwner = false,
   initialSection,
   signInMethods,
+  line = null,
 }: {
   company: Company;
   isOwner?: boolean;
   initialSection?: string;
+  /** Business line state (lib/business-line.ts); null when Telnyx isn't configured on this server. */
+  line?: LineSummary | null;
   /** How the signed-in person can verify it's them (account deletion). */
   signInMethods: SignInMethods;
 }) {
@@ -1974,8 +1979,11 @@ export default function SettingsClient({
         </div>
         )}
 
-        {/* Text notifications — provider SMS from WorkBench's toll-free number */}
-        {show("features") && <SmsNotificationsCard initialOnAt={company.smsAcknowledgedAt} />}
+        {/* Business line — the company's own number: calls forward to a cell, texts go out from it once registered */}
+        {show("features") && line?.enabled && <BusinessLineCard initial={line} />}
+
+        {/* Text notifications — the one-time consent attestation behind provider texts */}
+        {show("features") && <SmsNotificationsCard initialOnAt={company.smsAcknowledgedAt} hasLine={Boolean(line?.number)} />}
 
         {/* On my way texts */}
         {show("features") && (

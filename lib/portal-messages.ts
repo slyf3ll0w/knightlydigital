@@ -132,13 +132,13 @@ export async function notifyClientOfReply(
     icon: absUrl(contact.company.logoUrl),
   });
 
-  // SMS mirror: the message itself, from the pool number — replying to the
-  // text drops their answer straight back into the thread via the webhook.
+  // SMS mirror: the message itself, from the company's own number — replying
+  // to the text drops their answer straight back into the thread via the webhook.
   let smsSent = false;
   if (smsEnabled() && contact.phone && canText(contact)) {
     smsSent = await sendSms({
       to: contact.phone,
-      text: `WorkBench: ${contact.company.name}: ${preview(body, 260)} Reply STOP to opt out.`,
+      text: `${contact.company.name}: ${preview(body, 260)} Reply STOP to opt out.`,
       companyId: contact.companyId,
       contactId: contact.id,
     });
