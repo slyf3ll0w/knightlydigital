@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor } from "@/lib/permissions";
+import { verifyPasswordForUser } from "@/lib/account";
 import { listIdentities, resolveSocialSignIn, unlinkIdentity, type SocialProvider } from "@/lib/social-login";
 import { verifyGoogleIdToken } from "@/lib/google-id-token";
 
@@ -54,15 +55,20 @@ export async function DELETE(req: NextRequest) {
 }
 
 /**
- * POST { provider: "google", idToken } — connect a sign-in method from the
- * native app. The session is untouched either way.
+ * POST { provider: "google", idToken, currentPassword } — connect a sign-in
+ * method from the native app. The session is untouched either way.
+ *
+ * The password is required whenever the login has one: linking is a way in
+ * that outlives a password reset, so it takes the same proof as changing
+ * the email or the password does (the web path proves it through
+ * /identities/grant instead, because Google's redirect owns that request).
  */
 export async function POST(req: NextRequest) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = (await req.json().catch(() => null)) as
-    | { provider?: string; idToken?: string }
+    | { provider?: string; idToken?: string; currentPassword?: string }
     | null;
   // Google is the only provider with a native path today; Apple joins it
   // when the iOS build ships (docs/plans/social-login-2026-09-14.md).
@@ -80,6 +86,12 @@ export async function POST(req: NextRequest) {
 
   const account = await accountFor(actor.id);
   if (!account) return NextResponse.json({ error: "Account not found." }, { status: 404 });
+  if (account.passwordHash) {
+    const valid = await verifyPasswordForUser(actor.id, String(body.currentPassword ?? ""));
+    if (!valid) {
+      return NextResponse.json({ error: "Current password is incorrect." }, { status: 400 });
+    }
+  }
 
   const result = await resolveSocialSignIn(
     {

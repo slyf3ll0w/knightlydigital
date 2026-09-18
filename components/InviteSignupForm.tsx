@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { CheckCircle2, Loader2 } from "lucide-react";
-import TurnstileWidget, { type TurnstileHandle } from "@/components/TurnstileWidget";
+import TurnstileWidget, { type TurnstileHandle, captchaEnabled } from "@/components/TurnstileWidget";
 import GoogleSignInButton, { OrDivider, useGoogleSignInOffered } from "@/components/GoogleSignInButton";
 import { saveCredential } from "@/lib/save-credential";
 
@@ -316,7 +316,9 @@ export default function InviteSignupForm({
 
       <button
         type="submit"
-        disabled={loading}
+        // Wait for the captcha token: a click before it mints 400s and burns
+        // one of the three signup attempts an hour.
+        disabled={loading || (captchaEnabled && !captchaToken)}
         className="wb-btn-tool mt-6 inline-flex items-center gap-2 rounded-lg bg-[#0B57D8] px-6 py-3 text-[15px] font-bold text-white disabled:opacity-50"
       >
         {loading && <Loader2 size={15} className="animate-spin" />}

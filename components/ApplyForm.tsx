@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { CheckCircle2, Loader2, Ticket } from "lucide-react";
-import TurnstileWidget, { type TurnstileHandle } from "@/components/TurnstileWidget";
+import TurnstileWidget, { type TurnstileHandle, captchaEnabled } from "@/components/TurnstileWidget";
 import GoogleSignInButton, { OrDivider, useGoogleSignInOffered } from "@/components/GoogleSignInButton";
 import { saveCredential } from "@/lib/save-credential";
 import { browserTimezone } from "@/lib/timezone";
@@ -641,7 +641,10 @@ export default function ApplyForm({
 
       <button
         type="submit"
-        disabled={loading || codeState === "checking"}
+        // Wait for the captcha token: a click before it mints 400s and burns
+        // one of the three signup attempts an hour (same guard as the login
+        // and register forms).
+        disabled={loading || codeState === "checking" || (captchaEnabled && !captchaToken)}
         className={
           inApp
             ? "mt-6 flex w-full items-center justify-center gap-2 rounded-lg bg-[#0B57D8] py-3 text-[15px] font-bold text-white transition-colors hover:bg-[#0A4CBB] active:bg-[#09429F] disabled:opacity-50"

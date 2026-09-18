@@ -23,7 +23,11 @@ export default defineConfig({
     // David's machine blocks Playwright's downloaded Chromium builds. CI
     // (Linux) uses the Chromium Playwright installs.
     ...(process.env.CI ? {} : { channel: "msedge" }),
-    trace: "retain-on-failure",
+    // Traces record every request header, cookie included — and the specs
+    // sign in by attaching a minted owner JWT as a cookie. CI uploads the
+    // artifacts of a failed run to a PUBLIC repo, so no traces there;
+    // screenshots are enough to see what broke. Locally they stay on.
+    trace: process.env.CI ? "off" : "retain-on-failure",
     screenshot: "only-on-failure",
   },
 });

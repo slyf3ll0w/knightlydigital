@@ -74,6 +74,22 @@ export default function ConnectedSignInsCard({
 
   const google = identities.find((i) => i.provider === "google");
 
+  // Connecting is a way in that outlives a password reset, so a login with a
+  // password re-enters it first — the same proof the email and password
+  // changes take. Password-less logins have nothing to re-enter.
+  const [confirming, setConfirming] = useState(false);
+  const [password, setPassword] = useState("");
+
+  function startConnect() {
+    setError("");
+    setFlash("");
+    if (hasPassword) {
+      setConfirming(true);
+      return;
+    }
+    void connectGoogle();
+  }
+
   async function connectGoogle() {
     setBusy(true);
     setError("");
@@ -91,6 +107,7 @@ export default function ConnectedSignInsCard({
         {
           provider: "google",
           idToken: token.idToken,
+          currentPassword: password,
         }
       );
       setBusy(false);
@@ -98,10 +115,21 @@ export default function ConnectedSignInsCard({
       // The route returns the fresh list, so the card updates without a
       // reload — there was no navigation to piggyback on.
       if (Array.isArray(res.data?.identities)) setIdentities(res.data.identities);
+      setConfirming(false);
+      setPassword("");
       setFlash("Google sign-in connected.");
       return;
     }
 
+    // Web: the password can't ride along on Google's redirect, so it mints
+    // a short-lived grant cookie the OAuth callback checks before linking.
+    if (hasPassword) {
+      const grant = await postJson("/api/app/profile/identities/grant", { currentPassword: password });
+      if (!grant.ok) {
+        setBusy(false);
+        return setError(grant.data?.error ?? GENERIC_ERROR);
+      }
+    }
     signIn("google", { callbackUrl: "/app/settings/profile" }).catch(() => setBusy(false));
   }
 
@@ -181,10 +209,10 @@ export default function ConnectedSignInsCard({
           >
             {busy ? <Loader2 size={13} className="animate-spin" /> : "Disconnect"}
           </button>
-        ) : canConnect ? (
+        ) : canConnect && !confirming ? (
           <button
             type="button"
-            onClick={() => void connectGoogle()}
+            onClick={startConnect}
             disabled={busy}
             className="px-4 py-2 btn-tool-line bg-white text-sm font-medium text-gray-700 rounded-[10px] hover:bg-gray-50 transition-colors shrink-0 disabled:opacity-50"
           >
@@ -192,6 +220,51 @@ export default function ConnectedSignInsCard({
           </button>
         ) : null}
       </div>
+
+      {confirming && !google && (
+        <form
+          className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void connectGoogle();
+          }}
+        >
+          <label className="flex-1">
+            <span className="block text-xs font-medium text-gray-600 mb-1">
+              Confirm your password to connect Google
+            </span>
+            <input
+              type="password"
+              autoComplete="current-password"
+              autoFocus
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+            />
+          </label>
+          <div className="flex gap-2">
+            <button
+              type="submit"
+              disabled={busy || !password}
+              className="px-4 py-2 rounded-[10px] bg-[#0B57D8] text-sm font-semibold text-white hover:bg-[#0A4CBB] transition-colors disabled:opacity-50"
+            >
+              {busy ? <Loader2 size={13} className="animate-spin" /> : "Continue"}
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                setConfirming(false);
+                setPassword("");
+                setError("");
+              }}
+              className="px-4 py-2 btn-tool-line bg-white text-sm font-medium text-gray-700 rounded-[10px] hover:bg-gray-50 transition-colors disabled:opacity-50"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
     </div>
   );
 }
