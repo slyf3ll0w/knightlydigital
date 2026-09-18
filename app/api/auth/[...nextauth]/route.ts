@@ -3,31 +3,37 @@ import { getToken } from "next-auth/jwt";
 import type { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { buildAuthOptions, type AuthRequestContext } from "@/lib/auth-options";
-import { LINK_GRANT_COOKIE, verifyLinkGrant } from "@/lib/link-grant";
+import {
+  REAUTH_COOKIE,
+  REAUTH_INTENT_COOKIE,
+  REAUTH_TTL_MS,
+  createReauthGrant,
+  serializeReauthCookie,
+  verifyReauthGrant,
+  verifyReauthIntent,
+} from "@/lib/reauth";
 
 /**
  * Options are built per request so the Google callback can see the session
- * the visitor already holds: "Connect Google" from Settings → My Profile
- * links the identity to THAT account instead of minting a new session.
- * Every other action (session reads, the credentials POST) is unaffected —
- * the context is only read inside the OAuth sign-in callback.
- */
-
-/**
- * The session this request may link a Google identity to, or null for a
- * plain sign-in. A cookie alone is not enough: NextAuth's signin endpoint is
- * a form POST anyone can submit, so the holder of a copied cookie could
- * otherwise weld their own Google account to the login — and keep it after
- * the victim's password reset. Three checks, mirroring the eviction rule in
- * lib/permissions.ts and the password step on every other identity edit:
+ * the visitor already holds. Two things a signed-in person can do through
+ * Google besides signing in, both decided in the signIn callback
+ * (lib/auth-options.ts) from the context assembled here:
  *
- * 1. a full (company) session — company-less sessions are never bound to;
- * 2. minted after the account's last password change (`authAt`);
- * 3. a live link grant for this account (lib/link-grant.ts), which only the
- *    password re-entry on the profile page can mint. Password-less logins
- *    have nothing to re-enter, so the session carries them.
+ * - VERIFY ("verify it's you", lib/reauth.ts): the intent cookie says a page
+ *   sent them through Google to prove they hold the login. If the Google
+ *   identity belongs to the session's account, the callback asks for a grant
+ *   and we stamp it on NextAuth's response below.
+ * - LINK ("Connect Google" from Settings → My Profile): only with a fresh
+ *   grant. A cookie alone is not enough — NextAuth's signin endpoint is a
+ *   form POST anyone can submit, so the holder of a copied cookie could
+ *   otherwise weld their own Google account to the login and keep it after
+ *   the victim's password reset.
+ *
+ * Either way the session must be a full (company) session minted after the
+ * account's last password change, mirroring the eviction rule in
+ * lib/permissions.ts. Anything else is a plain sign-in.
  */
-async function linkContext(req: NextRequest): Promise<AuthRequestContext | null> {
+async function requestContext(req: NextRequest): Promise<AuthRequestContext | null> {
   const token = await getToken({ req, secret: process.env.AUTH_SECRET }).catch(() => null);
   const accountId = typeof token?.accountId === "string" ? token.accountId : null;
   const companyId = typeof token?.companyId === "string" ? token.companyId : null;
@@ -35,23 +41,45 @@ async function linkContext(req: NextRequest): Promise<AuthRequestContext | null>
 
   const account = await prisma.account.findUnique({
     where: { id: accountId },
-    select: { passwordHash: true, passwordChangedAt: true },
+    select: { passwordChangedAt: true },
   });
   if (!account) return null;
 
   const authAt = typeof token?.authAt === "number" ? token.authAt : 0;
   if (account.passwordChangedAt && authAt < account.passwordChangedAt.getTime()) return null;
 
-  if (account.passwordHash) {
-    const grant = req.cookies.get(LINK_GRANT_COOKIE)?.value ?? "";
-    if (!grant || !(await verifyLinkGrant(grant, accountId))) return null;
-  }
-
-  return { currentAccountId: accountId, currentCompanyId: companyId };
+  const grant = req.cookies.get(REAUTH_COOKIE)?.value ?? "";
+  const intent = req.cookies.get(REAUTH_INTENT_COOKIE)?.value ?? "";
+  return {
+    currentAccountId: accountId,
+    currentCompanyId: companyId,
+    reauthVia: grant ? await verifyReauthGrant(grant, accountId) : null,
+    reauthReturnTo: intent ? await verifyReauthIntent(intent, accountId) : null,
+    outcome: {},
+  };
 }
 
-async function handler(req: NextRequest, ctx: { params: Promise<{ nextauth: string[] }> }) {
-  return NextAuth(req, ctx, buildAuthOptions(await linkContext(req)));
+async function handler(req: NextRequest, routeCtx: { params: Promise<{ nextauth: string[] }> }) {
+  const ctx = await requestContext(req);
+  const res = await NextAuth(req, routeCtx, buildAuthOptions(ctx));
+  if (!ctx?.reauthReturnTo) return res;
+
+  // A verify round-trip ends here: stamp the grant when Google vouched for
+  // the session's own account, and retire the intent either way. NextAuth's
+  // redirect response may carry immutable headers, so rebuild it.
+  const out = new Response(res.body, { status: res.status, headers: new Headers(res.headers) });
+  if (ctx.outcome.reauthGranted && ctx.currentAccountId) {
+    out.headers.append(
+      "Set-Cookie",
+      serializeReauthCookie(
+        REAUTH_COOKIE,
+        await createReauthGrant(ctx.currentAccountId, "google"),
+        Math.floor(REAUTH_TTL_MS / 1000)
+      )
+    );
+  }
+  out.headers.append("Set-Cookie", serializeReauthCookie(REAUTH_INTENT_COOKIE, "", 0));
+  return out;
 }
 
 export { handler as GET, handler as POST };

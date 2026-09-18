@@ -268,3 +268,19 @@ export async function unlinkIdentity(
   await prisma.accountIdentity.deleteMany({ where: { accountId, provider } });
   return { ok: true };
 }
+
+/**
+ * Which Account a provider identity opens, if any — the check behind
+ * "verify it's you with Google": a fresh Google sign-in only counts as proof
+ * when that Google account is connected to the login being verified.
+ */
+export async function identityAccountId(
+  provider: SocialProvider,
+  providerAccountId: string
+): Promise<string | null> {
+  const row = await prisma.accountIdentity.findUnique({
+    where: { provider_providerAccountId: { provider, providerAccountId } },
+    select: { accountId: true },
+  });
+  return row?.accountId ?? null;
+}

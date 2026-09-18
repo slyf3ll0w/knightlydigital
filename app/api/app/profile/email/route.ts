@@ -4,17 +4,19 @@ import { prisma } from "@/lib/db";
 import { getActor } from "@/lib/permissions";
 import { normalizeEmail } from "@/lib/user-email";
 import { sendEmail, emailChangeVerifyEmail, emailChangeNoticeEmail } from "@/lib/email";
-import { emailInUseByOther, ensureAccountForUser, verifyPasswordForUser } from "@/lib/account";
+import { emailInUseByOther, ensureAccountForUser } from "@/lib/account";
+import { proveIdentity, proofError } from "@/lib/reauth";
 
 /**
- * POST { newEmail, currentPassword } — start a change of sign-in address.
+ * POST { newEmail, currentPassword? } — start a change of sign-in address.
  *
  * Nothing moves yet. We store a hashed token and email the new address a
  * confirmation link; only opening that link (see /api/public/verify-email)
  * writes the new address. Two reasons it works this way: a typo would
  * otherwise lock the owner out of their own account, and a borrowed session
- * can't quietly walk the account off to another inbox — the password check
- * and the old-address notice below both stand in the way.
+ * can't quietly walk the account off to another inbox — the identity proof
+ * (password, or a fresh "verify it's you" — lib/reauth.ts) and the
+ * old-address notice below both stand in the way.
  */
 export async function POST(req: NextRequest) {
   const actor = await getActor();
@@ -31,9 +33,9 @@ export async function POST(req: NextRequest) {
   const user = await prisma.user.findUnique({ where: { id: actor.id } });
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const valid = await verifyPasswordForUser(actor.id, currentPassword);
-  if (!valid) {
-    return NextResponse.json({ error: "Current password is incorrect." }, { status: 400 });
+  const proof = await proveIdentity(actor.id, currentPassword || undefined);
+  if (!proof.ok) {
+    return NextResponse.json(proofError(proof.reason), { status: 400 });
   }
 
   if (newEmail === user.email.trim().toLowerCase()) {

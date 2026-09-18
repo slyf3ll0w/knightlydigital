@@ -2,14 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor } from "@/lib/permissions";
 import { limit } from "@/lib/rate-limit";
-import { verifyPasswordForUser } from "@/lib/account";
+import { proveIdentity, proofError } from "@/lib/reauth";
 import { deleteCompanyCascade, PROTECTED_EMAILS } from "@/lib/company-delete";
 
 /**
  * POST — permanently delete the company account and every record under it.
  * Deliberately hard to reach: OWNER role only, the exact company name must be
- * retyped, and the owner's password re-verified. There is no soft-delete and
- * no recovery — this exists so test accounts can be removed cleanly.
+ * retyped, and the owner must have just proved it's them — their password,
+ * or a fresh "verify it's you" (lib/reauth.ts) for a login that opens with
+ * Google and has none. There is no soft-delete and no recovery — this exists
+ * so test accounts can be removed cleanly.
  * (Cascade lives in lib/company-delete.ts, shared with the superadmin console.)
  */
 
@@ -47,8 +49,9 @@ export async function POST(req: NextRequest) {
       { status: 400 }
     );
   }
-  if (!password || !(await verifyPasswordForUser(actor.id, password))) {
-    return NextResponse.json({ error: "Incorrect password." }, { status: 403 });
+  const proof = await proveIdentity(actor.id, password || undefined);
+  if (!proof.ok) {
+    return NextResponse.json(proofError(proof.reason), { status: 403 });
   }
 
   await deleteCompanyCascade(companyId);

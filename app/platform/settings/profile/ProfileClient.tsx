@@ -11,8 +11,8 @@ import { AppLockToggleCard } from "@/components/AppLock";
 import CalendarSyncCard from "@/components/CalendarSyncCard";
 import Avatar from "@/components/Avatar";
 import AvatarCropModal from "@/components/AvatarCropModal";
-import ConnectedSignInsCard, { type ConnectedIdentity } from "@/components/ConnectedSignInsCard";
-import { saveCredential } from "@/lib/save-credential";
+import SignInMethodsCard, { type ConnectedIdentity } from "@/components/SignInMethodsCard";
+import { FlashBanner, useVerifyIdentity } from "@/components/VerifyIdentity";
 
 
 export default function ProfileClient({
@@ -25,8 +25,8 @@ export default function ProfileClient({
   emailSignature: initialSignature,
   defaultSignature,
   pendingEmail: initialPendingEmail,
-  hasPassword,
-  identities,
+  hasPassword: initialHasPassword,
+  identities: initialIdentities,
   googleEnabled,
   googleNativeClientId = null,
 }: {
@@ -53,11 +53,22 @@ export default function ProfileClient({
   const [name, setName] = useState(initialName);
   const [phone, setPhone] = useState(initialPhone);
   const [signature, setSignature] = useState(initialSignature);
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
   const [newEmail, setNewEmail] = useState("");
-  const [emailPassword, setEmailPassword] = useState("");
   const [pendingEmail, setPendingEmail] = useState(initialPendingEmail);
+  // The login's sign-in methods — the card below edits them, and they decide
+  // how "verify it's you" can be answered.
+  const [hasPassword, setHasPassword] = useState(initialHasPassword);
+  const [identities, setIdentities] = useState(initialIdentities);
+  const { verify, flash, setFlash, dialog } = useVerifyIdentity(
+    {
+      hasPassword,
+      google: identities.some((i) => i.provider === "google"),
+      apple: identities.some((i) => i.provider === "apple"),
+      googleWebEnabled: googleEnabled,
+      googleNativeClientId,
+    },
+    "/app/settings/profile"
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [saved, setSaved] = useState("");
@@ -146,41 +157,22 @@ export default function ProfileClient({
     setSaved("signature");
   }
 
-  async function changePassword() {
-    setBusy(true);
-    setError("");
-    setSaved("");
-    const { ok, data } = await postJson(
-      "/api/app/profile",
-      { currentPassword, newPassword },
-      "PATCH"
-    );
-    setBusy(false);
-    if (!ok) return setError(data?.error ?? GENERIC_ERROR);
-    // Browsers routed here by /.well-known/change-password expect this form to
-    // hand the updated credential back. Nothing navigates on success, so there
-    // is no submission for them to notice — offer it outright, or the manager
-    // keeps serving the password we just retired.
-    await saveCredential(email, newPassword);
-    setCurrentPassword("");
-    setNewPassword("");
-    setSaved("password");
-  }
-
   async function changeEmail() {
-    setBusy(true);
     setError("");
     setSaved("");
+    // A borrowed session must not be able to walk the login off to another
+    // inbox — verify first (password, or Google for a login with none).
+    if (!(await verify("change-email"))) return;
+    setBusy(true);
     const { ok, data } = await postJson<{ sentTo: string; error?: string }>(
       "/api/app/profile/email",
-      { newEmail, currentPassword: emailPassword }
+      { newEmail }
     );
     setBusy(false);
     if (!ok || !data?.sentTo) return setError(data?.error ?? GENERIC_ERROR);
     // The address isn't ours yet — it's pending until that inbox confirms.
     setPendingEmail(data.sentTo);
     setNewEmail("");
-    setEmailPassword("");
     setSaved("email");
   }
 
@@ -205,6 +197,7 @@ export default function ProfileClient({
           {error}
         </div>
       )}
+      <FlashBanner flash={flash} onClose={() => setFlash(null)} />
 
       {/* Profile picture */}
       <div className="card-ledger p-5 mb-5">
@@ -342,19 +335,7 @@ export default function ProfileClient({
           confirmation link to the new address — it only takes effect once you open that link.
         </p>
 
-        {!hasPassword ? (
-          // The change is password-confirmed (a borrowed session must not be
-          // able to walk the login off to another inbox), and a Google-only
-          // login has no password to confirm with yet.
-          <p className="text-sm text-gray-600">
-            Changing the sign-in email needs your password, and this login doesn&apos;t
-            have one yet. Set one first with{" "}
-            <Link href="/app/forgot-password" className="font-semibold text-[#0B57D8] hover:underline">
-              Forgot password
-            </Link>{" "}
-            on the login page, then come back here.
-          </p>
-        ) : pendingEmail ? (
+        {pendingEmail ? (
           <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5">
             <p className="text-sm text-amber-800">
               Waiting for <span className="font-semibold">{pendingEmail}</span> to confirm. Check
@@ -382,20 +363,10 @@ export default function ProfileClient({
                   placeholder="you@company.com"
                 />
               </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Current password</label>
-                <input
-                  type="password"
-                  value={emailPassword}
-                  onChange={(e) => setEmailPassword(e.target.value)}
-                  autoComplete="current-password"
-                  className={inputCls}
-                />
-              </div>
             </div>
             <button
               onClick={changeEmail}
-              disabled={busy || !newEmail.trim() || !emailPassword}
+              disabled={busy || !newEmail.trim()}
               className="btn-primary"
             >
               {busy ? (
@@ -409,86 +380,19 @@ export default function ProfileClient({
         )}
       </div>
 
-      {/* A Google-only login has no current password to confirm — the reset
-          link is its way to add one (setPasswordForUser takes it from there). */}
-      {!hasPassword && (
-        <div className="card-ledger p-5">
-          <h2 className="text-[13px] font-semibold text-gray-500 mb-1">Password</h2>
-          <p className="text-sm text-gray-600">
-            This login opens with Google and has no password yet. To add one, use{" "}
-            <Link href="/app/forgot-password" className="font-semibold text-[#0B57D8] hover:underline">
-              Forgot password
-            </Link>{" "}
-            on the login page — the link we email lets you set it.
-          </p>
-        </div>
-      )}
-      <div className="card-ledger p-5" hidden={!hasPassword}>
-        <h2 className="text-[13px] font-semibold text-gray-500 mb-4">
-          Change password
-        </h2>
-        {/* A change-password form needs to name the account it belongs to, or
-            the manager has a new password and nothing to file it under. The
-            field is inert — it exists purely as that label. */}
-        <input
-          type="text"
-          name="username"
-          autoComplete="username"
-          value={email}
-          readOnly
-          hidden
-          aria-hidden="true"
-          tabIndex={-1}
-        />
-        <div className="grid sm:grid-cols-2 gap-3 mb-4">
-          <div>
-            <label htmlFor="pw-current" className="block text-xs text-gray-500 mb-1">
-              Current password
-            </label>
-            <input
-              id="pw-current"
-              name="current-password"
-              type="password"
-              value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
-              autoComplete="current-password"
-              className={inputCls}
-            />
-          </div>
-          <div>
-            <label htmlFor="pw-new" className="block text-xs text-gray-500 mb-1">
-              New password (8+ characters)
-            </label>
-            <input
-              id="pw-new"
-              name="new-password"
-              type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              autoComplete="new-password"
-              className={inputCls}
-            />
-          </div>
-        </div>
-        <button
-          onClick={changePassword}
-          disabled={busy || newPassword.length < 8 || !currentPassword}
-          className="btn-primary"
-        >
-          {busy ? <Loader2 size={13} className="animate-spin" /> : saved === "password" && <Check size={13} />}
-          Update Password
-        </button>
-      </div>
-
-      {/* useSearchParams inside → Suspense keeps the static shell happy */}
-      <Suspense fallback={null}>
-        <ConnectedSignInsCard
-          googleEnabled={googleEnabled}
-          googleNativeClientId={googleNativeClientId}
-          hasPassword={hasPassword}
-          initialIdentities={identities}
-        />
-      </Suspense>
+      {/* Password · Google · Apple — set, change, connect, disconnect, each
+          behind "verify it's you". */}
+      <SignInMethodsCard
+        email={email}
+        hasPassword={hasPassword}
+        identities={identities}
+        googleWebEnabled={googleEnabled}
+        googleNativeClientId={googleNativeClientId}
+        verify={verify}
+        onPasswordSet={() => setHasPassword(true)}
+        onIdentities={setIdentities}
+      />
+      {dialog}
 
       <PushToggleCard />
 

@@ -8,7 +8,8 @@ import { normalizeEmail } from "@/lib/user-email";
 import { eligibleMembershipsFor, findOrAdoptAccountByEmail, pickMembership } from "@/lib/account";
 import { isGoogleSignInConfigured } from "@/lib/sign-in-options";
 import { verifyGoogleIdToken } from "@/lib/google-id-token";
-import { resolveSocialSignIn, type SocialSignInUser } from "@/lib/social-login";
+import { identityAccountId, resolveSocialSignIn, type SocialSignInUser } from "@/lib/social-login";
+import type { ReauthVia } from "@/lib/reauth";
 
 /**
  * Sessions authenticate an Account (one per email) but always point at ONE
@@ -24,10 +25,19 @@ import { resolveSocialSignIn, type SocialSignInUser } from "@/lib/social-login";
  * all three mint the same JWT shape.
  */
 
-/** What the OAuth callback knows about the session the visitor already holds. */
+/**
+ * What the OAuth callback knows about the session the visitor already holds
+ * (assembled per request in app/api/auth/[...nextauth]/route.ts).
+ */
 export type AuthRequestContext = {
   currentAccountId: string | null;
   currentCompanyId: string | null;
+  /** A fresh "verify it's you" proof for that account, if the request carries one. */
+  reauthVia: ReauthVia | null;
+  /** Set when this Google round-trip IS the verification: the page to return to. */
+  reauthReturnTo: string | null;
+  /** Written by the callback for the route handler to act on. */
+  outcome: { reauthGranted?: boolean };
 };
 
 /** Google's OIDC profile — the fields the sign-in rules read. */
@@ -194,11 +204,27 @@ export function buildAuthOptions(ctx: AuthRequestContext | null = null): NextAut
             : null;
         if (!sub) return false;
 
-        // Linking from Settings → My Profile means a full (company) session;
-        // anything else (signed out, or a company-less session bouncing
-        // through the login page) is a plain sign-in, decided by the Google
-        // identity alone — the session held is never bound to.
-        const linkIntent = Boolean(ctx?.currentAccountId && ctx?.currentCompanyId);
+        // "Verify it's you" through Google: a page sent a signed-in person
+        // here to prove they hold the login. It only counts when this Google
+        // account is already connected to the session's own account; the
+        // session is never re-minted or switched, they just go back.
+        if (ctx?.reauthReturnTo && ctx.currentAccountId) {
+          const owner = await identityAccountId("google", sub);
+          const sep = ctx.reauthReturnTo.includes("?") ? "&" : "?";
+          if (owner && owner === ctx.currentAccountId) {
+            ctx.outcome.reauthGranted = true;
+            return `${ctx.reauthReturnTo}${sep}reauth=ok`;
+          }
+          return `${ctx.reauthReturnTo}${sep}reauth=wrong-account`;
+        }
+
+        // Linking from Settings → My Profile means a full (company) session
+        // that just verified itself (password, or a connected provider);
+        // anything else (signed out, a company-less session bouncing through
+        // the login page, or a session with no fresh proof) is a plain
+        // sign-in, decided by the Google identity alone — the session held is
+        // never bound to.
+        const linkIntent = Boolean(ctx?.currentAccountId && ctx?.currentCompanyId && ctx?.reauthVia);
         const result = await resolveSocialSignIn(
           {
             provider: "google",

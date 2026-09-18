@@ -25,6 +25,14 @@ const rateLimits: { match: (path: string) => boolean; max: number; windowMs: num
     name: "login-native",
   },
   {
+    // "Verify it's you" — the password branch is a guessing surface for
+    // anyone holding a copied session cookie.
+    match: (p) => p.startsWith("/api/app/auth/reauth"),
+    max: 10,
+    windowMs: 15 * 60_000,
+    name: "reauth",
+  },
+  {
     match: (p) => p.startsWith("/api/app/register"),
     max: 3,
     windowMs: 60 * 60_000,
@@ -359,6 +367,7 @@ export const config = {
     "/superadmin/:path*",
     "/api/auth/callback/credentials",
     "/api/auth/callback/google-native",
+    "/api/app/auth/reauth",
     "/api/app/register",
     "/api/app/invite-check",
     "/api/app/activate/invite",

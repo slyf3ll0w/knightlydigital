@@ -28,6 +28,7 @@ import {
   Zap,
 } from "lucide-react";
 import { Input, Textarea, Select } from "@/components/Input";
+import { FlashBanner, useVerifyIdentity, type SignInMethods } from "@/components/VerifyIdentity";
 import { resizeImageFile } from "@/lib/resize-image";
 import { INDUSTRIES } from "@/lib/pricebooks";
 import { DEFAULT_ON_MY_WAY_TEMPLATE, ON_MY_WAY_PLACEHOLDERS } from "@/lib/messaging";
@@ -814,25 +815,38 @@ function PortalLinkCard({ slug }: { slug: string }) {
 
 /**
  * Owner-only, deliberately slow path to account deletion: expand the card,
- * retype the exact company name, re-enter the password, then confirm. The
- * server re-checks all three — this UI is friction, not the security.
+ * retype the exact company name, verify it's you (password, or a fresh
+ * Google sign-in for a login that has none — components/VerifyIdentity.tsx),
+ * then confirm. The server re-checks all three — this UI is friction, not
+ * the security.
  */
-function DangerZone({ companyName }: { companyName: string }) {
+function DangerZone({ companyName, signInMethods }: { companyName: string; signInMethods: SignInMethods }) {
   const [open, setOpen] = useState(false);
   const [confirmName, setConfirmName] = useState("");
-  const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const nameMatches = confirmName === companyName;
+  const { verify, flash, setFlash, pending, clearPending, dialog } = useVerifyIdentity(
+    signInMethods,
+    "/app/settings?s=business"
+  );
+  // Back from a Google verification: reopen the card they were on.
+  useEffect(() => {
+    if (pending === "delete-account") {
+      setOpen(true);
+      clearPending();
+    }
+  }, [pending, clearPending]);
 
   async function deleteAccount() {
-    if (!nameMatches || !password || busy) return;
-    setBusy(true);
+    if (!nameMatches || busy) return;
     setError("");
+    if (!(await verify("delete-account"))) return;
+    setBusy(true);
     const res = await fetch("/api/app/company/delete", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ confirmName, password }),
+      body: JSON.stringify({ confirmName }),
     });
     const data = await res.json().catch(() => null);
     if (!res.ok) {
@@ -869,9 +883,11 @@ function DangerZone({ companyName }: { companyName: string }) {
 
       {open && (
         <div className="mt-4 space-y-3 border-t border-red-200 pt-4">
+          <FlashBanner flash={flash} onClose={() => setFlash(null)} />
           <p className="text-sm text-gray-700">
             To confirm, type the company name exactly —{" "}
-            <span className="font-semibold">{companyName}</span> — and enter your password.
+            <span className="font-semibold">{companyName}</span>. You&apos;ll be asked to verify
+            it&apos;s you before anything is deleted.
           </p>
           <div>
             <label className="mb-1 block text-xs font-medium text-gray-500">Company name</label>
@@ -886,22 +902,12 @@ function DangerZone({ companyName }: { companyName: string }) {
               <p className="mt-1 text-xs text-red-600">Doesn&apos;t match yet — it&apos;s case-sensitive.</p>
             )}
           </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-gray-500">Your password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="current-password"
-              className="w-full max-w-sm rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
-            />
-          </div>
-          {error && <p className="text-sm text-red-600">{error}</p>}
+          {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
           <div className="flex items-center gap-3 pt-1">
             <button
               type="button"
               onClick={deleteAccount}
-              disabled={!nameMatches || !password || busy}
+              disabled={!nameMatches || busy}
               className="flex items-center gap-2 rounded-[10px] bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"
             >
               {busy ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
@@ -912,7 +918,6 @@ function DangerZone({ companyName }: { companyName: string }) {
               onClick={() => {
                 setOpen(false);
                 setConfirmName("");
-                setPassword("");
                 setError("");
               }}
               className="text-sm text-gray-500 hover:text-gray-700"
@@ -922,6 +927,7 @@ function DangerZone({ companyName }: { companyName: string }) {
           </div>
         </div>
       )}
+      {dialog}
     </div>
   );
 }
@@ -930,10 +936,13 @@ export default function SettingsClient({
   company,
   isOwner = false,
   initialSection,
+  signInMethods,
 }: {
   company: Company;
   isOwner?: boolean;
   initialSection?: string;
+  /** How the signed-in person can verify it's them (account deletion). */
+  signInMethods: SignInMethods;
 }) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
@@ -2021,7 +2030,9 @@ export default function SettingsClient({
         )}
       </div>
 
-      {isOwner && show("business") && <DangerZone companyName={company.name} />}
+      {isOwner && show("business") && (
+        <DangerZone companyName={company.name} signInMethods={signInMethods} />
+      )}
         </div>
       </div>
     </div>

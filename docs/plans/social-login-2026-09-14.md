@@ -113,3 +113,28 @@ upload, so the second one is what real users present.
   "sign in with password once to link".
 - Profile "Sign-in email" change still requires the current password —
   Google-only logins can't change their address until they set one.
+
+## 2026-09-18 — "Verify it's you" (recent authentication)
+
+Sensitive account changes now take a fresh proof of identity first, the way
+Google, GitHub and Apple gate theirs, instead of a password field on each form
+(which a Google-only login could never fill): connect / disconnect a sign-in
+method, change the sign-in email, set or change the password, delete the
+account.
+
+- **Proof** = a ten-minute, account-bound HMAC grant cookie (`lib/reauth.ts`).
+  Minted by `POST /api/app/auth/reauth` with the password, or with a native
+  Google ID token whose identity is connected to this login, or — on the web —
+  by the OAuth callback after a Google round-trip started with `{ method:
+  "google", start: true, returnTo }` (intent cookie → `?reauth=ok` back on the
+  page). Routes check it with `proveIdentity()`; a typed password still counts
+  on its own.
+- **UI** = `useVerifyIdentity()` + its dialog (`components/VerifyIdentity.tsx`):
+  password and/or "Continue with Google", whichever the login has. Profile →
+  **Sign-in methods** (`components/SignInMethodsCard.tsx`): Password (Add /
+  Change), Google (Connect / Disconnect), Apple (coming with the iPhone app).
+  A Google-only login adds its password right there.
+- **Apple**: add the provider to `resolveSocialSignIn`, an `apple` branch in
+  `POST /api/app/auth/reauth` (verify the Apple ID token, same identity-must-
+  belong rule), and flip the Apple row from "coming" to Connect. Everything
+  else — grants, the dialog, the routes — already handles `via: "apple"`.

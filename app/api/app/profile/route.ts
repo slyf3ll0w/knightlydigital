@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor } from "@/lib/permissions";
-import { accountUserIdsFor, setPasswordForUser, verifyPasswordForUser } from "@/lib/account";
+import { accountUserIdsFor, setPasswordForUser } from "@/lib/account";
+import { proveIdentity, proofError } from "@/lib/reauth";
 
 /**
- * PATCH — the signed-in user's own profile: name, phone, and password
- * (current password required to set a new one).
+ * PATCH — the signed-in user's own profile: name, phone, and password. A new
+ * password takes the current one, or a fresh "verify it's you" (lib/reauth.ts)
+ * — which is how a login that opens with Google sets its first password
+ * without a trip through Forgot password.
  *
  * Name and phone are account-level identity — one person, however many
  * companies — so they fan out to every membership row. The email signature
@@ -30,8 +33,8 @@ export async function PATCH(req: NextRequest) {
     if (String(body.newPassword).length < 8 || String(body.newPassword).length > 72) {
       return NextResponse.json({ error: "New password must be 8–72 characters." }, { status: 400 });
     }
-    const valid = await verifyPasswordForUser(actor.id, String(body.currentPassword ?? ""));
-    if (!valid) return NextResponse.json({ error: "Current password is incorrect." }, { status: 400 });
+    const proof = await proveIdentity(actor.id, body.currentPassword ? String(body.currentPassword) : undefined);
+    if (!proof.ok) return NextResponse.json(proofError(proof.reason), { status: 400 });
     newPassword = String(body.newPassword);
   }
 

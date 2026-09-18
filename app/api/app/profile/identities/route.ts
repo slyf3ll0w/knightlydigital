@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor } from "@/lib/permissions";
-import { verifyPasswordForUser } from "@/lib/account";
+import { proveIdentity, proofError } from "@/lib/reauth";
 import { listIdentities, resolveSocialSignIn, unlinkIdentity, type SocialProvider } from "@/lib/social-login";
 import { verifyGoogleIdToken } from "@/lib/google-id-token";
 
@@ -39,7 +39,10 @@ export async function GET() {
   return NextResponse.json({ identities, hasPassword: Boolean(account.passwordHash) });
 }
 
-/** DELETE ?provider=google — disconnect; refused when it's the only way in. */
+/**
+ * DELETE ?provider=google — disconnect; refused when it's the only way in.
+ * Takes a fresh "verify it's you" like every other sign-in-method change.
+ */
 export async function DELETE(req: NextRequest) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -49,26 +52,28 @@ export async function DELETE(req: NextRequest) {
   }
   const account = await accountFor(actor.id);
   if (!account) return NextResponse.json({ error: "Account not found." }, { status: 404 });
+  const proof = await proveIdentity(actor.id);
+  if (!proof.ok) return NextResponse.json(proofError(proof.reason), { status: 403 });
   const result = await unlinkIdentity(account.id, provider);
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
   return NextResponse.json({ success: true });
 }
 
 /**
- * POST { provider: "google", idToken, currentPassword } — connect a sign-in
- * method from the native app. The session is untouched either way.
+ * POST { provider: "google", idToken } — connect a sign-in method from the
+ * native app. The session is untouched either way.
  *
- * The password is required whenever the login has one: linking is a way in
- * that outlives a password reset, so it takes the same proof as changing
- * the email or the password does (the web path proves it through
- * /identities/grant instead, because Google's redirect owns that request).
+ * Needs a fresh "verify it's you" (lib/reauth.ts): linking is a way in that
+ * outlives a password reset, so it takes the same proof as changing the
+ * email or the password does. (The web path proves it the same way, then
+ * goes through Google's redirect; the callback checks the grant.)
  */
 export async function POST(req: NextRequest) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = (await req.json().catch(() => null)) as
-    | { provider?: string; idToken?: string; currentPassword?: string }
+    | { provider?: string; idToken?: string }
     | null;
   // Google is the only provider with a native path today; Apple joins it
   // when the iOS build ships (docs/plans/social-login-2026-09-14.md).
@@ -86,12 +91,8 @@ export async function POST(req: NextRequest) {
 
   const account = await accountFor(actor.id);
   if (!account) return NextResponse.json({ error: "Account not found." }, { status: 404 });
-  if (account.passwordHash) {
-    const valid = await verifyPasswordForUser(actor.id, String(body.currentPassword ?? ""));
-    if (!valid) {
-      return NextResponse.json({ error: "Current password is incorrect." }, { status: 400 });
-    }
-  }
+  const proof = await proveIdentity(actor.id);
+  if (!proof.ok) return NextResponse.json(proofError(proof.reason), { status: 403 });
 
   const result = await resolveSocialSignIn(
     {
