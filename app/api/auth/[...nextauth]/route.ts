@@ -62,7 +62,13 @@ async function requestContext(req: NextRequest): Promise<AuthRequestContext | nu
 async function handler(req: NextRequest, routeCtx: { params: Promise<{ nextauth: string[] }> }) {
   const ctx = await requestContext(req);
   const res = await NextAuth(req, routeCtx, buildAuthOptions(ctx));
-  if (!ctx?.reauthReturnTo) return res;
+  // Only the provider CALLBACK leg settles a verification. The signin leg
+  // (the POST that sends the browser off to Google) passes through here
+  // too, with the same intent cookie — retiring it there would strip the
+  // intent before Google ever answered, and the round-trip would land as a
+  // plain sign-in with nothing verified.
+  const isCallback = req.nextUrl.pathname.startsWith("/api/auth/callback/");
+  if (!ctx?.reauthReturnTo || !isCallback) return res;
 
   // A verify round-trip ends here: stamp the grant when Google vouched for
   // the session's own account, and retire the intent either way. NextAuth's
