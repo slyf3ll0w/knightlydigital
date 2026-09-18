@@ -33,12 +33,30 @@ export type BoardLane = {
   cards: BoardCard[];
 };
 
-/** Seed the starter lanes + every catalog feature the first time through. */
+/**
+ * Seed the starter lanes the first time through. Two first opens at once
+ * (two console tabs) must not each seed: the count is re-checked inside a
+ * serializable transaction, so the loser retries and finds the lanes.
+ */
 async function seedIfEmpty(): Promise<void> {
   const existing = await prisma.packagingLane.count();
   if (existing > 0) return;
-  for (const [i, lane] of STARTER_LANES.entries()) {
-    await prisma.packagingLane.create({ data: { ...lane, sort: i } });
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      await prisma.$transaction(
+        async (tx) => {
+          if ((await tx.packagingLane.count()) > 0) return;
+          for (const [i, lane] of STARTER_LANES.entries()) {
+            await tx.packagingLane.create({ data: { ...lane, sort: i } });
+          }
+        },
+        { isolationLevel: "Serializable" }
+      );
+      return;
+    } catch (e) {
+      // P2034 = serialization failure: the other seeder won; look again.
+      if ((e as { code?: string })?.code !== "P2034" || attempt === 2) throw e;
+    }
   }
 }
 
@@ -69,7 +87,9 @@ export async function syncCatalog(): Promise<number> {
   });
   let sort = (top._max.sort ?? -1) + 1;
 
-  await prisma.packagingCard.createMany({
+  // catalogKey is unique: a page load racing a "Sync catalog" press would
+  // otherwise trip P2002 on the second insert and 500 the board.
+  const created = await prisma.packagingCard.createMany({
     data: missing.map((f) => ({
       laneId: backlog.id,
       title: f.title,
@@ -79,8 +99,9 @@ export async function syncCatalog(): Promise<number> {
       catalogKey: f.key,
       sort: sort++,
     })),
+    skipDuplicates: true,
   });
-  return missing.length;
+  return created.count;
 }
 
 /** The backlog lane — created if a board somehow lost it. */

@@ -15,6 +15,16 @@ const rateLimits: { match: (path: string) => boolean; max: number; windowMs: num
     name: "login",
   },
   {
+    // The Android app's Google sign-in: a verified ID token can create an
+    // Account + placeholder membership, so it's an unauthenticated write
+    // path. Nothing to guess, so looser than password logins; a JSON 429
+    // (the shell calls it with redirect:false, not a document POST).
+    match: (p) => p.startsWith("/api/auth/callback/google-native"),
+    max: 20,
+    windowMs: 15 * 60_000,
+    name: "login-native",
+  },
+  {
     match: (p) => p.startsWith("/api/app/register"),
     max: 3,
     windowMs: 60 * 60_000,
@@ -348,6 +358,7 @@ export const config = {
     "/app/:path*",
     "/superadmin/:path*",
     "/api/auth/callback/credentials",
+    "/api/auth/callback/google-native",
     "/api/app/register",
     "/api/app/invite-check",
     "/api/app/activate/invite",

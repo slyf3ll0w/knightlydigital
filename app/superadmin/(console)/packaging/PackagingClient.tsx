@@ -141,11 +141,16 @@ export default function PackagingClient({ initialLanes }: { initialLanes: Lane[]
     const index = sameLane && toIndex > originalIndex ? toIndex - 1 : toIndex;
     target.cards.splice(Math.max(0, Math.min(index, target.cards.length)), 0, card);
 
+    // Optimistic: the card lands where it was dropped, and snaps back if the
+    // save fails (expired console cookie, 5xx) instead of lying until reload.
+    const prev = lanes;
     setLanes(next);
 
     const touched = sameLane ? [target] : [target, next.find((l) => l.id === from.id)!];
     void send("/api/superadmin/packaging/cards/reorder", {
       lanes: touched.map((l) => ({ laneId: l.id, cardIds: l.cards.map((c) => c.id) })),
+    }).then((ok) => {
+      if (!ok) setLanes(prev);
     });
   }
 
@@ -553,7 +558,12 @@ function LaneDialog({
   const [price, setPrice] = useState(lane?.price ?? "");
   const [priceNote, setPriceNote] = useState(lane?.priceNote ?? "");
   const [blurb, setBlurb] = useState(lane?.blurb ?? "");
-  const [accent, setAccent] = useState(lane?.accent ?? BLUE);
+  // The picker shows the colour the column actually renders with (a saved
+  // accent, else the kind's default), but only a colour the person picked is
+  // saved — otherwise every rename pinned the column to blue and the orange
+  // add-on default could never show, or be restored, again.
+  const [accent, setAccent] = useState(lane ? laneAccent(lane) : kind === "ADDON" ? ORANGE : BLUE);
+  const [accentTouched, setAccentTouched] = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);
   useEffect(() => nameRef.current?.focus(), []);
 
@@ -563,7 +573,7 @@ function LaneDialog({
         className="mt-4 flex flex-col gap-3.5"
         onSubmit={(e) => {
           e.preventDefault();
-          onSave({ name, kind, price, priceNote, blurb, accent });
+          onSave({ name, kind, price, priceNote, blurb, ...(accentTouched ? { accent } : {}) });
         }}
       >
         <label>
@@ -593,7 +603,10 @@ function LaneDialog({
             <input
               type="color"
               value={accent}
-              onChange={(e) => setAccent(e.target.value)}
+              onChange={(e) => {
+                setAccent(e.target.value);
+                setAccentTouched(true);
+              }}
               className="mt-1 h-[42px] w-full rounded-lg border border-gray-300 bg-white px-1"
             />
           </label>

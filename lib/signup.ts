@@ -17,6 +17,8 @@ import { pricebookForIndustry } from "@/lib/pricebooks";
 
 /** Thrown when the invite was claimed by a concurrent signup using the same code. */
 export class InviteClaimedError extends Error {}
+/** Thrown when a concurrent signup from the same session already opened its business. */
+export class PlaceholderClaimedError extends Error {}
 
 export type SignupOwner =
   | { account: { id: string; email: string }; ownerName: string }
@@ -160,10 +162,15 @@ function createInTransaction(
 
     let ownerUserId = company.users[0]?.id as string;
     if (placeholder) {
-      await tx.user.update({
-        where: { id: placeholder.id },
+      // Claim it: a double submit from the same company-less session passes
+      // the route's JWT-based 409 twice, and the second transaction must not
+      // re-point a placeholder the first already turned into an owner — that
+      // left the first company with no members at all.
+      const claimed = await tx.user.updateMany({
+        where: { id: placeholder.id, companyId: null },
         data: { ...ownerRow, companyId: company.id },
       });
+      if (claimed.count === 0) throw new PlaceholderClaimedError();
       ownerUserId = placeholder.id;
     }
 

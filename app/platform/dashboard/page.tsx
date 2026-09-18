@@ -25,6 +25,7 @@ import { SECTION_HUES } from "@/lib/section-colors";
 import { formatDuration, mapsHref, mapsSearchHref } from "@/lib/time-entries";
 import { renderMessageTemplate, DEFAULT_ON_MY_WAY_TEMPLATE } from "@/lib/messaging";
 import { arrivalTimeLabel, resolveArrivalWindowMinutes } from "@/lib/arrival-window";
+import { startOfDayIn, startOfMonthIn, startOfWeekIn, zonedMidnight, zonedParts } from "@/lib/timezone";
 import EmptyState from "@/components/EmptyState";
 import CountUp from "@/components/CountUp";
 import DashboardSetupCard from "./DashboardSetupCard";
@@ -94,12 +95,19 @@ export default async function DashboardPage() {
   const leadScope = viaContactScope(actor);
   const jScope = jobScope(actor);
 
+  // "Today", "this week", "this month" and the greeting are the company's
+  // calendar, not the server's: Railway runs on UTC, so a Central owner at
+  // 8 pm was already seeing tomorrow's visits and "Good afternoon" at 11 am.
+  const tz =
+    (await prisma.company.findUnique({ where: { id: companyId }, select: { timezone: true } }))
+      ?.timezone ?? "America/Chicago";
   const now = new Date();
-  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const endOfDay = new Date(startOfDay.getTime() + 86400000);
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const startOfWeek = new Date(startOfDay.getTime() - startOfDay.getDay() * 86400000);
-  const endOfWeek = new Date(startOfWeek.getTime() + 7 * 86400000);
+  const local = zonedParts(tz, now);
+  const startOfDay = startOfDayIn(tz, now);
+  const endOfDay = zonedMidnight(tz, local.y, local.m, local.d + 1);
+  const startOfMonth = startOfMonthIn(tz, now);
+  const startOfWeek = startOfWeekIn(tz, now);
+  const endOfWeek = zonedMidnight(tz, local.y, local.m, local.d - local.weekday + 7);
 
   const [
     newRequests,
@@ -214,9 +222,9 @@ export default async function DashboardPage() {
   );
   // Daily revenue buckets for the sparkline (1st of month → today)
   const monthRevenue = monthPayments.reduce((s, p) => s + Number(p.amount), 0);
-  const dailyRevenue = Array.from({ length: now.getDate() }, () => 0);
+  const dailyRevenue = Array.from({ length: local.d }, () => 0);
   for (const p of monthPayments) {
-    const day = new Date(p.paidAt).getDate() - 1;
+    const day = zonedParts(tz, new Date(p.paidAt)).d - 1;
     if (day >= 0 && day < dailyRevenue.length) dailyRevenue[day] += Number(p.amount);
   }
 
@@ -449,7 +457,7 @@ export default async function DashboardPage() {
   const moneyRound = (n: number) => `$${Math.round(n).toLocaleString("en-US")}`;
 
   const firstName = actor.name?.split(" ")[0] ?? "there";
-  const hour = now.getHours();
+  const hour = local.hour;
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
   return (
@@ -460,7 +468,7 @@ export default async function DashboardPage() {
       <div className="mb-7 anim-fade-up order-1">
         {/* "Your day" hero — the date rides with the greeting on every screen */}
         <p className="text-sm font-medium text-gray-500">
-          {now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
+          {now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: tz })}
         </p>
         {/* Two-tone greeting, like the marketing headline — the name carries
             the brand accent (text-green-* bridges to the tenant color) */}
@@ -552,7 +560,7 @@ export default async function DashboardPage() {
               <CountUp value={moneyRound(monthRevenue)} />
             </p>
             <p className="mt-1 text-[11px] font-medium text-gray-500">
-              Collected · {now.toLocaleDateString("en-US", { month: "short" })}
+              Collected · {now.toLocaleDateString("en-US", { month: "short", timeZone: tz })}
             </p>
           </Link>
           <Link prefetch={false} href="/app/invoices?status=AWAITING_PAYMENT" className="min-w-0 px-3">

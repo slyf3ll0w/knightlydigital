@@ -8,7 +8,7 @@ import { sendEmail, newApplicationEmail } from "@/lib/email";
 import { checkInviteCode } from "@/lib/invites";
 import { normalizeEmail } from "@/lib/user-email";
 import { findOrAdoptAccountByEmail } from "@/lib/account";
-import { createCompanySignup, InviteClaimedError } from "@/lib/signup";
+import { createCompanySignup, InviteClaimedError, PlaceholderClaimedError } from "@/lib/signup";
 import { isValidTimezone } from "@/lib/timezone";
 
 // Where new-application notifications land (a person reads every one).
@@ -145,32 +145,14 @@ export async function POST(req: NextRequest) {
     invite = { id: check.id };
   }
 
-  // Email already tied to an account that already opened a company through
-  // this flow? Point them at sign-in instead of stacking applications. Not
-  // for a signed-in (Google) caller: they are provably the owner of that
-  // email and hold no company right now (the 409 above rules that out), so
-  // an old application — say, for a company since closed — must not dead-end
-  // them here.
-  const openApplication = sessionAccount
-    ? null
-    : await prisma.accessApplication.findFirst({
-        where: { email, companyId: { not: null } },
-        select: { id: true },
-      });
-  if (openApplication) {
-    return NextResponse.json(
-      {
-        error:
-          "You've already applied with this email and your account is open — sign in at the login page. Forgot your password? Reset it from there.",
-      },
-      { status: 409 }
-    );
-  }
-
   // Existing login with this email: the typed password must match, then the
   // new company attaches to it (same behavior as the register page). The
   // generic message on mismatch never confirms the address exists — nor
-  // that it exists as a password-less (Google-only) login.
+  // that it exists as a password-less (Google-only) login, nor that it has
+  // already opened a company through this flow (that check sits BEHIND the
+  // password on purpose; a captcha-solved probe must learn nothing from it).
+  const GENERIC =
+    "Unable to sign you up. If you already have an account — including one opened with Google — log in instead, or use Forgot password.";
   const existing = sessionAccount ? null : await findOrAdoptAccountByEmail(email);
   let owner:
     | { account: { id: string; email: string }; ownerName: string }
@@ -182,16 +164,20 @@ export async function POST(req: NextRequest) {
       ? await bcrypt.compare(String(password), existing.passwordHash)
       : false;
     if (!valid) {
-      return NextResponse.json(
-        {
-          error:
-            "Unable to sign you up. If you already have an account — including one opened with Google — log in instead, or use Forgot password.",
-        },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: GENERIC }, { status: 400 });
     }
     owner = { account: { id: existing.id, email: existing.email }, ownerName: String(name).trim() };
   } else {
+    // No login, yet an application that already opened a company under this
+    // email (the account was deleted, or never adopted): don't stack a
+    // second one — and don't say why.
+    const openApplication = await prisma.accessApplication.findFirst({
+      where: { email, companyId: { not: null } },
+      select: { id: true },
+    });
+    if (openApplication) {
+      return NextResponse.json({ error: GENERIC }, { status: 400 });
+    }
     owner = {
       newLogin: { email, hash: await bcrypt.hash(String(password), 12), name: String(name).trim() },
     };
@@ -244,6 +230,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: "That invite code has already been used." },
         { status: 403 }
+      );
+    }
+    if (e instanceof PlaceholderClaimedError) {
+      return NextResponse.json(
+        { error: "Your business was already opened — refresh to see it." },
+        { status: 409 }
       );
     }
     throw e;

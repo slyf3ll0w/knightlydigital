@@ -7,7 +7,7 @@ import { verifyCaptcha } from "@/lib/captcha";
 import { checkInviteCode } from "@/lib/invites";
 import { normalizeEmail } from "@/lib/user-email";
 import { ensureAccountForUser, findOrAdoptAccountByEmail } from "@/lib/account";
-import { createCompanySignup, InviteClaimedError } from "@/lib/signup";
+import { createCompanySignup, InviteClaimedError, PlaceholderClaimedError } from "@/lib/signup";
 import { isValidTimezone } from "@/lib/timezone";
 
 /**
@@ -139,6 +139,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: "That invite code has already been used." },
         { status: 403 }
+      );
+    }
+    if (e instanceof PlaceholderClaimedError) {
+      return NextResponse.json(
+        { error: "Your business was already opened — refresh to see it." },
+        { status: 409 }
       );
     }
     throw e;
