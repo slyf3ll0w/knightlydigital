@@ -121,7 +121,7 @@ export default function ContractTemplatesClient({ templates }: { templates: Temp
             <ArrowLeft size={18} />
           </Link>
           <PageTitle section="contracts" icon={FileSignature}>
-            Contracts
+            Agreement templates
           </PageTitle>
         </div>
         <button

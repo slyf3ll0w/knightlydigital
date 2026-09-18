@@ -166,7 +166,7 @@ export default function NewSeriesForm({
         <Link href="/app/subscriptions" className="hidden lg:block text-gray-400 hover:text-gray-600">
           <ArrowLeft size={18} />
         </Link>
-        <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">New Recurring Series</h1>
+        <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">New recurring plan</h1>
       </div>
 
       <form onSubmit={submit} className="space-y-5">
@@ -192,7 +192,7 @@ export default function NewSeriesForm({
           <ServiceChips items={services} selectedIds={service ? [service.id] : []} onToggle={pickService} />
           <div>
             <label className="block text-xs text-gray-500 mb-1">
-              Series name{services.length > 0 ? " (optional)" : " *"}
+              Plan name{services.length > 0 ? " (optional)" : " *"}
             </label>
             <input
               value={name}
@@ -423,7 +423,7 @@ export default function NewSeriesForm({
             className="flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 text-white font-semibold text-sm rounded-[10px] btn-tool transition-colors disabled:opacity-50"
           >
             {loading && <Loader2 size={14} className="animate-spin" />}
-            Start Series
+            Start plan
           </button>
           <Link href="/app/subscriptions" className="text-sm text-gray-500 hover:text-gray-700">
             Cancel

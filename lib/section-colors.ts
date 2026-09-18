@@ -47,12 +47,12 @@ export const SECTION_LABELS: Record<SectionKey, string> = {
   jobs: "Jobs",
   invoices: "Invoices",
   payments: "Payments",
-  subscriptions: "Subscriptions",
+  subscriptions: "Recurring",
   business: "Business",
-  services: "Products & Services",
-  contracts: "Contracts",
+  services: "Services",
+  contracts: "Agreement templates",
   chat: "Team Chat",
-  forms: "Booking Forms",
+  forms: "Booking & forms",
   team: "Team",
 };
 

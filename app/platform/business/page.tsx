@@ -4,9 +4,10 @@ import { ArrowRight, BarChart3, Map, Receipt, Timer } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { requirePageActor, isManager } from "@/lib/permissions";
 import { entryMs, formatDuration } from "@/lib/time-entries";
+import { startOfMonthIn, startOfWeekIn } from "@/lib/timezone";
 import PageTitle from "@/components/PageTitle";
 
-export const metadata: Metadata = { title: "Business" };
+export const metadata: Metadata = { title: "Overview" };
 
 /**
  * Business hub (owners/admins): one nav entry fanning out to the
@@ -17,10 +18,13 @@ export default async function BusinessPage() {
   const actor = await requirePageActor((a) => isManager(a.role));
   const companyId = actor.companyId;
 
+  // "This week" / "this month" on the company's calendar, not the UTC box.
+  const tz =
+    (await prisma.company.findUnique({ where: { id: companyId }, select: { timezone: true } }))
+      ?.timezone ?? "America/Chicago";
   const now = new Date();
-  const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const startOfWeek = startOfWeekIn(tz, now);
+  const startOfMonth = startOfMonthIn(tz, now);
 
   const [onClock, weekEntries, monthPayments, monthExpenses] = await Promise.all([
     prisma.timeEntry.count({ where: { companyId, endedAt: null } }),

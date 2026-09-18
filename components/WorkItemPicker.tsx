@@ -224,7 +224,7 @@ export default function WorkItemPicker({
       <BottomSheet
         open={sheetOpen}
         onClose={() => setSheetOpen(false)}
-        title="Products & Services"
+        title="Services"
       >
         <div className="px-4 pb-2">
           <div className="flex items-center gap-2 rounded-[12px] bg-black/5 px-3 py-2">

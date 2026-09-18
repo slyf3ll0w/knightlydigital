@@ -297,7 +297,7 @@ export default function SubscriptionsClient({
   return (
     <div className="p-4 lg:p-8 max-w-4xl mx-auto">
       <div className="flex items-start justify-between gap-3 mb-6">
-        <PageTitle sub="Auto-charged plans, plus series billed per completed visit.">Recurring</PageTitle>
+        <PageTitle sub="Auto-charged plans, plus work billed per completed visit.">Recurring</PageTitle>
         {canManage && (
           <div className="flex items-center gap-2">
             {active.length > 0 && (
@@ -318,7 +318,7 @@ export default function SubscriptionsClient({
               className="flex shrink-0 items-center gap-1.5 px-3 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors"
             >
               <Repeat size={14} />
-              <span className="hidden sm:inline">New Series</span>
+              <span className="hidden sm:inline">New plan</span>
               <span className="sm:hidden">New</span>
             </Link>
           </div>
@@ -383,12 +383,12 @@ export default function SubscriptionsClient({
       {subs.length === 0 ? (
         <div className="card-ledger py-16 text-center">
           <Repeat size={36} className="text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-700 text-sm font-semibold mb-1.5">No recurring series yet</p>
+          <p className="text-gray-700 text-sm font-semibold mb-1.5">No recurring plans yet</p>
           <p className="mx-auto max-w-[30ch] text-[13px] leading-relaxed text-gray-500">
-            Start one with <span className="font-medium text-gray-700">New Series</span>, or mark a
+            Start one with <span className="font-medium text-gray-700">New plan</span>, or mark a
             service as recurring in{" "}
             <Link href="/app/settings/products" className="text-green-600 hover:underline">
-              Products &amp; Services
+              Services
             </Link>{" "}
             so selling it starts a plan.
           </p>

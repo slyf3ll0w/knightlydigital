@@ -228,15 +228,15 @@ const SECTION_IDS = SETTINGS_SECTIONS.map((s) => s.key) as readonly SectionId[];
 const SETUP_LINKS = [
   {
     href: "/app/settings/products",
-    label: "Products & Services",
+    label: "Services",
     sub: "Your price book — items autocomplete on quotes and invoices",
     hueKey: "services",
     icon: Package,
   },
   {
     href: "/app/settings/contracts",
-    label: "Contract Templates",
-    sub: "Reusable service agreements clients e-sign from a link",
+    label: "Agreement templates",
+    sub: "Reusable agreements clients e-sign from a link",
     hueKey: "contracts",
     icon: FileSignature,
   },
@@ -249,8 +249,8 @@ const SETUP_LINKS = [
   },
   {
     href: "/app/settings/booking",
-    label: "Booking Forms",
-    sub: "Public forms for your website, each with its own link",
+    label: "Booking & forms",
+    sub: "Your booking page and website forms, each with its own link",
     hueKey: "forms",
     icon: Globe,
   },
@@ -1384,7 +1384,7 @@ export default function SettingsClient({
               ))}
             </Select>
             <p className="text-xs text-gray-400 mt-1">
-              Changing this doesn&apos;t touch your price book — edit that in Products &amp; Services.
+              Changing this doesn&apos;t touch your price book — edit that in Services.
             </p>
           </div>
           <div>
@@ -1883,7 +1883,7 @@ export default function SettingsClient({
             <h2 className="text-sm font-semibold text-gray-700">Default Deposit</h2>
             <p className="text-xs text-gray-400 mt-0.5">
               Applied to quotes when a service has no deposit of its own. Set per-service deposits in
-              Products &amp; Services.
+              Services.
             </p>
           </div>
           <div className="flex flex-wrap items-end gap-3">

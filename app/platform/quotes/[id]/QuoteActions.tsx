@@ -497,7 +497,7 @@ export default function QuoteActions({
             </p>
             {agreement.templates.length === 0 ? (
               <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4">
-                No agreement templates yet — create one under Settings → Contract Templates
+                No agreement templates yet — create one under Settings → Agreement templates
                 first.
               </p>
             ) : (

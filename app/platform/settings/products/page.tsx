@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { requirePageActor, isManager } from "@/lib/permissions";
 import ProductsClient from "./ProductsClient";
 
-export const metadata: Metadata = { title: "Products & Services" };
+export const metadata: Metadata = { title: "Services" };
 
 export default async function ProductsPage() {
   const actor = await requirePageActor((a) => isManager(a.role));

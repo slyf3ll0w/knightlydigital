@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { requirePageActor, isManager, contactScope } from "@/lib/permissions";
 import NewSeriesForm from "./NewSeriesForm";
 
-export const metadata: Metadata = { title: "New Recurring Series" };
+export const metadata: Metadata = { title: "New recurring plan" };
 
 export default async function NewSubscriptionPage({
   searchParams,

@@ -831,7 +831,7 @@ export const companyTools: Tool[] = [
           if (match) ids.push(match.id);
           else missing.push(w);
         }
-        if (missing.length > 0) return { error: `Not in the price book: ${missing.join(", ")}. Add them under Products & Services first (manage_price_book), then retry.` };
+        if (missing.length > 0) return { error: `Not in the price book: ${missing.join(", ")}. Add them under Settings → Services first (manage_price_book), then retry.` };
         if (ids.length === 0) return { error: "setServiceNames needs at least one price-book service." };
         payload.services = ids;
         lines.push(`Services offered: ${wanted.join(", ")}`);

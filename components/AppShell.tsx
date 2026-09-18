@@ -28,6 +28,8 @@ import {
   Tag,
   FileSignature,
   Repeat,
+  Building2,
+  Wallet,
   Route as RouteGlyph,
   ChevronsUpDown,
   CircleUserRound,
@@ -176,10 +178,15 @@ const navGroups: { label?: string; items: NavItem[] }[] = [
   {
     label: "Business",
     items: [
-      // Hub page: Insights + Team Map + Timesheets live behind one entry
-      { href: "/app/business", label: "Business", icon: BarChart3, show: isManagerRole },
+      // Overview = the hub page (Insights + Team Map + Timesheets + Expenses
+      // with live stats); Insights and Expenses also get their own rows so
+      // the reporting page is one tap away, not two.
+      { href: "/app/business", label: "Overview", icon: Building2, show: isManagerRole },
+      { href: "/app/insights", label: "Insights", icon: BarChart3, show: isManagerRole },
+      { href: "/app/expenses", label: "Expenses", icon: Wallet, show: isManagerRole },
+      // Same labels as the Settings index — one name per page everywhere.
       { href: "/app/settings/products", label: "Services", icon: Tag, show: isManagerRole },
-      { href: "/app/settings/contracts", label: "Contracts", icon: FileSignature, show: isManagerRole },
+      { href: "/app/settings/contracts", label: "Agreement templates", icon: FileSignature, show: isManagerRole },
     ],
   },
 ];
@@ -226,9 +233,12 @@ const railGroups: { key: string; label: string; items: NavItem[] }[] = [
     key: "business",
     label: "Business",
     items: [
-      { href: "/app/business", label: "Business", icon: BarChart3, show: isManagerRole },
+      { href: "/app/business", label: "Overview", icon: Building2, show: isManagerRole },
+      { href: "/app/insights", label: "Insights", icon: BarChart3, show: isManagerRole },
+      { href: "/app/expenses", label: "Expenses", icon: Wallet, show: isManagerRole },
+      // Same labels as the Settings index — one name per page everywhere.
       { href: "/app/settings/products", label: "Services", icon: Tag, show: isManagerRole },
-      { href: "/app/settings/contracts", label: "Contracts", icon: FileSignature, show: isManagerRole },
+      { href: "/app/settings/contracts", label: "Agreement templates", icon: FileSignature, show: isManagerRole },
       { href: "/app/settings/booking", label: "Booking & forms", icon: Globe, show: isManagerRole },
       { href: "/app/settings/team", label: "Team", icon: UserPlus, show: isManagerRole },
     ],

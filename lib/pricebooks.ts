@@ -5,7 +5,7 @@
  *
  * unitCost powers the job profit-margin features, so presets include a
  * realistic ballpark cost, not just a price. "Other" seeds nothing — those
- * companies build their price book from scratch in Settings → Products & Services.
+ * companies build their price book from scratch in Settings → Services.
  */
 
 export type StarterWorkItem = {
