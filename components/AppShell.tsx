@@ -1050,7 +1050,7 @@ function CommandPalette({
               <Icon size={15} className="shrink-0 text-gray-400" />
               <span className="min-w-0 truncate">{row.label}</span>
               {row.sub && (
-                <span className="numeral-ledger min-w-0 shrink-[2] truncate text-xs text-gray-400">
+                <span className="numeral-ledger min-w-0 shrink-[2] truncate text-xs text-gray-500">
                   {row.sub}
                 </span>
               )}

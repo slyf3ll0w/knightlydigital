@@ -40,7 +40,7 @@ export default function SmsNotificationsCard({ initialOnAt }: { initialOnAt: str
           <MessageSquareText size={15} className="text-gray-400" />
           Text Notifications
         </h2>
-        <p className="text-xs text-gray-400 mt-0.5">
+        <p className="text-xs text-gray-500 mt-0.5">
           Appointment reminders, schedule changes, and quote and invoice links go to your clients
           by text from WorkBench&apos;s number, naming your business. Every client with a phone
           number gets them unless you switch that client off or they reply STOP.

@@ -1163,7 +1163,7 @@ export default function ScheduleClient({
                     className="card-tool w-full px-4 py-7 text-center"
                   >
                     <p className="text-sm font-medium text-gray-500">{armed ? "Tap to place here" : "Nothing scheduled"}</p>
-                    <p className="mt-0.5 text-xs text-gray-400">
+                    <p className="mt-0.5 text-xs text-gray-500">
                       {unscheduled.length > 0 ? `${unscheduled.length} job${unscheduled.length === 1 ? "" : "s"} waiting to be scheduled` : "Free day."}
                     </p>
                   </button>
@@ -1392,7 +1392,7 @@ export default function ScheduleClient({
           {canCreateJob && (
             <Link
               href={`/app/jobs/new?date=${toParam(view === "month" ? new Date() : anchor)}`}
-              className="hidden lg:flex h-10 items-center gap-1.5 rounded-[10px] btn-tool bg-green-500 px-4 text-sm font-semibold text-white transition-colors hover:bg-green-600 active:bg-green-700"
+              className="btn-primary hidden lg:flex h-10"
             >
               <Plus size={15} />
               New Job
@@ -1510,7 +1510,7 @@ export default function ScheduleClient({
       )}
 
       {error && (
-        <div className="mb-3 flex items-center justify-between rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <div role="alert" className="form-error mb-3 flex items-center justify-between">
           {error}
           <button onClick={() => setError("")} className="p-0.5 text-red-400 hover:text-red-600">
             <X size={14} />
@@ -1640,7 +1640,7 @@ export default function ScheduleClient({
                     setChooser(null);
                     setPlaceIntent({ entity: { type: "pick", kind: "job" }, date: toParam(c.date), minute: c.startMin, userId: c.userId ?? (team || undefined), durationMin: c.endMin - c.startMin });
                   }}
-                  className="flex items-center gap-2 rounded-[10px] btn-tool bg-green-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-green-600"
+                  className="btn-primary btn-lg"
                 >
                   <Plus size={15} /> New job
                 </button>
@@ -1684,7 +1684,7 @@ export default function ScheduleClient({
                 {sameDay(anchor, today) ? " Visits that already started (or are on the clock) stay where they are." : ""}
               </p>
             </div>
-            {shiftErr && <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{shiftErr}</div>}
+            {shiftErr && <div role="alert" className="form-error">{shiftErr}</div>}
             <div>
               <label className="mb-0.5 block text-xs font-medium text-gray-500">Move to</label>
               <input
@@ -1723,7 +1723,7 @@ export default function ScheduleClient({
               Text or email each client their new time
             </label>
             <div className="flex items-center gap-2 pt-1">
-              <button onClick={submitShift} disabled={shiftBusy} className="flex items-center gap-2 rounded-[10px] btn-tool bg-green-500 px-4 py-2 text-sm font-semibold text-white hover:bg-green-600 disabled:opacity-50">
+              <button onClick={submitShift} disabled={shiftBusy} className="btn-primary">
                 {shiftBusy && <Loader2 size={14} className="animate-spin" />}
                 Move everything
               </button>
@@ -1751,7 +1751,7 @@ export default function ScheduleClient({
                     : "Only owners and admins can change someone else's blocked time."}
               </p>
             )}
-            {blockErr && <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{blockErr}</div>}
+            {blockErr && <div role="alert" className="form-error">{blockErr}</div>}
             <div>
               <label className="mb-0.5 block text-xs font-medium text-gray-500">Reason</label>
               <input
@@ -1879,7 +1879,7 @@ export default function ScheduleClient({
             )}
             <div className="flex items-center gap-2 pt-1">
               {blockSheet.canEdit && (
-                <button onClick={saveBlock} disabled={blockBusy} className="flex items-center gap-2 rounded-[10px] btn-tool bg-green-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-600 active:bg-green-700 disabled:opacity-50">
+                <button onClick={saveBlock} disabled={blockBusy} className="btn-primary">
                   {blockBusy && <Loader2 size={14} className="animate-spin" />}
                   {blockSheet.id === null ? "Block Time" : "Save"}
                 </button>

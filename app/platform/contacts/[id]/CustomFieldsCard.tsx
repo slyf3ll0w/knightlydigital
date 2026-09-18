@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { inputCls } from "@/components/Input";
 import { useRouter } from "next/navigation";
 import { Check, Loader2, Pencil, X } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
@@ -12,9 +13,6 @@ type Def = {
   options: string[];
   required: boolean;
 };
-
-const inputCls =
-  "w-full px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500";
 
 /** Company-defined fields on the client page; edit-in-place, full-map save. */
 export default function CustomFieldsCard({

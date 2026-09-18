@@ -119,7 +119,7 @@ export default function ApplicationsClient({ applications }: { applications: App
         <div className="flex items-start justify-between gap-3">
           <div>
             <h3 className="font-semibold text-gray-900">{app.companyName}</h3>
-            <p className="text-xs text-gray-400">
+            <p className="text-xs text-gray-500">
               Applied {new Date(app.createdAt).toLocaleDateString()}
               {app.decidedAt ? ` · decided ${new Date(app.decidedAt).toLocaleDateString()}` : ""}
             </p>
@@ -180,7 +180,7 @@ export default function ApplicationsClient({ applications }: { applications: App
             <button
               onClick={() => decide(app.id, "approve", !!app.company)}
               disabled={busy === app.id}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-green-500 px-4 py-2 text-sm font-semibold text-white hover:bg-green-600 disabled:opacity-50"
+              className="btn-primary inline-flex"
             >
               {busy === app.id ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
               {app.company ? "Approve account" : "Approve & email code"}
@@ -206,7 +206,7 @@ export default function ApplicationsClient({ applications }: { applications: App
             >
               {copied === app.inviteCode.code ? <Check size={14} className="text-green-600" /> : <Copy size={14} />}
             </button>
-            <span className="text-xs text-gray-400">
+            <span className="text-xs text-gray-500">
               {app.inviteCode.used ? "Used — they signed up" : "Not used yet"}
             </span>
           </div>
@@ -227,7 +227,7 @@ export default function ApplicationsClient({ applications }: { applications: App
       </p>
 
       {error && (
-        <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div role="alert" className="form-error mt-4">
           {error}
         </div>
       )}

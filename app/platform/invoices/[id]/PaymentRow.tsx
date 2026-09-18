@@ -184,7 +184,7 @@ export default function PaymentRow({
           <button
             onClick={save}
             disabled={busy}
-            className="flex items-center gap-1 px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-semibold rounded-[10px] btn-tool transition-colors disabled:opacity-40"
+            className="btn-primary btn-sm"
           >
             {busy ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />}
             Save

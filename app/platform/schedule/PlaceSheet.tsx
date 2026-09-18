@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { inputCls } from "@/components/Input";
 import Link from "next/link";
 import { Loader2, MapPin, Phone, Search, Video } from "lucide-react";
 import Modal from "@/components/Modal";
@@ -378,8 +379,6 @@ export default function PlaceSheet({
     }
   }
 
-  const inputCls =
-    "w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500";
   const heading = existingJob
     ? "Schedule Job"
     : kind === "job"
@@ -409,7 +408,7 @@ export default function PlaceSheet({
             {sub && <p className="mt-0.5 truncate text-sm text-gray-500">{sub}</p>}
           </div>
 
-          {err && <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{err}</div>}
+          {err && <div role="alert" className="form-error">{err}</div>}
 
           {/* Kind: only when both are possible and it's a fresh record */}
           {!existingJob && canCreateJob && canCreateAppointment && (
@@ -476,7 +475,7 @@ export default function PlaceSheet({
                               className="flex w-full items-center justify-between px-3 py-1.5 text-left text-sm hover:bg-gray-50"
                             >
                               <span className="truncate">{h.name}</span>
-                              <span className="ml-2 shrink-0 text-xs text-gray-400">{h.lead ? "Lead" : h.sub}</span>
+                              <span className="ml-2 shrink-0 text-xs text-gray-500">{h.lead ? "Lead" : h.sub}</span>
                             </button>
                           </li>
                         ))}
@@ -691,7 +690,7 @@ export default function PlaceSheet({
             <button
               onClick={submit}
               disabled={busy}
-              className="flex items-center gap-2 rounded-[10px] btn-tool bg-green-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-600 active:bg-green-700 disabled:opacity-50"
+              className="btn-primary"
             >
               {busy && <Loader2 size={14} className="animate-spin" />}
               {existingJob ? "Schedule" : kind === "job" ? "Create & schedule" : "Book it"}

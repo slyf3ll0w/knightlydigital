@@ -119,7 +119,7 @@ export default function FeedbackClient({ tickets }: { tickets: Ticket[] }) {
       </div>
 
       {error && (
-        <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div role="alert" className="form-error mt-4">
           {error}
         </div>
       )}
@@ -209,7 +209,7 @@ function TicketCard({
           </span>
           <div className="min-w-0">
             <h3 className="font-semibold text-gray-900">{t.title}</h3>
-            <p className="text-xs text-gray-400">
+            <p className="text-xs text-gray-500">
               {t.user ? `${t.user.name} — ${t.user.email}` : "Deleted user"} ·{" "}
               <Link href={`/superadmin/company/${t.company.id}`} className="hover:underline">
                 {t.company.name}
@@ -260,7 +260,7 @@ function TicketCard({
               <button
                 onClick={() => openPanel("resolve")}
                 disabled={busy}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-green-500 px-4 py-2 text-sm font-semibold text-white hover:bg-green-600 disabled:opacity-50"
+                className="btn-primary inline-flex"
               >
                 <Check size={14} /> {t.type === "BUG" ? "Mark fixed" : "Mark done"}
               </button>

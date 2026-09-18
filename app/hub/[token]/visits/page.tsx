@@ -136,7 +136,7 @@ export default async function HubVisitsPage({
                       )}
                     </div>
                     <p className="text-xs text-gray-500 mt-0.5">{r.timeLabel}</p>
-                    {r.address && <p className="text-xs text-gray-400 mt-0.5">{r.address}</p>}
+                    {r.address && <p className="text-xs text-gray-500 mt-0.5">{r.address}</p>}
                   </div>
                   <RescheduleButton token={token} kind={r.kind} id={r.id} title={r.title} />
                 </div>
@@ -145,7 +145,7 @@ export default async function HubVisitsPage({
           </div>
         </div>
       )}
-      <p className="mt-4 text-xs text-gray-400">
+      <p className="mt-4 text-xs text-gray-500">
         Need a different time? Use &ldquo;Request reschedule&rdquo; and we&apos;ll get back to
         you — nothing changes until it&apos;s confirmed.
       </p>

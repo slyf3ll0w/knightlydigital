@@ -203,7 +203,7 @@ function ProposalCard({
 
   if (p.state === "dismissed") {
     return (
-      <div className="flex items-center gap-2 px-1 py-1 text-xs text-gray-400">
+      <div className="flex items-center gap-2 px-1 py-1 text-xs text-gray-500">
         <X size={12} className="shrink-0" />
         <span className="truncate line-through decoration-gray-300">{p.title}</span>
         <span className="ml-auto shrink-0">Skipped</span>

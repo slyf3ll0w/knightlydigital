@@ -105,7 +105,7 @@ export default function InvitesClient({ invites }: { invites: Invite[] }) {
       </p>
 
       {error && (
-        <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div role="alert" className="form-error mt-4">
           {error}
         </div>
       )}
@@ -163,7 +163,7 @@ export default function InvitesClient({ invites }: { invites: Invite[] }) {
           <button
             type="submit"
             disabled={creating}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-green-500 px-4 py-2 text-sm font-semibold text-white hover:bg-green-600 disabled:opacity-50"
+            className="btn-primary inline-flex"
           >
             {creating ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
             Create code
@@ -197,7 +197,7 @@ export default function InvitesClient({ invites }: { invites: Invite[] }) {
                       ""}
                 </span>
                 {invite.expiresAt && !invite.usedAt && !invite.revokedAt && (
-                  <span className="text-xs text-gray-400">
+                  <span className="text-xs text-gray-500">
                     Expires {new Date(invite.expiresAt).toLocaleDateString()}
                   </span>
                 )}

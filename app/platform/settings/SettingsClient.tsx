@@ -133,7 +133,7 @@ function ColorField({
           <button
             type="button"
             onClick={() => onChange("")}
-            className="text-xs text-gray-400 hover:text-gray-600 underline"
+            className="text-xs text-gray-500 hover:text-gray-600 underline"
           >
             Reset
           </button>
@@ -384,7 +384,7 @@ function PaymentsOnlineCard({ isOwner }: { isOwner: boolean }) {
         <div className="flex items-start justify-between gap-3">
           <div>
             <h2 className="text-sm font-semibold text-gray-700">Online Payments</h2>
-            <p className="text-xs text-gray-400 mt-0.5">
+            <p className="text-xs text-gray-500 mt-0.5">
               Let clients pay invoices by card or bank transfer, straight from their pay link
             </p>
           </div>
@@ -412,7 +412,7 @@ function PaymentsOnlineCard({ isOwner }: { isOwner: boolean }) {
           <h2 className="text-sm font-semibold text-gray-700">
             Online Payments
           </h2>
-          <p className="text-xs text-gray-400 mt-0.5">
+          <p className="text-xs text-gray-500 mt-0.5">
             Let clients pay invoices by card or bank transfer, straight from their pay link
           </p>
         </div>
@@ -466,7 +466,7 @@ function PaymentsOnlineCard({ isOwner }: { isOwner: boolean }) {
             <button
               onClick={openSetup}
               disabled={busy}
-              className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-xs font-semibold rounded-[10px] btn-tool transition-colors disabled:opacity-40"
+              className="btn-primary"
             >
               {busy && <Loader2 size={11} className="animate-spin" />}
               {state === "UPDATE_REQUESTED" || status.started
@@ -475,7 +475,7 @@ function PaymentsOnlineCard({ isOwner }: { isOwner: boolean }) {
             </button>
           </div>
         ) : (
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-gray-500">
             Only the account owner can set up payments.
           </p>
         )
@@ -595,7 +595,7 @@ function EmailDomainCard({ isOwner }: { isOwner: boolean }) {
           <h2 className="text-sm font-semibold text-gray-700">
             Email Sending Domain
           </h2>
-          <p className="text-xs text-gray-400 mt-0.5">
+          <p className="text-xs text-gray-500 mt-0.5">
             Send quotes, invoices, and reminders from your own email address instead of ours
           </p>
         </div>
@@ -642,7 +642,7 @@ function EmailDomainCard({ isOwner }: { isOwner: boolean }) {
                   placeholder="notifications"
                   className="w-full focus:ring-2"
                 />
-                <p className="text-xs text-gray-400 mt-1">
+                <p className="text-xs text-gray-500 mt-1">
                   {(localInput || "notifications").trim()}@{domainInput.trim() || "yourdomain.com"}
                 </p>
               </div>
@@ -650,14 +650,14 @@ function EmailDomainCard({ isOwner }: { isOwner: boolean }) {
             <button
               onClick={connect}
               disabled={busy || !domainInput.trim()}
-              className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-xs font-semibold rounded-[10px] btn-tool transition-colors disabled:opacity-40"
+              className="btn-primary"
             >
               {busy && <Loader2 size={11} className="animate-spin" />}
               Connect domain
             </button>
           </div>
         ) : (
-          <p className="text-xs text-gray-400">Only the account owner can set up a sending domain.</p>
+          <p className="text-xs text-gray-500">Only the account owner can set up a sending domain.</p>
         )
       ) : (
         <div className="space-y-3">
@@ -759,7 +759,7 @@ function EmailDomainCard({ isOwner }: { isOwner: boolean }) {
               <button
                 onClick={checkDns}
                 disabled={busy}
-                className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-xs font-semibold rounded-[10px] btn-tool transition-colors disabled:opacity-40"
+                className="btn-primary"
               >
                 {busy && <Loader2 size={11} className="animate-spin" />}
                 Check DNS now
@@ -791,7 +791,7 @@ function PortalLinkCard({ slug }: { slug: string }) {
         <h2 className="text-sm font-semibold text-gray-700">
           Client Portal Sign-In
         </h2>
-        <p className="text-xs text-gray-400 mt-0.5">
+        <p className="text-xs text-gray-500 mt-0.5">
           Clients enter their email at this page and get their portal link — put it on your
           website or in your email signature.
         </p>
@@ -1383,7 +1383,7 @@ export default function SettingsClient({
                 <option key={ind} value={ind}>{ind}</option>
               ))}
             </Select>
-            <p className="text-xs text-gray-400 mt-1">
+            <p className="text-xs text-gray-500 mt-1">
               Changing this doesn&apos;t touch your price book — edit that in Services.
             </p>
           </div>
@@ -1398,7 +1398,7 @@ export default function SettingsClient({
                 <option key={tz.value} value={tz.value}>{tz.label}</option>
               ))}
             </Select>
-            <p className="text-xs text-gray-400 mt-1">
+            <p className="text-xs text-gray-500 mt-1">
               Used for scheduling and recurring billing dates.
             </p>
           </div>
@@ -1415,7 +1415,7 @@ export default function SettingsClient({
               <option value="30">Every 30 minutes</option>
               <option value="60">Every hour</option>
             </Select>
-            <p className="text-xs text-gray-400 mt-1">
+            <p className="text-xs text-gray-500 mt-1">
               Time options offered when you schedule jobs and appointments.
             </p>
           </div>
@@ -1431,7 +1431,7 @@ export default function SettingsClient({
         <div className="card-ledger p-5 space-y-4">
           <div>
             <h2 className="text-sm font-semibold text-gray-700">Appearance</h2>
-            <p className="text-xs text-gray-400 mt-0.5">
+            <p className="text-xs text-gray-500 mt-0.5">
               Light or dark for this device — Automatic follows your device&apos;s setting
             </p>
           </div>
@@ -1465,7 +1465,7 @@ export default function SettingsClient({
         <div className="card-ledger p-5 space-y-4">
           <div>
             <h2 className="text-sm font-semibold text-gray-700">Branding</h2>
-            <p className="text-xs text-gray-400 mt-0.5">
+            <p className="text-xs text-gray-500 mt-0.5">
               Shown on everything your clients see — quotes, invoices, the client hub, and booking forms
             </p>
           </div>
@@ -1511,13 +1511,13 @@ export default function SettingsClient({
                 {logoBusy ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />}
                 {form.logoUrl ? "Replace Logo" : "Upload Logo"}
               </button>
-              <span className="text-xs text-gray-400">…or drag &amp; drop an image here</span>
+              <span className="text-xs text-gray-500">…or drag &amp; drop an image here</span>
               {form.logoUrl && (
                 <button
                   type="button"
                   onClick={removeLogo}
                   disabled={logoBusy}
-                  className="flex items-center gap-1 text-xs text-gray-400 hover:text-red-500 transition-colors"
+                  className="flex items-center gap-1 text-xs text-gray-500 hover:text-red-500 transition-colors"
                 >
                   <Trash2 size={12} />
                   Remove
@@ -1525,14 +1525,14 @@ export default function SettingsClient({
               )}
             </div>
             {logoError && <p className="text-xs text-red-600 mt-1">{logoError}</p>}
-            <p className="text-xs text-gray-400 mt-1">
+            <p className="text-xs text-gray-500 mt-1">
               Any PNG, JPG, WebP, or GIF up to 15MB — it&apos;s optimized automatically.
               Transparent-background PNG looks best.
             </p>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Wallpaper</label>
-            <p className="text-xs text-gray-400 mb-2">
+            <p className="text-xs text-gray-500 mb-2">
               A subtle backdrop behind every page of the app — your team sees it, clients never do
             </p>
             <div className="grid grid-cols-3 sm:grid-cols-4 xl:grid-cols-5 gap-2">
@@ -1605,7 +1605,7 @@ export default function SettingsClient({
               placeholder="Default — or any Google Font name, e.g. Lexend"
               className="w-full focus:ring-2"
             />
-            <p className="text-xs text-gray-400 mt-1">
+            <p className="text-xs text-gray-500 mt-1">
               Changes the font across the whole app for your team. Ledger numerals
               keep their stamped look. Quotes and invoices are not affected.
             </p>
@@ -1643,7 +1643,7 @@ export default function SettingsClient({
             </button>
             {showSectionColors && (
               <>
-                <p className="mt-1.5 text-xs text-gray-400">
+                <p className="mt-1.5 text-xs text-gray-500">
                   The app color-codes each area — nav tiles, page headings, active
                   filters. Override any of them here. Picks that are too light for
                   the light theme or too dark for the dark theme are automatically
@@ -1694,7 +1694,7 @@ export default function SettingsClient({
         <div className="hidden lg:block card-ledger p-5 space-y-4">
           <div>
             <h2 className="text-sm font-semibold text-gray-700">Sidebar</h2>
-            <p className="text-xs text-gray-400 mt-0.5">
+            <p className="text-xs text-gray-500 mt-0.5">
               How the desktop navigation rail looks for your whole team
             </p>
           </div>
@@ -1727,7 +1727,7 @@ export default function SettingsClient({
                   </button>
                 )}
               </div>
-              <p className="text-xs text-gray-400 mt-0.5">
+              <p className="text-xs text-gray-500 mt-0.5">
                 How tall the logo panel stands in the sidebar — the sidebar itself
                 stays the same width
               </p>
@@ -1767,7 +1767,7 @@ export default function SettingsClient({
             <h2 className="text-sm font-semibold text-gray-700">
               What Your Clients See
             </h2>
-            <p className="text-xs text-gray-400 mt-0.5">
+            <p className="text-xs text-gray-500 mt-0.5">
               Live preview of your branding on quotes, invoices, the client hub, and emails
             </p>
           </div>
@@ -1842,7 +1842,7 @@ export default function SettingsClient({
         <div className="card-ledger p-5 space-y-4">
           <div>
             <h2 className="text-sm font-semibold text-gray-700">Card Surcharging</h2>
-            <p className="text-xs text-gray-400 mt-0.5">Pass card processing fees to your customer</p>
+            <p className="text-xs text-gray-500 mt-0.5">Pass card processing fees to your customer</p>
           </div>
           <label className="flex items-center gap-3 cursor-pointer">
             <div
@@ -1868,7 +1868,7 @@ export default function SettingsClient({
                   className="w-24 focus:ring-2" />
                 <span className="text-sm text-gray-500">% added to card payments</span>
               </div>
-              <p className="text-xs text-gray-400 mt-1">
+              <p className="text-xs text-gray-500 mt-1">
                 Example: on a $500 invoice, customer pays ${(500 * (1 + parseFloat(form.surchargeRate || "0") / 100)).toFixed(2)} by card
               </p>
             </div>
@@ -1881,7 +1881,7 @@ export default function SettingsClient({
         <div className="card-ledger p-5 space-y-4">
           <div>
             <h2 className="text-sm font-semibold text-gray-700">Default Deposit</h2>
-            <p className="text-xs text-gray-400 mt-0.5">
+            <p className="text-xs text-gray-500 mt-0.5">
               Applied to quotes when a service has no deposit of its own. Set per-service deposits in
               Services.
             </p>
@@ -1918,7 +1918,7 @@ export default function SettingsClient({
               </div>
             )}
           </div>
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-gray-500">
             On approval, the deposit is billed to the client as its own invoice; the final invoice
             then subtracts what they&apos;ve already paid.
           </p>
@@ -1930,7 +1930,7 @@ export default function SettingsClient({
         <div className="card-ledger p-5 space-y-4">
           <div>
             <h2 className="text-sm font-semibold text-gray-700">Sales Tax</h2>
-            <p className="text-xs text-gray-400 mt-0.5">
+            <p className="text-xs text-gray-500 mt-0.5">
               Prefills new quotes and invoices and applies to recurring invoices. Each document can
               still change or remove its own rate.
             </p>
@@ -1943,7 +1943,7 @@ export default function SettingsClient({
                 className="w-24 focus:ring-2" />
               <span className="text-sm text-gray-500">%</span>
             </div>
-            <p className="text-xs text-gray-400 mt-1">Leave blank if you don&apos;t charge sales tax.</p>
+            <p className="text-xs text-gray-500 mt-1">Leave blank if you don&apos;t charge sales tax.</p>
           </div>
         </div>
         )}
@@ -1953,14 +1953,14 @@ export default function SettingsClient({
         <div className="card-ledger p-5 space-y-4">
           <div>
             <h2 className="text-sm font-semibold text-gray-700">AI Assistant</h2>
-            <p className="text-xs text-gray-400 mt-0.5">The chat helper in the corner of every page</p>
+            <p className="text-xs text-gray-500 mt-0.5">The chat helper in the corner of every page</p>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Assistant name</label>
             <Input type="text" value={form.assistantName} onChange={(e) => set("assistantName", e.target.value)}
               placeholder="Atlas" maxLength={40}
               className="w-full max-w-xs focus:ring-2" />
-            <p className="text-xs text-gray-400 mt-1">Give it a name that fits your business — leave blank for Atlas</p>
+            <p className="text-xs text-gray-500 mt-1">Give it a name that fits your business — leave blank for Atlas</p>
           </div>
         </div>
         )}
@@ -1975,7 +1975,7 @@ export default function SettingsClient({
             <h2 className="text-sm font-semibold text-gray-700">
               &ldquo;On My Way&rdquo; Texts
             </h2>
-            <p className="text-xs text-gray-400 mt-0.5">
+            <p className="text-xs text-gray-500 mt-0.5">
               The message behind the On My Way button on a job — it opens in your team
               member&apos;s own texting app, prefilled and editable, so it&apos;s free to send
             </p>
@@ -1990,7 +1990,7 @@ export default function SettingsClient({
               maxLength={320}
               className="w-full focus:ring-2"
             />
-            <p className="text-xs text-gray-400 mt-1">
+            <p className="text-xs text-gray-500 mt-1">
               Leave blank to use the default. Placeholders fill in automatically:{" "}
               {ON_MY_WAY_PLACEHOLDERS.map(([tag], i) => (
                 <span key={tag}>
@@ -2008,14 +2008,14 @@ export default function SettingsClient({
         <div className="card-ledger p-5 space-y-4">
           <div>
             <h2 className="text-sm font-semibold text-gray-700">Review Requests</h2>
-            <p className="text-xs text-gray-400 mt-0.5">Automatically ask for a Google review after payment</p>
+            <p className="text-xs text-gray-500 mt-0.5">Automatically ask for a Google review after payment</p>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Google review link</label>
             <Input type="url" value={form.reviewLink} onChange={(e) => set("reviewLink", e.target.value)}
               placeholder="https://g.page/r/..."
               className="w-full focus:ring-2" />
-            <p className="text-xs text-gray-400 mt-1">Find this in your Google Business Profile → Get more reviews</p>
+            <p className="text-xs text-gray-500 mt-1">Find this in your Google Business Profile → Get more reviews</p>
           </div>
         </div>
         )}

@@ -238,7 +238,7 @@ export default function SupportClient({
               <button
                 onClick={submit}
                 disabled={busy || !title.trim() || !details.trim()}
-                className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded-[10px] btn-tool disabled:opacity-50 transition-colors"
+                className="btn-primary"
               >
                 {busy && <Loader2 size={14} className="animate-spin" />}
                 {isBug ? "Send bug report" : "Send suggestion"}
@@ -319,7 +319,7 @@ export default function SupportClient({
         </ul>
       </div>
 
-      <p className="text-center text-xs text-gray-400">
+      <p className="text-center text-xs text-gray-500">
         Curious what&apos;s already in the works?{" "}
         <Link href="/app/roadmap" className="font-medium text-gray-500 hover:text-gray-800 underline">
           See the Upcoming Features board

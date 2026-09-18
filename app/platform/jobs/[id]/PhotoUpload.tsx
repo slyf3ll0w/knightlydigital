@@ -113,7 +113,7 @@ export default function PhotoUpload({ jobId, photos }: { jobId: string; photos: 
       {photos.length === 0 ? (
         <div className="px-5 py-8 text-center">
           <Camera size={28} className="text-gray-200 mx-auto mb-2" />
-          <p className="text-xs text-gray-400">No photos attached yet</p>
+          <p className="text-xs text-gray-500">No photos attached yet</p>
         </div>
       ) : (
         <div className="p-4 grid grid-cols-3 gap-2">

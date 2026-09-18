@@ -84,7 +84,7 @@ export default function CollectSignature({ jobId }: { jobId: string }) {
               complete to their satisfaction.
             </p>
             {error && (
-              <p className="mb-3 px-3 py-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+              <p role="alert" className="form-error mb-3">
                 {error}
               </p>
             )}
@@ -100,7 +100,7 @@ export default function CollectSignature({ jobId }: { jobId: string }) {
               <button
                 onClick={sign}
                 disabled={busy}
-                className="flex-1 py-2.5 text-sm font-semibold rounded-[10px] bg-green-500 text-white hover:bg-green-600 disabled:opacity-50 flex items-center justify-center gap-2"
+                className="btn-primary btn-lg flex-1 justify-center"
               >
                 {busy && <Loader2 size={13} className="animate-spin" />}
                 Sign &amp; Confirm

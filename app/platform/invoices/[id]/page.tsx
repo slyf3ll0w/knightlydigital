@@ -225,7 +225,7 @@ export default async function InvoiceDetailPage({
                   <p className="text-xs text-gray-500 mt-0.5">{item.description}</p>
                 )}
                 {item.serviceDate && (
-                  <p className="text-xs text-gray-400 mt-0.5">
+                  <p className="text-xs text-gray-500 mt-0.5">
                     Service date: {shortDate(item.serviceDate)}
                   </p>
                 )}
@@ -276,7 +276,7 @@ export default async function InvoiceDetailPage({
                       <p className="text-gray-500 text-xs mt-0.5">{item.description}</p>
                     )}
                     {item.serviceDate && (
-                      <p className="text-gray-400 text-xs mt-0.5">
+                      <p className="text-gray-500 text-xs mt-0.5">
                         Service date: {shortDate(item.serviceDate)}
                       </p>
                     )}

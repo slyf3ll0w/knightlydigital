@@ -49,7 +49,7 @@ export default function DashboardSetupCard() {
       </div>
       <Link
         href="/app/settings/products"
-        className="flex shrink-0 items-center gap-1.5 self-start rounded-[10px] btn-tool bg-green-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-600 max-lg:ml-[52px] lg:self-auto"
+        className="btn-primary shrink-0 self-start max-lg:ml-[52px] lg:self-auto"
       >
         Review prices <ArrowRight size={14} />
       </Link>

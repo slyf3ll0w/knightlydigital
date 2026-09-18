@@ -118,7 +118,7 @@ export default function AssignTeam({
         />
       )}
       {solo && !outsourced && (
-        <p className="mt-2 text-xs text-gray-400">It&apos;s just you — your jobs are assigned to you automatically.</p>
+        <p className="mt-2 text-xs text-gray-500">It&apos;s just you — your jobs are assigned to you automatically.</p>
       )}
       {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
     </div>

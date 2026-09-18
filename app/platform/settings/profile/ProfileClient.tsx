@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useRef, useState } from "react";
+import { inputCls } from "@/components/Input";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Camera, Check, ImagePlus, Loader2, Trash2 } from "lucide-react";
@@ -13,8 +14,6 @@ import AvatarCropModal from "@/components/AvatarCropModal";
 import ConnectedSignInsCard, { type ConnectedIdentity } from "@/components/ConnectedSignInsCard";
 import { saveCredential } from "@/lib/save-credential";
 
-const inputCls =
-  "w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500";
 
 export default function ProfileClient({
   userId,
@@ -202,7 +201,7 @@ export default function ProfileClient({
       </p>
 
       {error && (
-        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <div role="alert" className="form-error mb-4">
           {error}
         </div>
       )}
@@ -253,7 +252,7 @@ export default function ProfileClient({
             )}
           </div>
         </div>
-        <p className="mt-3 text-xs text-gray-400">
+        <p className="mt-3 text-xs text-gray-500">
           Shows next to your messages and wherever your name appears. Square photos look best.
         </p>
         <input
@@ -298,7 +297,7 @@ export default function ProfileClient({
         <button
           onClick={saveProfile}
           disabled={busy || !name.trim()}
-          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors disabled:opacity-50"
+          className="btn-primary"
         >
           {busy ? <Loader2 size={13} className="animate-spin" /> : saved === "profile" && <Check size={13} />}
           Save
@@ -321,13 +320,13 @@ export default function ProfileClient({
           placeholder={defaultSignature}
           className={`${inputCls} resize-y font-normal`}
         />
-        <p className="text-xs text-gray-400 mt-1 mb-3">
+        <p className="text-xs text-gray-500 mt-1 mb-3">
           Plain text, one line per row. Leave blank to use the default shown above.
         </p>
         <button
           onClick={saveSignature}
           disabled={busy}
-          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors disabled:opacity-50"
+          className="btn-primary"
         >
           {busy ? <Loader2 size={13} className="animate-spin" /> : saved === "signature" && <Check size={13} />}
           Save Signature
@@ -397,7 +396,7 @@ export default function ProfileClient({
             <button
               onClick={changeEmail}
               disabled={busy || !newEmail.trim() || !emailPassword}
-              className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors disabled:opacity-50"
+              className="btn-primary"
             >
               {busy ? (
                 <Loader2 size={13} className="animate-spin" />
@@ -474,7 +473,7 @@ export default function ProfileClient({
         <button
           onClick={changePassword}
           disabled={busy || newPassword.length < 8 || !currentPassword}
-          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors disabled:opacity-50"
+          className="btn-primary"
         >
           {busy ? <Loader2 size={13} className="animate-spin" /> : saved === "password" && <Check size={13} />}
           Update Password

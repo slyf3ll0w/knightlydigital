@@ -344,7 +344,7 @@ export default function ApplyForm({
       </p>
 
       {error && (
-        <div className="mt-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div role="alert" className="form-error mt-5">
           {error}
         </div>
       )}

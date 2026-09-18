@@ -1,3 +1,4 @@
+import { fmtPhone } from "@/lib/format";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, CalendarDays, ExternalLink, Mail, MapPin, Phone, User, Video } from "lucide-react";
@@ -164,7 +165,7 @@ export default async function AppointmentDetailPage({
           <div className="flex items-start gap-3">
             <Phone size={15} className="text-gray-400 mt-0.5 shrink-0" />
             <a href={`tel:${appt.contact.phone}`} className="text-sm text-green-700 hover:underline">
-              {appt.contact.phone}
+              {fmtPhone(appt.contact.phone)}
             </a>
           </div>
         )}

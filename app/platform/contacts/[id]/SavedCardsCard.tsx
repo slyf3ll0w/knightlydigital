@@ -173,7 +173,7 @@ export default function SavedCardsCard({
               <div className="flex-1 min-w-0">
                 <p className="text-sm text-gray-800">{card.label}</p>
                 {card.isDefault && cards.length > 1 && (
-                  <p className="text-xs text-gray-400">Default</p>
+                  <p className="text-xs text-gray-500">Default</p>
                 )}
               </div>
               {canManage && !card.isDefault && (
@@ -207,13 +207,13 @@ export default function SavedCardsCard({
       {adding && (
         <div className="mt-3 border-t border-gray-100 pt-3">
           {error && (
-            <div className="mb-3 px-3 py-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+            <div role="alert" className="form-error mb-3">
               {error}
             </div>
           )}
           <div ref={containerRef} />
           {!scriptReady && (
-            <div className="flex items-center justify-center gap-2 py-6 text-xs text-gray-400">
+            <div className="flex items-center justify-center gap-2 py-6 text-xs text-gray-500">
               <Loader2 size={13} className="animate-spin" />
               Loading secure card form…
             </div>

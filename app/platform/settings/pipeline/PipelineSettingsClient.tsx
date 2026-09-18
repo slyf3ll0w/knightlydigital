@@ -171,7 +171,7 @@ export default function PipelineSettingsClient({
       </p>
 
       {error && (
-        <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+        <div role="alert" className="form-error mb-4">
           {error}
         </div>
       )}
@@ -206,7 +206,7 @@ export default function PipelineSettingsClient({
             <button
               type="submit"
               disabled={saving || !newName.trim()}
-              className="rounded-[10px] btn-tool px-4 py-2 bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white text-sm font-semibold"
+              className="btn-primary"
             >
               Add
             </button>
@@ -329,7 +329,7 @@ export default function PipelineSettingsClient({
           </div>
         )}
 
-        <p className="text-xs text-gray-400 mt-3">
+        <p className="text-xs text-gray-500 mt-3">
           The first stage is where new leads land. Close leads out by dragging cards into
           Converted (or the Won zone) — Lost archives them with a reason.
         </p>

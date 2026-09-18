@@ -236,7 +236,7 @@ function NewJobForm() {
 
       <form onSubmit={handleSubmit} className="space-y-5">
         {error && (
-          <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+          <div role="alert" className="form-error">
             {error}
           </div>
         )}
@@ -322,7 +322,7 @@ function NewJobForm() {
               <option value="Repeat client" />
               <option value="Door hanger" />
             </datalist>
-            <p className="text-xs text-gray-400 mt-1">
+            <p className="text-xs text-gray-500 mt-1">
               Used in Insights to show which sources bring in the most revenue.
             </p>
           </div>
@@ -336,7 +336,7 @@ function NewJobForm() {
         <div className="card-ledger">
           <div className="px-5 py-4 border-b border-gray-100">
             <h2 className="text-sm font-semibold text-gray-700">Product / Service</h2>
-            <p className="text-xs text-gray-400 mt-0.5">
+            <p className="text-xs text-gray-500 mt-0.5">
               What this job is for — used for the invoice and the job&apos;s checklist.
             </p>
           </div>
@@ -498,7 +498,7 @@ function NewJobForm() {
                   placeholder="Who's doing it (optional)"
                 />
               )}
-              <p className="text-xs text-gray-400 mt-1">
+              <p className="text-xs text-gray-500 mt-1">
                 {team.length === 1
                   ? "It's just you, so your jobs land on your schedule and calendar sync automatically."
                   : "Assigned techs see this job on their schedule, get it in their calendar sync, and their online-booking availability blocks off this time. A scheduled job needs someone on it unless it's outsourced."}
@@ -550,7 +550,7 @@ function NewJobForm() {
           <button
             type="submit"
             disabled={loading}
-            className="flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors disabled:opacity-50"
+            className="btn-primary btn-lg"
           >
             {loading && <Loader2 size={14} className="animate-spin" />}
             Create Job

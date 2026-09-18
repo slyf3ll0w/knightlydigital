@@ -241,7 +241,7 @@ export default function ProductsClient({
   const editorRow = (
     <div className="border border-green-200 bg-green-50/40 rounded-lg p-4 space-y-3">
       {error && (
-        <div className="px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+        <div role="alert" className="form-error">
           {error}
         </div>
       )}
@@ -306,7 +306,7 @@ export default function ProductsClient({
           <option value="HOURLY">Hourly — “$150.00/hr”</option>
           <option value="QUOTE">Hide price — “Get a quote”</option>
         </select>
-        <p className="text-xs text-gray-400 mt-1">
+        <p className="text-xs text-gray-500 mt-1">
           Shown on your booking form. Quotes and invoices always use the exact unit price.
         </p>
       </div>
@@ -448,7 +448,7 @@ export default function ProductsClient({
             ))}
           </select>
           {templates.length === 0 && (
-            <p className="mt-1 text-xs text-gray-400">
+            <p className="mt-1 text-xs text-gray-500">
               Create reusable agreements in Settings → Agreements first.
             </p>
           )}
@@ -517,7 +517,7 @@ export default function ProductsClient({
         <button
           onClick={save}
           disabled={loading}
-          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors disabled:opacity-50"
+          className="btn-primary"
         >
           {loading && <Loader2 size={13} className="animate-spin" />}
           {editingId === "new" ? "Add Item" : "Save Changes"}
@@ -548,7 +548,7 @@ export default function ProductsClient({
         {editingId !== "new" && (
           <button
             onClick={startNew}
-            className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors"
+            className="btn-primary"
           >
             <Plus size={15} />
             Add Item
@@ -598,7 +598,7 @@ export default function ProductsClient({
                           )}
                         </p>
                         {item.description && (
-                          <p className="mt-1 text-xs text-gray-400">{item.description}</p>
+                          <p className="mt-1 text-xs text-gray-500">{item.description}</p>
                         )}
                       </div>
                       <div className="shrink-0 text-right">
@@ -646,7 +646,7 @@ export default function ProductsClient({
                         </p>
                       )}
                       {item.description && (
-                        <p className="text-xs text-gray-400 truncate">{item.description}</p>
+                        <p className="text-xs text-gray-500 truncate">{item.description}</p>
                       )}
                     </div>
                     <span className="text-xs font-medium px-2 py-0.5 rounded-lg bg-gray-100 text-gray-600 w-fit">
@@ -699,7 +699,7 @@ export default function ProductsClient({
               <h2 className="text-sm font-semibold text-gray-500">
                 Archived ({archivedItems.length})
               </h2>
-              <p className="text-xs text-gray-400 mt-0.5">
+              <p className="text-xs text-gray-500 mt-0.5">
                 Hidden from quotes, invoices, and booking — past documents keep them.
               </p>
             </div>
@@ -708,7 +708,7 @@ export default function ProductsClient({
                 <div key={item.id} className="flex items-center justify-between gap-3 px-4 py-3">
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-gray-500 truncate">{item.name}</p>
-                    <p className="text-xs text-gray-400">
+                    <p className="text-xs text-gray-500">
                       {item.type === "SERVICE" ? "Service" : "Product"} · {money(item.unitPrice)}
                     </p>
                   </div>

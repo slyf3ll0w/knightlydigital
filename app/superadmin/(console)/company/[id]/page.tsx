@@ -249,7 +249,7 @@ export default async function CompanyReport({
             Suspended
           </span>
         )}
-        <span className="text-xs text-gray-400">
+        <span className="text-xs text-gray-500">
           /{company.slug}
           {company.industry ? ` · ${company.industry}` : ""} · client since{" "}
           {company.createdAt.toLocaleDateString("en-US", { month: "short", year: "numeric" })}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { inputCls } from "@/components/Input";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Check, Download, Loader2, Pause, Pencil, Play, Plus, Repeat, Trash2, X } from "lucide-react";
@@ -36,8 +37,6 @@ const ordinal = (n: number) => {
   return `${n}${s[(v - 20) % 10] ?? s[v] ?? s[0]}`;
 };
 
-const inputCls =
-  "px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500";
 
 export default function ExpensesClient({
   expenses,
@@ -237,7 +236,7 @@ export default function ExpensesClient({
         </div>
         <button
           onClick={() => setShowAdd((v) => !v)}
-          className="flex shrink-0 items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors"
+          className="btn-primary shrink-0"
         >
           <Plus size={15} />
           <span className="hidden sm:inline">Log Expense</span>
@@ -246,7 +245,7 @@ export default function ExpensesClient({
       </div>
 
       {error && (
-        <div className="mb-4 flex items-center justify-between rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <div role="alert" className="form-error mb-4 flex items-center justify-between">
           {error}
           <button onClick={() => setError("")} className="p-0.5 text-red-400 hover:text-red-600">
             <X size={14} />
@@ -306,7 +305,7 @@ export default function ExpensesClient({
             <Repeat size={13} className="text-gray-400" />
             Repeat this every month
             {repeatMonthly && incurredAt && (
-              <span className="text-xs text-gray-400">
+              <span className="text-xs text-gray-500">
                 — logs automatically on the {ordinal(parseInt(incurredAt.slice(8), 10))}
               </span>
             )}
@@ -315,7 +314,7 @@ export default function ExpensesClient({
             <button
               onClick={add}
               disabled={busy || !description.trim() || !amount || !incurredAt}
-              className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded-[10px] btn-tool disabled:opacity-50"
+              className="btn-primary"
             >
               {busy && <Loader2 size={13} className="animate-spin" />}
               Save Expense
@@ -383,7 +382,7 @@ export default function ExpensesClient({
                     <button
                       onClick={() => saveRecEdit(r.id)}
                       disabled={busy || !recForm.description.trim() || !recForm.amount || !recForm.dayOfMonth}
-                      className="flex items-center gap-1 px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-semibold rounded-[10px] btn-tool disabled:opacity-40"
+                      className="btn-primary btn-sm"
                     >
                       {busy ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />}
                       Save
@@ -464,7 +463,7 @@ export default function ExpensesClient({
           <Download size={14} />
           Export CSV
         </button>
-        <p className="text-xs text-gray-400">Leave dates empty to export everything.</p>
+        <p className="text-xs text-gray-500">Leave dates empty to export everything.</p>
       </div>
 
       <div className="card-ledger divide-y divide-gray-100">
@@ -519,7 +518,7 @@ export default function ExpensesClient({
                   <button
                     onClick={() => saveEdit(e.id)}
                     disabled={busy || !editForm.description.trim() || !editForm.amount || !editForm.incurredAt}
-                    className="flex items-center gap-1 px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-semibold rounded-[10px] btn-tool disabled:opacity-40"
+                    className="btn-primary btn-sm"
                   >
                     {busy ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />}
                     Save

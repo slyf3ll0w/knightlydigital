@@ -213,7 +213,7 @@ export function PaperFooter({
   pdfHref: string;
 }) {
   return (
-    <div className="mt-6 flex items-center justify-between border-t border-gray-100 pt-3 text-xs text-gray-400">
+    <div className="mt-6 flex items-center justify-between border-t border-gray-100 pt-3 text-xs text-gray-500">
       <span>
         {DOC_KIND[kind].label} #{docNumber} · {companyName}
       </span>

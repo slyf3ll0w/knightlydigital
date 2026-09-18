@@ -117,7 +117,7 @@ export default function EmailClientButton({
                 placeholder={`Hi ${contactName.split(" ")[0]},\n\n…`}
                 className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-y"
               />
-              <p className="text-xs text-gray-400 mt-1">
+              <p className="text-xs text-gray-500 mt-1">
                 Sent as a plain email — you&apos;ll get a notification when they open it.
               </p>
             </div>
@@ -143,11 +143,11 @@ export default function EmailClientButton({
                     Include company logo under the signature
                   </label>
                 ) : (
-                  <span className="text-xs text-gray-400">
+                  <span className="text-xs text-gray-500">
                     Add a logo in Settings → Branding to include it here.
                   </span>
                 )}
-                <span className="text-xs text-gray-400">
+                <span className="text-xs text-gray-500">
                   Save a default in Settings → My Profile
                 </span>
               </div>
@@ -166,7 +166,7 @@ export default function EmailClientButton({
               <button
                 onClick={send}
                 disabled={busy || !subject.trim() || !body.trim()}
-                className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors disabled:opacity-40"
+                className="btn-primary"
               >
                 {busy && <Loader2 size={13} className="animate-spin" />}
                 Send email

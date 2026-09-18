@@ -187,7 +187,7 @@ export default function AddonClient({
                   <Lock size={14} />
                   Subscribe
                 </a>
-                <p className="mt-3 text-xs text-gray-400">
+                <p className="mt-3 text-xs text-gray-500">
                   You&apos;ll check out securely on Livery, our payments platform, and land
                   right back here. Your card is kept on file and billed monthly until you
                   cancel.

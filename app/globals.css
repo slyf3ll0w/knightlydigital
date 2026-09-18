@@ -103,6 +103,50 @@
     box-shadow: none;
   }
 
+  /* ── Primary button — THE green call to action, as one class instead of
+     the 66 hand-typed variants the 2026-09-03 UX audit counted. Same recipe
+     the majority already used (px-4 py-2, gap-1.5, 10px radius, tool lift),
+     plus the disabled state every form needed and half forgot. Size
+     modifiers: .btn-sm (dense rows, toolbars) and .btn-lg (form submits).
+     Green bridges to the tenant accent like every other green utility. */
+  .btn-primary {
+    @apply flex items-center gap-1.5 whitespace-nowrap rounded-[10px] bg-green-500 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
+    transition:
+      transform 0.13s ease,
+      box-shadow 0.13s ease,
+      background-color 0.15s ease;
+  }
+  .btn-primary:hover:not(:disabled) {
+    @apply bg-green-600;
+    transform: translateY(-1px);
+    box-shadow: 0 3px 10px rgba(15, 23, 42, 0.16);
+  }
+  .btn-primary:active:not(:disabled) {
+    @apply bg-green-700;
+    transform: translateY(0) scale(0.98);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.1);
+  }
+  .btn-primary.btn-sm {
+    @apply gap-1 px-3 py-1.5 text-xs;
+  }
+  .btn-primary.btn-lg {
+    @apply gap-2 px-5 py-2.5;
+  }
+
+  /* ── Form error — the one red banner. Callers add role="alert" so screen
+     readers hear it (none of the 61 inline recipes had one). */
+  .form-error {
+    @apply rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700;
+  }
+
+  /* ── Meta text — small secondary copy that still passes AA on white.
+     text-xs + gray-400 (~2.9:1) was the audit's biggest "hard to read on a
+     phone" contributor; gray-500 clears 4.5:1 at the same size. */
+  .text-meta {
+    @apply text-xs text-gray-500;
+  }
+
   /* ── Pressed chip — the SELECTED state of a tool control: solid tenant
      accent, both themes (the accent vars resolve per theme). !important
      beats the per-section hues some call sites still pass inline — ONE
@@ -146,6 +190,21 @@
       box-shadow: 0 1px 2px rgba(15, 23, 42, 0.1);
     }
     .btn-tool:active {
+      transform: scale(0.97);
+      box-shadow: none;
+    }
+    .btn-primary {
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.1);
+      transition:
+        transform 0.11s ease,
+        box-shadow 0.11s ease,
+        background-color 0.15s ease;
+    }
+    .btn-primary:hover:not(:disabled) {
+      transform: none;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.1);
+    }
+    .btn-primary:active:not(:disabled) {
       transform: scale(0.97);
       box-shadow: none;
     }

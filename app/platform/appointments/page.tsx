@@ -106,7 +106,7 @@ export default async function AppointmentsPage() {
         </PageTitle>
         <Link
           href="/app/appointments/new"
-          className="hidden lg:flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors"
+          className="btn-primary hidden lg:flex"
         >
           <Plus size={15} />
           New Appointment

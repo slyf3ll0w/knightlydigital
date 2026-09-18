@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { inputClsAuto } from "@/components/Input";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -110,9 +111,6 @@ const norm = (s: unknown) =>
 // as the contact page). A bigger group is offered but not pre-checked, so we
 // never silently drop the overflow on the user's behalf.
 const MAX_COMBINE_ROWS = 51;
-
-const inputCls =
-  "px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500";
 
 function detectTarget(header: string): string {
   return HEADER_MAP[header.toLowerCase().replace(/[^a-z0-9]/g, "")] ?? "";
@@ -452,7 +450,7 @@ export default function ImportClient({
       </p>
 
       {error && (
-        <div className="mb-4 flex items-center justify-between rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <div role="alert" className="form-error mb-4 flex items-center justify-between">
           {error}
           <button onClick={() => setError("")} className="p-0.5 text-red-400 hover:text-red-600">
             <X size={14} />
@@ -535,7 +533,7 @@ export default function ImportClient({
                       <select
                         value={mapping[i]}
                         onChange={(e) => setMapping(mapping.map((m, j) => (j === i ? e.target.value : m)))}
-                        className={`${inputCls} w-full ${mapping[i] ? "" : "text-gray-400"}`}
+                        className={`${inputClsAuto} w-full ${mapping[i] ? "" : "text-gray-400"}`}
                       >
                         {allTargets.map((t) => (
                           <option key={t.key} value={t.key}>
@@ -562,14 +560,14 @@ export default function ImportClient({
           <div className="card-ledger p-4 grid sm:grid-cols-3 gap-3">
             <div>
               <label className="block text-xs text-gray-500 mb-1">Import as</label>
-              <select value={status} onChange={(e) => setStatus(e.target.value as "LEAD" | "ACTIVE")} className={`${inputCls} w-full`}>
+              <select value={status} onChange={(e) => setStatus(e.target.value as "LEAD" | "ACTIVE")} className={`${inputClsAuto} w-full`}>
                 <option value="LEAD">Leads</option>
                 <option value="ACTIVE">Active clients</option>
               </select>
             </div>
             <div>
               <label className="block text-xs text-gray-500 mb-1">Assign to</label>
-              <select value={assignedToId} onChange={(e) => setAssignedToId(e.target.value)} className={`${inputCls} w-full`}>
+              <select value={assignedToId} onChange={(e) => setAssignedToId(e.target.value)} className={`${inputClsAuto} w-full`}>
                 {users.map((u) => (
                   <option key={u.id} value={u.id}>
                     {u.name}
@@ -579,7 +577,7 @@ export default function ImportClient({
             </div>
             <div>
               <label className="block text-xs text-gray-500 mb-1">If a client already exists</label>
-              <select value={duplicateMode} onChange={(e) => setDuplicateMode(e.target.value as "skip" | "update")} className={`${inputCls} w-full`}>
+              <select value={duplicateMode} onChange={(e) => setDuplicateMode(e.target.value as "skip" | "update")} className={`${inputClsAuto} w-full`}>
                 <option value="skip">Skip the row</option>
                 <option value="update">Update their info</option>
               </select>
@@ -594,7 +592,7 @@ export default function ImportClient({
             <button
               onClick={prepare}
               disabled={readyRows === 0 || busyPreparing}
-              className="flex items-center gap-1.5 px-5 py-2.5 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors disabled:opacity-50"
+              className="btn-primary btn-lg"
             >
               {busyPreparing && <Loader2 size={13} className="animate-spin" />}
               Import {readyRows} Clients
@@ -701,7 +699,7 @@ export default function ImportClient({
             </button>
             <button
               onClick={() => runImport(mapping, groups)}
-              className="flex items-center gap-1.5 px-5 py-2.5 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors"
+              className="btn-primary btn-lg"
             >
               Import
               <ArrowRight size={14} />
@@ -761,7 +759,7 @@ export default function ImportClient({
           <div className="flex flex-wrap items-center gap-3">
             <Link
               href="/app/contacts"
-              className="px-5 py-2.5 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors"
+              className="btn-primary btn-lg"
             >
               View Clients
             </Link>

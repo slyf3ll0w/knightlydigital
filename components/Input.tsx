@@ -12,6 +12,16 @@
 const base =
   "rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500";
 
+/**
+ * The same recipe as a class string, full width, for the raw <input>/<select>
+ * call sites that haven't moved to the components yet. Fifteen files used to
+ * each declare their own `inputCls` (two byte-identical, the rest drifting
+ * by a padding step or a ring width); they all import this one now.
+ */
+export const inputCls = `w-full ${base}`;
+/** Same recipe, intrinsic width — for inputs that sit inline in a row. */
+export const inputClsAuto = base;
+
 export function Input({
   className = "",
   ...props

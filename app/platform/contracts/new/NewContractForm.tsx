@@ -1,14 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { inputCls } from "@/components/Input";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import ContactPicker from "@/components/ContactPicker";
 
-const inputCls =
-  "w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500";
 
 /** Issue a contract: pick the client and a saved template (editable before
  *  sending), then share the signing link. */
@@ -81,7 +80,7 @@ export default function NewContractForm({
               ))}
             </select>
             {templates.length === 0 && (
-              <p className="text-xs text-gray-400 mt-1">
+              <p className="text-xs text-gray-500 mt-1">
                 No templates yet —{" "}
                 <Link href="/app/settings/contracts" className="text-green-600 underline">
                   save one in Settings
@@ -115,7 +114,7 @@ export default function NewContractForm({
         <button
           onClick={create}
           disabled={busy || !contactId || !title.trim() || !body.trim()}
-          className="flex items-center gap-1.5 px-5 py-2.5 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors disabled:opacity-50"
+          className="btn-primary btn-lg"
         >
           {busy && <Loader2 size={14} className="animate-spin" />}
           Create &amp; Get Signing Link

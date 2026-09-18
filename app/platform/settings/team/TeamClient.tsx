@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { inputCls } from "@/components/Input";
 import { useRouter } from "next/navigation";
 import { CalendarClock, KeyRound, Loader2, Plus, UserPlus, X } from "lucide-react";
 import Avatar from "@/components/Avatar";
@@ -55,8 +56,6 @@ function rolesManageableBy(actorRole: string): string[] {
   return [];
 }
 
-const inputCls =
-  "w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500";
 
 export default function TeamClient({
   actorId,
@@ -158,7 +157,7 @@ export default function TeamClient({
         </div>
         <button
           onClick={() => setShowAdd((v) => !v)}
-          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors"
+          className="btn-primary"
         >
           <Plus size={15} />
           Add Team Member
@@ -166,7 +165,7 @@ export default function TeamClient({
       </div>
 
       {error && (
-        <div className="mb-4 flex items-center justify-between rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <div role="alert" className="form-error mb-4 flex items-center justify-between">
           {error}
           <button onClick={() => setError("")} className="p-0.5 text-red-400 hover:text-red-600">
             <X size={14} />
@@ -221,7 +220,7 @@ export default function TeamClient({
                   </option>
                 ))}
               </select>
-              <p className="text-xs text-gray-400 mt-1">{roleDescriptions[form.role]}</p>
+              <p className="text-xs text-gray-500 mt-1">{roleDescriptions[form.role]}</p>
             </div>
             <div className="sm:col-span-2">
               <label className="block text-xs text-gray-500 mb-1">Starting password</label>
@@ -232,7 +231,7 @@ export default function TeamClient({
                 placeholder="At least 8 characters — share it with them; they can change it later"
                 className={inputCls}
               />
-              <p className="text-xs text-gray-400 mt-1">
+              <p className="text-xs text-gray-500 mt-1">
                 Only for people new to WorkBench. If this email already has a WorkBench login,
                 they join your team under it and keep their own password — we&apos;ll email them
                 a heads-up.
@@ -243,7 +242,7 @@ export default function TeamClient({
             <button
               onClick={addMember}
               disabled={busy}
-              className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors disabled:opacity-50"
+              className="btn-primary"
             >
               {busy && <Loader2 size={13} className="animate-spin" />}
               Add Member
@@ -270,7 +269,7 @@ export default function TeamClient({
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-gray-900 truncate">
                     {m.name}
-                    {m.id === actorId && <span className="text-xs text-gray-400"> (you)</span>}
+                    {m.id === actorId && <span className="text-xs text-gray-500"> (you)</span>}
                     {!m.isActive && <span className="text-xs text-red-500"> · deactivated</span>}
                   </p>
                   <p className="text-xs text-gray-500 truncate">
@@ -411,7 +410,7 @@ export default function TeamClient({
                   Works the company&apos;s business hours
                 </label>
                 {hoursCustom && <BusinessHoursEditor hours={hoursDraft} onChange={setHoursDraft} />}
-                <p className="text-xs text-gray-400">
+                <p className="text-xs text-gray-500">
                   Working hours feed Find a Time suggestions, online booking availability, and
                   the route optimizer&apos;s day start.
                 </p>
@@ -452,7 +451,7 @@ export default function TeamClient({
                         setHoursFor(null);
                     }}
                     disabled={busy}
-                    className="px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-semibold rounded-[10px] btn-tool disabled:opacity-50"
+                    className="btn-primary btn-sm"
                   >
                     Save Hours
                   </button>
@@ -484,7 +483,7 @@ export default function TeamClient({
                     }
                   }}
                   disabled={busy || resetPassword.length < 8}
-                  className="px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-semibold rounded-[10px] btn-tool disabled:opacity-50"
+                  className="btn-primary btn-sm"
                 >
                   Set Password
                 </button>

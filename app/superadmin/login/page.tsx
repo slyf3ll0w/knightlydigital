@@ -143,7 +143,7 @@ export default function SuperadminLoginPage() {
 
           <div className="rounded-xl border border-gray-200 bg-white p-8 shadow-sm">
             {error && (
-              <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              <div role="alert" className="form-error mb-4">
                 {error}
               </div>
             )}

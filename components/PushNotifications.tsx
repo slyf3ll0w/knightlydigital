@@ -324,7 +324,7 @@ export function PushNudge() {
             }
           }}
           disabled={busy}
-          className="flex items-center gap-1.5 px-3.5 py-1.5 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors disabled:opacity-50"
+          className="btn-primary btn-sm"
         >
           {busy ? <Loader2 size={13} className="animate-spin" /> : <Bell size={13} />}
           Turn on

@@ -80,7 +80,7 @@ export default async function MessagesInboxPage() {
                         <span className="font-normal text-gray-500"> · {m.contact.companyName}</span>
                       ) : null}
                     </p>
-                    <span className="ml-auto shrink-0 text-xs text-gray-400">
+                    <span className="ml-auto shrink-0 text-xs text-gray-500">
                       {shortDate(m.createdAt)}
                     </span>
                   </div>

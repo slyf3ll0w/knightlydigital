@@ -1,3 +1,4 @@
+import { fmtPhone } from "@/lib/format";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import Link from "next/link";
@@ -369,7 +370,7 @@ export default async function JobDetailPage({
                   <div>
                     <p className="text-sm text-gray-800">{job.address}</p>
                     {job.property?.label && (
-                      <p className="text-xs text-gray-400">{job.property.label}</p>
+                      <p className="text-xs text-gray-500">{job.property.label}</p>
                     )}
                   </div>
                 </div>
@@ -627,12 +628,12 @@ export default async function JobDetailPage({
                       <StatusChip kind="invoice" status={job.invoice.status} className="mt-1" />
                     </Link>
                   ) : planBilled ? (
-                    <p className="text-xs text-gray-400">
+                    <p className="text-xs text-gray-500">
                       Billed automatically by the recurring plan
                       {job.subscription?.name ? ` “${job.subscription.name}”` : ""}.
                     </p>
                   ) : (
-                    <p className="text-xs text-gray-400">
+                    <p className="text-xs text-gray-500">
                       {job.status === "REQUIRES_INVOICING"
                         ? "This job is waiting to be invoiced."
                         : "No invoice yet."}
@@ -695,7 +696,7 @@ export default async function JobDetailPage({
                     {job.contact.firstName} {job.contact.lastName}
                   </p>
                   {job.contact.phone && (
-                    <p className="text-xs text-gray-500 mt-1">{job.contact.phone}</p>
+                    <p className="text-xs text-gray-500 mt-1">{fmtPhone(job.contact.phone)}</p>
                   )}
                   {job.contact.email && <p className="text-xs text-gray-500">{job.contact.email}</p>}
                   {job.contact.address && (

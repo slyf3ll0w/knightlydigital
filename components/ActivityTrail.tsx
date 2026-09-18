@@ -38,7 +38,7 @@ export default function ActivityTrail({
               <span className="font-medium">{ACTION_LABEL[r.action] ?? r.action}</span>
               {r.detail ? <span className="text-gray-500"> — {r.detail}</span> : null}
             </p>
-            <p className="text-xs text-gray-400 mt-0.5">
+            <p className="text-xs text-gray-500 mt-0.5">
               {r.userName ?? "System"} ·{" "}
               {r.createdAt.toLocaleString("en-US", {
                 month: "short",

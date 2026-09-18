@@ -162,7 +162,7 @@ export default function RegisterPage() {
             </p>
 
             {error && (
-              <div className="mb-4 px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+              <div role="alert" className="form-error mb-4">
                 {error}
               </div>
             )}
@@ -181,7 +181,7 @@ export default function RegisterPage() {
                   autoCorrect="off"
                   spellCheck={false}
                 />
-                <p className="mt-1.5 text-xs text-gray-400">
+                <p className="mt-1.5 text-xs text-gray-500">
                   This page is for invite codes. Don&apos;t have one?{" "}
                   <Link href="/app/get-started" className="font-semibold text-[#0B57D8] hover:underline">
                     Get started
@@ -271,7 +271,7 @@ export default function RegisterPage() {
                     </option>
                   ))}
                 </select>
-                <p className="mt-1.5 text-xs text-gray-400">
+                <p className="mt-1.5 text-xs text-gray-500">
                   We&apos;ll pre-load your price book with services for your industry — you can
                   edit everything later.
                 </p>
@@ -327,7 +327,7 @@ export default function RegisterPage() {
                     Log in
                   </Link>
                 </p>
-                <p className="text-xs text-gray-400 text-center mt-2">
+                <p className="text-xs text-gray-500 text-center mt-2">
                   No credit card required. Free forever.
                 </p>
               </>

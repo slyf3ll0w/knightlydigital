@@ -1,6 +1,7 @@
 "use client";
 
 import { Plus, Trash2 } from "lucide-react";
+import { inputCls } from "@/components/Input";
 import {
   DAY_KEYS,
   DAY_LABELS,
@@ -16,8 +17,6 @@ import {
  * server-side (lib/business-hours.ts), this just edits the shape.
  */
 
-const inputCls =
-  "px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white";
 // Time fields split the row evenly on phones (16px text makes a fixed-width
 // <input type="time"> wider than half a 375px card) and size to content on
 // desktop. Padding is trimmed under lg because "08:00 AM" plus the clock glyph
@@ -61,7 +60,7 @@ export default function BusinessHoursEditor({
                 />
                 <span className="font-medium lg:font-normal">{DAY_LABELS[day]}</span>
               </span>
-              {!isOpen && <span className="text-xs text-gray-400">Closed</span>}
+              {!isOpen && <span className="text-xs text-gray-500">Closed</span>}
             </label>
             {isOpen && (
               <div className="mt-2.5 space-y-2 lg:mt-0 lg:flex lg:flex-wrap lg:items-center lg:gap-2 lg:space-y-0">
@@ -78,7 +77,7 @@ export default function BusinessHoursEditor({
                       }
                       className={timeCls}
                     />
-                    <span className="shrink-0 text-xs text-gray-400">to</span>
+                    <span className="shrink-0 text-xs text-gray-500">to</span>
                     <input
                       type="time"
                       value={r.end}

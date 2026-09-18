@@ -170,7 +170,7 @@ export default function ContactForm({
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {error && (
-          <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+          <div role="alert" className="form-error">
             {error}
           </div>
         )}
@@ -360,7 +360,7 @@ export default function ContactForm({
                 onChange={(e) => set("paymentTermsDays", e.target.value)}
                 className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               />
-              <p className="text-xs text-gray-400 mt-1">Invoices due Net {form.paymentTermsDays || "30"}</p>
+              <p className="text-xs text-gray-500 mt-1">Invoices due Net {form.paymentTermsDays || "30"}</p>
             </div>
             {mode === "edit" && (
               <div>
@@ -448,7 +448,7 @@ export default function ContactForm({
           <button
             type="submit"
             disabled={loading}
-            className="flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors disabled:opacity-50"
+            className="btn-primary btn-lg"
           >
             {loading && <Loader2 size={14} className="animate-spin" />}
             {mode === "create" ? (form.status === "LEAD" ? "Save Lead" : "Save Client") : "Save Changes"}

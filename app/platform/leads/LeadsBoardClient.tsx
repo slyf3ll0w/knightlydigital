@@ -342,7 +342,7 @@ export default function LeadsBoardClient({
           )}
           <button
             onClick={() => setAddingTo(stages[0]?.id ?? null)}
-            className="rounded-[10px] btn-tool flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold transition-colors"
+            className="btn-primary"
           >
             <Plus size={15} />
             New Lead
@@ -405,7 +405,7 @@ export default function LeadsBoardClient({
             <button
               onClick={() => setAddingTo(stages[0]?.id ?? null)}
               disabled={!stages[0]?.id}
-              className="rounded-[10px] btn-tool inline-flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white text-sm font-semibold"
+              className="btn-primary inline-flex"
             >
               <Plus size={15} />
               Add a Lead
@@ -554,7 +554,7 @@ export default function LeadsBoardClient({
                     </div>
                   ))}
                   {columnCards.length === 0 && addingTo !== stage.id && (
-                    <div className="rounded-lg border border-dashed border-gray-300/60 py-6 text-center text-xs text-gray-400">
+                    <div className="rounded-lg border border-dashed border-gray-300/60 py-6 text-center text-xs text-gray-500">
                       {stage.isConverted ? "Wins land here — they become clients" : "No leads here"}
                     </div>
                   )}
@@ -761,7 +761,7 @@ function QuickAdd({
         <button
           type="submit"
           disabled={saving || !name.trim()}
-          className="rounded-[10px] btn-tool flex-1 px-3 py-1.5 bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white text-xs font-semibold"
+          className="btn-primary btn-sm flex-1"
         >
           {saving ? "Adding…" : "Add lead"}
         </button>

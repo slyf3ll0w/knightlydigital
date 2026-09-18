@@ -212,7 +212,7 @@ export function AssistantControl({
       <div className="mt-4 border-t border-gray-100 pt-3">
         <p className="text-xs font-bold text-gray-700">Last {usage.days} days</p>
         {usage.turns === 0 ? (
-          <p className="mt-1 text-xs text-gray-400">No Atlas turns yet.</p>
+          <p className="mt-1 text-xs text-gray-500">No Atlas turns yet.</p>
         ) : (
           <dl className="mt-1.5 grid grid-cols-2 gap-x-4 gap-y-1 text-xs sm:grid-cols-4">
             <div>

@@ -178,7 +178,7 @@ export default function JobActions({
       {status === "ACTIVE" && (
         <button
           onClick={closeJob}
-          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors glass-tinted max-lg:fixed max-lg:inset-x-0 max-lg:mx-auto max-lg:w-max max-lg:bottom-[calc(5.5rem+env(safe-area-inset-bottom))] max-lg:z-30 max-lg:rounded-full max-lg:px-6 max-lg:py-3 max-lg:text-[15px]"
+          className="btn-primary glass-tinted max-lg:fixed max-lg:inset-x-0 max-lg:mx-auto max-lg:w-max max-lg:bottom-[calc(5.5rem+env(safe-area-inset-bottom))] max-lg:z-30 max-lg:rounded-full max-lg:px-6 max-lg:py-3 max-lg:text-[15px]"
         >
           <CheckCircle size={13} />
           Complete Job
@@ -187,7 +187,7 @@ export default function JobActions({
       {status === "REQUIRES_INVOICING" && !planBilled && (
         <button
           onClick={() => router.push(`/app/invoices/new?jobId=${jobId}`)}
-          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors glass-tinted max-lg:fixed max-lg:inset-x-0 max-lg:mx-auto max-lg:w-max max-lg:bottom-[calc(5.5rem+env(safe-area-inset-bottom))] max-lg:z-30 max-lg:rounded-full max-lg:px-6 max-lg:py-3 max-lg:text-[15px]"
+          className="btn-primary glass-tinted max-lg:fixed max-lg:inset-x-0 max-lg:mx-auto max-lg:w-max max-lg:bottom-[calc(5.5rem+env(safe-area-inset-bottom))] max-lg:z-30 max-lg:rounded-full max-lg:px-6 max-lg:py-3 max-lg:text-[15px]"
         >
           <Receipt size={13} />
           Create Invoice

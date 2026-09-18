@@ -167,7 +167,7 @@ export default function LoginForm({
             )}
 
             {error && (
-              <div className="mb-4 px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+              <div role="alert" className="form-error mb-4">
                 {error}
               </div>
             )}

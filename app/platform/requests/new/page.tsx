@@ -81,7 +81,7 @@ function NewRequestForm() {
 
       <form onSubmit={handleSubmit} className="space-y-5">
         {error && (
-          <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+          <div role="alert" className="form-error">
             {error}
           </div>
         )}
@@ -137,7 +137,7 @@ function NewRequestForm() {
           <button
             type="submit"
             disabled={loading}
-            className="flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors disabled:opacity-50"
+            className="btn-primary btn-lg"
           >
             {loading && <Loader2 size={14} className="animate-spin" />}
             Save Request

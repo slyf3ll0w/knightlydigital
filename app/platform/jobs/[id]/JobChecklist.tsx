@@ -95,7 +95,7 @@ export default function JobChecklist({
         </span>
       </div>
       {error && (
-        <div className="mb-3 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+        <div role="alert" className="form-error mb-3">
           {error}
         </div>
       )}
@@ -176,7 +176,7 @@ export default function JobChecklist({
                               setSkippingId(item.id);
                               setReason("");
                             }}
-                            className="shrink-0 text-xs text-gray-400 hover:text-gray-600 opacity-0 group-hover:opacity-100 max-lg:opacity-100 transition-opacity"
+                            className="shrink-0 text-xs text-gray-500 hover:text-gray-600 opacity-0 group-hover:opacity-100 max-lg:opacity-100 transition-opacity"
                           >
                             Can&apos;t do it?
                           </button>

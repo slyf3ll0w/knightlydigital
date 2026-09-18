@@ -145,7 +145,7 @@ export default function QuickBooksSettingsClient({ configured }: { configured: b
       </div>
 
       {callbackError && (
-        <div className="mb-6 flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+        <div role="alert" className="form-error mb-6 flex items-start gap-2 p-4">
           <AlertTriangle size={16} className="mt-0.5 shrink-0" />
           {CALLBACK_ERRORS[callbackError] ?? "Something went wrong connecting to QuickBooks."}
         </div>
@@ -186,7 +186,7 @@ export default function QuickBooksSettingsClient({ configured }: { configured: b
               <li>Sent and paid invoices appear with their line items, discounts, and tax</li>
               <li>Payments are applied against the right invoice automatically</li>
             </ul>
-            <p className="text-xs text-gray-400 mt-2">
+            <p className="text-xs text-gray-500 mt-2">
               Invoice lines bill against a single &ldquo;WorkBench Services&rdquo; item in your
               books — ask your accountant if they want it mapped differently.
             </p>
@@ -215,7 +215,7 @@ export default function QuickBooksSettingsClient({ configured }: { configured: b
                     </span>
                   )}
                 </p>
-                <p className="text-xs text-gray-400 mt-1">
+                <p className="text-xs text-gray-500 mt-1">
                   {status.lastSyncAt
                     ? `Last synced ${new Date(status.lastSyncAt).toLocaleString()}`
                     : "Not synced yet"}
@@ -259,7 +259,7 @@ export default function QuickBooksSettingsClient({ configured }: { configured: b
             )}
             {syncMessage && <p className="text-sm text-green-700">{syncMessage}</p>}
             {syncError && <p className="text-sm text-red-600">{syncError}</p>}
-            <p className="text-xs text-gray-400">
+            <p className="text-xs text-gray-500">
               New payments push to QuickBooks as they&apos;re recorded, and everything else sweeps
               in nightly — Sync now just does it immediately.
             </p>
@@ -270,7 +270,7 @@ export default function QuickBooksSettingsClient({ configured }: { configured: b
               <h2 className="text-sm font-semibold text-gray-700">
                 Sync Problems ({status.counts?.errors})
               </h2>
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-gray-500">
                 These records couldn&apos;t sync — they retry on every sync. If one keeps failing,
                 the message usually says what QuickBooks objected to.
               </p>
@@ -296,7 +296,7 @@ export default function QuickBooksSettingsClient({ configured }: { configured: b
                 <h2 className="text-sm font-semibold text-gray-700">
                   Disconnect
                 </h2>
-                <p className="text-xs text-gray-400 mt-0.5">
+                <p className="text-xs text-gray-500 mt-0.5">
                   Stops all syncing. Everything already in QuickBooks stays there.
                 </p>
               </div>

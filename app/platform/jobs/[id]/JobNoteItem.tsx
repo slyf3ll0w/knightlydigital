@@ -75,7 +75,7 @@ export default function JobNoteItem({
       <div className="flex-1 bg-gray-50 rounded-lg px-3 py-2">
         <div className="flex items-center gap-2 mb-1">
           <span className="text-xs font-semibold text-gray-700">{note.userName}</span>
-          <span className="text-xs text-gray-400">{note.createdAtLabel}</span>
+          <span className="text-xs text-gray-500">{note.createdAtLabel}</span>
           {!editing && (
             // Hover-reveal only where hover exists — touch devices see the
             // icons always, else edit/delete would be unreachable there
@@ -119,7 +119,7 @@ export default function JobNoteItem({
               <button
                 onClick={save}
                 disabled={busy || !text.trim()}
-                className="flex items-center gap-1 px-2.5 py-1 bg-green-500 hover:bg-green-600 text-white text-xs font-semibold rounded-[10px] transition-colors disabled:opacity-40"
+                className="btn-primary btn-sm"
               >
                 {busy ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />}
                 Save

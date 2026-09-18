@@ -271,7 +271,7 @@ export default async function SuperadminDashboard({
                         </span>
                       )}
                     </div>
-                    <div className="text-xs text-gray-400">/{r.slug}</div>
+                    <div className="text-xs text-gray-500">/{r.slug}</div>
                   </Link>
                 </td>
                 <td className="tabular-nums px-3 py-2 text-right">
@@ -324,7 +324,7 @@ export default async function SuperadminDashboard({
         </table>
       </div>
 
-      <p className="text-xs text-gray-400">
+      <p className="text-xs text-gray-500">
         Mapbox (Routes), this calendar month:{" "}
         <span
           className={
@@ -344,7 +344,7 @@ export default async function SuperadminDashboard({
         . At a cap the Route Manager falls back to estimates for the rest of the month — the free
         tier is never exceeded, so cost stays $0.
       </p>
-      <p className="text-xs text-gray-400">
+      <p className="text-xs text-gray-500">
         Platform overhead (unattributed emails/AI — password resets, portal logins):{" "}
         {usd(Math.round(platformCost * 100) / 100)} in this range. Collected = every payment the
         business recorded, including cash and check; Card/ACH = the slice that ran through

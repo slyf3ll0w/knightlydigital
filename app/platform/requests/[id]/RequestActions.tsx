@@ -106,7 +106,7 @@ export default function RequestActions({
           onClick={() =>
             router.push(`/app/quotes/new?contactId=${contactId}&requestId=${requestId}`)
           }
-          className="px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors"
+          className="btn-primary"
         >
           Convert to Quote
         </button>
@@ -228,7 +228,7 @@ export default function RequestActions({
               <button
                 onClick={saveEdit}
                 disabled={busy}
-                className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors disabled:opacity-50"
+                className="btn-primary"
               >
                 {busy && <Loader2 size={13} className="animate-spin" />}
                 Save Changes

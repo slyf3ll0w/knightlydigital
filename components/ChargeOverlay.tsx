@@ -55,7 +55,7 @@ export default function ChargeOverlay({
               {money(phase.amount)}
             </p>
             <p className="mt-1 text-sm text-gray-600">Charging {phase.label}</p>
-            <p className="mt-3 text-xs text-gray-400">
+            <p className="mt-3 text-xs text-gray-500">
               {phase.caption ?? "Contacting the card network…"}
             </p>
           </>
@@ -80,7 +80,7 @@ export default function ChargeOverlay({
               {money(phase.amount)}
             </p>
             <p className="mt-1 text-sm font-semibold text-green-700">Approved</p>
-            <p className="mt-1 text-xs text-gray-400">{phase.label}</p>
+            <p className="mt-1 text-xs text-gray-500">{phase.label}</p>
           </>
         )}
 

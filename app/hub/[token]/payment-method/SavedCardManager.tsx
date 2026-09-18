@@ -207,7 +207,7 @@ export default function SavedCardManager({
           )}
           <div ref={containerRef} />
           {!scriptReady && (
-            <div className="flex items-center justify-center gap-2 py-6 text-xs text-gray-400">
+            <div className="flex items-center justify-center gap-2 py-6 text-xs text-gray-500">
               <Loader2 size={13} className="animate-spin" />
               Loading secure card form…
             </div>

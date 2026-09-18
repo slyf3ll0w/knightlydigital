@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { inputClsAuto } from "@/components/Input";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowDown, ArrowLeft, ArrowUp, Loader2, Plus, X } from "lucide-react";
@@ -29,9 +30,6 @@ const TYPE_LABELS: Record<string, string> = {
   DATE: "Date",
   SELECT: "Dropdown",
 };
-
-const inputCls =
-  "px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500";
 
 export default function ClientFieldsClient({ defs }: { defs: Def[] }) {
   const router = useRouter();
@@ -98,7 +96,7 @@ export default function ClientFieldsClient({ defs }: { defs: Def[] }) {
         </div>
         <button
           onClick={() => setShowAdd((v) => !v)}
-          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors"
+          className="btn-primary"
         >
           <Plus size={15} />
           Add Field
@@ -109,7 +107,7 @@ export default function ClientFieldsClient({ defs }: { defs: Def[] }) {
       </p>
 
       {error && (
-        <div className="mb-4 flex items-center justify-between rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <div role="alert" className="form-error mb-4 flex items-center justify-between">
           {error}
           <button onClick={() => setError("")} className="p-0.5 text-red-400 hover:text-red-600">
             <X size={14} />
@@ -126,12 +124,12 @@ export default function ClientFieldsClient({ defs }: { defs: Def[] }) {
                 value={label}
                 onChange={(e) => setLabel(e.target.value)}
                 placeholder="e.g. Gate code, Property size"
-                className={`${inputCls} w-full`}
+                className={`${inputClsAuto} w-full`}
               />
             </div>
             <div>
               <label className="block text-xs text-gray-500 mb-1">Type</label>
-              <select value={type} onChange={(e) => setType(e.target.value)} className={`${inputCls} w-full`}>
+              <select value={type} onChange={(e) => setType(e.target.value)} className={`${inputClsAuto} w-full`}>
                 {Object.entries(TYPE_LABELS).map(([k, v]) => (
                   <option key={k} value={k}>
                     {v}
@@ -147,7 +145,7 @@ export default function ClientFieldsClient({ defs }: { defs: Def[] }) {
                 value={optionsText}
                 onChange={(e) => setOptionsText(e.target.value)}
                 rows={3}
-                className={`${inputCls} w-full`}
+                className={`${inputClsAuto} w-full`}
               />
             </div>
           )}
@@ -164,7 +162,7 @@ export default function ClientFieldsClient({ defs }: { defs: Def[] }) {
             <button
               onClick={addField}
               disabled={busy || !label.trim()}
-              className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded-[10px] btn-tool disabled:opacity-50"
+              className="btn-primary"
             >
               {busy && <Loader2 size={13} className="animate-spin" />}
               Add Field

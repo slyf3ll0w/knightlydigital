@@ -155,10 +155,10 @@ export default function SchedulePalette({
               <Loader2 size={14} className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-gray-400" />
             )}
           </label>
-          <p className="mt-2 px-1 text-xs text-gray-400 max-lg:hidden">
+          <p className="mt-2 px-1 text-xs text-gray-500 max-lg:hidden">
             {armed ? "Now click a day or time to place them." : "Drag onto the calendar, or click a card then pick a spot."}
           </p>
-          <p className="mt-2 px-1 text-xs text-gray-400 lg:hidden">
+          <p className="mt-2 px-1 text-xs text-gray-500 lg:hidden">
             {armed ? "Now tap a day to place them." : "Tap a card, then tap a day. Or press and hold to drag."}
           </p>
         </div>
@@ -209,7 +209,7 @@ export default function SchedulePalette({
             <>
               {section("Unscheduled jobs", <UserPlus size={11} />, jobRows.length)}
               {jobRows.length === 0 ? (
-                <p className="px-1 pt-2 text-xs text-gray-400">
+                <p className="px-1 pt-2 text-xs text-gray-500">
                   Nothing waiting. New jobs without a date show up here.
                 </p>
               ) : (

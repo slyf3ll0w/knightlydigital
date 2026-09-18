@@ -99,7 +99,7 @@ export default function ContractActions({
         {status !== "VOID" && (
           <button
             onClick={copyLink}
-            className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors"
+            className="btn-primary"
           >
             {copied ? <Check size={13} /> : <Copy size={13} />}
             {copied ? "Copied!" : "Copy Signing Link"}
@@ -202,7 +202,7 @@ export default function ContractActions({
               <button
                 onClick={saveEdit}
                 disabled={busy}
-                className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors disabled:opacity-50"
+                className="btn-primary"
               >
                 {busy && <Loader2 size={13} className="animate-spin" />}
                 Save Changes

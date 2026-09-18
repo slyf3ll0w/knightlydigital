@@ -321,7 +321,7 @@ export default async function PaymentsDashboardPage({
           </a>
           <Link
             href="/app/payments/new"
-            className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors"
+            className="btn-primary"
           >
             <Plus size={15} />
             Collect Payment
@@ -347,7 +347,7 @@ export default async function PaymentsDashboardPage({
             <p className="text-xs text-gray-500">A short application in Settings starts it.</p>
             <Link
               href="/app/settings"
-              className="btn-tool flex items-center gap-1.5 rounded-[10px] bg-green-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-600"
+              className="btn-primary"
             >
               Set up payments <ArrowUpRight size={14} />
             </Link>

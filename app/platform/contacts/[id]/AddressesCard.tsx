@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { inputCls } from "@/components/Input";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { MapPin, Plus, Pencil, Trash2, Loader2, ChevronDown, ChevronRight } from "lucide-react";
@@ -120,8 +121,6 @@ export default function AddressesCard({
     }
   }
 
-  const inputCls =
-    "w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500";
 
   return (
     <div className="card-ledger p-4">
@@ -149,7 +148,7 @@ export default function AddressesCard({
           </div>
         )}
         {!primary && addresses.length === 0 && editing === null && (
-          <p className="text-xs text-gray-400">No addresses on file yet.</p>
+          <p className="text-xs text-gray-500">No addresses on file yet.</p>
         )}
 
         {addresses.map((a) => {
@@ -267,7 +266,7 @@ export default function AddressesCard({
             <button
               onClick={save}
               disabled={busy}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-semibold rounded-[10px] btn-tool transition-colors disabled:opacity-60"
+              className="btn-primary btn-sm"
             >
               {busy && <Loader2 size={12} className="animate-spin" />}
               {editing === "new" ? "Add address" : "Save"}

@@ -197,7 +197,7 @@ export default function AvatarCropModal({
             type="button"
             onClick={exportCrop}
             disabled={!dims || working}
-            className="flex items-center gap-1.5 rounded-lg bg-green-500 px-4 py-2 text-sm font-semibold text-white hover:bg-green-600 disabled:opacity-50"
+            className="btn-primary"
           >
             {working && <Loader2 size={14} className="animate-spin" />}
             Save Photo

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { inputCls } from "@/components/Input";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Check, ChevronDown, ChevronRight, ChevronUp, Copy, ExternalLink, Globe, Link2, Loader2, MoreHorizontal, Plus, Power, Trash2, X } from "lucide-react";
@@ -67,7 +68,6 @@ const DRIVE_LIMIT_OPTIONS = [
   { value: 60, label: "1 hour out of the way" },
 ];
 
-const inputCls = "w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500";
 const smallLabel = "mb-1 block text-xs font-medium text-gray-500";
 const chipCls = (active: boolean) => `rounded-[9px] px-3 py-1.5 text-xs transition-all ${active ? "chip-pressed font-semibold" : "btn-tool-line bg-white font-medium text-gray-600 hover:text-gray-900"}`;
 
@@ -300,14 +300,14 @@ export default function BookingHome({
         >
           Booking & forms
         </PageTitle>
-        <button onClick={() => setCreating(true)} aria-label="New" className="flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-[10px] btn-tool bg-green-500 px-3 text-sm font-semibold text-white transition-colors hover:bg-green-600 active:bg-green-700 sm:px-4">
+        <button onClick={() => setCreating(true)} aria-label="New" className="btn-primary h-10 shrink-0 justify-center sm:px-4">
           <Plus size={16} />
           <span className="hidden sm:inline">New</span>
         </button>
       </div>
 
       {error && (
-        <div className="mb-4 flex items-center justify-between rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <div role="alert" className="form-error mb-4 flex items-center justify-between">
           {error}
           <button onClick={() => setError("")} className="p-0.5 text-red-400 hover:text-red-600">
             <X size={14} />
@@ -397,7 +397,7 @@ export default function BookingHome({
                       <input type="color" value={look.accent ?? brandAccent} onChange={(e) => setLook({ ...look, accent: e.target.value })} className="h-9 w-12 cursor-pointer rounded-lg border border-gray-300 p-1" />
                       <span className="font-mono text-xs text-gray-500">{look.accent ?? "Brand color"}</span>
                       {look.accent && (
-                        <button type="button" onClick={() => setLook({ ...look, accent: undefined })} className="text-xs text-gray-400 underline hover:text-gray-600">
+                        <button type="button" onClick={() => setLook({ ...look, accent: undefined })} className="text-xs text-gray-500 underline hover:text-gray-600">
                           Reset
                         </button>
                       )}
@@ -413,7 +413,7 @@ export default function BookingHome({
                   </div>
                 </div>
                 <p className="text-xs text-gray-500">Transparent has no background of its own — it sits directly on your website. The picture above updates when you save.</p>
-                <button type="button" onClick={saveLook} disabled={lookSaving || !lookDirty} className="flex h-10 items-center justify-center gap-2 rounded-[10px] btn-tool bg-green-500 px-4 text-sm font-semibold text-white transition-colors hover:bg-green-600 active:bg-green-700 disabled:opacity-50">
+                <button type="button" onClick={saveLook} disabled={lookSaving || !lookDirty} className="btn-primary h-10 justify-center">
                   {lookSaving && <Loader2 size={13} className="animate-spin" />}
                   {lookDirty ? "Save look" : "Saved"}
                 </button>
@@ -440,7 +440,7 @@ export default function BookingHome({
                     <span className="font-normal text-gray-400"> — {initialRules.timezone.replace(/_/g, " ")}</span>
                   </p>
                   <BusinessHoursEditor hours={hours} onChange={setHours} />
-                  <p className="mt-2 text-xs text-gray-400">
+                  <p className="mt-2 text-xs text-gray-500">
                     Each person can have their own hours on the{" "}
                     <Link href="/app/settings/team" className="underline">
                       Team page
@@ -477,7 +477,7 @@ export default function BookingHome({
                   <textarea value={zipsText} onChange={(e) => setZipsText(e.target.value)} rows={2} placeholder="75002, 75013, 75025…" className={`${inputCls} font-mono`} />
                   <p className="mt-1 text-xs text-gray-500">Addresses outside these are turned away before they pick a time. Empty = anywhere.</p>
                 </div>
-                <button type="button" onClick={saveRules} disabled={rulesSaving} className="flex h-10 items-center justify-center gap-2 rounded-[10px] btn-tool bg-green-500 px-4 text-sm font-semibold text-white transition-colors hover:bg-green-600 active:bg-green-700 disabled:opacity-50">
+                <button type="button" onClick={saveRules} disabled={rulesSaving} className="btn-primary h-10 justify-center">
                   {rulesSaving ? <Loader2 size={13} className="animate-spin" /> : rulesSavedAt ? <Check size={13} /> : null}
                   {rulesSavedAt ? "Saved" : "Save rules"}
                 </button>
@@ -647,7 +647,7 @@ export default function BookingHome({
             <label className="mb-1 mt-4 block text-xs font-medium text-gray-500">Name</label>
             <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder={KIND_META[newKind].defaultName} className={inputCls} />
             <div className="mt-4 flex flex-col gap-2 lg:flex-row lg:items-center">
-              <button onClick={() => create()} disabled={busy} className="flex h-11 items-center justify-center gap-1.5 rounded-[10px] btn-tool bg-green-500 px-4 text-sm font-semibold text-white transition-colors hover:bg-green-600 active:bg-green-700 disabled:opacity-50 lg:h-10">
+              <button onClick={() => create()} disabled={busy} className="btn-primary h-11 justify-center lg:h-10">
                 {busy && <Loader2 size={14} className="animate-spin" />}
                 Create
               </button>

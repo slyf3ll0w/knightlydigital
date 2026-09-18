@@ -1,5 +1,7 @@
 "use client";
 
+import { fmtPhone } from "@/lib/format";
+import { inputCls } from "@/components/Input";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Mail, Pencil, Phone, Plus, Trash2, User } from "lucide-react";
@@ -111,8 +113,6 @@ export default function PeopleCard({
     }
   }
 
-  const inputCls =
-    "w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500";
 
   return (
     <div className="card-ledger p-4">
@@ -156,7 +156,7 @@ export default function PeopleCard({
                       className="flex items-center gap-1 text-[11px] text-gray-500 hover:text-green-600"
                     >
                       <Phone size={10} />
-                      {p.phone}
+                      {fmtPhone(p.phone)}
                     </a>
                   )}
                   {p.email && (
@@ -241,7 +241,7 @@ export default function PeopleCard({
             <button
               onClick={save}
               disabled={busy}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-semibold rounded-[10px] btn-tool transition-colors disabled:opacity-60"
+              className="btn-primary btn-sm"
             >
               {busy && <Loader2 size={12} className="animate-spin" />}
               {editing === "new" ? "Add contact" : "Save"}

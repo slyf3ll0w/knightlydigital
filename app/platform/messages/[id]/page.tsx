@@ -117,7 +117,7 @@ export default async function MessageDetailPage({
         )}
       </div>
 
-      <p className="mt-4 text-xs text-gray-400">
+      <p className="mt-4 text-xs text-gray-500">
         Replies to this email go to your business inbox, not into WorkBench.
       </p>
     </div>

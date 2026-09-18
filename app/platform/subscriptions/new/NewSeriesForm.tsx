@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { inputCls } from "@/components/Input";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Loader2 } from "lucide-react";
@@ -66,8 +67,6 @@ const DURATION_OPTIONS = [
   { value: "480", label: "8 hours" },
 ];
 
-const inputCls =
-  "w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500";
 
 export default function NewSeriesForm({
   contacts,
@@ -171,7 +170,7 @@ export default function NewSeriesForm({
 
       <form onSubmit={submit} className="space-y-5">
         {error && (
-          <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+          <div role="alert" className="form-error">
             {error}
           </div>
         )}
@@ -204,7 +203,7 @@ export default function NewSeriesForm({
               maxLength={150}
               className={inputCls}
             />
-            <p className="text-xs text-gray-400 mt-1">Each visit lands on the schedule as a job with this title.</p>
+            <p className="text-xs text-gray-500 mt-1">Each visit lands on the schedule as a job with this title.</p>
           </div>
           <div>
             <label className="block text-xs text-gray-500 mb-1">Notes for the crew (optional)</label>
@@ -308,7 +307,7 @@ export default function NewSeriesForm({
                   </label>
                 ))}
               </div>
-              <p className="text-xs text-gray-400 mt-1.5">
+              <p className="text-xs text-gray-500 mt-1.5">
                 {team.length === 1
                   ? "It's just you — every visit lands on your schedule."
                   : "Copied onto every generated visit — individual visits can still be reassigned."}
@@ -356,7 +355,7 @@ export default function NewSeriesForm({
                 />
                 <span className="min-w-0">
                   <span className="block text-sm font-medium text-gray-800">{opt.label}</span>
-                  <span className="block text-xs text-gray-400 mt-0.5">{opt.hint}</span>
+                  <span className="block text-xs text-gray-500 mt-0.5">{opt.hint}</span>
                 </span>
               </label>
             ))}
@@ -399,13 +398,13 @@ export default function NewSeriesForm({
                   />
                   <span className="text-sm text-gray-700">
                     Bill each job automatically the moment it&apos;s completed
-                    <span className="block text-xs text-gray-400">
+                    <span className="block text-xs text-gray-500">
                       Off = completed work waits in the Ready-to-bill queue until you bill it.
                     </span>
                   </span>
                 </label>
               )}
-              <p className="col-span-2 text-xs text-gray-400">
+              <p className="col-span-2 text-xs text-gray-500">
                 {billing === "plan"
                   ? "The first invoice goes out (and the card on file is charged) as soon as you start the plan. Billing then repeats on the day that first payment succeeds — sign up on the 14th, get paid every month on the 14th."
                   : autoBillJobs
@@ -420,7 +419,7 @@ export default function NewSeriesForm({
           <button
             type="submit"
             disabled={loading}
-            className="flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 text-white font-semibold text-sm rounded-[10px] btn-tool transition-colors disabled:opacity-50"
+            className="btn-primary btn-lg"
           >
             {loading && <Loader2 size={14} className="animate-spin" />}
             Start plan

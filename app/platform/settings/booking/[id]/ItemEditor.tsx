@@ -298,7 +298,7 @@ export default function ItemEditor({
           <input type="checkbox" checked={required} disabled={!show || lock?.required !== undefined} onChange={(e) => setField(key, { required: e.target.checked })} className="accent-green-600" />
           Required
         </label>
-        {lock && <span className="basis-full text-xs text-gray-400">{lock.note}</span>}
+        {lock && <span className="basis-full text-xs text-gray-500">{lock.note}</span>}
       </div>
     );
   };
@@ -334,7 +334,7 @@ export default function ItemEditor({
       </div>
 
       {error && (
-        <div className="mb-4 flex items-center justify-between rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <div role="alert" className="form-error mb-4 flex items-center justify-between">
           {error}
           <button onClick={() => setError("")} className="p-0.5 text-red-400 hover:text-red-600">
             <X size={14} />
@@ -584,7 +584,7 @@ export default function ItemEditor({
                   Priority first, then round robin
                 </label>
                 {eligibleChosen.length > 0 && (
-                  <span className="text-xs text-gray-400">
+                  <span className="text-xs text-gray-500">
                     {eligibleChosen.length} {eligibleChosen.length === 1 ? "person takes" : "people take"} these.
                   </span>
                 )}
@@ -593,7 +593,7 @@ export default function ItemEditor({
                 <div>
                   <label className={smallLabel}>Fallback meeting link</label>
                   <input type="url" value={draft.meetingLink ?? ""} onChange={(e) => update({ meetingLink: e.target.value || null })} placeholder="https://meet.google.com/…" className={inputClass} />
-                  <p className="mt-1 text-xs text-gray-400">Used when the assigned person has no meeting link of their own (set per person on the Team page).</p>
+                  <p className="mt-1 text-xs text-gray-500">Used when the assigned person has no meeting link of their own (set per person on the Team page).</p>
                 </div>
               )}
             </Card>
@@ -684,7 +684,7 @@ export default function ItemEditor({
                 <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-700">
                   <input type="checkbox" checked={sq.show} onChange={(e) => setIntake({ serviceQuestion: { ...sq, show: e.target.checked } })} className="accent-green-600" />
                   Ask what they need
-                  <span className="text-xs text-gray-400">— the answer becomes the request title</span>
+                  <span className="text-xs text-gray-500">— the answer becomes the request title</span>
                 </label>
                 {sq.show && (
                   <div className="space-y-2 rounded-lg border border-gray-200 bg-gray-50/50 p-3">
@@ -765,7 +765,7 @@ export default function ItemEditor({
                         </label>
                       )}
                     </div>
-                    <button type="button" onClick={() => setIntake({ customFields: intake.customFields.filter((x) => x.id !== c.id) })} className="flex items-center gap-1 text-xs text-gray-400 transition-colors hover:text-red-500">
+                    <button type="button" onClick={() => setIntake({ customFields: intake.customFields.filter((x) => x.id !== c.id) })} className="flex items-center gap-1 text-xs text-gray-500 transition-colors hover:text-red-500">
                       <Trash2 size={12} />
                       Remove
                     </button>
@@ -854,7 +854,7 @@ export default function ItemEditor({
                       </div>
                     ))
                   )}
-                  {meta.needsAddress && <p className="text-xs text-gray-400">{times.driveAware ? "Drive time was checked against the sample address." : "No address given (or it couldn't be located) — times shown without drive checks."}</p>}
+                  {meta.needsAddress && <p className="text-xs text-gray-500">{times.driveAware ? "Drive time was checked against the sample address." : "No address given (or it couldn't be located) — times shown without drive checks."}</p>}
                 </div>
               )}
             </Card>
@@ -872,7 +872,7 @@ export default function ItemEditor({
             <div>
               <label className={smallLabel}>Link</label>
               <div className="flex items-center gap-1">
-                <span className="hidden truncate text-xs text-gray-400 sm:inline">…/book/{company.slug}/</span>
+                <span className="hidden truncate text-xs text-gray-500 sm:inline">…/book/{company.slug}/</span>
                 <input value={draft.slug} onChange={(e) => setDraft((d) => ({ ...d, slug: e.target.value }))} onBlur={(e) => update({}, { slug: e.target.value })} className={inputClass} aria-label="Link slug" />
                 {!previewMode && (
                   <>

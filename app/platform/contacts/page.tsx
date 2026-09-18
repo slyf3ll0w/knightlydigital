@@ -112,7 +112,7 @@ export default async function ContactsPage({
           {/* Phones create from the tab-bar FAB */}
           <Link
             href="/app/contacts/new"
-            className="hidden lg:flex h-10 items-center gap-1.5 rounded-[10px] btn-tool bg-green-500 px-4 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold transition-colors"
+            className="btn-primary hidden lg:flex h-10"
           >
             <Plus size={15} />
             New Client

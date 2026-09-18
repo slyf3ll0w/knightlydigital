@@ -1,5 +1,6 @@
 "use client";
 
+import { money } from "@/lib/statuses";
 import { useEffect, useRef, useState } from "react";
 import { BookOpen, PencilLine, Search } from "lucide-react";
 import { hapticImpact } from "@/lib/haptics";
@@ -39,7 +40,7 @@ function ItemLabel({ item }: { item: PickerWorkItem }) {
         )}
       </span>
       <span className="numeral-ledger shrink-0 text-sm font-semibold text-gray-700">
-        ${Number(item.unitPrice).toFixed(2)}
+        {money(Number(item.unitPrice))}
         {item.recurringInterval && (
           <span className="text-xs font-normal text-gray-400">
             {INTERVAL_SHORT[item.recurringInterval]}

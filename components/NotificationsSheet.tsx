@@ -283,7 +283,7 @@ export default function NotificationsSheet({
                 <Bell size={20} />
               </span>
               <p className="text-sm font-medium text-gray-600">You&apos;re all caught up</p>
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-gray-500">
                 New requests, bookings and payments show up here.
               </p>
             </div>

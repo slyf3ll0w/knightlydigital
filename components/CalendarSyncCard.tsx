@@ -330,14 +330,14 @@ export default function CalendarSyncCard() {
               <button type="button" onClick={turnOffFeed} disabled={busy === "feed"} className={btnQuiet}>
                 Turn off
               </button>
-              <span className="text-xs text-gray-400 ml-auto">
+              <span className="text-xs text-gray-500 ml-auto">
                 Last opened by a calendar app: {ago(feed.lastFetchedAt)}
               </span>
             </div>
           </div>
         )}
         {!feed && (
-          <p className="mt-3 text-xs text-gray-400 flex items-center gap-1.5">
+          <p className="mt-3 text-xs text-gray-500 flex items-center gap-1.5">
             <Loader2 size={12} className="animate-spin" /> Loading…
           </p>
         )}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { inputCls } from "@/components/Input";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -29,9 +30,6 @@ import Modal from "@/components/Modal";
  */
 
 type Template = { id: string; name: string; body: string; isActive: boolean };
-
-const inputCls =
-  "w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500";
 
 const STARTER_BODY =
   "This Service Agreement is made on {{date}} between {{company_name}} and {{client_name}}.\n\n1. Services. \n\n2. Payment. \n\n3. Term & cancellation. \n";
@@ -127,7 +125,7 @@ export default function ContractTemplatesClient({ templates }: { templates: Temp
         <button
           onClick={startNew}
           aria-label="New template"
-          className="flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-[10px] btn-tool bg-green-500 px-3 text-sm font-semibold text-white transition-colors hover:bg-green-600 active:bg-green-700 sm:px-4"
+          className="btn-primary h-10 shrink-0 justify-center sm:px-4"
         >
           <Plus size={16} />
           <span className="hidden sm:inline">New Template</span>
@@ -142,7 +140,7 @@ export default function ContractTemplatesClient({ templates }: { templates: Temp
       </p>
 
       {error && (
-        <div className="mb-4 flex items-center justify-between rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <div role="alert" className="form-error mb-4 flex items-center justify-between">
           {error}
           <button onClick={() => setError("")} className="p-0.5 text-red-400 hover:text-red-600">
             <X size={14} />
@@ -172,7 +170,7 @@ export default function ContractTemplatesClient({ templates }: { templates: Temp
             </p>
             <button
               onClick={startNew}
-              className="mt-5 inline-flex items-center gap-1.5 rounded-[10px] btn-tool bg-green-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-600 active:bg-green-700"
+              className="btn-primary mt-5 inline-flex"
             >
               <Plus size={15} />
               New Template
@@ -261,7 +259,7 @@ export default function ContractTemplatesClient({ templates }: { templates: Temp
               <button
                 onClick={save}
                 disabled={busy || !name.trim() || !body.trim()}
-                className="flex h-11 items-center justify-center gap-1.5 rounded-[10px] btn-tool bg-green-500 px-4 text-sm font-semibold text-white transition-colors hover:bg-green-600 active:bg-green-700 disabled:opacity-50 lg:h-10"
+                className="btn-primary h-11 justify-center lg:h-10"
               >
                 {busy && <Loader2 size={14} className="animate-spin" />}
                 Save Template

@@ -137,7 +137,7 @@ export default async function QuotesPage({
           </a>
           <Link
             href="/app/quotes/new"
-            className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors"
+            className="btn-primary"
           >
             <Plus size={15} />
             New Quote

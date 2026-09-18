@@ -1,5 +1,6 @@
 "use client";
 
+import { money } from "@/lib/statuses";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -248,7 +249,7 @@ export default function InvoiceEditor({
         className="space-y-5"
       >
         {error && (
-          <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+          <div role="alert" className="form-error">
             {error}
           </div>
         )}
@@ -346,31 +347,31 @@ export default function InvoiceEditor({
               <div className="text-right space-y-1 text-sm">
                 <div className="flex justify-between gap-8">
                   <span className="text-gray-500">Subtotal</span>
-                  <span className="font-medium">${subtotal.toFixed(2)}</span>
+                  <span className="font-medium">{money(subtotal)}</span>
                 </div>
                 {discount > 0 && (
                   <div className="flex justify-between gap-8 text-green-700">
                     <span>Discount{discountType === "PERCENT" ? ` (${discountNum}%)` : ""}</span>
-                    <span className="font-medium">-${discount.toFixed(2)}</span>
+                    <span className="font-medium">-{money(discount)}</span>
                   </div>
                 )}
                 {tax > 0 && (
                   <div className="flex justify-between gap-8">
                     <span className="text-gray-500">Tax</span>
-                    <span className="font-medium">${tax.toFixed(2)}</span>
+                    <span className="font-medium">{money(tax)}</span>
                   </div>
                 )}
                 {depositApplied > 0 && (
                   <div className="flex justify-between gap-8 text-green-700">
                     <span>Deposit applied</span>
                     <span className="font-medium">
-                      -${Math.min(depositApplied, grossTotal).toFixed(2)}
+                      -{money(Math.min(depositApplied, grossTotal))}
                     </span>
                   </div>
                 )}
                 <div className="flex justify-between gap-8 font-bold text-base border-t border-gray-200 pt-1">
                   <span>Total</span>
-                  <span>${total.toFixed(2)}</span>
+                  <span>{money(total)}</span>
                 </div>
               </div>
             </div>
@@ -393,7 +394,7 @@ export default function InvoiceEditor({
 
         <div className="flex items-center gap-3">
           <button type="submit" disabled={loading}
-            className="flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors disabled:opacity-50">
+            className="btn-primary btn-lg">
             {loading && <Loader2 size={14} className="animate-spin" />}
             {editInvoice ? "Save Changes" : "Save Invoice"}
           </button>

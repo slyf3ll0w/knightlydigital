@@ -315,7 +315,7 @@ export default function SubscriptionsClient({
             )}
             <Link
               href="/app/subscriptions/new"
-              className="flex shrink-0 items-center gap-1.5 px-3 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors"
+              className="btn-primary shrink-0"
             >
               <Repeat size={14} />
               <span className="hidden sm:inline">New plan</span>
@@ -325,7 +325,7 @@ export default function SubscriptionsClient({
         )}
       </div>
       {error && (
-        <div className="mb-4 px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>
+        <div role="alert" className="form-error mb-4">{error}</div>
       )}
       {flash && (
         <div className="mb-4 px-4 py-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">{flash}</div>
@@ -352,7 +352,7 @@ export default function SubscriptionsClient({
               <button
                 onClick={billReady}
                 disabled={billingReady}
-                className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors disabled:opacity-50"
+                className="btn-primary"
               >
                 {billingReady && <Loader2 size={13} className="animate-spin" />}
                 Bill Ready Work
@@ -598,14 +598,14 @@ export default function SubscriptionsClient({
                         </div>
                       )}
                       {editForm.visitFrequency && (
-                        <p className="text-xs text-gray-400 mt-2">
+                        <p className="text-xs text-gray-500 mt-2">
                           The next ~4 weeks of visits appear on the schedule as regular jobs — drag
                           one to reschedule it, or delete it to skip that visit. Billing stays on
                           its own cadence above.
                         </p>
                       )}
                     </div>
-                    <p className="text-xs text-gray-400">
+                    <p className="text-xs text-gray-500">
                       Changes apply from the next billing run — invoices already generated keep their
                       amounts.
                     </p>

@@ -145,7 +145,7 @@ export default function MonthGrid({
           {dayItems.length > 3 && (
             <button
               onClick={() => onGoDay(cellDate)}
-              className="pl-1 text-xs text-gray-400 hover:text-gray-600 hover:underline"
+              className="pl-1 text-xs text-gray-500 hover:text-gray-600 hover:underline"
             >
               +{dayItems.length - 3} more
             </button>

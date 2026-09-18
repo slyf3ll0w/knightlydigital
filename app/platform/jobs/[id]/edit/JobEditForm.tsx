@@ -1,5 +1,6 @@
 "use client";
 
+import { money } from "@/lib/statuses";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -147,7 +148,7 @@ export default function JobEditForm({
 
       <form onSubmit={handleSubmit} className="space-y-5">
         {error && (
-          <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+          <div role="alert" className="form-error">
             {error}
           </div>
         )}
@@ -258,7 +259,7 @@ export default function JobEditForm({
             <div className="px-5 py-3 border-t border-gray-100 bg-gray-50 rounded-b-[7px] max-lg:rounded-b-[13px]">
               <div className="ml-auto w-56 flex justify-between text-sm font-bold">
                 <span className="text-gray-900">Total price</span>
-                <span className="text-gray-900">${lineTotal.toFixed(2)}</span>
+                <span className="text-gray-900">{money(lineTotal)}</span>
               </div>
             </div>
           </div>
@@ -267,7 +268,7 @@ export default function JobEditForm({
           <button
             type="submit"
             disabled={loading}
-            className="flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors disabled:opacity-50"
+            className="btn-primary btn-lg"
           >
             {loading && <Loader2 size={14} className="animate-spin" />}
             Save Changes

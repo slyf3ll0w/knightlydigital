@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { CalendarClock, CheckCircle, Loader2, Video, XCircle } from "lucide-react";
 import { textOn } from "@/lib/branding";
+import { confirmSheet } from "@/components/ConfirmSheet";
 import type { ScheduleAppearance } from "../../shell";
 
 type Info = {
@@ -134,7 +135,16 @@ export default function ManageBooking({ token, appearance }: { token: string; ap
               type="button"
               disabled={busy}
               onClick={() => {
-                if (window.confirm("Cancel this booking?")) void act({ action: "cancel" });
+                // Same sheet as the app; falls back to the native confirm
+                // where no host is mounted (this is a public page).
+                void confirmSheet({
+                  title: "Cancel this booking?",
+                  message: "Your appointment will be cancelled and the time released.",
+                  confirmLabel: "Cancel booking",
+                  destructive: true,
+                }).then((ok) => {
+                  if (ok) void act({ action: "cancel" });
+                });
               }}
               className={`rounded border px-4 py-2 text-sm font-semibold ${dark ? "border-white/20 text-gray-200" : "border-gray-300 text-gray-700"} disabled:opacity-50`}
             >

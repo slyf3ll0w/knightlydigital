@@ -326,7 +326,7 @@ export default function AppointmentActions({
           <button
             onClick={saveReschedule}
             disabled={busy}
-            className="px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded-[10px] btn-tool disabled:opacity-50"
+            className="btn-primary btn-sm"
           >
             Save
           </button>
@@ -445,7 +445,7 @@ export default function AppointmentActions({
               <button
                 onClick={saveEdit}
                 disabled={busy}
-                className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors disabled:opacity-50"
+                className="btn-primary"
               >
                 {busy && <Loader2 size={13} className="animate-spin" />}
                 Save Changes

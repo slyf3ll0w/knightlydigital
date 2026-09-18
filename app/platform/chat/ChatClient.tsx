@@ -574,7 +574,7 @@ export default function ChatClient({
             setGroupName("");
             setShowNewChat("create");
           }}
-          className="flex items-center gap-1.5 rounded-[10px] btn-tool bg-green-500 px-3.5 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-600 active:bg-green-700"
+          className="btn-primary"
         >
           <Plus size={15} />
           New chat

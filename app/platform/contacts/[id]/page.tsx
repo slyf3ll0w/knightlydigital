@@ -1,3 +1,4 @@
+import { fmtPhone } from "@/lib/format";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requirePageActor, canSell, canSeeMoney, contactScope, seesAllLeads, isManager } from "@/lib/permissions";
@@ -229,7 +230,7 @@ export default async function ContactDetailPage({
                 className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
               >
                 <Phone size={13} />
-                {contact.phone}
+                {fmtPhone(contact.phone)}
               </a>
             )}
             {contact.phone && (
@@ -410,16 +411,16 @@ export default async function ContactDetailPage({
             </h2>
             <dl className="grid grid-cols-2 gap-3 text-sm">
               <div>
-                <dt className="text-gray-400 text-xs">Payment terms</dt>
+                <dt className="text-gray-500 text-xs">Payment terms</dt>
                 <dd className="text-gray-800">Net {contact.paymentTermsDays}</dd>
               </div>
               <div>
-                <dt className="text-gray-400 text-xs">Lead source</dt>
+                <dt className="text-gray-500 text-xs">Lead source</dt>
                 <dd className="text-gray-800">{contact.leadSource || "—"}</dd>
               </div>
               {contact.notes && (
                 <div className="col-span-2">
-                  <dt className="text-gray-400 text-xs">Notes</dt>
+                  <dt className="text-gray-500 text-xs">Notes</dt>
                   <dd className="text-gray-700 whitespace-pre-wrap">{contact.notes}</dd>
                 </div>
               )}

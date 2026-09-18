@@ -985,7 +985,7 @@ export default function RouteMapClient({
         </div>
       )}
       {error && (
-        <div className="no-print mb-3 flex items-center justify-between rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <div role="alert" className="form-error no-print mb-3 flex items-center justify-between">
           {error}
           <button onClick={() => setError("")} className="p-0.5 text-red-400 hover:text-red-600">
             <X size={14} />
@@ -1480,7 +1480,7 @@ export default function RouteMapClient({
                 />
                 Text or email each client whose time changes
               </label>
-              <p className="mt-2 text-xs text-gray-400">
+              <p className="mt-2 text-xs text-gray-500">
                 Applying rewrites the calendar times — durations are kept, drive time spaces the stops, and moved visits re-send their
                 reminders at the new times. Unconfirmed bookings, calls, and blocked time never move.
               </p>
@@ -1493,7 +1493,7 @@ export default function RouteMapClient({
               <button
                 onClick={applyPreview}
                 disabled={previewBusy || preview.warnings.some((w) => w.startsWith("Doesn't fit"))}
-                className="flex items-center gap-2 rounded-[10px] btn-tool bg-green-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-600 active:bg-green-700 disabled:opacity-50"
+                className="btn-primary"
               >
                 {previewBusy && <Loader2 size={14} className="animate-spin" />}
                 Apply new order

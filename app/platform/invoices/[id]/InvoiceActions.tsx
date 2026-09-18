@@ -366,7 +366,7 @@ export default function InvoiceActions({
         (contactEmail ? (
           <button
             onClick={emailToClient}
-            className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors"
+            className="btn-primary"
           >
             <Send size={13} />
             Email to Client
@@ -375,7 +375,7 @@ export default function InvoiceActions({
           <button
             onClick={() => setStatus("AWAITING_PAYMENT")}
             title="No client email on file — this only marks the invoice as sent"
-            className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors"
+            className="btn-primary"
           >
             <Send size={13} />
             Mark as Sent
@@ -385,7 +385,7 @@ export default function InvoiceActions({
         (canChargeCard ? (
           <button
             onClick={openChargeDialog}
-            className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors"
+            className="btn-primary"
           >
             <CreditCard size={13} />
             Charge Card
@@ -393,7 +393,7 @@ export default function InvoiceActions({
         ) : (
           <button
             onClick={() => router.push(`/app/payments/new?invoiceId=${invoiceId}`)}
-            className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors"
+            className="btn-primary"
           >
             <DollarSign size={13} />
             Collect Payment
@@ -631,7 +631,7 @@ export default function InvoiceActions({
                   />
                   <span className="flex-1 text-sm text-gray-800">{card.label}</span>
                   {card.isDefault && cardOptions.length > 1 && (
-                    <span className="text-xs text-gray-400">Default</span>
+                    <span className="text-xs text-gray-500">Default</span>
                   )}
                 </label>
               ))}
@@ -661,13 +661,13 @@ export default function InvoiceActions({
             {pickedId === "new" && (
               <div className="mb-4">
                 {cardError && (
-                  <div className="mb-3 px-3 py-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+                  <div role="alert" className="form-error mb-3">
                     {cardError}
                   </div>
                 )}
                 <div ref={finixContainerRef} />
                 {!scriptReady && (
-                  <div className="flex items-center justify-center gap-2 py-6 text-xs text-gray-400">
+                  <div className="flex items-center justify-center gap-2 py-6 text-xs text-gray-500">
                     <Loader2 size={13} className="animate-spin" />
                     Loading secure card form…
                   </div>
@@ -698,7 +698,7 @@ export default function InvoiceActions({
                 !pickedId ||
                 (pickedId === "new" && (!scriptReady || formHasErrors))
               }
-              className="w-full flex items-center justify-center gap-1.5 px-4 py-2.5 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded-[10px] transition-colors disabled:opacity-40"
+              className="btn-primary btn-lg w-full justify-center"
             >
               {savingCard ? <Loader2 size={13} className="animate-spin" /> : <DollarSign size={13} />}
               Charge {money(balance)}
