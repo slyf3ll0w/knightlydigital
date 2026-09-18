@@ -138,3 +138,28 @@ Category: Utility/Productivity. All violence/sex/language/drugs answers: No.
    too if desired) → verify
    `curl https://workbenchfsm.com/.well-known/assetlinks.json`. This turns on
    App Links + Google Password Manager save/fill in the shell.
+
+## STATUS 2026-09-05 — SUBMITTED FOR REVIEW
+
+Everything above is done in the Console (org account "Streamflaire Group",
+app id 4974246202633748090, package com.streamflaire.hub):
+
+- Internal testing: release 3 (1.2) live since 2026-09-01. Opt-in link
+  https://play.google.com/apps/internaltest/4701746165347848300 (no tester
+  list was created — David chose to go straight to production).
+- Store listing: text + icon + feature graphic + six 9:16 phone screenshots
+  (`docs/plans/play-assets/01..06-*.png`, 1236x2199, captured from the Summit
+  Plumbing test company logged in as "Ray Delgado" — a renamed test profile,
+  not a real person). Saved 2026-09-05.
+- App content 11/11 (advertising ID declaration = No was the last one).
+- Production: countries = United States only (expand later under
+  Production → Countries / regions); release 3 (1.2) promoted from the
+  library, full rollout; release notes written in Console.
+- Submitted for review 2026-09-05 ~11:16 ET. Play runs ~15 min of automated
+  quick checks first, then the review (typically up to 7 days).
+- Release-time warnings only: no R8 mapping file / no native debug symbols
+  (non-blocking; fix in a later build if crash reports need it).
+
+After approval: nothing else to do — the app goes live automatically
+(Managed publishing is OFF). Step 3 above (ANDROID_CERT_SHA256 → assetlinks)
+was already completed before submission; both cert SHA-256s are served.
