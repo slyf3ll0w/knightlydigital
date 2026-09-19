@@ -22,7 +22,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const body = (await req.json().catch(() => ({}))) as { inputs?: unknown };
   const inputs = (body.inputs && typeof body.inputs === "object" ? body.inputs : {}) as Record<string, unknown>;
-  const result = await runStoredEstimator(row, actor.companyId, inputs);
+  // ?dry=1 — the runner's live total while typing; doesn't count as a use
+  const result = await runStoredEstimator(row, actor.companyId, inputs, { count: req.nextUrl.searchParams.get("dry") !== "1" });
   if (!result.ok) return NextResponse.json({ error: result.errors[0], errors: result.errors }, { status: 400 });
   return NextResponse.json(result);
 }

@@ -10,7 +10,8 @@ import {
   usesAtlas,
   type EstimatorSpec,
 } from "../estimator";
-import { checkSpec, ESTIMATOR_SELECT, estimatorSummary, loadPriceBook, runStoredEstimator } from "../estimator-server";
+import { checkSpec, ESTIMATOR_SELECT, estimatorSummary, loadPriceBook, publicEstimatePath, runStoredEstimator } from "../estimator-server";
+import { describePublicConfig, publicSlugFrom, sanitizePublicConfig, type EstimatorPublicConfig } from "../estimator-public";
 
 /**
  * Estimate tools (docs/plans/ai-estimators-2026-09-19.md).
@@ -122,11 +123,88 @@ function badgeLines(spec: EstimatorSpec): string[] {
   return lines;
 }
 
+/** Website form settings (lib/estimator-public.ts) as the model passes them. */
+const WEBSITE_PARAM = {
+  type: "object",
+  description:
+    "Optional: put this tool on the business's website as a lead-capture form. Visitors answer the questions, see the estimate the owner wants shown, leave their details and become a lead + request (+ quote). Free for the owner — visitors never spend tokens.",
+  properties: {
+    enabled: { type: "boolean", description: "true = live on the website; false = off (link shows nothing)" },
+    slug: { type: "string", description: "link name, e.g. 'driveway-estimate'; default from the tool name" },
+    showPrice: { type: "string", enum: ["exact", "range", "hidden"], description: "exact lines + total (default) · a ± range · no number (owner follows up)" },
+    rangePct: { type: "number", description: "range half-width in percent, 5–50 (default 15)" },
+    reveal: { type: "string", enum: ["instant", "after_contact"], description: "instant (default) = estimate first, then ask for details · after_contact = details first, estimate on the thank-you screen" },
+    onSubmit: { type: "string", enum: ["draft", "send", "request"], description: "draft (default) = lead + request + draft quote · send = email the quote for approval · request = lead + request only" },
+    heading: { type: "string" },
+    intro: { type: "string" },
+    buttonLabel: { type: "string" },
+    askPhone: { type: "boolean", description: "default true" },
+    requirePhone: { type: "boolean", description: "default false" },
+    askAddress: { type: "boolean", description: "default false" },
+    requireAddress: { type: "boolean" },
+    disclaimer: { type: "string", description: "fine print under the estimate; a sensible default exists" },
+    successMessage: { type: "string", description: "thank-you text; default fits onSubmit" },
+  },
+} as const;
+
+function websiteConfigFrom(raw: Record<string, unknown>, base: EstimatorPublicConfig): EstimatorPublicConfig {
+  const bool = (v: unknown, d: boolean) => (typeof v === "boolean" ? v : d);
+  const askPhone = bool(raw.askPhone, base.fields.phone.show);
+  const askAddress = bool(raw.askAddress, base.fields.address.show);
+  return sanitizePublicConfig({
+    ...base,
+    ...(raw.showPrice !== undefined ? { showPrice: raw.showPrice } : {}),
+    ...(raw.rangePct !== undefined ? { rangePct: raw.rangePct } : {}),
+    ...(raw.reveal !== undefined ? { reveal: raw.reveal } : {}),
+    ...(raw.onSubmit !== undefined ? { onSubmit: raw.onSubmit } : {}),
+    ...(typeof raw.heading === "string" ? { heading: raw.heading } : {}),
+    ...(typeof raw.intro === "string" ? { intro: raw.intro } : {}),
+    ...(typeof raw.buttonLabel === "string" ? { buttonLabel: raw.buttonLabel } : {}),
+    ...(typeof raw.disclaimer === "string" ? { disclaimer: raw.disclaimer } : {}),
+    ...(typeof raw.successMessage === "string" ? { successMessage: raw.successMessage } : {}),
+    fields: {
+      ...base.fields,
+      phone: { show: askPhone, required: askPhone && bool(raw.requirePhone, base.fields.phone.required) },
+      address: { show: askAddress, required: askAddress && bool(raw.requireAddress, base.fields.address.required) },
+    },
+  });
+}
+
+/** Turn the model's `website` argument into route payload + card lines. */
+function websiteFromArgs(
+  raw: unknown,
+  toolName: string,
+  companySlug: string,
+  current: { isPublic: boolean; publicSlug: string | null; publicConfig: unknown } | null
+): { payload: Record<string, unknown>; lines: string[] } | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const base = sanitizePublicConfig(current?.publicConfig);
+  const enabled = typeof r.enabled === "boolean" ? r.enabled : current?.isPublic ?? true;
+  const slug = (typeof r.slug === "string" && publicSlugFrom(r.slug)) || current?.publicSlug || publicSlugFrom(toolName) || "estimate";
+  const config = websiteConfigFrom(r, base);
+  const payload: Record<string, unknown> = { isPublic: enabled, publicSlug: slug, publicConfig: config };
+  const lines = enabled
+    ? [`Website form: ON at /book/${companySlug}/estimate/${slug}`, ...describePublicConfig(config)]
+    : ["Website form: off"];
+  return { payload, lines };
+}
+
+async function companySlugOf(companyId: string): Promise<string> {
+  const c = await prisma.company.findUnique({ where: { id: companyId }, select: { slug: true } });
+  return c?.slug ?? "";
+}
+
+function websiteState(row: { isPublic: boolean; publicSlug: string | null; publicConfig: unknown }, companySlug: string) {
+  const path = publicEstimatePath(companySlug, row);
+  return path ? { on: true, url: path, embedNote: "embed snippet under Settings → Estimate tools → globe button", ...Object.fromEntries(describePublicConfig(sanitizePublicConfig(row.publicConfig)).map((l, i) => [`detail${i + 1}`, l])) } : { on: false };
+}
+
 const manageEstimator: Tool = {
   decl: {
     name: "manage_estimator",
     description:
-      "Build and maintain the company's estimate tools (managers): saved calculators that turn a few inputs (square footage, rooms, hours, options) into quote line items using the business's own pricing rules. Running a tool is plain math and free; building one is your job here. Workflow: action 'guide' (spec format + expression reference + the price book — call it before writing a spec), then 'test' the spec with sample inputs until it's right, then 'create' (or 'update' with estimatorId) which shows a confirmation card. 'list' shows saved tools; 'get' returns one tool's full spec for editing. Use the rates the user gives you or the price book — never invent a business's prices. Only add 'assist' when judgment from a written description is genuinely needed (it costs the user tokens per use).",
+      "Build and maintain the company's estimate tools (managers): saved calculators that turn a few inputs (square footage, rooms, hours, options) into quote line items using the business's own pricing rules. Running a tool is plain math and free; building one is your job here. Workflow: action 'guide' (spec format + expression reference + the price book — call it before writing a spec), then 'test' the spec with sample inputs until it's right, then 'create' (or 'update' with estimatorId) which shows a confirmation card. 'list' shows saved tools; 'get' returns one tool's full spec for editing. Use the rates the user gives you or the price book — never invent a business's prices. Only add 'assist' when judgment from a written description is genuinely needed (it costs the user tokens per use). Any tool can also be a WEBSITE FORM (pass 'website' on create/update): visitors on the business's site answer the questions, see the estimate the owner chooses to show (exact, a range, or none) and become a lead + request (+ quote) — free for the owner.",
     parameters: {
       type: "object",
       properties: {
@@ -137,6 +215,7 @@ const manageEstimator: Tool = {
         spec: SPEC_PARAM,
         inputs: { ...INPUTS_PARAM, description: `sample inputs for 'test': ${INPUTS_PARAM.description}` },
         isActive: { type: "boolean", description: "update: turn the tool on/off" },
+        website: WEBSITE_PARAM,
       },
       required: ["action"],
     },
@@ -152,6 +231,8 @@ const manageEstimator: Tool = {
         priceBook: book.slice(0, 80).map((b) => `${b.name}: $${b.unitPrice.toFixed(2)}`),
         priceBookNote: book.length > 80 ? `${book.length - 80} more — use get_price_book` : undefined,
         limits: ESTIMATOR_LIMITS,
+        websiteForms:
+          "Any tool can be published as a website form: pass website: {enabled: true, showPrice: 'exact'|'range'|'hidden', reveal: 'instant'|'after_contact', onSubmit: 'draft'|'send'|'request', …} on create or update. Ask the owner two things at most: what visitors should see (exact price / range / no price) and what should happen (draft quote for review / email the quote / just the lead). Default = exact price shown right away, then name + email + phone, lead + request + draft quote. The link is /book/<companySlug>/estimate/<slug>; the embed snippet lives under Settings → Estimate tools (globe button). Visitors never spend the owner's tokens (no assist on public forms). Text inputs are fine on a public form — they land in the request as answers.",
         next: "Draft the spec from what the user told you, run action 'test' with realistic sample inputs, then stage 'create'.",
       };
     }
@@ -163,10 +244,15 @@ const manageEstimator: Tool = {
         orderBy: [{ isActive: "desc" }, { name: "asc" }],
       });
       return {
-        tools: rows.map((r) => {
-          const spec = specFromJson(r.spec);
-          return spec ? estimatorSummary(r, spec) : { id: r.id, name: r.name, broken: true };
-        }),
+        tools: await (async () => {
+          const companySlug = await companySlugOf(actor.companyId);
+          return rows.map((r) => {
+            const spec = specFromJson(r.spec);
+            if (!spec) return { id: r.id, name: r.name, broken: true };
+            const { publicConfig: _pc, publicSlug: _ps, isPublic: _ip, ...summary } = estimatorSummary(r, spec);
+            return { ...summary, website: websiteState(r, companySlug) };
+          });
+        })(),
         page: "/app/settings/estimators",
       };
     }
@@ -174,7 +260,17 @@ const manageEstimator: Tool = {
     if (action === "get") {
       const row = await prisma.estimator.findFirst({ where: { id: str(args.estimatorId, 40), companyId: actor.companyId }, select: ESTIMATOR_SELECT });
       if (!row) return { error: "No estimate tool with that id — use action 'list'." };
-      return { id: row.id, name: row.name, description: row.description, isActive: row.isActive, spec: row.spec, runs: row.runs, assists: row.assists };
+      return {
+        id: row.id,
+        name: row.name,
+        description: row.description,
+        isActive: row.isActive,
+        spec: row.spec,
+        runs: row.runs,
+        assists: row.assists,
+        website: websiteState(row, await companySlugOf(actor.companyId)),
+        websiteSubmissions: row.submissions,
+      };
     }
 
     if (action === "test") {
@@ -215,14 +311,15 @@ const manageEstimator: Tool = {
       const check = await checkSpec(actor.companyId, args.spec);
       if (!check.ok) return { error: "The spec doesn't compile.", errors: check.errors };
       const spec = check.compiled.spec;
+      const web = websiteFromArgs(args.website, name, await companySlugOf(actor.companyId), null);
       return {
         ...stage(ctx, {
           kind: "manage_estimator",
           title: `Create estimate tool "${name}"`,
-          lines: [...(str(args.description, 200) ? [`Use it for: ${str(args.description, 200)}`] : []), ...badgeLines(spec)],
+          lines: [...(str(args.description, 200) ? [`Use it for: ${str(args.description, 200)}`] : []), ...badgeLines(spec), ...(web?.lines ?? [])],
           endpoint: "/api/app/estimators",
           method: "POST",
-          payload: { name, description: str(args.description, 200) || null, spec },
+          payload: { name, description: str(args.description, 200) || null, spec, ...(web?.payload ?? {}) },
           confirmLabel: "Create tool",
           href: "/app/settings/estimators",
         }),
@@ -255,7 +352,12 @@ const manageEstimator: Tool = {
         payload.spec = check.compiled.spec;
         lines.push("Replace the rules:", ...badgeLines(check.compiled.spec));
       }
-      if (lines.length === 0) return { error: "Nothing to change — pass a new spec, name, description or isActive." };
+      const web = websiteFromArgs(args.website, name || row.name, await companySlugOf(actor.companyId), row);
+      if (web) {
+        Object.assign(payload, web.payload);
+        lines.push(...web.lines);
+      }
+      if (lines.length === 0) return { error: "Nothing to change — pass a new spec, name, description, isActive or website." };
       return stage(ctx, {
         kind: "manage_estimator",
         title: `Update estimate tool "${row.name}"`,

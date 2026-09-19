@@ -1,10 +1,12 @@
 # AI-built estimate tools + automations — build plan (2026-09-19)
 
-**Status: Batch 1 (estimate tools) LIVE on main as `6e6e580` (2026-09-19).
-Batch 2 (automation builder + external part-price lookup) BUILT 2026-09-19 —
-tsc clean, unit tests green (`scripts/test-estimator.ts`,
+**Status: Batch 1 (estimate tools) LIVE on main as `6e6e580`, Batch 2
+(automation builder + external part-price lookup) LIVE on main as `fe96f5d`
+(both 2026-09-19). Batch 3 (estimate tools as website lead-capture forms +
+embed, live running total in the runner) BUILT 2026-09-19 — tsc clean, unit
+tests green (`scripts/test-estimator.ts`, `scripts/test-estimator-public.ts`,
 `scripts/test-automations.ts`, `scripts/test-assistant.ts` 100 tools). Live
-Gemini behaviour of both builders is UNVERIFIED — see § Test.**
+Gemini behaviour of the builders is UNVERIFIED — see the § Test sections.**
 
 ## The idea (David, 2026-09-19)
 
@@ -246,10 +248,111 @@ Atlas", example prompts in the empty state. Settings hub link under Setup.
    automation → it must decline (not in the allowlist); a condition with an
    unknown field is rejected with the valid list.
 
+## Batch 3 — estimate tools as website forms (BUILT 2026-09-19)
+
+David (2026-09-19): "the estimator is still kind of rough. can we make it so
+they can also be lead capture forms and can be embedded on the website?"
+Any saved tool can now be published as a public instant-estimate form. Same
+spec, same engine, same free math — the visitor only ever sees the tool's
+questions and the number the owner chooses to show, never the formulas or
+the price book.
+
+### Config — `lib/estimator-public.ts` (pure)
+- `EstimatorPublicConfig = { heading, intro, buttonLabel, showPrice:
+  exact|range|hidden, rangePct (5–50, default 15), reveal:
+  instant|after_contact, onSubmit: draft|send|request, fields: {email, phone,
+  address, message}, disclaimer, successMessage }`; `sanitizePublicConfig()`
+  is the one gate (defaults, clamps, "must be able to reach someone", at
+  least one contact detail required, hidden price can't email a quote).
+- `estimateRange()` rounds to friendly steps ($10/$25/$50/$100) and never
+  drops under the job minimum; `shapeEstimate()` produces what the visitor
+  gets (exact lines / range / nothing); `describePublicConfig()` is the card
+  and settings prose; `publicSlugFrom()` derives the URL part.
+
+### Storage
+`Estimator.isPublic publicSlug publicConfig publicViews publicCalcs
+submissions` (+ `@@unique([companyId, publicSlug])`), `Request.estimatorId`
+(source `estimate_form`). Additive — boot `prisma db push` adds them.
+
+### Public surface
+| Route | What |
+|---|---|
+| `/book/[companySlug]/estimate/[publicSlug]` | hosted form in the company's booking-page look (ScheduleFrame) |
+| `/embed/[companySlug]/estimate/[publicSlug]` | the same inside an iframe; auto-resizes via the existing `jobflow:height` message, slug `company/estimate/tool` |
+| `POST /api/public/estimate/[slug]/[tool]/calc` `{inputs}` | server-side math → estimate shaped by showPrice (forms that reveal after contact get `hidden` here); 60/10 min per IP; counts `publicCalcs` |
+| `POST /api/public/estimate/[slug]/[tool]` | submit: re-runs the math (client totals never trusted), captcha + honeypot + 3 s floor + 20/h per IP + 200 requests/company/day, then `createEstimateLead()` |
+
+Both pages accept `?preview=1` for a signed-in manager of that company
+(unpublished form renders, nothing submits) and the booking-page appearance
+overrides (`?theme/?transparent/?accent/?font`). Published forms are also
+listed on `/book/[slug]` and `/embed/[slug]` under "Instant estimates"
+(`EstimateMenu`); the single-item shortcut only applies when there are none.
+
+### Lead — `lib/estimator-lead.ts`
+`createEstimateLead()`: `upsertBookingContact` (shared with the booking form;
+new `leadSource: "Website estimate"`) → Quote from the tool's lines (all
+lines count toward the subtotal, the app convention; optional lines keep
+`isOptional`; price-book lines carry cost/recurring/agreement; deposit via
+`derivedQuoteDeposit`; `send` = AWAITING_RESPONSE + sentAt) → Request
+(answers as words, the estimate and how it was shown, `estimatorId`) →
+pipeline enter + REQUEST_CREATED (+ QUOTE_SENT) → `submissions++`. After
+commit: `fireAutomations` request.created (+ quote.sent), push, company
+email, quote-link email when `send`. Never throws on a notification.
+
+### Settings — `/app/settings/estimators`
+Globe button per tool → `PublishEstimatorSheet`: On your website toggle,
+link name, heading/intro/button, what the visitor sees (exact / range ±% /
+no price), when (right away / after details), each submission (draft quote /
+email the quote / request only), ask-for fields, fine print, thank-you text,
+the link + Preview, the iframe snippet, and the funnel (views → estimates →
+leads). "On your website" badge + "N website leads" on the row.
+`PATCH /api/app/estimators/[id]` accepts `isPublic / publicSlug /
+publicConfig` (slug derived from the name when publishing without one;
+409 when another tool has it); `POST` accepts them too for the Atlas card.
+
+### Atlas — `manage_estimator` `website` argument
+`website: { enabled, slug?, showPrice, rangePct, reveal, onSubmit, heading,
+intro, buttonLabel, askPhone, requirePhone, askAddress, requireAddress,
+disclaimer, successMessage }` on create/update → the card gains "Website
+form: ON at /book/…/estimate/… · Form shows … · Asks for … · Each submission
+…". `list`/`get` report `website: {on, url, …}`; `guide` explains the two
+questions to ask (what visitors see, what happens). Prompt rule: offer it
+when they mention their website, leads, or self-serve pricing; visitors never
+spend the owner's tokens (public forms have no assist step).
+
+### Runner polish (the "rough" part)
+`EstimatorRunner` shows a **running total** while typing: once every
+required input has a value, a debounced dry run (`/run?dry=1`, no counter)
+prints "Running total: $X" next to Calculate.
+
+### Test (owed)
+1. Settings → Estimate tools → globe on the driveway tool → On your website,
+   range ±15%, right away, draft quote → Save → link + snippet appear.
+   Preview opens the hosted form with the company's booking look.
+2. Open the link signed out → 800 sq ft, sealant on → "See my estimate" →
+   "Estimated range $180 – $220" (range of $200), disclaimer, then name +
+   email → Send my request → thank-you. In the app: new lead "Website
+   estimate", Request #N with the answers + "Estimate: $200.00 (shown as
+   $180 – $220)", draft Quote linked to it, push + company email received.
+   Row now says "1 website lead"; the sheet's funnel counts 1 → 1 → 1.
+3. Switch to "after they leave details" + "email the quote": the first
+   screen says Continue, the estimate appears only on the thank-you screen,
+   the visitor gets the quote-approval email, the quote is AWAITING_RESPONSE.
+4. "No price": no number anywhere for the visitor; the request still carries
+   the computed estimate marked "not shown to the client"; the sheet refuses
+   "email the quote" in that mode.
+5. Paste the snippet into any HTML page: the iframe hugs the form and grows
+   on the estimate screen. `/book/[slug]` lists the form under "Instant
+   estimates".
+6. Atlas: *"put the driveway tool on my website showing a price range and
+   emailing me the lead"* → ONE update card with the Website form lines →
+   confirm → link works. *"build a gutter cleaning tool and put it on my
+   site"* → create card carrying both the rules and the website lines.
+7. Guardrails: submit with a filled honeypot → fake 201, nothing created;
+   21st submit from one IP in an hour → 429; a suspended company's form →
+   404; turning the form off → link 404s, embed shows nothing.
+
 ## Later
-- Public instant-quote calculator: the same spec on the company's booking
-  page (`quoteMode` draft/send already exists in intake). Needs the
-  "estimate, not a final price" disclaimer + caps.
 - Lazy tool loading (docs/plans/cost-controls.md) — `manage_estimator`'s
   spec schema is the largest declaration in the registry now.
 - Photos as an assist input (Gemini vision) once the metered path is

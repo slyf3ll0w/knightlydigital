@@ -137,7 +137,7 @@ Sign in as a TECH for these; techs only see the field/schedule tools.
 
 ## 9b. Estimate tools (2026-09-19)
 
-Owner: "Build an estimate tool for driveway pressure washing: $0.25 per sq ft, $150 minimum, sealant optional at $0.45 per sq ft." Expect guide → test → ONE create card ("Cost to run: free"). Confirm, then /app/settings/estimators lists it. New quote → Use an estimate tool → 800 sq ft + sealant → Calculate → Add to quote. Then: "quote Sarah Lane 1200 sq ft with sealant using the driveway tool" → run_estimator + create_quote, no arithmetic in prose. Full script: docs/plans/ai-estimators-2026-09-19.md § Test.
+Owner: "Build an estimate tool for driveway pressure washing: $0.25 per sq ft, $150 minimum, sealant optional at $0.45 per sq ft." Expect guide → test → ONE create card ("Cost to run: free"). Confirm, then /app/settings/estimators lists it. New quote → Use an estimate tool → 800 sq ft + sealant → Calculate → Add to quote. Then: "quote Sarah Lane 1200 sq ft with sealant using the driveway tool" → run_estimator + create_quote, no arithmetic in prose. Website form (2026-09-19): "put the driveway tool on my website showing a price range and emailing me the lead" → ONE update card with "Website form: ON at /book/<slug>/estimate/…" lines → confirm → the link renders the form signed out; a submission lands as a Website-estimate lead + request + draft quote. Full script: docs/plans/ai-estimators-2026-09-19.md § Test and § Batch 3 Test.
 
 ## 9c. Automations (2026-09-19)
 

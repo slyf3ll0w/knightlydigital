@@ -3,9 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Calculator, Play, Power, Sparkles, Trash2, X } from "lucide-react";
+import { ArrowLeft, Calculator, Globe, Play, Power, Sparkles, Trash2, X } from "lucide-react";
 import PageTitle from "@/components/PageTitle";
 import EstimatorRunner, { type RunnerEstimator } from "@/components/EstimatorRunner";
+import PublishEstimatorSheet, { type PublishTool } from "./PublishEstimatorSheet";
 import { useAssistant } from "@/components/AssistantContext";
 import { confirmSheet } from "@/components/ConfirmSheet";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
@@ -18,18 +19,20 @@ import { SECTION_HUES, hueInk } from "@/lib/section-colors";
  * "ask Atlas to change it" is the edit path.
  */
 
-type Tool = RunnerEstimator & { isActive: boolean; runs: number; assists: number; updatedAt: string };
+type Tool = RunnerEstimator & PublishTool & { isActive: boolean; runs: number; assists: number; updatedAt: string };
 
 const EXAMPLES = [
   "Build an estimate tool for driveway pressure washing: $0.25 per sq ft, $150 minimum, sealant optional at $0.45 per sq ft.",
   "Make a quote calculator for interior painting by room: walls $2.50 per sq ft, ceilings $1.75, plus $45 per door and $30 per window.",
   "Create an estimator for lawn mowing: $45 up to a quarter acre, $65 up to a half, $95 up to an acre, weekly or bi-weekly.",
+  "Put my driveway tool on my website as an instant-estimate form that shows a price range and emails me the lead.",
 ];
 
-export default function EstimatorsClient({ tools, brokenCount }: { tools: Tool[]; brokenCount: number }) {
+export default function EstimatorsClient({ tools, brokenCount, companySlug, baseUrl }: { tools: Tool[]; brokenCount: number; companySlug: string; baseUrl: string }) {
   const router = useRouter();
   const atlas = useAssistant();
   const [trying, setTrying] = useState<Tool | null>(null);
+  const [publishing, setPublishing] = useState<Tool | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState("");
 
@@ -79,16 +82,29 @@ export default function EstimatorsClient({ tools, brokenCount }: { tools: Tool[]
             <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${t.usesAtlas ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700"}`}>
               {t.usesAtlas ? `${atlas.name} fill-in · tokens per use` : "Free to run"}
             </span>
+            {t.isPublic && <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-700">On your website</span>}
           </div>
           <p className="truncate text-xs text-gray-500">
             {t.description || `${t.spec.inputs.length} question${t.spec.inputs.length === 1 ? "" : "s"} · ${t.spec.lines.length} line rule${t.spec.lines.length === 1 ? "" : "s"}`}
             {t.runs > 0 && ` · used ${t.runs}×`}
+            {t.submissions > 0 && ` · ${t.submissions} website lead${t.submissions === 1 ? "" : "s"}`}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-1">
           {t.isActive && (
             <button type="button" onClick={() => setTrying(t)} aria-label="Try it" title="Try it" className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-800">
               <Play size={16} />
+            </button>
+          )}
+          {t.isActive && (
+            <button
+              type="button"
+              onClick={() => setPublishing(t)}
+              aria-label="Website form"
+              title="Website form"
+              className={`rounded-lg p-2 hover:bg-gray-100 hover:text-gray-800 ${t.isPublic ? "text-sky-600" : "text-gray-500"}`}
+            >
+              <Globe size={16} />
             </button>
           )}
           <button
@@ -129,8 +145,8 @@ export default function EstimatorsClient({ tools, brokenCount }: { tools: Tool[]
       </div>
       <p className="mb-5 mt-2 text-sm text-gray-500 lg:ml-8 lg:mb-6">
         Quote calculators built around <em>your</em> pricing. Tell {atlas.name} how you price a kind of job and it builds the tool; from then on
-        anyone on the team answers a few questions on a new quote and the line items fill themselves in — plain math, no tokens. To change a
-        tool, ask {atlas.name}.
+        anyone on the team answers a few questions on a new quote and the line items fill themselves in — plain math, no tokens. Any tool can
+        also go on your website as an instant-estimate form that captures leads (the globe button). To change a tool, ask {atlas.name}.
       </p>
 
       {error && (
@@ -190,6 +206,17 @@ export default function EstimatorsClient({ tools, brokenCount }: { tools: Tool[]
       )}
 
       <EstimatorRunner estimators={trying ? [trying] : []} open={trying !== null} onClose={() => setTrying(null)} />
+      <PublishEstimatorSheet
+        tool={publishing}
+        companySlug={companySlug}
+        baseUrl={baseUrl}
+        open={publishing !== null}
+        onClose={() => setPublishing(null)}
+        onSaved={() => {
+          setPublishing(null);
+          router.refresh();
+        }}
+      />
     </div>
   );
 }

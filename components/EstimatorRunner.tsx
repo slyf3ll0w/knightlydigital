@@ -68,6 +68,26 @@ export default function EstimatorRunner({
   const [result, setResult] = useState<RunOk | null>(null);
 
   const tool = useMemo(() => estimators.find((e) => e.id === selectedId) ?? null, [estimators, selectedId]);
+  // Running total while typing: once every required input has a value, a
+  // debounced dry run (no counter) shows what the estimate is heading to.
+  const [live, setLive] = useState<number | null>(null);
+  useEffect(() => {
+    if (!tool || result) return;
+    const ready = tool.spec.inputs.every((i) => i.type === "toggle" || !("required" in i && i.required !== false) || (values[i.id] !== "" && values[i.id] !== undefined));
+    if (!ready) {
+      setLive(null);
+      return;
+    }
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      const { ok, data } = await postJson<RunOk>(`/api/app/estimators/${tool.id}/run?dry=1`, { inputs: values });
+      if (!cancelled) setLive(ok && data && "subtotal" in data ? data.subtotal : null);
+    }, 450);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [tool, values, result]);
 
   // Fresh start every time the sheet opens; skip the picker when there's one tool
   useEffect(() => {
@@ -311,14 +331,23 @@ export default function EstimatorRunner({
             })}
           </div>
 
-          <div className="flex items-center justify-end gap-2 pt-1">
-            <button type="button" onClick={onClose} className="h-10 rounded-lg px-3 text-sm font-medium text-gray-600 hover:bg-gray-100">
-              Cancel
-            </button>
-            <button type="submit" disabled={busy !== null} className="btn-primary h-10 justify-center">
-              {busy === "run" ? <Loader2 size={15} className="animate-spin" /> : <Calculator size={15} />}
-              Calculate
-            </button>
+          <div className="flex items-center justify-between gap-3 pt-1">
+            <span className="min-w-0 truncate text-sm text-gray-600">
+              {live !== null && (
+                <>
+                  Running total: <span className="numeral font-semibold text-gray-900">{money(live)}</span>
+                </>
+              )}
+            </span>
+            <span className="flex shrink-0 items-center gap-2">
+              <button type="button" onClick={onClose} className="h-10 rounded-lg px-3 text-sm font-medium text-gray-600 hover:bg-gray-100">
+                Cancel
+              </button>
+              <button type="submit" disabled={busy !== null} className="btn-primary h-10 justify-center">
+                {busy === "run" ? <Loader2 size={15} className="animate-spin" /> : <Calculator size={15} />}
+                Calculate
+              </button>
+            </span>
           </div>
         </form>
       )}

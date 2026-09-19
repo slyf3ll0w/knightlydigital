@@ -1,4 +1,7 @@
 import { prisma } from "./db";
+import { resolvePublicCompany } from "./public-company";
+import { getActor, isManager } from "./permissions";
+import { sanitizePublicConfig, type EstimatorPublicConfig } from "./estimator-public";
 import {
   compileSpec,
   runCompiled,
@@ -61,6 +64,12 @@ export type EstimatorRow = {
   isActive: boolean;
   runs: number;
   assists: number;
+  isPublic: boolean;
+  publicSlug: string | null;
+  publicConfig: unknown;
+  publicViews: number;
+  publicCalcs: number;
+  submissions: number;
   updatedAt: Date;
 };
 
@@ -72,20 +81,91 @@ export const ESTIMATOR_SELECT = {
   isActive: true,
   runs: true,
   assists: true,
+  isPublic: true,
+  publicSlug: true,
+  publicConfig: true,
+  publicViews: true,
+  publicCalcs: true,
+  submissions: true,
   updatedAt: true,
 } as const;
+
+/** Hosted path of a tool's website form ("" when it isn't published). */
+export function publicEstimatePath(companySlug: string, row: { isPublic: boolean; publicSlug: string | null }): string {
+  return row.isPublic && row.publicSlug ? `/book/${companySlug}/estimate/${row.publicSlug}` : "";
+}
+
+export type PublicEstimatorCompany = NonNullable<Awaited<ReturnType<typeof resolvePublicCompany>>>;
+
+export type PublicEstimator = {
+  company: PublicEstimatorCompany;
+  row: EstimatorRow;
+  spec: EstimatorSpec;
+  compiled: CompiledSpec;
+  config: EstimatorPublicConfig;
+  /** A manager of this company looking at their own unpublished form */
+  previewing: boolean;
+};
+
+/**
+ * Public resolution of a website form: the shared public-company gate
+ * (suspended / pre-approval companies vanish), then an ACTIVE + PUBLIC tool
+ * by slug. `preview` lets a signed-in manager of that company see a form
+ * that isn't published yet (the settings sheet's Preview button); anyone
+ * else gets the public view.
+ */
+export async function resolvePublicEstimator(companySlug: string, publicSlug: string, opts: { preview?: boolean } = {}): Promise<PublicEstimator | null> {
+  let previewing = false;
+  let company: PublicEstimatorCompany | null = null;
+  if (opts.preview) {
+    const actor = await getActor();
+    if (actor && isManager(actor.role)) {
+      const own = await prisma.company.findUnique({ where: { id: actor.companyId } });
+      if (own && own.slug === companySlug) {
+        company = own;
+        previewing = true;
+      }
+    }
+  }
+  if (!company) company = await resolvePublicCompany(companySlug);
+  if (!company) return null;
+  const row = await prisma.estimator.findFirst({
+    where: { companyId: company.id, publicSlug, isActive: true, ...(previewing ? {} : { isPublic: true }) },
+    select: ESTIMATOR_SELECT,
+  });
+  if (!row) return null;
+  const c = compileSpec(row.spec);
+  if (!c.ok) return null;
+  return { company, row, spec: c.compiled.spec, compiled: c.compiled, config: sanitizePublicConfig(row.publicConfig), previewing };
+}
+
+/** The company's published forms, for the booking page menu. */
+export async function publicEstimatorsFor(companyId: string) {
+  const rows = await prisma.estimator.findMany({
+    where: { companyId, isActive: true, isPublic: true, publicSlug: { not: null } },
+    select: { id: true, name: true, description: true, publicSlug: true, publicConfig: true, spec: true },
+    orderBy: { name: "asc" },
+  });
+  return rows
+    .filter((r) => specFromJson(r.spec))
+    .map((r) => {
+      const config = sanitizePublicConfig(r.publicConfig);
+      return { id: r.id, slug: r.publicSlug as string, heading: config.heading || r.name, description: config.intro || r.description, showPrice: config.showPrice };
+    });
+}
 
 /** Run a stored tool for a company; counts the run. Stored specs always compile. */
 export async function runStoredEstimator(
   row: { id: string; spec: unknown },
   companyId: string,
-  inputs: Record<string, unknown>
+  inputs: Record<string, unknown>,
+  opts: { count?: boolean } = {}
 ): Promise<EstimatorRun> {
   const c = compileSpec(row.spec);
   if (!c.ok) return { ok: false, errors: ["This tool's saved rules no longer compile — edit it with Atlas.", ...c.errors] };
   const book = await loadPriceBook(companyId);
   const result = runCompiled(c.compiled, inputs, book);
-  if (result.ok) {
+  if (result.ok && opts.count !== false) {
     void prisma.estimator.update({ where: { id: row.id }, data: { runs: { increment: 1 } } }).catch(() => {});
   }
   return result;
@@ -118,6 +198,18 @@ export function estimatorSummary(row: EstimatorRow, spec: EstimatorSpec) {
     lines: spec.lines.length,
     runs: row.runs,
     assists: row.assists,
+    isPublic: row.isPublic,
+    publicSlug: row.publicSlug,
+    publicConfig: sanitizePublicConfig(row.publicConfig),
+    publicViews: row.publicViews,
+    publicCalcs: row.publicCalcs,
+    submissions: row.submissions,
     updatedAt: row.updatedAt,
   };
+}
+
+/** Is this public slug free for the company (ignoring `exceptId`)? */
+export async function publicSlugTaken(companyId: string, slug: string, exceptId?: string): Promise<boolean> {
+  const hit = await prisma.estimator.findFirst({ where: { companyId, publicSlug: slug, ...(exceptId ? { NOT: { id: exceptId } } : {}) }, select: { id: true } });
+  return Boolean(hit);
 }

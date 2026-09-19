@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, isManager } from "@/lib/permissions";
 import { specFromJson } from "@/lib/estimator";
-import { checkSpec, ESTIMATOR_SELECT, estimatorSummary } from "@/lib/estimator-server";
+import { checkSpec, ESTIMATOR_SELECT, estimatorSummary, publicSlugTaken } from "@/lib/estimator-server";
+import { PUBLIC_SLUG_RE, publicSlugFrom, sanitizePublicConfig } from "@/lib/estimator-public";
 
 async function load(id: string, companyId: string) {
   return prisma.estimator.findFirst({ where: { id, companyId }, select: ESTIMATOR_SELECT });
@@ -19,7 +20,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   return NextResponse.json(spec ? { ...estimatorSummary(row, spec), spec } : { id: row.id, name: row.name, broken: true });
 }
 
-/** PATCH — { name?, description?, isActive?, spec? }. A new spec replaces the old one whole. */
+/**
+ * PATCH — { name?, description?, isActive?, spec?, isPublic?, publicSlug?, publicConfig? }.
+ * A new spec replaces the old one whole; publicConfig too. Turning the
+ * website form on with no slug yet derives one from the name.
+ */
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -29,7 +34,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!row) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
-  const data: { name?: string; description?: string | null; isActive?: boolean; spec?: object } = {};
+  const data: { name?: string; description?: string | null; isActive?: boolean; spec?: object; isPublic?: boolean; publicSlug?: string; publicConfig?: object } = {};
 
   if (typeof body.name === "string") {
     const name = body.name.trim().slice(0, 80);
@@ -52,7 +57,21 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (!check.ok) return NextResponse.json({ error: check.errors.join(" "), errors: check.errors }, { status: 400 });
     data.spec = check.compiled.spec;
   }
+  if (typeof body.isPublic === "boolean") data.isPublic = body.isPublic;
+  if (typeof body.publicSlug === "string") {
+    const slug = publicSlugFrom(body.publicSlug) || publicSlugFrom(body.publicSlug.replace(/[^a-z0-9]+/gi, "-"));
+    if (!slug || !PUBLIC_SLUG_RE.test(slug)) return NextResponse.json({ error: "The link name can only use letters, numbers and dashes." }, { status: 400 });
+    data.publicSlug = slug;
+  }
+  if (body.publicConfig !== undefined) data.publicConfig = sanitizePublicConfig(body.publicConfig);
   if (Object.keys(data).length === 0) return NextResponse.json({ error: "Nothing to change." }, { status: 400 });
+
+  // Publishing needs a link name — derive one from the (new) name when none was ever set
+  const willBePublic = data.isPublic ?? row.isPublic;
+  if (willBePublic && !data.publicSlug && !row.publicSlug) data.publicSlug = publicSlugFrom(data.name ?? row.name) || `tool-${row.id.slice(-6)}`;
+  if (data.publicSlug && data.publicSlug !== row.publicSlug && (await publicSlugTaken(actor.companyId, data.publicSlug, row.id))) {
+    return NextResponse.json({ error: `Another tool already uses the link name "${data.publicSlug}".` }, { status: 409 });
+  }
 
   const updated = await prisma.estimator.update({ where: { id: row.id }, data, select: ESTIMATOR_SELECT });
   const spec = specFromJson(updated.spec);

@@ -63,6 +63,8 @@ export type CustomerInput = {
   contactId?: string | null;
   /** The SMS checkbox on the form (unchecked by default): true = opt-in (texts on + consent stamped); false on a brand-new client = declined (texts off) */
   smsConsent?: boolean;
+  /** Contact.leadSource for a brand-new client; default "Online booking" */
+  leadSource?: string;
 };
 
 /**
@@ -138,7 +140,7 @@ export async function upsertBookingContact(
         : c.phone && c.smsConsent === false
           ? { smsDisabled: true, smsConsentSource: "booking_declined" }
           : {}),
-      leadSource: "Online booking",
+      leadSource: c.leadSource || "Online booking",
       assignedToId: await defaultLeadAssignee(companyId),
     },
   });

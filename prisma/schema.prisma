@@ -921,10 +921,13 @@ model Request {
   details       String?
   status        RequestStatus @default(NEW)
   preferredDate DateTime? // client's requested date from booking-type forms (date-only, noon anchor)
-  source        String        @default("internal") // internal | client_hub | booking_form
+  source        String        @default("internal") // internal | client_hub | booking_form | estimate_form | webhook
   // Online scheduling: the booking type the customer picked (null = classic form)
   bookingTypeId String?
   bookingType   BookingType?  @relation(fields: [bookingTypeId], references: [id], onDelete: SetNull)
+  // Website estimate form the request came from (source estimate_form)
+  estimatorId   String?
+  estimator     Estimator?    @relation(fields: [estimatorId], references: [id], onDelete: SetNull)
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
@@ -1222,18 +1225,32 @@ enum BookingAssignment {
 // code and free. A spec may opt into an Atlas-assisted step ("describe the
 // job, Atlas fills in the inputs") which is metered per use.
 model Estimator {
-  id          String   @id @default(cuid())
-  companyId   String
-  company     Company  @relation(fields: [companyId], references: [id])
-  name        String
-  description String?
-  spec        Json
-  isActive    Boolean  @default(true)
-  runs        Int      @default(0) // deterministic runs (free)
-  assists     Int      @default(0) // Atlas-assisted runs (metered)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String   @id @default(cuid())
+  companyId    String
+  company      Company  @relation(fields: [companyId], references: [id])
+  name         String
+  description  String?
+  spec         Json
+  isActive     Boolean  @default(true)
+  runs         Int      @default(0) // deterministic runs (free)
+  assists      Int      @default(0) // Atlas-assisted runs (metered)
+  // Website form (docs/plans/ai-estimators-2026-09-19.md, Batch 3): the same
+  // tool served publicly at /book/[companySlug]/estimate/[publicSlug] and in
+  // an iframe — visitors answer the questions, see an estimate (exact / range /
+  // hidden, per publicConfig) and leave their details, which becomes a lead +
+  // request (+ quote). publicConfig = EstimatorPublicConfig (lib/estimator-public.ts).
+  isPublic     Boolean  @default(false)
+  publicSlug   String?
+  publicConfig Json?
+  publicViews  Int      @default(0) // form loads
+  publicCalcs  Int      @default(0) // estimates shown
+  submissions  Int      @default(0) // leads captured
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
+  requests Request[]
+
+  @@unique([companyId, publicSlug])
   @@index([companyId])
 }
 
@@ -1244,20 +1261,20 @@ model Estimator {
 // spec; lib/automations-server.ts executes it. Nothing in the allowlist
 // moves money, deletes, or changes the team.
 model Automation {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   companyId   String
-  company     Company  @relation(fields: [companyId], references: [id])
+  company     Company   @relation(fields: [companyId], references: [id])
   name        String
   description String?
   spec        Json
-  isActive    Boolean  @default(true)
+  isActive    Boolean   @default(true)
   // Whose behalf actions run under (notes, email sender). Plain id, no FK,
   // so the rule survives the person leaving.
   createdById String?
-  runs        Int      @default(0)
+  runs        Int       @default(0)
   lastRunAt   DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   runLog AutomationRun[]
 

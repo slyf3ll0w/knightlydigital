@@ -2,14 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, isManager } from "@/lib/permissions";
 import { ESTIMATOR_LIMITS, specFromJson } from "@/lib/estimator";
-import { checkSpec, ESTIMATOR_SELECT, estimatorSummary } from "@/lib/estimator-server";
+import { checkSpec, ESTIMATOR_SELECT, estimatorSummary, publicSlugTaken } from "@/lib/estimator-server";
+import { publicSlugFrom, sanitizePublicConfig } from "@/lib/estimator-public";
 
 /**
  * Estimate tools (docs/plans/ai-estimators-2026-09-19.md).
  *
  * GET — the company's tools. Sellers see active tools with their specs (the
  * quote editor's runner needs the inputs); managers also see inactive ones.
- * POST — create: { name, description?, spec }. The spec must compile and
+ * POST — create: { name, description?, spec, isPublic?, publicSlug?, publicConfig? }. The spec must compile and
  * every price-book item it references must exist; this is the route the
  * Atlas card confirms into, so it re-validates everything itself.
  */
@@ -63,8 +64,17 @@ export async function POST(req: NextRequest) {
   const check = await checkSpec(actor.companyId, body.spec);
   if (!check.ok) return NextResponse.json({ error: check.errors.join(" "), errors: check.errors }, { status: 400 });
 
+  // Website form, when the card asked for one (lib/estimator-public.ts)
+  const isPublic = body.isPublic === true;
+  let publicSlug: string | null = null;
+  if (isPublic || typeof body.publicSlug === "string") {
+    publicSlug = publicSlugFrom(typeof body.publicSlug === "string" && body.publicSlug ? body.publicSlug : name) || null;
+    if (publicSlug && (await publicSlugTaken(actor.companyId, publicSlug))) publicSlug = `${publicSlug}-${Date.now().toString(36).slice(-4)}`;
+  }
+  const publicConfig = body.publicConfig !== undefined ? sanitizePublicConfig(body.publicConfig) : undefined;
+
   const row = await prisma.estimator.create({
-    data: { companyId: actor.companyId, name, description, spec: check.compiled.spec },
+    data: { companyId: actor.companyId, name, description, spec: check.compiled.spec, isPublic: isPublic && Boolean(publicSlug), publicSlug, publicConfig },
     select: ESTIMATOR_SELECT,
   });
   return NextResponse.json({ ...estimatorSummary(row, check.compiled.spec), spec: check.compiled.spec }, { status: 201 });

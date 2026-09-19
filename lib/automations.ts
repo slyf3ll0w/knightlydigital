@@ -104,7 +104,7 @@ export const FIELD_HELP: Record<string, string> = {
   client_company: "the client's business name or empty", client_status: "LEAD / ACTIVE / ARCHIVED", lead_source: "how they found you, or empty",
   stage: "pipeline stage name or empty", assigned_to: "salesperson's name or empty", company_name: "YOUR company's name",
   days: "sweeps only: days waiting / overdue / in stage (0 for events)",
-  request_source: "internal / client_hub / booking_form", appointment_when: "date and time as text",
+  request_source: "internal / client_hub / booking_form / estimate_form", appointment_when: "date and time as text",
   quote_total: "dollars (number)", total: "the money amount of the entity (number)", quote_link: "client approval link",
   invoice_balance: "dollars still owed (number)", pay_link: "client pay link", due_date: "YYYY-MM-DD or empty",
   job_total: "sum of job line items (number)",

@@ -4,6 +4,8 @@ import { loadBookingPage, loadBookingItem } from "@/lib/booking-public";
 import ScheduleFrame from "./schedule/ScheduleFrame";
 import ScheduleMenu from "./schedule/ScheduleMenu";
 import ItemView, { type ItemSearchParams } from "./ItemView";
+import EstimateMenu from "./estimate/EstimateMenu";
+import { publicEstimatorsFor } from "@/lib/estimator-server";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -20,7 +22,9 @@ export default async function BookingPage({ params, searchParams }: { params: Pr
   const preview = sp.preview === "1";
   const page = await loadBookingPage(slug, { preview });
   if (!page) notFound();
-  if (page.menu.length === 1) {
+  // Published estimate forms sit under the booking items (lib/estimator-public.ts)
+  const estimateTools = await publicEstimatorsFor(page.company.id);
+  if (page.menu.length === 1 && estimateTools.length === 0) {
     const item = await loadBookingItem(slug, page.menu[0].slug, { preview });
     if (item) return <ItemView companySlug={slug} itemSlug={item.pub.slug} searchParams={sp} loaded={item} />;
   }
@@ -32,7 +36,13 @@ export default async function BookingPage({ params, searchParams }: { params: Pr
           Preview — this is your booking page as customers see it.
         </div>
       )}
-      <ScheduleMenu companySlug={slug} types={page.menu} appearance={appearance} />
+      {(page.menu.length > 0 || estimateTools.length === 0) && <ScheduleMenu companySlug={slug} types={page.menu} appearance={appearance} />}
+      {estimateTools.length > 0 && (
+        <div className={page.menu.length > 0 ? "mt-6" : ""}>
+          {page.menu.length > 0 && <p className={`mb-2 text-xs font-semibold uppercase tracking-wide ${appearance.dark ? "text-gray-500" : "text-gray-400"}`}>Instant estimates</p>}
+          <EstimateMenu companySlug={slug} tools={estimateTools} appearance={appearance} />
+        </div>
+      )}
     </ScheduleFrame>
   );
 }
