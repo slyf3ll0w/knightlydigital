@@ -276,17 +276,19 @@ export type CallCommand =
   | "record_stop";
 
 /**
- * One Call Control command. A 422 "call not found / already hung up" is the
+ * One Call Control command. "Call has already ended" / not found is the
  * normal race (the caller left between our webhook and our command) — it is
  * swallowed here so orchestration code never has to special-case it; every
- * other failure throws.
+ * other failure (a bad parameter, say) throws so it is never mistaken for a
+ * hang-up.
  */
 export async function callAction(callControlId: string, action: CallCommand, body: Record<string, unknown> = {}): Promise<boolean> {
   try {
     await call("POST", `/calls/${encodeURIComponent(callControlId)}/actions/${action}`, body);
     return true;
   } catch (err) {
-    if (err instanceof TelnyxError && (err.status === 404 || err.status === 422)) {
+    const gone = err instanceof TelnyxError && (err.status === 404 || /no longer active|already ended|not found|hung up/i.test(err.detail));
+    if (gone) {
       console.warn(`[telnyx] ${action} on ${callControlId} skipped: ${err.detail}`);
       return false;
     }

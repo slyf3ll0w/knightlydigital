@@ -410,15 +410,26 @@ async function onAnswered(p: VoiceEventPayload): Promise<void> {
 async function bridgeLegs(call: CallRow): Promise<void> {
   if (!call.agentCallId || !call.telnyxCallId) return;
   await callAction(call.direction === "INBOUND" ? call.telnyxCallId : call.agentCallId, "playback_stop");
-  const ok = await callAction(call.agentCallId, "bridge", {
-    call_control_id_to_bridge_with: call.telnyxCallId,
-    client_state: encodeState({ callId: call.id, leg: "agent", stage: "bridged" }),
-  });
+  // REST body field is call_control_id (the SDK renames it to
+  // call_control_id_to_bridge_with only to dodge the path parameter).
+  let ok = false;
+  try {
+    ok = await callAction(call.agentCallId, "bridge", {
+      call_control_id: call.telnyxCallId,
+      client_state: encodeState({ callId: call.id, leg: "agent", stage: "bridged" }),
+    });
+  } catch (err) {
+    console.error("[voice] bridge failed:", err);
+  }
   if (ok) {
     await prisma.call.updateMany({ where: { id: call.id, status: "RINGING" }, data: { status: "IN_PROGRESS", answeredAt: new Date() } });
-  } else if (call.direction === "INBOUND") {
-    await callAction(call.agentCallId, "hangup");
+    return;
   }
+  // Nobody stays stranded on ringback: the cell leg is dropped and an inbound
+  // caller gets voicemail; an outbound customer leg is hung up.
+  await callAction(call.agentCallId, "hangup");
+  if (call.direction === "INBOUND") await toVoicemail(call);
+  else await callAction(call.telnyxCallId, "hangup");
 }
 
 async function onGatherEnded(p: VoiceEventPayload): Promise<void> {
