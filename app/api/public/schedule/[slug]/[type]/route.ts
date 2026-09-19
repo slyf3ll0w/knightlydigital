@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { fireAutomations } from "@/lib/automations-server";
 import { prisma } from "@/lib/db";
 import { verifyCaptcha } from "@/lib/captcha";
 import { zipFromAddress } from "@/lib/business-hours";
@@ -169,6 +170,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
   });
   if (!result) return NextResponse.json(SLOT_TAKEN, { status: 409 });
   await saveMapped(result.contact.id);
+  fireAutomations(company.id, "request.created", result.request.id);
+  if (!result.appointment.tentative) fireAutomations(company.id, "appointment.scheduled", result.appointment.id);
 
   await notifyBooking({
     type,

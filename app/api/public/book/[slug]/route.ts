@@ -10,6 +10,7 @@ import { defaultLeadAssignee } from "@/lib/permissions";
 import { getActiveFieldDefs, sanitizeCustomFields } from "@/lib/contact-fields";
 import { derivedQuoteDeposit } from "@/lib/statuses";
 import { enterPipeline, autoAdvance } from "@/lib/pipeline";
+import { fireAutomations } from "@/lib/automations-server";
 import { withDocNumberRetry } from "@/lib/doc-numbers";
 import { listPublicBookingTypes, menuTypes, resolvePublicBookingType, toPublicBookingType } from "@/lib/booking-runtime";
 import { validateAnswers } from "@/lib/booking-answers";
@@ -264,6 +265,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
       return { contact, request, quote };
     })
   );
+
+  fireAutomations(company.id, "request.created", result.request.id);
+  if (result.quote && intake.quoteMode === "send") fireAutomations(company.id, "quote.sent", result.quote.id);
 
   // Push: the owner(s) + preset lead assignee, like the email
   await notifyUsers(await requestNotifyUserIds(company.id, hubContact?.assignedToId), {

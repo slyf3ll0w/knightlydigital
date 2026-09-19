@@ -24,6 +24,7 @@ import { rollupStorageSnapshots } from "@/lib/usage";
 import { runNightlyReconciliation } from "@/lib/reconcile";
 import { runLineRegistrationSweep, runLineReleaseSweep } from "@/lib/business-line";
 import { runStaleCallSweep } from "@/lib/voice";
+import { runAutomationSweeps } from "@/lib/automations-server";
 
 /**
  * Hourly billing cron. A scheduler (Railway cron service, or an external
@@ -146,6 +147,9 @@ export async function POST(req: NextRequest) {
     await step("visitReminders", () => runVisitReminders(now));
     // Sales follow-ups: quotes sitting unanswered get a nudge at 3 and 7 days
     await step("quoteFollowUps", () => runQuoteFollowUps(now));
+    // Owner-built automations with time triggers (quote unanswered N days,
+    // invoice N days overdue, lead stale N days) — one run per record, ever
+    await step("automations", () => runAutomationSweeps(now));
     // "Your card expires soon" nudges for clients on autopay (once per card)
     await step("cardNudges", () => runCardExpiryNudges(now));
     // QuickBooks sweep: catches invoices issued/edited outside the payment

@@ -28,7 +28,7 @@ const salesNoMoney: Actor = { ...base, role: "SALES", salesSeePayments: false };
 
 const names = (a: Actor) => toolsForActor(a).map((t) => t.decl.name).sort();
 
-// 1. owner sees everything (v8: 98 tools — records, client extras, field ops, money extras, queue_next_step, estimate tools)
+// 1. owner sees everything (v8: 100 tools — records, client extras, field ops, money extras, queue_next_step, estimate tools, automations, part prices)
 assert.deepEqual(
   names(owner),
   [
@@ -43,8 +43,8 @@ assert.deepEqual(
     "get_lead_board", "get_price_book", "get_route_plan", "get_schedule",
     "get_statement", "list_agreement_templates", "list_agreements",
     "list_clients", "list_expenses", "list_money", "list_pipeline",
-    "list_subscriptions", "list_team", "log_expense", "manage_address",
-    "manage_booking_item", "manage_client_fields", "manage_estimator", "manage_lead_webhook", "manage_person",
+    "list_subscriptions", "list_team", "log_expense", "lookup_part_price", "manage_address",
+    "manage_automation", "manage_booking_item", "manage_client_fields", "manage_estimator", "manage_lead_webhook", "manage_person",
     "manage_pipeline_stage", "manage_recurring_expense", "manage_saved_card",
     "manage_subscription", "manage_time_block", "manage_time_entry",
     "move_lead", "optimize_route", "post_team_message",
@@ -104,6 +104,7 @@ console.log("ok 2: tech limited to schedule + job + field tools");
     "team + settings tools hidden from sales");
   assert.ok(n.includes("update_quote"), "sales can mark quotes sent/approved");
   assert.ok(n.includes("run_estimator") && !n.includes("manage_estimator"), "sales run estimate tools; only managers build them");
+  assert.ok(!n.includes("manage_automation") && !n.includes("lookup_part_price"), "automations + part lookups are manager-only");
   assert.ok(n.includes("update_invoice"), "sales w/ payments toggle can mark invoices sent");
   assert.ok(n.includes("get_lead_board") && n.includes("move_lead") && n.includes("close_lead"),
     "sales work the lead board (scoped to their leads)");

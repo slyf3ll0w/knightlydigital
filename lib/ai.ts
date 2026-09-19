@@ -57,6 +57,8 @@ export type AskAIOptions = {
   /** Tenant to meter this call's token usage against (lib/usage.ts). Omitted
    *  → recorded under the "platform" sentinel so the totals still reconcile. */
   companyId?: string | null;
+  /** Per-call usage callback — lets an Atlas tool fold a side call into its turn's meter. */
+  onUsage?: (u: { tokensIn: number; tokensOut: number; tokensCached: number }) => void;
 };
 
 /** Free-tier quotas are per-model — when the primary is exhausted (429), one
@@ -117,6 +119,14 @@ export async function askAI(
       usageMetadata?: UsageMetadata;
     };
     meterUsage(opts.companyId, data.usageMetadata);
+    if (opts.onUsage && data.usageMetadata) {
+      const u = data.usageMetadata;
+      opts.onUsage({
+        tokensIn: u.promptTokenCount ?? 0,
+        tokensOut: (u.candidatesTokenCount ?? 0) + (u.thoughtsTokenCount ?? 0),
+        tokensCached: u.cachedContentTokenCount ?? 0,
+      });
+    }
     const text = data.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
     return text || null;
   } catch (err) {

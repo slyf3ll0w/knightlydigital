@@ -1,6 +1,7 @@
 import { randomBytes } from "crypto";
 import * as Sentry from "@sentry/nextjs";
 import { Prisma } from "@prisma/client";
+import { fireAutomations } from "./automations-server";
 import { prisma } from "@/lib/db";
 import type { EngineRules, Slot } from "@/lib/booking-engine";
 import { slotLabel } from "@/lib/booking-engine";
@@ -193,6 +194,8 @@ export async function createServiceBooking(params: {
     if (e instanceof SlotTakenError || (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2034")) return { slotTaken: true };
     throw e;
   }
+
+  fireAutomations(company.id, "request.created", result.request.id);
 
   // ── Charge (after commit) ───────────────────────────────────────────────
   let paidNote: string | null = null;

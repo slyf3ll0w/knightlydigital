@@ -245,6 +245,13 @@ const SETUP_LINKS = [
     icon: Calculator,
   },
   {
+    href: "/app/settings/automations",
+    label: "Automations",
+    sub: "“When this happens, do that” rules Atlas builds — run free, pause any time",
+    hueKey: "business",
+    icon: Zap,
+  },
+  {
     href: "/app/settings/contracts",
     label: "Agreement templates",
     sub: "Reusable agreements clients e-sign from a link",

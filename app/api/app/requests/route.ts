@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, contactScope } from "@/lib/permissions";
 import { enterPipeline, autoAdvance } from "@/lib/pipeline";
+import { fireAutomations } from "@/lib/automations-server";
 import { withDocNumberRetry } from "@/lib/doc-numbers";
 import { inPreview, PREVIEW_CAP, previewCapError } from "@/lib/preview";
 
@@ -49,6 +50,7 @@ export async function POST(req: NextRequest) {
   // clients re-enter with a Repeat badge) and advances any stage claiming it
   await enterPipeline(prisma, companyId, contact.id);
   await autoAdvance(prisma, companyId, contact.id, "REQUEST_CREATED");
+  fireAutomations(companyId, "request.created", request.id);
 
   return NextResponse.json(request, { status: 201 });
 }

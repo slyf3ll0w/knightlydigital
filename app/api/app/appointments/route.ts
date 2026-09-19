@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getActor, canSell, contactScope, isManager } from "@/lib/permissions";
 import { findScheduleConflicts } from "@/lib/schedule-conflicts";
 import { autoAdvance } from "@/lib/pipeline";
+import { fireAutomations } from "@/lib/automations-server";
 import { inPreview, PREVIEW_CAP, previewCapError } from "@/lib/preview";
 import { withDocNumberRetry } from "@/lib/doc-numbers";
 
@@ -124,6 +125,7 @@ export async function POST(req: NextRequest) {
 
   // Pipeline board: booking an estimate/sales call advances the lead's card
   await autoAdvance(prisma, companyId, contactId, "APPOINTMENT_SCHEDULED");
+  fireAutomations(companyId, "appointment.scheduled", appointment.id);
 
   // Non-blocking double-booking heads-up — the same check every other
   // schedule write runs; jobs POST got it, this path never did.

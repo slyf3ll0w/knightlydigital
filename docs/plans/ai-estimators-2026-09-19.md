@@ -1,9 +1,10 @@
 # AI-built estimate tools + automations — build plan (2026-09-19)
 
-**Status: Batch 1 (estimate tools) BUILT 2026-09-19 — tsc clean, unit tests
-green (`scripts/test-estimator.ts`, `scripts/test-assistant.ts` 98 tools).
-Live Gemini behaviour of the builder is UNVERIFIED — see § Test. Batch 2
-(automation builder) is designed below, not started.**
+**Status: Batch 1 (estimate tools) LIVE on main as `6e6e580` (2026-09-19).
+Batch 2 (automation builder + external part-price lookup) BUILT 2026-09-19 —
+tsc clean, unit tests green (`scripts/test-estimator.ts`,
+`scripts/test-automations.ts`, `scripts/test-assistant.ts` 100 tools). Live
+Gemini behaviour of both builders is UNVERIFIED — see § Test.**
 
 ## The idea (David, 2026-09-19)
 
@@ -125,30 +126,125 @@ sees and can change.
    refused with the item name; sales role sees `run_estimator` but not
    `manage_estimator`; techs see neither.
 
-## Batch 2 — automation builder (designed, not started)
+## External prices ("how much is the part?") — investigated 2026-09-19
 
-Same shape: Atlas emits a validated definition → card → engine executes.
+David asked whether an estimate tool could pull a part's price from an
+outside site as part of the build. Findings:
 
-- **`Automation` model**: `trigger` (event: `quote.sent`, `quote.approved`,
-  `job.completed`, `invoice.overdue` + days, `booking.created`,
-  `lead.stage_changed`; or a daily schedule), `conditions` (the
-  `query_records` filter vocabulary), `actions[]` from an allowlist of
-  existing routes (email_client with a template, reply_in_portal, move_lead,
-  notify team, create follow-up appointment, request_review, tag).
-- **Never in the allowlist**: anything that moves money, deletes, or
-  changes team/roles. Automations confirm once at creation and then run
-  unattended, so the blast radius has to be bounded by construction.
-- **Executor**: an event dispatcher called from the routes that already know
-  the event happened (the same spots that call `notifyUsers` / pipeline
-  auto-advance), plus a sweep in `/api/cron/recurring` for time triggers.
-  Per-company run caps, a run log with a kill switch, dry-run preview
-  ("would have fired 12× last month"), depth-1 loop protection (an
-  automation's actions never re-trigger automations).
-- **Atlas**: `manage_automation` with the same guide → test (dry run) →
-  create flow; the card renders the rule in plain English.
-- **Cost**: building costs a turn; running is free unless an action calls
-  Atlas (e.g. "have Atlas draft the follow-up"), which is metered via
-  `meteredOneShot` with the template as the locked-meter fallback.
+- **No public price APIs.** Home Depot, Lowe's, Ferguson, SupplyHouse and
+  Grainger expose none; Amazon's Product Advertising API needs an approved
+  affiliate account and forbids using prices outside its own linking
+  context. Distributor pricing is per-account (contract prices) — a future
+  per-tenant integration, not something the platform can offer generically.
+- **Scraping product pages** is against every one of those sites' terms,
+  bot-blocked (Akamai/PerimeterX on the big boxes), and brittle. Rejected.
+- **What the repo already has:** Gemini with Google-Search grounding
+  (`askAI({ useSearch: true })`, used by the setup wizard's business lookup).
+  That gives a *ballpark with sources* — good enough to seed a price-book
+  cost the owner then confirms, not good enough to quote from blind.
+
+**Decision — lookups happen at BUILD time, never per quote.** Shipped
+`lookup_part_price` (managers; `lib/assistant/parts.ts`): grounded search →
+`{item, unit, typical, low, high, sources[], confidence, notes}` with a
+caveat the prompt makes Atlas repeat ("ballpark from public listings —
+confirm with your supplier"). The confirmed number goes into the price
+book as a PRODUCT with `unitCost` (existing `create_service`), and estimate
+tools read it with `price("Name")` / `cost("Name")` for free forever.
+The grounded call's tokens fold into the chat turn's meter via the new
+`ToolCtx.addUsage` + `askAI.onUsage`. **Not metered:** Google Search
+grounding's own per-request fee on the paid tier ($35/1k as of 2026) — see
+cost-controls.md; if usage grows, add a flat Atlas-token surcharge per
+lookup. Live per-run lookups (an estimator input that fetches a price at
+quote time) were considered and rejected: slow, metered, and no more
+accurate than the counter price.
+
+## Batch 2 — automation builder (BUILT 2026-09-19)
+
+Same shape as estimate tools: Atlas emits a validated definition → the user
+confirms a plain-English card → a fixed engine executes it, no model in the
+loop, free per run.
+
+### Spec — `lib/automations.ts` (pure)
+- `AutomationSpec = { trigger: {event, days?}, when?, actions[] }`.
+- **Event triggers** (fire on the app event, after commit): `request.created`,
+  `appointment.scheduled`, `quote.sent` (first send), `quote.approved`,
+  `job.completed`, `invoice.paid`.
+- **Sweep triggers** (hourly from `/api/cron/recurring`, need `days`):
+  `quote.unanswered`, `invoice.overdue`, `lead.stale`.
+- **Conditions + templates** reuse the estimate tools' expression language
+  over a flat field context (`client_first_name`, `quote_total`, `days`,
+  `pay_link`, …; `fieldsFor(trigger)` is the per-trigger list, `FIELD_HELP`
+  the meanings). `compileAutomation()` rejects unknown fields with the list
+  of valid ones so the model self-corrects.
+- **Action allowlist (the whole list):** `notify_team` (managers | assigned
+  | everyone; push), `email_client` (subject/body templates; sent as the
+  business, logged as a ClientMessage so it shows on the timeline),
+  `add_client_note`, `move_lead` (existing stage by name), `request_review`
+  (reuses `sendReviewRequest`, which self-dedupes). Nothing moves money,
+  deletes, schedules, texts, or touches the team.
+- `describeAutomation()` renders the card / settings text: "When a sent quote
+  has had no answer for 5 days · Only if: quote_total >= 300 · → Email the
+  client: “…” · → Notify the managers: “…”".
+
+### Engine — `lib/automations-server.ts`
+- `fireAutomations(companyId, event, entityId)` — fire-and-forget, never
+  throws; called from: `POST /api/app/requests`, `POST /api/app/appointments`,
+  `POST /api/app/quotes/[id]/send` + manual mark-sent in `PATCH
+  /api/app/quotes/[id]`, `finishQuoteApproval()` (public + office approval),
+  `PATCH /api/app/jobs/[id]/status` (→ REQUIRES_INVOICING),
+  `recordPayment()` when the invoice becomes fully paid, the public booking
+  routes (`/api/public/book/[slug]`, `/api/public/schedule/[slug]/[type]`)
+  and `createServiceBooking()` after commit.
+- `runAutomationSweeps(now)` — cron step `automations`, right after
+  `quoteFollowUps`; ≤ 200 candidates per rule per tick.
+- **Guardrails by construction:** one `AutomationRun` row per (automation,
+  entity, event) is the dedupe key (a sweep never re-nags; a quote re-send
+  never re-fires); per-company cap of 300 successful runs per rolling 24 h;
+  robot email caps (3 per client per day, 200 per company per day, shared
+  with the human route's count); every email/review/push goes through the
+  same lib helpers and gates the app uses; actions never emit events, so
+  rules cannot cascade; `isActive=false` is the kill switch.
+- `previewAutomation()` — the builder's 'test': "would have fired N of M
+  times in the last 30 days" with 3 rendered samples + any condition errors.
+- Every fired run also lands in ActivityLog (`action: "automation"`,
+  userName "Automation") on the entity.
+
+### Storage
+`Automation { name description spec isActive createdById runs lastRunAt }`
++ `AutomationRun { automationId companyId event entityType entityId status
+detail }` (cascade on delete). Additive — boot `prisma db push` adds them.
+
+### Atlas — `manage_automation` (managers; 100 tools now with `lookup_part_price`)
+guide (triggers, per-trigger fields, allowlist, the company's stage names,
+whether email/review link are live) → test (compile + dry run + warnings:
+missing stage, email not configured, no review link) → create/update card
+(`confirmLabel: "Turn it on"`). Prompt rule: never promise an action outside
+the allowlist; write client emails warm and short.
+
+### Routes + UI
+`GET/POST /api/app/automations`, `GET/PATCH/DELETE /api/app/automations/[id]`
+(GET includes the last 50 runs). `/app/settings/automations`: each rule in
+plain English, Pause/Resume, Delete (confirm sheet), "Fired N× · last 2h
+ago", collapsible recent-activity log linking to the entity, "Build with
+Atlas", example prompts in the empty state. Settings hub link under Setup.
+
+### Test (owed)
+1. Owner: *"When a quote has sat unanswered for 5 days, email the client a
+   friendly nudge and notify me."* Expect guide → test ("would have fired X
+   of Y in the last 30 days") → ONE card reading as plain English → confirm →
+   rule listed at /app/settings/automations.
+2. Send a quote, then in the DB set its `sentAt` 6 days back (or use
+   `days: 0` while testing) and POST the cron → the client gets the email,
+   a ClientMessage shows on their timeline, the owner gets a push, the run
+   log shows `ok` with "emailed …". POST the cron again → no second email
+   (dedupe).
+3. *"When a job is marked complete, send a review request"* → complete a job
+   → ReviewRequest row (needs the company review link; the test action warns
+   when it's missing).
+4. Pause the rule → complete another job → nothing fires. Resume → fires.
+5. Guardrails: ask Atlas for *"text the client"* or *"charge the card"* in an
+   automation → it must decline (not in the allowlist); a condition with an
+   unknown field is rejected with the valid list.
 
 ## Later
 - Public instant-quote calculator: the same spec on the company's booking

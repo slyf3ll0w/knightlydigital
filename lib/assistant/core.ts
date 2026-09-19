@@ -50,6 +50,8 @@ export type ToolCtx = {
    *  own once every card staged this turn is confirmed (multi-step work
    *  where step two depends on step one being saved). */
   nextStep?: string;
+  /** Fold a side model call (e.g. a grounded web lookup) into this turn's metered usage. */
+  addUsage?: (u: { tokensIn: number; tokensOut: number; tokensCached: number }) => void;
 };
 
 export type Tool = {

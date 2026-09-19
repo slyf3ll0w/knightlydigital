@@ -139,6 +139,10 @@ Sign in as a TECH for these; techs only see the field/schedule tools.
 
 Owner: "Build an estimate tool for driveway pressure washing: $0.25 per sq ft, $150 minimum, sealant optional at $0.45 per sq ft." Expect guide → test → ONE create card ("Cost to run: free"). Confirm, then /app/settings/estimators lists it. New quote → Use an estimate tool → 800 sq ft + sealant → Calculate → Add to quote. Then: "quote Sarah Lane 1200 sq ft with sealant using the driveway tool" → run_estimator + create_quote, no arithmetic in prose. Full script: docs/plans/ai-estimators-2026-09-19.md § Test.
 
+## 9c. Automations (2026-09-19)
+
+Owner: "When a quote has sat unanswered for 5 days, email the client a friendly nudge and notify me." Expect guide → test ("would have fired X of Y in the last 30 days") → ONE plain-English card ("Turn it on"). Confirm → /app/settings/automations lists it. Pause/Resume/Delete there; the run log shows what fired. Guardrail: "text the client when…" must be declined (not in the allowlist). Part prices: "what does a 40-gallon gas water heater cost?" → lookup_part_price ballpark + sources + "confirm with your supplier" → offers create_service PRODUCT. Full script: docs/plans/ai-estimators-2026-09-19.md § Batch 2 Test.
+
 ## 10. Automated
 
 - `npx tsx scripts/test-assistant.ts` — 9 pure tests (role gating, batch merge,

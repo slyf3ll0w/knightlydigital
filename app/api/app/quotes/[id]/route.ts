@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { fireAutomations } from "@/lib/automations-server";
 import type { RecurringInterval } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, isManager, viaContactScope } from "@/lib/permissions";
@@ -292,6 +293,7 @@ export async function PATCH(
   // Sending the quote auto-issues any attached agreements set to "with quote"
   if (justSent) {
     await autoSendQuoteAgreements(quote.id, "WITH_QUOTE");
+    fireAutomations(companyId, "quote.sent", quote.id);
   }
 
   if (body.status && body.status !== quote.status) {

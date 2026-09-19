@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { fireAutomations } from "@/lib/automations-server";
 import { prisma } from "@/lib/db";
 import { canSeeMoney, getActor, isManager, jobScope } from "@/lib/permissions";
 import { sendReviewRequest } from "@/lib/payments";
@@ -91,6 +92,7 @@ export async function PATCH(
   }
 
   await prisma.job.update({ where: { id }, data: { status: effectiveStatus, ...extra } });
+  if (status === "REQUIRES_INVOICING" && job.status !== "REQUIRES_INVOICING") fireAutomations(actor.companyId, "job.completed", id);
 
   // Finishing the job clocks the tech out of it. Left open, the entry would
   // run until their NEXT clock-in — sometimes the following morning — and

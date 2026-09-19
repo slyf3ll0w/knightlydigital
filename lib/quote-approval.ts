@@ -6,6 +6,7 @@
  * signing online would. (Before this, the internal path skipped all of it.)
  */
 
+import { fireAutomations } from "./automations-server";
 import { prisma } from "@/lib/db";
 import { canChargeOnline } from "@/lib/payments-gate";
 import { autoSendQuoteAgreements } from "@/lib/agreements";
@@ -101,6 +102,8 @@ export async function finishQuoteApproval(
       });
     }
   }
+
+  fireAutomations(quote.companyId, "quote.approved", quote.id);
 
   return { deposit, emailed };
 }

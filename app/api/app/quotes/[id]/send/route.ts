@@ -7,6 +7,7 @@ import { sendSms, canText, quoteLinkText } from "@/lib/sms";
 import { quoteDepositAmount, money } from "@/lib/statuses";
 import { autoSendQuoteAgreements } from "@/lib/agreements";
 import { autoAdvance } from "@/lib/pipeline";
+import { fireAutomations } from "@/lib/automations-server";
 import { inPreview, previewBlockedError } from "@/lib/preview";
 
 /**
@@ -129,6 +130,7 @@ export async function POST(
 
   // Pipeline board: a sent quote advances the lead's card
   await autoAdvance(prisma, companyId, quote.contactId, "QUOTE_SENT");
+  if (justSent) fireAutomations(companyId, "quote.sent", quote.id);
 
   return NextResponse.json({ emailed: true, texted, to: quote.contact.email });
 }

@@ -14,6 +14,7 @@
  */
 
 import { createHash } from "crypto";
+import { fireAutomations } from "./automations-server";
 import { prisma } from "@/lib/db";
 import { recomputeDepositApplied } from "@/lib/deposits";
 import * as finix from "@/lib/finix";
@@ -495,6 +496,8 @@ export async function recordPayment(params: RecordPaymentParams) {
       console.error("[payments] plan anchor failed", e)
     );
   }
+
+  if (result.fullyPaid) fireAutomations(params.companyId, "invoice.paid", params.invoiceId);
 
   // Push the good news to the owner(s) — covers online /pay payments,
   // subscription auto-charges, and payments a teammate recorded.

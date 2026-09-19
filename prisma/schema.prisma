@@ -236,6 +236,8 @@ model Company {
   webForms              WebForm[]
   bookingTypes          BookingType[]
   estimators            Estimator[]
+  automations           Automation[]
+  automationRuns        AutomationRun[]
   contractTemplates     ContractTemplate[]
   contracts             Contract[]
   expenses              Expense[]
@@ -1233,6 +1235,52 @@ model Estimator {
   updatedAt   DateTime @updatedAt
 
   @@index([companyId])
+}
+
+// Owner-built automations (docs/plans/ai-estimators-2026-09-19.md, Batch 2).
+// `spec` is a declarative AutomationSpec (lib/automations.ts): one trigger
+// (an app event, or a time-based sweep with a day count), an optional
+// condition expression, and an allowlisted action list. Atlas writes the
+// spec; lib/automations-server.ts executes it. Nothing in the allowlist
+// moves money, deletes, or changes the team.
+model Automation {
+  id          String   @id @default(cuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id])
+  name        String
+  description String?
+  spec        Json
+  isActive    Boolean  @default(true)
+  // Whose behalf actions run under (notes, email sender). Plain id, no FK,
+  // so the rule survives the person leaving.
+  createdById String?
+  runs        Int      @default(0)
+  lastRunAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  runLog AutomationRun[]
+
+  @@index([companyId])
+}
+
+// One row per (automation, entity, event) — the dedupe key that keeps a
+// sweep from re-firing every hour and the audit trail the settings page shows.
+model AutomationRun {
+  id           String     @id @default(cuid())
+  automationId String
+  automation   Automation @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  companyId    String
+  company      Company    @relation(fields: [companyId], references: [id])
+  event        String
+  entityType   String
+  entityId     String
+  status       String // "ok" | "skipped" | "failed"
+  detail       String?
+  createdAt    DateTime   @default(now())
+
+  @@index([companyId, createdAt])
+  @@index([automationId, entityId, event])
 }
 
 model BookingType {
