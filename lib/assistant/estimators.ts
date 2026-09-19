@@ -86,6 +86,32 @@ const SPEC_PARAM = {
   },
 } as const;
 
+/** Gemini declarations want concrete properties, so inputs travel as [{id, value}] —
+ *  but a model that sends {id: value} anyway is accepted too. */
+const INPUTS_PARAM = {
+  type: "array",
+  description: "the tool's inputs as [{id, value}] pairs — numbers plain ('1200'), toggles 'true'/'false', selects by option value",
+  items: {
+    type: "object",
+    properties: { id: { type: "string" }, value: { type: "string" } },
+    required: ["id", "value"],
+  },
+} as const;
+
+function inputsArg(raw: unknown): Record<string, unknown> {
+  if (Array.isArray(raw)) {
+    const out: Record<string, unknown> = {};
+    for (const item of raw.slice(0, ESTIMATOR_LIMITS.inputs)) {
+      const r = (item ?? {}) as Record<string, unknown>;
+      const id = str(r.id, 40);
+      if (id) out[id] = r.value;
+    }
+    return out;
+  }
+  if (raw && typeof raw === "object") return raw as Record<string, unknown>;
+  return {};
+}
+
 function badgeLines(spec: EstimatorSpec): string[] {
   const lines = [
     `Inputs: ${spec.inputs.map((i) => i.label).join(", ") || "none"}`,
@@ -109,11 +135,7 @@ const manageEstimator: Tool = {
         name: { type: "string", description: "tool name, e.g. 'Driveway & house wash', 'Interior paint by room'" },
         description: { type: "string", description: "one line: when to use this tool" },
         spec: SPEC_PARAM,
-        inputs: {
-          type: "object",
-          description: "sample inputs for 'test' — {inputId: value}",
-          properties: { _: { type: "string", description: "any input id → value" } },
-        },
+        inputs: { ...INPUTS_PARAM, description: `sample inputs for 'test': ${INPUTS_PARAM.description}` },
         isActive: { type: "boolean", description: "update: turn the tool on/off" },
       },
       required: ["action"],
@@ -166,7 +188,7 @@ const manageEstimator: Tool = {
       if (!rawSpec) return { error: "Pass the spec to test (or an estimatorId for a saved tool)." };
       const check = await checkSpec(actor.companyId, rawSpec);
       if (!check.ok) return { compiles: false, errors: check.errors, fix: "Correct the spec and test again before creating." };
-      const inputs = (args.inputs && typeof args.inputs === "object" ? args.inputs : {}) as Record<string, unknown>;
+      const inputs = inputsArg(args.inputs);
       const result = runCompiled(check.compiled, inputs, check.book);
       if (!result.ok) return { compiles: true, ran: false, errors: result.errors, note: "The spec compiles; the sample inputs didn't produce a quote. Fix the inputs or the rules." };
       return {
@@ -259,11 +281,7 @@ const runEstimatorTool: Tool = {
       properties: {
         estimatorId: { type: "string" },
         name: { type: "string", description: "exact tool name instead of the id" },
-        inputs: {
-          type: "object",
-          description: "{inputId: value} — numbers as numbers, select values by value, toggles true/false",
-          properties: { _: { type: "string", description: "any input id → value" } },
-        },
+        inputs: INPUTS_PARAM,
       },
     },
   },
@@ -300,7 +318,7 @@ const runEstimatorTool: Tool = {
     }
     const spec = specFromJson(row.spec);
     if (!spec) return { error: "This tool's saved rules no longer compile — a manager should rebuild it with manage_estimator." };
-    const inputs = (args.inputs && typeof args.inputs === "object" ? args.inputs : {}) as Record<string, unknown>;
+    const inputs = inputsArg(args.inputs);
     const result = await runStoredEstimator(row, actor.companyId, inputs);
     if (!result.ok) {
       return {

@@ -80,7 +80,10 @@ export default function EstimatorRunner({
     setAssistNote("");
     setResult(null);
     setBusy(null);
-  }, [open, estimators]);
+    // Deliberately only on open: a parent that rebuilds the estimators array
+    // on every render must not wipe the user's half-typed inputs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   function pick(e: RunnerEstimator) {
     setSelectedId(e.id);

@@ -846,7 +846,8 @@ export function compileSpec(raw: unknown): CompileResult {
         errors.push(`Input "${id}" is a select — it needs at least 2 options`);
         continue;
       }
-      const def = s(o.default, 60) || undefined;
+      // the model may send a numeric default (1 vs "1") — option values are strings
+      const def = o.default === undefined || o.default === null ? undefined : String(o.default).trim().slice(0, 60) || undefined;
       if (def && !opts.some((op) => op.value === def)) errors.push(`Input "${id}": default "${def}" is not one of its options`);
       inputs.push({ id, label, type, help, options: opts, default: def, required: o.required !== false });
     } else if (type === "toggle") {
