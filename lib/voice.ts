@@ -194,13 +194,20 @@ export function talkSeconds(answeredAt: Date | null, endedAt: Date): number | nu
  * Telnyx-only; the caller stamps Company.lineVoiceAppAt. False when voice
  * isn't configured on this server.
  */
-export async function routeNumberToVoiceApp(numberId: string): Promise<boolean> {
+export async function routeNumberToVoiceApp(numberId: string, fallbackForwardTo?: string | null): Promise<boolean> {
   if (!voiceEnabled()) return false;
-  await setNumberConnection(numberId, voiceAppId());
+  // Order matters: Telnyx refuses to put a number on a Call Control app while
+  // number-level forwarding is enabled ("You cannot use automatic call
+  // forwarding with a Call Control … number"), so forwarding goes off first.
+  await setCallForwarding(numberId, null);
   try {
-    await setCallForwarding(numberId, null);
+    await setNumberConnection(numberId, voiceAppId());
   } catch (err) {
-    console.error("[voice] couldn't switch number-level forwarding off:", err);
+    // Never leave the number dead: put the old forwarding back before failing.
+    if (fallbackForwardTo) {
+      await setCallForwarding(numberId, fallbackForwardTo).catch((e) => console.error("[voice] forwarding restore failed:", e));
+    }
+    throw err;
   }
   return true;
 }
@@ -210,14 +217,14 @@ export async function ensureVoiceRouting(companyId: string): Promise<boolean> {
   if (!voiceEnabled()) return false;
   const c = await prisma.company.findUnique({
     where: { id: companyId },
-    select: { id: true, name: true, lineNumber: true, lineNumberId: true, lineVoiceAppAt: true },
+    select: { id: true, name: true, lineNumber: true, lineNumberId: true, lineForwardTo: true, lineVoiceAppAt: true },
   });
   if (!c || !isRealLineNumber(c.lineNumber) || !c.lineNumberId) return false;
   if (c.lineVoiceAppAt) return true;
   try {
-    await routeNumberToVoiceApp(c.lineNumberId);
+    await routeNumberToVoiceApp(c.lineNumberId, c.lineForwardTo);
   } catch (err) {
-    const detail = err instanceof TelnyxError ? err.detail : "unknown error";
+    const detail = err instanceof TelnyxError ? err.detail : err instanceof Error ? err.message : "unknown error";
     throw new VoiceError(`Telnyx couldn't move the number onto the voice app: ${detail}`, 502);
   }
   await prisma.company.update({ where: { id: c.id }, data: { lineVoiceAppAt: new Date() } });
