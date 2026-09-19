@@ -467,10 +467,15 @@ export async function previewAutomation(
     if (!v.fire) continue;
     matches++;
     if (sample.length < 3) {
-      const first = renderAction(compiled, 0, loaded.ctx);
       const label = String(loaded.ctx.client_name || "") || id;
-      const headline = first.subject ?? first.title ?? first.body ?? "";
-      sample.push(headline ? `${label} — ${headline.slice(0, 80)}` : label);
+      try {
+        const first = renderAction(compiled, 0, loaded.ctx);
+        const headline = first.subject ?? first.title ?? first.body ?? "";
+        sample.push(headline ? `${label} — ${headline.slice(0, 80)}` : label);
+      } catch (e) {
+        errors.add(`template: ${(e as Error).message}`);
+        sample.push(label);
+      }
     }
   }
   return { candidates: ids.length, matches, sample, errors: [...errors] };
