@@ -284,6 +284,8 @@ export function recordAssistantTurn(row: {
   costCents: number;
   atlasTokens: number;
   ok: boolean;
+  /** What the tokens bought: "chat" (the drawer, default) or "estimator" (an assisted estimate). */
+  kind?: string;
 }): void {
   void prisma.assistantTurn
     .create({
@@ -291,6 +293,7 @@ export function recordAssistantTurn(row: {
         companyId: row.companyId,
         userId: row.userId,
         access: row.access,
+        kind: row.kind ?? "chat",
         model: row.model,
         rounds: row.rounds,
         toolCalls: row.toolCalls,

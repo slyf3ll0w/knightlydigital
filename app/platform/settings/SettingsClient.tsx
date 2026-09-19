@@ -16,6 +16,7 @@ import {
   Copy,
   CreditCard,
   Package,
+  Calculator,
   Palette,
   FileSignature,
   Filter,
@@ -235,6 +236,13 @@ const SETUP_LINKS = [
     sub: "Your price book — items autocomplete on quotes and invoices",
     hueKey: "services",
     icon: Package,
+  },
+  {
+    href: "/app/settings/estimators",
+    label: "Estimate tools",
+    sub: "Quote calculators Atlas builds from your pricing rules — free to run",
+    hueKey: "quotes",
+    icon: Calculator,
   },
   {
     href: "/app/settings/contracts",

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { requirePageActor, canSell, contactScope } from "@/lib/permissions";
 import QuoteEditor from "../[id]/QuoteEditor";
+import { ESTIMATOR_SELECT, runnerEstimators } from "@/lib/estimator-server";
 
 export default async function NewQuotePage({
   searchParams,
@@ -12,7 +13,7 @@ export default async function NewQuotePage({
 
   const { contactId, requestId } = await searchParams;
 
-  const [contacts, workItems, company, request] = await Promise.all([
+  const [contacts, workItems, company, request, estimatorRows] = await Promise.all([
     prisma.contact.findMany({
       where: { companyId, ...contactScope(actor), status: { in: ["LEAD", "ACTIVE"] } },
       orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
@@ -31,6 +32,7 @@ export default async function NewQuotePage({
           where: { id: requestId, companyId, contact: contactScope(actor) },
         })
       : Promise.resolve(null),
+    prisma.estimator.findMany({ where: { companyId, isActive: true }, select: ESTIMATOR_SELECT, orderBy: { name: "asc" } }),
   ]);
 
   const defaultTaxRatePercent = company?.defaultTaxRate
@@ -45,6 +47,7 @@ export default async function NewQuotePage({
       requestId={request?.id ?? ""}
       requestTitle={request?.title ?? ""}
       defaultTaxRatePercent={defaultTaxRatePercent}
+      estimators={runnerEstimators(estimatorRows)}
     />
   );
 }

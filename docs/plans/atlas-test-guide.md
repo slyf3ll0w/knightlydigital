@@ -135,6 +135,10 @@ Sign in as a TECH for these; techs only see the field/schedule tools.
 - Off-topic: "Write me a poem about trucks" → one-sentence decline.
 - Direct POST /api/app/assistant with `messages: []` → 400 before any AI spend (the zero-cost gate check).
 
+## 9b. Estimate tools (2026-09-19)
+
+Owner: "Build an estimate tool for driveway pressure washing: $0.25 per sq ft, $150 minimum, sealant optional at $0.45 per sq ft." Expect guide → test → ONE create card ("Cost to run: free"). Confirm, then /app/settings/estimators lists it. New quote → Use an estimate tool → 800 sq ft + sealant → Calculate → Add to quote. Then: "quote Sarah Lane 1200 sq ft with sealant using the driveway tool" → run_estimator + create_quote, no arithmetic in prose. Full script: docs/plans/ai-estimators-2026-09-19.md § Test.
+
 ## 10. Automated
 
 - `npx tsx scripts/test-assistant.ts` — 9 pure tests (role gating, batch merge,

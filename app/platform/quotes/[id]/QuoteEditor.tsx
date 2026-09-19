@@ -13,6 +13,8 @@ import LineItemsEditor, {
   emptyEditorLine,
   payloadRecurringInterval,
 } from "@/components/LineItemsEditor";
+import EstimatorRunner, { type RunnerEstimator, type EstimatorApply } from "@/components/EstimatorRunner";
+import { Calculator } from "lucide-react";
 
 type Contact = {
   id: string;
@@ -59,6 +61,7 @@ export type ExistingQuote = {
 export default function QuoteEditor({
   contacts,
   workItems = [],
+  estimators = [],
   prefilledContactId = "",
   requestId = "",
   requestTitle = "",
@@ -72,6 +75,8 @@ export default function QuoteEditor({
   requestTitle?: string;
   existingQuote?: ExistingQuote;
   defaultTaxRatePercent?: string;
+  /** Saved estimate tools (active); shows the "Use an estimate tool" button when any exist. */
+  estimators?: RunnerEstimator[];
 }) {
   const router = useRouter();
   const editing = Boolean(existingQuote);
@@ -105,6 +110,7 @@ export default function QuoteEditor({
   const [disclaimer, setDisclaimer] = useState(existingQuote?.disclaimer ?? "");
   const [notes, setNotes] = useState(existingQuote?.notes ?? "");
   const [validUntil, setValidUntil] = useState(existingQuote?.validUntil ?? "");
+  const [estimatorOpen, setEstimatorOpen] = useState(false);
   const [lineItems, setLineItems] = useState<EditorLineItem[]>(
     existingQuote && existingQuote.lineItems.length > 0
       ? existingQuote.lineItems.map((li) => ({
@@ -121,6 +127,23 @@ export default function QuoteEditor({
         }))
       : [{ ...emptyEditorLine }]
   );
+
+  /** Lines from an estimate tool join the list; a blank starter row gets replaced. */
+  function applyEstimate(r: EstimatorApply) {
+    const fresh: EditorLineItem[] = r.lines.map((l) => ({
+      ...emptyEditorLine,
+      name: l.name,
+      description: l.description,
+      quantity: String(l.quantity),
+      unitPrice: l.unitPrice.toFixed(2),
+      unitCost: l.unitCost != null ? String(l.unitCost) : "",
+      workItemId: l.workItemId ?? "",
+      isOptional: l.isOptional,
+    }));
+    setLineItems((prev) => [...prev.filter((li) => li.name || li.description || li.unitPrice), ...fresh]);
+    if (!title && r.title) setTitle(r.title);
+    if (!clientMessage && r.clientMessage) setClientMessage(r.clientMessage);
+  }
 
   // Optional items count toward the total by default (client can opt out in the hub)
   const subtotal = lineItems.reduce((sum, li) => {
@@ -305,10 +328,20 @@ export default function QuoteEditor({
         {/* Line items — no overflow-hidden: the price-book dropdown must be
             able to spill past the card edge (it was getting clipped) */}
         <div className="card-ledger">
-          <div className="px-5 py-4 border-b border-gray-100">
+          <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-gray-100">
             <h2 className="text-sm font-semibold text-gray-700">
               Product / Service
             </h2>
+            {estimators.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setEstimatorOpen(true)}
+                className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-gray-300 px-3 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                <Calculator size={15} />
+                Use an estimate tool
+              </button>
+            )}
           </div>
           <LineItemsEditor
             items={lineItems}
@@ -317,6 +350,14 @@ export default function QuoteEditor({
             integerQty
             showOptional
           />
+          {estimators.length > 0 && (
+            <EstimatorRunner
+              estimators={estimators}
+              open={estimatorOpen}
+              onClose={() => setEstimatorOpen(false)}
+              onApply={applyEstimate}
+            />
+          )}
 
           {/* Totals + deposit */}
           <div className="px-5 py-4 border-t border-gray-100 bg-gray-50 space-y-4 rounded-b-[7px] max-lg:rounded-b-[13px]">

@@ -19,6 +19,7 @@ import { moneyExtraTools } from "./money-extras";
 import { agreementTools } from "./agreements";
 import { companyTools } from "./company";
 import { deleteTools } from "./deletes";
+import { estimatorTools } from "./estimators";
 
 export type { Proposal, BatchItem, Tool, ToolCtx } from "./core";
 
@@ -128,6 +129,7 @@ const tools: Tool[] = [
   ...moneyExtraTools,
   ...agreementTools,
   ...companyTools,
+  ...estimatorTools,
   ...deleteTools,
 ];
 
@@ -152,6 +154,7 @@ const APP_CHEATSHEET = `Navigation map — ONLY for when the user asks where som
 - Business (expenses, recurring expenses, insights): /app/business
 - Agreements (e-sign): /app/contracts — templates: /app/settings/contracts
 - Price book: /app/settings/products
+- Estimate tools (saved quote calculators you build for them): /app/settings/estimators
 - Booking forms + embed code + online scheduling settings: /app/settings/booking
 - Team, roles, working hours, who's bookable online: /app/settings/team
 - Business info, timezone, branding, deposits, QuickBooks, sending domain: /app/settings`;
@@ -185,6 +188,7 @@ Actions:
 - Scheduling and routes: find_a_time gives drive-time-aware open slots for a tech; get_route_plan shows a day's stops and drive minutes; optimize_route re-orders a tech's day by drive time (a card). Time off / shop days are manage_time_block. Jobs and appointments can be pinned to a client's saved service address via propertyId (get_client_details).
 - Field work: get_job_checklist / update_checklist_item, clock (the current user only), record_job_signoff (only when the client actually approved the work), send_on_my_way, request_review. Managers fix hours with manage_time_entry and see who's out with team_map.
 - Website/booking forms: when asked to build a form, BUILD it with manage_web_form — never just point at the settings page. Create it (INQUIRY for a contact form, BOOKING for scheduling estimates, SERVICE_REQUEST for ordering services), tell them to confirm, then in later turns customize it: headline and intro written by you for their business, button label, which fields show, services from the price book, and any custom questions they mentioned. NEVER create the same form twice — if you staged a create earlier in this conversation, it likely exists now; check with action 'list' first. When asked for the embed code / "put it on my website", call manage_web_form action 'embed' and paste the embedCode EXACTLY as returned (both tags, on their own lines) plus the direct link — never send them to a page for it.
+- Estimate tools: when a manager wants a calculator/estimator/pricing tool for a kind of job ("build me a tool that prices driveways by square footage"), BUILD it with manage_estimator: call action guide first, draft the spec from THEIR rates and price book (never invent prices — ask once, all at once, if they gave none), test it with realistic sample inputs, then stage create. Keep it as simple as their pricing really is, and leave assist OFF unless judgment from a written description is truly needed — a tool without assist is free for them to run forever. When quoting a client and a saved tool fits, run_estimator with the inputs from what the user said, then create_quote with the lines it returns — you never need to redo the math.
 - Agreements: when asked for a contract/agreement, WRITE it — a complete, professional plain-text agreement with numbered sections tailored to what they described (services, payment, ownership/IP transfer if relevant, term & cancellation, liability), using {{client_name}}, {{company_name}} and {{date}} placeholders. Stage it with create_agreement_template; don't ask for details you can reasonably default, and never just point at the settings page.
 - Money that MOVES: refund_payment sends an online payment back to the client's card or bank (managers; full or partial); charge_saved_card bills a client's card on file for an invoice; send_payout closes the settlement early; run_recurring_billing may charge cards. These cards are amber and say "moves real money" — describe the amount and who it affects plainly. Hand-recorded payments (cash, check, Zelle, an outside terminal) are bookkeeping: edit_payment for a partial refund, delete_record (payment) when fully refunded or logged by mistake.
 - Recurring monthly expenses (rent, insurance, software): log_expense with repeatMonthly=true starts one; manage_recurring_expense lists, edits, pauses, resumes.

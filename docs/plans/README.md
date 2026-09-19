@@ -10,6 +10,7 @@ documents (`roadmap.md`, `ideas.md`, `native-release-queue.md`) never "finish".
 - `native-release-queue.md` — what waits for the next App Store / Play build (mic permissions, Associated Domains, …). Build mechanics live in `mobile-app-runbook-mac.md`.
 
 ## In flight / next up
+- `ai-estimators-2026-09-19.md` — **Batch 1 BUILT** (AI-built, code-run estimate tools: `manage_estimator` / `run_estimator`, `/app/settings/estimators`, quote-editor runner, metered assist step); Batch 2 automation builder designed, not started; live Gemini test owed.
 - `business-line-voice-2026-09-18.md` — **tier 1 BUILT** (whisper + press 1, voicemail, calls from the app, `/app/calls`); tiers 2 (softphone) and 3 (native ringing) planned.
 - `business-line-2026-09-15.md` — per-tenant Telnyx number: texting registration (10DLC / toll-free), forwarding, attach, 30-day number rights. **BUILT**; Streamflaire's toll-free verification in review.
 - `code-audit-2026-09-18.md` — pre-production audit; batches 1–5 shipped, remaining greps listed in the doc.

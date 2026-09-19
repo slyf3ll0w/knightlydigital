@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requirePageActor, canSell, contactScope, viaContactScope } from "@/lib/permissions";
 import QuoteEditor from "../QuoteEditor";
+import { ESTIMATOR_SELECT, runnerEstimators } from "@/lib/estimator-server";
 
 export default async function EditQuotePage({
   params,
@@ -12,7 +13,7 @@ export default async function EditQuotePage({
   const companyId = actor.companyId;
 
   const { id } = await params;
-  const [quote, contacts, workItems] = await Promise.all([
+  const [quote, contacts, workItems, estimatorRows] = await Promise.all([
     prisma.quote.findFirst({
       where: { id, companyId, ...viaContactScope(actor) },
       include: { lineItems: { orderBy: { sortOrder: "asc" } } },
@@ -26,6 +27,7 @@ export default async function EditQuotePage({
       where: { companyId, isActive: true },
       orderBy: { name: "asc" },
     }),
+    prisma.estimator.findMany({ where: { companyId, isActive: true }, select: ESTIMATOR_SELECT, orderBy: { name: "asc" } }),
   ]);
   if (!quote) notFound();
 
@@ -39,6 +41,7 @@ export default async function EditQuotePage({
     <QuoteEditor
       contacts={contacts}
       workItems={JSON.parse(JSON.stringify(workItems))}
+      estimators={runnerEstimators(estimatorRows)}
       existingQuote={{
         id: quote.id,
         contactId: quote.contactId,
