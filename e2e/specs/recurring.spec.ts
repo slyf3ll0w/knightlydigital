@@ -76,9 +76,14 @@ test.describe("recurring billing", () => {
     expect(dbSub!.anchoredAt).not.toBeNull();
     expect(dbSub!.nextRunDate).not.toBeNull();
     expect(dbSub!.nextRunDate!.getTime()).toBeGreaterThan(Date.now());
-    // Anchored to today's day-of-month (clamped for short months).
+    // Anchored to the pay day's day-of-month (clamped for short months). The
+    // anchor is stamped on the SERVER's calendar (noon, server-local), which
+    // near midnight is not the runner's UTC date — so the expectation comes
+    // from anchoredAt itself, read in the same frame as nextRunDate.
+    const anchoredAt = dbSub!.anchoredAt!;
+    expect(Math.abs(anchoredAt.getTime() - Date.now())).toBeLessThan(36 * 60 * 60 * 1000);
     const expectedDay = Math.min(
-      new Date().getDate(),
+      anchoredAt.getDate(),
       new Date(
         dbSub!.nextRunDate!.getFullYear(),
         dbSub!.nextRunDate!.getMonth() + 1,
