@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   description: "The terms that govern your use of WorkBench.",
 };
 
-const LAST_UPDATED = "July 27, 2026";
+const LAST_UPDATED = "September 18, 2026";
 
 /* Public Terms & Conditions for WorkBench. This URL is the terms_of_service_url
    presented during payment-processor (Finix) onboarding, so it must stay
@@ -68,6 +68,7 @@ const sections: { heading: string; paragraphs: (string | React.ReactNode)[] }[] 
     heading: "8. Termination",
     paragraphs: [
       "You may stop using the Service and delete your account at any time. We may suspend or terminate your access if you violate these Terms, if required by law or our payment partner, or if we discontinue the Service. On termination, your right to use the Service ends; you can export or delete your data beforehand, and we will handle any remaining data as described in our Privacy Policy.",
+      "Business phone numbers. A phone number provided through the Service (a local or toll-free business line) is yours to keep. If your subscription ends, the number stays active for 30 days; during that time you can resubscribe, or ask us to port the number to another carrier and we will cooperate with the port-out. After that period, the number is released and cannot be recovered.",
     ],
   },
   {

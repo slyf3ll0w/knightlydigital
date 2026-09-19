@@ -167,6 +167,10 @@ model Company {
   lineForwardTo             String? // E.164 cell that inbound calls ring (null = calls not forwarded yet)
   lineProvisionedAt         DateTime?
   lineType                  String? // "local" | "toll_free" — decides the texting registration path (10DLC vs toll-free verification)
+  // Set when the add-on lapses while a number is attached: the number is
+  // released to Telnyx at this instant unless the company resubscribes or
+  // ports it out first (lib/business-line.ts runLineReleaseSweep). Null = keep.
+  lineReleaseAt             DateTime?
   // Platform suspension (superadmin-only): set → the tenant app and public
   // booking/leads/payments are disabled, data stays intact until support
   // reinstates. Deletion is separate and permanent.

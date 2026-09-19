@@ -70,6 +70,8 @@ export type LineSummary = {
   type: LineType | null;
   forwardTo: string | null;
   provisionedAt: string | null;
+  /** Set once the add-on has lapsed: the number is released at this instant unless they resubscribe or port out. */
+  releaseAt: string | null;
   smsReady: boolean;
   registration: null | {
     status: LineRegistrationStatus;

@@ -79,6 +79,7 @@ export default function BusinessLineCard({ initial }: { initial: LineSummary }) 
         <GetNumber line={line} onDone={setLine} onError={setError} />
       ) : (
         <>
+          {line.releaseAt && <ReleaseNotice line={line} />}
           <NumberRow line={line} onDone={setLine} onError={setError} />
           <Texting line={line} onDone={setLine} onError={setError} />
         </>
@@ -180,6 +181,35 @@ function GetNumber({
         {busy && <Loader2 size={14} className="animate-spin" />}
         {busy ? "Getting your number…" : tollFree ? "Get a toll-free number" : "Get a number"}
       </button>
+    </div>
+  );
+}
+
+/* ───────────────────────── The number is theirs: post-cancellation notice ───────────────────────── */
+
+function ReleaseNotice({ line }: { line: LineSummary }) {
+  const when = new Date(line.releaseAt!).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+  const subject = encodeURIComponent(`Keep my number ${line.number}`);
+  const body = encodeURIComponent(
+    `Hi — my Workbench Plus plan ended and I'd like to keep ${line.number}. Please tell me how to port it to my new carrier.`
+  );
+  return (
+    <div className="space-y-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm">
+      <p className="flex items-center gap-2 font-medium text-red-800">
+        <AlertTriangle size={16} />
+        Your plan ended — this number is released on {when}
+      </p>
+      <p className="text-xs text-red-700">
+        Calls keep forwarding until then. The number is yours to keep: {" "}
+        <Link href="/app/settings/addon" className="font-medium underline">
+          resubscribe
+        </Link>{" "}
+        and it stays here, or{" "}
+        <a href={`mailto:contact@workbenchfsm.com?subject=${subject}&body=${body}`} className="font-medium underline">
+          ask us to port it
+        </a>{" "}
+        to another carrier before that date. After it, the number is gone for good.
+      </p>
     </div>
   );
 }

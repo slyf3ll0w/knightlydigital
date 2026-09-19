@@ -43,6 +43,7 @@ import { stateName } from "@/lib/us-states";
 
 import { prisma } from "@/lib/db";
 import { hasAddon } from "@/lib/addon";
+import { notifyUsers } from "@/lib/push";
 import { toE164 } from "@/lib/sms";
 import {
   assignNumberToCampaign,
@@ -993,6 +994,79 @@ export async function refreshByTelnyxId(ids: { brandId?: string | null; campaign
   return true;
 }
 
+/* ───────────────────────── Number rights after cancellation ─────────────────────────
+ * The number is the tenant's for as long as they subscribe, and for a grace
+ * period after: when the add-on lapses (Livery cancel, final payment failure,
+ * superadmin revoke) the hourly sweep stamps lineReleaseAt = now + 30 days,
+ * the Settings card says so with a keep-my-number path (resubscribe, or port
+ * it out — an FCC right; Telnyx handles port-outs through support), and the
+ * sweep releases the number only once that date passes with no add-on.
+ * Resubscribing before then simply clears the date.
+ * ------------------------------------------------------------------------ */
+
+export const LINE_GRACE_DAYS = 30;
+
+export type LineReleaseAction = "stamp" | "release" | "clear" | null;
+
+/** What the sweep should do for one company right now. Pure — see scripts/test-business-line.ts. */
+export function lineReleasePlan(
+  c: { lineNumber: string | null; addonActiveAt: Date | null; lineReleaseAt: Date | null },
+  now: Date
+): LineReleaseAction {
+  if (!isRealLineNumber(c.lineNumber)) return c.lineReleaseAt ? "clear" : null;
+  if (c.addonActiveAt) return c.lineReleaseAt ? "clear" : null;
+  if (!c.lineReleaseAt) return "stamp";
+  return c.lineReleaseAt.getTime() <= now.getTime() ? "release" : null;
+}
+
+/** Hourly: schedule, un-schedule, or carry out number releases for lapsed add-ons. */
+export async function runLineReleaseSweep(now = new Date()): Promise<{ stamped: number; released: number; cleared: number; errors: number }> {
+  const out = { stamped: 0, released: 0, cleared: 0, errors: 0 };
+  if (!lineEnabled()) return out;
+  const rows = await prisma.company.findMany({
+    where: { OR: [{ lineNumber: { not: null } }, { lineReleaseAt: { not: null } }] },
+    select: { id: true, name: true, lineNumber: true, addonActiveAt: true, lineReleaseAt: true },
+    take: 500,
+  });
+  for (const c of rows) {
+    const action = lineReleasePlan(c, now);
+    if (!action) continue;
+    try {
+      if (action === "stamp") {
+        const at = new Date(now.getTime() + LINE_GRACE_DAYS * 86_400_000);
+        await prisma.company.update({ where: { id: c.id }, data: { lineReleaseAt: at } });
+        out.stamped++;
+        console.warn(`[line] "${c.name}" add-on lapsed — ${c.lineNumber} scheduled for release ${at.toISOString()}`);
+        const owners = await prisma.user.findMany({ where: { companyId: c.id, role: "OWNER" }, select: { id: true } });
+        await notifyUsers(
+          owners.map((o) => o.id),
+          {
+            title: "Your business line",
+            body: `Your plan ended, so ${c.lineNumber} will be released in ${LINE_GRACE_DAYS} days. Resubscribe to keep it, or port it out before then.`,
+            url: "/app/settings?s=features",
+            tag: `line-release-${c.id}`,
+          }
+        ).catch(() => {});
+      } else if (action === "clear") {
+        await prisma.company.update({ where: { id: c.id }, data: { lineReleaseAt: null } });
+        out.cleared++;
+      } else {
+        await releaseLine(c.id);
+        out.released++;
+      }
+    } catch (err) {
+      out.errors++;
+      console.error(`[line] release sweep: company ${c.id} (${action})`, err);
+    }
+  }
+  return out;
+}
+
+/** Superadmin: call off a scheduled release (comped keep, port-out in progress). */
+export async function keepLine(companyId: string): Promise<void> {
+  await prisma.company.update({ where: { id: companyId }, data: { lineReleaseAt: null } });
+}
+
 /* ───────────────────────── Release (superadmin) ───────────────────────── */
 
 /**
@@ -1057,6 +1131,7 @@ export async function lineSummary(
       lineType: true,
       lineForwardTo: true,
       lineProvisionedAt: true,
+      lineReleaseAt: true,
       messagingRegistration: true,
     },
   });
@@ -1071,6 +1146,7 @@ export async function lineSummary(
     type: number ? (lineKind(c) === "TOLL_FREE" ? "toll_free" : "local") : null,
     forwardTo: c.lineForwardTo,
     provisionedAt: c.lineProvisionedAt?.toISOString() ?? null,
+    releaseAt: number && !hasAddon(c) ? c.lineReleaseAt?.toISOString() ?? null : null,
     smsReady: Boolean(number && reg?.status === "ACTIVE"),
     registration: reg
       ? {

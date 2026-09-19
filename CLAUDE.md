@@ -307,9 +307,16 @@ untouched.
   own +1 833-495-0229, ported numbers) instead of buying one.
 - **Entitlement**: Workbench Plus (`hasAddon`). Comp a company with the
   superadmin **addon-grant** action — never ship the gate open.
+- **The number is theirs** (`Company.lineReleaseAt`, cron step `lineReleases`,
+  `runLineReleaseSweep` / `lineReleasePlan`): when the add-on lapses the sweep
+  stamps a release date 30 days out and pushes the owner; the Settings card
+  shows a resubscribe / “ask us to port it” notice; the number is released
+  only once the date passes with no add-on; resubscribing clears it.
+  Superadmin **line-keep** calls a release off. Port-outs themselves are a
+  Telnyx support process (not API) — /terms §8 promises cooperation.
 - **Not built yet**: outbound calling from the app (click-to-call / WebRTC),
-  voicemail transcription, missed-call text-back, number porting, auto-release
-  on add-on cancellation, E911 address on the number.
+  voicemail transcription, missed-call text-back, port-in of an existing
+  number, E911 address on the number.
 
 ## Payment processor (Finix)
 

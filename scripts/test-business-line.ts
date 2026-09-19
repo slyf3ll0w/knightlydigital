@@ -242,3 +242,27 @@ assert.equal(sanitizeRegistrationForm({ ...good, website: "" }).website, null);
 assert.equal(sanitizeRegistrationForm({ ...good, messageVolume: "10,000" }).messageVolume, null);
 
 console.log("test-business-line (toll-free): all assertions passed");
+
+// ── Number rights after cancellation ─────────────────────────────────────────
+
+import { lineReleasePlan } from "../lib/business-line";
+
+const now = new Date("2026-09-19T12:00:00Z");
+const later = new Date(now.getTime() + 31 * 86_400_000);
+const soon = new Date(now.getTime() + 5 * 86_400_000);
+const active = new Date("2026-08-01T00:00:00Z");
+
+// Subscribed: nothing to do; a leftover schedule is cleared (they resubscribed)
+assert.equal(lineReleasePlan({ lineNumber: "+12145550100", addonActiveAt: active, lineReleaseAt: null }, now), null);
+assert.equal(lineReleasePlan({ lineNumber: "+12145550100", addonActiveAt: active, lineReleaseAt: soon }, now), "clear");
+// Lapsed with a number: schedule first, wait, release once the date passes
+assert.equal(lineReleasePlan({ lineNumber: "+12145550100", addonActiveAt: null, lineReleaseAt: null }, now), "stamp");
+assert.equal(lineReleasePlan({ lineNumber: "+12145550100", addonActiveAt: null, lineReleaseAt: soon }, now), null);
+assert.equal(lineReleasePlan({ lineNumber: "+12145550100", addonActiveAt: null, lineReleaseAt: now }, now), "release");
+assert.equal(lineReleasePlan({ lineNumber: "+12145550100", addonActiveAt: null, lineReleaseAt: soon }, later), "release");
+// No number (or only a provisioning claim): never stamp; clear a stale date
+assert.equal(lineReleasePlan({ lineNumber: null, addonActiveAt: null, lineReleaseAt: null }, now), null);
+assert.equal(lineReleasePlan({ lineNumber: "pending:abc", addonActiveAt: null, lineReleaseAt: null }, now), null);
+assert.equal(lineReleasePlan({ lineNumber: null, addonActiveAt: null, lineReleaseAt: soon }, now), "clear");
+
+console.log("test-business-line (number rights): all assertions passed");

@@ -14,12 +14,15 @@ export function LineControl({
   number,
   forwardTo,
   provisionedAt,
+  releaseAt,
   registration,
 }: {
   companyId: string;
   number: string | null;
   forwardTo: string | null;
   provisionedAt: string | null;
+  /** Post-cancellation release date (lib/business-line.ts runLineReleaseSweep); null = keeping. */
+  releaseAt: string | null;
   registration: {
     status: string;
     kind: string;
@@ -116,6 +119,17 @@ export function LineControl({
             <dd className="font-mono text-gray-800">{forwardTo ?? "off"}</dd>
             <dt className="text-gray-500">Provisioned</dt>
             <dd className="text-gray-800">{fmt(provisionedAt)}</dd>
+            {releaseAt && (
+              <>
+                <dt className="text-red-600">Release scheduled</dt>
+                <dd className="text-red-700">
+                  {fmt(releaseAt)} (add-on lapsed) ·{" "}
+                  <button type="button" onClick={() => send({ action: "line-keep" })} disabled={busy} className="underline">
+                    keep the number
+                  </button>
+                </dd>
+              </>
+            )}
             <dt className="text-gray-500">Texting</dt>
             <dd>
               <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${statusTone}`}>

@@ -22,7 +22,7 @@ import { runRecurringExpenses } from "@/lib/expenses";
 import { expireApprovalBookings } from "@/lib/approval-bookings";
 import { rollupStorageSnapshots } from "@/lib/usage";
 import { runNightlyReconciliation } from "@/lib/reconcile";
-import { runLineRegistrationSweep } from "@/lib/business-line";
+import { runLineRegistrationSweep, runLineReleaseSweep } from "@/lib/business-line";
 
 /**
  * Hourly billing cron. A scheduler (Railway cron service, or an external
@@ -159,6 +159,9 @@ export async function POST(req: NextRequest) {
     // campaign and advance it (create campaign, bind number, mark active).
     // No-op without Telnyx keys or with nothing pending.
     await step("lineRegistrations", () => runLineRegistrationSweep());
+    // Lapsed add-ons: schedule the number's release 30 days out (owner
+    // notified), release once that passes, un-schedule on resubscribe.
+    await step("lineReleases", () => runLineReleaseSweep(now));
     // Team-map retention: location history older than 30 days is deleted —
     // deliberate; keep the window short.
     await step("prunedPings", async () => {

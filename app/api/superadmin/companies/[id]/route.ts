@@ -4,7 +4,7 @@ import { verifyPasswordForUser } from "@/lib/account";
 import { getSuperadmin } from "@/lib/superadmin";
 import { limit } from "@/lib/rate-limit";
 import { companyHasProtectedUser, deleteCompanyCascade } from "@/lib/company-delete";
-import { LineError, attachExistingNumber, releaseLine } from "@/lib/business-line";
+import { LineError, attachExistingNumber, keepLine, releaseLine } from "@/lib/business-line";
 
 /**
  * Superadmin account controls.
@@ -60,6 +60,7 @@ export async function PATCH(
     action !== "addon-hide" &&
     action !== "line-release" &&
     action !== "line-attach" &&
+    action !== "line-keep" &&
     action !== "addon-grant" &&
     action !== "addon-revoke"
   ) {
@@ -161,6 +162,14 @@ export async function PATCH(
       if (err instanceof LineError) return NextResponse.json({ error: err.message }, { status: err.status });
       throw err;
     }
+  }
+
+  // Call off a scheduled post-cancellation release (comped keep, or a
+  // port-out in progress that needs the number to stay live).
+  if (action === "line-keep") {
+    await keepLine(id);
+    console.warn(`[superadmin] business line release CANCELLED for "${company.name}" (${id}) by ${admin.email}`);
+    return NextResponse.json({ success: true });
   }
 
   if (action === "line-release") {

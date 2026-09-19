@@ -99,6 +99,7 @@ export default async function CompanyReport({
       lineNumber: true,
       lineForwardTo: true,
       lineProvisionedAt: true,
+      lineReleaseAt: true,
       messagingRegistration: {
         select: {
           status: true,
@@ -515,6 +516,7 @@ export default async function CompanyReport({
             number={company.lineNumber?.startsWith("pending:") ? null : company.lineNumber}
             forwardTo={company.lineForwardTo}
             provisionedAt={company.lineProvisionedAt?.toISOString() ?? null}
+            releaseAt={company.lineReleaseAt?.toISOString() ?? null}
             registration={
               company.messagingRegistration
                 ? {
