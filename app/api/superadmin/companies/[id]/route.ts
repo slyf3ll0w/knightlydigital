@@ -4,7 +4,7 @@ import { verifyPasswordForUser } from "@/lib/account";
 import { getSuperadmin } from "@/lib/superadmin";
 import { limit } from "@/lib/rate-limit";
 import { companyHasProtectedUser, deleteCompanyCascade } from "@/lib/company-delete";
-import { LineError, releaseLine } from "@/lib/business-line";
+import { LineError, attachExistingNumber, releaseLine } from "@/lib/business-line";
 
 /**
  * Superadmin account controls.
@@ -59,6 +59,7 @@ export async function PATCH(
     action !== "addon-show" &&
     action !== "addon-hide" &&
     action !== "line-release" &&
+    action !== "line-attach" &&
     action !== "addon-grant" &&
     action !== "addon-revoke"
   ) {
@@ -148,6 +149,20 @@ export async function PATCH(
   // drop the 10DLC registration with it. Irreversible — for cancelled
   // add-ons after a grace period, or a botched registration that needs a
   // clean start (a new number = a new campaign binding).
+  // Hand the company a number the Telnyx account already owns (bought by
+  // hand, ported in) instead of buying a new one. Toll-free vs local is
+  // decided by the prefix and picks the registration path.
+  if (action === "line-attach") {
+    try {
+      const out = await attachExistingNumber(id, typeof body.phoneNumber === "string" ? body.phoneNumber : "");
+      console.warn(`[superadmin] ${out.type} ${out.number} ATTACHED to "${company.name}" (${id}) by ${admin.email}`);
+      return NextResponse.json({ success: true, ...out });
+    } catch (err) {
+      if (err instanceof LineError) return NextResponse.json({ error: err.message }, { status: err.status });
+      throw err;
+    }
+  }
+
   if (action === "line-release") {
     try {
       await releaseLine(id);

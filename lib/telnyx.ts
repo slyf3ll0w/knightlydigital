@@ -127,6 +127,23 @@ export async function searchLocalNumbers(areaCode: string, limit = 10): Promise<
   });
 }
 
+/** US toll-free numbers (8xx) that can text. Telnyx picks from all toll-free prefixes. */
+export async function searchTollFreeNumbers(limit = 10): Promise<AvailableNumber[]> {
+  const out = await call<{ data?: AvailableNumber[] }>("GET", "/available_phone_numbers", undefined, {
+    "filter[country_code]": "US",
+    "filter[phone_number_type]": "toll_free",
+    "filter[features][]": "sms",
+    "filter[limit]": limit,
+    "filter[best_effort]": false,
+  });
+  return (out.data ?? []).filter((n) => {
+    const f = new Set((n.features ?? []).map((x) => x.name));
+    return f.has("sms") && f.has("voice");
+  });
+}
+
+export const isTollFreeNumber = (e164: string): boolean => /^\+18(00|33|44|55|66|77|88)\d{7}$/.test(e164);
+
 export type NumberOrder = {
   id?: string;
   status?: "pending" | "success" | "failure";
@@ -362,5 +379,138 @@ export async function unassignNumberFromCampaign(phoneNumber: string): Promise<v
   } catch (err) {
     if (err instanceof TelnyxError && err.status === 404) return;
     throw err;
+  }
+}
+
+/* ───────────────────────── Toll-free verification ─────────────────────────
+ * Toll-free numbers skip 10DLC entirely: one verification request per number,
+ * reviewed by the toll-free aggregator (free, 1–2 weeks). Same two-party rule —
+ * the request is filed as the business that will be texting.
+ * ------------------------------------------------------------------------ */
+
+export type TollFreeStatus =
+  | "Verified"
+  | "Rejected"
+  | "Waiting For Vendor"
+  | "Waiting For Customer"
+  | "Waiting For Telnyx"
+  | "In Progress";
+
+export type TollFreeVerificationInput = {
+  phoneNumber: string;
+  businessName: string;
+  doingBusinessAs?: string | null;
+  entityType: "PRIVATE_PROFIT" | "SOLE_PROPRIETOR";
+  ein?: string | null;
+  addr1: string;
+  city: string;
+  /** Full state name — "Texas", not "TX". */
+  state: string;
+  zip: string;
+  website: string;
+  contactFirstName: string;
+  contactLastName: string;
+  contactEmail: string;
+  contactPhone: string;
+  /** Telnyx volume bucket: "10" | "100" | "1,000" | "10,000" | … */
+  messageVolume: string;
+  /** Telnyx use-case category, e.g. "Appointments". */
+  useCase: string;
+  useCaseSummary: string;
+  productionMessageContent: string;
+  optInWorkflow: string;
+  optInImageUrls: string[];
+  additionalInformation: string;
+  privacyPolicyURL: string;
+  termsAndConditionURL: string;
+  webhookUrl?: string;
+};
+
+export type TollFreeVerification = {
+  id?: string;
+  verificationRequestId?: string;
+  verificationStatus?: TollFreeStatus;
+  phoneNumbers?: Array<{ phoneNumber: string }>;
+  businessName?: string;
+  /** Some responses carry the reviewer's note here. */
+  reason?: string;
+};
+
+function tollFreeBody(i: TollFreeVerificationInput) {
+  return {
+    phoneNumbers: [{ phoneNumber: i.phoneNumber }],
+    businessName: i.businessName,
+    doingBusinessAs: i.doingBusinessAs || undefined,
+    entityType: i.entityType,
+    businessRegistrationNumber: i.ein || undefined,
+    businessRegistrationType: i.ein ? "EIN" : undefined,
+    businessRegistrationCountry: i.ein ? "US" : undefined,
+    businessAddr1: i.addr1,
+    businessCity: i.city,
+    businessState: i.state,
+    businessZip: i.zip,
+    corporateWebsite: i.website,
+    businessContactFirstName: i.contactFirstName,
+    businessContactLastName: i.contactLastName,
+    businessContactEmail: i.contactEmail,
+    businessContactPhone: i.contactPhone,
+    messageVolume: i.messageVolume,
+    useCase: i.useCase,
+    useCaseSummary: i.useCaseSummary,
+    productionMessageContent: i.productionMessageContent,
+    optInWorkflow: i.optInWorkflow,
+    optInWorkflowImageURLs: i.optInImageUrls.map((url) => ({ url })),
+    additionalInformation: i.additionalInformation,
+    isvReseller: "WorkBench (Streamflaire Group LLC)",
+    optInKeywords: "START,UNSTOP",
+    optInConfirmationResponse:
+      "You are opted in to texts from this business. Reply STOP to opt out, HELP for help. Msg&data rates may apply.",
+    helpMessageResponse:
+      "This number sends appointment and billing texts from the business you hired. Reply STOP to opt out. Support: workbenchfsm.com/sms-terms",
+    privacyPolicyURL: i.privacyPolicyURL,
+    termsAndConditionURL: i.termsAndConditionURL,
+    ageGatedContent: false,
+    webhookUrl: i.webhookUrl,
+  };
+}
+
+export async function createTollFreeVerification(input: TollFreeVerificationInput): Promise<TollFreeVerification> {
+  return call<TollFreeVerification>("POST", "/messaging_tollfree/verification/requests", tollFreeBody(input));
+}
+
+/** Re-file an existing request — the path Telnyx wants when a request is "Waiting For Customer". */
+export async function updateTollFreeVerification(id: string, input: TollFreeVerificationInput): Promise<TollFreeVerification> {
+  return call<TollFreeVerification>("PATCH", `/messaging_tollfree/verification/requests/${id}`, tollFreeBody(input));
+}
+
+export async function getTollFreeVerification(id: string): Promise<TollFreeVerification> {
+  return call<TollFreeVerification>("GET", `/messaging_tollfree/verification/requests/${id}`);
+}
+
+/** Every request ever filed for this number, newest first. */
+export async function listTollFreeVerifications(phoneNumber: string): Promise<TollFreeVerification[]> {
+  const out = await call<{ records?: TollFreeVerification[]; data?: TollFreeVerification[] }>(
+    "GET",
+    "/messaging_tollfree/verification/requests",
+    undefined,
+    { phone_number: phoneNumber, page: 1, page_size: 20 }
+  );
+  return out.records ?? out.data ?? [];
+}
+
+/** The reviewer's reason for the latest status change (rejections, requests for info). */
+export async function tollFreeStatusReason(id: string): Promise<string | null> {
+  try {
+    const out = await call<{ records?: Array<{ status?: string; reason?: string; createdAt?: string }>; data?: Array<{ status?: string; reason?: string }> }>(
+      "GET",
+      `/messaging_tollfree/verification/requests/${id}/status_history`,
+      undefined,
+      { page: 1, page_size: 5 }
+    );
+    const rows = out.records ?? out.data ?? [];
+    const withReason = rows.find((r) => r.reason);
+    return withReason?.reason ?? null;
+  } catch {
+    return null;
   }
 }

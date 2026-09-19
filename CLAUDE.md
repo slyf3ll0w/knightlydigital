@@ -289,6 +289,22 @@ untouched.
   entry for sole props); routes `/api/app/line` (GET, PATCH forwardTo),
   `/line/provision`, `/line/register`, `/line/refresh`, `/line/otp`.
   Superadmin company page: `LineControl.tsx` (raw Telnyx statuses + Release).
+- **Toll-free numbers** (`Company.lineType = "toll_free"`, chosen at Get a
+  number, or inferred from the 8xx prefix): no 10DLC at all. One toll-free
+  verification request (`MessagingRegistration.kind = "TOLL_FREE"`,
+  `verificationId`/`verificationStatus`) filed via `createTollFreeVerification`
+  in `lib/telnyx.ts`; free, 1–2 weeks; needs a website + EIN and public
+  opt-in evidence (`public/sms-opt-in.png` + `/sms-terms`, both cited in the
+  request — keep them published). `deriveTollFree` maps Verified → ACTIVE,
+  Rejected / Waiting For Customer → REJECTED with the reviewer’s reason
+  (from `status_history`); resubmitting a Waiting-For-Customer request
+  PATCHes it, a Rejected one files fresh, a Verified one is adopted. Status
+  webhook: `/api/public/webhooks/telnyx/tollfree` (trigger only). Default
+  for tenants stays local — home-service customers answer local numbers and
+  toll-free inbound bills per minute.
+- **Attach an existing number**: superadmin **line-attach** (`LineControl`)
+  hands a company a number the Telnyx account already owns (Streamflaire’s
+  own +1 833-495-0229, ported numbers) instead of buying one.
 - **Entitlement**: Workbench Plus (`hasAddon`). Comp a company with the
   superadmin **addon-grant** action — never ship the gate open.
 - **Not built yet**: outbound calling from the app (click-to-call / WebRTC),

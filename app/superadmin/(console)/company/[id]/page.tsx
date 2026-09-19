@@ -102,11 +102,13 @@ export default async function CompanyReport({
       messagingRegistration: {
         select: {
           status: true,
+          kind: true,
           entityType: true,
           legalName: true,
           brandStatus: true,
           campaignStatus: true,
           assignmentStatus: true,
+          verificationStatus: true,
           rejectionReason: true,
           submittedAt: true,
           approvedAt: true,

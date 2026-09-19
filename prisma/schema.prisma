@@ -166,6 +166,7 @@ model Company {
   lineNumberId              String? // Telnyx phone_numbers resource id
   lineForwardTo             String? // E.164 cell that inbound calls ring (null = calls not forwarded yet)
   lineProvisionedAt         DateTime?
+  lineType                  String? // "local" | "toll_free" — decides the texting registration path (10DLC vs toll-free verification)
   // Platform suspension (superadmin-only): set → the tenant app and public
   // booking/leads/payments are disabled, data stays intact until support
   // reinstates. Deletion is separate and permanent.
@@ -2600,37 +2601,44 @@ enum LineRegistrationStatus {
 // The business fields are stored so a rejected submission can be edited and
 // resubmitted without retyping, and so support can see what was filed.
 model MessagingRegistration {
-  id               String                 @id @default(cuid())
-  companyId        String                 @unique
-  company          Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  status           LineRegistrationStatus @default(BRAND_PENDING)
-  entityType       String // "PRIVATE_PROFIT" (has EIN) | "SOLE_PROPRIETOR"
-  legalName        String
-  displayName      String
-  ein              String? // 9 digits, PRIVATE_PROFIT only
-  street           String
-  city             String
-  state            String
-  postalCode       String
-  website          String?
-  vertical         String // TCR vertical, e.g. CONSTRUCTION / PROFESSIONAL
-  contactFirstName String
-  contactLastName  String
-  contactEmail     String
-  contactPhone     String // E.164; the sole-prop OTP goes here
-  brandId          String? // Telnyx brand id
-  tcrBrandId       String?
-  brandStatus      String? // Telnyx identityStatus: VERIFIED | UNVERIFIED | SELF_DECLARED | VETTED_VERIFIED
-  campaignId       String? // Telnyx campaign id
-  tcrCampaignId    String?
-  campaignStatus   String? // Telnyx campaignStatus (TCR_PENDING … MNO_PROVISIONED)
-  assignmentStatus String? // number ↔ campaign: PENDING_ASSIGNMENT | ASSIGNED | FAILED_ASSIGNMENT
-  rejectionReason  String?
-  submittedAt      DateTime               @default(now())
-  approvedAt       DateTime?
-  lastCheckedAt    DateTime?
-  createdAt        DateTime               @default(now())
-  updatedAt        DateTime               @updatedAt
+  id                 String                 @id @default(cuid())
+  companyId          String                 @unique
+  company            Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  status             LineRegistrationStatus @default(BRAND_PENDING)
+  // "10DLC" (local number: brand → campaign → number binding) or "TOLL_FREE"
+  // (toll-free number: one verification request, statuses in verificationStatus)
+  kind               String                 @default("10DLC")
+  entityType         String // "PRIVATE_PROFIT" (has EIN) | "SOLE_PROPRIETOR"
+  legalName          String
+  displayName        String
+  ein                String? // 9 digits, PRIVATE_PROFIT only
+  street             String
+  city               String
+  state              String
+  postalCode         String
+  website            String?
+  vertical           String // TCR vertical, e.g. CONSTRUCTION / PROFESSIONAL
+  contactFirstName   String
+  contactLastName    String
+  contactEmail       String
+  contactPhone       String // E.164; the sole-prop OTP goes here
+  brandId            String? // Telnyx brand id
+  tcrBrandId         String?
+  brandStatus        String? // Telnyx identityStatus: VERIFIED | UNVERIFIED | SELF_DECLARED | VETTED_VERIFIED
+  campaignId         String? // Telnyx campaign id
+  tcrCampaignId      String?
+  campaignStatus     String? // Telnyx campaignStatus (TCR_PENDING … MNO_PROVISIONED)
+  assignmentStatus   String? // number ↔ campaign: PENDING_ASSIGNMENT | ASSIGNED | FAILED_ASSIGNMENT
+  verificationId     String? // TOLL_FREE: Telnyx verification request id
+  verificationStatus String? // TOLL_FREE: Verified | Rejected | In Progress | Waiting For Vendor | Waiting For Customer | Waiting For Telnyx
+  messageVolume      String? // TOLL_FREE: expected texts per month ("1,000")
+  useCase            String? // TOLL_FREE: Telnyx use-case category ("Appointments")
+  rejectionReason    String?
+  submittedAt        DateTime               @default(now())
+  approvedAt         DateTime?
+  lastCheckedAt      DateTime?
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
 
   @@index([status])
 }

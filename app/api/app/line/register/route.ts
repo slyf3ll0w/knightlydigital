@@ -18,7 +18,9 @@ export async function POST(req: NextRequest) {
   const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
   if (!body) return NextResponse.json({ error: "Bad request" }, { status: 400 });
   try {
-    const form = sanitizeRegistrationForm(body);
+    // The number's type decides the registration path and how strict the form is.
+    const current = await lineSummary(actor.companyId, { name: actor.name });
+    const form = sanitizeRegistrationForm(body, current.type === "toll_free" ? "TOLL_FREE" : "10DLC");
     await submitRegistration(actor.companyId, form);
     return NextResponse.json(await lineSummary(actor.companyId, { name: actor.name }), { status: 201 });
   } catch (err) {

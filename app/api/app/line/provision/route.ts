@@ -4,7 +4,8 @@ import { LineError, provisionLine } from "@/lib/business-line";
 import { limit } from "@/lib/rate-limit";
 
 /**
- * POST { areaCode, forwardTo? } — buy the company's business line. Gated on
+ * POST { type?: "local" | "toll_free", areaCode?, forwardTo? } — buy the
+ * company's business line (area code applies to local only). Gated on
  * the Workbench Plus entitlement inside provisionLine (402 without it).
  * Rate-limited hard: every call that gets past the checks spends money.
  */
@@ -15,9 +16,10 @@ export async function POST(req: NextRequest) {
   if (!(await limit(`line-provision:${actor.companyId}`, 5, 60 * 60_000)).ok) {
     return NextResponse.json({ error: "Too many attempts — try again in an hour." }, { status: 429 });
   }
-  const body = (await req.json().catch(() => ({}))) as { areaCode?: unknown; forwardTo?: unknown };
+  const body = (await req.json().catch(() => ({}))) as { type?: unknown; areaCode?: unknown; forwardTo?: unknown };
   try {
     const out = await provisionLine(actor.companyId, {
+      type: body.type === "toll_free" ? "toll_free" : "local",
       areaCode: typeof body.areaCode === "string" ? body.areaCode : "",
       forwardTo: typeof body.forwardTo === "string" ? body.forwardTo : null,
     });

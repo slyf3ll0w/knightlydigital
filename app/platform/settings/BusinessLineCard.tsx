@@ -3,7 +3,14 @@
 import Link from "next/link";
 import { useState } from "react";
 import { AlertTriangle, CheckCircle2, Loader2, Phone, RefreshCw } from "lucide-react";
-import { VERTICALS, type LineSummary, type RegistrationForm } from "@/lib/business-line-shared";
+import {
+  TOLL_FREE_USE_CASES,
+  TOLL_FREE_VOLUMES,
+  VERTICALS,
+  type LineSummary,
+  type LineType,
+  type RegistrationForm,
+} from "@/lib/business-line-shared";
 
 /**
  * Settings → Features: the company's business line (lib/business-line.ts).
@@ -91,6 +98,7 @@ function GetNumber({
   onDone: (l: LineSummary) => void;
   onError: (e: string) => void;
 }) {
+  const [type, setType] = useState<LineType>("local");
   const [areaCode, setAreaCode] = useState(line.defaults.areaCode);
   const [forwardTo, setForwardTo] = useState(line.defaults.forwardTo);
   const [busy, setBusy] = useState(false);
@@ -111,7 +119,7 @@ function GetNumber({
     setBusy(true);
     onError("");
     try {
-      await post("/api/app/line/provision", { areaCode, forwardTo });
+      await post("/api/app/line/provision", { type, areaCode, forwardTo });
       onDone(await post<LineSummary>("/api/app/line", undefined, "GET"));
     } catch (err) {
       onError(err instanceof Error ? err.message : "Couldn't get a number.");
@@ -119,19 +127,39 @@ function GetNumber({
     setBusy(false);
   }
 
+  const tollFree = type === "toll_free";
   return (
     <div className="space-y-3">
-      <div className="grid gap-3 sm:grid-cols-[8rem_1fr]">
-        <label className="block">
-          <span className="text-xs font-medium text-gray-600">Area code</span>
-          <input
-            value={areaCode}
-            onChange={(e) => setAreaCode(e.target.value.replace(/\D/g, "").slice(0, 3))}
-            inputMode="numeric"
-            placeholder="214"
-            className={`${inputCls} mt-1`}
-          />
-        </label>
+      <fieldset className="grid gap-2 sm:grid-cols-2">
+        {(
+          [
+            ["local", "Local number", "Your area code. What most service businesses want — customers answer a local call."],
+            ["toll_free", "Toll-free (8xx) number", "National presence, free for callers. You pay per inbound minute."],
+          ] as const
+        ).map(([value, label, hint]) => (
+          <label
+            key={value}
+            className={`cursor-pointer rounded-lg border px-3 py-2 ${type === value ? "border-gray-900 bg-gray-50" : "border-gray-200"}`}
+          >
+            <input type="radio" name="lineType" value={value} checked={type === value} onChange={() => setType(value)} className="mr-2" />
+            <span className="text-sm font-medium text-gray-800">{label}</span>
+            <span className="block pl-5 text-xs text-gray-500">{hint}</span>
+          </label>
+        ))}
+      </fieldset>
+      <div className={`grid gap-3 ${tollFree ? "" : "sm:grid-cols-[8rem_1fr]"}`}>
+        {!tollFree && (
+          <label className="block">
+            <span className="text-xs font-medium text-gray-600">Area code</span>
+            <input
+              value={areaCode}
+              onChange={(e) => setAreaCode(e.target.value.replace(/\D/g, "").slice(0, 3))}
+              inputMode="numeric"
+              placeholder="214"
+              className={`${inputCls} mt-1`}
+            />
+          </label>
+        )}
         <label className="block">
           <span className="text-xs font-medium text-gray-600">Ring calls through to</span>
           <input
@@ -144,13 +172,13 @@ function GetNumber({
         </label>
       </div>
       <p className="text-xs text-gray-500">
-        You&apos;ll get a local number in that area code. Calls forward the moment it&apos;s live; the
-        caller sees your business number. Texting needs a one-time carrier registration (next
-        step) and takes a few business days to clear.
+        {tollFree
+          ? "You'll get a toll-free number. Calls forward the moment it's live; the caller sees your business number. Texting needs a one-time carrier verification (next step) that usually takes one to two weeks."
+          : "You'll get a local number in that area code. Calls forward the moment it's live; the caller sees your business number. Texting needs a one-time carrier registration (next step) and takes a few business days to clear."}
       </p>
-      <button type="button" onClick={provision} disabled={busy || areaCode.length !== 3} className={primaryBtn}>
+      <button type="button" onClick={provision} disabled={busy || (!tollFree && areaCode.length !== 3)} className={primaryBtn}>
         {busy && <Loader2 size={14} className="animate-spin" />}
-        {busy ? "Getting your number…" : "Get a number"}
+        {busy ? "Getting your number…" : tollFree ? "Get a toll-free number" : "Get a number"}
       </button>
     </div>
   );
@@ -188,7 +216,10 @@ function NumberRow({
     <div className="rounded-lg border border-gray-200 px-4 py-3">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <p className="text-lg font-semibold tabular-nums text-gray-900">{fmtPhone(line.number)}</p>
-        <p className="text-xs text-gray-500">Your business line{line.provisionedAt ? ` · since ${fmtDate(line.provisionedAt)}` : ""}</p>
+        <p className="text-xs text-gray-500">
+          Your {line.type === "toll_free" ? "toll-free " : ""}business line
+          {line.provisionedAt ? ` · since ${fmtDate(line.provisionedAt)}` : ""}
+        </p>
       </div>
       {editing ? (
         <div className="mt-3 flex flex-wrap items-end gap-2">
@@ -278,14 +309,16 @@ function Texting({
 
   const checked = reg.lastCheckedAt ? `Checked ${new Date(reg.lastCheckedAt).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}` : "";
 
+  const tollFree = reg.kind === "TOLL_FREE";
+
   if (reg.status === "ACTIVE") {
     return (
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm">
         <p className="flex items-center gap-2 text-green-800">
           <CheckCircle2 size={16} />
-          Texting is on{reg.approvedAt ? ` · approved ${fmtDate(reg.approvedAt)}` : ""}
+          Texting is on{reg.approvedAt ? ` · ${tollFree ? "verified" : "approved"} ${fmtDate(reg.approvedAt)}` : ""}
         </p>
-        <p className="text-xs text-green-700">Registered to {reg.form.legalName}</p>
+        <p className="text-xs text-green-700">{tollFree ? "Verified" : "Registered"} to {reg.form.legalName}</p>
       </div>
     );
   }
@@ -295,7 +328,9 @@ function Texting({
       <div className="space-y-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm">
         <p className="flex items-center gap-2 font-medium text-red-800">
           <AlertTriangle size={16} />
-          The carriers didn&apos;t approve texting
+          {tollFree && reg.rejectionReason?.toLowerCase().includes("more information")
+            ? "The reviewer needs more from you"
+            : "The carriers didn't approve texting"}
         </p>
         <p className="text-red-700">{reg.rejectionReason}</p>
         <div className="flex flex-wrap items-center gap-3">
@@ -316,9 +351,11 @@ function Texting({
           <Loader2 size={16} className="animate-spin" />
           {awaitingPin
             ? "Waiting on your verification PIN"
-            : reg.status === "BRAND_PENDING"
-              ? "Verifying your business with the carrier registry"
-              : "Carriers are reviewing your texting registration"}
+            : tollFree
+              ? "Toll-free verification is under review"
+              : reg.status === "BRAND_PENDING"
+                ? "Verifying your business with the carrier registry"
+                : "Carriers are reviewing your texting registration"}
         </p>
         <button type="button" onClick={refresh} disabled={busy} className={ghostBtn}>
           <RefreshCw size={13} className={busy ? "animate-spin" : ""} />
@@ -328,7 +365,10 @@ function Texting({
       <p className="text-xs text-amber-700">
         {awaitingPin
           ? `We texted a PIN to ${fmtPhone(reg.form.contactPhone)}. Enter it below within 24 hours.`
-          : "Usually 3–7 business days. Reminders and links go by email until this clears, and the free Text button on jobs keeps working from your phone."}
+          : tollFree
+            ? "Usually one to two weeks. Reminders and links go by email until this clears, and the free Text button on jobs keeps working from your phone."
+            : "Usually 3–7 business days. Reminders and links go by email until this clears, and the free Text button on jobs keeps working from your phone."}
+        {reg.verificationStatus ? ` Telnyx status: ${reg.verificationStatus}.` : ""}
         {checked ? ` ${checked}.` : ""}
       </p>
       {awaitingPin && <OtpEntry onDone={onDone} onError={onError} />}
@@ -387,8 +427,11 @@ function RegistrationForm({
   onCancel?: () => void;
 }) {
   const d = line.defaults;
+  const tollFree = line.type === "toll_free";
   const [f, setF] = useState<RegistrationForm>(
     initial ?? {
+      messageVolume: "1,000",
+      useCase: "Appointments",
       entityType: "PRIVATE_PROFIT",
       legalName: d.legalName,
       displayName: d.displayName,
@@ -408,7 +451,7 @@ function RegistrationForm({
   const [busy, setBusy] = useState(false);
   const set = (k: keyof RegistrationForm) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setF((p) => ({ ...p, [k]: e.target.value }));
-  const sole = f.entityType === "SOLE_PROPRIETOR";
+  const sole = !tollFree && f.entityType === "SOLE_PROPRIETOR";
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -425,15 +468,39 @@ function RegistrationForm({
   return (
     <form onSubmit={submit} className="space-y-4">
       <div>
-        <h3 className="text-sm font-semibold text-gray-700">Register for texting</h3>
+        <h3 className="text-sm font-semibold text-gray-700">{tollFree ? "Verify for texting" : "Register for texting"}</h3>
         <p className="text-xs text-gray-500 mt-0.5">
-          US carriers require every business that texts to be registered, under its own legal name.
-          This is filed once, in your business&apos;s name, and takes 3–7 business days to clear.
+          {tollFree
+            ? "Toll-free numbers are verified by the carriers before they can text. This is filed once, in your business's name, and usually takes one to two weeks."
+            : "US carriers require every business that texts to be registered, under its own legal name. This is filed once, in your business's name, and takes 3–7 business days to clear."}
           {!line.entitled && " Part of Workbench Plus."}
         </p>
       </div>
 
-      <fieldset className="grid gap-2 sm:grid-cols-2">
+      {tollFree && (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Texts you expect to send" hint="Reminders, links and replies — most shops are well under 1,000">
+            <select value={f.messageVolume ?? "1,000"} onChange={set("messageVolume")} className={inputCls}>
+              {TOLL_FREE_VOLUMES.map(([v, label]) => (
+                <option key={v} value={v}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="What the texts are for">
+            <select value={f.useCase ?? "Appointments"} onChange={set("useCase")} className={inputCls}>
+              {TOLL_FREE_USE_CASES.map(([v, label]) => (
+                <option key={v} value={v}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </Field>
+        </div>
+      )}
+
+      <fieldset className={`grid gap-2 sm:grid-cols-2 ${tollFree ? "hidden" : ""}`}>
         {(
           [
             ["PRIVATE_PROFIT", "Registered business (has an EIN)", "LLC, corporation, or partnership"],
@@ -493,8 +560,12 @@ function RegistrationForm({
             <input value={f.postalCode} onChange={set("postalCode")} inputMode="numeric" className={inputCls} required />
           </Field>
         </div>
-        <Field label="Website" hint="Or a social page — optional but helps approval" className="sm:col-span-2">
-          <input value={f.website ?? ""} onChange={set("website")} placeholder="https://" className={inputCls} />
+        <Field
+          label="Website"
+          hint={tollFree ? "Required — the reviewer checks it against the business name" : "Or a social page — optional but helps approval"}
+          className="sm:col-span-2"
+        >
+          <input value={f.website ?? ""} onChange={set("website")} placeholder="https://" className={inputCls} required={tollFree} />
         </Field>
         <Field label="Contact first name">
           <input value={f.contactFirstName} onChange={set("contactFirstName")} className={inputCls} required />
@@ -511,15 +582,16 @@ function RegistrationForm({
       </div>
 
       <p className="text-xs text-gray-500">
-        Registry fees are covered by your plan. If the registry can&apos;t match these details you&apos;ll see
-        exactly why here and can fix and resubmit.
+        {tollFree
+          ? "Verification is free. The reviewer compares the business name, website and address, so keep them consistent. If they need anything else you'll see exactly what here and can fix and resubmit."
+          : "Registry fees are covered by your plan. If the registry can't match these details you'll see exactly why here and can fix and resubmit."}
         {sole && " The PIN expires 24 hours after we send it."}
       </p>
 
       <div className="flex flex-wrap items-center gap-3">
         <button type="submit" disabled={busy || !line.entitled} className={primaryBtn}>
           {busy && <Loader2 size={14} className="animate-spin" />}
-          {busy ? "Submitting…" : initial ? "Resubmit registration" : "Register for texting"}
+          {busy ? "Submitting…" : initial ? "Resubmit" : tollFree ? "Verify for texting" : "Register for texting"}
         </button>
         {onCancel && (
           <button type="button" onClick={onCancel} disabled={busy} className={ghostBtn}>

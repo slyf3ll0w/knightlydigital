@@ -189,3 +189,56 @@ assert.equal(sanitizeRegistrationForm({ ...good, displayName: "" }).displayName,
 }
 
 console.log("test-business-line: all assertions passed");
+
+// ── Toll-free path ───────────────────────────────────────────────────────────
+
+import { deriveTollFree } from "../lib/business-line";
+import { isTollFreeNumber } from "../lib/telnyx";
+import { stateName } from "../lib/us-states";
+
+assert.deepEqual(deriveTollFree("Verified"), { status: "ACTIVE", reason: null, next: null });
+assert.equal(deriveTollFree("Rejected", "Website does not match business").reason, "Website does not match business");
+assert.equal(deriveTollFree("Rejected").status, "REJECTED");
+// Reviewer wants more info: surfaced as a rejection so the resubmit path (PATCH) is offered
+assert.equal(deriveTollFree("Waiting For Customer", "Please add an opt-in screenshot").status, "REJECTED");
+for (const s of ["In Progress", "Waiting For Vendor", "Waiting For Telnyx", null, undefined]) {
+  assert.equal(deriveTollFree(s).status, "CAMPAIGN_PENDING", String(s));
+}
+
+for (const n of ["+18334950229", "+18005550100", "+18885550100", "+18775550100", "+18665550100", "+18555550100", "+18445550100"]) {
+  assert.ok(isTollFreeNumber(n), n);
+}
+assert.ok(!isTollFreeNumber("+18225550100"), "822 is not toll-free yet");
+assert.ok(!isTollFreeNumber("+12145550100"));
+
+assert.equal(stateName("tx"), "Texas");
+assert.equal(stateName("DC"), "District of Columbia");
+assert.equal(stateName("ZZ"), "ZZ", "unknown codes pass through");
+
+// Toll-free form: website + EIN required, sole prop not offered, volume/use-case defaulted
+{
+  const f = sanitizeRegistrationForm({ ...good, messageVolume: "10,000", useCase: "Mixed" }, "TOLL_FREE");
+  assert.equal(f.messageVolume, "10,000");
+  assert.equal(f.useCase, "Mixed");
+  const d = sanitizeRegistrationForm({ ...good, messageVolume: "bogus", useCase: "bogus" }, "TOLL_FREE");
+  assert.equal(d.messageVolume, "1,000");
+  assert.equal(d.useCase, "Appointments");
+  assert.equal(sanitizeRegistrationForm({ ...good, entityType: "SOLE_PROPRIETOR" }, "TOLL_FREE").entityType, "PRIVATE_PROFIT");
+}
+const rejectsTf = (patch: Record<string, unknown>, re: RegExp) => {
+  try {
+    sanitizeRegistrationForm({ ...good, ...patch }, "TOLL_FREE");
+    assert.fail(`expected toll-free rejection for ${JSON.stringify(patch)}`);
+  } catch (err) {
+    assert.ok(err instanceof LineError, `LineError expected for ${JSON.stringify(patch)}, got ${String(err)}`);
+    assert.match(err.message, re);
+  }
+};
+rejectsTf({ website: "" }, /website/);
+rejectsTf({ ein: "" }, /EIN/);
+// …while 10DLC still allows a blank website
+assert.equal(sanitizeRegistrationForm({ ...good, website: "" }).website, null);
+// 10DLC ignores the toll-free-only fields
+assert.equal(sanitizeRegistrationForm({ ...good, messageVolume: "10,000" }).messageVolume, null);
+
+console.log("test-business-line (toll-free): all assertions passed");

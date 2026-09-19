@@ -8,11 +8,12 @@ export const metadata: Metadata = {
     "How WorkBench text notifications work: what you'll receive, how you opted in, and how to stop.",
 };
 
-const LAST_UPDATED = "September 12, 2026";
+const LAST_UPDATED = "September 18, 2026";
 
-/* Public SMS program terms for WorkBench. This URL is cited in our toll-free
-   messaging verification with Telnyx, in every consent checkbox, and in the
-   HELP reply, so it must stay published. Same look as /privacy. */
+/* Public SMS program terms for WorkBench. This URL is cited in every tenant’s
+   carrier registration (10DLC campaign / toll-free verification), in every
+   consent checkbox, and in the HELP reply, so it must stay published. Same
+   look as /privacy. */
 
 const ACCENT = "#0B57D8";
 
@@ -20,8 +21,8 @@ const sections: { heading: string; paragraphs: (string | React.ReactNode)[] }[] 
   {
     heading: "1. What this program is",
     paragraphs: [
-      "WorkBench is scheduling and invoicing software used by home-service businesses (plumbers, electricians, HVAC, landscapers, cleaners, and similar). When a business you hired uses WorkBench, it can send you text messages about your work through the WorkBench notification number. Every message names WorkBench and the business it is from.",
-      "Messages are transactional: an appointment reminder the day before and shortly before a visit, a link to view a quote the business prepared for you, a link to view and pay an invoice, and a notice if an appointment is rescheduled. WorkBench does not send marketing or promotional texts through this program.",
+      "WorkBench is scheduling and invoicing software used by home-service businesses (plumbers, electricians, HVAC, landscapers, cleaners, and similar). When a business you hired uses WorkBench, it can send you text messages about your work from that business’s own phone number. Every message names the business it is from.",
+      "Messages are transactional: an appointment reminder the day before and shortly before a visit, a link to view a quote the business prepared for you, a link to view and pay an invoice, and a notice if an appointment is rescheduled. Businesses do not send marketing or promotional texts through this program.",
     ],
   },
   {
@@ -40,7 +41,7 @@ const sections: { heading: string; paragraphs: (string | React.ReactNode)[] }[] 
   {
     heading: "4. How to stop",
     paragraphs: [
-      "Reply STOP to any message and you will not receive further automated texts from any business through WorkBench. You will get one final confirmation that you have been unsubscribed. To start again, reply START, or tick the text box the next time you book.",
+      "Reply STOP to any message and you will not receive further automated texts from that business. You will get one final confirmation that you have been unsubscribed. To start again, reply START, or tick the text box the next time you book.",
       "Reply HELP for help at any time, or email contact@workbenchfsm.com.",
     ],
   },

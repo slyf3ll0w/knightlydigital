@@ -29,7 +29,17 @@
  */
 
 import type { LineRegistrationStatus, MessagingRegistration, Prisma } from "@prisma/client";
-import { VERTICALS, type BrandEntityType, type LineSummary, type RegistrationForm } from "@/lib/business-line-shared";
+import {
+  TOLL_FREE_USE_CASES,
+  TOLL_FREE_VOLUMES,
+  VERTICALS,
+  type BrandEntityType,
+  type LineSummary,
+  type LineType,
+  type RegistrationForm,
+  type RegistrationKind,
+} from "@/lib/business-line-shared";
+import { stateName } from "@/lib/us-states";
 
 import { prisma } from "@/lib/db";
 import { hasAddon } from "@/lib/addon";
@@ -38,26 +48,35 @@ import {
   assignNumberToCampaign,
   createBrand,
   createCampaign,
+  createTollFreeVerification,
   findOwnedNumber,
   getBrand,
   getCampaign,
   getNumberCampaign,
   getNumberOrder,
+  getTollFreeVerification,
+  isTollFreeNumber,
+  listTollFreeVerifications,
   messagingProfileId,
   orderNumber,
   releaseNumber,
   searchLocalNumbers,
+  searchTollFreeNumbers,
   setCallForwarding,
   setNumberMessagingProfile,
   telnyxConfigured,
+  tollFreeStatusReason,
   triggerBrandOtp,
   unassignNumberFromCampaign,
+  updateTollFreeVerification,
   verifyBrandOtp,
   TelnyxError,
+  type TollFreeVerification,
+  type TollFreeVerificationInput,
 } from "@/lib/telnyx";
 
-export { VERTICALS };
-export type { BrandEntityType, LineSummary, RegistrationForm };
+export { VERTICALS, TOLL_FREE_USE_CASES, TOLL_FREE_VOLUMES };
+export type { BrandEntityType, LineSummary, LineType, RegistrationForm, RegistrationKind };
 
 export class LineError extends Error {
   status: number;
@@ -79,6 +98,31 @@ export const isRealLineNumber = (n: string | null | undefined): n is string =>
 
 const baseUrl = () => (process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com").replace(/\/+$/, "");
 const tenDlcWebhookUrl = () => `${baseUrl()}/api/public/webhooks/telnyx/10dlc`;
+const tollFreeWebhookUrl = () => `${baseUrl()}/api/public/webhooks/telnyx/tollfree`;
+
+/** Public evidence of how consent is collected — cited in every toll-free verification. */
+const OPT_IN_IMAGE_URL = "https://workbenchfsm.com/sms-opt-in.png";
+
+/* ───────────────────────── Toll-free: pure state derivation ───────────────────────── */
+
+/**
+ * Toll-free verification is one object with one status, so the mapping is
+ * flat. "Waiting For Customer" is surfaced as REJECTED-with-reason: the
+ * reviewer wants something changed, and "Edit and resubmit" is the only
+ * sensible next step (it PATCHes the same request).
+ */
+export function deriveTollFree(status: string | null | undefined, reason?: string | null): Derived {
+  switch (status) {
+    case "Verified":
+      return { status: "ACTIVE", reason: null, next: null };
+    case "Rejected":
+      return { status: "REJECTED", reason: reason || "The toll-free verification was rejected. Check the business details and resubmit.", next: null };
+    case "Waiting For Customer":
+      return { status: "REJECTED", reason: reason || "The reviewer needs more information — edit the details below and resubmit.", next: null };
+    default:
+      return { status: "CAMPAIGN_PENDING", reason: null, next: null };
+  }
+}
 
 /* ───────────────────────── Pure state derivation ───────────────────────── */
 
@@ -176,11 +220,12 @@ export function normalizeAreaCode(raw: string | null | undefined): string | null
 
 export async function provisionLine(
   companyId: string,
-  opts: { areaCode: string; forwardTo?: string | null }
+  opts: { type?: LineType | null; areaCode?: string | null; forwardTo?: string | null }
 ): Promise<{ number: string }> {
   if (!lineEnabled()) throw new LineError("Phone lines aren't available on this server yet.", 503);
-  const areaCode = normalizeAreaCode(opts.areaCode);
-  if (!areaCode) throw new LineError("Enter a three-digit area code.");
+  const type: LineType = opts.type === "toll_free" ? "toll_free" : "local";
+  const areaCode = type === "local" ? normalizeAreaCode(opts.areaCode) : null;
+  if (type === "local" && !areaCode) throw new LineError("Enter a three-digit area code.");
   const forwardTo = opts.forwardTo ? toE164(opts.forwardTo) : null;
   if (opts.forwardTo && !forwardTo) throw new LineError("Enter a valid phone number to forward calls to.");
 
@@ -202,9 +247,13 @@ export async function provisionLine(
   if (claimed.count === 0) throw new LineError("A number is already being set up — give it a moment.", 409);
 
   try {
-    const candidates = await searchLocalNumbers(areaCode, 10);
+    const candidates = type === "toll_free" ? await searchTollFreeNumbers(10) : await searchLocalNumbers(areaCode!, 10);
     if (candidates.length === 0) {
-      throw new LineError(`No numbers are available in area code ${areaCode} right now — try a nearby one.`);
+      throw new LineError(
+        type === "toll_free"
+          ? "No toll-free numbers are available right now — try again in a few minutes."
+          : `No numbers are available in area code ${areaCode} right now — try a nearby one.`
+      );
     }
 
     let number: string | null = null;
@@ -230,7 +279,12 @@ export async function provisionLine(
     }
     if (!number) {
       const detail = lastErr instanceof TelnyxError ? lastErr.detail : "";
-      throw new LineError(`Couldn't buy a number in ${areaCode}${detail ? ` (${detail})` : ""}. Try again or pick another area code.`, 502);
+      throw new LineError(
+        type === "toll_free"
+          ? `Couldn't buy a toll-free number${detail ? ` (${detail})` : ""}. Try again in a few minutes.`
+          : `Couldn't buy a number in ${areaCode}${detail ? ` (${detail})` : ""}. Try again or pick another area code.`,
+        502
+      );
     }
 
     // The phone_numbers record appears shortly after the order succeeds.
@@ -259,11 +313,12 @@ export async function provisionLine(
       data: {
         lineNumber: number,
         lineNumberId: record?.id ?? null,
+        lineType: type,
         lineForwardTo: record && forwardTo ? forwardTo : null,
         lineProvisionedAt: new Date(),
       },
     });
-    console.warn(`[line] provisioned ${number} for "${company.name}" (${companyId})`);
+    console.warn(`[line] provisioned ${type} ${number} for "${company.name}" (${companyId})`);
     return { number };
   } catch (err) {
     await prisma.company.updateMany({ where: { id: companyId, lineNumber: claim }, data: { lineNumber: null } });
@@ -272,6 +327,50 @@ export async function provisionLine(
     console.error("[line] provision failed:", err);
     throw new LineError(`Telnyx couldn't complete that: ${detail}`, 502);
   }
+}
+
+/**
+ * Superadmin: hand a company a number the Telnyx account already owns (a
+ * toll-free bought by hand, a ported number) instead of buying a new one.
+ * Same end state as provisionLine; the registration path follows from the
+ * number's prefix.
+ */
+export async function attachExistingNumber(companyId: string, phoneNumber: string): Promise<{ number: string; type: LineType }> {
+  if (!lineEnabled()) throw new LineError("Telnyx isn't configured on this server.", 503);
+  const e164 = toE164(phoneNumber);
+  if (!e164) throw new LineError("Enter the number in a dialable form, e.g. +1 833 555 0100.");
+  const company = await prisma.company.findUnique({
+    where: { id: companyId },
+    select: { id: true, name: true, lineNumber: true },
+  });
+  if (!company) throw new LineError("Company not found.", 404);
+  if (isRealLineNumber(company.lineNumber)) throw new LineError("This company already has a number — release it first.", 409);
+  const taken = await prisma.company.findUnique({ where: { lineNumber: e164 }, select: { name: true } });
+  if (taken) throw new LineError(`${e164} is already attached to "${taken.name}".`, 409);
+
+  let record;
+  try {
+    record = await findOwnedNumber(e164);
+  } catch (err) {
+    const detail = err instanceof TelnyxError ? err.detail : "unknown error";
+    throw new LineError(`Telnyx lookup failed: ${detail}`, 502);
+  }
+  if (!record) throw new LineError(`${e164} isn't on the Telnyx account. Buy or port it there first.`, 404);
+  if (record.messaging_profile_id !== messagingProfileId()) {
+    try {
+      await setNumberMessagingProfile(record.id);
+    } catch (err) {
+      const detail = err instanceof TelnyxError ? err.detail : "unknown error";
+      throw new LineError(`Couldn't put the number on the WorkBench messaging profile: ${detail}`, 502);
+    }
+  }
+  const type: LineType = isTollFreeNumber(e164) ? "toll_free" : "local";
+  await prisma.company.update({
+    where: { id: companyId },
+    data: { lineNumber: e164, lineNumberId: record.id, lineType: type, lineProvisionedAt: new Date() },
+  });
+  console.warn(`[line] attached existing ${type} ${e164} to "${company.name}" (${companyId})`);
+  return { number: e164, type };
 }
 
 /** Resolve the Telnyx number id when the order settled after we saved the row. */
@@ -308,9 +407,14 @@ export async function setLineForwarding(companyId: string, forwardTo: string | n
 
 const str = (v: unknown, max = 200) => (typeof v === "string" ? v.trim().slice(0, max) : "");
 
-/** Validate + normalize the form; throws LineError with the first problem. */
-export function sanitizeRegistrationForm(raw: Record<string, unknown>): RegistrationForm {
-  const entityType = raw.entityType === "SOLE_PROPRIETOR" ? "SOLE_PROPRIETOR" : "PRIVATE_PROFIT";
+/**
+ * Validate + normalize the form; throws LineError with the first problem.
+ * TOLL_FREE tightens two things the aggregator insists on: a website and an
+ * EIN (required since January 2026), and adds the volume/use-case pickers.
+ */
+export function sanitizeRegistrationForm(raw: Record<string, unknown>, kind: RegistrationKind = "10DLC"): RegistrationForm {
+  const tollFree = kind === "TOLL_FREE";
+  const entityType = raw.entityType === "SOLE_PROPRIETOR" && !tollFree ? "SOLE_PROPRIETOR" : "PRIVATE_PROFIT";
   const legalName = str(raw.legalName, 120);
   if (legalName.length < 2) throw new LineError("Enter the legal business name.");
   const displayName = str(raw.displayName, 120) || legalName;
@@ -318,6 +422,12 @@ export function sanitizeRegistrationForm(raw: Record<string, unknown>): Registra
   if (entityType === "PRIVATE_PROFIT") {
     ein = str(raw.ein, 20).replace(/\D/g, "");
     if (ein.length !== 9) throw new LineError("Enter the 9-digit EIN (XX-XXXXXXX).");
+  }
+  let messageVolume: string | null = null;
+  let useCase: string | null = null;
+  if (tollFree) {
+    messageVolume = TOLL_FREE_VOLUMES.some(([v]) => v === raw.messageVolume) ? String(raw.messageVolume) : "1,000";
+    useCase = TOLL_FREE_USE_CASES.some(([v]) => v === raw.useCase) ? String(raw.useCase) : "Appointments";
   }
   const street = str(raw.street, 120);
   const city = str(raw.city, 80);
@@ -329,11 +439,12 @@ export function sanitizeRegistrationForm(raw: Record<string, unknown>): Registra
   if (/\bp\.?\s*o\.?\s*box\b/i.test(street)) throw new LineError("The carrier registry doesn't accept PO boxes — use a street address.");
   let website = str(raw.website, 200);
   if (website && !/^https?:\/\//i.test(website)) website = `https://${website}`;
+  if (tollFree && !website) throw new LineError("Toll-free verification requires a business website (or a public social page).");
   if (website) {
     try {
       new URL(website);
     } catch {
-      throw new LineError("Enter a valid website address, or leave it blank.");
+      throw new LineError(tollFree ? "Enter a valid website address." : "Enter a valid website address, or leave it blank.");
     }
   }
   const vertical = VERTICALS.some(([v]) => v === raw.vertical) ? String(raw.vertical) : "";
@@ -360,6 +471,8 @@ export function sanitizeRegistrationForm(raw: Record<string, unknown>): Registra
     contactLastName,
     contactEmail,
     contactPhone,
+    messageVolume,
+    useCase,
   };
 }
 
@@ -405,13 +518,28 @@ export async function submitRegistration(companyId: string, form: RegistrationFo
   if (!lineEnabled()) throw new LineError("Phone lines aren't available on this server yet.", 503);
   const company = await prisma.company.findUnique({
     where: { id: companyId },
-    select: { id: true, name: true, addonActiveAt: true, lineNumber: true, messagingRegistration: { select: { id: true, status: true } } },
+    select: {
+      id: true,
+      name: true,
+      addonActiveAt: true,
+      lineNumber: true,
+      lineType: true,
+      messagingRegistration: { select: { id: true, status: true, kind: true, verificationId: true } },
+    },
   });
   if (!company) throw new LineError("Company not found.", 404);
   if (!hasAddon(company)) throw new LineError("Texting registration is part of Workbench Plus.", 402);
   if (!isRealLineNumber(company.lineNumber)) throw new LineError("Get a number before registering it for texting.", 409);
   if (company.messagingRegistration && company.messagingRegistration.status !== "REJECTED") {
     throw new LineError("A registration is already in progress.", 409);
+  }
+
+  if (lineKind(company) === "TOLL_FREE") {
+    return submitTollFreeVerification(
+      { id: company.id, name: company.name, lineNumber: company.lineNumber },
+      form,
+      company.messagingRegistration?.kind === "TOLL_FREE" ? company.messagingRegistration.verificationId : null
+    );
   }
 
   let brand;
@@ -443,6 +571,11 @@ export async function submitRegistration(companyId: string, form: RegistrationFo
   const data: Prisma.MessagingRegistrationUncheckedCreateInput = {
     companyId,
     status: "BRAND_PENDING",
+    kind: "10DLC",
+    verificationId: null,
+    verificationStatus: null,
+    messageVolume: null,
+    useCase: null,
     entityType: form.entityType,
     legalName: form.legalName,
     displayName: form.displayName || form.legalName,
@@ -491,11 +624,190 @@ export async function submitRegistration(companyId: string, form: RegistrationFo
   });
 }
 
+/** Which registration path a company's number takes. Falls back to the prefix for rows attached before lineType existed. */
+function lineKind(c: { lineNumber: string | null; lineType: string | null }): RegistrationKind {
+  if (c.lineType === "toll_free") return "TOLL_FREE";
+  if (c.lineType === "local") return "10DLC";
+  return c.lineNumber && isTollFreeNumber(c.lineNumber) ? "TOLL_FREE" : "10DLC";
+}
+
+/** The verification request body for a company, from its stored form. */
+function tollFreeInput(number: string, form: RegistrationForm): TollFreeVerificationInput {
+  const business = form.displayName || form.legalName;
+  const copy = campaignCopy(business, form.website ?? null);
+  return {
+    phoneNumber: number,
+    businessName: form.legalName,
+    doingBusinessAs: form.displayName && form.displayName !== form.legalName ? form.displayName : null,
+    entityType: form.entityType,
+    ein: form.ein,
+    addr1: form.street,
+    city: form.city,
+    state: stateName(form.state),
+    zip: form.postalCode,
+    website: form.website ?? "",
+    contactFirstName: form.contactFirstName,
+    contactLastName: form.contactLastName,
+    contactEmail: form.contactEmail,
+    contactPhone: form.contactPhone,
+    messageVolume: form.messageVolume ?? "1,000",
+    useCase: form.useCase ?? "Appointments",
+    useCaseSummary: copy.description,
+    productionMessageContent: copy.samples[0],
+    optInWorkflow: copy.messageFlow,
+    optInImageUrls: [OPT_IN_IMAGE_URL, copy.termsAndConditionsLink],
+    additionalInformation:
+      `Submitted by WorkBench (workbenchfsm.com, Streamflaire Group LLC) on behalf of ${form.legalName}, which is the sole sender on this number. ` +
+      "Traffic is transactional: appointment reminders, schedule changes, quote and invoice links, and replies to the customer's own messages. " +
+      "No marketing. STOP/HELP handled at the Telnyx edge and mirrored in the application.",
+    privacyPolicyURL: copy.privacyPolicyLink,
+    termsAndConditionURL: copy.termsAndConditionsLink,
+    webhookUrl: tollFreeWebhookUrl(),
+  };
+}
+
+/**
+ * Toll-free path: one verification request. Reuses an existing request when
+ * Telnyx already holds one for this number (a "Waiting For Customer" request
+ * is updated in place — that is what the reviewer asked for; a verified one
+ * is simply adopted), and files a fresh one otherwise.
+ */
+async function submitTollFreeVerification(
+  company: { id: string; name: string; lineNumber: string | null },
+  form: RegistrationForm,
+  knownVerificationId: string | null
+): Promise<MessagingRegistration> {
+  const number = company.lineNumber as string;
+  const input = tollFreeInput(number, form);
+
+  let existing: TollFreeVerification | null = null;
+  try {
+    if (knownVerificationId) {
+      existing = await getTollFreeVerification(knownVerificationId);
+    } else {
+      const prior = await listTollFreeVerifications(number);
+      existing =
+        prior.find((p) => p.verificationStatus === "Verified") ??
+        prior.find((p) => p.verificationStatus && p.verificationStatus !== "Rejected") ??
+        null;
+    }
+  } catch (err) {
+    console.error("[line] toll-free lookup failed (filing fresh):", err);
+  }
+
+  let request: TollFreeVerification;
+  const existingId = existing?.id ?? existing?.verificationRequestId ?? null;
+  try {
+    if (existing && existingId && existing.verificationStatus === "Verified") {
+      request = existing;
+    } else if (existing && existingId && existing.verificationStatus === "Waiting For Customer") {
+      request = await updateTollFreeVerification(existingId, input);
+    } else if (existing && existingId && existing.verificationStatus && existing.verificationStatus !== "Rejected") {
+      request = existing; // already in review under this number — don't file a duplicate
+    } else {
+      request = await createTollFreeVerification(input);
+    }
+  } catch (err) {
+    const detail = err instanceof TelnyxError ? err.detail : "unknown error";
+    throw new LineError(`Telnyx rejected the verification submission: ${detail}`, 502);
+  }
+  const verificationId = request.id ?? request.verificationRequestId ?? existingId;
+  if (!verificationId) throw new LineError("Telnyx accepted the request but returned no id — contact support.", 502);
+
+  const d = deriveTollFree(request.verificationStatus);
+  const data: Prisma.MessagingRegistrationUncheckedCreateInput = {
+    companyId: company.id,
+    status: d.status,
+    kind: "TOLL_FREE",
+    verificationId,
+    verificationStatus: request.verificationStatus ?? null,
+    messageVolume: input.messageVolume,
+    useCase: input.useCase,
+    entityType: form.entityType,
+    legalName: form.legalName,
+    displayName: form.displayName || form.legalName,
+    ein: form.ein,
+    street: form.street,
+    city: form.city,
+    state: form.state,
+    postalCode: form.postalCode,
+    website: form.website,
+    vertical: form.vertical,
+    contactFirstName: form.contactFirstName,
+    contactLastName: form.contactLastName,
+    contactEmail: form.contactEmail,
+    contactPhone: form.contactPhone,
+    brandId: null,
+    tcrBrandId: null,
+    brandStatus: null,
+    campaignId: null,
+    tcrCampaignId: null,
+    campaignStatus: null,
+    assignmentStatus: null,
+    rejectionReason: d.reason,
+    submittedAt: new Date(),
+    approvedAt: d.status === "ACTIVE" ? new Date() : null,
+    lastCheckedAt: new Date(),
+  };
+  console.warn(`[line] toll-free verification ${verificationId} (${request.verificationStatus ?? "?"}) for "${company.name}" (${company.id})`);
+  return prisma.messagingRegistration.upsert({
+    where: { companyId: company.id },
+    create: data,
+    update: { ...data, companyId: undefined },
+  });
+}
+
+async function advanceTollFree(reg: RegWithCompany): Promise<MessagingRegistration> {
+  if (!reg.verificationId) throw new LineError("No verification request on file — resubmit.", 409);
+  let request: TollFreeVerification;
+  try {
+    request = await getTollFreeVerification(reg.verificationId);
+  } catch (err) {
+    await prisma.messagingRegistration.update({ where: { id: reg.id }, data: { lastCheckedAt: new Date() } });
+    const detail = err instanceof TelnyxError ? err.detail : "unknown error";
+    throw new LineError(`Telnyx check failed: ${detail}`, 502);
+  }
+  const status = request.verificationStatus ?? null;
+  const reason =
+    status === "Rejected" || status === "Waiting For Customer" ? await tollFreeStatusReason(reg.verificationId) : null;
+  const d = deriveTollFree(status, reason);
+  if (d.status !== reg.status) {
+    console.warn(`[line] "${reg.company.name}" toll-free: ${reg.status} → ${d.status}${d.reason ? ` (${d.reason})` : ""}`);
+  }
+  return prisma.messagingRegistration.update({
+    where: { id: reg.id },
+    data: {
+      status: d.status,
+      verificationStatus: status,
+      rejectionReason: d.reason,
+      approvedAt: d.status === "ACTIVE" ? reg.approvedAt ?? new Date() : reg.approvedAt,
+      lastCheckedAt: new Date(),
+    },
+  });
+}
+
+/** Toll-free webhook: any ping naming a verification request we hold triggers a re-read. */
+export async function refreshByVerificationId(verificationId: string): Promise<boolean> {
+  const reg = await prisma.messagingRegistration.findFirst({
+    where: { verificationId },
+    select: { companyId: true, lastCheckedAt: true, status: true },
+  });
+  if (!reg) return false;
+  if (reg.status === "ACTIVE") return true;
+  if (reg.lastCheckedAt && Date.now() - reg.lastCheckedAt.getTime() < 30_000) return true;
+  try {
+    await refreshRegistration(reg.companyId, { includeRejected: true });
+  } catch (err) {
+    console.error("[line] toll-free webhook refresh failed:", err);
+  }
+  return true;
+}
+
 /** Sole proprietor: the owner types the PIN Telnyx texted them. */
 export async function verifyRegistrationOtp(companyId: string, pin: string): Promise<MessagingRegistration> {
   const reg = await loadRegistration(companyId);
   if (!reg?.brandId) throw new LineError("No registration to verify.", 404);
-  if (reg.entityType !== "SOLE_PROPRIETOR" || reg.status !== "BRAND_PENDING") {
+  if (reg.kind !== "10DLC" || reg.entityType !== "SOLE_PROPRIETOR" || reg.status !== "BRAND_PENDING") {
     throw new LineError("This registration isn't waiting on a PIN.", 409);
   }
   const clean = pin.replace(/\D/g, "");
@@ -535,10 +847,17 @@ async function loadRegistration(companyId: string): Promise<RegWithCompany | nul
  * prerequisites just became true. Safe to call any time; terminal states
  * return immediately.
  */
-export async function refreshRegistration(companyId: string): Promise<MessagingRegistration> {
+export async function refreshRegistration(
+  companyId: string,
+  opts: { includeRejected?: boolean } = {}
+): Promise<MessagingRegistration> {
   const reg = await loadRegistration(companyId);
   if (!reg) throw new LineError("No registration on file.", 404);
-  if (reg.status === "ACTIVE" || reg.status === "REJECTED") return reg;
+  if (reg.status === "ACTIVE") return reg;
+  // A toll-free "REJECTED" may really be "Waiting For Customer", which the
+  // reviewer can flip back to In Progress on their own — worth re-reading.
+  if (reg.status === "REJECTED" && !(opts.includeRejected && reg.kind === "TOLL_FREE")) return reg;
+  if (reg.kind === "TOLL_FREE") return advanceTollFree(reg);
   return advance(reg);
 }
 
@@ -735,6 +1054,7 @@ export async function lineSummary(
       website: true,
       addonActiveAt: true,
       lineNumber: true,
+      lineType: true,
       lineForwardTo: true,
       lineProvisionedAt: true,
       messagingRegistration: true,
@@ -748,16 +1068,19 @@ export async function lineSummary(
     enabled: lineEnabled(),
     entitled: hasAddon(c),
     number,
+    type: number ? (lineKind(c) === "TOLL_FREE" ? "toll_free" : "local") : null,
     forwardTo: c.lineForwardTo,
     provisionedAt: c.lineProvisionedAt?.toISOString() ?? null,
     smsReady: Boolean(number && reg?.status === "ACTIVE"),
     registration: reg
       ? {
           status: reg.status,
+          kind: reg.kind === "TOLL_FREE" ? "TOLL_FREE" : "10DLC",
           entityType: reg.entityType,
           brandStatus: reg.brandStatus,
           campaignStatus: reg.campaignStatus,
           assignmentStatus: reg.assignmentStatus,
+          verificationStatus: reg.verificationStatus,
           rejectionReason: reg.rejectionReason,
           submittedAt: reg.submittedAt.toISOString(),
           approvedAt: reg.approvedAt?.toISOString() ?? null,
@@ -777,6 +1100,8 @@ export async function lineSummary(
             contactLastName: reg.contactLastName,
             contactEmail: reg.contactEmail,
             contactPhone: reg.contactPhone,
+            messageVolume: reg.messageVolume,
+            useCase: reg.useCase,
           },
         }
       : null,

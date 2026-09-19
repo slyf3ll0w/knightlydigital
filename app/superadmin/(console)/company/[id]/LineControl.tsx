@@ -22,11 +22,13 @@ export function LineControl({
   provisionedAt: string | null;
   registration: {
     status: string;
+    kind: string;
     entityType: string;
     legalName: string;
     brandStatus: string | null;
     campaignStatus: string | null;
     assignmentStatus: string | null;
+    verificationStatus: string | null;
     rejectionReason: string | null;
     submittedAt: string;
     approvedAt: string | null;
@@ -36,17 +38,16 @@ export function LineControl({
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [attach, setAttach] = useState("");
 
-  async function release() {
-    if (!number) return;
-    if (!window.confirm(`Release ${number}? The number goes back to Telnyx and the texting registration is deleted. This cannot be undone.`)) return;
+  async function send(payload: Record<string, unknown>) {
     setBusy(true);
     setError(null);
     try {
       const res = await fetch(`/api/superadmin/companies/${companyId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "line-release" }),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -59,6 +60,12 @@ export function LineControl({
     } finally {
       setBusy(false);
     }
+  }
+
+  async function release() {
+    if (!number) return;
+    if (!window.confirm(`Release ${number}? The number goes back to Telnyx and the texting registration is deleted. This cannot be undone.`)) return;
+    await send({ action: "line-release" });
   }
 
   const fmt = (iso: string | null) =>
@@ -76,7 +83,30 @@ export function LineControl({
     <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
       <h2 className="text-sm font-bold text-gray-700">Business line (Telnyx)</h2>
       {!number ? (
-        <p className="mt-2 text-xs text-gray-500">No number provisioned.</p>
+        <div className="mt-2 space-y-2">
+          <p className="text-xs text-gray-500">
+            No number provisioned. The company buys one from Settings → Features, or attach a number the
+            Telnyx account already owns (a toll-free bought by hand, a ported number):
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              value={attach}
+              onChange={(e) => setAttach(e.target.value)}
+              placeholder="+1 833 555 0100"
+              inputMode="tel"
+              className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-mono text-gray-900 focus:border-gray-900 focus:outline-none"
+            />
+            <button
+              type="button"
+              onClick={() => send({ action: "line-attach", phoneNumber: attach })}
+              disabled={busy || attach.replace(/\D/g, "").length < 10}
+              className="rounded-lg bg-gray-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-gray-800 disabled:opacity-50"
+            >
+              Attach number
+            </button>
+            {error && <span className="text-xs text-red-600">{error}</span>}
+          </div>
+        </div>
       ) : (
         <>
           <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs">
@@ -96,12 +126,22 @@ export function LineControl({
               <>
                 <dt className="text-gray-500">Registered as</dt>
                 <dd className="text-gray-800">
-                  {registration.legalName} · {registration.entityType === "SOLE_PROPRIETOR" ? "sole prop" : "EIN"}
+                  {registration.legalName} · {registration.entityType === "SOLE_PROPRIETOR" ? "sole prop" : "EIN"} ·{" "}
+                  {registration.kind === "TOLL_FREE" ? "toll-free verification" : "10DLC"}
                 </dd>
-                <dt className="text-gray-500">Brand / campaign / number</dt>
-                <dd className="font-mono text-gray-800">
-                  {registration.brandStatus ?? "—"} / {registration.campaignStatus ?? "—"} / {registration.assignmentStatus ?? "—"}
-                </dd>
+                {registration.kind === "TOLL_FREE" ? (
+                  <>
+                    <dt className="text-gray-500">Telnyx verification</dt>
+                    <dd className="font-mono text-gray-800">{registration.verificationStatus ?? "—"}</dd>
+                  </>
+                ) : (
+                  <>
+                    <dt className="text-gray-500">Brand / campaign / number</dt>
+                    <dd className="font-mono text-gray-800">
+                      {registration.brandStatus ?? "—"} / {registration.campaignStatus ?? "—"} / {registration.assignmentStatus ?? "—"}
+                    </dd>
+                  </>
+                )}
                 <dt className="text-gray-500">Submitted · checked · approved</dt>
                 <dd className="text-gray-800">
                   {fmt(registration.submittedAt)} · {fmt(registration.lastCheckedAt)} · {fmt(registration.approvedAt)}
