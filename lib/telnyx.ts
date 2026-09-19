@@ -330,10 +330,11 @@ export async function createOutboundVoiceProfile(name: string): Promise<{ id: st
   const out = await call<{ data?: { id?: string } }>("POST", "/outbound_voice_profiles", {
     name,
     traffic_type: "conversational",
-    service_plan: "us",
+    service_plan: "global", // the only combination Telnyx accepts today: conversational + global + rate-deck
     usage_payment_method: "rate-deck",
     whitelisted_destinations: ["US", "CA"],
-    concurrent_call_limit: 50,
+    // No concurrent_call_limit: a level-1 Telnyx account rejects anything above
+    // its own cap; the account default applies.
   });
   if (!out.data?.id) throw new TelnyxError(502, "No outbound voice profile id returned");
   return { id: out.data.id };
@@ -349,8 +350,8 @@ export async function createCallControlApp(name: string, webhookUrl: string, out
     first_command_timeout: true,
     first_command_timeout_secs: 20,
     dtmf_type: "RFC 2833",
-    inbound: { channel_limit: 50, shaken_stir_enabled: true },
-    outbound: { channel_limit: 50, outbound_voice_profile_id: outboundProfileId },
+    inbound: { shaken_stir_enabled: true },
+    outbound: { outbound_voice_profile_id: outboundProfileId },
   });
   if (!out.data?.id) throw new TelnyxError(502, "No call control application id returned");
   return { id: out.data.id };
