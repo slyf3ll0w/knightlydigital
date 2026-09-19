@@ -33,6 +33,24 @@ export function defaultVoicemailGreeting(businessName: string): string {
   return `You've reached ${businessName}. We can't take your call right now. Please leave your name, number and a short message after the tone, and we'll call you back.`;
 }
 
+/**
+ * The caller-ID name a business name boils down to: CNAM allows 15 uppercase
+ * alphanumerics/spaces, so "Streamflaire Group, LLC" → "STREAMFLAIRE GRO".
+ * Punctuation is dropped, whitespace collapsed; a trailing partial word is
+ * kept (the cut is the carrier's rule, not ours).
+ */
+export const CALLER_ID_MAX = 15;
+export function defaultCallerIdName(businessName: string): string {
+  return businessName
+    .toUpperCase()
+    .replace(/&/g, " AND ")
+    .replace(/[^A-Z0-9 ]+/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, CALLER_ID_MAX)
+    .trim();
+}
+
 /** What a business line can do on the phone side right now. */
 export type VoiceSummary = {
   /** TELNYX_VOICE_APP_ID is set on this server. */
@@ -42,6 +60,9 @@ export type VoiceSummary = {
   /** Custom greeting, or null for the default. */
   greeting: string | null;
   defaultGreeting: string;
+  /** CNAM listing on the number (outbound caller-ID name); null = none. */
+  callerIdName: string | null;
+  defaultCallerIdName: string;
   /** The signed-in user has a cell on file to place calls from (Settings → My Profile). */
   canCall: boolean;
 };

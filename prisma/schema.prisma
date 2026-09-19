@@ -178,6 +178,11 @@ model Company {
   lineVoiceAppAt            DateTime?
   // Custom voicemail greeting read by TTS; null = the generated default.
   lineVoicemailGreeting     String?
+  // Outbound caller-ID name (CNAM listing on the number at Telnyx): ≤15
+  // uppercase alphanumerics/spaces, e.g. "STREAMFLAIRE". Set from the company
+  // name when a number is provisioned/attached; editable in Settings. Null =
+  // no listing (Telnyx refused it, or it was cleared).
+  lineCallerIdName          String?
   // Platform suspension (superadmin-only): set → the tenant app and public
   // booking/leads/payments are disabled, data stays intact until support
   // reinstates. Deletion is separate and permanent.

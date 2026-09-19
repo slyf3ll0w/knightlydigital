@@ -340,6 +340,12 @@ free `sms:`/`tel:` deep links (`lib/messaging.ts`) stay free and untouched.
   provision/attach, `ensureVoiceRouting` when the tenant saves the
   ring-through number or superadmin runs **line-voice-sync**. Unset env var =
   plain forwarding, exactly as before.
+- **Caller ID name** (`Company.lineCallerIdName`, `setCnamListing` in
+  `lib/telnyx.ts`): a CNAM listing on the number — ≤15 uppercase
+  alphanumerics/spaces (`defaultCallerIdName`), applied from the company name
+  at provision/attach (best effort — Telnyx may decline, e.g. toll-free) and
+  editable in the Settings card (`PATCH /api/app/line { callerIdName }`).
+  Carriers look it up on their side: days to propagate, mobiles uneven.
 - **Not built yet**: softphone / WebRTC in the app (tier 2), native ringing
   with the app closed (tier 3), voicemail transcription, missed-call
   text-back, business-hours routing, port-in, E911 (needed only for tier 2).

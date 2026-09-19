@@ -218,6 +218,18 @@ export async function setCallForwarding(numberId: string, forwardsTo: string | n
   });
 }
 
+/**
+ * Outbound caller-ID name (CNAM listing): what a called party's carrier shows
+ * next to the number, when it does a lookup. Alphanumerics + spaces, ≤15.
+ * Null switches the listing off. Propagation to the CNAM databases takes
+ * days; carriers (and toll-free numbers) honour it unevenly.
+ */
+export async function setCnamListing(numberId: string, name: string | null): Promise<void> {
+  await call("PATCH", `/phone_numbers/${numberId}/voice`, {
+    cnam_listing: name ? { cnam_listing_enabled: true, cnam_listing_details: name } : { cnam_listing_enabled: false },
+  });
+}
+
 export async function releaseNumber(numberId: string): Promise<void> {
   await call("DELETE", `/phone_numbers/${numberId}`);
 }

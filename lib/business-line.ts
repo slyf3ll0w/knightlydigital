@@ -37,6 +37,7 @@ import {
   TOLL_FREE_USE_CASES,
   TOLL_FREE_VOLUMES,
   VERTICALS,
+  defaultCallerIdName,
   defaultVoicemailGreeting,
   isRealLineNumber,
   type BrandEntityType,
@@ -71,6 +72,7 @@ import {
   searchLocalNumbers,
   searchTollFreeNumbers,
   setCallForwarding,
+  setCnamListing,
   setNumberMessagingProfile,
   telnyxConfigured,
   tollFreeStatusReason,
@@ -318,6 +320,8 @@ export async function provisionLine(
       }
     }
 
+    const callerIdName = record ? await tryCnam(record.id, company.name) : null;
+
     await prisma.company.update({
       where: { id: companyId },
       data: {
@@ -327,6 +331,7 @@ export async function provisionLine(
         lineForwardTo: record && forwardTo ? forwardTo : null,
         lineProvisionedAt: new Date(),
         lineVoiceAppAt: voiceRouted ? new Date() : null,
+        lineCallerIdName: callerIdName,
       },
     });
     console.warn(`[line] provisioned ${type} ${number} for "${company.name}" (${companyId})`);
@@ -382,6 +387,7 @@ export async function attachExistingNumber(companyId: string, phoneNumber: strin
   } catch (err) {
     console.error("[line] voice routing failed at attach:", err);
   }
+  const callerIdName = await tryCnam(record.id, company.name);
   await prisma.company.update({
     where: { id: companyId },
     data: {
@@ -390,6 +396,7 @@ export async function attachExistingNumber(companyId: string, phoneNumber: strin
       lineType: type,
       lineProvisionedAt: new Date(),
       lineVoiceAppAt: voiceRouted ? new Date() : null,
+      lineCallerIdName: callerIdName,
     },
   });
   console.warn(`[line] attached existing ${type} ${e164} to "${company.name}" (${companyId})`);
@@ -448,6 +455,45 @@ export async function setVoicemailGreeting(companyId: string, raw: unknown): Pro
   }
   await prisma.company.update({ where: { id: companyId }, data: { lineVoicemailGreeting: greeting } });
   return { greeting };
+}
+
+/** Best-effort CNAM listing from the company name at provision/attach; null when Telnyx declines (toll-free, say). */
+async function tryCnam(numberId: string, businessName: string): Promise<string | null> {
+  const name = defaultCallerIdName(businessName);
+  if (!name) return null;
+  try {
+    await setCnamListing(numberId, name);
+    return name;
+  } catch (err) {
+    console.warn(`[line] CNAM listing "${name}" declined at setup:`, err instanceof TelnyxError ? err.detail : err);
+    return null;
+  }
+}
+
+/** Validate the caller-ID name from the settings form; "" = switch the listing off. */
+export function sanitizeCallerIdName(raw: unknown): string | null {
+  const name = defaultCallerIdName(typeof raw === "string" ? raw : "");
+  if (typeof raw === "string" && raw.trim() && !name) throw new LineError("Use letters, numbers and spaces only.");
+  return name || null;
+}
+
+/** Settings: the outbound caller-ID name (CNAM listing) on the company's number. */
+export async function setCallerIdName(companyId: string, raw: unknown): Promise<{ callerIdName: string | null }> {
+  const company = await prisma.company.findUnique({
+    where: { id: companyId },
+    select: { id: true, lineNumber: true, lineNumberId: true },
+  });
+  if (!company) throw new LineError("Company not found.", 404);
+  const name = sanitizeCallerIdName(raw);
+  const numberId = await ensureNumberId(company);
+  try {
+    await setCnamListing(numberId, name);
+  } catch (err) {
+    const detail = err instanceof TelnyxError ? err.detail : "unknown error";
+    throw new LineError(`Telnyx wouldn’t set that caller ID name: ${detail}`, 502);
+  }
+  await prisma.company.update({ where: { id: companyId }, data: { lineCallerIdName: name } });
+  return { callerIdName: name };
 }
 
 /* ───────────────────────── Registration ───────────────────────── */
@@ -1149,7 +1195,7 @@ export async function releaseLine(companyId: string): Promise<void> {
     prisma.messagingRegistration.deleteMany({ where: { companyId } }),
     prisma.company.update({
       where: { id: companyId },
-      data: { lineNumber: null, lineNumberId: null, lineForwardTo: null, lineProvisionedAt: null, lineVoiceAppAt: null },
+      data: { lineNumber: null, lineNumberId: null, lineForwardTo: null, lineProvisionedAt: null, lineVoiceAppAt: null, lineCallerIdName: null },
     }),
   ]);
   console.warn(`[line] released ${company.lineNumber ?? "(no number)"} for "${company.name}" (${companyId})`);
@@ -1180,6 +1226,7 @@ export async function lineSummary(
       lineReleaseAt: true,
       lineVoiceAppAt: true,
       lineVoicemailGreeting: true,
+      lineCallerIdName: true,
       messagingRegistration: true,
     },
   });
@@ -1202,6 +1249,8 @@ export async function lineSummary(
       routed: Boolean(number && c.lineVoiceAppAt),
       greeting: c.lineVoicemailGreeting,
       defaultGreeting: defaultVoicemailGreeting(c.name),
+      callerIdName: c.lineCallerIdName,
+      defaultCallerIdName: defaultCallerIdName(c.name),
       canCall: Boolean(number && c.lineVoiceAppAt && (toE164(actorPhone) ?? c.lineForwardTo)),
     },
     releaseAt: number && !hasAddon(c) ? c.lineReleaseAt?.toISOString() ?? null : null,

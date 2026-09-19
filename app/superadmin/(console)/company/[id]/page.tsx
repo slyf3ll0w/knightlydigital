@@ -101,6 +101,7 @@ export default async function CompanyReport({
       lineProvisionedAt: true,
       lineReleaseAt: true,
       lineVoiceAppAt: true,
+      lineCallerIdName: true,
       messagingRegistration: {
         select: {
           status: true,
@@ -520,6 +521,7 @@ export default async function CompanyReport({
             releaseAt={company.lineReleaseAt?.toISOString() ?? null}
             voiceAppAt={company.lineVoiceAppAt?.toISOString() ?? null}
             voiceAvailable={Boolean(process.env.TELNYX_VOICE_APP_ID)}
+            callerIdName={company.lineCallerIdName}
             registration={
               company.messagingRegistration
                 ? {

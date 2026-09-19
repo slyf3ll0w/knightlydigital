@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { AlertTriangle, CheckCircle2, Loader2, Phone, RefreshCw } from "lucide-react";
 import {
+  CALLER_ID_MAX,
   TOLL_FREE_USE_CASES,
   TOLL_FREE_VOLUMES,
   VERTICALS,
@@ -82,6 +83,7 @@ export default function BusinessLineCard({ initial }: { initial: LineSummary }) 
         <>
           {line.releaseAt && <ReleaseNotice line={line} />}
           <NumberRow line={line} onDone={setLine} onError={setError} />
+          <CallerIdName line={line} onDone={setLine} onError={setError} />
           {line.voice.routed && <VoicemailGreeting line={line} onDone={setLine} onError={setError} />}
           <Texting line={line} onDone={setLine} onError={setError} />
         </>
@@ -314,6 +316,97 @@ function NumberRow({
           Save your ring-through number again to turn on call announcements, voicemail and calling from the app.
         </p>
       ) : null}
+    </div>
+  );
+}
+
+/* ───────────────────────── 2a. Caller ID name ───────────────────────── */
+
+function CallerIdName({
+  line,
+  onDone,
+  onError,
+}: {
+  line: LineSummary;
+  onDone: (l: LineSummary) => void;
+  onError: (e: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(line.voice.callerIdName ?? line.voice.defaultCallerIdName);
+  const [busy, setBusy] = useState(false);
+
+  async function save(next: string) {
+    setBusy(true);
+    onError("");
+    try {
+      await post("/api/app/line", { callerIdName: next }, "PATCH");
+      const fresh = await post<LineSummary>("/api/app/line", undefined, "GET");
+      onDone(fresh);
+      setName(fresh.voice.callerIdName ?? fresh.voice.defaultCallerIdName);
+      setEditing(false);
+    } catch (err) {
+      onError(err instanceof Error ? err.message : "Couldn’t save the caller ID name.");
+    }
+    setBusy(false);
+  }
+
+  return (
+    <div className="rounded-lg border border-gray-200 px-4 py-3">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <p className="text-sm font-medium text-gray-800">Caller ID name</p>
+        {!editing && (
+          <button type="button" onClick={() => setEditing(true)} className={ghostBtn}>
+            {line.voice.callerIdName ? "Change" : "Set it"}
+          </button>
+        )}
+      </div>
+      {editing ? (
+        <div className="mt-2 space-y-2">
+          <div className="flex flex-wrap items-end gap-2">
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value.toUpperCase().slice(0, CALLER_ID_MAX))}
+              maxLength={CALLER_ID_MAX}
+              className={`${inputCls} max-w-xs font-mono uppercase`}
+              placeholder={line.voice.defaultCallerIdName}
+            />
+            <button type="button" onClick={() => save(name)} disabled={busy || !name.trim()} className={primaryBtn}>
+              {busy && <Loader2 size={14} className="animate-spin" />}
+              Save
+            </button>
+            {line.voice.callerIdName && (
+              <button type="button" onClick={() => save("")} disabled={busy} className={ghostBtn}>
+                Turn off
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                setEditing(false);
+                setName(line.voice.callerIdName ?? line.voice.defaultCallerIdName);
+              }}
+              disabled={busy}
+              className={ghostBtn}
+            >
+              Cancel
+            </button>
+          </div>
+          <p className="text-xs text-gray-500">
+            Up to {CALLER_ID_MAX} letters, numbers and spaces. Carriers take a few days to pick it up, and some mobile
+            carriers only show it to people using a caller ID app.
+          </p>
+        </div>
+      ) : (
+        <p className="mt-1 text-sm text-gray-600">
+          {line.voice.callerIdName ? (
+            <>
+              Customers you call see <span className="font-mono">{line.voice.callerIdName}</span> next to your number, where their carrier shows names.
+            </>
+          ) : (
+            "Not set — customers you call see the number only."
+          )}
+        </p>
+      )}
     </div>
   );
 }

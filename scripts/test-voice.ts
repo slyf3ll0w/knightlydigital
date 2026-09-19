@@ -24,7 +24,7 @@ import {
   talkSeconds,
   whisperText,
 } from "../lib/voice";
-import { defaultVoicemailGreeting, isRealLineNumber } from "../lib/business-line-shared";
+import { defaultCallerIdName, defaultVoicemailGreeting, isRealLineNumber } from "../lib/business-line-shared";
 
 // ── client state ─────────────────────────────────────────────────────────────
 {
@@ -89,6 +89,14 @@ assert.equal(
 );
 assert.equal(staleCallPlan({ status: "VOICEMAIL", createdAt: ago(3_600_000), endedAt: ago(3_600_000), voicemailRecordingId: "rec" }, now), null);
 assert.equal(staleCallPlan({ status: "COMPLETED", createdAt: ago(3_600_000), endedAt: ago(3_600_000), voicemailRecordingId: null }, now), null);
+
+// ── caller ID name (CNAM: ≤15 uppercase alphanumerics/spaces) ────────────────
+assert.equal(defaultCallerIdName("Streamflaire"), "STREAMFLAIRE");
+assert.equal(defaultCallerIdName("Streamflaire Group, LLC"), "STREAMFLAIRE GR");
+assert.equal(defaultCallerIdName("Bob's  Plumbing & Heating"), "BOBS PLUMBING A");
+assert.equal(defaultCallerIdName("  A-1  Roofing  "), "A1 ROOFING");
+assert.equal(defaultCallerIdName("!!!"), "");
+assert.ok(defaultCallerIdName("x".repeat(40)).length <= 15);
 
 // ── small helpers ────────────────────────────────────────────────────────────
 assert.equal(talkSeconds(null, now), null);

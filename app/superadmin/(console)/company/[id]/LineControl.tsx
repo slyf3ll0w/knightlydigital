@@ -19,6 +19,7 @@ export function LineControl({
   releaseAt,
   voiceAppAt,
   voiceAvailable,
+  callerIdName,
   registration,
 }: {
   companyId: string;
@@ -31,6 +32,8 @@ export function LineControl({
   voiceAppAt: string | null;
   /** TELNYX_VOICE_APP_ID is set on this server. */
   voiceAvailable: boolean;
+  /** CNAM listing on the number; null = none. */
+  callerIdName: string | null;
   registration: {
     status: string;
     kind: string;
@@ -125,6 +128,8 @@ export function LineControl({
             <dd className="font-mono text-gray-800">{number}</dd>
             <dt className="text-gray-500">Calls ring</dt>
             <dd className="font-mono text-gray-800">{forwardTo ?? "nowhere (voicemail only)"}</dd>
+            <dt className="text-gray-500">Caller ID name</dt>
+            <dd className="font-mono text-gray-800">{callerIdName ?? "none"}</dd>
             <dt className="text-gray-500">Voice</dt>
             <dd className="text-gray-800">
               {voiceAppAt ? (
