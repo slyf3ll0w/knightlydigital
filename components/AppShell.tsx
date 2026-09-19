@@ -42,6 +42,7 @@ import {
   X,
   Check,
   Loader2,
+  PhoneCall,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import Avatar from "@/components/Avatar";
@@ -162,6 +163,7 @@ const navGroups: { label?: string; items: NavItem[] }[] = [
       { href: "/app/contacts", label: "Clients", icon: Users, show: sellRoles },
       { href: "/app/requests", label: "Requests", icon: Inbox, show: sellRoles },
       { href: "/app/messages", label: "Messages", icon: MessageSquare, show: sellRoles },
+      { href: "/app/calls", label: "Calls", icon: PhoneCall, show: sellRoles },
       { href: "/app/leads", label: "Leads", icon: SquareKanban, show: sellRoles },
       { href: "/app/appointments", label: "Appointments", icon: CalendarClock, show: sellRoles },
       { href: "/app/quotes", label: "Quotes", icon: FileText, show: sellRoles },
@@ -213,6 +215,7 @@ const railGroups: { key: string; label: string; items: NavItem[] }[] = [
       { href: "/app/leads", label: "Leads", icon: SquareKanban, show: sellRoles },
       { href: "/app/requests", label: "Requests", icon: Inbox, show: sellRoles },
       { href: "/app/messages", label: "Messages", icon: MessageSquare, show: sellRoles },
+      { href: "/app/calls", label: "Calls", icon: PhoneCall, show: sellRoles },
       { href: "/app/appointments", label: "Appointments", icon: CalendarClock, show: sellRoles },
       { href: "/app/schedule/map", label: "Routes", icon: RouteGlyph },
       { href: "/app/contracts", label: "Agreements", icon: FileSignature, show: sellRoles },
@@ -260,6 +263,7 @@ const railAnims: Record<string, string> = {
   "/app/leads": "shuffle",
   "/app/requests": "drop",
   "/app/messages": "perk",
+  "/app/calls": "perk",
   "/app/appointments": "flip",
   "/app/schedule/map": "shuffle",
   "/app/contracts": "sheet",
@@ -322,6 +326,7 @@ const sectionTints: Record<string, string> = {
   "/app/settings/contracts": SECTION_HUES.contracts,
   "/app/chat": SECTION_HUES.chat,
   "/app/messages": SECTION_HUES.chat,
+  "/app/calls": SECTION_HUES.chat,
   "/app/settings/booking": SECTION_HUES.forms,
   "/app/settings/team": SECTION_HUES.team,
 };

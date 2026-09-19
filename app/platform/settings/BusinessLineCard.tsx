@@ -64,7 +64,8 @@ export default function BusinessLineCard({ initial }: { initial: LineSummary }) 
           Business Line
         </h2>
         <p className="text-xs text-gray-500 mt-0.5">
-          A local phone number that&apos;s yours: calls to it ring your cell, and once the carriers
+          A phone number that&apos;s yours: calls to it ring your cell and announce who&apos;s calling,
+          unanswered calls go to voicemail, you can call clients from it, and once the carriers
           approve your business, reminders and quote and invoice links text from it too.
         </p>
       </div>
@@ -81,6 +82,7 @@ export default function BusinessLineCard({ initial }: { initial: LineSummary }) 
         <>
           {line.releaseAt && <ReleaseNotice line={line} />}
           <NumberRow line={line} onDone={setLine} onError={setError} />
+          {line.voice.routed && <VoicemailGreeting line={line} onDone={setLine} onError={setError} />}
           <Texting line={line} onDone={setLine} onError={setError} />
         </>
       )}
@@ -278,6 +280,7 @@ function NumberRow({
           <p className="text-gray-700">
             <span className="inline-block h-2 w-2 rounded-full bg-green-500 mr-2 align-middle" />
             Calls ring through to {fmtPhone(line.forwardTo)}
+            {line.voice.routed && <span className="text-gray-500"> · shows as {fmtPhone(line.number)}, press 1 to accept</span>}
           </p>
           <div className="flex items-center gap-3">
             <button type="button" onClick={() => setEditing(true)} className={ghostBtn}>
@@ -290,7 +293,100 @@ function NumberRow({
         </div>
       )}
       {!line.forwardTo && !editing && (
-        <p className="mt-2 text-xs text-amber-700">Calls aren&apos;t forwarded anywhere yet — add a number above.</p>
+        <p className="mt-2 text-xs text-amber-700">
+          {line.voice.routed
+            ? "Calls go straight to voicemail until you add a number to ring."
+            : "Calls aren’t forwarded anywhere yet — add a number above."}
+        </p>
+      )}
+      {line.voice.routed ? (
+        <p className="mt-2 text-xs text-gray-500">
+          Your cell rings from the business number and hears who&apos;s calling first, so the cell&apos;s own
+          voicemail can never grab a customer. Missed calls and voicemails land in{" "}
+          <Link href="/app/calls" className="underline">
+            Calls
+          </Link>
+          . To call a client from this number, use <em>Call from line</em> on their page
+          {line.voice.canCall ? "" : " after adding your cell under My Profile"}.
+        </p>
+      ) : line.voice.available && line.forwardTo ? (
+        <p className="mt-2 text-xs text-amber-700">
+          Save your ring-through number again to turn on call announcements, voicemail and calling from the app.
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+/* ───────────────────────── 2b. Voicemail greeting ───────────────────────── */
+
+function VoicemailGreeting({
+  line,
+  onDone,
+  onError,
+}: {
+  line: LineSummary;
+  onDone: (l: LineSummary) => void;
+  onError: (e: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState(line.voice.greeting ?? line.voice.defaultGreeting);
+  const [busy, setBusy] = useState(false);
+
+  async function save(next: string | null) {
+    setBusy(true);
+    onError("");
+    try {
+      await post("/api/app/line", { greeting: next }, "PATCH");
+      const fresh = await post<LineSummary>("/api/app/line", undefined, "GET");
+      onDone(fresh);
+      setText(fresh.voice.greeting ?? fresh.voice.defaultGreeting);
+      setEditing(false);
+    } catch (err) {
+      onError(err instanceof Error ? err.message : "Couldn’t save the greeting.");
+    }
+    setBusy(false);
+  }
+
+  return (
+    <div className="rounded-lg border border-gray-200 px-4 py-3">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <p className="text-sm font-medium text-gray-800">Voicemail greeting</p>
+        {!editing && (
+          <button type="button" onClick={() => setEditing(true)} className={ghostBtn}>
+            {line.voice.greeting ? "Change" : "Write your own"}
+          </button>
+        )}
+      </div>
+      {editing ? (
+        <div className="mt-2 space-y-2">
+          <textarea value={text} onChange={(e) => setText(e.target.value)} rows={3} maxLength={600} className={inputCls} />
+          <div className="flex flex-wrap items-center gap-2">
+            <button type="button" onClick={() => save(text)} disabled={busy || !text.trim()} className={primaryBtn}>
+              {busy && <Loader2 size={14} className="animate-spin" />}
+              Save
+            </button>
+            {line.voice.greeting && (
+              <button type="button" onClick={() => save(null)} disabled={busy} className={ghostBtn}>
+                Back to the default
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                setEditing(false);
+                setText(line.voice.greeting ?? line.voice.defaultGreeting);
+              }}
+              disabled={busy}
+              className={ghostBtn}
+            >
+              Cancel
+            </button>
+          </div>
+          <p className="text-xs text-gray-500">Read aloud by a synthetic voice, then a beep. Callers get up to three minutes.</p>
+        </div>
+      ) : (
+        <p className="mt-1 text-sm text-gray-600">&ldquo;{line.voice.greeting ?? line.voice.defaultGreeting}&rdquo;</p>
       )}
     </div>
   );

@@ -95,6 +95,7 @@ const LABELS: [prefix: string, label: string][] = [
   ["/app/expenses", "Expenses"],
   ["/app/team-map", "Team Map"],
   ["/app/messages", "Messages"],
+  ["/app/calls", "Calls"],
   ["/app/chat", "Chat"],
   ["/app/support", "Help"],
   ["/app/roadmap", "Roadmap"],

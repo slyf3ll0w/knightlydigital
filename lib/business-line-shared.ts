@@ -23,6 +23,28 @@ export const VERTICALS: Array<[string, string]> = [
 ];
 
 export type LineType = "local" | "toll_free";
+
+/** A claim token parked in Company.lineNumber while an order is in flight (the unique column = the lock). */
+export const PENDING_PREFIX = "pending:";
+export const isRealLineNumber = (n: string | null | undefined): n is string => Boolean(n && !n.startsWith(PENDING_PREFIX));
+
+/** What callers hear when nobody presses 1 and the company hasn't written its own greeting. */
+export function defaultVoicemailGreeting(businessName: string): string {
+  return `You've reached ${businessName}. We can't take your call right now. Please leave your name, number and a short message after the tone, and we'll call you back.`;
+}
+
+/** What a business line can do on the phone side right now. */
+export type VoiceSummary = {
+  /** TELNYX_VOICE_APP_ID is set on this server. */
+  available: boolean;
+  /** The number sits on the Call Control app: whisper + press 1, voicemail, calls from the app. */
+  routed: boolean;
+  /** Custom greeting, or null for the default. */
+  greeting: string | null;
+  defaultGreeting: string;
+  /** The signed-in user has a cell on file to place calls from (Settings → My Profile). */
+  canCall: boolean;
+};
 export type RegistrationKind = "10DLC" | "TOLL_FREE";
 
 /** Toll-free verification: expected texts per month (Telnyx volume buckets). */
@@ -70,6 +92,7 @@ export type LineSummary = {
   type: LineType | null;
   forwardTo: string | null;
   provisionedAt: string | null;
+  voice: VoiceSummary;
   /** Set once the add-on has lapsed: the number is released at this instant unless they resubscribe or port out. */
   releaseAt: string | null;
   smsReady: boolean;

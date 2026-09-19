@@ -44,6 +44,20 @@ export function tenDlcMock(): boolean {
   return process.env.TELNYX_10DLC_MOCK === "1";
 }
 
+/**
+ * The WorkBench Call Control application (one per environment — its webhook
+ * URL is fixed per app), created by `npx tsx scripts/telnyx-voice-setup.ts`.
+ * Numbers assigned to it ring into /api/public/webhooks/telnyx/voice instead
+ * of the number-level forwarding feature. Unset = plain forwarding.
+ */
+export function voiceAppId(): string {
+  return process.env.TELNYX_VOICE_APP_ID ?? "";
+}
+
+export function voiceConfigured(): boolean {
+  return Boolean(process.env.TELNYX_API_KEY && voiceAppId());
+}
+
 /** Pull the human-readable reason out of a Telnyx error body, whatever shape it took. */
 function errorDetail(status: number, text: string): string {
   try {
@@ -206,6 +220,140 @@ export async function setCallForwarding(numberId: string, forwardsTo: string | n
 
 export async function releaseNumber(numberId: string): Promise<void> {
   await call("DELETE", `/phone_numbers/${numberId}`);
+}
+
+/** Point the number's voice at a connection / Call Control app (null detaches it). */
+export async function setNumberConnection(numberId: string, connectionId: string | null): Promise<void> {
+  await call("PATCH", `/phone_numbers/${numberId}`, { connection_id: connectionId ?? "" });
+}
+
+/* ───────────────────────── Call Control (voice) ─────────────────────────
+ * Every inbound call to a number on the WorkBench Call Control app arrives
+ * as a `call.initiated` webhook; we answer, dial, whisper, bridge and record
+ * by POSTing commands against the call's call_control_id. lib/voice.ts holds
+ * the flow; these are the verbs. Command bodies follow the Telnyx v2 spec
+ * (checked against the telnyx@7 SDK types, 2026-09-18).
+ * ---------------------------------------------------------------------- */
+
+export type DialInput = {
+  to: string;
+  from: string;
+  /** Base64 JSON — echoed back on every webhook for the new leg. */
+  clientState?: string;
+  /** Seconds to ring before Telnyx gives up (call.hangup with cause timeout). */
+  timeoutSecs?: number;
+  /** Share the call session with an existing leg (webhooks carry the same call_session_id). */
+  linkTo?: string;
+  /** Idempotency key: Telnyx drops a repeat within the dedupe window. */
+  commandId?: string;
+};
+
+export type DialedCall = { call_control_id: string; call_leg_id?: string; call_session_id?: string };
+
+export async function dialCall(input: DialInput): Promise<DialedCall> {
+  const out = await call<{ data?: DialedCall }>("POST", "/calls", {
+    connection_id: voiceAppId(),
+    to: input.to,
+    from: input.from,
+    client_state: input.clientState,
+    timeout_secs: input.timeoutSecs ?? 30,
+    link_to: input.linkTo,
+    command_id: input.commandId,
+  });
+  if (!out.data?.call_control_id) throw new TelnyxError(502, "Dial returned no call_control_id");
+  return out.data;
+}
+
+export type CallCommand =
+  | "answer"
+  | "hangup"
+  | "bridge"
+  | "speak"
+  | "gather_using_speak"
+  | "playback_start"
+  | "playback_stop"
+  | "record_start"
+  | "record_stop";
+
+/**
+ * One Call Control command. A 422 "call not found / already hung up" is the
+ * normal race (the caller left between our webhook and our command) — it is
+ * swallowed here so orchestration code never has to special-case it; every
+ * other failure throws.
+ */
+export async function callAction(callControlId: string, action: CallCommand, body: Record<string, unknown> = {}): Promise<boolean> {
+  try {
+    await call("POST", `/calls/${encodeURIComponent(callControlId)}/actions/${action}`, body);
+    return true;
+  } catch (err) {
+    if (err instanceof TelnyxError && (err.status === 404 || err.status === 422)) {
+      console.warn(`[telnyx] ${action} on ${callControlId} skipped: ${err.detail}`);
+      return false;
+    }
+    throw err;
+  }
+}
+
+/** Telnyx TTS: basic tier, female en-US — good enough for a whisper and a greeting. */
+export const TTS = { voice: "female", language: "en-US" } as const;
+
+export type RecordingRecord = {
+  id?: string;
+  status?: string;
+  duration_millis?: number;
+  call_leg_id?: string;
+  download_urls?: { mp3?: string | null; wav?: string | null };
+};
+
+/** A stored call recording; the download URLs inside are short-lived, fetch on demand. */
+export async function getRecording(recordingId: string): Promise<RecordingRecord | null> {
+  try {
+    const out = await call<{ data?: RecordingRecord }>("GET", `/recordings/${encodeURIComponent(recordingId)}`);
+    return out.data ?? null;
+  } catch (err) {
+    if (err instanceof TelnyxError && err.status === 404) return null;
+    throw err;
+  }
+}
+
+/** Recordings made on one call leg (fallback when the saved-webhook carried no recording_id). */
+export async function listRecordingsForLeg(callLegId: string): Promise<RecordingRecord[]> {
+  const out = await call<{ data?: RecordingRecord[] }>("GET", "/recordings", undefined, {
+    "filter[call_leg_id]": callLegId,
+    "page[size]": 5,
+  });
+  return out.data ?? [];
+}
+
+/** Setup (scripts/telnyx-voice-setup.ts): the outbound profile every dial goes through. */
+export async function createOutboundVoiceProfile(name: string): Promise<{ id: string }> {
+  const out = await call<{ data?: { id?: string } }>("POST", "/outbound_voice_profiles", {
+    name,
+    traffic_type: "conversational",
+    service_plan: "us",
+    usage_payment_method: "rate-deck",
+    whitelisted_destinations: ["US", "CA"],
+    concurrent_call_limit: 50,
+  });
+  if (!out.data?.id) throw new TelnyxError(502, "No outbound voice profile id returned");
+  return { id: out.data.id };
+}
+
+/** Setup: the Call Control application whose webhook is our voice route. */
+export async function createCallControlApp(name: string, webhookUrl: string, outboundProfileId: string): Promise<{ id: string }> {
+  const out = await call<{ data?: { id?: string } }>("POST", "/call_control_applications", {
+    application_name: name,
+    webhook_event_url: webhookUrl,
+    webhook_api_version: "2",
+    webhook_timeout_secs: 25,
+    first_command_timeout: true,
+    first_command_timeout_secs: 20,
+    dtmf_type: "RFC 2833",
+    inbound: { channel_limit: 50, shaken_stir_enabled: true },
+    outbound: { channel_limit: 50, outbound_voice_profile_id: outboundProfileId },
+  });
+  if (!out.data?.id) throw new TelnyxError(502, "No call control application id returned");
+  return { id: out.data.id };
 }
 
 /* ───────────────────────── 10DLC ───────────────────────── */

@@ -1,5 +1,9 @@
 # WorkBench Line — per-tenant texting + business phone — 2026-09-15
 
+> **Voice moved on 2026-09-18**: number-level forwarding is now the fallback;
+> the number sits on a Call Control app with whisper + press 1, voicemail and
+> calls from the app — see `business-line-voice-2026-09-18.md`.
+>
 > **Status 2026-09-18 — BUILT** (branch `business-line`). Batches A–E and the
 > forwarding half of F shipped in one pass: `lib/telnyx.ts`,
 > `lib/business-line.ts`, `MessagingRegistration`, the send-path cutover

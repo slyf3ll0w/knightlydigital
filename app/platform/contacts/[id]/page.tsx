@@ -8,6 +8,8 @@ import { money, shortDate, clientMessageStatus, type StatusKind } from "@/lib/st
 import StatusChip from "@/components/StatusChip";
 import ContactStatus from "@/components/ContactStatus";
 import CallTextButtons from "@/components/CallTextButtons";
+import CallFromLineButton from "@/components/CallFromLineButton";
+import CallRow from "@/components/CallRow";
 import JobActionRow from "@/components/JobActionRow";
 import ContactCreateMenu from "./ContactCreateMenu";
 import ContactActionsMenu from "./ContactActionsMenu";
@@ -37,7 +39,7 @@ export default async function ContactDetailPage({
 
   const canReassign = seesAllLeads(actor.role);
 
-  const [contact, teamUsers, senderUser] = await Promise.all([
+  const [contact, teamUsers, senderUser, recentCalls] = await Promise.all([
     prisma.contact.findFirst({
       where: { id, companyId, ...contactScope(actor) },
       include: {
@@ -51,6 +53,8 @@ export default async function ContactDetailPage({
             finixOnboardingState: true,
             smsAcknowledgedAt: true,
             lineNumber: true,
+            lineForwardTo: true,
+            lineVoiceAppAt: true,
             messagingRegistration: { select: { status: true } },
           },
         },
@@ -82,7 +86,26 @@ export default async function ContactDetailPage({
       : Promise.resolve([]),
     prisma.user.findUnique({
       where: { id: actor.id },
-      select: { name: true, emailSignature: true },
+      select: { name: true, emailSignature: true, phone: true },
+    }),
+    // Business-line calls with this client (lib/voice.ts) — the rail card
+    prisma.call.findMany({
+      where: { contactId: id, companyId },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+      select: {
+        id: true,
+        direction: true,
+        status: true,
+        customerNumber: true,
+        durationSec: true,
+        voicemailSec: true,
+        voicemailRecordingId: true,
+        seenAt: true,
+        createdAt: true,
+        contact: { select: { id: true, firstName: true, lastName: true } },
+        user: { select: { name: true } },
+      },
     }),
   ]);
 
@@ -208,6 +231,10 @@ export default async function ContactDetailPage({
   const hasLine = Boolean(lineNumber && !lineNumber.startsWith("pending:"));
   const lineRegistered = contact.company.messagingRegistration?.status === "ACTIVE";
   const textsReady = Boolean(contact.company.smsAcknowledgedAt) && hasLine && lineRegistered;
+  // Calls from the business number (lib/voice.ts) need the line on the voice
+  // app and a cell to ring first: the user's own (My Profile) or the line's.
+  const agentPhone = senderUser?.phone?.trim() || contact.company.lineForwardTo || "";
+  const canCallFromLine = Boolean(contact.company.lineVoiceAppAt && agentPhone && contact.phone);
   const textsSetupHint = !hasLine
     ? "Set up a business line in Settings → Features to start texting clients"
     : !lineRegistered
@@ -303,6 +330,13 @@ export default async function ContactDetailPage({
           {contact.phone && (
             <div className="hidden lg:flex items-center gap-2">
               <CallTextButtons phone={contact.phone} />
+              {canCallFromLine && (
+                <CallFromLineButton
+                  contactId={contact.id}
+                  contactName={`${contact.firstName} ${contact.lastName}`.trim()}
+                  agentPhone={fmtPhone(agentPhone)}
+                />
+              )}
             </div>
           )}
           {contact.email && (
@@ -617,6 +651,38 @@ export default async function ContactDetailPage({
               </div>
             </div>
           </div>
+
+          {(recentCalls.length > 0 || canCallFromLine) && (
+            <div className="card-ledger p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-[13px] font-semibold text-gray-500">Recent calls</h2>
+                {recentCalls.length > 0 && (
+                  <Link href={`/app/calls?contact=${contact.id}`} className="text-xs text-gray-500 underline hover:text-gray-700">
+                    All
+                  </Link>
+                )}
+              </div>
+              {recentCalls.length === 0 ? (
+                <p className="text-xs text-gray-500">No calls on your business line with this client yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {recentCalls.map((c) => (
+                    <CallRow key={c.id} call={c} showContact={false} />
+                  ))}
+                </div>
+              )}
+              {canCallFromLine && contact.phone && (
+                <div className="mt-3 lg:hidden">
+                  <CallFromLineButton
+                    contactId={contact.id}
+                    contactName={`${contact.firstName} ${contact.lastName}`.trim()}
+                    agentPhone={fmtPhone(agentPhone)}
+                    compact
+                  />
+                </div>
+              )}
+            </div>
+          )}
 
           <PortalAccessCard
             contactId={contact.id}

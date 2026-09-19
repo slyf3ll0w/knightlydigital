@@ -5,6 +5,7 @@ import { getSuperadmin } from "@/lib/superadmin";
 import { limit } from "@/lib/rate-limit";
 import { companyHasProtectedUser, deleteCompanyCascade } from "@/lib/company-delete";
 import { LineError, attachExistingNumber, keepLine, releaseLine } from "@/lib/business-line";
+import { VoiceError, ensureVoiceRouting } from "@/lib/voice";
 
 /**
  * Superadmin account controls.
@@ -61,6 +62,7 @@ export async function PATCH(
     action !== "line-release" &&
     action !== "line-attach" &&
     action !== "line-keep" &&
+    action !== "line-voice-sync" &&
     action !== "addon-grant" &&
     action !== "addon-revoke"
   ) {
@@ -170,6 +172,20 @@ export async function PATCH(
     await keepLine(id);
     console.warn(`[superadmin] business line release CANCELLED for "${company.name}" (${id}) by ${admin.email}`);
     return NextResponse.json({ success: true });
+  }
+
+  // Move a pre-voice number onto the Call Control app (lib/voice.ts) without
+  // waiting for the tenant to re-save their forwarding number.
+  if (action === "line-voice-sync") {
+    try {
+      const routed = await ensureVoiceRouting(id);
+      if (!routed) return NextResponse.json({ error: "Voice isn't configured on this server, or the company has no number." }, { status: 409 });
+      console.warn(`[superadmin] business line moved onto the voice app for "${company.name}" (${id}) by ${admin.email}`);
+      return NextResponse.json({ success: true });
+    } catch (err) {
+      if (err instanceof VoiceError) return NextResponse.json({ error: err.message }, { status: err.status });
+      throw err;
+    }
   }
 
   if (action === "line-release") {

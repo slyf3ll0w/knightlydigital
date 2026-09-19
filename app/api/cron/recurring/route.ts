@@ -23,6 +23,7 @@ import { expireApprovalBookings } from "@/lib/approval-bookings";
 import { rollupStorageSnapshots } from "@/lib/usage";
 import { runNightlyReconciliation } from "@/lib/reconcile";
 import { runLineRegistrationSweep, runLineReleaseSweep } from "@/lib/business-line";
+import { runStaleCallSweep } from "@/lib/voice";
 
 /**
  * Hourly billing cron. A scheduler (Railway cron service, or an external
@@ -162,6 +163,9 @@ export async function POST(req: NextRequest) {
     // Lapsed add-ons: schedule the number's release 30 days out (owner
     // notified), release once that passes, un-schedule on resubscribe.
     await step("lineReleases", () => runLineReleaseSweep(now));
+    // Business-line calls whose hangup webhook never arrived: close them so
+    // the Calls page never shows a call "ringing" since yesterday.
+    await step("staleCalls", () => runStaleCallSweep(now));
     // Team-map retention: location history older than 30 days is deleted —
     // deliberate; keep the window short.
     await step("prunedPings", async () => {

@@ -6,8 +6,10 @@ import { useState } from "react";
 /**
  * Business line (lib/business-line.ts) as support sees it: the number, where
  * it forwards, and the 10DLC registration chain with Telnyx's raw statuses —
- * the thing to read before answering "why aren't my texts going out".
- * The one action is Release: give the number back and drop the registration.
+ * the thing to read before answering "why aren't my texts going out" — and
+ * whether voice runs through Call Control (lib/voice.ts) or plain
+ * forwarding. Actions: attach an owned number, move it onto the voice app,
+ * call off a scheduled release, or Release it for good.
  */
 export function LineControl({
   companyId,
@@ -15,6 +17,8 @@ export function LineControl({
   forwardTo,
   provisionedAt,
   releaseAt,
+  voiceAppAt,
+  voiceAvailable,
   registration,
 }: {
   companyId: string;
@@ -23,6 +27,10 @@ export function LineControl({
   provisionedAt: string | null;
   /** Post-cancellation release date (lib/business-line.ts runLineReleaseSweep); null = keeping. */
   releaseAt: string | null;
+  /** When the number moved onto the Call Control app (lib/voice.ts); null = number-level forwarding. */
+  voiceAppAt: string | null;
+  /** TELNYX_VOICE_APP_ID is set on this server. */
+  voiceAvailable: boolean;
   registration: {
     status: string;
     kind: string;
@@ -115,8 +123,23 @@ export function LineControl({
           <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs">
             <dt className="text-gray-500">Number</dt>
             <dd className="font-mono text-gray-800">{number}</dd>
-            <dt className="text-gray-500">Calls forward to</dt>
-            <dd className="font-mono text-gray-800">{forwardTo ?? "off"}</dd>
+            <dt className="text-gray-500">Calls ring</dt>
+            <dd className="font-mono text-gray-800">{forwardTo ?? "nowhere (voicemail only)"}</dd>
+            <dt className="text-gray-500">Voice</dt>
+            <dd className="text-gray-800">
+              {voiceAppAt ? (
+                <>Call Control (whisper, voicemail, app calls) since {fmt(voiceAppAt)}</>
+              ) : voiceAvailable ? (
+                <>
+                  plain forwarding ·{" "}
+                  <button type="button" onClick={() => send({ action: "line-voice-sync" })} disabled={busy} className="underline">
+                    move onto the voice app
+                  </button>
+                </>
+              ) : (
+                "plain forwarding (TELNYX_VOICE_APP_ID not set)"
+              )}
+            </dd>
             <dt className="text-gray-500">Provisioned</dt>
             <dd className="text-gray-800">{fmt(provisionedAt)}</dd>
             {releaseAt && (

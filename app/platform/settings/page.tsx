@@ -26,7 +26,7 @@ export default async function SettingsPage({
     }),
     headers().then((h) => h.get("user-agent")),
     // Business line card (Features): number, forwarding, 10DLC status
-    lineSummary(companyId, { name: actor.name }).catch(() => null),
+    lineSummary(companyId, { id: actor.id, name: actor.name }).catch(() => null),
   ]);
   if (!company) redirect("/app/register");
 

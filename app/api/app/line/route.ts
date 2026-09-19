@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getActor, isManager } from "@/lib/permissions";
-import { LineError, lineSummary, setLineForwarding } from "@/lib/business-line";
+import { LineError, lineSummary, setLineForwarding, setVoicemailGreeting } from "@/lib/business-line";
 
 /**
  * Business line (lib/business-line.ts), manager-only.
  *   GET   → the card's read model: number, forwarding, registration status
  *   PATCH → { forwardTo } — where inbound calls ring (null/"" switches forwarding off)
+ *         → { greeting }  — the voicemail greeting (null/"" = default), lib/voice.ts
  * Provisioning, registration, refresh and the OTP each have their own route
  * under /api/app/line/*.
  */
@@ -15,7 +16,7 @@ export async function GET() {
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!isManager(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   try {
-    return NextResponse.json(await lineSummary(actor.companyId, { name: actor.name }));
+    return NextResponse.json(await lineSummary(actor.companyId, { id: actor.id, name: actor.name }));
   } catch (err) {
     return lineErrorResponse(err);
   }
@@ -25,9 +26,12 @@ export async function PATCH(req: NextRequest) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!isManager(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  const body = (await req.json().catch(() => ({}))) as { forwardTo?: unknown };
-  const forwardTo = typeof body.forwardTo === "string" && body.forwardTo.trim() ? body.forwardTo.trim() : null;
+  const body = (await req.json().catch(() => ({}))) as { forwardTo?: unknown; greeting?: unknown };
   try {
+    if ("greeting" in body) {
+      return NextResponse.json(await setVoicemailGreeting(actor.companyId, body.greeting));
+    }
+    const forwardTo = typeof body.forwardTo === "string" && body.forwardTo.trim() ? body.forwardTo.trim() : null;
     const out = await setLineForwarding(actor.companyId, forwardTo);
     return NextResponse.json(out);
   } catch (err) {

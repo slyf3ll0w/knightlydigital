@@ -171,6 +171,13 @@ model Company {
   // released to Telnyx at this instant unless the company resubscribes or
   // ports it out first (lib/business-line.ts runLineReleaseSweep). Null = keep.
   lineReleaseAt             DateTime?
+  // Voice routing (lib/voice.ts): set once the number sits on the WorkBench
+  // Call Control app — inbound calls are answered by us (whisper + press 1,
+  // voicemail) instead of the number-level forwarding feature. Null = still
+  // plain forwarding (TELNYX_VOICE_APP_ID unset, or not migrated yet).
+  lineVoiceAppAt            DateTime?
+  // Custom voicemail greeting read by TTS; null = the generated default.
+  lineVoicemailGreeting     String?
   // Platform suspension (superadmin-only): set → the tenant app and public
   // booking/leads/payments are disabled, data stays intact until support
   // reinstates. Deletion is separate and permanent.
@@ -241,6 +248,7 @@ model Company {
   feedbackTickets       FeedbackTicket[]
   portalMessages        PortalMessage[]
   messagingRegistration MessagingRegistration?
+  calls                 Call[]
 
   @@index([slug])
 }
@@ -369,6 +377,7 @@ model User {
   celebrationsSeen     CelebrationSeen[]
   calendarFeed         CalendarFeed?
   googleCalendar       GoogleCalendarConnection?
+  calls                Call[]
 
   // Same address may exist at several companies (one row per membership),
   // but only once within a company.
@@ -776,6 +785,7 @@ model Contact {
   portalMessages    PortalMessage[]
   pushSubscriptions ContactPushSubscription[]
   savedCards        SavedCard[]
+  calls             Call[]
 
   @@index([companyId])
   @@index([companyId, status])
@@ -2645,6 +2655,66 @@ model MessagingRegistration {
   updatedAt          DateTime               @updatedAt
 
   @@index([status])
+}
+
+// ─── Business line: calls ───────────────────────────────────────────────────
+
+enum CallDirection {
+  INBOUND
+  OUTBOUND
+}
+
+// Where a call is, and how it ended. Inbound: RINGING (customer answered by
+// us, owner's cell being tried) → IN_PROGRESS (owner pressed 1, legs bridged)
+// → COMPLETED; or → VOICEMAIL / MISSED (caller left before the greeting or
+// left nothing). Outbound: RINGING (owner's cell first, then the customer)
+// → IN_PROGRESS → COMPLETED; NO_ANSWER when the customer never picked up;
+// FAILED for anything else (owner never pressed 1, carrier error).
+enum CallStatus {
+  RINGING
+  IN_PROGRESS
+  COMPLETED
+  MISSED
+  VOICEMAIL
+  NO_ANSWER
+  FAILED
+}
+
+// One row per call on a company's business line (lib/voice.ts). The customer
+// leg's Telnyx call_control_id is the primary key into the webhook stream;
+// agentCallId is the owner's-cell leg. Voicemails are Telnyx recordings —
+// we keep the id and fetch a fresh download URL when someone presses play.
+model Call {
+  id                   String        @id @default(cuid())
+  companyId            String
+  company              Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contactId            String?
+  contact              Contact?      @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  // Outbound: who placed it. Inbound: null (the company cell answered, not a user).
+  userId               String?
+  user                 User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  direction            CallDirection
+  status               CallStatus    @default(RINGING)
+  customerNumber       String // E.164 of the far party
+  customerDigits       String? // last 10, for contact matching (lib/phone.ts)
+  agentNumber          String? // E.164 cell that rang / placed it
+  telnyxCallId         String?       @unique // customer leg call_control_id
+  agentCallId          String? // owner's-cell leg call_control_id
+  customerLegId        String? // Telnyx call_leg_id of the customer leg (recordings filter)
+  hangupCause          String?
+  answeredAt           DateTime? // legs bridged
+  endedAt              DateTime?
+  durationSec          Int? // talk time (answeredAt → endedAt)
+  voicemailRecordingId String?
+  voicemailSec         Int?
+  seenAt               DateTime? // a team member opened the Calls page after it ended
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  @@index([companyId, createdAt])
+  @@index([contactId, createdAt])
+  @@index([agentCallId])
+  @@index([status, createdAt])
 }
 
 // ─── Packaging board (superadmin planning tool) ──────────────────────────────

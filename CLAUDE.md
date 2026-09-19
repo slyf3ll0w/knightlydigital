@@ -245,16 +245,17 @@ on hub pages; the messages page carries the notifications/install nudge
 (iOS needs Add to Home Screen first). sw.js honors `payload.icon` and
 routes notification clicks to the matching surface (/app vs /hub/<token>).
 
-## Business line (per-tenant phone number: texting + forwarded calls)
+## Business line (per-tenant phone number: texting + calls)
 
-Design + the why: `docs/plans/business-line-2026-09-15.md`. Built 2026-09-18.
+Design + the why: `docs/plans/business-line-2026-09-15.md` (texting, number
+rights) and `docs/plans/business-line-voice-2026-09-18.md` (voice tiers;
+`docs/plans/README.md` indexes every plan). Built 2026-09-18.
 Carriers register A2P texting per business (two-party opt-in), so the old
 shared WorkBench toll-free sender could never clear — Telnyx rejected it
 2026-09-14. Each company now buys its own local number and registers its own
-10DLC brand + campaign. **Voice needs no registry**, so call forwarding is live
-the minute the number provisions; texting waits for the campaign (3–7 business
-days). The free `sms:`/`tel:` deep links (`lib/messaging.ts`) stay free and
-untouched.
+10DLC brand + campaign. **Voice needs no registry**, so calls work the minute
+the number provisions; texting waits for the campaign (3–7 business days). The
+free `sms:`/`tel:` deep links (`lib/messaging.ts`) stay free and untouched.
 
 - **Data**: `Company.lineNumber` (E.164, `@unique` — a `pending:<companyId>`
   claim token sits there while an order is in flight, so a double-click can't
@@ -314,9 +315,34 @@ untouched.
   only once the date passes with no add-on; resubscribing clears it.
   Superadmin **line-keep** calls a release off. Port-outs themselves are a
   Telnyx support process (not API) — /terms §8 promises cooperation.
-- **Not built yet**: outbound calling from the app (click-to-call / WebRTC),
-  voicemail transcription, missed-call text-back, port-in of an existing
-  number, E911 address on the number.
+- **Voice** (`lib/voice.ts`, Telnyx Call Control; env `TELNYX_VOICE_APP_ID`
+  from `scripts/telnyx-voice-setup.ts`, one app per environment): numbers on
+  the app are answered by us instead of number-level forwarding. Inbound: answer
+  → ringback (`public/ringback.wav`) → dial the owner's cell FROM the business
+  number → `gather_using_speak` whisper ("… call from Maria Lopez. Press 1 to
+  accept") → bridge; no 1 → TTS greeting (`Company.lineVoicemailGreeting` or
+  the default) → `record_start` → `call.recording.saved` keeps the recording
+  id + pushes OWNER/ADMIN. Outbound (`startOutboundCall`, `POST
+  /api/app/line/call`, "Call from line" on the contact page): ring the user's
+  cell (`User.phone`, else the ring-through number) → "Press 1 to call …" →
+  dial the customer → bridge. `Call` rows: `telnyxCallId` = customer leg,
+  `agentCallId` = cell leg, status RINGING → IN_PROGRESS → COMPLETED |
+  MISSED | VOICEMAIL | NO_ANSWER | FAILED (`statusAfterCustomerHangup` is the
+  pure table; `npx tsx scripts/test-voice.ts`). Webhook
+  `/api/public/webhooks/telnyx/voice` is acted on directly (the call is live),
+  so its Ed25519 check (`lib/telnyx-webhook.ts`, shared with the SMS route)
+  is mandatory. Dials and the voicemail transition are guarded with
+  conditional `updateMany` — Telnyx retries and reorders webhooks. `/app/calls`
+  (nav next to Messages) lists calls and plays voicemails through
+  `/api/app/calls/[id]/voicemail` (302 to a fresh Telnyx URL; recordings stay
+  at Telnyx). Cron step `staleCalls` closes rows whose hangup never arrived.
+  Migration: `Company.lineVoiceAppAt`; `routeNumberToVoiceApp` on
+  provision/attach, `ensureVoiceRouting` when the tenant saves the
+  ring-through number or superadmin runs **line-voice-sync**. Unset env var =
+  plain forwarding, exactly as before.
+- **Not built yet**: softphone / WebRTC in the app (tier 2), native ringing
+  with the app closed (tier 3), voicemail transcription, missed-call
+  text-back, business-hours routing, port-in, E911 (needed only for tier 2).
 
 ## Payment processor (Finix)
 
@@ -417,6 +443,7 @@ TELNYX_MESSAGING_PROFILE_ID=   # every purchased number joins this profile; its 
 TELNYX_PUBLIC_KEY=             # Mission Control → Account → Keys & Credentials → Public Key (webhook signatures)
 TELNYX_10DLC_MOCK=             # "1" on staging: brands/campaigns register as mocks (no TCR fees)
 TELNYX_ALLOW_UNREGISTERED=     # "1" on staging: a line may text before its campaign clears (verified numbers only)
+TELNYX_VOICE_APP_ID=           # Call Control application id (scripts/telnyx-voice-setup.ts, one per environment); unset = plain call forwarding
 ```
 
 ## Job crew + titles (`lib/job-crew.ts`)
@@ -637,7 +664,7 @@ or booking: `test-money` (refund split, deposit credit, due dates),
 `test-ops-guards` (quote expiry, geocode acceptance, serialization retry),
 `test-subscriptions` (billing/visit cursor math, decline classification),
 `test-sms-keywords`, `test-route-plan`, `test-booking-engine`,
-`test-job-crew`, `test-calendar-sync`, `test-business-line`. The Playwright suite in `e2e/` runs
+`test-job-crew`, `test-calendar-sync`, `test-business-line`, `test-voice`. The Playwright suite in `e2e/` runs
 against the deployed app (see `e2e/README.md`) and is the post-deploy check.
 
 ## Database setup (Railway)

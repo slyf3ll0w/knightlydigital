@@ -7,6 +7,7 @@ import {
 } from "@/lib/portal-messages";
 import { classifySmsKeyword } from "@/lib/sms-keywords";
 import { phoneDigits } from "@/lib/phone";
+import { telnyxWebhookConfigured, verifyTelnyxSignature } from "@/lib/telnyx-webhook";
 
 /**
  * Telnyx inbound-message webhook (set as the webhook URL on the WorkBench
@@ -36,44 +37,13 @@ import { phoneDigits } from "@/lib/phone";
  * unauthenticated posts must never be able to flip opt-out flags.
  */
 
-function verifySignature(req: NextRequest, raw: string): boolean {
-  const publicKey = process.env.TELNYX_PUBLIC_KEY;
-  if (!publicKey) return false;
-  const signature = req.headers.get("telnyx-signature-ed25519");
-  const timestamp = req.headers.get("telnyx-timestamp");
-  if (!signature || !timestamp) return false;
-  // The timestamp is signed, so a captured STOP could otherwise be replayed
-  // forever. Telnyx sends unix seconds; allow 5 minutes of clock skew.
-  const ageSec = Math.abs(Date.now() / 1000 - Number(timestamp));
-  if (!Number.isFinite(ageSec) || ageSec > 300) return false;
-  try {
-    // Telnyx publishes a raw 32-byte Ed25519 key (base64); Node wants SPKI DER.
-    const key = crypto.createPublicKey({
-      key: Buffer.concat([
-        Buffer.from("302a300506032b6570032100", "hex"),
-        Buffer.from(publicKey, "base64"),
-      ]),
-      format: "der",
-      type: "spki",
-    });
-    return crypto.verify(
-      null,
-      Buffer.from(`${timestamp}|${raw}`),
-      key,
-      Buffer.from(signature, "base64")
-    );
-  } catch {
-    return false;
-  }
-}
-
 export async function POST(req: NextRequest) {
-  if (!process.env.TELNYX_PUBLIC_KEY) {
+  if (!telnyxWebhookConfigured()) {
     console.error("Telnyx webhook: TELNYX_PUBLIC_KEY is not set; rejecting request");
     return NextResponse.json({ error: "Webhook not configured" }, { status: 503 });
   }
   const raw = await req.text();
-  if (!verifySignature(req, raw)) {
+  if (!verifyTelnyxSignature(req, raw)) {
     return NextResponse.json({ error: "Bad signature" }, { status: 400 });
   }
 

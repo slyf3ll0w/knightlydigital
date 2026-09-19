@@ -10,9 +10,12 @@
  * legal name and EIN.
  *
  * The scheduling trick: 10DLC only governs SMS. Voice has no registry, so
- * call forwarding is live the minute the number provisions, while the SMS
- * registration clears in the background (3–7 business days). The wait shows
- * as a status chip on a feature that already half-works.
+ * calls work the minute the number provisions, while the SMS registration
+ * clears in the background (3–7 business days). The wait shows as a status
+ * chip on a feature that already half-works. Voice itself lives in
+ * lib/voice.ts (Call Control: whisper + press 1, voicemail, calls from the
+ * app); without TELNYX_VOICE_APP_ID the number falls back to Telnyx's
+ * number-level forwarding.
  *
  * Lifecycle
  *   provisionLine        buy a number (entitlement: hasAddon), join the WorkBench
@@ -30,9 +33,12 @@
 
 import type { LineRegistrationStatus, MessagingRegistration, Prisma } from "@prisma/client";
 import {
+  PENDING_PREFIX,
   TOLL_FREE_USE_CASES,
   TOLL_FREE_VOLUMES,
   VERTICALS,
+  defaultVoicemailGreeting,
+  isRealLineNumber,
   type BrandEntityType,
   type LineSummary,
   type LineType,
@@ -40,6 +46,7 @@ import {
   type RegistrationKind,
 } from "@/lib/business-line-shared";
 import { stateName } from "@/lib/us-states";
+import { VoiceError, ensureVoiceRouting, routeNumberToVoiceApp, sanitizeGreeting, voiceEnabled } from "@/lib/voice";
 
 import { prisma } from "@/lib/db";
 import { hasAddon } from "@/lib/addon";
@@ -92,10 +99,7 @@ export function lineEnabled(): boolean {
   return telnyxConfigured();
 }
 
-/** A claim token parked in Company.lineNumber while an order is in flight (unique column = the lock). */
-const PENDING_PREFIX = "pending:";
-export const isRealLineNumber = (n: string | null | undefined): n is string =>
-  Boolean(n && !n.startsWith(PENDING_PREFIX));
+export { isRealLineNumber };
 
 const baseUrl = () => (process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com").replace(/\/+$/, "");
 const tenDlcWebhookUrl = () => `${baseUrl()}/api/public/webhooks/telnyx/10dlc`;
@@ -301,11 +305,16 @@ export async function provisionLine(
         console.error("[line] messaging profile assignment failed:", err);
       }
     }
-    if (record && forwardTo) {
+    // Voice: onto the Call Control app when this server has one (lib/voice.ts
+    // answers, whispers, takes voicemail); otherwise the number-level
+    // forwarding feature, which is live the minute the number exists.
+    let voiceRouted = false;
+    if (record) {
       try {
-        await setCallForwarding(record.id, forwardTo);
+        voiceRouted = await routeNumberToVoiceApp(record.id);
+        if (!voiceRouted && forwardTo) await setCallForwarding(record.id, forwardTo);
       } catch (err) {
-        console.error("[line] call forwarding failed at provision:", err);
+        console.error("[line] voice routing failed at provision:", err);
       }
     }
 
@@ -317,6 +326,7 @@ export async function provisionLine(
         lineType: type,
         lineForwardTo: record && forwardTo ? forwardTo : null,
         lineProvisionedAt: new Date(),
+        lineVoiceAppAt: voiceRouted ? new Date() : null,
       },
     });
     console.warn(`[line] provisioned ${type} ${number} for "${company.name}" (${companyId})`);
@@ -366,9 +376,21 @@ export async function attachExistingNumber(companyId: string, phoneNumber: strin
     }
   }
   const type: LineType = isTollFreeNumber(e164) ? "toll_free" : "local";
+  let voiceRouted = false;
+  try {
+    voiceRouted = await routeNumberToVoiceApp(record.id);
+  } catch (err) {
+    console.error("[line] voice routing failed at attach:", err);
+  }
   await prisma.company.update({
     where: { id: companyId },
-    data: { lineNumber: e164, lineNumberId: record.id, lineType: type, lineProvisionedAt: new Date() },
+    data: {
+      lineNumber: e164,
+      lineNumberId: record.id,
+      lineType: type,
+      lineProvisionedAt: new Date(),
+      lineVoiceAppAt: voiceRouted ? new Date() : null,
+    },
   });
   console.warn(`[line] attached existing ${type} ${e164} to "${company.name}" (${companyId})`);
   return { number: e164, type };
@@ -394,14 +416,38 @@ export async function setLineForwarding(companyId: string, forwardTo: string | n
   if (forwardTo && !e164) throw new LineError("Enter a valid phone number to forward calls to.");
   if (e164 && e164 === company.lineNumber) throw new LineError("Calls can't forward to the business line itself.");
   const numberId = await ensureNumberId(company);
+  // On the voice app the ring target is ours to read at call time (lib/voice.ts);
+  // on plain forwarding it lives on the number at Telnyx. Saving here also
+  // migrates a pre-voice number onto the app the first time.
+  let routed = false;
   try {
-    await setCallForwarding(numberId, e164);
+    routed = await ensureVoiceRouting(companyId);
   } catch (err) {
-    const detail = err instanceof TelnyxError ? err.detail : "unknown error";
-    throw new LineError(`Telnyx couldn't update call forwarding: ${detail}`, 502);
+    console.error("[line] voice routing at forwarding save failed (falling back to forwarding):", err);
+  }
+  if (!routed) {
+    try {
+      await setCallForwarding(numberId, e164);
+    } catch (err) {
+      const detail = err instanceof TelnyxError ? err.detail : "unknown error";
+      throw new LineError(`Telnyx couldn't update call forwarding: ${detail}`, 502);
+    }
   }
   await prisma.company.update({ where: { id: companyId }, data: { lineForwardTo: e164 } });
   return { forwardTo: e164 };
+}
+
+/** Settings: the voicemail greeting callers hear (null = the generated default). */
+export async function setVoicemailGreeting(companyId: string, raw: unknown): Promise<{ greeting: string | null }> {
+  let greeting: string | null;
+  try {
+    greeting = sanitizeGreeting(raw);
+  } catch (err) {
+    if (err instanceof VoiceError) throw new LineError(err.message, err.status);
+    throw err;
+  }
+  await prisma.company.update({ where: { id: companyId }, data: { lineVoicemailGreeting: greeting } });
+  return { greeting };
 }
 
 /* ───────────────────────── Registration ───────────────────────── */
@@ -1103,7 +1149,7 @@ export async function releaseLine(companyId: string): Promise<void> {
     prisma.messagingRegistration.deleteMany({ where: { companyId } }),
     prisma.company.update({
       where: { id: companyId },
-      data: { lineNumber: null, lineNumberId: null, lineForwardTo: null, lineProvisionedAt: null },
+      data: { lineNumber: null, lineNumberId: null, lineForwardTo: null, lineProvisionedAt: null, lineVoiceAppAt: null },
     }),
   ]);
   console.warn(`[line] released ${company.lineNumber ?? "(no number)"} for "${company.name}" (${companyId})`);
@@ -1113,7 +1159,7 @@ export async function releaseLine(companyId: string): Promise<void> {
 
 export async function lineSummary(
   companyId: string,
-  actor?: { name?: string | null; email?: string | null } | null
+  actor?: { id?: string | null; name?: string | null; email?: string | null } | null
 ): Promise<LineSummary> {
   const c = await prisma.company.findUnique({
     where: { id: companyId },
@@ -1132,11 +1178,16 @@ export async function lineSummary(
       lineForwardTo: true,
       lineProvisionedAt: true,
       lineReleaseAt: true,
+      lineVoiceAppAt: true,
+      lineVoicemailGreeting: true,
       messagingRegistration: true,
     },
   });
   if (!c) throw new LineError("Company not found.", 404);
   const reg = c.messagingRegistration;
+  const actorPhone = actor?.id
+    ? (await prisma.user.findUnique({ where: { id: actor.id }, select: { phone: true } }))?.phone ?? null
+    : null;
   const [first, ...rest] = (actor?.name ?? "").trim().split(/\s+/);
   const number = isRealLineNumber(c.lineNumber) ? c.lineNumber : null;
   return {
@@ -1146,6 +1197,13 @@ export async function lineSummary(
     type: number ? (lineKind(c) === "TOLL_FREE" ? "toll_free" : "local") : null,
     forwardTo: c.lineForwardTo,
     provisionedAt: c.lineProvisionedAt?.toISOString() ?? null,
+    voice: {
+      available: voiceEnabled(),
+      routed: Boolean(number && c.lineVoiceAppAt),
+      greeting: c.lineVoicemailGreeting,
+      defaultGreeting: defaultVoicemailGreeting(c.name),
+      canCall: Boolean(number && c.lineVoiceAppAt && (toE164(actorPhone) ?? c.lineForwardTo)),
+    },
     releaseAt: number && !hasAddon(c) ? c.lineReleaseAt?.toISOString() ?? null : null,
     smsReady: Boolean(number && reg?.status === "ACTIVE"),
     registration: reg
