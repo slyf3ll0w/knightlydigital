@@ -236,5 +236,5 @@ export function defaultSuccessMessage(c: EstimatorPublicConfig, businessName: st
 
 export function defaultButtonLabel(c: EstimatorPublicConfig): string {
   if (c.buttonLabel) return c.buttonLabel;
-  return c.reveal === "instant" ? "See my estimate" : "Get my quote";
+  return c.reveal === "instant" && c.showPrice !== "hidden" ? "See my estimate" : "Get my quote";
 }

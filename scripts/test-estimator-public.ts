@@ -129,6 +129,7 @@ import {
   assert.match(describePublicConfig({ ...d, showPrice: "hidden" })[0], /no price/);
   assert.equal(defaultButtonLabel(d), "See my estimate");
   assert.equal(defaultButtonLabel({ ...d, reveal: "after_contact" }), "Get my quote");
+  assert.equal(defaultButtonLabel({ ...d, showPrice: "hidden" }), "Get my quote", "no price → no 'see my estimate'");
   assert.equal(defaultButtonLabel({ ...d, buttonLabel: "Price it" }), "Price it");
   assert.match(defaultSuccessMessage({ ...d, onSubmit: "send" }, "Acme"), /on its way/);
   assert.match(defaultSuccessMessage(d, "Acme"), /Acme will review/);

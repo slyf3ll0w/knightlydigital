@@ -57,12 +57,16 @@ export default function PublishEstimatorSheet({
     setCopied(null);
   }, [open, tool]);
 
-  if (!tool || !cfg) return <Modal open={open} onClose={onClose}>{null}</Modal>;
+  if (!tool) return <Modal open={open} onClose={onClose}>{null}</Modal>;
 
-  const c = cfg;
-  const patch = (p: Partial<EstimatorPublicConfig>) => setCfg((s) => (s ? { ...s, ...p } : s));
+  // Until the open-effect has run, edit against the tool's saved config
+  const c = cfg ?? tool.publicConfig;
+  const patch = (p: Partial<EstimatorPublicConfig>) => setCfg((s) => ({ ...(s ?? tool.publicConfig), ...p }));
   const patchField = (k: "email" | "phone" | "address", p: Partial<{ show: boolean; required: boolean }>) =>
-    setCfg((s) => (s ? { ...s, fields: { ...s.fields, [k]: { ...s.fields[k], ...p } } } : s));
+    setCfg((s) => {
+      const base = s ?? tool.publicConfig;
+      return { ...base, fields: { ...base.fields, [k]: { ...base.fields[k], ...p } } };
+    });
 
   const savedSlug = tool.publicSlug;
   const hostedUrl = savedSlug ? `${baseUrl}/book/${companySlug}/estimate/${savedSlug}` : "";
@@ -144,7 +148,7 @@ export default function PublishEstimatorSheet({
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-800">Button</label>
-            <Input value={c.buttonLabel} onChange={(e) => patch({ buttonLabel: e.target.value })} placeholder={c.reveal === "instant" ? "See my estimate" : "Get my quote"} maxLength={PUBLIC_LIMITS.buttonLabel} className="w-full" />
+            <Input value={c.buttonLabel} onChange={(e) => patch({ buttonLabel: e.target.value })} placeholder={c.reveal === "instant" && !hidden ? "See my estimate" : "Get my quote"} maxLength={PUBLIC_LIMITS.buttonLabel} className="w-full" />
           </div>
         </div>
         <div>
