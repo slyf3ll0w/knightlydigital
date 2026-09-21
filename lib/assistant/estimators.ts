@@ -352,13 +352,15 @@ const manageEstimator: Tool = {
       if (args.spec) {
         const check = await checkSpec(actor.companyId, args.spec);
         if (!check.ok) return { error: "The new spec doesn't compile.", errors: check.errors };
-        payload.spec = check.compiled.spec;
-        // Say WHAT changes when it's a handful of things; fall back to the summary badges for a rewrite
+        // Say WHAT changes when it's a handful of things; fall back to the summary badges for a rewrite.
+        // An identical spec is simply not a change (the name/website parts of the card still apply).
         const before = specFromJson(row.spec);
         const changes = before ? describeSpecChanges(before, check.compiled.spec) : [];
-        if (changes.length === 0 && before) return { error: "That spec is identical to the saved one — nothing to change." };
-        if (changes.length > 0 && changes.length <= 10) lines.push("Changes to the rules:", ...changes);
-        else lines.push("Replace the rules:", ...badgeLines(check.compiled.spec));
+        if (!before || changes.length > 0) {
+          payload.spec = check.compiled.spec;
+          if (changes.length > 0 && changes.length <= 10) lines.push("Changes to the rules:", ...changes);
+          else lines.push("Replace the rules:", ...badgeLines(check.compiled.spec));
+        }
       }
       const web = websiteFromArgs(args.website, name || row.name, await companySlugOf(actor.companyId), row);
       if (web) {
