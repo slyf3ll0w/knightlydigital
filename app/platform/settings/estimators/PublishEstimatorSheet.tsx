@@ -5,7 +5,7 @@ import { Check, Copy, ExternalLink, Globe, Loader2 } from "lucide-react";
 import Modal from "@/components/Modal";
 import { Input, Select, Textarea } from "@/components/Input";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
-import { PUBLIC_LIMITS, publicSlugFrom, type EstimatorPublicConfig } from "@/lib/estimator-public";
+import { PUBLIC_LIMITS, PUBLIC_PHOTO_ASSIST_DAILY_CAP, publicSlugFrom, type EstimatorPublicConfig } from "@/lib/estimator-public";
 
 /**
  * Settings → Estimate tools → "Website form". Turns one tool into a public
@@ -18,6 +18,8 @@ import { PUBLIC_LIMITS, publicSlugFrom, type EstimatorPublicConfig } from "@/lib
 export type PublishTool = {
   id: string;
   name: string;
+  /** The tool has Atlas fill-in — the only case where photo fill-in can be offered */
+  usesAtlas: boolean;
   isPublic: boolean;
   publicSlug: string | null;
   publicConfig: EstimatorPublicConfig;
@@ -74,7 +76,7 @@ export default function PublishEstimatorSheet({
   const origin = baseUrl ? new URL(baseUrl).origin : "";
   const embedSnippet = savedSlug
     ? `<iframe src="${baseUrl}/embed/${embedKey}" data-jobflow="${embedKey}" style="width:100%;max-width:640px;height:720px;border:0;" title="Get an estimate"></iframe>
-<script>window.addEventListener("message",function(e){var d=e.data;if(e.origin==="${origin}"&&d&&d.type==="jobflow:height"&&d.slug==="${embedKey}"){var f=document.querySelector('iframe[data-jobflow="${embedKey}"]');if(f)f.style.height=d.height+"px";}});</script>`
+<script>window.addEventListener("message",function(e){var d=e.data;if(e.origin==="${origin}"&&d&&d.type==="jobflow:height"&&d.slug==="${embedKey}"){var f=document.querySelector('iframe[data-jobflow="${embedKey}"]');if(f)f.style.height=d.height+"px";if(e.source&&e.source.postMessage)e.source.postMessage({type:"jobflow:page",href:location.href},e.origin);}});</script>`
     : "";
 
   async function copy(text: string, key: string) {
@@ -241,6 +243,16 @@ export default function PublishEstimatorSheet({
           <p className="mt-1 text-xs text-gray-500">Name is always asked. Quotes sent for approval need an email.</p>
         </div>
 
+        {tool.usesAtlas && (
+          <label className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 px-3 py-2.5">
+            <span>
+              <span className="block text-sm font-medium text-gray-800">Let visitors attach a photo</span>
+              <span className="block text-xs text-gray-500">Atlas fills in the answers from their photo. Uses your tokens — at most {PUBLIC_PHOTO_ASSIST_DAILY_CAP} photos a day, a few per visitor.</span>
+            </span>
+            <input type="checkbox" checked={c.photoAssist} onChange={(e) => patch({ photoAssist: e.target.checked })} className="h-5 w-5 rounded accent-green-600" />
+          </label>
+        )}
+
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-800">Fine print under the estimate</label>
           <Textarea value={c.disclaimer} onChange={(e) => patch({ disclaimer: e.target.value })} rows={2} maxLength={PUBLIC_LIMITS.disclaimer} className="w-full" />
@@ -272,7 +284,7 @@ export default function PublishEstimatorSheet({
                   {copied === "embed" ? <Check size={14} className="text-green-600" /> : <Copy size={14} />}
                 </button>
               </div>
-              <p className="mt-1 text-xs text-gray-500">Paste it where the form should appear. It sizes itself to fit and matches your booking page's look.</p>
+              <p className="mt-1 text-xs text-gray-500">Paste it where the form should appear. It sizes itself to fit, matches your booking page's look, and each lead records which page of your site it came from.</p>
             </div>
             <p className="text-xs text-gray-500">So far: {funnel}</p>
           </div>

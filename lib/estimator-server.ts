@@ -1,9 +1,11 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "./db";
 import { resolvePublicCompany } from "./public-company";
 import { getActor, isManager } from "./permissions";
 import { sanitizePublicConfig, type EstimatorPublicConfig } from "./estimator-public";
 import {
   compileSpec,
+  describeSpecChanges,
   runCompiled,
   specFromJson,
   type CompiledSpec,
@@ -58,6 +60,7 @@ export async function checkSpec(companyId: string, rawSpec: unknown): Promise<Sp
 
 export type EstimatorRow = {
   id: string;
+  companyId: string;
   name: string;
   description: string | null;
   spec: unknown;
@@ -75,6 +78,7 @@ export type EstimatorRow = {
 
 export const ESTIMATOR_SELECT = {
   id: true,
+  companyId: true,
   name: true,
   description: true,
   spec: true,
@@ -212,4 +216,79 @@ export function estimatorSummary(row: EstimatorRow, spec: EstimatorSpec) {
 export async function publicSlugTaken(companyId: string, slug: string, exceptId?: string): Promise<boolean> {
   const hit = await prisma.estimator.findFirst({ where: { companyId, publicSlug: slug, ...(exceptId ? { NOT: { id: exceptId } } : {}) }, select: { id: true } });
   return Boolean(hit);
+}
+
+// ── version history ──────────────────────────────────────────────────────────
+
+/** Snapshots kept per tool — enough to undo a bad week of edits, small enough to stay cheap. */
+export const ESTIMATOR_VERSION_KEEP = 25;
+
+export type VersionBy = { id: string; name: string } | null;
+
+/** Keep the tool AS IT IS NOW, right before it changes. Trims to the last ESTIMATOR_VERSION_KEEP. */
+export async function snapshotEstimator(
+  row: { id: string; companyId: string; name: string; description: string | null; spec: unknown },
+  note: string,
+  by: VersionBy
+): Promise<void> {
+  await prisma.estimatorVersion.create({
+    data: {
+      estimatorId: row.id,
+      companyId: row.companyId,
+      name: row.name,
+      description: row.description,
+      spec: row.spec as Prisma.InputJsonValue,
+      note: note.slice(0, 120),
+      byUserId: by?.id ?? null,
+      byName: by?.name ?? null,
+    },
+  });
+  const stale = await prisma.estimatorVersion.findMany({
+    where: { estimatorId: row.id },
+    orderBy: { createdAt: "desc" },
+    skip: ESTIMATOR_VERSION_KEEP,
+    select: { id: true },
+  });
+  if (stale.length > 0) await prisma.estimatorVersion.deleteMany({ where: { id: { in: stale.map((s) => s.id) } } });
+}
+
+export type EstimatorVersionRow = {
+  id: string;
+  note: string;
+  byName: string | null;
+  createdAt: string;
+  name: string;
+  inputs: number;
+  lines: number;
+  broken: boolean;
+  /** What the edit AFTER this snapshot changed (the newest compares against the live tool). */
+  changes: string[];
+};
+
+/** Newest first. */
+export async function listEstimatorVersions(row: { id: string; name: string; spec: unknown }): Promise<EstimatorVersionRow[]> {
+  const rows = await prisma.estimatorVersion.findMany({
+    where: { estimatorId: row.id },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, name: true, spec: true, note: true, byName: true, createdAt: true },
+  });
+  const live = specFromJson(row.spec);
+  return rows.map((v, i) => {
+    const mine = specFromJson(v.spec);
+    const next = i === 0 ? live : specFromJson(rows[i - 1].spec);
+    const nextName = i === 0 ? row.name : rows[i - 1].name;
+    const changes = mine && next ? describeSpecChanges(mine, next) : [];
+    if (v.name !== nextName) changes.unshift(`Renamed "${v.name}" → "${nextName}"`);
+    return {
+      id: v.id,
+      note: v.note,
+      byName: v.byName,
+      createdAt: v.createdAt.toISOString(),
+      name: v.name,
+      inputs: mine?.inputs.length ?? 0,
+      lines: mine?.lines.length ?? 0,
+      broken: !mine,
+      changes,
+    };
+  });
 }

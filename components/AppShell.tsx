@@ -43,6 +43,7 @@ import {
   Check,
   Loader2,
   PhoneCall,
+  Calculator,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import Avatar from "@/components/Avatar";
@@ -284,6 +285,7 @@ const createItems: NavItem[] = [
   { href: "/app/requests/new", label: "Request", icon: Inbox, show: sellRoles },
   { href: "/app/appointments/new", label: "Appointment", icon: CalendarClock, show: sellRoles },
   { href: "/app/quotes/new", label: "Quote", icon: FileText, show: sellRoles },
+  { href: "/app/estimate", label: "Estimate", icon: Calculator, show: sellRoles },
   { href: "/app/contracts/new", label: "Agreement", icon: FileSignature, show: sellRoles },
   { href: "/app/jobs/new", label: "Job", icon: Briefcase, show: (r) => isManagerRole(r) || r === "USER" },
   { href: "/app/invoices/new", label: "Invoice", icon: Receipt, show: moneyRoles },
@@ -299,6 +301,7 @@ const createTints: Record<string, string> = {
   "/app/requests/new": SECTION_HUES.requests,
   "/app/appointments/new": SECTION_HUES.schedule,
   "/app/quotes/new": SECTION_HUES.quotes,
+  "/app/estimate": SECTION_HUES.quotes,
   "/app/contracts/new": SECTION_HUES.contracts,
   "/app/jobs/new": SECTION_HUES.jobs,
   "/app/invoices/new": SECTION_HUES.invoices,
@@ -1142,6 +1145,7 @@ const newShortcuts: SeqShortcut[] = [
   { key: "r", href: "/app/requests/new", label: "New request", show: sellRoles },
   { key: "a", href: "/app/appointments/new", label: "New appointment", show: sellRoles },
   { key: "q", href: "/app/quotes/new", label: "New quote", show: sellRoles },
+  { key: "e", href: "/app/estimate", label: "New estimate", show: sellRoles },
   { key: "g", href: "/app/contracts/new", label: "New agreement", show: sellRoles },
   { key: "j", href: "/app/jobs/new", label: "New job", show: (r) => isManagerRole(r) || r === "USER" },
   { key: "i", href: "/app/invoices/new", label: "New invoice", show: moneyRoles },

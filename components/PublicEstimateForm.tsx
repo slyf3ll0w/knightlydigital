@@ -1,26 +1,32 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, CheckCircle, Loader2 } from "lucide-react";
+import { ArrowLeft, Camera, Check, CheckCircle, Loader2, X } from "lucide-react";
 import TurnstileWidget from "@/components/TurnstileWidget";
 import { textOn } from "@/lib/branding";
 import { smsConsentLabel, SMS_TERMS_URL } from "@/lib/sms-consent";
 import type { ScheduleAppearance } from "@/app/book/[slug]/schedule/shell";
-import type { EstimatorInput } from "@/lib/estimator";
+import { sectionsOf, visibleInputIds, formDefaults, type EstimatorInput, type EstimatorSpec } from "@/lib/estimator";
 import { defaultSuccessMessage, estimateLabel, money, type EstimatorPublicConfig, type PublicEstimate } from "@/lib/estimator-public";
+import { fileToAssistPhoto, type AssistPhoto } from "@/lib/image-downscale";
 
 /**
- * The visitor-facing estimate form (lib/estimator-public.ts). Two screens:
- *   1. the tool's questions → "See my estimate" (server does the math)
+ * The visitor-facing estimate form (lib/estimator-public.ts). Screens:
+ *   1. the tool's questions — one step per section when the tool has
+ *      sections, questions appearing/disappearing per showWhen — then
+ *      "See my estimate" (server does the math)
  *   2. the estimate (exact lines / a range / nothing, per the owner) + the
  *      contact details → submit → thank-you.
  * Forms set to reveal the price after contact details show it on the
- * thank-you screen instead. Same themed recipe as the booking forms so an
- * estimate form and a booking form on one website read as one family.
+ * thank-you screen instead. When the owner turned photo fill-in on, the first
+ * step offers "snap a photo" and Atlas fills in the answers (the owner's
+ * tokens, capped). Same themed recipe as the booking forms so an estimate
+ * form and a booking form on one website read as one family.
  */
 
 type Calc = { ok: true; estimate: PublicEstimate };
+type FormValues = Record<string, string | boolean | string[]>;
 
 export default function PublicEstimateForm({
   companySlug,
@@ -34,6 +40,7 @@ export default function PublicEstimateForm({
   businessName,
   showHeader = false,
   preview = false,
+  photoAssist = false,
 }: {
   companySlug: string;
   toolSlug: string;
@@ -48,21 +55,24 @@ export default function PublicEstimateForm({
   showHeader?: boolean;
   /** Owner preview — the estimate computes, nothing submits */
   preview?: boolean;
+  /** The owner opted into photo fill-in and the tool supports it */
+  photoAssist?: boolean;
 }) {
   const { dark, accent, transparent } = appearance;
   const f = config.fields;
   const instant = config.reveal === "instant" && config.showPrice !== "hidden";
+  // visibleInputIds wants a spec; the form only ever holds the inputs
+  const spec = useMemo<EstimatorSpec>(() => ({ version: 1, inputs, variables: [], lines: [] }), [inputs]);
 
   const [step, setStep] = useState<"inputs" | "details" | "done">("inputs");
-  const [values, setValues] = useState<Record<string, string | boolean>>(() => {
-    const v: Record<string, string | boolean> = {};
-    for (const i of inputs) {
-      if (i.type === "toggle") v[i.id] = i.default === true;
-      else if (i.default !== undefined && i.default !== null) v[i.id] = String(i.default);
-      else v[i.id] = "";
-    }
-    return v;
-  });
+  const [values, setValues] = useState<FormValues>(() => formDefaults(spec));
+  const visible = useMemo(() => visibleInputIds(spec, values), [spec, values]);
+  const sections = useMemo(() => sectionsOf(inputs, visible), [inputs, visible]);
+  const [sectionIdx, setSectionIdx] = useState(0);
+  useEffect(() => {
+    if (sectionIdx > sections.length - 1) setSectionIdx(Math.max(0, sections.length - 1));
+  }, [sections.length, sectionIdx]);
+
   const [estimate, setEstimate] = useState<PublicEstimate | null>(null);
   const [finalEstimate, setFinalEstimate] = useState<PublicEstimate | null>(null);
   const [form, setForm] = useState({ firstName: "", lastName: "", email: "", phone: "", address: "", message: "" });
@@ -73,6 +83,29 @@ export default function PublicEstimateForm({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // photo fill-in
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [photo, setPhoto] = useState<AssistPhoto | null>(null);
+  const [photoNote, setPhotoNote] = useState("");
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const [usedPhoto, setUsedPhoto] = useState(false);
+
+  // where the lead came from: the embedding page (snippet replies with its href) or the referrer
+  const [page, setPage] = useState("");
+  useEffect(() => {
+    try {
+      if (document.referrer && /^https?:\/\//.test(document.referrer)) setPage(document.referrer.slice(0, 300));
+    } catch {
+      /* ignore */
+    }
+    const onMsg = (e: MessageEvent) => {
+      const d = e.data as { type?: string; href?: string } | null;
+      if (d && d.type === "jobflow:page" && typeof d.href === "string" && /^https?:\/\//.test(d.href)) setPage(d.href.slice(0, 300));
+    };
+    window.addEventListener("message", onMsg);
+    return () => window.removeEventListener("message", onMsg);
+  }, []);
+
   const card = transparent ? "bg-transparent" : dark ? "bg-[#101410] border border-white/10 rounded-lg p-6 shadow-sm" : "card-ledger p-6 shadow-sm";
   const ink = dark ? "text-white" : "text-gray-900";
   const muted = dark ? "text-gray-400" : "text-gray-500";
@@ -82,16 +115,26 @@ export default function PublicEstimateForm({
     : "w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500";
   const rowBox = dark ? "border-white/15" : "border-gray-300";
   const primary = "flex w-full items-center justify-center gap-2 rounded py-3 text-sm font-semibold transition-opacity hover:opacity-90 active:opacity-80 disabled:opacity-50";
+  const secondary = `inline-flex items-center justify-center gap-1.5 rounded border px-4 py-3 text-sm font-medium ${rowBox} ${ink} hover:opacity-80`;
+  const chip = (on: boolean) =>
+    `inline-flex h-9 items-center gap-1 rounded-full border px-3 text-sm ${on ? "" : dark ? "border-white/20 text-gray-200" : "border-gray-300 text-gray-700"}`;
 
   const set = (k: string, v: string) => setForm((s) => ({ ...s, [k]: v }));
-  const setVal = (id: string, v: string | boolean) => setValues((p) => ({ ...p, [id]: v }));
+  const setVal = (id: string, v: string | boolean | string[]) => setValues((p) => ({ ...p, [id]: v }));
+  const toggleMulti = (id: string, value: string) =>
+    setValues((p) => {
+      const cur = Array.isArray(p[id]) ? (p[id] as string[]) : [];
+      return { ...p, [id]: cur.includes(value) ? cur.filter((x) => x !== value) : [...cur, value] };
+    });
 
-  async function calculate(e: React.FormEvent) {
-    e.preventDefault();
+  const apiBase = `/api/public/estimate/${companySlug}/${toolSlug}`;
+  const previewQs = preview ? "?preview=1" : "";
+
+  async function calculate() {
     setError("");
     setLoading(true);
     try {
-      const res = await fetch(`/api/public/estimate/${companySlug}/${toolSlug}/calc${preview ? "?preview=1" : ""}`, {
+      const res = await fetch(`${apiBase}/calc${previewQs}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ inputs: values }),
@@ -110,16 +153,63 @@ export default function PublicEstimateForm({
     }
   }
 
+  function nextOrCalculate(e: React.FormEvent) {
+    e.preventDefault();
+    if (sectionIdx < sections.length - 1) {
+      setSectionIdx(sectionIdx + 1);
+      return;
+    }
+    void calculate();
+  }
+
+  async function fillFromPhoto(file: File | undefined) {
+    if (!file) return;
+    setError("");
+    setPhotoNote("");
+    setPhotoBusy(true);
+    try {
+      const p = await fileToAssistPhoto(file);
+      if (!p) {
+        setError("That photo couldn't be read — try a JPEG or PNG.");
+        return;
+      }
+      setPhoto(p);
+      const res = await fetch(`${apiBase}/assist${previewQs}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageBase64: p.base64, imageMime: p.mime }),
+      });
+      const data = (await res.json().catch(() => null)) as { values?: Record<string, unknown>; notes?: string; error?: string } | null;
+      if (!res.ok || !data?.values) {
+        setPhotoNote(data?.error ?? "We couldn't read that photo — please answer the questions below.");
+        return;
+      }
+      const filled = data.values;
+      const n = Object.keys(filled).length;
+      setValues((prev) => {
+        const next = { ...prev };
+        for (const [k, v] of Object.entries(filled)) next[k] = typeof v === "boolean" ? v : Array.isArray(v) ? v.map(String) : String(v);
+        return next;
+      });
+      setUsedPhoto(n > 0);
+      setPhotoNote(n === 0 ? "We couldn't tell much from that photo — please answer below." : `We filled in ${n} answer${n === 1 ? "" : "s"} from your photo — please check them.${data.notes ? ` ${data.notes}` : ""}`);
+    } catch {
+      setPhotoNote("We couldn't read that photo — please answer the questions below.");
+    } finally {
+      setPhotoBusy(false);
+    }
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (preview) return;
     setError("");
     setLoading(true);
     try {
-      const res = await fetch(`/api/public/estimate/${companySlug}/${toolSlug}`, {
+      const res = await fetch(apiBase, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ inputs: values, ...form, smsConsent, captchaToken, website: honeypot, elapsedMs: Date.now() - startedAt }),
+        body: JSON.stringify({ inputs: values, ...form, smsConsent, captchaToken, website: honeypot, elapsedMs: Date.now() - startedAt, page, usedPhoto }),
       });
       const data = (await res.json().catch(() => null)) as { success?: boolean; estimate?: PublicEstimate; error?: string } | null;
       if (!res.ok) {
@@ -200,13 +290,65 @@ export default function PublicEstimateForm({
     );
   }
 
-  // ── step 1: the tool's questions ───────────────────────────────────────────
+  // ── step 1: the tool's questions (one section per screen) ──────────────────
   if (step === "inputs") {
+    const current = sections[sectionIdx] ?? { title: null, inputs: [] };
+    const multiStep = sections.length > 1;
+    const last = sectionIdx >= sections.length - 1;
     return (
-      <form onSubmit={calculate} className={`${card} space-y-4`}>
+      <form onSubmit={nextOrCalculate} className={`${card} space-y-4`}>
         {header}
         {errorBox}
-        {inputs.map((inp) => {
+
+        {photoAssist && sectionIdx === 0 && (
+          <div className={`rounded-lg border border-dashed p-3 ${rowBox}`}>
+            <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => void fillFromPhoto(e.target.files?.[0])} />
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className={`text-sm font-medium ${ink}`}>Have a photo of the job?</p>
+                <p className={`text-xs ${muted}`}>Snap one and we'll fill in the answers for you.</p>
+              </div>
+              {photo ? (
+                <span className={`flex shrink-0 items-center gap-1.5 rounded border py-0.5 pl-0.5 pr-1.5 text-[11px] ${rowBox} ${muted}`}>
+                  <img src={photo.previewUrl} alt="" className="h-7 w-7 rounded object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPhoto(null);
+                      setPhotoNote("");
+                    }}
+                    aria-label="Remove photo"
+                  >
+                    <X size={12} />
+                  </button>
+                </span>
+              ) : (
+                <button type="button" disabled={photoBusy} onClick={() => fileRef.current?.click()} className={`${secondary} shrink-0 py-2`}>
+                  {photoBusy ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} />}
+                  Add photo
+                </button>
+              )}
+            </div>
+            {photoBusy && <p className={`mt-2 text-xs ${muted}`}>Reading your photo…</p>}
+            {photoNote && !photoBusy && <p className={`mt-2 text-xs ${muted}`}>{photoNote}</p>}
+          </div>
+        )}
+
+        {multiStep && (
+          <div className="flex items-center justify-between gap-3">
+            <p className={`text-xs font-medium uppercase tracking-wide ${muted}`}>
+              Step {sectionIdx + 1} of {sections.length}
+            </p>
+            <div className="flex gap-1">
+              {sections.map((_, i) => (
+                <span key={i} className="h-1.5 w-6 rounded-full" style={{ backgroundColor: i <= sectionIdx ? accent : dark ? "rgba(255,255,255,0.15)" : "#e5e7eb" }} />
+              ))}
+            </div>
+          </div>
+        )}
+        {current.title && <h3 className={`text-base font-semibold ${ink}`}>{current.title}</h3>}
+
+        {current.inputs.map((inp) => {
           const v = values[inp.id];
           const required = "required" in inp && inp.required !== false;
           if (inp.type === "toggle") {
@@ -252,6 +394,27 @@ export default function PublicEstimateForm({
                   ))}
                 </select>
               )}
+              {inp.type === "multi" && (
+                <div className="flex flex-wrap gap-1.5">
+                  {inp.options.map((o) => {
+                    const on = Array.isArray(v) && v.includes(o.value);
+                    return (
+                      <button
+                        key={o.value}
+                        type="button"
+                        aria-pressed={on}
+                        onClick={() => toggleMulti(inp.id, o.value)}
+                        className={chip(on)}
+                        style={on ? { backgroundColor: accent, borderColor: accent, color: textOn(accent) } : undefined}
+                      >
+                        {on && <Check size={12} strokeWidth={3} />}
+                        {o.label}
+                      </button>
+                    );
+                  })}
+                  {required && Array.isArray(v) && v.length === 0 && <span className={`self-center text-xs ${muted}`}>Pick at least one</span>}
+                </div>
+              )}
               {inp.type === "text" && (
                 <textarea value={typeof v === "string" ? v : ""} rows={2} placeholder={inp.placeholder} required={required} maxLength={500} onChange={(e) => setVal(inp.id, e.target.value)} className={`${input} resize-none`} />
               )}
@@ -259,10 +422,18 @@ export default function PublicEstimateForm({
             </div>
           );
         })}
-        <button type="submit" disabled={loading} className={primary} style={{ backgroundColor: accent, color: textOn(accent) }}>
-          {loading && <Loader2 size={14} className="animate-spin" />}
-          {instant ? buttonLabel : "Continue"}
-        </button>
+
+        <div className="flex gap-2">
+          {multiStep && sectionIdx > 0 && (
+            <button type="button" onClick={() => setSectionIdx(sectionIdx - 1)} className={secondary} aria-label="Back">
+              <ArrowLeft size={14} />
+            </button>
+          )}
+          <button type="submit" disabled={loading} className={primary} style={{ backgroundColor: accent, color: textOn(accent) }}>
+            {loading && <Loader2 size={14} className="animate-spin" />}
+            {!last ? "Next" : instant ? buttonLabel : "Continue"}
+          </button>
+        </div>
       </form>
     );
   }
@@ -272,7 +443,14 @@ export default function PublicEstimateForm({
   return (
     <form onSubmit={submit} className={`${card} relative space-y-4`}>
       {header}
-      <button type="button" onClick={() => setStep("inputs")} className={`inline-flex items-center gap-1 text-xs font-medium ${muted} hover:underline`}>
+      <button
+        type="button"
+        onClick={() => {
+          setStep("inputs");
+          setSectionIdx(0);
+        }}
+        className={`inline-flex items-center gap-1 text-xs font-medium ${muted} hover:underline`}
+      >
         <ArrowLeft size={13} /> Change my answers
       </button>
       {instant && estimate && <EstimatePanel e={estimate} />}

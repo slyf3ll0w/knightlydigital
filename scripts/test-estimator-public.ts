@@ -136,4 +136,17 @@ import {
   assert.equal(defaultSuccessMessage({ ...d, successMessage: "Cheers!" }, "Acme"), "Cheers!");
 }
 
+
+// 6. photo fill-in flag (Batch 4) — off unless the owner says so; described when on
+{
+  assert.equal(sanitizePublicConfig(null).photoAssist, false);
+  assert.equal(sanitizePublicConfig({ photoAssist: "true" }).photoAssist, true);
+  assert.equal(sanitizePublicConfig({ photoAssist: 1 }).photoAssist, false, "only true/\"true\" turn it on");
+  const on = sanitizePublicConfig({ photoAssist: true });
+  assert.equal(describePublicConfig(on).length, 4);
+  assert.ok(/photo/.test(describePublicConfig(on)[3]));
+  assert.equal(describePublicConfig(sanitizePublicConfig(null)).length, 3);
+}
+console.log("ok 6: photoAssist");
+
 console.log("test-estimator-public: all green");

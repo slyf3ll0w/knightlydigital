@@ -6,7 +6,11 @@
 embed, live running total in the runner) BUILT 2026-09-19 — tsc clean, unit
 tests green (`scripts/test-estimator.ts`, `scripts/test-estimator-public.ts`,
 `scripts/test-automations.ts`, `scripts/test-assistant.ts` 100 tools). Live
-Gemini behaviour of the builders is UNVERIFIED — see the § Test sections.**
+Gemini behaviour of the builders is UNVERIFIED — see the § Test sections.
+Batch 4 (manual editor + version history, onsite Estimate → Create quote,
+sections / show-when / pick-several in the spec, photo fill-in, Try-it on
+Atlas cards, lead page attribution) BUILT 2026-09-21 — tsc clean, unit
+tests green.**
 
 ## The idea (David, 2026-09-19)
 
@@ -352,8 +356,109 @@ prints "Running total: $X" next to Calculate.
    21st submit from one IP in an hour → 429; a suspended company's form →
    404; turning the form off → link 404s, embed shows nothing.
 
+## Batch 4 — the estimator grows up (BUILT 2026-09-21)
+
+David (2026-09-21): "implement your suggestions … a tool for companies to
+make quotes onsite (there needs to be a way to convert it to a quote) but
+also a lead capture mechanism … good enough to create complex tools useful
+for different industries." Three jobs, one spec.
+
+### Spec v1 additions (`lib/estimator.ts`, backwards compatible)
+- `input.section` — consecutive inputs with the same section render under a
+  heading in the app and as ONE STEP EACH on the website form (progress
+  bar, Next/Back). `sectionsOf()`.
+- `input.showWhen` — an expression over OTHER inputs (no variables, no
+  price book — the client evaluates it live); a hidden question reads as
+  untouched (its default) even if a stale value is sent, and its `required`
+  is not enforced. `visibleInputIds()` is the one implementation; both forms
+  and `coerceInputs()` use it. Fails open (a broken condition shows the
+  question).
+- `type: "multi"` — pick several; the value is a list of option values.
+  Functions `has(picks, value)` (1/0 in arithmetic; also text contains),
+  `count(picks | a, b, c)`, `sum(list | a, b)`, `join(picks, sep)`. Lists
+  render as words in templates.
+- Limits: 40 inputs, 60 variables, 60 lines. `describeSpecChanges(from, to)`
+  → human lines ("Rate for \"Sealant\": $0.45 → $0.50", "Added question …").
+  Guide text teaches all of it; Atlas update cards now list the CHANGES
+  instead of re-badging the whole spec (≤10 changes; rewrites fall back).
+
+### Version history
+`EstimatorVersion` (additive): every change to the rules or the words
+snapshots the PREVIOUS state first — `PATCH` (source `atlas` → "Atlas
+update", else "Manual edit"), create ("Created"), restore ("Before
+restoring …"). Last 25 per tool. `GET /api/app/estimators/[id]/versions`
+(each row carries what the edit after it changed), `POST …/versions/[vid]`
+restores (must still compile against today's price book; the live rules are
+snapshotted first, so a restore is undoable).
+
+### Manual editor — Settings → Estimate tools → pencil (`EditEstimatorSheet`)
+Tabs: Questions (label, help, section, show-when, options + values,
+required, defaults, add/reorder/remove — new questions derive their id from
+the label until saved; existing ids never move), Pricing (minimum, variables,
+lines: name/description templates, unit price, quantity, only-when,
+price-book item with a datalist, optional; formula cheat sheet), Words
+(name, description, intro, quote title, client message, Atlas fill-in +
+guidance), History (restore). Footer: Check (compile via
+`POST /api/app/estimators/preview`), Try it (runs the UNSAVED rules in the
+runner), Save (PATCH → exact compile errors inline).
+
+### Onsite: Estimate → Create quote
+`/app/estimate` (+ menu "Estimate", shortcut `n e`): the runner as a page.
+Result screen → **Create quote** stashes the lines/title/message in
+sessionStorage and opens `/app/quotes/new?fromTool=1`, where `QuoteEditor`
+applies them once and the user picks the client. The settings "Try it" and
+the Atlas card "Try it" (below) offer the same button. `EstimatorRunnerPanel`
+is the chrome-less body; `EstimatorRunner` wraps it in the Modal.
+
+### Try it on the Atlas card
+`manage_estimator` create/update cards carry the full spec, so the drawer
+shows **Try it** next to Skip: the runner opens on the staged, unsaved spec
+(`preview: true` → `/api/app/estimators/preview`). See what you approve.
+
+### Photo fill-in
+`lib/estimator-assist.ts` is the shared metered step (in-app runner + public
+form): description and/or a photo (client downscales to 1280 px JPEG,
+`lib/image-downscale.ts`; server accepts jpeg/png/webp ≤ ~2 MB) →
+`meteredOneShot` with an inline image part → coerced values. In the app:
+"Add a photo" in the runner's assist box. On the website:
+`publicConfig.photoAssist` (sheet toggle, only for tools with assist; Atlas
+`website.photoAssist`) → `POST /api/public/estimate/[slug]/[tool]/assist`,
+6/h per IP and `PUBLIC_PHOTO_ASSIST_DAILY_CAP` (20) per company per day; the
+ledger names the company's owner/admin; visitors never see tokens or meter
+state. The request notes "filled in from a photo — double-check".
+
+### Lead attribution
+The embed snippet now answers the iframe's height message with
+`{type: "jobflow:page", href}`; the form also reads `document.referrer`. The
+submit carries `page` (https only, 300 chars) → request details `From page:
+…`. Hidden questions and multi picks render correctly in the answers.
+
+### Batch 4 Test (owed)
+1. Pencil on the driveway tool → Pricing → change Sealant 0.45 → 0.50 →
+   Check says "Rules add up" → Try it prices 800 sq ft with sealant at $600
+   → Save. History tab shows "Manual edit" with "Rate for Sealant: $0.45 →
+   $0.50"; Restore brings 0.45 back and adds a "Before restoring" row.
+2. Questions → add a Pick-several "Also clean" (Patio, Fence) in section
+   "Extras", a Number "Fence length" with show-when `has(also_clean,
+   'Fence')`; Pricing → add line Fence wash, quantity fence_length, price
+   1.25, only when `has(also_clean, 'Fence')` → Save. Runner: Fence length
+   appears only after picking Fence; the website form shows two steps.
+3. + menu → Estimate → answer → Create quote → the new quote opens with the
+   lines and title; pick a client; save.
+4. Atlas: "change the driveway tool's minimum to $175" → the update card
+   lists "Minimum job charge: $150.00 → $175.00" and a Try it button that
+   runs the unsaved rules; confirm → History shows "Atlas update".
+5. Runner on a tool with assist → Add a photo of a driveway → Fill in →
+   inputs populate, note says which came from the photo, tokens shown.
+6. Website form sheet on that tool → "Let visitors attach a photo" → the
+   public form's first step offers Add photo; a photo fills answers; the
+   submitted request says the answers came from a photo. 7th photo from one
+   IP in an hour → "please fill in by hand".
+7. Embed the snippet on a test page → submit → request details end with
+   "From page: <that page's URL>".
+
 ## Later
 - Lazy tool loading (docs/plans/cost-controls.md) — `manage_estimator`'s
   spec schema is the largest declaration in the registry now.
-- Photos as an assist input (Gemini vision) once the metered path is
-  proven.
+- Images per option / per section on the website form (needs asset hosting).
+- A11y pass on the multi-select chips (keyboard focus order on phones).

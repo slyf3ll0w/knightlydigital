@@ -3,10 +3,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Calculator, Globe, Play, Power, Sparkles, Trash2, X } from "lucide-react";
+import { ArrowLeft, Calculator, Globe, Pencil, Play, Power, Sparkles, Trash2, X } from "lucide-react";
 import PageTitle from "@/components/PageTitle";
 import EstimatorRunner, { type RunnerEstimator } from "@/components/EstimatorRunner";
 import PublishEstimatorSheet, { type PublishTool } from "./PublishEstimatorSheet";
+import EditEstimatorSheet from "./EditEstimatorSheet";
 import { useAssistant } from "@/components/AssistantContext";
 import { confirmSheet } from "@/components/ConfirmSheet";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
@@ -15,8 +16,10 @@ import { SECTION_HUES, hueInk } from "@/lib/section-colors";
 /**
  * Settings → Estimate tools. Tools are BUILT in conversation with Atlas
  * (manage_estimator) — this page is where you see them, try one, switch it
- * off, or delete it. No form editor on purpose: the spec is Atlas's job, and
- * "ask Atlas to change it" is the edit path.
+ * off, publish it as a website form, or delete it. Atlas builds; the pencil
+ * opens the manual editor (questions, rates, formulas, words) with a History
+ * tab — every save keeps the previous version, so a bad rewrite is one click
+ * to undo.
  */
 
 type Tool = RunnerEstimator & PublishTool & { isActive: boolean; runs: number; assists: number; updatedAt: string };
@@ -33,6 +36,7 @@ export default function EstimatorsClient({ tools, brokenCount, companySlug, base
   const atlas = useAssistant();
   const [trying, setTrying] = useState<Tool | null>(null);
   const [publishing, setPublishing] = useState<Tool | null>(null);
+  const [editing, setEditing] = useState<Tool | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState("");
 
@@ -107,6 +111,9 @@ export default function EstimatorsClient({ tools, brokenCount, companySlug, base
               <Globe size={16} />
             </button>
           )}
+          <button type="button" onClick={() => setEditing(t)} aria-label="Edit" title="Edit questions, rates and words" className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-800">
+            <Pencil size={16} />
+          </button>
           <button
             type="button"
             disabled={busy === t.id}
@@ -146,7 +153,9 @@ export default function EstimatorsClient({ tools, brokenCount, companySlug, base
       <p className="mb-5 mt-2 text-sm text-gray-500 lg:ml-8 lg:mb-6">
         Quote calculators built around <em>your</em> pricing. Tell {atlas.name} how you price a kind of job and it builds the tool; from then on
         anyone on the team answers a few questions on a new quote and the line items fill themselves in — plain math, no tokens. Any tool can
-        also go on your website as an instant-estimate form that captures leads (the globe button). To change a tool, ask {atlas.name}.
+        also go on your website as an instant-estimate form that captures leads (the globe button). To change one, use the pencil — questions,
+        rates, formulas and words, with every version kept so you can restore — or just ask {atlas.name}. Onsite, open <strong>Estimate</strong>{" "}
+        from the + menu: answer, show the number, tap Create quote.
       </p>
 
       {error && (
@@ -206,6 +215,15 @@ export default function EstimatorsClient({ tools, brokenCount, companySlug, base
       )}
 
       <EstimatorRunner estimators={trying ? [trying] : []} open={trying !== null} onClose={() => setTrying(null)} />
+      <EditEstimatorSheet
+        tool={editing}
+        open={editing !== null}
+        onClose={() => setEditing(null)}
+        onSaved={() => {
+          setEditing(null);
+          router.refresh();
+        }}
+      />
       <PublishEstimatorSheet
         tool={publishing}
         companySlug={companySlug}

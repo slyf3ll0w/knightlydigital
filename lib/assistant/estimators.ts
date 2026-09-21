@@ -3,6 +3,7 @@ import { canSell, isManager } from "../permissions";
 import { str, stage, type Tool } from "./core";
 import {
   compileSpec,
+  describeSpecChanges,
   runCompiled,
   ESTIMATOR_GUIDE,
   ESTIMATOR_LIMITS,
@@ -144,6 +145,7 @@ const WEBSITE_PARAM = {
     requireAddress: { type: "boolean" },
     disclaimer: { type: "string", description: "fine print under the estimate; a sensible default exists" },
     successMessage: { type: "string", description: "thank-you text; default fits onSubmit" },
+    photoAssist: { type: "boolean", description: "visitors may attach a photo / describe the job and Atlas fills in the answers — spends the OWNER's tokens (capped per day); needs the tool's assist; default false. Offer it only when the owner asks for photos or the tool already uses assist." },
   },
 } as const;
 
@@ -162,6 +164,7 @@ function websiteConfigFrom(raw: Record<string, unknown>, base: EstimatorPublicCo
     ...(typeof raw.buttonLabel === "string" ? { buttonLabel: raw.buttonLabel } : {}),
     ...(typeof raw.disclaimer === "string" ? { disclaimer: raw.disclaimer } : {}),
     ...(typeof raw.successMessage === "string" ? { successMessage: raw.successMessage } : {}),
+    ...(typeof raw.photoAssist === "boolean" ? { photoAssist: raw.photoAssist } : {}),
     fields: {
       ...base.fields,
       phone: { show: askPhone, required: askPhone && bool(raw.requirePhone, base.fields.phone.required) },
@@ -232,7 +235,7 @@ const manageEstimator: Tool = {
         priceBookNote: book.length > 80 ? `${book.length - 80} more — use get_price_book` : undefined,
         limits: ESTIMATOR_LIMITS,
         websiteForms:
-          "Any tool can be published as a website form: pass website: {enabled: true, showPrice: 'exact'|'range'|'hidden', reveal: 'instant'|'after_contact', onSubmit: 'draft'|'send'|'request', …} on create or update. Ask the owner two things at most: what visitors should see (exact price / range / no price) and what should happen (draft quote for review / email the quote / just the lead). Default = exact price shown right away, then name + email + phone, lead + request + draft quote. The link is /book/<companySlug>/estimate/<slug>; the embed snippet lives under Settings → Estimate tools (globe button). Visitors never spend the owner's tokens (no assist on public forms). Text inputs are fine on a public form — they land in the request as answers.",
+          "Any tool can be published as a website form: pass website: {enabled: true, showPrice: 'exact'|'range'|'hidden', reveal: 'instant'|'after_contact', onSubmit: 'draft'|'send'|'request', …} on create or update. Ask the owner two things at most: what visitors should see (exact price / range / no price) and what should happen (draft quote for review / email the quote / just the lead). Default = exact price shown right away, then name + email + phone, lead + request + draft quote. The link is /book/<companySlug>/estimate/<slug>; the embed snippet lives under Settings → Estimate tools (globe button). Visitors never spend the owner's tokens unless the owner turns on photoAssist (a photo / description fill-in on the form, capped per day, needs the tool's assist). Text inputs are fine on a public form — they land in the request as answers. Every saved change keeps the previous version (Settings → Estimate tools → pencil → History), and the owner can edit rates by hand there too.",
         next: "Draft the spec from what the user told you, run action 'test' with realistic sample inputs, then stage 'create'.",
       };
     }
@@ -319,7 +322,7 @@ const manageEstimator: Tool = {
           lines: [...(str(args.description, 200) ? [`Use it for: ${str(args.description, 200)}`] : []), ...badgeLines(spec), ...(web?.lines ?? [])],
           endpoint: "/api/app/estimators",
           method: "POST",
-          payload: { name, description: str(args.description, 200) || null, spec, ...(web?.payload ?? {}) },
+          payload: { name, description: str(args.description, 200) || null, spec, ...(web?.payload ?? {}), source: "atlas" },
           confirmLabel: "Create tool",
           href: "/app/settings/estimators",
         }),
@@ -350,7 +353,12 @@ const manageEstimator: Tool = {
         const check = await checkSpec(actor.companyId, args.spec);
         if (!check.ok) return { error: "The new spec doesn't compile.", errors: check.errors };
         payload.spec = check.compiled.spec;
-        lines.push("Replace the rules:", ...badgeLines(check.compiled.spec));
+        // Say WHAT changes when it's a handful of things; fall back to the summary badges for a rewrite
+        const before = specFromJson(row.spec);
+        const changes = before ? describeSpecChanges(before, check.compiled.spec) : [];
+        if (changes.length === 0 && before) return { error: "That spec is identical to the saved one — nothing to change." };
+        if (changes.length > 0 && changes.length <= 10) lines.push("Changes to the rules:", ...changes);
+        else lines.push("Replace the rules:", ...badgeLines(check.compiled.spec));
       }
       const web = websiteFromArgs(args.website, name || row.name, await companySlugOf(actor.companyId), row);
       if (web) {
@@ -358,6 +366,7 @@ const manageEstimator: Tool = {
         lines.push(...web.lines);
       }
       if (lines.length === 0) return { error: "Nothing to change — pass a new spec, name, description, isActive or website." };
+      payload.source = "atlas";
       return stage(ctx, {
         kind: "manage_estimator",
         title: `Update estimate tool "${row.name}"`,

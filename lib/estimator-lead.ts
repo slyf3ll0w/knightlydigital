@@ -39,6 +39,10 @@ export type EstimateLeadInput = {
   /** "Driveway size: 800 sq ft" — the answers as the request will record them */
   answers: string[];
   customer: EstimateCustomer;
+  /** The page the form sat on (embed) or the referrer (hosted) — where the lead came from */
+  page?: string;
+  /** The visitor used the photo fill-in — worth knowing when reading the answers */
+  usedPhoto?: boolean;
 };
 
 export type EstimateLeadResult = {
@@ -52,7 +56,7 @@ export type EstimateLeadResult = {
 const cents = (x: number) => Math.round((x + Number.EPSILON) * 100) / 100;
 
 export async function createEstimateLead(input: EstimateLeadInput): Promise<EstimateLeadResult> {
-  const { pub, result, answers, customer } = input;
+  const { pub, result, answers, customer, page, usedPhoto } = input;
   const { company, row, spec, config } = pub;
   const send = config.onSubmit === "send";
   const makeQuote = config.onSubmit !== "request";
@@ -150,6 +154,8 @@ export async function createEstimateLead(input: EstimateLeadInput): Promise<Esti
             }`,
             quote ? `Quote #${quote.quoteNumber} created automatically (${send ? "sent for approval" : "draft"})${quote.deposit > 0 ? ` — deposit $${quote.deposit.toFixed(2)}` : ""}.` : null,
             customer.address ? `Address: ${customer.address}` : null,
+            usedPhoto ? "Answers were filled in from a photo the visitor attached — double-check them." : null,
+            page ? `From page: ${page}` : null,
             `Form: ${row.name} (website estimate)`,
           ]
             .filter(Boolean)

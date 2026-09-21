@@ -11,6 +11,8 @@ import {
   coerceInputs,
   toIdentifier,
   usesAtlas,
+  visibleInputIds,
+  describeSpecChanges,
   type EvalCtx,
   type PriceBookEntry,
 } from "../lib/estimator";
@@ -195,7 +197,7 @@ console.log("ok 5: run-time problems");
     const all = bad.errors.join("\n");
     for (const needle of [
       'Input id "1bad"', 'Input id "min" is a reserved word', "needs at least 2 options", 'Duplicate id "dup"',
-      "type must be number, select, toggle or text", 'Variable "v": unknown name "nope"', "Line 1 needs a name",
+      "type must be number, select, multi, toggle or text", 'Variable "v": unknown name "nope"', "Line 1 needs a name",
       'Line "No price": needs a unitPrice expression or a workItemName', 'Line "Bad expr" unitPrice', "Unclosed {", "minimumTotal must be",
     ]) {
       assert.ok(all.includes(needle), `expected error containing: ${needle}\n--\n${all}`);
@@ -241,5 +243,97 @@ console.log("ok 7: coerce inputs");
   assert.ok(!r2.ok && /above \$1,000,000/.test(r2.errors[0]));
 }
 console.log("ok 8: hostile inputs bounded");
+
+
+// 9. sections, showWhen, multi-select + list functions (Batch 4)
+{
+  assert.equal(ev("has(picks, 'Fence')", { picks: ["Sidewalk", "fence"] }), true, "has() is case-insensitive on lists");
+  assert.equal(ev("has(picks, 'Patio') * 250", { picks: ["Sidewalk"] }), 0, "has() is 0/1 in arithmetic");
+  assert.equal(ev("count(picks)", { picks: ["a", "b", "c"] }), 3);
+  assert.equal(ev("count(a, b, c)", { a: true, b: 0, c: "x" }), 2);
+  assert.equal(ev("sum([1, 2, 3.5])"), 6.5);
+  assert.equal(ev("sum(1, 2)"), 3);
+  assert.equal(ev("join(picks, ' + ')", { picks: ["a", "b"] }), "a + b");
+  assert.equal(ev("contains('Kitchen sink', 'sink')"), true, "contains still works on text");
+
+  const spec = {
+    inputs: [
+      { id: "extras", label: "Also clean", type: "multi", options: ["Sidewalk", "Patio", "Fence"], section: "Extras" },
+      { id: "fence_ft", label: "Fence length", type: "number", unit: "ft", showWhen: "has(extras, 'Fence')", section: "Extras", required: true },
+      { id: "sqft", label: "Size", type: "number", section: "The job", required: true },
+      { id: "bad", label: "Bad", type: "number", showWhen: "price('x') > 1" },
+    ],
+    lines: [
+      { name: "Wash", quantity: "sqft", unitPrice: "0.25" },
+      { name: "Fence — {join(extras)}", when: "has(extras, 'Fence')", quantity: "fence_ft", unitPrice: "1.25" },
+      { name: "Patio", when: "has(extras, 'Patio')", unitPrice: "80" },
+    ],
+  };
+  const bad = compileSpec(spec);
+  assert.ok(!bad.ok && bad.errors.some((e) => /showWhen can.t read the price book/.test(e)), "showWhen may not read the price book");
+  spec.inputs.pop();
+  const c = compileSpec(spec);
+  assert.ok(c.ok, JSON.stringify(c));
+  if (c.ok) {
+    const s = c.compiled.spec;
+    assert.equal(s.inputs[0].type, "multi");
+    assert.equal(s.inputs[1].section, "Extras");
+    // hidden question: no required error, reads as untouched
+    assert.deepEqual(Array.from(visibleInputIds(s, { extras: ["Sidewalk"], sqft: 100 })), ["extras", "sqft"]);
+    const r1 = runEstimator(s, { extras: ["Sidewalk"], sqft: 100, fence_ft: 999 }, book);
+    assert.ok(r1.ok && r1.lines.length === 1 && r1.subtotal === 25, "hidden fence input is ignored even when a stale value is sent");
+    // visible + required → enforced
+    const r2 = runEstimator(s, { extras: ["Fence", "Patio"], sqft: 100 }, book);
+    assert.ok(!r2.ok && /Fence length is required/.test(r2.errors[0]));
+    const r3 = runEstimator(s, { extras: "Fence,Patio", sqft: 100, fence_ft: 40 }, book);
+    assert.ok(r3.ok, JSON.stringify(r3));
+    if (r3.ok) {
+      assert.equal(r3.subtotal, 25 + 50 + 80);
+      assert.equal(r3.lines[1].name, "Fence — Fence, Patio", "multi renders as words in templates");
+    }
+    const r4 = runEstimator(s, { extras: ["Pool"], sqft: 100 }, book);
+    assert.ok(!r4.ok && /not an option/.test(r4.errors[0]));
+  }
+  const req = compileSpec({ inputs: [{ id: "rooms", label: "Rooms", type: "multi", options: ["A", "B"], required: true }], lines: [{ name: "X", unitPrice: "count(rooms) * 10" }] });
+  assert.ok(req.ok);
+  if (req.ok) {
+    const r = runEstimator(req.compiled.spec, {}, book);
+    assert.ok(!r.ok && /Pick at least one/.test(r.errors[0]));
+  }
+  const self = compileSpec({ inputs: [{ id: "a", label: "A", type: "toggle", showWhen: "a" }], lines: [{ name: "X", unitPrice: "1" }] });
+  assert.ok(!self.ok && /can.t read itself/.test(self.errors[0]));
+}
+console.log("ok 9: sections, showWhen, multi");
+
+
+// 10. describeSpecChanges — the words on Atlas update cards and in History
+{
+  const a = compileSpec({
+    inputs: [{ id: "sqft", label: "Size", type: "number" }, { id: "sealant", label: "Sealant?", type: "toggle" }],
+    variables: [{ id: "rate", expr: "0.25" }],
+    lines: [{ id: "wash", name: "Wash", quantity: "sqft", unitPrice: "rate" }, { id: "seal", name: "Sealant", when: "sealant", quantity: "sqft", unitPrice: "0.45" }],
+    minimumTotal: 150,
+  });
+  const b = compileSpec({
+    inputs: [{ id: "sqft", label: "Driveway size", type: "number", section: "The job" }, { id: "extras", label: "Extras", type: "multi", options: ["Patio", "Fence"] }],
+    variables: [{ id: "rate", expr: "0.30" }],
+    lines: [{ id: "wash", name: "Wash", quantity: "sqft", unitPrice: "rate", isOptional: false }, { id: "patio", name: "Patio", when: "has(extras, 'Patio')", unitPrice: "80" }],
+    minimumTotal: 175,
+  });
+  assert.ok(a.ok && b.ok);
+  if (a.ok && b.ok) {
+    const ch = describeSpecChanges(a.compiled.spec, b.compiled.spec);
+    assert.ok(ch.includes('Renamed question "Size" → "Driveway size"'), ch.join("|"));
+    assert.ok(ch.includes('"Driveway size" moved to section "The job"'));
+    assert.ok(ch.includes('Added question "Extras"'));
+    assert.ok(ch.includes('Removed question "Sealant?"'));
+    assert.ok(ch.includes("Variable rate: 0.25 → 0.30"));
+    assert.ok(ch.includes('Added line "Patio" at $80.00'));
+    assert.ok(ch.includes('Removed line "Sealant"'));
+    assert.ok(ch.includes("Minimum job charge: $150.00 → $175.00"));
+    assert.deepEqual(describeSpecChanges(a.compiled.spec, a.compiled.spec), [], "identical specs → no changes");
+  }
+}
+console.log("ok 10: describeSpecChanges");
 
 console.log("\nestimator: all green");

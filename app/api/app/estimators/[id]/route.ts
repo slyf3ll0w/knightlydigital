@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, isManager } from "@/lib/permissions";
 import { specFromJson } from "@/lib/estimator";
-import { checkSpec, ESTIMATOR_SELECT, estimatorSummary, publicSlugTaken } from "@/lib/estimator-server";
+import { checkSpec, ESTIMATOR_SELECT, estimatorSummary, publicSlugTaken, snapshotEstimator } from "@/lib/estimator-server";
 import { PUBLIC_SLUG_RE, publicSlugFrom, sanitizePublicConfig } from "@/lib/estimator-public";
 
 async function load(id: string, companyId: string) {
@@ -21,9 +21,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 }
 
 /**
- * PATCH — { name?, description?, isActive?, spec?, isPublic?, publicSlug?, publicConfig? }.
+ * PATCH — { name?, description?, isActive?, spec?, isPublic?, publicSlug?, publicConfig?, source? }.
  * A new spec replaces the old one whole; publicConfig too. Turning the
- * website form on with no slug yet derives one from the name.
+ * website form on with no slug yet derives one from the name. Any change
+ * to the rules or the words snapshots the previous version first
+ * (`source: "atlas"` labels the Atlas card's confirm; anything else is a
+ * manual edit) so it can be restored from the editor's History tab.
  */
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const actor = await getActor();
@@ -71,6 +74,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (willBePublic && !data.publicSlug && !row.publicSlug) data.publicSlug = publicSlugFrom(data.name ?? row.name) || `tool-${row.id.slice(-6)}`;
   if (data.publicSlug && data.publicSlug !== row.publicSlug && (await publicSlugTaken(actor.companyId, data.publicSlug, row.id))) {
     return NextResponse.json({ error: `Another tool already uses the link name "${data.publicSlug}".` }, { status: 409 });
+  }
+
+  const specChanged = data.spec !== undefined && JSON.stringify(data.spec) !== JSON.stringify(row.spec);
+  const wordsChanged = (data.name !== undefined && data.name !== row.name) || (data.description !== undefined && data.description !== row.description);
+  if (specChanged || wordsChanged) {
+    await snapshotEstimator(row, body.source === "atlas" ? "Atlas update" : "Manual edit", { id: actor.id, name: actor.name });
   }
 
   const updated = await prisma.estimator.update({ where: { id: row.id }, data, select: ESTIMATOR_SELECT });

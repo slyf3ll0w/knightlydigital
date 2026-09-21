@@ -23,9 +23,9 @@
 // ── limits ───────────────────────────────────────────────────────────────────
 
 export const ESTIMATOR_LIMITS = {
-  inputs: 30,
-  variables: 40,
-  lines: 40,
+  inputs: 40,
+  variables: 60,
+  lines: 60,
   options: 24,
   exprLen: 500,
   textLen: 300,
@@ -37,12 +37,20 @@ export const ESTIMATOR_LIMITS = {
 
 export type EstimatorOption = { value: string; label: string };
 
+/** What every input shares. */
+export type EstimatorInputBase = {
+  id: string;
+  label: string;
+  help?: string;
+  /** Group heading — consecutive inputs with the same section render under it (the website form makes each section a step). */
+  section?: string;
+  /** Expression over OTHER inputs: the question only shows (and only counts) when truthy. */
+  showWhen?: string;
+};
+
 export type EstimatorInput =
-  | {
-      id: string;
-      label: string;
+  | (EstimatorInputBase & {
       type: "number";
-      help?: string;
       /** Shown after the field: "sq ft", "hours", "windows". */
       unit?: string;
       min?: number;
@@ -50,26 +58,12 @@ export type EstimatorInput =
       step?: number;
       default?: number;
       required?: boolean;
-    }
-  | {
-      id: string;
-      label: string;
-      type: "select";
-      help?: string;
-      options: EstimatorOption[];
-      default?: string;
-      required?: boolean;
-    }
-  | { id: string; label: string; type: "toggle"; help?: string; default?: boolean }
-  | {
-      id: string;
-      label: string;
-      type: "text";
-      help?: string;
-      placeholder?: string;
-      default?: string;
-      required?: boolean;
-    };
+    })
+  | (EstimatorInputBase & { type: "select"; options: EstimatorOption[]; default?: string; required?: boolean })
+  /** Pick several — the value is a list of option values (has(), count(), join()). */
+  | (EstimatorInputBase & { type: "multi"; options: EstimatorOption[]; default?: string[]; required?: boolean })
+  | (EstimatorInputBase & { type: "toggle"; default?: boolean })
+  | (EstimatorInputBase & { type: "text"; placeholder?: string; default?: string; required?: boolean });
 
 export type EstimatorVariable = { id: string; expr: string };
 
@@ -471,6 +465,7 @@ export function priceBookRefsIn(n: Node, out = new Set<string>()): Set<string> {
 export const FUNCTIONS = [
   "min", "max", "round", "floor", "ceil", "abs", "sqrt", "if", "clamp", "tier", "lookup",
   "price", "cost", "pct", "roundTo", "len", "contains", "lower", "number",
+  "has", "count", "sum", "join",
 ] as const;
 
 export type EvalCtx = {
@@ -669,9 +664,29 @@ export function evaluate(node: Node, ctx: EvalCtx, depth = 0): Value {
           if (typeof a === "string" || Array.isArray(a)) return a.length;
           return 0;
         }
-        case "contains": {
-          if (args.length !== 2) throw new ExprError("contains(text, part) takes 2 arguments");
-          return String(args[0] ?? "").toLowerCase().includes(String(args[1] ?? "").toLowerCase());
+        case "contains":
+        case "has": {
+          // has(picks, value) — is value one of a multi-select's picks? On text: does it contain the part?
+          if (args.length !== 2) throw new ExprError(`${fn}(list_or_text, value) takes 2 arguments`);
+          const needle = String(args[1] ?? "").trim().toLowerCase();
+          if (Array.isArray(args[0])) return args[0].some((x) => String(x ?? "").trim().toLowerCase() === needle);
+          return String(args[0] ?? "").toLowerCase().includes(needle);
+        }
+        case "count": {
+          // count(picks) — how many were picked; count(a, b, c) — how many arguments are truthy
+          if (args.length === 1 && Array.isArray(args[0])) return args[0].length;
+          return args.filter((a) => truthy(a)).length;
+        }
+        case "sum": {
+          // sum([a, b, c]) or sum(a, b, c)
+          const items = args.length === 1 && Array.isArray(args[0]) ? args[0] : args;
+          return items.reduce<number>((acc, v, i) => acc + n(v, `sum() item ${i + 1}`), 0);
+        }
+        case "join": {
+          // join(picks, ", ") — the picks as words, for descriptions
+          const items = Array.isArray(args[0]) ? args[0] : [args[0]];
+          const sep = args.length > 1 ? String(args[1] ?? "") : ", ";
+          return items.map((v) => formatValue(v, "text")).join(sep);
         }
         case "lower":
           return String(args[0] ?? "").toLowerCase();
@@ -733,6 +748,7 @@ export function formatValue(v: Value, fmt: "auto" | "money" | "int" | "text" = "
   if (typeof v === "number") return fmt === "text" ? String(v) : String(Math.round(v * 100) / 100);
   if (typeof v === "boolean") return v ? "yes" : "no";
   if (v === null) return "";
+  if (Array.isArray(v)) return v.map((x) => formatValue(x, "text")).join(", ");
   if (typeof v === "object") return JSON.stringify(v);
   return v;
 }
@@ -796,6 +812,17 @@ export function compileSpec(raw: unknown): CompileResult {
   const inputs: EstimatorInput[] = [];
   const seen = new Set<string>();
   const rawInputs = Array.isArray(r.inputs) ? r.inputs : [];
+  const parseOptions = (raw: unknown): EstimatorOption[] =>
+    (Array.isArray(raw) ? raw : [])
+      .slice(0, ESTIMATOR_LIMITS.options)
+      .map((op) => {
+        if (typeof op === "string") return { value: op.trim().slice(0, 60), label: op.trim().slice(0, 60) };
+        const oo = (op ?? {}) as Record<string, unknown>;
+        const label = s(oo.label, 60);
+        const value = s(oo.value, 60) || label;
+        return { value, label: label || value };
+      })
+      .filter((op) => op.value);
   if (rawInputs.length > ESTIMATOR_LIMITS.inputs) errors.push(`At most ${ESTIMATOR_LIMITS.inputs} inputs`);
   for (const ri of rawInputs.slice(0, ESTIMATOR_LIMITS.inputs)) {
     const o = (ri ?? {}) as Record<string, unknown>;
@@ -819,12 +846,15 @@ export function compileSpec(raw: unknown): CompileResult {
     }
     seen.add(id);
     const help = s(o.help, 200) || undefined;
+    const section = s(o.section, 60) || undefined;
+    const showWhen = s(o.showWhen, ESTIMATOR_LIMITS.exprLen + 1) || undefined;
+    const common = { id, label, help, section, showWhen };
     const type = s(o.type, 10);
     if (type === "number") {
       const min = optNum(o.min), max = optNum(o.max), step = optNum(o.step), def = optNum(o.default);
       if (min !== undefined && max !== undefined && min > max) errors.push(`Input "${id}": min is above max`);
       inputs.push({
-        id, label, type, help,
+        ...common, type,
         unit: s(o.unit, 20) || undefined,
         min, max,
         step: step !== undefined && step > 0 ? step : undefined,
@@ -832,16 +862,7 @@ export function compileSpec(raw: unknown): CompileResult {
         required: o.required !== false,
       });
     } else if (type === "select") {
-      const opts = (Array.isArray(o.options) ? o.options : [])
-        .slice(0, ESTIMATOR_LIMITS.options)
-        .map((op) => {
-          if (typeof op === "string") return { value: op.trim().slice(0, 60), label: op.trim().slice(0, 60) };
-          const oo = (op ?? {}) as Record<string, unknown>;
-          const label = s(oo.label, 60);
-          const value = s(oo.value, 60) || label;
-          return { value, label: label || value };
-        })
-        .filter((op) => op.value);
+      const opts = parseOptions(o.options);
       if (opts.length < 2) {
         errors.push(`Input "${id}" is a select — it needs at least 2 options`);
         continue;
@@ -849,18 +870,44 @@ export function compileSpec(raw: unknown): CompileResult {
       // the model may send a numeric default (1 vs "1") — option values are strings
       const def = o.default === undefined || o.default === null ? undefined : String(o.default).trim().slice(0, 60) || undefined;
       if (def && !opts.some((op) => op.value === def)) errors.push(`Input "${id}": default "${def}" is not one of its options`);
-      inputs.push({ id, label, type, help, options: opts, default: def, required: o.required !== false });
+      inputs.push({ ...common, type, options: opts, default: def, required: o.required !== false });
+    } else if (type === "multi") {
+      const opts = parseOptions(o.options);
+      if (opts.length < 2) {
+        errors.push(`Input "${id}" is a multi-select — it needs at least 2 options`);
+        continue;
+      }
+      const defRaw = Array.isArray(o.default) ? o.default : typeof o.default === "string" && o.default ? o.default.split(",") : [];
+      const def = defRaw.map((d) => String(d).trim().slice(0, 60)).filter((d) => d && opts.some((op) => op.value === d));
+      inputs.push({ ...common, type, options: opts, default: def.length > 0 ? def : undefined, required: o.required === true });
     } else if (type === "toggle") {
-      inputs.push({ id, label, type, help, default: o.default === true || o.default === "true" });
+      inputs.push({ ...common, type, default: o.default === true || o.default === "true" });
     } else if (type === "text") {
       inputs.push({
-        id, label, type, help,
+        ...common, type,
         placeholder: s(o.placeholder, 80) || undefined,
         default: s(o.default, 200) || undefined,
         required: o.required === true,
       });
     } else {
-      errors.push(`Input "${id}": type must be number, select, toggle or text`);
+      errors.push(`Input "${id}": type must be number, select, multi, toggle or text`);
+    }
+  }
+
+  // showWhen may read any OTHER input — not variables (they come later and may
+  // depend on hidden inputs) and not the price book (the form evaluates it
+  // client-side, where the price book must never travel).
+  for (const inp of inputs) {
+    if (!inp.showWhen) continue;
+    try {
+      const node = parseExpr(inp.showWhen);
+      for (const name of identifiersIn(node)) {
+        if (name === inp.id) errors.push(`Input "${inp.id}": showWhen can't read itself`);
+        else if (!seen.has(name)) errors.push(`Input "${inp.id}": showWhen uses unknown input "${name}" (only inputs, not variables)`);
+      }
+      if (priceBookRefsIn(node).size > 0) errors.push(`Input "${inp.id}": showWhen can't read the price book`);
+    } catch (e) {
+      errors.push(`Input "${inp.id}": showWhen ${(e as Error).message}`);
     }
   }
 
@@ -1012,14 +1059,98 @@ export function compileSpec(raw: unknown): CompileResult {
 
 export type InputProblem = { id: string; message: string };
 
-/** Coerce raw (form / model) values into typed values, applying defaults. */
+const NO_BOOK: EvalCtx["priceBook"] = new Map();
+
+/** What an untouched / hidden input is worth: its default, else the type's neutral value. */
+export function neutralValue(inp: EstimatorInput): Value {
+  switch (inp.type) {
+    case "number":
+      return inp.default ?? 0;
+    case "select":
+      return inp.default ?? "";
+    case "multi":
+      return inp.default ? [...inp.default] : [];
+    case "toggle":
+      return inp.default === true;
+    case "text":
+      return inp.default ?? "";
+  }
+}
+
+function matchOption(inp: { options: EstimatorOption[] }, v: unknown): string | null {
+  const want = String(v ?? "").trim().toLowerCase();
+  if (!want) return null;
+  const hit = inp.options.find((o) => o.value.toLowerCase() === want) ?? inp.options.find((o) => o.label.toLowerCase() === want);
+  return hit ? hit.value : null;
+}
+
+function multiPicks(v: unknown): unknown[] {
+  if (Array.isArray(v)) return v;
+  if (v === undefined || v === null || v === "") return [];
+  if (typeof v === "string") return v.split(",");
+  return [v];
+}
+
+/** Best-effort value with no errors — what showWhen conditions are evaluated against. */
+function lenientValue(inp: EstimatorInput, v: unknown): Value {
+  const missing = v === undefined || v === null || v === "";
+  switch (inp.type) {
+    case "number": {
+      if (missing) return neutralValue(inp);
+      const x = typeof v === "string" ? Number(v.replace(/[,$\s]/g, "")) : Number(v);
+      return Number.isFinite(x) ? x : neutralValue(inp);
+    }
+    case "select":
+      return missing ? neutralValue(inp) : matchOption(inp, v) ?? "";
+    case "multi": {
+      const picks = multiPicks(v).map((p) => matchOption(inp, p)).filter((p): p is string => p !== null);
+      return picks.length > 0 ? Array.from(new Set(picks)) : neutralValue(inp);
+    }
+    case "toggle":
+      return missing ? inp.default === true : v === true || v === "true" || v === 1 || v === "1" || v === "yes" || v === "on";
+    case "text":
+      return missing ? neutralValue(inp) : String(v).slice(0, 500);
+  }
+}
+
+/**
+ * Which inputs show for these raw values (showWhen). Evaluated in spec order:
+ * a hidden input counts as untouched for every condition after it. A
+ * condition that can't be evaluated fails OPEN — the question shows rather
+ * than silently vanishing. Client-safe: the forms call it on every change.
+ */
+export function visibleInputIds(spec: EstimatorSpec, raw: Record<string, unknown>): Set<string> {
+  const vars: Record<string, Value> = {};
+  for (const inp of spec.inputs) vars[inp.id] = lenientValue(inp, raw[inp.id]);
+  const visible = new Set<string>();
+  for (const inp of spec.inputs) {
+    let show = true;
+    if (inp.showWhen) {
+      try {
+        show = truthy(evaluate(parseExpr(inp.showWhen), { vars, priceBook: NO_BOOK }));
+      } catch {
+        show = true;
+      }
+    }
+    if (show) visible.add(inp.id);
+    else vars[inp.id] = neutralValue(inp);
+  }
+  return visible;
+}
+
+/** Coerce raw (form / model) values into typed values, applying defaults. Hidden inputs (showWhen false) read as untouched. */
 export function coerceInputs(
   spec: EstimatorSpec,
   raw: Record<string, unknown>
 ): { values: Record<string, Value>; problems: InputProblem[] } {
   const values: Record<string, Value> = {};
   const problems: InputProblem[] = [];
+  const visible = visibleInputIds(spec, raw);
   for (const inp of spec.inputs) {
+    if (!visible.has(inp.id)) {
+      values[inp.id] = neutralValue(inp);
+      continue;
+    }
     const v = raw[inp.id];
     const missing = v === undefined || v === null || v === "";
     switch (inp.type) {
@@ -1047,10 +1178,22 @@ export function coerceInputs(
           else values[inp.id] = "";
           break;
         }
-        const want = String(v).trim().toLowerCase();
-        const hit = inp.options.find((o) => o.value.toLowerCase() === want) ?? inp.options.find((o) => o.label.toLowerCase() === want);
+        const hit = matchOption(inp, v);
         if (!hit) problems.push({ id: inp.id, message: `${inp.label}: "${String(v)}" is not an option` });
-        else values[inp.id] = hit.value;
+        else values[inp.id] = hit;
+        break;
+      }
+      case "multi": {
+        const picks: string[] = [];
+        for (const item of multiPicks(v)) {
+          if (String(item ?? "").trim() === "") continue;
+          const hit = matchOption(inp, item);
+          if (!hit) problems.push({ id: inp.id, message: `${inp.label}: "${String(item)}" is not an option` });
+          else if (!picks.includes(hit)) picks.push(hit);
+        }
+        if (picks.length === 0 && inp.default?.length) picks.push(...inp.default);
+        if (picks.length === 0 && inp.required) problems.push({ id: inp.id, message: `Pick at least one option for ${inp.label.toLowerCase()}` });
+        values[inp.id] = picks;
         break;
       }
       case "toggle": {
@@ -1186,15 +1329,18 @@ An estimate tool = inputs the user fills in + line rules that turn them into quo
 spec = {
   intro: "one or two sentences shown above the inputs",
   inputs: [
-    { id: "sqft", label: "Driveway size", type: "number", unit: "sq ft", min: 0, required: true },
-    { id: "stories", label: "Stories", type: "select", options: [{value:"1",label:"One story"},{value:"2",label:"Two stories"}], default: "1" },
-    { id: "sealant", label: "Add sealant?", type: "toggle", default: false },
+    { id: "sqft", label: "Driveway size", type: "number", unit: "sq ft", min: 0, required: true, section: "The driveway" },
+    { id: "stories", label: "Stories", type: "select", options: [{value:"1",label:"One story"},{value:"2",label:"Two stories"}], default: "1", section: "The driveway" },
+    { id: "extras", label: "Also clean", type: "multi", options: ["Sidewalk", "Patio", "Fence"], section: "Extras" },   // several picks → has(extras, 'Fence'), count(extras)
+    { id: "fence_ft", label: "Fence length", type: "number", unit: "ft", showWhen: "has(extras, 'Fence')", section: "Extras" },  // only asked when it matters
+    { id: "sealant", label: "Add sealant?", type: "toggle", default: false, section: "Extras" },
     { id: "notes", label: "Anything else?", type: "text" }          // text inputs are for descriptions/assist only
   ],
   variables: [ { id: "rate", expr: "tier(sqft, [[500, 0.30], [2000, 0.22]], 0.18)" } ],   // evaluated in order
   lines: [
     { name: "Driveway cleaning", description: "{sqft} sq ft at {rate|money}/sq ft", quantity: "sqft", unitPrice: "rate", workItemName: "Driveway Cleaning" },
     { name: "Two-story surcharge", when: "stories == '2'", quantity: "1", unitPrice: "pct(sqft * rate, 15)" },
+    { name: "Fence wash", when: "has(extras, 'Fence')", quantity: "fence_ft", unitPrice: "1.25" },
     { name: "Sealant", when: "sealant", quantity: "sqft", unitPrice: "0.45", isOptional: true }
   ],
   minimumTotal: 150,
@@ -1205,12 +1351,123 @@ spec = {
 
 Rules:
 - ids: letters/digits/underscores, unique. Inputs are referenced by id inside expressions and {templates}.
+- Input types: number, select (one of), multi (several — the value is a LIST of option values), toggle, text. "section" groups questions under a heading (the website form shows one section per step); "showWhen" (an expression over OTHER inputs, no variables/price book) hides a question until it matters — a hidden question reads as untouched (its default). Complex trades (roofing, remodels, HVAC, moving) want 2–4 sections and showWhen branches instead of one wall of questions.
 - Line unitPrice/quantity/when are EXPRESSIONS (strings). name/description/quoteTitle/clientMessage are TEMPLATES: {expr}, {expr|money}, {expr|int}. quoteTitle/clientMessage may also use {subtotal}.
 - workItemName links a line to a price-book item (exact name): it brings the item's cost, id and — when unitPrice is omitted — its price. price("Name") / cost("Name") read the price book inside any expression. Names must exist in the price book (get_price_book) — never invent items; create them with create_service first.
 - Quantity may be fractional (2.5 hours): it folds into one unit at the extended price automatically.
 - Lines with quantity <= 0 or a false "when" are skipped. minimumTotal adds a "Minimum job charge" top-up line when needed.
 - Expression language: + - * / % ; comparisons == != < <= > >= ; and/or/not (or && || !) ; cond ? a : b ; strings in quotes; lists [a, b]; tables {small: 100, large: 200}.
-  Functions: min max round(x, decimals) floor ceil abs sqrt if(c, a, b) clamp(x, lo, hi) pct(amount, percent) roundTo(x, step) tier(x, [[upTo, value], ...], else) lookup(key, {k: v}, default) price("Name") cost("Name") len(text) contains(text, part) lower(text) number(x).
+  Functions: min max round(x, decimals) floor ceil abs sqrt if(c, a, b) clamp(x, lo, hi) pct(amount, percent) roundTo(x, step) tier(x, [[upTo, value], ...], else) lookup(key, {k: v}, default) price("Name") cost("Name") len(text) contains(text, part) lower(text) number(x) has(picks, value) count(picks) sum(list) join(picks, ", ").
+- lookup() on a multi: sum the picks' prices with a variable per pick, e.g. has(rooms, 'kitchen') * 250 + has(rooms, 'bath') * 180 (has() is 1/0 in arithmetic).
 - Never guess a business's prices. Use the rates the user gave, or the price book. If they gave none, ask (one message, everything at once) — or use a clearly-named placeholder and SAY it's a placeholder.
 - Keep it as simple as the pricing really is: a flat-rate business needs one select and two lines, not twelve inputs.
+- The owner can also edit labels, rates and formulas by hand (Settings → Estimate tools → pencil) and roll back to any earlier version — every save is kept. So when they want a rate changed, a small 'update' with the new spec is right; they are never stuck with your version.
 - Use action 'test' with sample inputs before staging create/update — fix anything it reports.`;
+
+// ── what changed between two specs (version history, Atlas update cards) ─────
+
+function rateText(expr: string | undefined): string {
+  if (!expr) return "(price book)";
+  return /^\d+(\.\d+)?$/.test(expr) ? `$${Number(expr).toFixed(2)}` : `"${expr}"`;
+}
+
+function optionsKey(i: EstimatorInput): string {
+  return i.type === "select" || i.type === "multi" ? i.options.map((o) => `${o.value}=${o.label}`).join("|") : "";
+}
+
+/** Human lines: `Rate for "Sealant": $0.45 → $0.50`, `Added question "Fence length"`. Empty = the rules are the same. */
+export function describeSpecChanges(from: EstimatorSpec, to: EstimatorSpec): string[] {
+  const out: string[] = [];
+  const fromInputs = new Map(from.inputs.map((i) => [i.id, i]));
+  const toInputs = new Map(to.inputs.map((i) => [i.id, i]));
+  for (const i of to.inputs) {
+    const o = fromInputs.get(i.id);
+    if (!o) {
+      out.push(`Added question "${i.label}"`);
+      continue;
+    }
+    if (o.label !== i.label) out.push(`Renamed question "${o.label}" → "${i.label}"`);
+    if (o.type !== i.type) out.push(`"${i.label}" is now a ${i.type} question`);
+    else if (optionsKey(o) !== optionsKey(i)) out.push(`Options for "${i.label}" changed`);
+    if ((o.showWhen ?? "") !== (i.showWhen ?? "")) out.push(i.showWhen ? `"${i.label}" now shows only when ${i.showWhen}` : `"${i.label}" now always shows`);
+    if ((o.section ?? "") !== (i.section ?? "")) out.push(i.section ? `"${i.label}" moved to section "${i.section}"` : `"${i.label}" left its section`);
+    if (o.type === "number" && i.type === "number" && (o.default ?? null) !== (i.default ?? null)) out.push(`Default for "${i.label}": ${o.default ?? "none"} → ${i.default ?? "none"}`);
+  }
+  for (const o of from.inputs) if (!toInputs.has(o.id)) out.push(`Removed question "${o.label}"`);
+
+  const fromVars = new Map(from.variables.map((v) => [v.id, v.expr]));
+  const toVars = new Map(to.variables.map((v) => [v.id, v.expr]));
+  for (const [id, expr] of toVars) {
+    const prev = fromVars.get(id);
+    if (prev === undefined) out.push(`Added variable ${id} = ${expr}`);
+    else if (prev !== expr) out.push(`Variable ${id}: ${prev} → ${expr}`);
+  }
+  for (const id of fromVars.keys()) if (!toVars.has(id)) out.push(`Removed variable ${id}`);
+
+  const fromLines = new Map(from.lines.map((l) => [l.id, l]));
+  const toLines = new Map(to.lines.map((l) => [l.id, l]));
+  for (const l of to.lines) {
+    const o = fromLines.get(l.id);
+    if (!o) {
+      out.push(`Added line "${l.name}" at ${rateText(l.unitPrice)}`);
+      continue;
+    }
+    if (o.name !== l.name) out.push(`Renamed line "${o.name}" → "${l.name}"`);
+    if ((o.unitPrice ?? "") !== (l.unitPrice ?? "")) out.push(`Rate for "${l.name}": ${rateText(o.unitPrice)} → ${rateText(l.unitPrice)}`);
+    if ((o.quantity ?? "1") !== (l.quantity ?? "1")) out.push(`Quantity for "${l.name}": ${o.quantity ?? "1"} → ${l.quantity ?? "1"}`);
+    if ((o.when ?? "") !== (l.when ?? "")) out.push(l.when ? `"${l.name}" now applies when ${l.when}` : `"${l.name}" now always applies`);
+    if ((o.workItemName ?? "") !== (l.workItemName ?? "")) out.push(l.workItemName ? `"${l.name}" now sells price-book item "${l.workItemName}"` : `"${l.name}" no longer tied to the price book`);
+    if (Boolean(o.isOptional) !== Boolean(l.isOptional)) out.push(`"${l.name}" is now ${l.isOptional ? "optional" : "required"} on the quote`);
+    if ((o.description ?? "") !== (l.description ?? "")) out.push(`Description for "${l.name}" changed`);
+  }
+  for (const o of from.lines) if (!toLines.has(o.id)) out.push(`Removed line "${o.name}"`);
+
+  if ((from.minimumTotal ?? 0) !== (to.minimumTotal ?? 0)) out.push(`Minimum job charge: $${(from.minimumTotal ?? 0).toFixed(2)} → $${(to.minimumTotal ?? 0).toFixed(2)}`);
+  if ((from.intro ?? "") !== (to.intro ?? "")) out.push("Intro text changed");
+  if ((from.quoteTitle ?? "") !== (to.quoteTitle ?? "")) out.push("Quote title changed");
+  if ((from.clientMessage ?? "") !== (to.clientMessage ?? "")) out.push("Client message changed");
+  if (Boolean(from.assist) !== Boolean(to.assist)) out.push(to.assist ? "Atlas fill-in turned on" : "Atlas fill-in turned off");
+  else if (from.assist && to.assist && (from.assist.instructions ?? "") !== (to.assist.instructions ?? "")) out.push("Atlas fill-in guidance changed");
+  return out;
+}
+
+// ── sections (both forms render questions in groups; the website form makes each a step) ──
+
+export type InputSection = { title: string | null; inputs: EstimatorInput[] };
+
+/** The visible inputs grouped by consecutive `section` title (null = no heading). */
+export function sectionsOf(inputs: EstimatorInput[], visible: Set<string>): InputSection[] {
+  const out: InputSection[] = [];
+  for (const inp of inputs) {
+    if (!visible.has(inp.id)) continue;
+    const title = inp.section ?? null;
+    const last = out[out.length - 1];
+    if (last && last.title === title) last.inputs.push(inp);
+    else out.push({ title, inputs: [inp] });
+  }
+  return out;
+}
+
+/** Form-state defaults for a spec (strings for fields, booleans for toggles, string lists for multi). */
+export function formDefaults(spec: EstimatorSpec): Record<string, string | boolean | string[]> {
+  const v: Record<string, string | boolean | string[]> = {};
+  for (const i of spec.inputs) {
+    if (i.type === "toggle") v[i.id] = i.default === true;
+    else if (i.type === "multi") v[i.id] = i.default ? [...i.default] : [];
+    else if (i.default !== undefined && i.default !== null) v[i.id] = String(i.default);
+    else v[i.id] = "";
+  }
+  return v;
+}
+
+/** Is every visible, required input answered? (drives the live running total) */
+export function inputsComplete(spec: EstimatorSpec, values: Record<string, unknown>): boolean {
+  const visible = visibleInputIds(spec, values);
+  return spec.inputs.every((i) => {
+    if (!visible.has(i.id) || i.type === "toggle") return true;
+    if (!("required" in i) || i.required === false) return true;
+    const v = values[i.id];
+    if (Array.isArray(v)) return v.length > 0;
+    return v !== "" && v !== undefined && v !== null;
+  });
+}

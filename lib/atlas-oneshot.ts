@@ -1,5 +1,5 @@
 import { prisma } from "./db";
-import { aiChat, aiEnabled, extractJsonObject } from "./ai";
+import { aiChat, aiEnabled, extractJsonObject, type AIPart } from "./ai";
 import { atlasAccess, ATLAS_ACCESS_SELECT, meterToClient, type AtlasAccess } from "./assistant-access";
 import {
   centsToAtlasTokens,
@@ -47,7 +47,8 @@ export function accessAfterDebit(before: AtlasAccess, debit: Debit | null): Atla
 }
 
 export async function meteredOneShot(
-  actor: Actor,
+  /** Who pays and who the ledger names — a signed-in user, or the company owner for a website photo fill-in. */
+  actor: Pick<Actor, "id" | "companyId">,
   opts: {
     /** Ledger tag: what the tokens bought ("estimator"). */
     kind: string;
@@ -55,6 +56,8 @@ export async function meteredOneShot(
     prompt: string;
     maxOutputTokens?: number;
     temperature?: number;
+    /** Optional photo alongside the prompt (base64, no data: prefix). */
+    image?: { base64: string; mime: string };
   }
 ): Promise<OneShotResult> {
   if (!aiEnabled()) return { ok: false, status: 503, error: "The assistant isn't available right now." };
@@ -86,7 +89,10 @@ export async function meteredOneShot(
     usage.tokensOut += u.tokensOut;
     usage.tokensCached += u.tokensCached;
   };
-  const contents = [{ role: "user" as const, parts: [{ text: opts.prompt }] }];
+  const userParts: AIPart[] = [{ text: opts.prompt }];
+  // Gemini inline-image part — kept outside the chat-shaped AIPart union on purpose (history never carries images)
+  if (opts.image) userParts.push({ inlineData: { mimeType: opts.image.mime, data: opts.image.base64 } } as unknown as AIPart);
+  const contents = [{ role: "user" as const, parts: userParts }];
   const primary = process.env.AI_MODEL_ASSISTANT || MODEL_DEFAULT;
   let model = primary;
   let parts = await aiChat({

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, isManager } from "@/lib/permissions";
 import { ESTIMATOR_LIMITS, specFromJson } from "@/lib/estimator";
-import { checkSpec, ESTIMATOR_SELECT, estimatorSummary, publicSlugTaken } from "@/lib/estimator-server";
+import { checkSpec, ESTIMATOR_SELECT, estimatorSummary, publicSlugTaken, snapshotEstimator } from "@/lib/estimator-server";
 import { publicSlugFrom, sanitizePublicConfig } from "@/lib/estimator-public";
 
 /**
@@ -77,5 +77,7 @@ export async function POST(req: NextRequest) {
     data: { companyId: actor.companyId, name, description, spec: check.compiled.spec, isPublic: isPublic && Boolean(publicSlug), publicSlug, publicConfig },
     select: ESTIMATOR_SELECT,
   });
+  // Version 1 — so the original is always one click away in History
+  await snapshotEstimator(row, body.source === "atlas" ? "Created with Atlas" : "Created", { id: actor.id, name: actor.name });
   return NextResponse.json({ ...estimatorSummary(row, check.compiled.spec), spec: check.compiled.spec }, { status: 201 });
 }

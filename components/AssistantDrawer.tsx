@@ -29,6 +29,10 @@ import AtlasIcon, { AtlasMark } from "@/components/AtlasIcon";
 import { hapticImpact, hapticNotify } from "@/lib/haptics";
 import { useMeasuredHeight } from "@/lib/use-measured-height";
 import type { Proposal } from "@/lib/assistant";
+import dynamic from "next/dynamic";
+import type { RunnerEstimator } from "@/components/EstimatorRunner";
+// Only estimate-tool cards need the runner — keep it out of the drawer's first paint
+const EstimatorRunner = dynamic(() => import("@/components/EstimatorRunner"), { ssr: false });
 import type { AtlasAccess, AtlasPricing } from "@/lib/assistant-access";
 
 /** Meter state as the shell hands it over (lib/assistant-access.ts). */
@@ -193,6 +197,10 @@ function ProposalCard({
 }) {
   const [typed, setTyped] = useState("");
   const [expanded, setExpanded] = useState(false);
+  // Estimate-tool cards carry the full spec — offer a live "Try it" before Confirm
+  const [trying, setTrying] = useState(false);
+  const payload = (p.payload && typeof p.payload === "object" ? p.payload : {}) as Record<string, unknown>;
+  const previewSpec = p.kind === "manage_estimator" && payload.spec && typeof payload.spec === "object" ? (payload.spec as RunnerEstimator["spec"]) : null;
   const needsTyping = Boolean(p.confirmText);
   const armed = !needsTyping || typed.trim().toLowerCase() === p.confirmText!.trim().toLowerCase();
   const { Icon, verb } = kindMeta(p);
@@ -330,6 +338,16 @@ function ProposalCard({
           >
             Skip
           </button>
+          {previewSpec && (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => setTrying(true)}
+              className="mr-auto rounded-full border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50"
+            >
+              Try it
+            </button>
+          )}
           <button
             type="button"
             disabled={busy || !armed}
@@ -358,6 +376,14 @@ function ProposalCard({
           )}
         </div>
       ) : null}
+      {previewSpec && trying && (
+        <EstimatorRunner
+          portal
+          estimators={[{ id: "preview", name: typeof payload.name === "string" ? payload.name : p.title, description: null, usesAtlas: false, spec: previewSpec, preview: true }]}
+          open={trying}
+          onClose={() => setTrying(false)}
+        />
+      )}
     </div>
   );
 }

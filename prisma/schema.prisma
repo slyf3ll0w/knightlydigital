@@ -1249,9 +1249,30 @@ model Estimator {
   updatedAt    DateTime @updatedAt
 
   requests Request[]
+  versions EstimatorVersion[]
 
   @@unique([companyId, publicSlug])
   @@index([companyId])
+}
+
+// Every saved change to an estimate tool (Atlas card, manual editor, restore)
+// keeps the PREVIOUS spec here, so a bad rewrite is one click to undo.
+// Trimmed to the last ESTIMATOR_VERSION_KEEP per tool (lib/estimator-server.ts).
+model EstimatorVersion {
+  id          String    @id @default(cuid())
+  estimatorId String
+  estimator   Estimator @relation(fields: [estimatorId], references: [id], onDelete: Cascade)
+  companyId   String
+  name        String
+  description String?
+  spec        Json
+  // What made this the past: "Atlas update", "Manual edit", "Restored version from ..."
+  note        String
+  byUserId    String?
+  byName      String?
+  createdAt   DateTime  @default(now())
+
+  @@index([estimatorId, createdAt])
 }
 
 // Owner-built automations (docs/plans/ai-estimators-2026-09-19.md, Batch 2).

@@ -1,7 +1,7 @@
 "use client";
 
 import { money } from "@/lib/statuses";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Loader2, ArrowLeft } from "lucide-react";
@@ -13,7 +13,7 @@ import LineItemsEditor, {
   emptyEditorLine,
   payloadRecurringInterval,
 } from "@/components/LineItemsEditor";
-import EstimatorRunner, { type RunnerEstimator, type EstimatorApply } from "@/components/EstimatorRunner";
+import EstimatorRunner, { takeEstimateDraft, type RunnerEstimator, type EstimatorApply } from "@/components/EstimatorRunner";
 import { Calculator } from "lucide-react";
 
 type Contact = {
@@ -144,6 +144,14 @@ export default function QuoteEditor({
     if (!title && r.title) setTitle(r.title);
     if (!clientMessage && r.clientMessage) setClientMessage(r.clientMessage);
   }
+
+  // Onsite flow: the Estimate page (or a settings Try-it) stashed its result and opened us with ?fromTool=1
+  useEffect(() => {
+    if (existingQuote || !/[?&]fromTool=1/.test(window.location.search)) return;
+    const draft = takeEstimateDraft();
+    if (draft) applyEstimate(draft);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Optional items count toward the total by default (client can opt out in the hub)
   const subtotal = lineItems.reduce((sum, li) => {

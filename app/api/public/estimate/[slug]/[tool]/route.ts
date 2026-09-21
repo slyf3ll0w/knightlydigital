@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { verifyCaptcha } from "@/lib/captcha";
-import { runCompiled, formatValue, type Value } from "@/lib/estimator";
+import { runCompiled, formatValue, visibleInputIds, type Value } from "@/lib/estimator";
 import { loadPriceBook, resolvePublicEstimator } from "@/lib/estimator-server";
 import { createEstimateLead } from "@/lib/estimator-lead";
 import { limit, clientIp } from "@/lib/rate-limit";
@@ -12,7 +12,7 @@ const MAX_REQUESTS_PER_COMPANY_PER_DAY = 200;
 /**
  * POST /api/public/estimate/[companySlug]/[toolSlug]
  *   { inputs, firstName, lastName, email?, phone?, address?, message?,
- *     smsConsent?, captchaToken, website, elapsedMs }
+ *     smsConsent?, captchaToken, website, elapsedMs, page?, usedPhoto? }
  * The website form's submit. Re-runs the tool's math from the inputs (the
  * client's numbers are never trusted), then files the lead: contact +
  * request (+ draft or sent quote per the form's onSubmit). Anti-abuse
@@ -66,25 +66,36 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
     return NextResponse.json({ error: "This business can't accept more requests right now. Please call instead." }, { status: 429 });
   }
 
-  // The answers, as words, for the request's details
+  // The answers, as words, for the request's details (hidden questions stay out)
+  const visible = visibleInputIds(spec, inputs);
   const answers = spec.inputs
     .map((inp) => {
       const raw = inputs[inp.id];
-      if (raw === undefined || raw === null || raw === "") return null;
+      if (!visible.has(inp.id)) return null;
+      if (raw === undefined || raw === null || raw === "" || (Array.isArray(raw) && raw.length === 0)) return null;
       let shown: string;
       if (inp.type === "toggle") shown = raw === true || raw === "true" || raw === "1" || raw === "on" ? "yes" : "no";
       else if (inp.type === "select") shown = inp.options.find((o) => o.value === String(raw))?.label ?? String(raw);
+      else if (inp.type === "multi") {
+        const picks = Array.isArray(raw) ? raw : String(raw).split(",");
+        shown = picks.map((p) => inp.options.find((o) => o.value === String(p).trim())?.label ?? String(p).trim()).filter(Boolean).join(", ");
+      }
       else if (inp.type === "number") shown = `${formatValue(Number(String(raw).replace(/[,$\s]/g, "")) as Value)}${inp.unit ? ` ${inp.unit}` : ""}`;
       else shown = String(raw).slice(0, 500);
       return `${inp.label}: ${shown}`;
     })
     .filter((a): a is string => Boolean(a));
 
+  // Where the lead came from: the page hosting the embed (sent by the snippet) or the referrer
+  const pageRaw = str(body.page, 300);
+  const page = /^https?:\/\//i.test(pageRaw) ? pageRaw : "";
   const lead = await createEstimateLead({
     pub,
     result,
     answers,
     customer: { firstName, lastName, email, phone, address, message, smsConsent: phone ? body.smsConsent === true : undefined },
+    page: page || undefined,
+    usedPhoto: config.photoAssist && body.usedPhoto === true,
   });
   return NextResponse.json({ success: true, estimate: lead.estimate, quoteNumber: lead.quoteNumber }, { status: 201 });
 }

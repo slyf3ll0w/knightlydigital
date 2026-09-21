@@ -56,6 +56,7 @@ export default async function EstimateView({
       businessName={company.name}
       showHeader={embed}
       preview={previewing}
+      photoAssist={config.photoAssist && Boolean(spec.assist)}
     />
   );
 

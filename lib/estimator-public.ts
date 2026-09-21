@@ -40,7 +40,16 @@ export type EstimatorPublicConfig = {
   disclaimer: string;
   /** Thank-you text; "" = a default that fits onSubmit */
   successMessage: string;
+  /**
+   * Visitors may attach a photo (or describe the job) and Atlas fills in the
+   * answers — the ONE public step that spends the owner's tokens, so it is
+   * opt-in, needs the tool's `assist`, and is capped per company per day.
+   */
+  photoAssist: boolean;
 };
+
+/** Website photo fill-ins a company will pay for in one day (rolling). */
+export const PUBLIC_PHOTO_ASSIST_DAILY_CAP = 20;
 
 export const PUBLIC_LIMITS = {
   slug: 50,
@@ -73,6 +82,7 @@ export function defaultPublicConfig(): EstimatorPublicConfig {
     },
     disclaimer: DEFAULT_DISCLAIMER,
     successMessage: "",
+    photoAssist: false,
   };
 }
 
@@ -130,6 +140,7 @@ export function sanitizePublicConfig(raw: unknown): EstimatorPublicConfig {
     fields,
     disclaimer: r.disclaimer === "" ? "" : str(r.disclaimer, PUBLIC_LIMITS.disclaimer) || d.disclaimer,
     successMessage: str(r.successMessage, PUBLIC_LIMITS.successMessage),
+    photoAssist: r.photoAssist === true || r.photoAssist === "true",
   };
 }
 
@@ -224,7 +235,12 @@ export function describePublicConfig(c: EstimatorPublicConfig): string[] {
     c.fields.phone.show ? `phone${c.fields.phone.required ? "" : " (optional)"}` : null,
     c.fields.address.show ? `address${c.fields.address.required ? "" : " (optional)"}` : null,
   ].filter(Boolean);
-  return [`Form ${price}${c.showPrice === "hidden" ? "" : ` ${when}`}`, `Asks for: ${asks.join(", ")}`, result[0].toUpperCase() + result.slice(1)];
+  return [
+    `Form ${price}${c.showPrice === "hidden" ? "" : ` ${when}`}`,
+    `Asks for: ${asks.join(", ")}`,
+    result[0].toUpperCase() + result.slice(1),
+    ...(c.photoAssist ? [`Visitors can attach a photo and Atlas fills in the answers (your tokens, at most ${PUBLIC_PHOTO_ASSIST_DAILY_CAP} a day)`] : []),
+  ];
 }
 
 /** Default thank-you copy per onSubmit. */
