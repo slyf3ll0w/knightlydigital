@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, Check, Globe, Loader2, MessageCircleQuestion, Pencil, Play, Sparkles } from "lucide-react";
+import { AlertTriangle, Check, Globe, ImagePlus, Loader2, MessageCircleQuestion, Pencil, Play, Sparkles, X } from "lucide-react";
 import { Textarea } from "@/components/Input";
 import { useAssistant } from "@/components/AssistantContext";
 import { APP_THEME, moneyExact, useCountUp, wash } from "@/components/EstimatorControls";
 import RatesToConfirm from "@/components/RatesToConfirm";
+import { fileToAssistPhoto, type AssistPhoto } from "@/lib/image-downscale";
 import type { BuildAnswer, BuildDraft, BuildPlan, BuildQuestion, BuildSample } from "@/lib/estimator-build";
 
 /**
@@ -121,7 +122,25 @@ export default function BuildPanel({
   const [answers, setAnswers] = useState<string[]>([]);
   const [error, setError] = useState("");
   const [finished, setFinished] = useState<Finished | null>(null);
+  // a photo of the owner's price sheet / rate card — both model calls read it
+  const [sheet, setSheet] = useState<AssistPhoto | null>(null);
+  const [reading, setReading] = useState(false);
   const boxRef = useRef<HTMLTextAreaElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  async function attachSheet(file: File | undefined) {
+    if (!file) return;
+    setReading(true);
+    // 2000 px keeps small print on a rate card legible; the assist cap is ~2 MB of base64
+    const p = await fileToAssistPhoto(file, 2000);
+    setReading(false);
+    if (!p) {
+      setError("That picture couldn't be read — try a JPEG or PNG of the sheet.");
+      return;
+    }
+    setError("");
+    setSheet(p);
+  }
 
   useEffect(() => {
     if (initialPrompt) setPrompt(initialPrompt);
@@ -149,7 +168,12 @@ export default function BuildPanel({
       const res = await fetch("/api/app/estimators/build", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: fullPrompt, ...(estimatorId ? { estimatorId } : {}), ...(withAnswers && withAnswers.length > 0 ? { answers: withAnswers } : {}) }),
+        body: JSON.stringify({
+          prompt: fullPrompt,
+          ...(estimatorId ? { estimatorId } : {}),
+          ...(withAnswers && withAnswers.length > 0 ? { answers: withAnswers } : {}),
+          ...(sheet ? { imageBase64: sheet.base64, imageMime: sheet.mime } : {}),
+        }),
       });
       if (!res.ok || !res.body) {
         const data = (await res.json().catch(() => null)) as { error?: string } | null;
@@ -229,7 +253,7 @@ export default function BuildPanel({
     }
   }
 
-  const canRun = prompt.trim().length >= 8 && !running && !atlas.locked;
+  const canRun = (prompt.trim().length >= 8 || Boolean(sheet)) && !running && !reading && !atlas.locked;
   const stepLabel = (s: (typeof STEPS)[number]) => (estimatorId ? s.changeLabel : s.label);
   const stage = running || finished || (error && (plan || draft));
 
@@ -258,7 +282,7 @@ export default function BuildPanel({
           {!compact && (
             <div className="mb-4">
               <h2 className="text-xl font-bold tracking-tight text-gray-900">Build an estimate tool</h2>
-              <p className="mt-1 text-sm text-gray-600">Say how you price the job, the way you&apos;d explain it to a new hire. {atlas.name} asks about anything it needs, writes the questions, the packages and the math, then proves it on sample jobs.</p>
+              <p className="mt-1 text-sm text-gray-600">Say how you price the job, the way you&apos;d explain it to a new hire — or attach a photo of your price sheet. {atlas.name} uses your price book and past quotes for the rest, writes the questions and the math, then proves it on sample jobs.</p>
             </div>
           )}
           <Textarea
@@ -278,6 +302,26 @@ export default function BuildPanel({
               {error}
             </div>
           )}
+          {/* a photo of the price sheet: rates read from it are real, not placeholders */}
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => void attachSheet(e.target.files?.[0])} />
+            {sheet ? (
+              <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 py-1 pl-1 pr-2 text-xs font-medium text-gray-700">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={sheet.previewUrl} alt="" className="h-6 w-6 rounded-full object-cover" />
+                <span className="max-w-[12rem] truncate">{sheet.name || "Price sheet"}</span>
+                <button type="button" onClick={() => setSheet(null)} className="rounded-full p-0.5 text-gray-400 hover:bg-gray-200 hover:text-gray-700" aria-label="Remove the price sheet">
+                  <X size={12} />
+                </button>
+              </span>
+            ) : (
+              <button type="button" disabled={reading || running} onClick={() => fileRef.current?.click()} className="inline-flex h-8 items-center gap-1.5 rounded-full border border-dashed border-gray-300 px-3 text-xs font-medium text-gray-600 hover:border-gray-400 hover:bg-gray-50 disabled:opacity-50">
+                {reading ? <Loader2 size={13} className="animate-spin" /> : <ImagePlus size={13} />}
+                {estimatorId ? "Attach a price sheet" : "Have a price sheet? Attach a photo"}
+              </button>
+            )}
+            {!sheet && !compact && <span className="text-[11px] text-gray-400">{atlas.name} reads your rates off it — nothing to type.</span>}
+          </div>
           <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
             <span className="text-xs text-gray-500">{atlas.locked ? "Your Atlas tokens are used up for now." : "Uses Atlas tokens once. Running the tool is free, forever."}</span>
             <button type="button" disabled={!canRun} onClick={() => void run(prompt)} className="btn-primary h-11 justify-center px-5">
@@ -533,7 +577,10 @@ export default function BuildPanel({
               onClick={() => {
                 reset();
                 setCurrent(null);
-                if (finished && !estimatorId) setPrompt("");
+                if (finished && !estimatorId) {
+                  setPrompt("");
+                  setSheet(null);
+                }
               }}
               className="mt-3 text-xs font-medium text-gray-700 underline-offset-2 hover:underline"
             >

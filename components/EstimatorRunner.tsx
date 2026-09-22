@@ -9,7 +9,7 @@ import { Textarea } from "@/components/Input";
 import { useAssistant } from "@/components/AssistantContext";
 import { APP_THEME, Breakdown, ChoiceControl, CountsControl, MultiControl, NumberControl, PriceHero, ToggleRow, moneyExact, pickedIncludes, wash, useCountUp } from "@/components/EstimatorControls";
 import { postJson } from "@/lib/safe-fetch";
-import { askAtlasInputs, formDefaults, inputsComplete, sectionsOf, visibleInputIds, type EstimatorResultLine, type EstimatorSpec, type FormValue } from "@/lib/estimator";
+import { askAtlasInputs, formDefaults, inputsComplete, sectionsOf, visibleInputIds, type EstimatorResultLine, type EstimatorSpec, type FormValue, type PriceDriver } from "@/lib/estimator";
 import { fileToAssistPhoto, type AssistPhoto } from "@/lib/image-downscale";
 import type { LatLngTuple } from "@/components/MapMeasure";
 
@@ -49,7 +49,7 @@ export type EstimatorApply = {
   clientMessage?: string;
 };
 
-type RunOk = { ok: true; lines: EstimatorResultLine[]; subtotal: number; title?: string; clientMessage?: string; warnings: string[] };
+type RunOk = { ok: true; lines: EstimatorResultLine[]; subtotal: number; title?: string; clientMessage?: string; warnings: string[]; drivers?: PriceDriver[] };
 type RunReply = Partial<RunOk> & { ok?: boolean; error?: string; errors?: string[]; variants?: Record<string, number | null> };
 type FormValues = Record<string, FormValue>;
 
@@ -79,8 +79,8 @@ export function takeEstimateDraft(): EstimateDraft | null {
   }
 }
 
-function runRequest(tool: RunnerEstimator, values: FormValues, dry: boolean, variants?: { input: string; values: string[] }) {
-  const body = { inputs: values, ...(variants ? { variants } : {}) };
+function runRequest(tool: RunnerEstimator, values: FormValues, dry: boolean, variants?: { input: string; values: string[] }, explain = false) {
+  const body = { inputs: values, ...(variants ? { variants } : {}), ...(explain ? { explain: true } : {}) };
   return tool.preview
     ? postJson<RunReply>(`/api/app/estimators/preview`, { spec: tool.spec, ...body })
     : postJson<RunReply>(`/api/app/estimators/${tool.id}/run${dry ? "?dry=1" : ""}`, body);
@@ -214,7 +214,7 @@ export function EstimatorRunnerPanel({
     if (!tool) return;
     setBusy("run");
     setError("");
-    const { ok, data } = await runRequest(tool, values, false);
+    const { ok, data } = await runRequest(tool, values, false, undefined, true);
     setBusy(null);
     if (!ok || !data || !data.ok || !data.lines) {
       setError(data?.errors?.join(" · ") ?? data?.error ?? "Couldn't compute that — check the answers.");
@@ -452,6 +452,19 @@ export function EstimatorRunnerPanel({
             </div>
           )}
           <Breakdown theme={theme} lines={result.lines} subtotal={result.subtotal} />
+          {result.drivers && result.drivers.length > 0 && (
+            <div className="rounded-xl border border-gray-200 p-4">
+              <p className="text-xs font-semibold text-gray-500">What moves this price</p>
+              <ul className="mt-2 space-y-1.5">
+                {result.drivers.map((d) => (
+                  <li key={d.id} className="flex items-baseline justify-between gap-3 text-sm">
+                    <span className="min-w-0 truncate text-gray-700">{d.label}</span>
+                    <span className={`shrink-0 tabular-nums font-semibold ${d.delta < 0 ? "text-gray-500" : "text-gray-900"}`}>{d.text}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           {result.warnings.length > 0 && <p className="text-xs text-amber-700">{result.warnings.join(" · ")}</p>}
           {result.clientMessage && <p className="text-xs text-gray-500">Client note: {result.clientMessage}</p>}
         </div>

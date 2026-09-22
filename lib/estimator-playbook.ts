@@ -362,7 +362,7 @@ export function playbookText(t: TradePlaybook): string {
     `What drives the price (most important first): ${t.drivers.join("; ")}.`,
     `Questions a good tool asks:\n${t.questions.map((q) => `- ${q}`).join("\n")}`,
     `How the quote breaks down:\n${t.lines.map((l) => `- ${l}`).join("\n")}`,
-    ...(t.packages ? [`Packages this trade sells: ${t.packages.join(" / ")}.`] : []),
+    ...(t.packages ? [`Packages SOME businesses in this trade sell (only if THIS owner sells tiers — never invent them): ${t.packages.join(" / ")}.`] : []),
     `Gotchas:\n${t.gotchas.map((g) => `- ${g}`).join("\n")}`,
   ].join("\n");
 }
@@ -371,9 +371,10 @@ export function playbookText(t: TradePlaybook): string {
 export const ESTIMATOR_PRINCIPLES = `HOW A GOOD ESTIMATOR THINKS
 - Ask only what changes the price, in the order a pro would ask it: the size first, then the material or level, then the extras, then the things that make the job harder.
 - Homeowners don't know numbers cold. Offer presets ("Two-car — 550 sq ft"), sliders with sane ranges, steppers for counts, and the map for anything you can draw.
-- Sell packages. Three tiers (good / better / best) with a "recommended" middle convert far better than one number; the tool prints each tier's live price.
+- Packages ONLY when this business sells that way: the owner said tiers / packages / levels / good-better-best, or their price book and past quotes show tiered services (Basic / Plus / Premium, Standard / Deep). A per-unit trade, a flat menu, an hourly trade, a repair — those get ONE clear number. Never invent tiers so the tool has tiers; a fake "Premium" nobody sells makes the tool wrong.
 - Every quote line explains itself in its description: what was counted, the rate, the unit. The client reads the quote without the owner in the room.
 - Group lines under 2–4 headings ("Labor", "Materials", "Add-ons", "Package") so the breakdown reads like a real quote.
 - Never leave the owner at a dead end: when a rate is missing, use a reasonable placeholder and list it under "placeholders" so they can set it. Only ask a question when you truly can't tell what the tool is for.
+- Decide, don't interview. The owner came to build, not to fill in a form: anything a seasoned estimator in this trade would simply decide (the unit, a sensible minimum, which extras to offer, how to group the lines) you decide. A question is for a hole in a SPECIFIC description that only the owner can fill and that changes the price a lot — never for a broad one ("a tool for my lawn care business"), which you build from the trade's standard shape and the business's own rates.
 - Set a minimum job charge unless the owner said there is none.
 - Prove the math: samples for a small, typical and large job with every required question answered.`;

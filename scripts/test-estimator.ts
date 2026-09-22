@@ -17,6 +17,7 @@ import {
   runVariants,
   auditSpec,
   inputsComplete,
+  explainRun,
   type EvalCtx,
   type PriceBookEntry,
 } from "../lib/estimator";
@@ -549,4 +550,57 @@ console.log("\nestimator: all green");
   }
 }
 console.log("ok 13: counts + askAtlas");
+
+// 14. what moves this price — explainRun nudges every visible answer and ranks the swings
+{
+  const s = {
+    version: 1,
+    inputs: [
+      { id: "sqft", label: "Driveway size", type: "number", unit: "sq ft", min: 100, max: 5000, step: 50, required: true },
+      { id: "stories", label: "Stories", type: "select", options: [{ value: "1", label: "One story" }, { value: "2", label: "Two stories" }], default: "1" },
+      { id: "sealant", label: "Sealant", type: "toggle" },
+      { id: "extras", label: "Also clean", type: "multi", options: ["Patio", "Fence"] },
+      { id: "windows", label: "Windows", type: "counts", options: [{ value: "std", label: "Standard" }, { value: "pic", label: "Picture" }], max: 50 },
+      { id: "notes", label: "Notes", type: "text" },
+    ],
+    variables: [],
+    lines: [
+      { name: "Cleaning", description: "{sqft} sq ft", quantity: "sqft", unitPrice: "0.25" },
+      { name: "Two-story", description: "ladder", when: "stories == '2'", quantity: "1", unitPrice: "120" },
+      { name: "Sealant", description: "seal", when: "sealant", quantity: "sqft", unitPrice: "0.45" },
+      { name: "Patio", description: "patio", when: "has(extras, 'Patio')", quantity: "1", unitPrice: "80" },
+      { name: "Fence", description: "fence", when: "has(extras, 'Fence')", quantity: "1", unitPrice: "40" },
+      { name: "Windows", description: "w", quantity: "total(windows)", unitPrice: "8", isOptional: false },
+    ],
+    samples: [{ label: "Small", inputs: { sqft: 300 } }, { label: "Large", inputs: { sqft: 1000, sealant: true } }],
+  };
+  const c = compileSpec(s);
+  assert.ok(c.ok, JSON.stringify(c));
+  if (c.ok) {
+    const drivers = explainRun(c.compiled, { sqft: 1000, stories: "1", sealant: false, extras: ["Fence"], windows: { std: 2 } }, book, { max: 10 });
+    const by = Object.fromEntries(drivers.map((d) => [d.id, d]));
+    // sealant on 1,000 sq ft is the biggest swing → first
+    assert.equal(drivers[0].id, "sealant", drivers.map((d) => `${d.id}:${d.delta}`).join(" "));
+    assert.equal(by.sealant.delta, 450);
+    assert.ok(/\+\$450 with sealant/.test(by.sealant.text), by.sealant.text);
+    assert.equal(by.stories.delta, 120);
+    assert.ok(/Two stories/.test(by.stories.text));
+    // 10% of 1,000 rounded to the 50 step = 100 sq ft → +$25
+    assert.equal(by.sqft.delta, 25);
+    assert.ok(/per extra 100 sq ft/.test(by.sqft.text), by.sqft.text);
+    // Patio (+80) beats removing Fence (−40)
+    assert.equal(by.extras.delta, 80);
+    assert.ok(/adding Patio/.test(by.extras.text));
+    assert.equal(by.windows.delta, 8);
+    assert.ok(!("notes" in by), "text inputs never drive the price");
+    assert.ok(drivers.every((d, i) => i === 0 || Math.abs(drivers[i - 1].delta) >= Math.abs(d.delta)), "sorted by swing");
+    // default cap of 3; a base run that fails explains nothing
+    assert.equal(explainRun(c.compiled, { sqft: 1000 }, book).length, 3);
+    assert.deepEqual(explainRun(c.compiled, {}, book), []);
+    // at the max, the nudge goes the other way
+    const top = explainRun(c.compiled, { sqft: 5000 }, book, { max: 10 }).find((d) => d.id === "sqft");
+    assert.ok(top && top.delta < 0 && /less/.test(top.text), JSON.stringify(top));
+  }
+}
+console.log("ok 14: explainRun price drivers");
 console.log("\nestimator: all green");

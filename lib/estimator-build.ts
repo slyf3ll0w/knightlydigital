@@ -81,17 +81,23 @@ function answersText(answers: BuildAnswer[]): string {
   return `\n\nYou asked the owner these questions before building; their answers:\n${answers.map((a) => `Q: ${a.question}\nA: ${a.answer.trim() || "(no answer — use a sensible placeholder and list it under placeholders)"}`).join("\n")}`;
 }
 
-function planSystem(assistantName: string, answered: boolean, brief: string): string {
+function planSystem(assistantName: string, answered: boolean, brief: string, hasImage: boolean): string {
   return `You are ${assistantName}, a veteran estimator inside Workbench, a field-service app. An owner describes how they price a kind of job. Before any tool is built, PLAN it the way a pro would. Answer with ONLY a JSON object:
-{"tradeKey": "one key from the list below, or null", "trade": "human name of the trade / job", "drivers": ["what moves the price, most important first — 3 to 6"], "questions": [{"label": "the question as a homeowner would read it", "control": "slider | stepper | field | map | cards | packages | multi | counts | toggle"}], "packages": ["Good tier name", "Better", "Best"] or null, "note": "one sentence on the pricing shape (per sq ft with tiers, flat menu, hourly…)", "askOwner": [], "ask": null}
+{"tradeKey": "one key from the list below, or null", "trade": "human name of the trade / job", "drivers": ["what moves the price, most important first — 3 to 6"], "questions": [{"label": "the question as a homeowner would read it", "control": "slider | stepper | field | map | cards | packages | multi | counts | toggle"}], "packages": null, "note": "one sentence on the pricing shape (per sq ft, flat menu, hourly, tiers…)", "askOwner": [], "ask": null}
 
+"packages": null unless THIS business sells tiers — the owner said packages / tiers / levels / good-better-best, or the price book and past quotes show tiered services. Then 2–4 tier names. A per-unit, hourly, flat-menu or repair job gets null. Never invent tiers.
 ${
   answered
     ? `The owner has ALREADY answered your questions (they're in the message). Do not ask again — "askOwner" must be []. Anything still unknown becomes a placeholder.`
-    : `"askOwner": the things you'd ask a colleague before building THIS tool — only what materially changes the pricing and that the owner's words leave open. Typical: rates per material or tier when materials are named without prices ("6-ft cedar vs chain link — what's each per foot?"), the job minimum, whether they sell packages, the unit they price by. At most 4, each {"question": "short and specific", "why": "one clause on what it changes", "suggestions": ["2–4 example answers"]}. Each suggestion must be a COMPLETE answer to the whole question that the owner could give as-is — alternatives to pick between, never one suggestion per part. Wrong: a "Good / Better / Best" question with one suggestion per tier. Right: one question per tier ("What does your Good package include and cost?" with suggestions like "i3, 8GB RAM, 256GB SSD — $600"), or one question whose every suggestion spells out all three tiers. Ask like a colleague, not a form: if the owner gave the numbers, ask nothing ([]). Never ask about things a homeowner answers on the form (sizes, counts, choices).`
+    : `"askOwner": almost always []. The owner wants a tool, not a questionnaire; a missing rate becomes a placeholder they confirm later (that path exists and works). Ask ONLY when both are true: (1) the description is SPECIFIC and names a thing whose price drives the whole tool but leaves it open (e.g. "cedar or chain link" with no rate per material), and (2) neither the price book nor their past quotes show it. At most 2 questions, each {"question": "short and specific", "why": "one clause on what it changes", "suggestions": ["2–4 example answers"]}. NEVER ask about: the minimum, whether they sell packages, the unit, extras, anything a homeowner answers on the form (sizes, counts, choices), or anything you can decide as a pro. A BROAD description ("a tool for my pressure washing jobs", "something for lawn care") gets NO questions — build the trade's standard tool from the playbook and the business's own rates. Each suggestion must be a COMPLETE answer to the whole question that the owner could give as-is — alternatives to pick between, never one suggestion per part.`
 }
 Set "ask" to ONE short question ONLY when you genuinely cannot tell what job the tool is for.
 You already know this business (below). Never ask for a rate the price book or their past quotes already show — use it. If the description is vague about the trade, the business's trade tells you.
+${
+  hasImage
+    ? `\nThe owner attached a PHOTO of their price sheet / rate card / old estimate form. Read every rate, unit, service name, minimum, surcharge and package from it — those are the business's REAL numbers, not placeholders, and they answer most questions you would otherwise ask. Plan the tool around what the sheet prices.`
+    : ""
+}
 
 ${ESTIMATOR_PRINCIPLES}
 
@@ -106,7 +112,8 @@ function draftSystem(
   business: string,
   current: { name: string; description: string | null; spec: EstimatorSpec } | null,
   playbook: string | null,
-  assistantName: string
+  assistantName: string,
+  hasImage: boolean
 ): string {
   return `You are ${assistantName}, building an ESTIMATE TOOL for a field-service business inside Workbench. The owner describes how they price a kind of job in plain words; you return a tool a homeowner can answer in a minute and a pro would trust. Answer with ONLY a JSON object, no prose:
 {"name": "short tool name", "description": "one line (≤ 160 chars) on when to use it", "spec": { ...the spec... }}
@@ -114,7 +121,8 @@ ${current ? `\nThis is a CHANGE to an existing tool. Current tool (JSON):\n${JSO
 ${ESTIMATOR_PRINCIPLES}
 
 Design rules for a GOOD tool:
-- Follow the plan you are given, then make it real: every question in the plan becomes an input with the right control; the packages become a "packages" select whose tiers the lines switch on.
+- Follow the plan you are given, then make it real: every question in the plan becomes an input with the right control. Packages ONLY when the plan has them (this business sells tiers) — then a "packages" select whose tiers the lines switch on. Plan says null → no tiers, one clear price; never add a package picker on your own.
+${hasImage ? `- The owner attached a PHOTO of their price sheet / rate card / old estimate form. Every rate, unit, service, minimum, surcharge and package on it is a REAL number: use them exactly, name lines the way the sheet does, and list NOTHING from the sheet under "placeholders". Only a rate the sheet and the business data both lack becomes a placeholder.` : ""}
 - Use type "map" (measure "length" for fences/gutters in ft, "area" for lawns/roofs/driveways/patios in sq ft) whenever a size is the main driver — customers draw it instead of guessing. Pair it with number presets only when a map makes no sense.
 - More than 5 questions → group them with "section" (2–4 sections, in the order a pro asks). Use "showWhen" so follow-ups only appear when relevant. Use "multi" for pick-several add-ons.
 - Write plain-English labels a homeowner understands; put jargon in "help". Blurbs on cards and tiers sell the option in a few words.
@@ -168,12 +176,16 @@ function roughPreview(draft: Draft): BuildDraft | null {
   };
 }
 
-export async function* buildEstimator(actor: Actor, opts: { prompt: string; estimatorId?: string; assistantName: string; answers?: BuildAnswer[] }): AsyncGenerator<BuildEvent> {
+/** A photo of the owner's price sheet / rate card, read by both model calls (base64, no data: prefix). */
+export type BuildImage = { base64: string; mime: string };
+
+export async function* buildEstimator(actor: Actor, opts: { prompt: string; estimatorId?: string; assistantName: string; answers?: BuildAnswer[]; image?: BuildImage | null }): AsyncGenerator<BuildEvent> {
   let tokens = 0;
+  const image = opts.image ?? null;
   const prompt = opts.prompt.trim().slice(0, 4000);
   const answers = (opts.answers ?? []).map((a) => ({ question: String(a.question ?? "").slice(0, 300), answer: String(a.answer ?? "").slice(0, 600) })).filter((a) => a.question).slice(0, 6);
   const answered = answers.length > 0;
-  if (prompt.length < 8) {
+  if (prompt.length < 8 && !image) {
     yield { error: "Describe the tool in a sentence or two first.", tokens };
     return;
   }
@@ -205,7 +217,15 @@ export async function* buildEstimator(actor: Actor, opts: { prompt: string; esti
   let planKey: string | null = null;
   if (!currentRow) {
     yield { phase: "plan", message: "Working out what drives the price…" };
-    const res = await meteredOneShot(actor, { kind: "estimator-plan", system: planSystem(opts.assistantName, answered, biz.brief), prompt: `The owner's description:\n${prompt}${answersText(answers)}`, maxOutputTokens: 2000, temperature: 0.2, thinkingBudget: THINK_PLAN });
+    const res = await meteredOneShot(actor, {
+      kind: "estimator-plan",
+      system: planSystem(opts.assistantName, answered, biz.brief, Boolean(image)),
+      prompt: `The owner's description:\n${prompt || "(see the attached price sheet)"}${answersText(answers)}`,
+      maxOutputTokens: 2000,
+      temperature: 0.2,
+      thinkingBudget: THINK_PLAN,
+      ...(image ? { image } : {}),
+    });
     if (!res.ok) {
       yield { error: res.error, tokens, atlasLocked: res.atlasLocked };
       return;
@@ -229,7 +249,7 @@ export async function* buildEstimator(actor: Actor, opts: { prompt: string; esti
             };
           })
           .filter((q) => q.question)
-          .slice(0, 4);
+          .slice(0, 2);
         if (qs.length > 0) {
           yield { questions: qs, tokens };
           return;
@@ -255,8 +275,8 @@ export async function* buildEstimator(actor: Actor, opts: { prompt: string; esti
   }
 
   const trade = playbookByKey(planKey) ?? guessTrade(prompt) ?? (currentSpec ? guessTrade(`${currentRow!.name} ${currentRow!.description ?? ""}`) : null) ?? (biz.industry ? guessTrade(biz.industry) : null);
-  const system = draftSystem(biz.text, currentRow && currentSpec ? { name: currentRow.name, description: currentRow.description, spec: currentSpec } : null, trade ? playbookText(trade) : null, opts.assistantName);
-  let userPrompt = currentRow ? `The owner's change request:\n${prompt}${answersText(answers)}` : `The owner's description:\n${prompt}${answersText(answers)}${plan ? `\n\nThe plan (follow it, then make it real):\n${JSON.stringify(plan)}` : ""}`;
+  const system = draftSystem(biz.text, currentRow && currentSpec ? { name: currentRow.name, description: currentRow.description, spec: currentSpec } : null, trade ? playbookText(trade) : null, opts.assistantName, Boolean(image));
+  let userPrompt = currentRow ? `The owner's change request:\n${prompt || "(see the attached price sheet)"}${answersText(answers)}` : `The owner's description:\n${prompt || "(see the attached price sheet)"}${answersText(answers)}${plan ? `\n\nThe plan (follow it, then make it real):\n${JSON.stringify(plan)}` : ""}`;
 
   let draft: Draft | null = null;
   let compiled: Awaited<ReturnType<typeof checkSpec>> | null = null;
@@ -272,6 +292,7 @@ export async function* buildEstimator(actor: Actor, opts: { prompt: string; esti
       temperature: 0.2,
       thinkingBudget: round === 1 ? (currentRow ? THINK_CHANGE : THINK_DRAFT) : THINK_FIX,
       timeoutMs: 170_000,
+      ...(image ? { image } : {}),
     });
     if (!res.ok) {
       yield { error: res.error, tokens, atlasLocked: res.atlasLocked };

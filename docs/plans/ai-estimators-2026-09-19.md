@@ -836,7 +836,133 @@ imagery overzooms to 21 with maxNativeZoom 19.
 2. Same company, describe a tool for a service that isn't in the data →
    clarifying questions ask only for what's missing.
 
+## Batch 10 — fewer questions, no fake packages, price-sheet photo, price drivers (BUILT 2026-09-22)
+
+David: "the estimator seems to be asking me questions just to ask
+questions and creating packages that are usually not relevant for the
+services I've built the estimators for … in case those things are hard
+wired." They were.
+
+### Diagnosis
+- **Packages were pushed in four places**: `ESTIMATOR_PRINCIPLES` ("Sell
+  packages. Three tiers … convert far better than one number"), the guide
+  ("Nearly every trade sells better as 3 packages than as one number — use
+  them unless the owner prices a single way"), the plan call's JSON shape
+  (`"packages": ["Good tier name", "Better", "Best"] or null` primes the
+  model), and the draft rule ("the packages become a packages select").
+  22 of 26 playbook entries also list packages as if every business sells
+  them.
+- **Questions were invited**: the plan prompt listed "the job minimum,
+  whether they sell packages, the unit they price by" as typical things to
+  ask, allowed 4, and a broad prompt leaves all of those "open" — so a
+  broad description reliably produced a questionnaire.
+
+### Fixes (prompt + code)
+- Packages are opt-in: only when the owner said tiers / packages / levels /
+  good-better-best, or the price book and past quotes show tiered services.
+  Plan JSON defaults `"packages": null`; the draft may not add a package
+  picker the plan didn't have; the guide and principles say "never invent
+  tiers"; the playbook line now reads "Packages SOME businesses in this
+  trade sell (only if THIS owner sells tiers — never invent them)".
+- Questions: `askOwner` is "almost always []". Ask only when the description
+  is SPECIFIC and names a thing whose price drives the whole tool but leaves
+  it open, AND the business data lacks it. Never the minimum, packages,
+  unit, extras, or anything a pro would decide. A broad description gets no
+  questions — the trade's standard tool from the playbook plus the
+  business's own rates. Code cap 4 → 2. New principle: "Decide, don't
+  interview."
+- **Price-sheet photo** (`BuildPanel` "Have a price sheet? Attach a photo",
+  `imageBase64`/`imageMime` on `POST /build`, same limits as the photo
+  fill-in, 2000 px downscale so small print survives): both model calls get
+  the image; rates read from it are real numbers, never placeholders. A
+  build can start from the photo alone.
+- **What moves this price** — `explainRun()` in `lib/estimator.ts` (pure,
+  ≤ 60 extra runs): nudges every visible answer the way a customer would
+  (size +10 % rounded to the step, toggle flipped, choice swapped for the
+  option that changes the total most, add-on added, one more of an item)
+  and returns the top 3 swings in words ("+$450 with sealant", "+$25 per
+  extra 100 sq ft", "+$120 for Two stories"). `/run` and `/preview` take
+  `explain: true`; the runner's result screen shows the card under the
+  breakdown. Free — no model call.
+
+### The Library (same batch)
+David: a place on the Estimates page where companies publish their tools to
+everyone, anonymously or under their name, with a description (Atlas can
+write it) and an industry tag; others filter by industry, see them ordered
+by likes, like them, and add a copy; a takedown hides the listing but never
+touches copies already added.
+
+- **Storage**: `EstimatorListing` (one per source tool, `estimatorId
+  @unique`, cascade; `spec` = a PORTABLE snapshot; `industry` ∈
+  `INDUSTRIES`; `anonymous` + `byName`; `likes` / `adds` counters; `status`
+  LIVE | HIDDEN (owner unlisted) | REMOVED (Workbench) + `removedReason`),
+  `EstimatorListingLike` (one per company per listing),
+  `Estimator.sourceListingId` on copies. Additive.
+- **Portable spec** — `lib/estimator-portable.ts` (pure, tested in
+  `scripts/test-estimator-portable.ts`): `workItemName` links drop and the
+  linked price becomes a literal; `price()` / `cost()` calls in every
+  expression AND template become literals from the sharer's book;
+  `placeholders` becomes one "… — from the Library, set your own rate" per
+  line (+ the minimum), so the adopter's Overview shows Rates to confirm;
+  the result must compile with zero price-book refs.
+- **API**: `GET /api/app/library` (industry, q, sort likes|new, cursor,
+  30/page; each card says liked / added / mine), `GET /api/app/library/[id]`,
+  `POST …/like` (toggle, transaction), `POST …/add` (managers; LIVE only,
+  per-company limit, name de-dup, pictures duplicated — row bytes copied
+  or R2 object re-uploaded, failures keep the public URL — snapshot "Added
+  from the Library", `adds++`), `GET/POST/DELETE /api/app/estimators/[id]/share`
+  (share / refresh the library copy / unlist → HIDDEN; REMOVED → 403 with
+  the reason), `POST …/share/describe` (Atlas, `meteredOneShot` kind
+  `estimator-share`), `POST /api/app/estimators/library/[listing]/run`
+  (Preview for anyone who can sell — the portable spec runs against an
+  empty book, nothing counted), `PATCH /api/superadmin/library/[id]`
+  (remove with a reason / restore).
+- **UI**: `/app/estimates/library` (search, industry chips — the company's
+  own preselected — Most liked / Newest, ledger rows with by-line or
+  "Shared anonymously", heart with count, "added N times", Preview, Add to
+  my tools → link to the new tool); a Library button on the Estimates page
+  header; "From the Library" pill on copies; tool page section **Library**
+  (`SharePanel`: share as company / anonymous, industry, description with
+  "Write it with Atlas", Share / Update the library copy / Remove);
+  superadmin `/superadmin/library` (all listings, company even when
+  anonymous, Remove with reason, Restore).
+
+### Batch 10 Test (owed)
+0. Share a tool that links price-book items → the listing preview runs with
+   the same numbers in a company with an empty price book; Add → the copy
+   lands with every rate under Rates to confirm and History "Added from the
+   Library"; like it from a second company → count moves; superadmin Remove
+   → gone from the browse page, the copy still runs, the owner's Library
+   section shows the reason.
+1. Build "a tool for my pressure washing jobs" (broad) → no questions, no
+   package picker unless the price book has tiers; the tool builds straight
+   through.
+2. Build "fence: cedar or chain link, gates extra" (specific, no rates, empty
+   price book) → at most 2 questions, about the per-material rate only.
+3. Attach a photo of a rate card with no description → the tool's rates
+   match the sheet; Rates to confirm is empty for anything on the sheet.
+4. Run any tool → "What moves this price" lists up to three answers with
+   dollar swings that agree with re-running by hand.
+
 ## Later
+- **Smarter still (proposed 2026-09-22, not built)** — the upgrade-worthy
+  layer on top of the Library:
+  1. *Win-rate feedback*: stamp `Quote.estimatorId` when a quote starts
+     from a tool, then per tool show quotes → approved % and let Atlas
+     propose rate moves ("your Deep clean tier wins 92 % — you're
+     underpriced"). Needs the quote editor hand-off to carry the tool id.
+  2. *Distance-aware travel fee*: a built-in `distance_miles` variable
+     (company → job address, geocode cache, metered like Find a Time) so
+     tools can add a trip charge or refuse out-of-area jobs on the website
+     form.
+  3. *Library benchmarks*: when a build has to guess a rate, show the
+     median of the same line across same-industry Library listings as the
+     placeholder ("typical in the Library: $0.20–0.30/sq ft") — the
+     Library becomes a pricing dataset.
+  4. *Quote-edit learning*: when owners edit lines a tool produced, Atlas
+     notices the drift on the tool page and offers the change.
+  5. *Public "what changes the price"*: the drivers card on website forms
+     (homeowners self-qualify; fewer tyre-kicker leads).
 - Lazy tool loading (docs/plans/cost-controls.md) — `manage_estimator`'s
   spec schema is the largest declaration in the registry now.
 - Map: satellite imagery needs the Esri attribution kept; consider Mapbox

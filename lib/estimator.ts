@@ -1600,6 +1600,131 @@ export function runVariants(compiled: CompiledSpec, rawInputs: Record<string, un
   return out;
 }
 
+// ── what moves this price (sensitivity of the subtotal to each answer) ───────
+
+export type PriceDriver = {
+  /** The input that moves it. */
+  id: string;
+  label: string;
+  /** Plain words for the runner: "+$120 for Two stories", "+$45 per extra 100 sq ft". */
+  text: string;
+  /** Signed change in the subtotal for the nudge described in `text`. */
+  delta: number;
+};
+
+/** Runs one explain() may spend — pure math, but a big multi/counts tool could otherwise fan out. */
+const EXPLAIN_MAX_RUNS = 60;
+
+const driverMoney = (n: number): string => {
+  const a = Math.abs(n);
+  return `${n < 0 ? "−" : "+"}$${a >= 10 ? Math.round(a).toLocaleString("en-US") : a.toFixed(2)}`;
+};
+const fmtNum = (n: number): string => (Number.isInteger(n) ? n.toLocaleString("en-US") : n.toLocaleString("en-US", { maximumFractionDigits: 1 }));
+
+/**
+ * Which answers move the price most, for the result screen: every visible
+ * input is nudged the way a customer would change it — a size up ~10 % (at
+ * least one step), a toggle flipped, a choice swapped for the option that
+ * changes the total most, an add-on added, one more of an item — and the
+ * biggest swings come back as plain words. Pure; a handful of extra
+ * `runCompiled` calls, no model, no tokens. Empty when the base run fails.
+ */
+export function explainRun(compiled: CompiledSpec, rawInputs: Record<string, unknown>, priceBook: PriceBookEntry[], opts: { max?: number } = {}): PriceDriver[] {
+  const base = runCompiled(compiled, rawInputs, priceBook);
+  if (!base.ok) return [];
+  const { spec } = compiled;
+  const { values } = coerceInputs(spec, rawInputs);
+  const visible = visibleInputIds(spec, rawInputs);
+  let runs = 0;
+  const sub = (patch: Record<string, unknown>): number | null => {
+    if (runs >= EXPLAIN_MAX_RUNS) return null;
+    runs++;
+    const r = runCompiled(compiled, { ...rawInputs, ...patch }, priceBook);
+    return r.ok ? r.subtotal : null;
+  };
+  const out: PriceDriver[] = [];
+  const push = (inp: EstimatorInput, delta: number, text: string) => {
+    if (Math.abs(delta) < 1) return;
+    out.push({ id: inp.id, label: inp.label, delta, text });
+  };
+
+  for (const inp of spec.inputs) {
+    if (!visible.has(inp.id) || inp.type === "text") continue;
+    const cur = values[inp.id];
+    switch (inp.type) {
+      case "number":
+      case "map": {
+        const n = typeof cur === "number" ? cur : 0;
+        const step = inp.type === "number" && inp.step ? inp.step : 1;
+        // ~10 % of the answer, rounded to the step, at least one step; a blank answer nudges by one preset-ish unit
+        let d = Math.max(step, Math.round((n * 0.1) / step) * step);
+        if (n === 0) d = step;
+        const unit = inp.type === "number" ? inp.unit : inp.measure === "length" ? "ft" : "sq ft";
+        const max = inp.max;
+        const up = max === undefined || n + d <= max ? sub({ [inp.id]: n + d }) : null;
+        if (up !== null) push(inp, up - base.subtotal, `${driverMoney(up - base.subtotal)} per extra ${fmtNum(d)}${unit ? ` ${unit}` : ""}`);
+        else {
+          const min = inp.min ?? 0;
+          if (n - d >= min) {
+            const down = sub({ [inp.id]: n - d });
+            if (down !== null) push(inp, down - base.subtotal, `${driverMoney(down - base.subtotal)} for ${fmtNum(d)}${unit ? ` ${unit}` : ""} less`);
+          }
+        }
+        break;
+      }
+      case "toggle": {
+        const on = cur === true;
+        const flipped = sub({ [inp.id]: !on });
+        if (flipped !== null) push(inp, flipped - base.subtotal, on ? `${driverMoney(flipped - base.subtotal)} without ${inp.label.toLowerCase()}` : `${driverMoney(flipped - base.subtotal)} with ${inp.label.toLowerCase()}`);
+        break;
+      }
+      case "select": {
+        const now = typeof cur === "string" ? cur : "";
+        let best: { delta: number; label: string } | null = null;
+        for (const o of inp.options) {
+          if (o.value === now) continue;
+          const s = sub({ [inp.id]: o.value });
+          if (s === null) continue;
+          const delta = s - base.subtotal;
+          if (!best || Math.abs(delta) > Math.abs(best.delta)) best = { delta, label: o.label };
+        }
+        if (best) push(inp, best.delta, `${driverMoney(best.delta)} for ${best.label}`);
+        break;
+      }
+      case "multi": {
+        const picked = new Set(Array.isArray(cur) ? cur.map(String) : []);
+        let best: { delta: number; label: string; add: boolean } | null = null;
+        for (const o of inp.options) {
+          const add = !picked.has(o.value);
+          const next = add ? [...picked, o.value] : Array.from(picked).filter((v) => v !== o.value);
+          const s = sub({ [inp.id]: next });
+          if (s === null) continue;
+          const delta = s - base.subtotal;
+          if (!best || Math.abs(delta) > Math.abs(best.delta)) best = { delta, label: o.label, add };
+        }
+        if (best) push(inp, best.delta, best.add ? `${driverMoney(best.delta)} adding ${best.label}` : `${driverMoney(best.delta)} without ${best.label}`);
+        break;
+      }
+      case "counts": {
+        const table = cur && typeof cur === "object" && !Array.isArray(cur) ? (cur as Record<string, Value>) : {};
+        let best: { delta: number; label: string } | null = null;
+        for (const o of inp.options) {
+          const n = Number(table[o.value] ?? 0);
+          if (inp.max !== undefined && n + 1 > inp.max) continue;
+          const s = sub({ [inp.id]: { ...table, [o.value]: n + 1 } });
+          if (s === null) continue;
+          const delta = s - base.subtotal;
+          if (!best || Math.abs(delta) > Math.abs(best.delta)) best = { delta, label: o.label };
+        }
+        if (best) push(inp, best.delta, `${driverMoney(best.delta)} per extra ${best.label.toLowerCase()}`);
+        break;
+      }
+    }
+  }
+  out.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
+  return out.slice(0, opts.max ?? 3);
+}
+
 // ── quality audit (the builder's gate beyond "it compiles") ──────────────────
 
 export type SpecAudit = {
@@ -1717,7 +1842,7 @@ Rules:
 - ids: letters/digits/underscores, unique. Inputs are referenced by id inside expressions and {templates}.
 - Input types: number, select (one of), multi (several — the value is a LIST of option values), counts (items AND how many of each — the value is a TABLE {optionValue: count}; qty(windows, 'picture') is one item's count, total(windows) all of them, has()/count() work too; use it for windows by type, trees by size, junk items, fixtures, rooms by size), map, toggle, text. type "map" = the customer draws on a satellite map: measure "length" (a fence line; the value is FEET) or "area" (lawn, roof, driveway, patio; the value is SQUARE FEET) — use it whenever a size is the main price driver (fencing, lawn care, roofing, paving, irrigation, sealcoating) instead of asking them to guess a number. Pictures on options/questions are added by the owner in the editor, never by you. "section" groups questions under a heading (the website form shows one section per step); "showWhen" (an expression over OTHER inputs, no variables/price book) hides a question until it matters — a hidden question reads as untouched (its default). Complex trades (roofing, remodels, HVAC, moving) want 2–4 sections and showWhen branches instead of one wall of questions.
 - Number questions: "control" = "slider" (a size with a sensible max — set min/max/step), "stepper" (a count: windows, rooms, gates) or "field" (default). Add 2–5 "presets" whenever a homeowner wouldn't know the number cold ("Two-car — 550 sq ft"). Always give a "unit".
-- Select questions: "style" = "cards" (2–6 choices with a one-line "blurb" each) or "packages" (2–4 good/better/best tiers; each option needs "blurb" + "includes" bullets, mark ONE "recommended"; the form prints each tier's live price). Lines then switch on the tier: when: "package == 'premium'". Nearly every trade sells better as 3 packages than as one number — use them unless the owner prices a single way.
+- Select questions: "style" = "cards" (2–6 choices with a one-line "blurb" each) or "packages" (2–4 good/better/best tiers; each option needs "blurb" + "includes" bullets, mark ONE "recommended"; the form prints each tier's live price). Lines then switch on the tier: when: "package == 'premium'". Packages ONLY when this business sells tiers — the owner said so (packages / tiers / levels / good-better-best) or their price book and quotes show tiered services. A per-unit, hourly, flat-menu or repair job gets one clear price and NO package picker. Never invent tiers.
 - Every line needs a "description" (the client reads it on the quote) and a "group" heading for the breakdown ("Labor", "Materials", "Add-ons", "Package") — 2–4 groups.
 - "askAtlas": true on a question means Atlas answers it from the customer's description and photo at run time (a metered call — the business pays tokens per estimate; the person can always override). Use it ONLY when a human estimator would have to LOOK at the job to answer and the price truly depends on it: condition (light / moderate / heavy), access difficulty, hazard near a house or power line, scope of damage. Give such a question "help" that says exactly what to look for. Never on sizes the customer can measure or draw, never on choices the customer makes (material, package), never more than 3 per tool. A simple per-unit or flat-rate trade never needs it.
 - "placeholders": when the owner did not give a rate you need, do NOT stop to ask — use a reasonable US-market placeholder, and list it here in plain words so the owner sets it. Ask a question ONLY when you cannot tell what job the tool is for. [] when nothing was guessed.

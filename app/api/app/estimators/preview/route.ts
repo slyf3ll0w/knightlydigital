@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getActor, isManager } from "@/lib/permissions";
-import { auditSpec, parseVariants, runCompiled, runVariants } from "@/lib/estimator";
+import { auditSpec, explainRun, parseVariants, runCompiled, runVariants } from "@/lib/estimator";
 import { checkSpec } from "@/lib/estimator-server";
 
 /**
@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!isManager(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  const body = (await req.json().catch(() => ({}))) as { spec?: unknown; inputs?: unknown; variants?: unknown };
+  const body = (await req.json().catch(() => ({}))) as { spec?: unknown; inputs?: unknown; variants?: unknown; explain?: unknown };
   const check = await checkSpec(actor.companyId, body.spec);
   if (!check.ok) return NextResponse.json({ error: check.errors[0], errors: check.errors }, { status: 400 });
   if (body.inputs && typeof body.inputs === "object" && !Array.isArray(body.inputs)) {
@@ -28,7 +28,8 @@ export async function POST(req: NextRequest) {
       if (variants) return NextResponse.json({ ok: false, error: result.errors[0], errors: result.errors, variants });
       return NextResponse.json({ error: result.errors[0], errors: result.errors }, { status: 400 });
     }
-    return NextResponse.json(variants ? { ...result, variants } : result);
+    const drivers = body.explain === true ? explainRun(check.compiled, inputs, check.book) : undefined;
+    return NextResponse.json({ ...result, ...(variants ? { variants } : {}), ...(drivers ? { drivers } : {}) });
   }
   const audit = auditSpec(check.compiled, check.book);
   return NextResponse.json({ ok: true, spec: check.compiled.spec, audit });
