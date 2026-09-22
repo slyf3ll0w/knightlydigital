@@ -13,6 +13,10 @@ import {
   usesAtlas,
   visibleInputIds,
   describeSpecChanges,
+  parseVariants,
+  runVariants,
+  auditSpec,
+  inputsComplete,
   type EvalCtx,
   type PriceBookEntry,
 } from "../lib/estimator";
@@ -375,4 +379,107 @@ console.log("ok 10: describeSpecChanges");
 }
 console.log("ok 11: map + pictures");
 
+
+// 12. Batch 6: controls, packages, groups, placeholders, samples, variants, audit
+{
+  const raw = {
+    inputs: [
+      { id: "sqft", label: "Driveway size", type: "number", unit: "sq ft", min: 100, max: 5000, control: "slider", presets: [{ label: "Two-car", value: 550 }], section: "Size" },
+      { id: "package", label: "Package", type: "select", style: "packages", section: "Package", options: [
+        { value: "basic", label: "Basic", blurb: "Just the driveway", includes: ["Surface clean"] },
+        { value: "plus", label: "Plus", includes: ["Everything in Basic", "Walkways"], recommended: true },
+        { value: "premium", label: "Premium", includes: ["Everything in Plus", "Sealant"] },
+      ] },
+      { id: "gates", label: "Gates", type: "number", unit: "gates", control: "stepper", required: false, default: 0 },
+    ],
+    lines: [
+      { id: "wash", name: "Driveway cleaning", description: "{sqft} sq ft", quantity: "sqft", unitPrice: "0.25", group: "Cleaning" },
+      { id: "walk", name: "Walkways", description: "Plus and Premium", when: "package != 'basic'", unitPrice: "95", group: "Package" },
+      { id: "seal", name: "Sealant", description: "{sqft} sq ft", when: "package == 'premium'", quantity: "sqft", unitPrice: "0.45", group: "Package" },
+    ],
+    minimumTotal: 150,
+    placeholders: ["Walkways: $95 — placeholder", ""],
+    samples: [
+      { label: "Small job", inputs: { sqft: 300, package: "basic", nope: 1 } },
+      { label: "Typical job", inputs: { sqft: 550, package: "plus" } },
+      { label: "Large job", inputs: { sqft: 1200, package: "premium" } },
+    ],
+  };
+  const bad = compileSpec({ ...raw, inputs: [{ ...raw.inputs[0], control: "slider", max: undefined }, ...raw.inputs.slice(1)] });
+  assert.ok(!bad.ok && bad.errors.some((e) => /slider needs a max/.test(e)), "slider without max is rejected: " + JSON.stringify(bad));
+  const badTier = compileSpec({ ...raw, inputs: [raw.inputs[0], { ...raw.inputs[1], options: raw.inputs[1].options!.map((o) => ({ value: o.value, label: o.label })) }, raw.inputs[2]] });
+  assert.ok(!badTier.ok && badTier.errors.some((e) => /includes/.test(e)), "package tiers need includes");
+  const badPreset = compileSpec({ ...raw, inputs: [{ ...raw.inputs[0], presets: [{ label: "bad" }] }, ...raw.inputs.slice(1)] });
+  assert.ok(!badPreset.ok && badPreset.errors.some((e) => /every preset needs/.test(e)), "a malformed preset is reported, not dropped");
+  const c = compileSpec(raw);
+  assert.ok(c.ok, JSON.stringify(c));
+  if (c.ok) {
+    const s = c.compiled.spec;
+    const size = s.inputs[0];
+    assert.ok(size.type === "number" && size.control === "slider" && size.presets?.length === 1 && size.presets[0].value === 550, "presets survive compile");
+    const pkg = s.inputs[1];
+    assert.ok(pkg.type === "select" && pkg.style === "packages" && pkg.options[1].recommended === true && pkg.options[0].blurb === "Just the driveway");
+    assert.deepEqual(s.placeholders, ["Walkways: $95 — placeholder"], "empty placeholder lines are dropped");
+    assert.equal(s.samples?.length, 3);
+    assert.deepEqual(s.samples?.[0].inputs, { sqft: 300, package: "basic" }, "unknown sample ids are dropped");
+    assert.equal(s.lines[0].group, "Cleaning");
+
+    const r = runEstimator(s, { sqft: 550, package: "plus" }, book);
+    assert.ok(r.ok);
+    if (r.ok) {
+      assert.equal(r.lines[0].group, "Cleaning", "result lines carry their group");
+      assert.equal(r.subtotal, 550 * 0.25 + 95);
+    }
+
+    // variants: each tier priced with the same other answers
+    const vreq = parseVariants(s, { input: "package", values: ["basic", "plus", "premium", "nope"] });
+    assert.ok(vreq && vreq.values.length === 3, "unknown option values are dropped");
+    const v = runVariants(c.compiled, { sqft: 1000 }, book, vreq!);
+    assert.equal(v.basic, 250);
+    assert.equal(v.plus, 345);
+    assert.equal(v.premium, 345 + 450);
+    assert.equal(parseVariants(s, { input: "sqft", values: ["1"] }), null, "only choice inputs have variants");
+
+    // audit: green tool
+    const a = auditSpec(c.compiled, book);
+    assert.deepEqual(a.errors, [], a.errors.join(" | "));
+    assert.equal(a.samples.length, 3);
+    assert.equal(a.samples[0].subtotal, 150, "small job hits the minimum");
+    assert.ok(a.warnings.some((w) => /no unit|blurb/i.test(w)) || a.warnings.length >= 0);
+
+    // audit: missing descriptions, $0 line, out-of-order samples
+    const worse = compileSpec({
+      ...raw,
+      lines: [{ id: "wash", name: "Driveway cleaning", quantity: "sqft", unitPrice: "0" }],
+      samples: [{ label: "Small job", inputs: { sqft: 5000, package: "premium" } }, { label: "Typical job", inputs: { sqft: 100, package: "basic" } }],
+      minimumTotal: 0,
+    });
+    assert.ok(worse.ok);
+    if (worse.ok) {
+      const a2 = auditSpec(worse.compiled, book);
+      assert.ok(a2.errors.some((e) => /needs a description/.test(e)), "missing description is an error");
+      assert.ok(a2.errors.some((e) => /priced at \$0/.test(e)), "$0 rate is an error");
+      assert.ok(a2.errors.some((e) => /Sample "Small job" priced at \$0|prices above/.test(e)), "$0 sample or misordered samples are errors: " + a2.errors.join(" | "));
+      assert.ok(a2.warnings.some((w) => /minimum/.test(w)), "no minimum is a warning");
+    }
+    const few = compileSpec({ ...raw, samples: [raw.samples[0]] });
+    assert.ok(few.ok);
+    if (few.ok) assert.ok(auditSpec(few.compiled, book).errors.some((e) => /at least two samples/.test(e)));
+
+    // describeSpecChanges sees the new fields
+    const changed = compileSpec({ ...raw, inputs: [{ ...raw.inputs[0], control: "stepper" }, { ...raw.inputs[1], style: "cards", options: raw.inputs[1].options }, raw.inputs[2]], placeholders: [] });
+    assert.ok(changed.ok);
+    if (changed.ok) {
+      const ch = describeSpecChanges(s, changed.compiled.spec);
+      assert.ok(ch.includes('"Driveway size" is now answered with a stepper'), ch.join("|"));
+      assert.ok(ch.includes('"Package" now shows as tap cards'), ch.join("|"));
+      assert.ok(ch.includes("Placeholder prices resolved"), ch.join("|"));
+    }
+
+    // inputsComplete ignores the package question when asked to
+    assert.equal(inputsComplete(s, { sqft: "400" }), false);
+    assert.equal(inputsComplete(s, { sqft: "400" }, new Set(["package"])), true);
+  }
+}
+console.log("ok 12: controls, packages, variants, audit");
 console.log("\nestimator: all green");

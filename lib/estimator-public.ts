@@ -181,7 +181,7 @@ export function publicInputs(spec: EstimatorSpec): PublicEstimatorInput[] {
   return spec.inputs.map((i) => ({ ...i }));
 }
 
-export type PublicEstimateLine = { name: string; description: string; quantity: number; unitPrice: number; total: number; isOptional: boolean };
+export type PublicEstimateLine = { name: string; description: string; quantity: number; unitPrice: number; total: number; isOptional: boolean; group?: string };
 
 /** The estimate as the visitor sees it, shaped by showPrice. */
 export type PublicEstimate =
@@ -208,6 +208,7 @@ export function shapeEstimate(
       unitPrice: l.unitPrice,
       total: Math.round(l.quantity * l.unitPrice * 100) / 100,
       isOptional: l.isOptional,
+      ...(l.group ? { group: l.group } : {}),
     })),
     subtotal: result.subtotal,
     title: result.title,
@@ -222,6 +223,25 @@ export function estimateLabel(e: PublicEstimate): string {
   if (e.mode === "exact") return money(e.subtotal);
   if (e.mode === "range") return `${moneyWhole(e.low)} – ${moneyWhole(e.high)}`;
   return "";
+}
+
+/** A package tier's price as the visitor sees it; null = that tier can't price yet. */
+export type PublicVariant = { label: string } | null;
+
+/** Per-tier labels shaped by showPrice ("$850" / "$800 – $950"). Hidden forms never ask. */
+export function shapeVariants(raw: Record<string, number | null>, config: Pick<EstimatorPublicConfig, "showPrice" | "rangePct">, minimumTotal?: number): Record<string, PublicVariant> {
+  const out: Record<string, PublicVariant> = {};
+  for (const [value, subtotal] of Object.entries(raw)) {
+    if (subtotal === null || config.showPrice === "hidden") {
+      out[value] = null;
+      continue;
+    }
+    if (config.showPrice === "range") {
+      const { low, high } = estimateRange(subtotal, config.rangePct, minimumTotal);
+      out[value] = { label: `${moneyWhole(low)} – ${moneyWhole(high)}` };
+    } else out[value] = { label: moneyWhole(subtotal) };
+  }
+  return out;
 }
 
 /** Human line for the settings row / Atlas card: "price shown as a range (±15%) · lead + draft quote". */

@@ -31,6 +31,12 @@ export const ESTIMATOR_LIMITS = {
   textLen: 300,
   templateLen: 400,
   perCompany: 40,
+  presets: 8,
+  includes: 8,
+  placeholders: 12,
+  samples: 3,
+  /** Alternatives one variants request may price (package tiers). */
+  variants: 12,
 } as const;
 
 // ── spec types ───────────────────────────────────────────────────────────────
@@ -40,7 +46,16 @@ export type EstimatorOption = {
   label: string;
   /** Picture for the website form / runner — uploaded in the editor, served from /api/estimate-images/… */
   image?: string;
+  /** One line under the label on card / package pickers ("Two coats, premium paint"). */
+  blurb?: string;
+  /** Package pickers: the bullets a tier includes. */
+  includes?: string[];
+  /** Package pickers: the "Most popular" badge. */
+  recommended?: boolean;
 };
+
+/** A quick-pick on a number question ("Two-car — 500 sq ft"). */
+export type NumberPreset = { label: string; value: number };
 
 /** What every input shares. */
 export type EstimatorInputBase = {
@@ -65,8 +80,17 @@ export type EstimatorInput =
       step?: number;
       default?: number;
       required?: boolean;
+      /** How it's answered: a typed field (default), a slider (needs max), or a −/+ stepper (counts). */
+      control?: "field" | "slider" | "stepper";
+      /** Quick-picks above the field — homeowners rarely know a number cold. */
+      presets?: NumberPreset[];
     })
-  | (EstimatorInputBase & { type: "select"; options: EstimatorOption[]; default?: string; required?: boolean })
+  /**
+   * Pick one. `style` says how: a dropdown list (default), tap cards (label +
+   * blurb + picture), or "packages" — good / better / best tier cards that show
+   * the live price of each tier before the customer picks.
+   */
+  | (EstimatorInputBase & { type: "select"; options: EstimatorOption[]; default?: string; required?: boolean; style?: "list" | "cards" | "packages" })
   /** Pick several — the value is a list of option values (has(), count(), join()). */
   | (EstimatorInputBase & { type: "multi"; options: EstimatorOption[]; default?: string[]; required?: boolean })
   /** The customer draws on a satellite map: a fence line (length → ft) or a lawn/roof/driveway (area → sq ft). The value is the number. */
@@ -92,7 +116,12 @@ export type EstimatorLine = {
   workItemName?: string;
   /** Client may remove it when approving the quote. */
   isOptional?: boolean;
+  /** Breakdown heading the line sits under ("Materials", "Labor", "Add-ons"). */
+  group?: string;
 };
+
+/** A worked example the builder tests with and the owner can replay ("Typical job"). */
+export type EstimatorSample = { label: string; inputs: Record<string, string | number | boolean | string[]> };
 
 export type EstimatorAssist = {
   /** Extra guidance for the model when it fills inputs from a description. */
@@ -113,6 +142,14 @@ export type EstimatorSpec = {
   clientMessage?: string;
   /** Present → the runner offers the metered "let Atlas fill this in" step. */
   assist?: EstimatorAssist | null;
+  /**
+   * Rates the builder had to guess because the owner never gave them — one
+   * human line each ("Gate: $250 each — placeholder"). Shown on the tool
+   * card until the owner clears them in the editor. Never shown to visitors.
+   */
+  placeholders?: string[];
+  /** Small / typical / large jobs the builder proved the math on. */
+  samples?: EstimatorSample[];
 };
 
 export type PriceBookEntry = {
@@ -130,6 +167,8 @@ export type EstimatorResultLine = {
   unitCost?: number | null;
   workItemId?: string | null;
   isOptional: boolean;
+  /** Breakdown heading (from the line rule). */
+  group?: string;
 };
 
 export type EstimatorRun =
@@ -837,9 +876,36 @@ export function compileSpec(raw: unknown): CompileResult {
         const label = s(oo.label, 60);
         const value = s(oo.value, 60) || label;
         const image = imageUrl(oo.image);
-        return { value, label: label || value, ...(image ? { image } : {}) };
+        const blurb = s(oo.blurb, 120);
+        const includes = (Array.isArray(oo.includes) ? oo.includes : [])
+          .map((x) => s(x, 80))
+          .filter(Boolean)
+          .slice(0, ESTIMATOR_LIMITS.includes);
+        return {
+          value,
+          label: label || value,
+          ...(image ? { image } : {}),
+          ...(blurb ? { blurb } : {}),
+          ...(includes.length > 0 ? { includes } : {}),
+          ...(oo.recommended === true ? { recommended: true } : {}),
+        };
       })
       .filter((op) => op.value);
+  const parsePresets = (raw: unknown, id: string): NumberPreset[] | undefined => {
+    if (!Array.isArray(raw) || raw.length === 0) return undefined;
+    const out: NumberPreset[] = [];
+    for (const p of raw.slice(0, ESTIMATOR_LIMITS.presets)) {
+      const pp = (p ?? {}) as Record<string, unknown>;
+      const value = optNum(pp.value);
+      const label = s(pp.label, 30);
+      if (value === undefined || !label) {
+        errors.push(`Input "${id}": every preset needs a label and a numeric value`);
+        continue;
+      }
+      out.push({ label, value });
+    }
+    return out.length > 0 ? out : undefined;
+  };
   if (rawInputs.length > ESTIMATOR_LIMITS.inputs) errors.push(`At most ${ESTIMATOR_LIMITS.inputs} inputs`);
   for (const ri of rawInputs.slice(0, ESTIMATOR_LIMITS.inputs)) {
     const o = (ri ?? {}) as Record<string, unknown>;
@@ -871,6 +937,10 @@ export function compileSpec(raw: unknown): CompileResult {
     if (type === "number") {
       const min = optNum(o.min), max = optNum(o.max), step = optNum(o.step), def = optNum(o.default);
       if (min !== undefined && max !== undefined && min > max) errors.push(`Input "${id}": min is above max`);
+      const control = o.control === "slider" || o.control === "stepper" ? o.control : o.control === "field" || o.control === undefined || o.control === null ? undefined : null;
+      if (control === null) errors.push(`Input "${id}": control must be field, slider or stepper`);
+      if (control === "slider" && (max === undefined || max <= (min ?? 0))) errors.push(`Input "${id}": a slider needs a max above its min`);
+      const presets = parsePresets(o.presets, id);
       inputs.push({
         ...common, type,
         unit: s(o.unit, 20) || undefined,
@@ -878,6 +948,8 @@ export function compileSpec(raw: unknown): CompileResult {
         step: step !== undefined && step > 0 ? step : undefined,
         default: def,
         required: o.required !== false,
+        ...(control ? { control } : {}),
+        ...(presets ? { presets } : {}),
       });
     } else if (type === "select") {
       const opts = parseOptions(o.options);
@@ -888,7 +960,14 @@ export function compileSpec(raw: unknown): CompileResult {
       // the model may send a numeric default (1 vs "1") — option values are strings
       const def = o.default === undefined || o.default === null ? undefined : String(o.default).trim().slice(0, 60) || undefined;
       if (def && !opts.some((op) => op.value === def)) errors.push(`Input "${id}": default "${def}" is not one of its options`);
-      inputs.push({ ...common, type, options: opts, default: def, required: o.required !== false });
+      const style = o.style === "cards" || o.style === "packages" ? o.style : o.style === "list" || o.style === undefined || o.style === null ? undefined : null;
+      if (style === null) errors.push(`Input "${id}": style must be list, cards or packages`);
+      if (style === "packages") {
+        if (opts.length > 4) errors.push(`Input "${id}": package pickers work best with 2–4 tiers (this one has ${opts.length})`);
+        if (opts.some((op) => !op.includes || op.includes.length === 0)) errors.push(`Input "${id}": every package tier needs an "includes" list so the customer sees what they get`);
+        if (opts.filter((op) => op.recommended).length > 1) errors.push(`Input "${id}": only one tier can be recommended`);
+      }
+      inputs.push({ ...common, type, options: opts, default: def, required: o.required !== false, ...(style ? { style } : {}) });
     } else if (type === "multi") {
       const opts = parseOptions(o.options);
       if (opts.length < 2) {
@@ -1033,6 +1112,7 @@ export function compileSpec(raw: unknown): CompileResult {
       unitPrice: unitPriceSrc,
       workItemName,
       isOptional: o.isOptional === true,
+      ...(s(o.group, 40) ? { group: s(o.group, 40) } : {}),
     };
     lines.push({
       rule,
@@ -1062,6 +1142,29 @@ export function compileSpec(raw: unknown): CompileResult {
   }
   if (assist && !inputs.some((i) => i.type !== "text")) errors.push("assist needs at least one number/select/toggle input for Atlas to fill in");
 
+  // placeholders: human lines, never formulas
+  const placeholders = (Array.isArray(r.placeholders) ? r.placeholders : [])
+    .map((p) => s(p, 160))
+    .filter(Boolean)
+    .slice(0, ESTIMATOR_LIMITS.placeholders);
+
+  // samples: {label, inputs} — inputs keep only known ids and simple values
+  const samples: EstimatorSample[] = [];
+  for (const raw of (Array.isArray(r.samples) ? r.samples : []).slice(0, ESTIMATOR_LIMITS.samples)) {
+    const o = (raw ?? {}) as Record<string, unknown>;
+    const label = s(o.label, 40);
+    const src = o.inputs && typeof o.inputs === "object" && !Array.isArray(o.inputs) ? (o.inputs as Record<string, unknown>) : null;
+    if (!label || !src) continue;
+    const vals: EstimatorSample["inputs"] = {};
+    for (const [k, v] of Object.entries(src)) {
+      if (!seen.has(k)) continue;
+      if (typeof v === "number" || typeof v === "boolean") vals[k] = v;
+      else if (typeof v === "string") vals[k] = v.slice(0, 200);
+      else if (Array.isArray(v)) vals[k] = v.map((x) => String(x).slice(0, 60)).slice(0, ESTIMATOR_LIMITS.options);
+    }
+    samples.push({ label, inputs: vals });
+  }
+
   if (errors.length > 0) return { ok: false, errors: Array.from(new Set(errors)).slice(0, 25) };
 
   const spec: EstimatorSpec = {
@@ -1074,6 +1177,8 @@ export function compileSpec(raw: unknown): CompileResult {
     quoteTitle: quoteTitleSrc,
     clientMessage: clientMessageSrc,
     assist,
+    ...(placeholders.length > 0 ? { placeholders } : {}),
+    ...(samples.length > 0 ? { samples } : {}),
   };
 
   return {
@@ -1316,6 +1421,7 @@ export function runCompiled(
         unitCost: cost !== null ? cents(cost) : null,
         workItemId: item?.id ?? null,
         isOptional: l.rule.isOptional === true,
+        ...(l.rule.group ? { group: l.rule.group } : {}),
       });
     }
 
@@ -1356,6 +1462,97 @@ export function runEstimator(rawSpec: unknown, inputs: Record<string, unknown>, 
   return runCompiled(c.compiled, inputs, priceBook);
 }
 
+// ── variants (package tiers priced side by side) ─────────────────────────────
+
+export type VariantsRequest = { input: string; values: string[] };
+
+/** Read a `variants` body field: {input, values[]} for one select input of the spec, or null. */
+export function parseVariants(spec: EstimatorSpec, raw: unknown): VariantsRequest | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const input = typeof r.input === "string" ? r.input : "";
+  const inp = spec.inputs.find((i) => i.id === input);
+  if (!inp || (inp.type !== "select" && inp.type !== "multi")) return null;
+  const allowed = new Set(inp.options.map((o) => o.value));
+  const values = (Array.isArray(r.values) ? r.values : [])
+    .map((v) => String(v ?? "").slice(0, 60))
+    .filter((v) => allowed.has(v))
+    .slice(0, ESTIMATOR_LIMITS.variants);
+  return values.length > 0 ? { input, values } : null;
+}
+
+/**
+ * The subtotal the tool comes to for each alternative value of one input —
+ * how a package picker prints the price on every tier before the customer
+ * picks. A tier whose run fails (missing answer elsewhere) reads null.
+ */
+export function runVariants(compiled: CompiledSpec, rawInputs: Record<string, unknown>, priceBook: PriceBookEntry[], req: VariantsRequest): Record<string, number | null> {
+  const out: Record<string, number | null> = {};
+  for (const value of req.values) {
+    const r = runCompiled(compiled, { ...rawInputs, [req.input]: value }, priceBook);
+    out[value] = r.ok ? r.subtotal : null;
+  }
+  return out;
+}
+
+// ── quality audit (the builder's gate beyond "it compiles") ──────────────────
+
+export type SpecAudit = {
+  /** Must be fixed before the tool is saved (fed back to the model). */
+  errors: string[];
+  /** Worth knowing; shown to the owner, never blocks. */
+  warnings: string[];
+  /** Each sample's outcome, in spec order. */
+  samples: { label: string; subtotal: number | null; lines: number; error?: string }[];
+};
+
+/**
+ * What makes a tool worth using, checked in code: descriptions on every
+ * line, sensible controls, and the builder's own small / typical / large
+ * samples running green and in order. Pure — the builder loop and the
+ * manual editor's Check both call it.
+ */
+export function auditSpec(compiled: CompiledSpec, priceBook: PriceBookEntry[]): SpecAudit {
+  const { spec } = compiled;
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  if (!spec.inputs.some((i) => i.type !== "text")) errors.push("The tool needs at least one question that changes the price (a number, choice, map or yes/no).");
+  for (const l of spec.lines) {
+    if (!l.description) errors.push(`Line "${l.name}" needs a description — the client reads it on the quote (say what the number covers, e.g. "{sqft} sq ft at {rate|money}/sq ft").`);
+    if (l.unitPrice && /^0(\.0+)?$/.test(l.unitPrice) && !l.isOptional) errors.push(`Line "${l.name}" is priced at $0 — give it a real rate or mark it optional.`);
+  }
+  for (const i of spec.inputs) {
+    if (i.type === "number" && !i.unit && !i.presets) warnings.push(`"${i.label}" has no unit — say what the number is (sq ft, hours, windows).`);
+    if (i.type === "number" && i.control === "slider" && i.max !== undefined && i.max > 100_000) warnings.push(`"${i.label}" slider runs to ${i.max} — that's hard to drag precisely.`);
+    if (i.type === "select" && i.style === "packages" && i.options.some((o) => !o.blurb)) warnings.push(`Package tiers on "${i.label}" read better with a one-line blurb each.`);
+  }
+  if (spec.inputs.length > 6 && !spec.inputs.some((i) => i.section)) warnings.push("More than six questions in one wall — group them into sections.");
+  if (!spec.minimumTotal) warnings.push("No minimum job charge — most trades set one so tiny jobs still pay for the trip.");
+
+  const samples: SpecAudit["samples"] = [];
+  const bySize: Record<string, number> = {};
+  for (const smp of spec.samples ?? []) {
+    const r = runCompiled(compiled, smp.inputs, priceBook);
+    if (!r.ok) {
+      samples.push({ label: smp.label, subtotal: null, lines: 0, error: r.errors[0] });
+      errors.push(`Sample "${smp.label}" failed: ${r.errors[0]}`);
+      continue;
+    }
+    samples.push({ label: smp.label, subtotal: r.subtotal, lines: r.lines.length });
+    if (r.subtotal <= 0) errors.push(`Sample "${smp.label}" priced at $0 — a real job never costs nothing.`);
+    const key = smp.label.toLowerCase();
+    if (/small|minimum|basic/.test(key)) bySize.small = r.subtotal;
+    else if (/typical|average|medium|standard/.test(key)) bySize.typical = r.subtotal;
+    else if (/large|big|premium|max/.test(key)) bySize.large = r.subtotal;
+  }
+  if ((spec.samples?.length ?? 0) < 2) errors.push('Give at least two samples ("Small job", "Typical job", "Large job") with every required question answered, so the math is proven before saving.');
+  if (bySize.small !== undefined && bySize.typical !== undefined && bySize.small > bySize.typical) errors.push(`The "small" sample ($${bySize.small.toFixed(2)}) prices above the "typical" one ($${bySize.typical.toFixed(2)}) — check the math or the samples.`);
+  if (bySize.typical !== undefined && bySize.large !== undefined && bySize.typical > bySize.large) errors.push(`The "typical" sample ($${bySize.typical.toFixed(2)}) prices above the "large" one ($${bySize.large.toFixed(2)}) — check the math or the samples.`);
+
+  return { errors: Array.from(new Set(errors)).slice(0, 20), warnings: Array.from(new Set(warnings)).slice(0, 8), samples };
+}
+
 /** Read a stored spec back into its type (stored specs passed compileSpec). */
 export function specFromJson(raw: unknown): EstimatorSpec | null {
   const c = compileSpec(raw);
@@ -1376,29 +1573,46 @@ An estimate tool = inputs the user fills in + line rules that turn them into quo
 spec = {
   intro: "one or two sentences shown above the inputs",
   inputs: [
-    { id: "sqft", label: "Driveway size", type: "number", unit: "sq ft", min: 0, required: true, section: "The driveway" },
-    { id: "stories", label: "Stories", type: "select", options: [{value:"1",label:"One story"},{value:"2",label:"Two stories"}], default: "1", section: "The driveway" },
+    { id: "sqft", label: "Driveway size", type: "number", unit: "sq ft", min: 100, max: 5000, control: "slider", presets: [{label: "One-car", value: 300}, {label: "Two-car", value: 550}, {label: "Three-car", value: 850}], required: true, section: "The driveway" },
+    { id: "stories", label: "Stories", type: "select", style: "cards", options: [{value:"1",label:"One story", blurb: "Single level"},{value:"2",label:"Two stories", blurb: "Needs the tall ladder"}], default: "1", section: "The driveway" },
+    { id: "package", label: "Choose a package", type: "select", style: "packages", section: "Your package",
+      options: [
+        {value: "basic", label: "Basic", blurb: "The driveway, done right", includes: ["Surface clean", "Degreaser on stains"]},
+        {value: "plus", label: "Plus", blurb: "Driveway + walkways", includes: ["Everything in Basic", "Front walkway", "Porch"], recommended: true},
+        {value: "premium", label: "Premium", blurb: "Sealed for two years", includes: ["Everything in Plus", "Penetrating sealant"]}
+      ] },
     { id: "extras", label: "Also clean", type: "multi", options: ["Sidewalk", "Patio", "Fence"], section: "Extras" },   // several picks → has(extras, 'Fence'), count(extras)
-    { id: "fence_ft", label: "Fence length", type: "number", unit: "ft", showWhen: "has(extras, 'Fence')", section: "Extras" },  // only asked when it matters
-    { id: "sealant", label: "Add sealant?", type: "toggle", default: false, section: "Extras" },
+    { id: "fence_ft", label: "Fence length", type: "number", unit: "ft", control: "stepper", step: 10, showWhen: "has(extras, 'Fence')", section: "Extras" },  // only asked when it matters
     { id: "notes", label: "Anything else?", type: "text" }          // text inputs are for descriptions/assist only
   ],
   variables: [ { id: "rate", expr: "tier(sqft, [[500, 0.30], [2000, 0.22]], 0.18)" } ],   // evaluated in order
   lines: [
-    { name: "Driveway cleaning", description: "{sqft} sq ft at {rate|money}/sq ft", quantity: "sqft", unitPrice: "rate", workItemName: "Driveway Cleaning" },
-    { name: "Two-story surcharge", when: "stories == '2'", quantity: "1", unitPrice: "pct(sqft * rate, 15)" },
-    { name: "Fence wash", when: "has(extras, 'Fence')", quantity: "fence_ft", unitPrice: "1.25" },
-    { name: "Sealant", when: "sealant", quantity: "sqft", unitPrice: "0.45", isOptional: true }
+    { name: "Driveway cleaning", description: "{sqft} sq ft at {rate|money}/sq ft", quantity: "sqft", unitPrice: "rate", workItemName: "Driveway Cleaning", group: "Cleaning" },
+    { name: "Two-story surcharge", description: "Ladder work on a two-story home", when: "stories == '2'", quantity: "1", unitPrice: "pct(sqft * rate, 15)", group: "Cleaning" },
+    { name: "Walkways and porch", description: "Included in the Plus and Premium packages", when: "package != 'basic'", quantity: "1", unitPrice: "95", group: "Package" },
+    { name: "Penetrating sealant", description: "{sqft} sq ft at $0.45/sq ft — two-year protection", when: "package == 'premium'", quantity: "sqft", unitPrice: "0.45", group: "Package" },
+    { name: "Fence wash", description: "{fence_ft} ft of fence", when: "has(extras, 'Fence')", quantity: "fence_ft", unitPrice: "1.25", group: "Extras" }
   ],
   minimumTotal: 150,
   quoteTitle: "Pressure washing — {sqft} sq ft",
   clientMessage: "Thanks for the chance to quote your driveway!",
-  assist: null                     // or { instructions: "..." } to enable the metered fill-in step
+  assist: null,                    // or { instructions: "..." } to enable the metered fill-in step
+  placeholders: ["Fence wash: $1.25/ft — placeholder, the owner never gave a fence rate"],   // ONLY rates you had to guess; [] when none
+  samples: [                       // small / typical / large jobs — every required question answered; the builder runs them
+    { label: "Small job", inputs: { sqft: 300, stories: "1", package: "basic", extras: [] } },
+    { label: "Typical job", inputs: { sqft: 550, stories: "1", package: "plus", extras: ["Sidewalk"] } },
+    { label: "Large job", inputs: { sqft: 1200, stories: "2", package: "premium", extras: ["Sidewalk", "Fence"], fence_ft: 120 } }
+  ]
 }
 
 Rules:
 - ids: letters/digits/underscores, unique. Inputs are referenced by id inside expressions and {templates}.
 - Input types: number, select (one of), multi (several — the value is a LIST of option values), map, toggle, text. type "map" = the customer draws on a satellite map: measure "length" (a fence line; the value is FEET) or "area" (lawn, roof, driveway, patio; the value is SQUARE FEET) — use it whenever a size is the main price driver (fencing, lawn care, roofing, paving, irrigation, sealcoating) instead of asking them to guess a number. Pictures on options/questions are added by the owner in the editor, never by you. "section" groups questions under a heading (the website form shows one section per step); "showWhen" (an expression over OTHER inputs, no variables/price book) hides a question until it matters — a hidden question reads as untouched (its default). Complex trades (roofing, remodels, HVAC, moving) want 2–4 sections and showWhen branches instead of one wall of questions.
+- Number questions: "control" = "slider" (a size with a sensible max — set min/max/step), "stepper" (a count: windows, rooms, gates) or "field" (default). Add 2–5 "presets" whenever a homeowner wouldn't know the number cold ("Two-car — 550 sq ft"). Always give a "unit".
+- Select questions: "style" = "cards" (2–6 choices with a one-line "blurb" each) or "packages" (2–4 good/better/best tiers; each option needs "blurb" + "includes" bullets, mark ONE "recommended"; the form prints each tier's live price). Lines then switch on the tier: when: "package == 'premium'". Nearly every trade sells better as 3 packages than as one number — use them unless the owner prices a single way.
+- Every line needs a "description" (the client reads it on the quote) and a "group" heading for the breakdown ("Labor", "Materials", "Add-ons", "Package") — 2–4 groups.
+- "placeholders": when the owner did not give a rate you need, do NOT stop to ask — use a reasonable US-market placeholder, and list it here in plain words so the owner sets it. Ask a question ONLY when you cannot tell what job the tool is for. [] when nothing was guessed.
+- "samples": 2–3 realistic jobs (labels containing "small", "typical", "large") with every required question answered; the builder runs them and rejects a tool whose small job prices above its typical one.
 - Line unitPrice/quantity/when are EXPRESSIONS (strings). name/description/quoteTitle/clientMessage are TEMPLATES: {expr}, {expr|money}, {expr|int}. quoteTitle/clientMessage may also use {subtotal}.
 - workItemName links a line to a price-book item (exact name): it brings the item's cost, id and — when unitPrice is omitted — its price. price("Name") / cost("Name") read the price book inside any expression. Names must exist in the price book (get_price_book) — never invent items; create them with create_service first.
 - Quantity may be fractional (2.5 hours): it folds into one unit at the extended price automatically.
@@ -1436,6 +1650,8 @@ export function describeSpecChanges(from: EstimatorSpec, to: EstimatorSpec): str
     if (o.label !== i.label) out.push(`Renamed question "${o.label}" → "${i.label}"`);
     if (o.type !== i.type) out.push(`"${i.label}" is now a ${i.type} question`);
     else if (optionsKey(o) !== optionsKey(i)) out.push(`Options for "${i.label}" changed`);
+    if (o.type === "select" && i.type === "select" && (o.style ?? "list") !== (i.style ?? "list")) out.push(`"${i.label}" now shows as ${i.style === "packages" ? "package tiers" : i.style === "cards" ? "tap cards" : "a list"}`);
+    if (o.type === "number" && i.type === "number" && (o.control ?? "field") !== (i.control ?? "field")) out.push(`"${i.label}" is now answered with a ${i.control ?? "field"}`);
     if ((o.showWhen ?? "") !== (i.showWhen ?? "")) out.push(i.showWhen ? `"${i.label}" now shows only when ${i.showWhen}` : `"${i.label}" now always shows`);
     if ((o.section ?? "") !== (i.section ?? "")) out.push(i.section ? `"${i.label}" moved to section "${i.section}"` : `"${i.label}" left its section`);
     if ((o.image ?? "") !== (i.image ?? "")) out.push(i.image ? `Picture added to "${i.label}"` : `Picture removed from "${i.label}"`);
@@ -1471,6 +1687,9 @@ export function describeSpecChanges(from: EstimatorSpec, to: EstimatorSpec): str
   for (const o of from.lines) if (!toLines.has(o.id)) out.push(`Removed line "${o.name}"`);
 
   if ((from.minimumTotal ?? 0) !== (to.minimumTotal ?? 0)) out.push(`Minimum job charge: $${(from.minimumTotal ?? 0).toFixed(2)} → $${(to.minimumTotal ?? 0).toFixed(2)}`);
+  const fromPh = from.placeholders?.length ?? 0, toPh = to.placeholders?.length ?? 0;
+  if (fromPh > 0 && toPh === 0) out.push("Placeholder prices resolved");
+  else if (toPh !== fromPh) out.push(`Placeholder prices: ${fromPh} → ${toPh}`);
   if ((from.intro ?? "") !== (to.intro ?? "")) out.push("Intro text changed");
   if ((from.quoteTitle ?? "") !== (to.quoteTitle ?? "")) out.push("Quote title changed");
   if ((from.clientMessage ?? "") !== (to.clientMessage ?? "")) out.push("Client message changed");
@@ -1508,11 +1727,12 @@ export function formDefaults(spec: EstimatorSpec): Record<string, string | boole
   return v;
 }
 
-/** Is every visible, required input answered? (drives the live running total) */
-export function inputsComplete(spec: EstimatorSpec, values: Record<string, unknown>): boolean {
+/** Is every visible, required input answered? (drives the live running total). `ignore` = inputs priced as variants instead. */
+export function inputsComplete(spec: EstimatorSpec, values: Record<string, unknown>, ignore?: Set<string>): boolean {
   const visible = visibleInputIds(spec, values);
   return spec.inputs.every((i) => {
     if (!visible.has(i.id) || i.type === "toggle") return true;
+    if (ignore?.has(i.id)) return true;
     if (!("required" in i) || i.required === false) return true;
     const v = values[i.id];
     if (Array.isArray(v)) return v.length > 0;

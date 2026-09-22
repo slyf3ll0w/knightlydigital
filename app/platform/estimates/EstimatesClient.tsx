@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Calculator, Check, Code2, Globe, MoreHorizontal, Pencil, Play, Power, Sparkles, Trash2, X } from "lucide-react";
+import { AlertTriangle, Calculator, Check, Code2, Globe, MoreHorizontal, Pencil, Play, Power, Sparkles, Trash2, X } from "lucide-react";
 import PageTitle from "@/components/PageTitle";
 import EstimatorRunner, { type RunnerEstimator } from "@/components/EstimatorRunner";
 import { useAssistant } from "@/components/AssistantContext";
@@ -153,6 +153,15 @@ export default function EstimatesClient({
 
   function Card({ t }: { t: Tool }) {
     const isFresh = fresh === t.id;
+    const placeholders = t.spec.placeholders?.length ?? 0;
+    const tiers = t.spec.inputs.find((i) => i.type === "select" && i.style === "packages");
+    const sections = new Set(t.spec.inputs.map((i) => i.section).filter(Boolean)).size;
+    const facts = [
+      `${t.spec.inputs.length} question${t.spec.inputs.length === 1 ? "" : "s"}${sections > 1 ? ` in ${sections} steps` : ""}`,
+      tiers && tiers.type === "select" ? `${tiers.options.length} packages` : null,
+      t.spec.inputs.some((i) => i.type === "map") ? "map measure" : null,
+      t.spec.minimumTotal ? `$${Math.round(t.spec.minimumTotal)} minimum` : null,
+    ].filter(Boolean);
     return (
       <div className={`card-ledger relative p-4 transition-shadow ${isFresh ? "ring-2 ring-green-500 shadow-lg" : ""} ${t.isActive ? "" : "opacity-70"}`}>
         {isFresh && <span className="absolute -top-2 right-3 rounded-full bg-green-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">New</span>}
@@ -166,14 +175,18 @@ export default function EstimatesClient({
               {t.isPublic && <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-700">On your website</span>}
               {!t.isActive && <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600">Off</span>}
             </div>
-            <p className="mt-0.5 line-clamp-2 text-xs text-gray-500">
-              {t.description || `${t.spec.inputs.length} question${t.spec.inputs.length === 1 ? "" : "s"} · ${t.spec.lines.length} line${t.spec.lines.length === 1 ? "" : "s"}`}
-            </p>
-            <p className="mt-1 text-[11px] text-gray-400">
-              {t.usesAtlas ? `${atlas.name} fill-in available` : "Free to run"}
+            <p className="mt-0.5 line-clamp-2 text-xs text-gray-500">{t.description || facts.join(" · ")}</p>
+            <p className="mt-1 text-[11px] text-gray-500">
+              {facts.join(" · ")}
+              {t.usesAtlas ? ` · ${atlas.name} fill-in` : ""}
               {t.runs > 0 && ` · used ${t.runs}×`}
               {t.submissions > 0 && ` · ${t.submissions} website lead${t.submissions === 1 ? "" : "s"}`}
             </p>
+            {placeholders > 0 && manager && (
+              <button type="button" onClick={() => setEditing(t)} className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800 hover:bg-amber-100">
+                <AlertTriangle size={11} /> {placeholders} placeholder rate{placeholders === 1 ? "" : "s"} to set
+              </button>
+            )}
           </div>
           {manager && (
             <div className="relative shrink-0">
@@ -235,7 +248,7 @@ export default function EstimatesClient({
       <PageTitle section="quotes" icon={Calculator}>
         Estimates
       </PageTitle>
-      <p className="mb-5 mt-2 text-sm text-gray-500">{manager ? "Build a pricing tool from a sentence. Run it onsite, or put it on your website." : "Answer a tool’s questions, show the number, turn it into a quote."}</p>
+      <p className="mb-5 mt-2 text-sm text-gray-500">{manager ? "Pricing tools your team runs onsite and your website runs for you — built from a sentence." : "Answer a tool’s questions, show the number, turn it into a quote."}</p>
 
       {error && (
         <div role="alert" className="form-error mb-4 flex items-center justify-between">
@@ -248,7 +261,14 @@ export default function EstimatesClient({
 
       {manager && (
         <div className="mb-6">
-          <BuildPanel initialPrompt={initialPrompt} autoFocus={Boolean(initialPrompt)} onBuilt={(t) => upsert(t)} />
+          <BuildPanel
+            initialPrompt={initialPrompt}
+            autoFocus={Boolean(initialPrompt)}
+            onBuilt={(t) => upsert(t)}
+            onTry={(t) => setRunning([toTool(t)])}
+            onPublish={(t) => setPublishing(toTool(t))}
+            onEdit={(t) => setEditing(toTool(t))}
+          />
         </div>
       )}
 
@@ -281,7 +301,7 @@ export default function EstimatesClient({
         </p>
       )}
 
-      <EstimatorRunner estimators={running ?? []} open={running !== null} onClose={() => setRunning(null)} />
+      <EstimatorRunner estimators={running ?? []} open={running !== null} onClose={() => setRunning(null)} showSamples={manager} />
       <EditEstimatorSheet
         tool={editing}
         open={editing !== null}
