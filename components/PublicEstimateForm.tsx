@@ -32,6 +32,42 @@ const MapMeasure = dynamic(() => import("@/components/MapMeasure"), { ssr: false
 type Calc = { ok: true; estimate: PublicEstimate };
 type FormValues = Record<string, string | boolean | string[]>;
 
+/** Options with pictures render as a picture grid (one pick or several). Hoisted so re-renders don't remount the images. */
+function PictureOptions({
+  options,
+  value,
+  onPick,
+  multi,
+  theme,
+}: {
+  options: { value: string; label: string; image?: string }[];
+  value: string | string[];
+  onPick: (v: string) => void;
+  multi: boolean;
+  theme: { dark: boolean; accent: string; rowBox: string; ink: string };
+}) {
+  return (
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+      {options.map((o) => {
+        const on = multi ? Array.isArray(value) && value.includes(o.value) : value === o.value;
+        return (
+          <button
+            key={o.value}
+            type="button"
+            aria-pressed={on}
+            onClick={() => onPick(o.value)}
+            className={`overflow-hidden rounded-lg border text-left ${on ? "" : theme.rowBox}`}
+            style={on ? { borderColor: theme.accent, boxShadow: `0 0 0 2px ${theme.accent}` } : undefined}
+          >
+            {o.image ? <img src={o.image} alt="" className="aspect-[4/3] w-full object-cover" /> : <div className={`aspect-[4/3] w-full ${theme.dark ? "bg-white/10" : "bg-gray-100"}`} />}
+            <span className={`block px-2 py-1.5 text-xs font-medium ${theme.ink}`}>{o.label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function PublicEstimateForm({
   companySlug,
   toolSlug,
@@ -127,30 +163,7 @@ export default function PublicEstimateForm({
     `inline-flex h-9 items-center gap-1 rounded-full border px-3 text-sm ${on ? "" : dark ? "border-white/20 text-gray-200" : "border-gray-300 text-gray-700"}`;
 
   const set = (k: string, v: string) => setForm((s) => ({ ...s, [k]: v }));
-
-  /** Options with pictures render as a picture grid (one pick or several). */
-  function PictureOptions({ options, value, onPick, multi }: { options: { value: string; label: string; image?: string }[]; value: string | string[]; onPick: (v: string) => void; multi: boolean }) {
-    return (
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-        {options.map((o) => {
-          const on = multi ? Array.isArray(value) && value.includes(o.value) : value === o.value;
-          return (
-            <button
-              key={o.value}
-              type="button"
-              aria-pressed={on}
-              onClick={() => onPick(o.value)}
-              className={`overflow-hidden rounded-lg border text-left ${on ? "" : rowBox}`}
-              style={on ? { borderColor: accent, boxShadow: `0 0 0 2px ${accent}` } : undefined}
-            >
-              {o.image ? <img src={o.image} alt="" className="aspect-[4/3] w-full object-cover" /> : <div className={`aspect-[4/3] w-full ${dark ? "bg-white/10" : "bg-gray-100"}`} />}
-              <span className={`block px-2 py-1.5 text-xs font-medium ${ink}`}>{o.label}</span>
-            </button>
-          );
-        })}
-      </div>
-    );
-  }
+  const theme = { dark, accent, rowBox, ink };
   const setVal = (id: string, v: string | boolean | string[]) => setValues((p) => ({ ...p, [id]: v }));
   const toggleMulti = (id: string, value: string) =>
     setValues((p) => {
@@ -417,9 +430,9 @@ export default function PublicEstimateForm({
                 </>
               )}
               {inp.type === "select" && inp.options.some((o) => o.image) && (
-                <PictureOptions options={inp.options} value={typeof v === "string" ? v : ""} onPick={(val) => setVal(inp.id, v === val ? "" : val)} multi={false} />
+                <PictureOptions theme={theme} options={inp.options} value={typeof v === "string" ? v : ""} onPick={(val) => setVal(inp.id, v === val ? "" : val)} multi={false} />
               )}
-              {inp.type === "multi" && inp.options.some((o) => o.image) && <PictureOptions options={inp.options} value={Array.isArray(v) ? v : []} onPick={(val) => toggleMulti(inp.id, val)} multi />}
+              {inp.type === "multi" && inp.options.some((o) => o.image) && <PictureOptions theme={theme} options={inp.options} value={Array.isArray(v) ? v : []} onPick={(val) => toggleMulti(inp.id, val)} multi />}
               {inp.type === "number" && (
                 <div className="flex items-center gap-2">
                   <input
