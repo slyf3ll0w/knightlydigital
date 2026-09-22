@@ -133,6 +133,7 @@ export default function EditEstimatorSheet({ tool, open, onClose, onSaved }: { t
   const [error, setError] = useState("");
   const [errors, setErrors] = useState<string[]>([]);
   const [checked, setChecked] = useState(false);
+  const [tips, setTips] = useState<string[]>([]);
   const [trying, setTrying] = useState(false);
   const [cheat, setCheat] = useState(false);
   const [versions, setVersions] = useState<Version[] | null>(null);
@@ -174,7 +175,23 @@ export default function EditEstimatorSheet({ tool, open, onClose, onSaved }: { t
     });
     setChecked(false);
     setErrors([]);
+    setTips([]);
   };
+  /** "Label=550, Two-car=550" ⇄ presets */
+  const presetsText = (p: { label: string; value: number }[] | undefined) => (p ?? []).map((x) => `${x.label}=${x.value}`).join(", ");
+  const parsePresetsText = (t: string) =>
+    t
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .map((s) => {
+        const eq = s.lastIndexOf("=");
+        const label = eq >= 0 ? s.slice(0, eq).trim() : s;
+        const value = Number(eq >= 0 ? s.slice(eq + 1).trim() : "");
+        return { label, value };
+      })
+      .filter((x) => x.label && Number.isFinite(x.value))
+      .slice(0, ESTIMATOR_LIMITS.presets);
 
   // ── questions ──
   const setInput = (i: number, patch: Partial<EstimatorInput>) => touch((s) => Object.assign(s.inputs[i], patch));
@@ -242,13 +259,15 @@ export default function EditEstimatorSheet({ tool, open, onClose, onSaved }: { t
     setBusy("check");
     setError("");
     setErrors([]);
-    const { ok, data } = await postJson<{ errors?: string[]; error?: string }>(`/api/app/estimators/preview`, { spec });
+    setTips([]);
+    const { ok, data } = await postJson<{ errors?: string[]; error?: string; audit?: { errors: string[]; warnings: string[] } }>(`/api/app/estimators/preview`, { spec });
     setBusy(null);
     if (!ok) {
       setErrors(data?.errors ?? [data?.error ?? GENERIC_ERROR]);
       return false;
     }
     setChecked(true);
+    setTips([...(data?.audit?.errors ?? []), ...(data?.audit?.warnings ?? [])]);
     return true;
   }
   async function save() {
@@ -356,6 +375,16 @@ export default function EditEstimatorSheet({ tool, open, onClose, onSaved }: { t
           </ul>
         </div>
       )}
+      {checked && tips.length > 0 && (
+        <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+          <p className="font-semibold">Adds up — a pro would still tweak:</p>
+          <ul className="mt-1 list-disc space-y-0.5 pl-5">
+            {tips.map((t) => (
+              <li key={t}>{t}</li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* ── Questions ── */}
       {tab === "questions" && (
@@ -414,35 +443,79 @@ export default function EditEstimatorSheet({ tool, open, onClose, onSaved }: { t
                     Default
                     <NumField value={inp.default} onCommit={(v) => setInput(i, { default: v })} className="mt-0.5 w-24" />
                   </label>
+                  <label className="text-xs text-gray-600">
+                    Answered with
+                    <Select value={inp.control ?? "field"} onChange={(e) => setInput(i, { control: e.target.value === "field" ? undefined : (e.target.value as "slider" | "stepper") } as Partial<EstimatorInput>)} className="mt-0.5 w-36">
+                      <option value="field">a typed number</option>
+                      <option value="slider">a slider (needs max)</option>
+                      <option value="stepper">a − / + counter</option>
+                    </Select>
+                  </label>
+                  <label className="min-w-[14rem] flex-1 text-xs text-gray-600">
+                    Quick-picks
+                    <Input defaultValue={presetsText(inp.presets)} key={`${inp.id}-presets`} onBlur={(e) => setInput(i, { presets: parsePresetsText(e.target.value).length > 0 ? parsePresetsText(e.target.value) : undefined } as Partial<EstimatorInput>)} placeholder="One-car=300, Two-car=550" className="mt-0.5 w-full" />
+                  </label>
                 </div>
               )}
               {(inp.type === "select" || inp.type === "multi") && (
                 <div className="space-y-1.5">
-                  <p className="text-xs font-medium text-gray-600">Options</p>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-xs font-medium text-gray-600">Options</p>
+                    {inp.type === "select" && (
+                      <label className="flex items-center gap-2 text-xs text-gray-600">
+                        Shown as
+                        <Select value={inp.style ?? "list"} onChange={(e) => setInput(i, { style: e.target.value === "list" ? undefined : (e.target.value as "cards" | "packages") } as Partial<EstimatorInput>)} className="w-44">
+                          <option value="list">a dropdown list</option>
+                          <option value="cards">tap cards</option>
+                          <option value="packages">package tiers with prices</option>
+                        </Select>
+                      </label>
+                    )}
+                  </div>
                   {inp.options.map((o, k) => (
-                    <div key={k} className="flex items-center gap-2">
-                      <Input
-                        value={o.label}
-                        onChange={(e) => {
-                          const opts = inp.options.map((x, m) => (m === k ? { label: e.target.value, value: x.value === x.label ? e.target.value : x.value } : x));
-                          setOptions(i, opts);
-                        }}
-                        maxLength={60}
-                        placeholder="Label"
-                        className="min-w-0 flex-1"
-                      />
-                      <Input
-                        value={o.value}
-                        onChange={(e) => setOptions(i, inp.options.map((x, m) => (m === k ? { ...x, value: e.target.value } : x)))}
-                        maxLength={60}
-                        placeholder="value"
-                        className={`w-32 ${mono}`}
-                        title="The value formulas compare against"
-                      />
-                      <PictureButton small url={o.image} onChange={(u) => setOptions(i, inp.options.map((x, m) => (m === k ? { ...x, image: u } : x)))} upload={uploadPicture} forget={forgetPicture} />
-                      <button type="button" onClick={() => setOptions(i, inp.options.filter((_, m) => m !== k))} disabled={inp.options.length <= 2} className={iconBtn} aria-label="Remove option">
-                        <Trash2 size={13} />
-                      </button>
+                    <div key={k} className="space-y-1.5 rounded-lg border border-gray-100 p-2">
+                      <div className="flex items-center gap-2">
+                        <Input
+                          value={o.label}
+                          onChange={(e) => {
+                            const opts = inp.options.map((x, m) => (m === k ? { ...x, label: e.target.value, value: x.value === x.label ? e.target.value : x.value } : x));
+                            setOptions(i, opts);
+                          }}
+                          maxLength={60}
+                          placeholder="Label"
+                          className="min-w-0 flex-1"
+                        />
+                        <Input
+                          value={o.value}
+                          onChange={(e) => setOptions(i, inp.options.map((x, m) => (m === k ? { ...x, value: e.target.value } : x)))}
+                          maxLength={60}
+                          placeholder="value"
+                          className={`w-32 ${mono}`}
+                          title="The value formulas compare against"
+                        />
+                        <PictureButton small url={o.image} onChange={(u) => setOptions(i, inp.options.map((x, m) => (m === k ? { ...x, image: u } : x)))} upload={uploadPicture} forget={forgetPicture} />
+                        <button type="button" onClick={() => setOptions(i, inp.options.filter((_, m) => m !== k))} disabled={inp.options.length <= 2} className={iconBtn} aria-label="Remove option">
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                      {(inp.type === "multi" || inp.style === "cards" || inp.style === "packages") && (
+                        <Input value={o.blurb ?? ""} onChange={(e) => setOptions(i, inp.options.map((x, m) => (m === k ? { ...x, blurb: e.target.value || undefined } : x)))} maxLength={120} placeholder="One line under the label (optional)" className="w-full" />
+                      )}
+                      {inp.type === "select" && inp.style === "packages" && (
+                        <div className="flex flex-wrap items-start gap-2">
+                          <Textarea
+                            value={(o.includes ?? []).join("\n")}
+                            onChange={(e) => setOptions(i, inp.options.map((x, m) => (m === k ? { ...x, includes: e.target.value.split("\n").map((s) => s.trim()).filter(Boolean).slice(0, ESTIMATOR_LIMITS.includes) } : x)))}
+                            rows={3}
+                            placeholder={"What this tier includes — one per line\nSurface clean\nDegreaser on stains"}
+                            className="min-w-0 flex-1"
+                          />
+                          <label className="flex items-center gap-1.5 text-xs text-gray-600">
+                            <input type="radio" name={`rec-${tool.id}-${inp.id}`} checked={o.recommended === true} onChange={() => setOptions(i, inp.options.map((x, m) => ({ ...x, recommended: m === k ? true : undefined })))} className="h-4 w-4 accent-green-600" />
+                            Most popular
+                          </label>
+                        </div>
+                      )}
                     </div>
                   ))}
                   <button
@@ -505,6 +578,26 @@ export default function EditEstimatorSheet({ tool, open, onClose, onSaved }: { t
       {/* ── Pricing ── */}
       {tab === "pricing" && (
         <div className="space-y-4">
+          <datalist id={`groups-${tool.id}`}>
+            {Array.from(new Set(["Labor", "Materials", "Add-ons", "Package", ...spec.lines.map((l) => l.group).filter((g): g is string => Boolean(g))])).map((g) => (
+              <option key={g} value={g} />
+            ))}
+          </datalist>
+          {spec.placeholders && spec.placeholders.length > 0 && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+              <p className="text-xs font-semibold text-amber-900">Placeholder rates — set the real number in the lines below, then tick each one off</p>
+              <ul className="mt-1.5 space-y-1">
+                {spec.placeholders.map((p, k) => (
+                  <li key={`${p}-${k}`} className="flex items-start justify-between gap-2 text-xs text-amber-900/90">
+                    <span>• {p}</span>
+                    <button type="button" onClick={() => touch((s) => (s.placeholders = (s.placeholders ?? []).filter((_, m) => m !== k)))} className="shrink-0 rounded-full border border-amber-300 px-2 py-0.5 text-[11px] font-medium hover:bg-amber-100">
+                      Set
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           <label className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 px-3 py-2.5">
             <span>
               <span className="block text-sm font-medium text-gray-800">Minimum job charge</span>
@@ -581,6 +674,10 @@ export default function EditEstimatorSheet({ tool, open, onClose, onSaved }: { t
                     <label className="flex min-w-0 flex-1 items-center gap-1.5 text-xs text-gray-600">
                       <span className="shrink-0">Price-book item</span>
                       <Input list={`workitems-${tool.id}`} value={l.workItemName ?? ""} onChange={(e) => setLine(i, { workItemName: e.target.value || undefined })} maxLength={120} placeholder="none — plain line" className="min-w-0 flex-1" />
+                    </label>
+                    <label className="flex items-center gap-1.5 text-xs text-gray-600">
+                      <span className="shrink-0">Group</span>
+                      <Input list={`groups-${tool.id}`} value={l.group ?? ""} onChange={(e) => setLine(i, { group: e.target.value || undefined })} maxLength={40} placeholder="Labor" className="w-28" />
                     </label>
                     <label className="flex items-center gap-1.5 text-xs text-gray-600">
                       <input type="checkbox" checked={l.isOptional === true} onChange={(e) => setLine(i, { isOptional: e.target.checked })} className="h-4 w-4 rounded accent-green-600" />

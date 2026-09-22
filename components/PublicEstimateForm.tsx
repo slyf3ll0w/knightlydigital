@@ -8,8 +8,9 @@ import TurnstileWidget from "@/components/TurnstileWidget";
 import { textOn } from "@/lib/branding";
 import { smsConsentLabel, SMS_TERMS_URL } from "@/lib/sms-consent";
 import type { ScheduleAppearance } from "@/app/book/[slug]/schedule/shell";
-import { sectionsOf, visibleInputIds, formDefaults, type EstimatorInput, type EstimatorSpec } from "@/lib/estimator";
-import { defaultSuccessMessage, estimateLabel, money, type EstimatorPublicConfig, type PublicEstimate } from "@/lib/estimator-public";
+import { sectionsOf, visibleInputIds, formDefaults, inputsComplete, type EstimatorInput, type EstimatorSpec } from "@/lib/estimator";
+import { defaultSuccessMessage, estimateLabel, type EstimatorPublicConfig, type PublicEstimate, type PublicVariant } from "@/lib/estimator-public";
+import { Breakdown, ChoiceControl, MultiControl, NumberControl, PriceHero, StepRail, ToggleRow, pickedIncludes, publicTheme, wash } from "@/components/EstimatorControls";
 import { fileToAssistPhoto, type AssistPhoto } from "@/lib/image-downscale";
 import type { LatLngTuple } from "@/components/MapMeasure";
 
@@ -18,55 +19,21 @@ const MapMeasure = dynamic(() => import("@/components/MapMeasure"), { ssr: false
 /**
  * The visitor-facing estimate form (lib/estimator-public.ts). Screens:
  *   1. the tool's questions — one step per section when the tool has
- *      sections, questions appearing/disappearing per showWhen — then
- *      "See my estimate" (server does the math)
- *   2. the estimate (exact lines / a range / nothing, per the owner) + the
- *      contact details → submit → thank-you.
+ *      sections (a numbered step rail), questions appearing/disappearing
+ *      per showWhen, package tiers priced live — then "See my estimate"
+ *      (server does the math)
+ *   2. the estimate (a big number + a quote-shaped breakdown, a range, or
+ *      nothing — the owner's call) + the contact details → submit → thank-you.
  * Forms set to reveal the price after contact details show it on the
  * thank-you screen instead. When the owner turned photo fill-in on, the first
  * step offers "snap a photo" and Atlas fills in the answers (the owner's
  * tokens, capped). Same themed recipe as the booking forms so an estimate
- * form and a booking form on one website read as one family.
+ * form and a booking form on one website read as one family; the controls
+ * themselves are shared with the in-app runner (components/EstimatorControls).
  */
 
 type Calc = { ok: true; estimate: PublicEstimate };
 type FormValues = Record<string, string | boolean | string[]>;
-
-/** Options with pictures render as a picture grid (one pick or several). Hoisted so re-renders don't remount the images. */
-function PictureOptions({
-  options,
-  value,
-  onPick,
-  multi,
-  theme,
-}: {
-  options: { value: string; label: string; image?: string }[];
-  value: string | string[];
-  onPick: (v: string) => void;
-  multi: boolean;
-  theme: { dark: boolean; accent: string; rowBox: string; ink: string };
-}) {
-  return (
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-      {options.map((o) => {
-        const on = multi ? Array.isArray(value) && value.includes(o.value) : value === o.value;
-        return (
-          <button
-            key={o.value}
-            type="button"
-            aria-pressed={on}
-            onClick={() => onPick(o.value)}
-            className={`overflow-hidden rounded-lg border text-left ${on ? "" : theme.rowBox}`}
-            style={on ? { borderColor: theme.accent, boxShadow: `0 0 0 2px ${theme.accent}` } : undefined}
-          >
-            {o.image ? <img src={o.image} alt="" className="aspect-[4/3] w-full object-cover" /> : <div className={`aspect-[4/3] w-full ${theme.dark ? "bg-white/10" : "bg-gray-100"}`} />}
-            <span className={`block px-2 py-1.5 text-xs font-medium ${theme.ink}`}>{o.label}</span>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
 
 export default function PublicEstimateForm({
   companySlug,
@@ -101,6 +68,7 @@ export default function PublicEstimateForm({
   const { dark, accent, transparent } = appearance;
   const f = config.fields;
   const instant = config.reveal === "instant" && config.showPrice !== "hidden";
+  const theme = useMemo(() => publicTheme(dark, accent), [dark, accent]);
   // visibleInputIds wants a spec; the form only ever holds the inputs
   const spec = useMemo<EstimatorSpec>(() => ({ version: 1, inputs, variables: [], lines: [] }), [inputs]);
 
@@ -149,30 +117,62 @@ export default function PublicEstimateForm({
     return () => window.removeEventListener("message", onMsg);
   }, []);
 
+  const apiBase = `/api/public/estimate/${companySlug}/${toolSlug}`;
+  const previewQs = preview ? "?preview=1" : "";
+
+  // Package tiers priced live: the first visible package question, once
+  // everything else it needs is answered (the visitor may not have picked yet).
+  const packageInput = useMemo(() => inputs.find((i) => i.type === "select" && i.style === "packages" && visible.has(i.id)) ?? null, [inputs, visible]);
+  const [tierPrices, setTierPrices] = useState<Record<string, string | null> | undefined>(undefined);
+  useEffect(() => {
+    if (!packageInput || packageInput.type !== "select" || config.showPrice === "hidden" || config.reveal !== "instant") {
+      setTierPrices(undefined);
+      return;
+    }
+    const ignore = new Set([packageInput.id]);
+    if (!inputsComplete(spec, values, ignore)) {
+      setTierPrices(undefined);
+      return;
+    }
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      try {
+        const res = await fetch(`${apiBase}/calc${previewQs}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ inputs: values, variants: { input: packageInput.id, values: packageInput.options.map((o) => o.value) } }),
+        });
+        const data = (await res.json().catch(() => null)) as { variants?: Record<string, PublicVariant> } | null;
+        if (cancelled || !data?.variants) return;
+        const out: Record<string, string | null> = {};
+        for (const [k, v] of Object.entries(data.variants)) out[k] = v ? v.label : null;
+        setTierPrices(out);
+      } catch {
+        /* the tiers just show no price */
+      }
+    }, 350);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [packageInput, values, spec, apiBase, previewQs, config.showPrice, config.reveal]);
+
   const card = transparent ? "bg-transparent" : dark ? "bg-[#101410] border border-white/10 rounded-lg p-6 shadow-sm" : "card-ledger p-6 shadow-sm";
-  const ink = dark ? "text-white" : "text-gray-900";
-  const muted = dark ? "text-gray-400" : "text-gray-500";
-  const label = dark ? "block text-sm font-medium text-gray-300 mb-1" : "block text-sm font-medium text-gray-700 mb-1";
-  const input = dark
-    ? "w-full px-3 py-2.5 bg-white/5 border border-white/15 rounded text-sm text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-white/30"
-    : "w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500";
-  const rowBox = dark ? "border-white/15" : "border-gray-300";
-  const primary = "flex w-full items-center justify-center gap-2 rounded py-3 text-sm font-semibold transition-opacity hover:opacity-90 active:opacity-80 disabled:opacity-50";
-  const secondary = `inline-flex items-center justify-center gap-1.5 rounded border px-4 py-3 text-sm font-medium ${rowBox} ${ink} hover:opacity-80`;
-  const chip = (on: boolean) =>
-    `inline-flex h-9 items-center gap-1 rounded-full border px-3 text-sm ${on ? "" : dark ? "border-white/20 text-gray-200" : "border-gray-300 text-gray-700"}`;
+  const ink = theme.ink;
+  const muted = theme.faint;
+  const label = dark ? "block text-sm font-medium text-gray-300 mb-1.5" : "block text-sm font-medium text-gray-700 mb-1.5";
+  const input = theme.input;
+  const rowBox = theme.border;
+  const primary = "flex w-full items-center justify-center gap-2 rounded-lg py-3 text-sm font-semibold transition-opacity hover:opacity-90 active:opacity-80 disabled:opacity-50";
+  const secondary = `inline-flex items-center justify-center gap-1.5 rounded-lg border px-4 py-3 text-sm font-medium ${rowBox} ${ink} hover:opacity-80`;
 
   const set = (k: string, v: string) => setForm((s) => ({ ...s, [k]: v }));
-  const theme = { dark, accent, rowBox, ink };
   const setVal = (id: string, v: string | boolean | string[]) => setValues((p) => ({ ...p, [id]: v }));
   const toggleMulti = (id: string, value: string) =>
     setValues((p) => {
       const cur = Array.isArray(p[id]) ? (p[id] as string[]) : [];
       return { ...p, [id]: cur.includes(value) ? cur.filter((x) => x !== value) : [...cur, value] };
     });
-
-  const apiBase = `/api/public/estimate/${companySlug}/${toolSlug}`;
-  const previewQs = preview ? "?preview=1" : "";
 
   async function calculate() {
     setError("");
@@ -275,40 +275,33 @@ export default function PublicEstimateForm({
       {intro && <p className={`mt-0.5 text-sm ${muted}`}>{intro}</p>}
     </div>
   );
-  const errorBox = error && <div className="rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>;
+  const errorBox = error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>;
 
   function EstimatePanel({ e, compact = false }: { e: PublicEstimate; compact?: boolean }) {
     if (e.mode === "hidden") return null;
-    const total = estimateLabel(e);
+    const included = pickedIncludes(inputs, values);
     return (
-      <div className={`rounded-lg border ${rowBox} overflow-hidden`}>
-        <div className="px-4 py-4 text-center" style={{ backgroundColor: `${accent}14` }}>
-          <p className={`text-xs font-medium uppercase tracking-wide ${muted}`}>{e.mode === "range" ? "Estimated range" : "Your estimate"}</p>
-          <p className={`numeral mt-1 text-3xl font-bold ${ink}`}>{total}</p>
-          {e.title && <p className={`mt-1 text-sm ${muted}`}>{e.title}</p>}
-        </div>
-        {e.mode === "exact" && !compact && (
-          <div className={`divide-y ${dark ? "divide-white/10" : "divide-gray-100"}`}>
-            {e.lines.map((l, i) => (
-              <div key={i} className="flex items-start gap-3 px-4 py-2.5">
-                <div className="min-w-0 flex-1">
-                  <p className={`text-sm font-medium ${ink}`}>
-                    {l.name}
-                    {l.isOptional && <span className={`ml-2 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${dark ? "bg-white/10 text-gray-300" : "bg-gray-100 text-gray-600"}`}>optional</span>}
-                  </p>
-                  {l.description && <p className={`text-xs ${muted}`}>{l.description}</p>}
-                  {l.quantity !== 1 && (
-                    <p className={`text-xs ${muted}`}>
-                      {l.quantity} × {money(l.unitPrice)}
-                    </p>
-                  )}
-                </div>
-                <p className={`numeral shrink-0 text-sm font-semibold ${ink}`}>{money(l.total)}</p>
-              </div>
-            ))}
+      <div className="space-y-3">
+        {e.mode === "range" ? (
+          <PriceHero theme={theme} label="Estimated range" text={estimateLabel(e)} sub={e.title} />
+        ) : (
+          <PriceHero theme={theme} label="Your estimate" amount={e.subtotal} sub={e.title} />
+        )}
+        {included && !compact && (
+          <div className={`rounded-xl border p-4 ${rowBox}`}>
+            <p className={`text-xs font-semibold ${muted}`}>{included.tier} includes</p>
+            <ul className="mt-2 grid grid-cols-1 gap-1 sm:grid-cols-2">
+              {included.includes.map((line) => (
+                <li key={line} className={`flex items-start gap-1.5 text-sm ${theme.muted}`}>
+                  <Check size={14} strokeWidth={2.5} className="mt-0.5 shrink-0" style={{ color: accent }} />
+                  {line}
+                </li>
+              ))}
+            </ul>
           </div>
         )}
-        {config.disclaimer && <p className={`px-4 py-3 text-xs ${muted} ${dark ? "border-t border-white/10" : "border-t border-gray-100"}`}>{config.disclaimer}</p>}
+        {e.mode === "exact" && !compact && <Breakdown theme={theme} lines={e.lines} subtotal={e.subtotal} />}
+        {config.disclaimer && <p className={`text-xs ${muted}`}>{config.disclaimer}</p>}
       </div>
     );
   }
@@ -318,7 +311,7 @@ export default function PublicEstimateForm({
     const shown = finalEstimate && finalEstimate.mode !== "hidden" ? finalEstimate : null;
     return (
       <div className={`${card} space-y-5 py-8 text-center`}>
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full" style={{ backgroundColor: `${accent}22` }}>
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full" style={{ backgroundColor: wash(theme, 16) }}>
           <CheckCircle size={28} style={{ color: accent }} />
         </div>
         <div>
@@ -340,20 +333,20 @@ export default function PublicEstimateForm({
     const multiStep = sections.length > 1;
     const last = sectionIdx >= sections.length - 1;
     return (
-      <form onSubmit={nextOrCalculate} className={`${card} space-y-4`}>
+      <form onSubmit={nextOrCalculate} className={`${card} space-y-5`}>
         {header}
         {errorBox}
 
         {photoAssist && sectionIdx === 0 && (
-          <div className={`rounded-lg border border-dashed p-3 ${rowBox}`}>
+          <div className={`rounded-xl border border-dashed p-3 ${rowBox}`}>
             <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => void fillFromPhoto(e.target.files?.[0])} />
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <p className={`text-sm font-medium ${ink}`}>Have a photo of the job?</p>
-                <p className={`text-xs ${muted}`}>Snap one and we'll fill in the answers for you.</p>
+                <p className={`text-xs ${muted}`}>Snap one and we&apos;ll fill in the answers for you.</p>
               </div>
               {photo ? (
-                <span className={`flex shrink-0 items-center gap-1.5 rounded border py-0.5 pl-0.5 pr-1.5 text-[11px] ${rowBox} ${muted}`}>
+                <span className={`flex shrink-0 items-center gap-1.5 rounded-lg border py-0.5 pl-0.5 pr-1.5 text-[11px] ${rowBox} ${muted}`}>
                   <img src={photo.previewUrl} alt="" className="h-7 w-7 rounded object-cover" />
                   <button
                     type="button"
@@ -378,34 +371,13 @@ export default function PublicEstimateForm({
           </div>
         )}
 
-        {multiStep && (
-          <div className="flex items-center justify-between gap-3">
-            <p className={`text-xs font-medium uppercase tracking-wide ${muted}`}>
-              Step {sectionIdx + 1} of {sections.length}
-            </p>
-            <div className="flex gap-1">
-              {sections.map((_, i) => (
-                <span key={i} className="h-1.5 w-6 rounded-full" style={{ backgroundColor: i <= sectionIdx ? accent : dark ? "rgba(255,255,255,0.15)" : "#e5e7eb" }} />
-              ))}
-            </div>
-          </div>
-        )}
+        {multiStep && <StepRail theme={theme} titles={sections.map((s) => s.title)} idx={sectionIdx} />}
         {current.title && <h3 className={`text-base font-semibold ${ink}`}>{current.title}</h3>}
 
         {current.inputs.map((inp) => {
           const v = values[inp.id];
           const required = "required" in inp && inp.required !== false;
-          if (inp.type === "toggle") {
-            return (
-              <label key={inp.id} className={`flex items-center justify-between gap-3 rounded border px-3 py-2.5 ${rowBox}`}>
-                <span>
-                  <span className={`block text-sm font-medium ${ink}`}>{inp.label}</span>
-                  {inp.help && <span className={`block text-xs ${muted}`}>{inp.help}</span>}
-                </span>
-                <input type="checkbox" checked={v === true} onChange={(e) => setVal(inp.id, e.target.checked)} className="h-5 w-5 shrink-0 rounded" style={{ accentColor: accent }} />
-              </label>
-            );
-          }
+          if (inp.type === "toggle") return <ToggleRow key={inp.id} theme={theme} label={inp.label} help={inp.help} value={v === true} onChange={(b) => setVal(inp.id, b)} />;
           return (
             <div key={inp.id}>
               {inp.image && <img src={inp.image} alt="" className="mb-2 max-h-48 w-full rounded-lg object-cover" />}
@@ -429,61 +401,25 @@ export default function PublicEstimateForm({
                   <input type="text" value={typeof v === "string" ? v : ""} required={required} readOnly tabIndex={-1} aria-hidden className="sr-only" onChange={() => undefined} />
                 </>
               )}
-              {inp.type === "select" && inp.options.some((o) => o.image) && (
-                <PictureOptions theme={theme} options={inp.options} value={typeof v === "string" ? v : ""} onPick={(val) => setVal(inp.id, v === val ? "" : val)} multi={false} />
+              {inp.type === "number" && <NumberControl inp={inp} theme={theme} value={typeof v === "string" ? v : ""} required={required} onChange={(val) => setVal(inp.id, val)} />}
+              {inp.type === "select" && (
+                <>
+                  <ChoiceControl inp={inp} theme={theme} value={typeof v === "string" ? v : ""} required={required} onChange={(val) => setVal(inp.id, val)} tierPrices={inp.style === "packages" && packageInput?.id === inp.id ? tierPrices : undefined} />
+                  {(inp.style === "cards" || inp.style === "packages" || inp.options.some((o) => o.image)) && (
+                    <input type="text" value={typeof v === "string" ? v : ""} required={required} readOnly tabIndex={-1} aria-hidden className="sr-only" onChange={() => undefined} />
+                  )}
+                </>
               )}
-              {inp.type === "multi" && inp.options.some((o) => o.image) && <PictureOptions theme={theme} options={inp.options} value={Array.isArray(v) ? v : []} onPick={(val) => toggleMulti(inp.id, val)} multi />}
-              {inp.type === "number" && (
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    inputMode="decimal"
-                    value={typeof v === "string" ? v : ""}
-                    min={inp.min}
-                    max={inp.max}
-                    step={inp.step ?? "any"}
-                    required={required}
-                    onChange={(e) => setVal(inp.id, e.target.value)}
-                    className={input}
-                  />
-                  {inp.unit && <span className={`shrink-0 text-sm ${muted}`}>{inp.unit}</span>}
-                </div>
-              )}
-              {inp.type === "select" && !inp.options.some((o) => o.image) && (
-                <select value={typeof v === "string" ? v : ""} required={required} onChange={(e) => setVal(inp.id, e.target.value)} className={`${input} ${dark ? "[&>option]:text-gray-900" : ""}`}>
-                  <option value="">Select...</option>
-                  {inp.options.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
-              )}
-              {inp.type === "multi" && !inp.options.some((o) => o.image) && (
-                <div className="flex flex-wrap gap-1.5">
-                  {inp.options.map((o) => {
-                    const on = Array.isArray(v) && v.includes(o.value);
-                    return (
-                      <button
-                        key={o.value}
-                        type="button"
-                        aria-pressed={on}
-                        onClick={() => toggleMulti(inp.id, o.value)}
-                        className={chip(on)}
-                        style={on ? { backgroundColor: accent, borderColor: accent, color: textOn(accent) } : undefined}
-                      >
-                        {on && <Check size={12} strokeWidth={3} />}
-                        {o.label}
-                      </button>
-                    );
-                  })}
-                  {required && Array.isArray(v) && v.length === 0 && <span className={`self-center text-xs ${muted}`}>Pick at least one</span>}
-                </div>
+              {inp.type === "multi" && (
+                <>
+                  <MultiControl inp={inp} theme={theme} value={Array.isArray(v) ? v : []} onToggle={(val) => toggleMulti(inp.id, val)} />
+                  {required && Array.isArray(v) && v.length === 0 && <p className={`mt-1 text-xs ${muted}`}>Pick at least one</p>}
+                </>
               )}
               {inp.type === "text" && (
                 <textarea value={typeof v === "string" ? v : ""} rows={2} placeholder={inp.placeholder} required={required} maxLength={500} onChange={(e) => setVal(inp.id, e.target.value)} className={`${input} resize-none`} />
               )}
-              {inp.help && <p className={`mt-1 text-xs ${muted}`}>{inp.help}</p>}
+              {inp.help && <p className={`mt-1.5 text-xs ${muted}`}>{inp.help}</p>}
             </div>
           );
         })}

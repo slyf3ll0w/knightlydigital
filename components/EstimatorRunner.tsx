@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { ArrowLeft, Calculator, Camera, Check, FileText, Loader2, Sparkles, X } from "lucide-react";
 import Modal from "@/components/Modal";
-import { Input, Select, Textarea } from "@/components/Input";
+import { Textarea } from "@/components/Input";
 import { useAssistant } from "@/components/AssistantContext";
+import { APP_THEME, Breakdown, ChoiceControl, MultiControl, NumberControl, PriceHero, ToggleRow, moneyExact, pickedIncludes, wash, useCountUp } from "@/components/EstimatorControls";
 import { postJson } from "@/lib/safe-fetch";
 import { formDefaults, inputsComplete, sectionsOf, visibleInputIds, type EstimatorResultLine, type EstimatorSpec } from "@/lib/estimator";
 import { fileToAssistPhoto, type AssistPhoto } from "@/lib/image-downscale";
@@ -15,35 +16,18 @@ import type { LatLngTuple } from "@/components/MapMeasure";
 // Leaflet touches window — only the map question needs it
 const MapMeasure = dynamic(() => import("@/components/MapMeasure"), { ssr: false, loading: () => <div className="h-80 animate-pulse rounded-lg bg-gray-100" /> });
 
-/** Options with pictures render as a picture grid (one pick or several). */
-function PictureOptions({ options, value, onPick, multi }: { options: { value: string; label: string; image?: string }[]; value: string | string[]; onPick: (v: string) => void; multi: boolean }) {
-  return (
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-      {options.map((o) => {
-        const on = multi ? Array.isArray(value) && value.includes(o.value) : value === o.value;
-        return (
-          <button key={o.value} type="button" aria-pressed={on} onClick={() => onPick(o.value)} className={`overflow-hidden rounded-xl border text-left ${on ? "border-gray-900 ring-2 ring-gray-900" : "border-gray-200 hover:border-gray-400"}`}>
-            {o.image ? <img src={o.image} alt="" className="aspect-[4/3] w-full object-cover" /> : <div className="aspect-[4/3] w-full bg-gray-100" />}
-            <span className="block px-2 py-1.5 text-xs font-medium text-gray-800">{o.label}</span>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
 /**
  * Runs a saved estimate tool (docs/plans/ai-estimators-2026-09-19.md):
- * pick a tool → answer its inputs → the server does the math (free) → the
- * lines land on the quote. Tools that opted into `assist` also offer
- * "describe the job / snap a photo, let Atlas fill it in" — the one step
- * that costs tokens, labelled as such, and never required: every input stays
- * hand-editable.
+ * pick a tool → answer its questions (presets, sliders, tap cards, package
+ * tiers with live prices, the map) → the server does the math (free) → a
+ * quote-shaped breakdown → the lines land on a quote. Tools that opted into
+ * `assist` also offer "describe the job / snap a photo, let Atlas fill it
+ * in" — the one step that costs tokens, labelled as such, never required.
  *
- * Three homes: the quote editor (onApply adds the lines), the Estimate page
- * and the settings "Try it" (no onApply → "Create quote" stashes the result
- * and opens a new quote with it), and Atlas cards / the manual editor
- * (`preview: true` runs an UNSAVED spec through /api/app/estimators/preview).
+ * Three homes: the quote editor (onApply adds the lines), the Estimates
+ * page (no onApply → "Create quote" stashes the result and opens a new
+ * quote with it), and Atlas cards / the manual editor (`preview: true` runs
+ * an UNSAVED spec through /api/app/estimators/preview).
  */
 
 export type RunnerEstimator = {
@@ -63,9 +47,8 @@ export type EstimatorApply = {
 };
 
 type RunOk = { ok: true; lines: EstimatorResultLine[]; subtotal: number; title?: string; clientMessage?: string; warnings: string[] };
+type RunReply = Partial<RunOk> & { ok?: boolean; error?: string; errors?: string[]; variants?: Record<string, number | null> };
 type FormValues = Record<string, string | boolean | string[]>;
-
-const money = (n: number) => `$${n.toFixed(2)}`;
 
 // ── onsite hand-off: runner → new quote ──────────────────────────────────────
 
@@ -93,10 +76,24 @@ export function takeEstimateDraft(): EstimateDraft | null {
   }
 }
 
-function runRequest(tool: RunnerEstimator, values: FormValues, dry: boolean) {
+function runRequest(tool: RunnerEstimator, values: FormValues, dry: boolean, variants?: { input: string; values: string[] }) {
+  const body = { inputs: values, ...(variants ? { variants } : {}) };
   return tool.preview
-    ? postJson<RunOk & { error?: string; errors?: string[] }>(`/api/app/estimators/preview`, { spec: tool.spec, inputs: values })
-    : postJson<RunOk & { error?: string; errors?: string[] }>(`/api/app/estimators/${tool.id}/run${dry ? "?dry=1" : ""}`, { inputs: values });
+    ? postJson<RunReply>(`/api/app/estimators/preview`, { spec: tool.spec, ...body })
+    : postJson<RunReply>(`/api/app/estimators/${tool.id}/run${dry ? "?dry=1" : ""}`, body);
+}
+
+/** Sample values (from the spec) → form state. */
+function sampleToForm(spec: EstimatorSpec, sample: Record<string, unknown>): FormValues {
+  const v = formDefaults(spec);
+  for (const inp of spec.inputs) {
+    const x = sample[inp.id];
+    if (x === undefined || x === null) continue;
+    if (inp.type === "toggle") v[inp.id] = x === true || x === "true";
+    else if (inp.type === "multi") v[inp.id] = Array.isArray(x) ? x.map(String) : String(x).split(",").map((s) => s.trim()).filter(Boolean);
+    else v[inp.id] = String(x);
+  }
+  return v;
 }
 
 // ── the panel (no chrome) ────────────────────────────────────────────────────
@@ -108,6 +105,7 @@ export function EstimatorRunnerPanel({
   applyLabel = "Add to quote",
   allowQuote = true,
   closeLabel = "Cancel",
+  showSamples = false,
 }: {
   estimators: RunnerEstimator[];
   onClose: () => void;
@@ -117,9 +115,12 @@ export function EstimatorRunnerPanel({
   /** Without onApply: offer to start a new quote from the result (the onsite flow). */
   allowQuote?: boolean;
   closeLabel?: string;
+  /** Offer the tool's built-in sample jobs as one-tap fills (owners trying a tool). */
+  showSamples?: boolean;
 }) {
   const atlas = useAssistant();
   const router = useRouter();
+  const theme = APP_THEME;
   const single = estimators.length === 1 ? estimators[0] : null;
   const [selectedId, setSelectedId] = useState<string>(single?.id ?? "");
   const [values, setValues] = useState<FormValues>(single ? formDefaults(single.spec) : {});
@@ -138,25 +139,39 @@ export function EstimatorRunnerPanel({
   const spec = tool?.spec ?? null;
   const visible = useMemo(() => (spec ? visibleInputIds(spec, values) : new Set<string>()), [spec, values]);
   const sections = useMemo(() => (spec ? sectionsOf(spec.inputs, visible) : []), [spec, visible]);
+  // the first visible package question prices its tiers side by side
+  const packageInput = useMemo(() => spec?.inputs.find((i) => i.type === "select" && i.style === "packages" && visible.has(i.id)) ?? null, [spec, visible]);
+  const ignore = useMemo(() => new Set(packageInput ? [packageInput.id] : []), [packageInput]);
 
-  // Running total while typing: once every visible required input has a
-  // value, a debounced dry run (no counter) shows where the estimate is heading.
+  // Live pricing while answering: once every visible required input (except
+  // the package tiers) has a value, a debounced dry run (no counter) gives
+  // the running total and each tier's price.
   const [live, setLive] = useState<number | null>(null);
+  const [tierPrices, setTierPrices] = useState<Record<string, string | null> | undefined>(undefined);
   useEffect(() => {
-    if (!tool || result || !inputsComplete(tool.spec, values)) {
+    if (!tool || result || !inputsComplete(tool.spec, values, ignore)) {
       setLive(null);
+      setTierPrices(undefined);
       return;
     }
     let cancelled = false;
     const t = setTimeout(async () => {
-      const { ok, data } = await runRequest(tool, values, true);
-      if (!cancelled) setLive(ok && data && "subtotal" in data ? data.subtotal : null);
-    }, 450);
+      const variants = packageInput && packageInput.type === "select" ? { input: packageInput.id, values: packageInput.options.map((o) => o.value) } : undefined;
+      const { data } = await runRequest(tool, values, true, variants);
+      if (cancelled) return;
+      setLive(data && data.ok && typeof data.subtotal === "number" ? data.subtotal : null);
+      if (variants && data?.variants) {
+        const out: Record<string, string | null> = {};
+        for (const [k, v] of Object.entries(data.variants)) out[k] = v === null ? null : moneyExact(v);
+        setTierPrices(out);
+      } else setTierPrices(undefined);
+    }, 350);
     return () => {
       cancelled = true;
       clearTimeout(t);
     };
-  }, [tool, values, result]);
+  }, [tool, values, result, ignore, packageInput]);
+  const liveShown = useCountUp(live);
 
   function pick(e: RunnerEstimator) {
     setSelectedId(e.id);
@@ -180,11 +195,11 @@ export function EstimatorRunnerPanel({
     setError("");
     const { ok, data } = await runRequest(tool, values, false);
     setBusy(null);
-    if (!ok || !data || !("lines" in data)) {
+    if (!ok || !data || !data.ok || !data.lines) {
       setError(data?.errors?.join(" · ") ?? data?.error ?? "Couldn't compute that — check the inputs.");
       return;
     }
-    setResult(data);
+    setResult(data as RunOk);
   }
 
   async function attachPhoto(file: File | undefined) {
@@ -248,6 +263,8 @@ export function EstimatorRunnerPanel({
 
   const showPicker = !tool;
   const canAssist = Boolean(tool?.usesAtlas && atlas.available && !tool?.preview);
+  const samples = showSamples || tool?.preview ? (spec?.samples ?? []) : [];
+  const included = result && spec ? pickedIncludes(spec.inputs, values) : null;
 
   return (
     <>
@@ -309,14 +326,25 @@ export function EstimatorRunnerPanel({
             e.preventDefault();
             void run();
           }}
-          className="space-y-4"
+          className="space-y-5"
         >
           {spec.intro && <p className="text-sm text-gray-600">{spec.intro}</p>}
+
+          {samples.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-xs text-gray-500">Fill with a sample:</span>
+              {samples.map((s) => (
+                <button key={s.label} type="button" onClick={() => setValues(sampleToForm(spec, s.inputs))} className="rounded-full border border-gray-200 px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50">
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          )}
 
           {canAssist && (
             <div className="rounded-xl border border-dashed border-gray-300 p-3">
               <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-gray-700">
-                <Sparkles size={13} /> Describe the job or snap a photo — {atlas.name} fills in the inputs
+                <Sparkles size={13} /> Describe the job or snap a photo — {atlas.name} fills in the answers
               </label>
               <Textarea
                 value={description}
@@ -342,7 +370,7 @@ export function EstimatorRunnerPanel({
                       Add a photo
                     </button>
                   )}
-                  <span className="hidden text-[11px] text-gray-500 sm:inline">Uses Atlas tokens · inputs stay editable</span>
+                  <span className="hidden text-[11px] text-gray-500 sm:inline">Uses Atlas tokens · answers stay editable</span>
                 </div>
                 <button
                   type="button"
@@ -354,131 +382,72 @@ export function EstimatorRunnerPanel({
                   Fill in
                 </button>
               </div>
-              {atlas.locked && <p className="mt-1.5 text-[11px] text-amber-700">Your Atlas tokens are used up for now — the inputs below still work.</p>}
+              {atlas.locked && <p className="mt-1.5 text-[11px] text-amber-700">Your Atlas tokens are used up for now — the questions below still work.</p>}
               {assistNote && <p className="mt-2 text-xs text-gray-600">{assistNote}</p>}
             </div>
           )}
 
-          <div className="space-y-4">
+          <div className="space-y-6">
             {sections.map((sec, si) => (
-              <div key={`${sec.title ?? ""}-${si}`} className="space-y-3">
-                {sec.title && <p className="border-b border-gray-100 pb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">{sec.title}</p>}
+              <section key={`${sec.title ?? ""}-${si}`} className="space-y-4">
+                {sec.title && (
+                  <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+                    {sections.length > 1 && (
+                      <span className="flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold" style={{ backgroundColor: wash(theme, 12), color: theme.accent }}>
+                        {si + 1}
+                      </span>
+                    )}
+                    {sec.title}
+                  </h3>
+                )}
                 {sec.inputs.map((inp) => {
                   const v = values[inp.id];
                   const required = "required" in inp && inp.required !== false;
+                  if (inp.type === "toggle") return <ToggleRow key={inp.id} theme={theme} label={inp.label} help={inp.help} value={v === true} onChange={(b) => setVal(inp.id, b)} />;
                   return (
                     <div key={inp.id}>
-                      {inp.type === "toggle" ? (
-                        <label className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 px-3 py-2.5">
-                          <span>
-                            <span className="block text-sm font-medium text-gray-800">{inp.label}</span>
-                            {inp.help && <span className="block text-xs text-gray-500">{inp.help}</span>}
-                          </span>
-                          <input type="checkbox" checked={v === true} onChange={(e) => setVal(inp.id, e.target.checked)} className="h-5 w-5 rounded accent-green-600" />
-                        </label>
-                      ) : (
-                        <>
-                          {inp.image && <img src={inp.image} alt="" className="mb-2 max-h-44 w-full rounded-lg object-cover" />}
-                          <label className="mb-1 block text-sm font-medium text-gray-800">
-                            {inp.label}
-                            {required && <span className="text-red-500"> *</span>}
-                          </label>
-                          {inp.type === "number" && (
-                            <div className="flex items-center gap-2">
-                              <Input
-                                type="number"
-                                inputMode="decimal"
-                                value={typeof v === "string" ? v : ""}
-                                min={inp.min}
-                                max={inp.max}
-                                step={inp.step ?? "any"}
-                                required={required}
-                                onChange={(e) => setVal(inp.id, e.target.value)}
-                                className="w-full"
-                              />
-                              {inp.unit && <span className="shrink-0 text-sm text-gray-500">{inp.unit}</span>}
-                            </div>
-                          )}
-                          {inp.type === "map" && (
-                            <MapMeasure
-                              measure={inp.measure}
-                              points={geomRef.current[inp.id] ?? []}
-                              onChange={(pts, val) => {
-                                geomRef.current[inp.id] = pts;
-                                setVal(inp.id, val === null ? "" : String(val));
-                              }}
-                            />
-                          )}
-                          {inp.type === "select" && inp.options.some((o) => o.image) && (
-                            <PictureOptions options={inp.options} value={typeof v === "string" ? v : ""} onPick={(val) => setVal(inp.id, v === val ? "" : val)} multi={false} />
-                          )}
-                          {inp.type === "multi" && inp.options.some((o) => o.image) && (
-                            <PictureOptions options={inp.options} value={Array.isArray(v) ? v : []} onPick={(val) => toggleMulti(inp.id, val)} multi />
-                          )}
-                          {inp.type === "select" && !inp.options.some((o) => o.image) && (
-                            <Select value={typeof v === "string" ? v : ""} required={required} onChange={(e) => setVal(inp.id, e.target.value)} className="w-full">
-                              <option value="">Choose…</option>
-                              {inp.options.map((o) => (
-                                <option key={o.value} value={o.value}>
-                                  {o.label}
-                                </option>
-                              ))}
-                            </Select>
-                          )}
-                          {inp.type === "multi" && !inp.options.some((o) => o.image) && (
-                            <div className="flex flex-wrap gap-1.5">
-                              {inp.options.map((o) => {
-                                const on = Array.isArray(v) && v.includes(o.value);
-                                return (
-                                  <button
-                                    key={o.value}
-                                    type="button"
-                                    aria-pressed={on}
-                                    onClick={() => toggleMulti(inp.id, o.value)}
-                                    className={`inline-flex h-8 items-center gap-1 rounded-full border px-3 text-xs font-medium ${on ? "border-gray-900 bg-gray-900 text-white" : "border-gray-300 text-gray-700 hover:bg-gray-50"}`}
-                                  >
-                                    {on && <Check size={12} strokeWidth={3} />}
-                                    {o.label}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          )}
-                          {inp.type === "text" && (
-                            <Textarea
-                              value={typeof v === "string" ? v : ""}
-                              rows={2}
-                              placeholder={inp.placeholder}
-                              required={required}
-                              onChange={(e) => setVal(inp.id, e.target.value)}
-                              className="w-full"
-                            />
-                          )}
-                          {inp.help && <p className="mt-1 text-xs text-gray-500">{inp.help}</p>}
-                        </>
+                      {inp.image && <img src={inp.image} alt="" className="mb-2 max-h-44 w-full rounded-lg object-cover" />}
+                      <label className="mb-1.5 block text-sm font-medium text-gray-800">
+                        {inp.label}
+                        {required && <span className="text-red-500"> *</span>}
+                      </label>
+                      {inp.type === "number" && <NumberControl inp={inp} theme={theme} value={typeof v === "string" ? v : ""} required={required} onChange={(val) => setVal(inp.id, val)} />}
+                      {inp.type === "map" && (
+                        <MapMeasure
+                          measure={inp.measure}
+                          points={geomRef.current[inp.id] ?? []}
+                          onChange={(pts, val) => {
+                            geomRef.current[inp.id] = pts;
+                            setVal(inp.id, val === null ? "" : String(val));
+                          }}
+                        />
                       )}
+                      {inp.type === "select" && (
+                        <ChoiceControl inp={inp} theme={theme} value={typeof v === "string" ? v : ""} required={required} onChange={(val) => setVal(inp.id, val)} tierPrices={inp.style === "packages" && packageInput?.id === inp.id ? tierPrices : undefined} />
+                      )}
+                      {inp.type === "multi" && <MultiControl inp={inp} theme={theme} value={Array.isArray(v) ? v : []} onToggle={(val) => toggleMulti(inp.id, val)} />}
+                      {inp.type === "text" && <Textarea value={typeof v === "string" ? v : ""} rows={2} placeholder={inp.placeholder} required={required} onChange={(e) => setVal(inp.id, e.target.value)} className="w-full" />}
+                      {inp.help && <p className="mt-1.5 text-xs text-gray-500">{inp.help}</p>}
                     </div>
                   );
                 })}
-              </div>
+              </section>
             ))}
           </div>
 
-          <div className="flex items-center justify-between gap-3 pt-1">
-            <span className="min-w-0 truncate text-sm text-gray-600">
-              {live !== null && (
-                <>
-                  Running total: <span className="numeral font-semibold text-gray-900">{money(live)}</span>
-                </>
-              )}
-            </span>
+          {/* docked total + action */}
+          <div className="sticky -bottom-5 -mx-5 -mb-5 flex items-center justify-between gap-3 border-t border-gray-100 bg-white/95 px-5 py-3 backdrop-blur">
+            <div className="min-w-0">
+              <p className="text-[11px] font-medium text-gray-500">{liveShown !== null ? "Estimate so far" : "Answer the questions to see a price"}</p>
+              <p className="text-xl font-bold tabular-nums tracking-tight text-gray-900">{liveShown !== null ? moneyExact(liveShown) : "—"}</p>
+            </div>
             <span className="flex shrink-0 items-center gap-2">
               <button type="button" onClick={onClose} className="h-10 rounded-lg px-3 text-sm font-medium text-gray-600 hover:bg-gray-100">
                 {closeLabel}
               </button>
               <button type="submit" disabled={busy !== null} className="btn-primary h-10 justify-center">
                 {busy === "run" ? <Loader2 size={15} className="animate-spin" /> : <Calculator size={15} />}
-                Calculate
+                See the breakdown
               </button>
             </span>
           </div>
@@ -488,33 +457,26 @@ export function EstimatorRunnerPanel({
       {/* step 3: result */}
       {result && tool && (
         <div className="space-y-4">
-          {result.title && <p className="text-sm font-medium text-gray-800">{result.title}</p>}
-          <div className="divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200">
-            {result.lines.map((l, i) => (
-              <div key={i} className="flex items-start gap-3 px-4 py-2.5">
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-gray-900">
-                    {l.name}
-                    {l.isOptional && <span className="ml-2 rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600">optional</span>}
-                  </p>
-                  {l.description && <p className="text-xs text-gray-500">{l.description}</p>}
-                  <p className="text-xs text-gray-500">
-                    {l.quantity} × {money(l.unitPrice)}
-                  </p>
-                </div>
-                <p className="numeral shrink-0 text-sm font-semibold text-gray-900">{money(l.quantity * l.unitPrice)}</p>
-              </div>
-            ))}
-            <div className="flex items-center justify-between bg-gray-50 px-4 py-2.5">
-              <span className="text-sm text-gray-600">Subtotal{result.lines.some((l) => l.isOptional) ? " (without optional)" : ""}</span>
-              <span className="numeral text-sm font-semibold text-gray-900">{money(result.subtotal)}</span>
+          <PriceHero theme={theme} label="Your estimate" amount={result.subtotal} sub={result.title} />
+          {included && (
+            <div className="rounded-xl border border-gray-200 p-4">
+              <p className="text-xs font-semibold text-gray-500">{included.tier} includes</p>
+              <ul className="mt-2 grid grid-cols-1 gap-1 sm:grid-cols-2">
+                {included.includes.map((line) => (
+                  <li key={line} className="flex items-start gap-1.5 text-sm text-gray-700">
+                    <Check size={14} strokeWidth={2.5} className="mt-0.5 shrink-0" style={{ color: theme.accent }} />
+                    {line}
+                  </li>
+                ))}
+              </ul>
             </div>
-          </div>
+          )}
+          <Breakdown theme={theme} lines={result.lines} subtotal={result.subtotal} />
           {result.warnings.length > 0 && <p className="text-xs text-amber-700">{result.warnings.join(" · ")}</p>}
           {result.clientMessage && <p className="text-xs text-gray-500">Client note: {result.clientMessage}</p>}
-          <div className="flex flex-wrap items-center justify-end gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
             <button type="button" onClick={() => setResult(null)} className="h-10 rounded-lg px-3 text-sm font-medium text-gray-600 hover:bg-gray-100">
-              Change inputs
+              Change answers
             </button>
             {onApply ? (
               <button type="button" onClick={apply} className="btn-primary h-10 justify-center">
@@ -553,6 +515,7 @@ export default function EstimatorRunner({
   applyLabel = "Add to quote",
   allowQuote = true,
   portal = false,
+  showSamples = false,
 }: {
   estimators: RunnerEstimator[];
   open: boolean;
@@ -563,6 +526,7 @@ export default function EstimatorRunner({
   allowQuote?: boolean;
   /** Render into <body> — needed when opened from inside another dialog. */
   portal?: boolean;
+  showSamples?: boolean;
 }) {
   // Fresh start every time the sheet opens: remount the panel
   const [session, setSession] = useState(0);
@@ -570,8 +534,8 @@ export default function EstimatorRunner({
     if (open) setSession((s) => s + 1);
   }, [open]);
   return (
-    <Modal open={open} onClose={onClose} portal={portal} cardClassName="card-ledger w-full max-w-lg p-5 max-h-[85vh] overflow-y-auto">
-      <EstimatorRunnerPanel key={session} estimators={estimators} onClose={onClose} onApply={onApply} applyLabel={applyLabel} allowQuote={allowQuote} />
+    <Modal open={open} onClose={onClose} portal={portal} cardClassName="card-ledger w-full max-w-xl p-5 max-h-[88vh] overflow-y-auto">
+      <EstimatorRunnerPanel key={session} estimators={estimators} onClose={onClose} onApply={onApply} applyLabel={applyLabel} allowQuote={allowQuote} showSamples={showSamples} />
     </Modal>
   );
 }

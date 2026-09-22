@@ -1,52 +1,110 @@
 import { prisma } from "./db";
 import type { Actor } from "./permissions";
 import { meteredOneShot, oneShotJson } from "./atlas-oneshot";
-import { compileSpec, describeSpecChanges, ESTIMATOR_GUIDE, ESTIMATOR_LIMITS, runCompiled, specFromJson, type EstimatorSpec } from "./estimator";
+import { auditSpec, describeSpecChanges, ESTIMATOR_GUIDE, ESTIMATOR_LIMITS, specFromJson, type EstimatorSpec, type SpecAudit } from "./estimator";
 import { checkSpec, ESTIMATOR_SELECT, estimatorSummary, loadPriceBook, snapshotEstimator, type EstimatorRow } from "./estimator-server";
+import { ESTIMATOR_PRINCIPLES, guessTrade, playbookByKey, playbookText, PLAYBOOK_INDEX } from "./estimator-playbook";
 
 /**
  * The Estimates page's builder (docs/plans/ai-estimators-2026-09-19.md,
- * Batch 5): one sentence from the owner → a saved estimate tool, with no
- * chat and no confirmation card. Runs as a small loop the page watches live:
- *   book  → read the price book (and the current tool, for a change)
- *   draft → one metered model call returns {name, description, spec, sampleInputs}
- *           (or {question} when a price only the owner knows is missing)
+ * Batch 6): one sentence from the owner → a saved estimate tool, with the
+ * work shown as it happens. Two model calls, both on the assistant's model:
+ *
+ *   plan  → a quick, cheap pass: what trade is this, what drives the price,
+ *           which questions and packages a pro would use. Streams back at once
+ *           so the page has real content within seconds.
+ *   draft → the big one: a LARGE thinking budget, the trade's playbook and
+ *           the plan in hand, returns {name, description, spec} with samples.
  *   check → compileSpec + price-book names, exactly like a save
- *   fix   → the compile errors go back to the model (at most 2 rounds)
- *   test  → run the model's own sample job through the free engine
+ *   test  → auditSpec: descriptions on every line, sensible controls, the
+ *           model's own small/typical/large samples run green and in order
+ *   fix   → compile/audit errors go back to the model (at most 2 rounds)
  *   save  → create, or snapshot + update; the tool is live
+ *
  * Everything the model returns passes through the same gates a manual save
- * does — the model never writes to the database, this file does.
+ * does — the model never writes to the database, this file does. Missing
+ * rates never stall the build: the model uses a placeholder and lists it,
+ * and the tool card nags until the owner sets it.
  */
 
-export type BuildPhase = "book" | "draft" | "check" | "fix" | "test" | "save";
+export type BuildPhase = "plan" | "draft" | "check" | "fix" | "test" | "save";
+
+export type BuildPlan = {
+  trade: string;
+  drivers: string[];
+  questions: { label: string; control: string }[];
+  packages: string[] | null;
+  note: string;
+};
+
+export type BuildDraft = {
+  name: string;
+  description: string;
+  inputs: { label: string; type: string; section?: string }[];
+  lines: { name: string; group?: string }[];
+  packages: string[] | null;
+};
+
+export type BuildSample = { label: string; subtotal: number | null; lines: number; error?: string };
 
 export type BuildEvent =
   | { phase: BuildPhase; message: string }
+  | { plan: BuildPlan }
+  | { draft: BuildDraft }
+  | { samples: BuildSample[] }
   | { ask: string; tokens: number }
-  | { done: true; tool: Record<string, unknown>; changes: string[]; sample: { subtotal: number; lines: number } | null; tokens: number }
+  | { done: true; tool: Record<string, unknown>; changes: string[]; samples: BuildSample[]; placeholders: string[]; warnings: string[]; tokens: number }
   | { error: string; tokens: number; atlasLocked?: boolean };
 
+/** Spec attempts per build: the first draft plus two fix rounds. */
 const MAX_ROUNDS = 3;
+/** Thinking budgets (tokens on 2.5 models, mapped to a level on 3.x). Building is a one-time spend — let it think. */
+const THINK_PLAN = 1024;
+const THINK_DRAFT = 8192;
+const THINK_FIX = 4096;
+const THINK_CHANGE = 6144;
 
-type Draft = { name?: unknown; description?: unknown; spec?: unknown; sampleInputs?: unknown; question?: unknown };
+type PlanReply = { tradeKey?: unknown; trade?: unknown; drivers?: unknown; questions?: unknown; packages?: unknown; ask?: unknown; note?: unknown };
+type Draft = { name?: unknown; description?: unknown; spec?: unknown; question?: unknown };
 
-function systemPrompt(book: { name: string; unitPrice: number; unitCost: number | null }[], current: { name: string; description: string | null; spec: EstimatorSpec } | null, assistantName: string): string {
+const strs = (v: unknown, max: number, len = 120): string[] => (Array.isArray(v) ? v.map((x) => (typeof x === "string" ? x.trim().slice(0, len) : "")).filter(Boolean).slice(0, max) : []);
+
+function planSystem(assistantName: string): string {
+  return `You are ${assistantName}, a veteran estimator inside Workbench, a field-service app. An owner describes how they price a kind of job. Before any tool is built, PLAN it the way a pro would. Answer with ONLY a JSON object:
+{"tradeKey": "one key from the list below, or null", "trade": "human name of the trade / job", "drivers": ["what moves the price, most important first — 3 to 6"], "questions": [{"label": "the question as a homeowner would read it", "control": "slider | stepper | field | map | cards | packages | multi | toggle"}], "packages": ["Good tier name", "Better", "Best"] or null, "note": "one sentence on the pricing shape (per sq ft with tiers, flat menu, hourly…)", "ask": null}
+Set "ask" to ONE short question ONLY when you genuinely cannot tell what job the tool is for. A missing rate is never a reason to ask — the build uses a placeholder and tells the owner.
+
+${ESTIMATOR_PRINCIPLES}
+
+Trades you know (tradeKey — name):
+${PLAYBOOK_INDEX}`;
+}
+
+function draftSystem(
+  book: { name: string; unitPrice: number; unitCost: number | null }[],
+  current: { name: string; description: string | null; spec: EstimatorSpec } | null,
+  playbook: string | null,
+  assistantName: string
+): string {
   const bookText = book.length
     ? book.map((b) => `- ${b.name} — $${b.unitPrice.toFixed(2)}${b.unitCost !== null ? ` (cost $${b.unitCost.toFixed(2)})` : ""}`).join("\n")
-    : "(empty — use the rates the owner gives; never invent prices)";
-  return `You are ${assistantName}, building an ESTIMATE TOOL for a field-service business inside Workbench. The owner describes how they price a kind of job in plain words. Answer with ONLY a JSON object, no prose:
-{"name": "short tool name", "description": "one line (≤ 160 chars) on when to use it", "spec": { ...the spec... }, "sampleInputs": {inputId: value, ...}}
-When a price or rule only the owner knows is missing and they gave no placeholder permission, answer instead with {"question": "ONE message asking for everything you need at once"}. Never invent a business's prices.
-${current ? `\nThis is a CHANGE to an existing tool. Current tool (JSON):\n${JSON.stringify({ name: current.name, description: current.description, spec: current.spec })}\nApply the owner's change and return the FULL updated tool. Keep ids of unchanged inputs/lines/variables so their history reads cleanly; keep the name unless they ask to rename.\n` : ""}
+    : "(empty — use the rates the owner gives, else clearly-listed placeholders)";
+  return `You are ${assistantName}, building an ESTIMATE TOOL for a field-service business inside Workbench. The owner describes how they price a kind of job in plain words; you return a tool a homeowner can answer in a minute and a pro would trust. Answer with ONLY a JSON object, no prose:
+{"name": "short tool name", "description": "one line (≤ 160 chars) on when to use it", "spec": { ...the spec... }}
+${current ? `\nThis is a CHANGE to an existing tool. Current tool (JSON):\n${JSON.stringify({ name: current.name, description: current.description, spec: current.spec })}\nApply the owner's change and return the FULL updated tool. Keep ids of unchanged inputs/lines/variables so their history reads cleanly; keep the name unless they ask to rename; keep samples valid (update them if a question changed); drop a placeholder from "placeholders" once the owner has given that rate.\n` : ""}
+${ESTIMATOR_PRINCIPLES}
+
 Design rules for a GOOD tool:
-- Ask only what changes the price. Use type "map" (measure "length" for fences/gutters in ft, "area" for lawns/roofs/driveways/patios in sq ft) whenever a size is the main driver — customers draw it instead of guessing.
-- More than 5 questions → group them with "section" (2–4 sections). Use "showWhen" so follow-ups only appear when relevant. Use "multi" for pick-several add-ons.
-- Write plain-English labels a homeowner understands; put jargon in "help".
-- "sampleInputs" must be a realistic job that exercises the main lines (every required input filled).
+- Follow the plan you are given, then make it real: every question in the plan becomes an input with the right control; the packages become a "packages" select whose tiers the lines switch on.
+- Use type "map" (measure "length" for fences/gutters in ft, "area" for lawns/roofs/driveways/patios in sq ft) whenever a size is the main driver — customers draw it instead of guessing. Pair it with number presets only when a map makes no sense.
+- More than 5 questions → group them with "section" (2–4 sections, in the order a pro asks). Use "showWhen" so follow-ups only appear when relevant. Use "multi" for pick-several add-ons.
+- Write plain-English labels a homeowner understands; put jargon in "help". Blurbs on cards and tiers sell the option in a few words.
+- Every line: a description that explains the number ({qty} at {rate|money}), and a "group".
 - Leave "assist" null unless judgment from a written description is genuinely needed.
 - Price-book items the owner names: link lines with workItemName (exact name) so cost and price stay in sync.
-
+- Rates the owner never gave: use a sensible placeholder and list it in "placeholders". Never stop to ask for a rate.
+- "samples": small / typical / large, every required question answered with realistic values (a map input is a number of ft or sq ft).
+${playbook ? `\n${playbook}\n` : ""}
 ${ESTIMATOR_GUIDE}
 
 Price book (exact names):
@@ -59,6 +117,38 @@ function summaryOf(row: EstimatorRow | null) {
   return spec ? { ...estimatorSummary(row, spec), spec, updatedAt: row.updatedAt.toISOString() } : null;
 }
 
+function draftPreview(draft: Draft, spec: EstimatorSpec): BuildDraft {
+  const packages = spec.inputs.find((i) => i.type === "select" && i.style === "packages");
+  return {
+    name: typeof draft.name === "string" ? draft.name.trim().slice(0, 80) : "Estimate tool",
+    description: typeof draft.description === "string" ? draft.description.trim().slice(0, 200) : "",
+    inputs: spec.inputs.map((i) => ({ label: i.label, type: i.type === "number" ? i.control ?? "field" : i.type === "select" ? i.style ?? "list" : i.type, ...(i.section ? { section: i.section } : {}) })),
+    lines: spec.lines.map((l) => ({ name: l.name, ...(l.group ? { group: l.group } : {}) })),
+    packages: packages && packages.type === "select" ? packages.options.map((o) => o.label) : null,
+  };
+}
+
+/** A loose preview of a spec that did NOT compile yet — enough for the page to show something taking shape. */
+function roughPreview(draft: Draft): BuildDraft | null {
+  const spec = draft.spec && typeof draft.spec === "object" ? (draft.spec as Record<string, unknown>) : null;
+  if (!spec) return null;
+  const inputs = (Array.isArray(spec.inputs) ? spec.inputs : []).map((i) => {
+    const o = (i ?? {}) as Record<string, unknown>;
+    return { label: typeof o.label === "string" ? o.label.slice(0, 80) : "Question", type: typeof o.type === "string" ? o.type : "field", ...(typeof o.section === "string" ? { section: o.section.slice(0, 60) } : {}) };
+  });
+  const lines = (Array.isArray(spec.lines) ? spec.lines : []).map((l) => {
+    const o = (l ?? {}) as Record<string, unknown>;
+    return { name: typeof o.name === "string" ? o.name.slice(0, 160) : "Line", ...(typeof o.group === "string" ? { group: o.group.slice(0, 40) } : {}) };
+  });
+  return {
+    name: typeof draft.name === "string" ? draft.name.trim().slice(0, 80) : "Estimate tool",
+    description: typeof draft.description === "string" ? draft.description.trim().slice(0, 200) : "",
+    inputs: inputs.slice(0, ESTIMATOR_LIMITS.inputs),
+    lines: lines.slice(0, ESTIMATOR_LIMITS.lines),
+    packages: null,
+  };
+}
+
 export async function* buildEstimator(actor: Actor, opts: { prompt: string; estimatorId?: string; assistantName: string }): AsyncGenerator<BuildEvent> {
   let tokens = 0;
   const prompt = opts.prompt.trim().slice(0, 4000);
@@ -67,7 +157,7 @@ export async function* buildEstimator(actor: Actor, opts: { prompt: string; esti
     return;
   }
 
-  yield { phase: "book", message: opts.estimatorId ? "Reading the tool and your price book…" : "Reading your price book…" };
+  yield { phase: "plan", message: opts.estimatorId ? "Reading the tool and your price book…" : "Reading your price book…" };
   const [book, currentRow] = await Promise.all([
     loadPriceBook(actor.companyId),
     opts.estimatorId ? prisma.estimator.findFirst({ where: { id: opts.estimatorId, companyId: actor.companyId }, select: ESTIMATOR_SELECT }) : Promise.resolve(null),
@@ -89,15 +179,61 @@ export async function* buildEstimator(actor: Actor, opts: { prompt: string; esti
     }
   }
 
-  const system = systemPrompt(book, currentRow && currentSpec ? { name: currentRow.name, description: currentRow.description, spec: currentSpec } : null, opts.assistantName);
-  let userPrompt = currentRow ? `The owner's change request:\n${prompt}` : `The owner's description:\n${prompt}`;
+  // ── plan (new tools only — a change already has its shape) ────────────────
+  let plan: BuildPlan | null = null;
+  let planKey: string | null = null;
+  if (!currentRow) {
+    yield { phase: "plan", message: "Working out what drives the price…" };
+    const res = await meteredOneShot(actor, { kind: "estimator-plan", system: planSystem(opts.assistantName), prompt: `The owner's description:\n${prompt}`, maxOutputTokens: 1500, temperature: 0.2, thinkingBudget: THINK_PLAN });
+    if (!res.ok) {
+      yield { error: res.error, tokens, atlasLocked: res.atlasLocked };
+      return;
+    }
+    tokens += res.atlasTokens;
+    const reply = oneShotJson<PlanReply>(res.text);
+    if (reply) {
+      if (typeof reply.ask === "string" && reply.ask.trim()) {
+        yield { ask: reply.ask.trim().slice(0, 500), tokens };
+        return;
+      }
+      const questions = (Array.isArray(reply.questions) ? reply.questions : [])
+        .map((q) => {
+          const o = (q ?? {}) as Record<string, unknown>;
+          return { label: typeof o.label === "string" ? o.label.trim().slice(0, 80) : "", control: typeof o.control === "string" ? o.control.trim().slice(0, 12) : "field" };
+        })
+        .filter((q) => q.label)
+        .slice(0, 16);
+      planKey = typeof reply.tradeKey === "string" ? reply.tradeKey : null;
+      plan = {
+        trade: typeof reply.trade === "string" && reply.trade.trim() ? reply.trade.trim().slice(0, 60) : playbookByKey(planKey)?.name ?? guessTrade(prompt)?.name ?? "Custom pricing",
+        drivers: strs(reply.drivers, 6, 80),
+        questions,
+        packages: Array.isArray(reply.packages) && reply.packages.length > 0 ? strs(reply.packages, 4, 40) : null,
+        note: typeof reply.note === "string" ? reply.note.trim().slice(0, 160) : "",
+      };
+      yield { plan };
+    }
+  }
+
+  const trade = playbookByKey(planKey) ?? guessTrade(prompt) ?? (currentSpec ? guessTrade(`${currentRow!.name} ${currentRow!.description ?? ""}`) : null);
+  const system = draftSystem(book, currentRow && currentSpec ? { name: currentRow.name, description: currentRow.description, spec: currentSpec } : null, trade ? playbookText(trade) : null, opts.assistantName);
+  let userPrompt = currentRow ? `The owner's change request:\n${prompt}` : `The owner's description:\n${prompt}${plan ? `\n\nThe plan (follow it, then make it real):\n${JSON.stringify(plan)}` : ""}`;
+
   let draft: Draft | null = null;
   let compiled: Awaited<ReturnType<typeof checkSpec>> | null = null;
-  let sample: { subtotal: number; lines: number } | null = null;
+  let audit: SpecAudit | null = null;
 
   for (let round = 1; round <= MAX_ROUNDS; round++) {
-    yield { phase: round === 1 ? "draft" : "fix", message: round === 1 ? (currentRow ? "Working out the change…" : "Drafting the questions and pricing rules…") : `Fixing what didn't add up (round ${round})…` };
-    const res = await meteredOneShot(actor, { kind: "estimator-build", system, prompt: userPrompt, maxOutputTokens: 6000, temperature: 0.2 });
+    yield { phase: round === 1 ? "draft" : "fix", message: round === 1 ? (currentRow ? "Working out the change…" : "Writing the questions and pricing rules…") : `Fixing what didn't add up (round ${round})…` };
+    const res = await meteredOneShot(actor, {
+      kind: "estimator-build",
+      system,
+      prompt: userPrompt,
+      maxOutputTokens: 16000,
+      temperature: 0.2,
+      thinkingBudget: round === 1 ? (currentRow ? THINK_CHANGE : THINK_DRAFT) : THINK_FIX,
+      timeoutMs: 170_000,
+    });
     if (!res.ok) {
       yield { error: res.error, tokens, atlasLocked: res.atlasLocked };
       return;
@@ -116,24 +252,24 @@ export async function* buildEstimator(actor: Actor, opts: { prompt: string; esti
     yield { phase: "check", message: "Checking the rules…" };
     const check = await checkSpec(actor.companyId, draft.spec);
     if (!check.ok) {
+      const rough = roughPreview(draft);
+      if (rough && round === 1) yield { draft: rough };
       userPrompt = `${userPrompt}\n\nYour previous spec was:\n${JSON.stringify(draft.spec)}\nIt failed these checks:\n- ${check.errors.join("\n- ")}\nReturn the corrected FULL JSON object.`;
       draft = null;
       continue;
     }
-    compiled = check;
+    yield { draft: draftPreview(draft, check.compiled.spec) };
 
-    yield { phase: "test", message: "Testing with a sample job…" };
-    const inputs = draft.sampleInputs && typeof draft.sampleInputs === "object" && !Array.isArray(draft.sampleInputs) ? (draft.sampleInputs as Record<string, unknown>) : null;
-    if (inputs) {
-      const run = runCompiled(check.compiled, inputs, check.book);
-      if (run.ok) sample = { subtotal: run.subtotal, lines: run.lines.length };
-      else if (round < MAX_ROUNDS) {
-        userPrompt = `${userPrompt}\n\nYour spec compiled but running your own sampleInputs ${JSON.stringify(inputs)} failed:\n- ${run.errors.join("\n- ")}\nFix the spec (or the sample) and return the corrected FULL JSON object:\n${JSON.stringify({ name: draft.name, description: draft.description, spec: check.compiled.spec, sampleInputs: inputs })}`;
-        compiled = null;
-        draft = null;
-        continue;
-      }
+    yield { phase: "test", message: "Pricing a small, a typical and a large job…" };
+    audit = auditSpec(check.compiled, check.book);
+    yield { samples: audit.samples };
+    if (audit.errors.length > 0 && round < MAX_ROUNDS) {
+      userPrompt = `${userPrompt}\n\nYour spec compiled and ran, but a pro would send it back:\n- ${audit.errors.join("\n- ")}\nFix the spec (or the samples) and return the corrected FULL JSON object:\n${JSON.stringify({ name: draft.name, description: draft.description, spec: check.compiled.spec })}`;
+      draft = null;
+      compiled = null;
+      continue;
     }
+    compiled = check;
     break;
   }
 
@@ -141,9 +277,13 @@ export async function* buildEstimator(actor: Actor, opts: { prompt: string; esti
     yield { error: `${opts.assistantName} couldn't get the rules to add up after ${MAX_ROUNDS} tries. Try describing the pricing in a bit more detail (rates, units, extras).`, tokens };
     return;
   }
+  // The last round may still carry audit errors (we ran out of fixes) — the tool saves, the owner sees them as warnings.
+  const warnings = audit ? [...audit.errors, ...audit.warnings] : [];
+  const samples = audit?.samples ?? [];
 
   yield { phase: "save", message: "Saving…" };
   const spec = compiled.compiled.spec;
+  const placeholders = spec.placeholders ?? [];
   const description = typeof draft.description === "string" ? draft.description.trim().slice(0, 200) || null : null;
 
   if (currentRow) {
@@ -160,7 +300,7 @@ export async function* buildEstimator(actor: Actor, opts: { prompt: string; esti
       data: { spec, name: newName, ...(description ? { description } : {}) },
       select: ESTIMATOR_SELECT,
     });
-    yield { done: true, tool: summaryOf(updated)!, changes, sample, tokens };
+    yield { done: true, tool: summaryOf(updated)!, changes, samples, placeholders, warnings, tokens };
     return;
   }
 
@@ -172,5 +312,5 @@ export async function* buildEstimator(actor: Actor, opts: { prompt: string; esti
   }
   const created = await prisma.estimator.create({ data: { companyId: actor.companyId, name, description, spec }, select: ESTIMATOR_SELECT });
   await snapshotEstimator(created, "Created with Atlas", { id: actor.id, name: actor.name });
-  yield { done: true, tool: summaryOf(created)!, changes: [], sample, tokens };
+  yield { done: true, tool: summaryOf(created)!, changes: [], samples, placeholders, warnings, tokens };
 }

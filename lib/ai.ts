@@ -222,6 +222,8 @@ export type AIChatOptions = {
   /** Per-call token accounting for callers that meter a whole turn (the
    *  assistant's plan meter) — fired alongside the platform-wide record. */
   onUsage?: (u: { tokensIn: number; tokensOut: number; tokensCached: number }) => void;
+  /** Request deadline (default 60 s). Long-thinking one-shots pass more. */
+  timeoutMs?: number;
 };
 
 /**
@@ -243,10 +245,12 @@ export async function aiChat(opts: AIChatOptions): Promise<AIPart[] | null> {
     generationConfig: {
       temperature: opts.temperature ?? 0.3,
       maxOutputTokens: opts.maxOutputTokens ?? 1024,
-      // thinkingConfig is only valid on 2.5-generation models
+      // thinkingConfig: 2.5 models take a token budget; 3.x models take a level
       ...(opts.thinkingBudget !== undefined && /^gemini-2\.5/.test(model)
         ? { thinkingConfig: { thinkingBudget: opts.thinkingBudget } }
-        : {}),
+        : opts.thinkingBudget !== undefined && /^gemini-3/.test(model)
+          ? { thinkingConfig: { thinkingLevel: opts.thinkingBudget <= 0 ? "minimal" : opts.thinkingBudget < 2048 ? "low" : opts.thinkingBudget < 8192 ? "medium" : "high" } }
+          : {}),
     },
   };
 
@@ -259,7 +263,7 @@ export async function aiChat(opts: AIChatOptions): Promise<AIPart[] | null> {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
-        signal: AbortSignal.timeout(60_000),
+        signal: AbortSignal.timeout(opts.timeoutMs ?? 60_000),
       });
       if (res.status === 503 && attempt === 0) {
         console.error("aiChat: Gemini 503 — quick retry");

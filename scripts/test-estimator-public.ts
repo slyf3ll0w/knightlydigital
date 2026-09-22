@@ -15,6 +15,7 @@ import {
   describePublicConfig,
   defaultButtonLabel,
   defaultSuccessMessage,
+  shapeVariants,
 } from "../lib/estimator-public";
 
 // 1. defaults + sanitize
@@ -150,3 +151,19 @@ import {
 console.log("ok 6: photoAssist");
 
 console.log("test-estimator-public: all green");
+
+// 8. package tiers shaped for the visitor (Batch 6)
+{
+  const raw = { basic: 250, plus: 345, premium: null };
+  const exact = shapeVariants(raw, { showPrice: "exact", rangePct: 15 });
+  assert.equal(exact.basic?.label, "$250");
+  assert.equal(exact.premium, null, "a tier that can't price yet stays null");
+  const range = shapeVariants(raw, { showPrice: "range", rangePct: 20 }, 240);
+  assert.equal(range.basic?.label, "$240 – $300", "low never drops under the minimum");
+  assert.ok(/^\$[\d,]+ – \$[\d,]+$/.test(range.plus?.label ?? ""), range.plus?.label);
+  const hidden = shapeVariants(raw, { showPrice: "hidden", rangePct: 15 });
+  assert.equal(hidden.basic, null);
+  const grouped = shapeEstimate({ lines: [{ name: "A", description: "", quantity: 1, unitPrice: 10, isOptional: false, group: "Labor" }], subtotal: 10 }, { showPrice: "exact", rangePct: 15 });
+  assert.ok(grouped.mode === "exact" && grouped.lines[0].group === "Labor", "groups reach the visitor's breakdown");
+}
+console.log("ok 8: shapeVariants + groups");

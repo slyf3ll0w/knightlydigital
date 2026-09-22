@@ -535,6 +535,113 @@ to draft a spec in chat for a new tool. `update` still stages a card
 6. + menu → Estimate → the runner picker opens immediately.
 7. Settings has no Estimate tools entry; /app/settings/estimators redirects.
 
+## Batch 6 — the marquee pass (BUILT 2026-09-21)
+
+David (2026-09-21): "the estimator is cheeks. the animation to build it looks
+wack and does not match the software, the estimate tools its outputs are so
+bad and low quality no one would ever use them" → "i want to make this a
+marquee feature. the final product needs to be Jobber-quality." Two
+constraints: keep the SAME Gemini model (raise its thinking budget), and no
+Oxanium — current Workbench styling only.
+
+### Why the tools were shallow (the diagnosis)
+- The build ran gemini-2.5-flash with a 256-token thinking budget, one shot,
+  from a spec reference with a single pressure-washing example. No trade
+  knowledge, no plan, and "does it compile + run once" as the only gate.
+- A missing rate stopped the build with a question instead of a placeholder.
+- The runner and website form rendered a plain form (number boxes, native
+  select, a "qty × price" list). No presets, sliders, tap cards, packages,
+  big number or grouped breakdown — nothing a homeowner or a Jobber user
+  would recognise as a product.
+- The build animation was a generic green orb + fake five-step spinner.
+
+### Build quality — `lib/estimator-build.ts` + `lib/estimator-playbook.ts`
+- Two calls on the assistant's model. **plan** (thinking 1024): trade key,
+  price drivers, planned questions + controls, packages, one `ask` only when
+  the job itself is unknowable. Streams `{plan}` within seconds. **draft**
+  (thinking 8192, 16k output, 170 s deadline): the trade's playbook entry
+  (`PLAYBOOK`: 20 trades — drivers, questions, line structure, packages,
+  gotchas) + `ESTIMATOR_PRINCIPLES` + the plan → `{name, description, spec}`.
+  Changes skip the plan (thinking 6144). Fix rounds use 4096.
+- `meteredOneShot` gained `thinkingBudget` + `timeoutMs`; `aiChat` maps a
+  budget to `thinkingLevel` on gemini-3 models and takes `timeoutMs`.
+- Gates: `checkSpec` (compile + price book) → **`auditSpec`** (pure, in
+  `lib/estimator.ts`): every line needs a description, no $0 rates, ≥2
+  samples that run green with subtotal > 0, small ≤ typical ≤ large;
+  warnings for missing units/minimum/sections. Errors go back to the model
+  (≤ 2 fix rounds); leftovers surface as warnings on the finished card.
+- Missing rates never stall: the spec carries `placeholders: string[]`; the
+  tool card shows an amber "N placeholder rates to set" chip → the editor's
+  Pricing tab lists them with a Set button per line.
+- Events: `{phase}` `{plan}` `{draft}` `{samples}` `{done: tool, changes,
+  samples, placeholders, warnings, tokens}` — every row on screen is real.
+
+### Spec v1 additions (`lib/estimator.ts`, backwards compatible)
+- number: `control` field | slider (needs max) | stepper; `presets`
+  [{label, value}] ≤ 8.
+- select: `style` list | cards | packages; options gain `blurb`, `includes`
+  (≤ 8), `recommended` (one per picker). Packages need 2–4 tiers, each with
+  includes.
+- line: `group` (breakdown heading). Result lines carry it.
+- spec: `placeholders`, `samples` [{label, inputs}] ≤ 3 (unknown ids
+  dropped).
+- `parseVariants` + `runVariants`: price one choice's every option with the
+  same other answers → package tier prices. Wired into
+  `/run?dry=1`, `/preview` and public `/calc` (`variants` body; public
+  answers are shaped by showPrice via `shapeVariants`, never on hidden
+  forms). `inputsComplete(spec, values, ignore)` lets the live total run
+  before the tier is picked.
+- `/preview` without inputs now returns `audit` — the editor's Check shows
+  "Adds up — a pro would still tweak" tips.
+- Guide (`ESTIMATOR_GUIDE`) and the Atlas `manage_estimator` schema know the
+  new fields (types enum finally lists multi + map).
+
+### Rendering — `components/EstimatorControls.tsx` (shared)
+One themed control set for the in-app runner (`APP_THEME`: brand accent via
+CSS vars) and the website form (`publicTheme(dark, accent)`): presets chips
++ slider / −/+ stepper / field, tap cards, package tier cards with live
+prices + includes + "Most popular", multi chips or cards, switch rows, a
+numbered `StepRail`, `PriceHero` (count-up via `useCountUp`), grouped
+`Breakdown` with per-group subtotals, `pickedIncludes`. Inter + tabular
+numerals; no Oxanium anywhere.
+- Runner: numbered sections, docked "Estimate so far" total + "See the
+  breakdown", result = hero price → "<tier> includes" → breakdown → Create
+  quote. Managers get "Fill with a sample" chips (`showSamples`).
+- Website form: step rail with section titles, same controls, tier prices
+  fetched with `variants` once the other answers are in, hero + includes +
+  breakdown on the estimate screen and the thank-you screen.
+
+### The build animation — `BuildPanel.tsx`
+No orb. A step rail (Sizing up → Questions & pricing → Checking → Pricing
+sample jobs → Saving) with the live message in the app's `atlas-shimmer`,
+and beneath it **the tool taking shape**: trade pill + note, "what drives
+the price" chips (plan), planned questions as shimmer rows → real questions
+with control pills grouped by section (draft), packages, pricing-line chips,
+three sample tiles that count up when the audit prices them, then a Ready
+pill with Try it / Put it on your website / Edit by hand, the placeholder
+list and what changed. Rows enter with `.msg-enter`.
+
+### Batch 6 Test (owed)
+1. Estimates → paste the house-cleaning example → Build it → within ~5 s the
+   trade pill + drivers + planned questions appear; ~30–60 s later the real
+   questions, packages, lines and three sample prices count up → Ready.
+2. Try it → package tiers show three live prices before you pick; the docked
+   total counts up; See the breakdown → hero price, "<tier> includes",
+   grouped breakdown → Create quote lands the lines.
+3. Build "Roof replacement: draw the roof area; I don't know my rates yet"
+   → the tool still builds; the card shows "N placeholder rates to set" →
+   Edit → Pricing lists them; set a rate → Set → save → chip gone.
+4. Website → Preview: step rail with titles, slider with presets, tier cards
+   priced (range mode shows "$800 – $950" per tier), hero + breakdown after
+   See my estimate. Embed still auto-sizes.
+5. Ask Atlas on a tool: "make the middle package the recommended one and add
+   a $99 travel fee" → change lands with the sample tiles re-priced; History
+   shows the change.
+6. Edit → Check on a tool with a line missing its description → "a pro would
+   still tweak" tips.
+7. Atlas chat: "build me a gutter cleaning estimator" → hand-off to the page
+   as before; the built tool now has packages/presets.
+
 ## Later
 - Lazy tool loading (docs/plans/cost-controls.md) — `manage_estimator`'s
   spec schema is the largest declaration in the registry now.

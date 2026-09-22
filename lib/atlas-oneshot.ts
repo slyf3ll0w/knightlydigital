@@ -56,6 +56,14 @@ export async function meteredOneShot(
     prompt: string;
     maxOutputTokens?: number;
     temperature?: number;
+    /**
+     * How much the model may think before answering (tokens on 2.5, a level
+     * on 3.x). Default 256 keeps fill-ins snappy; the tool BUILDER passes a
+     * large budget — it's a one-time spend that decides how good the tool is.
+     */
+    thinkingBudget?: number;
+    /** Request deadline — a big-thinking build may need more than the 60 s default. */
+    timeoutMs?: number;
     /** Optional photo alongside the prompt (base64, no data: prefix). */
     image?: { base64: string; mime: string };
   }
@@ -101,7 +109,8 @@ export async function meteredOneShot(
     model,
     temperature: opts.temperature ?? 0.2,
     maxOutputTokens: opts.maxOutputTokens ?? 1024,
-    thinkingBudget: 256,
+    thinkingBudget: opts.thinkingBudget ?? 256,
+    ...(opts.timeoutMs ? { timeoutMs: opts.timeoutMs } : {}),
     companyId: actor.companyId,
     onUsage,
   });
@@ -113,6 +122,8 @@ export async function meteredOneShot(
       model,
       temperature: opts.temperature ?? 0.2,
       maxOutputTokens: opts.maxOutputTokens ?? 1024,
+      ...(opts.thinkingBudget !== undefined ? { thinkingBudget: opts.thinkingBudget } : {}),
+      ...(opts.timeoutMs ? { timeoutMs: opts.timeoutMs } : {}),
       companyId: actor.companyId,
       onUsage,
     });
