@@ -57,6 +57,7 @@ export default async function EstimateView({
       showHeader={embed}
       preview={previewing}
       photoAssist={config.photoAssist && Boolean(spec.assist)}
+      mapCenter={typeof company.lat === "number" && typeof company.lng === "number" ? [company.lat, company.lng] : null}
     />
   );
 

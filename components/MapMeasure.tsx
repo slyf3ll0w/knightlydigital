@@ -2,16 +2,28 @@
 
 import { useEffect, useRef, useState } from "react";
 import type * as Leaflet from "leaflet";
-import { Crosshair, Layers, Loader2, RotateCcw, Search, Undo2 } from "lucide-react";
+import { Check, Crosshair, Layers, Loader2, RotateCcw, Search, Undo2 } from "lucide-react";
 import "leaflet/dist/leaflet.css";
 
 /**
  * Draw-to-measure for estimate tools' `map` questions: the customer (or the
  * tech standing in the yard) taps corners on a satellite map and the tool
  * gets a number — feet along a fence line, or square feet of a lawn / roof /
- * driveway. Pure client: Leaflet + OSM streets + Esri imagery, no API key.
- * Address search goes through /api/public/geocode (Mapbox, env-gated); when
- * that's unavailable the search box says so and the map still pans.
+ * driveway.
+ *
+ * How it behaves (the part that has to feel right):
+ *   - tap to drop a corner; on desktop a dashed line follows the cursor
+ *   - every corner is a handle you can DRAG; the faint dot on each edge
+ *     drags out a new corner between two
+ *   - each edge shows its length in feet; the total sits under the map
+ *   - an area CLOSES when you tap the first corner again (or "Close shape");
+ *     until then the closing edge is dashed
+ *   - Undo removes the last corner (and reopens a closed shape); Clear
+ *     starts over
+ *   - opens on the business's location when the page knows it, else where
+ *     the map was last, else "My location" / address search
+ * Pure client: Leaflet + OSM streets + Esri imagery, no API key. Address
+ * search goes through /api/public/geocode (Mapbox, env-gated).
  */
 
 export type LatLngTuple = [number, number];
@@ -20,6 +32,7 @@ const R = 6371008.8;
 const toRad = (d: number) => (d * Math.PI) / 180;
 const M_TO_FT = 3.28084;
 const M2_TO_FT2 = 10.7639;
+const LAST_VIEW_KEY = "wb.map.lastView";
 
 function distM(a: LatLngTuple, b: LatLngTuple): number {
   const dLat = toRad(b[0] - a[0]);
@@ -55,6 +68,7 @@ export function measureFeet(measure: "length" | "area", pts: LatLngTuple[]): num
 }
 
 const fmt = (n: number) => n.toLocaleString("en-US");
+const mid = (a: LatLngTuple, b: LatLngTuple): LatLngTuple => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
 
 export default function MapMeasure({
   measure,
@@ -62,28 +76,41 @@ export default function MapMeasure({
   onChange,
   accent = "#16a34a",
   dark = false,
+  initialCenter = null,
 }: {
   measure: "length" | "area";
   points: LatLngTuple[];
   onChange: (points: LatLngTuple[], value: number | null) => void;
   accent?: string;
   dark?: boolean;
+  /** Where to open when there's no shape yet (the business's location, say). */
+  initialCenter?: LatLngTuple | null;
 }) {
   const boxRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<Leaflet.Map | null>(null);
   const LRef = useRef<typeof Leaflet | null>(null);
-  const layerRef = useRef<Leaflet.LayerGroup | null>(null);
+  const shapeRef = useRef<Leaflet.LayerGroup | null>(null);
+  const handlesRef = useRef<Leaflet.LayerGroup | null>(null);
+  const previewRef = useRef<Leaflet.Polyline | null>(null);
   const tilesRef = useRef<{ streets: Leaflet.TileLayer; sat: Leaflet.TileLayer } | null>(null);
   const pointsRef = useRef(points);
   pointsRef.current = points;
+  const closedRef = useRef(false);
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
+  const measureRef = useRef(measure);
+  measureRef.current = measure;
   const [ready, setReady] = useState(false);
   const [satellite, setSatellite] = useState(true);
   const [q, setQ] = useState("");
   const [busy, setBusy] = useState<"search" | "locate" | null>(null);
   const [note, setNote] = useState("");
+  const [closed, setClosed] = useState(false);
+  closedRef.current = closed;
 
+  const commit = (next: LatLngTuple[]) => onChangeRef.current(next, measureFeet(measureRef.current, next));
+
+  // ── the map, once ──
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -91,18 +118,57 @@ export default function MapMeasure({
       const L = ((mod as unknown as { default?: typeof Leaflet }).default ?? mod) as typeof Leaflet;
       if (cancelled || !boxRef.current || mapRef.current) return;
       LRef.current = L;
-      const map = L.map(boxRef.current, { doubleClickZoom: false, zoomControl: true, attributionControl: true });
-      const streets = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "© OpenStreetMap" });
-      const sat = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19, attribution: "Imagery © Esri" });
+      const map = L.map(boxRef.current, { doubleClickZoom: false, zoomControl: true, attributionControl: true, tap: true } as Leaflet.MapOptions);
+      const streets = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 20, maxNativeZoom: 19, attribution: "© OpenStreetMap" });
+      const sat = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 21, maxNativeZoom: 19, attribution: "Imagery © Esri" });
       tilesRef.current = { streets, sat };
       sat.addTo(map);
-      layerRef.current = L.layerGroup().addTo(map);
+      shapeRef.current = L.layerGroup().addTo(map);
+      handlesRef.current = L.layerGroup().addTo(map);
+
+      // where to open
       const initial = pointsRef.current;
-      if (initial.length > 0) map.fitBounds(L.latLngBounds(initial), { padding: [28, 28], maxZoom: 19 });
-      else map.setView([39.5, -98.35], 4);
+      if (initial.length > 0) map.fitBounds(L.latLngBounds(initial), { padding: [40, 40], maxZoom: 19 });
+      else if (initialCenter) map.setView(initialCenter, 18);
+      else {
+        let last: { c: LatLngTuple; z: number } | null = null;
+        try {
+          last = JSON.parse(localStorage.getItem(LAST_VIEW_KEY) ?? "null");
+        } catch {
+          /* ignore */
+        }
+        if (last && Array.isArray(last.c)) map.setView(last.c, Math.min(19, last.z ?? 17));
+        else map.setView([39.5, -98.35], 4);
+      }
+      map.on("moveend", () => {
+        try {
+          const c = map.getCenter();
+          localStorage.setItem(LAST_VIEW_KEY, JSON.stringify({ c: [c.lat, c.lng], z: map.getZoom() }));
+        } catch {
+          /* ignore */
+        }
+      });
+
+      // drop a corner
       map.on("click", (e: Leaflet.LeafletMouseEvent) => {
-        const next: LatLngTuple[] = [...pointsRef.current, [e.latlng.lat, e.latlng.lng]];
-        onChangeRef.current(next, measureFeet(measure, next));
+        if (measureRef.current === "area" && closedRef.current) return;
+        commit([...pointsRef.current, [e.latlng.lat, e.latlng.lng]]);
+      });
+      // desktop: a dashed line follows the cursor from the last corner
+      map.on("mousemove", (e: Leaflet.LeafletMouseEvent) => {
+        const pts = pointsRef.current;
+        if (pts.length === 0 || (measureRef.current === "area" && closedRef.current)) {
+          previewRef.current?.remove();
+          previewRef.current = null;
+          return;
+        }
+        const seg: LatLngTuple[] = [pts[pts.length - 1], [e.latlng.lat, e.latlng.lng]];
+        if (!previewRef.current) previewRef.current = L.polyline(seg, { color: accent, weight: 2, dashArray: "4 6", opacity: 0.7, interactive: false }).addTo(map);
+        else previewRef.current.setLatLngs(seg);
+      });
+      map.on("mouseout", () => {
+        previewRef.current?.remove();
+        previewRef.current = null;
       });
       mapRef.current = map;
       setReady(true);
@@ -116,18 +182,104 @@ export default function MapMeasure({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // redraw the shape
+  // a shape with fewer than 3 corners can't be closed
+  useEffect(() => {
+    if (points.length < 3 && closed) setClosed(false);
+  }, [points.length, closed]);
+
+  // ── redraw the shape + handles ──
   useEffect(() => {
     const L = LRef.current;
-    const g = layerRef.current;
-    if (!L || !g || !ready) return;
-    g.clearLayers();
+    const map = mapRef.current;
+    const shape = shapeRef.current;
+    const handles = handlesRef.current;
+    if (!L || !map || !shape || !handles || !ready) return;
+    shape.clearLayers();
+    handles.clearLayers();
+    const isArea = measure === "area";
+    const ring = isArea && (closed || points.length >= 3);
+
+    // lines / fill
+    let poly: Leaflet.Polyline | Leaflet.Polygon | null = null;
     if (points.length >= 2) {
-      if (measure === "length" || points.length < 3) L.polyline(points, { color: accent, weight: 3, dashArray: measure === "area" ? "6 6" : undefined }).addTo(g);
-      else L.polygon(points, { color: accent, weight: 2, fillColor: accent, fillOpacity: 0.28 }).addTo(g);
+      if (isArea && points.length >= 3) {
+        poly = L.polygon(points, { color: accent, weight: closed ? 3 : 2, fillColor: accent, fillOpacity: closed ? 0.3 : 0.18, dashArray: closed ? undefined : "6 6" }).addTo(shape);
+      } else {
+        poly = L.polyline(points, { color: accent, weight: 3 }).addTo(shape);
+      }
     }
-    points.forEach((p) => L.circleMarker(p, { radius: 6, color: "#fff", weight: 2, fillColor: accent, fillOpacity: 1 }).addTo(g));
-  }, [points, accent, measure, ready]);
+
+    // edge lengths
+    const edges: [LatLngTuple, LatLngTuple][] = [];
+    for (let i = 1; i < points.length; i++) edges.push([points[i - 1], points[i]]);
+    if (ring && closed && points.length >= 3) edges.push([points[points.length - 1], points[0]]);
+    for (const [a, b] of edges) {
+      const ft = Math.round(distM(a, b) * M_TO_FT);
+      if (ft < 1) continue;
+      L.tooltip({ permanent: true, direction: "center", className: "wb-map-label", interactive: false, opacity: 1 })
+        .setLatLng(mid(a, b))
+        .setContent(`${fmt(ft)} ft`)
+        .addTo(shape);
+    }
+
+    // corner handles (draggable)
+    const corner = (on: boolean) =>
+      L.divIcon({
+        className: "",
+        html: `<div style="width:18px;height:18px;border-radius:999px;background:${on ? accent : "#fff"};border:3px solid ${on ? "#fff" : accent};box-shadow:0 1px 3px rgba(0,0,0,.4)"></div>`,
+        iconSize: [18, 18],
+        iconAnchor: [9, 9],
+      });
+    points.forEach((p, i) => {
+      const first = i === 0;
+      const m = L.marker(p, { draggable: true, icon: corner(first && isArea && !closed && points.length >= 3), keyboard: false, autoPan: true, title: first && isArea && !closed && points.length >= 3 ? "Tap to close the shape" : "Drag to adjust" }).addTo(handles);
+      m.on("drag", (e) => {
+        const ll = (e.target as Leaflet.Marker).getLatLng();
+        const next = pointsRef.current.map((x, k) => (k === i ? ([ll.lat, ll.lng] as LatLngTuple) : x));
+        poly?.setLatLngs(next);
+      });
+      m.on("dragend", (e) => {
+        const ll = (e.target as Leaflet.Marker).getLatLng();
+        commit(pointsRef.current.map((x, k) => (k === i ? ([ll.lat, ll.lng] as LatLngTuple) : x)));
+      });
+      m.on("click", () => {
+        if (first && isArea && !closed && points.length >= 3) setClosed(true);
+      });
+    });
+
+    // midpoint handles: drag one out to add a corner between two
+    const midIcon = L.divIcon({
+      className: "",
+      html: `<div style="width:12px;height:12px;border-radius:999px;background:#fff;opacity:.85;border:2px solid ${accent};box-shadow:0 1px 2px rgba(0,0,0,.35)"></div>`,
+      iconSize: [12, 12],
+      iconAnchor: [6, 6],
+    });
+    const segCount = ring && closed ? points.length : points.length - 1;
+    for (let i = 0; i < segCount; i++) {
+      const a = points[i];
+      const b = points[(i + 1) % points.length];
+      const insertAt = i + 1;
+      const m = L.marker(mid(a, b), { draggable: true, icon: midIcon, keyboard: false, title: "Drag to add a corner" }).addTo(handles);
+      let draft: LatLngTuple[] | null = null;
+      m.on("dragstart", () => {
+        draft = [...pointsRef.current];
+        draft.splice(insertAt, 0, mid(a, b));
+      });
+      m.on("drag", (e) => {
+        if (!draft) return;
+        const ll = (e.target as Leaflet.Marker).getLatLng();
+        draft[insertAt] = [ll.lat, ll.lng];
+        poly?.setLatLngs(draft);
+      });
+      m.on("dragend", (e) => {
+        if (!draft) return;
+        const ll = (e.target as Leaflet.Marker).getLatLng();
+        draft[insertAt] = [ll.lat, ll.lng];
+        commit(draft);
+        draft = null;
+      });
+    }
+  }, [points, accent, measure, ready, closed]);
 
   // streets ↔ satellite
   useEffect(() => {
@@ -183,14 +335,39 @@ export default function MapMeasure({
     );
   }
 
+  function undo() {
+    if (closed) {
+      setClosed(false);
+      return;
+    }
+    commit(points.slice(0, -1));
+  }
+  function clear() {
+    setClosed(false);
+    commit([]);
+  }
+
   const value = measureFeet(measure, points);
-  const hint = measure === "length" ? "Tap along the fence line, corner by corner." : "Tap each corner of the area.";
   const readout = value !== null ? (measure === "length" ? `${fmt(value)} ft` : `${fmt(value)} sq ft`) : null;
+  const canClose = measure === "area" && !closed && points.length >= 3;
+  const hint =
+    points.length === 0
+      ? "Zoom in to the property, then tap the first corner."
+      : measure === "length"
+        ? points.length === 1
+          ? "Tap the next corner along the line."
+          : "Keep tapping corners. Drag a corner to adjust; the small dots add one."
+        : closed
+          ? "Closed. Drag a corner to adjust — the small dots add one."
+          : points.length < 3
+            ? "Tap the next corner."
+            : "Tap the first corner (or Close shape) to finish. Keep tapping to add corners.";
   const shell = dark ? "border-white/15 bg-white/5 text-gray-200" : "border-gray-300 bg-white text-gray-800";
   const btn = `inline-flex h-9 shrink-0 items-center justify-center gap-1 rounded-md border px-2.5 text-xs font-medium disabled:opacity-50 ${dark ? "border-white/15 bg-[#101410] text-gray-200 hover:bg-white/10" : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"}`;
 
   return (
     <div className={`overflow-hidden rounded-lg border ${shell}`}>
+      <style>{`.wb-map-label{background:rgba(17,24,39,.82);color:#fff;border:0;border-radius:6px;padding:1px 6px;font:600 11px/1.5 Inter,system-ui,sans-serif;box-shadow:none;white-space:nowrap}.wb-map-label::before{display:none}.leaflet-container{font-family:inherit}`}</style>
       <div className="flex items-center gap-1.5 p-2">
         <div className={`flex min-w-0 flex-1 items-center gap-1.5 rounded-md border px-2 ${dark ? "border-white/15" : "border-gray-300"}`}>
           <Search size={14} className="shrink-0 opacity-60" />
@@ -217,14 +394,27 @@ export default function MapMeasure({
           <Layers size={14} />
         </button>
       </div>
-      <div ref={boxRef} className="h-72 w-full sm:h-80" style={{ cursor: "crosshair" }} />
+      <div className="relative">
+        <div ref={boxRef} className="h-80 w-full sm:h-96" style={{ cursor: "crosshair" }} />
+        {readout && (
+          <div className="pointer-events-none absolute left-3 top-3 z-[500] rounded-lg bg-gray-900/85 px-2.5 py-1.5 text-sm font-semibold tabular-nums text-white shadow">
+            {readout}
+            {measure === "area" && !closed && <span className="ml-1.5 text-[11px] font-medium text-white/70">so far</span>}
+          </div>
+        )}
+      </div>
       <div className="flex items-center justify-between gap-2 p-2">
-        <p className={`min-w-0 truncate text-sm ${readout ? "font-semibold" : "opacity-70"}`}>{note || readout || hint}</p>
+        <p className={`min-w-0 flex-1 text-xs ${note ? "" : "opacity-80"}`}>{note || hint}</p>
         <div className="flex shrink-0 items-center gap-1.5">
-          <button type="button" onClick={() => { const next = points.slice(0, -1); onChange(next, measureFeet(measure, next)); }} disabled={points.length === 0} className={btn} aria-label="Undo last point">
+          {canClose && (
+            <button type="button" onClick={() => setClosed(true)} className={btn} style={{ borderColor: accent, color: accent }}>
+              <Check size={14} /> Close shape
+            </button>
+          )}
+          <button type="button" onClick={undo} disabled={points.length === 0} className={btn} aria-label="Undo last corner">
             <Undo2 size={14} /> Undo
           </button>
-          <button type="button" onClick={() => onChange([], null)} disabled={points.length === 0} className={btn} aria-label="Clear">
+          <button type="button" onClick={clear} disabled={points.length === 0} className={btn} aria-label="Clear">
             <RotateCcw size={14} />
           </button>
         </div>

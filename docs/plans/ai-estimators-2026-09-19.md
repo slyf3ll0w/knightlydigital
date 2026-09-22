@@ -812,7 +812,24 @@ clarifying-question chips (each suggestion must be a complete answer;
 chips add up) and the "On your website" label (now "Published",
 requires a real link).
 
+### Map tracer rebuilt (same batch)
+David: "the satellite tracer is also pretty rough, you can't even connect
+the dots to make a complete shape." `components/MapMeasure.tsx` now: corner
+handles are draggable markers (divIcon), so tapping the first corner CLOSES
+an area (it used to add a duplicate point — circleMarker clicks bubbled to
+the map); a "Close shape" button does the same; the closing edge is dashed
+until closed; midpoint dots drag out a new corner; every edge shows its
+length in feet (permanent tooltips); a live readout sits on the map ("so
+far" until closed); desktop gets a dashed cursor line; Undo reopens a
+closed shape; the map opens on the business's location (EstimateView
+passes `mapCenter` from Company.lat/lng), else the last viewed spot
+(localStorage `wb.map.lastView`), else the US; taller (h-80 / sm:h-96);
+imagery overzooms to 21 with maxNativeZoom 19.
+
 ### Batch 9 Test (owed)
+0. Website form with a map question: opens on the business; tap 4 corners;
+   tap the first → the fill goes solid and the readout drops "so far"; drag
+   a corner and a midpoint dot; Undo reopens; each edge shows feet.
 1. A company with a price book + past quotes: build "a tool for our
    standard house wash" without rates → the tool links the price-book
    service by name and uses the charged prices; no rates-to-confirm.

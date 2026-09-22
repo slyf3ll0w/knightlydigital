@@ -48,6 +48,7 @@ export default function PublicEstimateForm({
   showHeader = false,
   preview = false,
   photoAssist = false,
+  mapCenter = null,
 }: {
   companySlug: string;
   toolSlug: string;
@@ -64,6 +65,8 @@ export default function PublicEstimateForm({
   preview?: boolean;
   /** The owner opted into photo fill-in and the tool supports it */
   photoAssist?: boolean;
+  /** Where map questions open (the business's location) */
+  mapCenter?: LatLngTuple | null;
 }) {
   const { dark, accent, transparent } = appearance;
   const f = config.fields;
@@ -433,6 +436,7 @@ export default function PublicEstimateForm({
                     points={geomRef.current[inp.id] ?? []}
                     accent={accent}
                     dark={dark}
+                    initialCenter={mapCenter}
                     onChange={(pts, val) => {
                       geomRef.current[inp.id] = pts;
                       setVal(inp.id, val === null ? "" : String(val));
