@@ -789,6 +789,36 @@ build should land in the form.
 4. Advanced → Questions / Pricing / Words segmented control; ?s=pricing
    deep-links.
 
+## Batch 9 — Atlas knows the business (BUILT 2026-09-22)
+
+David: "make it smarter by also allowing Atlas to pull information from the
+services list and any other relevant information about the user's
+business." The builder used to see only the price book's names + prices.
+`lib/estimator-context.ts` `loadBusinessContext()` now gathers, per build:
+- the business (name, trade/industry, city/state, service-area size,
+  website, default deposit, tax note — tool prices are pre-tax);
+- the price book with cost, duration, deposit and description;
+- **what they've actually charged**: quote lines from the last 365 days on
+  sent/approved/converted quotes, grouped by name — count, typical (median)
+  unit price and range (top 40);
+- services offered for online booking (booking types);
+- existing estimate tools (no duplicates, consistent naming).
+The draft prompt gets the full block; the plan call gets a brief. Rules:
+a rate the owner didn't say but the business data shows is a REAL rate
+(link with workItemName or take the charged price), never a placeholder;
+never ask a clarifying question the data already answers; a vague trade
+falls back to the company's industry for the playbook. Also fixed the
+clarifying-question chips (each suggestion must be a complete answer;
+chips add up) and the "On your website" label (now "Published",
+requires a real link).
+
+### Batch 9 Test (owed)
+1. A company with a price book + past quotes: build "a tool for our
+   standard house wash" without rates → the tool links the price-book
+   service by name and uses the charged prices; no rates-to-confirm.
+2. Same company, describe a tool for a service that isn't in the data →
+   clarifying questions ask only for what's missing.
+
 ## Later
 - Lazy tool loading (docs/plans/cost-controls.md) — `manage_estimator`'s
   spec schema is the largest declaration in the registry now.
