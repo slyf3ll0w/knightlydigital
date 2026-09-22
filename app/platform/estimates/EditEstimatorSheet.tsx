@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { ArrowDown, ArrowUp, Check, ChevronDown, ChevronUp, History, Loader2, Pencil, Play, Plus, RotateCcw, ShieldCheck, Trash2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ArrowDown, ArrowUp, Check, ChevronDown, ChevronUp, History, ImagePlus, Loader2, Pencil, Play, Plus, RotateCcw, ShieldCheck, Trash2, X } from "lucide-react";
+import { fileToJpegBlob } from "@/lib/image-downscale";
 import Modal from "@/components/Modal";
 import { Input, Select, Textarea } from "@/components/Input";
 import EstimatorRunner from "@/components/EstimatorRunner";
@@ -25,7 +26,7 @@ type Version = { id: string; note: string; byName: string | null; createdAt: str
 type Tab = "questions" | "pricing" | "text" | "history";
 type InputType = EstimatorInput["type"];
 
-const TYPE_LABEL: Record<InputType, string> = { number: "Number", select: "Pick one", multi: "Pick several", toggle: "Yes / no", text: "Text" };
+const TYPE_LABEL: Record<InputType, string> = { number: "Number", select: "Pick one", multi: "Pick several", map: "Draw on a map", toggle: "Yes / no", text: "Text" };
 
 const CHEATSHEET = [
   ["Arithmetic", "+  -  *  /  %   and  ( )"],
@@ -70,6 +71,57 @@ function NumField({ value, onCommit, placeholder, className = "w-28", prefix }: 
 
 const iconBtn = "rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700 disabled:opacity-30";
 const mono = "font-mono text-[13px]";
+
+/** Add / replace / remove the picture on a question or an option. */
+function PictureButton({ url, onChange, upload, forget, small = false }: { url?: string; onChange: (url: string | undefined) => void; upload: (f: File) => Promise<string | null>; forget: (url: string | undefined) => void; small?: boolean }) {
+  const ref = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  return (
+    <span className="inline-flex shrink-0 items-center gap-1">
+      <input
+        ref={ref}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={async (e) => {
+          const f = e.target.files?.[0];
+          e.target.value = "";
+          if (!f) return;
+          setBusy(true);
+          const u = await upload(f);
+          setBusy(false);
+          if (u) {
+            forget(url);
+            onChange(u);
+          }
+        }}
+      />
+      {url ? (
+        <>
+          <button type="button" onClick={() => ref.current?.click()} title="Replace picture" className="rounded-md overflow-hidden">
+            <img src={url} alt="" className={small ? "h-8 w-8 object-cover" : "h-12 w-16 object-cover"} />
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              forget(url);
+              onChange(undefined);
+            }}
+            className={iconBtn}
+            aria-label="Remove picture"
+          >
+            <X size={13} />
+          </button>
+        </>
+      ) : (
+        <button type="button" disabled={busy} onClick={() => ref.current?.click()} className={`${iconBtn} inline-flex items-center gap-1 text-xs`} title="Add a picture" aria-label="Add a picture">
+          {busy ? <Loader2 size={13} className="animate-spin" /> : <ImagePlus size={13} />}
+          {!small && "Picture"}
+        </button>
+      )}
+    </span>
+  );
+}
 
 export default function EditEstimatorSheet({ tool, open, onClose, onSaved }: { tool: EditTool | null; open: boolean; onClose: () => void; onSaved: () => void }) {
   const [tab, setTab] = useState<Tab>("questions");
@@ -145,9 +197,11 @@ export default function EditEstimatorSheet({ tool, open, onClose, onSaved }: { t
           ? { ...base, id, type, options: [{ value: "Option A", label: "Option A" }, { value: "Option B", label: "Option B" }], required: true }
           : type === "multi"
             ? { ...base, id, type, options: [{ value: "Option A", label: "Option A" }, { value: "Option B", label: "Option B" }] }
-            : type === "toggle"
-              ? { ...base, id, type, default: false }
-              : { ...base, id, type };
+            : type === "map"
+              ? { ...base, id, type, measure: "area", required: true }
+              : type === "toggle"
+                ? { ...base, id, type, default: false }
+                : { ...base, id, type };
     setNewIds((prev) => new Set(prev).add(id));
     touch((s) => s.inputs.push(inp));
   }
@@ -214,6 +268,28 @@ export default function EditEstimatorSheet({ tool, open, onClose, onSaved }: { t
     }
     onSaved();
   }
+  /** Pictures upload straight away (downsized to ~1024 px) and the spec keeps the URL. */
+  async function uploadPicture(file: File): Promise<string | null> {
+    const blob = await fileToJpegBlob(file);
+    if (!blob) {
+      setError("That picture couldn't be read — try a JPG or PNG.");
+      return null;
+    }
+    const fd = new FormData();
+    fd.append("file", new File([blob], "picture.jpg", { type: "image/jpeg" }));
+    const res = await fetch(`/api/app/estimators/${tool!.id}/images`, { method: "POST", body: fd });
+    const data = (await res.json().catch(() => null)) as { url?: string; error?: string } | null;
+    if (!res.ok || !data?.url) {
+      setError(data?.error ?? GENERIC_ERROR);
+      return null;
+    }
+    return data.url;
+  }
+  function forgetPicture(url: string | undefined) {
+    const m = url ? /^\/api\/estimate-images\/([A-Za-z0-9_-]+)$/.exec(url) : null;
+    if (m) void fetch(`/api/app/estimators/${tool!.id}/images/${m[1]}`, { method: "DELETE" }).catch(() => undefined);
+  }
+
   async function restore(v: Version) {
     if (
       !(await confirmSheet({
@@ -289,6 +365,7 @@ export default function EditEstimatorSheet({ tool, open, onClose, onSaved }: { t
               <div className="flex items-center gap-2">
                 <span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600">{TYPE_LABEL[inp.type]}</span>
                 <Input value={inp.label} onChange={(e) => relabel(i, e.target.value)} maxLength={80} className="min-w-0 flex-1" placeholder="Question" />
+                <PictureButton small url={inp.image} onChange={(u) => setInput(i, { image: u })} upload={uploadPicture} forget={forgetPicture} />
                 <button type="button" onClick={() => moveInput(i, -1)} disabled={i === 0} className={iconBtn} aria-label="Move up">
                   <ArrowUp size={14} />
                 </button>
@@ -310,6 +387,15 @@ export default function EditEstimatorSheet({ tool, open, onClose, onSaved }: { t
                   </datalist>
                 </div>
               </div>
+              {inp.type === "map" && (
+                <label className="flex flex-wrap items-center gap-2 text-xs text-gray-600">
+                  The customer draws
+                  <Select value={inp.measure} onChange={(e) => setInput(i, { measure: e.target.value as "length" | "area" } as Partial<EstimatorInput>)} className="w-64">
+                    <option value="length">a line — the value is feet (fences, gutters)</option>
+                    <option value="area">an area — the value is square feet (lawns, roofs, driveways)</option>
+                  </Select>
+                </label>
+              )}
               {inp.type === "number" && (
                 <div className="flex flex-wrap items-end gap-2">
                   <label className="text-xs text-gray-600">
@@ -353,6 +439,7 @@ export default function EditEstimatorSheet({ tool, open, onClose, onSaved }: { t
                         className={`w-32 ${mono}`}
                         title="The value formulas compare against"
                       />
+                      <PictureButton small url={o.image} onChange={(u) => setOptions(i, inp.options.map((x, m) => (m === k ? { ...x, image: u } : x)))} upload={uploadPicture} forget={forgetPicture} />
                       <button type="button" onClick={() => setOptions(i, inp.options.filter((_, m) => m !== k))} disabled={inp.options.length <= 2} className={iconBtn} aria-label="Remove option">
                         <Trash2 size={13} />
                       </button>

@@ -35,7 +35,12 @@ export const ESTIMATOR_LIMITS = {
 
 // ── spec types ───────────────────────────────────────────────────────────────
 
-export type EstimatorOption = { value: string; label: string };
+export type EstimatorOption = {
+  value: string;
+  label: string;
+  /** Picture for the website form / runner — uploaded in the editor, served from /api/estimate-images/… */
+  image?: string;
+};
 
 /** What every input shares. */
 export type EstimatorInputBase = {
@@ -46,6 +51,8 @@ export type EstimatorInputBase = {
   section?: string;
   /** Expression over OTHER inputs: the question only shows (and only counts) when truthy. */
   showWhen?: string;
+  /** Picture shown above the question (uploaded in the editor). */
+  image?: string;
 };
 
 export type EstimatorInput =
@@ -62,6 +69,8 @@ export type EstimatorInput =
   | (EstimatorInputBase & { type: "select"; options: EstimatorOption[]; default?: string; required?: boolean })
   /** Pick several — the value is a list of option values (has(), count(), join()). */
   | (EstimatorInputBase & { type: "multi"; options: EstimatorOption[]; default?: string[]; required?: boolean })
+  /** The customer draws on a satellite map: a fence line (length → ft) or a lawn/roof/driveway (area → sq ft). The value is the number. */
+  | (EstimatorInputBase & { type: "map"; measure: "length" | "area"; min?: number; max?: number; required?: boolean })
   | (EstimatorInputBase & { type: "toggle"; default?: boolean })
   | (EstimatorInputBase & { type: "text"; placeholder?: string; default?: string; required?: boolean });
 
@@ -787,6 +796,13 @@ const ID_RE = /^[A-Za-z_][A-Za-z0-9_]{0,39}$/;
 function s(v: unknown, max: number): string {
   return typeof v === "string" ? v.trim().slice(0, max) : "";
 }
+/** Pictures may only come from our own image route or an https URL. */
+const IMAGE_URL_RE = /^(\/api\/estimate-images\/[A-Za-z0-9_-]{8,64}|https:\/\/[^\s"'<>]{8,300})$/;
+function imageUrl(v: unknown): string | undefined {
+  const t = typeof v === "string" ? v.trim() : "";
+  return IMAGE_URL_RE.test(t) ? t : undefined;
+}
+
 function optNum(v: unknown): number | undefined {
   if (v === null || v === undefined || v === "") return undefined;
   const x = Number(v);
@@ -820,7 +836,8 @@ export function compileSpec(raw: unknown): CompileResult {
         const oo = (op ?? {}) as Record<string, unknown>;
         const label = s(oo.label, 60);
         const value = s(oo.value, 60) || label;
-        return { value, label: label || value };
+        const image = imageUrl(oo.image);
+        return { value, label: label || value, ...(image ? { image } : {}) };
       })
       .filter((op) => op.value);
   if (rawInputs.length > ESTIMATOR_LIMITS.inputs) errors.push(`At most ${ESTIMATOR_LIMITS.inputs} inputs`);
@@ -848,7 +865,8 @@ export function compileSpec(raw: unknown): CompileResult {
     const help = s(o.help, 200) || undefined;
     const section = s(o.section, 60) || undefined;
     const showWhen = s(o.showWhen, ESTIMATOR_LIMITS.exprLen + 1) || undefined;
-    const common = { id, label, help, section, showWhen };
+    const image = imageUrl(o.image);
+    const common = { id, label, help, section, showWhen, ...(image ? { image } : {}) };
     const type = s(o.type, 10);
     if (type === "number") {
       const min = optNum(o.min), max = optNum(o.max), step = optNum(o.step), def = optNum(o.default);
@@ -880,6 +898,15 @@ export function compileSpec(raw: unknown): CompileResult {
       const defRaw = Array.isArray(o.default) ? o.default : typeof o.default === "string" && o.default ? o.default.split(",") : [];
       const def = defRaw.map((d) => String(d).trim().slice(0, 60)).filter((d) => d && opts.some((op) => op.value === d));
       inputs.push({ ...common, type, options: opts, default: def.length > 0 ? def : undefined, required: o.required === true });
+    } else if (type === "map") {
+      const measure = o.measure === "length" ? "length" : o.measure === "area" ? "area" : null;
+      if (!measure) {
+        errors.push(`Input "${id}": a map question needs measure "length" (fence line, ft) or "area" (lawn/roof/driveway, sq ft)`);
+        continue;
+      }
+      const min = optNum(o.min), max = optNum(o.max);
+      if (min !== undefined && max !== undefined && min > max) errors.push(`Input "${id}": min is above max`);
+      inputs.push({ ...common, type, measure, min, max, required: o.required !== false });
     } else if (type === "toggle") {
       inputs.push({ ...common, type, default: o.default === true || o.default === "true" });
     } else if (type === "text") {
@@ -890,7 +917,7 @@ export function compileSpec(raw: unknown): CompileResult {
         required: o.required === true,
       });
     } else {
-      errors.push(`Input "${id}": type must be number, select, multi, toggle or text`);
+      errors.push(`Input "${id}": type must be number, select, multi, map, toggle or text`);
     }
   }
 
@@ -1070,6 +1097,8 @@ export function neutralValue(inp: EstimatorInput): Value {
       return inp.default ?? "";
     case "multi":
       return inp.default ? [...inp.default] : [];
+    case "map":
+      return 0;
     case "toggle":
       return inp.default === true;
     case "text":
@@ -1105,6 +1134,11 @@ function lenientValue(inp: EstimatorInput, v: unknown): Value {
     case "multi": {
       const picks = multiPicks(v).map((p) => matchOption(inp, p)).filter((p): p is string => p !== null);
       return picks.length > 0 ? Array.from(new Set(picks)) : neutralValue(inp);
+    }
+    case "map": {
+      if (missing) return 0;
+      const x = typeof v === "string" ? Number(v.replace(/[,\s]/g, "")) : Number(v);
+      return Number.isFinite(x) && x >= 0 ? x : 0;
     }
     case "toggle":
       return missing ? inp.default === true : v === true || v === "true" || v === 1 || v === "1" || v === "yes" || v === "on";
@@ -1194,6 +1228,19 @@ export function coerceInputs(
         if (picks.length === 0 && inp.default?.length) picks.push(...inp.default);
         if (picks.length === 0 && inp.required) problems.push({ id: inp.id, message: `Pick at least one option for ${inp.label.toLowerCase()}` });
         values[inp.id] = picks;
+        break;
+      }
+      case "map": {
+        if (missing) {
+          if (inp.required) problems.push({ id: inp.id, message: `${inp.label}: draw it on the map` });
+          else values[inp.id] = 0;
+          break;
+        }
+        const x = typeof v === "string" ? Number(v.replace(/[,\s]/g, "")) : Number(v);
+        if (!Number.isFinite(x) || x < 0) problems.push({ id: inp.id, message: `${inp.label} must be a measurement` });
+        else if (inp.min !== undefined && x < inp.min) problems.push({ id: inp.id, message: `${inp.label} must be at least ${inp.min}` });
+        else if (inp.max !== undefined && x > inp.max) problems.push({ id: inp.id, message: `${inp.label} must be at most ${inp.max}` });
+        else values[inp.id] = Math.round(x);
         break;
       }
       case "toggle": {
@@ -1351,7 +1398,7 @@ spec = {
 
 Rules:
 - ids: letters/digits/underscores, unique. Inputs are referenced by id inside expressions and {templates}.
-- Input types: number, select (one of), multi (several — the value is a LIST of option values), toggle, text. "section" groups questions under a heading (the website form shows one section per step); "showWhen" (an expression over OTHER inputs, no variables/price book) hides a question until it matters — a hidden question reads as untouched (its default). Complex trades (roofing, remodels, HVAC, moving) want 2–4 sections and showWhen branches instead of one wall of questions.
+- Input types: number, select (one of), multi (several — the value is a LIST of option values), map, toggle, text. type "map" = the customer draws on a satellite map: measure "length" (a fence line; the value is FEET) or "area" (lawn, roof, driveway, patio; the value is SQUARE FEET) — use it whenever a size is the main price driver (fencing, lawn care, roofing, paving, irrigation, sealcoating) instead of asking them to guess a number. Pictures on options/questions are added by the owner in the editor, never by you. "section" groups questions under a heading (the website form shows one section per step); "showWhen" (an expression over OTHER inputs, no variables/price book) hides a question until it matters — a hidden question reads as untouched (its default). Complex trades (roofing, remodels, HVAC, moving) want 2–4 sections and showWhen branches instead of one wall of questions.
 - Line unitPrice/quantity/when are EXPRESSIONS (strings). name/description/quoteTitle/clientMessage are TEMPLATES: {expr}, {expr|money}, {expr|int}. quoteTitle/clientMessage may also use {subtotal}.
 - workItemName links a line to a price-book item (exact name): it brings the item's cost, id and — when unitPrice is omitted — its price. price("Name") / cost("Name") read the price book inside any expression. Names must exist in the price book (get_price_book) — never invent items; create them with create_service first.
 - Quantity may be fractional (2.5 hours): it folds into one unit at the extended price automatically.
@@ -1361,7 +1408,7 @@ Rules:
 - lookup() on a multi: sum the picks' prices with a variable per pick, e.g. has(rooms, 'kitchen') * 250 + has(rooms, 'bath') * 180 (has() is 1/0 in arithmetic).
 - Never guess a business's prices. Use the rates the user gave, or the price book. If they gave none, ask (one message, everything at once) — or use a clearly-named placeholder and SAY it's a placeholder.
 - Keep it as simple as the pricing really is: a flat-rate business needs one select and two lines, not twelve inputs.
-- The owner can also edit labels, rates and formulas by hand (Settings → Estimate tools → pencil) and roll back to any earlier version — every save is kept. So when they want a rate changed, a small 'update' with the new spec is right; they are never stuck with your version.
+- The owner can also edit labels, rates and formulas by hand (Estimates → Edit) and roll back to any earlier version — every save is kept. So when they want a rate changed, a small 'update' with the new spec is right; they are never stuck with your version.
 - Use action 'test' with sample inputs before staging create/update — fix anything it reports.`;
 
 // ── what changed between two specs (version history, Atlas update cards) ─────
@@ -1372,7 +1419,7 @@ function rateText(expr: string | undefined): string {
 }
 
 function optionsKey(i: EstimatorInput): string {
-  return i.type === "select" || i.type === "multi" ? i.options.map((o) => `${o.value}=${o.label}`).join("|") : "";
+  return i.type === "select" || i.type === "multi" ? i.options.map((o) => `${o.value}=${o.label}${o.image ? "*" : ""}`).join("|") : "";
 }
 
 /** Human lines: `Rate for "Sealant": $0.45 → $0.50`, `Added question "Fence length"`. Empty = the rules are the same. */
@@ -1391,6 +1438,7 @@ export function describeSpecChanges(from: EstimatorSpec, to: EstimatorSpec): str
     else if (optionsKey(o) !== optionsKey(i)) out.push(`Options for "${i.label}" changed`);
     if ((o.showWhen ?? "") !== (i.showWhen ?? "")) out.push(i.showWhen ? `"${i.label}" now shows only when ${i.showWhen}` : `"${i.label}" now always shows`);
     if ((o.section ?? "") !== (i.section ?? "")) out.push(i.section ? `"${i.label}" moved to section "${i.section}"` : `"${i.label}" left its section`);
+    if ((o.image ?? "") !== (i.image ?? "")) out.push(i.image ? `Picture added to "${i.label}"` : `Picture removed from "${i.label}"`);
     if (o.type === "number" && i.type === "number" && (o.default ?? null) !== (i.default ?? null)) out.push(`Default for "${i.label}": ${o.default ?? "none"} → ${i.default ?? "none"}`);
   }
   for (const o of from.inputs) if (!toInputs.has(o.id)) out.push(`Removed question "${o.label}"`);
@@ -1454,7 +1502,7 @@ export function formDefaults(spec: EstimatorSpec): Record<string, string | boole
   for (const i of spec.inputs) {
     if (i.type === "toggle") v[i.id] = i.default === true;
     else if (i.type === "multi") v[i.id] = i.default ? [...i.default] : [];
-    else if (i.default !== undefined && i.default !== null) v[i.id] = String(i.default);
+    else if ("default" in i && i.default !== undefined && i.default !== null) v[i.id] = String(i.default);
     else v[i.id] = "";
   }
   return v;

@@ -518,6 +518,7 @@ export default function AssistantDrawer({
             reply?: string;
             proposals?: Proposal[];
             nextStep?: string;
+            navigate?: string;
             error?: string;
             atlasLocked?: boolean;
             access?: AtlasDrawerAccess;
@@ -545,6 +546,14 @@ export default function AssistantDrawer({
             ...(opts.depth ? { autoDepth: opts.depth } : {}),
           },
         ]);
+        // A tool moved the work to a page (the Estimates builder): go there and get out of the way
+        if (data.navigate && /^\/app\//.test(data.navigate)) {
+          const to = data.navigate;
+          setTimeout(() => {
+            router.push(to);
+            onClose();
+          }, 600);
+        }
       }
     } catch {
       setError("Couldn't reach the assistant — check your connection and try again.");

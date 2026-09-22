@@ -34,3 +34,13 @@ export async function fileToAssistPhoto(file: File, maxPx = 1280): Promise<Assis
     URL.revokeObjectURL(url);
   }
 }
+
+/** The same downscale, as a JPEG Blob for multipart uploads (estimate tool pictures). */
+export async function fileToJpegBlob(file: File, maxPx = 1024): Promise<Blob | null> {
+  const p = await fileToAssistPhoto(file, maxPx);
+  if (!p) return null;
+  const bin = atob(p.base64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new Blob([bytes], { type: "image/jpeg" });
+}

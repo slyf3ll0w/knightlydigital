@@ -10,7 +10,10 @@ Gemini behaviour of the builders is UNVERIFIED — see the § Test sections.
 Batch 4 (manual editor + version history, onsite Estimate → Create quote,
 sections / show-when / pick-several in the spec, photo fill-in, Try-it on
 Atlas cards, lead page attribution) BUILT 2026-09-21 — tsc clean, unit
-tests green.**
+tests green. Batch 5 (the Estimates section: streaming builder with
+animation, tool cards, Ask Atlas, map-drawn measurements, pictures on
+options, embed code per tool; Settings entry removed; Atlas chat hands new
+tools to the page) BUILT 2026-09-21.**
 
 ## The idea (David, 2026-09-19)
 
@@ -457,8 +460,85 @@ submit carries `page` (https only, 300 chars) → request details `From page:
 7. Embed the snippet on a test page → submit → request details end with
    "From page: <that page's URL>".
 
+## Batch 5 — the Estimates section (BUILT 2026-09-21)
+
+David (2026-09-21): pictures on the website form; build tools in their own
+section, not the Atlas chat (chat requests redirect there); an Estimates
+entry in the menu with the builder and the active tools; a prompt box with
+a "cool animation" while it builds and again while Atlas changes a tool;
+test when done; edit by prompt or by hand; fences/areas on a map for
+fencing, lawn care etc.; embed code per tool; remove the Settings entry;
+find/build/edit must be very user-friendly; cut the paragraph of text.
+
+### `/app/estimates` (`app/platform/estimates/`)
+Nav: Work → Estimates (phone groups + desktop rail), hue = quotes. One-line
+subtitle. Managers: **Build a tool** card (`BuildPanel`) on top — a
+sentence, example chips, "Build it" — then tool cards. Each card: Run
+(runner → Create quote), Ask Atlas (`AskAtlasSheet` = the same panel in
+change mode), Edit (manual editor), Website (publish sheet), Embed code
+(copies the snippet when published), ⋯ → on/off, delete. A just-built tool
+gets a green ring + NEW for 4 s. `?run=1` opens the runner picker at once
+(the + menu's "Estimate", shortcut `n e`); `?prompt=…` prefills the builder.
+`/app/settings/estimators` and `/app/estimate` redirect here; the Settings
+index entry is gone. `EditEstimatorSheet` + `PublishEstimatorSheet` moved
+into this folder.
+
+### Builder — `lib/estimator-build.ts` + `POST /api/app/estimators/build`
+NDJSON stream the panel animates (orb + step list + shimmer status):
+`book` → `draft` (one metered one-shot: system = design rules + the guide +
+the price book; answer = `{name, description, spec, sampleInputs}` or
+`{question}`) → `check` (`checkSpec`, same gate as a save) → `fix` (errors
+back to the model, ≤ 3 rounds total) → `test` (runs the model's own sample
+job) → `save` (create with name de-dup, or snapshot "Atlas update" + update;
+for a change the done event carries `describeSpecChanges`). `{ask}` = the
+model needs a price only the owner knows; the panel shows the question with
+an answer box and resubmits. Ledger kind `estimator-build`. The model never
+writes to the database.
+
+### Atlas chat hand-off
+`ToolCtx.navigate` → `AssistantResult.navigate` → `/api/app/assistant`
+response → the drawer `router.push`es it 600 ms after the reply and closes.
+`manage_estimator` action `create` now takes `request` (the owner's words)
+and sets navigate to `/app/estimates?prompt=…`; the prompt rule says never
+to draft a spec in chat for a new tool. `update` still stages a card
+(with Try it and the exact changes).
+
+### Spec additions
+- `type: "map"` with `measure: "length" | "area"` — the customer draws on a
+  satellite map (`components/MapMeasure.tsx`: Leaflet, OSM streets + Esri
+  imagery, address search via `GET /api/public/geocode` (Mapbox,
+  rate-limited, 503 when no token), My location, Undo/Clear, live readout).
+  Value = whole feet (line) or square feet (polygon; shoelace on an
+  equirectangular projection). Coerced like a number (min/max, required by
+  default). The corners stay client-side; the request records "…ft (drawn on
+  the map)".
+- `input.image` and `option.image` — pictures. `EstimatorImage` (additive;
+  R2 or row bytes like JobPhoto), `POST/DELETE /api/app/estimators/[id]/images[/imageId]`,
+  public `GET /api/estimate-images/[id]`. Only our route or https URLs pass
+  `compileSpec`. Editor: picture button on every question and option (the
+  client downsizes to 1024 px JPEG). Both forms render options with pictures
+  as a picture grid (one pick or several) and a question's picture above it.
+
+### Batch 5 Test (owed)
+1. Sidebar → Estimates. Type the fence example → Build it → the orb spins
+   through the five steps → the card appears with NEW. Run → draw a fence
+   line on the satellite map → Calculate → Create quote.
+2. Ask Atlas on that card: "add a gate option at $250" → animation → the
+   card updates; Edit → History shows "Atlas update" with the change.
+3. Edit → Questions → picture button on each fence style option → upload →
+   Website → Preview shows a picture grid on the public form.
+4. Website → Embed code copies; paste into a test page → the form loads, map
+   included.
+5. Atlas chat: "build me a gutter cleaning estimator, $1.50 per foot" →
+   one-sentence reply → the drawer closes and /app/estimates opens with the
+   words filled in.
+6. + menu → Estimate → the runner picker opens immediately.
+7. Settings has no Estimate tools entry; /app/settings/estimators redirects.
+
 ## Later
 - Lazy tool loading (docs/plans/cost-controls.md) — `manage_estimator`'s
   spec schema is the largest declaration in the registry now.
-- Images per option / per section on the website form (needs asset hosting).
-- A11y pass on the multi-select chips (keyboard focus order on phones).
+- Map: satellite imagery needs the Esri attribution kept; consider Mapbox
+  tiles once MAPBOX_TOKEN is public-safe.
+- A11y pass on the multi-select chips and picture grids (keyboard focus
+  order on phones).

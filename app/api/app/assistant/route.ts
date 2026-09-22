@@ -162,6 +162,7 @@ export async function POST(req: NextRequest) {
     reply: result.reply,
     proposals: result.proposals,
     ...(result.nextStep ? { nextStep: result.nextStep } : {}),
+    ...(result.navigate ? { navigate: result.navigate } : {}),
     access: accessAfter(access, debit),
     turnTokens: atlasTokens,
   });
