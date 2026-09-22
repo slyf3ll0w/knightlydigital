@@ -80,6 +80,9 @@ export default function ApplyForm({
   const [captchaToken, setCaptchaToken] = useState("");
   const captchaRef = useRef<TurnstileHandle>(null);
   const [inviteCode, setInviteCode] = useState("");
+  // Unchecked by default: consent to WorkBench's OWN sales & support texts
+  // (the platform line's opt-in, cited in its toll-free verification).
+  const [smsConsent, setSmsConsent] = useState(false);
   // Pre-flight state for the code — UX only; /api/public/apply re-checks it
   // and claims a minted one inside the signup transaction.
   const [codeState, setCodeState] = useState<"empty" | "checking" | "valid" | "invalid">("empty");
@@ -176,6 +179,7 @@ export default function ApplyForm({
           inviteCode: inviteCode.trim() || undefined,
           captchaToken,
           timezone: browserTimezone(),
+          smsConsent,
         }),
       });
       const data = await res.json();
@@ -470,6 +474,22 @@ export default function ApplyForm({
             className={inputClass}
             placeholder="(214) 555-0100"
           />
+          <label className="mt-2 flex items-start gap-2 text-xs leading-snug text-gray-500">
+              <input
+                type="checkbox"
+                checked={smsConsent}
+                onChange={(e) => setSmsConsent(e.target.checked)}
+                disabled={!form.phone.trim()}
+                className="mt-0.5 h-4 w-4 shrink-0 rounded disabled:opacity-50"
+              />
+              <span>
+                Text me at this number about my WorkBench account — setup help, support and answers to my questions. Msg &amp; data
+                rates may apply. Msg frequency varies. Reply STOP to opt out, HELP for help.{" "}
+                <a href="/sms-terms" target="_blank" rel="noreferrer" className="underline">
+                  Text terms
+                </a>
+              </span>
+            </label>
         </div>
         {/* Industry seeds the starter price book, so it's asked either way. */}
         <div>

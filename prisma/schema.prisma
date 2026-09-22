@@ -2695,6 +2695,10 @@ enum ApplicationStatus {
 // Approving one mints an InviteCode and emails it to the applicant.
 model AccessApplication {
   id              String            @id @default(cuid())
+  // The applicant ticked the (unchecked-by-default) box to receive WorkBench's
+  // own sales & support texts at `phone` — the opt-in behind the platform's
+  // toll-free verification (lib/business-line.ts platformTollFreeInput).
+  smsConsentAt    DateTime?
   name            String
   email           String
   phone           String?

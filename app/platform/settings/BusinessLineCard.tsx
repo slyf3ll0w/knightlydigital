@@ -586,8 +586,8 @@ function Texting({
         {awaitingPin
           ? `We texted a PIN to ${fmtPhone(reg.form.contactPhone)}. Enter it below within 24 hours.`
           : tollFree
-            ? "Usually one to two weeks. Reminders and links go by email until this clears, and the free Text button on jobs keeps working from your phone."
-            : "Usually 3–7 business days. Reminders and links go by email until this clears, and the free Text button on jobs keeps working from your phone."}
+            ? "Calls, voicemail and the number itself are live now. Texting from it switches on when the toll-free review clears — usually one to two weeks. Until then reminders and links go by email, and the free Text button on jobs keeps working from your phone."
+            : "Calls, voicemail and the number itself are live now. Texting from it switches on when carriers approve the registration — usually 1–3 business days, up to 7. Until then reminders and links go by email, and the free Text button on jobs keeps working from your phone."}
         {reg.verificationStatus ? ` Telnyx status: ${reg.verificationStatus}.` : ""}
         {checked ? ` ${checked}.` : ""}
       </p>

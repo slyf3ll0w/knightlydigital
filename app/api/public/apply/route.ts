@@ -57,6 +57,7 @@ export async function POST(req: NextRequest) {
     password,
     inviteCode,
     captchaToken,
+    smsConsent,
   } = body;
 
   if (!(await verifyCaptcha(captchaToken))) {
@@ -192,6 +193,8 @@ export async function POST(req: NextRequest) {
       name,
       email,
       phone: phone || null,
+      // Explicit, unchecked-by-default opt-in to WorkBench's own sales & support texts.
+      smsConsentAt: smsConsent === true && phone ? new Date() : null,
       companyName,
       industry: industry || null,
       teamSize: teamSize || null,

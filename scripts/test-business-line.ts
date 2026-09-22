@@ -13,6 +13,9 @@ import {
   sanitizeRegistrationForm,
   campaignCopy,
   LineError,
+  PLATFORM_LEGAL_NAME,
+  isPlatformOwnLine,
+  platformTollFreeInput,
 } from "../lib/business-line";
 
 // ── deriveRegistration ───────────────────────────────────────────────────────
@@ -266,3 +269,37 @@ assert.equal(lineReleasePlan({ lineNumber: "pending:abc", addonActiveAt: null, l
 assert.equal(lineReleasePlan({ lineNumber: null, addonActiveAt: null, lineReleaseAt: soon }, now), "clear");
 
 console.log("test-business-line (number rights): all assertions passed");
+
+// ── the platform's own line files as itself, not as a reseller ───────────────
+{
+  const base = {
+    legalName: PLATFORM_LEGAL_NAME,
+    displayName: "WorkBench",
+    entityType: "PRIVATE_PROFIT" as const,
+    ein: "12-3456789",
+    street: "1 Main St",
+    city: "Allen",
+    state: "TX",
+    postalCode: "75013",
+    website: "https://workbenchfsm.com/",
+    contactFirstName: "David",
+    contactLastName: "Lessly",
+    contactEmail: "info@streamflaire.com",
+    contactPhone: "+14698335853",
+    vertical: "TECHNOLOGY",
+    messageVolume: "1,000",
+    useCase: "Mixed",
+  };
+  assert.equal(isPlatformOwnLine(base), true);
+  assert.equal(isPlatformOwnLine({ ...base, legalName: "streamflaire group, llc" }), true, "punctuation/case don't matter");
+  assert.equal(isPlatformOwnLine({ ...base, legalName: "Acme Plumbing LLC" }), false);
+  const input = platformTollFreeInput("+18334950229", base as never);
+  assert.equal(input.isvReseller, null, "no reseller field — Telnyx rejected the on-behalf-of framing for the platform's own line");
+  assert.equal(input.doingBusinessAs, "WorkBench");
+  assert.match(input.useCaseSummary, /sales and support/);
+  assert.doesNotMatch(input.useCaseSummary, /local service business/);
+  assert.doesNotMatch(input.additionalInformation, /on behalf of/);
+  assert.match(input.optInWorkflow, /workbenchfsm\.com\/apply/);
+  assert.match(input.helpMessageResponse ?? "", /WorkBench/);
+  console.log("test-business-line (platform line): all assertions passed");
+}

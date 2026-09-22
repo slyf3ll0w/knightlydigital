@@ -8,7 +8,7 @@ export const metadata: Metadata = {
     "How WorkBench text notifications work: what you'll receive, how you opted in, and how to stop.",
 };
 
-const LAST_UPDATED = "September 18, 2026";
+const LAST_UPDATED = "September 22, 2026";
 
 /* Public SMS program terms for WorkBench. This URL is cited in every tenant’s
    carrier registration (10DLC campaign / toll-free verification), in every
@@ -65,7 +65,14 @@ const sections: { heading: string; paragraphs: (string | React.ReactNode)[] }[] 
     ],
   },
   {
-    heading: "7. Contact",
+    heading: "7. Texts from WorkBench itself",
+    paragraphs: [
+      "Separately from the businesses that use it, WorkBench (Streamflaire Group LLC) runs one toll-free number of its own for sales and support: answers to questions from businesses considering WorkBench, and account, setup and support messages to WorkBench account holders. Every message says it is from WorkBench.",
+      "You receive these only if you asked: you ticked the text-message box (unchecked by default) when you applied for a WorkBench account or requested a demo, you texted that number first, or you asked us by phone or email to text you. Reply STOP to end them at any time; reply HELP for help. Consent is not a condition of using WorkBench.",
+    ],
+  },
+  {
+    heading: "8. Contact",
     paragraphs: [
       "WorkBench is operated by Streamflaire Group LLC, Allen, Texas, USA. Questions about this program: contact@workbenchfsm.com.",
     ],

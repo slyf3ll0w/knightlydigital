@@ -706,6 +706,11 @@ export type TollFreeVerificationInput = {
   privacyPolicyURL: string;
   termsAndConditionURL: string;
   webhookUrl?: string;
+  /** Who files on the business's behalf. Omit when the business IS the platform (Streamflaire's own line). */
+  isvReseller?: string | null;
+  /** The auto-replies Telnyx sends for HELP / START; default to the tenant wording. */
+  helpMessageResponse?: string;
+  optInConfirmationResponse?: string;
 };
 
 export type TollFreeVerification = {
@@ -743,11 +748,14 @@ function tollFreeBody(i: TollFreeVerificationInput) {
     optInWorkflow: i.optInWorkflow,
     optInWorkflowImageURLs: i.optInImageUrls.map((url) => ({ url })),
     additionalInformation: i.additionalInformation,
-    isvReseller: "WorkBench (Streamflaire Group LLC)",
+    // A reseller filing for a client names itself; the platform's own line files as itself (undefined = field omitted).
+    isvReseller: i.isvReseller === null ? undefined : (i.isvReseller ?? "WorkBench (Streamflaire Group LLC)"),
     optInKeywords: "START,UNSTOP",
     optInConfirmationResponse:
+      i.optInConfirmationResponse ??
       "You are opted in to texts from this business. Reply STOP to opt out, HELP for help. Msg&data rates may apply.",
     helpMessageResponse:
+      i.helpMessageResponse ??
       "This number sends appointment and billing texts from the business you hired. Reply STOP to opt out. Support: workbenchfsm.com/sms-terms",
     privacyPolicyURL: i.privacyPolicyURL,
     termsAndConditionURL: i.termsAndConditionURL,

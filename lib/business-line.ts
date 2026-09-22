@@ -726,7 +726,86 @@ function lineKind(c: { lineNumber: string | null; lineType: string | null }): Re
 }
 
 /** The verification request body for a company, from its stored form. */
+/**
+ * The platform's legal entity. When the registering business IS this entity
+ * (Streamflaire's own toll-free line), the request cannot be filed as an ISV
+ * reseller acting for a client — Telnyx's reviewer rejected exactly that on
+ * 2026-09-14: "resellers can only register for direct communication with
+ * account holders and for development, testing and demonstration". So that
+ * line files as itself, with its real use: WorkBench sales & support.
+ */
+export const PLATFORM_LEGAL_NAME = "Streamflaire Group LLC";
+const normalizeLegal = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+/** The filed business details, back in form shape (the row stores them as columns). */
+export function registrationFormOf(reg: MessagingRegistration): RegistrationForm {
+  return {
+    entityType: reg.entityType as BrandEntityType,
+    legalName: reg.legalName,
+    displayName: reg.displayName,
+    ein: reg.ein,
+    street: reg.street,
+    city: reg.city,
+    state: reg.state,
+    postalCode: reg.postalCode,
+    website: reg.website,
+    vertical: reg.vertical,
+    contactFirstName: reg.contactFirstName,
+    contactLastName: reg.contactLastName,
+    contactEmail: reg.contactEmail,
+    contactPhone: reg.contactPhone,
+    messageVolume: reg.messageVolume,
+    useCase: reg.useCase,
+  } as RegistrationForm;
+}
+
+export function isPlatformOwnLine(form: Pick<RegistrationForm, "legalName" | "displayName">): boolean {
+  return normalizeLegal(form.legalName) === normalizeLegal(PLATFORM_LEGAL_NAME);
+}
+
+/** Toll-free verification for the platform's own line — pure, tested in scripts/test-business-line.ts. */
+export function platformTollFreeInput(number: string, form: RegistrationForm): TollFreeVerificationInput {
+  return {
+    phoneNumber: number,
+    businessName: form.legalName,
+    doingBusinessAs: "WorkBench",
+    entityType: form.entityType,
+    ein: form.ein,
+    addr1: form.street,
+    city: form.city,
+    state: stateName(form.state),
+    zip: form.postalCode,
+    website: form.website || "https://workbenchfsm.com/",
+    contactFirstName: form.contactFirstName,
+    contactLastName: form.contactLastName,
+    contactEmail: form.contactEmail,
+    contactPhone: form.contactPhone,
+    messageVolume: form.messageVolume ?? "1,000",
+    useCase: "Mixed",
+    useCaseSummary:
+      "Streamflaire Group LLC makes WorkBench (workbenchfsm.com), field-service management software for home-service businesses. " +
+      "This number is WorkBench's own sales and support line. It is used to (1) answer businesses that ask about WorkBench — demo requests, pricing and setup questions — " +
+      "(2) send account, setup and support messages to WorkBench account holders, and (3) develop, test and demonstrate the platform's texting features by its own team. " +
+      "Recipients are the prospects and account holders themselves, who asked to be texted; the businesses' own customers are never messaged from this number.",
+    productionMessageContent:
+      "Hi Maria, it's David from WorkBench. Thanks for asking about the business line — happy to walk you through it whenever works for you. Reply STOP to opt out.",
+    optInWorkflow:
+      "Prospects and account holders give WorkBench their mobile number themselves: on the account application at https://workbenchfsm.com/apply, which has an unchecked SMS consent checkbox next to the phone field that links to the text terms (https://workbenchfsm.com/sms-terms); " +
+      "by texting this number first; or by asking to be texted during a call or email exchange. Every text includes opt-out language; STOP opts out immediately and HELP returns support info.",
+    optInImageUrls: [OPT_IN_IMAGE_URL, "https://workbenchfsm.com/sms-terms"],
+    additionalInformation:
+      "Streamflaire Group LLC is the sender and the only user of this number: it is the company's own sales and support line for its WorkBench software, not a number provided to a customer, and no third party sends from it. " +
+      "Conversational two-party traffic plus account notices; no bulk marketing. STOP/HELP handled at the Telnyx edge and mirrored in the application.",
+    privacyPolicyURL: "https://workbenchfsm.com/privacy",
+    termsAndConditionURL: "https://workbenchfsm.com/sms-terms",
+    webhookUrl: tollFreeWebhookUrl(),
+    isvReseller: null,
+    optInConfirmationResponse: "You are opted in to texts from WorkBench. Reply STOP to opt out, HELP for help. Msg&data rates may apply.",
+    helpMessageResponse: "This is WorkBench (Streamflaire Group LLC) sales & support. Reply STOP to opt out. Terms: workbenchfsm.com/sms-terms",
+  };
+}
+
 function tollFreeInput(number: string, form: RegistrationForm): TollFreeVerificationInput {
+  if (isPlatformOwnLine(form)) return platformTollFreeInput(number, form);
   const business = form.displayName || form.legalName;
   const copy = campaignCopy(business, form.website ?? null);
   return {
@@ -758,6 +837,34 @@ function tollFreeInput(number: string, form: RegistrationForm): TollFreeVerifica
     termsAndConditionURL: copy.termsAndConditionsLink,
     webhookUrl: tollFreeWebhookUrl(),
   };
+}
+
+/**
+ * Re-file the company's toll-free request in place with the CURRENT wording
+ * (e.g. after the platform-line framing above changed), keeping its place in
+ * Telnyx's queue. Works for a request still under review; a Verified one is
+ * left alone. Superadmin / script use.
+ */
+export async function refileTollFree(companyId: string): Promise<{ verificationId: string; status: string | null }> {
+  const reg = await prisma.messagingRegistration.findUnique({ where: { companyId }, include: { company: { select: { lineNumber: true } } } });
+  if (!reg || reg.kind !== "TOLL_FREE" || !reg.verificationId) throw new LineError("No toll-free verification on file for this company.", 404);
+  if (!isRealLineNumber(reg.company.lineNumber)) throw new LineError("No number on the line.", 409);
+  const current = await getTollFreeVerification(reg.verificationId);
+  if (current.verificationStatus === "Verified") return { verificationId: reg.verificationId, status: "Verified" };
+  const input = tollFreeInput(reg.company.lineNumber, registrationFormOf(reg));
+  let request: TollFreeVerification;
+  try {
+    request = await updateTollFreeVerification(reg.verificationId, input);
+  } catch (err) {
+    const detail = err instanceof TelnyxError ? err.detail : "unknown error";
+    throw new LineError(`Telnyx rejected the re-filed request: ${detail}`, 502);
+  }
+  const d = deriveTollFree(request.verificationStatus);
+  await prisma.messagingRegistration.update({
+    where: { companyId },
+    data: { status: d.status, verificationStatus: request.verificationStatus ?? null, rejectionReason: d.reason, lastCheckedAt: new Date(), useCase: input.useCase },
+  });
+  return { verificationId: reg.verificationId, status: request.verificationStatus ?? null };
 }
 
 /**
