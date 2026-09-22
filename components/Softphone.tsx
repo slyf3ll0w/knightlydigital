@@ -29,7 +29,18 @@ import type { TelnyxRTC as TelnyxRTCType } from "@telnyx/webrtc";
  *   outbound  placeCall() POSTs to /api/app/line/call with via:"app"; the
  *             server dials THIS browser (X-WB-Call-Id header) and the tab
  *             auto-answers, hears ringback, and is bridged when the
- *             customer picks up.
+ *             customer picks up. Cancel before the INVITE lands hangs the
+ *             server-side call up (DELETE /api/app/line/call).
+ *
+ * Connection discipline (learned the hard way on 2026-09-21): the SDK
+ * reconnects BY ITSELF when its socket drops (maxReconnectAttempts), and it
+ * also fires `telnyx.socket.close` when WE disconnect it. So this component
+ * never reconnects on a close event directly — it waits RECONNECT_FALLBACK_MS
+ * for the SDK to come back and only then mints a fresh token — and every
+ * handler checks it still belongs to the live client (generation counter),
+ * so a torn-down client can't schedule anything. Otherwise each reconnect
+ * spawned the next one, the dialer flickered, and the grant route's rate
+ * limit tripped.
  *
  * Presence is a heartbeat every 30 s while registered and a beacon on
  * pagehide (lib/softphone.ts decides who rings from it). Native shells
@@ -44,6 +55,11 @@ const HEARTBEAT_MS = 30_000;
 const REMOTE_AUDIO_ID = "wb-softphone-audio";
 /** An outbound INVITE that hasn't shown up this long after the POST means the registration dropped. */
 const OUTBOUND_INVITE_WAIT_MS = 25_000;
+/** After a socket drop, how long the SDK's own reconnect gets before we start over with a fresh token. */
+const RECONNECT_FALLBACK_MS = 45_000;
+/** After the grant route says "too many", stay quiet this long. */
+const RATE_LIMITED_WAIT_MS = 3 * 60_000;
+const TERMINAL = new Set(["COMPLETED", "MISSED", "VOICEMAIL", "NO_ANSWER", "FAILED"]);
 
 const fmtNumber = (e164: string | null | undefined): string => {
   const d = (e164 ?? "").replace(/\D/g, "");
@@ -55,7 +71,7 @@ const header = (call: RtcCall, name: string): string | null => {
   return list.find((h) => h.name.toLowerCase() === name.toLowerCase())?.value ?? null;
 };
 
-/** North-American ring cadence (440+480 Hz, 2 s on / 4 s off) on Web Audio — no asset to load. */
+/** North-American ring cadence (440+480 Hz, ~2 s on / 4 s off) on Web Audio — no asset to load. */
 class Ringer {
   private ctx: AudioContext | null = null;
   private timer: ReturnType<typeof setInterval> | null = null;
@@ -93,11 +109,17 @@ class Ringer {
   }
 }
 
+async function hangupServerSide(callId: string): Promise<void> {
+  await fetch(`/api/app/line/call?id=${encodeURIComponent(callId)}`, { method: "DELETE", keepalive: true }).catch(() => {});
+}
+
 export default function Softphone() {
   const state = useSoftphone();
   const clientRef = useRef<RtcClient | null>(null);
   const callRef = useRef<RtcCall | null>(null);
   const pendingOutbound = useRef<{ callId: string; at: number } | null>(null);
+  /** Outbound calls the user cancelled before their INVITE arrived: decline it if it still shows up. */
+  const cancelled = useRef<Set<string>>(new Set());
   const ringer = useRef<Ringer | null>(null);
 
   useEffect(() => {
@@ -110,10 +132,13 @@ export default function Softphone() {
       return;
     }
     ringer.current = ringer.current ?? new Ringer();
-    let cancelled = false;
+    let unmounted = false;
+    /** Bumped on every connect/teardown; handlers from an older client compare and bail. */
+    let gen = 0;
     let client: RtcClient | null = null;
     let heartbeat: ReturnType<typeof setInterval> | null = null;
     let retry: ReturnType<typeof setTimeout> | null = null;
+    let fallback: ReturnType<typeof setTimeout> | null = null;
     let inviteWatch: ReturnType<typeof setTimeout> | null = null;
     let attempt = 0;
 
@@ -128,27 +153,34 @@ export default function Softphone() {
       if (heartbeat) clearInterval(heartbeat);
       heartbeat = null;
     };
+    const clearFallback = () => {
+      if (fallback) clearTimeout(fallback);
+      fallback = null;
+    };
     const teardownClient = () => {
+      gen++; // anything the old client emits from here on is ignored
       stopHeartbeat();
+      clearFallback();
       const c = client;
       client = null;
       clientRef.current = null;
       try {
-        c?.disconnect();
+        void c?.disconnect();
       } catch {
         /* already gone */
       }
     };
-    const scheduleRetry = () => {
-      if (cancelled) return;
+    /** Start over with a fresh token after `delay` ms (only path that mints a new grant). */
+    const restart = (delay: number) => {
+      if (unmounted) return;
       if (retry) clearTimeout(retry);
-      // Don't yank a live conversation for a signaling hiccup; try again after it ends.
-      const delay = callRef.current ? 30_000 : Math.min(60_000, 3_000 * 2 ** Math.min(attempt++, 5));
       retry = setTimeout(() => {
+        retry = null;
         teardownClient();
         void connect();
       }, delay);
     };
+    const backoff = () => Math.min(60_000, 3_000 * 2 ** Math.min(attempt++, 5));
 
     const stopRinger = () => {
       ringer.current?.stop();
@@ -163,13 +195,19 @@ export default function Softphone() {
     };
 
     const onIncoming = (call: RtcCall) => {
+      const callId = header(call, "X-WB-Call-Id");
+      // The user cancelled this outbound call before its INVITE reached us.
+      if (callId && cancelled.current.has(callId)) {
+        cancelled.current.delete(callId);
+        void call.hangup();
+        return;
+      }
       // One call at a time: a second INVITE while busy is declined; the server rings the cell / voicemail as usual.
       if (callRef.current && callRef.current !== call) {
         void call.hangup();
         return;
       }
       callRef.current = call;
-      const callId = header(call, "X-WB-Call-Id");
       const pending = pendingOutbound.current;
       const outbound =
         header(call, "X-WB-Outbound") === "1" ||
@@ -251,58 +289,94 @@ export default function Softphone() {
     };
 
     async function connect() {
-      if (cancelled) return;
+      if (unmounted) return;
+      const myGen = ++gen;
       setSoftphoneState({ status: "connecting" });
       let grant: { token?: string; off?: string; error?: string };
+      let status = 0;
       try {
         const res = await fetch("/api/app/line/softphone", { cache: "no-store" });
+        status = res.status;
         grant = (await res.json().catch(() => ({}))) as typeof grant;
         if (!res.ok) throw new Error(grant.error || "Couldn't start the softphone.");
       } catch (err) {
+        if (unmounted || myGen !== gen) return;
         setSoftphoneState({ status: "error", error: err instanceof Error ? err.message : "Couldn't start the softphone." });
-        scheduleRetry();
+        restart(status === 429 ? RATE_LIMITED_WAIT_MS : backoff());
         return;
       }
-      if (cancelled) return;
+      if (unmounted || myGen !== gen) return;
       if (grant.off || !grant.token) {
         setSoftphoneState({ status: "off", reason: grant.off ?? "voice" });
         return;
       }
       const { TelnyxRTC } = await import("@telnyx/webrtc");
-      if (cancelled) return;
-      client = new TelnyxRTC({ login_token: grant.token });
-      client.remoteElement = REMOTE_AUDIO_ID;
-      client.on("telnyx.ready", () => {
+      if (unmounted || myGen !== gen) return;
+      const c = new TelnyxRTC({ login_token: grant.token });
+      c.remoteElement = REMOTE_AUDIO_ID;
+      const live = () => !unmounted && myGen === gen && client === c;
+      c.on("telnyx.ready", () => {
+        if (!live()) return;
+        console.info("[softphone] registered");
         attempt = 0;
+        clearFallback();
         setSoftphoneState({ status: "ready", error: null, reason: null });
         void beat(true);
         stopHeartbeat();
         heartbeat = setInterval(() => void beat(true), HEARTBEAT_MS);
       });
-      client.on("telnyx.error", (err: unknown) => {
-        console.warn("[softphone] error:", err);
+      c.on("telnyx.error", (err: unknown) => {
+        if (live()) console.warn("[softphone] error:", err);
       });
-      client.on("telnyx.socket.close", () => {
+      c.on("telnyx.socket.close", (ev: { code?: number; reason?: string } | undefined) => {
+        if (!live()) return; // our own teardown, or an older client
+        console.info("[softphone] socket closed", ev?.code ?? "", ev?.reason ?? "", "— SDK reconnecting");
         stopHeartbeat();
-        if (cancelled) return;
         void beat(false);
         setSoftphoneState({ status: "connecting" });
-        scheduleRetry();
+        // The SDK reconnects on its own first; only if it hasn't come back do we start over with a fresh token.
+        if (!fallback) {
+          fallback = setTimeout(() => {
+            fallback = null;
+            if (live() && getSoftphoneState().status !== "ready") restart(callRef.current ? 30_000 : backoff());
+          }, RECONNECT_FALLBACK_MS);
+        }
       });
-      client.on("telnyx.notification", (n: { type: string; call?: RtcCall; error?: Error }) => {
-        if (n.type === "callUpdate" && n.call) onCallUpdate(n.call);
+      c.on("telnyx.notification", (n: { type: string; call?: RtcCall; error?: Error }) => {
+        if (!live()) return;
+        if (n.type === "callUpdate" && n.call) {
+          console.info("[softphone] call", n.call.state, n.call.options.remoteCallerNumber ?? "", header(n.call, "X-WB-Call-Id") ?? "");
+          onCallUpdate(n.call);
+        }
         else if (n.type === "userMediaError") {
+          console.warn("[softphone] microphone error", n.error);
           setSoftphoneState({ error: "Microphone blocked — allow it for this site in the browser, then try again." });
         }
       });
-      clientRef.current = client;
+      client = c;
+      clientRef.current = c;
       try {
-        await client.connect();
+        await c.connect();
       } catch (err) {
+        if (!live()) return;
         console.warn("[softphone] connect failed:", err);
-        scheduleRetry();
+        restart(backoff());
       }
     }
+
+    const cancelPending = () => {
+      // Outbound call that hasn't reached this tab yet: tell the server to hang it up and forget it here.
+      const cur = getSoftphoneState().call;
+      const id = pendingOutbound.current?.callId ?? cur?.callId ?? null;
+      pendingOutbound.current = null;
+      if (inviteWatch) clearTimeout(inviteWatch);
+      if (id) {
+        cancelled.current.add(id);
+        setTimeout(() => cancelled.current.delete(id), 60_000);
+        void hangupServerSide(id);
+      }
+      setSoftphoneState({ call: null });
+    };
 
     const unregister = registerSoftphoneController({
       answer: () => {
@@ -311,8 +385,21 @@ export default function Softphone() {
         stopRinger();
         void c.answer();
       },
-      decline: () => void callRef.current?.hangup(),
-      hangup: () => void callRef.current?.hangup(),
+      decline: () => {
+        if (callRef.current) void callRef.current.hangup();
+        else cancelPending();
+      },
+      hangup: () => {
+        const c = callRef.current;
+        const cur = getSoftphoneState().call;
+        if (c) {
+          void c.hangup();
+          // Outbound, customer not on yet: the SIP leg alone hanging up would leave the customer leg ringing.
+          if (cur?.direction === "out" && cur.state === "dialing" && cur.callId) void hangupServerSide(cur.callId);
+        } else {
+          cancelPending();
+        }
+      },
       toggleMute: () => {
         const c = callRef.current;
         if (!c) return;
@@ -328,7 +415,7 @@ export default function Softphone() {
       },
       placeCall: async (target: PlaceCallTarget) => {
         if (!clientRef.current || getSoftphoneState().status !== "ready") throw new Error("The softphone isn't connected.");
-        if (callRef.current) throw new Error("You're already on a call.");
+        if (callRef.current || getSoftphoneState().call) throw new Error("You're already on a call.");
         const res = await fetch("/api/app/line/call", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -336,11 +423,12 @@ export default function Softphone() {
         });
         const data = (await res.json().catch(() => ({}))) as { error?: string; callId?: string; customerNumber?: string };
         if (!res.ok || !data.callId) throw new Error(data.error || "Couldn't place the call.");
-        pendingOutbound.current = { callId: data.callId, at: Date.now() };
+        const placedId = data.callId;
+        pendingOutbound.current = { callId: placedId, at: Date.now() };
         setSoftphoneState({
           error: null,
           call: {
-            callId: data.callId,
+            callId: placedId,
             direction: "out",
             label: target.label || fmtNumber(data.customerNumber) || "Calling…",
             number: data.customerNumber ?? null,
@@ -352,11 +440,13 @@ export default function Softphone() {
         });
         if (inviteWatch) clearTimeout(inviteWatch);
         inviteWatch = setTimeout(() => {
-          if (pendingOutbound.current?.callId !== data.callId) return;
+          if (pendingOutbound.current?.callId !== placedId) return;
           pendingOutbound.current = null;
           if (!callRef.current) {
+            console.info("[softphone] outbound INVITE never arrived; cancelling", placedId);
+            void hangupServerSide(placedId);
             setSoftphoneState({ call: null, error: "The call never reached this browser — reconnecting. Try again in a moment." });
-            scheduleRetry();
+            restart(0);
           }
         }, OUTBOUND_INVITE_WAIT_MS);
       },
@@ -373,7 +463,7 @@ export default function Softphone() {
     void connect();
 
     return () => {
-      cancelled = true;
+      unmounted = true;
       window.removeEventListener("pagehide", goodbye);
       if (retry) clearTimeout(retry);
       if (inviteWatch) clearTimeout(inviteWatch);
@@ -385,7 +475,7 @@ export default function Softphone() {
     };
   }, []);
 
-  // Outbound: "Calling…" until our row says the customer is on (bridged).
+  // Outbound: "Calling…" until our row says the customer is on (bridged) — or that it never will be.
   const outCallId = state.call?.direction === "out" && state.call.state === "dialing" ? state.call.callId : null;
   useEffect(() => {
     if (!outCallId) return;
@@ -397,6 +487,16 @@ export default function Softphone() {
         if (stop || !j.call) return;
         if (j.call.status === "IN_PROGRESS") {
           patchSoftphoneCall({ state: "active", startedAt: j.call.answeredAt ? Date.parse(j.call.answeredAt) : Date.now() });
+        } else if (TERMINAL.has(j.call.status)) {
+          // The leg to this browser or to the customer failed / went unanswered: don't leave a stuck card.
+          softphone.hangup();
+          setSoftphoneState({
+            call: null,
+            error:
+              j.call.status === "NO_ANSWER"
+                ? "No answer."
+                : "The call didn't connect. If this keeps happening, use Call from line to ring your cell instead.",
+          });
         }
       } catch {
         /* next tick */

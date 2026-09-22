@@ -15,7 +15,8 @@ export async function GET() {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!canSell(actor.role)) return NextResponse.json({ off: "role" });
-  if (!(await limit(`softphone-grant:${actor.id}`, 30, 10 * 60_000)).ok) {
+  // Generous: a healthy tab mints one per page load; the client backs off 3 min on a 429.
+  if (!(await limit(`softphone-grant:${actor.id}`, 60, 10 * 60_000)).ok) {
     return NextResponse.json({ error: "Too many softphone connections in a row — give it a few minutes." }, { status: 429 });
   }
   try {

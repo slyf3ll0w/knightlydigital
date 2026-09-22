@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getActor, canSell } from "@/lib/permissions";
 import { limit } from "@/lib/rate-limit";
-import { VoiceError, startOutboundCall } from "@/lib/voice";
+import { VoiceError, cancelCall, startOutboundCall } from "@/lib/voice";
 
 /**
  * POST { contactId } | { to } — call a client from the business line
@@ -11,6 +11,11 @@ import { VoiceError, startOutboundCall } from "@/lib/voice";
  * number. Rate-limited: every call past the checks costs minutes.
  * `via: "app"` rings the caller's own browser (components/Softphone.tsx)
  * instead of their cell — no whisper, the tab auto-answers.
+ *
+ * DELETE ?id= — hang up a call that is still ringing or in progress: the
+ * softphone's Cancel before its own INVITE has landed (nothing to hang up
+ * in the browser yet), or a stuck card. Every leg is dropped at Telnyx and
+ * a still-ringing row closes as FAILED / MISSED.
  */
 export async function POST(req: NextRequest) {
   const actor = await getActor();
@@ -34,6 +39,21 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     if (err instanceof VoiceError) return NextResponse.json({ error: err.message }, { status: err.status });
     console.error("[voice] call route error:", err);
+    return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  const actor = await getActor();
+  if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!canSell(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const id = req.nextUrl.searchParams.get("id");
+  if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
+  try {
+    return NextResponse.json(await cancelCall(actor.companyId, id));
+  } catch (err) {
+    if (err instanceof VoiceError) return NextResponse.json({ error: err.message }, { status: err.status });
+    console.error("[voice] cancel route error:", err);
     return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
   }
 }

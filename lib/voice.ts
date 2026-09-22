@@ -879,6 +879,33 @@ export async function startOutboundCall(
   return { callId: call.id, via, agentNumber, customerNumber };
 }
 
+/**
+ * Hang up a live call from the app (DELETE /api/app/line/call): every leg
+ * Telnyx still has is dropped; a row that was still RINGING closes here
+ * (the hangup webhooks would only re-confirm it). Idempotent — a call that
+ * already ended is reported as such.
+ */
+export async function cancelCall(companyId: string, callId: string): Promise<{ status: CallStatus }> {
+  const call = await prisma.call.findFirst({ where: { id: callId, companyId } });
+  if (!call) throw new VoiceError("Call not found.", 404);
+  if (isTerminalStatus(call.status)) return { status: call.status };
+  if (voiceEnabled()) {
+    for (const ccid of [call.agentCallId, call.telnyxCallId]) {
+      if (ccid && !ccid.startsWith("pending:")) await callAction(ccid, "hangup").catch((e) => console.error("[voice] cancel hangup failed:", e));
+    }
+    await hangupAppLegs(call.id, null).catch(() => {});
+  }
+  if (call.status !== "RINGING") return { status: call.status }; // bridged: the customer leg's hangup closes the row
+  const now = new Date();
+  const status: CallStatus = call.direction === "INBOUND" ? "MISSED" : "FAILED";
+  await prisma.call.updateMany({
+    where: { id: call.id, status: "RINGING" },
+    data: { status, hangupCause: "cancelled", endedAt: now },
+  });
+  await prisma.callLeg.updateMany({ where: { callId: call.id, endedAt: null }, data: { endedAt: now, hangupCause: "cancelled" } });
+  return { status };
+}
+
 /* ───────────────────────── Voicemail playback ───────────────────────── */
 
 /** A short-lived MP3 URL for a call's voicemail, or null when there's nothing to play. */
