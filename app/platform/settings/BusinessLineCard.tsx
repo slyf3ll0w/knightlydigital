@@ -672,6 +672,18 @@ function RegistrationForm({
   const set = (k: keyof RegistrationForm) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setF((p) => ({ ...p, [k]: e.target.value }));
   const sole = !tollFree && f.entityType === "SOLE_PROPRIETOR";
+  // Telnyx's toll-free reviewer: the contact email must be at the website's domain (www/subdomains ignored).
+  const siteDomain = (() => {
+    const w = (f.website ?? "").trim();
+    if (!w) return "";
+    try {
+      return new URL(/^https?:\/\//i.test(w) ? w : `https://${w}`).hostname.replace(/^www[.]/, "").toLowerCase();
+    } catch {
+      return "";
+    }
+  })();
+  const mailDomain = f.contactEmail.split("@")[1]?.toLowerCase() ?? "";
+  const emailOffDomain = tollFree && !!siteDomain && !!mailDomain && mailDomain !== siteDomain && !mailDomain.endsWith(`.${siteDomain}`);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -793,8 +805,24 @@ function RegistrationForm({
         <Field label="Contact last name">
           <input value={f.contactLastName} onChange={set("contactLastName")} className={inputCls} required />
         </Field>
-        <Field label="Contact email">
-          <input type="email" value={f.contactEmail} onChange={set("contactEmail")} className={inputCls} required />
+        <Field
+          label="Contact email"
+          hint={
+            tollFree
+              ? `Must be at your website's domain${siteDomain ? ` (you@${siteDomain})` : ""} — the reviewer turns down Gmail, Yahoo and other addresses`
+              : "An address at your website's domain helps the carriers match you to the business"
+          }
+        >
+          <input
+            type="email"
+            value={f.contactEmail}
+            onChange={set("contactEmail")}
+            className={`${inputCls}${emailOffDomain ? " border-red-400" : ""}`}
+            required
+          />
+          {emailOffDomain && (
+            <span className="mt-0.5 block text-[11px] text-red-600">This address isn't at {siteDomain}, so the reviewer will send it back.</span>
+          )}
         </Field>
         <Field label={sole ? "Your mobile (gets the PIN)" : "Contact phone"}>
           <input value={f.contactPhone} onChange={set("contactPhone")} inputMode="tel" className={inputCls} required />
