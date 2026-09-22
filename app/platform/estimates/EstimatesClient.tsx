@@ -84,7 +84,7 @@ export default function EstimatesClient({
           <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
             <span className="truncate text-[15px] font-semibold text-gray-900">{t.name}</span>
             {!t.isActive && <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600">Off</span>}
-            {t.isPublic && <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-700">On your website</span>}
+            {t.isPublic && t.publicSlug && <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-700">Published</span>}
             {placeholders > 0 && manager && <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600">{placeholders} rate{placeholders === 1 ? "" : "s"} to confirm</span>}
           </span>
           <span className="mt-0.5 block truncate text-xs text-gray-500">{t.description || factsOf(t, atlas.name)}</span>

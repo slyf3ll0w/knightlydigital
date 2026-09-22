@@ -49,7 +49,7 @@ const SECTIONS: { key: Section; label: string; icon: typeof Play; manager?: bool
   { key: "overview", label: "Overview", icon: LayoutDashboard },
   { key: "try", label: "Try it", icon: Play },
   { key: "atlas", label: "Ask Atlas", icon: Sparkles, manager: true },
-  { key: "website", label: "Website", icon: Globe, manager: true },
+  { key: "website", label: "Web form", icon: Globe, manager: true },
   { key: "advanced", label: "Advanced", icon: SlidersHorizontal, manager: true },
   { key: "history", label: "History", icon: History, manager: true },
 ];
@@ -176,7 +176,7 @@ export default function ToolClient({ tool: initial, manager, companySlug, baseUr
     }
   }
 
-  /** Overview: "Put it on your website" publishes on the spot and shows the link. */
+  /** Overview: "Publish as a web form" publishes on the spot and shows the link. */
   async function publishNow() {
     if (tool.isPublic) {
       go("website");
@@ -235,7 +235,7 @@ export default function ToolClient({ tool: initial, manager, companySlug, baseUr
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
               <h1 className="text-xl font-bold tracking-tight text-gray-900">{tool.name}</h1>
               {!tool.isActive && <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600">Off</span>}
-              {tool.isPublic && <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-700">On your website</span>}
+              {tool.isPublic && tool.publicSlug && <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-700">Published</span>}
             </div>
             <p className="mt-0.5 text-sm text-gray-600">{tool.description || facts.join(" · ")}</p>
           </div>
@@ -338,8 +338,8 @@ export default function ToolClient({ tool: initial, manager, companySlug, baseUr
                   <div className="flex items-center gap-3 px-4 py-3">
                     <Globe size={16} style={{ color: theme.accent }} />
                     <button type="button" onClick={() => void publishNow()} disabled={busy === "publish"} className="min-w-0 flex-1 text-left">
-                      <span className="block text-sm font-medium text-gray-900">{tool.isPublic ? "On your website" : "Put it on your website"}</span>
-                      <span className="block truncate text-xs text-gray-500">{tool.isPublic ? hostedUrl : "One tap — you get a link and an embed code."}</span>
+                      <span className="block text-sm font-medium text-gray-900">{tool.isPublic ? "Published as a web form" : "Publish as a web form"}</span>
+                      <span className="block truncate text-xs text-gray-500">{tool.isPublic ? `Share the link or embed it on your site · ${hostedUrl}` : "One tap — you get a link to share and an embed code for your website."}</span>
                     </button>
                     {busy === "publish" ? (
                       <Loader2 size={14} className="animate-spin text-gray-400" />

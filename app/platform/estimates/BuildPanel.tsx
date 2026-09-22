@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, Check, Globe, Loader2, MessageCircleQuestion, Pencil, Play, Sparkles } from "lucide-react";
-import { Input, Textarea } from "@/components/Input";
+import { Textarea } from "@/components/Input";
 import { useAssistant } from "@/components/AssistantContext";
 import { APP_THEME, moneyExact, useCountUp, wash } from "@/components/EstimatorControls";
 import RatesToConfirm from "@/components/RatesToConfirm";
@@ -320,16 +320,32 @@ export default function BuildPanel({
                 {q.suggestions.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {q.suggestions.map((s) => {
-                      const on = answers[i] === s;
+                      // Chips add up: tap several and they join into one answer (a
+                      // question about three tiers may list one example per tier).
+                      const on = (answers[i] ?? "").split(/;\s*/).includes(s);
                       return (
-                        <button key={s} type="button" onClick={() => setAnswers((a) => a.map((x, k) => (k === i ? (on ? "" : s) : x)))} className={`rounded-full border px-2.5 py-1 text-xs font-medium ${on ? "" : "border-gray-200 text-gray-700 hover:bg-gray-50"}`} style={on ? { backgroundColor: theme.accent, borderColor: theme.accent, color: theme.onAccent } : undefined}>
+                        <button
+                          key={s}
+                          type="button"
+                          onClick={() =>
+                            setAnswers((a) =>
+                              a.map((x, k) => {
+                                if (k !== i) return x;
+                                const parts = x.split(/;\s*/).filter(Boolean);
+                                return (on ? parts.filter((p) => p !== s) : [...parts, s]).join("; ");
+                              })
+                            )
+                          }
+                          className={`rounded-full border px-2.5 py-1 text-left text-xs font-medium ${on ? "" : "border-gray-200 text-gray-700 hover:bg-gray-50"}`}
+                          style={on ? { backgroundColor: theme.accent, borderColor: theme.accent, color: theme.onAccent } : undefined}
+                        >
                           {s}
                         </button>
                       );
                     })}
                   </div>
                 )}
-                <Input value={answers[i] ?? ""} onChange={(e) => setAnswers((a) => a.map((x, k) => (k === i ? e.target.value : x)))} placeholder="Your answer" maxLength={600} className="mt-2 w-full" autoFocus={i === 0} />
+                <Textarea value={answers[i] ?? ""} onChange={(e) => setAnswers((a) => a.map((x, k) => (k === i ? e.target.value : x)))} placeholder={q.suggestions.length > 0 ? "Tap the examples that fit, or write your own" : "Your answer"} rows={2} maxLength={600} className="mt-2 w-full" autoFocus={i === 0} />
               </li>
             ))}
           </ol>
@@ -497,7 +513,7 @@ export default function BuildPanel({
                   )}
                   {onPublish && (
                     <button type="button" onClick={() => onPublish(finished.tool)} className="inline-flex h-10 items-center gap-1.5 rounded-[10px] border border-gray-300 px-3.5 text-sm font-medium text-gray-700 hover:bg-gray-50">
-                      <Globe size={15} /> Put it on your website
+                      <Globe size={15} /> Publish as a web form
                     </button>
                   )}
                   {onEdit && (

@@ -108,8 +108,8 @@ export default function PublishPanel({ tool, companySlug, baseUrl, onSaved, init
           className="flex w-full items-center justify-between gap-3 text-left"
         >
           <span className="min-w-0">
-            <span className="block text-base font-semibold text-gray-900">{tool.isPublic ? "On your website" : "Put it on your website"}</span>
-            <span className="mt-0.5 block text-xs text-gray-500">{tool.isPublic ? "Visitors answer its questions, get an estimate, and land in your leads. Free to run." : "One tap. Visitors answer its questions, get an estimate, and land in your leads. Free to run."}</span>
+            <span className="block text-base font-semibold text-gray-900">{tool.isPublic ? "Published as a web form" : "Publish as a web form"}</span>
+            <span className="mt-0.5 block text-xs text-gray-500">{tool.isPublic ? "It's live at the link below. Share the link, or paste the embed code into your website — visitors get an estimate and land in your leads." : "One tap gives you a link to share and an embed code for your website. Visitors get an estimate and land in your leads. Free to run."}</span>
           </span>
           <span className="relative h-7 w-12 shrink-0 rounded-full transition-colors" style={{ backgroundColor: tool.isPublic ? theme.accent : "#d1d5db" }} aria-hidden>
             {busy === "publish" ? (
