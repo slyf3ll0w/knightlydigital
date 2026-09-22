@@ -548,7 +548,7 @@ function Texting({
       <div className="space-y-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm">
         <p className="flex items-center gap-2 font-medium text-red-800">
           <AlertTriangle size={16} />
-          {tollFree && reg.rejectionReason?.toLowerCase().includes("more information")
+          {tollFree && (reg.verificationStatus === "Waiting For Customer" || reg.rejectionReason?.toLowerCase().includes("more information"))
             ? "The reviewer needs more from you"
             : "The carriers didn't approve texting"}
         </p>

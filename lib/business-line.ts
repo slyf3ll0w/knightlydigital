@@ -548,6 +548,14 @@ export function sanitizeRegistrationForm(raw: Record<string, unknown>, kind: Reg
   if (!contactFirstName || !contactLastName) throw new LineError("Enter the contact's first and last name.");
   const contactEmail = str(raw.contactEmail, 200).toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)) throw new LineError("Enter a valid contact email.");
+  if (tollFree && website) {
+    // Telnyx's reviewer: "A business contact email must match the business website domain." (2026-09-22)
+    const site = new URL(website).hostname.replace(/^www[.]/, "").toLowerCase();
+    const mailDomain = contactEmail.split("@")[1];
+    if (mailDomain !== site && !mailDomain.endsWith(`.${site}`)) {
+      throw new LineError(`The reviewer requires a contact email at your website's domain — use an address ending in @${site}.`);
+    }
+  }
   const contactPhone = toE164(str(raw.contactPhone, 30));
   if (!contactPhone) throw new LineError(entityType === "SOLE_PROPRIETOR" ? "Enter the mobile number that will receive the verification PIN." : "Enter a valid contact phone number.");
   return {
@@ -793,8 +801,9 @@ export function platformTollFreeInput(number: string, form: RegistrationForm): T
       "Prospects and account holders give WorkBench their mobile number themselves: on the account application at https://workbenchfsm.com/apply " +
       "(unchecked SMS consent checkbox by the phone field, linking to https://workbenchfsm.com/sms-terms), by texting this number first, " +
       "or by asking to be texted during a call or email. Every text includes opt-out language; STOP opts out immediately, HELP returns support info.",
-    // The /apply checkbox itself (public/sms-opt-in-workbench.png), not the tenant booking-form image.
-    optInImageUrls: ["https://workbenchfsm.com/sms-opt-in-workbench.png", "https://workbenchfsm.com/sms-terms"],
+    // The whole /apply form with the checkbox ticked (public/sms-opt-in-workbench.png) plus the texting terms
+    // page as an image — a cropped checkbox came back "OPT in example must be complete" (2026-09-22).
+    optInImageUrls: ["https://workbenchfsm.com/sms-opt-in-workbench.png", "https://workbenchfsm.com/sms-terms-workbench.png"],
     additionalInformation:
       "Streamflaire Group LLC is the sender and only user of this number: its own sales and support line for its WorkBench software, " +
       "not a number provided to a customer; no third party sends from it. Conversational two-party traffic plus account notices; no bulk marketing. " +
@@ -863,7 +872,7 @@ export async function refileTollFree(companyId: string): Promise<{ verificationI
     const detail = err instanceof TelnyxError ? err.detail : "unknown error";
     throw new LineError(`Telnyx rejected the re-filed request: ${detail}`, 502);
   }
-  const d = deriveTollFree(request.verificationStatus);
+  const d = deriveTollFree(request.verificationStatus, request.reason?.trim());
   await prisma.messagingRegistration.update({
     where: { companyId },
     data: { status: d.status, verificationStatus: request.verificationStatus ?? null, rejectionReason: d.reason, lastCheckedAt: new Date(), useCase: input.useCase },
@@ -919,7 +928,7 @@ async function submitTollFreeVerification(
   const verificationId = request.id ?? request.verificationRequestId ?? existingId;
   if (!verificationId) throw new LineError("Telnyx accepted the request but returned no id — contact support.", 502);
 
-  const d = deriveTollFree(request.verificationStatus);
+  const d = deriveTollFree(request.verificationStatus, request.reason?.trim());
   const data: Prisma.MessagingRegistrationUncheckedCreateInput = {
     companyId: company.id,
     status: d.status,
@@ -973,8 +982,11 @@ async function advanceTollFree(reg: RegWithCompany): Promise<MessagingRegistrati
     throw new LineError(`Telnyx check failed: ${detail}`, 502);
   }
   const status = request.verificationStatus ?? null;
+  // The reviewer's note rides on the request itself; status_history is a fallback (it 404s on some accounts).
   const reason =
-    status === "Rejected" || status === "Waiting For Customer" ? await tollFreeStatusReason(reg.verificationId) : null;
+    status === "Rejected" || status === "Waiting For Customer"
+      ? request.reason?.trim() || (await tollFreeStatusReason(reg.verificationId))
+      : null;
   const d = deriveTollFree(status, reason);
   if (d.status !== reg.status) {
     console.warn(`[line] "${reg.company.name}" toll-free: ${reg.status} → ${d.status}${d.reason ? ` (${d.reason})` : ""}`);

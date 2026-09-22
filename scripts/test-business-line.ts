@@ -168,6 +168,24 @@ rejects({ vertical: "SPACE" }, /industry/);
 rejects({ contactEmail: "nope" }, /email/);
 rejects({ contactPhone: "123" }, /phone/);
 rejects({ website: "not a url at all" }, /website/);
+// Toll-free: the reviewer wants the contact email at the website's domain (rejection 2026-09-22)
+{
+  const tf = { ...good, messageVolume: "1,000", useCase: "Mixed" };
+  assert.equal(sanitizeRegistrationForm(tf, "TOLL_FREE").contactEmail, "info@streamflaire.com", "email at the website's domain passes");
+  assert.equal(
+    sanitizeRegistrationForm({ ...tf, website: "www.streamflaire.com", contactEmail: "david@mail.streamflaire.com" }, "TOLL_FREE").contactEmail,
+    "david@mail.streamflaire.com",
+    "www and subdomains don't matter"
+  );
+  try {
+    sanitizeRegistrationForm({ ...tf, contactEmail: "david@gmail.com" }, "TOLL_FREE");
+    assert.fail("a gmail contact on a toll-free filing should be rejected");
+  } catch (err) {
+    assert.ok(err instanceof LineError, String(err));
+    assert.match(err.message, /@streamflaire[.]com/);
+  }
+  assert.equal(sanitizeRegistrationForm({ ...good, contactEmail: "david@gmail.com" }).contactEmail, "david@gmail.com", "10DLC has no such rule");
+}
 // Sole prop: no EIN needed, the mobile is what gets the PIN
 {
   const f = sanitizeRegistrationForm({ ...good, entityType: "SOLE_PROPRIETOR", ein: "" });
@@ -296,6 +314,7 @@ console.log("test-business-line (number rights): all assertions passed");
   const input = platformTollFreeInput("+18334950229", base as never);
   assert.equal(input.isvReseller, null, "no reseller field — Telnyx rejected the on-behalf-of framing for the platform's own line");
   assert.equal(input.doingBusinessAs, "WorkBench");
+  assert.ok(input.optInImageUrls.every((u) => u.endsWith(".png")), "opt-in evidence is images, not pages");
   assert.match(input.useCaseSummary, /sales and support/);
   assert.doesNotMatch(input.useCaseSummary, /local service business/);
   assert.doesNotMatch(input.additionalInformation, /on behalf of/);
