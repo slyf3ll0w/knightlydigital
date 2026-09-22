@@ -781,21 +781,24 @@ export function platformTollFreeInput(number: string, form: RegistrationForm): T
     contactPhone: form.contactPhone,
     messageVolume: form.messageVolume ?? "1,000",
     useCase: "Mixed",
+    // Telnyx caps every free-text field at 500 characters (tested).
     useCaseSummary:
-      "Streamflaire Group LLC makes WorkBench (workbenchfsm.com), field-service management software for home-service businesses. " +
-      "This number is WorkBench's own sales and support line. It is used to (1) answer businesses that ask about WorkBench — demo requests, pricing and setup questions — " +
-      "(2) send account, setup and support messages to WorkBench account holders, and (3) develop, test and demonstrate the platform's texting features by its own team. " +
-      "Recipients are the prospects and account holders themselves, who asked to be texted; the businesses' own customers are never messaged from this number.",
+      "Streamflaire Group LLC makes WorkBench (workbenchfsm.com), field-service software for home-service businesses. " +
+      "This is WorkBench's own sales and support line: replies to businesses asking about WorkBench (demos, pricing, setup), " +
+      "account and support messages to WorkBench account holders, and testing/demonstration of the platform by its own team. " +
+      "Recipients are prospects and account holders who asked to be texted; those businesses' own customers are never messaged from this number.",
     productionMessageContent:
       "Hi Maria, it's David from WorkBench. Thanks for asking about the business line — happy to walk you through it whenever works for you. Reply STOP to opt out.",
     optInWorkflow:
-      "Prospects and account holders give WorkBench their mobile number themselves: on the account application at https://workbenchfsm.com/apply, which has an unchecked SMS consent checkbox next to the phone field that links to the text terms (https://workbenchfsm.com/sms-terms); " +
-      "by texting this number first; or by asking to be texted during a call or email exchange. Every text includes opt-out language; STOP opts out immediately and HELP returns support info.",
+      "Prospects and account holders give WorkBench their mobile number themselves: on the account application at https://workbenchfsm.com/apply " +
+      "(unchecked SMS consent checkbox by the phone field, linking to https://workbenchfsm.com/sms-terms), by texting this number first, " +
+      "or by asking to be texted during a call or email. Every text includes opt-out language; STOP opts out immediately, HELP returns support info.",
     // The /apply checkbox itself (public/sms-opt-in-workbench.png), not the tenant booking-form image.
     optInImageUrls: ["https://workbenchfsm.com/sms-opt-in-workbench.png", "https://workbenchfsm.com/sms-terms"],
     additionalInformation:
-      "Streamflaire Group LLC is the sender and the only user of this number: it is the company's own sales and support line for its WorkBench software, not a number provided to a customer, and no third party sends from it. " +
-      "Conversational two-party traffic plus account notices; no bulk marketing. STOP/HELP handled at the Telnyx edge and mirrored in the application.",
+      "Streamflaire Group LLC is the sender and only user of this number: its own sales and support line for its WorkBench software, " +
+      "not a number provided to a customer; no third party sends from it. Conversational two-party traffic plus account notices; no bulk marketing. " +
+      "STOP/HELP handled at the Telnyx edge and mirrored in the application.",
     privacyPolicyURL: "https://workbenchfsm.com/privacy",
     termsAndConditionURL: "https://workbenchfsm.com/sms-terms",
     webhookUrl: tollFreeWebhookUrl(),

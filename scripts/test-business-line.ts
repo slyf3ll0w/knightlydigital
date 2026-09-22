@@ -301,5 +301,9 @@ console.log("test-business-line (number rights): all assertions passed");
   assert.doesNotMatch(input.additionalInformation, /on behalf of/);
   assert.match(input.optInWorkflow, /workbenchfsm\.com\/apply/);
   assert.match(input.helpMessageResponse ?? "", /WorkBench/);
+  // Telnyx: "String is too long. Must be maximum 500 characters." (a real 2026-09-22 rejection)
+  for (const k of ["useCaseSummary", "optInWorkflow", "additionalInformation", "productionMessageContent"] as const) {
+    assert.ok(input[k].length <= 500, `${k} is ${input[k].length} chars; Telnyx caps it at 500`);
+  }
   console.log("test-business-line (platform line): all assertions passed");
 }
