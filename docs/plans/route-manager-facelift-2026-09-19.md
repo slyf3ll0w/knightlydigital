@@ -239,3 +239,11 @@ Traffic layer, live ETA, smart slots, offline tiles, dark-mode basemap
     renders (sheet at half) can join `schedule-tools.spec.ts` then. Phase 5
     (vector tiles) untouched. A Workbench Studio style is a later swap of
     `NEXT_PUBLIC_MAPBOX_STYLE`.
+- 2026-09-22 (later) — David after the release: "nothing is loading" on
+  Routes and the team map. Cause: both pages sized their root with `h-full`
+  inside the shell's flex-column `<main>`, which collapsed to 0 (the old
+  pages used `calc(100dvh - …)` guesses for this reason). Fix:
+  `lib/use-main-fill.ts` measures `<main>` (ResizeObserver) and sets the
+  root height in px, then calls `invalidateSize()`. `NEXT_PUBLIC_MAPBOX_TOKEN`
+  was still unset on both Railway envs, so the tracer was on Esri fallback
+  tiles — the grain is expected until the token lands.

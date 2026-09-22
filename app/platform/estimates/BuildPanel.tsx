@@ -34,6 +34,8 @@ type Ev =
   | { error: string; tokens: number; atlasLocked?: boolean };
 
 type Finished = { tool: BuiltTool; changes: string[]; samples: BuildSample[]; placeholders: string[]; warnings: string[]; tokens: number };
+/** GET /api/app/estimators/build/[id] */
+type BuildState = { id: string; status: "running" | "questions" | "done" | "error"; prompt: string; events: Ev[] };
 
 const STEPS: { key: StepKey; label: string; changeLabel: string }[] = [
   { key: "plan", label: "Sizing up the job", changeLabel: "Reading the tool" },
@@ -96,9 +98,12 @@ export default function BuildPanel({
   onEdit,
   compact = false,
   autoFocus = false,
+  resumeBuildId = null,
 }: {
   /** Set → change this tool instead of creating one */
   estimatorId?: string;
+  /** A build that is still running (or waiting on answers) — the panel picks it up instead of starting fresh. */
+  resumeBuildId?: string | null;
   initialPrompt?: string;
   placeholder?: string;
   onBuilt: (tool: BuiltTool, info: { changes: string[]; samples: BuildSample[]; placeholders: string[]; tokens: number }) => void;
@@ -127,6 +132,8 @@ export default function BuildPanel({
   const [reading, setReading] = useState(false);
   const boxRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  // the build this panel is following right now (a newer one supersedes it)
+  const followingRef = useRef<string | null>(null);
 
   async function attachSheet(file: File | undefined) {
     if (!file) return;
@@ -160,32 +167,10 @@ export default function BuildPanel({
     setSamples(null);
   }
 
-  async function run(fullPrompt: string, withAnswers?: BuildAnswer[]) {
-    setRunning(true);
-    reset();
-    setCurrent({ key: "plan", message: "Starting…" });
-    try {
-      const res = await fetch("/api/app/estimators/build", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          prompt: fullPrompt,
-          ...(estimatorId ? { estimatorId } : {}),
-          ...(withAnswers && withAnswers.length > 0 ? { answers: withAnswers } : {}),
-          ...(sheet ? { imageBase64: sheet.base64, imageMime: sheet.mime } : {}),
-        }),
-      });
-      if (!res.ok || !res.body) {
-        const data = (await res.json().catch(() => null)) as { error?: string } | null;
-        setError(data?.error ?? "Couldn't start the build — please try again.");
-        setCurrent(null);
-        return;
-      }
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buf = "";
-      let lastKey: StepKey | null = null;
-      const handle = (ev: Ev) => {
+  /** Replays a build's events into the panel state; one per build so the step rail's "last step" is tracked. */
+  function makeHandler() {
+    let lastKey: StepKey | null = null;
+    const handle = (ev: Ev) => {
         if ("phase" in ev) {
           const key: StepKey = ev.phase === "fix" ? "draft" : ev.phase;
           if (lastKey && lastKey !== key) {
@@ -222,36 +207,92 @@ export default function BuildPanel({
           setError(ev.error);
         }
       };
+    return handle;
+  }
+
+  /**
+   * Follow a build that runs on the server (lib/estimator-build-jobs.ts):
+   * poll its row, replay the events we haven't seen, stop when it lands.
+   * Leaving the page doesn't stop the build — coming back resumes here.
+   */
+  async function follow(buildId: string) {
+    const handle = makeHandler();
+    let seen = 0;
+    let misses = 0;
+    followingRef.current = buildId;
+    try {
       for (;;) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        buf += decoder.decode(value, { stream: true });
-        let nl: number;
-        while ((nl = buf.indexOf("\n")) >= 0) {
-          const line = buf.slice(0, nl).trim();
-          buf = buf.slice(nl + 1);
-          if (!line) continue;
-          try {
-            handle(JSON.parse(line) as Ev);
-          } catch {
-            /* partial line — ignore */
-          }
-        }
-      }
-      if (buf.trim()) {
+        if (followingRef.current !== buildId) return; // a newer build took over
+        let data: BuildState | null = null;
         try {
-          handle(JSON.parse(buf.trim()) as Ev);
+          const res = await fetch(`/api/app/estimators/build/${buildId}`, { cache: "no-store" });
+          if (res.status === 404) {
+            setError("That build is gone — start it again.");
+            setCurrent(null);
+            return;
+          }
+          data = res.ok ? ((await res.json()) as BuildState) : null;
         } catch {
-          /* ignore */
+          data = null;
         }
+        if (!data) {
+          if (++misses > 20) {
+            setError("Lost the connection while building — check your connection; the build keeps going, reload to see it.");
+            setCurrent(null);
+            return;
+          }
+        } else {
+          misses = 0;
+          if (!prompt && data.prompt) setPrompt(data.prompt);
+          for (; seen < data.events.length; seen++) handle(data.events[seen]);
+          if (data.status !== "running") return;
+        }
+        await new Promise((r) => setTimeout(r, 1200));
       }
-    } catch {
-      setError("Lost the connection while building — check your connection and try again.");
-      setCurrent(null);
     } finally {
+      if (followingRef.current === buildId) setRunning(false);
+    }
+  }
+
+  async function run(fullPrompt: string, withAnswers?: BuildAnswer[]) {
+    setRunning(true);
+    reset();
+    setCurrent({ key: "plan", message: "Starting…" });
+    try {
+      const res = await fetch("/api/app/estimators/build", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: fullPrompt,
+          ...(estimatorId ? { estimatorId } : {}),
+          ...(withAnswers && withAnswers.length > 0 ? { answers: withAnswers } : {}),
+          ...(sheet ? { imageBase64: sheet.base64, imageMime: sheet.mime } : {}),
+        }),
+      });
+      const data = (await res.json().catch(() => null)) as { buildId?: string; error?: string } | null;
+      if (!res.ok || !data?.buildId) {
+        setError(data?.error ?? "Couldn't start the build — please try again.");
+        setCurrent(null);
+        setRunning(false);
+        return;
+      }
+      await follow(data.buildId);
+    } catch {
+      setError("Couldn't start the build — check your connection and try again.");
+      setCurrent(null);
       setRunning(false);
     }
   }
+
+  // Coming back to a build that's still going (or waiting on answers): pick it up
+  useEffect(() => {
+    if (!resumeBuildId || followingRef.current === resumeBuildId) return;
+    setRunning(true);
+    reset();
+    setCurrent({ key: "plan", message: "Picking up where it left off…" });
+    void follow(resumeBuildId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resumeBuildId]);
 
   const canRun = (prompt.trim().length >= 8 || Boolean(sheet)) && !running && !reading && !atlas.locked;
   const stepLabel = (s: (typeof STEPS)[number]) => (estimatorId ? s.changeLabel : s.label);

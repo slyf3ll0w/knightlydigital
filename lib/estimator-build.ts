@@ -4,7 +4,7 @@ import { meteredOneShot, oneShotJson } from "./atlas-oneshot";
 import { auditSpec, describeSpecChanges, ESTIMATOR_GUIDE, ESTIMATOR_LIMITS, specFromJson, type EstimatorSpec, type SpecAudit } from "./estimator";
 import { checkSpec, ESTIMATOR_SELECT, estimatorSummary, snapshotEstimator, type EstimatorRow } from "./estimator-server";
 import { loadBusinessContext } from "./estimator-context";
-import { ESTIMATOR_PRINCIPLES, guessTrade, playbookByKey, playbookText, PLAYBOOK_INDEX } from "./estimator-playbook";
+import { ESTIMATOR_PRINCIPLES, guessTrade, playbookByKey, playbookText, PLAYBOOK_INDEX, preferMapInput } from "./estimator-playbook";
 
 /**
  * The Estimates page's builder (docs/plans/ai-estimators-2026-09-19.md,
@@ -310,6 +310,9 @@ export async function* buildEstimator(actor: Actor, opts: { prompt: string; esti
     }
 
     yield { phase: "check", message: "Checking the rules…" };
+    // A trade that measures on the map (fences, lawns, roofs…) gets its size
+    // question as a map even when the model reached for a slider — new tools only.
+    if (!currentRow && trade?.mapMeasure) draft.spec = preferMapInput(draft.spec, trade.mapMeasure);
     const check = await checkSpec(actor.companyId, draft.spec);
     if (!check.ok) {
       const rough = roughPreview(draft);

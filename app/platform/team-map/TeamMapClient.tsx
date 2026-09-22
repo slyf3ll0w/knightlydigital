@@ -7,6 +7,7 @@ import type { Map as LeafletMap, Marker } from "leaflet";
 import { MapPin, Maximize2, Minus, Plus, Timer } from "lucide-react";
 import { formatDuration } from "@/lib/time-entries";
 import { addBasemap, initialView, reducedMotion, rememberView } from "@/lib/basemap";
+import { useMainFill } from "@/lib/use-main-fill";
 import "leaflet/dist/leaflet.css";
 
 /**
@@ -53,7 +54,10 @@ function ageLabel(iso: string | null, now: number): string {
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 export default function TeamMapClient() {
+  const pageRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  // size the page from the shell's <main> (a percentage height collapses here)
+  useMainFill(pageRef, () => mapRef.current?.invalidateSize());
   const LRef = useRef<typeof Leaflet | null>(null);
   const mapRef = useRef<LeafletMap | null>(null);
   const markersRef = useRef<Map<string, Marker>>(new Map());
@@ -166,7 +170,7 @@ export default function TeamMapClient() {
   const unlocated = team.filter((m) => m.lat == null);
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div ref={pageRef} className="flex h-full min-h-0 flex-col">
       {/* Pin + popup styling for the divIcon markers */}
       <style>{`
         .team-map-pin {

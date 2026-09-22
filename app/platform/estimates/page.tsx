@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { requirePageActor, canSell, isManager } from "@/lib/permissions";
 import { ESTIMATOR_SELECT, runnerEstimators } from "@/lib/estimator-server";
 import { sanitizePublicConfig } from "@/lib/estimator-public";
+import { resumableBuildId } from "@/lib/estimator-build-jobs";
 import EstimatesClient from "./EstimatesClient";
 
 export const metadata: Metadata = { title: "Estimates" };
@@ -25,6 +26,8 @@ export default async function EstimatesPage({ searchParams }: { searchParams: Pr
     }),
     prisma.company.findUnique({ where: { id: actor.companyId }, select: { slug: true } }),
   ]);
+  // a new-tool build still running (or waiting on answers) — the builder picks it up
+  const resumeBuildId = manager ? await resumableBuildId(actor.companyId, null) : null;
   const tools = runnerEstimators(rows, { includeInactive: manager });
   const h = await headers();
   const host = h.get("x-forwarded-host") ?? h.get("host");
@@ -37,6 +40,7 @@ export default async function EstimatesPage({ searchParams }: { searchParams: Pr
       baseUrl={baseUrl}
       initialPrompt={manager && typeof sp.prompt === "string" ? sp.prompt.slice(0, 4000) : ""}
       autoRun={sp.run === "1"}
+      resumeBuildId={resumeBuildId}
       tools={tools.map((t) => {
         const row = rows.find((r) => r.id === t.id)!;
         return {

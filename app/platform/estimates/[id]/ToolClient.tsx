@@ -73,7 +73,26 @@ function merge(t: Record<string, unknown>, prev: ToolRecord): ToolRecord {
   };
 }
 
-export default function ToolClient({ tool: initial, manager, companySlug, companyName = "", companyIndustry = null, baseUrl, initialSection }: { tool: ToolRecord; manager: boolean; companySlug: string; companyName?: string; companyIndustry?: string | null; baseUrl: string; initialSection?: string }) {
+export default function ToolClient({
+  tool: initial,
+  manager,
+  companySlug,
+  companyName = "",
+  companyIndustry = null,
+  baseUrl,
+  initialSection,
+  resumeBuildId = null,
+}: {
+  tool: ToolRecord;
+  manager: boolean;
+  companySlug: string;
+  companyName?: string;
+  companyIndustry?: string | null;
+  baseUrl: string;
+  initialSection?: string;
+  /** An Atlas change to this tool still running on the server — the Ask Atlas panel picks it up. */
+  resumeBuildId?: string | null;
+}) {
   const router = useRouter();
   const atlas = useAssistant();
   const theme = APP_THEME;
@@ -82,7 +101,8 @@ export default function ToolClient({ tool: initial, manager, companySlug, compan
   const allowed = SECTIONS.filter((s) => !s.manager || manager);
   const legacy: Record<string, Section> = { questions: "advanced", pricing: "advanced", words: "advanced" };
   const [section, setSection] = useState<Section>(() => {
-    const s = initialSection ? legacy[initialSection] ?? initialSection : "overview";
+    // a change still building → open on Ask Atlas so it's seen landing
+    const s = initialSection ? legacy[initialSection] ?? initialSection : resumeBuildId ? "atlas" : "overview";
     return allowed.some((x) => x.key === s) ? (s as Section) : "overview";
   });
   const [advTab, setAdvTab] = useState<AdvancedTab>(initialSection === "pricing" || initialSection === "words" ? initialSection : "questions");
@@ -385,6 +405,7 @@ export default function ToolClient({ tool: initial, manager, companySlug, compan
                 key={tool.updatedAt}
                 compact
                 estimatorId={tool.id}
+                resumeBuildId={resumeBuildId}
                 placeholder="e.g. Raise sealant to $0.50, add a gate option at $250, make the middle package the recommended one"
                 onBuilt={(t: BuiltTool) => {
                   setTool((prev) => merge(t, prev));

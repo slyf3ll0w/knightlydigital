@@ -19,6 +19,13 @@ export type TradePlaybook = {
   lines: string[];
   /** Good / better / best when the trade sells that way. */
   packages?: string[];
+  /**
+   * The main size is something the customer can DRAW on the satellite map —
+   * a fence line (length, ft) or a lawn / roof / driveway (area, sq ft). The
+   * builder turns the trade's primary size question into a map question
+   * (lib/estimator-build.ts) even when the model reached for a slider.
+   */
+  mapMeasure?: "length" | "area";
   /** Things that trip up a naive tool. */
   gotchas: string[];
 };
@@ -26,6 +33,7 @@ export type TradePlaybook = {
 export const PLAYBOOK: TradePlaybook[] = [
   {
     key: "pressure_washing",
+    mapMeasure: "area",
     name: "Pressure / soft washing",
     keywords: ["pressure wash", "power wash", "soft wash", "driveway clean", "house wash", "roof wash"],
     drivers: ["surface area (driveway / house / roof / deck)", "surface type", "stories", "stains and add-ons (sealant, gutters, fence)"],
@@ -42,6 +50,7 @@ export const PLAYBOOK: TradePlaybook[] = [
   },
   {
     key: "lawn_care",
+    mapMeasure: "area",
     name: "Lawn care & landscaping",
     keywords: ["lawn", "mow", "landscap", "sod", "mulch", "yard", "fertiliz", "aerat", "hedge", "leaf"],
     drivers: ["lawn area (map)", "frequency (weekly / biweekly / one-time)", "service tier (mow only vs mow+edge+blow vs full)", "obstacles / slope / gates"],
@@ -58,6 +67,7 @@ export const PLAYBOOK: TradePlaybook[] = [
   },
   {
     key: "fencing",
+    mapMeasure: "length",
     name: "Fence installation",
     keywords: ["fence", "fencing", "gate", "privacy fence", "chain link", "vinyl fence", "picket"],
     drivers: ["linear feet (map length)", "material and style", "height", "gates (count and width)", "removal of an old fence", "terrain / rock / slope"],
@@ -75,6 +85,7 @@ export const PLAYBOOK: TradePlaybook[] = [
   },
   {
     key: "roofing",
+    mapMeasure: "area",
     name: "Roofing",
     keywords: ["roof", "shingle", "metal roof", "re-roof", "tear-off", "roofing"],
     drivers: ["roof area (map area or home footprint × pitch factor)", "material", "pitch / stories (labor)", "tear-off layers", "penetrations (skylights, chimneys, vents)", "decking repair"],
@@ -200,6 +211,7 @@ export const PLAYBOOK: TradePlaybook[] = [
   },
   {
     key: "concrete",
+    mapMeasure: "area",
     name: "Concrete / paving / driveways",
     keywords: ["concrete", "driveway", "paver", "asphalt", "sealcoat", "patio", "slab", "sidewalk", "stamped"],
     drivers: ["area (map)", "thickness / finish", "removal of existing", "reinforcement, grading", "access"],
@@ -220,6 +232,7 @@ export const PLAYBOOK: TradePlaybook[] = [
   },
   {
     key: "gutters",
+    mapMeasure: "length",
     name: "Gutters",
     keywords: ["gutter", "downspout", "gutter guard", "leaf guard"],
     drivers: ["linear feet (map length)", "stories", "material (aluminum / copper)", "guards", "downspouts"],
@@ -288,6 +301,7 @@ export const PLAYBOOK: TradePlaybook[] = [
   },
   {
     key: "irrigation",
+    mapMeasure: "area",
     name: "Irrigation / sprinklers",
     keywords: ["irrigation", "sprinkler", "drip", "zone"],
     drivers: ["zones (or lawn area)", "heads per zone", "controller", "backflow / permit", "repair vs install"],
@@ -362,6 +376,11 @@ export function playbookText(t: TradePlaybook): string {
     `What drives the price (most important first): ${t.drivers.join("; ")}.`,
     `Questions a good tool asks:\n${t.questions.map((q) => `- ${q}`).join("\n")}`,
     `How the quote breaks down:\n${t.lines.map((l) => `- ${l}`).join("\n")}`,
+    ...(t.mapMeasure
+      ? [
+          `MEASURE ON THE MAP: the main size question MUST be type "map" with measure "${t.mapMeasure}" (${t.mapMeasure === "length" ? "the customer traces the line; the value is feet" : "the customer traces the outline; the value is square feet"}). Never a slider or a typed number for that size — presets and sliders are only for sizes that can't be drawn (rooms, stories, counts).`,
+        ]
+      : []),
     ...(t.packages ? [`Packages SOME businesses in this trade sell (only if THIS owner sells tiers — never invent them): ${t.packages.join(" / ")}.`] : []),
     `Gotchas:\n${t.gotchas.map((g) => `- ${g}`).join("\n")}`,
   ].join("\n");
@@ -378,3 +397,39 @@ export const ESTIMATOR_PRINCIPLES = `HOW A GOOD ESTIMATOR THINKS
 - Decide, don't interview. The owner came to build, not to fill in a form: anything a seasoned estimator in this trade would simply decide (the unit, a sensible minimum, which extras to offer, how to group the lines) you decide. A question is for a hole in a SPECIFIC description that only the owner can fill and that changes the price a lot — never for a broad one ("a tool for my lawn care business"), which you build from the trade's standard shape and the business's own rates.
 - Set a minimum job charge unless the owner said there is none.
 - Prove the math: samples for a small, typical and large job with every required question answered.`;
+
+const FT_UNIT = /^(linear\s*)?(ft|feet|foot|lf)\.?$/i;
+const SQFT_UNIT = /^(sq\.?\s*ft\.?|square\s*feet|sqft|sf|ft2|ft²)$/i;
+const SIZE_WORDS = /\b(size|area|length|footage|sq ?ft|square|feet|run|line|perimeter|lawn|roof|driveway|yard|fence|gutter|slab|patio)\b/i;
+
+/**
+ * A trade that measures on the map gets its primary size question as a map
+ * question, whatever control the model reached for. Works on the RAW draft
+ * (before compile): the first number question whose unit is feet / square
+ * feet (matching the trade's measure) — or, failing a unit, whose label
+ * reads like a size — becomes {type: "map", measure}. Map inputs coerce like
+ * numbers, so the lines, variables and samples keep working untouched.
+ * Returns the same object when nothing applies (already a map, no candidate).
+ */
+export function preferMapInput(raw: unknown, measure: "length" | "area"): unknown {
+  if (!raw || typeof raw !== "object") return raw;
+  const spec = raw as Record<string, unknown>;
+  const inputs = Array.isArray(spec.inputs) ? (spec.inputs as Record<string, unknown>[]) : null;
+  if (!inputs) return raw;
+  if (inputs.some((i) => i && i.type === "map")) return raw;
+  const unitRe = measure === "length" ? FT_UNIT : SQFT_UNIT;
+  const byUnit = inputs.findIndex((i) => i && i.type === "number" && typeof i.unit === "string" && unitRe.test(i.unit.trim()));
+  const idx =
+    byUnit >= 0
+      ? byUnit
+      : inputs.findIndex((i) => i && i.type === "number" && !i.unit && typeof i.label === "string" && SIZE_WORDS.test(i.label) && (measure === "length" ? /\b(ft|feet|length|run|line|perimeter|fence|gutter)\b/i.test(i.label) : /\b(area|sq|square|lawn|roof|driveway|yard|slab|patio|size)\b/i.test(i.label)));
+  if (idx < 0) return raw;
+  const src = inputs[idx];
+  const next: Record<string, unknown> = { id: src.id, label: src.label, type: "map", measure };
+  for (const k of ["help", "section", "showWhen", "image", "min", "max", "required", "askAtlas"] as const) if (src[k] !== undefined) next[k] = src[k];
+  if (next.required === undefined) next.required = true;
+  if (typeof next.help !== "string" || !next.help) next.help = measure === "length" ? "Tap the corners along the line on the map — we measure it in feet." : "Tap the corners of the area on the map — we measure it in square feet.";
+  const outInputs = inputs.slice();
+  outInputs[idx] = next;
+  return { ...spec, inputs: outInputs };
+}

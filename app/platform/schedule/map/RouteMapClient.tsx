@@ -37,6 +37,7 @@ import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { localInputToISO } from "@/lib/statuses";
 import { isApplePlatform } from "@/lib/messaging";
 import { addBasemap, initialView, reducedMotion, rememberView } from "@/lib/basemap";
+import { useMainFill } from "@/lib/use-main-fill";
 import "leaflet/dist/leaflet.css";
 
 /**
@@ -330,9 +331,12 @@ export default function RouteMapClient({
   home?: { lat: number; lng: number } | null;
 }) {
   const router = useRouter();
+  const pageRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  // the map is the page: size the root from the shell's <main>, not a percentage
+  useMainFill(pageRef, () => mapRef.current?.invalidateSize());
   const LRef = useRef<typeof Leaflet | null>(null);
   const mapRef = useRef<LeafletMap | null>(null);
   const layerRef = useRef<LayerGroup | null>(null);
@@ -1418,7 +1422,7 @@ export default function RouteMapClient({
   );
 
   return (
-    <div className="route-page relative h-full min-h-0">
+    <div ref={pageRef} className="route-page relative h-full min-h-0">
       <style>{`
         .route-pin {
           width: 28px; height: 28px; border-radius: 9999px;

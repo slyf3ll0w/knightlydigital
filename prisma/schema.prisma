@@ -1323,6 +1323,28 @@ model EstimatorListingLike {
   @@unique([listingId, companyId])
 }
 
+// One run of the estimate-tool builder (lib/estimator-build-jobs.ts). The
+// build keeps going on the server after the request that started it
+// returns, appending its events here; the page polls this row, so the owner
+// can navigate away mid-build and the tool still lands. status: running |
+// questions (waiting on the owner's answers) | done (toolId set) | error.
+// A row still "running" with no update for a few minutes was interrupted
+// (server restart) and reads as an error.
+model EstimatorBuild {
+  id          String   @id @default(cuid())
+  companyId   String
+  userId      String
+  estimatorId String? // set = a change to an existing tool
+  prompt      String
+  status      String   @default("running")
+  events      Json     @default("[]")
+  toolId      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([companyId, status, updatedAt])
+}
+
 // Pictures on an estimate tool's questions/options (website form + runner).
 // Public by nature (they render on the public form), served through
 // /api/estimate-images/[id]; bytes in R2 when configured, else in the row —

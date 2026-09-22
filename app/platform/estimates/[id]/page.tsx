@@ -6,6 +6,7 @@ import { requirePageActor, canSell, isManager } from "@/lib/permissions";
 import { ESTIMATOR_SELECT } from "@/lib/estimator-server";
 import { specFromJson } from "@/lib/estimator";
 import { sanitizePublicConfig } from "@/lib/estimator-public";
+import { resumableBuildId } from "@/lib/estimator-build-jobs";
 import ToolClient from "./ToolClient";
 
 export const metadata: Metadata = { title: "Estimate tool" };
@@ -26,6 +27,8 @@ export default async function ToolPage({ params, searchParams }: { params: Promi
   ]);
   if (!row) notFound();
   const spec = specFromJson(row.spec);
+  // an Atlas change to this tool still running (or waiting on answers)
+  const resumeBuildId = manager ? await resumableBuildId(actor.companyId, row.id) : null;
   const h = await headers();
   const host = h.get("x-forwarded-host") ?? h.get("host");
   const proto = h.get("x-forwarded-proto") ?? "https";
@@ -38,6 +41,7 @@ export default async function ToolPage({ params, searchParams }: { params: Promi
       companyIndustry={company?.industry ?? null}
       baseUrl={baseUrl}
       initialSection={typeof sp.s === "string" ? sp.s : undefined}
+      resumeBuildId={resumeBuildId}
       tool={{
         id: row.id,
         name: row.name,

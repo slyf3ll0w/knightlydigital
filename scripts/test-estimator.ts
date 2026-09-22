@@ -21,6 +21,7 @@ import {
   type EvalCtx,
   type PriceBookEntry,
 } from "../lib/estimator";
+import { preferMapInput } from "../lib/estimator-playbook";
 
 const book: PriceBookEntry[] = [
   { id: "wi_wash", name: "House Washing", unitPrice: 250, unitCost: 60 },
@@ -603,4 +604,49 @@ console.log("ok 13: counts + askAtlas");
   }
 }
 console.log("ok 14: explainRun price drivers");
+
+// 15. map-first trades: the primary size question becomes a map question
+{
+  const fence = {
+    version: 1,
+    inputs: [
+      { id: "material", label: "Material", type: "select", options: ["Cedar", "Chain link"], default: "Cedar" },
+      { id: "length", label: "Fence length", type: "number", unit: "ft", min: 10, max: 2000, control: "slider", presets: [{ label: "Small yard", value: 100 }], required: true },
+      { id: "gates", label: "Gates", type: "number", unit: "gates", control: "stepper" },
+    ],
+    variables: [],
+    lines: [
+      { name: "Fence", description: "{length} ft", quantity: "length", unitPrice: "28" },
+      { name: "Gates", description: "{gates} gates", quantity: "gates", unitPrice: "250" },
+    ],
+    samples: [{ label: "Small", inputs: { length: 100, gates: 1 } }, { label: "Large", inputs: { length: 400, gates: 2 } }],
+  };
+  const out = preferMapInput(fence, "length") as typeof fence & { inputs: Record<string, unknown>[] };
+  const len = out.inputs[1];
+  assert.equal(len.type, "map");
+  assert.equal(len.measure, "length");
+  assert.equal(len.id, "length");
+  assert.equal(len.min, 10);
+  assert.equal(len.required, true);
+  assert.ok(!("control" in len) && !("presets" in len) && !("unit" in len), "slider bits dropped");
+  assert.equal(out.inputs[2].type, "number", "the gates counter is untouched");
+  const c = compileSpec(out);
+  assert.ok(c.ok, JSON.stringify(c));
+  if (c.ok) {
+    const r = runEstimator(out, { length: 120, gates: 1, material: "Cedar" }, book);
+    assert.ok(r.ok && r.subtotal === 120 * 28 + 250, "lines still price the map value");
+    const a = auditSpec(c.compiled, book);
+    assert.deepEqual(a.errors, [], a.errors.join(" | "));
+  }
+  // already a map → untouched; area trade with a sq ft slider → area map; no candidate → untouched
+  assert.strictEqual(preferMapInput(out, "length"), out);
+  const lawn = { ...fence, inputs: [{ id: "sqft", label: "Lawn size", type: "number", unit: "sq ft", max: 40000 }] };
+  assert.equal((preferMapInput(lawn, "area") as { inputs: { type: string; measure?: string }[] }).inputs[0].measure, "area");
+  const rooms = { ...fence, inputs: [{ id: "rooms", label: "Rooms", type: "number", unit: "rooms" }] };
+  assert.strictEqual(preferMapInput(rooms, "area"), rooms);
+  // a label that reads like a size counts even without a unit
+  const bare = { ...fence, inputs: [{ id: "run", label: "Total fence line", type: "number" }] };
+  assert.equal((preferMapInput(bare, "length") as { inputs: { type: string }[] }).inputs[0].type, "map");
+}
+console.log("ok 15: preferMapInput for map-first trades");
 console.log("\nestimator: all green");

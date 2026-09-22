@@ -55,6 +55,7 @@ export default function EstimatesClient({
   manager,
   initialPrompt = "",
   autoRun = false,
+  resumeBuildId = null,
 }: {
   tools: Tool[];
   brokenCount: number;
@@ -63,6 +64,8 @@ export default function EstimatesClient({
   manager: boolean;
   initialPrompt?: string;
   autoRun?: boolean;
+  /** A build still running on the server (the owner navigated away mid-build) — the builder picks it up. */
+  resumeBuildId?: string | null;
 }) {
   const router = useRouter();
   const atlas = useAssistant();
@@ -70,7 +73,7 @@ export default function EstimatesClient({
   const [tools, setTools] = useState<Tool[]>(initialTools);
   useEffect(() => setTools(initialTools), [initialTools]);
   const [running, setRunning] = useState<Tool[] | null>(autoRun ? initialTools.filter((t) => t.isActive) : null);
-  const [building, setBuilding] = useState<boolean>(Boolean(initialPrompt) || initialTools.length === 0);
+  const [building, setBuilding] = useState<boolean>(Boolean(initialPrompt) || Boolean(resumeBuildId) || initialTools.length === 0);
 
   const active = useMemo(() => tools.filter((t) => t.isActive), [tools]);
   const inactive = useMemo(() => tools.filter((t) => !t.isActive), [tools]);
@@ -122,6 +125,7 @@ export default function EstimatesClient({
       {manager && building && (
         <div className="mb-6">
           <BuildPanel
+            resumeBuildId={resumeBuildId}
             initialPrompt={initialPrompt}
             autoFocus={Boolean(initialPrompt) || tools.length > 0}
             onBuilt={(t: BuiltTool) => {

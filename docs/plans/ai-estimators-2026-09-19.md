@@ -927,6 +927,29 @@ touches copies already added.
   superadmin `/superadmin/library` (all listings, company even when
   anonymous, Remove with reason, Restore).
 
+### After David's first pass (same day)
+David: the build must survive navigating away; the fence tool should have
+used the map, not a slider.
+- **Builds are server jobs** — `EstimatorBuild` row + `lib/estimator-build-jobs.ts`.
+  `POST /build` creates the row, schedules `runBuildJob` with Next's
+  `after()` and answers 202 `{buildId}`; every event lands on the row; the
+  page polls `GET /build/[id]` and replays what it hasn't seen. Leaving the
+  page changes nothing on the server. `resumableBuildId()` lets the
+  Estimates page (new-tool builds) and the tool page (changes to that tool,
+  opens on Ask Atlas) pick a running or answers-pending build back up.
+  A "running" row untouched for 4 min reads as interrupted.
+- **Map-first trades** — `TradePlaybook.mapMeasure` on pressure washing,
+  lawn care, fencing, roofing, concrete, gutters, irrigation; the playbook
+  text says the main size MUST be a map question; and `preferMapInput()`
+  (pure, tested) converts the primary ft / sq ft number question of a new
+  tool into `{type: "map", measure}` after the draft, whatever control the
+  model chose. Map inputs coerce like numbers, so lines and samples are
+  untouched.
+- **Blank Routes / Team map** — both rewritten pages sized themselves with
+  `h-full` inside the shell's flex `<main>`, which collapsed to nothing.
+  `lib/use-main-fill.ts` now measures `<main>` (ResizeObserver) and sets the
+  page height in px, then tells Leaflet to `invalidateSize()`.
+
 ### Batch 10 Test (owed)
 0. Share a tool that links price-book items → the listing preview runs with
    the same numbers in a company with an empty price book; Add → the copy
