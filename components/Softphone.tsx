@@ -84,25 +84,72 @@ const header = (call: RtcCall, name: string): string | null => {
   return list.find((h) => h.name.toLowerCase() === name.toLowerCase())?.value ?? null;
 };
 
-/** North-American ring cadence (440+480 Hz, ~2 s on / 4 s off) on Web Audio — no asset to load. */
+/**
+ * North-American ring cadence (440+480 Hz, ~2 s on / 4 s off) on Web Audio —
+ * no asset to load. Browsers keep an AudioContext suspended until the page
+ * has seen a user gesture, which is why the ring used to be silent in a tab
+ * nobody had clicked since it loaded: arm() unlocks audio on the first
+ * pointer / key / touch, a call that arrives before any gesture still asks
+ * for resume() and reports whether the browser allowed it (the caller then
+ * falls back to an OS notification), and a ring that was refused starts on
+ * its own the moment a gesture unlocks audio while the call is still ringing.
+ */
 class Ringer {
   private ctx: AudioContext | null = null;
   private timer: ReturnType<typeof setInterval> | null = null;
-  start() {
-    if (this.timer) return;
+  private wanted = false;
+  private unarm: (() => void) | null = null;
+
+  private context(): AudioContext | null {
+    if (this.ctx) return this.ctx;
     const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!Ctx) return;
+    if (!Ctx) return null;
     try {
-      this.ctx = this.ctx ?? new Ctx();
-      void this.ctx.resume().catch(() => {});
+      this.ctx = new Ctx();
     } catch {
-      return;
+      return null;
     }
+    return this.ctx;
+  }
+
+  /** Unlock audio on the first user gesture so a later call can ring without one. */
+  arm() {
+    if (this.unarm) return;
+    const unlock = () => {
+      const ctx = this.context();
+      if (!ctx) return;
+      const then = () => {
+        if (this.wanted && !this.timer) void this.start();
+      };
+      if (ctx.state === "running") then();
+      else ctx.resume().then(then).catch(() => {});
+    };
+    const events = ["pointerdown", "keydown", "touchstart"] as const;
+    for (const ev of events) window.addEventListener(ev, unlock, { capture: true, passive: true });
+    this.unarm = () => {
+      for (const ev of events) window.removeEventListener(ev, unlock, { capture: true });
+    };
+  }
+
+  /** Resolves false when the browser is keeping audio locked (no gesture yet). */
+  async start(): Promise<boolean> {
+    this.wanted = true;
+    if (this.timer) return true;
+    const ctx = this.context();
+    if (!ctx) return false;
+    if (ctx.state !== "running") {
+      try {
+        await ctx.resume();
+      } catch {
+        /* locked until a gesture */
+      }
+    }
+    if (ctx.state !== "running") return false;
+    if (!this.wanted || this.timer) return true;
     const burst = () => {
-      const ctx = this.ctx;
-      if (!ctx || ctx.state !== "running") return;
+      if (ctx.state !== "running") return;
       const gain = ctx.createGain();
-      gain.gain.value = 0.08;
+      gain.gain.value = 0.12;
       gain.connect(ctx.destination);
       for (const f of [440, 480]) {
         const osc = ctx.createOscillator();
@@ -115,10 +162,34 @@ class Ringer {
     };
     burst();
     this.timer = setInterval(burst, 4000);
+    return true;
   }
+
   stop() {
+    this.wanted = false;
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
+  }
+
+  dispose() {
+    this.stop();
+    this.unarm?.();
+    this.unarm = null;
+  }
+}
+
+/** When the browser keeps audio locked, the OS at least shows the call; clicking it brings the tab up. */
+function showIncomingNotice(label: string): Notification | null {
+  if (typeof Notification === "undefined" || Notification.permission !== "granted") return null;
+  try {
+    const n = new Notification("Incoming call", { body: label, tag: "wb-incoming-call", requireInteraction: true });
+    n.onclick = () => {
+      window.focus();
+      n.close();
+    };
+    return n;
+  } catch {
+    return null;
   }
 }
 
@@ -134,6 +205,7 @@ export default function Softphone() {
   /** Outbound calls the user cancelled before their INVITE arrived: decline it if it still shows up. */
   const cancelled = useRef<Set<string>>(new Set());
   const ringer = useRef<Ringer | null>(null);
+  const notice = useRef<Notification | null>(null);
 
   useEffect(() => {
     if (nativePlatform()) {
@@ -145,6 +217,7 @@ export default function Softphone() {
       return;
     }
     ringer.current = ringer.current ?? new Ringer();
+    ringer.current.arm();
     let unmounted = false;
     /** Bumped on every connect/teardown; handlers from an older client compare and bail. */
     let gen = 0;
@@ -197,6 +270,8 @@ export default function Softphone() {
 
     const stopRinger = () => {
       ringer.current?.stop();
+      notice.current?.close();
+      notice.current = null;
       if (document.title.startsWith("☎ ")) document.title = document.title.slice(2);
     };
 
@@ -289,7 +364,10 @@ export default function Softphone() {
           muted: false,
         },
       });
-      ringer.current?.start();
+      const ringLabel = call.options.remoteCallerName || fmtNumber(call.options.remoteCallerNumber) || "Incoming call";
+      void ringer.current?.start().then((audible) => {
+        if (!audible && callRef.current === call) notice.current = showIncomingNotice(ringLabel);
+      });
       if (!document.title.startsWith("☎ ")) document.title = `☎ ${document.title}`;
       // Our own row is the truth about who this is (contact link, formatted number).
       fetch(`/api/app/line/softphone/call${callId ? `?id=${encodeURIComponent(callId)}` : ""}`, { cache: "no-store" })
@@ -467,8 +545,23 @@ export default function Softphone() {
       toggleHold: () => {
         const c = callRef.current;
         if (!c) return;
-        if (c.state === "held") void c.unhold().then(() => patchSoftphoneCall({ state: "active" }));
-        else void c.hold();
+        // The SDK's hold only quiets our leg; the other party gets the hold music from the server, on their leg.
+        const callId = getSoftphoneState().call?.callId ?? null;
+        const music = (on: boolean) =>
+          callId
+            ? fetch("/api/app/line/call", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id: callId, hold: on }),
+              }).catch(() => {})
+            : Promise.resolve();
+        if (c.state === "held") {
+          void c.unhold().then(() => patchSoftphoneCall({ state: "active" }));
+          void music(false);
+        } else {
+          void c.hold();
+          void music(true);
+        }
       },
       requestMic,
       sendDigits: (digits: string) => {
@@ -570,6 +663,7 @@ export default function Softphone() {
       if (inviteWatch) clearTimeout(inviteWatch);
       unregister();
       stopRinger();
+      ringer.current?.dispose();
       goodbye();
       teardownClient();
       setSoftphoneState({ status: "off", reason: null, call: null });

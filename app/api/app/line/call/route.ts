@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getActor, canSell } from "@/lib/permissions";
 import { limit } from "@/lib/rate-limit";
-import { VoiceError, cancelCall, startOutboundCall } from "@/lib/voice";
+import { VoiceError, cancelCall, setHoldMusic, startOutboundCall } from "@/lib/voice";
 
 /**
  * POST { contactId } | { to } — call a client from the business line
@@ -54,6 +54,22 @@ export async function DELETE(req: NextRequest) {
   } catch (err) {
     if (err instanceof VoiceError) return NextResponse.json({ error: err.message }, { status: err.status });
     console.error("[voice] cancel route error:", err);
+    return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
+  }
+}
+
+/** PATCH { id, hold } — hold music for the other party while the browser leg is held (components/Softphone.tsx toggleHold). */
+export async function PATCH(req: NextRequest) {
+  const actor = await getActor();
+  if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!canSell(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const body = (await req.json().catch(() => null)) as { id?: unknown; hold?: unknown } | null;
+  if (!body || typeof body.id !== "string") return NextResponse.json({ error: "Missing id" }, { status: 400 });
+  try {
+    return NextResponse.json(await setHoldMusic(actor.companyId, body.id, body.hold !== false));
+  } catch (err) {
+    if (err instanceof VoiceError) return NextResponse.json({ error: err.message }, { status: err.status });
+    console.error("[voice] hold route error:", err);
     return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
   }
 }

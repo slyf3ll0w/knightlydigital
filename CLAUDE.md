@@ -437,7 +437,11 @@ ring time when nobody picked up) instead of "Answered" / "No answer" — a
 carrier's voicemail answering is an "answer" to the network, so the verdict
 was misleading. Missed and Voicemail keep their words. Inbound callers hear
 `public/hold-music.mp3` while the browsers and the cell ring; the owner placing
-a call still hears `ringback.wav`. A known caller gets a Text button on the
+a call still hears `ringback.wav`. The pause button in the browser plays the
+same loop to the other party (`PATCH /api/app/line/call` → `setHoldMusic`),
+since the SDK's hold alone leaves them in silence. The browser ringer unlocks
+its AudioContext on the first gesture (autoplay policy) and falls back to an OS
+Notification when audio is still locked. A known caller gets a Text button on the
 row once the line's registration is ACTIVE (it opens the message thread, which
 sends from the business number).
 

@@ -952,6 +952,22 @@ export async function cancelCall(companyId: string, callId: string): Promise<{ s
   return { status };
 }
 
+/**
+ * The pause button in the browser: the SDK's hold only quiets our leg, so the
+ * other party would sit in silence. Play the hold loop on their leg instead
+ * (telnyxCallId is the customer in both directions) and stop it on unhold.
+ */
+export async function setHoldMusic(companyId: string, callId: string, on: boolean): Promise<{ held: boolean }> {
+  const call = await prisma.call.findFirst({ where: { id: callId, companyId }, select: { status: true, telnyxCallId: true } });
+  if (!call) throw new VoiceError("Call not found.", 404);
+  if (!voiceEnabled() || call.status !== "IN_PROGRESS" || !call.telnyxCallId || call.telnyxCallId.startsWith("pending:")) {
+    return { held: false };
+  }
+  if (on) await callAction(call.telnyxCallId, "playback_start", { audio_url: holdMusicUrl(), loop: "infinity" });
+  else await callAction(call.telnyxCallId, "playback_stop");
+  return { held: on };
+}
+
 /* ───────────────────────── Voicemail playback ───────────────────────── */
 
 /** A short-lived MP3 URL for a call's voicemail, or null when there's nothing to play. */
