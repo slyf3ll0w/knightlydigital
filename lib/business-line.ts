@@ -48,6 +48,7 @@ import {
 } from "@/lib/business-line-shared";
 import { stateName } from "@/lib/us-states";
 import { VoiceError, ensureVoiceRouting, routeNumberToVoiceApp, sanitizeGreeting, voiceEnabled } from "@/lib/voice";
+import { deleteSoftphoneResources } from "@/lib/softphone";
 
 import { prisma } from "@/lib/db";
 import { hasAddon } from "@/lib/addon";
@@ -1191,6 +1192,8 @@ export async function releaseLine(companyId: string): Promise<void> {
       }
     }
   }
+  // Softphone credentials die with the number (best effort — never blocks the release).
+  await deleteSoftphoneResources(companyId).catch((err) => console.error("[line] softphone teardown failed (continuing):", err));
   await prisma.$transaction([
     prisma.messagingRegistration.deleteMany({ where: { companyId } }),
     prisma.company.update({

@@ -1,6 +1,7 @@
 /**
  * Unit tests for the pure parts of lib/voice.ts: client-state codec, the
- * whisper/greeting copy, status-after-hangup, the stale-call sweep plan.
+ * whisper/greeting copy, status-after-hangup, the stale-call sweep plan —
+ * and lib/softphone.ts: presence + the inbound ring plan (tier 2).
  *   npx tsx scripts/test-voice.ts
  * Needs a placeholder DATABASE_URL (the module imports Prisma, never queries).
  */
@@ -25,6 +26,8 @@ import {
   whisperText,
 } from "../lib/voice";
 import { defaultCallerIdName, defaultVoicemailGreeting, isRealLineNumber } from "../lib/business-line-shared";
+import { APP_RING_SECS, MAX_APP_LEGS, SOFTPHONE_PRESENCE_MS, canUseSoftphone, isSoftphoneOnline, ringPlan } from "../lib/softphone";
+import { sipUri } from "../lib/telnyx";
 
 // ── client state ─────────────────────────────────────────────────────────────
 {
@@ -35,6 +38,10 @@ import { defaultCallerIdName, defaultVoicemailGreeting, isRealLineNumber } from 
   assert.equal(decodeState(null), null);
   assert.equal(decodeState("not base64 json"), null);
   assert.equal(decodeState(Buffer.from(JSON.stringify({ callId: "x", leg: "nope" })).toString("base64")), null);
+  // Softphone legs carry the user they were dialed for; the cell leg carries nothing extra.
+  const app = { callId: "c1", leg: "app" as const, stage: "ring" as const, userId: "u1" };
+  assert.deepEqual(decodeState(encodeState(app)), app);
+  assert.equal("userId" in (decodeState(encodeState(s)) ?? {}), false);
 }
 
 // ── copy ─────────────────────────────────────────────────────────────────────
@@ -97,6 +104,37 @@ assert.equal(defaultCallerIdName("Bob's  Plumbing & Heating"), "BOBS PLUMBING A"
 assert.equal(defaultCallerIdName("  A-1  Roofing  "), "A1 ROOFING");
 assert.equal(defaultCallerIdName("!!!"), "");
 assert.ok(defaultCallerIdName("x".repeat(40)).length <= 15);
+
+// ── softphone: presence + ring plan ──────────────────────────────────────────
+{
+  assert.equal(isSoftphoneOnline(null, now), false);
+  assert.equal(isSoftphoneOnline(ago(1_000), now), true);
+  assert.equal(isSoftphoneOnline(ago(SOFTPHONE_PRESENCE_MS), now), true);
+  assert.equal(isSoftphoneOnline(ago(SOFTPHONE_PRESENCE_MS + 1), now), false);
+  assert.ok(SOFTPHONE_PRESENCE_MS > 60_000, "a hidden tab only heartbeats once a minute");
+  assert.ok(APP_RING_SECS < AGENT_RING_SECS, "browsers ring briefly; the cell is the fallback, not the other way round");
+
+  const u = (n: number) => ({ userId: `u${n}`, sipUsername: `sip${n}` });
+  // Nobody online → the cell rings right away; no cell either → voicemail.
+  assert.deepEqual(ringPlan([], "+14695550100"), { app: [], cell: "+14695550100", first: "cell" });
+  assert.deepEqual(ringPlan([], null), { app: [], cell: null, first: "voicemail" });
+  assert.deepEqual(ringPlan([], ""), { app: [], cell: null, first: "voicemail" });
+  // Browsers online → they ring first, the cell stays queued behind them.
+  const p = ringPlan([u(1), u(2)], "+14695550100");
+  assert.equal(p.first, "app");
+  assert.deepEqual(p.app, [u(1), u(2)]);
+  assert.equal(p.cell, "+14695550100");
+  // Browsers online, no cell → still the browsers; voicemail only after they give up.
+  assert.equal(ringPlan([u(1)], null).first, "app");
+  // Fan-out is capped.
+  const many = Array.from({ length: MAX_APP_LEGS + 3 }, (_, i) => u(i));
+  assert.equal(ringPlan(many, null).app.length, MAX_APP_LEGS);
+
+  assert.equal(sipUri("gencredabc"), "sip:gencredabc@sip.telnyx.com");
+  assert.equal(canUseSoftphone("OWNER"), true);
+  assert.equal(canUseSoftphone("SALES"), true);
+  assert.equal(canUseSoftphone("TECH"), false);
+}
 
 // ── small helpers ────────────────────────────────────────────────────────────
 assert.equal(talkSeconds(null, now), null);

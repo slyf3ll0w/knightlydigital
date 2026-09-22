@@ -11,7 +11,7 @@ documents (`roadmap.md`, `ideas.md`, `native-release-queue.md`) never "finish".
 
 ## In flight / next up
 - `ai-estimators-2026-09-19.md` — **Batches 1–3 LIVE, Batch 4 BUILT** (AI-built, code-run estimate tools + `manage_automation` when-this-then-that rules + `lookup_part_price`; Batch 3 = any estimate tool as a website lead-capture form at /book/[slug]/estimate/[tool] + iframe embed, exact/range/hidden price, lead + request + draft/sent quote, running total in the runner; Batch 4 = manual editor + version history, onsite Estimate → Create quote, sections / show-when / pick-several, photo fill-in, Try-it on Atlas cards, lead page attribution); live Gemini walkthroughs owed.
-- `business-line-voice-2026-09-18.md` — **tier 1 BUILT** (whisper + press 1, voicemail, calls from the app, `/app/calls`); tiers 2 (softphone) and 3 (native ringing) planned.
+- `business-line-voice-2026-09-18.md` — **tiers 1 + 2 BUILT** (tier 1: whisper + press 1, voicemail, `/app/calls`; tier 2, 2026-09-21: browser softphone — calls ring in the app first, cell after, Call in app, dialer); tier 3 (native ringing with the app closed) planned.
 - `business-line-2026-09-15.md` — per-tenant Telnyx number: texting registration (10DLC / toll-free), forwarding, attach, 30-day number rights. **BUILT**; Streamflaire's toll-free verification in review.
 - `code-audit-2026-09-18.md` — pre-production audit; batches 1–5 shipped, remaining greps listed in the doc.
 - `cost-controls.md` — AI / storage / email spend guards. **Partly built** (per-turn usage logging live; caps not).

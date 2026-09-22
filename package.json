@@ -37,6 +37,7 @@
     "@prisma/client": "^5.22.0",
     "@react-pdf/renderer": "^4.6.0",
     "@sentry/nextjs": "^10.73.0",
+    "@telnyx/webrtc": "^2.27.10",
     "@types/bcryptjs": "^2.4.6",
     "autoprefixer": "^10",
     "aws4fetch": "^1.0.20",

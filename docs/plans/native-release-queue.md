@@ -155,6 +155,15 @@ iOS deliberately excluded — `isAndroidShellUserAgent` gates it, because App
 Store rule 4.8 needs Sign in with Apple first. Full design:
 `social-login-2026-09-14.md`.
 
+**Microphone permission** (queued 2026-09-21, tier 2 of
+`business-line-voice-2026-09-18.md`). `RECORD_AUDIO` + `MODIFY_AUDIO_SETTINGS`
+are in `AndroidManifest.xml`. Needs a build because a manifest permission is
+compiled in — without it `getUserMedia` fails inside the webview. Nothing
+user-visible yet: `components/Softphone.tsx` refuses to register in the native
+shell (`nativePlatform()`), so calls keep ringing the cell in the app. Lifting
+that gate is tier 3 work (foreground service / full-screen intent), not part of
+this build.
+
 ## App Store — waiting for the next build
 
 The iOS app has never been submitted, so everything here lands in one go. All
@@ -171,7 +180,12 @@ owner-added teammate's email — the "no company attached" page needs a
 **2. Native Google sign-in** — same plugin and provider work as the Play item
 above, gated behind Apple shipping first.
 
-**3. Siri App Intents** (queued 2026-08-22). "Hey Siri, clock me in" / "next
+**3. Microphone usage string** (queued 2026-09-21). `NSMicrophoneUsageDescription`
+is in `Info.plist`; iOS terminates an app that touches the mic without it, which
+is the other reason the softphone stays off in the shell until tier 3
+(PushKit + CallKit). Rides whatever build goes first.
+
+**4. Siri App Intents** (queued 2026-08-22). "Hey Siri, clock me in" / "next
 job" as real App Intents. The URL tier already works with no build (Shortcuts
 app → Open URLs → `https://workbenchfsm.com/app/go/next-job`); App Intents
 skip opening the app and let Siri confirm conversationally.

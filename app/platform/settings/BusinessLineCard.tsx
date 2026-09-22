@@ -303,13 +303,14 @@ function NumberRow({
       )}
       {line.voice.routed ? (
         <p className="mt-2 text-xs text-gray-500">
-          Your cell rings from the business number and hears who&apos;s calling first, so the cell&apos;s own
-          voicemail can never grab a customer. Missed calls and voicemails land in{" "}
+          Calls ring first in the browser of anyone signed in on a computer (My Profile → Calls in the app), then
+          your cell — from the business number, announcing who&apos;s calling, so the cell&apos;s own voicemail can
+          never grab a customer. Missed calls and voicemails land in{" "}
           <Link href="/app/calls" className="underline">
             Calls
           </Link>
-          . To call a client from this number, use <em>Call from line</em> on their page
-          {line.voice.canCall ? "" : " after adding your cell under My Profile"}.
+          . To call a client from this number, use <em>Call from line</em> on their page — from the browser, or from
+          {line.voice.canCall ? " your cell" : " your cell once it's added under My Profile"}.
         </p>
       ) : line.voice.available && line.forwardTo ? (
         <p className="mt-2 text-xs text-amber-700">

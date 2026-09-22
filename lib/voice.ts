@@ -22,6 +22,12 @@
  *   dial the customer from the line (owner hears ringback) → bridge.
  *   The customer only ever sees the business number.
  *
+ * Softphone (lib/softphone.ts): browsers signed in on a computer are SIP
+ * legs dialed the same way. Inbound they ring before the cell — one CallLeg
+ * row per browser, and the winner's id is copied into agentCallId so the
+ * rest of the machine never knows how many rang. Outbound the user's own
+ * browser replaces the cell and the whisper is skipped.
+ *
  * Every leg carries a base64 client_state {callId, leg, stage}, but the Call
  * row is looked up by call_control_id (telnyxCallId = customer leg,
  * agentCallId = cell leg) — the state is a hint, the row is the truth.
@@ -41,6 +47,7 @@ import { fmtPhone } from "@/lib/format";
 import { phoneDigits } from "@/lib/phone";
 import { notifyUsers } from "@/lib/push";
 import { toE164 } from "@/lib/sms";
+import { APP_OUTBOUND_RING_SECS, APP_RING_SECS, onlineSoftphoneUsers, ringPlan, userSoftphoneOnline, type RingTarget } from "@/lib/softphone";
 import {
   TTS,
   TelnyxError,
@@ -50,6 +57,7 @@ import {
   listRecordingsForLeg,
   setCallForwarding,
   setNumberConnection,
+  sipUri,
   voiceAppId,
   voiceConfigured,
 } from "@/lib/telnyx";
@@ -84,9 +92,10 @@ export const STALE_VOICEMAIL_MS = 10 * 60_000;
 
 /* ───────────────────────── Pure helpers ───────────────────────── */
 
-export type Leg = "customer" | "agent";
+/** customer = the far party; agent = the cell, or the one browser that won / placed the call; app = a browser rung for an inbound call. */
+export type Leg = "customer" | "agent" | "app";
 export type Stage = "ring" | "whisper" | "bridged" | "vm_greeting" | "vm_record" | "out_whisper" | "out_no_answer";
-export type ClientState = { callId: string; leg: Leg; stage?: Stage };
+export type ClientState = { callId: string; leg: Leg; stage?: Stage; userId?: string };
 
 export function encodeState(s: ClientState): string {
   return Buffer.from(JSON.stringify(s)).toString("base64");
@@ -96,8 +105,8 @@ export function decodeState(raw: string | null | undefined): ClientState | null 
   if (!raw) return null;
   try {
     const j = JSON.parse(Buffer.from(raw, "base64").toString("utf8")) as Partial<ClientState>;
-    if (typeof j.callId !== "string" || (j.leg !== "customer" && j.leg !== "agent")) return null;
-    return { callId: j.callId, leg: j.leg, stage: j.stage };
+    if (typeof j.callId !== "string" || (j.leg !== "customer" && j.leg !== "agent" && j.leg !== "app")) return null;
+    return { callId: j.callId, leg: j.leg, stage: j.stage, ...(typeof j.userId === "string" ? { userId: j.userId } : {}) };
   } catch {
     return null;
   }
@@ -268,14 +277,43 @@ type CallRow = Call & {
   contact: Pick<Contact, "firstName" | "lastName"> | null;
 };
 
-async function findCallByLeg(ccid: string | undefined): Promise<{ call: CallRow; leg: Leg } | null> {
+type AppLeg = { id: string; telnyxCallId: string; userId: string | null };
+type LegHit = { call: CallRow; leg: Leg; appLeg: AppLeg | null };
+
+const callInclude = { company: { select: companySelect }, contact: { select: { firstName: true, lastName: true } } } as const;
+
+/**
+ * The row behind a webhook's call_control_id: the customer leg, the agent leg
+ * (the cell, or the browser that won / placed the call), or one of the
+ * browser legs rung for an inbound call (CallLeg). A browser leg whose row
+ * hasn't landed yet — Telnyx can deliver its first event before our insert
+ * commits — is adopted from the client_state stamped on the dial, so a fast
+ * decline is never lost (it would leave the caller on ringback until the
+ * stale sweep).
+ */
+async function findCallByLeg(ccid: string | undefined, clientState?: string | null): Promise<LegHit | null> {
   if (!ccid) return null;
   const call = await prisma.call.findFirst({
     where: { OR: [{ telnyxCallId: ccid }, { agentCallId: ccid }] },
-    include: { company: { select: companySelect }, contact: { select: { firstName: true, lastName: true } } },
+    include: callInclude,
   });
-  if (!call) return null;
-  return { call, leg: call.telnyxCallId === ccid ? "customer" : "agent" };
+  if (call) return { call, leg: call.telnyxCallId === ccid ? "customer" : "agent", appLeg: null };
+  const appLeg = await prisma.callLeg.findUnique({
+    where: { telnyxCallId: ccid },
+    select: { id: true, telnyxCallId: true, userId: true, call: { include: callInclude } },
+  });
+  if (appLeg) return { call: appLeg.call, leg: "app", appLeg: { id: appLeg.id, telnyxCallId: appLeg.telnyxCallId, userId: appLeg.userId } };
+  const state = decodeState(clientState);
+  if (!state || state.leg !== "app") return null;
+  const parent = await prisma.call.findUnique({ where: { id: state.callId }, include: callInclude });
+  if (!parent) return null;
+  const adopted = await prisma.callLeg.upsert({
+    where: { telnyxCallId: ccid },
+    create: { callId: parent.id, userId: state.userId ?? null, telnyxCallId: ccid },
+    update: {},
+    select: { id: true, telnyxCallId: true, userId: true },
+  });
+  return { call: parent, leg: "app", appLeg: adopted };
 }
 
 /** Entry point for /api/public/webhooks/telnyx/voice. Never throws; a failed step is logged and the call falls through to Telnyx's own timeout. */
@@ -343,33 +381,43 @@ async function onInboundInitiated(p: VoiceEventPayload): Promise<void> {
 }
 
 async function onAnswered(p: VoiceEventPayload): Promise<void> {
-  const hit = await findCallByLeg(p.call_control_id);
+  const hit = await findCallByLeg(p.call_control_id, p.client_state);
   if (!hit) return;
-  const { call, leg } = hit;
-  if (call.status !== "RINGING") return;
+  const { call, leg, appLeg } = hit;
+  if (call.status !== "RINGING") {
+    // A browser that picked up after someone else already won: drop it.
+    if (leg === "app" && appLeg) await callAction(appLeg.telnyxCallId, "hangup");
+    return;
+  }
 
   if (call.direction === "INBOUND" && leg === "customer") {
-    const forwardTo = call.company.lineForwardTo;
-    if (!forwardTo || !call.company.lineNumber) return toVoicemail(call);
-    // Guard the dial: a retried webhook must not ring the cell twice.
-    const claimed = await prisma.call.updateMany({ where: { id: call.id, agentCallId: null }, data: { agentCallId: `pending:${call.id}` } });
-    if (claimed.count === 0) return;
-    await callAction(call.telnyxCallId!, "playback_start", { audio_url: ringbackUrl(), loop: "infinity" });
-    try {
-      const leg2 = await dialCall({
-        to: forwardTo,
-        from: call.company.lineNumber,
-        clientState: encodeState({ callId: call.id, leg: "agent", stage: "ring" }),
-        timeoutSecs: AGENT_RING_SECS,
-        linkTo: call.telnyxCallId!,
-        commandId: `${call.id}:agent`,
-      });
-      await prisma.call.update({ where: { id: call.id }, data: { agentCallId: leg2.call_control_id, agentNumber: forwardTo } });
-    } catch (err) {
-      console.error("[voice] dialing the cell failed:", err);
-      await prisma.call.update({ where: { id: call.id }, data: { agentCallId: null } });
-      await toVoicemail(call);
+    if (!call.company.lineNumber) return toVoicemail(call);
+    const plan = ringPlan(await onlineSoftphoneUsers(call.companyId), call.company.lineForwardTo);
+    if (plan.first === "voicemail") return toVoicemail(call);
+    if (plan.first === "app") {
+      // Guard the fan-out: a retried webhook must not ring every browser twice.
+      const claimed = await prisma.call.updateMany({ where: { id: call.id, appRingAt: null }, data: { appRingAt: new Date(), via: "app" } });
+      if (claimed.count === 0) return;
+      await callAction(call.telnyxCallId!, "playback_start", { audio_url: ringbackUrl(), loop: "infinity" });
+      if ((await ringSoftphones(call, plan.app)) > 0) return;
+      // Not one browser could be dialed: the cell's turn, ringback already looping.
+      return dialCell(call, { ringback: false });
     }
+    return dialCell(call, { ringback: true });
+  }
+
+  if (call.direction === "INBOUND" && leg === "app" && appLeg) {
+    // The first browser to answer wins; the claim is the lock.
+    const claimed = await prisma.call.updateMany({
+      where: { id: call.id, status: "RINGING", agentCallId: null },
+      data: { agentCallId: appLeg.telnyxCallId, answeredByUserId: appLeg.userId, agentNumber: null, via: "app" },
+    });
+    if (claimed.count === 0) {
+      await callAction(appLeg.telnyxCallId, "hangup");
+      return;
+    }
+    await hangupAppLegs(call.id, appLeg.telnyxCallId);
+    await bridgeLegs({ ...call, agentCallId: appLeg.telnyxCallId });
     return;
   }
 
@@ -388,6 +436,8 @@ async function onAnswered(p: VoiceEventPayload): Promise<void> {
   }
 
   if (call.direction === "OUTBOUND" && leg === "agent") {
+    // A browser already knows who it asked to call: no whisper, straight to the customer.
+    if (call.via === "app") return dialCustomer(call);
     await callAction(call.agentCallId!, "gather_using_speak", {
       payload: outboundWhisperText(call.company.name, partyLabel(call.contact, call.customerNumber)),
       ...TTS,
@@ -406,7 +456,75 @@ async function onAnswered(p: VoiceEventPayload): Promise<void> {
   }
 }
 
-/** Join the cell leg to the customer leg; the row flips to IN_PROGRESS only if Telnyx accepted the bridge. */
+/** Ring the cell from the business number (tier 1). The agentCallId claim is the lock against a retried webhook. */
+async function dialCell(call: CallRow, opts: { ringback: boolean }): Promise<void> {
+  const forwardTo = call.company.lineForwardTo;
+  if (!forwardTo || !call.company.lineNumber) return toVoicemail(call);
+  const claimed = await prisma.call.updateMany({
+    where: { id: call.id, agentCallId: null },
+    data: { agentCallId: `pending:${call.id}`, via: "cell" },
+  });
+  if (claimed.count === 0) return;
+  if (opts.ringback) await callAction(call.telnyxCallId!, "playback_start", { audio_url: ringbackUrl(), loop: "infinity" });
+  try {
+    const leg2 = await dialCall({
+      to: forwardTo,
+      from: call.company.lineNumber,
+      clientState: encodeState({ callId: call.id, leg: "agent", stage: "ring" }),
+      timeoutSecs: AGENT_RING_SECS,
+      linkTo: call.telnyxCallId!,
+      commandId: `${call.id}:agent`,
+    });
+    await prisma.call.update({ where: { id: call.id }, data: { agentCallId: leg2.call_control_id, agentNumber: forwardTo } });
+  } catch (err) {
+    console.error("[voice] dialing the cell failed:", err);
+    await prisma.call.update({ where: { id: call.id }, data: { agentCallId: null } });
+    await toVoicemail(call);
+  }
+}
+
+/** Dial every online browser as a SIP leg (one CallLeg row each). Returns how many are ringing. */
+async function ringSoftphones(call: CallRow, targets: RingTarget[]): Promise<number> {
+  let ringing = 0;
+  const label = displayParty(call);
+  for (const t of targets) {
+    try {
+      const leg = await dialCall({
+        to: sipUri(t.sipUsername),
+        from: call.company.lineNumber!,
+        fromDisplayName: label,
+        customHeaders: [{ name: "X-WB-Call-Id", value: call.id }],
+        clientState: encodeState({ callId: call.id, leg: "app", stage: "ring", userId: t.userId }),
+        timeoutSecs: APP_RING_SECS,
+        linkTo: call.telnyxCallId!,
+        commandId: `${call.id}:app:${t.userId}`,
+      });
+      // upsert: the leg's first webhook may have adopted the row already (findCallByLeg).
+      await prisma.callLeg.upsert({
+        where: { telnyxCallId: leg.call_control_id },
+        create: { callId: call.id, userId: t.userId, telnyxCallId: leg.call_control_id },
+        update: { userId: t.userId },
+      });
+      ringing++;
+    } catch (err) {
+      console.error(`[voice] dialing softphone ${t.sipUsername} failed:`, err);
+    }
+  }
+  return ringing;
+}
+
+/** Hang up every browser leg still ringing on a call, except the one that won. Their hangup webhooks close the rows. */
+async function hangupAppLegs(callId: string, keep: string | null): Promise<void> {
+  const legs = await prisma.callLeg.findMany({
+    where: { callId, endedAt: null, ...(keep ? { telnyxCallId: { not: keep } } : {}) },
+    select: { telnyxCallId: true },
+  });
+  for (const l of legs) {
+    await callAction(l.telnyxCallId, "hangup").catch((e) => console.error("[voice] app leg hangup failed:", e));
+  }
+}
+
+/** Join the agent leg to the customer leg; the row flips to IN_PROGRESS only if Telnyx accepted the bridge. */
 async function bridgeLegs(call: CallRow): Promise<void> {
   if (!call.agentCallId || !call.telnyxCallId) return;
   await callAction(call.direction === "INBOUND" ? call.telnyxCallId : call.agentCallId, "playback_stop");
@@ -433,7 +551,7 @@ async function bridgeLegs(call: CallRow): Promise<void> {
 }
 
 async function onGatherEnded(p: VoiceEventPayload): Promise<void> {
-  const hit = await findCallByLeg(p.call_control_id);
+  const hit = await findCallByLeg(p.call_control_id, p.client_state);
   if (!hit || hit.leg !== "agent") return;
   const { call } = hit;
   if (call.status !== "RINGING") return;
@@ -456,6 +574,12 @@ async function onGatherEnded(p: VoiceEventPayload): Promise<void> {
     });
     return;
   }
+  return dialCustomer(call);
+}
+
+/** Outbound: ring the customer from the line while the agent (cell or browser) hears ringback. The telnyxCallId claim is the lock. */
+async function dialCustomer(call: CallRow): Promise<void> {
+  if (!call.agentCallId || !call.company.lineNumber) return;
   const claimed = await prisma.call.updateMany({ where: { id: call.id, telnyxCallId: null }, data: { telnyxCallId: `pending:${call.id}` } });
   if (claimed.count === 0) return;
   await callAction(call.agentCallId!, "playback_start", { audio_url: ringbackUrl(), loop: "infinity" });
@@ -507,9 +631,9 @@ async function onSpeakEnded(p: VoiceEventPayload): Promise<void> {
 }
 
 async function onHangup(p: VoiceEventPayload): Promise<void> {
-  const hit = await findCallByLeg(p.call_control_id);
+  const hit = await findCallByLeg(p.call_control_id, p.client_state);
   if (!hit) return;
-  const { call, leg } = hit;
+  const { call, leg, appLeg } = hit;
   const now = new Date();
   const cause = p.hangup_cause ?? null;
 
@@ -525,9 +649,10 @@ async function onHangup(p: VoiceEventPayload): Promise<void> {
       },
     });
     if (call.direction === "INBOUND") {
-      // Caller gone while the cell was still ringing / in the whisper.
-      if (call.status === "RINGING" && call.agentCallId && !call.agentCallId.startsWith("pending:")) {
-        await callAction(call.agentCallId, "hangup");
+      // Caller gone while the cell / the browsers were still ringing.
+      if (call.status === "RINGING") {
+        if (call.agentCallId && !call.agentCallId.startsWith("pending:")) await callAction(call.agentCallId, "hangup");
+        await hangupAppLegs(call.id, null);
       }
       if (status === "MISSED" && call.status !== "MISSED") await notifyMissed(call);
     } else if (call.status === "RINGING" && call.agentCallId) {
@@ -542,7 +667,19 @@ async function onHangup(p: VoiceEventPayload): Promise<void> {
     return;
   }
 
-  // Agent (cell) leg
+  if (leg === "app" && appLeg) {
+    // One browser declined or timed out. When the last one has, the cell
+    // rings (the caller's ringback is still looping). agentCallId already set
+    // = another browser won, or the cell is ringing: nothing to do.
+    await prisma.callLeg.update({ where: { id: appLeg.id }, data: { endedAt: now, hangupCause: cause } }).catch(() => {});
+    if (call.status !== "RINGING" || call.direction !== "INBOUND" || call.agentCallId) return;
+    const open = await prisma.callLeg.count({ where: { callId: call.id, endedAt: null } });
+    if (open > 0) return;
+    return dialCell(call, { ringback: false });
+  }
+
+  // Agent leg: the cell, or the browser that won / placed the call
+  await prisma.callLeg.updateMany({ where: { telnyxCallId: p.call_control_id, endedAt: null }, data: { endedAt: now, hangupCause: cause } }).catch(() => {});
   if (call.status !== "RINGING") return; // bridged: the customer leg's hangup closes the row
   if (call.direction === "INBOUND") return toVoicemail(call);
   await prisma.call.update({
@@ -566,7 +703,7 @@ async function toVoicemail(call: CallRow): Promise<void> {
 }
 
 async function onRecordingSaved(p: VoiceEventPayload): Promise<void> {
-  const hit = await findCallByLeg(p.call_control_id);
+  const hit = await findCallByLeg(p.call_control_id, p.client_state);
   if (!hit || hit.leg !== "customer") return;
   const { call } = hit;
   const started = p.recording_started_at ? Date.parse(p.recording_started_at) : NaN;
@@ -642,8 +779,9 @@ async function notifyTeam(companyId: string, payload: { title: string; body: str
 export async function startOutboundCall(
   companyId: string,
   userId: string,
-  target: { contactId?: string | null; to?: string | null }
-): Promise<{ callId: string; agentNumber: string; customerNumber: string }> {
+  target: { contactId?: string | null; to?: string | null },
+  opts: { via?: "cell" | "app" } = {}
+): Promise<{ callId: string; via: "cell" | "app"; agentNumber: string | null; customerNumber: string }> {
   if (!voiceEnabled()) throw new VoiceError("Calling from the app isn't available on this server yet.", 503);
   const [company, user] = await Promise.all([
     prisma.company.findUnique({
@@ -658,28 +796,38 @@ export async function startOutboundCall(
   if (!company.lineVoiceAppAt && !(await ensureVoiceRouting(companyId))) {
     throw new VoiceError("Your line isn't on the voice app yet — try again in a minute.", 503);
   }
-  const agentNumber = toE164(user?.phone) ?? company.lineForwardTo;
-  if (!agentNumber) throw new VoiceError("Add your cell number under Settings → My Profile so we can ring you first.", 409);
+  const via = opts.via ?? "cell";
+  const softphone = via === "app" ? await userSoftphoneOnline(userId) : null;
+  if (via === "app" && !softphone) throw new VoiceError("Your softphone isn't connected — reload the page, or call from your cell.", 409);
+  const agentNumber = via === "app" ? null : (toE164(user?.phone) ?? company.lineForwardTo);
+  if (via === "cell" && !agentNumber) throw new VoiceError("Add your cell number under Settings → My Profile so we can ring you first.", 409);
 
   let customerNumber: string | null = null;
   let contactId: string | null = null;
+  let calleeName = "";
   if (target.contactId) {
     const contact = await prisma.contact.findFirst({
       where: { id: target.contactId, companyId },
-      select: { id: true, phone: true },
+      select: { id: true, phone: true, firstName: true, lastName: true },
     });
     if (!contact) throw new VoiceError("Client not found.", 404);
     customerNumber = toE164(contact.phone);
     contactId = contact.id;
+    calleeName = `${contact.firstName} ${contact.lastName}`.trim();
     if (!customerNumber) throw new VoiceError("This client has no dialable phone number.");
   } else {
     customerNumber = toE164(target.to);
     if (!customerNumber) throw new VoiceError("Enter a valid phone number to call.");
     const digits = phoneDigits(customerNumber);
     const match = digits
-      ? await prisma.contact.findFirst({ where: { companyId, phoneDigits: digits }, orderBy: { updatedAt: "desc" }, select: { id: true } })
+      ? await prisma.contact.findFirst({
+          where: { companyId, phoneDigits: digits },
+          orderBy: { updatedAt: "desc" },
+          select: { id: true, firstName: true, lastName: true },
+        })
       : null;
     contactId = match?.id ?? null;
+    calleeName = match ? `${match.firstName} ${match.lastName}`.trim() : "";
   }
   if (customerNumber === company.lineNumber) throw new VoiceError("That's your own business line.");
   if (customerNumber === agentNumber) throw new VoiceError("That's the phone we'd be ringing you on.");
@@ -694,24 +842,41 @@ export async function startOutboundCall(
       customerNumber,
       customerDigits: phoneDigits(customerNumber),
       agentNumber,
+      via,
     },
     select: { id: true },
   });
   try {
-    const leg = await dialCall({
-      to: agentNumber,
-      from: company.lineNumber,
-      clientState: encodeState({ callId: call.id, leg: "agent", stage: "ring" }),
-      timeoutSecs: AGENT_RING_SECS,
-      commandId: `${call.id}:agent`,
-    });
+    const leg = await dialCall(
+      softphone
+        ? {
+            // The browser auto-answers its own outbound call (components/Softphone.tsx matches X-WB-Call-Id).
+            to: sipUri(softphone.sipUsername),
+            from: company.lineNumber,
+            fromDisplayName: calleeName || fmtPhone(customerNumber) || customerNumber,
+            customHeaders: [
+              { name: "X-WB-Call-Id", value: call.id },
+              { name: "X-WB-Outbound", value: "1" },
+            ],
+            clientState: encodeState({ callId: call.id, leg: "agent", stage: "ring", userId }),
+            timeoutSecs: APP_OUTBOUND_RING_SECS,
+            commandId: `${call.id}:agent`,
+          }
+        : {
+            to: agentNumber!,
+            from: company.lineNumber,
+            clientState: encodeState({ callId: call.id, leg: "agent", stage: "ring" }),
+            timeoutSecs: AGENT_RING_SECS,
+            commandId: `${call.id}:agent`,
+          }
+    );
     await prisma.call.update({ where: { id: call.id }, data: { agentCallId: leg.call_control_id } });
   } catch (err) {
     const detail = err instanceof TelnyxError ? err.detail : "unknown error";
     await prisma.call.update({ where: { id: call.id }, data: { status: "FAILED", hangupCause: "dial_failed", endedAt: new Date() } });
     throw new VoiceError(`Telnyx couldn't place the call: ${detail}`, 502);
   }
-  return { callId: call.id, agentNumber, customerNumber };
+  return { callId: call.id, via, agentNumber, customerNumber };
 }
 
 /* ───────────────────────── Voicemail playback ───────────────────────── */
@@ -757,6 +922,8 @@ export async function runStaleCallSweep(now = new Date()): Promise<{ closed: num
       for (const ccid of [call.telnyxCallId, call.agentCallId]) {
         if (ccid && !ccid.startsWith("pending:") && voiceEnabled()) await callAction(ccid, "hangup").catch(() => {});
       }
+      if (voiceEnabled()) await hangupAppLegs(call.id, null).catch(() => {});
+      await prisma.callLeg.updateMany({ where: { callId: call.id, endedAt: null }, data: { endedAt: now, hangupCause: "stale" } });
       out.closed++;
     } else {
       await prisma.call.update({ where: { id: call.id }, data: { status: "MISSED" } });

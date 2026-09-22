@@ -6,6 +6,7 @@ import PageTitle from "@/components/PageTitle";
 import EmptyState from "@/components/EmptyState";
 import CallRow from "@/components/CallRow";
 import { markCallsSeen } from "@/lib/voice";
+import DialFromApp from "@/components/DialFromApp";
 
 /**
  * Calls on the business line (lib/voice.ts): every inbound call — answered,
@@ -38,6 +39,8 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
         createdAt: true,
         contact: { select: { id: true, firstName: true, lastName: true } },
         user: { select: { name: true } },
+        via: true,
+        answeredBy: { select: { name: true } },
       },
     }),
   ]);
@@ -51,6 +54,7 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
       <PageTitle section="chat" icon={PhoneCall}>
         Calls
       </PageTitle>
+      {hasLine && company?.lineVoiceAppAt && <DialFromApp manager={isManager(actor.role)} />}
       {filteredContact && (
         <p className="mt-2 text-sm text-gray-500">
           Calls with{" "}

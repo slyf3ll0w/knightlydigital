@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { prisma } from "@/lib/db";
-import { requirePageActor, roleLabel } from "@/lib/permissions";
+import { canSell, requirePageActor, roleLabel } from "@/lib/permissions";
+import { hasAddon } from "@/lib/addon";
+import { voiceConfigured } from "@/lib/telnyx";
 import { googleNativeClientIdFor, googleSignInAvailableFor } from "@/lib/sign-in-options";
 import ProfileClient from "./ProfileClient";
 
@@ -20,7 +22,8 @@ export default async function ProfilePage() {
         role: true,
         avatarMime: true,
         emailSignature: true,
-        company: { select: { name: true, phone: true, website: true } },
+        softphoneEnabled: true,
+        company: { select: { name: true, phone: true, website: true, lineVoiceAppAt: true, addonActiveAt: true } },
         // The login behind this membership: whether it has a password, and
         // which third-party sign-ins are connected (Connected sign-ins card).
         account: {
@@ -43,6 +46,9 @@ export default async function ProfilePage() {
     }),
     headers().then((h) => h.get("user-agent")),
   ]);
+
+  // The "Calls in the app" switch only means something once the line is on the voice app (lib/softphone.ts).
+  const softphoneRelevant = Boolean(voiceConfigured() && user?.company?.lineVoiceAppAt && hasAddon(user.company) && canSell(actor.role));
 
   // What client emails fall back to while no custom signature is saved
   const defaultSignature = [
@@ -76,6 +82,7 @@ export default async function ProfilePage() {
       }))}
       googleEnabled={googleSignInAvailableFor(ua)}
       googleNativeClientId={googleNativeClientIdFor(ua)}
+      softphoneEnabled={softphoneRelevant ? (user?.softphoneEnabled ?? true) : null}
     />
   );
 }

@@ -2,7 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { getSession, peekActor } from "@/lib/permissions";
+import { canSell, getSession, peekActor } from "@/lib/permissions";
+import type { Role } from "@prisma/client";
+import { hasAddon } from "@/lib/addon";
+import { voiceConfigured } from "@/lib/telnyx";
 import { prisma } from "@/lib/db";
 import { paymentsGateStatus } from "@/lib/payments-gate";
 import { atlasAccess, ATLAS_ACCESS_SELECT, ATLAS_PRICING } from "@/lib/assistant-access";
@@ -13,6 +16,7 @@ import OfflineSupport from "@/components/OfflineSupport";
 import ForegroundRefresh from "@/components/ForegroundRefresh";
 import TeamLocationReporter from "@/components/TeamLocationReporter";
 import ArrivalNudge from "@/components/ArrivalNudge";
+import Softphone from "@/components/Softphone";
 import { resolveWallpaper } from "@/lib/wallpapers";
 
 export const metadata: Metadata = {
@@ -66,6 +70,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             paymentsWaived: true,
             suspendedAt: true,
             accessPendingAt: true,
+            addonActiveAt: true,
+            lineVoiceAppAt: true,
           },
         })
       : null,
@@ -117,6 +123,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // actionable thing wins — an underwriter request, then finishing payment
   // setup, then the pending-approval warning, then "under review" FYI.
   const pendingApproval = Boolean(company?.accessPendingAt && !company.suspendedAt);
+  // Business-line calls in the browser (lib/softphone.ts): mounted only once
+  // the number is on the voice app; the grant route re-checks everything else.
+  const softphone = Boolean(company && user && voiceConfigured() && company.lineVoiceAppAt && hasAddon(company) && canSell(user.role as Role));
   const updateRequested =
     gate === "pending" && company?.finixOnboardingState === "UPDATE_REQUESTED";
 
@@ -128,6 +137,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <ForegroundRefresh />
       <TeamLocationReporter />
       <ArrivalNudge />
+      {softphone && <Softphone />}
       <AppShell
         userName={user?.name ?? session.user.name}
         userEmail={session.user.email}

@@ -346,9 +346,30 @@ free `sms:`/`tel:` deep links (`lib/messaging.ts`) stay free and untouched.
   at provision/attach (best effort — Telnyx may decline, e.g. toll-free) and
   editable in the Settings card (`PATCH /api/app/line { callerIdName }`).
   Carriers look it up on their side: days to propagate, mobiles uneven.
-- **Not built yet**: softphone / WebRTC in the app (tier 2), native ringing
-  with the app closed (tier 3), voicemail transcription, missed-call
-  text-back, business-hours routing, port-in, E911 (needed only for tier 2).
+- **Softphone — calls in the browser** (tier 2, `lib/softphone.ts` +
+  `components/Softphone.tsx` + `lib/softphone-client.ts`; built 2026-09-21):
+  every call STILL runs through Call Control — a signed-in browser is just one
+  more destination we dial, as `sip:<User.sipUsername>@sip.telnyx.com`. One
+  credential connection per company (`Company.lineSipConnectionId`, created on
+  first use, deliberately **no outbound voice profile** so a browser can never
+  originate a call → no 911 → no E911 address) and one telephony credential per
+  user; `GET /api/app/line/softphone` mints the login JWT per page load (or
+  `{ off }`). Presence = heartbeat every 30 s → `User.softphoneSeenAt`
+  (`POST …/softphone/presence`), online within 100 s. Inbound: `ringPlan`
+  (pure) rings every online browser first (`CallLeg` rows, `Call.appRingAt`
+  fan-out lock, 15 s), first answer claims `agentCallId` + `answeredByUserId` +
+  `via: "app"`, the rest are hung up; the cell rings only after the last
+  browser leg ends (`dialCell`). Outbound `via: "app"` dials the caller's own
+  browser (`X-WB-Call-Id` header, tab auto-answers, no whisper) then the
+  customer (`dialCustomer`). `findCallByLeg` adopts a SIP leg from its
+  `client_state` when its webhook beats our insert. UI: the fixed call card
+  (`Softphone.tsx`, mounted in the platform layout when the line is routed),
+  "Call in app" on contacts, the `/app/calls` dialer (`DialFromApp.tsx`), My
+  Profile → Calls in the app (`User.softphoneEnabled`). Native shells never
+  register (`nativePlatform()`) — a phone stays a cell until tier 3.
+- **Not built yet**: native ringing with the app closed (tier 3 — mic
+  permissions already in the native projects), voicemail transcription,
+  missed-call text-back, business-hours routing, port-in, call transfer.
 
 ## Payment processor (Finix)
 

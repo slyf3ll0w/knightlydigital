@@ -183,6 +183,10 @@ model Company {
   // name when a number is provisioned/attached; editable in Settings. Null =
   // no listing (Telnyx refused it, or it was cleared).
   lineCallerIdName          String?
+  // Softphone (lib/softphone.ts): the Telnyx credential connection every
+  // team member's browser registers under. Created lazily the first time
+  // someone opens the app with a routed line; deleted with the number.
+  lineSipConnectionId       String?
   // Platform suspension (superadmin-only): set → the tenant app and public
   // booking/leads/payments are disabled, data stays intact until support
   // reinstates. Deletion is separate and permanent.
@@ -312,54 +316,64 @@ model AccountIdentity {
 }
 
 model User {
-  id              String    @id @default(cuid())
-  email           String
-  name            String
+  id               String    @id @default(cuid())
+  email            String
+  name             String
   // Legacy (pre-Account) login hash — Account.passwordHash is authoritative.
   // Kept nullable so old rows keep signing in until the backfill/first-login
   // lazily creates their Account (lib/account.ts).
-  passwordHash    String?
-  role            Role      @default(TECH)
-  companyId       String?
-  company         Company?  @relation(fields: [companyId], references: [id])
-  accountId       String?
-  account         Account?  @relation(fields: [accountId], references: [id])
-  phone           String?
-  isActive        Boolean   @default(true)
+  passwordHash     String?
+  role             Role      @default(TECH)
+  companyId        String?
+  company          Company?  @relation(fields: [companyId], references: [id])
+  accountId        String?
+  account          Account?  @relation(fields: [accountId], references: [id])
+  phone            String?
+  isActive         Boolean   @default(true)
   // Accepts online-booking slots: this user's free time feeds the public slot
   // picker and tentative appointments land on them. Off by default — owners
   // opt team members in from the Team page.
-  bookable        Boolean   @default(false)
+  bookable         Boolean   @default(false)
   // Per-member weekly working hours (same JSON shape as Company.businessHours);
   // null = works the company's business hours. Feeds Find a Time, online
   // booking availability, and the route optimizer's default day start.
-  workingHours    Json?
+  workingHours     Json?
   // Online scheduling extras (Team page): a personal video-meeting room
   // pasted into video-call confirmations, and where this member starts the
   // day (geocoded like Company.address) so the first drive of the day is
   // measured from home instead of the shop. All null = shop pin.
-  meetingLink     String?
-  startAddress    String?
-  startLat        Float?
-  startLng        Float?
-  startGeocodedAt DateTime?
+  meetingLink      String?
+  startAddress     String?
+  startLat         Float?
+  startLng         Float?
+  startGeocodedAt  DateTime?
   // Profile picture (small client-resized square; same bytes-in-DB pattern
   // as Company.logoData — move to R2 with job photos when volume grows)
-  avatarData      Bytes?
-  avatarMime      String?
-  avatarUpdatedAt DateTime?
+  avatarData       Bytes?
+  avatarMime       String?
+  avatarUpdatedAt  DateTime?
   // First-visit guided tour; null = hasn't seen it (fires on next dashboard visit)
-  tourCompletedAt DateTime?
+  tourCompletedAt  DateTime?
   // Plain-text signature appended to client email messages (Settings → My
   // Profile); null = auto-generated from name + company details at send time
-  emailSignature  String?   @db.Text
+  emailSignature   String?   @db.Text
   // Team chat: last time this user opened the chat (drives the unread badge)
-  chatLastSeenAt  DateTime?
+  chatLastSeenAt   DateTime?
   // Internal labor cost per hour — feeds job labor costing from time entries.
   // Never shown to techs (pricing gate); null = don't cost this user's time.
-  hourlyCost      Decimal?  @db.Decimal(10, 2)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  hourlyCost       Decimal?  @db.Decimal(10, 2)
+  // Softphone (lib/softphone.ts): business-line calls ring in the browser
+  // while this person is signed in on a computer. Off = cell only.
+  softphoneEnabled Boolean   @default(true)
+  // Last heartbeat from a registered softphone; online = within the last
+  // ~75 s (SOFTPHONE_PRESENCE_MS). Cleared when the tab closes cleanly.
+  softphoneSeenAt  DateTime?
+  // Per-user Telnyx telephony credential (under Company.lineSipConnectionId);
+  // sipUsername is what Call Control dials (sip:<username>@sip.telnyx.com).
+  sipCredentialId  String?
+  sipUsername      String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   assignments          JobAssignment[]
   notes                JobNote[]
@@ -386,6 +400,8 @@ model User {
   calendarFeed         CalendarFeed?
   googleCalendar       GoogleCalendarConnection?
   calls                Call[]
+  answeredCalls        Call[]                    @relation("AnsweredCalls")
+  callLegs             CallLeg[]
 
   // Same address may exist at several companies (one row per membership),
   // but only once within a company.
@@ -2808,6 +2824,15 @@ model Call {
   // Outbound: who placed it. Inbound: null (the company cell answered, not a user).
   userId               String?
   user                 User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  // Who picked up in the app (softphone); null when the cell answered or nobody did.
+  answeredByUserId     String?
+  answeredBy           User?         @relation("AnsweredCalls", fields: [answeredByUserId], references: [id], onDelete: SetNull)
+  // How the team side of the call was reached: "cell" (tier 1 whisper +
+  // press 1) or "app" (browser softphone). Null until a leg is dialed.
+  via                  String?
+  // Inbound fan-out claim: set once when the softphone legs were dialed, so
+  // a retried webhook can't ring everyone twice (lib/voice.ts).
+  appRingAt            DateTime?
   direction            CallDirection
   status               CallStatus    @default(RINGING)
   customerNumber       String // E.164 of the far party
@@ -2825,11 +2850,30 @@ model Call {
   seenAt               DateTime? // a team member opened the Calls page after it ended
   createdAt            DateTime      @default(now())
   updatedAt            DateTime      @updatedAt
+  legs                 CallLeg[]
 
   @@index([companyId, createdAt])
   @@index([contactId, createdAt])
   @@index([agentCallId])
   @@index([status, createdAt])
+}
+
+// One softphone leg of an inbound call (lib/softphone.ts): the SIP dial to
+// one signed-in team member's browser. The cell leg stays on Call.agentCallId;
+// when an app leg is answered its id is copied there too, so the rest of the
+// state machine never has to know how many browsers rang.
+model CallLeg {
+  id           String    @id @default(cuid())
+  callId       String
+  call         Call      @relation(fields: [callId], references: [id], onDelete: Cascade)
+  userId       String?
+  user         User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  telnyxCallId String    @unique // call_control_id of this SIP leg
+  endedAt      DateTime?
+  hangupCause  String?
+  createdAt    DateTime  @default(now())
+
+  @@index([callId])
 }
 
 // ─── Packaging board (superadmin planning tool) ──────────────────────────────

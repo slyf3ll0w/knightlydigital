@@ -43,6 +43,15 @@ export async function PATCH(req: NextRequest) {
     await prisma.user.updateMany({ where: { id: { in: ids } }, data: identity });
   }
 
+  // Per-membership: business-line calls ring in this person's browser (lib/softphone.ts).
+  // Switching off also drops their presence so the next inbound call skips them.
+  if (typeof body.softphoneEnabled === "boolean") {
+    await prisma.user.update({
+      where: { id: actor.id },
+      data: { softphoneEnabled: body.softphoneEnabled, ...(body.softphoneEnabled ? {} : { softphoneSeenAt: null }) },
+    });
+  }
+
   // Plain text only — rendered escaped into client emails
   if (body.emailSignature !== undefined) {
     await prisma.user.update({

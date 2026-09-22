@@ -6,7 +6,7 @@ the customer's caller ID, so the owner's cell rings like any personal call, and 
 cell's own voicemail answers before the business can. David: "will it tell me the call
 is being forwarded… how hard would it be to get it to be an actual phone number
 separate from my cell phone that can call via Workbench?" Three tiers were laid out;
-tier 1 is built for every number (not just Streamflaire's), tiers 2–3 are the plan.
+tiers 1 and 2 are built for every number (not just Streamflaire's), tier 3 is the plan.
 
 ## Tier 1 — a real business line on your cell — BUILT 2026-09-18
 
@@ -48,31 +48,64 @@ Telnyx Call Control replaces number-level forwarding. Code: `lib/voice.ts`
   number (Telnyx portal process, not API).
 - A nav badge for unseen missed calls / voicemails (push covers it for now).
 
-## Tier 2 — softphone inside WorkBench — PLANNED (2–3 days)
+## Tier 2 — softphone inside WorkBench — BUILT 2026-09-21
 
-Calls in the browser and desktop app via Telnyx WebRTC, so nobody's cell is
-involved when the app is open. Tier 1 stays as the fallback when it isn't.
+Calls in the browser, so nobody's cell is involved while the app is open on a
+computer. Tier 1 is the fallback the moment it isn't. Code: `lib/softphone.ts`
+(resources, presence, the ring plan), `components/Softphone.tsx` (the WebRTC
+client + call card), `lib/softphone-client.ts` (browser-side store the buttons
+talk to), the `app` branches in `lib/voice.ts`.
 
-1. **Telnyx side**: one SIP credential connection per company
-   (`/credential_connections`), per-user telephony credentials
-   (`/telephony_credentials` → JWT via `/telephony_credentials/{id}/token`, short
-   TTL, minted by `/api/app/line/webrtc-token`). Outbound voice profile reused.
-   E911 address on the number becomes required once a softphone can dial 911
-   (`/phone_numbers/{id}` `address_id`, an emergency address per company).
-2. **Inbound routing change** in `lib/voice.ts`: on `call.answered` (customer leg),
-   dial the SIP credentials of everyone online (`to: sip:<cred>@sip.telnyx.com`,
-   fan-out with `link_to`) *and* the cell after N seconds if nobody picks up; first
-   answer wins, the rest get hung up. Whisper is skipped for SIP legs (the app shows
-   who's calling).
-3. **Client** (`@telnyx/webrtc`): a `<CallBar>` mounted in `AppShell` — incoming
-   toast with Answer/Decline, dialer (from a contact or a typed number), mute, hold,
-   hangup, elapsed time; mic permission prompt on first use. Presence = the client
-   registers a SIP session; server tracks `online` via `call.answered`/registration
-   webhooks or a heartbeat.
-4. **Native shells**: Capacitor WebView supports WebRTC on iOS 14.3+/Android; mic
-   permission strings in Info.plist / manifest (a store build — queue in
-   `native-release-queue.md`). Background ringing is tier 3.
-5. **Call rows** gain `answeredByUserId` and `via` ("cell" | "app").
+The one design decision that made it small: **every call still runs through
+Call Control**. A registered browser is just one more destination we can dial
+(`sip:<username>@sip.telnyx.com`), exactly like the cell — it never originates a
+call of its own. So every call has a Call row, the customer always sees the
+business number, recordings/voicemail/stale sweeps are untouched, and — because
+the browser can't dial 911 — **no E911 address is needed** (the plan's item 1
+was wrong about that; it only applies to a softphone that places PSTN calls).
+
+- **Telnyx side**: one credential connection per company
+  (`Company.lineSipConnectionId`, created on first use, *no* outbound voice
+  profile — which is the "can't originate" guarantee) and one telephony
+  credential per team member (`User.sipCredentialId` / `sipUsername`). The
+  browser logs in with a JWT minted per page load by `GET /api/app/line/softphone`
+  (`{ off: reason }` when calls shouldn't ring there). `releaseLine` deletes all
+  of it with the number.
+- **Presence**: heartbeat every 30 s while registered
+  (`POST /api/app/line/softphone/presence`, `User.softphoneSeenAt`), beacon on
+  pagehide; online = within 100 s (a long-hidden tab only fires timers once a
+  minute). `ringPlan` (pure, `scripts/test-voice.ts`) decides who rings first.
+- **Inbound**: on the customer leg's `call.answered`, every online browser is
+  dialed as a SIP leg (`CallLeg` row each, `link_to` the customer, 15 s
+  timeout, `Call.appRingAt` is the fan-out lock). First browser to answer
+  claims `agentCallId` + `answeredByUserId` + `via: "app"` and is bridged; the
+  rest are hung up. When the *last* browser leg ends unanswered the cell is
+  dialed (tier 1, ringback still looping); no browsers online → the cell right
+  away; neither → voicemail. A browser leg's first webhook can beat our insert,
+  so `findCallByLeg` adopts unknown SIP legs from their `client_state`.
+- **Outbound**: `POST /api/app/line/call { via: "app" }` dials the caller's own
+  browser (with `X-WB-Call-Id` / `X-WB-Outbound` headers + the callee as the
+  display name); the tab auto-answers, the server skips the whisper and dials
+  the customer, then bridges. "Call from line" on a contact becomes **Call in
+  app** whenever the softphone is registered; the Calls page gets a dialer.
+- **UI**: a fixed card (bottom right) — Answer/Decline with a Web-Audio ring
+  tone and a ☎ in the tab title; then mute, hold, hang up, elapsed time. Calls
+  page rows say "Maria · in the app". My Profile → **Calls in the app** switch
+  (`User.softphoneEnabled`, default on).
+- **Native shells never register** (`nativePlatform()`): in the phone app calls
+  keep ringing the cell — which is what a phone should do anyway — until tier 3.
+  The mic permission strings (`NSMicrophoneUsageDescription`, `RECORD_AUDIO` +
+  `MODIFY_AUDIO_SETTINGS`) are already in the tree for that build.
+- **Data**: `Call.answeredByUserId`, `Call.via` ("cell" | "app"), `Call.appRingAt`,
+  `CallLeg` (one per browser leg), `Company.lineSipConnectionId`,
+  `User.softphoneEnabled` / `softphoneSeenAt` / `sipCredentialId` / `sipUsername`.
+  **`db:push` before deploy.** No new env var.
+- **Not built (deliberate)**: ringing more than one *tab* per person
+  (Telnyx forks INVITEs to every registration of a credential, so it may just
+  work — unverified), a keypad for IVR menus (`call.dtmf` is one line when
+  needed), transfer between team members, per-user ring order, and a nav badge
+  while a call is ringing on another page (the card is fixed-position, so it's
+  visible everywhere already).
 
 ## Tier 3 — native ringing when the app is closed — PLANNED (≈1 week + review)
 
@@ -85,6 +118,10 @@ involved when the app is open. Tier 1 stays as the fallback when it isn't.
   intent with the incoming-call UI (ConnectionService for the native dialer look).
 - Both need a store build and review; keep tier 1's cell fallback forever for the
   "phone off / app killed" case.
+- Tier 2 already did the groundwork: the mic permissions are in the native
+  projects, `Softphone.tsx` only needs its `nativePlatform()` gate lifted once
+  the shell can ring in the background, and the server side is unchanged (a
+  phone is just another registered credential).
 
 ## Costs
 Telnyx voice ≈ $0.007/min per leg (US), TTS basic tier included, recordings

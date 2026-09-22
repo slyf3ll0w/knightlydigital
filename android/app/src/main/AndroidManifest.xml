@@ -49,4 +49,8 @@
     <!-- App lock (components/AppLock.tsx): fingerprint/face unlock -->
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
     <uses-permission android:name="android.permission.USE_FINGERPRINT" android:maxSdkVersion="28" />
+    <!-- Business-line calls in the webview (components/Softphone.tsx; native ringing is
+         tier 3 of docs/plans/business-line-voice-2026-09-18.md): getUserMedia needs these -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 </manifest>

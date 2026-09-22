@@ -9,6 +9,8 @@ import { VoiceError, startOutboundCall } from "@/lib/voice";
  * whispers who they're calling, then rings the client and bridges. Anyone
  * who can see clients can place a call; the customer sees the business
  * number. Rate-limited: every call past the checks costs minutes.
+ * `via: "app"` rings the caller's own browser (components/Softphone.tsx)
+ * instead of their cell — no whisper, the tab auto-answers.
  */
 export async function POST(req: NextRequest) {
   const actor = await getActor();
@@ -17,12 +19,17 @@ export async function POST(req: NextRequest) {
   if (!(await limit(`line-call:${actor.id}`, 30, 10 * 60_000)).ok) {
     return NextResponse.json({ error: "Too many calls in a row — give it a few minutes." }, { status: 429 });
   }
-  const body = (await req.json().catch(() => ({}))) as { contactId?: unknown; to?: unknown };
+  const body = (await req.json().catch(() => ({}))) as { contactId?: unknown; to?: unknown; via?: unknown };
   try {
-    const out = await startOutboundCall(actor.companyId, actor.id, {
-      contactId: typeof body.contactId === "string" ? body.contactId : null,
-      to: typeof body.to === "string" ? body.to : null,
-    });
+    const out = await startOutboundCall(
+      actor.companyId,
+      actor.id,
+      {
+        contactId: typeof body.contactId === "string" ? body.contactId : null,
+        to: typeof body.to === "string" ? body.to : null,
+      },
+      { via: body.via === "app" ? "app" : "cell" }
+    );
     return NextResponse.json(out, { status: 201 });
   } catch (err) {
     if (err instanceof VoiceError) return NextResponse.json({ error: err.message }, { status: err.status });

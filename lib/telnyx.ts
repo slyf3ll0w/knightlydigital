@@ -18,6 +18,8 @@
  * fees, statuses still flow; use on staging).
  */
 
+import { randomBytes } from "node:crypto";
+
 const API = "https://api.telnyx.com/v2";
 const TIMEOUT_MS = 20_000;
 
@@ -113,6 +115,27 @@ async function call<T>(
   } catch {
     throw new TelnyxError(res.status, "Unexpected non-JSON response");
   }
+}
+
+/** Same request, raw body back — the credential token endpoint answers a bare JWT, not JSON. */
+async function callText(method: "POST", path: string): Promise<string> {
+  const key = process.env.TELNYX_API_KEY;
+  if (!key) throw new TelnyxError(0, "TELNYX_API_KEY is not set");
+  const res = await fetch(`${API}${path}`, {
+    method,
+    headers: { Authorization: `Bearer ${key}`, Accept: "*/*" },
+    signal: AbortSignal.timeout(TIMEOUT_MS),
+  });
+  const text = await res.text();
+  if (!res.ok) throw new TelnyxError(res.status, errorDetail(res.status, text));
+  return text.trim();
+}
+
+/** URL-safe random alphanumerics (SIP connection usernames/passwords must be plain alphanumeric). */
+function randomAlnum(length: number): string {
+  let out = "";
+  while (out.length < length) out += randomBytes(32).toString("base64").replace(/[^A-Za-z0-9]/g, "");
+  return out.slice(0, length);
 }
 
 /* ───────────────────────── Numbers ───────────────────────── */
@@ -248,8 +271,13 @@ export async function setNumberConnection(numberId: string, connectionId: string
  * ---------------------------------------------------------------------- */
 
 export type DialInput = {
+  /** E.164, or a SIP URI (sipUri) for a registered softphone. */
   to: string;
   from: string;
+  /** Caller-ID name presented to the destination (SIP From display name) — the softphone shows it. */
+  fromDisplayName?: string;
+  /** Extra SIP headers on the INVITE (X-… names); the softphone reads them off the incoming call. */
+  customHeaders?: Array<{ name: string; value: string }>;
   /** Base64 JSON — echoed back on every webhook for the new leg. */
   clientState?: string;
   /** Seconds to ring before Telnyx gives up (call.hangup with cause timeout). */
@@ -271,6 +299,8 @@ export async function dialCall(input: DialInput): Promise<DialedCall> {
     timeout_secs: input.timeoutSecs ?? 30,
     link_to: input.linkTo,
     command_id: input.commandId,
+    from_display_name: input.fromDisplayName,
+    custom_headers: input.customHeaders,
   });
   if (!out.data?.call_control_id) throw new TelnyxError(502, "Dial returned no call_control_id");
   return out.data;
@@ -369,6 +399,80 @@ export async function createCallControlApp(name: string, webhookUrl: string, out
   });
   if (!out.data?.id) throw new TelnyxError(502, "No call control application id returned");
   return { id: out.data.id };
+}
+
+/* ───────────────────────── Softphone (SIP credentials) ─────────────────────────
+ * lib/softphone.ts: one credential connection per company, one telephony
+ * credential per team member. The browser logs in with a short-lived JWT
+ * minted from the credential and Call Control dials it as a SIP URI.
+ * ---------------------------------------------------------------------- */
+
+export const SIP_DOMAIN = "sip.telnyx.com";
+/** Where Call Control reaches a registered softphone. */
+export const sipUri = (username: string): string => `sip:${username}@${SIP_DOMAIN}`;
+
+/**
+ * A credential connection with NO outbound voice profile: browsers registered
+ * under it can receive the legs we dial at them and nothing else (no PSTN
+ * origination → no 911 → no E911 address on the number). The connection's
+ * own username/password are never used by anyone — telephony credentials
+ * (below) are what the browsers log in with — so they are random and
+ * forgotten.
+ */
+export async function createCredentialConnection(name: string): Promise<{ id: string }> {
+  const out = await call<{ data?: { id?: string } }>("POST", "/credential_connections", {
+    connection_name: name.slice(0, 200),
+    user_name: `wb${randomAlnum(24)}`,
+    password: randomAlnum(40),
+    active: true,
+  });
+  if (!out.data?.id) throw new TelnyxError(502, "No credential connection id returned");
+  return { id: out.data.id };
+}
+
+export async function deleteCredentialConnection(id: string): Promise<void> {
+  try {
+    await call("DELETE", `/credential_connections/${encodeURIComponent(id)}`);
+  } catch (err) {
+    if (!(err instanceof TelnyxError && err.status === 404)) throw err;
+  }
+}
+
+export type TelephonyCredential = { id: string; sip_username: string };
+
+export async function createTelephonyCredential(connectionId: string, name: string): Promise<TelephonyCredential> {
+  const out = await call<{ data?: { id?: string; sip_username?: string } }>("POST", "/telephony_credentials", {
+    connection_id: connectionId,
+    name: name.slice(0, 100),
+  });
+  if (!out.data?.id || !out.data.sip_username) throw new TelnyxError(502, "No telephony credential returned");
+  return { id: out.data.id, sip_username: out.data.sip_username };
+}
+
+export async function deleteTelephonyCredential(id: string): Promise<void> {
+  try {
+    await call("DELETE", `/telephony_credentials/${encodeURIComponent(id)}`);
+  } catch (err) {
+    if (!(err instanceof TelnyxError && err.status === 404)) throw err;
+  }
+}
+
+/** A JWT the browser logs in with (@telnyx/webrtc `login_token`). Short-lived; mint one per page load. */
+export async function createCredentialToken(credentialId: string): Promise<string> {
+  const text = await callText("POST", `/telephony_credentials/${encodeURIComponent(credentialId)}/token`);
+  // Documented as a bare token; tolerate a JSON-wrapped one just in case.
+  if (text.startsWith("{") || text.startsWith("\"")) {
+    try {
+      const j = JSON.parse(text) as string | { data?: string | { token?: string } };
+      if (typeof j === "string") return j;
+      if (typeof j.data === "string") return j.data;
+      if (j.data && typeof j.data.token === "string") return j.data.token;
+    } catch {
+      /* fall through */
+    }
+  }
+  if (!text) throw new TelnyxError(502, "Empty credential token");
+  return text;
 }
 
 /* ───────────────────────── 10DLC ───────────────────────── */

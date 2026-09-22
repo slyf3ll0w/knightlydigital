@@ -21,6 +21,10 @@ export type CallRowData = {
   createdAt: Date;
   contact: { id: string; firstName: string; lastName: string } | null;
   user: { name: string } | null;
+  /** "app" (browser softphone) or "cell"; null on older rows. */
+  via?: string | null;
+  /** Who picked up in the app (inbound only). */
+  answeredBy?: { name: string } | null;
 };
 
 const STATUS: Record<CallRowData["status"], { label: string; tone: string }> = {
@@ -55,14 +59,19 @@ export default function CallRow({ call, showContact = true }: { call: CallRowDat
   const s = STATUS[call.status];
   const unseen = !call.seenAt && (call.status === "MISSED" || call.status === "VOICEMAIL");
   const when = call.createdAt.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  const first = (n: string) => n.split(" ")[0];
+  const who =
+    call.direction === "OUTBOUND" && call.user
+      ? `by ${first(call.user.name)}${call.via === "app" ? " · in the app" : ""}`
+      : call.direction === "INBOUND" && call.answeredBy
+        ? `${first(call.answeredBy.name)} · in the app`
+        : "";
   const detail =
     call.status === "COMPLETED" && call.durationSec !== null
-      ? fmtDuration(call.durationSec)
+      ? [fmtDuration(call.durationSec), who].filter(Boolean).join(" · ")
       : call.status === "VOICEMAIL" && call.voicemailSec !== null
         ? `${fmtDuration(call.voicemailSec)} message`
-        : call.direction === "OUTBOUND" && call.user
-          ? `by ${call.user.name.split(" ")[0]}`
-          : "";
+        : who;
 
   return (
     <div className="card-ledger px-4 py-3">

@@ -105,6 +105,8 @@ export default async function ContactDetailPage({
         createdAt: true,
         contact: { select: { id: true, firstName: true, lastName: true } },
         user: { select: { name: true } },
+        via: true,
+        answeredBy: { select: { name: true } },
       },
     }),
   ]);
@@ -234,7 +236,8 @@ export default async function ContactDetailPage({
   // Calls from the business number (lib/voice.ts) need the line on the voice
   // app and a cell to ring first: the user's own (My Profile) or the line's.
   const agentPhone = senderUser?.phone?.trim() || contact.company.lineForwardTo || "";
-  const canCallFromLine = Boolean(contact.company.lineVoiceAppAt && agentPhone && contact.phone);
+  // In a browser the softphone needs no cell (components/Softphone.tsx); the button picks the flow itself.
+  const canCallFromLine = Boolean(contact.company.lineVoiceAppAt && contact.phone);
   const textsSetupHint = !hasLine
     ? "Set up a business line in Settings → Features to start texting clients"
     : !lineRegistered

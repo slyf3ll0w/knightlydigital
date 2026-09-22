@@ -9,6 +9,7 @@ import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { PushToggleCard } from "@/components/PushNotifications";
 import { AppLockToggleCard } from "@/components/AppLock";
 import CalendarSyncCard from "@/components/CalendarSyncCard";
+import SoftphoneToggleCard from "@/components/SoftphoneToggleCard";
 import Avatar from "@/components/Avatar";
 import AvatarCropModal from "@/components/AvatarCropModal";
 import SignInMethodsCard, { type ConnectedIdentity } from "@/components/SignInMethodsCard";
@@ -29,6 +30,7 @@ export default function ProfileClient({
   identities: initialIdentities,
   googleEnabled,
   googleNativeClientId = null,
+  softphoneEnabled = null,
 }: {
   userId: string;
   hasAvatar: boolean;
@@ -48,6 +50,8 @@ export default function ProfileClient({
   googleEnabled: boolean;
   /** Android app only — connect Google through the plugin, not a redirect. */
   googleNativeClientId?: string | null;
+  /** Business-line calls in the browser (lib/softphone.ts): the saved switch, or null when the line isn't on the voice app. */
+  softphoneEnabled?: boolean | null;
 }) {
   const router = useRouter();
   const [name, setName] = useState(initialName);
@@ -395,6 +399,8 @@ export default function ProfileClient({
       {dialog}
 
       <PushToggleCard />
+
+      {softphoneEnabled !== null && <SoftphoneToggleCard initial={softphoneEnabled} />}
 
       <AppLockToggleCard />
 
