@@ -749,7 +749,8 @@ function tollFreeBody(i: TollFreeVerificationInput) {
     optInWorkflowImageURLs: i.optInImageUrls.map((url) => ({ url })),
     additionalInformation: i.additionalInformation,
     // A reseller filing for a client names itself; the platform's own line files as itself (undefined = field omitted).
-    isvReseller: i.isvReseller === null ? undefined : (i.isvReseller ?? "WorkBench (Streamflaire Group LLC)"),
+    // Omitting the field on a PATCH keeps the old value, so the platform line sends an explicit empty string.
+    isvReseller: i.isvReseller === null ? "" : (i.isvReseller ?? "WorkBench (Streamflaire Group LLC)"),
     optInKeywords: "START,UNSTOP",
     optInConfirmationResponse:
       i.optInConfirmationResponse ??
