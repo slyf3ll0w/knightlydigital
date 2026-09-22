@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Calculator, Check, Copy, Globe, History, LayoutDashboard, Loader2, MoreHorizontal, Play, Power, SlidersHorizontal, Sparkles, Trash2 } from "lucide-react";
+import { ArrowLeft, BookOpen, Calculator, Check, Copy, Globe, History, LayoutDashboard, Loader2, MoreHorizontal, Play, Power, SlidersHorizontal, Sparkles, Trash2 } from "lucide-react";
 import { EstimatorRunnerPanel, valuesToForm } from "@/components/EstimatorRunner";
 import { useAssistant } from "@/components/AssistantContext";
 import { confirmSheet } from "@/components/ConfirmSheet";
@@ -15,6 +15,7 @@ import { sanitizePublicConfig, type EstimatorPublicConfig } from "@/lib/estimato
 import BuildPanel, { type BuiltTool } from "../BuildPanel";
 import EstimatorEditor, { type EditorSection } from "../EstimatorEditor";
 import PublishPanel from "../PublishPanel";
+import SharePanel from "../SharePanel";
 
 /**
  * One tool's page. Six sections, the fewest that cover the job: Overview ·
@@ -39,10 +40,12 @@ export type ToolRecord = {
   publicViews: number;
   publicCalcs: number;
   submissions: number;
+  /** Copied from a Library listing */
+  sourceListingId?: string | null;
   updatedAt: string;
 };
 
-type Section = "overview" | "try" | "atlas" | "website" | "advanced" | "history";
+type Section = "overview" | "try" | "atlas" | "website" | "share" | "advanced" | "history";
 type AdvancedTab = Exclude<EditorSection, "history">;
 
 const SECTIONS: { key: Section; label: string; icon: typeof Play; manager?: boolean }[] = [
@@ -50,6 +53,7 @@ const SECTIONS: { key: Section; label: string; icon: typeof Play; manager?: bool
   { key: "try", label: "Try it", icon: Play },
   { key: "atlas", label: "Ask Atlas", icon: Sparkles, manager: true },
   { key: "website", label: "Web form", icon: Globe, manager: true },
+  { key: "share", label: "Library", icon: BookOpen, manager: true },
   { key: "advanced", label: "Advanced", icon: SlidersHorizontal, manager: true },
   { key: "history", label: "History", icon: History, manager: true },
 ];
@@ -69,7 +73,7 @@ function merge(t: Record<string, unknown>, prev: ToolRecord): ToolRecord {
   };
 }
 
-export default function ToolClient({ tool: initial, manager, companySlug, baseUrl, initialSection }: { tool: ToolRecord; manager: boolean; companySlug: string; baseUrl: string; initialSection?: string }) {
+export default function ToolClient({ tool: initial, manager, companySlug, companyName = "", companyIndustry = null, baseUrl, initialSection }: { tool: ToolRecord; manager: boolean; companySlug: string; companyName?: string; companyIndustry?: string | null; baseUrl: string; initialSection?: string }) {
   const router = useRouter();
   const atlas = useAssistant();
   const theme = APP_THEME;
@@ -236,6 +240,7 @@ export default function ToolClient({ tool: initial, manager, companySlug, baseUr
               <h1 className="text-xl font-bold tracking-tight text-gray-900">{tool.name}</h1>
               {!tool.isActive && <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600">Off</span>}
               {tool.isPublic && tool.publicSlug && <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-700">Published</span>}
+              {tool.sourceListingId && <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600">From the Library</span>}
             </div>
             <p className="mt-0.5 text-sm text-gray-600">{tool.description || facts.join(" · ")}</p>
           </div>
@@ -408,6 +413,9 @@ export default function ToolClient({ tool: initial, manager, companySlug, baseUr
               <EstimatorEditor tool={{ id: tool.id, name: tool.name, description: tool.description, spec, usesAtlas: tool.usesAtlas }} section={editorSection} onSaved={() => router.refresh()} />
             </div>
           )}
+
+          {/* ── Library ── */}
+          {section === "share" && manager && <SharePanel toolId={tool.id} toolName={tool.name} companyName={companyName} companyIndustry={companyIndustry} />}
 
           {/* ── Website ── */}
           {section === "website" && manager && (

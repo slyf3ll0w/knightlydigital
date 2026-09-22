@@ -74,6 +74,12 @@ export default async function SuperadminLayout({ children }: { children: React.R
                 )}
               </Link>
               <Link
+                href="/superadmin/library"
+                className="wb-navlink text-[14px] font-semibold text-gray-600 transition-colors hover:text-gray-900"
+              >
+                Library
+              </Link>
+              <Link
                 href="/superadmin/finix"
                 className="wb-navlink text-[14px] font-semibold text-gray-600 transition-colors hover:text-gray-900"
               >

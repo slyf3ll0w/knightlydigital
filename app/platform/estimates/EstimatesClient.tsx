@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Calculator, ChevronRight, Play, Plus, Sparkles, X } from "lucide-react";
+import { BookOpen, Calculator, ChevronRight, Play, Plus, Sparkles, X } from "lucide-react";
 import PageTitle from "@/components/PageTitle";
 import EmptyState from "@/components/EmptyState";
 import EstimatorRunner, { type RunnerEstimator } from "@/components/EstimatorRunner";
@@ -31,6 +31,8 @@ export type Tool = RunnerEstimator & {
   publicViews: number;
   publicCalcs: number;
   submissions: number;
+  /** Copied from a Library listing */
+  sourceListingId?: string | null;
   updatedAt: string;
 };
 
@@ -86,6 +88,7 @@ export default function EstimatesClient({
             {!t.isActive && <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600">Off</span>}
             {t.isPublic && t.publicSlug && <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-700">Published</span>}
             {placeholders > 0 && manager && <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600">{placeholders} rate{placeholders === 1 ? "" : "s"} to confirm</span>}
+            {t.sourceListingId && <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600">From the Library</span>}
           </span>
           <span className="mt-0.5 block truncate text-xs text-gray-500">{t.description || factsOf(t, atlas.name)}</span>
         </span>
@@ -100,15 +103,20 @@ export default function EstimatesClient({
         <PageTitle section="quotes" icon={Calculator} sub={manager ? "Tell Atlas how you price a job. It builds a tool your team runs onsite and your website runs for you." : "Answer a tool's questions, show the number, turn it into a quote."}>
           Estimates
         </PageTitle>
-        {manager && tools.length > 0 ? (
-          <button type="button" onClick={() => setBuilding((b) => !b)} className={building ? "inline-flex h-10 items-center gap-1.5 rounded-[10px] border border-gray-200 bg-white px-3.5 text-sm font-medium text-gray-700 hover:bg-gray-50" : "btn-primary h-10 justify-center"}>
-            {building ? <X size={15} /> : <Plus size={15} />} {building ? "Close" : "Build a tool"}
-          </button>
-        ) : active.length > 0 ? (
-          <button type="button" onClick={() => setRunning(active)} className="btn-primary h-10 justify-center">
-            <Play size={15} /> Run a tool
-          </button>
-        ) : null}
+        <div className="flex items-center gap-2">
+          <Link href="/app/estimates/library" prefetch={false} className="inline-flex h-10 items-center gap-1.5 rounded-[10px] border border-gray-200 bg-white px-3.5 text-sm font-medium text-gray-700 hover:bg-gray-50" title="Estimate tools other businesses have shared">
+            <BookOpen size={15} /> Library
+          </Link>
+          {manager && tools.length > 0 ? (
+            <button type="button" onClick={() => setBuilding((b) => !b)} className={building ? "inline-flex h-10 items-center gap-1.5 rounded-[10px] border border-gray-200 bg-white px-3.5 text-sm font-medium text-gray-700 hover:bg-gray-50" : "btn-primary h-10 justify-center"}>
+              {building ? <X size={15} /> : <Plus size={15} />} {building ? "Close" : "Build a tool"}
+            </button>
+          ) : active.length > 0 ? (
+            <button type="button" onClick={() => setRunning(active)} className="btn-primary h-10 justify-center">
+              <Play size={15} /> Run a tool
+            </button>
+          ) : null}
+        </div>
       </div>
 
       {manager && building && (

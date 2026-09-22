@@ -240,6 +240,8 @@ model Company {
   webForms              WebForm[]
   bookingTypes          BookingType[]
   estimators            Estimator[]
+  libraryListings       EstimatorListing[]
+  libraryLikes          EstimatorListingLike[]
   automations           Automation[]
   automationRuns        AutomationRun[]
   contractTemplates     ContractTemplate[]
@@ -1261,15 +1263,64 @@ model Estimator {
   publicViews  Int      @default(0) // form loads
   publicCalcs  Int      @default(0) // estimates shown
   submissions  Int      @default(0) // leads captured
+  // The Library listing this tool was copied from (plain id, no FK — the
+  // listing may be unlisted or removed later; the copy stays).
+  sourceListingId String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   requests Request[]
   versions EstimatorVersion[]
   images   EstimatorImage[]
+  listing  EstimatorListing?
 
   @@unique([companyId, publicSlug])
   @@index([companyId])
+}
+
+// The Library (docs/plans/ai-estimators-2026-09-19.md, Batch 10): a tool
+// shared with every Workbench business, anonymously or under the company's
+// name. `spec` is a PORTABLE snapshot taken at share time
+// (lib/estimator-portable.ts: price-book links inlined as literal rates, all
+// rates listed as "rates to confirm") so it compiles in any company. Adding
+// one creates a separate Estimator row for the adopter; unlisting (HIDDEN) or
+// a Workbench takedown (REMOVED) only stops the listing showing.
+model EstimatorListing {
+  id            String    @id @default(cuid())
+  estimatorId   String    @unique
+  estimator     Estimator @relation(fields: [estimatorId], references: [id], onDelete: Cascade)
+  companyId     String
+  company       Company   @relation(fields: [companyId], references: [id])
+  name          String
+  description   String
+  industry      String
+  anonymous     Boolean   @default(false)
+  byName        String? // company name snapshot; null when anonymous
+  spec          Json
+  likes         Int       @default(0)
+  adds          Int       @default(0)
+  status        String    @default("LIVE") // LIVE | HIDDEN (owner unlisted) | REMOVED (Workbench takedown)
+  removedReason String?
+  removedAt     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  likeRows EstimatorListingLike[]
+
+  @@index([status, industry, likes])
+  @@index([companyId])
+}
+
+// One like per company per listing; the listing's `likes` counter is kept in step inside a transaction.
+model EstimatorListingLike {
+  id        String           @id @default(cuid())
+  listingId String
+  listing   EstimatorListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  companyId String
+  company   Company          @relation(fields: [companyId], references: [id])
+  createdAt DateTime         @default(now())
+
+  @@unique([listingId, companyId])
 }
 
 // Pictures on an estimate tool's questions/options (website form + runner).

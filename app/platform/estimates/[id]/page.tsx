@@ -22,7 +22,7 @@ export default async function ToolPage({ params, searchParams }: { params: Promi
   const sp = await searchParams;
   const [row, company] = await Promise.all([
     prisma.estimator.findFirst({ where: { id, companyId: actor.companyId, ...(manager ? {} : { isActive: true }) }, select: ESTIMATOR_SELECT }),
-    prisma.company.findUnique({ where: { id: actor.companyId }, select: { slug: true } }),
+    prisma.company.findUnique({ where: { id: actor.companyId }, select: { slug: true, name: true, industry: true } }),
   ]);
   if (!row) notFound();
   const spec = specFromJson(row.spec);
@@ -34,6 +34,8 @@ export default async function ToolPage({ params, searchParams }: { params: Promi
     <ToolClient
       manager={manager}
       companySlug={company?.slug ?? ""}
+      companyName={company?.name ?? ""}
+      companyIndustry={company?.industry ?? null}
       baseUrl={baseUrl}
       initialSection={typeof sp.s === "string" ? sp.s : undefined}
       tool={{
@@ -51,6 +53,7 @@ export default async function ToolPage({ params, searchParams }: { params: Promi
         publicViews: row.publicViews,
         publicCalcs: row.publicCalcs,
         submissions: row.submissions,
+        sourceListingId: row.sourceListingId,
         updatedAt: row.updatedAt.toISOString(),
       }}
     />

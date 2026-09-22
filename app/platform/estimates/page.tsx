@@ -50,6 +50,7 @@ export default async function EstimatesPage({ searchParams }: { searchParams: Pr
           publicViews: row.publicViews,
           publicCalcs: row.publicCalcs,
           submissions: row.submissions,
+          sourceListingId: row.sourceListingId,
           updatedAt: row.updatedAt.toISOString(),
         };
       })}

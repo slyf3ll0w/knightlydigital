@@ -73,6 +73,8 @@ export type EstimatorRow = {
   publicViews: number;
   publicCalcs: number;
   submissions: number;
+  /** The Library listing this tool was copied from (null when built here). */
+  sourceListingId: string | null;
   updatedAt: Date;
 };
 
@@ -91,6 +93,7 @@ export const ESTIMATOR_SELECT = {
   publicViews: true,
   publicCalcs: true,
   submissions: true,
+  sourceListingId: true,
   updatedAt: true,
 } as const;
 
@@ -208,6 +211,7 @@ export function estimatorSummary(row: EstimatorRow, spec: EstimatorSpec) {
     publicViews: row.publicViews,
     publicCalcs: row.publicCalcs,
     submissions: row.submissions,
+    sourceListingId: row.sourceListingId,
     updatedAt: row.updatedAt,
   };
 }
