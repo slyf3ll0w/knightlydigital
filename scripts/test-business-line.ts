@@ -7,6 +7,7 @@
  * Needs a placeholder DATABASE_URL (the module imports Prisma, never queries).
  */
 import assert from "node:assert/strict";
+import { TelnyxError, isInsufficientFunds } from "@/lib/telnyx";
 import {
   deriveRegistration,
   normalizeAreaCode,
@@ -325,4 +326,15 @@ console.log("test-business-line (number rights): all assertions passed");
     assert.ok(input[k].length <= 500, `${k} is ${input[k].length} chars; Telnyx caps it at 500`);
   }
   console.log("test-business-line (platform line): all assertions passed");
+}
+
+// Out of funds on the platform account is never the tenant's problem: the
+// detector decides between the calm pause message + operator alert and the
+// verbatim Telnyx detail. Wording modelled on the real 2026-09-22 refusal.
+{
+  assert.ok(isInsufficientFunds(new TelnyxError(403, "Insufficient funds: Your account balance is insufficient to complete this request")));
+  assert.ok(isInsufficientFunds(new TelnyxError(402, "Payment required: insufficient balance")));
+  assert.ok(!isInsufficientFunds(new TelnyxError(422, "Unprocessable entity: ein must be 9 digits")));
+  assert.ok(!isInsufficientFunds(new Error("Insufficient funds")), "only Telnyx refusals count");
+  console.log("test-business-line (out of funds): all assertions passed");
 }

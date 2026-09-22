@@ -34,6 +34,7 @@ import { prisma } from "@/lib/db";
 import { invoiceBalance } from "@/lib/payments";
 import * as finix from "@/lib/finix";
 import { sendEmail } from "@/lib/email";
+import { operatorEmail } from "@/lib/ops-alert";
 
 export interface ReconcileFinding {
   companyId: string;
@@ -488,15 +489,7 @@ async function maybeSendReport(
   const isMonday = now.getUTCDay() === 1;
   if (findings.length === 0 && !isMonday) return null;
 
-  let to = process.env.RECONCILE_ALERT_EMAIL ?? null;
-  if (!to) {
-    const superadmin = await prisma.user.findFirst({
-      where: { role: "SUPERADMIN", isActive: true },
-      orderBy: { createdAt: "asc" },
-      select: { email: true },
-    });
-    to = superadmin?.email ?? null;
-  }
+  const to = await operatorEmail();
   if (!to) return null;
 
   const errors = findings.filter((f) => f.severity === "error");

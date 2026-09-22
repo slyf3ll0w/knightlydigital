@@ -517,7 +517,7 @@ function Texting({
     setBusy(false);
   }
 
-  if (!reg || (reg.status === "REJECTED" && resubmitting)) {
+  if (!reg || ((reg.status === "REJECTED" || reg.status === "QUEUED") && resubmitting)) {
     return (
       <RegistrationForm
         line={line}
@@ -564,6 +564,31 @@ function Texting({
           </button>
           <span className="text-xs text-red-600">Calls keep forwarding either way.</span>
         </div>
+      </div>
+    );
+  }
+
+  if (reg.status === "QUEUED") {
+    return (
+      <div className="space-y-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="flex items-center gap-2 font-medium text-amber-800">
+            <Loader2 size={16} className="animate-spin" />
+            Your registration is queued
+          </p>
+          <button type="button" onClick={refresh} disabled={busy} className={ghostBtn}>
+            <RefreshCw size={13} className={busy ? "animate-spin" : ""} />
+            Check now
+          </button>
+        </div>
+        <p className="text-xs text-amber-700">
+          It files with the carriers automatically, usually within the hour — nothing to do on your end. Calls and
+          voicemail work now; texting switches on once the carrier review after that clears.
+          {checked ? ` ${checked}.` : ""}
+        </p>
+        <button type="button" onClick={() => setResubmitting(true)} className={ghostBtn}>
+          Edit the details
+        </button>
       </div>
     );
   }

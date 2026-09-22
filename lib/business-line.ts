@@ -29,6 +29,10 @@
  * State (MessagingRegistration.status): BRAND_PENDING → CAMPAIGN_PENDING →
  * ACTIVE, with REJECTED reachable from either pending step; a rejected
  * registration is resubmitted by calling submitRegistration again.
+ * QUEUED sits before BRAND_PENDING: Telnyx refused the filing because OUR
+ * account is out of funds, so the form is stored, the operator is emailed,
+ * and the hourly sweep (or Check now) files it once funds are back. The
+ * tenant never sees Telnyx's billing message.
  */
 
 import type { LineRegistrationStatus, MessagingRegistration, Prisma } from "@prisma/client";
@@ -52,6 +56,7 @@ import { deleteSoftphoneResources } from "@/lib/softphone";
 
 import { prisma } from "@/lib/db";
 import { hasAddon } from "@/lib/addon";
+import { alertTelnyxFunds } from "@/lib/ops-alert";
 import { notifyUsers } from "@/lib/push";
 import { toE164 } from "@/lib/sms";
 import {
@@ -84,6 +89,7 @@ import {
   TelnyxError,
   type TollFreeVerification,
   type TollFreeVerificationInput,
+  isInsufficientFunds,
 } from "@/lib/telnyx";
 
 export { VERTICALS, TOLL_FREE_USE_CASES, TOLL_FREE_VOLUMES };
@@ -101,6 +107,24 @@ export class LineError extends Error {
     this.name = "LineError";
     this.status = status;
   }
+}
+
+/** What a tenant sees when Telnyx refuses because OUR account is out of funds. */
+export const LINE_PAUSED_MESSAGE =
+  "This is paused on our side for a moment — we've been notified and it will pick up on its own. Nothing to do on your end.";
+
+/**
+ * The LineError a tenant should see for a failed Telnyx call. An
+ * insufficient-funds refusal is the platform's problem, not theirs: they get
+ * the calm pause message and the operator gets an email (deduped).
+ */
+async function lineFailure(prefix: string, err: unknown, context: string): Promise<LineError> {
+  if (isInsufficientFunds(err)) {
+    await alertTelnyxFunds(context);
+    return new LineError(LINE_PAUSED_MESSAGE, 424);
+  }
+  const detail = err instanceof TelnyxError ? err.detail : err instanceof Error ? err.message : "unknown error";
+  return new LineError(`${prefix}: ${detail}`, 424);
 }
 
 export function lineEnabled(): boolean {
@@ -345,9 +369,8 @@ export async function provisionLine(
   } catch (err) {
     await prisma.company.updateMany({ where: { id: companyId, lineNumber: claim }, data: { lineNumber: null } });
     if (err instanceof LineError) throw err;
-    const detail = err instanceof TelnyxError ? err.detail : err instanceof Error ? err.message : "unknown error";
     console.error("[line] provision failed:", err);
-    throw new LineError(`Telnyx couldn't complete that: ${detail}`, 424);
+    throw await lineFailure("Telnyx couldn't complete that", err, `number purchase for "${company.name}"`);
   }
 }
 
@@ -442,8 +465,7 @@ export async function setLineForwarding(companyId: string, forwardTo: string | n
     try {
       await setCallForwarding(numberId, e164);
     } catch (err) {
-      const detail = err instanceof TelnyxError ? err.detail : "unknown error";
-      throw new LineError(`Telnyx couldn't update call forwarding: ${detail}`, 424);
+      throw await lineFailure("Telnyx couldn't update call forwarding", err, "call forwarding update");
     }
   }
   await prisma.company.update({ where: { id: companyId }, data: { lineForwardTo: e164 } });
@@ -495,8 +517,7 @@ export async function setCallerIdName(companyId: string, raw: unknown): Promise<
   try {
     await setCnamListing(numberId, name);
   } catch (err) {
-    const detail = err instanceof TelnyxError ? err.detail : "unknown error";
-    throw new LineError(`Telnyx wouldn’t set that caller ID name: ${detail}`, 424);
+    throw await lineFailure("Telnyx wouldn’t set that caller ID name", err, "caller ID name update");
   }
   await prisma.company.update({ where: { id: companyId }, data: { lineCallerIdName: name } });
   return { callerIdName: name };
@@ -601,7 +622,16 @@ export function campaignCopy(businessName: string, website: string | null) {
   };
 }
 
-type RegWithCompany = MessagingRegistration & { company: { id: string; name: string; lineNumber: string | null } };
+type RegWithCompany = MessagingRegistration & { company: { id: string; name: string; lineNumber: string | null; lineType: string | null } };
+
+/** What filing a registration needs to know about the company. */
+type RegCompany = {
+  id: string;
+  name: string;
+  lineNumber: string | null;
+  lineType: string | null;
+  messagingRegistration: { id: string; status: LineRegistrationStatus; kind: string; verificationId: string | null } | null;
+};
 
 const snapshotOf = (
   reg: Pick<MessagingRegistration, "entityType" | "brandStatus" | "campaignId" | "campaignStatus" | "assignmentStatus">,
@@ -637,16 +667,31 @@ export async function submitRegistration(companyId: string, form: RegistrationFo
   if (!company) throw new LineError("Company not found.", 404);
   if (!hasAddon(company)) throw new LineError("Texting registration is part of Workbench Plus.", 402);
   if (!isRealLineNumber(company.lineNumber)) throw new LineError("Get a number before registering it for texting.", 409);
-  if (company.messagingRegistration && company.messagingRegistration.status !== "REJECTED") {
+  const prior = company.messagingRegistration;
+  if (prior && prior.status !== "REJECTED" && prior.status !== "QUEUED") {
     throw new LineError("A registration is already in progress.", 409);
   }
 
+  return fileRegistration(company, form);
+}
+
+/**
+ * File (or re-file) with Telnyx. Out of funds on the platform account parks
+ * the row as QUEUED instead of failing; the hourly sweep re-files it.
+ */
+async function fileRegistration(company: RegCompany, form: RegistrationForm): Promise<MessagingRegistration> {
+  const companyId = company.id;
   if (lineKind(company) === "TOLL_FREE") {
-    return submitTollFreeVerification(
-      { id: company.id, name: company.name, lineNumber: company.lineNumber },
-      form,
-      company.messagingRegistration?.kind === "TOLL_FREE" ? company.messagingRegistration.verificationId : null
-    );
+    try {
+      return await submitTollFreeVerification(
+        { id: company.id, name: company.name, lineNumber: company.lineNumber },
+        form,
+        company.messagingRegistration?.kind === "TOLL_FREE" ? company.messagingRegistration.verificationId : null
+      );
+    } catch (err) {
+      if (!isInsufficientFunds(err)) throw err;
+      return queueRegistration(company, form, "TOLL_FREE");
+    }
   }
 
   let brand;
@@ -670,9 +715,9 @@ export async function submitRegistration(companyId: string, form: RegistrationFo
       webhookURL: tenDlcWebhookUrl(),
     });
   } catch (err) {
-    const detail = err instanceof TelnyxError ? err.detail : "unknown error";
+    if (isInsufficientFunds(err)) return queueRegistration(company, form, "10DLC");
     console.error(`[line] 10DLC brand create failed for ${company.name} (${companyId}):`, err);
-    throw new LineError(`The carrier registry rejected the submission: ${detail}`, 424);
+    throw await lineFailure("The carrier registry rejected the submission", err, `10DLC brand for "${company.name}"`);
   }
   if (!brand.brandId) throw new LineError("Telnyx accepted the brand but returned no id — contact support.", 424);
 
@@ -726,10 +771,99 @@ export async function submitRegistration(companyId: string, form: RegistrationFo
   }
 
   // Advance as far as Telnyx lets us right now (EIN brands: usually all the way to campaign review).
-  return advance({ ...reg, company: { id: company.id, name: company.name, lineNumber: company.lineNumber } }, {
+  return advance({ ...reg, company: { id: company.id, name: company.name, lineNumber: company.lineNumber, lineType: company.lineType } }, {
     brandRegistration: brand.status,
     brandFailure: brand.failureReasons,
   });
+}
+
+/** Telnyx is out of funds: keep the form, mark QUEUED, tell the operator. The sweep re-files it. */
+async function queueRegistration(company: RegCompany, form: RegistrationForm, kind: RegistrationKind): Promise<MessagingRegistration> {
+  const data: Prisma.MessagingRegistrationUncheckedCreateInput = {
+    companyId: company.id,
+    status: "QUEUED",
+    kind,
+    verificationId: company.messagingRegistration?.kind === kind ? company.messagingRegistration.verificationId : null,
+    verificationStatus: null,
+    messageVolume: form.messageVolume ?? null,
+    useCase: form.useCase ?? null,
+    entityType: form.entityType,
+    legalName: form.legalName,
+    displayName: form.displayName || form.legalName,
+    ein: form.ein,
+    street: form.street,
+    city: form.city,
+    state: form.state,
+    postalCode: form.postalCode,
+    website: form.website,
+    vertical: form.vertical,
+    contactFirstName: form.contactFirstName,
+    contactLastName: form.contactLastName,
+    contactEmail: form.contactEmail,
+    contactPhone: form.contactPhone,
+    brandId: null,
+    tcrBrandId: null,
+    brandStatus: null,
+    campaignId: null,
+    tcrCampaignId: null,
+    campaignStatus: null,
+    assignmentStatus: null,
+    rejectionReason: null,
+    submittedAt: new Date(),
+    approvedAt: null,
+    lastCheckedAt: new Date(),
+  };
+  const reg = await prisma.messagingRegistration.upsert({
+    where: { companyId: company.id },
+    create: data,
+    update: { ...data, companyId: undefined },
+  });
+  console.warn(`[line] ${kind} registration for "${company.name}" (${company.id}) QUEUED: Telnyx account out of funds`);
+  await alertTelnyxFunds(`${kind} texting registration for "${company.name}" — queued, the hourly sweep re-files it`);
+  return reg;
+}
+
+/**
+ * A QUEUED row: try the filing again from the stored form. Still no funds →
+ * stays QUEUED (the alert is deduped). A real rejection now → REJECTED with
+ * the reason, so the tenant gets the usual edit-and-resubmit path.
+ */
+async function fileQueued(reg: RegWithCompany): Promise<MessagingRegistration> {
+  const company: RegCompany = {
+    id: reg.company.id,
+    name: reg.company.name,
+    lineNumber: reg.company.lineNumber,
+    lineType: reg.company.lineType,
+    messagingRegistration: { id: reg.id, status: reg.status, kind: reg.kind, verificationId: reg.verificationId },
+  };
+  const form: RegistrationForm = {
+    entityType: reg.entityType as BrandEntityType,
+    legalName: reg.legalName,
+    displayName: reg.displayName,
+    ein: reg.ein,
+    street: reg.street,
+    city: reg.city,
+    state: reg.state,
+    postalCode: reg.postalCode,
+    website: reg.website,
+    vertical: reg.vertical,
+    contactFirstName: reg.contactFirstName,
+    contactLastName: reg.contactLastName,
+    contactEmail: reg.contactEmail,
+    contactPhone: reg.contactPhone,
+    messageVolume: reg.messageVolume,
+    useCase: reg.useCase,
+  };
+  try {
+    return await fileRegistration(company, form);
+  } catch (err) {
+    if (!(err instanceof LineError)) throw err;
+    console.warn(`[line] queued registration for "${company.name}" rejected on re-file: ${err.message}`);
+    return prisma.messagingRegistration.update({
+      where: { id: reg.id },
+      data: { status: "REJECTED", rejectionReason: err.message, lastCheckedAt: new Date() },
+    });
+  }
 }
 
 /** Which registration path a company's number takes. Falls back to the prefix for rows attached before lineType existed. */
@@ -928,6 +1062,7 @@ async function submitTollFreeVerification(
       request = await createTollFreeVerification(input);
     }
   } catch (err) {
+    if (isInsufficientFunds(err)) throw err; // fileRegistration parks the row as QUEUED
     const detail = err instanceof TelnyxError ? err.detail : "unknown error";
     throw new LineError(`Telnyx rejected the verification submission: ${detail}`, 424);
   }
@@ -984,8 +1119,7 @@ async function advanceTollFree(reg: RegWithCompany): Promise<MessagingRegistrati
     request = await getTollFreeVerification(reg.verificationId);
   } catch (err) {
     await prisma.messagingRegistration.update({ where: { id: reg.id }, data: { lastCheckedAt: new Date() } });
-    const detail = err instanceof TelnyxError ? err.detail : "unknown error";
-    throw new LineError(`Telnyx check failed: ${detail}`, 424);
+    throw await lineFailure("Telnyx check failed", err, `toll-free verification check for company ${reg.companyId}`);
   }
   const status = request.verificationStatus ?? null;
   // The reviewer's note rides on the request itself; status_history is a fallback (it 404s on some accounts).
@@ -1052,15 +1186,14 @@ export async function resendRegistrationOtp(companyId: string): Promise<void> {
   try {
     await triggerBrandOtp(reg.brandId, reg.displayName);
   } catch (err) {
-    const detail = err instanceof TelnyxError ? err.detail : "unknown error";
-    throw new LineError(`Couldn't resend the PIN: ${detail}`, 424);
+    throw await lineFailure("Couldn't resend the PIN", err, `OTP resend for company ${companyId}`);
   }
 }
 
 async function loadRegistration(companyId: string): Promise<RegWithCompany | null> {
   return prisma.messagingRegistration.findUnique({
     where: { companyId },
-    include: { company: { select: { id: true, name: true, lineNumber: true } } },
+    include: { company: { select: { id: true, name: true, lineNumber: true, lineType: true } } },
   });
 }
 
@@ -1077,6 +1210,7 @@ export async function refreshRegistration(
   const reg = await loadRegistration(companyId);
   if (!reg) throw new LineError("No registration on file.", 404);
   if (reg.status === "ACTIVE") return reg;
+  if (reg.status === "QUEUED") return fileQueued(reg);
   // A toll-free "REJECTED" may really be "Waiting For Customer", which the
   // reviewer can flip back to In Progress on their own — worth re-reading.
   if (reg.status === "REJECTED" && !(opts.includeRejected && reg.kind === "TOLL_FREE")) return reg;
@@ -1154,9 +1288,8 @@ async function advance(reg: RegWithCompany, brandExtra: Partial<RegistrationSnap
     // whatever advanced, keep the pending status, and let the caller decide.
     await prisma.messagingRegistration.update({ where: { id: reg.id }, data: patch });
     if (err instanceof LineError) throw err;
-    const detail = err instanceof TelnyxError ? err.detail : err instanceof Error ? err.message : "unknown error";
     console.error(`[line] refresh failed for company ${reg.companyId}:`, err);
-    throw new LineError(`Telnyx check failed: ${detail}`, 424);
+    throw await lineFailure("Telnyx check failed", err, `10DLC campaign step for "${reg.company.name}"`);
   }
 
   const final = deriveRegistration(snap);
@@ -1175,7 +1308,7 @@ export async function runLineRegistrationSweep(): Promise<{ checked: number; err
   const stale = new Date(Date.now() - 50 * 60_000);
   const pending = await prisma.messagingRegistration.findMany({
     where: {
-      status: { in: ["BRAND_PENDING", "CAMPAIGN_PENDING"] },
+      status: { in: ["QUEUED", "BRAND_PENDING", "CAMPAIGN_PENDING"] },
       OR: [{ lastCheckedAt: null }, { lastCheckedAt: { lt: stale } }],
     },
     select: { companyId: true },
@@ -1315,8 +1448,7 @@ export async function releaseLine(companyId: string): Promise<void> {
         await releaseNumber(id);
       } catch (err) {
         if (!(err instanceof TelnyxError && err.status === 404)) {
-          const detail = err instanceof TelnyxError ? err.detail : "unknown error";
-          throw new LineError(`Telnyx wouldn't release the number: ${detail}`, 424);
+          throw await lineFailure("Telnyx wouldn't release the number", err, `number release for ${company.lineNumber}`);
         }
       }
     }

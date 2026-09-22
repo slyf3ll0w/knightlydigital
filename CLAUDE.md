@@ -407,6 +407,17 @@ free `sms:`/`tel:` deep links (`lib/messaging.ts`) stay free and untouched.
   permissions already in the native projects), voicemail transcription,
   missed-call text-back, business-hours routing, port-in, call transfer.
 
+**Out of funds (2026-09-22).** Telnyx refuses every mutation — number purchase,
+brand/campaign filing, placing a call, even the free SIP credential — once the
+platform's prepaid balance is gone. `isInsufficientFunds` (lib/telnyx.ts) spots
+it. Tenants get a calm "paused on our side" message (never Telnyx's billing
+text), the operator is emailed by `alertTelnyxFunds` (lib/ops-alert.ts; deduped
+6 h through the rate-limit store; recipient PLATFORM_ALERT_EMAIL →
+RECONCILE_ALERT_EMAIL → oldest superadmin), and a texting registration is
+parked as `QUEUED` with the form stored — the hourly sweep and Check now re-file
+it, and a real rejection on re-file becomes REJECTED with the reason. Planned
+follow-up for launch: `docs/plans/telnyx-balance-watch-2026-09-22.md`.
+
 ## Payment processor (Finix)
 
 Two processors implement the `PaymentProcessor` seam in `lib/payments.ts`,
@@ -505,6 +516,7 @@ TELNYX_API_KEY=
 TELNYX_MESSAGING_PROFILE_ID=   # every purchased number joins this profile; its webhook URL = ${NEXTAUTH_URL}/api/public/webhooks/telnyx
 TELNYX_PUBLIC_KEY=             # Mission Control → Account → Keys & Credentials → Public Key (webhook signatures)
 TELNYX_10DLC_MOCK=             # "1" on staging: brands/campaigns register as mocks (no TCR fees)
+PLATFORM_ALERT_EMAIL=          # optional: who gets platform alerts (Telnyx out of funds, …); falls back to RECONCILE_ALERT_EMAIL, then the oldest superadmin
 TELNYX_ALLOW_UNREGISTERED=     # "1" on staging: a line may text before its campaign clears (verified numbers only)
 TELNYX_VOICE_APP_ID=           # Call Control application id (scripts/telnyx-voice-setup.ts, one per environment); unset = plain call forwarding
 ```

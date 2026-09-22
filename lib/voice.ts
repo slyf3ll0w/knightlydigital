@@ -41,6 +41,7 @@
 
 import type { Call, CallStatus, Contact, ContactStatus } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { alertTelnyxFunds } from "@/lib/ops-alert";
 import { hasAddon } from "@/lib/addon";
 import { defaultVoicemailGreeting, isRealLineNumber } from "@/lib/business-line-shared";
 import { fmtPhone } from "@/lib/format";
@@ -60,6 +61,7 @@ import {
   sipUri,
   voiceAppId,
   voiceConfigured,
+  isInsufficientFunds,
 } from "@/lib/telnyx";
 
 /**
@@ -75,6 +77,10 @@ export class VoiceError extends Error {
     this.status = status;
   }
 }
+
+/** What a tenant sees when Telnyx refuses a call because OUR account is out of funds. */
+export const VOICE_PAUSED_MESSAGE =
+  "Calling from the line is paused on our side for a moment — we've been notified. Use your phone for this one.";
 
 export function voiceEnabled(): boolean {
   return voiceConfigured();
@@ -263,6 +269,10 @@ export async function ensureVoiceRouting(companyId: string): Promise<boolean> {
   try {
     await routeNumberToVoiceApp(c.lineNumberId, c.lineForwardTo);
   } catch (err) {
+    if (isInsufficientFunds(err)) {
+      await alertTelnyxFunds(`voice routing for "${c.name}"`);
+      throw new VoiceError(VOICE_PAUSED_MESSAGE, 424);
+    }
     const detail = err instanceof TelnyxError ? err.detail : err instanceof Error ? err.message : "unknown error";
     throw new VoiceError(`Telnyx couldn't move the number onto the voice app: ${detail}`, 424);
   }
@@ -904,6 +914,10 @@ export async function startOutboundCall(
   } catch (err) {
     const detail = err instanceof TelnyxError ? err.detail : "unknown error";
     await prisma.call.update({ where: { id: call.id }, data: { status: "FAILED", hangupCause: "dial_failed", endedAt: new Date() } });
+    if (isInsufficientFunds(err)) {
+      await alertTelnyxFunds(`outbound call from ${company.lineNumber}`);
+      throw new VoiceError(VOICE_PAUSED_MESSAGE, 424);
+    }
     throw new VoiceError(`Telnyx couldn't place the call: ${detail}`, 424);
   }
   return { callId: call.id, via, agentNumber, customerNumber };

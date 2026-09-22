@@ -34,6 +34,11 @@ export class TelnyxError extends Error {
   }
 }
 
+/** Telnyx refused because the platform's prepaid balance is gone — never the tenant's fault. */
+export function isInsufficientFunds(err: unknown): boolean {
+  return err instanceof TelnyxError && /insufficient (funds|balance|credit)|negative balance|out of funds/i.test(err.detail);
+}
+
 export function telnyxConfigured(): boolean {
   return Boolean(process.env.TELNYX_API_KEY && process.env.TELNYX_MESSAGING_PROFILE_ID);
 }

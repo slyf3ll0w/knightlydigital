@@ -27,6 +27,7 @@
 
 import type { Role } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { alertTelnyxFunds } from "@/lib/ops-alert";
 import { hasAddon } from "@/lib/addon";
 import { isRealLineNumber } from "@/lib/business-line-shared";
 import {
@@ -38,6 +39,7 @@ import {
   deleteTelephonyCredential,
   ensureSipUriCalling,
   voiceConfigured,
+  isInsufficientFunds,
 } from "@/lib/telnyx";
 
 /** A heartbeat older than this means the tab is gone. Heartbeats are ~30 s apart, but a long-hidden tab's timers run once a minute. */
@@ -188,6 +190,13 @@ export async function issueSoftphoneGrant(userId: string, companyId: string): Pr
     return { token, sipUsername: cred.sipUsername, lineNumber: company.lineNumber, companyName: company.name };
   } catch (err) {
     if (err instanceof SoftphoneError) throw err;
+    if (isInsufficientFunds(err)) {
+      await alertTelnyxFunds(`softphone setup for "${company.name}"`);
+      throw new SoftphoneError(
+        "Calling in the app is paused on our side for a moment — we've been notified. Calls still ring your phone.",
+        424
+      );
+    }
     const detail = err instanceof TelnyxError ? err.detail : err instanceof Error ? err.message : "unknown error";
     throw new SoftphoneError(`Telnyx couldn't set up the softphone: ${detail}`, 424);
   }
