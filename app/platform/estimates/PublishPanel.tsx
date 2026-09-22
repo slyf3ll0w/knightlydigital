@@ -1,16 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, Copy, ExternalLink, Loader2 } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, Copy, ExternalLink, Loader2 } from "lucide-react";
 import { Input, Select, Textarea } from "@/components/Input";
+import { APP_THEME } from "@/components/EstimatorControls";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { PUBLIC_LIMITS, PUBLIC_PHOTO_ASSIST_DAILY_CAP, publicSlugFrom, type EstimatorPublicConfig } from "@/lib/estimator-public";
 
 /**
- * A tool's Website section (the tool page): turn it into a public
- * lead-capture form, choose what the visitor sees (exact / range / nothing,
- * before or after leaving details), what each submission creates, and grab
- * the link + iframe snippet. Grouped into cards so the eye finds things.
+ * A tool's Website section. One switch publishes it (saved on the spot) and
+ * the link + embed snippet appear right there — no checkbox-then-save. The
+ * knobs (what the visitor sees, what each submission creates, the words)
+ * live under "Options", folded until wanted.
  */
 
 export type PublishTool = {
@@ -26,41 +27,34 @@ export type PublishTool = {
   submissions: number;
 };
 
-function Card({ title, sub, children }: { title: string; sub?: string; children: React.ReactNode }) {
-  return (
-    <section className="card-ledger p-4 sm:p-5">
-      <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
-      {sub && <p className="mt-0.5 text-xs text-gray-500">{sub}</p>}
-      <div className="mt-3 space-y-3">{children}</div>
-    </section>
-  );
-}
+type Saved = { isPublic?: boolean; publicSlug?: string | null; publicConfig?: unknown; error?: string };
 
-export default function PublishPanel({ tool, companySlug, baseUrl, onSaved }: { tool: PublishTool; companySlug: string; baseUrl: string; onSaved: () => void }) {
-  const [isPublic, setIsPublic] = useState(tool.isPublic);
+export default function PublishPanel({ tool, companySlug, baseUrl, onSaved, initialOptionsOpen = false }: { tool: PublishTool; companySlug: string; baseUrl: string; onSaved: (t: Saved) => void; initialOptionsOpen?: boolean }) {
+  const theme = APP_THEME;
   const [slug, setSlug] = useState(tool.publicSlug ?? publicSlugFrom(tool.name));
   const [cfg, setCfg] = useState<EstimatorPublicConfig>(tool.publicConfig);
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<"publish" | "slug" | "options" | null>(null);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState<string | null>(null);
+  const [options, setOptions] = useState(initialOptionsOpen);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    setIsPublic(tool.isPublic);
     setSlug(tool.publicSlug ?? publicSlugFrom(tool.name));
     setCfg(tool.publicConfig);
   }, [tool]);
 
   const c = cfg;
-  const dirty = isPublic !== tool.isPublic || slug !== (tool.publicSlug ?? publicSlugFrom(tool.name)) || JSON.stringify(cfg) !== JSON.stringify(tool.publicConfig);
+  const optionsDirty = JSON.stringify(cfg) !== JSON.stringify(tool.publicConfig);
+  const slugDirty = slug !== (tool.publicSlug ?? publicSlugFrom(tool.name));
   const patch = (p: Partial<EstimatorPublicConfig>) => setCfg((s) => ({ ...s, ...p }));
   const patchField = (k: "email" | "phone" | "address", p: Partial<{ show: boolean; required: boolean }>) => setCfg((s) => ({ ...s, fields: { ...s.fields, [k]: { ...s.fields[k], ...p } } }));
 
-  const savedSlug = tool.publicSlug;
-  const hostedUrl = savedSlug ? `${baseUrl}/book/${companySlug}/estimate/${savedSlug}` : "";
-  const embedKey = savedSlug ? `${companySlug}/estimate/${savedSlug}` : "";
+  const liveSlug = tool.publicSlug;
+  const hostedUrl = tool.isPublic && liveSlug ? `${baseUrl}/book/${companySlug}/estimate/${liveSlug}` : "";
+  const embedKey = liveSlug ? `${companySlug}/estimate/${liveSlug}` : "";
   const origin = baseUrl ? new URL(baseUrl).origin : "";
-  const embedSnippet = savedSlug
+  const embedSnippet = hostedUrl
     ? `<iframe src="${baseUrl}/embed/${embedKey}" data-jobflow="${embedKey}" style="width:100%;max-width:640px;height:720px;border:0;" title="Get an estimate"></iframe>
 <script>window.addEventListener("message",function(e){var d=e.data;if(e.origin==="${origin}"&&d&&d.type==="jobflow:height"&&d.slug==="${embedKey}"){var f=document.querySelector('iframe[data-jobflow="${embedKey}"]');if(f)f.style.height=d.height+"px";if(e.source&&e.source.postMessage)e.source.postMessage({type:"jobflow:page",href:location.href},e.origin);}});</script>`
     : "";
@@ -75,23 +69,25 @@ export default function PublishPanel({ tool, companySlug, baseUrl, onSaved }: { 
     }
   }
 
-  async function save() {
-    setBusy(true);
+  async function send(body: Record<string, unknown>, kind: "publish" | "slug" | "options") {
+    setBusy(kind);
     setError("");
     setSaved(false);
-    const { ok, data } = await postJson(`/api/app/estimators/${tool.id}`, { isPublic, publicSlug: slug, publicConfig: c }, "PATCH");
-    setBusy(false);
-    if (!ok) {
+    const { ok, data } = await postJson<Saved>(`/api/app/estimators/${tool.id}`, body, "PATCH");
+    setBusy(null);
+    if (!ok || !data) {
       setError(data?.error ?? GENERIC_ERROR);
-      return;
+      return false;
     }
     setSaved(true);
-    onSaved();
+    onSaved(data);
+    return true;
   }
 
   const seg = (active: boolean) => `flex-1 rounded-lg border px-2 py-2 text-xs font-medium ${active ? "border-gray-900 bg-gray-900 text-white" : "border-gray-300 text-gray-700 hover:bg-gray-50"}`;
   const hidden = c.showPrice === "hidden";
   const funnel = `${tool.publicViews} view${tool.publicViews === 1 ? "" : "s"} → ${tool.publicCalcs} estimate${tool.publicCalcs === 1 ? "" : "s"} → ${tool.submissions} lead${tool.submissions === 1 ? "" : "s"}`;
+  const label = "mb-1 block text-sm font-medium text-gray-800";
 
   return (
     <div className="space-y-4">
@@ -101,171 +97,197 @@ export default function PublishPanel({ tool, companySlug, baseUrl, onSaved }: { 
         </div>
       )}
 
-      <Card title="On your website" sub="Visitors answer the tool's questions, get an estimate, and land in your leads. Free to run — no Atlas tokens.">
-        <label className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 px-3 py-2.5">
-          <span>
-            <span className="block text-sm font-medium text-gray-800">{isPublic ? "Published" : "Not published"}</span>
-            <span className="block text-xs text-gray-500">{isPublic ? "The link and embed below work" : "Off — the link shows nothing"}</span>
+      {/* ── publish + the link ── */}
+      <section className="card-ledger p-4 sm:p-5">
+        <button
+          type="button"
+          role="switch"
+          aria-checked={tool.isPublic}
+          disabled={busy !== null}
+          onClick={() => void send({ isPublic: !tool.isPublic, publicSlug: slug || publicSlugFrom(tool.name) }, "publish")}
+          className="flex w-full items-center justify-between gap-3 text-left"
+        >
+          <span className="min-w-0">
+            <span className="block text-base font-semibold text-gray-900">{tool.isPublic ? "On your website" : "Put it on your website"}</span>
+            <span className="mt-0.5 block text-xs text-gray-500">{tool.isPublic ? "Visitors answer its questions, get an estimate, and land in your leads. Free to run." : "One tap. Visitors answer its questions, get an estimate, and land in your leads. Free to run."}</span>
           </span>
-          <input type="checkbox" checked={isPublic} onChange={(e) => setIsPublic(e.target.checked)} className="h-5 w-5 rounded accent-green-600" />
-        </label>
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-800">Link name</label>
-          <div className="flex items-center gap-1 text-xs text-gray-500">
-            <span className="hidden truncate sm:inline">/book/{companySlug}/estimate/</span>
-            <Input value={slug} onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]+/g, "-"))} maxLength={PUBLIC_LIMITS.slug} className="min-w-0 flex-1" />
-          </div>
-        </div>
-        {savedSlug ? (
-          <div className="space-y-3 rounded-lg bg-gray-50 p-3">
+          <span className="relative h-7 w-12 shrink-0 rounded-full transition-colors" style={{ backgroundColor: tool.isPublic ? theme.accent : "#d1d5db" }} aria-hidden>
+            {busy === "publish" ? (
+              <Loader2 size={14} className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 animate-spin text-white" />
+            ) : (
+              <span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-transform ${tool.isPublic ? "translate-x-[26px]" : "translate-x-1"}`} />
+            )}
+          </span>
+        </button>
+
+        {hostedUrl && (
+          <div className="mt-4 space-y-3">
             <div>
-              <p className="mb-1 text-xs font-semibold text-gray-700">Link</p>
+              <p className="mb-1 text-xs font-semibold text-gray-700">Link — share it anywhere</p>
               <div className="flex items-center gap-2">
-                <input readOnly value={hostedUrl} className="min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700" />
-                <button type="button" onClick={() => copy(hostedUrl, "link")} className="rounded-full p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-700" title="Copy link">
-                  {copied === "link" ? <Check size={14} className="text-green-600" /> : <Copy size={14} />}
+                <input readOnly value={hostedUrl} onFocus={(e) => e.currentTarget.select()} className="min-w-0 flex-1 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-700" />
+                <button type="button" onClick={() => copy(hostedUrl, "link")} className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-gray-200 px-3 text-xs font-medium text-gray-700 hover:bg-gray-50">
+                  {copied === "link" ? <Check size={14} className="text-green-600" /> : <Copy size={14} />} {copied === "link" ? "Copied" : "Copy"}
                 </button>
-                <a href={`${hostedUrl}?preview=1`} target="_blank" rel="noreferrer" className="rounded-full p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-700" title="Preview">
-                  <ExternalLink size={14} />
+                <a href={`${hostedUrl}?preview=1`} target="_blank" rel="noreferrer" className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-gray-200 px-3 text-xs font-medium text-gray-700 hover:bg-gray-50">
+                  <ExternalLink size={14} /> Open
                 </a>
               </div>
             </div>
             <div>
-              <p className="mb-1 text-xs font-semibold text-gray-700">Embed on your website</p>
+              <p className="mb-1 text-xs font-semibold text-gray-700">Embed — paste into your site where the form should appear</p>
               <div className="flex items-start gap-2">
-                <textarea readOnly value={embedSnippet} rows={3} className="min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 font-mono text-[11px] text-gray-700" />
-                <button type="button" onClick={() => copy(embedSnippet, "embed")} className="rounded-full p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-700" title="Copy snippet">
-                  {copied === "embed" ? <Check size={14} className="text-green-600" /> : <Copy size={14} />}
+                <textarea readOnly value={embedSnippet} rows={2} onFocus={(e) => e.currentTarget.select()} className="min-w-0 flex-1 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 font-mono text-[11px] text-gray-600" />
+                <button type="button" onClick={() => copy(embedSnippet, "embed")} className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-gray-200 px-3 text-xs font-medium text-gray-700 hover:bg-gray-50">
+                  {copied === "embed" ? <Check size={14} className="text-green-600" /> : <Copy size={14} />} {copied === "embed" ? "Copied" : "Copy"}
                 </button>
               </div>
-              <p className="mt-1 text-xs text-gray-500">Paste it where the form should appear. It sizes itself, matches your booking page&apos;s look, and each lead records which page it came from.</p>
             </div>
-            <p className="text-xs text-gray-500">So far: {funnel}</p>
-          </div>
-        ) : (
-          <p className="text-xs text-gray-500">Save once to get the link and embed snippet.</p>
-        )}
-      </Card>
-
-      <Card title="The form">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-800">Heading</label>
-            <Input value={c.heading} onChange={(e) => patch({ heading: e.target.value })} placeholder={tool.name} maxLength={PUBLIC_LIMITS.heading} className="w-full" />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-800">Button</label>
-            <Input value={c.buttonLabel} onChange={(e) => patch({ buttonLabel: e.target.value })} placeholder={c.reveal === "instant" && !hidden ? "See my estimate" : "Get my quote"} maxLength={PUBLIC_LIMITS.buttonLabel} className="w-full" />
-          </div>
-        </div>
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-800">Intro</label>
-          <Textarea value={c.intro} onChange={(e) => patch({ intro: e.target.value })} rows={2} placeholder="A sentence under the heading (optional)" maxLength={PUBLIC_LIMITS.intro} className="w-full" />
-        </div>
-      </Card>
-
-      <Card title="The price">
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-800">What the visitor sees</label>
-          <div className="flex gap-2">
-            <button type="button" onClick={() => patch({ showPrice: "exact" })} className={seg(c.showPrice === "exact")}>
-              Exact estimate
-            </button>
-            <button type="button" onClick={() => patch({ showPrice: "range" })} className={seg(c.showPrice === "range")}>
-              A range
-            </button>
-            <button type="button" onClick={() => patch({ showPrice: "hidden", onSubmit: c.onSubmit === "send" ? "draft" : c.onSubmit })} className={seg(hidden)}>
-              No price
-            </button>
-          </div>
-          {c.showPrice === "range" && (
-            <div className="mt-2 flex items-center gap-2 text-sm text-gray-700">
-              <span>Range width ±</span>
-              <Input type="number" min={PUBLIC_LIMITS.rangePctMin} max={PUBLIC_LIMITS.rangePctMax} value={c.rangePct} onChange={(e) => patch({ rangePct: Number(e.target.value) || 15 })} className="w-20" />
-              <span>%</span>
-              <span className="text-xs text-gray-500">e.g. $1,000 → $850 – $1,150</span>
-            </div>
-          )}
-          {hidden && <p className="mt-1.5 text-xs text-gray-500">Visitors leave their details and you follow up with the number. The estimate is still worked out for you and lands on the request.</p>}
-        </div>
-        {!hidden && (
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-800">When they see it</label>
-            <div className="flex gap-2">
-              <button type="button" onClick={() => patch({ reveal: "instant" })} className={seg(c.reveal === "instant")}>
-                Right away, then ask for details
-              </button>
-              <button type="button" onClick={() => patch({ reveal: "after_contact" })} className={seg(c.reveal === "after_contact")}>
-                After they leave details
-              </button>
-            </div>
+            <p className="text-xs text-gray-500">So far: {funnel}.</p>
           </div>
         )}
-      </Card>
+      </section>
 
-      <Card title="Each submission">
-        <Select value={c.onSubmit} onChange={(e) => patch({ onSubmit: e.target.value as EstimatorPublicConfig["onSubmit"] })} className="w-full">
-          <option value="draft">Creates a lead + request + draft quote for you to review</option>
-          {!hidden && <option value="send">Creates a lead + request and emails the quote for approval</option>}
-          <option value="request">Creates a lead + request only</option>
-        </Select>
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-800">Ask for</label>
-          <div className="divide-y divide-gray-100 rounded-lg border border-gray-200">
-            {(["email", "phone", "address"] as const).map((k) => {
-              const fld = c.fields[k];
-              return (
-                <div key={k} className="flex items-center justify-between gap-3 px-3 py-2">
-                  <label className="flex items-center gap-2 text-sm text-gray-800">
-                    <input type="checkbox" checked={fld.show} onChange={(e) => patchField(k, { show: e.target.checked, required: e.target.checked ? fld.required : false })} className="h-4 w-4 rounded accent-green-600" />
-                    {k === "email" ? "Email" : k === "phone" ? "Phone" : "Service address"}
-                  </label>
-                  <label className={`flex items-center gap-1.5 text-xs ${fld.show ? "text-gray-600" : "text-gray-300"}`}>
-                    <input type="checkbox" disabled={!fld.show} checked={fld.required} onChange={(e) => patchField(k, { required: e.target.checked })} className="h-3.5 w-3.5 rounded accent-green-600" />
-                    required
-                  </label>
-                </div>
-              );
-            })}
-            <div className="flex items-center justify-between gap-3 px-3 py-2">
-              <label className="flex items-center gap-2 text-sm text-gray-800">
-                <input type="checkbox" checked={c.fields.message.show} onChange={(e) => patch({ fields: { ...c.fields, message: { ...c.fields.message, show: e.target.checked } } })} className="h-4 w-4 rounded accent-green-600" />
-                A message box
-              </label>
-              {c.fields.message.show && <Input value={c.fields.message.label} onChange={(e) => patch({ fields: { ...c.fields, message: { ...c.fields.message, label: e.target.value } } })} maxLength={PUBLIC_LIMITS.messageLabel} className="w-48 py-1 text-xs" />}
-            </div>
-          </div>
-          <p className="mt-1 text-xs text-gray-500">Name is always asked. Quotes sent for approval need an email.</p>
-        </div>
-        {tool.usesAtlas && (
-          <label className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 px-3 py-2.5">
-            <span>
-              <span className="block text-sm font-medium text-gray-800">Let visitors attach a photo or describe the job</span>
-              <span className="block text-xs text-gray-500">Atlas fills in the answers. Uses your tokens — at most {PUBLIC_PHOTO_ASSIST_DAILY_CAP} a day, a few per visitor. Questions Atlas assesses itself always offer this.</span>
+      {/* ── options ── */}
+      <section className="card-ledger overflow-hidden">
+        <button type="button" onClick={() => setOptions((o) => !o)} className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-gray-50" aria-expanded={options}>
+          <span>
+            <span className="block text-sm font-semibold text-gray-900">Options</span>
+            <span className="block text-xs text-gray-500">
+              {c.showPrice === "exact" ? "Shows the exact estimate" : c.showPrice === "range" ? `Shows a range (±${c.rangePct}%)` : "Shows no price"} · {c.onSubmit === "send" ? "emails the quote" : c.onSubmit === "draft" ? "drafts a quote" : "creates a request"}
             </span>
-            <input type="checkbox" checked={c.photoAssist} onChange={(e) => patch({ photoAssist: e.target.checked })} className="h-5 w-5 rounded accent-green-600" />
-          </label>
-        )}
-      </Card>
-
-      <Card title="Words">
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-800">Fine print under the estimate</label>
-          <Textarea value={c.disclaimer} onChange={(e) => patch({ disclaimer: e.target.value })} rows={2} maxLength={PUBLIC_LIMITS.disclaimer} className="w-full" />
-        </div>
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-800">Thank-you message</label>
-          <Textarea value={c.successMessage} onChange={(e) => patch({ successMessage: e.target.value })} rows={2} placeholder="Leave blank for a default that fits" maxLength={PUBLIC_LIMITS.successMessage} className="w-full" />
-        </div>
-      </Card>
-
-      <div className="sticky bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-10 flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white/95 px-4 py-2.5 shadow-lg backdrop-blur lg:bottom-4">
-        <span className="text-xs text-gray-500">{dirty ? "Unsaved changes" : saved ? "Saved" : "Everything is saved"}</span>
-        <button type="button" disabled={busy || !dirty} onClick={() => void save()} className="btn-primary h-9 justify-center">
-          {busy ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-          Save
+          </span>
+          {options ? <ChevronDown size={16} className="shrink-0 text-gray-400" /> : <ChevronRight size={16} className="shrink-0 text-gray-400" />}
         </button>
-      </div>
+        {options && (
+          <div className="space-y-5 border-t border-gray-100 p-4 sm:p-5">
+            <div>
+              <label className={label}>Link name</label>
+              <div className="flex items-center gap-2 text-xs text-gray-500">
+                <span className="hidden truncate sm:inline">/book/{companySlug}/estimate/</span>
+                <Input value={slug} onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]+/g, "-"))} maxLength={PUBLIC_LIMITS.slug} className="min-w-0 flex-1" />
+                {slugDirty && (
+                  <button type="button" disabled={busy !== null} onClick={() => void send({ publicSlug: slug }, "slug")} className="inline-flex h-9 shrink-0 items-center gap-1 rounded-lg border border-gray-300 px-3 text-xs font-medium text-gray-700 hover:bg-gray-50">
+                    {busy === "slug" ? <Loader2 size={13} className="animate-spin" /> : null} Rename
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <label className={label}>What the visitor sees</label>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => patch({ showPrice: "exact" })} className={seg(c.showPrice === "exact")}>
+                  Exact estimate
+                </button>
+                <button type="button" onClick={() => patch({ showPrice: "range" })} className={seg(c.showPrice === "range")}>
+                  A range
+                </button>
+                <button type="button" onClick={() => patch({ showPrice: "hidden", onSubmit: c.onSubmit === "send" ? "draft" : c.onSubmit })} className={seg(hidden)}>
+                  No price
+                </button>
+              </div>
+              {c.showPrice === "range" && (
+                <div className="mt-2 flex items-center gap-2 text-sm text-gray-700">
+                  <span>Range width ±</span>
+                  <Input type="number" min={PUBLIC_LIMITS.rangePctMin} max={PUBLIC_LIMITS.rangePctMax} value={c.rangePct} onChange={(e) => patch({ rangePct: Number(e.target.value) || 15 })} className="w-20" />
+                  <span>%</span>
+                </div>
+              )}
+              {!hidden && (
+                <div className="mt-2 flex gap-2">
+                  <button type="button" onClick={() => patch({ reveal: "instant" })} className={seg(c.reveal === "instant")}>
+                    Right away, then ask for details
+                  </button>
+                  <button type="button" onClick={() => patch({ reveal: "after_contact" })} className={seg(c.reveal === "after_contact")}>
+                    After they leave details
+                  </button>
+                </div>
+              )}
+              {hidden && <p className="mt-1.5 text-xs text-gray-500">Visitors leave their details and you follow up with the number. The estimate is still worked out for you and lands on the request.</p>}
+            </div>
+
+            <div>
+              <label className={label}>Each submission</label>
+              <Select value={c.onSubmit} onChange={(e) => patch({ onSubmit: e.target.value as EstimatorPublicConfig["onSubmit"] })} className="w-full">
+                <option value="draft">Creates a lead + request + draft quote for you to review</option>
+                {!hidden && <option value="send">Creates a lead + request and emails the quote for approval</option>}
+                <option value="request">Creates a lead + request only</option>
+              </Select>
+            </div>
+
+            <div>
+              <label className={label}>Ask for</label>
+              <div className="divide-y divide-gray-100 rounded-lg border border-gray-200">
+                {(["email", "phone", "address"] as const).map((k) => {
+                  const fld = c.fields[k];
+                  return (
+                    <div key={k} className="flex items-center justify-between gap-3 px-3 py-2">
+                      <label className="flex items-center gap-2 text-sm text-gray-800">
+                        <input type="checkbox" checked={fld.show} onChange={(e) => patchField(k, { show: e.target.checked, required: e.target.checked ? fld.required : false })} className="h-4 w-4 rounded accent-green-600" />
+                        {k === "email" ? "Email" : k === "phone" ? "Phone" : "Service address"}
+                      </label>
+                      <label className={`flex items-center gap-1.5 text-xs ${fld.show ? "text-gray-600" : "text-gray-300"}`}>
+                        <input type="checkbox" disabled={!fld.show} checked={fld.required} onChange={(e) => patchField(k, { required: e.target.checked })} className="h-3.5 w-3.5 rounded accent-green-600" />
+                        required
+                      </label>
+                    </div>
+                  );
+                })}
+                <div className="flex items-center justify-between gap-3 px-3 py-2">
+                  <label className="flex items-center gap-2 text-sm text-gray-800">
+                    <input type="checkbox" checked={c.fields.message.show} onChange={(e) => patch({ fields: { ...c.fields, message: { ...c.fields.message, show: e.target.checked } } })} className="h-4 w-4 rounded accent-green-600" />
+                    A message box
+                  </label>
+                  {c.fields.message.show && <Input value={c.fields.message.label} onChange={(e) => patch({ fields: { ...c.fields, message: { ...c.fields.message, label: e.target.value } } })} maxLength={PUBLIC_LIMITS.messageLabel} className="w-48 py-1 text-xs" />}
+                </div>
+              </div>
+              <p className="mt-1 text-xs text-gray-500">Name is always asked. Quotes sent for approval need an email.</p>
+            </div>
+
+            {tool.usesAtlas && (
+              <label className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 px-3 py-2.5">
+                <span>
+                  <span className="block text-sm font-medium text-gray-800">Let visitors attach a photo or describe the job</span>
+                  <span className="block text-xs text-gray-500">Atlas fills in the answers. Uses your tokens — at most {PUBLIC_PHOTO_ASSIST_DAILY_CAP} a day.</span>
+                </span>
+                <input type="checkbox" checked={c.photoAssist} onChange={(e) => patch({ photoAssist: e.target.checked })} className="h-5 w-5 rounded accent-green-600" />
+              </label>
+            )}
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <label className={label}>Heading</label>
+                <Input value={c.heading} onChange={(e) => patch({ heading: e.target.value })} placeholder={tool.name} maxLength={PUBLIC_LIMITS.heading} className="w-full" />
+              </div>
+              <div>
+                <label className={label}>Button</label>
+                <Input value={c.buttonLabel} onChange={(e) => patch({ buttonLabel: e.target.value })} placeholder={c.reveal === "instant" && !hidden ? "See my estimate" : "Get my quote"} maxLength={PUBLIC_LIMITS.buttonLabel} className="w-full" />
+              </div>
+            </div>
+            <div>
+              <label className={label}>Intro</label>
+              <Textarea value={c.intro} onChange={(e) => patch({ intro: e.target.value })} rows={2} placeholder="A sentence under the heading (optional)" maxLength={PUBLIC_LIMITS.intro} className="w-full" />
+            </div>
+            <div>
+              <label className={label}>Fine print under the estimate</label>
+              <Textarea value={c.disclaimer} onChange={(e) => patch({ disclaimer: e.target.value })} rows={2} maxLength={PUBLIC_LIMITS.disclaimer} className="w-full" />
+            </div>
+            <div>
+              <label className={label}>Thank-you message</label>
+              <Textarea value={c.successMessage} onChange={(e) => patch({ successMessage: e.target.value })} rows={2} placeholder="Leave blank for a default that fits" maxLength={PUBLIC_LIMITS.successMessage} className="w-full" />
+            </div>
+
+            <div className="flex items-center justify-end gap-3 border-t border-gray-100 pt-3">
+              <span className="text-xs text-gray-500">{optionsDirty ? "Unsaved changes" : saved ? "Saved" : ""}</span>
+              <button type="button" disabled={busy !== null || !optionsDirty} onClick={() => void send({ publicConfig: c }, "options")} className="btn-primary h-9 justify-center">
+                {busy === "options" ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                Save options
+              </button>
+            </div>
+          </div>
+        )}
+      </section>
     </div>
   );
 }
