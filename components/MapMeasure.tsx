@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import type * as Leaflet from "leaflet";
-import { Check, Crosshair, Layers, Loader2, RotateCcw, Search, Undo2 } from "lucide-react";
+import { Check, Crosshair, Layers, Loader2, Minus, Plus, RotateCcw, Search, Undo2 } from "lucide-react";
+import { createLayers, initialView, reducedMotion, rememberView } from "@/lib/basemap";
 import "leaflet/dist/leaflet.css";
 
 /**
@@ -22,8 +23,11 @@ import "leaflet/dist/leaflet.css";
  *     starts over
  *   - opens on the business's location when the page knows it, else where
  *     the map was last, else "My location" / address search
- * Pure client: Leaflet + OSM streets + Esri imagery, no API key. Address
- * search goes through /api/public/geocode (Mapbox, env-gated).
+ * Tiles come from lib/basemap.ts — Mapbox retina rasters when
+ * NEXT_PUBLIC_MAPBOX_TOKEN is set (the satellite imagery stays sharp at the
+ * zoom you trace at; the old Esri fallback went grainy past z19), OSM +
+ * Esri otherwise. Address search goes through /api/public/geocode (Mapbox,
+ * env-gated). The controls are our own glass pills, same as the Routes page.
  */
 
 export type LatLngTuple = [number, number];
@@ -32,7 +36,6 @@ const R = 6371008.8;
 const toRad = (d: number) => (d * Math.PI) / 180;
 const M_TO_FT = 3.28084;
 const M2_TO_FT2 = 10.7639;
-const LAST_VIEW_KEY = "wb.map.lastView";
 
 function distM(a: LatLngTuple, b: LatLngTuple): number {
   const dLat = toRad(b[0] - a[0]);
@@ -118,36 +121,27 @@ export default function MapMeasure({
       const L = ((mod as unknown as { default?: typeof Leaflet }).default ?? mod) as typeof Leaflet;
       if (cancelled || !boxRef.current || mapRef.current) return;
       LRef.current = L;
-      const map = L.map(boxRef.current, { doubleClickZoom: false, zoomControl: true, attributionControl: true, tap: true } as Leaflet.MapOptions);
-      const streets = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 20, maxNativeZoom: 19, attribution: "© OpenStreetMap" });
-      const sat = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 21, maxNativeZoom: 19, attribution: "Imagery © Esri" });
+      // Framed before the first tile request: the shape, the business, the last place a map looked, the US
+      const initial = pointsRef.current;
+      const view = initialView({ home: initialCenter ? { lat: initialCenter[0], lng: initialCenter[1] } : null, homeZoom: 18, maxZoom: 19 });
+      const map = L.map(boxRef.current, {
+        center: view.center,
+        zoom: view.zoom,
+        doubleClickZoom: false,
+        zoomControl: false,
+        attributionControl: true,
+        tap: true,
+        zoomAnimation: !reducedMotion(),
+        fadeAnimation: !reducedMotion(),
+      } as Leaflet.MapOptions);
+      const { streets, satellite: sat } = createLayers(L);
       tilesRef.current = { streets, sat };
       sat.addTo(map);
+      map.attributionControl?.setPrefix(false);
       shapeRef.current = L.layerGroup().addTo(map);
       handlesRef.current = L.layerGroup().addTo(map);
-
-      // where to open
-      const initial = pointsRef.current;
-      if (initial.length > 0) map.fitBounds(L.latLngBounds(initial), { padding: [40, 40], maxZoom: 19 });
-      else if (initialCenter) map.setView(initialCenter, 18);
-      else {
-        let last: { c: LatLngTuple; z: number } | null = null;
-        try {
-          last = JSON.parse(localStorage.getItem(LAST_VIEW_KEY) ?? "null");
-        } catch {
-          /* ignore */
-        }
-        if (last && Array.isArray(last.c)) map.setView(last.c, Math.min(19, last.z ?? 17));
-        else map.setView([39.5, -98.35], 4);
-      }
-      map.on("moveend", () => {
-        try {
-          const c = map.getCenter();
-          localStorage.setItem(LAST_VIEW_KEY, JSON.stringify({ c: [c.lat, c.lng], z: map.getZoom() }));
-        } catch {
-          /* ignore */
-        }
-      });
+      if (initial.length > 0) map.fitBounds(L.latLngBounds(initial), { padding: [40, 40], maxZoom: 19, animate: false });
+      map.on("moveend", () => rememberView(map));
 
       // drop a corner
       map.on("click", (e: Leaflet.LeafletMouseEvent) => {
@@ -366,8 +360,8 @@ export default function MapMeasure({
   const btn = `inline-flex h-9 shrink-0 items-center justify-center gap-1 rounded-md border px-2.5 text-xs font-medium disabled:opacity-50 ${dark ? "border-white/15 bg-[#101410] text-gray-200 hover:bg-white/10" : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"}`;
 
   return (
-    <div className={`overflow-hidden rounded-lg border ${shell}`}>
-      <style>{`.wb-map-label{background:rgba(17,24,39,.82);color:#fff;border:0;border-radius:6px;padding:1px 6px;font:600 11px/1.5 Inter,system-ui,sans-serif;box-shadow:none;white-space:nowrap}.wb-map-label::before{display:none}.leaflet-container{font-family:inherit}`}</style>
+    <div className={`wb-measure overflow-hidden rounded-lg border ${shell}`}>
+      <style>{`.wb-map-label{background:rgba(17,24,39,.82);color:#fff;border:0;border-radius:6px;padding:1px 6px;font:600 11px/1.5 Inter,system-ui,sans-serif;box-shadow:none;white-space:nowrap}.wb-map-label::before{display:none}.wb-measure .leaflet-container{font-family:inherit;background:#eef0f3}.wb-measure .leaflet-control-attribution{font-size:9px;opacity:.8;background:rgba(255,255,255,.7);padding:1px 6px;border-radius:6px 0 0 0}`}</style>
       <div className="flex items-center gap-1.5 p-2">
         <div className={`flex min-w-0 flex-1 items-center gap-1.5 rounded-md border px-2 ${dark ? "border-white/15" : "border-gray-300"}`}>
           <Search size={14} className="shrink-0 opacity-60" />
@@ -394,10 +388,21 @@ export default function MapMeasure({
           <Layers size={14} />
         </button>
       </div>
-      <div className="relative">
+      <div className="relative isolate">
         <div ref={boxRef} className="h-80 w-full sm:h-96" style={{ cursor: "crosshair" }} />
+        <div className="absolute right-2 top-2 z-[1000] flex flex-col items-end gap-1.5">
+          <div className="wb-map-glass flex flex-col overflow-hidden rounded-[10px]">
+            <button type="button" onClick={() => mapRef.current?.zoomIn()} className="wb-map-ctl" style={{ width: 36, height: 36 }} aria-label="Zoom in" title="Zoom in">
+              <Plus size={15} />
+            </button>
+            <span className="mx-1.5 h-px bg-gray-200" aria-hidden />
+            <button type="button" onClick={() => mapRef.current?.zoomOut()} className="wb-map-ctl" style={{ width: 36, height: 36 }} aria-label="Zoom out" title="Zoom out">
+              <Minus size={15} />
+            </button>
+          </div>
+        </div>
         {readout && (
-          <div className="pointer-events-none absolute left-3 top-3 z-[500] rounded-lg bg-gray-900/85 px-2.5 py-1.5 text-sm font-semibold tabular-nums text-white shadow">
+          <div className="pointer-events-none absolute left-3 top-3 z-[1000] rounded-lg bg-gray-900/85 px-2.5 py-1.5 text-sm font-semibold tabular-nums text-white shadow">
             {readout}
             {measure === "area" && !closed && <span className="ml-1.5 text-[11px] font-medium text-white/70">so far</span>}
           </div>

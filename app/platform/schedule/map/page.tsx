@@ -26,7 +26,7 @@ export default async function RouteMapPage({
   // Default day = "today" on the company's clock, not the server's
   const company = await prisma.company.findUnique({
     where: { id: actor.companyId },
-    select: { timezone: true },
+    select: { timezone: true, lat: true, lng: true },
   });
   const { y, m, d } = localDayParts(company?.timezone || "America/Chicago", new Date());
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -52,6 +52,7 @@ export default async function RouteMapPage({
       canDispatch={canFilterTeam}
       canOptimize={actor.role !== "SALES"}
       canSeeTeam={isManager(actor.role)}
+      home={typeof company?.lat === "number" && typeof company?.lng === "number" ? { lat: company.lat, lng: company.lng } : null}
     />
   );
 }

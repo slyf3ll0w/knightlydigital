@@ -2522,3 +2522,80 @@ html[data-mode="dark"] .app-ui .card-tool {
     background-color: color-mix(in srgb, var(--wb-primary, #606673) 10%, rgba(42, 50, 61, 0.64));
   }
 }
+
+/* ── Maps (lib/basemap.ts) — shared chrome for the Routes page, the team map
+   and the estimate tools' tracer, so every map reads as one family: quiet
+   tiles that fade in, translucent glass pills for our own controls (no
+   Leaflet chrome), a shimmer while the day loads, a hairline progress bar. */
+.leaflet-container .wb-tile {
+  transition: opacity 0.2s linear;
+}
+.wb-map-glass {
+  background: rgba(255, 255, 255, 0.86);
+  -webkit-backdrop-filter: blur(12px) saturate(1.2);
+  backdrop-filter: blur(12px) saturate(1.2);
+  border: 1px solid color-mix(in srgb, var(--tool-line, #0a1428) 18%, transparent);
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.06),
+    0 6px 20px rgba(15, 23, 42, 0.1);
+}
+.wb-map-ctl {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  color: #374151;
+  transition: background-color 0.13s ease, color 0.13s ease, transform 0.13s ease;
+}
+.wb-map-ctl:hover {
+  background: rgba(15, 23, 42, 0.05);
+  color: #111827;
+}
+.wb-map-ctl:active {
+  transform: scale(0.95);
+}
+.wb-map-ctl:disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+@keyframes wb-map-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+.wb-map-skeleton {
+  background: linear-gradient(
+    100deg,
+    color-mix(in srgb, var(--wb-primary, #0a1428) 5%, #f3f4f6) 30%,
+    color-mix(in srgb, var(--wb-primary, #0a1428) 2%, #fafafa) 50%,
+    color-mix(in srgb, var(--wb-primary, #0a1428) 5%, #f3f4f6) 70%
+  );
+  background-size: 200% 100%;
+  animation: wb-map-shimmer 1.6s linear infinite;
+}
+@keyframes wb-map-progress {
+  from { transform: translateX(-60%); }
+  to { transform: translateX(160%); }
+}
+.wb-map-progress {
+  height: 2px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--wb-accent, #0b57d8) 18%, transparent);
+}
+.wb-map-progress::after {
+  content: "";
+  display: block;
+  width: 40%;
+  height: 100%;
+  background: var(--wb-accent, #0b57d8);
+  animation: wb-map-progress 1.1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .wb-map-skeleton,
+  .wb-map-progress::after {
+    animation: none;
+  }
+  .leaflet-container .wb-tile {
+    transition: none;
+  }
+}
