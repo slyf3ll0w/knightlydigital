@@ -88,7 +88,7 @@ export function voiceEnabled(): boolean {
 
 const baseUrl = () => (process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com").replace(/\/+$/, "");
 const ringbackUrl = () => `${baseUrl()}/ringback.wav`;
-/** What an inbound caller hears while the browsers and the cell ring: a mellow loop (public/hold-music.mp3, ~3:20). The owner placing a call still hears ringback. */
+/** The hold loop (public/hold-music.mp3, ~3:20): what the other party hears while the browser leg is held — never while the line is still ringing, which sounds like a pickup. */
 const holdMusicUrl = () => `${baseUrl()}/hold-music.mp3`;
 
 /** How long the owner's cell rings before it counts as no answer. Short: their carrier voicemail would answer at ~25 s anyway. */
@@ -440,7 +440,7 @@ async function onAnswered(p: VoiceEventPayload): Promise<void> {
       // Guard the fan-out: a retried webhook must not ring every browser twice.
       const claimed = await prisma.call.updateMany({ where: { id: call.id, appRingAt: null }, data: { appRingAt: new Date(), via: "app" } });
       if (claimed.count === 0) return;
-      await callAction(call.telnyxCallId!, "playback_start", { audio_url: holdMusicUrl(), loop: "infinity" });
+      await callAction(call.telnyxCallId!, "playback_start", { audio_url: ringbackUrl(), loop: "infinity" });
       if ((await ringSoftphones(call, plan.app)) > 0) return;
       // Not one browser could be dialed: the cell's turn, ringback already looping.
       return dialCell(call, { ringback: false });
@@ -507,7 +507,7 @@ async function dialCell(call: CallRow, opts: { ringback: boolean }): Promise<voi
     data: { agentCallId: `pending:${call.id}`, via: "cell" },
   });
   if (claimed.count === 0) return;
-  if (opts.ringback) await callAction(call.telnyxCallId!, "playback_start", { audio_url: holdMusicUrl(), loop: "infinity" });
+  if (opts.ringback) await callAction(call.telnyxCallId!, "playback_start", { audio_url: ringbackUrl(), loop: "infinity" });
   try {
     const leg2 = await dialCall({
       to: forwardTo,
@@ -710,9 +710,10 @@ async function onHangup(p: VoiceEventPayload): Promise<void> {
   }
 
   if (leg === "app" && appLeg) {
-    // One browser declined or timed out. When the last one has, the cell
-    // rings (the caller's ringback is still looping). agentCallId already set
-    // = another browser won, or the cell is ringing: nothing to do.
+    // One browser timed out (a Decline went through declineCall first and the
+    // call is already VOICEMAIL). When the last one has, the cell rings (the
+    // caller's ringback is still looping). agentCallId already set = another
+    // browser won, or the cell is ringing: nothing to do.
     await prisma.callLeg.update({ where: { id: appLeg.id }, data: { endedAt: now, hangupCause: cause } }).catch(() => {});
     if (call.status !== "RINGING" || call.direction !== "INBOUND" || call.agentCallId) return;
     const open = await prisma.callLeg.count({ where: { callId: call.id, endedAt: null } });
@@ -931,6 +932,21 @@ export async function startOutboundCall(
  * (the hangup webhooks would only re-confirm it). Idempotent — a call that
  * already ended is reported as such.
  */
+/**
+ * Decline in the browser: straight to voicemail, like a phone. Voicemail is
+ * claimed first (RINGING → VOICEMAIL) so the app legs' hangup webhooks —
+ * which ring the cell when the last browser merely drops — find a call that
+ * is no longer ringing. Only for an inbound call nobody has picked up yet.
+ */
+export async function declineCall(companyId: string, callId: string): Promise<{ status: CallStatus }> {
+  const call = await prisma.call.findFirst({ where: { id: callId, companyId }, include: callInclude });
+  if (!call) throw new VoiceError("Call not found.", 404);
+  if (call.direction !== "INBOUND" || call.status !== "RINGING" || call.agentCallId) return { status: call.status };
+  await toVoicemail(call);
+  await hangupAppLegs(call.id, null).catch(() => {});
+  return { status: "VOICEMAIL" };
+}
+
 export async function cancelCall(companyId: string, callId: string): Promise<{ status: CallStatus }> {
   const call = await prisma.call.findFirst({ where: { id: callId, companyId } });
   if (!call) throw new VoiceError("Call not found.", 404);

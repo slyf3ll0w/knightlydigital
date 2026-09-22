@@ -85,8 +85,10 @@ const header = (call: RtcCall, name: string): string | null => {
 };
 
 /**
- * North-American ring cadence (440+480 Hz, ~2 s on / 4 s off) on Web Audio —
- * no asset to load. Browsers keep an AudioContext suspended until the page
+ * The ringtone for an incoming call — a soft marimba-like motif on Web Audio,
+ * no asset to load. (It was the 440+480 Hz ringback tone before, which is
+ * what you hear when YOU dial someone; a phone's own ring is a melody.)
+ * Browsers keep an AudioContext suspended until the page
  * has seen a user gesture, which is why the ring used to be silent in a tab
  * nobody had clicked since it loaded: arm() unlocks audio on the first
  * pointer / key / touch, a call that arrives before any gesture still asks
@@ -146,22 +148,44 @@ class Ringer {
     }
     if (ctx.state !== "running") return false;
     if (!this.wanted || this.timer) return true;
-    const burst = () => {
+    // E5 G5 B5 E6 B5 G5 — plucked, twice per ring, then a breath.
+    const NOTES = [659.25, 783.99, 987.77, 1318.51, 987.77, 783.99];
+    const ring = () => {
       if (ctx.state !== "running") return;
-      const gain = ctx.createGain();
-      gain.gain.value = 0.12;
-      gain.connect(ctx.destination);
-      for (const f of [440, 480]) {
-        const osc = ctx.createOscillator();
-        osc.frequency.value = f;
-        osc.connect(gain);
-        osc.start();
-        osc.stop(ctx.currentTime + 1.6);
+      const master = ctx.createGain();
+      master.gain.value = 0.35;
+      master.connect(ctx.destination);
+      const t0 = ctx.currentTime;
+      for (let rep = 0; rep < 2; rep++) {
+        NOTES.forEach((f, i) => {
+          const t = t0 + rep * 1.5 + i * 0.16;
+          const env = ctx.createGain();
+          env.gain.setValueAtTime(0.0001, t);
+          env.gain.exponentialRampToValueAtTime(0.6, t + 0.01);
+          env.gain.exponentialRampToValueAtTime(0.0001, t + 0.35);
+          env.connect(master);
+          const osc = ctx.createOscillator();
+          osc.type = "sine";
+          osc.frequency.value = f;
+          osc.connect(env);
+          osc.start(t);
+          osc.stop(t + 0.4);
+          // A quiet octave above gives the pluck its "wood".
+          const shimmer = ctx.createOscillator();
+          shimmer.type = "triangle";
+          shimmer.frequency.value = f * 2;
+          const sg = ctx.createGain();
+          sg.gain.value = 0.15;
+          shimmer.connect(sg);
+          sg.connect(env);
+          shimmer.start(t);
+          shimmer.stop(t + 0.4);
+        });
       }
-      setTimeout(() => gain.disconnect(), 1800);
+      setTimeout(() => master.disconnect(), 3400);
     };
-    burst();
-    this.timer = setInterval(burst, 4000);
+    ring();
+    this.timer = setInterval(ring, 3600);
     return true;
   }
 
@@ -521,8 +545,20 @@ export default function Softphone() {
         });
       },
       decline: () => {
-        if (callRef.current) void callRef.current.hangup();
-        else cancelPending();
+        // Straight to voicemail, like a phone. The server hears it FIRST: a
+        // browser leg that merely drops means "ring the cell next".
+        const id = getSoftphoneState().call?.callId ?? null;
+        void (async () => {
+          if (id) {
+            await fetch("/api/app/line/call/decline", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ id }),
+            }).catch(() => {});
+          }
+          if (callRef.current) void callRef.current.hangup();
+          else cancelPending();
+        })();
       },
       hangup: () => {
         const c = callRef.current;
@@ -790,7 +826,7 @@ function CallCard({ call }: { call: SoftphoneCall }) {
               type="button"
               onClick={() => softphone.decline()}
               className={`${btn} bg-red-500 text-white hover:bg-red-600`}
-              title="Decline — sends the call on to the cell / voicemail"
+              title="Decline — sends the caller to voicemail"
               aria-label="Decline"
             >
               <PhoneOff size={18} />
