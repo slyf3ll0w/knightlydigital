@@ -5,17 +5,25 @@ import { requirePageActor, canSell, isManager } from "@/lib/permissions";
 import PageTitle from "@/components/PageTitle";
 import EmptyState from "@/components/EmptyState";
 import CallRow, { type CallRowData } from "@/components/CallRow";
+import CallsLive from "@/components/CallsLive";
 import LineCard, { type LineStats } from "@/components/LineCard";
 import { FilterRow, FilterChip, SegmentedRow, Segment } from "@/components/FilterChips";
-import { markCallsSeen } from "@/lib/voice";
+import { markCallsSeen, resolveCallContacts, type ResolvedCallContact } from "@/lib/voice";
+import { loadCallEvents, type CallEvent } from "@/lib/call-events";
 import { fmtDayShort } from "@/lib/format";
 
 /**
  * Calls on the business line (lib/voice.ts): the line sheet up top (number,
- * where it rings right now, the dialer, a stat strip), then every call
+ * where it rings right now, the keypad, a stat strip), then every call
  * grouped by day — answered, missed, or a voicemail to play right here.
- * Opening the page marks finished calls as seen (the red-edged rows are the
- * missed calls and voicemails nobody has looked at yet).
+ * Each row opens its call screen (/app/calls/[id]). The list keeps itself
+ * current (components/CallsLive.tsx): a call placed or answered shows up
+ * without a reload. Opening the page marks finished calls as seen (the
+ * red-edged rows are the missed calls and voicemails nobody has looked at
+ * yet). Rows from a number that has since been saved as a lead or client
+ * pick up the name on the way through (resolveCallContacts), and what got
+ * done on each call — quote sent, appointment booked — comes from
+ * lib/call-events.ts.
  */
 
 type Filter = "all" | "missed" | "voicemail" | "out";
@@ -42,7 +50,7 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
   const { contact: contactId, f } = await searchParams;
   const filter: Filter = f === "missed" || f === "voicemail" || f === "out" ? f : "all";
 
-  const [company, calls] = await Promise.all([
+  const [company, rows] = await Promise.all([
     prisma.company.findUnique({
       where: { id: actor.companyId },
       select: { lineNumber: true, lineForwardTo: true, lineVoiceAppAt: true, timezone: true },
@@ -56,21 +64,40 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
         direction: true,
         status: true,
         customerNumber: true,
+        customerDigits: true,
         durationSec: true,
         voicemailSec: true,
         voicemailRecordingId: true,
         seenAt: true,
         createdAt: true,
-        contact: { select: { id: true, firstName: true, lastName: true } },
+        endedAt: true,
+        contact: { select: { id: true, firstName: true, lastName: true, status: true } },
         user: { select: { name: true } },
         via: true,
         answeredBy: { select: { name: true } },
       },
     }),
   ]);
-  // Stats are computed from the rows BEFORE they're marked seen, so "not yet seen" is honest for this visit.
   const now = new Date();
   const tz = company?.timezone ?? "America/Chicago";
+
+  // Numbers that have been saved as someone since the call: show the name, and remember the link.
+  const resolved = await resolveCallContacts(
+    actor.companyId,
+    rows.filter((c) => !c.contact).map((c) => c.customerDigits)
+  ).catch(() => new Map<string, ResolvedCallContact>());
+  const calls = rows.map((c) => {
+    if (c.contact || !c.customerDigits) return c;
+    const hit = resolved.get(c.customerDigits);
+    return hit ? { ...c, contact: hit } : c;
+  });
+  const events = await loadCallEvents(
+    actor.companyId,
+    calls.map((c) => ({ id: c.id, contactId: c.contact?.id ?? null, createdAt: c.createdAt, endedAt: c.endedAt })),
+    now
+  ).catch(() => new Map<string, CallEvent[]>());
+
+  // Stats are computed from the rows BEFORE they're marked seen, so "not yet seen" is honest for this visit.
   const weekAgo = now.getTime() - 7 * 86_400_000;
   const stats: LineStats = {
     today: calls.filter((c) => dayKey(c.createdAt, tz) === dayKey(now, tz)).length,
@@ -97,14 +124,16 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
   const groups: Array<{ label: string; rows: CallRowData[] }> = [];
   for (const c of visible) {
     const label = dayLabel(c.createdAt, tz, now);
+    const row: CallRowData = { ...c, events: events.get(c.id) };
     const g = groups[groups.length - 1];
-    if (g && g.label === label) g.rows.push(c);
-    else groups.push({ label, rows: [c] });
+    if (g && g.label === label) g.rows.push(row);
+    else groups.push({ label, rows: [row] });
   }
   const href = (k: Filter) => `/app/calls${k === "all" ? "" : `?f=${k}`}${contactId ? `${k === "all" ? "?" : "&"}contact=${contactId}` : ""}`;
 
   return (
     <div className="p-4 lg:p-8 max-w-3xl mx-auto">
+      {hasLine && <CallsLive />}
       <PageTitle
         section="chat"
         icon={PhoneCall}

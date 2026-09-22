@@ -81,6 +81,8 @@ export type SoftphoneController = {
   placeCall(target: PlaceCallTarget): Promise<void>;
   /** Ask the browser for the microphone now (needs a click), so the first call doesn't stall on the prompt. */
   requestMic(): Promise<boolean>;
+  /** Touch-tones on the live call (phone menus: "press 1 for…"). Digits 0-9, * and #. */
+  sendDigits(digits: string): void;
 };
 
 let controller: SoftphoneController | null = null;
@@ -103,6 +105,7 @@ export const softphone = {
   toggleHold: () => controller?.toggleHold(),
   placeCall: (target: PlaceCallTarget): Promise<void> => (controller ? controller.placeCall(target) : Promise.reject(notConnected())),
   requestMic: (): Promise<boolean> => (controller ? controller.requestMic() : Promise.resolve(false)),
+  sendDigits: (digits: string) => controller?.sendDigits(digits),
 };
 
 export function fmtElapsed(startedAt: number | null, now: number): string {

@@ -5,6 +5,7 @@ import { getActor, canSell, contactScope, isManager } from "@/lib/permissions";
 import { getActiveFieldDefs, sanitizeCustomFields } from "@/lib/contact-fields";
 import { enterPipeline } from "@/lib/pipeline";
 import { inPreview, PREVIEW_CAP, previewCapError } from "@/lib/preview";
+import { linkCallsToContact } from "@/lib/voice";
 
 export async function GET() {
   const actor = await getActor();
@@ -103,6 +104,8 @@ export async function POST(req: NextRequest) {
 
   // New leads go straight onto the pipeline board
   if (status === "LEAD") await enterPipeline(prisma, actor.companyId, contact.id);
+  // Calls from this number that never matched anyone are theirs now (the call log shows the name).
+  await linkCallsToContact(actor.companyId, contact.id, contact.phone).catch(() => 0);
 
   return NextResponse.json(contact, { status: 201 });
 }

@@ -374,10 +374,35 @@ free `sms:`/`tel:` deep links (`lib/messaging.ts`) stay free and untouched.
   browser (Web Locks); mic requested before the server dials the tab.
   Diagnose from a laptop with `scripts/diag-with-public-db.mjs` /
   `scripts/diag-telnyx-events.mjs` (see the plan doc). `/app/calls` =
-  `LineCard.tsx` (number, where it rings now, dialer, stat strip) + day-grouped
+  `LineCard.tsx` (number, where it rings now, the keypad, stat strip) + day-grouped
   `CallRow.tsx` with `VoicemailPlayer.tsx` (custom controls — never the
   native `<audio controls>`, its ⋮ menu is browser chrome) and Call back
   (`CallFromLineButton` with `to`); filters `?f=missed|voicemail|out`.
+- **Call screen + keypad** (2026-09-22): `/app/calls/[id]` is one call and
+  the person on it — `CallScreenLive.tsx` (the phone when the softphone in
+  this tab is on that call: timer, mute, hold, touch-tones via
+  `softphone.sendDigits` → SDK `call.dtmf`, hang up; otherwise the row's
+  status, polled while live) + `CallActions.tsx` (unknown number → Save as a
+  lead / client with the number prefilled, or pick an existing client;
+  lead → Make a client = `stage { action: "won" }`; then Quote /
+  Appointment / Job / Invoice links with `?contactId=`). The floating call
+  card links to it (and hides itself while on it); every row's name opens
+  it; the keypad navigates to it when a call is placed. `DialPad.tsx` is the
+  keypad (dial mode on the Calls page — inline on desktop, a Modal on
+  phones, softphone when registered else the cell flow; tones mode on the
+  call screen; DTMF beeps, hold 0 for +, `GET /api/app/contacts/lookup?phone=`
+  names the number as it's typed). Live log: `CallsLive.tsx` polls
+  `GET /api/app/calls/pulse` (max updatedAt + count) and `router.refresh()`es
+  on change or on softphone call transitions — no reload needed. Names on
+  old rows: `linkCallsToContact` (contacts POST/PATCH) + `resolveCallContacts`
+  (the page self-heals unmatched rows by `customerDigits`) +
+  `PATCH /api/app/calls/[id] { contactId }` (explicit link from the call
+  screen). Lead/client is a quiet word after the name, never a badge. What
+  got done on the call = `lib/call-events.ts`: quotes/appointments/jobs/
+  invoices/contact saves for the same person stamped between 2 min before
+  the call and 30 min after it ended attach to the latest such call
+  (`assignCallEvents` is pure; `npx tsx scripts/test-call-events.ts`);
+  nothing is written to the Call row.
 - **Not built yet**: native ringing with the app closed (tier 3 — mic
   permissions already in the native projects), voicemail transcription,
   missed-call text-back, business-hours routing, port-in, call transfer.

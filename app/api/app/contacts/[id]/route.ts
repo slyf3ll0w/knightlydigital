@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getActor, canSell, contactScope, isManager } from "@/lib/permissions";
 import { getActiveFieldDefs, sanitizeCustomFields } from "@/lib/contact-fields";
 import { enterPipeline } from "@/lib/pipeline";
+import { linkCallsToContact } from "@/lib/voice";
 import { pauseSubscriptionsForContact } from "@/lib/subscriptions";
 import { queueQuickBooksInvoiceUnwind } from "@/lib/quickbooks";
 
@@ -146,6 +147,8 @@ export async function PATCH(
   if (statusChange === "LEAD") {
     await enterPipeline(prisma, actor.companyId, id);
   }
+  // A number was set or changed: unmatched calls from it now show this person's name.
+  if (body.phone !== undefined) await linkCallsToContact(actor.companyId, id, opt(body.phone)).catch(() => 0);
 
   // Archiving closes the client out: their recurring series pause and their
   // untouched future visits leave the calendar, so nothing keeps billing,

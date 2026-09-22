@@ -2,14 +2,17 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Loader2, Mic, PhoneCall, Settings2 } from "lucide-react";
+import { Grid3x3, Mic, Settings2, X } from "lucide-react";
 import { fmtPhone } from "@/lib/format";
-import { softphone, softphoneIdle, useSoftphone } from "@/lib/softphone-client";
+import { softphone, useSoftphone } from "@/lib/softphone-client";
+import DialPad from "@/components/DialPad";
+import Modal from "@/components/Modal";
 
 /**
  * The sheet at the top of /app/calls: the business number as the headline,
- * where calls ring right now (this browser, then the cell), the dialer, and
- * a stat strip in the foot. Also the one place that says out loud why calls
+ * where calls ring right now (this browser, then the cell), the keypad
+ * (components/DialPad.tsx — inline on a desktop, a sheet on a phone), and a
+ * stat strip in the foot. Also the one place that says out loud why calls
  * do or don't ring in this browser (connecting, another tab, switched off,
  * microphone blocked), so an owner never has to guess.
  */
@@ -33,31 +36,23 @@ export default function LineCard({
   stats: LineStats;
 }) {
   const s = useSoftphone();
-  const [to, setTo] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const ready = softphoneIdle(s);
-
-  async function call() {
-    if (!to.trim()) return;
-    setBusy(true);
-    setError("");
-    try {
-      await softphone.placeCall({ to: to.trim() });
-      setTo("");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't place the call.");
-    } finally {
-      setBusy(false);
-    }
-  }
+  const [padOpen, setPadOpen] = useState(false);
 
   // Where a call rings right now, in one sentence.
   const cell = forwardTo ? fmtPhone(forwardTo) : null;
   let where: React.ReactNode;
   let dot = "bg-gray-300";
   if (s.status === "ready" && s.call) {
-    where = "On a call in this browser";
+    where = s.call.callId ? (
+      <>
+        On a call in this browser ·{" "}
+        <Link href={`/app/calls/${s.call.callId}`} className="font-medium text-gray-800 underline">
+          open the call screen
+        </Link>
+      </>
+    ) : (
+      "On a call in this browser"
+    );
     dot = "bg-green-500";
   } else if (s.status === "ready") {
     where = cell ? `Rings here first, then ${cell}` : "Rings here — add a ring-through number for when the browser is closed";
@@ -78,14 +73,14 @@ export default function LineCard({
   } else {
     where = cell ? `Rings ${cell}${s.reason === "unsupported" ? " — this browser can't take calls" : ""}` : "Add a ring-through number";
   }
-  const showDialer = s.status !== "off" || s.reason === "other_tab";
+  const inBrowser = s.status === "ready";
 
   const talkMin = Math.round(stats.talkWeekSec / 60);
 
   return (
     <div className="card-tool mt-5 overflow-hidden">
-      <div className="flex flex-col gap-5 p-5 sm:p-6 lg:flex-row lg:items-end lg:justify-between">
-        <div className="min-w-0">
+      <div className="flex flex-col gap-5 p-5 sm:p-6 lg:flex-row lg:items-start lg:justify-between lg:gap-8">
+        <div className="min-w-0 flex-1">
           <p className="flex items-center gap-2 text-[13px] font-medium text-gray-500">
             <span className={`h-2 w-2 rounded-full ${dot}`} />
             Business line
@@ -107,41 +102,21 @@ export default function LineCard({
               <Mic size={12} /> Allow the microphone now so the first call doesn&apos;t stall on the prompt
             </button>
           )}
-        </div>
-        {showDialer && (
-          <form
-            className="flex w-full items-center gap-2 lg:w-auto"
-            onSubmit={(e) => {
-              e.preventDefault();
-              void call();
-            }}
+          <button
+            type="button"
+            onClick={() => setPadOpen(true)}
+            className="btn-primary mt-4 w-full justify-center lg:hidden"
           >
-            <input
-              type="tel"
-              inputMode="tel"
-              value={to}
-              onChange={(e) => setTo(e.target.value)}
-              placeholder="Dial a number"
-              aria-label="Number to call"
-              disabled={!ready}
-              className="numeral-ledger min-w-0 flex-1 rounded-[10px] border border-gray-300 bg-white px-3.5 py-2.5 text-[15px] text-gray-900 placeholder:font-sans placeholder:text-gray-400 focus:border-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900/10 disabled:opacity-50 lg:w-52 lg:flex-none"
-            />
-            <button
-              type="submit"
-              disabled={!ready || busy || !to.trim()}
-              className="btn-primary shrink-0"
-            >
-              {busy ? <Loader2 size={14} className="animate-spin" /> : <PhoneCall size={14} />}
-              Call
-            </button>
-          </form>
-        )}
+            <Grid3x3 size={14} /> Keypad
+          </button>
+          <p className="mt-6 hidden text-xs text-gray-400 lg:block">
+            {inBrowser ? "Calls placed from the keypad go out from this browser." : "Calls placed from the keypad ring your cell first, then the customer."}
+          </p>
+        </div>
+        <div className="hidden shrink-0 lg:block">
+          <DialPad className="w-[236px]" />
+        </div>
       </div>
-      {error && (
-        <p className="px-5 pb-3 text-xs text-red-600 sm:px-6" role="alert">
-          {error}
-        </p>
-      )}
       <div className="grid grid-cols-2 divide-x divide-gray-100 border-t border-gray-100 bg-gray-50/60 sm:grid-cols-4">
         <Stat label="Today" value={String(stats.today)} />
         <Stat label="Missed" value={String(stats.missedUnseen)} tone={stats.missedUnseen ? "text-red-700" : undefined} hint={stats.missedUnseen ? "not yet seen" : undefined} />
@@ -156,6 +131,19 @@ export default function LineCard({
           </Link>
         </div>
       )}
+
+      <Modal open={padOpen} onClose={() => setPadOpen(false)} cardClassName="card-ledger w-full max-w-sm p-5" portal>
+        <div className="mb-1 flex items-center justify-between">
+          <p className="text-[13px] font-semibold text-gray-500">Keypad</p>
+          <button type="button" onClick={() => setPadOpen(false)} aria-label="Close" className="rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700">
+            <X size={16} />
+          </button>
+        </div>
+        <DialPad />
+        <p className="mt-4 text-center text-xs text-gray-400">
+          {inBrowser ? "Goes out from this browser." : "Rings your cell first, then the customer."}
+        </p>
+      </Modal>
     </div>
   );
 }

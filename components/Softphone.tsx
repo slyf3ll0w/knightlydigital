@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Mic, MicOff, Pause, Phone, PhoneIncoming, PhoneOff, Play, X } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { Maximize2, Mic, MicOff, Pause, Phone, PhoneIncoming, PhoneOff, Play, X } from "lucide-react";
 import { nativePlatform } from "@/components/NativeShell";
 import {
   fmtElapsed,
@@ -470,6 +471,16 @@ export default function Softphone() {
         else void c.hold();
       },
       requestMic,
+      sendDigits: (digits: string) => {
+        const c = callRef.current;
+        const clean = digits.replace(/[^0-9*#]/g, "");
+        if (!c || !clean || (c.state !== "active" && c.state !== "held")) return;
+        try {
+          c.dtmf(clean);
+        } catch (err) {
+          console.warn("[softphone] dtmf failed", err);
+        }
+      },
       placeCall: async (target: PlaceCallTarget) => {
         if (!clientRef.current || getSoftphoneState().status !== "ready") throw new Error("The softphone isn't connected.");
         if (callRef.current || getSoftphoneState().call) throw new Error("You're already on a call.");
@@ -621,9 +632,13 @@ function useNow(active: boolean): number {
 
 function CallCard({ call }: { call: SoftphoneCall }) {
   const now = useNow(call.state === "active" || call.state === "held");
+  const pathname = usePathname();
   const ringing = call.state === "ringing";
   const dialing = call.state === "dialing";
   const held = call.state === "held";
+  // The call screen (/app/calls/[id]) carries the full controls for this very call — no second card on top of it.
+  const screenHref = call.callId ? `/app/calls/${call.callId}` : null;
+  if (screenHref && pathname === screenHref) return null;
   const subtitle = ringing
     ? "calling your business line"
     : dialing
@@ -663,6 +678,16 @@ function CallCard({ call }: { call: SoftphoneCall }) {
             {subtitle}
           </p>
         </div>
+        {screenHref && !ringing && (
+          <Link
+            href={screenHref}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900"
+            title="Open the call screen — save them, quote, schedule or invoice while you talk"
+            aria-label="Open the call screen"
+          >
+            <Maximize2 size={15} />
+          </Link>
+        )}
       </div>
       <div className="flex items-center justify-end gap-2 px-4 pb-4">
         {ringing ? (

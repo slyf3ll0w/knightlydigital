@@ -104,7 +104,7 @@ export default async function ContactDetailPage({
         voicemailRecordingId: true,
         seenAt: true,
         createdAt: true,
-        contact: { select: { id: true, firstName: true, lastName: true } },
+        contact: { select: { id: true, firstName: true, lastName: true, status: true } },
         user: { select: { name: true } },
         via: true,
         answeredBy: { select: { name: true } },

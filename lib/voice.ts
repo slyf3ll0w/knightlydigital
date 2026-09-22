@@ -39,7 +39,7 @@
  * number keeps plain forwarding and none of this runs.
  */
 
-import type { Call, CallStatus, Contact } from "@prisma/client";
+import type { Call, CallStatus, Contact, ContactStatus } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { hasAddon } from "@/lib/addon";
 import { defaultVoicemailGreeting, isRealLineNumber } from "@/lib/business-line-shared";
@@ -991,4 +991,50 @@ export async function markCallsSeen(companyId: string): Promise<void> {
     where: { companyId, seenAt: null, status: { in: ["COMPLETED", "MISSED", "VOICEMAIL", "NO_ANSWER", "FAILED"] } },
     data: { seenAt: new Date() },
   });
+}
+
+/**
+ * A contact was just saved with a phone number (new lead from the call
+ * screen, a client added by hand, an edited number): every call from that
+ * number that never matched anyone is theirs now, so the log shows a name
+ * instead of digits without anybody re-saving history. Returns how many
+ * rows were adopted.
+ */
+export async function linkCallsToContact(companyId: string, contactId: string, phone: string | null | undefined): Promise<number> {
+  const digits = phoneDigits(phone);
+  if (!digits) return 0;
+  const r = await prisma.call.updateMany({
+    where: { companyId, contactId: null, customerDigits: digits },
+    data: { contactId },
+  });
+  return r.count;
+}
+
+export type ResolvedCallContact = { id: string; firstName: string; lastName: string; status: ContactStatus };
+
+/**
+ * Self-healing for the log: rows with no contact whose number now belongs
+ * to someone (contacts created by a booking form, the lead webhook, a CSV
+ * import — anything that didn't go through linkCallsToContact). Returns
+ * digits → contact for the caller to patch into its rows, and persists the
+ * link so the contact page's "Recent calls" and the ?contact filter agree.
+ */
+export async function resolveCallContacts(companyId: string, digitsList: Array<string | null | undefined>): Promise<Map<string, ResolvedCallContact>> {
+  const digits = [...new Set(digitsList.filter((d): d is string => Boolean(d)))];
+  const out = new Map<string, ResolvedCallContact>();
+  if (digits.length === 0) return out;
+  const contacts = await prisma.contact.findMany({
+    where: { companyId, phoneDigits: { in: digits }, status: { not: "ARCHIVED" } },
+    orderBy: { updatedAt: "desc" },
+    select: { id: true, firstName: true, lastName: true, status: true, phoneDigits: true },
+  });
+  for (const c of contacts) {
+    if (c.phoneDigits && !out.has(c.phoneDigits)) out.set(c.phoneDigits, { id: c.id, firstName: c.firstName, lastName: c.lastName, status: c.status });
+  }
+  await Promise.all(
+    [...out.entries()].map(([d, c]) =>
+      prisma.call.updateMany({ where: { companyId, contactId: null, customerDigits: d }, data: { contactId: c.id } }).catch(() => null)
+    )
+  );
+  return out;
 }
