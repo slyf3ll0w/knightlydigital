@@ -55,6 +55,7 @@ import {
   type LineType,
   type RegistrationForm,
   type RegistrationKind,
+  einIssue,
 } from "@/lib/business-line-shared";
 import { stateName } from "@/lib/us-states";
 import { VoiceError, ensureVoiceRouting, routeNumberToVoiceApp, sanitizeGreeting, voiceEnabled } from "@/lib/voice";
@@ -567,7 +568,8 @@ export function sanitizeRegistrationForm(raw: Record<string, unknown>, kind: Reg
   let ein: string | null = null;
   if (entityType === "PRIVATE_PROFIT") {
     ein = str(raw.ein, 20).replace(/\D/g, "");
-    if (ein.length !== 9) throw new LineError("Enter the 9-digit EIN (XX-XXXXXXX).");
+    const issue = einIssue(ein);
+    if (issue) throw new LineError(issue);
   }
   let messageVolume: string | null = null;
   let useCase: string | null = null;

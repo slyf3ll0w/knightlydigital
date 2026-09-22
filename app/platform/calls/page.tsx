@@ -53,7 +53,7 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
   const [company, rows] = await Promise.all([
     prisma.company.findUnique({
       where: { id: actor.companyId },
-      select: { lineNumber: true, lineForwardTo: true, lineVoiceAppAt: true, timezone: true },
+      select: { lineNumber: true, lineForwardTo: true, lineVoiceAppAt: true, timezone: true, messagingRegistration: { select: { status: true } } },
     }),
     prisma.call.findMany({
       where: { companyId: actor.companyId, ...(contactId ? { contactId } : {}) },
@@ -109,6 +109,7 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
 
   const hasLine = Boolean(company?.lineNumber && !company.lineNumber.startsWith("pending:"));
   const routed = hasLine && Boolean(company?.lineVoiceAppAt);
+  const smsReady = hasLine && company?.messagingRegistration?.status === "ACTIVE";
   const filteredContact = contactId ? calls.find((c) => c.contact?.id === contactId)?.contact : null;
 
   const visible = calls.filter((c) =>
@@ -220,7 +221,7 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
                   </h2>
                   <div className="space-y-2">
                     {g.rows.map((c) => (
-                      <CallRow key={c.id} call={c} tz={tz} canCall={routed} />
+                      <CallRow key={c.id} call={c} tz={tz} canCall={routed} canText={smsReady} />
                     ))}
                   </div>
                 </section>

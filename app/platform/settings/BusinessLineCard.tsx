@@ -11,6 +11,7 @@ import {
   type LineSummary,
   type LineType,
   type RegistrationForm,
+  einIssue,
 } from "@/lib/business-line-shared";
 
 /**
@@ -733,9 +734,14 @@ function RegistrationForm({
   const [busy, setBusy] = useState(false);
   // Shown right under the submit button: the card-level banner sits above a long form, out of view.
   const [error, setError] = useState("");
+  // Typed twice: a mistyped EIN is a $4.50 carrier-registry rejection and days of delay.
+  const [einConfirm, setEinConfirm] = useState(initial?.ein ?? "");
   const set = (k: keyof RegistrationForm) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setF((p) => ({ ...p, [k]: e.target.value }));
   const sole = !tollFree && f.entityType === "SOLE_PROPRIETOR";
+  const einDigits = (f.ein ?? "").replace(/\D/g, "");
+  const einProblem = sole ? null : einIssue(einDigits);
+  const einMismatch = !sole && !einProblem && einConfirm.replace(/\D/g, "") !== einDigits;
   // Telnyx's toll-free reviewer: the contact email must be at the website's domain (www/subdomains ignored).
   const siteDomain = (() => {
     const w = (f.website ?? "").trim();
@@ -830,9 +836,35 @@ function RegistrationForm({
           <input value={f.displayName ?? ""} onChange={set("displayName")} className={inputCls} />
         </Field>
         {!sole && (
-          <Field label="EIN" hint="9 digits, from your CP575 or 147C letter">
-            <input value={f.ein ?? ""} onChange={set("ein")} inputMode="numeric" placeholder="12-3456789" className={inputCls} required />
-          </Field>
+          <>
+            <Field label="EIN" hint="9 digits, from your CP575 or 147C letter">
+              <input
+                value={f.ein ?? ""}
+                onChange={set("ein")}
+                inputMode="numeric"
+                placeholder="12-3456789"
+                className={`${inputCls}${einDigits && einProblem ? " border-red-400" : ""}`}
+                required
+              />
+              {einDigits && einProblem ? <span className="mt-0.5 block text-[11px] text-red-600">{einProblem}</span> : null}
+            </Field>
+            <Field label="Confirm EIN" hint="Type it again — it has to match exactly">
+              <input
+                value={einConfirm}
+                onChange={(e) => setEinConfirm(e.target.value)}
+                inputMode="numeric"
+                placeholder="12-3456789"
+                className={`${inputCls}${einConfirm && einMismatch ? " border-red-400" : ""}`}
+                required
+              />
+              {einConfirm && einMismatch ? <span className="mt-0.5 block text-[11px] text-red-600">The two EINs don&apos;t match.</span> : null}
+            </Field>
+            <p className="flex items-start gap-1.5 text-[11px] text-amber-700 sm:col-span-2">
+              <AlertTriangle size={12} className="mt-0.5 shrink-0" />
+              An incorrect EIN is turned down by the carrier registry and delays texting by days — check it against your IRS
+              letter before you submit.
+            </p>
+          </>
         )}
         <Field label="Industry">
           <select value={f.vertical} onChange={set("vertical")} className={inputCls}>
@@ -908,7 +940,7 @@ function RegistrationForm({
       )}
 
       <div className="flex flex-wrap items-center gap-3">
-        <button type="submit" disabled={busy || !line.entitled} className={primaryBtn}>
+        <button type="submit" disabled={busy || !line.entitled || Boolean(einProblem) || einMismatch} className={primaryBtn}>
           {busy && <Loader2 size={14} className="animate-spin" />}
           {busy ? "Submitting…" : initial ? "Resubmit" : tollFree ? "Verify for texting" : "Register for texting"}
         </button>

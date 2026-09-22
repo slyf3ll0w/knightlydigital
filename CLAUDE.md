@@ -428,7 +428,18 @@ with the form, the previous reason and the fees. Superadmin "Approve and file"
 re-uses a VERIFIED brand (same entity/legal name/EIN) and files only the
 campaign. A campaign-stage rejection emails the operator and shows the tenant
 "we're sorting it out" with no resubmit button, because the campaign copy is
-the shared template (`campaignCopy`), not their form.
+the shared template (`campaignCopy`), not their form. The EIN is typed twice
+and checked against the IRS prefix list (`einIssue`, lib/business-line-shared.ts,
+form + server) so a typo never reaches the registry.
+
+**Calls list (2026-09-22):** rows show the time on the line (talk time, or
+ring time when nobody picked up) instead of "Answered" / "No answer" — a
+carrier's voicemail answering is an "answer" to the network, so the verdict
+was misleading. Missed and Voicemail keep their words. Inbound callers hear
+`public/hold-music.mp3` while the browsers and the cell ring; the owner placing
+a call still hears `ringback.wav`. A known caller gets a Text button on the
+row once the line's registration is ACTIVE (it opens the message thread, which
+sends from the business number).
 
 ## Payment processor (Finix)
 

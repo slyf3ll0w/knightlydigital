@@ -88,6 +88,8 @@ export function voiceEnabled(): boolean {
 
 const baseUrl = () => (process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com").replace(/\/+$/, "");
 const ringbackUrl = () => `${baseUrl()}/ringback.wav`;
+/** What an inbound caller hears while the browsers and the cell ring: a mellow loop (public/hold-music.mp3, ~3:20). The owner placing a call still hears ringback. */
+const holdMusicUrl = () => `${baseUrl()}/hold-music.mp3`;
 
 /** How long the owner's cell rings before it counts as no answer. Short: their carrier voicemail would answer at ~25 s anyway. */
 export const AGENT_RING_SECS = 25;
@@ -438,7 +440,7 @@ async function onAnswered(p: VoiceEventPayload): Promise<void> {
       // Guard the fan-out: a retried webhook must not ring every browser twice.
       const claimed = await prisma.call.updateMany({ where: { id: call.id, appRingAt: null }, data: { appRingAt: new Date(), via: "app" } });
       if (claimed.count === 0) return;
-      await callAction(call.telnyxCallId!, "playback_start", { audio_url: ringbackUrl(), loop: "infinity" });
+      await callAction(call.telnyxCallId!, "playback_start", { audio_url: holdMusicUrl(), loop: "infinity" });
       if ((await ringSoftphones(call, plan.app)) > 0) return;
       // Not one browser could be dialed: the cell's turn, ringback already looping.
       return dialCell(call, { ringback: false });
@@ -505,7 +507,7 @@ async function dialCell(call: CallRow, opts: { ringback: boolean }): Promise<voi
     data: { agentCallId: `pending:${call.id}`, via: "cell" },
   });
   if (claimed.count === 0) return;
-  if (opts.ringback) await callAction(call.telnyxCallId!, "playback_start", { audio_url: ringbackUrl(), loop: "infinity" });
+  if (opts.ringback) await callAction(call.telnyxCallId!, "playback_start", { audio_url: holdMusicUrl(), loop: "infinity" });
   try {
     const leg2 = await dialCall({
       to: forwardTo,

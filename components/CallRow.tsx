@@ -4,8 +4,8 @@ import {
   PhoneOutgoing,
   PhoneMissed,
   Voicemail,
-  PhoneOff,
   Headphones,
+  MessageSquare,
   FileText,
   CalendarClock,
   Briefcase,
@@ -42,6 +42,8 @@ export type CallRowData = {
   voicemailRecordingId: string | null;
   seenAt: Date | null;
   createdAt: Date;
+  /** When the call ended; with createdAt it gives the time on the line for a call that never connected. */
+  endedAt?: Date | string | null;
   contact: { id: string; firstName: string; lastName: string; status?: "LEAD" | "ACTIVE" | "ARCHIVED" } | null;
   user: { name: string } | null;
   /** "app" (browser softphone) or "cell"; null on older rows. */
@@ -78,6 +80,22 @@ export function fmtDuration(secs: number): string {
   return `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}`;
 }
 
+/**
+ * No verdicts on calls that connected or didn't — like a phone's recents,
+ * just the time on the line. (A carrier's voicemail picking up is an "answer"
+ * to the network, so "Answered" was misleading.) Talk time when it connected,
+ * ring time when it didn't; null for the statuses that keep a word.
+ */
+export function phoneTime(call: Pick<CallRowData, "status" | "durationSec" | "createdAt" | "endedAt">): string | null {
+  if (call.status === "COMPLETED") return fmtDuration(call.durationSec ?? 0);
+  if (call.status === "NO_ANSWER" || call.status === "FAILED") {
+    if (!call.endedAt) return "0:00";
+    const secs = Math.round((new Date(call.endedAt).getTime() - new Date(call.createdAt).getTime()) / 1000);
+    return fmtDuration(Math.max(0, secs));
+  }
+  return null;
+}
+
 /** "lead" / "client" — the standing word shown after a name. */
 export function standingWord(status: "LEAD" | "ACTIVE" | "ARCHIVED" | undefined): string {
   return status === "LEAD" ? "lead" : status === "ACTIVE" ? "client" : status === "ARCHIVED" ? "archived" : "";
@@ -95,8 +113,7 @@ function Tile({ call }: { call: CallRowData }) {
     cls = "bg-red-50 text-red-600";
     Icon = PhoneMissed;
   } else if (call.status === "NO_ANSWER" || call.status === "FAILED") {
-    cls = "bg-gray-100 text-gray-400";
-    Icon = PhoneOff;
+    cls = "bg-gray-100 text-gray-500";
   } else if (call.status === "COMPLETED" || call.status === "IN_PROGRESS") {
     cls = call.direction === "INBOUND" ? "bg-green-50 text-green-600" : "bg-gray-100 text-gray-700";
   } else if (call.status === "RINGING") {
@@ -115,6 +132,7 @@ export default function CallRow({
   showContact = true,
   tz,
   canCall = false,
+  canText = false,
 }: {
   call: CallRowData;
   showContact?: boolean;
@@ -122,12 +140,15 @@ export default function CallRow({
   tz?: string;
   /** Show "Call back" (the line is on the voice app). */
   canCall?: boolean;
+  /** Show "Text" for known callers (the texting registration is ACTIVE). */
+  canText?: boolean;
 }) {
   const name = call.contact ? `${call.contact.firstName} ${call.contact.lastName}`.trim() : "";
   const number = fmtPhone(call.customerNumber);
   const label = name || number || "Unknown caller";
   const standing = standingWord(call.contact?.status);
-  const s = STATUS[call.status];
+  const onPhone = phoneTime(call);
+  const s = onPhone !== null ? { label: onPhone, tone: "text-gray-700" } : STATUS[call.status];
   const live = call.status === "RINGING" || call.status === "IN_PROGRESS";
   const unseen = !call.seenAt && (call.status === "MISSED" || call.status === "VOICEMAIL");
   const when = fmtTime(call.createdAt, tz);
@@ -141,10 +162,11 @@ export default function CallRow({
           ? "on the cell"
           : "";
   const parts: string[] = [];
-  if (call.status === "COMPLETED" && call.durationSec !== null) parts.push(fmtDuration(call.durationSec));
   if (call.status === "VOICEMAIL" && call.voicemailSec !== null) parts.push(`${fmtDuration(call.voicemailSec)} message`);
   if (who) parts.push(who);
   const showCallBack = canCall && !live && Boolean(call.customerNumber && call.customerNumber !== "unknown");
+  // Once the line can text, a known caller gets a Text button: the thread sends from the business number and replies land back in it.
+  const showText = canText && !live && Boolean(call.contact);
   const events = call.events ?? [];
   const title = showContact ? label : call.direction === "INBOUND" ? "Incoming call" : "Outgoing call";
 
@@ -182,9 +204,20 @@ export default function CallRow({
               );
             })}
             {events.length > 3 && <span className="text-gray-400">+{events.length - 3}</span>}
-            {showCallBack && (
-              <span className="ml-auto">
-                <CallFromLineButton to={call.customerNumber} contactId={call.contact?.id} contactName={label} agentPhone="" compact label="Call back" />
+            {(showCallBack || showText) && (
+              <span className="ml-auto flex items-center gap-2">
+                {showText && call.contact && (
+                  <Link
+                    href={`/app/messages/thread/${call.contact.id}`}
+                    className="btn-tool-line inline-flex items-center gap-1 rounded-[10px] bg-white px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                  >
+                    <MessageSquare size={12} />
+                    Text
+                  </Link>
+                )}
+                {showCallBack && (
+                  <CallFromLineButton to={call.customerNumber} contactId={call.contact?.id} contactName={label} agentPhone="" compact label="Call back" />
+                )}
               </span>
             )}
           </div>

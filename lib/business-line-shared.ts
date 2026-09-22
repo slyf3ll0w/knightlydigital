@@ -148,3 +148,26 @@ export type LineSummary = {
     contactPhone: string;
   };
 };
+
+/**
+ * EIN prefixes (first two digits) the IRS actually issues. Anything else
+ * cannot be a real EIN, and the carrier registry charges $4.50 to discover
+ * that — so it is caught here, on both the form and the server.
+ */
+const EIN_PREFIXES = new Set([
+  "01", "02", "03", "04", "05", "06", "10", "11", "12", "13", "14", "15", "16", "20", "21", "22", "23", "24", "25", "26", "27",
+  "30", "31", "32", "33", "34", "35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46", "47", "48",
+  "50", "51", "52", "53", "54", "55", "56", "57", "58", "59", "60", "61", "62", "63", "64", "65", "66", "67", "68",
+  "71", "72", "73", "74", "75", "76", "77", "80", "81", "82", "83", "84", "85", "86", "87", "88",
+  "90", "91", "92", "93", "94", "95", "98", "99",
+]);
+
+/** Why an EIN can't be filed, or null when it can. Digits only are considered; dashes and spaces are fine. */
+export function einIssue(raw: string | null | undefined): string | null {
+  const digits = (raw ?? "").replace(/\D/g, "");
+  if (digits.length !== 9) return "Enter the 9-digit EIN (XX-XXXXXXX).";
+  if (!EIN_PREFIXES.has(digits.slice(0, 2))) {
+    return "The first two digits aren't a prefix the IRS issues — check the EIN against your IRS letter (CP575 / 147C).";
+  }
+  return null;
+}

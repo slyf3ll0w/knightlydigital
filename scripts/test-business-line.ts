@@ -9,6 +9,7 @@
 import assert from "node:assert/strict";
 import { TelnyxError, isInsufficientFunds } from "@/lib/telnyx";
 import { needsOperatorReview } from "@/lib/business-line";
+import { einIssue } from "@/lib/business-line-shared";
 import {
   deriveRegistration,
   normalizeAreaCode,
@@ -348,4 +349,16 @@ console.log("test-business-line (number rights): all assertions passed");
   assert.equal(needsOperatorReview({ status: "AWAITING_REVIEW" }, false), true, "editing while waiting keeps waiting");
   assert.equal(needsOperatorReview({ status: "QUEUED" }, false), false, "out-of-funds rows never reached Telnyx");
   console.log("test-business-line (operator review): all assertions passed");
+}
+
+// A bad EIN is caught before the $4.50 brand fee, not by the registry.
+{
+  assert.equal(einIssue("12-3456789"), null, "dashes are fine");
+  assert.equal(einIssue("123456789"), null);
+  assert.match(einIssue("12345678") ?? "", /9-digit/);
+  assert.match(einIssue("") ?? "", /9-digit/);
+  assert.match(einIssue("00-1234567") ?? "", /prefix/, "00 is never issued");
+  assert.match(einIssue("07-1234567") ?? "", /prefix/, "07 is never issued");
+  assert.match(einIssue("89-1234567") ?? "", /prefix/, "89 is never issued");
+  console.log("test-business-line (EIN): all assertions passed");
 }
