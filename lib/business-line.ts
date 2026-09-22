@@ -33,6 +33,12 @@
  * account is out of funds, so the form is stored, the operator is emailed,
  * and the hourly sweep (or Check now) files it once funds are back. The
  * tenant never sees Telnyx's billing message.
+ * AWAITING_REVIEW also sits before BRAND_PENDING: nothing has been filed.
+ * Every re-file after a rejection lands here (TCR charges per submission,
+ * and a campaign-stage rejection is the platform's template, not the
+ * tenant's form), as does every first filing when LINE_REGISTRATION_REVIEW=1.
+ * A superadmin approves it (approveRegistration / "line-file"), which files
+ * it — reusing an already-verified brand rather than buying another.
  */
 
 import type { LineRegistrationStatus, MessagingRegistration, Prisma } from "@prisma/client";
@@ -56,7 +62,7 @@ import { deleteSoftphoneResources } from "@/lib/softphone";
 
 import { prisma } from "@/lib/db";
 import { hasAddon } from "@/lib/addon";
-import { alertTelnyxFunds } from "@/lib/ops-alert";
+import { alertOperator, alertTelnyxFunds } from "@/lib/ops-alert";
 import { notifyUsers } from "@/lib/push";
 import { toE164 } from "@/lib/sms";
 import {
@@ -108,6 +114,26 @@ export class LineError extends Error {
     this.status = status;
   }
 }
+
+/** LINE_REGISTRATION_REVIEW=1: every first filing waits for a superadmin too, not just re-files. */
+export function registrationReviewRequired(): boolean {
+  return process.env.LINE_REGISTRATION_REVIEW === "1";
+}
+
+/**
+ * Should this submission wait for the operator instead of filing now? Pure,
+ * pinned by scripts/test-business-line.ts. A re-file after a rejection
+ * always waits (each submission is a carrier fee; a campaign-stage rejection
+ * needs a template fix, not a form fix). A row already waiting keeps waiting
+ * with the newer form. Out-of-funds (QUEUED) rows are first filings that
+ * never reached Telnyx, so they don't.
+ */
+export function needsOperatorReview(prior: { status: LineRegistrationStatus } | null, reviewAll: boolean): boolean {
+  if (prior?.status === "REJECTED" || prior?.status === "AWAITING_REVIEW") return true;
+  return reviewAll;
+}
+
+const VERIFIED_BRAND = new Set(["VERIFIED", "VETTED_VERIFIED"]);
 
 /** What a tenant sees when Telnyx refuses because OUR account is out of funds. */
 export const LINE_PAUSED_MESSAGE =
@@ -630,7 +656,18 @@ type RegCompany = {
   name: string;
   lineNumber: string | null;
   lineType: string | null;
-  messagingRegistration: { id: string; status: LineRegistrationStatus; kind: string; verificationId: string | null } | null;
+  messagingRegistration: {
+    id: string;
+    status: LineRegistrationStatus;
+    kind: string;
+    verificationId: string | null;
+    brandId: string | null;
+    brandStatus: string | null;
+    entityType: string;
+    legalName: string;
+    ein: string | null;
+    rejectionReason: string | null;
+  } | null;
 };
 
 const snapshotOf = (
@@ -661,18 +698,136 @@ export async function submitRegistration(companyId: string, form: RegistrationFo
       addonActiveAt: true,
       lineNumber: true,
       lineType: true,
-      messagingRegistration: { select: { id: true, status: true, kind: true, verificationId: true } },
+      messagingRegistration: {
+        select: {
+          id: true,
+          status: true,
+          kind: true,
+          verificationId: true,
+          brandId: true,
+          brandStatus: true,
+          entityType: true,
+          legalName: true,
+          ein: true,
+          rejectionReason: true,
+        },
+      },
     },
   });
   if (!company) throw new LineError("Company not found.", 404);
   if (!hasAddon(company)) throw new LineError("Texting registration is part of Workbench Plus.", 402);
   if (!isRealLineNumber(company.lineNumber)) throw new LineError("Get a number before registering it for texting.", 409);
   const prior = company.messagingRegistration;
-  if (prior && prior.status !== "REJECTED" && prior.status !== "QUEUED") {
+  if (prior && prior.status !== "REJECTED" && prior.status !== "QUEUED" && prior.status !== "AWAITING_REVIEW") {
     throw new LineError("A registration is already in progress.", 409);
   }
+  if (needsOperatorReview(prior, registrationReviewRequired())) return holdForReview(company, form);
 
   return fileRegistration(company, form);
+}
+
+/**
+ * Store the form and wait for a superadmin instead of filing: nothing is sent
+ * to Telnyx, so nothing is charged. The previous rejection reason stays on
+ * the row for the reviewer; a verified brand stays for reuse.
+ */
+async function holdForReview(company: RegCompany, form: RegistrationForm): Promise<MessagingRegistration> {
+  const prior = company.messagingRegistration;
+  const kind = lineKind(company);
+  const keepBrand = kind === "10DLC" && brandReusable(prior, form);
+  const data: Prisma.MessagingRegistrationUncheckedCreateInput = {
+    companyId: company.id,
+    status: "AWAITING_REVIEW",
+    kind,
+    verificationId: prior?.kind === kind ? prior.verificationId : null,
+    verificationStatus: null,
+    messageVolume: form.messageVolume ?? null,
+    useCase: form.useCase ?? null,
+    entityType: form.entityType,
+    legalName: form.legalName,
+    displayName: form.displayName || form.legalName,
+    ein: form.ein,
+    street: form.street,
+    city: form.city,
+    state: form.state,
+    postalCode: form.postalCode,
+    website: form.website,
+    vertical: form.vertical,
+    contactFirstName: form.contactFirstName,
+    contactLastName: form.contactLastName,
+    contactEmail: form.contactEmail,
+    contactPhone: form.contactPhone,
+    brandId: keepBrand ? prior!.brandId : null,
+    tcrBrandId: keepBrand ? undefined : null,
+    brandStatus: keepBrand ? prior!.brandStatus : null,
+    campaignId: null,
+    tcrCampaignId: null,
+    campaignStatus: null,
+    assignmentStatus: null,
+    rejectionReason: prior?.status === "REJECTED" || prior?.status === "AWAITING_REVIEW" ? prior.rejectionReason : null,
+    submittedAt: new Date(),
+    approvedAt: null,
+    lastCheckedAt: null,
+  };
+  const reg = await prisma.messagingRegistration.upsert({
+    where: { companyId: company.id },
+    create: { ...data, tcrBrandId: null },
+    update: { ...data, companyId: undefined },
+  });
+  console.warn(`[line] ${kind} registration for "${company.name}" (${company.id}) AWAITING_REVIEW${reg.rejectionReason ? " (re-file)" : ""}`);
+  await alertRegistrationReview(company, reg, keepBrand);
+  return reg;
+}
+
+/** An already-verified brand can carry a new campaign; buying another for the same business is a wasted $4.50. */
+function brandReusable(prior: RegCompany["messagingRegistration"], form: RegistrationForm): boolean {
+  return Boolean(
+    prior &&
+      prior.kind === "10DLC" &&
+      prior.brandId &&
+      prior.brandStatus &&
+      VERIFIED_BRAND.has(prior.brandStatus) &&
+      prior.entityType === form.entityType &&
+      prior.legalName === form.legalName &&
+      (prior.ein ?? null) === (form.ein ?? null)
+  );
+}
+
+function appBase(): string {
+  return (process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com").replace(/\/+$/, "");
+}
+
+const escHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+async function alertRegistrationReview(company: RegCompany, reg: MessagingRegistration, brandReused: boolean): Promise<void> {
+  const tollFree = reg.kind === "TOLL_FREE";
+  const fees = tollFree
+    ? "Toll-free verification is free."
+    : brandReused
+      ? "Approving re-uses the verified brand (no charge) and files a campaign: $15 review + $4.50 for the first three months."
+      : "Approving files a brand ($4.50) and, once it verifies, a campaign ($15 review + $4.50 for the first three months).";
+  await alertOperator(
+    `line-review:${company.id}`,
+    `${reg.rejectionReason ? "Re-file" : "Filing"} waiting for your approval — ${company.name}`,
+    `<p><strong>${escHtml(company.name)}</strong> submitted a ${tollFree ? "toll-free verification" : "10DLC texting registration"} that needs your OK before anything is sent to Telnyx.</p>
+<p><strong>Filed as:</strong> ${escHtml(reg.legalName)} (${reg.entityType === "SOLE_PROPRIETOR" ? "sole proprietor" : "EIN " + escHtml(reg.ein ?? "—")})<br>
+${escHtml(reg.street)}, ${escHtml(reg.city)}, ${escHtml(reg.state)} ${escHtml(reg.postalCode)}<br>
+${escHtml(reg.website ?? "no website")} · ${escHtml(reg.contactFirstName)} ${escHtml(reg.contactLastName)} · ${escHtml(reg.contactEmail)} · ${escHtml(reg.contactPhone)}</p>
+${reg.rejectionReason ? `<p><strong>Previous rejection:</strong> ${escHtml(reg.rejectionReason)}</p>` : ""}
+<p><strong>Fees on approval:</strong> ${fees}</p>
+<p>Review and approve: <a href="${appBase()}/superadmin/company/${company.id}">${appBase()}/superadmin/company/${company.id}</a></p>`,
+    5 * 60_000
+  );
+}
+
+/** Superadmin: file a row that is waiting (AWAITING_REVIEW), was rejected, or is queued. The one place a re-file spends money. */
+export async function approveRegistration(companyId: string): Promise<MessagingRegistration> {
+  const reg = await loadRegistration(companyId);
+  if (!reg) throw new LineError("No registration on file.", 404);
+  if (reg.status !== "AWAITING_REVIEW" && reg.status !== "REJECTED" && reg.status !== "QUEUED") {
+    throw new LineError(`Nothing waiting to be filed (status ${reg.status}).`, 409);
+  }
+  return fileFromRow(reg);
 }
 
 /**
@@ -692,6 +847,39 @@ async function fileRegistration(company: RegCompany, form: RegistrationForm): Pr
       if (!isInsufficientFunds(err)) throw err;
       return queueRegistration(company, form, "TOLL_FREE");
     }
+  }
+
+  // A verified brand from an earlier attempt carries the new campaign; only the campaign is re-filed.
+  if (brandReusable(company.messagingRegistration, form)) {
+    const reused = await prisma.messagingRegistration.update({
+      where: { companyId },
+      data: {
+        status: "CAMPAIGN_PENDING",
+        entityType: form.entityType,
+        legalName: form.legalName,
+        displayName: form.displayName || form.legalName,
+        ein: form.ein,
+        street: form.street,
+        city: form.city,
+        state: form.state,
+        postalCode: form.postalCode,
+        website: form.website,
+        vertical: form.vertical,
+        contactFirstName: form.contactFirstName,
+        contactLastName: form.contactLastName,
+        contactEmail: form.contactEmail,
+        contactPhone: form.contactPhone,
+        campaignId: null,
+        tcrCampaignId: null,
+        campaignStatus: null,
+        assignmentStatus: null,
+        rejectionReason: null,
+        submittedAt: new Date(),
+        lastCheckedAt: new Date(),
+      },
+    });
+    console.warn(`[line] brand ${reused.brandId} re-used for "${company.name}" (${companyId}); filing a new campaign`);
+    return advance({ ...reused, company: { id: company.id, name: company.name, lineNumber: company.lineNumber, lineType: company.lineType } });
   }
 
   let brand;
@@ -824,17 +1012,28 @@ async function queueRegistration(company: RegCompany, form: RegistrationForm, ki
 }
 
 /**
- * A QUEUED row: try the filing again from the stored form. Still no funds →
- * stays QUEUED (the alert is deduped). A real rejection now → REJECTED with
- * the reason, so the tenant gets the usual edit-and-resubmit path.
+ * File a stored row (QUEUED via the sweep, AWAITING_REVIEW / REJECTED via a
+ * superadmin). Still no funds → QUEUED again (the alert is deduped). A real
+ * rejection → REJECTED with the reason, then rethrown so the caller sees it.
  */
-async function fileQueued(reg: RegWithCompany): Promise<MessagingRegistration> {
+async function fileFromRow(reg: RegWithCompany): Promise<MessagingRegistration> {
   const company: RegCompany = {
     id: reg.company.id,
     name: reg.company.name,
     lineNumber: reg.company.lineNumber,
     lineType: reg.company.lineType,
-    messagingRegistration: { id: reg.id, status: reg.status, kind: reg.kind, verificationId: reg.verificationId },
+    messagingRegistration: {
+      id: reg.id,
+      status: reg.status,
+      kind: reg.kind,
+      verificationId: reg.verificationId,
+      brandId: reg.brandId,
+      brandStatus: reg.brandStatus,
+      entityType: reg.entityType,
+      legalName: reg.legalName,
+      ein: reg.ein,
+      rejectionReason: reg.rejectionReason,
+    },
   };
   const form: RegistrationForm = {
     entityType: reg.entityType as BrandEntityType,
@@ -858,11 +1057,13 @@ async function fileQueued(reg: RegWithCompany): Promise<MessagingRegistration> {
     return await fileRegistration(company, form);
   } catch (err) {
     if (!(err instanceof LineError)) throw err;
-    console.warn(`[line] queued registration for "${company.name}" rejected on re-file: ${err.message}`);
-    return prisma.messagingRegistration.update({
+    if (err.message === LINE_PAUSED_MESSAGE) throw err; // funds: the row is QUEUED / pending and the sweep retries
+    console.warn(`[line] stored registration for "${company.name}" rejected on filing: ${err.message}`);
+    await prisma.messagingRegistration.update({
       where: { id: reg.id },
       data: { status: "REJECTED", rejectionReason: err.message, lastCheckedAt: new Date() },
     });
+    throw err;
   }
 }
 
@@ -1210,7 +1411,8 @@ export async function refreshRegistration(
   const reg = await loadRegistration(companyId);
   if (!reg) throw new LineError("No registration on file.", 404);
   if (reg.status === "ACTIVE") return reg;
-  if (reg.status === "QUEUED") return fileQueued(reg);
+  if (reg.status === "QUEUED") return fileFromRow(reg);
+  if (reg.status === "AWAITING_REVIEW") return reg; // nothing filed yet; a superadmin approves it
   // A toll-free "REJECTED" may really be "Waiting For Customer", which the
   // reviewer can flip back to In Progress on their own — worth re-reading.
   if (reg.status === "REJECTED" && !(opts.includeRejected && reg.kind === "TOLL_FREE")) return reg;
@@ -1298,6 +1500,20 @@ async function advance(reg: RegWithCompany, brandExtra: Partial<RegistrationSnap
   if (final.status === "ACTIVE" && !reg.approvedAt) patch.approvedAt = new Date();
   if (final.status !== reg.status) {
     console.warn(`[line] "${reg.company.name}": ${reg.status} → ${final.status}${final.reason ? ` (${final.reason})` : ""}`);
+    if (final.status === "REJECTED" && snap.hasCampaign) {
+      // The campaign copy is the platform's template, so this is ours to fix — the tenant gets no resubmit button.
+      await alertOperator(
+        `campaign-rejected:${reg.companyId}`,
+        `10DLC campaign rejected — ${reg.company.name}`,
+        `<p>The carriers rejected the campaign for <strong>${escHtml(reg.company.name)}</strong> (brand ${escHtml(reg.brandId ?? "—")}, verified).</p>
+<p><strong>Reason:</strong> ${escHtml(final.reason ?? "not given")}</p>
+<p>The campaign text comes from the shared template in lib/business-line.ts (campaignCopy); the tenant can't fix it and sees
+"we're sorting it out". After adjusting the copy, re-file from the superadmin console — the verified brand is re-used, so the
+re-file costs the $15 review + $4.50, not another brand.</p>
+<p><a href="${appBase()}/superadmin/company/${reg.companyId}">${appBase()}/superadmin/company/${reg.companyId}</a></p>`,
+        24 * 60 * 60_000
+      );
+    }
   }
   return prisma.messagingRegistration.update({ where: { id: reg.id }, data: patch });
 }

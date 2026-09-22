@@ -4,7 +4,7 @@ import { verifyPasswordForUser } from "@/lib/account";
 import { getSuperadmin } from "@/lib/superadmin";
 import { limit } from "@/lib/rate-limit";
 import { companyHasProtectedUser, deleteCompanyCascade } from "@/lib/company-delete";
-import { LineError, attachExistingNumber, keepLine, releaseLine } from "@/lib/business-line";
+import { LineError, approveRegistration, attachExistingNumber, keepLine, releaseLine } from "@/lib/business-line";
 import { VoiceError, ensureVoiceRouting } from "@/lib/voice";
 
 /**
@@ -63,6 +63,7 @@ export async function PATCH(
     action !== "line-attach" &&
     action !== "line-keep" &&
     action !== "line-voice-sync" &&
+    action !== "line-file" &&
     action !== "addon-grant" &&
     action !== "addon-revoke"
   ) {
@@ -184,6 +185,19 @@ export async function PATCH(
       return NextResponse.json({ success: true });
     } catch (err) {
       if (err instanceof VoiceError) return NextResponse.json({ error: err.message }, { status: err.status });
+      throw err;
+    }
+  }
+
+  // Approve a waiting (or rejected / queued) texting registration: the one
+  // place a re-file spends carrier fees, so it is a person's click.
+  if (action === "line-file") {
+    try {
+      const reg = await approveRegistration(id);
+      console.warn(`[superadmin] texting registration FILED for "${company.name}" (${id}) by ${admin.email} → ${reg.status}`);
+      return NextResponse.json({ success: true, status: reg.status });
+    } catch (err) {
+      if (err instanceof LineError) return NextResponse.json({ error: err.message }, { status: err.status });
       throw err;
     }
   }

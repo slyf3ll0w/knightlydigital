@@ -517,7 +517,7 @@ function Texting({
     setBusy(false);
   }
 
-  if (!reg || ((reg.status === "REJECTED" || reg.status === "QUEUED") && resubmitting)) {
+  if (!reg || ((reg.status === "REJECTED" || reg.status === "QUEUED" || reg.status === "AWAITING_REVIEW") && resubmitting)) {
     return (
       <RegistrationForm
         line={line}
@@ -548,22 +548,54 @@ function Texting({
     );
   }
 
+  if (reg.status === "AWAITING_REVIEW") {
+    return (
+      <div className="space-y-3 rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm">
+        <p className="flex items-center gap-2 font-medium text-sky-900">
+          <Loader2 size={16} className="animate-spin" />
+          We&apos;re checking your details before filing
+        </p>
+        <p className="text-xs text-sky-800">
+          Carrier filings are paid per submission, so someone at Workbench looks over{" "}
+          {reg.rejectionReason ? "a corrected registration" : "each registration"} before it goes out — usually the same
+          business day. Nothing to do on your end; calls and voicemail work now.
+        </p>
+        <button type="button" onClick={() => setResubmitting(true)} className={ghostBtn}>
+          Edit the details
+        </button>
+      </div>
+    );
+  }
+
   if (reg.status === "REJECTED") {
+    // A campaign existed → the carriers rejected the platform's campaign copy, not this business's details.
+    const campaignStage = !tollFree && Boolean(reg.campaignStatus);
     return (
       <div className="space-y-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm">
         <p className="flex items-center gap-2 font-medium text-red-800">
           <AlertTriangle size={16} />
-          {tollFree && (reg.verificationStatus === "Waiting For Customer" || reg.rejectionReason?.toLowerCase().includes("more information"))
-            ? "The reviewer needs more from you"
-            : "The carriers didn't approve texting"}
+          {campaignStage
+            ? "The carriers sent the texting application back"
+            : tollFree && (reg.verificationStatus === "Waiting For Customer" || reg.rejectionReason?.toLowerCase().includes("more information"))
+              ? "The reviewer needs more from you"
+              : "The carriers didn't approve texting"}
         </p>
-        <p className="text-red-700">{reg.rejectionReason}</p>
-        <div className="flex flex-wrap items-center gap-3">
-          <button type="button" onClick={() => setResubmitting(true)} className={primaryBtn}>
-            Edit and resubmit
-          </button>
-          <span className="text-xs text-red-600">Calls keep forwarding either way.</span>
-        </div>
+        {campaignStage ? (
+          <p className="text-red-700">
+            That&apos;s on our side of the paperwork — we&apos;re sorting it out with them and you don&apos;t need to change
+            anything. Calls keep working in the meantime.
+          </p>
+        ) : (
+          <>
+            <p className="text-red-700">{reg.rejectionReason}</p>
+            <div className="flex flex-wrap items-center gap-3">
+              <button type="button" onClick={() => setResubmitting(true)} className={primaryBtn}>
+                Edit and resubmit
+              </button>
+              <span className="text-xs text-red-600">We check corrections before re-filing. Calls keep forwarding either way.</span>
+            </div>
+          </>
+        )}
       </div>
     );
   }

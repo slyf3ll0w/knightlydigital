@@ -8,6 +8,7 @@
  */
 import assert from "node:assert/strict";
 import { TelnyxError, isInsufficientFunds } from "@/lib/telnyx";
+import { needsOperatorReview } from "@/lib/business-line";
 import {
   deriveRegistration,
   normalizeAreaCode,
@@ -337,4 +338,14 @@ console.log("test-business-line (number rights): all assertions passed");
   assert.ok(!isInsufficientFunds(new TelnyxError(422, "Unprocessable entity: ein must be 9 digits")));
   assert.ok(!isInsufficientFunds(new Error("Insufficient funds")), "only Telnyx refusals count");
   console.log("test-business-line (out of funds): all assertions passed");
+}
+
+// Nothing is re-filed on its own: every submission is a carrier fee.
+{
+  assert.equal(needsOperatorReview(null, false), false, "first filing goes straight out");
+  assert.equal(needsOperatorReview(null, true), true, "LINE_REGISTRATION_REVIEW=1 holds first filings too");
+  assert.equal(needsOperatorReview({ status: "REJECTED" }, false), true, "a re-file after a rejection waits");
+  assert.equal(needsOperatorReview({ status: "AWAITING_REVIEW" }, false), true, "editing while waiting keeps waiting");
+  assert.equal(needsOperatorReview({ status: "QUEUED" }, false), false, "out-of-funds rows never reached Telnyx");
+  console.log("test-business-line (operator review): all assertions passed");
 }

@@ -418,6 +418,18 @@ parked as `QUEUED` with the form stored — the hourly sweep and Check now re-fi
 it, and a real rejection on re-file becomes REJECTED with the reason. Planned
 follow-up for launch: `docs/plans/telnyx-balance-watch-2026-09-22.md`.
 
+**No unplanned carrier fees (2026-09-22).** TCR charges per submission ($4.50
+brand, $15 campaign review + $4.50 first quarter), so nothing is ever re-filed
+by itself. `needsOperatorReview`: a submit over a REJECTED or AWAITING_REVIEW
+row (and every first submit when `LINE_REGISTRATION_REVIEW=1`) is stored as
+`AWAITING_REVIEW` — nothing sent to Telnyx — and the operator gets an email
+with the form, the previous reason and the fees. Superadmin "Approve and file"
+(`line-file` → `approveRegistration`) is the one click that spends money; it
+re-uses a VERIFIED brand (same entity/legal name/EIN) and files only the
+campaign. A campaign-stage rejection emails the operator and shows the tenant
+"we're sorting it out" with no resubmit button, because the campaign copy is
+the shared template (`campaignCopy`), not their form.
+
 ## Payment processor (Finix)
 
 Two processors implement the `PaymentProcessor` seam in `lib/payments.ts`,
@@ -517,6 +529,7 @@ TELNYX_MESSAGING_PROFILE_ID=   # every purchased number joins this profile; its 
 TELNYX_PUBLIC_KEY=             # Mission Control → Account → Keys & Credentials → Public Key (webhook signatures)
 TELNYX_10DLC_MOCK=             # "1" on staging: brands/campaigns register as mocks (no TCR fees)
 PLATFORM_ALERT_EMAIL=          # optional: who gets platform alerts (Telnyx out of funds, …); falls back to RECONCILE_ALERT_EMAIL, then the oldest superadmin
+LINE_REGISTRATION_REVIEW=      # "1": every FIRST texting registration also waits for superadmin approval (re-files always do)
 TELNYX_ALLOW_UNREGISTERED=     # "1" on staging: a line may text before its campaign clears (verified numbers only)
 TELNYX_VOICE_APP_ID=           # Call Control application id (scripts/telnyx-voice-setup.ts, one per environment); unset = plain call forwarding
 ```

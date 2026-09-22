@@ -2810,6 +2810,7 @@ model SmsSend {
 //   REJECTED         a step failed — rejectionReason says why; Resubmit starts over
 enum LineRegistrationStatus {
   QUEUED // Telnyx refused the filing for lack of funds on the platform account; form stored, refiled by the hourly sweep
+  AWAITING_REVIEW // form stored, nothing filed: a re-file after a rejection (or every first filing with LINE_REGISTRATION_REVIEW=1) waits for a superadmin — TCR charges per submission
   BRAND_PENDING
   CAMPAIGN_PENDING
   ACTIVE

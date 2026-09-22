@@ -190,8 +190,38 @@ export function LineControl({
                 </dd>
                 {registration.rejectionReason && (
                   <>
-                    <dt className="text-red-600">Rejected</dt>
+                    <dt className="text-red-600">{registration.status === "AWAITING_REVIEW" ? "Previous rejection" : "Rejected"}</dt>
                     <dd className="text-red-700">{registration.rejectionReason}</dd>
+                  </>
+                )}
+                {(registration.status === "AWAITING_REVIEW" || registration.status === "REJECTED" || registration.status === "QUEUED") && (
+                  <>
+                    <dt className="text-gray-500">File with Telnyx</dt>
+                    <dd>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const fees =
+                            registration.kind === "TOLL_FREE"
+                              ? "Toll-free verification is free."
+                              : registration.brandStatus === "VERIFIED" || registration.brandStatus === "VETTED_VERIFIED"
+                                ? "Re-uses the verified brand; files a campaign: $15 review + $4.50."
+                                : "Files a brand ($4.50), then a campaign once verified ($15 review + $4.50).";
+                          if (window.confirm(`Send this registration to Telnyx now? ${fees}`)) void send({ action: "line-file" });
+                        }}
+                        disabled={busy}
+                        className="rounded-lg bg-gray-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-gray-800 disabled:opacity-50"
+                      >
+                        {registration.status === "AWAITING_REVIEW" ? "Approve and file" : "Re-file now"}
+                      </button>
+                      <span className="ml-2 text-[11px] text-gray-500">
+                        {registration.status === "AWAITING_REVIEW"
+                          ? "The tenant is waiting on this — nothing has been sent to Telnyx yet."
+                          : registration.status === "QUEUED"
+                            ? "Queued for funds; the hourly sweep files it on its own, or file it now."
+                            : "Only after the cause is fixed — each submission is a carrier fee."}
+                      </span>
+                    </dd>
                   </>
                 )}
               </>
