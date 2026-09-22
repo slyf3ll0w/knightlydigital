@@ -4,29 +4,53 @@ import { prisma } from "@/lib/db";
 import { requirePageActor, canSell, isManager } from "@/lib/permissions";
 import PageTitle from "@/components/PageTitle";
 import EmptyState from "@/components/EmptyState";
-import CallRow from "@/components/CallRow";
+import CallRow, { type CallRowData } from "@/components/CallRow";
+import LineCard, { type LineStats } from "@/components/LineCard";
+import { FilterRow, FilterChip, SegmentedRow, Segment } from "@/components/FilterChips";
 import { markCallsSeen } from "@/lib/voice";
-import DialFromApp from "@/components/DialFromApp";
+import { fmtDayShort } from "@/lib/format";
 
 /**
- * Calls on the business line (lib/voice.ts): every inbound call — answered,
- * missed, or a voicemail to play right here — and every call placed from
- * the app. Opening the page marks finished calls as seen (bold rows are
- * the missed calls and voicemails nobody has looked at yet).
+ * Calls on the business line (lib/voice.ts): the line sheet up top (number,
+ * where it rings right now, the dialer, a stat strip), then every call
+ * grouped by day — answered, missed, or a voicemail to play right here.
+ * Opening the page marks finished calls as seen (the red-edged rows are the
+ * missed calls and voicemails nobody has looked at yet).
  */
-export default async function CallsPage({ searchParams }: { searchParams: Promise<{ contact?: string }> }) {
+
+type Filter = "all" | "missed" | "voicemail" | "out";
+const FILTERS: Array<[Filter, string]> = [
+  ["all", "All"],
+  ["missed", "Missed"],
+  ["voicemail", "Voicemail"],
+  ["out", "Outgoing"],
+];
+
+/** "Today" / "Yesterday" / "Fri, Sep 19" in the company's zone. */
+function dayKey(d: Date, tz: string): string {
+  return d.toLocaleDateString("en-CA", { timeZone: tz }); // YYYY-MM-DD
+}
+function dayLabel(d: Date, tz: string, now: Date): string {
+  const k = dayKey(d, tz);
+  if (k === dayKey(now, tz)) return "Today";
+  if (k === dayKey(new Date(now.getTime() - 86_400_000), tz)) return "Yesterday";
+  return `${d.toLocaleDateString("en-US", { weekday: "short", timeZone: tz })}, ${fmtDayShort(d, tz)}`;
+}
+
+export default async function CallsPage({ searchParams }: { searchParams: Promise<{ contact?: string; f?: string }> }) {
   const actor = await requirePageActor((a) => canSell(a.role));
-  const { contact: contactId } = await searchParams;
+  const { contact: contactId, f } = await searchParams;
+  const filter: Filter = f === "missed" || f === "voicemail" || f === "out" ? f : "all";
 
   const [company, calls] = await Promise.all([
     prisma.company.findUnique({
       where: { id: actor.companyId },
-      select: { lineNumber: true, lineVoiceAppAt: true },
+      select: { lineNumber: true, lineForwardTo: true, lineVoiceAppAt: true, timezone: true },
     }),
     prisma.call.findMany({
       where: { companyId: actor.companyId, ...(contactId ? { contactId } : {}) },
       orderBy: { createdAt: "desc" },
-      take: 200,
+      take: 300,
       select: {
         id: true,
         direction: true,
@@ -44,29 +68,67 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
       },
     }),
   ]);
+  // Stats are computed from the rows BEFORE they're marked seen, so "not yet seen" is honest for this visit.
+  const now = new Date();
+  const tz = company?.timezone ?? "America/Chicago";
+  const weekAgo = now.getTime() - 7 * 86_400_000;
+  const stats: LineStats = {
+    today: calls.filter((c) => dayKey(c.createdAt, tz) === dayKey(now, tz)).length,
+    missedUnseen: calls.filter((c) => c.status === "MISSED" && !c.seenAt).length,
+    voicemailsUnseen: calls.filter((c) => c.status === "VOICEMAIL" && !c.seenAt).length,
+    talkWeekSec: calls.filter((c) => c.createdAt.getTime() >= weekAgo).reduce((sum, c) => sum + (c.durationSec ?? 0), 0),
+  };
   await markCallsSeen(actor.companyId).catch(() => {});
 
   const hasLine = Boolean(company?.lineNumber && !company.lineNumber.startsWith("pending:"));
+  const routed = hasLine && Boolean(company?.lineVoiceAppAt);
   const filteredContact = contactId ? calls.find((c) => c.contact?.id === contactId)?.contact : null;
+
+  const visible = calls.filter((c) =>
+    filter === "missed"
+      ? c.status === "MISSED" || (c.direction === "INBOUND" && c.status === "NO_ANSWER")
+      : filter === "voicemail"
+        ? c.status === "VOICEMAIL"
+        : filter === "out"
+          ? c.direction === "OUTBOUND"
+          : true
+  );
+  // Group by day, newest first (rows are already newest-first).
+  const groups: Array<{ label: string; rows: CallRowData[] }> = [];
+  for (const c of visible) {
+    const label = dayLabel(c.createdAt, tz, now);
+    const g = groups[groups.length - 1];
+    if (g && g.label === label) g.rows.push(c);
+    else groups.push({ label, rows: [c] });
+  }
+  const href = (k: Filter) => `/app/calls${k === "all" ? "" : `?f=${k}`}${contactId ? `${k === "all" ? "?" : "&"}contact=${contactId}` : ""}`;
 
   return (
     <div className="p-4 lg:p-8 max-w-3xl mx-auto">
-      <PageTitle section="chat" icon={PhoneCall}>
+      <PageTitle
+        section="chat"
+        icon={PhoneCall}
+        sub={
+          filteredContact ? (
+            <>
+              Calls with{" "}
+              <Link href={`/app/contacts/${filteredContact.id}`} className="font-medium text-gray-800 hover:underline">
+                {filteredContact.firstName} {filteredContact.lastName}
+              </Link>{" "}
+              ·{" "}
+              <Link href="/app/calls" className="underline">
+                all calls
+              </Link>
+            </>
+          ) : hasLine ? (
+            "Every call on your business line — answered, missed, or with the voicemail ready to play."
+          ) : undefined
+        }
+      >
         Calls
       </PageTitle>
-      {hasLine && company?.lineVoiceAppAt && <DialFromApp manager={isManager(actor.role)} />}
-      {filteredContact && (
-        <p className="mt-2 text-sm text-gray-500">
-          Calls with{" "}
-          <Link href={`/app/contacts/${filteredContact.id}`} className="font-medium text-gray-800 hover:underline">
-            {filteredContact.firstName} {filteredContact.lastName}
-          </Link>{" "}
-          ·{" "}
-          <Link href="/app/calls" className="underline">
-            all calls
-          </Link>
-        </p>
-      )}
+
+      {routed && company?.lineNumber && <LineCard lineNumber={company.lineNumber} forwardTo={company.lineForwardTo} manager={isManager(actor.role)} stats={stats} />}
 
       {calls.length === 0 ? (
         <div className="mt-6">
@@ -77,11 +139,11 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
             title={hasLine ? "No calls yet" : "No business line yet"}
             body={
               hasLine
-                ? company?.lineVoiceAppAt
+                ? routed
                   ? "Calls to your business line show up here as they happen — answered, missed, or with the voicemail ready to play."
                   : "Your line is still on plain forwarding. Save your ring-through number again in Settings → Features to turn on call announcements and voicemail."
                 : isManager(actor.role)
-                  ? "Get a business line in Settings → Features: a number of your own that rings your cell, announces who's calling, and takes voicemail."
+                  ? "Get a business line in Settings → Features: a number of your own that rings your browser and your cell, announces who's calling, and takes voicemail."
                   : "Ask an owner to set up a business line in Settings → Features."
             }
           />
@@ -94,11 +156,49 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
           )}
         </div>
       ) : (
-        <div className="space-y-2 mt-6">
-          {calls.map((c) => (
-            <CallRow key={c.id} call={c} />
-          ))}
-        </div>
+        <>
+          <div className="mt-6 lg:hidden">
+            <SegmentedRow>
+              {FILTERS.map(([k, label]) => (
+                <Segment key={k} active={filter === k} href={href(k)}>
+                  {label}
+                </Segment>
+              ))}
+            </SegmentedRow>
+          </div>
+          <div className="mt-6 hidden lg:block">
+            <FilterRow>
+              {FILTERS.map(([k, label]) => (
+                <FilterChip key={k} hue="var(--sh-chat)" active={filter === k} href={href(k)}>
+                  {label}
+                </FilterChip>
+              ))}
+            </FilterRow>
+          </div>
+
+          {groups.length === 0 ? (
+            <p className="mt-8 text-center text-sm text-gray-500">
+              {filter === "missed" ? "No missed calls." : filter === "voicemail" ? "No voicemails." : "No outgoing calls yet."}
+            </p>
+          ) : (
+            <div className="mt-2 space-y-6">
+              {groups.map((g) => (
+                <section key={g.label}>
+                  <h2 className="mb-2 flex items-center gap-3 text-xs font-semibold text-gray-500">
+                    {g.label}
+                    <span className="h-px flex-1 bg-gray-200" aria-hidden />
+                    <span className="numeral-ledger font-normal text-gray-400">{g.rows.length}</span>
+                  </h2>
+                  <div className="space-y-2">
+                    {g.rows.map((c) => (
+                      <CallRow key={c.id} call={c} tz={tz} canCall={routed} />
+                    ))}
+                  </div>
+                </section>
+              ))}
+            </div>
+          )}
+        </>
       )}
     </div>
   );

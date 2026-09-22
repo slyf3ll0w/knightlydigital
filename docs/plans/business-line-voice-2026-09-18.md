@@ -123,6 +123,20 @@ was wrong about that; it only applies to a softphone that places PSTN calls).
   (rows + presence + Telnyx resources) and
   `railway variables -s Streamflaire --json | node scripts/diag-telnyx-events.mjs 8`
   (every Telnyx command/webhook with hangup causes and SIP codes).
+- **Calls page redesign (2026-09-22, after the first working calls)**:
+  `LineCard.tsx` — the number as the headline, one sentence saying where a
+  call rings right now (this browser → cell; other tab; switched off; mic
+  blocked), the dialer, a stat strip (today / missed unseen / voicemails
+  unheard / talk time 7 d), a Line settings link for managers. Rows
+  (`CallRow.tsx`) are grouped by day in the company zone (Today / Yesterday /
+  Fri, Sep 19), carry a tinted status tile with a red "new" dot and a red left
+  edge while unseen, show who took the call and where, and offer **Call back**
+  (browser if registered, else the cell flow; `CallFromLineButton` now takes a
+  raw `to`). Filters: All / Missed / Voicemail / Outgoing (`?f=`). The native
+  `<audio controls>` (whose ⋮ menu was Chrome's own download/speed popup, i.e.
+  Windows chrome inside a WorkBench card) is replaced by `VoicemailPlayer.tsx`:
+  play/pause, scrubbable bar, elapsed/total, 1×/1.5×/2×, hidden `<audio
+  preload="none">` behind `/api/app/calls/[id]/voicemail`.
 - **Not built (deliberate)**: ringing the same person on several *devices*
   (each browser profile registers; Telnyx forks to all — should work,
   unverified), a keypad for IVR menus (`call.dtmf` is one line when

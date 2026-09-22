@@ -54,6 +54,7 @@ export default async function ContactDetailPage({
             smsAcknowledgedAt: true,
             lineNumber: true,
             lineForwardTo: true,
+            timezone: true,
             lineVoiceAppAt: true,
             messagingRegistration: { select: { status: true } },
           },
@@ -670,7 +671,7 @@ export default async function ContactDetailPage({
               ) : (
                 <div className="space-y-2">
                   {recentCalls.map((c) => (
-                    <CallRow key={c.id} call={c} showContact={false} />
+                    <CallRow key={c.id} call={c} showContact={false} tz={contact.company.timezone} />
                   ))}
                 </div>
               )}

@@ -373,7 +373,11 @@ free `sms:`/`tel:` deep links (`lib/messaging.ts`) stay free and untouched.
   `A-Za-z0-9 -_~!.+` only (`sipDisplayName`; "(469) …" is a 422). One tab per
   browser (Web Locks); mic requested before the server dials the tab.
   Diagnose from a laptop with `scripts/diag-with-public-db.mjs` /
-  `scripts/diag-telnyx-events.mjs` (see the plan doc).
+  `scripts/diag-telnyx-events.mjs` (see the plan doc). `/app/calls` =
+  `LineCard.tsx` (number, where it rings now, dialer, stat strip) + day-grouped
+  `CallRow.tsx` with `VoicemailPlayer.tsx` (custom controls — never the
+  native `<audio controls>`, its ⋮ menu is browser chrome) and Call back
+  (`CallFromLineButton` with `to`); filters `?f=missed|voicemail|out`.
 - **Not built yet**: native ringing with the app closed (tier 3 — mic
   permissions already in the native projects), voicemail transcription,
   missed-call text-back, business-hours routing, port-in, call transfer.

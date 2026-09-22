@@ -16,20 +16,27 @@ import { softphone, softphoneIdle, useSoftphone } from "@/lib/softphone-client";
  *                     call, then rings the client and bridges — so the
  *                     button's whole job is to say "pick up your phone".
  *
- * The plain tel: Call button next to it still dials from the personal cell
- * for free.
+ * Target is a contact (`contactId`) or a raw number (`to`, e.g. "Call back"
+ * on a Calls row from an unknown caller). The plain tel: Call button next to
+ * it still dials from the personal cell for free.
  */
 export default function CallFromLineButton({
   contactId,
+  to,
   contactName,
   agentPhone,
   compact = false,
+  label,
 }: {
-  contactId: string;
+  contactId?: string | null;
+  /** E.164 / any dialable number when there is no contact. */
+  to?: string | null;
   contactName: string;
   /** Pretty-printed cell that will ring (from My Profile or the line's ring-through number); "" when there is none. */
   agentPhone: string;
   compact?: boolean;
+  /** Override the button text (e.g. "Call back"). */
+  label?: string;
 }) {
   const sp = useSoftphone();
   const inApp = softphoneIdle(sp);
@@ -42,19 +49,21 @@ export default function CallFromLineButton({
     return () => clearTimeout(t);
   }, [state]);
 
+  const target = contactId ? { contactId } : { to: to ?? null };
+
   async function call() {
     setState("busy");
     setError("");
     try {
       if (inApp) {
-        await softphone.placeCall({ contactId, label: contactName });
+        await softphone.placeCall({ ...target, label: contactName });
         setState("idle");
         return;
       }
       const res = await fetch("/api/app/line/call", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contactId }),
+        body: JSON.stringify(target),
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) throw new Error(data.error || "Couldn't place the call.");
@@ -65,16 +74,17 @@ export default function CallFromLineButton({
     }
   }
 
-  // Cell flow needs a cell to ring; the in-app flow doesn't.
-  const disabled = state === "busy" || state === "ringing" || (!inApp && !agentPhone) || (sp.status === "ready" && !!sp.call);
+  // The cell flow needs a cell to ring only when we know there is none; the server still checks.
+  const disabled = state === "busy" || state === "ringing" || (sp.status === "ready" && !!sp.call);
 
   const cls = compact
-    ? "flex items-center justify-center gap-1.5 flex-1 px-3 py-1.5 btn-tool-line bg-white text-xs font-medium text-gray-700 rounded-[10px] hover:bg-gray-50 transition-colors disabled:opacity-60"
+    ? "flex items-center justify-center gap-1.5 px-3 py-1.5 btn-tool-line bg-white text-xs font-medium text-gray-700 rounded-[10px] hover:bg-gray-50 transition-colors disabled:opacity-60"
     : "flex items-center gap-1.5 px-4 py-2 btn-tool-line bg-white text-sm font-semibold text-gray-700 rounded-[10px] hover:bg-gray-50 transition-colors disabled:opacity-60";
   const size = compact ? 12 : 14;
+  const text = state === "ringing" ? "Pick up your phone" : label ?? (inApp ? "Call in app" : "Call from line");
 
   return (
-    <div className={compact ? "flex-1 min-w-0" : "relative"}>
+    <div className={compact ? "min-w-0" : "relative"}>
       <button
         type="button"
         onClick={call}
@@ -85,7 +95,7 @@ export default function CallFromLineButton({
             ? `Call ${contactName} from this browser. They see your business number.`
             : agentPhone
               ? `Ring ${agentPhone} first, then connect ${contactName}. They see your business number.`
-              : "Add your cell under My Profile, or open WorkBench on a computer to call in the app."
+              : `Ring your cell first, then connect ${contactName}. They see your business number.`
         }
       >
         {state === "busy" ? (
@@ -97,11 +107,11 @@ export default function CallFromLineButton({
         ) : (
           <PhoneOutgoing size={size} />
         )}
-        {state === "ringing" ? "Pick up your phone" : inApp ? "Call in app" : "Call from line"}
+        {text}
       </button>
       {state === "ringing" && !compact && (
         <p className="absolute left-0 top-full mt-1 whitespace-nowrap text-[11px] text-gray-500">
-          Ringing {agentPhone} — press 1 to connect.
+          Ringing {agentPhone || "your cell"} — press 1 to connect.
         </p>
       )}
       {state === "error" && (
