@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Loader2, Phone, PhoneCall } from "lucide-react";
+import { Loader2, Mic, Phone, PhoneCall } from "lucide-react";
 import { softphone, softphoneIdle, useSoftphone } from "@/lib/softphone-client";
 
 /**
@@ -25,7 +25,9 @@ export default function DialFromApp({ manager }: { manager: boolean }) {
           ? "In the app, calls ring on your phone. Open WorkBench on a computer to take them in the browser."
           : s.reason === "unsupported"
             ? "This browser can't take calls (no microphone / WebRTC support)."
-            : null;
+            : s.reason === "other_tab"
+              ? "Calls are ringing in your other WorkBench tab. Close it to take them here."
+              : null;
     if (!why) return null;
     return (
       <p className="mt-3 text-xs text-gray-500">
@@ -102,7 +104,22 @@ export default function DialFromApp({ manager }: { manager: boolean }) {
           {error}
         </p>
       )}
-      {s.status === "ready" && !s.call && (
+      {s.status === "ready" && s.mic === "denied" && (
+        <p className="mt-2 text-xs text-red-700" role="alert">
+          The microphone is blocked for this site, so calls can&apos;t be taken here. Click the icon left of the address bar, allow the
+          microphone, then reload.
+        </p>
+      )}
+      {s.status === "ready" && s.mic === "prompt" && !s.call && (
+        <button
+          type="button"
+          onClick={() => void softphone.requestMic()}
+          className="mt-2 inline-flex items-center gap-1.5 rounded-[10px] border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-900 hover:bg-amber-100"
+        >
+          <Mic size={12} /> Allow the microphone now so the first call doesn&apos;t stall on the prompt
+        </button>
+      )}
+      {s.status === "ready" && !s.call && s.mic !== "denied" && (
         <p className="mt-2 text-xs text-gray-500 flex items-center gap-1">
           <Phone size={11} /> Calls from here show your business number. Nobody answers in a browser within 15 seconds → the cell rings
           {manager ? " (the ring-through number in Settings → Features)" : ""}.

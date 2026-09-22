@@ -26,15 +26,19 @@ export type SoftphoneCall = {
   muted: boolean;
 };
 
+export type MicState = "unknown" | "prompt" | "granted" | "denied";
+
 export type SoftphoneState = {
   status: SoftphoneStatus;
-  /** Why it's off: "voice" | "line" | "addon" | "role" | "disabled" | "native" | "unsupported". */
+  /** Why it's off: "voice" | "line" | "addon" | "role" | "disabled" | "native" | "unsupported" | "other_tab". */
   reason: string | null;
   call: SoftphoneCall | null;
   error: string | null;
+  /** Microphone permission for this site — "prompt" means the browser will ask on the first call. */
+  mic: MicState;
 };
 
-const INITIAL: SoftphoneState = { status: "off", reason: null, call: null, error: null };
+const INITIAL: SoftphoneState = { status: "off", reason: null, call: null, error: null, mic: "unknown" };
 let state: SoftphoneState = INITIAL;
 const listeners = new Set<() => void>();
 
@@ -75,6 +79,8 @@ export type SoftphoneController = {
   toggleMute(): void;
   toggleHold(): void;
   placeCall(target: PlaceCallTarget): Promise<void>;
+  /** Ask the browser for the microphone now (needs a click), so the first call doesn't stall on the prompt. */
+  requestMic(): Promise<boolean>;
 };
 
 let controller: SoftphoneController | null = null;
@@ -96,6 +102,7 @@ export const softphone = {
   toggleMute: () => controller?.toggleMute(),
   toggleHold: () => controller?.toggleHold(),
   placeCall: (target: PlaceCallTarget): Promise<void> => (controller ? controller.placeCall(target) : Promise.reject(notConnected())),
+  requestMic: (): Promise<boolean> => (controller ? controller.requestMic() : Promise.resolve(false)),
 };
 
 export function fmtElapsed(startedAt: number | null, now: number): string {

@@ -136,6 +136,31 @@ export function outboundWhisperText(businessName: string, callee: string): strin
   return `Press 1 to call ${callee} from your ${businessName} line.`;
 }
 
+/**
+ * Telnyx `from_display_name` (what the softphone shows as the caller name)
+ * allows ≤128 chars of letters, digits, spaces and -_~!.+ — nothing else, and
+ * a 422 rejects the whole dial (that is how the first live test lost its
+ * browser legs: "(469) 833-5853" has parentheses). A number-looking label
+ * becomes 469-833-5853; anything else is stripped to the allowed set.
+ */
+export function sipDisplayName(label: string | null | undefined): string | undefined {
+  const raw = (label ?? "").trim();
+  if (!raw) return undefined;
+  const digits = raw.replace(/\D/g, "");
+  const numberLike = /^[\d\s()+.\-]+$/.test(raw) && digits.length >= 10;
+  let base = raw;
+  if (numberLike) {
+    const local = digits.length === 11 && digits.startsWith("1") ? digits.slice(1) : digits;
+    base = local.length === 10 ? `${local.slice(0, 3)}-${local.slice(3, 6)}-${local.slice(6)}` : local;
+  }
+  const clean = base
+    .replace(/[^A-Za-z0-9 \-_~!.+]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 128);
+  return clean || undefined;
+}
+
 export function greetingFor(businessName: string, custom: string | null | undefined): string {
   const c = (custom ?? "").trim();
   return c || defaultVoicemailGreeting(businessName);
@@ -492,7 +517,7 @@ async function ringSoftphones(call: CallRow, targets: RingTarget[]): Promise<num
       const leg = await dialCall({
         to: sipUri(t.sipUsername),
         from: call.company.lineNumber!,
-        fromDisplayName: label,
+        fromDisplayName: sipDisplayName(label),
         customHeaders: [{ name: "X-WB-Call-Id", value: call.id }],
         clientState: encodeState({ callId: call.id, leg: "app", stage: "ring", userId: t.userId }),
         timeoutSecs: APP_RING_SECS,
@@ -853,7 +878,7 @@ export async function startOutboundCall(
             // The browser auto-answers its own outbound call (components/Softphone.tsx matches X-WB-Call-Id).
             to: sipUri(softphone.sipUsername),
             from: company.lineNumber,
-            fromDisplayName: calleeName || fmtPhone(customerNumber) || customerNumber,
+            fromDisplayName: sipDisplayName(calleeName || customerNumber),
             customHeaders: [
               { name: "X-WB-Call-Id", value: call.id },
               { name: "X-WB-Outbound", value: "1" },

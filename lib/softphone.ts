@@ -36,6 +36,7 @@ import {
   createTelephonyCredential,
   deleteCredentialConnection,
   deleteTelephonyCredential,
+  ensureSipUriCalling,
   voiceConfigured,
 } from "@/lib/telnyx";
 
@@ -88,9 +89,22 @@ export function canUseSoftphone(role: Role): boolean {
 
 /* ───────────────────────── Telnyx resources ───────────────────────── */
 
+/** Connections already checked for sip_uri_calling_preference in this process (one Telnyx GET per company per deploy). */
+const sipUriChecked = new Set<string>();
+
 /** The company's credential connection, created on first use. */
 async function ensureSipConnection(company: { id: string; name: string; lineSipConnectionId: string | null }): Promise<string> {
-  if (company.lineSipConnectionId) return company.lineSipConnectionId;
+  if (company.lineSipConnectionId) {
+    // Connections made before 2026-09-21 were created without SIP URI calling; a dial at them got 403. Heal once.
+    if (!sipUriChecked.has(company.lineSipConnectionId)) {
+      sipUriChecked.add(company.lineSipConnectionId);
+      await ensureSipUriCalling(company.lineSipConnectionId).catch((err) => {
+        sipUriChecked.delete(company.lineSipConnectionId!);
+        console.error("[softphone] sip_uri_calling repair failed:", err);
+      });
+    }
+    return company.lineSipConnectionId;
+  }
   const conn = await createCredentialConnection(`WorkBench softphone · ${company.name} (${company.id})`);
   // Two browsers racing here would create two connections; keep the first
   // one that landed and drop ours.

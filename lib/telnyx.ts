@@ -418,6 +418,11 @@ export const sipUri = (username: string): string => `sip:${username}@${SIP_DOMAI
  * own username/password are never used by anyone — telephony credentials
  * (below) are what the browsers log in with — so they are random and
  * forgotten.
+ *
+ * sip_uri_calling_preference MUST be "internal": it is what lets a dial to
+ * sip:<credential>@sip.telnyx.com from our own Call Control app reach the
+ * registered browser. At the default (disabled) Telnyx answers every such
+ * dial with SIP 403 after ~300 ms — the 2026-09-21 live test.
  */
 export async function createCredentialConnection(name: string): Promise<{ id: string }> {
   const out = await call<{ data?: { id?: string } }>("POST", "/credential_connections", {
@@ -425,9 +430,19 @@ export async function createCredentialConnection(name: string): Promise<{ id: st
     user_name: `wb${randomAlnum(24)}`,
     password: randomAlnum(40),
     active: true,
+    sip_uri_calling_preference: "internal",
   });
   if (!out.data?.id) throw new TelnyxError(502, "No credential connection id returned");
   return { id: out.data.id };
+}
+
+/** Idempotent repair for a connection created before the preference was set (lib/softphone.ts runs it once per company per process). */
+export async function ensureSipUriCalling(connectionId: string): Promise<void> {
+  const out = await call<{ data?: { sip_uri_calling_preference?: string | null } }>("GET", `/credential_connections/${encodeURIComponent(connectionId)}`);
+  const pref = out.data?.sip_uri_calling_preference;
+  if (pref === "internal" || pref === "unrestricted") return;
+  await call("PATCH", `/credential_connections/${encodeURIComponent(connectionId)}`, { sip_uri_calling_preference: "internal" });
+  console.warn(`[telnyx] credential connection ${connectionId}: sip_uri_calling_preference ${pref ?? "unset"} → internal`);
 }
 
 export async function deleteCredentialConnection(id: string): Promise<void> {

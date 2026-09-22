@@ -19,6 +19,7 @@ import {
   outboundWhisperText,
   partyLabel,
   sanitizeGreeting,
+  sipDisplayName,
   spokenNumber,
   staleCallPlan,
   statusAfterCustomerHangup,
@@ -60,6 +61,21 @@ assert.equal(greetingFor("Streamflaire", null), defaultVoicemailGreeting("Stream
 assert.equal(greetingFor("Streamflaire", "   "), defaultVoicemailGreeting("Streamflaire"));
 assert.equal(greetingFor("Streamflaire", "Leave it after the beep."), "Leave it after the beep.");
 assert.match(defaultVoicemailGreeting("Acme Plumbing"), /reached Acme Plumbing/);
+
+// ── SIP display name (Telnyx from_display_name charset) ──────────────────────
+const SIP_NAME_OK = /^[A-Za-z0-9 \-_~!.+]{1,128}$/;
+for (const s of ["(469) 833-5853", "+14698335853", "4698335853", "Maria O'Brien", "José Núñez & Sons, LLC", "Unknown caller · (214) 555-0100", "x".repeat(200)]) {
+  const out = sipDisplayName(s);
+  assert.ok(out && SIP_NAME_OK.test(out), `${JSON.stringify(s)} → ${JSON.stringify(out)} must satisfy the Telnyx charset`);
+}
+assert.equal(sipDisplayName("(469) 833-5853"), "469-833-5853");
+assert.equal(sipDisplayName("+14698335853"), "469-833-5853");
+assert.equal(sipDisplayName("Maria O'Brien"), "Maria OBrien");
+assert.equal(sipDisplayName("Maria Lopez"), "Maria Lopez");
+assert.equal(sipDisplayName(""), undefined);
+assert.equal(sipDisplayName("((("), undefined);
+assert.equal(sipDisplayName(null), undefined);
+assert.equal(sipDisplayName("x".repeat(200))!.length, 128);
 
 // ── greeting sanitizer ───────────────────────────────────────────────────────
 assert.equal(sanitizeGreeting(""), null);

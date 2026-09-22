@@ -42,6 +42,18 @@ import type { TelnyxRTC as TelnyxRTCType } from "@telnyx/webrtc";
  * spawned the next one, the dialer flickered, and the grant route's rate
  * limit tripped.
  *
+ * One registration per browser (Web Locks `wb-softphone`): Telnyx forks an
+ * INVITE to every registration of the credential, and two tabs answering the
+ * same call is a SIP 486 race the SDK documents. The tab holding the lock runs
+ * the softphone; the others say so and take over the moment it closes. An
+ * outbound leg placed from ANOTHER tab/device (X-WB-Outbound header, or the
+ * row lookup saying OUTBOUND) is left alone — neither answered nor rejected —
+ * so the placing browser's answer wins cleanly.
+ *
+ * Microphone: the permission state is read on registration; the Calls page
+ * offers to grant it up front, and a call placed from here asks for it BEFORE
+ * the server dials, so the INVITE never times out behind the browser prompt.
+ *
  * Presence is a heartbeat every 30 s while registered and a beacon on
  * pagehide (lib/softphone.ts decides who rings from it). Native shells
  * never register — a phone is a cell until tier 3 (CallKit / foreground
@@ -194,6 +206,32 @@ export default function Softphone() {
       setSoftphoneState({ call: null });
     };
 
+    const checkMic = async () => {
+      try {
+        if (!navigator.permissions?.query) return;
+        const st = await navigator.permissions.query({ name: "microphone" as PermissionName });
+        const apply = () => {
+          if (!unmounted) setSoftphoneState({ mic: st.state === "granted" ? "granted" : st.state === "denied" ? "denied" : "prompt" });
+        };
+        apply();
+        st.onchange = apply;
+      } catch {
+        /* Firefox/Safari may refuse the query — the SDK prompts on the first call */
+      }
+    };
+    const requestMic = async (): Promise<boolean> => {
+      try {
+        const s = await navigator.mediaDevices.getUserMedia({ audio: true });
+        s.getTracks().forEach((t) => t.stop());
+        setSoftphoneState({ mic: "granted", error: null });
+        return true;
+      } catch (err) {
+        console.warn("[softphone] microphone refused", err);
+        setSoftphoneState({ mic: "denied", error: "Microphone access was refused — allow it for this site (icon left of the address bar), then reload." });
+        return false;
+      }
+    };
+
     const onIncoming = (call: RtcCall) => {
       const callId = header(call, "X-WB-Call-Id");
       // The user cancelled this outbound call before its INVITE reached us.
@@ -207,12 +245,16 @@ export default function Softphone() {
         void call.hangup();
         return;
       }
-      callRef.current = call;
       const pending = pendingOutbound.current;
-      const outbound =
-        header(call, "X-WB-Outbound") === "1" ||
-        (pending !== null && (callId === pending.callId || Date.now() - pending.at < OUTBOUND_INVITE_WAIT_MS));
-      if (outbound) {
+      const mine = pending !== null && (callId === pending.callId || (!callId && Date.now() - pending.at < OUTBOUND_INVITE_WAIT_MS));
+      if (header(call, "X-WB-Outbound") === "1" && !mine) {
+        // An outbound call placed from another tab/device: neither answer nor reject —
+        // Telnyx cancels this fork the moment the placing browser answers.
+        console.info("[softphone] outbound leg placed elsewhere; ignoring", callId ?? "");
+        return;
+      }
+      callRef.current = call;
+      if (mine) {
         // Our own outbound call arriving at this tab: pick up, the server dials the customer next.
         pendingOutbound.current = null;
         if (inviteWatch) clearTimeout(inviteWatch);
@@ -251,8 +293,16 @@ export default function Softphone() {
       // Our own row is the truth about who this is (contact link, formatted number).
       fetch(`/api/app/line/softphone/call${callId ? `?id=${encodeURIComponent(callId)}` : ""}`, { cache: "no-store" })
         .then((r) => (r.ok ? r.json() : null))
-        .then((j: { call?: { id: string; label: string; number: string; contactId: string | null } | null } | null) => {
+        .then((j: { call?: { id: string; label: string; number: string; contactId: string | null; direction?: string } | null } | null) => {
           if (!j?.call || callRef.current !== call) return;
+          if (j.call.direction === "OUTBOUND") {
+            // Headers didn't make it through the SDK, but the row says this is an outbound call placed elsewhere.
+            console.info("[softphone] ringing leg belongs to an outbound call placed elsewhere; ignoring");
+            callRef.current = null;
+            stopRinger();
+            setSoftphoneState({ call: null });
+            return;
+          }
           patchSoftphoneCall({ callId: j.call.id, label: j.call.label, number: j.call.number, contactId: j.call.contactId });
         })
         .catch(() => {});
@@ -321,6 +371,7 @@ export default function Softphone() {
         attempt = 0;
         clearFallback();
         setSoftphoneState({ status: "ready", error: null, reason: null });
+        void checkMic();
         void beat(true);
         stopHeartbeat();
         heartbeat = setInterval(() => void beat(true), HEARTBEAT_MS);
@@ -383,7 +434,12 @@ export default function Softphone() {
         const c = callRef.current;
         if (!c || c.state !== "ringing") return;
         stopRinger();
-        void c.answer();
+        // Get the microphone first: a permission prompt inside the SDK's answer() would race the INVITE's timeout.
+        void (getSoftphoneState().mic === "granted" ? Promise.resolve(true) : requestMic()).then((ok) => {
+          if (callRef.current !== c) return;
+          if (ok) void c.answer();
+          else void c.hangup();
+        });
       },
       decline: () => {
         if (callRef.current) void callRef.current.hangup();
@@ -413,9 +469,14 @@ export default function Softphone() {
         if (c.state === "held") void c.unhold().then(() => patchSoftphoneCall({ state: "active" }));
         else void c.hold();
       },
+      requestMic,
       placeCall: async (target: PlaceCallTarget) => {
         if (!clientRef.current || getSoftphoneState().status !== "ready") throw new Error("The softphone isn't connected.");
         if (callRef.current || getSoftphoneState().call) throw new Error("You're already on a call.");
+        // Microphone BEFORE the server dials this tab, so the INVITE isn't answered late (or never) behind the prompt.
+        if (getSoftphoneState().mic !== "granted" && !(await requestMic())) {
+          throw new Error("Microphone access is needed to call from the browser — allow it and try again, or use Call from line to ring your cell.");
+        }
         const res = await fetch("/api/app/line/call", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -460,10 +521,39 @@ export default function Softphone() {
       }
     };
     window.addEventListener("pagehide", goodbye);
-    void connect();
+
+    // One registration per browser (see the header comment). The tab that holds
+    // the lock connects; any other waits, says so, and connects when it's freed.
+    let releaseLock: (() => void) | null = null;
+    const holdLock = () =>
+      new Promise<void>((done) => {
+        releaseLock = done;
+      });
+    const locks = navigator.locks;
+    if (locks?.request) {
+      void locks
+        .request("wb-softphone", { ifAvailable: true }, async (lock) => {
+          if (unmounted) return;
+          if (lock) {
+            void connect();
+            await holdLock();
+            return;
+          }
+          setSoftphoneState({ status: "off", reason: "other_tab" });
+          await locks.request("wb-softphone", async () => {
+            if (unmounted) return;
+            void connect();
+            await holdLock();
+          });
+        })
+        .catch(() => void connect());
+    } else {
+      void connect();
+    }
 
     return () => {
       unmounted = true;
+      releaseLock?.();
       window.removeEventListener("pagehide", goodbye);
       if (retry) clearTimeout(retry);
       if (inviteWatch) clearTimeout(inviteWatch);

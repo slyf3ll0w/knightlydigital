@@ -100,9 +100,32 @@ was wrong about that; it only applies to a softphone that places PSTN calls).
   `CallLeg` (one per browser leg), `Company.lineSipConnectionId`,
   `User.softphoneEnabled` / `softphoneSeenAt` / `sipCredentialId` / `sipUsername`.
   **`db:push` before deploy.** No new env var.
-- **Not built (deliberate)**: ringing more than one *tab* per person
-  (Telnyx forks INVITEs to every registration of a credential, so it may just
-  work — unverified), a keypad for IVR menus (`call.dtmf` is one line when
+- **What the first live test (2026-09-21) taught, all fixed the same night**:
+  1. `credential_connections` need `sip_uri_calling_preference: "internal"` or
+     Telnyx answers a Call Control dial at `sip:<cred>@sip.telnyx.com` with
+     **SIP 403 after ~300 ms** (`user_busy` in the webhook). Set on creation;
+     `ensureSipUriCalling` heals older connections once per process.
+  2. `from_display_name` only allows `A-Za-z0-9 -_~!.+` — "(469) 833-5853"
+     is a **422 that rejects the whole dial**. `sipDisplayName` (tested)
+     turns numbers into 469-833-5853 and strips the rest.
+  3. The WebRTC SDK reconnects by itself and fires `telnyx.socket.close` on
+     our own `disconnect()`; reconnecting on that event looped (dialer
+     flicker, grant 429). Generation guard + SDK-first with a 45 s fallback.
+  4. Two tabs = two registrations = both get the INVITE and a 486 race when
+     both answer (SDK docs). One tab per browser via Web Locks
+     (`wb-softphone`); the others show "ringing in your other tab". An
+     outbound leg placed elsewhere is neither answered nor rejected.
+  5. The browser asks for the microphone BEFORE the server dials it, and the
+     Calls page offers to grant it up front; a Cancel before the INVITE lands
+     hangs the server-side call up (`DELETE /api/app/line/call`).
+  Diagnosis from a laptop, read-only:
+  `{ railway variables -s Streamflaire --json; echo "<<<SEP>>>"; railway variables -s Postgres --json; } | node scripts/diag-with-public-db.mjs 8`
+  (rows + presence + Telnyx resources) and
+  `railway variables -s Streamflaire --json | node scripts/diag-telnyx-events.mjs 8`
+  (every Telnyx command/webhook with hangup causes and SIP codes).
+- **Not built (deliberate)**: ringing the same person on several *devices*
+  (each browser profile registers; Telnyx forks to all — should work,
+  unverified), a keypad for IVR menus (`call.dtmf` is one line when
   needed), transfer between team members, per-user ring order, and a nav badge
   while a call is ringing on another page (the card is fixed-position, so it's
   visible everywhere already).

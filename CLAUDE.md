@@ -366,7 +366,14 @@ free `sms:`/`tel:` deep links (`lib/messaging.ts`) stay free and untouched.
   (`Softphone.tsx`, mounted in the platform layout when the line is routed),
   "Call in app" on contacts, the `/app/calls` dialer (`DialFromApp.tsx`), My
   Profile → Calls in the app (`User.softphoneEnabled`). Native shells never
-  register (`nativePlatform()`) — a phone stays a cell until tier 3.
+  register (`nativePlatform()`) — a phone stays a cell until tier 3. Two
+  Telnyx rules that cost a live test: the credential connection needs
+  `sip_uri_calling_preference: "internal"` (else SIP 403 on every browser
+  dial; `ensureSipUriCalling` heals old ones) and `from_display_name` is
+  `A-Za-z0-9 -_~!.+` only (`sipDisplayName`; "(469) …" is a 422). One tab per
+  browser (Web Locks); mic requested before the server dials the tab.
+  Diagnose from a laptop with `scripts/diag-with-public-db.mjs` /
+  `scripts/diag-telnyx-events.mjs` (see the plan doc).
 - **Not built yet**: native ringing with the app closed (tier 3 — mic
   permissions already in the native projects), voicemail transcription,
   missed-call text-back, business-hours routing, port-in, call transfer.
