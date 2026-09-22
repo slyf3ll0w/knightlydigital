@@ -68,6 +68,13 @@ export type EstimatorInputBase = {
   showWhen?: string;
   /** Picture shown above the question (uploaded in the editor). */
   image?: string;
+  /**
+   * Atlas answers this one from the job description / photo at run time (a
+   * metered call, the business's tokens) — for things a human estimator
+   * would have to LOOK at: condition, access, scope. The person can always
+   * override it. Any askAtlas input turns `assist` on for the tool.
+   */
+  askAtlas?: boolean;
 };
 
 export type EstimatorInput =
@@ -93,6 +100,8 @@ export type EstimatorInput =
   | (EstimatorInputBase & { type: "select"; options: EstimatorOption[]; default?: string; required?: boolean; style?: "list" | "cards" | "packages" })
   /** Pick several — the value is a list of option values (has(), count(), join()). */
   | (EstimatorInputBase & { type: "multi"; options: EstimatorOption[]; default?: string[]; required?: boolean })
+  /** Pick items AND how many of each ("3 standard windows, 1 picture window") — the value is a table {optionValue: count} (qty(), total(), has(), count()). */
+  | (EstimatorInputBase & { type: "counts"; options: EstimatorOption[]; required?: boolean; max?: number })
   /** The customer draws on a satellite map: a fence line (length → ft) or a lawn/roof/driveway (area → sq ft). The value is the number. */
   | (EstimatorInputBase & { type: "map"; measure: "length" | "area"; min?: number; max?: number; required?: boolean })
   | (EstimatorInputBase & { type: "toggle"; default?: boolean })
@@ -121,7 +130,7 @@ export type EstimatorLine = {
 };
 
 /** A worked example the builder tests with and the owner can replay ("Typical job"). */
-export type EstimatorSample = { label: string; inputs: Record<string, string | number | boolean | string[]> };
+export type EstimatorSample = { label: string; inputs: Record<string, string | number | boolean | string[] | Record<string, number>> };
 
 export type EstimatorAssist = {
   /** Extra guidance for the model when it fills inputs from a description. */
@@ -513,8 +522,12 @@ export function priceBookRefsIn(n: Node, out = new Set<string>()): Set<string> {
 export const FUNCTIONS = [
   "min", "max", "round", "floor", "ceil", "abs", "sqrt", "if", "clamp", "tier", "lookup",
   "price", "cost", "pct", "roundTo", "len", "contains", "lower", "number",
-  "has", "count", "sum", "join",
+  "has", "count", "sum", "join", "qty", "total",
 ] as const;
+
+/** A counts input's value: option value → how many. */
+type CountsTable = { [k: string]: Value };
+const isTable = (v: Value): v is CountsTable => v !== null && typeof v === "object" && !Array.isArray(v);
 
 export type EvalCtx = {
   vars: Record<string, Value>;
@@ -718,12 +731,29 @@ export function evaluate(node: Node, ctx: EvalCtx, depth = 0): Value {
           if (args.length !== 2) throw new ExprError(`${fn}(list_or_text, value) takes 2 arguments`);
           const needle = String(args[1] ?? "").trim().toLowerCase();
           if (Array.isArray(args[0])) return args[0].some((x) => String(x ?? "").trim().toLowerCase() === needle);
+          // on a counts table: is that item counted at all?
+          if (isTable(args[0])) return Object.entries(args[0]).some(([k, v]) => k.trim().toLowerCase() === needle && n(v, "count") > 0);
           return String(args[0] ?? "").toLowerCase().includes(needle);
         }
         case "count": {
-          // count(picks) — how many were picked; count(a, b, c) — how many arguments are truthy
+          // count(picks) — how many were picked; count(counts) — how many item kinds have a count; count(a, b, c) — how many arguments are truthy
           if (args.length === 1 && Array.isArray(args[0])) return args[0].length;
+          if (args.length === 1 && isTable(args[0])) return Object.values(args[0]).filter((v) => n(v, "count") > 0).length;
           return args.filter((a) => truthy(a)).length;
+        }
+        case "qty": {
+          // qty(counts, 'value') — how many of one item on a counts question (0 when none)
+          if (args.length !== 2) throw new ExprError("qty(counts, 'item') takes 2 arguments");
+          if (!isTable(args[0])) return 0;
+          const key = String(args[1] ?? "").trim().toLowerCase();
+          for (const [k, v] of Object.entries(args[0])) if (k.trim().toLowerCase() === key) return n(v, "qty");
+          return 0;
+        }
+        case "total": {
+          // total(counts) — every item's count added up
+          if (args.length !== 1) throw new ExprError("total(counts) takes 1 argument");
+          if (!isTable(args[0])) return 0;
+          return Object.values(args[0]).reduce<number>((acc, v) => acc + n(v, "total"), 0);
         }
         case "sum": {
           // sum([a, b, c]) or sum(a, b, c)
@@ -731,9 +761,10 @@ export function evaluate(node: Node, ctx: EvalCtx, depth = 0): Value {
           return items.reduce<number>((acc, v, i) => acc + n(v, `sum() item ${i + 1}`), 0);
         }
         case "join": {
-          // join(picks, ", ") — the picks as words, for descriptions
-          const items = Array.isArray(args[0]) ? args[0] : [args[0]];
+          // join(picks, ", ") — the picks as words, for descriptions; on a counts table: "2 × Sofa, 1 × Fridge"
           const sep = args.length > 1 ? String(args[1] ?? "") : ", ";
+          if (isTable(args[0])) return Object.entries(args[0]).filter(([, v]) => n(v, "count") > 0).map(([k, v]) => `${n(v, "count")} × ${k}`).join(sep);
+          const items = Array.isArray(args[0]) ? args[0] : [args[0]];
           return items.map((v) => formatValue(v, "text")).join(sep);
         }
         case "lower":
@@ -797,7 +828,11 @@ export function formatValue(v: Value, fmt: "auto" | "money" | "int" | "text" = "
   if (typeof v === "boolean") return v ? "yes" : "no";
   if (v === null) return "";
   if (Array.isArray(v)) return v.map((x) => formatValue(x, "text")).join(", ");
-  if (typeof v === "object") return JSON.stringify(v);
+  if (typeof v === "object") {
+    // a counts table reads as "2 × Sofa, 1 × Fridge"
+    const pairs = Object.entries(v).filter(([, x]) => typeof x === "number" && x > 0);
+    return pairs.length > 0 ? pairs.map(([k, x]) => `${x} × ${k}`).join(", ") : "";
+  }
   return v;
 }
 
@@ -977,6 +1012,14 @@ export function compileSpec(raw: unknown): CompileResult {
       const defRaw = Array.isArray(o.default) ? o.default : typeof o.default === "string" && o.default ? o.default.split(",") : [];
       const def = defRaw.map((d) => String(d).trim().slice(0, 60)).filter((d) => d && opts.some((op) => op.value === d));
       inputs.push({ ...common, type, options: opts, default: def.length > 0 ? def : undefined, required: o.required === true });
+    } else if (type === "counts") {
+      const opts = parseOptions(o.options);
+      if (opts.length < 1) {
+        errors.push(`Input "${id}" is a counts question — it needs at least 1 item to count`);
+        continue;
+      }
+      const max = optNum(o.max);
+      inputs.push({ ...common, type, options: opts, required: o.required === true, ...(max !== undefined && max > 0 ? { max: Math.floor(max) } : {}) });
     } else if (type === "map") {
       const measure = o.measure === "length" ? "length" : o.measure === "area" ? "area" : null;
       if (!measure) {
@@ -996,7 +1039,15 @@ export function compileSpec(raw: unknown): CompileResult {
         required: o.required === true,
       });
     } else {
-      errors.push(`Input "${id}": type must be number, select, multi, map, toggle or text`);
+      errors.push(`Input "${id}": type must be number, select, multi, counts, map, toggle or text`);
+    }
+    // Atlas-assessed inputs: anything but free text
+    if (o.askAtlas === true || o.askAtlas === "true") {
+      const last = inputs[inputs.length - 1];
+      if (last && last.id === id) {
+        if (last.type === "text") errors.push(`Input "${id}": askAtlas belongs on a number/choice/count/yes-no question, not free text (Atlas reads the description, it doesn't rewrite it)`);
+        else last.askAtlas = true;
+      }
     }
   }
 
@@ -1140,6 +1191,8 @@ export function compileSpec(raw: unknown): CompileResult {
   } else if (r.assist === true) {
     assist = {};
   }
+  // An Atlas-assessed input means the tool needs the fill-in step
+  if (!assist && inputs.some((i) => i.askAtlas)) assist = {};
   if (assist && !inputs.some((i) => i.type !== "text")) errors.push("assist needs at least one number/select/toggle input for Atlas to fill in");
 
   // placeholders: human lines, never formulas
@@ -1161,6 +1214,15 @@ export function compileSpec(raw: unknown): CompileResult {
       if (typeof v === "number" || typeof v === "boolean") vals[k] = v;
       else if (typeof v === "string") vals[k] = v.slice(0, 200);
       else if (Array.isArray(v)) vals[k] = v.map((x) => String(x).slice(0, 60)).slice(0, ESTIMATOR_LIMITS.options);
+      else if (v && typeof v === "object") {
+        // a counts table {item: n}
+        const t: Record<string, number> = {};
+        for (const [ik, ic] of Object.entries(v as Record<string, unknown>).slice(0, ESTIMATOR_LIMITS.options)) {
+          const x = Math.floor(Number(ic));
+          if (Number.isFinite(x) && x > 0) t[ik.slice(0, 60)] = x;
+        }
+        vals[k] = t;
+      }
     }
     samples.push({ label, inputs: vals });
   }
@@ -1202,6 +1264,8 @@ export function neutralValue(inp: EstimatorInput): Value {
       return inp.default ?? "";
     case "multi":
       return inp.default ? [...inp.default] : [];
+    case "counts":
+      return {};
     case "map":
       return 0;
     case "toggle":
@@ -1209,6 +1273,38 @@ export function neutralValue(inp: EstimatorInput): Value {
     case "text":
       return inp.default ?? "";
   }
+}
+
+/**
+ * A counts value in any shape the form / model / URL sends it — a table
+ * {value: n}, a list [{value, count}] or [value, value] (one each), or
+ * "value:2, other:1" — normalized to {optionValue: whole count}. Unknown
+ * items are reported via `unknown`.
+ */
+function countsTable(inp: { options: EstimatorOption[]; max?: number }, v: unknown): { table: { [k: string]: number }; unknown: string[] } {
+  const table: { [k: string]: number } = {};
+  const unknown: string[] = [];
+  const cap = inp.max ?? 999;
+  const put = (key: unknown, count: unknown) => {
+    const hit = matchOption(inp, key);
+    if (!hit) {
+      if (String(key ?? "").trim()) unknown.push(String(key));
+      return;
+    }
+    const x = Math.floor(Number(count));
+    if (!Number.isFinite(x) || x <= 0) return;
+    table[hit] = Math.min(cap, (table[hit] ?? 0) + x);
+  };
+  if (v && typeof v === "object" && !Array.isArray(v)) for (const [k, c] of Object.entries(v as Record<string, unknown>)) put(k, c);
+  else if (Array.isArray(v)) for (const item of v) {
+    if (item && typeof item === "object") put((item as Record<string, unknown>).value, (item as Record<string, unknown>).count ?? 1);
+    else put(item, 1);
+  }
+  else if (typeof v === "string" && v.trim()) for (const part of v.split(",")) {
+    const [k, c] = part.split(":");
+    put(k, c === undefined ? 1 : c);
+  }
+  return { table, unknown };
 }
 
 function matchOption(inp: { options: EstimatorOption[] }, v: unknown): string | null {
@@ -1240,6 +1336,8 @@ function lenientValue(inp: EstimatorInput, v: unknown): Value {
       const picks = multiPicks(v).map((p) => matchOption(inp, p)).filter((p): p is string => p !== null);
       return picks.length > 0 ? Array.from(new Set(picks)) : neutralValue(inp);
     }
+    case "counts":
+      return missing ? {} : countsTable(inp, v).table;
     case "map": {
       if (missing) return 0;
       const x = typeof v === "string" ? Number(v.replace(/[,\s]/g, "")) : Number(v);
@@ -1333,6 +1431,13 @@ export function coerceInputs(
         if (picks.length === 0 && inp.default?.length) picks.push(...inp.default);
         if (picks.length === 0 && inp.required) problems.push({ id: inp.id, message: `Pick at least one option for ${inp.label.toLowerCase()}` });
         values[inp.id] = picks;
+        break;
+      }
+      case "counts": {
+        const { table, unknown } = countsTable(inp, missing ? {} : v);
+        for (const u of unknown) problems.push({ id: inp.id, message: `${inp.label}: "${u}" is not an item` });
+        if (inp.required && Object.keys(table).length === 0) problems.push({ id: inp.id, message: `${inp.label}: count at least one item` });
+        values[inp.id] = table;
         break;
       }
       case "map": {
@@ -1526,7 +1631,10 @@ export function auditSpec(compiled: CompiledSpec, priceBook: PriceBookEntry[]): 
     if (i.type === "number" && !i.unit && !i.presets) warnings.push(`"${i.label}" has no unit — say what the number is (sq ft, hours, windows).`);
     if (i.type === "number" && i.control === "slider" && i.max !== undefined && i.max > 100_000) warnings.push(`"${i.label}" slider runs to ${i.max} — that's hard to drag precisely.`);
     if (i.type === "select" && i.style === "packages" && i.options.some((o) => !o.blurb)) warnings.push(`Package tiers on "${i.label}" read better with a one-line blurb each.`);
+    if (i.askAtlas && !i.help) warnings.push(`"${i.label}" is assessed by Atlas — give it "help" saying what to look for, so the assessment is consistent.`);
   }
+  const assessed = spec.inputs.filter((i) => i.askAtlas);
+  if (assessed.length > 3) warnings.push(`${assessed.length} questions are assessed by Atlas — each costs the business tokens per estimate; keep it to the ones a pro would truly need to look at.`);
   if (spec.inputs.length > 6 && !spec.inputs.some((i) => i.section)) warnings.push("More than six questions in one wall — group them into sections.");
   if (!spec.minimumTotal) warnings.push("No minimum job charge — most trades set one so tiny jobs still pay for the trip.");
 
@@ -1607,10 +1715,11 @@ spec = {
 
 Rules:
 - ids: letters/digits/underscores, unique. Inputs are referenced by id inside expressions and {templates}.
-- Input types: number, select (one of), multi (several — the value is a LIST of option values), map, toggle, text. type "map" = the customer draws on a satellite map: measure "length" (a fence line; the value is FEET) or "area" (lawn, roof, driveway, patio; the value is SQUARE FEET) — use it whenever a size is the main price driver (fencing, lawn care, roofing, paving, irrigation, sealcoating) instead of asking them to guess a number. Pictures on options/questions are added by the owner in the editor, never by you. "section" groups questions under a heading (the website form shows one section per step); "showWhen" (an expression over OTHER inputs, no variables/price book) hides a question until it matters — a hidden question reads as untouched (its default). Complex trades (roofing, remodels, HVAC, moving) want 2–4 sections and showWhen branches instead of one wall of questions.
+- Input types: number, select (one of), multi (several — the value is a LIST of option values), counts (items AND how many of each — the value is a TABLE {optionValue: count}; qty(windows, 'picture') is one item's count, total(windows) all of them, has()/count() work too; use it for windows by type, trees by size, junk items, fixtures, rooms by size), map, toggle, text. type "map" = the customer draws on a satellite map: measure "length" (a fence line; the value is FEET) or "area" (lawn, roof, driveway, patio; the value is SQUARE FEET) — use it whenever a size is the main price driver (fencing, lawn care, roofing, paving, irrigation, sealcoating) instead of asking them to guess a number. Pictures on options/questions are added by the owner in the editor, never by you. "section" groups questions under a heading (the website form shows one section per step); "showWhen" (an expression over OTHER inputs, no variables/price book) hides a question until it matters — a hidden question reads as untouched (its default). Complex trades (roofing, remodels, HVAC, moving) want 2–4 sections and showWhen branches instead of one wall of questions.
 - Number questions: "control" = "slider" (a size with a sensible max — set min/max/step), "stepper" (a count: windows, rooms, gates) or "field" (default). Add 2–5 "presets" whenever a homeowner wouldn't know the number cold ("Two-car — 550 sq ft"). Always give a "unit".
 - Select questions: "style" = "cards" (2–6 choices with a one-line "blurb" each) or "packages" (2–4 good/better/best tiers; each option needs "blurb" + "includes" bullets, mark ONE "recommended"; the form prints each tier's live price). Lines then switch on the tier: when: "package == 'premium'". Nearly every trade sells better as 3 packages than as one number — use them unless the owner prices a single way.
 - Every line needs a "description" (the client reads it on the quote) and a "group" heading for the breakdown ("Labor", "Materials", "Add-ons", "Package") — 2–4 groups.
+- "askAtlas": true on a question means Atlas answers it from the customer's description and photo at run time (a metered call — the business pays tokens per estimate; the person can always override). Use it ONLY when a human estimator would have to LOOK at the job to answer and the price truly depends on it: condition (light / moderate / heavy), access difficulty, hazard near a house or power line, scope of damage. Give such a question "help" that says exactly what to look for. Never on sizes the customer can measure or draw, never on choices the customer makes (material, package), never more than 3 per tool. A simple per-unit or flat-rate trade never needs it.
 - "placeholders": when the owner did not give a rate you need, do NOT stop to ask — use a reasonable US-market placeholder, and list it here in plain words so the owner sets it. Ask a question ONLY when you cannot tell what job the tool is for. [] when nothing was guessed.
 - "samples": 2–3 realistic jobs (labels containing "small", "typical", "large") with every required question answered; the builder runs them and rejects a tool whose small job prices above its typical one.
 - Line unitPrice/quantity/when are EXPRESSIONS (strings). name/description/quoteTitle/clientMessage are TEMPLATES: {expr}, {expr|money}, {expr|int}. quoteTitle/clientMessage may also use {subtotal}.
@@ -1633,7 +1742,7 @@ function rateText(expr: string | undefined): string {
 }
 
 function optionsKey(i: EstimatorInput): string {
-  return i.type === "select" || i.type === "multi" ? i.options.map((o) => `${o.value}=${o.label}${o.image ? "*" : ""}`).join("|") : "";
+  return i.type === "select" || i.type === "multi" || i.type === "counts" ? i.options.map((o) => `${o.value}=${o.label}${o.image ? "*" : ""}`).join("|") : "";
 }
 
 /** Human lines: `Rate for "Sealant": $0.45 → $0.50`, `Added question "Fence length"`. Empty = the rules are the same. */
@@ -1655,6 +1764,7 @@ export function describeSpecChanges(from: EstimatorSpec, to: EstimatorSpec): str
     if ((o.showWhen ?? "") !== (i.showWhen ?? "")) out.push(i.showWhen ? `"${i.label}" now shows only when ${i.showWhen}` : `"${i.label}" now always shows`);
     if ((o.section ?? "") !== (i.section ?? "")) out.push(i.section ? `"${i.label}" moved to section "${i.section}"` : `"${i.label}" left its section`);
     if ((o.image ?? "") !== (i.image ?? "")) out.push(i.image ? `Picture added to "${i.label}"` : `Picture removed from "${i.label}"`);
+    if (Boolean(o.askAtlas) !== Boolean(i.askAtlas)) out.push(i.askAtlas ? `Atlas now assesses "${i.label}" from the description` : `"${i.label}" is answered by hand again`);
     if (o.type === "number" && i.type === "number" && (o.default ?? null) !== (i.default ?? null)) out.push(`Default for "${i.label}": ${o.default ?? "none"} → ${i.default ?? "none"}`);
   }
   for (const o of from.inputs) if (!toInputs.has(o.id)) out.push(`Removed question "${o.label}"`);
@@ -1715,16 +1825,25 @@ export function sectionsOf(inputs: EstimatorInput[], visible: Set<string>): Inpu
   return out;
 }
 
-/** Form-state defaults for a spec (strings for fields, booleans for toggles, string lists for multi). */
-export function formDefaults(spec: EstimatorSpec): Record<string, string | boolean | string[]> {
-  const v: Record<string, string | boolean | string[]> = {};
+/** What a form holds per input: text for fields/choices, a boolean for toggles, a list for multi, a {value: count} table for counts. */
+export type FormValue = string | boolean | string[] | Record<string, number>;
+
+/** Form-state defaults for a spec. */
+export function formDefaults(spec: EstimatorSpec): Record<string, FormValue> {
+  const v: Record<string, FormValue> = {};
   for (const i of spec.inputs) {
     if (i.type === "toggle") v[i.id] = i.default === true;
     else if (i.type === "multi") v[i.id] = i.default ? [...i.default] : [];
+    else if (i.type === "counts") v[i.id] = {};
     else if ("default" in i && i.default !== undefined && i.default !== null) v[i.id] = String(i.default);
     else v[i.id] = "";
   }
   return v;
+}
+
+/** The inputs Atlas assesses at run time (empty = plain tool). */
+export function askAtlasInputs(spec: EstimatorSpec): EstimatorInput[] {
+  return spec.inputs.filter((i) => i.askAtlas);
 }
 
 /** Is every visible, required input answered? (drives the live running total). `ignore` = inputs priced as variants instead. */
@@ -1736,6 +1855,7 @@ export function inputsComplete(spec: EstimatorSpec, values: Record<string, unkno
     if (!("required" in i) || i.required === false) return true;
     const v = values[i.id];
     if (Array.isArray(v)) return v.length > 0;
+    if (v && typeof v === "object") return Object.values(v as Record<string, number>).some((x) => x > 0);
     return v !== "" && v !== undefined && v !== null;
   });
 }

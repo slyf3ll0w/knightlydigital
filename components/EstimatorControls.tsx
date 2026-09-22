@@ -111,7 +111,7 @@ export function PriceHero({ theme, label, amount, text, sub, size = "xl", exact 
   return (
     <div className="rounded-2xl px-5 py-5 text-center" style={{ backgroundColor: wash(theme, theme.dark ? 16 : 8) }}>
       <p className={`text-xs font-semibold ${theme.faint}`}>{label}</p>
-      <p className={`mt-1 font-bold tabular-nums tracking-tight ${theme.ink} ${size === "xl" ? "text-4xl sm:text-5xl" : "text-3xl"}`}>{value}</p>
+      <p className={`mt-1 break-words font-bold tabular-nums tracking-tight ${theme.ink} ${size === "xl" ? "text-3xl sm:text-4xl" : "text-2xl"}`}>{value}</p>
       {sub && <p className={`mt-1.5 text-sm ${theme.muted}`}>{sub}</p>}
     </div>
   );
@@ -148,7 +148,7 @@ export function NumberControl({ inp, value, onChange, theme, required }: { inp: 
         </div>
       )}
       {inp.control === "slider" && inp.max !== undefined ? (
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <input
             type="range"
             min={min}
@@ -157,7 +157,7 @@ export function NumberControl({ inp, value, onChange, theme, required }: { inp: 
             value={num ?? inp.default ?? min}
             onChange={(e) => onChange(e.target.value)}
             aria-label={inp.label}
-            className="h-2 min-w-0 flex-1 cursor-pointer appearance-none rounded-full"
+            className="h-2 min-w-[10rem] flex-1 cursor-pointer appearance-none rounded-full"
             style={{ accentColor: theme.accent, background: `linear-gradient(to right, ${theme.accent} ${(((num ?? inp.default ?? min) - min) / (inp.max - min)) * 100}%, ${wash(theme, theme.dark ? 25 : 14)} 0)` }}
           />
           <div className="flex w-32 shrink-0 items-center gap-1.5">
@@ -231,22 +231,24 @@ export function ChoiceControl({ inp, value, onChange, theme, required, tierPrice
               role="radio"
               aria-checked={on}
               onClick={() => onChange(o.value)}
-              className={`relative flex flex-col rounded-2xl border p-4 text-left transition-shadow ${theme.border} ${theme.card} ${on ? "" : "hover:shadow-sm"}`}
+              className={`flex flex-col rounded-2xl border p-4 text-left transition-shadow ${theme.border} ${theme.card} ${on ? "" : "hover:shadow-sm"}`}
               style={selectedStyle(theme, on)}
             >
-              {o.recommended && (
-                <span className="absolute -top-2.5 left-4 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider" style={{ backgroundColor: theme.accent, color: theme.onAccent }}>
-                  Most popular
-                </span>
-              )}
               <span className="flex items-start justify-between gap-2">
-                <span className={`text-sm font-semibold ${theme.ink}`}>{o.label}</span>
-                <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${on ? "" : theme.border}`} style={on ? { backgroundColor: theme.accent, borderColor: theme.accent, color: theme.onAccent } : undefined} aria-hidden>
+                <span className="min-w-0">
+                  {o.recommended && (
+                    <span className="mb-1.5 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider" style={{ backgroundColor: theme.accent, color: theme.onAccent }}>
+                      Most popular
+                    </span>
+                  )}
+                  <span className={`block text-sm font-semibold ${theme.ink}`}>{o.label}</span>
+                </span>
+                <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${on ? "" : theme.border}`} style={on ? { backgroundColor: theme.accent, borderColor: theme.accent, color: theme.onAccent } : undefined} aria-hidden>
                   {on && <Check size={12} strokeWidth={3} />}
                 </span>
               </span>
-              <span className={`mt-1 text-xl font-bold tabular-nums tracking-tight ${theme.ink}`}>{price === undefined ? <span className={`text-sm font-medium ${theme.faint}`}>{tierPrices ? "Pricing…" : ""}</span> : price === null ? <span className={`text-sm font-medium ${theme.faint}`}>Answer above to price</span> : price}</span>
-              {o.blurb && <span className={`mt-1 text-xs ${theme.muted}`}>{o.blurb}</span>}
+              <span className={`mt-1.5 min-h-[1.75rem] text-xl font-bold tabular-nums tracking-tight ${theme.ink}`}>{price === undefined ? <span className={`text-sm font-medium ${theme.faint}`}>{tierPrices ? "Pricing…" : " "}</span> : price === null ? <span className={`text-sm font-medium ${theme.faint}`}>Answer above to price</span> : price}</span>
+              {o.blurb && <span className={`mt-1 text-xs leading-snug ${theme.muted}`}>{o.blurb}</span>}
               {o.includes && o.includes.length > 0 && (
                 <ul className="mt-3 space-y-1">
                   {o.includes.map((line) => (
@@ -322,6 +324,57 @@ export function MultiControl({ inp, value, onToggle, theme }: { inp: MultiInput;
             {on && <Check size={12} strokeWidth={3} />}
             {o.label}
           </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── counts: items with a −/+ each ────────────────────────────────────────────
+
+type CountsInput = Extract<EstimatorInput, { type: "counts" }>;
+
+export function CountsControl({ inp, value, onChange, theme }: { inp: CountsInput; value: Record<string, number>; onChange: (v: Record<string, number>) => void; theme: ControlTheme }) {
+  const cap = inp.max ?? 999;
+  const set = (key: string, n: number) => {
+    const next = { ...value };
+    const x = Math.max(0, Math.min(cap, Math.floor(n)));
+    if (x <= 0) delete next[key];
+    else next[key] = x;
+    onChange(next);
+  };
+  return (
+    <div className={`divide-y overflow-hidden rounded-xl border ${theme.border} ${theme.card} ${theme.dark ? "divide-white/10" : "divide-gray-100"}`} role="group" aria-label={inp.label}>
+      {inp.options.map((o) => {
+        const n = value[o.value] ?? 0;
+        const on = n > 0;
+        return (
+          <div key={o.value} className="flex items-center gap-3 px-3 py-2" style={on ? { backgroundColor: wash(theme, theme.dark ? 12 : 5) } : undefined}>
+            {o.image && <img src={o.image} alt="" className="h-10 w-12 shrink-0 rounded-md object-cover" />}
+            <span className="min-w-0 flex-1">
+              <span className={`block text-sm font-medium ${theme.ink}`}>{o.label}</span>
+              {o.blurb && <span className={`block text-xs ${theme.muted}`}>{o.blurb}</span>}
+            </span>
+            <span className={`inline-flex h-9 shrink-0 items-stretch overflow-hidden rounded-lg border ${theme.border}`}>
+              <button type="button" onClick={() => set(o.value, n - 1)} disabled={n <= 0} className={`flex w-9 items-center justify-center ${theme.muted} hover:bg-black/5 disabled:opacity-30`} aria-label={`Fewer ${o.label}`}>
+                <Minus size={14} />
+              </button>
+              <input
+                type="number"
+                inputMode="numeric"
+                min={0}
+                max={cap}
+                value={n === 0 ? "" : n}
+                placeholder="0"
+                onChange={(e) => set(o.value, e.target.value === "" ? 0 : Number(e.target.value))}
+                className={`w-11 border-x bg-transparent text-center text-sm font-semibold tabular-nums ${theme.border} ${theme.ink} focus:outline-none`}
+                aria-label={`How many ${o.label}`}
+              />
+              <button type="button" onClick={() => set(o.value, n + 1)} disabled={n >= cap} className={`flex w-9 items-center justify-center ${theme.muted} hover:bg-black/5 disabled:opacity-30`} aria-label={`More ${o.label}`}>
+                <Plus size={14} />
+              </button>
+            </span>
+          </div>
         );
       })}
     </div>

@@ -1,18 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, Copy, ExternalLink, Globe, Loader2 } from "lucide-react";
-import Modal from "@/components/Modal";
+import { Check, Copy, ExternalLink, Loader2 } from "lucide-react";
 import { Input, Select, Textarea } from "@/components/Input";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { PUBLIC_LIMITS, PUBLIC_PHOTO_ASSIST_DAILY_CAP, publicSlugFrom, type EstimatorPublicConfig } from "@/lib/estimator-public";
 
 /**
- * Settings → Estimate tools → "Website form". Turns one tool into a public
- * lead-capture form: the visitor answers its questions, sees the estimate
- * the way the owner chooses (exact / range / nothing, before or after
- * leaving details), and the business gets a lead + request (+ quote). The
- * link and the iframe snippet live here too, like the booking items'.
+ * A tool's Website section (the tool page): turn it into a public
+ * lead-capture form, choose what the visitor sees (exact / range / nothing,
+ * before or after leaving details), what each submission creates, and grab
+ * the link + iframe snippet. Grouped into cards so the eye finds things.
  */
 
 export type PublishTool = {
@@ -28,47 +26,35 @@ export type PublishTool = {
   submissions: number;
 };
 
-export default function PublishEstimatorSheet({
-  tool,
-  companySlug,
-  baseUrl,
-  open,
-  onClose,
-  onSaved,
-}: {
-  tool: PublishTool | null;
-  companySlug: string;
-  baseUrl: string;
-  open: boolean;
-  onClose: () => void;
-  onSaved: () => void;
-}) {
-  const [isPublic, setIsPublic] = useState(false);
-  const [slug, setSlug] = useState("");
-  const [cfg, setCfg] = useState<EstimatorPublicConfig | null>(null);
+function Card({ title, sub, children }: { title: string; sub?: string; children: React.ReactNode }) {
+  return (
+    <section className="card-ledger p-4 sm:p-5">
+      <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
+      {sub && <p className="mt-0.5 text-xs text-gray-500">{sub}</p>}
+      <div className="mt-3 space-y-3">{children}</div>
+    </section>
+  );
+}
+
+export default function PublishPanel({ tool, companySlug, baseUrl, onSaved }: { tool: PublishTool; companySlug: string; baseUrl: string; onSaved: () => void }) {
+  const [isPublic, setIsPublic] = useState(tool.isPublic);
+  const [slug, setSlug] = useState(tool.publicSlug ?? publicSlugFrom(tool.name));
+  const [cfg, setCfg] = useState<EstimatorPublicConfig>(tool.publicConfig);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    if (!open || !tool) return;
     setIsPublic(tool.isPublic);
     setSlug(tool.publicSlug ?? publicSlugFrom(tool.name));
     setCfg(tool.publicConfig);
-    setError("");
-    setCopied(null);
-  }, [open, tool]);
+  }, [tool]);
 
-  if (!tool) return <Modal open={open} onClose={onClose}>{null}</Modal>;
-
-  // Until the open-effect has run, edit against the tool's saved config
-  const c = cfg ?? tool.publicConfig;
-  const patch = (p: Partial<EstimatorPublicConfig>) => setCfg((s) => ({ ...(s ?? tool.publicConfig), ...p }));
-  const patchField = (k: "email" | "phone" | "address", p: Partial<{ show: boolean; required: boolean }>) =>
-    setCfg((s) => {
-      const base = s ?? tool.publicConfig;
-      return { ...base, fields: { ...base.fields, [k]: { ...base.fields[k], ...p } } };
-    });
+  const c = cfg;
+  const dirty = isPublic !== tool.isPublic || slug !== (tool.publicSlug ?? publicSlugFrom(tool.name)) || JSON.stringify(cfg) !== JSON.stringify(tool.publicConfig);
+  const patch = (p: Partial<EstimatorPublicConfig>) => setCfg((s) => ({ ...s, ...p }));
+  const patchField = (k: "email" | "phone" | "address", p: Partial<{ show: boolean; required: boolean }>) => setCfg((s) => ({ ...s, fields: { ...s.fields, [k]: { ...s.fields[k], ...p } } }));
 
   const savedSlug = tool.publicSlug;
   const hostedUrl = savedSlug ? `${baseUrl}/book/${companySlug}/estimate/${savedSlug}` : "";
@@ -90,15 +76,16 @@ export default function PublishEstimatorSheet({
   }
 
   async function save() {
-    if (!tool) return;
     setBusy(true);
     setError("");
+    setSaved(false);
     const { ok, data } = await postJson(`/api/app/estimators/${tool.id}`, { isPublic, publicSlug: slug, publicConfig: c }, "PATCH");
     setBusy(false);
     if (!ok) {
       setError(data?.error ?? GENERIC_ERROR);
       return;
     }
+    setSaved(true);
     onSaved();
   }
 
@@ -107,34 +94,21 @@ export default function PublishEstimatorSheet({
   const funnel = `${tool.publicViews} view${tool.publicViews === 1 ? "" : "s"} → ${tool.publicCalcs} estimate${tool.publicCalcs === 1 ? "" : "s"} → ${tool.submissions} lead${tool.submissions === 1 ? "" : "s"}`;
 
   return (
-    <Modal open={open} onClose={onClose} cardClassName="card-ledger w-full max-w-lg p-5 max-h-[88vh] overflow-y-auto">
-      <div className="mb-4 flex items-start gap-3">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-gray-100 text-gray-700">
-          <Globe size={17} />
-        </span>
-        <div className="min-w-0 flex-1">
-          <h2 className="text-base font-semibold text-gray-900">Website form</h2>
-          <p className="mt-0.5 text-xs text-gray-500">
-            Put “{tool.name}” on your website. Visitors answer its questions, get an estimate, and land in your leads. Free to run — no Atlas tokens.
-          </p>
-        </div>
-      </div>
-
+    <div className="space-y-4">
       {error && (
-        <div role="alert" className="form-error mb-4">
+        <div role="alert" className="form-error">
           {error}
         </div>
       )}
 
-      <div className="space-y-4">
+      <Card title="On your website" sub="Visitors answer the tool's questions, get an estimate, and land in your leads. Free to run — no Atlas tokens.">
         <label className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 px-3 py-2.5">
           <span>
-            <span className="block text-sm font-medium text-gray-800">On your website</span>
+            <span className="block text-sm font-medium text-gray-800">{isPublic ? "Published" : "Not published"}</span>
             <span className="block text-xs text-gray-500">{isPublic ? "The link and embed below work" : "Off — the link shows nothing"}</span>
           </span>
           <input type="checkbox" checked={isPublic} onChange={(e) => setIsPublic(e.target.checked)} className="h-5 w-5 rounded accent-green-600" />
         </label>
-
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-800">Link name</label>
           <div className="flex items-center gap-1 text-xs text-gray-500">
@@ -142,7 +116,38 @@ export default function PublishEstimatorSheet({
             <Input value={slug} onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]+/g, "-"))} maxLength={PUBLIC_LIMITS.slug} className="min-w-0 flex-1" />
           </div>
         </div>
+        {savedSlug ? (
+          <div className="space-y-3 rounded-lg bg-gray-50 p-3">
+            <div>
+              <p className="mb-1 text-xs font-semibold text-gray-700">Link</p>
+              <div className="flex items-center gap-2">
+                <input readOnly value={hostedUrl} className="min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700" />
+                <button type="button" onClick={() => copy(hostedUrl, "link")} className="rounded-full p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-700" title="Copy link">
+                  {copied === "link" ? <Check size={14} className="text-green-600" /> : <Copy size={14} />}
+                </button>
+                <a href={`${hostedUrl}?preview=1`} target="_blank" rel="noreferrer" className="rounded-full p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-700" title="Preview">
+                  <ExternalLink size={14} />
+                </a>
+              </div>
+            </div>
+            <div>
+              <p className="mb-1 text-xs font-semibold text-gray-700">Embed on your website</p>
+              <div className="flex items-start gap-2">
+                <textarea readOnly value={embedSnippet} rows={3} className="min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 font-mono text-[11px] text-gray-700" />
+                <button type="button" onClick={() => copy(embedSnippet, "embed")} className="rounded-full p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-700" title="Copy snippet">
+                  {copied === "embed" ? <Check size={14} className="text-green-600" /> : <Copy size={14} />}
+                </button>
+              </div>
+              <p className="mt-1 text-xs text-gray-500">Paste it where the form should appear. It sizes itself, matches your booking page&apos;s look, and each lead records which page it came from.</p>
+            </div>
+            <p className="text-xs text-gray-500">So far: {funnel}</p>
+          </div>
+        ) : (
+          <p className="text-xs text-gray-500">Save once to get the link and embed snippet.</p>
+        )}
+      </Card>
 
+      <Card title="The form">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-800">Heading</label>
@@ -157,7 +162,9 @@ export default function PublishEstimatorSheet({
           <label className="mb-1 block text-sm font-medium text-gray-800">Intro</label>
           <Textarea value={c.intro} onChange={(e) => patch({ intro: e.target.value })} rows={2} placeholder="A sentence under the heading (optional)" maxLength={PUBLIC_LIMITS.intro} className="w-full" />
         </div>
+      </Card>
 
+      <Card title="The price">
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-800">What the visitor sees</label>
           <div className="flex gap-2">
@@ -174,21 +181,13 @@ export default function PublishEstimatorSheet({
           {c.showPrice === "range" && (
             <div className="mt-2 flex items-center gap-2 text-sm text-gray-700">
               <span>Range width ±</span>
-              <Input
-                type="number"
-                min={PUBLIC_LIMITS.rangePctMin}
-                max={PUBLIC_LIMITS.rangePctMax}
-                value={c.rangePct}
-                onChange={(e) => patch({ rangePct: Number(e.target.value) || 15 })}
-                className="w-20"
-              />
+              <Input type="number" min={PUBLIC_LIMITS.rangePctMin} max={PUBLIC_LIMITS.rangePctMax} value={c.rangePct} onChange={(e) => patch({ rangePct: Number(e.target.value) || 15 })} className="w-20" />
               <span>%</span>
               <span className="text-xs text-gray-500">e.g. $1,000 → $850 – $1,150</span>
             </div>
           )}
           {hidden && <p className="mt-1.5 text-xs text-gray-500">Visitors leave their details and you follow up with the number. The estimate is still worked out for you and lands on the request.</p>}
         </div>
-
         {!hidden && (
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-800">When they see it</label>
@@ -202,16 +201,14 @@ export default function PublishEstimatorSheet({
             </div>
           </div>
         )}
+      </Card>
 
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-800">Each submission</label>
-          <Select value={c.onSubmit} onChange={(e) => patch({ onSubmit: e.target.value as EstimatorPublicConfig["onSubmit"] })} className="w-full">
-            <option value="draft">Creates a lead + request + draft quote for you to review</option>
-            {!hidden && <option value="send">Creates a lead + request and emails the quote for approval</option>}
-            <option value="request">Creates a lead + request only</option>
-          </Select>
-        </div>
-
+      <Card title="Each submission">
+        <Select value={c.onSubmit} onChange={(e) => patch({ onSubmit: e.target.value as EstimatorPublicConfig["onSubmit"] })} className="w-full">
+          <option value="draft">Creates a lead + request + draft quote for you to review</option>
+          {!hidden && <option value="send">Creates a lead + request and emails the quote for approval</option>}
+          <option value="request">Creates a lead + request only</option>
+        </Select>
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-800">Ask for</label>
           <div className="divide-y divide-gray-100 rounded-lg border border-gray-200">
@@ -235,24 +232,23 @@ export default function PublishEstimatorSheet({
                 <input type="checkbox" checked={c.fields.message.show} onChange={(e) => patch({ fields: { ...c.fields, message: { ...c.fields.message, show: e.target.checked } } })} className="h-4 w-4 rounded accent-green-600" />
                 A message box
               </label>
-              {c.fields.message.show && (
-                <Input value={c.fields.message.label} onChange={(e) => patch({ fields: { ...c.fields, message: { ...c.fields.message, label: e.target.value } } })} maxLength={PUBLIC_LIMITS.messageLabel} className="w-48 py-1 text-xs" />
-              )}
+              {c.fields.message.show && <Input value={c.fields.message.label} onChange={(e) => patch({ fields: { ...c.fields, message: { ...c.fields.message, label: e.target.value } } })} maxLength={PUBLIC_LIMITS.messageLabel} className="w-48 py-1 text-xs" />}
             </div>
           </div>
           <p className="mt-1 text-xs text-gray-500">Name is always asked. Quotes sent for approval need an email.</p>
         </div>
-
         {tool.usesAtlas && (
           <label className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 px-3 py-2.5">
             <span>
-              <span className="block text-sm font-medium text-gray-800">Let visitors attach a photo</span>
-              <span className="block text-xs text-gray-500">Atlas fills in the answers from their photo. Uses your tokens — at most {PUBLIC_PHOTO_ASSIST_DAILY_CAP} photos a day, a few per visitor.</span>
+              <span className="block text-sm font-medium text-gray-800">Let visitors attach a photo or describe the job</span>
+              <span className="block text-xs text-gray-500">Atlas fills in the answers. Uses your tokens — at most {PUBLIC_PHOTO_ASSIST_DAILY_CAP} a day, a few per visitor. Questions Atlas assesses itself always offer this.</span>
             </span>
             <input type="checkbox" checked={c.photoAssist} onChange={(e) => patch({ photoAssist: e.target.checked })} className="h-5 w-5 rounded accent-green-600" />
           </label>
         )}
+      </Card>
 
+      <Card title="Words">
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-800">Fine print under the estimate</label>
           <Textarea value={c.disclaimer} onChange={(e) => patch({ disclaimer: e.target.value })} rows={2} maxLength={PUBLIC_LIMITS.disclaimer} className="w-full" />
@@ -261,46 +257,15 @@ export default function PublishEstimatorSheet({
           <label className="mb-1 block text-sm font-medium text-gray-800">Thank-you message</label>
           <Textarea value={c.successMessage} onChange={(e) => patch({ successMessage: e.target.value })} rows={2} placeholder="Leave blank for a default that fits" maxLength={PUBLIC_LIMITS.successMessage} className="w-full" />
         </div>
+      </Card>
 
-        {savedSlug && (
-          <div className="space-y-3 rounded-lg bg-gray-50 p-3">
-            <div>
-              <p className="mb-1 text-xs font-semibold text-gray-700">Link</p>
-              <div className="flex items-center gap-2">
-                <input readOnly value={hostedUrl} className="min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700" />
-                <button type="button" onClick={() => copy(hostedUrl, "link")} className="rounded-full p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-700" title="Copy link">
-                  {copied === "link" ? <Check size={14} className="text-green-600" /> : <Copy size={14} />}
-                </button>
-                <a href={`${hostedUrl}?preview=1`} target="_blank" rel="noreferrer" className="rounded-full p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-700" title="Preview">
-                  <ExternalLink size={14} />
-                </a>
-              </div>
-            </div>
-            <div>
-              <p className="mb-1 text-xs font-semibold text-gray-700">Embed on your website</p>
-              <div className="flex items-start gap-2">
-                <textarea readOnly value={embedSnippet} rows={4} className="min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 font-mono text-[11px] text-gray-700" />
-                <button type="button" onClick={() => copy(embedSnippet, "embed")} className="rounded-full p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-700" title="Copy snippet">
-                  {copied === "embed" ? <Check size={14} className="text-green-600" /> : <Copy size={14} />}
-                </button>
-              </div>
-              <p className="mt-1 text-xs text-gray-500">Paste it where the form should appear. It sizes itself to fit, matches your booking page's look, and each lead records which page of your site it came from.</p>
-            </div>
-            <p className="text-xs text-gray-500">So far: {funnel}</p>
-          </div>
-        )}
-        {!savedSlug && <p className="text-xs text-gray-500">Save once to get the link and embed snippet.</p>}
-      </div>
-
-      <div className="mt-5 flex items-center justify-end gap-2">
-        <button type="button" onClick={onClose} className="h-10 rounded-lg px-3 text-sm font-medium text-gray-600 hover:bg-gray-100">
-          Cancel
-        </button>
-        <button type="button" disabled={busy} onClick={() => void save()} className="btn-primary h-10 justify-center">
-          {busy ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />}
+      <div className="sticky bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-10 flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white/95 px-4 py-2.5 shadow-lg backdrop-blur lg:bottom-4">
+        <span className="text-xs text-gray-500">{dirty ? "Unsaved changes" : saved ? "Saved" : "Everything is saved"}</span>
+        <button type="button" disabled={busy || !dirty} onClick={() => void save()} className="btn-primary h-9 justify-center">
+          {busy ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
           Save
         </button>
       </div>
-    </Modal>
+    </div>
   );
 }

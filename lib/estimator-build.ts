@@ -47,11 +47,16 @@ export type BuildDraft = {
 
 export type BuildSample = { label: string; subtotal: number | null; lines: number; error?: string };
 
+/** One thing Atlas wants to know before building — asked the way a colleague would, with example answers. */
+export type BuildQuestion = { question: string; why: string; suggestions: string[] };
+export type BuildAnswer = { question: string; answer: string };
+
 export type BuildEvent =
   | { phase: BuildPhase; message: string }
   | { plan: BuildPlan }
   | { draft: BuildDraft }
   | { samples: BuildSample[] }
+  | { questions: BuildQuestion[]; tokens: number }
   | { ask: string; tokens: number }
   | { done: true; tool: Record<string, unknown>; changes: string[]; samples: BuildSample[]; placeholders: string[]; warnings: string[]; tokens: number }
   | { error: string; tokens: number; atlasLocked?: boolean };
@@ -64,15 +69,27 @@ const THINK_DRAFT = 8192;
 const THINK_FIX = 4096;
 const THINK_CHANGE = 6144;
 
-type PlanReply = { tradeKey?: unknown; trade?: unknown; drivers?: unknown; questions?: unknown; packages?: unknown; ask?: unknown; note?: unknown };
+type PlanReply = { tradeKey?: unknown; trade?: unknown; drivers?: unknown; questions?: unknown; packages?: unknown; ask?: unknown; note?: unknown; askOwner?: unknown };
 type Draft = { name?: unknown; description?: unknown; spec?: unknown; question?: unknown };
 
 const strs = (v: unknown, max: number, len = 120): string[] => (Array.isArray(v) ? v.map((x) => (typeof x === "string" ? x.trim().slice(0, len) : "")).filter(Boolean).slice(0, max) : []);
 
-function planSystem(assistantName: string): string {
+/** The owner's answers as prompt text (blank answers become placeholders downstream). */
+function answersText(answers: BuildAnswer[]): string {
+  if (answers.length === 0) return "";
+  return `\n\nYou asked the owner these questions before building; their answers:\n${answers.map((a) => `Q: ${a.question}\nA: ${a.answer.trim() || "(no answer — use a sensible placeholder and list it under placeholders)"}`).join("\n")}`;
+}
+
+function planSystem(assistantName: string, answered: boolean): string {
   return `You are ${assistantName}, a veteran estimator inside Workbench, a field-service app. An owner describes how they price a kind of job. Before any tool is built, PLAN it the way a pro would. Answer with ONLY a JSON object:
-{"tradeKey": "one key from the list below, or null", "trade": "human name of the trade / job", "drivers": ["what moves the price, most important first — 3 to 6"], "questions": [{"label": "the question as a homeowner would read it", "control": "slider | stepper | field | map | cards | packages | multi | toggle"}], "packages": ["Good tier name", "Better", "Best"] or null, "note": "one sentence on the pricing shape (per sq ft with tiers, flat menu, hourly…)", "ask": null}
-Set "ask" to ONE short question ONLY when you genuinely cannot tell what job the tool is for. A missing rate is never a reason to ask — the build uses a placeholder and tells the owner.
+{"tradeKey": "one key from the list below, or null", "trade": "human name of the trade / job", "drivers": ["what moves the price, most important first — 3 to 6"], "questions": [{"label": "the question as a homeowner would read it", "control": "slider | stepper | field | map | cards | packages | multi | counts | toggle"}], "packages": ["Good tier name", "Better", "Best"] or null, "note": "one sentence on the pricing shape (per sq ft with tiers, flat menu, hourly…)", "askOwner": [], "ask": null}
+
+${
+  answered
+    ? `The owner has ALREADY answered your questions (they're in the message). Do not ask again — "askOwner" must be []. Anything still unknown becomes a placeholder.`
+    : `"askOwner": the things you'd ask a colleague before building THIS tool — only what materially changes the pricing and that the owner's words leave open. Typical: rates per material or tier when materials are named without prices ("6-ft cedar vs chain link — what's each per foot?"), the job minimum, whether they sell packages, the unit they price by. At most 4, each {"question": "short and specific", "why": "one clause on what it changes", "suggestions": ["2–4 example answers they can tap, like '$28/ft cedar, $18/ft chain link'"]}. Ask like a colleague, not a form: if the owner gave the numbers, ask nothing ([]). Never ask about things a homeowner answers on the form (sizes, counts, choices).`
+}
+Set "ask" to ONE short question ONLY when you genuinely cannot tell what job the tool is for.
 
 ${ESTIMATOR_PRINCIPLES}
 
@@ -102,8 +119,9 @@ Design rules for a GOOD tool:
 - Every line: a description that explains the number ({qty} at {rate|money}), and a "group".
 - Leave "assist" null unless judgment from a written description is genuinely needed.
 - Price-book items the owner names: link lines with workItemName (exact name) so cost and price stay in sync.
-- Rates the owner never gave: use a sensible placeholder and list it in "placeholders". Never stop to ask for a rate.
-- "samples": small / typical / large, every required question answered with realistic values (a map input is a number of ft or sq ft).
+- Rates the owner never gave (and didn't answer when asked): use a sensible placeholder and list it in "placeholders". Never stop to ask for a rate at this stage.
+- "samples": small / typical / large, every required question answered with realistic values (a map input is a number of ft or sq ft; a counts input is a table {"value": n}).
+- "askAtlas": only where a pro would have to look (condition, access, hazard, scope) AND the price depends on it — it costs the business tokens per estimate. Most tools need none.
 ${playbook ? `\n${playbook}\n` : ""}
 ${ESTIMATOR_GUIDE}
 
@@ -122,7 +140,7 @@ function draftPreview(draft: Draft, spec: EstimatorSpec): BuildDraft {
   return {
     name: typeof draft.name === "string" ? draft.name.trim().slice(0, 80) : "Estimate tool",
     description: typeof draft.description === "string" ? draft.description.trim().slice(0, 200) : "",
-    inputs: spec.inputs.map((i) => ({ label: i.label, type: i.type === "number" ? i.control ?? "field" : i.type === "select" ? i.style ?? "list" : i.type, ...(i.section ? { section: i.section } : {}) })),
+    inputs: spec.inputs.map((i) => ({ label: i.label, type: i.askAtlas ? "atlas" : i.type === "number" ? i.control ?? "field" : i.type === "select" ? i.style ?? "list" : i.type, ...(i.section ? { section: i.section } : {}) })),
     lines: spec.lines.map((l) => ({ name: l.name, ...(l.group ? { group: l.group } : {}) })),
     packages: packages && packages.type === "select" ? packages.options.map((o) => o.label) : null,
   };
@@ -149,9 +167,11 @@ function roughPreview(draft: Draft): BuildDraft | null {
   };
 }
 
-export async function* buildEstimator(actor: Actor, opts: { prompt: string; estimatorId?: string; assistantName: string }): AsyncGenerator<BuildEvent> {
+export async function* buildEstimator(actor: Actor, opts: { prompt: string; estimatorId?: string; assistantName: string; answers?: BuildAnswer[] }): AsyncGenerator<BuildEvent> {
   let tokens = 0;
   const prompt = opts.prompt.trim().slice(0, 4000);
+  const answers = (opts.answers ?? []).map((a) => ({ question: String(a.question ?? "").slice(0, 300), answer: String(a.answer ?? "").slice(0, 600) })).filter((a) => a.question).slice(0, 6);
+  const answered = answers.length > 0;
   if (prompt.length < 8) {
     yield { error: "Describe the tool in a sentence or two first.", tokens };
     return;
@@ -184,7 +204,7 @@ export async function* buildEstimator(actor: Actor, opts: { prompt: string; esti
   let planKey: string | null = null;
   if (!currentRow) {
     yield { phase: "plan", message: "Working out what drives the price…" };
-    const res = await meteredOneShot(actor, { kind: "estimator-plan", system: planSystem(opts.assistantName), prompt: `The owner's description:\n${prompt}`, maxOutputTokens: 1500, temperature: 0.2, thinkingBudget: THINK_PLAN });
+    const res = await meteredOneShot(actor, { kind: "estimator-plan", system: planSystem(opts.assistantName, answered), prompt: `The owner's description:\n${prompt}${answersText(answers)}`, maxOutputTokens: 2000, temperature: 0.2, thinkingBudget: THINK_PLAN });
     if (!res.ok) {
       yield { error: res.error, tokens, atlasLocked: res.atlasLocked };
       return;
@@ -195,6 +215,24 @@ export async function* buildEstimator(actor: Actor, opts: { prompt: string; esti
       if (typeof reply.ask === "string" && reply.ask.trim()) {
         yield { ask: reply.ask.trim().slice(0, 500), tokens };
         return;
+      }
+      // Clarifying questions — one round, before anything is built
+      if (!answered && Array.isArray(reply.askOwner) && reply.askOwner.length > 0) {
+        const qs: BuildQuestion[] = reply.askOwner
+          .map((q) => {
+            const o = (q ?? {}) as Record<string, unknown>;
+            return {
+              question: typeof o.question === "string" ? o.question.trim().slice(0, 300) : "",
+              why: typeof o.why === "string" ? o.why.trim().slice(0, 160) : "",
+              suggestions: strs(o.suggestions, 4, 80),
+            };
+          })
+          .filter((q) => q.question)
+          .slice(0, 4);
+        if (qs.length > 0) {
+          yield { questions: qs, tokens };
+          return;
+        }
       }
       const questions = (Array.isArray(reply.questions) ? reply.questions : [])
         .map((q) => {
@@ -217,7 +255,7 @@ export async function* buildEstimator(actor: Actor, opts: { prompt: string; esti
 
   const trade = playbookByKey(planKey) ?? guessTrade(prompt) ?? (currentSpec ? guessTrade(`${currentRow!.name} ${currentRow!.description ?? ""}`) : null);
   const system = draftSystem(book, currentRow && currentSpec ? { name: currentRow.name, description: currentRow.description, spec: currentSpec } : null, trade ? playbookText(trade) : null, opts.assistantName);
-  let userPrompt = currentRow ? `The owner's change request:\n${prompt}` : `The owner's description:\n${prompt}${plan ? `\n\nThe plan (follow it, then make it real):\n${JSON.stringify(plan)}` : ""}`;
+  let userPrompt = currentRow ? `The owner's change request:\n${prompt}${answersText(answers)}` : `The owner's description:\n${prompt}${answersText(answers)}${plan ? `\n\nThe plan (follow it, then make it real):\n${JSON.stringify(plan)}` : ""}`;
 
   let draft: Draft | null = null;
   let compiled: Awaited<ReturnType<typeof checkSpec>> | null = null;

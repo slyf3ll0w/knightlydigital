@@ -23,8 +23,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
   const pub = await resolvePublicEstimator(slug, tool, { preview });
   if (!pub) return NextResponse.json({ error: "This form isn't available." }, { status: 404 });
 
+  // Live pricing fires on every slider nudge and tier re-price, so the per-IP
+  // ceiling is generous; an unknown IP (no proxy header) is never a shared key.
   const ip = clientIp(req.headers);
-  if (!(await limit(`public-estimate-calc:${ip}`, 90, 600_000)).ok) {
+  if (ip !== "unknown" && !(await limit(`public-estimate-calc:${ip}`, 400, 600_000)).ok) {
     return NextResponse.json({ error: "Too many requests — please try again in a few minutes." }, { status: 429 });
   }
 

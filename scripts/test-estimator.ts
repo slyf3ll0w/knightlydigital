@@ -201,7 +201,7 @@ console.log("ok 5: run-time problems");
     const all = bad.errors.join("\n");
     for (const needle of [
       'Input id "1bad"', 'Input id "min" is a reserved word', "needs at least 2 options", 'Duplicate id "dup"',
-      "type must be number, select, multi, map, toggle or text", 'Variable "v": unknown name "nope"', "Line 1 needs a name",
+      "type must be number, select, multi, counts, map, toggle or text", 'Variable "v": unknown name "nope"', "Line 1 needs a name",
       'Line "No price": needs a unitPrice expression or a workItemName', 'Line "Bad expr" unitPrice', "Unclosed {", "minimumTotal must be",
     ]) {
       assert.ok(all.includes(needle), `expected error containing: ${needle}\n--\n${all}`);
@@ -482,4 +482,71 @@ console.log("ok 11: map + pictures");
   }
 }
 console.log("ok 12: controls, packages, variants, audit");
+console.log("\nestimator: all green");
+
+// 13. Batch 7: counts questions, Atlas-assessed inputs
+{
+  const c = compileSpec({
+    inputs: [
+      { id: "windows", label: "Windows", type: "counts", options: [{ value: "standard", label: "Standard" }, { value: "picture", label: "Picture" }, { value: "french", label: "French pane" }], required: true, max: 200 },
+      { id: "condition", label: "Condition", type: "select", options: ["light", "moderate", "heavy"], default: "moderate", askAtlas: true, help: "Look for hard-water spots and paint overspray" },
+      { id: "notes", label: "Notes", type: "text", askAtlas: true },
+    ],
+    lines: [
+      { name: "Standard windows", description: "{qty(windows, 'standard')} at $8", quantity: "qty(windows, 'standard')", unitPrice: "8", group: "Windows" },
+      { name: "Picture windows", description: "{qty(windows, 'picture')} at $18", quantity: "qty(windows, 'picture')", unitPrice: "18", group: "Windows" },
+      { name: "French panes", description: "{qty(windows, 'french')} panes", quantity: "qty(windows, 'french')", unitPrice: "4", group: "Windows" },
+      { name: "Heavy soil", description: "Hard-water treatment on {total(windows)} windows", when: "condition == 'heavy'", quantity: "total(windows)", unitPrice: "3", group: "Extras" },
+    ],
+    samples: [{ label: "Small job", inputs: { windows: { standard: 5 }, condition: "light" } }, { label: "Typical job", inputs: { windows: { standard: 12, picture: 2 }, condition: "moderate" } }],
+  });
+  assert.ok(!c.ok && c.errors.some((e) => /askAtlas belongs on/.test(e)), "askAtlas on free text is rejected: " + JSON.stringify(c));
+  const ok = compileSpec({
+    inputs: [
+      { id: "windows", label: "Windows", type: "counts", options: [{ value: "standard", label: "Standard" }, { value: "picture", label: "Picture" }, { value: "french", label: "French pane" }], required: true, max: 200 },
+      { id: "condition", label: "Condition", type: "select", options: ["light", "moderate", "heavy"], default: "moderate", askAtlas: true, help: "Look for hard-water spots" },
+    ],
+    lines: [
+      { name: "Standard windows", description: "{qty(windows, 'standard')} at $8", quantity: "qty(windows, 'standard')", unitPrice: "8", group: "Windows" },
+      { name: "Picture windows", description: "{qty(windows, 'picture')} at $18", quantity: "qty(windows, 'picture')", unitPrice: "18", group: "Windows" },
+      { name: "Heavy soil", description: "Treatment on {total(windows)} windows: {join(windows)}", when: "condition == 'heavy'", quantity: "total(windows)", unitPrice: "3", group: "Extras" },
+    ],
+    samples: [{ label: "Small job", inputs: { windows: { standard: 5 }, condition: "light" } }, { label: "Typical job", inputs: { windows: { standard: 12, picture: 2 }, condition: "moderate" } }],
+  });
+  assert.ok(ok.ok, JSON.stringify(ok));
+  if (ok.ok) {
+    const s = ok.compiled.spec;
+    assert.ok(s.assist, "an askAtlas input turns assist on");
+    assert.equal(s.inputs[1].askAtlas, true);
+    assert.equal(s.inputs[0].type, "counts");
+    // table, list-of-objects, plain list and string shapes all coerce
+    for (const shape of [{ standard: 12, picture: 2 }, [{ value: "standard", count: 12 }, { value: "picture", count: 2 }], "standard:12, picture:2"]) {
+      const r = runEstimator(s, { windows: shape, condition: "moderate" }, book);
+      assert.ok(r.ok, JSON.stringify(r));
+      if (r.ok) assert.equal(r.subtotal, 12 * 8 + 2 * 18, JSON.stringify(shape));
+    }
+    const heavy = runEstimator(s, { windows: ["standard", "standard", "picture"], condition: "heavy" }, book);
+    assert.ok(heavy.ok);
+    if (heavy.ok) {
+      assert.equal(heavy.lines.length, 3);
+      assert.equal(heavy.lines[2].quantity, 3, "total() counts every item");
+      assert.ok(/2 × standard, 1 × picture/.test(heavy.lines[2].description), heavy.lines[2].description);
+    }
+    const none = runEstimator(s, { windows: {}, condition: "light" }, book);
+    assert.ok(!none.ok && /count at least one/.test(none.errors[0]), "required counts need one item");
+    const bad = runEstimator(s, { windows: { skylight: 2, standard: 1 }, condition: "light" }, book);
+    assert.ok(!bad.ok && /"skylight" is not an item/.test(bad.errors[0]));
+    const capped = runEstimator(s, { windows: { standard: 999 }, condition: "light" }, book);
+    assert.ok(capped.ok && capped.subtotal === 200 * 8, "counts clamp to max");
+    assert.equal(ev("has(w, 'a') + count(w) + qty(w, 'b') + total(w)", { w: { a: 2, b: 0, c: 5 } }), 1 + 2 + 0 + 7);
+    assert.equal(inputsComplete(s, { windows: {}, condition: "light" }), false);
+    assert.equal(inputsComplete(s, { windows: { picture: 1 }, condition: "light" }), true);
+    const a = auditSpec(ok.compiled, book);
+    assert.deepEqual(a.errors, [], a.errors.join(" | "));
+    const changed = compileSpec({ ...JSON.parse(JSON.stringify(s)), inputs: s.inputs.map((i) => ({ ...i, askAtlas: undefined })) });
+    assert.ok(changed.ok);
+    if (changed.ok) assert.ok(describeSpecChanges(s, changed.compiled.spec).some((x) => /answered by hand again/.test(x)));
+  }
+}
+console.log("ok 13: counts + askAtlas");
 console.log("\nestimator: all green");
