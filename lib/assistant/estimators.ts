@@ -207,12 +207,13 @@ const manageEstimator: Tool = {
   decl: {
     name: "manage_estimator",
     description:
-      "Build and maintain the company's estimate tools (managers): saved calculators that turn a few inputs (square footage, rooms, hours, options) into quote line items using the business's own pricing rules. Running a tool is plain math and free; building one is your job here. Workflow: action 'guide' (spec format + expression reference + the price book — call it before writing a spec), then 'test' the spec with sample inputs until it's right, then 'create' (or 'update' with estimatorId) which shows a confirmation card. 'list' shows saved tools; 'get' returns one tool's full spec for editing. Use the rates the user gives you or the price book — never invent a business's prices. Only add 'assist' when judgment from a written description is genuinely needed (it costs the user tokens per use). Any tool can also be a WEBSITE FORM (pass 'website' on create/update): visitors on the business's site answer the questions, see the estimate the owner chooses to show (exact, a range, or none) and become a lead + request (+ quote) — free for the owner.",
+      "Build and maintain the company's estimate tools (managers): saved calculators that turn a few inputs (square footage, rooms, hours, options) into quote line items using the business's own pricing rules. Running a tool is plain math and free; building one is your job here. Workflow: action 'guide' (spec format + expression reference + the price book — call it before writing a spec), then 'test' the spec with sample inputs until it's right, then 'update' (with estimatorId) which shows a confirmation card. A NEW tool is different: call 'create' with request = the owner's words — it opens the Estimates page's builder, which drafts, tests and saves the tool while they watch; you never write a spec for a new tool. 'list' shows saved tools; 'get' returns one tool's full spec for editing. Use the rates the user gives you or the price book — never invent a business's prices. Only add 'assist' when judgment from a written description is genuinely needed (it costs the user tokens per use). Any tool can also be a WEBSITE FORM (pass 'website' on create/update): visitors on the business's site answer the questions, see the estimate the owner chooses to show (exact, a range, or none) and become a lead + request (+ quote) — free for the owner.",
     parameters: {
       type: "object",
       properties: {
         action: { type: "string", enum: ["guide", "list", "get", "test", "create", "update"] },
         estimatorId: { type: "string", description: "for get/update/test-of-saved (from list)" },
+        request: { type: "string", description: "create: the owner's words describing the tool they want, verbatim, plus any rates they gave" },
         name: { type: "string", description: "tool name, e.g. 'Driveway & house wash', 'Interior paint by room'" },
         description: { type: "string", description: "one line: when to use this tool" },
         spec: SPEC_PARAM,
@@ -235,7 +236,7 @@ const manageEstimator: Tool = {
         priceBookNote: book.length > 80 ? `${book.length - 80} more — use get_price_book` : undefined,
         limits: ESTIMATOR_LIMITS,
         websiteForms:
-          "Any tool can be published as a website form: pass website: {enabled: true, showPrice: 'exact'|'range'|'hidden', reveal: 'instant'|'after_contact', onSubmit: 'draft'|'send'|'request', …} on create or update. Ask the owner two things at most: what visitors should see (exact price / range / no price) and what should happen (draft quote for review / email the quote / just the lead). Default = exact price shown right away, then name + email + phone, lead + request + draft quote. The link is /book/<companySlug>/estimate/<slug>; the embed snippet lives under Settings → Estimate tools (globe button). Visitors never spend the owner's tokens unless the owner turns on photoAssist (a photo / description fill-in on the form, capped per day, needs the tool's assist). Text inputs are fine on a public form — they land in the request as answers. Every saved change keeps the previous version (Settings → Estimate tools → pencil → History), and the owner can edit rates by hand there too.",
+          "Any tool can be published as a website form: pass website: {enabled: true, showPrice: 'exact'|'range'|'hidden', reveal: 'instant'|'after_contact', onSubmit: 'draft'|'send'|'request', …} on create or update. Ask the owner two things at most: what visitors should see (exact price / range / no price) and what should happen (draft quote for review / email the quote / just the lead). Default = exact price shown right away, then name + email + phone, lead + request + draft quote. The link is /book/<companySlug>/estimate/<slug>; the embed snippet lives under the Estimates page (Website button on the tool). Visitors never spend the owner's tokens unless the owner turns on photoAssist (a photo / description fill-in on the form, capped per day, needs the tool's assist). Text inputs are fine on a public form — they land in the request as answers. Every saved change keeps the previous version (Estimates → Edit → History), and the owner can edit rates by hand there too.",
         next: "Draft the spec from what the user told you, run action 'test' with realistic sample inputs, then stage 'create'.",
       };
     }
@@ -256,7 +257,7 @@ const manageEstimator: Tool = {
             return { ...summary, website: websiteState(r, companySlug) };
           });
         })(),
-        page: "/app/settings/estimators",
+        page: "/app/estimates",
       };
     }
 
@@ -304,29 +305,14 @@ const manageEstimator: Tool = {
     }
 
     if (action === "create") {
-      const name = str(args.name, 80);
-      if (!name) return { error: "name is required" };
-      if (!args.spec) return { error: "spec is required — call action 'guide' for the format." };
-      const dup = await prisma.estimator.findFirst({ where: { companyId: actor.companyId, name: { equals: name, mode: "insensitive" } }, select: { id: true } });
-      if (dup) return { error: `A tool named "${name}" already exists (id ${dup.id}) — don't create it again; use action 'update'.` };
-      const count = await prisma.estimator.count({ where: { companyId: actor.companyId } });
-      if (count >= ESTIMATOR_LIMITS.perCompany) return { error: `Limit of ${ESTIMATOR_LIMITS.perCompany} estimate tools reached — update or delete one first.` };
-      const check = await checkSpec(actor.companyId, args.spec);
-      if (!check.ok) return { error: "The spec doesn't compile.", errors: check.errors };
-      const spec = check.compiled.spec;
-      const web = websiteFromArgs(args.website, name, await companySlugOf(actor.companyId), null);
+      // New tools are built on the Estimates page (streaming builder, no card):
+      // hand the owner's words over and send the drawer there.
+      const request = str(args.request, 1500) || str(args.description, 1500) || str(args.name, 200);
+      if (!request) return { error: "Pass request: the owner's own words describing the tool (and any rates they gave)." };
+      ctx.navigate = `/app/estimates?prompt=${encodeURIComponent(request)}`;
       return {
-        ...stage(ctx, {
-          kind: "manage_estimator",
-          title: `Create estimate tool "${name}"`,
-          lines: [...(str(args.description, 200) ? [`Use it for: ${str(args.description, 200)}`] : []), ...badgeLines(spec), ...(web?.lines ?? [])],
-          endpoint: "/api/app/estimators",
-          method: "POST",
-          payload: { name, description: str(args.description, 200) || null, spec, ...(web?.payload ?? {}), source: "atlas" },
-          confirmLabel: "Create tool",
-          href: "/app/settings/estimators",
-        }),
-        note: "Once confirmed it appears under Settings → Estimate tools and as 'Use an estimate tool' on new quotes. Never stage this create again — use 'list' then 'update' for changes.",
+        opened: "/app/estimates",
+        note: "The Estimates builder is opening with their request filled in. Reply in ONE short sentence — the builder is open, press Build it and the tool appears in a few seconds. Do not draft, describe or promise a spec here.",
       };
     }
 
@@ -376,7 +362,7 @@ const manageEstimator: Tool = {
         endpoint: `/api/app/estimators/${row.id}`,
         method: "PATCH",
         payload,
-        href: "/app/settings/estimators",
+        href: "/app/estimates",
       });
     }
 

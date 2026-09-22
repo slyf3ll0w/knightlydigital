@@ -80,6 +80,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
         const picks = Array.isArray(raw) ? raw : String(raw).split(",");
         shown = picks.map((p) => inp.options.find((o) => o.value === String(p).trim())?.label ?? String(p).trim()).filter(Boolean).join(", ");
       }
+      else if (inp.type === "map") shown = `${Math.round(Number(String(raw).replace(/[,\s]/g, ""))).toLocaleString("en-US")} ${inp.measure === "length" ? "ft" : "sq ft"} (drawn on the map)`;
       else if (inp.type === "number") shown = `${formatValue(Number(String(raw).replace(/[,$\s]/g, "")) as Value)}${inp.unit ? ` ${inp.unit}` : ""}`;
       else shown = String(raw).slice(0, 500);
       return `${inp.label}: ${shown}`;

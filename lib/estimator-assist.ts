@@ -35,6 +35,7 @@ export function inputsPrompt(spec: EstimatorSpec): string {
       if (i.type === "number") return `${base}${i.unit ? ` [${i.unit}]` : ""}${i.min !== undefined ? ` min ${i.min}` : ""}${i.max !== undefined ? ` max ${i.max}` : ""}`;
       if (i.type === "select") return `${base}. One of: ${i.options.map((o) => `"${o.value}" (${o.label})`).join(", ")}`;
       if (i.type === "multi") return `${base}. A LIST of any of: ${i.options.map((o) => `"${o.value}" (${o.label})`).join(", ")}`;
+      if (i.type === "map") return `${base}. Normally drawn on a map — a number in ${i.measure === "length" ? "FEET (a line)" : "SQUARE FEET (an area)"}; include only if the description or photo gives the size`;
       if (i.type === "toggle") return `${base}. true/false`;
       return `${base}. Free text`;
     })

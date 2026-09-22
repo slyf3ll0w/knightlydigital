@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import { ArrowLeft, Calculator, Camera, Check, FileText, Loader2, Sparkles, X } from "lucide-react";
 import Modal from "@/components/Modal";
 import { Input, Select, Textarea } from "@/components/Input";
@@ -9,6 +10,27 @@ import { useAssistant } from "@/components/AssistantContext";
 import { postJson } from "@/lib/safe-fetch";
 import { formDefaults, inputsComplete, sectionsOf, visibleInputIds, type EstimatorResultLine, type EstimatorSpec } from "@/lib/estimator";
 import { fileToAssistPhoto, type AssistPhoto } from "@/lib/image-downscale";
+import type { LatLngTuple } from "@/components/MapMeasure";
+
+// Leaflet touches window — only the map question needs it
+const MapMeasure = dynamic(() => import("@/components/MapMeasure"), { ssr: false, loading: () => <div className="h-80 animate-pulse rounded-lg bg-gray-100" /> });
+
+/** Options with pictures render as a picture grid (one pick or several). */
+function PictureOptions({ options, value, onPick, multi }: { options: { value: string; label: string; image?: string }[]; value: string | string[]; onPick: (v: string) => void; multi: boolean }) {
+  return (
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+      {options.map((o) => {
+        const on = multi ? Array.isArray(value) && value.includes(o.value) : value === o.value;
+        return (
+          <button key={o.value} type="button" aria-pressed={on} onClick={() => onPick(o.value)} className={`overflow-hidden rounded-xl border text-left ${on ? "border-gray-900 ring-2 ring-gray-900" : "border-gray-200 hover:border-gray-400"}`}>
+            {o.image ? <img src={o.image} alt="" className="aspect-[4/3] w-full object-cover" /> : <div className="aspect-[4/3] w-full bg-gray-100" />}
+            <span className="block px-2 py-1.5 text-xs font-medium text-gray-800">{o.label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 /**
  * Runs a saved estimate tool (docs/plans/ai-estimators-2026-09-19.md):
@@ -109,6 +131,8 @@ export function EstimatorRunnerPanel({
   const [result, setResult] = useState<RunOk | null>(null);
   const [starting, setStarting] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  // map questions keep their drawn corners here; the form value is just the number
+  const geomRef = useRef<Record<string, LatLngTuple[]>>({});
 
   const tool = useMemo(() => estimators.find((e) => e.id === selectedId) ?? null, [estimators, selectedId]);
   const spec = tool?.spec ?? null;
@@ -354,6 +378,7 @@ export function EstimatorRunnerPanel({
                         </label>
                       ) : (
                         <>
+                          {inp.image && <img src={inp.image} alt="" className="mb-2 max-h-44 w-full rounded-lg object-cover" />}
                           <label className="mb-1 block text-sm font-medium text-gray-800">
                             {inp.label}
                             {required && <span className="text-red-500"> *</span>}
@@ -374,7 +399,23 @@ export function EstimatorRunnerPanel({
                               {inp.unit && <span className="shrink-0 text-sm text-gray-500">{inp.unit}</span>}
                             </div>
                           )}
-                          {inp.type === "select" && (
+                          {inp.type === "map" && (
+                            <MapMeasure
+                              measure={inp.measure}
+                              points={geomRef.current[inp.id] ?? []}
+                              onChange={(pts, val) => {
+                                geomRef.current[inp.id] = pts;
+                                setVal(inp.id, val === null ? "" : String(val));
+                              }}
+                            />
+                          )}
+                          {inp.type === "select" && inp.options.some((o) => o.image) && (
+                            <PictureOptions options={inp.options} value={typeof v === "string" ? v : ""} onPick={(val) => setVal(inp.id, v === val ? "" : val)} multi={false} />
+                          )}
+                          {inp.type === "multi" && inp.options.some((o) => o.image) && (
+                            <PictureOptions options={inp.options} value={Array.isArray(v) ? v : []} onPick={(val) => toggleMulti(inp.id, val)} multi />
+                          )}
+                          {inp.type === "select" && !inp.options.some((o) => o.image) && (
                             <Select value={typeof v === "string" ? v : ""} required={required} onChange={(e) => setVal(inp.id, e.target.value)} className="w-full">
                               <option value="">Choose…</option>
                               {inp.options.map((o) => (
@@ -384,7 +425,7 @@ export function EstimatorRunnerPanel({
                               ))}
                             </Select>
                           )}
-                          {inp.type === "multi" && (
+                          {inp.type === "multi" && !inp.options.some((o) => o.image) && (
                             <div className="flex flex-wrap gap-1.5">
                               {inp.options.map((o) => {
                                 const on = Array.isArray(v) && v.includes(o.value);

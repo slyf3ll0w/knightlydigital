@@ -1250,9 +1250,28 @@ model Estimator {
 
   requests Request[]
   versions EstimatorVersion[]
+  images   EstimatorImage[]
 
   @@unique([companyId, publicSlug])
   @@index([companyId])
+}
+
+// Pictures on an estimate tool's questions/options (website form + runner).
+// Public by nature (they render on the public form), served through
+// /api/estimate-images/[id]; bytes in R2 when configured, else in the row —
+// the same two-path scheme as JobPhoto.
+model EstimatorImage {
+  id          String    @id @default(cuid())
+  companyId   String
+  estimatorId String
+  estimator   Estimator @relation(fields: [estimatorId], references: [id], onDelete: Cascade)
+  mimeType    String
+  data        Bytes?
+  storageKey  String?
+  sizeBytes   Int
+  createdAt   DateTime  @default(now())
+
+  @@index([estimatorId])
 }
 
 // Every saved change to an estimate tool (Atlas card, manual editor, restore)

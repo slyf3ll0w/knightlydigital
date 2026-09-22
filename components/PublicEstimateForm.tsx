@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { ArrowLeft, Camera, Check, CheckCircle, Loader2, X } from "lucide-react";
 import TurnstileWidget from "@/components/TurnstileWidget";
 import { textOn } from "@/lib/branding";
@@ -10,6 +11,9 @@ import type { ScheduleAppearance } from "@/app/book/[slug]/schedule/shell";
 import { sectionsOf, visibleInputIds, formDefaults, type EstimatorInput, type EstimatorSpec } from "@/lib/estimator";
 import { defaultSuccessMessage, estimateLabel, money, type EstimatorPublicConfig, type PublicEstimate } from "@/lib/estimator-public";
 import { fileToAssistPhoto, type AssistPhoto } from "@/lib/image-downscale";
+import type { LatLngTuple } from "@/components/MapMeasure";
+
+const MapMeasure = dynamic(() => import("@/components/MapMeasure"), { ssr: false, loading: () => <div className="h-80 animate-pulse rounded-lg bg-black/5" /> });
 
 /**
  * The visitor-facing estimate form (lib/estimator-public.ts). Screens:
@@ -83,6 +87,9 @@ export default function PublicEstimateForm({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // map questions keep their drawn corners here; the form value is just the number
+  const geomRef = useRef<Record<string, LatLngTuple[]>>({});
+
   // photo fill-in
   const fileRef = useRef<HTMLInputElement>(null);
   const [photo, setPhoto] = useState<AssistPhoto | null>(null);
@@ -120,6 +127,30 @@ export default function PublicEstimateForm({
     `inline-flex h-9 items-center gap-1 rounded-full border px-3 text-sm ${on ? "" : dark ? "border-white/20 text-gray-200" : "border-gray-300 text-gray-700"}`;
 
   const set = (k: string, v: string) => setForm((s) => ({ ...s, [k]: v }));
+
+  /** Options with pictures render as a picture grid (one pick or several). */
+  function PictureOptions({ options, value, onPick, multi }: { options: { value: string; label: string; image?: string }[]; value: string | string[]; onPick: (v: string) => void; multi: boolean }) {
+    return (
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        {options.map((o) => {
+          const on = multi ? Array.isArray(value) && value.includes(o.value) : value === o.value;
+          return (
+            <button
+              key={o.value}
+              type="button"
+              aria-pressed={on}
+              onClick={() => onPick(o.value)}
+              className={`overflow-hidden rounded-lg border text-left ${on ? "" : rowBox}`}
+              style={on ? { borderColor: accent, boxShadow: `0 0 0 2px ${accent}` } : undefined}
+            >
+              {o.image ? <img src={o.image} alt="" className="aspect-[4/3] w-full object-cover" /> : <div className={`aspect-[4/3] w-full ${dark ? "bg-white/10" : "bg-gray-100"}`} />}
+              <span className={`block px-2 py-1.5 text-xs font-medium ${ink}`}>{o.label}</span>
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
   const setVal = (id: string, v: string | boolean | string[]) => setValues((p) => ({ ...p, [id]: v }));
   const toggleMulti = (id: string, value: string) =>
     setValues((p) => {
@@ -364,10 +395,31 @@ export default function PublicEstimateForm({
           }
           return (
             <div key={inp.id}>
+              {inp.image && <img src={inp.image} alt="" className="mb-2 max-h-48 w-full rounded-lg object-cover" />}
               <label className={label}>
                 {inp.label}
                 {required ? " *" : ""}
               </label>
+              {inp.type === "map" && (
+                <>
+                  <MapMeasure
+                    measure={inp.measure}
+                    points={geomRef.current[inp.id] ?? []}
+                    accent={accent}
+                    dark={dark}
+                    onChange={(pts, val) => {
+                      geomRef.current[inp.id] = pts;
+                      setVal(inp.id, val === null ? "" : String(val));
+                    }}
+                  />
+                  {/* the browser's required check needs a real field */}
+                  <input type="text" value={typeof v === "string" ? v : ""} required={required} readOnly tabIndex={-1} aria-hidden className="sr-only" onChange={() => undefined} />
+                </>
+              )}
+              {inp.type === "select" && inp.options.some((o) => o.image) && (
+                <PictureOptions options={inp.options} value={typeof v === "string" ? v : ""} onPick={(val) => setVal(inp.id, v === val ? "" : val)} multi={false} />
+              )}
+              {inp.type === "multi" && inp.options.some((o) => o.image) && <PictureOptions options={inp.options} value={Array.isArray(v) ? v : []} onPick={(val) => toggleMulti(inp.id, val)} multi />}
               {inp.type === "number" && (
                 <div className="flex items-center gap-2">
                   <input
@@ -384,7 +436,7 @@ export default function PublicEstimateForm({
                   {inp.unit && <span className={`shrink-0 text-sm ${muted}`}>{inp.unit}</span>}
                 </div>
               )}
-              {inp.type === "select" && (
+              {inp.type === "select" && !inp.options.some((o) => o.image) && (
                 <select value={typeof v === "string" ? v : ""} required={required} onChange={(e) => setVal(inp.id, e.target.value)} className={`${input} ${dark ? "[&>option]:text-gray-900" : ""}`}>
                   <option value="">Select...</option>
                   {inp.options.map((o) => (
@@ -394,7 +446,7 @@ export default function PublicEstimateForm({
                   ))}
                 </select>
               )}
-              {inp.type === "multi" && (
+              {inp.type === "multi" && !inp.options.some((o) => o.image) && (
                 <div className="flex flex-wrap gap-1.5">
                   {inp.options.map((o) => {
                     const on = Array.isArray(v) && v.includes(o.value);
@@ -528,8 +580,8 @@ export default function PublicEstimateForm({
       {preview && (
         <p className={`text-center text-xs ${muted}`}>
           Preview only.{" "}
-          <Link href="/app/settings/estimators" className="underline">
-            Back to estimate tools
+          <Link href="/app/estimates" className="underline">
+            Back to Estimates
           </Link>
         </p>
       )}

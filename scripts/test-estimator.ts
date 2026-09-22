@@ -197,7 +197,7 @@ console.log("ok 5: run-time problems");
     const all = bad.errors.join("\n");
     for (const needle of [
       'Input id "1bad"', 'Input id "min" is a reserved word', "needs at least 2 options", 'Duplicate id "dup"',
-      "type must be number, select, multi, toggle or text", 'Variable "v": unknown name "nope"', "Line 1 needs a name",
+      "type must be number, select, multi, map, toggle or text", 'Variable "v": unknown name "nope"', "Line 1 needs a name",
       'Line "No price": needs a unitPrice expression or a workItemName', 'Line "Bad expr" unitPrice', "Unclosed {", "minimumTotal must be",
     ]) {
       assert.ok(all.includes(needle), `expected error containing: ${needle}\n--\n${all}`);
@@ -335,5 +335,44 @@ console.log("ok 9: sections, showWhen, multi");
   }
 }
 console.log("ok 10: describeSpecChanges");
+
+
+// 11. map questions + pictures (Batch 5)
+{
+  const bad = compileSpec({ inputs: [{ id: "fence", label: "Fence line", type: "map" }], lines: [{ name: "Fence", quantity: "fence", unitPrice: "28" }] });
+  assert.ok(!bad.ok && /needs measure/.test(bad.errors[0]), "map needs a measure");
+  const c = compileSpec({
+    inputs: [
+      { id: "fence", label: "Fence line", type: "map", measure: "length", image: "/api/estimate-images/ckx1234567890abc" },
+      { id: "style", label: "Style", type: "select", options: [{ value: "cedar", label: "Cedar", image: "https://example.com/cedar.jpg" }, { value: "chain", label: "Chain link", image: "javascript:alert(1)" }] },
+      { id: "lawn", label: "Lawn", type: "map", measure: "area", required: false },
+    ],
+    lines: [
+      { name: "Fence — {fence} ft", quantity: "fence", unitPrice: "lookup(style, {cedar: 28, chain: 18})" },
+      { name: "Lawn", when: "lawn > 0", quantity: "lawn", unitPrice: "0.02" },
+    ],
+  });
+  assert.ok(c.ok, JSON.stringify(c));
+  if (c.ok) {
+    const s = c.compiled.spec;
+    assert.equal(s.inputs[0].type, "map");
+    assert.equal(s.inputs[0].image, "/api/estimate-images/ckx1234567890abc", "our image route is allowed");
+    const style = s.inputs[1];
+    assert.ok(style.type === "select" && style.options[0].image === "https://example.com/cedar.jpg", "https pictures are allowed");
+    assert.ok(style.type === "select" && style.options[1].image === undefined, "javascript: is dropped");
+    const r = runEstimator(s, { fence: "120.4", style: "cedar" }, book);
+    assert.ok(r.ok, JSON.stringify(r));
+    if (r.ok) {
+      assert.equal(r.subtotal, 120 * 28, "map values round to whole feet; optional map left blank reads as 0");
+      assert.equal(r.lines.length, 1);
+    }
+    const missing = runEstimator(s, { style: "cedar" }, book);
+    assert.ok(!missing.ok && /draw it on the map/.test(missing.errors[0]));
+    const neg = runEstimator(s, { fence: -5, style: "cedar" }, book);
+    assert.ok(!neg.ok && /must be a measurement/.test(neg.errors[0]));
+    assert.deepEqual(Array.from(visibleInputIds(s, {})), ["fence", "style", "lawn"]);
+  }
+}
+console.log("ok 11: map + pictures");
 
 console.log("\nestimator: all green");

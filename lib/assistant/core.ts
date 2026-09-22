@@ -52,6 +52,8 @@ export type ToolCtx = {
   nextStep?: string;
   /** Fold a side model call (e.g. a grounded web lookup) into this turn's metered usage. */
   addUsage?: (u: { tokensIn: number; tokensOut: number; tokensCached: number }) => void;
+  /** Set by a tool whose work lives on a page (the Estimates builder): the drawer opens this /app path after the reply. */
+  navigate?: string;
 };
 
 export type Tool = {
