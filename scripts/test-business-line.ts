@@ -9,7 +9,9 @@
 import assert from "node:assert/strict";
 import { TelnyxError, isInsufficientFunds } from "@/lib/telnyx";
 import { needsOperatorReview } from "@/lib/business-line";
-import { einIssue } from "@/lib/business-line-shared";
+import { einIssue, emailTypoHint, legalNameHint } from "@/lib/business-line-shared";
+import { suggestionFromFeature } from "@/lib/geocoding";
+import { isPrivateIp, mentionsBusiness, nameTokens, websiteUrlIssue } from "@/lib/website-check";
 import {
   deriveRegistration,
   normalizeAreaCode,
@@ -361,4 +363,48 @@ console.log("test-business-line (number rights): all assertions passed");
   assert.match(einIssue("07-1234567") ?? "", /prefix/, "07 is never issued");
   assert.match(einIssue("89-1234567") ?? "", /prefix/, "89 is never issued");
   console.log("test-business-line (EIN): all assertions passed");
+}
+
+// Pre-flight: the checks the reviewer would do, done for free before the brand fee.
+{
+  assert.equal(legalNameHint("Lessly Holdings LLC", "PRIVATE_PROFIT"), null);
+  assert.equal(legalNameHint("Acme, Inc.", "PRIVATE_PROFIT"), null);
+  assert.match(legalNameHint("Lessly Holdings", "PRIVATE_PROFIT") ?? "", /LLC/);
+  assert.equal(legalNameHint("David Lessly", "SOLE_PROPRIETOR"), null, "sole props have no suffix");
+
+  assert.equal(emailTypoHint("david@gmail.com"), null);
+  assert.equal(emailTypoHint("david@gmial.com"), "Did you mean david@gmail.com?");
+  assert.equal(emailTypoHint("nonsense"), null);
+
+  const feature = {
+    properties: {
+      name: "1600 Pennsylvania Avenue NW",
+      full_address: "1600 Pennsylvania Avenue NW, Washington, District of Columbia 20500, United States",
+      context: { address: { name: "1600 Pennsylvania Avenue NW" }, place: { name: "Washington" }, region: { region_code: "dc" }, postcode: { name: "20500" } },
+    },
+  };
+  assert.deepEqual(suggestionFromFeature(feature), {
+    label: feature.properties.full_address,
+    street: "1600 Pennsylvania Avenue NW",
+    city: "Washington",
+    state: "DC",
+    postalCode: "20500",
+  });
+  assert.equal(suggestionFromFeature({ properties: { name: "Main St", context: { place: { name: "Dallas" } } } }), null, "a street without a number/ZIP is not an address");
+
+  assert.equal(websiteUrlIssue("https://lesslyholdings.com"), null);
+  assert.ok(websiteUrlIssue("ftp://lesslyholdings.com"));
+  assert.ok(websiteUrlIssue("http://localhost:3000"));
+  assert.ok(websiteUrlIssue("http://10.0.0.5/"));
+  assert.ok(websiteUrlIssue("http://intranet"), "no dot = not public");
+  for (const ip of ["10.1.2.3", "127.0.0.1", "192.168.1.1", "172.16.0.9", "169.254.169.254", "::1", "fd12::1", "::ffff:10.0.0.1"]) {
+    assert.ok(isPrivateIp(ip), `${ip} is private`);
+  }
+  for (const ip of ["8.8.8.8", "172.32.0.1", "2606:4700::1111"]) assert.ok(!isPrivateIp(ip), `${ip} is public`);
+
+  assert.deepEqual(nameTokens(["Lessly Holdings LLC"]), ["lessly"]);
+  assert.ok(mentionsBusiness("Welcome to Lessly Holdings — plumbing done right", ["Lessly Holdings LLC"]));
+  assert.ok(!mentionsBusiness("Coming soon", ["Lessly Holdings LLC"]));
+  assert.ok(mentionsBusiness("anything", ["The Co"]), "a name with no distinctive word can't be checked, so it passes");
+  console.log("test-business-line (pre-flight): all assertions passed");
 }

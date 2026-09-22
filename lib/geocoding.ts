@@ -195,3 +195,77 @@ export async function geocodeCompany(id: string): Promise<void> {
     console.error("[geocode] company stamp failed:", id, err);
   }
 }
+
+/* ───────────────────────── Address suggestions ───────────────────────── */
+
+/** The four fields the texting-registration form files. */
+export type AddressSuggestion = { label: string; street: string; city: string; state: string; postalCode: string };
+
+/** The parts of a Mapbox v6 feature the suggestion needs. */
+export type SuggestFeature = {
+  properties?: {
+    name?: string;
+    full_address?: string;
+    context?: {
+      address?: { name?: string };
+      place?: { name?: string };
+      region?: { region_code?: string };
+      postcode?: { name?: string };
+    };
+  };
+};
+
+/** One suggestion from one feature, or null when it isn't a complete street address. Pure. */
+export function suggestionFromFeature(f: SuggestFeature): AddressSuggestion | null {
+  const p = f.properties;
+  const ctx = p?.context;
+  const street = (ctx?.address?.name ?? p?.name ?? "").trim();
+  const city = (ctx?.place?.name ?? "").trim();
+  const state = (ctx?.region?.region_code ?? "").trim().toUpperCase();
+  const postalCode = (ctx?.postcode?.name ?? "").trim().slice(0, 5);
+  if (!street || !city || !/^[A-Z]{2}$/.test(state) || !/^\d{5}$/.test(postalCode)) return null;
+  return { label: p?.full_address ?? `${street}, ${city}, ${state} ${postalCode}`, street, city, state, postalCode };
+}
+
+/**
+ * Up to five USPS-form street addresses matching a partial one, biased
+ * toward the company's location. Metered and budget-capped like every
+ * geocode; empty when the token is missing or the month's cap is spent.
+ */
+export async function suggestAddresses(query: string, companyId: string | null): Promise<AddressSuggestion[]> {
+  const q = query.trim();
+  if (q.length < 4 || !geocodingEnabled() || !(await geocodeBudgetOk())) return [];
+  const home = companyId
+    ? await prisma.company.findUnique({ where: { id: companyId }, select: { lat: true, lng: true } })
+    : null;
+  const params = new URLSearchParams({
+    q,
+    autocomplete: "true",
+    types: "address",
+    limit: "5",
+    country: GEOCODE_COUNTRY,
+    access_token: MAPBOX_TOKEN ?? "",
+  });
+  if (home?.lat != null && home?.lng != null) params.set("proximity", `${home.lng},${home.lat}`);
+  try {
+    const res = await fetch(`https://api.mapbox.com/search/geocode/v6/forward?${params.toString()}`, {
+      signal: AbortSignal.timeout(5_000),
+    });
+    recordGeocodeCall(companyId);
+    if (!res.ok) return [];
+    const data = (await res.json()) as { features?: SuggestFeature[] };
+    const seen = new Set<string>();
+    const out: AddressSuggestion[] = [];
+    for (const f of data.features ?? []) {
+      const s = suggestionFromFeature(f);
+      if (s && !seen.has(s.label)) {
+        seen.add(s.label);
+        out.push(s);
+      }
+    }
+    return out;
+  } catch (err) {
+    console.error("[geocode] suggest failed:", err);
+    return [];
+  }
+}

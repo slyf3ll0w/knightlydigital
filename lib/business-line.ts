@@ -64,6 +64,7 @@ import { deleteSoftphoneResources } from "@/lib/softphone";
 import { prisma } from "@/lib/db";
 import { hasAddon } from "@/lib/addon";
 import { alertOperator, alertTelnyxFunds } from "@/lib/ops-alert";
+import { checkBusinessWebsite } from "@/lib/website-check";
 import { notifyUsers } from "@/lib/push";
 import { toE164 } from "@/lib/sms";
 import {
@@ -722,6 +723,13 @@ export async function submitRegistration(companyId: string, form: RegistrationFo
   const prior = company.messagingRegistration;
   if (prior && prior.status !== "REJECTED" && prior.status !== "QUEUED" && prior.status !== "AWAITING_REVIEW") {
     throw new LineError("A registration is already in progress.", 409);
+  }
+  // Pre-flight the website the way the reviewer will: a dead or unrelated site is a rejection, and re-files cost fees.
+  if (form.website) {
+    const check = await checkBusinessWebsite(form.website, [form.displayName, form.legalName], {
+      required: lineKind(company) === "TOLL_FREE",
+    });
+    if (!check.ok) throw new LineError(check.reason);
   }
   if (needsOperatorReview(prior, registrationReviewRequired())) return holdForReview(company, form);
 

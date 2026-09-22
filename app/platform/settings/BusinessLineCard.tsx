@@ -12,7 +12,10 @@ import {
   type LineType,
   type RegistrationForm,
   einIssue,
+  emailTypoHint,
+  legalNameHint,
 } from "@/lib/business-line-shared";
+import AddressAutocomplete from "@/components/AddressAutocomplete";
 
 /**
  * Settings → Features: the company's business line (lib/business-line.ts).
@@ -736,12 +739,16 @@ function RegistrationForm({
   const [error, setError] = useState("");
   // Typed twice: a mistyped EIN is a $4.50 carrier-registry rejection and days of delay.
   const [einConfirm, setEinConfirm] = useState(initial?.ein ?? "");
+  // "Exactly as on the IRS letter" — the registry's most common rejection is a legal name that isn't.
+  const [nameConfirmed, setNameConfirmed] = useState(Boolean(initial));
   const set = (k: keyof RegistrationForm) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setF((p) => ({ ...p, [k]: e.target.value }));
   const sole = !tollFree && f.entityType === "SOLE_PROPRIETOR";
   const einDigits = (f.ein ?? "").replace(/\D/g, "");
   const einProblem = sole ? null : einIssue(einDigits);
   const einMismatch = !sole && !einProblem && einConfirm.replace(/\D/g, "") !== einDigits;
+  const nameHint = sole ? null : legalNameHint(f.legalName, f.entityType);
+  const emailHint = emailTypoHint(f.contactEmail);
   // Telnyx's toll-free reviewer: the contact email must be at the website's domain (www/subdomains ignored).
   const siteDomain = (() => {
     const w = (f.website ?? "").trim();
@@ -829,8 +836,9 @@ function RegistrationForm({
       </fieldset>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Legal business name" hint={sole ? "Your full legal name" : "Exactly as on your IRS letter"}>
+        <Field label="Legal business name" hint={sole ? "Your full legal name" : "Exactly as on your IRS letter (CP575 / 147C)"}>
           <input value={f.legalName} onChange={set("legalName")} className={inputCls} required />
+          {nameHint && <span className="mt-0.5 block text-[11px] text-amber-700">{nameHint}</span>}
         </Field>
         <Field label="Name clients know you by" hint="What appears in the registration as your brand">
           <input value={f.displayName ?? ""} onChange={set("displayName")} className={inputCls} />
@@ -875,8 +883,14 @@ function RegistrationForm({
             ))}
           </select>
         </Field>
-        <Field label="Street address" hint="No PO boxes" className="sm:col-span-2">
-          <input value={f.street} onChange={set("street")} className={inputCls} required />
+        <Field label="Street address" hint="Pick it from the list so it matches the post office — no PO boxes" className="sm:col-span-2">
+          <AddressAutocomplete
+            value={f.street}
+            onChange={(street) => setF((p) => ({ ...p, street }))}
+            onPick={(s) => setF((p) => ({ ...p, street: s.street, city: s.city, state: s.state, postalCode: s.postalCode }))}
+            className={inputCls}
+            required
+          />
         </Field>
         <Field label="City">
           <input value={f.city} onChange={set("city")} className={inputCls} required />
@@ -920,6 +934,7 @@ function RegistrationForm({
           {emailOffDomain && (
             <span className="mt-0.5 block text-[11px] text-red-600">This address isn't at {siteDomain}, so the reviewer will send it back.</span>
           )}
+          {emailHint && <span className="mt-0.5 block text-[11px] text-amber-700">{emailHint}</span>}
         </Field>
         <Field label={sole ? "Your mobile (gets the PIN)" : "Contact phone"}>
           <input value={f.contactPhone} onChange={set("contactPhone")} inputMode="tel" className={inputCls} required />
@@ -939,8 +954,22 @@ function RegistrationForm({
         </p>
       )}
 
+      {!sole && (
+        <label className="flex items-start gap-2 text-xs text-gray-700">
+          <input type="checkbox" checked={nameConfirmed} onChange={(e) => setNameConfirmed(e.target.checked)} className="mt-0.5" />
+          <span>
+            The legal name and address above are exactly as they appear on my IRS letter (CP575 or 147C), including any
+            &ldquo;LLC&rdquo; or &ldquo;Inc.&rdquo;
+          </span>
+        </label>
+      )}
+
       <div className="flex flex-wrap items-center gap-3">
-        <button type="submit" disabled={busy || !line.entitled || Boolean(einProblem) || einMismatch} className={primaryBtn}>
+        <button
+          type="submit"
+          disabled={busy || !line.entitled || Boolean(einProblem) || einMismatch || (!sole && !nameConfirmed)}
+          className={primaryBtn}
+        >
           {busy && <Loader2 size={14} className="animate-spin" />}
           {busy ? "Submitting…" : initial ? "Resubmit" : tollFree ? "Verify for texting" : "Register for texting"}
         </button>

@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import Link from "next/link";
-import { Plus, ChevronRight, UserCheck, Upload, ListPlus, Users, Download } from "lucide-react";
+import { Plus, ChevronRight, UserCheck, Upload, ListPlus, Users, Download, Phone } from "lucide-react";
 import PageTitle from "@/components/PageTitle";
 import { SECTION_HUES } from "@/lib/section-colors";
 import { FilterChip } from "@/components/FilterChips";
@@ -176,8 +176,8 @@ export default async function ContactsPage({
                 <span></span>
               </div>
               {contacts.map((c) => (
+                <div key={c.id} className="relative">
                 <Link
-                  key={c.id}
                   prefetch={false} href={`/app/contacts/${c.id}`}
                   className="flex lg:grid lg:grid-cols-[1fr_1fr_110px_120px_120px_40px] gap-3 lg:gap-4 items-center px-4 py-3 lg:py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
                 >
@@ -208,8 +208,21 @@ export default async function ContactsPage({
                   <span className="hidden lg:block text-sm text-gray-500">
                     {shortDate(c.updatedAt)}
                   </span>
-                  <ChevronRight size={14} className="text-gray-400 shrink-0 hidden lg:block" />
+                  {/* The last column holds the Call button (below, outside the link) when there's a phone. */}
+                  {c.phone ? <span className="hidden lg:block w-9" /> : <ChevronRight size={14} className="text-gray-400 shrink-0 hidden lg:block" />}
                 </Link>
+                {/* Call from the card, like a lead card — a sibling of the link, since a link can't nest one. */}
+                {c.phone && (
+                  <a
+                    href={`tel:${c.phone.replace(/[^\d+]/g, "")}`}
+                    aria-label={`Call ${c.firstName} ${c.lastName}`}
+                    title="Call"
+                    className="absolute right-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200 active:bg-gray-300 lg:right-4"
+                  >
+                    <Phone size={15} />
+                  </a>
+                )}
+                </div>
               ))}
             </div>
             {/* Ledger foot — entry count */}

@@ -171,3 +171,46 @@ export function einIssue(raw: string | null | undefined): string | null {
   }
   return null;
 }
+
+/** Entity suffixes a registered business's legal name usually carries. */
+const ENTITY_SUFFIX = /\b(l\.?l\.?c\.?|inc\.?|incorporated|corp\.?|corporation|co\.?|company|l\.?p\.?|l\.?l\.?p\.?|p\.?l\.?l\.?c\.?|p\.?c\.?|ltd\.?|limited|p\.?a\.?|s\.?c\.?)\s*$/i;
+
+/**
+ * The most common brand rejection is a legal name that doesn't match the
+ * IRS record exactly — usually a missing "LLC" or "Inc." Warn, don't block:
+ * some legitimate names carry no suffix.
+ */
+export function legalNameHint(name: string, entityType: BrandEntityType): string | null {
+  if (entityType !== "PRIVATE_PROFIT") return null;
+  const n = name.trim();
+  if (n.length < 2 || ENTITY_SUFFIX.test(n)) return null;
+  return "No \"LLC\", \"Inc.\" or similar at the end — if your IRS letter shows one, include it exactly as written.";
+}
+
+const EMAIL_TYPOS: Record<string, string> = {
+  "gmial.com": "gmail.com",
+  "gmal.com": "gmail.com",
+  "gmai.com": "gmail.com",
+  "gamil.com": "gmail.com",
+  "gmail.co": "gmail.com",
+  "gmail.con": "gmail.com",
+  "hotmal.com": "hotmail.com",
+  "hotmai.com": "hotmail.com",
+  "hotmial.com": "hotmail.com",
+  "yaho.com": "yahoo.com",
+  "yahooo.com": "yahoo.com",
+  "yahoo.co": "yahoo.com",
+  "outlok.com": "outlook.com",
+  "outloo.com": "outlook.com",
+  "iclod.com": "icloud.com",
+  "icloud.co": "icloud.com",
+};
+
+/** "Did you mean …@gmail.com?" for the handful of domains people mistype most. */
+export function emailTypoHint(email: string): string | null {
+  const at = email.lastIndexOf("@");
+  if (at < 1) return null;
+  const domain = email.slice(at + 1).toLowerCase();
+  const fix = EMAIL_TYPOS[domain];
+  return fix ? `Did you mean ${email.slice(0, at + 1)}${fix}?` : null;
+}

@@ -430,7 +430,15 @@ campaign. A campaign-stage rejection emails the operator and shows the tenant
 "we're sorting it out" with no resubmit button, because the campaign copy is
 the shared template (`campaignCopy`), not their form. The EIN is typed twice
 and checked against the IRS prefix list (`einIssue`, lib/business-line-shared.ts,
-form + server) so a typo never reaches the registry.
+form + server) so a typo never reaches the registry. Same idea for the rest
+of the form (2026-09-22): the street address comes from Mapbox autocomplete
+(`GET /api/app/line/address-suggest` → `suggestAddresses`, USPS-form, metered
+like every geocode), the legal name warns when it lacks an entity suffix and
+the form needs an "exactly as on my IRS letter" tick, the contact email flags
+gmial.com-style typos, and the website is loaded server-side at submit
+(`lib/website-check.ts`: public hosts only, redirects re-checked, must answer
+2xx and mention the business) — a bad site is refused with the reason instead
+of being filed.
 
 **Calls list (2026-09-22):** rows show the time on the line (talk time, or
 ring time when nobody picked up) instead of "Answered" / "No answer" — a
