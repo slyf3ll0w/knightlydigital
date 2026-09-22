@@ -20,10 +20,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
   const preview = req.nextUrl.searchParams.get("preview") === "1";
   const pub = await resolvePublicEstimator(slug, tool, { preview });
   if (!pub) return NextResponse.json({ error: "This form isn't available." }, { status: 404 });
-  if (!pub.config.photoAssist || !pub.spec.assist) return NextResponse.json({ error: "This form doesn't take photos." }, { status: 404 });
+  // Allowed when the owner opted into photo fill-in, or when the tool has
+  // questions Atlas assesses itself (the owner chose that when building it)
+  const assessed = pub.spec.inputs.some((i) => i.askAtlas);
+  if (!pub.spec.assist || (!pub.config.photoAssist && !assessed)) return NextResponse.json({ error: "This form doesn't take photos." }, { status: 404 });
 
   const ip = clientIp(req.headers);
-  if (!(await limit(`public-estimate-assist-ip:${ip}`, 6, 3600_000)).ok) {
+  if (ip !== "unknown" && !(await limit(`public-estimate-assist-ip:${ip}`, 8, 3600_000)).ok) {
     return NextResponse.json({ error: "Too many tries — please fill in the answers by hand." }, { status: 429 });
   }
   if (!(await limit(`public-estimate-assist:${pub.company.id}`, PUBLIC_PHOTO_ASSIST_DAILY_CAP, 86400_000)).ok) {

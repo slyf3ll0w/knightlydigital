@@ -25,9 +25,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
   if (!pub) return NextResponse.json({ error: "This form isn't taking submissions right now." }, { status: 404 });
   const { company, spec, config } = pub;
 
+  // Own bucket (the booking forms had been sharing theirs with this one, so a
+  // busy afternoon of testing hit "Too many requests"); an unknown IP is never
+  // a shared key — captcha + the per-company cap still stand.
   const ip = clientIp(req.headers);
-  if (!(await limit(`public-book-ip:${ip}`, 20, 3600_000)).ok) {
-    return NextResponse.json({ error: "Too many requests — please try again later." }, { status: 429 });
+  if (ip !== "unknown" && !(await limit(`public-estimate-submit-ip:${ip}`, 40, 3600_000)).ok) {
+    return NextResponse.json({ error: "Too many requests from this connection — please try again in a little while." }, { status: 429 });
   }
   const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
   if (!(await verifyCaptcha(typeof body.captchaToken === "string" ? body.captchaToken : undefined))) {
@@ -80,6 +83,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
         const picks = Array.isArray(raw) ? raw : String(raw).split(",");
         shown = picks.map((p) => inp.options.find((o) => o.value === String(p).trim())?.label ?? String(p).trim()).filter(Boolean).join(", ");
       }
+      else if (inp.type === "counts") {
+        const table = raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {};
+        const parts = Object.entries(table)
+          .filter(([, c]) => Number(c) > 0)
+          .map(([k, c]) => `${Math.floor(Number(c))} × ${inp.options.find((o) => o.value === k)?.label ?? k}`);
+        if (parts.length === 0) return null;
+        shown = parts.join(", ");
+      }
       else if (inp.type === "map") shown = `${Math.round(Number(String(raw).replace(/[,\s]/g, ""))).toLocaleString("en-US")} ${inp.measure === "length" ? "ft" : "sq ft"} (drawn on the map)`;
       else if (inp.type === "number") shown = `${formatValue(Number(String(raw).replace(/[,$\s]/g, "")) as Value)}${inp.unit ? ` ${inp.unit}` : ""}`;
       else shown = String(raw).slice(0, 500);
@@ -96,7 +107,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
     answers,
     customer: { firstName, lastName, email, phone, address, message, smsConsent: phone ? body.smsConsent === true : undefined },
     page: page || undefined,
-    usedPhoto: config.photoAssist && body.usedPhoto === true,
+    usedPhoto: (config.photoAssist || spec.inputs.some((i) => i.askAtlas)) && body.usedPhoto === true,
   });
   return NextResponse.json({ success: true, estimate: lead.estimate, quoteNumber: lead.quoteNumber }, { status: 201 });
 }

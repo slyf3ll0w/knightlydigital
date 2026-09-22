@@ -1,20 +1,21 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, Check, Globe, Loader2, Pencil, Play, Sparkles } from "lucide-react";
-import { Textarea } from "@/components/Input";
+import { AlertTriangle, Check, Globe, Loader2, MessageCircleQuestion, Pencil, Play, Sparkles } from "lucide-react";
+import { Input, Textarea } from "@/components/Input";
 import { useAssistant } from "@/components/AssistantContext";
 import { APP_THEME, moneyExact, useCountUp, wash } from "@/components/EstimatorControls";
-import type { BuildDraft, BuildPlan, BuildSample } from "@/lib/estimator-build";
+import type { BuildAnswer, BuildDraft, BuildPlan, BuildQuestion, BuildSample } from "@/lib/estimator-build";
 
 /**
  * The Estimates builder: a sentence in, a saved tool out, with the tool
  * TAKING SHAPE on screen as the work happens (POST /api/app/estimators/build
  * streams phases + real content: the plan, the draft, the sample prices).
  * Nothing on screen is decorative — every row is something the model
- * actually produced. The same panel changes an existing tool when
- * `estimatorId` is set (the "Ask Atlas" sheet). When the model needs a fact
- * only the owner knows it asks ONE question here and the owner answers inline.
+ * actually produced. When the plan finds something only the owner knows
+ * (rates per material, a minimum), it asks — one short round, with example
+ * answers to tap — the way a colleague would, then builds with the answers.
+ * The same panel changes an existing tool when `estimatorId` is set.
  */
 
 export type BuiltTool = Record<string, unknown> & { id: string; name: string };
@@ -25,6 +26,7 @@ type Ev =
   | { plan: BuildPlan }
   | { draft: BuildDraft }
   | { samples: BuildSample[] }
+  | { questions: BuildQuestion[]; tokens: number }
   | { ask: string; tokens: number }
   | { done: true; tool: BuiltTool; changes: string[]; samples: BuildSample[]; placeholders: string[]; warnings: string[]; tokens: number }
   | { error: string; tokens: number; atlasLocked?: boolean };
@@ -45,6 +47,7 @@ const EXAMPLES = [
   "Interior painting by room: walls $2.50 per sq ft, ceilings $1.75, $45 per door and $30 per window; two coats adds 30%.",
   "Roof replacement: draw the roof area; architectural shingles $4.25 per sq ft, metal $9.50, tear-off $0.85 per sq ft, skylights $350 each.",
   "House cleaning by bedrooms and bathrooms: $120 base + $25 per bedroom + $35 per bathroom; deep clean is 1.5×; weekly saves 15%.",
+  "Window cleaning: count windows by type — standard $8, large picture $18, French pane $4 per pane; inside and out doubles it; $120 minimum.",
 ];
 
 const CONTROL_WORD: Record<string, string> = {
@@ -58,8 +61,10 @@ const CONTROL_WORD: Record<string, string> = {
   list: "pick one",
   select: "pick one",
   multi: "pick several",
+  counts: "item counts",
   toggle: "yes / no",
   text: "text",
+  atlas: "Atlas assesses",
 };
 
 /** One sample price tile: counts up when the number lands. */
@@ -105,14 +110,14 @@ export default function BuildPanel({
   const atlas = useAssistant();
   const theme = APP_THEME;
   const [prompt, setPrompt] = useState(initialPrompt);
-  const [answer, setAnswer] = useState("");
-  const [ask, setAsk] = useState("");
   const [running, setRunning] = useState(false);
   const [doneKeys, setDoneKeys] = useState<StepKey[]>([]);
   const [current, setCurrent] = useState<{ key: StepKey; message: string } | null>(null);
   const [plan, setPlan] = useState<BuildPlan | null>(null);
   const [draft, setDraft] = useState<BuildDraft | null>(null);
   const [samples, setSamples] = useState<BuildSample[] | null>(null);
+  const [questions, setQuestions] = useState<BuildQuestion[] | null>(null);
+  const [answers, setAnswers] = useState<string[]>([]);
   const [error, setError] = useState("");
   const [finished, setFinished] = useState<Finished | null>(null);
   const boxRef = useRef<HTMLTextAreaElement>(null);
@@ -126,7 +131,8 @@ export default function BuildPanel({
 
   function reset() {
     setError("");
-    setAsk("");
+    setQuestions(null);
+    setAnswers([]);
     setFinished(null);
     setDoneKeys([]);
     setPlan(null);
@@ -134,7 +140,7 @@ export default function BuildPanel({
     setSamples(null);
   }
 
-  async function run(fullPrompt: string) {
+  async function run(fullPrompt: string, withAnswers?: BuildAnswer[]) {
     setRunning(true);
     reset();
     setCurrent({ key: "plan", message: "Starting…" });
@@ -142,7 +148,7 @@ export default function BuildPanel({
       const res = await fetch("/api/app/estimators/build", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: fullPrompt, ...(estimatorId ? { estimatorId } : {}) }),
+        body: JSON.stringify({ prompt: fullPrompt, ...(estimatorId ? { estimatorId } : {}), ...(withAnswers && withAnswers.length > 0 ? { answers: withAnswers } : {}) }),
       });
       if (!res.ok || !res.body) {
         const data = (await res.json().catch(() => null)) as { error?: string } | null;
@@ -169,9 +175,14 @@ export default function BuildPanel({
           setPlan(ev.plan);
         } else if ("draft" in ev) {
           setDraft(ev.draft);
+        } else if ("questions" in ev) {
+          setCurrent(null);
+          setQuestions(ev.questions);
+          setAnswers(ev.questions.map(() => ""));
         } else if ("ask" in ev) {
           setCurrent(null);
-          setAsk(ev.ask);
+          setQuestions([{ question: ev.ask, why: "", suggestions: [] }]);
+          setAnswers([""]);
         } else if ("done" in ev) {
           setDoneKeys(STEPS.map((s) => s.key));
           setCurrent(null);
@@ -232,15 +243,21 @@ export default function BuildPanel({
   const sampleSlots: (BuildSample | null)[] = samples && samples.length > 0 ? samples.slice(0, 3) : [null, null, null];
   const pricing = current?.key === "test" || (Boolean(draft) && !samples);
 
+  const submitAnswers = (skip: boolean) => {
+    if (!questions) return;
+    const a: BuildAnswer[] = questions.map((q, i) => ({ question: q.question, answer: skip ? "" : answers[i] ?? "" }));
+    void run(prompt, a);
+  };
+
   return (
     <div className={compact ? "" : "card-ledger overflow-hidden"}>
       {/* ── the ask ── */}
-      {!stage && (
+      {!stage && !questions && (
         <div className={compact ? "" : "p-4 sm:p-6"}>
           {!compact && (
             <div className="mb-4">
               <h2 className="text-xl font-bold tracking-tight text-gray-900">Build an estimate tool</h2>
-              <p className="mt-1 text-sm text-gray-600">Say how you price the job, the way you&apos;d explain it to a new hire. {atlas.name} writes the questions, the packages and the math — then proves it on three sample jobs.</p>
+              <p className="mt-1 text-sm text-gray-600">Say how you price the job, the way you&apos;d explain it to a new hire. {atlas.name} asks about anything it needs, writes the questions, the packages and the math, then proves it on sample jobs.</p>
             </div>
           )}
           <Textarea
@@ -255,13 +272,6 @@ export default function BuildPanel({
               if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && canRun) void run(prompt);
             }}
           />
-          {ask && (
-            <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
-              <p className="text-sm font-medium text-amber-900">{atlas.name} needs one thing first</p>
-              <p className="mt-1 text-sm text-amber-900/90">{ask}</p>
-              <Textarea value={answer} onChange={(e) => setAnswer(e.target.value)} rows={2} placeholder="Your answer" className="mt-2 w-full" />
-            </div>
-          )}
           {error && (
             <div role="alert" className="form-error mt-3">
               {error}
@@ -269,14 +279,9 @@ export default function BuildPanel({
           )}
           <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
             <span className="text-xs text-gray-500">{atlas.locked ? "Your Atlas tokens are used up for now." : "Uses Atlas tokens once. Running the tool is free, forever."}</span>
-            <button
-              type="button"
-              disabled={!canRun || (Boolean(ask) && answer.trim().length < 1)}
-              onClick={() => void run(ask ? `${prompt}\n\n${atlas.name} asked: ${ask}\nOwner's answer: ${answer.trim()}` : prompt)}
-              className="btn-primary h-11 justify-center px-5"
-            >
+            <button type="button" disabled={!canRun} onClick={() => void run(prompt)} className="btn-primary h-11 justify-center px-5">
               <Sparkles size={16} />
-              {ask ? "Continue" : estimatorId ? "Make the change" : "Build it"}
+              {estimatorId ? "Make the change" : "Build it"}
             </button>
           </div>
           {!compact && !estimatorId && !prompt && (
@@ -294,10 +299,63 @@ export default function BuildPanel({
         </div>
       )}
 
-      {/* ── the stage: rail + the tool taking shape ── */}
-      {stage && (
+      {/* ── clarifying questions ── */}
+      {questions && !running && !finished && (
         <div className={compact ? "" : "p-4 sm:p-6"}>
-          {/* rail */}
+          <div className="flex items-start gap-3">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px]" style={{ backgroundColor: wash(theme, 12), color: theme.accent }}>
+              <MessageCircleQuestion size={18} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <h3 className="text-base font-semibold text-gray-900">Before I build this, {questions.length === 1 ? "one quick question" : `${questions.length} quick questions`}</h3>
+              <p className="mt-0.5 text-xs text-gray-500">Answer what you can. Anything you skip gets a placeholder you can set later.</p>
+            </div>
+          </div>
+          <ol className="mt-4 space-y-4">
+            {questions.map((q, i) => (
+              <li key={q.question} className="msg-enter rounded-xl border border-gray-200 p-3.5" style={{ animationDelay: `${i * 60}ms` }}>
+                <p className="text-sm font-medium text-gray-900">{q.question}</p>
+                {q.why && <p className="mt-0.5 text-xs text-gray-500">{q.why}</p>}
+                {q.suggestions.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {q.suggestions.map((s) => {
+                      const on = answers[i] === s;
+                      return (
+                        <button key={s} type="button" onClick={() => setAnswers((a) => a.map((x, k) => (k === i ? (on ? "" : s) : x)))} className={`rounded-full border px-2.5 py-1 text-xs font-medium ${on ? "" : "border-gray-200 text-gray-700 hover:bg-gray-50"}`} style={on ? { backgroundColor: theme.accent, borderColor: theme.accent, color: theme.onAccent } : undefined}>
+                          {s}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+                <Input value={answers[i] ?? ""} onChange={(e) => setAnswers((a) => a.map((x, k) => (k === i ? e.target.value : x)))} placeholder="Your answer" maxLength={600} className="mt-2 w-full" autoFocus={i === 0} />
+              </li>
+            ))}
+          </ol>
+          {error && (
+            <div role="alert" className="form-error mt-3">
+              {error}
+            </div>
+          )}
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+            <button type="button" onClick={() => submitAnswers(true)} className="text-xs font-medium text-gray-600 underline-offset-2 hover:underline">
+              Skip — use placeholders
+            </button>
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={() => setQuestions(null)} className="h-10 rounded-lg px-3 text-sm font-medium text-gray-600 hover:bg-gray-100">
+                Edit my description
+              </button>
+              <button type="button" disabled={atlas.locked} onClick={() => submitAnswers(false)} className="btn-primary h-10 justify-center">
+                <Sparkles size={15} /> Build with these answers
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── the stage: rail + the tool taking shape ── */}
+      {stage && !questions && (
+        <div className={compact ? "" : "p-4 sm:p-6"}>
           <ol className="flex items-center gap-1.5 sm:gap-2" aria-label="Build progress">
             {STEPS.map((s, i) => {
               const done = doneKeys.includes(s.key);

@@ -8,9 +8,9 @@ import TurnstileWidget from "@/components/TurnstileWidget";
 import { textOn } from "@/lib/branding";
 import { smsConsentLabel, SMS_TERMS_URL } from "@/lib/sms-consent";
 import type { ScheduleAppearance } from "@/app/book/[slug]/schedule/shell";
-import { sectionsOf, visibleInputIds, formDefaults, inputsComplete, type EstimatorInput, type EstimatorSpec } from "@/lib/estimator";
+import { sectionsOf, visibleInputIds, formDefaults, inputsComplete, type EstimatorInput, type EstimatorSpec, type FormValue } from "@/lib/estimator";
 import { defaultSuccessMessage, estimateLabel, type EstimatorPublicConfig, type PublicEstimate, type PublicVariant } from "@/lib/estimator-public";
-import { Breakdown, ChoiceControl, MultiControl, NumberControl, PriceHero, StepRail, ToggleRow, pickedIncludes, publicTheme, wash } from "@/components/EstimatorControls";
+import { Breakdown, ChoiceControl, CountsControl, MultiControl, NumberControl, PriceHero, StepRail, ToggleRow, pickedIncludes, publicTheme, wash } from "@/components/EstimatorControls";
 import { fileToAssistPhoto, type AssistPhoto } from "@/lib/image-downscale";
 import type { LatLngTuple } from "@/components/MapMeasure";
 
@@ -33,7 +33,7 @@ const MapMeasure = dynamic(() => import("@/components/MapMeasure"), { ssr: false
  */
 
 type Calc = { ok: true; estimate: PublicEstimate };
-type FormValues = Record<string, string | boolean | string[]>;
+type FormValues = Record<string, FormValue>;
 
 export default function PublicEstimateForm({
   companySlug,
@@ -94,12 +94,17 @@ export default function PublicEstimateForm({
   // map questions keep their drawn corners here; the form value is just the number
   const geomRef = useRef<Record<string, LatLngTuple[]>>({});
 
-  // photo fill-in
+  // Atlas fill-in: a photo and/or a few words; questions the tool has Atlas
+  // ASSESS (condition, access…) are answered from them, the rest filled where possible
+  const assessed = useMemo(() => inputs.filter((i) => i.askAtlas), [inputs]);
+  const offerAssist = photoAssist || assessed.length > 0;
   const fileRef = useRef<HTMLInputElement>(null);
   const [photo, setPhoto] = useState<AssistPhoto | null>(null);
+  const [about, setAbout] = useState("");
   const [photoNote, setPhotoNote] = useState("");
   const [photoBusy, setPhotoBusy] = useState(false);
   const [usedPhoto, setUsedPhoto] = useState(false);
+  const [byAtlas, setByAtlas] = useState<Set<string>>(new Set());
 
   // where the lead came from: the embedding page (snippet replies with its href) or the referrer
   const [page, setPage] = useState("");
@@ -167,7 +172,15 @@ export default function PublicEstimateForm({
   const secondary = `inline-flex items-center justify-center gap-1.5 rounded-lg border px-4 py-3 text-sm font-medium ${rowBox} ${ink} hover:opacity-80`;
 
   const set = (k: string, v: string) => setForm((s) => ({ ...s, [k]: v }));
-  const setVal = (id: string, v: string | boolean | string[]) => setValues((p) => ({ ...p, [id]: v }));
+  const setVal = (id: string, v: FormValue) => {
+    setValues((p) => ({ ...p, [id]: v }));
+    setByAtlas((s) => {
+      if (!s.has(id)) return s;
+      const n = new Set(s);
+      n.delete(id);
+      return n;
+    });
+  };
   const toggleMulti = (id: string, value: string) =>
     setValues((p) => {
       const cur = Array.isArray(p[id]) ? (p[id] as string[]) : [];
@@ -206,39 +219,56 @@ export default function PublicEstimateForm({
     void calculate();
   }
 
-  async function fillFromPhoto(file: File | undefined) {
+  async function pickPhoto(file: File | undefined) {
     if (!file) return;
+    setError("");
+    const p = await fileToAssistPhoto(file);
+    if (!p) {
+      setError("That photo couldn't be read — try a JPEG or PNG.");
+      return;
+    }
+    setPhoto(p);
+  }
+
+  /** Photo and/or words → Atlas fills what it can (and assesses what the tool asks it to). */
+  async function fillFromAtlas() {
+    if (!photo && about.trim().length < 8) return;
     setError("");
     setPhotoNote("");
     setPhotoBusy(true);
     try {
-      const p = await fileToAssistPhoto(file);
-      if (!p) {
-        setError("That photo couldn't be read — try a JPEG or PNG.");
-        return;
-      }
-      setPhoto(p);
       const res = await fetch(`${apiBase}/assist${previewQs}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageBase64: p.base64, imageMime: p.mime }),
+        body: JSON.stringify({ description: about.trim(), ...(photo ? { imageBase64: photo.base64, imageMime: photo.mime } : {}) }),
       });
       const data = (await res.json().catch(() => null)) as { values?: Record<string, unknown>; notes?: string; error?: string } | null;
       if (!res.ok || !data?.values) {
-        setPhotoNote(data?.error ?? "We couldn't read that photo — please answer the questions below.");
+        setPhotoNote(data?.error ?? "We couldn't read that — please answer the questions below.");
         return;
       }
       const filled = data.values;
       const n = Object.keys(filled).length;
       setValues((prev) => {
         const next = { ...prev };
-        for (const [k, v] of Object.entries(filled)) next[k] = typeof v === "boolean" ? v : Array.isArray(v) ? v.map(String) : String(v);
+        for (const inp of inputs) {
+          const v = filled[inp.id];
+          if (v === undefined || v === null) continue;
+          if (inp.type === "toggle") next[inp.id] = v === true || v === "true";
+          else if (inp.type === "multi") next[inp.id] = Array.isArray(v) ? v.map(String) : String(v).split(",").map((s) => s.trim()).filter(Boolean);
+          else if (inp.type === "counts") {
+            const t: Record<string, number> = {};
+            if (v && typeof v === "object" && !Array.isArray(v)) for (const [k, c] of Object.entries(v as Record<string, unknown>)) if (Number(c) > 0) t[k] = Math.floor(Number(c));
+            next[inp.id] = t;
+          } else next[inp.id] = String(v);
+        }
         return next;
       });
-      setUsedPhoto(n > 0);
-      setPhotoNote(n === 0 ? "We couldn't tell much from that photo — please answer below." : `We filled in ${n} answer${n === 1 ? "" : "s"} from your photo — please check them.${data.notes ? ` ${data.notes}` : ""}`);
+      setByAtlas(new Set(Object.keys(filled)));
+      setUsedPhoto(n > 0 && Boolean(photo));
+      setPhotoNote(n === 0 ? "We couldn't tell much from that — please answer below." : `We filled in ${n} answer${n === 1 ? "" : "s"} — please check them.${data.notes ? ` ${data.notes}` : ""}`);
     } catch {
-      setPhotoNote("We couldn't read that photo — please answer the questions below.");
+      setPhotoNote("We couldn't read that — please answer the questions below.");
     } finally {
       setPhotoBusy(false);
     }
@@ -337,17 +367,19 @@ export default function PublicEstimateForm({
         {header}
         {errorBox}
 
-        {photoAssist && sectionIdx === 0 && (
-          <div className={`rounded-xl border border-dashed p-3 ${rowBox}`}>
-            <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => void fillFromPhoto(e.target.files?.[0])} />
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className={`text-sm font-medium ${ink}`}>Have a photo of the job?</p>
-                <p className={`text-xs ${muted}`}>Snap one and we&apos;ll fill in the answers for you.</p>
-              </div>
+        {offerAssist && sectionIdx === 0 && (
+          <div className={`rounded-xl border border-dashed p-3.5 ${rowBox}`} style={{ backgroundColor: wash(theme, theme.dark ? 10 : 4) }}>
+            <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => void pickPhoto(e.target.files?.[0])} />
+            <p className={`text-sm font-semibold ${ink}`}>{assessed.length > 0 ? "Tell us about the job" : "Have a photo of the job?"}</p>
+            <p className={`mt-0.5 text-xs ${muted}`}>
+              {assessed.length > 0 ? `A few words or a photo lets us judge ${assessed.map((i) => i.label.toLowerCase()).join(", ")} for you — and fill in what we can.` : "Snap one and we'll fill in the answers for you."}
+            </p>
+            <textarea value={about} onChange={(e) => setAbout(e.target.value)} rows={2} maxLength={2000} placeholder="e.g. Two-story house, wood siding, some green mildew on the north side" className={`${input} mt-2.5 resize-none`} />
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
               {photo ? (
                 <span className={`flex shrink-0 items-center gap-1.5 rounded-lg border py-0.5 pl-0.5 pr-1.5 text-[11px] ${rowBox} ${muted}`}>
                   <img src={photo.previewUrl} alt="" className="h-7 w-7 rounded object-cover" />
+                  <span className="max-w-[8rem] truncate">{photo.name}</span>
                   <button
                     type="button"
                     onClick={() => {
@@ -361,12 +393,16 @@ export default function PublicEstimateForm({
                 </span>
               ) : (
                 <button type="button" disabled={photoBusy} onClick={() => fileRef.current?.click()} className={`${secondary} shrink-0 py-2`}>
-                  {photoBusy ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} />}
+                  <Camera size={14} />
                   Add photo
                 </button>
               )}
+              <button type="button" disabled={photoBusy || (!photo && about.trim().length < 8)} onClick={() => void fillFromAtlas()} className={`${primary} w-auto px-4 py-2`} style={{ backgroundColor: accent, color: textOn(accent) }}>
+                {photoBusy ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                {assessed.length > 0 ? "Assess & fill in" : "Fill in for me"}
+              </button>
             </div>
-            {photoBusy && <p className={`mt-2 text-xs ${muted}`}>Reading your photo…</p>}
+            {photoBusy && <p className={`mt-2 text-xs ${muted}`}>Looking at the job…</p>}
             {photoNote && !photoBusy && <p className={`mt-2 text-xs ${muted}`}>{photoNote}</p>}
           </div>
         )}
@@ -384,6 +420,11 @@ export default function PublicEstimateForm({
               <label className={label}>
                 {inp.label}
                 {required ? " *" : ""}
+                {byAtlas.has(inp.id) && (
+                  <span className="ml-2 rounded-full px-1.5 py-0.5 text-[10px] font-semibold" style={{ backgroundColor: wash(theme, 12), color: accent }}>
+                    filled in for you
+                  </span>
+                )}
               </label>
               {inp.type === "map" && (
                 <>
@@ -416,9 +457,16 @@ export default function PublicEstimateForm({
                   {required && Array.isArray(v) && v.length === 0 && <p className={`mt-1 text-xs ${muted}`}>Pick at least one</p>}
                 </>
               )}
+              {inp.type === "counts" && (
+                <>
+                  <CountsControl inp={inp} theme={theme} value={v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, number>) : {}} onChange={(val) => setVal(inp.id, val)} />
+                  {required && !(v && typeof v === "object" && !Array.isArray(v) && Object.values(v as Record<string, number>).some((x) => x > 0)) && <p className={`mt-1 text-xs ${muted}`}>Count at least one</p>}
+                </>
+              )}
               {inp.type === "text" && (
                 <textarea value={typeof v === "string" ? v : ""} rows={2} placeholder={inp.placeholder} required={required} maxLength={500} onChange={(e) => setVal(inp.id, e.target.value)} className={`${input} resize-none`} />
               )}
+              {inp.askAtlas && !byAtlas.has(inp.id) && offerAssist && <p className={`mt-1.5 text-xs ${muted}`}>We can judge this from your photo or a few words above — or answer it yourself.</p>}
               {inp.help && <p className={`mt-1.5 text-xs ${muted}`}>{inp.help}</p>}
             </div>
           );

@@ -1,28 +1,25 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Calculator, Check, Code2, Globe, MoreHorizontal, Pencil, Play, Power, Sparkles, Trash2, X } from "lucide-react";
+import { AlertTriangle, Calculator, ChevronRight, Play, Plus, Sparkles, X } from "lucide-react";
 import PageTitle from "@/components/PageTitle";
+import EmptyState from "@/components/EmptyState";
 import EstimatorRunner, { type RunnerEstimator } from "@/components/EstimatorRunner";
 import { useAssistant } from "@/components/AssistantContext";
-import { confirmSheet } from "@/components/ConfirmSheet";
-import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
-import { SECTION_HUES, hueInk } from "@/lib/section-colors";
+import { APP_THEME, wash } from "@/components/EstimatorControls";
+import { SECTION_HUES } from "@/lib/section-colors";
 import { sanitizePublicConfig, type EstimatorPublicConfig } from "@/lib/estimator-public";
 import type { EstimatorSpec } from "@/lib/estimator";
 import BuildPanel, { type BuiltTool } from "./BuildPanel";
-import EditEstimatorSheet from "./EditEstimatorSheet";
-import PublishEstimatorSheet from "./PublishEstimatorSheet";
-import AskAtlasSheet from "./AskAtlasSheet";
 
 /**
- * /app/estimates — the whole estimate-tool story on one page
- * (docs/plans/ai-estimators-2026-09-19.md, Batch 5): build from a sentence
- * at the top, then every tool as a card with Run (onsite → Create quote),
- * Ask Atlas (change by prompt), Edit (by hand), Website (form + embed code).
- * ?run=1 opens the runner straight away (the + menu's "Estimate");
- * ?prompt=… arrives from the Atlas chat with the owner's words filled in.
+ * /app/estimates — the tools as a list (the app's ledger-row idiom), each
+ * row its own page. The builder is the marquee at the top when there's
+ * nothing yet or the owner asks for it; otherwise it folds to one line so
+ * the list stays the page. ?run=1 opens the runner straight away (the +
+ * menu's "Estimate"); ?prompt=… arrives from the Atlas chat.
  */
 
 export type Tool = RunnerEstimator & {
@@ -59,11 +56,23 @@ function toTool(t: BuiltTool): Tool {
   };
 }
 
+function factsOf(t: Tool, atlasName: string): string {
+  const tiers = t.spec.inputs.find((i) => i.type === "select" && i.style === "packages");
+  const sections = new Set(t.spec.inputs.map((i) => i.section).filter(Boolean)).size;
+  return [
+    `${t.spec.inputs.length} question${t.spec.inputs.length === 1 ? "" : "s"}${sections > 1 ? ` in ${sections} steps` : ""}`,
+    tiers && tiers.type === "select" ? `${tiers.options.length} packages` : null,
+    t.spec.inputs.some((i) => i.type === "map") ? "map measure" : null,
+    t.spec.minimumTotal ? `$${Math.round(t.spec.minimumTotal)} minimum` : null,
+    t.spec.inputs.some((i) => i.askAtlas) ? `${atlasName} assesses` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
 export default function EstimatesClient({
   tools: initialTools,
   brokenCount,
-  companySlug,
-  baseUrl,
   manager,
   initialPrompt = "",
   autoRun = false,
@@ -78,177 +87,109 @@ export default function EstimatesClient({
 }) {
   const router = useRouter();
   const atlas = useAssistant();
+  const theme = APP_THEME;
   const [tools, setTools] = useState<Tool[]>(initialTools);
   useEffect(() => setTools(initialTools), [initialTools]);
   const [running, setRunning] = useState<Tool[] | null>(autoRun ? initialTools.filter((t) => t.isActive) : null);
-  const [editing, setEditing] = useState<Tool | null>(null);
-  const [publishing, setPublishing] = useState<Tool | null>(null);
-  const [asking, setAsking] = useState<Tool | null>(null);
-  const [menuFor, setMenuFor] = useState<string | null>(null);
-  const [busy, setBusy] = useState<string | null>(null);
+  const [building, setBuilding] = useState<boolean>(Boolean(initialPrompt) || initialTools.length === 0);
   const [error, setError] = useState("");
   const [fresh, setFresh] = useState<string | null>(null);
-  const [copied, setCopied] = useState<string | null>(null);
 
   const active = useMemo(() => tools.filter((t) => t.isActive), [tools]);
   const inactive = useMemo(() => tools.filter((t) => !t.isActive), [tools]);
 
-  function upsert(t: BuiltTool, highlight = true) {
+  function upsert(t: BuiltTool) {
     const tool = toTool(t);
     setTools((prev) => (prev.some((x) => x.id === tool.id) ? prev.map((x) => (x.id === tool.id ? { ...x, ...tool } : x)) : [tool, ...prev]));
-    if (highlight) {
-      setFresh(tool.id);
-      setTimeout(() => setFresh((f) => (f === tool.id ? null : f)), 4000);
-    }
+    setFresh(tool.id);
+    setTimeout(() => setFresh((f) => (f === tool.id ? null : f)), 6000);
     router.refresh();
   }
 
-  async function setActive(t: Tool, isActive: boolean) {
-    setBusy(t.id);
-    setError("");
-    const { ok, data } = await postJson<BuiltTool & { error?: string }>(`/api/app/estimators/${t.id}`, { isActive }, "PATCH");
-    setBusy(null);
-    if (!ok || !data || !("id" in data)) setError(data?.error ?? GENERIC_ERROR);
-    else upsert(data, false);
-  }
+  const rowCls = "group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-gray-50 active:bg-gray-100";
 
-  async function remove(t: Tool) {
-    setMenuFor(null);
-    if (
-      !(await confirmSheet({
-        title: `Delete “${t.name}”?`,
-        message: "Quotes already made with it are untouched. The tool and its history are gone for good.",
-        confirmLabel: "Delete Tool",
-        destructive: true,
-      }))
-    )
-      return;
-    setBusy(t.id);
-    setError("");
-    const { ok, data } = await postJson(`/api/app/estimators/${t.id}`, undefined, "DELETE");
-    setBusy(null);
-    if (!ok) setError(data?.error ?? GENERIC_ERROR);
-    else {
-      setTools((prev) => prev.filter((x) => x.id !== t.id));
-      router.refresh();
-    }
-  }
-
-  async function copyEmbed(t: Tool) {
-    if (!t.publicSlug) return;
-    const key = `${companySlug}/estimate/${t.publicSlug}`;
-    const origin = baseUrl ? new URL(baseUrl).origin : "";
-    const snippet = `<iframe src="${baseUrl}/embed/${key}" data-jobflow="${key}" style="width:100%;max-width:640px;height:720px;border:0;" title="Get an estimate"></iframe>
-<script>window.addEventListener("message",function(e){var d=e.data;if(e.origin==="${origin}"&&d&&d.type==="jobflow:height"&&d.slug==="${key}"){var f=document.querySelector('iframe[data-jobflow="${key}"]');if(f)f.style.height=d.height+"px";if(e.source&&e.source.postMessage)e.source.postMessage({type:"jobflow:page",href:location.href},e.origin);}});</script>`;
-    try {
-      await navigator.clipboard.writeText(snippet);
-      setCopied(t.id);
-      setTimeout(() => setCopied((c) => (c === t.id ? null : c)), 2000);
-    } catch {
-      setPublishing(t);
-    }
-  }
-
-  const iconBtn = "inline-flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 px-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50";
-
-  function Card({ t }: { t: Tool }) {
-    const isFresh = fresh === t.id;
+  function Row({ t }: { t: Tool }) {
     const placeholders = t.spec.placeholders?.length ?? 0;
-    const tiers = t.spec.inputs.find((i) => i.type === "select" && i.style === "packages");
-    const sections = new Set(t.spec.inputs.map((i) => i.section).filter(Boolean)).size;
-    const facts = [
-      `${t.spec.inputs.length} question${t.spec.inputs.length === 1 ? "" : "s"}${sections > 1 ? ` in ${sections} steps` : ""}`,
-      tiers && tiers.type === "select" ? `${tiers.options.length} packages` : null,
-      t.spec.inputs.some((i) => i.type === "map") ? "map measure" : null,
-      t.spec.minimumTotal ? `$${Math.round(t.spec.minimumTotal)} minimum` : null,
-    ].filter(Boolean);
+    const isFresh = fresh === t.id;
     return (
-      <div className={`card-ledger relative p-4 transition-shadow ${isFresh ? "ring-2 ring-green-500 shadow-lg" : ""} ${t.isActive ? "" : "opacity-70"}`}>
-        {isFresh && <span className="absolute -top-2 right-3 rounded-full bg-green-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">New</span>}
-        <div className="flex items-start gap-3">
-          <span className="chip-tool flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px]" style={{ backgroundColor: SECTION_HUES.quotes, color: hueInk(SECTION_HUES.quotes) }} aria-hidden>
+      <div className={`relative ${t.isActive ? "" : "opacity-70"} ${isFresh ? "bg-green-50/60" : ""}`}>
+        <Link href={`/app/estimates/${t.id}`} prefetch={false} className={rowCls}>
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px]" style={{ backgroundColor: wash(theme, 12), color: theme.accent }} aria-hidden>
             <Calculator size={18} strokeWidth={2.25} />
           </span>
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-              <p className="truncate text-sm font-semibold text-gray-900">{t.name}</p>
-              {t.isPublic && <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-700">On your website</span>}
+          <span className="min-w-0 flex-1">
+            <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+              <span className="truncate text-[15px] font-semibold text-gray-900">{t.name}</span>
+              {isFresh && (
+                <span className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider" style={{ backgroundColor: theme.accent, color: theme.onAccent }}>
+                  New
+                </span>
+              )}
               {!t.isActive && <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600">Off</span>}
-            </div>
-            <p className="mt-0.5 line-clamp-2 text-xs text-gray-500">{t.description || facts.join(" · ")}</p>
-            <p className="mt-1 text-[11px] text-gray-500">
-              {facts.join(" · ")}
-              {t.usesAtlas ? ` · ${atlas.name} fill-in` : ""}
-              {t.runs > 0 && ` · used ${t.runs}×`}
-              {t.submissions > 0 && ` · ${t.submissions} website lead${t.submissions === 1 ? "" : "s"}`}
-            </p>
-            {placeholders > 0 && manager && (
-              <button type="button" onClick={() => setEditing(t)} className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800 hover:bg-amber-100">
-                <AlertTriangle size={11} /> {placeholders} placeholder rate{placeholders === 1 ? "" : "s"} to set
-              </button>
-            )}
-          </div>
-          {manager && (
-            <div className="relative shrink-0">
-              <button type="button" onClick={() => setMenuFor(menuFor === t.id ? null : t.id)} className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700" aria-label="More">
-                <MoreHorizontal size={16} />
-              </button>
-              {menuFor === t.id && (
-                <div className="absolute right-0 top-8 z-10 w-44 overflow-hidden rounded-xl border border-gray-200 bg-white py-1 shadow-lg">
-                  <button
-                    type="button"
-                    disabled={busy === t.id}
-                    onClick={() => {
-                      setMenuFor(null);
-                      void setActive(t, !t.isActive);
-                    }}
-                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
-                  >
-                    <Power size={14} /> {t.isActive ? "Turn off" : "Turn on"}
-                  </button>
-                  <button type="button" disabled={busy === t.id} onClick={() => void remove(t)} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50">
-                    <Trash2 size={14} /> Delete
-                  </button>
-                </div>
+              {t.isPublic && <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-700">On your website</span>}
+              {placeholders > 0 && manager && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800">
+                  <AlertTriangle size={11} /> {placeholders} rate{placeholders === 1 ? "" : "s"} to set
+                </span>
               )}
-            </div>
-          )}
-        </div>
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          {t.isActive && (
-            <button type="button" onClick={() => setRunning([t])} className="btn-primary h-9 justify-center px-3 text-xs">
-              <Play size={14} /> Run
-            </button>
-          )}
-          {manager && (
-            <>
-              <button type="button" onClick={() => setAsking(t)} className={iconBtn}>
-                <Sparkles size={14} /> Ask {atlas.name}
-              </button>
-              <button type="button" onClick={() => setEditing(t)} className={iconBtn}>
-                <Pencil size={14} /> Edit
-              </button>
-              <button type="button" onClick={() => setPublishing(t)} className={`${iconBtn} ${t.isPublic ? "text-sky-700" : ""}`}>
-                <Globe size={14} /> Website
-              </button>
-              {t.isPublic && t.publicSlug && (
-                <button type="button" onClick={() => void copyEmbed(t)} className={iconBtn} title="Copy the embed code">
-                  {copied === t.id ? <Check size={14} className="text-green-600" /> : <Code2 size={14} />} {copied === t.id ? "Copied" : "Embed code"}
-                </button>
-              )}
-            </>
-          )}
-        </div>
+            </span>
+            <span className="mt-0.5 block truncate text-xs text-gray-500">{t.description || factsOf(t, atlas.name)}</span>
+            <span className="mt-0.5 block truncate text-[11px] text-gray-400 lg:hidden">
+              {factsOf(t, atlas.name)}
+              {t.runs > 0 ? ` · used ${t.runs}×` : ""}
+              {t.submissions > 0 ? ` · ${t.submissions} lead${t.submissions === 1 ? "" : "s"}` : ""}
+            </span>
+          </span>
+          <span className="hidden w-40 shrink-0 text-xs text-gray-500 lg:block">{factsOf(t, atlas.name)}</span>
+          <span className="hidden w-28 shrink-0 text-right text-xs tabular-nums text-gray-500 lg:block">
+            {t.runs > 0 ? `${t.runs} run${t.runs === 1 ? "" : "s"}` : "—"}
+            {t.submissions > 0 ? ` · ${t.submissions} lead${t.submissions === 1 ? "" : "s"}` : ""}
+          </span>
+          <ChevronRight size={16} className="shrink-0 text-gray-300 group-hover:text-gray-500" />
+        </Link>
+        {t.isActive && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              setRunning([t]);
+            }}
+            className="absolute right-11 top-1/2 hidden -translate-y-1/2 items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 lg:inline-flex"
+          >
+            <Play size={12} /> Run
+          </button>
+        )}
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-3xl p-4 lg:p-8" onClick={() => menuFor && setMenuFor(null)}>
-      <PageTitle section="quotes" icon={Calculator}>
-        Estimates
-      </PageTitle>
-      <p className="mb-5 mt-2 text-sm text-gray-500">{manager ? "Pricing tools your team runs onsite and your website runs for you — built from a sentence." : "Answer a tool’s questions, show the number, turn it into a quote."}</p>
+    <div className="mx-auto max-w-5xl p-4 lg:p-8">
+      <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+        <PageTitle section="quotes" icon={Calculator} sub={manager ? "Pricing tools your team runs onsite and your website runs for you." : "Answer a tool's questions, show the number, turn it into a quote."}>
+          Estimates
+        </PageTitle>
+        <div className="flex items-center gap-2">
+          {active.length > 0 && (
+            <button type="button" onClick={() => setRunning(active)} className="inline-flex h-10 items-center gap-1.5 rounded-[10px] border border-gray-200 bg-white px-3.5 text-sm font-medium text-gray-700 hover:bg-gray-50">
+              <Play size={15} /> Run a tool
+            </button>
+          )}
+          {manager && tools.length > 0 && (
+            <button type="button" onClick={() => setBuilding((b) => !b)} className={building ? "inline-flex h-10 items-center gap-1.5 rounded-[10px] border border-gray-200 bg-white px-3.5 text-sm font-medium text-gray-700 hover:bg-gray-50" : "btn-primary h-10 justify-center"}>
+              {building ? (
+                <>
+                  <X size={15} /> Close builder
+                </>
+              ) : (
+                <>
+                  <Plus size={15} /> Build a tool
+                </>
+              )}
+            </button>
+          )}
+        </div>
+      </div>
 
       {error && (
         <div role="alert" className="form-error mb-4 flex items-center justify-between">
@@ -259,42 +200,56 @@ export default function EstimatesClient({
         </div>
       )}
 
-      {manager && (
+      {manager && building && (
         <div className="mb-6">
           <BuildPanel
             initialPrompt={initialPrompt}
-            autoFocus={Boolean(initialPrompt)}
+            autoFocus={Boolean(initialPrompt) || tools.length > 0}
             onBuilt={(t) => upsert(t)}
             onTry={(t) => setRunning([toTool(t)])}
-            onPublish={(t) => setPublishing(toTool(t))}
-            onEdit={(t) => setEditing(toTool(t))}
+            onPublish={(t) => router.push(`/app/estimates/${t.id}?s=website`)}
+            onEdit={(t) => router.push(`/app/estimates/${t.id}?s=questions`)}
           />
         </div>
       )}
 
-      {active.length === 0 && inactive.length === 0 ? (
-        <div className="card-ledger flex flex-col items-center px-6 py-10 text-center">
-          <span className="chip-tool flex h-11 w-11 items-center justify-center rounded-[12px]" style={{ backgroundColor: SECTION_HUES.quotes, color: hueInk(SECTION_HUES.quotes) }} aria-hidden>
-            <Calculator size={20} strokeWidth={2.25} />
-          </span>
-          <p className="mt-3.5 text-sm font-semibold text-gray-900">No tools yet</p>
-          <p className="mt-1 max-w-sm text-sm text-gray-500">{manager ? "Describe how you price a job above and press Build it." : "Ask a manager to build one — then this page prices jobs in a few taps."}</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {active.map((t) => (
-            <Card key={t.id} t={t} />
-          ))}
-          {inactive.length > 0 && (
-            <>
-              <p className="pt-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Turned off</p>
-              {inactive.map((t) => (
-                <Card key={t.id} t={t} />
-              ))}
-            </>
-          )}
-        </div>
+      {manager && !building && tools.length > 0 && (
+        <button type="button" onClick={() => setBuilding(true)} className="mb-4 flex w-full items-center gap-3 rounded-xl border border-dashed border-gray-300 bg-white px-4 py-3 text-left hover:border-gray-400 hover:bg-gray-50">
+          <Sparkles size={16} style={{ color: theme.accent }} />
+          <span className="min-w-0 flex-1 text-sm text-gray-500">Describe how you price a job — {atlas.name} builds the tool…</span>
+        </button>
       )}
+
+      <div className="card-ledger overflow-hidden">
+        {tools.length === 0 ? (
+          <EmptyState art="quotes" hue={SECTION_HUES.quotes} title="No tools yet" body={manager ? "Describe how you price a job above and press Build it — the tool prices jobs in a few taps, onsite and on your website." : "Ask a manager to build one — then this page prices jobs in a few taps."} showPlusIcon={false} />
+        ) : (
+          <>
+            <div className="hidden items-center gap-3 bg-gray-50 px-4 py-2 text-xs font-medium text-gray-500 lg:flex">
+              <span className="w-10 shrink-0" />
+              <span className="min-w-0 flex-1">Tool</span>
+              <span className="w-40 shrink-0">Shape</span>
+              <span className="w-28 shrink-0 text-right">Used</span>
+              <span className="w-[6.5rem] shrink-0" />
+            </div>
+            <div className="divide-y divide-gray-100">
+              {active.map((t) => (
+                <Row key={t.id} t={t} />
+              ))}
+            </div>
+            {inactive.length > 0 && (
+              <>
+                <p className="border-t border-gray-100 bg-gray-50 px-4 py-1.5 text-[11px] font-semibold text-gray-500">Turned off</p>
+                <div className="divide-y divide-gray-100 border-t border-gray-100">
+                  {inactive.map((t) => (
+                    <Row key={t.id} t={t} />
+                  ))}
+                </div>
+              </>
+            )}
+          </>
+        )}
+      </div>
       {brokenCount > 0 && (
         <p className="mt-3 text-xs text-amber-700">
           {brokenCount} tool{brokenCount === 1 ? "" : "s"} no longer compile{brokenCount === 1 ? "s" : ""} and {brokenCount === 1 ? "is" : "are"} hidden.
@@ -302,27 +257,6 @@ export default function EstimatesClient({
       )}
 
       <EstimatorRunner estimators={running ?? []} open={running !== null} onClose={() => setRunning(null)} showSamples={manager} />
-      <EditEstimatorSheet
-        tool={editing}
-        open={editing !== null}
-        onClose={() => setEditing(null)}
-        onSaved={() => {
-          setEditing(null);
-          router.refresh();
-        }}
-      />
-      <PublishEstimatorSheet
-        tool={publishing}
-        companySlug={companySlug}
-        baseUrl={baseUrl}
-        open={publishing !== null}
-        onClose={() => setPublishing(null)}
-        onSaved={() => {
-          setPublishing(null);
-          router.refresh();
-        }}
-      />
-      <AskAtlasSheet tool={asking} open={asking !== null} onClose={() => setAsking(null)} onChanged={(t) => upsert(t)} />
     </div>
   );
 }

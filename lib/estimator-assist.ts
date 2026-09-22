@@ -31,10 +31,12 @@ export function readAssistImage(body: Record<string, unknown>): AssistImage | nu
 export function inputsPrompt(spec: EstimatorSpec): string {
   return spec.inputs
     .map((i) => {
-      const base = `- ${i.id} (${i.type}): ${i.label}${i.help ? ` — ${i.help}` : ""}${i.showWhen ? ` [only relevant when ${i.showWhen}]` : ""}`;
+      const tag = i.askAtlas ? " [ASSESS — always answer this one, best judgment]" : "";
+      const base = `- ${i.id} (${i.type})${tag}: ${i.label}${i.help ? ` — ${i.help}` : ""}${i.showWhen ? ` [only relevant when ${i.showWhen}]` : ""}`;
       if (i.type === "number") return `${base}${i.unit ? ` [${i.unit}]` : ""}${i.min !== undefined ? ` min ${i.min}` : ""}${i.max !== undefined ? ` max ${i.max}` : ""}`;
       if (i.type === "select") return `${base}. One of: ${i.options.map((o) => `"${o.value}" (${o.label})`).join(", ")}`;
       if (i.type === "multi") return `${base}. A LIST of any of: ${i.options.map((o) => `"${o.value}" (${o.label})`).join(", ")}`;
+      if (i.type === "counts") return `${base}. A TABLE {value: count} over: ${i.options.map((o) => `"${o.value}" (${o.label})`).join(", ")}`;
       if (i.type === "map") return `${base}. Normally drawn on a map — a number in ${i.measure === "length" ? "FEET (a line)" : "SQUARE FEET (an area)"}; include only if the description or photo gives the size`;
       if (i.type === "toggle") return `${base}. true/false`;
       return `${base}. Free text`;
@@ -43,13 +45,14 @@ export function inputsPrompt(spec: EstimatorSpec): string {
 }
 
 export function assistSystemPrompt(spec: EstimatorSpec, toolName: string, hasImage: boolean): string {
+  const assessed = spec.inputs.filter((i) => i.askAtlas);
   return `You fill in an estimate form from a job description${hasImage ? " and a photo" : ""} for a field-service business. Tool: "${toolName}".${spec.intro ? ` ${spec.intro}` : ""}
 Reply with ONLY a JSON object: {"values": {inputId: value, ...}, "notes": "one short line on what you assumed or couldn't tell"}.
 Rules:
-- numbers as numbers (no units), select inputs by their exact value, multi inputs as a list of exact values, toggles as true/false, text inputs as short strings.
+- numbers as numbers (no units), select inputs by their exact value, multi inputs as a list of exact values, counts inputs as a table {"value": count}, toggles as true/false, text inputs as short strings.
 - Include ONLY inputs the description${hasImage ? "/photo" : ""} actually supports. Never invent measurements or counts — if a size isn't stated or derivable (e.g. "two-car driveway" ≈ 400-600 sq ft is a fair estimate, "big driveway" is not), leave it out and say so in notes.
 - Where the description gives a range, use the midpoint and note it.
-${hasImage ? "- From the photo: read what is visibly there (surface type, stories, condition, counts of windows/doors/fixtures, obvious add-ons). Estimate sizes only from clear reference points (a car ≈ 15 ft, a door ≈ 7 ft) and say the estimate is from the photo in notes.\n" : ""}${spec.assist?.instructions ? `Business guidance: ${spec.assist.instructions}\n` : ""}Inputs:
+${assessed.length > 0 ? `- The inputs marked ASSESS are yours to judge — the business built the tool so a pro's eye answers them. Always give a value for each, using the evidence and the "what to look for" guidance; when the evidence is thin, pick the middle option and say so in notes.\n` : ""}${hasImage ? "- From the photo: read what is visibly there (surface type, stories, condition, counts of windows/doors/fixtures, obvious add-ons). Estimate sizes only from clear reference points (a car ≈ 15 ft, a door ≈ 7 ft) and say the estimate is from the photo in notes.\n" : ""}${spec.assist?.instructions ? `Business guidance: ${spec.assist.instructions}\n` : ""}Inputs:
 ${inputsPrompt(spec)}`;
 }
 

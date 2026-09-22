@@ -642,6 +642,109 @@ list and what changed. Rows enter with `.msg-enter`.
 7. Atlas chat: "build me a gutter cleaning estimator" → hand-off to the page
    as before; the built tool now has packages/presets.
 
+## Batch 7 — tool pages, clarifying questions, Atlas in the loop (BUILT 2026-09-22)
+
+David after Batch 6: "definitely making moves in the right direction" — then
+six asks: (1) graphics "a little cooked" on one form: consistent design, no
+overlap, good spacing; (2) the Estimates page "looks like terrible AI slop"
+and the manual editor "is really difficult to navigate" — redesign both;
+(3) the standalone website page said "Too many requests"; (4) when Atlas
+needs a clarification (fence material costs) he should ASK, "just like
+you'll ask me sometimes"; (5) for really complex forms, and ONLY when
+necessary, Atlas can wire himself in for answers (tokens to the business);
+(6) he must be able to build almost anything a home-service business wants,
+accurately.
+
+### Fixes
+- **Rate limit (3):** the estimate submit shared `public-book-ip` (20/h)
+  with the booking forms → own bucket `public-estimate-submit-ip` 40/h; calc
+  (live pricing on every slider nudge) 400/10 min; assist 8/h per IP. An IP
+  of "unknown" (no proxy header) is never used as a shared key — captcha and
+  the per-company daily cap stand.
+- **Overlap/spacing (1):** the "Most popular" badge was absolutely
+  positioned above the tier card and overlapped the card above on phones →
+  an inline pill in the card header; tier price line has a fixed min-height
+  so cards align; slider row wraps its number field on narrow widths; the
+  runner dialog is now header / scrolling body / docked footer (no more
+  sticky bar with negative insets); hero price sizes down on phones;
+  question blocks use one spacing scale (label mb-1.5, help mt-1.5, blocks
+  space-y-5, sections space-y-7 with a hairline under each heading).
+
+### The pages (2)
+- `/app/estimates` — a ledger LIST (the app's row idiom): icon tile, name +
+  status pills (Off / On your website / N rates to set), shape facts, usage;
+  rows open the tool page; desktop rows get a hover "Run". The builder is
+  the page when there are no tools (or `?prompt=`), otherwise folds to one
+  dashed line and a "Build a tool" button.
+- `/app/estimates/[id]` (`ToolClient`) — the tool's home, Settings-style
+  left rail (chip rail on phones), `?s=` section: **Overview** (stat tiles,
+  the sample jobs priced by today's rules via dry runs, placeholder nag,
+  "Atlas assesses …" note, quick actions), **Try it** (the runner inline,
+  `EstimatorRunnerPanel inline`), **Ask Atlas** (BuildPanel compact),
+  **Questions / Pricing / Words / History** (`EstimatorEditor` — stays
+  mounted across sections so edits survive switching; `useUnsavedWarning`),
+  **Website** (`PublishPanel`, grouped cards + link/embed up top). The three
+  modals (Edit/Publish/Ask sheets) are gone.
+- **Editor redesign:** every question and every pricing line is a collapsed
+  ROW (type pill · label · section · "only when" · Atlas pill; lines show
+  rate × qty · when · optional) that opens to its settings; new items open
+  expanded; "Add:" type chips; variables fold into one row; a docked bar
+  (Check · Try it · Unsaved changes · Save) replaces the modal footer.
+  Question settings gained "Atlas assesses this"; counts questions edit
+  their items.
+
+### Clarifying questions (4) — `lib/estimator-build.ts` + `BuildPanel`
+The plan call may return `askOwner: [{question, why, suggestions[]}]` (≤ 4)
+for things that materially change the pricing and the owner left open —
+rates per named material, the minimum, packages, the unit. The build stops
+there (`{questions}` event); BuildPanel shows them as a card ("Before I
+build this, N quick questions"), each with tap-to-fill example answers and
+a text box; "Build with these answers" re-posts with `answers[]` (the plan
+runs again with them and is told not to ask twice; blanks → placeholders);
+"Skip — use placeholders" sends blanks. The old single `ask` string maps
+onto the same card.
+
+### Atlas in the loop (5) — `input.askAtlas`
+Any non-text question can be marked `askAtlas: true`: Atlas answers it from
+the job description / photo at run time via the existing metered assist
+call (compile turns `assist` on automatically). The runner and the website
+form lead with "Tell Atlas/us about the job" (words + photo → "Assess &
+fill in"); assessed answers get an Atlas tag and stay editable; the public
+assist route allows it whenever the tool has askAtlas inputs (owner pays,
+existing per-IP/per-company caps). The guide and playbook say: only for
+what a pro must LOOK at (condition, access, hazard, scope), ≤ 3 per tool,
+never sizes or customer choices; the audit warns past 3 and when an
+assessed question has no "help" (what to look for).
+
+### Building anything (6)
+- New `counts` question type: items AND how many of each (windows by type,
+  trees by size, junk items, fixtures) — value is a table {item: n};
+  functions `qty(counts, 'item')`, `total(counts)`; `has()`/`count()`/
+  `join()` understand tables ("2 × Sofa, 1 × Fridge"); `CountsControl`
+  (−/+ per item) in both forms; coerce accepts a table, [{value,count}], a
+  plain list or "a:2,b:1"; `max` per item.
+- Playbook grew to 26 trades (carpet/upholstery, appliance repair,
+  irrigation, snow, chimney, locksmith).
+
+### Batch 7 Test (owed)
+1. Website page (not preview): submit a form twice in a row → both land as
+   leads, no "Too many requests".
+2. Estimates → list rows → open a tool → Overview shows sample prices;
+   Questions: rows collapsed, open one, change a label, docked bar says
+   Unsaved changes → Save → History shows "Manual edit".
+3. Build "Fence installation, cedar or chain link, gates extra" (no rates)
+   → the questions card appears with tapable suggestions → answer two, skip
+   one → the tool builds; the skipped one shows as a placeholder.
+4. Build "Tree removal — price depends on how close to the house and power
+   lines" → the tool has an Atlas-assessed hazard question; Try it → "Tell
+   Atlas about the job" → describe → Assess & fill in → the hazard answer
+   carries the Atlas tag and can be changed.
+5. Build "Window cleaning by window type" → a counts question with −/+ per
+   type; the website form prices it; the request's answers read "12 ×
+   Standard, 2 × Picture".
+6. Phone: tier cards stack with the Most popular pill inside the card, no
+   overlap; the runner's footer stays docked while the body scrolls.
+
 ## Later
 - Lazy tool loading (docs/plans/cost-controls.md) — `manage_estimator`'s
   spec schema is the largest declaration in the registry now.

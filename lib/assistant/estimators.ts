@@ -38,8 +38,9 @@ const SPEC_PARAM = {
         properties: {
           id: { type: "string", description: "identifier used in expressions (letters/digits/_)" },
           label: { type: "string" },
-          type: { type: "string", enum: ["number", "select", "multi", "map", "toggle", "text"] },
+          type: { type: "string", enum: ["number", "select", "multi", "counts", "map", "toggle", "text"] },
           help: { type: "string" },
+          askAtlas: { type: "boolean", description: "Atlas answers this from the job description/photo at run time (costs the business tokens) — only for what a pro must look at: condition, access, hazard, scope" },
           section: { type: "string", description: "group heading; the website form shows one section per step" },
           showWhen: { type: "string", description: "expression over other inputs; the question only shows when truthy" },
           unit: { type: "string", description: "number inputs: sq ft, hours, windows…" },
