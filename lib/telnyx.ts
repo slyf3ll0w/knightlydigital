@@ -431,7 +431,7 @@ export const sipUri = (username: string): string => `sip:${username}@${SIP_DOMAI
  */
 export async function createCredentialConnection(name: string): Promise<{ id: string }> {
   const out = await call<{ data?: { id?: string } }>("POST", "/credential_connections", {
-    connection_name: name.slice(0, 200),
+    connection_name: name.slice(0, 64), // Telnyx: "is too long (maximum is 64 characters)"
     user_name: `wb${randomAlnum(24)}`,
     password: randomAlnum(40),
     active: true,

@@ -112,7 +112,7 @@ async function ensureSipConnection(company: { id: string; name: string; lineSipC
     }
     return company.lineSipConnectionId;
   }
-  const conn = await createCredentialConnection(`WorkBench softphone · ${company.name} (${company.id})`);
+  const conn = await createCredentialConnection(`WorkBench softphone ${company.id} · ${company.name}`);
   // Two browsers racing here would create two connections; keep the first
   // one that landed and drop ours.
   const claimed = await prisma.company.updateMany({
