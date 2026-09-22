@@ -132,6 +132,71 @@ export function initialView(opts: { home?: { lat: number; lng: number } | null; 
   return US_VIEW;
 }
 
+// ── Esri fallback imagery: use the detail that's really there ────────────────
+
+const ESRI_TILE = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile";
+/** A "no data" tile from Esri is a few hundred bytes; real imagery is several KB. */
+const ESRI_REAL_TILE_BYTES = 2500;
+const ESRI_DEEPEST = 21;
+const esriProbes = new Map<string, Promise<number>>();
+
+function tileXY(lat: number, lng: number, z: number): { x: number; y: number } {
+  const n = 2 ** z;
+  const r = (lat * Math.PI) / 180;
+  return { x: Math.floor(((lng + 180) / 360) * n), y: Math.floor(((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2) * n) };
+}
+
+async function probeEsri(lat: number, lng: number): Promise<number> {
+  let best = 19;
+  for (let z = 20; z <= ESRI_DEEPEST; z++) {
+    const { x, y } = tileXY(lat, lng, z);
+    try {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 3000);
+      const res = await fetch(`${ESRI_TILE}/${z}/${y}/${x}`, { signal: ctrl.signal, mode: "cors", cache: "force-cache" });
+      clearTimeout(timer);
+      if (!res.ok) break;
+      const bytes = (await res.arrayBuffer()).byteLength;
+      if (bytes < ESRI_REAL_TILE_BYTES) break;
+      best = z;
+    } catch {
+      break;
+    }
+  }
+  return best;
+}
+
+/**
+ * The deepest zoom Esri World Imagery has REAL tiles for around a point
+ * (19–21). Esri's coverage is uneven — z21 in many US suburbs, z19 in the
+ * countryside — so the fallback satellite layer used to cap itself at 19 and
+ * upsample from there, which is exactly the grain you see when zoomed in to
+ * trace. Probed once per ~1 km cell and remembered for the session.
+ */
+export function esriNativeZoomAround(lat: number, lng: number): Promise<number> {
+  const key = `${lat.toFixed(2)},${lng.toFixed(2)}`;
+  let p = esriProbes.get(key);
+  if (!p) {
+    p = probeEsri(lat, lng);
+    esriProbes.set(key, p);
+  }
+  return p;
+}
+
+/**
+ * Let the fallback satellite layer use every zoom Esri really serves where
+ * the map is looking. No-op with a Mapbox token (Mapbox overzooms its own
+ * imagery). Call after the view is set and again after big moves.
+ */
+export async function tuneSatelliteLayer(layer: Leaflet.TileLayer, map: Leaflet.Map): Promise<void> {
+  if (basemapEnabled()) return;
+  const c = map.getCenter();
+  const z = await esriNativeZoomAround(c.lat, c.lng);
+  if (layer.options.maxNativeZoom === z) return;
+  layer.options.maxNativeZoom = z;
+  if (map.hasLayer(layer)) layer.redraw();
+}
+
 /** Does this person prefer less motion? Every map animation checks before it moves. */
 export function reducedMotion(): boolean {
   try {

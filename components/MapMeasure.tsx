@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type * as Leaflet from "leaflet";
 import { Check, Crosshair, Layers, Loader2, Minus, Plus, RotateCcw, Search, Undo2 } from "lucide-react";
-import { createLayers, initialView, reducedMotion, rememberView } from "@/lib/basemap";
+import { createLayers, initialView, reducedMotion, rememberView, tuneSatelliteLayer } from "@/lib/basemap";
 import "leaflet/dist/leaflet.css";
 
 /**
@@ -141,7 +141,12 @@ export default function MapMeasure({
       shapeRef.current = L.layerGroup().addTo(map);
       handlesRef.current = L.layerGroup().addTo(map);
       if (initial.length > 0) map.fitBounds(L.latLngBounds(initial), { padding: [40, 40], maxZoom: 19, animate: false });
-      map.on("moveend", () => rememberView(map));
+      // Fallback imagery: use every zoom Esri really has here (z20–21 in most US suburbs), not a flat cap at 19
+      void tuneSatelliteLayer(sat, map);
+      map.on("moveend", () => {
+        rememberView(map);
+        void tuneSatelliteLayer(sat, map);
+      });
 
       // drop a corner
       map.on("click", (e: Leaflet.LeafletMouseEvent) => {

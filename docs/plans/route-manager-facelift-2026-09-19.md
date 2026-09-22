@@ -247,3 +247,17 @@ Traffic layer, live ETA, smart slots, offline tiles, dark-mode basemap
   root height in px, then calls `invalidateSize()`. `NEXT_PUBLIC_MAPBOX_TOKEN`
   was still unset on both Railway envs, so the tracer was on Esri fallback
   tiles — the grain is expected until the token lands.
+- 2026-09-22 (evening) — David on the phone's dark theme: white-on-white on
+  Routes. The dark bridge remaps `.bg-white` / `.text-gray-900` but the glass
+  pills, dock, popups and attribution were hard-coded white → dark-mode rules
+  for `.wb-map-glass`, `.wb-map-ctl`, popups, attribution, skeleton in
+  globals.css. Still grainy: the token was STILL not on Railway (nothing
+  named NEXT_PUBLIC_MAPBOX_TOKEN on either env). Probed Esri for Allen, TX:
+  real tiles at z20 and z21 — the fallback's flat `maxNativeZoom: 19` was
+  the grain. `tuneSatelliteLayer()` in lib/basemap.ts now probes Esri for
+  the deepest real zoom around the view (19–21, cached per ~1 km cell) and
+  raises the layer's native zoom, so the tracer is sharp where Esri has the
+  detail, token or no token. Higher-quality options if it's still not
+  enough: Google's Map Tiles API satellite (best suburban coverage, billed
+  per tile, Google-branded), or Nearmap / EagleView (roofing-grade
+  aerials, enterprise contracts).
