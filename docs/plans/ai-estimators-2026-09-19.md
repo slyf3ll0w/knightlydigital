@@ -745,6 +745,50 @@ assessed question has no "help" (what to look for).
 6. Phone: tier cards stack with the Most popular pill inside the card, no
    overlap; the runner's footer stays docked while the body scrolls.
 
+## Batch 8 — simpler (BUILT 2026-09-22)
+
+David: "looking really good… still a little complex." Asks: rename
+Questions → Advanced (owners should build by talking to Atlas); the
+placeholder warnings "look super AI generated"; the main page and editor
+are still busy; getting the website link took a checkbox + Save; a finished
+build should land in the form.
+
+- **Tool page = six sections:** Overview · Try it · Ask Atlas · Website ·
+  **Advanced** (Questions / Pricing / Words as a small segmented control
+  inside, with "Most changes are quicker to ask Atlas for") · History.
+  `?s=questions|pricing|words` still land in Advanced on the right tab.
+- **Rates to confirm** (`components/RatesToConfirm.tsx`): the amber ⚠
+  boxes are gone everywhere (build finish, list row, overview, editor).
+  It's a plain checklist card — "Atlas used a typical number where you
+  didn't give one. Set yours, then tick it off." — each row a check circle;
+  ticking on the Overview PATCHes the spec (snapshot "Manual edit"). The
+  list row shows a quiet gray "N rates to confirm" pill.
+- **Website = one switch.** `PublishPanel` publishes on the tap (PATCH
+  isPublic + slug, the server derives a link name) and the link, Open,
+  and embed snippet appear right under it. Everything else is folded
+  under "Options" (rename link, price display, submissions, ask for,
+  photo, words) with its own Save. The Overview's "Put it on your website"
+  row publishes on the spot and jumps to the link.
+- **List:** one column — icon, name + pills, a facts line, chevron. No
+  header row, no hover buttons, no "Close builder" state; managers see one
+  "Build a tool" button (sellers "Run a tool"), the builder folds to a
+  dashed line.
+- **Overview:** rates to confirm → "What it prices" sample tiles → three
+  quick actions (Try it / Change it — just tell Atlas / Put it on your
+  website + Copy link). Stats are one quiet line, only when non-zero.
+- **After a build** the page goes straight to `/app/estimates/[id]?s=try`
+  — the form itself, sample chips ready, Ask Atlas one tap away. Changes
+  from the tool page stay on the page.
+
+### Batch 8 Test (owed)
+1. Build a tool → lands on its page, Try it open, sample chips there.
+2. Overview → "Put it on your website" → link appears, Copy link works, no
+   Save needed. Website section: switch off/on, Options folded.
+3. Rates to confirm on Overview → tick one → gone, History shows "Manual
+   edit".
+4. Advanced → Questions / Pricing / Words segmented control; ?s=pricing
+   deep-links.
+
 ## Later
 - Lazy tool loading (docs/plans/cost-controls.md) — `manage_estimator`'s
   spec schema is the largest declaration in the registry now.

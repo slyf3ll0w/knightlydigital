@@ -5,6 +5,7 @@ import { AlertTriangle, Check, Globe, Loader2, MessageCircleQuestion, Pencil, Pl
 import { Input, Textarea } from "@/components/Input";
 import { useAssistant } from "@/components/AssistantContext";
 import { APP_THEME, moneyExact, useCountUp, wash } from "@/components/EstimatorControls";
+import RatesToConfirm from "@/components/RatesToConfirm";
 import type { BuildAnswer, BuildDraft, BuildPlan, BuildQuestion, BuildSample } from "@/lib/estimator-build";
 
 /**
@@ -308,7 +309,7 @@ export default function BuildPanel({
             </span>
             <div className="min-w-0 flex-1">
               <h3 className="text-base font-semibold text-gray-900">Before I build this, {questions.length === 1 ? "one quick question" : `${questions.length} quick questions`}</h3>
-              <p className="mt-0.5 text-xs text-gray-500">Answer what you can. Anything you skip gets a placeholder you can set later.</p>
+              <p className="mt-0.5 text-xs text-gray-500">Answer what you can. Anything you skip, I&apos;ll fill with a typical number for you to confirm later.</p>
             </div>
           </div>
           <ol className="mt-4 space-y-4">
@@ -339,7 +340,7 @@ export default function BuildPanel({
           )}
           <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
             <button type="button" onClick={() => submitAnswers(true)} className="text-xs font-medium text-gray-600 underline-offset-2 hover:underline">
-              Skip — use placeholders
+              Skip — I&apos;ll confirm the rates later
             </button>
             <div className="flex items-center gap-2">
               <button type="button" onClick={() => setQuestions(null)} className="h-10 rounded-lg px-3 text-sm font-medium text-gray-600 hover:bg-gray-100">
@@ -475,15 +476,8 @@ export default function BuildPanel({
             {finished && (
               <div className="border-t border-gray-100 px-4 py-3">
                 {finished.placeholders.length > 0 && (
-                  <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
-                    <p className="flex items-center gap-1.5 text-xs font-semibold text-amber-900">
-                      <AlertTriangle size={13} /> {finished.placeholders.length} rate{finished.placeholders.length === 1 ? "" : "s"} to set — {atlas.name} used placeholders
-                    </p>
-                    <ul className="mt-1 space-y-0.5 text-xs text-amber-900/90">
-                      {finished.placeholders.slice(0, 6).map((p) => (
-                        <li key={p}>• {p}</li>
-                      ))}
-                    </ul>
+                  <div className="mb-3">
+                    <RatesToConfirm compact items={finished.placeholders} />
                   </div>
                 )}
                 {finished.changes.length > 0 && (
