@@ -89,6 +89,11 @@ import {
 export { VERTICALS, TOLL_FREE_USE_CASES, TOLL_FREE_VOLUMES };
 export type { BrandEntityType, LineSummary, LineType, RegistrationForm, RegistrationKind };
 
+/**
+ * LineError.status becomes the HTTP status. Upstream failures use 424, never 502/504:
+ * the site is behind Cloudflare, which replaces an origin 502/504 body with its own
+ * HTML page, so the browser would never see the message.
+ */
 export class LineError extends Error {
   status: number;
   constructor(message: string, status = 400) {
@@ -291,7 +296,7 @@ export async function provisionLine(
         type === "toll_free"
           ? `Couldn't buy a toll-free number${detail ? ` (${detail})` : ""}. Try again in a few minutes.`
           : `Couldn't buy a number in ${areaCode}${detail ? ` (${detail})` : ""}. Try again or pick another area code.`,
-        502
+        424
       );
     }
 
@@ -342,7 +347,7 @@ export async function provisionLine(
     if (err instanceof LineError) throw err;
     const detail = err instanceof TelnyxError ? err.detail : err instanceof Error ? err.message : "unknown error";
     console.error("[line] provision failed:", err);
-    throw new LineError(`Telnyx couldn't complete that: ${detail}`, 502);
+    throw new LineError(`Telnyx couldn't complete that: ${detail}`, 424);
   }
 }
 
@@ -370,7 +375,7 @@ export async function attachExistingNumber(companyId: string, phoneNumber: strin
     record = await findOwnedNumber(e164);
   } catch (err) {
     const detail = err instanceof TelnyxError ? err.detail : "unknown error";
-    throw new LineError(`Telnyx lookup failed: ${detail}`, 502);
+    throw new LineError(`Telnyx lookup failed: ${detail}`, 424);
   }
   if (!record) throw new LineError(`${e164} isn't on the Telnyx account. Buy or port it there first.`, 404);
   if (record.messaging_profile_id !== messagingProfileId()) {
@@ -378,7 +383,7 @@ export async function attachExistingNumber(companyId: string, phoneNumber: strin
       await setNumberMessagingProfile(record.id);
     } catch (err) {
       const detail = err instanceof TelnyxError ? err.detail : "unknown error";
-      throw new LineError(`Couldn't put the number on the WorkBench messaging profile: ${detail}`, 502);
+      throw new LineError(`Couldn't put the number on the WorkBench messaging profile: ${detail}`, 424);
     }
   }
   const type: LineType = isTollFreeNumber(e164) ? "toll_free" : "local";
@@ -438,7 +443,7 @@ export async function setLineForwarding(companyId: string, forwardTo: string | n
       await setCallForwarding(numberId, e164);
     } catch (err) {
       const detail = err instanceof TelnyxError ? err.detail : "unknown error";
-      throw new LineError(`Telnyx couldn't update call forwarding: ${detail}`, 502);
+      throw new LineError(`Telnyx couldn't update call forwarding: ${detail}`, 424);
     }
   }
   await prisma.company.update({ where: { id: companyId }, data: { lineForwardTo: e164 } });
@@ -491,7 +496,7 @@ export async function setCallerIdName(companyId: string, raw: unknown): Promise<
     await setCnamListing(numberId, name);
   } catch (err) {
     const detail = err instanceof TelnyxError ? err.detail : "unknown error";
-    throw new LineError(`Telnyx wouldn’t set that caller ID name: ${detail}`, 502);
+    throw new LineError(`Telnyx wouldn’t set that caller ID name: ${detail}`, 424);
   }
   await prisma.company.update({ where: { id: companyId }, data: { lineCallerIdName: name } });
   return { callerIdName: name };
@@ -666,9 +671,10 @@ export async function submitRegistration(companyId: string, form: RegistrationFo
     });
   } catch (err) {
     const detail = err instanceof TelnyxError ? err.detail : "unknown error";
-    throw new LineError(`The carrier registry rejected the submission: ${detail}`, 502);
+    console.error(`[line] 10DLC brand create failed for ${company.name} (${companyId}):`, err);
+    throw new LineError(`The carrier registry rejected the submission: ${detail}`, 424);
   }
-  if (!brand.brandId) throw new LineError("Telnyx accepted the brand but returned no id — contact support.", 502);
+  if (!brand.brandId) throw new LineError("Telnyx accepted the brand but returned no id — contact support.", 424);
 
   const data: Prisma.MessagingRegistrationUncheckedCreateInput = {
     companyId,
@@ -870,7 +876,7 @@ export async function refileTollFree(companyId: string): Promise<{ verificationI
     request = await updateTollFreeVerification(reg.verificationId, input);
   } catch (err) {
     const detail = err instanceof TelnyxError ? err.detail : "unknown error";
-    throw new LineError(`Telnyx rejected the re-filed request: ${detail}`, 502);
+    throw new LineError(`Telnyx rejected the re-filed request: ${detail}`, 424);
   }
   const d = deriveTollFree(request.verificationStatus, request.reason?.trim());
   await prisma.messagingRegistration.update({
@@ -923,10 +929,10 @@ async function submitTollFreeVerification(
     }
   } catch (err) {
     const detail = err instanceof TelnyxError ? err.detail : "unknown error";
-    throw new LineError(`Telnyx rejected the verification submission: ${detail}`, 502);
+    throw new LineError(`Telnyx rejected the verification submission: ${detail}`, 424);
   }
   const verificationId = request.id ?? request.verificationRequestId ?? existingId;
-  if (!verificationId) throw new LineError("Telnyx accepted the request but returned no id — contact support.", 502);
+  if (!verificationId) throw new LineError("Telnyx accepted the request but returned no id — contact support.", 424);
 
   const d = deriveTollFree(request.verificationStatus, request.reason?.trim());
   const data: Prisma.MessagingRegistrationUncheckedCreateInput = {
@@ -979,7 +985,7 @@ async function advanceTollFree(reg: RegWithCompany): Promise<MessagingRegistrati
   } catch (err) {
     await prisma.messagingRegistration.update({ where: { id: reg.id }, data: { lastCheckedAt: new Date() } });
     const detail = err instanceof TelnyxError ? err.detail : "unknown error";
-    throw new LineError(`Telnyx check failed: ${detail}`, 502);
+    throw new LineError(`Telnyx check failed: ${detail}`, 424);
   }
   const status = request.verificationStatus ?? null;
   // The reviewer's note rides on the request itself; status_history is a fallback (it 404s on some accounts).
@@ -1047,7 +1053,7 @@ export async function resendRegistrationOtp(companyId: string): Promise<void> {
     await triggerBrandOtp(reg.brandId, reg.displayName);
   } catch (err) {
     const detail = err instanceof TelnyxError ? err.detail : "unknown error";
-    throw new LineError(`Couldn't resend the PIN: ${detail}`, 502);
+    throw new LineError(`Couldn't resend the PIN: ${detail}`, 424);
   }
 }
 
@@ -1105,7 +1111,7 @@ async function advance(reg: RegWithCompany, brandExtra: Partial<RegistrationSnap
         termsAndConditionsLink: copy.termsAndConditionsLink,
         webhookURL: tenDlcWebhookUrl(),
       });
-      if (!campaign.campaignId) throw new LineError("Telnyx accepted the campaign but returned no id.", 502);
+      if (!campaign.campaignId) throw new LineError("Telnyx accepted the campaign but returned no id.", 424);
       patch.campaignId = campaign.campaignId;
       patch.tcrCampaignId = campaign.tcrCampaignId ?? null;
       patch.campaignStatus = campaign.campaignStatus ?? null;
@@ -1150,7 +1156,7 @@ async function advance(reg: RegWithCompany, brandExtra: Partial<RegistrationSnap
     if (err instanceof LineError) throw err;
     const detail = err instanceof TelnyxError ? err.detail : err instanceof Error ? err.message : "unknown error";
     console.error(`[line] refresh failed for company ${reg.companyId}:`, err);
-    throw new LineError(`Telnyx check failed: ${detail}`, 502);
+    throw new LineError(`Telnyx check failed: ${detail}`, 424);
   }
 
   const final = deriveRegistration(snap);
@@ -1310,7 +1316,7 @@ export async function releaseLine(companyId: string): Promise<void> {
       } catch (err) {
         if (!(err instanceof TelnyxError && err.status === 404)) {
           const detail = err instanceof TelnyxError ? err.detail : "unknown error";
-          throw new LineError(`Telnyx wouldn't release the number: ${detail}`, 502);
+          throw new LineError(`Telnyx wouldn't release the number: ${detail}`, 424);
         }
       }
     }

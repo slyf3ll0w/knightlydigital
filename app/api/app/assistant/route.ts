@@ -146,7 +146,7 @@ export async function POST(req: NextRequest) {
   if (!result) {
     return NextResponse.json(
       { error: "The assistant couldn't answer that just now — please try again." },
-      { status: 502 }
+      { status: 424 }
     );
   }
 

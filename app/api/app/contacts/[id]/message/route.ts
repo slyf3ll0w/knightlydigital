@@ -153,7 +153,7 @@ export async function POST(
     await prisma.clientMessage.delete({ where: { id: message.id } });
     return NextResponse.json(
       { error: "Email isn't set up on this server yet — the message wasn't sent." },
-      { status: 502 }
+      { status: 424 }
     );
   }
 

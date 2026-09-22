@@ -49,6 +49,6 @@ export async function POST() {
     console.error("[payments] payout failed", err);
     const message =
       err instanceof FinixError ? `Payout failed: ${err.message}` : "Payout failed. Please try again.";
-    return NextResponse.json({ error: message }, { status: 502 });
+    return NextResponse.json({ error: message }, { status: 424 });
   }
 }

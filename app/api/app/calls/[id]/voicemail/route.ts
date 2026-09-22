@@ -25,6 +25,6 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.redirect(url, { status: 302 });
   } catch (err) {
     console.error("[voice] voicemail fetch failed:", err);
-    return NextResponse.json({ error: "Couldn't fetch the recording right now." }, { status: 502 });
+    return NextResponse.json({ error: "Couldn't fetch the recording right now." }, { status: 424 });
   }
 }

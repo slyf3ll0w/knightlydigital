@@ -177,7 +177,7 @@ export async function POST(req: NextRequest) {
     if (err instanceof EmailDomainError)
       return NextResponse.json({ error: err.message }, { status: 400 });
     console.error("[email-domain] create failed:", err);
-    return NextResponse.json({ error: "Couldn't register the domain — try again." }, { status: 502 });
+    return NextResponse.json({ error: "Couldn't register the domain — try again." }, { status: 424 });
   }
 }
 

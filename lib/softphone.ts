@@ -51,6 +51,11 @@ export const MAX_APP_LEGS = 6;
 /** Roles that see /app/calls and may take calls in the app (mirrors canSell). */
 export const SOFTPHONE_ROLES: readonly Role[] = ["OWNER", "ADMIN", "USER", "SALES"];
 
+/**
+ * SoftphoneError.status becomes the HTTP status. Upstream failures use 424, never 502/504:
+ * the site is behind Cloudflare, which replaces an origin 502/504 body with its own
+ * HTML page, so the browser would never see the message.
+ */
 export class SoftphoneError extends Error {
   status: number;
   constructor(message: string, status = 400) {
@@ -115,7 +120,7 @@ async function ensureSipConnection(company: { id: string; name: string; lineSipC
   if (claimed.count === 0) {
     await deleteCredentialConnection(conn.id).catch(() => {});
     const fresh = await prisma.company.findUnique({ where: { id: company.id }, select: { lineSipConnectionId: true } });
-    if (!fresh?.lineSipConnectionId) throw new SoftphoneError("Couldn't set up calling for this company. Try again.", 502);
+    if (!fresh?.lineSipConnectionId) throw new SoftphoneError("Couldn't set up calling for this company. Try again.", 424);
     return fresh.lineSipConnectionId;
   }
   return conn.id;
@@ -184,7 +189,7 @@ export async function issueSoftphoneGrant(userId: string, companyId: string): Pr
   } catch (err) {
     if (err instanceof SoftphoneError) throw err;
     const detail = err instanceof TelnyxError ? err.detail : err instanceof Error ? err.message : "unknown error";
-    throw new SoftphoneError(`Telnyx couldn't set up the softphone: ${detail}`, 502);
+    throw new SoftphoneError(`Telnyx couldn't set up the softphone: ${detail}`, 424);
   }
 }
 

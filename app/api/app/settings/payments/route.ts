@@ -142,6 +142,6 @@ export async function POST(req: Request) {
       err instanceof FinixError
         ? `Payment setup failed: ${err.message}`
         : "Payment setup failed. Please try again.";
-    return NextResponse.json({ error: message }, { status: 502 });
+    return NextResponse.json({ error: message }, { status: 424 });
   }
 }

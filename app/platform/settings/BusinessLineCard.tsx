@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AlertTriangle, CheckCircle2, Loader2, Phone, RefreshCw } from "lucide-react";
 import {
   CALLER_ID_MAX,
@@ -56,6 +56,11 @@ async function post<T>(url: string, body?: unknown, method = "POST"): Promise<T>
 export default function BusinessLineCard({ initial }: { initial: LineSummary }) {
   const [line, setLine] = useState<LineSummary>(initial);
   const [error, setError] = useState("");
+  const errorRef = useRef<HTMLParagraphElement>(null);
+  // The banner sits at the top of a tall card; bring it into view so a failure never looks like nothing happened.
+  useEffect(() => {
+    if (error) errorRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [error]);
 
   return (
     <div className="card-ledger p-5 space-y-5">
@@ -72,7 +77,7 @@ export default function BusinessLineCard({ initial }: { initial: LineSummary }) 
       </div>
 
       {error && (
-        <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700" role="alert">
+        <p ref={errorRef} className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700" role="alert">
           {error}
         </p>
       )}
@@ -669,6 +674,8 @@ function RegistrationForm({
     }
   );
   const [busy, setBusy] = useState(false);
+  // Shown right under the submit button: the card-level banner sits above a long form, out of view.
+  const [error, setError] = useState("");
   const set = (k: keyof RegistrationForm) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setF((p) => ({ ...p, [k]: e.target.value }));
   const sole = !tollFree && f.entityType === "SOLE_PROPRIETOR";
@@ -689,10 +696,11 @@ function RegistrationForm({
     e.preventDefault();
     setBusy(true);
     onError("");
+    setError("");
     try {
       onDone(await post<LineSummary>("/api/app/line/register", f));
     } catch (err) {
-      onError(err instanceof Error ? err.message : "Couldn't submit.");
+      setError(err instanceof Error ? err.message : "Couldn't submit.");
     }
     setBusy(false);
   }
@@ -835,6 +843,12 @@ function RegistrationForm({
           : "Registry fees are covered by your plan. If the registry can't match these details you'll see exactly why here and can fix and resubmit."}
         {sole && " The PIN expires 24 hours after we send it."}
       </p>
+
+      {error && (
+        <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700" role="alert">
+          {error}
+        </p>
+      )}
 
       <div className="flex flex-wrap items-center gap-3">
         <button type="submit" disabled={busy || !line.entitled} className={primaryBtn}>

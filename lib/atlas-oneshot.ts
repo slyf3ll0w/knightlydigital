@@ -154,7 +154,7 @@ export async function meteredOneShot(
   if (!parts || !text) {
     return {
       ok: false,
-      status: 502,
+      status: 424,
       error: `${name} couldn't answer that just now — please try again.`,
       access: accessAfterDebit(access, debit),
     };

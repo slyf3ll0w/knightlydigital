@@ -62,6 +62,11 @@ import {
   voiceConfigured,
 } from "@/lib/telnyx";
 
+/**
+ * VoiceError.status becomes the HTTP status. Upstream failures use 424, never 502/504:
+ * the site is behind Cloudflare, which replaces an origin 502/504 body with its own
+ * HTML page, so the browser would never see the message.
+ */
 export class VoiceError extends Error {
   status: number;
   constructor(message: string, status = 400) {
@@ -259,7 +264,7 @@ export async function ensureVoiceRouting(companyId: string): Promise<boolean> {
     await routeNumberToVoiceApp(c.lineNumberId, c.lineForwardTo);
   } catch (err) {
     const detail = err instanceof TelnyxError ? err.detail : err instanceof Error ? err.message : "unknown error";
-    throw new VoiceError(`Telnyx couldn't move the number onto the voice app: ${detail}`, 502);
+    throw new VoiceError(`Telnyx couldn't move the number onto the voice app: ${detail}`, 424);
   }
   await prisma.company.update({ where: { id: c.id }, data: { lineVoiceAppAt: new Date() } });
   console.warn(`[voice] ${c.lineNumber} now on the Call Control app for "${c.name}" (${c.id})`);
@@ -899,7 +904,7 @@ export async function startOutboundCall(
   } catch (err) {
     const detail = err instanceof TelnyxError ? err.detail : "unknown error";
     await prisma.call.update({ where: { id: call.id }, data: { status: "FAILED", hangupCause: "dial_failed", endedAt: new Date() } });
-    throw new VoiceError(`Telnyx couldn't place the call: ${detail}`, 502);
+    throw new VoiceError(`Telnyx couldn't place the call: ${detail}`, 424);
   }
   return { callId: call.id, via, agentNumber, customerNumber };
 }

@@ -61,7 +61,7 @@ export async function GET(
     });
   } catch (err) {
     console.error("[payments] dispute evidence list failed", err);
-    return NextResponse.json({ error: "Couldn't load evidence." }, { status: 502 });
+    return NextResponse.json({ error: "Couldn't load evidence." }, { status: 424 });
   }
 }
 
@@ -114,6 +114,6 @@ export async function POST(
     console.error("[payments] dispute evidence upload failed", err);
     const message =
       err instanceof FinixError ? `Upload failed: ${err.message}` : "Upload failed. Please try again.";
-    return NextResponse.json({ error: message }, { status: 502 });
+    return NextResponse.json({ error: message }, { status: 424 });
   }
 }

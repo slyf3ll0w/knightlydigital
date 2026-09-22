@@ -159,6 +159,6 @@ export async function POST(
       err instanceof FinixError
         ? `Refund failed: ${err.message}`
         : "Refund failed. Please try again.";
-    return NextResponse.json({ error: message }, { status: 502 });
+    return NextResponse.json({ error: message }, { status: 424 });
   }
 }

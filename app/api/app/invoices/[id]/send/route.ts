@@ -78,7 +78,7 @@ export async function POST(
   if (!emailed) {
     return NextResponse.json(
       { error: "Email isn't set up on this server yet — share the invoice with Copy payment link instead." },
-      { status: 502 }
+      { status: 424 }
     );
   }
 

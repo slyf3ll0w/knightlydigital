@@ -90,7 +90,7 @@ export async function POST(
   if (!emailed) {
     return NextResponse.json(
       { error: "Email isn't set up on this server yet — share the quote with Copy client link instead." },
-      { status: 502 }
+      { status: 424 }
     );
   }
 

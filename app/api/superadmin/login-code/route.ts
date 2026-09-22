@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
   if (!sent) {
     return NextResponse.json(
       { error: "Couldn't send the sign-in code email. Try again in a minute." },
-      { status: 502 }
+      { status: 424 }
     );
   }
 

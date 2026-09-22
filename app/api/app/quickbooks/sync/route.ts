@@ -13,6 +13,6 @@ export async function POST() {
     return NextResponse.json({ ok: true, summary });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Sync failed";
-    return NextResponse.json({ error: message }, { status: 502 });
+    return NextResponse.json({ error: message }, { status: 424 });
   }
 }

@@ -769,6 +769,13 @@ site key must have the staging hostname added in Cloudflare before public
 forms render the captcha there; Google OAuth redirect URIs don't include
 staging (Calendar connect won't complete there).
 
+**Cloudflare sits in front of workbenchfsm.com** and replaces any origin
+`502`/`504` response body with its own HTML error page, so a JSON
+`{ error }` sent with those statuses never reaches the browser (the client
+falls back to "Something went wrong"). API routes report upstream failures
+(Telnyx, Finix, QuickBooks, Resend, the model) as **424**, never 502/504.
+Found 2026-09-22 when a Telnyx brand rejection showed as a blank failure.
+
 **Mobile**: the shell is thin — the webview loads the live site, so a Railway
 deploy updates the apps too, `components/NativeShell.tsx` included. Only the
 native project (`android/**`, `ios/**`, `capacitor.config.ts`, or adding a
