@@ -1,5 +1,18 @@
 # WorkBench Line — per-tenant texting + business phone — 2026-09-15
 
+> **2026-09-22 — the platform's own toll-free line.** Telnyx refused Streamflaire's
+> verification twice because the form files EVERY registration as "WorkBench (ISV
+> reseller) on behalf of <legal name>" with the tenant use case. For the number
+> Streamflaire itself uses (WorkBench sales & support) the client IS the ISV, which
+> their rule forbids. `isPlatformOwnLine` (legal name = `PLATFORM_LEGAL_NAME`) now
+> routes to `platformTollFreeInput`: no reseller field, DBA WorkBench, use case =
+> sales/support to prospects + account holders + dev/demo, opt-in = the unchecked
+> checkbox on /apply (`AccessApplication.smsConsentAt`, added the same day) + texting
+> first + asking. `/sms-terms` §7 describes those texts. `refileTollFree` /
+> `scripts/refile-tollfree.ts` re-files an in-review request in place. Tenant
+> registrations are unchanged — resellers MAY file for direct clients with the
+> client's own details, which is what the form does.
+
 > **Voice moved on 2026-09-18**: number-level forwarding is now the fallback;
 > the number sits on a Call Control app with whisper + press 1, voicemail and
 > calls from the app — see `business-line-voice-2026-09-18.md`.

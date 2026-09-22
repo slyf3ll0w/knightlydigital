@@ -791,7 +791,8 @@ export function platformTollFreeInput(number: string, form: RegistrationForm): T
     optInWorkflow:
       "Prospects and account holders give WorkBench their mobile number themselves: on the account application at https://workbenchfsm.com/apply, which has an unchecked SMS consent checkbox next to the phone field that links to the text terms (https://workbenchfsm.com/sms-terms); " +
       "by texting this number first; or by asking to be texted during a call or email exchange. Every text includes opt-out language; STOP opts out immediately and HELP returns support info.",
-    optInImageUrls: [OPT_IN_IMAGE_URL, "https://workbenchfsm.com/sms-terms"],
+    // The /apply checkbox itself (public/sms-opt-in-workbench.png), not the tenant booking-form image.
+    optInImageUrls: ["https://workbenchfsm.com/sms-opt-in-workbench.png", "https://workbenchfsm.com/sms-terms"],
     additionalInformation:
       "Streamflaire Group LLC is the sender and the only user of this number: it is the company's own sales and support line for its WorkBench software, not a number provided to a customer, and no third party sends from it. " +
       "Conversational two-party traffic plus account notices; no bulk marketing. STOP/HELP handled at the Telnyx edge and mirrored in the application.",
