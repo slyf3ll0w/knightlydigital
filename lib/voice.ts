@@ -50,7 +50,7 @@ import { phoneDigits } from "@/lib/phone";
 import { notifyUsers } from "@/lib/push";
 import { toE164 } from "@/lib/sms";
 import { APP_OUTBOUND_RING_SECS, APP_RING_SECS, VOIP_APP_RING_SECS, canUseSoftphone, onlineSoftphoneUsers, ringPlan, userSoftphoneOnline, type RingTarget } from "@/lib/softphone";
-import { VOIP_WAKE_SECS, pushIncomingCall, voipTargetsFor } from "@/lib/voip";
+import { VOIP_WAKE_SECS, pushIncomingCall, voipRegisteredSoftphone, voipTargetsFor } from "@/lib/voip";
 import {
   TTS,
   TelnyxError,
@@ -957,7 +957,8 @@ export async function startOutboundCall(
     throw new VoiceError("Your line isn't on the voice app yet — try again in a minute.", 503);
   }
   const via = opts.via ?? "cell";
-  const softphone = via === "app" ? await userSoftphoneOnline(userId) : null;
+  // A registered browser, or the iPhone app's native engine (no heartbeat; the INVITE for its own call wakes it).
+  const softphone = via === "app" ? (await userSoftphoneOnline(userId)) ?? (await voipRegisteredSoftphone(userId)) : null;
   if (via === "app" && !softphone) throw new VoiceError("Your softphone isn't connected — reload the page, or call from your cell.", 409);
   const agentNumber = via === "app" ? null : (toE164(user?.phone) ?? company.lineForwardTo);
   if (via === "cell" && !agentNumber) throw new VoiceError("Add your cell number under Settings → My Profile so we can ring you first.", 409);

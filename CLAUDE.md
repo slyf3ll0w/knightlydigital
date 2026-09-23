@@ -374,8 +374,11 @@ free `sms:`/`tel:` deep links (`lib/messaging.ts`) stay free and untouched.
   `client_state` when its webhook beats our insert. UI: the fixed call card
   (`Softphone.tsx`, mounted in the platform layout when the line is routed),
   "Call in app" on contacts, the `/app/calls` dialer (`DialFromApp.tsx`), My
-  Profile → Calls in the app (`User.softphoneEnabled`). Native shells never
-  register (`nativePlatform()`) — a phone stays a cell until tier 3. Two
+  Profile → Calls in the app (`User.softphoneEnabled`). The iPhone app runs
+  a NATIVE engine instead (tier 3, 2026-09-23: `ios/App/App/VoipPlugin.swift`
+  = PushKit + CallKit + the Telnyx iOS SDK; the page only mirrors it through
+  `components/SoftphoneNativeEngine.ts`), because iOS freezes a background
+  web page; the Android shell still stays a cell. Two
   Telnyx rules that cost a live test: the credential connection needs
   `sip_uri_calling_preference: "internal"` (else SIP 403 on every browser
   dial; `ensureSipUriCalling` heals old ones) and `from_display_name` is
@@ -441,9 +444,9 @@ free `sms:`/`tel:` deep links (`lib/messaging.ts`) stay free and untouched.
   the call and 30 min after it ended attach to the latest such call
   (`assignCallEvents` is pure; `npx tsx scripts/test-call-events.ts`);
   nothing is written to the Call row.
-- **Not built yet**: native ringing with the app closed (tier 3 — mic
-  permissions already in the native projects), voicemail transcription,
-  missed-call text-back, business-hours routing, port-in, call transfer.
+- **Not built yet**: Android tier 3 (native ringing with the app closed;
+  iOS shipped 2026-09-23), voicemail transcription, missed-call text-back,
+  business-hours routing, port-in, call transfer.
 
 **Out of funds (2026-09-22).** Telnyx refuses every mutation — number purchase,
 brand/campaign filing, placing a call, even the free SIP credential — once the

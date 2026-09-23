@@ -83,6 +83,15 @@ uploaded to App Store Connect**. The exported IPA was checked:
 `aps-environment = production`, applesignin, associated domains, background
 modes audio + remote-notification + voip, `Metadata.appintents` present.
 
+**Build 8 (later still):** build 7 rang, but sliding to answer left the
+caller on ringback until the app was opened by hand — iOS freezes a
+background WKWebView, so the page's softphone could never register or take
+the leg. The calling engine is native now: `VoipPlugin.swift` embeds the
+Telnyx iOS SDK (SPM package `telnyx-webrtc-ios` 4.2, added to the pbxproj
+by hand like Firebase; its WebRTC binary makes the first resolve slow) and
+the page only mirrors it (`components/SoftphoneNativeEngine.ts`). Same
+archive/upload commands.
+
 **Build 7 (later the same day):** the TestFlight build 6 crashed on the
 first closed-app call. Cause: PushKit was registered only when the web
 side asked for the token, i.e. after the page had loaded, so an app

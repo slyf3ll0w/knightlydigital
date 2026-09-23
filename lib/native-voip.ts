@@ -3,47 +3,63 @@
 import { getCapacitor, nativePlatform } from "@/components/NativeShell";
 
 /**
- * The iPhone app's CallKit/PushKit bridge (ios/App/App/VoipPlugin.swift),
- * reached through window.Capacitor.Plugins like every shell integration —
- * nothing here imports @capacitor/*, so the web bundle is untouched and a
- * shell built before the plugin existed simply has no bridge.
+ * The iPhone app's calling engine (ios/App/App/VoipPlugin.swift: PushKit +
+ * CallKit + the Telnyx iOS SDK), reached through window.Capacitor.Plugins
+ * like every shell integration — nothing here imports @capacitor/*, so the
+ * web bundle is untouched and a shell built before the plugin existed simply
+ * has no bridge.
  *
- * What it does for components/Softphone.tsx:
- *   - `register()`      ask PushKit for a VoIP token; `voipToken` fires
- *                       with it (and again whenever iOS rotates it)
- *   - `incomingCall`    a VoIP push landed and CallKit is already showing
- *                       the call — the app was possibly just launched for it
- *   - `callAnswered`    the person tapped Answer on the system screen
- *   - `callEnded`       they tapped Decline / End there
- *   - `reportIncoming`  the SIP INVITE arrived first (app in the
- *                       foreground): show the system call screen for it
- *   - `reportConnected` / `endCall` / `startOutgoing` keep CallKit's idea
- *                       of the call in step with ours
+ * On iOS the page never touches WebRTC: iOS freezes a background WKWebView,
+ * so a call answered from the lock screen can only be taken by native code.
+ * components/SoftphoneNativeEngine.ts mirrors the engine's state on the call
+ * card and forwards taps here. Every tap goes through CallKit on the native
+ * side, so the system call screen and the card always agree.
  *
- * Events the plugin fires before the page attached its listener are
- * retained and replayed (a cold start for a call has the system screen up
- * seconds before this code runs).
+ * Events (retained until the page attaches a listener; a cold start for a
+ * call has the system screen up seconds before this code runs):
+ *   voipToken      the PushKit token (and again whenever iOS rotates it)
+ *   engineState    { ready, error? } — registered with Telnyx, or why not
+ *   incomingCall   a call is ringing on the system screen
+ *   callAnswered   Answer tapped (there, or here via answer())
+ *   callActive     audio is up (inbound: the SIP leg answered; outbound:
+ *                  the page reported the customer on via reportConnected)
+ *   callEnded      { reason } — over, whoever ended it
+ *   muteChanged / holdChanged
  */
 
 export type VoipIncoming = { callId: string; label: string; number: string | null };
+export type VoipCallSnapshot = VoipIncoming & { direction: "in" | "out"; answered: boolean; connected: boolean; muted: boolean; held: boolean };
 
 type Listener<T> = (data: T) => void;
 
 type Handle = { remove: () => void | Promise<void> };
 
-type VoipPlugin = {
+export type VoipPlugin = {
+  /** The page is up with calls on: PushKit token, engine registered (a fresh token each socket). */
   register(): Promise<{ token?: string | null }>;
-  reportIncoming(o: VoipIncoming): Promise<void>;
+  /** iOS's one-time microphone prompt, now rather than on the first Answer. */
+  requestMic(): Promise<{ granted: boolean }>;
+  answer(o: { callId: string }): Promise<void>;
+  /** Decline (ringing → voicemail) or hang up (live); the engine tells the server first. */
+  endCall(o: { callId: string; reason?: string }): Promise<void>;
+  setMuted(o: { callId: string; muted: boolean }): Promise<void>;
+  setHeld(o: { callId: string; held: boolean }): Promise<void>;
+  sendDigits(o: { callId: string; digits: string }): Promise<void>;
+  /** After POST /api/app/line/call (via app): the engine takes the SIP leg the server dials next. */
+  placeCall(o: VoipIncoming): Promise<void>;
+  /** Outbound: the row says the customer is on. */
   reportConnected(o: { callId: string }): Promise<void>;
-  endCall(o: { callId: string; reason: "remoteEnded" | "unanswered" | "failed" | "answeredElsewhere" | "declined" }): Promise<void>;
-  startOutgoing(o: VoipIncoming): Promise<void>;
+  /** What the engine holds right now — a page that just (re)loaded catches up from this. */
+  currentCalls(): Promise<{ calls: VoipCallSnapshot[]; ready: boolean }>;
   addListener(event: string, cb: (data: unknown) => void): Promise<Handle> | Handle;
 };
 
 export function nativeVoip(): VoipPlugin | null {
   if (nativePlatform() !== "ios") return null;
   const p = getCapacitor()?.Plugins?.WorkBenchVoip as VoipPlugin | undefined;
-  return typeof p?.register === "function" ? p : null;
+  // `answer` arrived with the native engine (1.3 build 8); an older shell's
+  // bridge only forwarded PushKit and is of no use to the page.
+  return typeof p?.register === "function" && typeof p?.answer === "function" ? p : null;
 }
 
 /** Subscribe and get back an unsubscribe; tolerant of both plugin handle shapes. */
@@ -79,9 +95,9 @@ export function rememberedVoipToken(): string | null {
 
 /**
  * A pushed call that outlives a page reload: the app was rung for a company
- * it is not signed into, so it switches companies (a hard navigation) and
- * picks the call back up on the other side. Short-lived on purpose — a
- * stale entry must never resurrect a call that is long over.
+ * it is not signed into, so the page switches companies (a hard navigation)
+ * for its own UI while the native engine keeps the call. Short-lived on
+ * purpose — a stale entry must never resurrect a call that is long over.
  */
 export type PendingVoipCall = { callId: string; label: string; number: string | null; answered: boolean; at: number };
 

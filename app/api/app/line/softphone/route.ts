@@ -1,7 +1,8 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getActor, canSell } from "@/lib/permissions";
 import { limit } from "@/lib/rate-limit";
 import { SoftphoneError, issueSoftphoneGrant } from "@/lib/softphone";
+import { membershipOf } from "@/lib/voip";
 
 /**
  * GET — what the browser softphone (components/Softphone.tsx) needs to
@@ -11,16 +12,21 @@ import { SoftphoneError, issueSoftphoneGrant } from "@/lib/softphone";
  * per page load, nothing is stored client-side. Rate-limited because every
  * grant is a Telnyx round trip (and the first one creates resources).
  */
-export async function GET() {
+export async function GET(req: NextRequest) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!canSell(actor.role)) return NextResponse.json({ off: "role" });
+  // The iPhone's native engine may register as another membership of this
+  // login, for a call of that company (lib/voip.ts membershipOf).
+  const membership = req.nextUrl.searchParams.get("membership");
+  const as = membership ? await membershipOf(actor.id, membership) : { id: actor.id, companyId: actor.companyId };
+  if (!as) return NextResponse.json({ off: "role" });
+  if (!membership && !canSell(actor.role)) return NextResponse.json({ off: "role" });
   // Generous: a healthy tab mints one per page load; the client backs off 3 min on a 429.
   if (!(await limit(`softphone-grant:${actor.id}`, 60, 10 * 60_000)).ok) {
     return NextResponse.json({ error: "Too many softphone connections in a row — give it a few minutes." }, { status: 429 });
   }
   try {
-    return NextResponse.json(await issueSoftphoneGrant(actor.id, actor.companyId), { headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json(await issueSoftphoneGrant(as.id, as.companyId), { headers: { "Cache-Control": "no-store" } });
   } catch (err) {
     if (err instanceof SoftphoneError) return NextResponse.json({ error: err.message }, { status: err.status });
     console.error("[softphone] grant failed:", err);

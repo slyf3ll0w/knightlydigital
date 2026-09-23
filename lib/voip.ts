@@ -86,6 +86,43 @@ export async function voipTargetsFor(companyId: string): Promise<VoipTarget[]> {
 }
 
 /**
+ * `userId` as one of this signed-in person's own memberships (the same
+ * Account, active, able to take calls) — or null. The iPhone's native engine
+ * acts as a sibling membership for a call of another company on the login
+ * (GET …/softphone?membership=, POST …/softphone/ready { membership }).
+ */
+export async function membershipOf(actorId: string, userId: string): Promise<{ id: string; companyId: string } | null> {
+  if (userId === actorId) {
+    const me = await prisma.user.findUnique({ where: { id: actorId }, select: { id: true, companyId: true } });
+    return me?.companyId ? { id: me.id, companyId: me.companyId } : null;
+  }
+  const me = await prisma.user.findUnique({ where: { id: actorId }, select: { accountId: true } });
+  if (!me?.accountId) return null;
+  const u = await prisma.user.findFirst({
+    where: { id: userId, accountId: me.accountId, isActive: true, softphoneEnabled: true, role: { in: [...SOFTPHONE_ROLES] }, companyId: { not: null } },
+    select: { id: true, companyId: true },
+  });
+  return u?.companyId ? { id: u.id, companyId: u.companyId } : null;
+}
+
+/**
+ * The iPhone app's native engine registers with the same SIP credential the
+ * browser would, but sends no presence heartbeat (the app may be asleep the
+ * moment before a call is placed and registers on demand). A phone with a
+ * VoIP token on this login counts as reachable for an outbound call from
+ * the app: the INVITE for its own call is what wakes it.
+ */
+export async function voipRegisteredSoftphone(userId: string): Promise<{ sipUsername: string } | null> {
+  const u = await prisma.user.findUnique({ where: { id: userId }, select: { sipUsername: true, softphoneEnabled: true, accountId: true } });
+  if (!u?.sipUsername || !u.softphoneEnabled) return null;
+  const token = await prisma.pushSubscription.findFirst({
+    where: { platform: VOIP_PLATFORM, OR: [{ userId }, ...(u.accountId ? [{ user: { accountId: u.accountId } }] : [])] },
+    select: { id: true },
+  });
+  return token ? { sipUsername: u.sipUsername } : null;
+}
+
+/**
  * The membership this signed-in person should switch to for a call that
  * belongs to another of their companies — or null if they have none there
  * that can take calls.

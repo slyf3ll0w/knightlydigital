@@ -28,9 +28,10 @@ line ("press 1"), then the client — that is the designed flow, not a bug.
 
 VoIP push: the app registers a PushKit VoIP token only to ring the user's
 own business-line calls (Telnyx). Every VoIP push reports an incoming call
-to CallKit immediately; no VoIP push is used for anything else. Background
-modes: `voip` for that, `audio` so an in-progress call keeps going when the
-phone locks.
+to CallKit immediately; no VoIP push is used for anything else. The call
+itself is carried natively by the Telnyx iOS SDK under CallKit, so it can be
+answered from the lock screen. Background modes: `voip` for that, `audio` so
+an in-progress call keeps going when the phone locks.
 
 Siri: App Intents for clock in/out, next job, calling a client, calling
 back a missed call, adding a job note, and today's schedule. Each calls the app's own API with the user's session; a call
@@ -46,6 +47,8 @@ is not recorded by the app.
 
 ## Version / build
 
-`MARKETING_VERSION = 1.3`, `CURRENT_PROJECT_VERSION = 7` (build 6 crashed on
-the first closed-app call: PushKit was not registered at launch). Bump to 8 if
-another upload is needed for the same version.
+`MARKETING_VERSION = 1.3`, `CURRENT_PROJECT_VERSION = 8`. Build 6 crashed on
+the first closed-app call (PushKit was not registered at launch); build 7
+rang but could not take the call from the lock screen (the web page is frozen
+in the background); build 8 embeds the Telnyx iOS SDK as a native engine.
+Bump to 9 if another upload is needed for the same version.
