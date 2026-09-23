@@ -688,8 +688,13 @@ enum ContactStatus {
 
 // App events that can auto-advance a lead's card to a stage claiming them.
 // Cards only move FORWARD on triggers — a quote re-send never demotes a lead.
+// CONTACT_MADE = a call with them connects (either direction) or the team
+// texts them from the Messages thread; CALL_NO_ANSWER = an outbound call
+// ends without them picking up (lib/voice.ts pipelineTriggerForCall).
 enum PipelineTrigger {
   REQUEST_CREATED
+  CONTACT_MADE
+  CALL_NO_ANSWER
   APPOINTMENT_SCHEDULED
   QUOTE_SENT
   QUOTE_APPROVED

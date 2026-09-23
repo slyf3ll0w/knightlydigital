@@ -26,9 +26,13 @@ type Stage = {
 };
 
 // Quote approval isn't offered: an approved quote always converts the lead
+// Same labels as lib/pipeline.ts triggerLabel (kept local: that module
+// imports Prisma and this is a client component).
 const TRIGGERS: { value: string; label: string }[] = [
   { value: "", label: "No automation" },
   { value: "REQUEST_CREATED", label: "Request comes in" },
+  { value: "CONTACT_MADE", label: "You call or text them" },
+  { value: "CALL_NO_ANSWER", label: "You call and they don't pick up" },
   { value: "APPOINTMENT_SCHEDULED", label: "Appointment scheduled" },
   { value: "QUOTE_SENT", label: "Quote sent" },
 ];
@@ -231,6 +235,10 @@ export default function PipelineSettingsClient({
         <p className="text-xs text-gray-500 mb-4">
           Rename, recolor, and reorder to match how you actually sell. An automation moves a
           lead&apos;s card to that stage when the event happens — forward only, never backward.
+          Calls and texts count when they go through your business line: a connected call or a
+          text from Messages means you reached them; an outbound call nobody picks up can feed a
+          stage of its own. Put a &ldquo;No answer&rdquo; stage <em>before</em> Contacted so a
+          lead who finally answers still moves forward.
         </p>
 
         {adding && (

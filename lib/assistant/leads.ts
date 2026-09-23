@@ -178,7 +178,7 @@ export const leadTools: Tool[] = [
           color: { type: "string", description: "recolor/create: hex like #0B57D8" },
           trigger: {
             type: "string",
-            enum: ["REQUEST_CREATED", "APPOINTMENT_SCHEDULED", "QUOTE_SENT", "none"],
+            enum: [...PIPELINE_TRIGGERS, "none"],
           },
           orderedNames: {
             type: "array",
@@ -278,7 +278,7 @@ export const leadTools: Tool[] = [
         const trigger = str(args.trigger, 30);
         const clearing = trigger === "none";
         if (!clearing && !(PIPELINE_TRIGGERS as readonly string[]).includes(trigger)) {
-          return { error: "trigger must be REQUEST_CREATED, APPOINTMENT_SCHEDULED, QUOTE_SENT, or none (quote approval always converts the lead — that's built in)" };
+          return { error: `trigger must be one of ${PIPELINE_TRIGGERS.join(", ")}, or none (quote approval always converts the lead — that's built in)` };
         }
         return stage(ctx, {
           kind: "manage_pipeline_stage",

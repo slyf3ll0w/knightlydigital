@@ -17,9 +17,11 @@ import type { Prisma, PipelineTrigger } from "@prisma/client";
  *    just clears the stage; they never regress to LEAD.
  *  - Losing archives a lead (with an optional reason); a repeat client who
  *    doesn't buy again simply leaves the board and stays ACTIVE.
- *  - App events (request created, appointment scheduled, quote sent/approved)
- *    auto-advance cards to whichever stage claims that trigger — forward
- *    only, so a re-send never demotes a lead.
+ *  - App events (request created, call connected / text sent, outbound call
+ *    unanswered, appointment scheduled, quote sent) auto-advance cards to
+ *    whichever stage claims that trigger — forward only, so a re-send never
+ *    demotes a lead. The phone/text hooks live in lib/voice.ts and the
+ *    Messages POST route; the default "Contacted" column claims CONTACT_MADE.
  */
 
 type Db = Prisma.TransactionClient | typeof prisma;
@@ -34,21 +36,28 @@ const CONVERTED_SORT = 9999;
 // value stays in the schema for any stage that still carries it.
 export const PIPELINE_TRIGGERS = [
   "REQUEST_CREATED",
+  "CONTACT_MADE",
+  "CALL_NO_ANSWER",
   "APPOINTMENT_SCHEDULED",
   "QUOTE_SENT",
 ] as const;
 
 export const triggerLabel: Record<string, string> = {
   REQUEST_CREATED: "Request comes in",
+  CONTACT_MADE: "You call or text them",
+  CALL_NO_ANSWER: "You call and they don't pick up",
   APPOINTMENT_SCHEDULED: "Appointment scheduled",
   QUOTE_SENT: "Quote sent",
   QUOTE_APPROVED: "Quote approved",
 };
 
-// Seeded on first board visit; every part is editable afterward.
+// Seeded on first board visit; every part is editable afterward. "Contacted"
+// claims the call/text trigger by default; a "No answer" column is left for
+// the company to add (Settings → Lead pipeline) — put it BEFORE Contacted so
+// a lead who finally picks up still moves forward into Contacted.
 const DEFAULT_STAGES: { name: string; color: string; autoAdvanceOn: PipelineTrigger | null }[] = [
   { name: "New", color: "#F59E0B", autoAdvanceOn: "REQUEST_CREATED" },
-  { name: "Contacted", color: "#3B82F6", autoAdvanceOn: null },
+  { name: "Contacted", color: "#3B82F6", autoAdvanceOn: "CONTACT_MADE" },
   { name: "Estimate Scheduled", color: "#8B5CF6", autoAdvanceOn: "APPOINTMENT_SCHEDULED" },
   { name: "Quote Sent", color: "#22C55E", autoAdvanceOn: "QUOTE_SENT" },
 ];

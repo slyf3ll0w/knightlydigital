@@ -21,7 +21,6 @@ import {
   ChevronRight,
   Plus,
   DollarSign,
-  BarChart3,
   Search,
   Globe,
   UserPlus,
@@ -29,7 +28,6 @@ import {
   FileSignature,
   Repeat,
   Building2,
-  Wallet,
   Route as RouteGlyph,
   ChevronsUpDown,
   CircleUserRound,
@@ -160,17 +158,19 @@ const moneyRoles = (r: string, salesMoney: boolean) =>
 
 // Jobber-style grouping: Home + Schedule, then the work lifecycle in order,
 // then business tools. Labeled sections read like mainstream SaaS nav.
+// The More sheet skips the first group (those two live on the tab bar) —
+// anything else that should reach phones goes in a labeled group below.
 const navGroups: { label?: string; items: NavItem[] }[] = [
   {
     items: [
       { href: "/app/dashboard", label: "Home", icon: Home },
       { href: "/app/schedule", label: "Schedule", icon: CalendarDays },
-      { href: "/app/schedule/map", label: "Routes", icon: RouteGlyph },
     ],
   },
   {
     label: "Work",
     items: [
+      { href: "/app/schedule/map", label: "Routes", icon: RouteGlyph },
       { href: "/app/contacts", label: "Clients", icon: Users, show: sellRoles },
       { href: "/app/requests", label: "Requests", icon: Inbox, show: sellRoles },
       { href: "/app/messages", label: "Messages", icon: MessageSquare, show: sellRoles },
@@ -193,11 +193,9 @@ const navGroups: { label?: string; items: NavItem[] }[] = [
     label: "Business",
     items: [
       // Overview = the hub page (Insights + Team Map + Timesheets + Expenses
-      // with live stats); Insights and Expenses also get their own rows so
-      // the reporting page is one tap away, not two.
+      // with live stats) — it links every reporting page, so those don't get
+      // their own rows here (lib/mobile-nav.ts sends them back to Overview).
       { href: "/app/business", label: "Overview", icon: Building2, show: isManagerRole },
-      { href: "/app/insights", label: "Insights", icon: BarChart3, show: isManagerRole },
-      { href: "/app/expenses", label: "Expenses", icon: Wallet, show: isManagerRole },
       // Same labels as the Settings index — one name per page everywhere.
       { href: "/app/settings/products", label: "Services", icon: Tag, show: isManagerRole },
       { href: "/app/settings/booking", label: "Booking & forms", icon: Globe, show: isManagerRole },
@@ -250,9 +248,8 @@ const railGroups: { key: string; label: string; items: NavItem[] }[] = [
     key: "business",
     label: "Business",
     items: [
+      // Overview links Insights / Expenses / Team Map / Timesheets itself.
       { href: "/app/business", label: "Overview", icon: Building2, show: isManagerRole },
-      { href: "/app/insights", label: "Insights", icon: BarChart3, show: isManagerRole },
-      { href: "/app/expenses", label: "Expenses", icon: Wallet, show: isManagerRole },
       // Same labels as the Settings index — one name per page everywhere.
       { href: "/app/settings/products", label: "Services", icon: Tag, show: isManagerRole },
       { href: "/app/settings/booking", label: "Booking & forms", icon: Globe, show: isManagerRole },
@@ -1724,6 +1721,17 @@ export default function AppShell({
     if (href === "/app/schedule") {
       return pathname.startsWith(href) && !pathname.startsWith("/app/schedule/map");
     }
+    // Insights / Expenses / Team Map hang off the Business overview and no
+    // longer have rows of their own, so Overview stays lit (and its rail
+    // group held open) while you are on them.
+    if (href === "/app/business") {
+      return (
+        pathname.startsWith(href) ||
+        pathname.startsWith("/app/insights") ||
+        pathname.startsWith("/app/expenses") ||
+        pathname.startsWith("/app/team-map")
+      );
+    }
     // Booking Form / Team / Services / Contracts / My Profile live under
     // /app/settings/ but have their own nav items
     if (href === "/app/settings") {
@@ -2321,8 +2329,10 @@ export default function AppShell({
       {/* Assistant bubble — floats above the mobile tab bar, hides while open */}
       {assistantAvailable && !assistantOpen && (
         <>
+          {/* Themed like any card: theme-fixed only pinned the white ground,
+              so in dark mode the ink still flipped to near-white on it. */}
           {teaserVisible && (
-            <div className="atlas-teaser-pop theme-fixed fixed bottom-[92px] right-6 z-40 hidden w-[264px] rounded-2xl rounded-br-md border border-gray-200 bg-white p-3.5 pr-8 shadow-xl lg:block">
+            <div className="atlas-teaser-pop fixed bottom-[92px] right-6 z-40 hidden w-[264px] rounded-2xl rounded-br-md border border-gray-200 bg-white p-3.5 pr-8 shadow-xl lg:block">
               <button
                 type="button"
                 onClick={() => {
@@ -2773,7 +2783,7 @@ function MoreSheet({
           )}
 
           {navGroups
-            .slice(1) // Home + Schedule already live on the tab bar
+            .slice(1) // the first group (Home + Schedule) is the tab bar
             .map((g) => group(g.label ?? null, forRole(g.items, role, salesMoney)))}
           {group(teamItems.length > 0 ? "Team" : null, teamItems)}
           {group("Settings & help", accountItems)}

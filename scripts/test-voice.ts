@@ -18,12 +18,14 @@ import {
   isTerminalStatus,
   outboundWhisperText,
   partyLabel,
+  pipelineTriggerForCall,
   sanitizeGreeting,
   sipDisplayName,
   spokenNumber,
   staleCallPlan,
   statusAfterCustomerHangup,
   talkSeconds,
+  unansweredOutboundStatus,
   whisperText,
 } from "../lib/voice";
 import { defaultCallerIdName, defaultVoicemailGreeting, isRealLineNumber } from "../lib/business-line-shared";
@@ -98,6 +100,21 @@ assert.equal(statusAfterCustomerHangup(outbound("RINGING"), "unspecified"), "FAI
 assert.equal(statusAfterCustomerHangup(outbound("RINGING"), null), "NO_ANSWER");
 assert.equal(isTerminalStatus("COMPLETED"), true);
 assert.equal(isTerminalStatus("RINGING"), false);
+
+// ── Leads-board trigger for a call ───────────────────────────────────────────
+assert.equal(pipelineTriggerForCall(outbound("IN_PROGRESS")), "CONTACT_MADE"); // fires at bridge
+assert.equal(pipelineTriggerForCall(outbound("COMPLETED")), "CONTACT_MADE");
+assert.equal(pipelineTriggerForCall(inbound("COMPLETED")), "CONTACT_MADE"); // they called, you talked
+assert.equal(pipelineTriggerForCall(outbound("NO_ANSWER")), "CALL_NO_ANSWER");
+assert.equal(pipelineTriggerForCall(inbound("MISSED")), null); // they tried to reach you
+assert.equal(pipelineTriggerForCall(inbound("VOICEMAIL")), null);
+assert.equal(pipelineTriggerForCall(outbound("FAILED")), null); // the dial broke, not the lead
+assert.equal(pipelineTriggerForCall(outbound("RINGING")), null);
+
+// ── our side hangs up on a ringing customer ──────────────────────────────────
+assert.equal(unansweredOutboundStatus({ telnyxCallId: "v3:abc" }), "NO_ANSWER"); // it rang; they didn't pick up
+assert.equal(unansweredOutboundStatus({ telnyxCallId: "pending:xyz" }), "FAILED"); // whisper declined, never dialed
+assert.equal(unansweredOutboundStatus({ telnyxCallId: null }), "FAILED");
 
 // ── stale sweep plan ─────────────────────────────────────────────────────────
 const now = new Date("2026-09-18T20:00:00Z");

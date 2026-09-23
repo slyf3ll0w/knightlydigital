@@ -118,9 +118,16 @@ Stages are per-company (`PipelineStage`, seeded on first visit, customizable at
 `/app/settings/pipeline`). All lifecycle rules live in `lib/pipeline.ts`:
 
 - LEAD contacts always sit on the board (`ensureStages` sweeps strays).
-- Stage `autoAdvanceOn` triggers (request created / appointment scheduled /
-  quote sent) move cards FORWARD only — hooks live in the
-  request/appointment/quote/booking routes.
+- Stage `autoAdvanceOn` triggers (request created / you call or text them /
+  you call and they don't pick up / appointment scheduled / quote sent) move
+  cards FORWARD only — hooks live in the request/appointment/quote/booking
+  routes, `lib/voice.ts` (`pipelineTriggerForCall`: a bridged or completed
+  call in either direction = CONTACT_MADE, an OUTBOUND call ending NO_ANSWER =
+  CALL_NO_ANSWER; inbound missed/voicemail say nothing) and the Messages POST
+  route (a team text = CONTACT_MADE). The default "Contacted" column claims
+  CONTACT_MADE (`scripts/backfill-contacted-trigger.mjs` gave it to existing
+  boards whose Contacted column had no automation); a "No answer" column is
+  opt-in and belongs BEFORE Contacted.
 - Winning (quote approval, first job/invoice/quote-conversion via
   `recordLeadWin`, the Won zone, or dragging into Converted) moves the card
   to the built-in Converted section (`PipelineStage.isConverted`, pinned
@@ -328,7 +335,9 @@ free `sms:`/`tel:` deep links (`lib/messaging.ts`) stay free and untouched.
   dial the customer → bridge. `Call` rows: `telnyxCallId` = customer leg,
   `agentCallId` = cell leg, status RINGING → IN_PROGRESS → COMPLETED |
   MISSED | VOICEMAIL | NO_ANSWER | FAILED (`statusAfterCustomerHangup` is the
-  pure table; `npx tsx scripts/test-voice.ts`). Webhook
+  pure table; our side hanging up on / cancelling an outbound call whose
+  customer leg was already dialed is NO_ANSWER too — `unansweredOutboundStatus`;
+  `npx tsx scripts/test-voice.ts`). Webhook
   `/api/public/webhooks/telnyx/voice` is acted on directly (the call is live),
   so its Ed25519 check (`lib/telnyx-webhook.ts`, shared with the SMS route)
   is mandatory. Dials and the voicemail transition are guarded with

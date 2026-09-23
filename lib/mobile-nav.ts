@@ -48,8 +48,6 @@ const ROOTS = new Set([
   "/app/subscriptions",
   "/app/timesheets",
   "/app/business",
-  "/app/insights",
-  "/app/expenses",
   "/app/chat",
   "/app/support",
   "/app/roadmap",

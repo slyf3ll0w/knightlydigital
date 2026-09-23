@@ -39,8 +39,9 @@
  * number keeps plain forwarding and none of this runs.
  */
 
-import type { Call, CallStatus, Contact, ContactStatus } from "@prisma/client";
+import type { Call, CallStatus, Contact, ContactStatus, PipelineTrigger } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { autoAdvance } from "@/lib/pipeline";
 import { alertTelnyxFunds } from "@/lib/ops-alert";
 import { hasAddon } from "@/lib/addon";
 import { defaultVoicemailGreeting, isRealLineNumber } from "@/lib/business-line-shared";
@@ -209,6 +210,50 @@ export function statusAfterCustomerHangup(call: Pick<Call, "status" | "direction
   if (call.status === "VOICEMAIL") return "VOICEMAIL";
   if (call.direction === "INBOUND") return "MISSED";
   return !cause || NO_ANSWER_CAUSES.has(cause) ? "NO_ANSWER" : "FAILED";
+}
+
+/**
+ * Which Leads-board automation a call's status stands for, if any. Pure —
+ * the table sits in scripts/test-voice.ts:
+ *   bridged / completed  → CONTACT_MADE (you actually spoke, either direction)
+ *   outbound, no answer  → CALL_NO_ANSWER (they didn't pick up; busy/rejected
+ *                          count too — see NO_ANSWER_CAUSES)
+ *   anything else        → null (inbound missed = they tried to reach YOU;
+ *                          voicemail, failed dials and cancels say nothing
+ *                          about the lead)
+ * Fired from bridgeLegs (so the card moves while you're still on the line),
+ * from the customer-leg hangup (which also catches a lead saved mid-call —
+ * autoAdvance is forward-only, so the repeat is harmless), and from the two
+ * places our side gives up on a ringing customer (agent-leg hangup, cancel).
+ */
+export function pipelineTriggerForCall(call: Pick<Call, "status" | "direction">): PipelineTrigger | null {
+  if (call.status === "IN_PROGRESS" || call.status === "COMPLETED") return "CONTACT_MADE";
+  if (call.direction === "OUTBOUND" && call.status === "NO_ANSWER") return "CALL_NO_ANSWER";
+  return null;
+}
+
+/** Move the caller's Leads-board card for what just happened on the call. Never throws — the call flow comes first. */
+async function advanceLeadForCall(call: Pick<Call, "id" | "companyId" | "contactId">, status: CallStatus, direction: Call["direction"]): Promise<void> {
+  if (!call.contactId) return;
+  const trigger = pipelineTriggerForCall({ status, direction });
+  if (!trigger) return;
+  try {
+    await autoAdvance(prisma, call.companyId, call.contactId, trigger);
+  } catch (err) {
+    console.error(`[voice] lead auto-advance failed for call ${call.id}:`, err);
+  }
+}
+
+/**
+ * Where an OUTBOUND call lands when OUR side ends it before the customer
+ * answers (the cell hangs up mid-ring, the softphone's cancel). Once the
+ * customer leg has actually been dialed that is "they didn't pick up" —
+ * NO_ANSWER, the same verdict the customer-leg webhook gives an
+ * originator_cancel — not a failure. Before the dial (whisper declined,
+ * nothing rang) nothing can be said about the lead: FAILED.
+ */
+export function unansweredOutboundStatus(call: Pick<Call, "telnyxCallId">): CallStatus {
+  return call.telnyxCallId && !call.telnyxCallId.startsWith("pending:") ? "NO_ANSWER" : "FAILED";
 }
 
 export type StaleAction = "close" | "empty_voicemail" | null;
@@ -583,6 +628,7 @@ async function bridgeLegs(call: CallRow): Promise<void> {
   }
   if (ok) {
     await prisma.call.updateMany({ where: { id: call.id, status: "RINGING" }, data: { status: "IN_PROGRESS", answeredAt: new Date() } });
+    await advanceLeadForCall(call, "IN_PROGRESS", call.direction);
     return;
   }
   // Nobody stays stranded on ringback: the cell leg is dropped and an inbound
@@ -690,6 +736,7 @@ async function onHangup(p: VoiceEventPayload): Promise<void> {
         durationSec: call.durationSec ?? talkSeconds(call.answeredAt, now),
       },
     });
+    await advanceLeadForCall(call, status, call.direction);
     if (call.direction === "INBOUND") {
       // Caller gone while the cell / the browsers were still ringing.
       if (call.status === "RINGING") {
@@ -725,10 +772,12 @@ async function onHangup(p: VoiceEventPayload): Promise<void> {
   await prisma.callLeg.updateMany({ where: { telnyxCallId: p.call_control_id, endedAt: null }, data: { endedAt: now, hangupCause: cause } }).catch(() => {});
   if (call.status !== "RINGING") return; // bridged: the customer leg's hangup closes the row
   if (call.direction === "INBOUND") return toVoicemail(call);
+  const status = unansweredOutboundStatus(call);
   await prisma.call.update({
     where: { id: call.id },
-    data: { status: "FAILED", hangupCause: cause ?? "agent_hangup", endedAt: now },
+    data: { status, hangupCause: cause ?? "agent_hangup", endedAt: now },
   });
+  await advanceLeadForCall(call, status, call.direction);
   if (call.telnyxCallId && !call.telnyxCallId.startsWith("pending:")) await callAction(call.telnyxCallId, "hangup");
 }
 
@@ -959,12 +1008,13 @@ export async function cancelCall(companyId: string, callId: string): Promise<{ s
   }
   if (call.status !== "RINGING") return { status: call.status }; // bridged: the customer leg's hangup closes the row
   const now = new Date();
-  const status: CallStatus = call.direction === "INBOUND" ? "MISSED" : "FAILED";
-  await prisma.call.updateMany({
+  const status: CallStatus = call.direction === "INBOUND" ? "MISSED" : unansweredOutboundStatus(call);
+  const claimed = await prisma.call.updateMany({
     where: { id: call.id, status: "RINGING" },
     data: { status, hangupCause: "cancelled", endedAt: now },
   });
   await prisma.callLeg.updateMany({ where: { callId: call.id, endedAt: null }, data: { endedAt: now, hangupCause: "cancelled" } });
+  if (claimed.count > 0) await advanceLeadForCall(call, status, call.direction);
   return { status };
 }
 

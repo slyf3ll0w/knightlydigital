@@ -5,6 +5,7 @@ import {
   notifyClientOfReply,
   portalThreadContactInclude,
 } from "@/lib/portal-messages";
+import { autoAdvance } from "@/lib/pipeline";
 
 /**
  * Team side of a portal message thread. GET polls for new messages (and
@@ -105,6 +106,10 @@ export async function POST(
   });
 
   await notifyClientOfReply(contact, message.id, body);
+  // A text from the team counts as reaching the lead (Leads board automation).
+  await autoAdvance(prisma, actor.companyId, contact.id, "CONTACT_MADE").catch((err) =>
+    console.error("[messages] lead auto-advance failed:", err)
+  );
 
   return NextResponse.json({ message: serialize(message) }, { status: 201 });
 }
