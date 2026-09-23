@@ -49,7 +49,7 @@ import { fmtPhone } from "@/lib/format";
 import { phoneDigits } from "@/lib/phone";
 import { notifyUsers } from "@/lib/push";
 import { toE164 } from "@/lib/sms";
-import { APP_OUTBOUND_RING_SECS, APP_RING_SECS, canUseSoftphone, onlineSoftphoneUsers, ringPlan, userSoftphoneOnline, type RingTarget } from "@/lib/softphone";
+import { APP_OUTBOUND_RING_SECS, APP_RING_SECS, VOIP_APP_RING_SECS, canUseSoftphone, onlineSoftphoneUsers, ringPlan, userSoftphoneOnline, type RingTarget } from "@/lib/softphone";
 import { VOIP_WAKE_SECS, pushIncomingCall, voipTargetsFor } from "@/lib/voip";
 import {
   TTS,
@@ -110,7 +110,8 @@ export const STALE_VOICEMAIL_MS = 10 * 60_000;
 /** customer = the far party; agent = the cell, or the one browser that won / placed the call; app = a browser rung for an inbound call. */
 export type Leg = "customer" | "agent" | "app";
 export type Stage = "ring" | "whisper" | "bridged" | "vm_greeting" | "vm_record" | "out_whisper" | "out_no_answer";
-export type ClientState = { callId: string; leg: Leg; stage?: Stage; userId?: string };
+/** `woke`: this app leg belongs to an iPhone that a VoIP push woke for the call (lib/voip.ts). */
+export type ClientState = { callId: string; leg: Leg; stage?: Stage; userId?: string; woke?: boolean };
 
 export function encodeState(s: ClientState): string {
   return Buffer.from(JSON.stringify(s)).toString("base64");
@@ -121,7 +122,7 @@ export function decodeState(raw: string | null | undefined): ClientState | null 
   try {
     const j = JSON.parse(Buffer.from(raw, "base64").toString("utf8")) as Partial<ClientState>;
     if (typeof j.callId !== "string" || (j.leg !== "customer" && j.leg !== "agent" && j.leg !== "app")) return null;
-    return { callId: j.callId, leg: j.leg, stage: j.stage, ...(typeof j.userId === "string" ? { userId: j.userId } : {}) };
+    return { callId: j.callId, leg: j.leg, stage: j.stage, ...(typeof j.userId === "string" ? { userId: j.userId } : {}), ...(j.woke === true ? { woke: true } : {}) };
   } catch {
     return null;
   }
@@ -588,8 +589,8 @@ async function dialCell(call: CallRow, opts: { ringback: boolean }): Promise<voi
   }
 }
 
-/** Dial every online browser as a SIP leg (one CallLeg row each). Returns how many are ringing. */
-async function ringSoftphones(call: CallRow, targets: RingTarget[]): Promise<number> {
+/** Dial every online browser as a SIP leg (one CallLeg row each). Returns how many are ringing. `woke` = these are pushed iPhones (longer ring, voicemail instead of the cell when it runs out). */
+async function ringSoftphones(call: CallRow, targets: RingTarget[], woke = false): Promise<number> {
   let ringing = 0;
   const label = displayParty(call);
   for (const t of targets) {
@@ -599,8 +600,8 @@ async function ringSoftphones(call: CallRow, targets: RingTarget[]): Promise<num
         from: call.company.lineNumber!,
         fromDisplayName: sipDisplayName(label),
         customHeaders: [{ name: "X-WB-Call-Id", value: call.id }],
-        clientState: encodeState({ callId: call.id, leg: "app", stage: "ring", userId: t.userId }),
-        timeoutSecs: APP_RING_SECS,
+        clientState: encodeState({ callId: call.id, leg: "app", stage: "ring", userId: t.userId, ...(woke ? { woke: true } : {}) }),
+        timeoutSecs: woke ? VOIP_APP_RING_SECS : APP_RING_SECS,
         linkTo: call.telnyxCallId!,
         commandId: `${call.id}:app:${t.userId}`,
       });
@@ -658,7 +659,7 @@ export async function wakeSoftphoneLeg(userId: string, companyId: string, callId
   if (!user?.sipUsername || !user.softphoneEnabled || !user.isActive || !canUseSoftphone(user.role)) return "ineligible";
   const open = await prisma.callLeg.count({ where: { callId, userId, endedAt: null } });
   if (open > 0) return "already";
-  return (await ringSoftphones(call, [{ userId, sipUsername: user.sipUsername }])) > 0 ? "ringing" : "late";
+  return (await ringSoftphones(call, [{ userId, sipUsername: user.sipUsername }], true)) > 0 ? "ringing" : "late";
 }
 
 /** Hang up every browser leg still ringing on a call, except the one that won. Their hangup webhooks close the rows. */
@@ -826,6 +827,10 @@ async function onHangup(p: VoiceEventPayload): Promise<void> {
     if (call.status !== "RINGING" || call.direction !== "INBOUND" || call.agentCallId) return;
     const open = await prisma.callLeg.count({ where: { callId: call.id, endedAt: null } });
     if (open > 0) return;
+    // An iPhone that a push woke was showing this call on its lock screen
+    // and let it ring out: voicemail, never the cell — that cell IS this
+    // phone, and a second ring would land on top of the CallKit call.
+    if (decodeState(p.client_state)?.woke) return toVoicemail(call);
     return dialCell(call, { ringback: false });
   }
 

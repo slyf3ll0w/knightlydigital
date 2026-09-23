@@ -26,6 +26,16 @@ export default function SoftphoneToggleCard({ initial }: { initial: boolean }) {
       });
       if (!res.ok) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error || "Couldn't save.");
       setOn(!on);
+      // Turning it on: ask for the microphone now, while the person is
+      // looking at this card, so the first call is not the first prompt.
+      if (!on && navigator.mediaDevices?.getUserMedia) {
+        try {
+          const s = await navigator.mediaDevices.getUserMedia({ audio: true });
+          s.getTracks().forEach((t) => t.stop());
+        } catch {
+          setError("Calls are on, but the microphone was refused — allow it for this site (on the phone: Settings → WorkBench → Microphone) before your first call.");
+        }
+      }
       // The softphone in this tab registers on the next page load; say so.
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't save.");

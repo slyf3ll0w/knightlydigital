@@ -343,6 +343,20 @@ function showIncomingNotice(label: string): Notification | null {
   }
 }
 
+const MIC_ASKED_KEY = "wb-mic-asked";
+function micAskedBefore(): boolean {
+  try {
+    return localStorage.getItem(MIC_ASKED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+function rememberMicAsked(): void {
+  try {
+    localStorage.setItem(MIC_ASKED_KEY, "1");
+  } catch {}
+}
+
 async function hangupServerSide(callId: string): Promise<void> {
   await fetch(`/api/app/line/call?id=${encodeURIComponent(callId)}`, { method: "DELETE", keepalive: true }).catch(() => {});
 }
@@ -420,7 +434,9 @@ export default function Softphone() {
       const name = err instanceof Error ? err.name : "";
       if (name === "NotReadableError") return "The microphone is in use by another app — close it and try again.";
       if (name === "NotFoundError" || name === "OverconstrainedError") return "No microphone was found on this device.";
-      return "Microphone access was refused — allow it for this site (icon left of the address bar), then reload.";
+      return nativePlatform()
+        ? "Microphone access was refused — allow it in Settings → WorkBench → Microphone, then reopen the app."
+        : "Microphone access was refused — allow it for this site (icon left of the address bar), then reload.";
     };
     /** Open the chosen input, falling back to the default once when that device is gone; the caller stops the tracks. */
     const openMic = async (): Promise<MediaStream> => {
@@ -924,7 +940,18 @@ export default function Softphone() {
         attempt = 0;
         clearFallback();
         setSoftphoneState({ status: "ready", error: null, reason: null });
-        void checkMic();
+        void checkMic().then(() => {
+          // Ask for the microphone the first time calls are on for this
+          // device, not in the middle of answering one: on the iPhone the
+          // system prompt would otherwise appear after Answer, and while it
+          // waits the ringing leg runs out. Once per device on the web (the
+          // browser remembers a grant or a refusal; a dismissed prompt is not
+          // re-asked on every page load).
+          if (unmounted || getSoftphoneState().mic === "granted") return;
+          if (!nativePlatform() && micAskedBefore()) return;
+          rememberMicAsked();
+          void requestMic();
+        });
         void beat(true);
         stopHeartbeat();
         heartbeat = setInterval(() => void beat(true), HEARTBEAT_MS);

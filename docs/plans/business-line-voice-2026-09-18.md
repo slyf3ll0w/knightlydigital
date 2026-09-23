@@ -175,6 +175,18 @@ from any membership of the login. Known gap: an Answer tapped during the
 ~3 s reload itself is carried only if the page saw it — the INVITE still
 rings the app afterwards, so it is a second tap, not a missed call.
 
+**No cell ring once a phone has woken (2026-09-23, from the first real test).**
+Answer on the lock screen, then the cell rang too and the two calls collided.
+The woken phone's SIP leg had timed out (APP_RING_SECS 15 s, with iOS's
+first-ever microphone prompt sitting in front of the answer) and the app-leg
+hangup handed the call to the cell as it would for a browser. Now a leg dialed
+by `wakeSoftphoneLeg` carries `woke: true` in its client_state, rings for
+VOIP_APP_RING_SECS (35 s), and when it runs out goes to **voicemail**, never
+the cell. The cell still rings when no phone wakes at all (the 28 s
+`scheduleCellFallback`). The microphone is now requested the first time the
+softphone registers on a device (always on the iPhone; once per device on
+the web) and when "Calls in the app" is turned on — not at Answer.
+
 Original plan, kept for the Android half:
 
 

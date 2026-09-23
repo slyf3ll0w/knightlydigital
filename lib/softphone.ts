@@ -46,6 +46,15 @@ import {
 export const SOFTPHONE_PRESENCE_MS = 100_000;
 /** How long the browsers ring before the cell gets its turn. */
 export const APP_RING_SECS = 15;
+/**
+ * How long an iPhone woken by a VoIP push rings once its SIP leg is dialed.
+ * Longer than a browser's: the person is already looking at the system call
+ * screen, and a first-ever answer may still have iOS's microphone prompt in
+ * the way. When it runs out the call goes to voicemail, never to the cell
+ * (lib/voice.ts onHangup) — a second ring on the same phone would collide
+ * with the CallKit call it is showing.
+ */
+export const VOIP_APP_RING_SECS = 35;
 /** How long the user's own browser rings for a call they just placed. */
 export const APP_OUTBOUND_RING_SECS = 20;
 /** Fan-out cap: more browsers than this and the extras don't ring (the cell still does). */
