@@ -161,7 +161,7 @@ export default function ArrivalNudge() {
             <button
               type="button"
               onClick={dismiss}
-              className="flex-1 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 active:bg-gray-50"
+              className="btn-tool-line flex-1 rounded-[10px] bg-white px-4 py-3 text-sm font-semibold text-gray-700 active:bg-gray-50"
             >
               Not now
             </button>

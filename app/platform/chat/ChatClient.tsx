@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import Modal from "@/components/Modal";
+import EmptyState from "@/components/EmptyState";
 import { hapticImpact } from "@/lib/haptics";
 import { useMeasuredHeight } from "@/lib/use-measured-height";
 import { confirmSheet } from "@/components/ConfirmSheet";
@@ -713,9 +714,7 @@ export default function ChatClient({
           </p>
         )}
         {!loadingThread && messages.length === 0 && (
-          <p className="py-10 text-center text-sm text-gray-400">
-            No messages yet — start the conversation.
-          </p>
+          <EmptyState compact title="No messages yet" body="Start the conversation." />
         )}
         {messages.map((m, i) => {
           const prev = messages[i - 1];
@@ -1054,7 +1053,6 @@ export default function ChatClient({
       <Modal
         open={renameOpen}
         onClose={() => setRenameOpen(false)}
-        cardClassName="w-full max-w-md bg-white rounded-2xl p-4"
       >
         <form
           onSubmit={(e) => {
@@ -1073,7 +1071,7 @@ export default function ChatClient({
           <button
             type="submit"
             disabled={!renameDraft.trim()}
-            className="mt-4 w-full rounded-[10px] btn-tool bg-green-500 py-3 text-sm font-bold text-white transition-colors hover:bg-green-600 disabled:opacity-40"
+            className="btn-primary btn-lg mt-4 w-full justify-center"
           >
             Save
           </button>
@@ -1084,7 +1082,6 @@ export default function ChatClient({
       <Modal
         open={!!showNewChat}
         onClose={() => setShowNewChat(false)}
-        cardClassName="w-full max-w-md bg-white rounded-2xl p-4"
       >
         <div>
             <h2 className="mb-1 text-base font-semibold text-gray-900">
@@ -1138,7 +1135,7 @@ export default function ChatClient({
               type="button"
               onClick={createChat}
               disabled={picked.length === 0}
-              className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-[10px] btn-tool bg-green-500 py-3 text-sm font-bold text-white transition-colors hover:bg-green-600 disabled:opacity-40"
+              className="btn-primary btn-lg mt-4 w-full justify-center"
             >
               {showNewChat === "add"
                 ? `Add ${picked.length || ""}`

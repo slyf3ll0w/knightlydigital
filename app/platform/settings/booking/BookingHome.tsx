@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Check, ChevronDown, ChevronRight, ChevronUp, Copy, ExternalLink, Globe, Link2, Loader2, MoreHorizontal, Plus, Power, Trash2, X } from "lucide-react";
 import PageTitle from "@/components/PageTitle";
+import BackLink from "@/components/BackLink";
 import Modal from "@/components/Modal";
 import { confirmSheet } from "@/components/ConfirmSheet";
 import BusinessHoursEditor from "@/components/BusinessHoursEditor";
@@ -298,13 +299,16 @@ export default function BookingHome({
   return (
     <div className="mx-auto max-w-4xl p-4 lg:p-8">
       <div className="mb-6 flex items-start justify-between gap-3">
-        <PageTitle
-          section="forms"
-          icon={Globe}
-          sub="Where customers book a time, ask for a quote, or send a message."
-        >
-          Booking & forms
-        </PageTitle>
+        <div className="flex min-w-0 items-start gap-3">
+          <BackLink href="/app/settings" className="mt-1.5" />
+          <PageTitle
+            section="forms"
+            icon={Globe}
+            sub="Where customers book a time, ask for a quote, or send a message."
+          >
+            Booking & forms
+          </PageTitle>
+        </div>
         <button onClick={() => setCreating(true)} aria-label="New" className="btn-primary h-10 shrink-0 justify-center sm:px-4">
           <Plus size={16} />
           <span className="hidden sm:inline">New</span>
@@ -606,7 +610,7 @@ export default function BookingHome({
       )}
 
       {/* ── New item ──────────────────────────────────────────────────────── */}
-      <Modal open={creating} onClose={() => !busy && setCreating(false)} cardClassName="w-full max-w-lg rounded-lg bg-white p-5 text-left shadow-xl">
+      <Modal open={creating} onClose={() => !busy && setCreating(false)} size="lg">
         {creating && (
           <>
             <h2 className="mb-3 text-base font-semibold text-gray-900">What are you adding?</h2>

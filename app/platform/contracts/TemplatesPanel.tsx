@@ -214,7 +214,7 @@ export default function TemplatesPanel({ templates }: { templates: Template[] })
       <Modal
         open={editing !== null}
         onClose={() => !busy && close()}
-        cardClassName="w-full max-w-xl rounded-lg bg-white p-5 text-left shadow-xl"
+        size="xl"
       >
         {editing !== null && (
           <>

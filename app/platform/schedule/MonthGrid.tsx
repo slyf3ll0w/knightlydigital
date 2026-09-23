@@ -164,7 +164,7 @@ export default function MonthGrid({
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
+    <div className="card-ledger overflow-hidden">
       <div className="grid grid-cols-7 border-b border-gray-100">
         {DAY_NAMES.map((d) => (
           <div key={d} className="py-2 text-center text-[11px] font-semibold uppercase tracking-wide text-gray-500">

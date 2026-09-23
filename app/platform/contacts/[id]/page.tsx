@@ -3,9 +3,12 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requirePageActor, canSell, canSeeMoney, contactScope, seesAllLeads, isManager } from "@/lib/permissions";
 import Link from "next/link";
-import { ArrowLeft, Phone, Mail, MapPin, ChevronRight, Pencil, Eye } from "lucide-react";
+import SectionHeader from "@/components/SectionHeader";
+import { Phone, Mail, MapPin, ChevronRight, Pencil, Eye } from "lucide-react";
 import { money, shortDate, clientMessageStatus, type StatusKind } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
+import BackLink from "@/components/BackLink";
+import PageTitle from "@/components/PageTitle";
 import ContactStatus from "@/components/ContactStatus";
 import CallTextButtons from "@/components/CallTextButtons";
 import CallFromLineButton from "@/components/CallFromLineButton";
@@ -255,9 +258,7 @@ export default async function ContactDetailPage({
     <div className="p-4 lg:p-8 max-w-4xl mx-auto">
       {/* Header */}
       <div className="flex items-center gap-3 mb-4">
-        <Link href="/app/contacts" className="hidden lg:block text-gray-400 hover:text-gray-600">
-          <ArrowLeft size={18} />
-        </Link>
+        <BackLink href="/app/contacts" />
         <ContactStatus status={contact.status} />
         {isRepeat && contact.pipelineStageId && (
           <span className="stamp text-blue-600" title="Has worked with you before">
@@ -268,9 +269,7 @@ export default async function ContactDetailPage({
 
       <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
         <div className="min-w-0">
-          <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">
-            {contact.firstName} {contact.lastName}
-          </h1>
+          <PageTitle>{`${contact.firstName} ${contact.lastName}`.trim()}</PageTitle>
           {contact.companyName && (
             <p className="text-sm text-gray-500 mt-0.5">{contact.companyName}</p>
           )}
@@ -466,9 +465,7 @@ export default async function ContactDetailPage({
 
           {/* Contact info */}
           <div className="card-ledger p-4">
-            <h2 className="text-[13px] font-semibold text-gray-500 mb-3">
-              Details
-            </h2>
+            <SectionHeader title="Details" className="mb-3" />
             <dl className="grid grid-cols-2 gap-3 text-sm">
               <div>
                 <dt className="text-gray-500 text-xs">Payment terms</dt>
@@ -582,9 +579,7 @@ export default async function ContactDetailPage({
           {/* Notes & activity (same pattern as job notes) */}
           <div className="card-ledger">
             <div className="px-5 py-4 border-b border-gray-100">
-              <h2 className="text-[13px] font-semibold text-gray-500">
-                Notes &amp; Activity
-              </h2>
+              <SectionHeader title="Notes & Activity" />
             </div>
             <div className="p-4 space-y-3">
               {contact.contactNotes.map((note) => (
@@ -627,9 +622,7 @@ export default async function ContactDetailPage({
             />
           )}
           <div className="card-ledger p-4">
-            <h2 className="text-[13px] font-semibold text-gray-500 mb-2">
-              Assigned to
-            </h2>
+            <SectionHeader title="Assigned to" className="mb-2" />
             {canReassign ? (
               <AssignLead
                 contactId={contact.id}
@@ -649,9 +642,7 @@ export default async function ContactDetailPage({
 
           {seeMoney && (
             <div className="card-ledger p-4">
-              <h2 className="text-[13px] font-semibold text-gray-500 mb-3">
-                Overview
-              </h2>
+              <SectionHeader title="Overview" className="mb-3" />
               <div className="space-y-3">
                 <div>
                   <p className="text-xl font-bold text-gray-900">{money(lifetimeValue)}</p>
@@ -668,7 +659,7 @@ export default async function ContactDetailPage({
           {(recentCalls.length > 0 || canCallFromLine) && (
             <div className="card-ledger p-4">
               <div className="flex items-center justify-between mb-3">
-                <h2 className="text-[13px] font-semibold text-gray-500">Recent calls</h2>
+                <SectionHeader title="Recent calls" />
                 {recentCalls.length > 0 && (
                   <Link href={`/app/calls?contact=${contact.id}`} className="text-xs text-gray-500 underline hover:text-gray-700">
                     All

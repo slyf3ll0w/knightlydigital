@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import AtlasIcon, { AtlasMark } from "@/components/AtlasIcon";
 import { hapticImpact, hapticNotify } from "@/lib/haptics";
+import { money } from "@/lib/statuses";
 import { useMeasuredHeight } from "@/lib/use-measured-height";
 import type { Proposal } from "@/lib/assistant";
 import dynamic from "next/dynamic";
@@ -110,7 +111,7 @@ function fmtDay(iso: string): string {
 }
 
 function fmtPrice(cents: number): string {
-  return cents % 100 === 0 ? `$${cents / 100}` : `$${(cents / 100).toFixed(2)}`;
+  return money(cents / 100);
 }
 
 /** Render /app/... paths in assistant text as real links. */
@@ -836,7 +837,7 @@ export default function AssistantDrawer({
                     key={s}
                     type="button"
                     onClick={() => send(s)}
-                    className="block w-full rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-left text-xs text-gray-700 shadow-sm transition-colors hover:border-green-500 hover:text-green-700"
+                    className="btn-tool-line block w-full rounded-[10px] bg-white px-3.5 py-2.5 text-left text-xs text-gray-700 hover:text-green-700"
                   >
                     {s}
                   </button>

@@ -3,8 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Pause, Play, Sparkles, Trash2, X, Zap } from "lucide-react";
+import { Pause, Play, Sparkles, Trash2, X, Zap } from "lucide-react";
+import BackLink from "@/components/BackLink";
 import PageTitle from "@/components/PageTitle";
+import EmptyState from "@/components/EmptyState";
 import { useAssistant } from "@/components/AssistantContext";
 import { confirmSheet } from "@/components/ConfirmSheet";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
@@ -144,9 +146,7 @@ export default function AutomationsClient({ automations, recentRuns }: { automat
     <div className="mx-auto max-w-3xl p-4 lg:p-8">
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
-          <Link href="/app/settings" className="hidden shrink-0 text-gray-400 hover:text-gray-600 lg:block">
-            <ArrowLeft size={18} />
-          </Link>
+          <BackLink href="/app/settings" className="shrink-0" />
           <PageTitle section="business" icon={Zap}>
             Automations
           </PageTitle>
@@ -174,12 +174,7 @@ export default function AutomationsClient({ automations, recentRuns }: { automat
 
       <div className="card-ledger mb-6 divide-y divide-gray-100">
         {automations.length === 0 ? (
-          <div className="flex flex-col items-center px-6 py-10 text-center">
-            <span className="chip-tool flex h-11 w-11 items-center justify-center rounded-[12px]" style={{ backgroundColor: SECTION_HUES.business, color: hueInk(SECTION_HUES.business) }} aria-hidden>
-              <Zap size={20} strokeWidth={2.25} />
-            </span>
-            <p className="mt-3.5 text-sm font-semibold text-gray-900">No automations yet</p>
-            <p className="mt-1 max-w-sm text-sm text-gray-500">Tell {atlas.name} what should happen automatically. For example:</p>
+          <EmptyState icon={Zap} hue={SECTION_HUES.business} title="No automations yet" body={`Tell ${atlas.name} what should happen automatically. For example:`}>
             <ul className="mt-3 w-full max-w-md space-y-2 text-left">
               {EXAMPLES.map((e) => (
                 <li key={e} className="rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-600">
@@ -193,7 +188,7 @@ export default function AutomationsClient({ automations, recentRuns }: { automat
                 Build one with {atlas.name}
               </button>
             )}
-          </div>
+          </EmptyState>
         ) : (
           automations.map((a) => <Card key={a.id} a={a} />)
         )}

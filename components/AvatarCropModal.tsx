@@ -124,7 +124,7 @@ export default function AvatarCropModal({
       onClose={() => {
         if (!working) onCancel();
       }}
-      cardClassName="w-full max-w-sm rounded-lg bg-white p-5 shadow-xl"
+      size="sm"
     >
         <h2 className="mb-1 text-base font-semibold text-gray-900">Position your photo</h2>
         <p className="mb-3 text-xs text-gray-500">Drag to move · pinch or slide to zoom</p>

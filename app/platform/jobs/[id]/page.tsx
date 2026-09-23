@@ -2,9 +2,12 @@ import { fmtPhone, fmtTime } from "@/lib/format";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import Link from "next/link";
-import { ArrowLeft, MapPin, CalendarDays, User } from "lucide-react";
+import SectionHeader from "@/components/SectionHeader";
+import { MapPin, CalendarDays, User } from "lucide-react";
 import { quoteStatusLabel, money, shortDate } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
+import BackLink from "@/components/BackLink";
+import PageTitle from "@/components/PageTitle";
 import CallTextButtons from "@/components/CallTextButtons";
 import JobActionRow from "@/components/JobActionRow";
 import { requirePageActor, jobScope, canSeeMoney, canSeePricing, canSell, isManager } from "@/lib/permissions";
@@ -198,15 +201,13 @@ export default async function JobDetailPage({
     <div className="p-4 pb-20 lg:p-8 max-w-4xl mx-auto">
       {/* Header */}
       <div className="flex items-center gap-3 mb-4">
-        <Link href="/app/jobs" className="hidden lg:block text-gray-400 hover:text-gray-600">
-          <ArrowLeft size={18} />
-        </Link>
+        <BackLink href="/app/jobs" />
         <StatusChip kind="job" status={job.status} />
       </div>
 
       <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
         <div className="min-w-0">
-          <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">{job.title}</h1>
+          <PageTitle>{job.title}</PageTitle>
           {canOpenContact ? (
             <Link
               prefetch={false} href={`/app/contacts/${job.contact.id}`}
@@ -346,9 +347,7 @@ export default async function JobDetailPage({
         <div className="lg:col-span-2 space-y-4">
           {/* Schedule + details */}
           <div className="card-ledger p-5">
-            <h2 className="text-[13px] font-semibold text-gray-500 mb-4">
-              Details
-            </h2>
+            <SectionHeader title="Details" className="mb-4" />
             <div className="space-y-3">
               {/* Phones already show the schedule in the facts card above —
                   repeating it here made the page read as filler cards */}
@@ -614,7 +613,7 @@ export default async function JobDetailPage({
               return (
                 <>
                   <div className="flex items-center justify-between mb-3">
-                    <h2 className="text-[13px] font-semibold text-gray-500">Billing</h2>
+                    <SectionHeader title="Billing" />
                     {!job.invoice && !planBilled && (
                       <Link
                         href={`/app/invoices/new?jobId=${job.id}`}
@@ -653,9 +652,7 @@ export default async function JobDetailPage({
           {/* Profit (when costs are tracked) */}
           {showMoney && (lineCost > 0 || laborCost > 0) && (
             <div className="card-ledger p-4">
-              <h2 className="text-[13px] font-semibold text-gray-500 mb-3">
-                Profit margin
-              </h2>
+              <SectionHeader title="Profit margin" className="mb-3" />
               <div className="space-y-1.5 text-sm">
                 <div className="flex justify-between">
                   <span className="text-gray-500">Revenue</span>
@@ -691,9 +688,7 @@ export default async function JobDetailPage({
 
           {/* Client */}
           <div className="card-ledger p-4">
-            <h2 className="text-[13px] font-semibold text-gray-500 mb-3">
-              Client
-            </h2>
+            <SectionHeader title="Client" className="mb-3" />
             {(() => {
               const card = (
                 <>

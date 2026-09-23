@@ -5,6 +5,8 @@ import { inputCls } from "@/components/Input";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { MapPin, Plus, Pencil, Trash2, Loader2, ChevronDown, ChevronRight } from "lucide-react";
+import EmptyState from "@/components/EmptyState";
+import SectionHeader from "@/components/SectionHeader";
 import { confirmSheet } from "@/components/ConfirmSheet";
 import { postJson } from "@/lib/safe-fetch";
 
@@ -135,7 +137,7 @@ export default function AddressesCard({
   return (
     <div className="card-ledger p-4">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-[13px] font-semibold text-gray-500">Addresses</h2>
+        <SectionHeader title="Addresses" />
         {editing === null && (
           <button
             onClick={startNew}
@@ -158,7 +160,7 @@ export default function AddressesCard({
           </div>
         )}
         {!primary && addresses.length === 0 && editing === null && (
-          <p className="text-xs text-gray-500">No addresses on file yet.</p>
+          <EmptyState compact title="No addresses on file yet." />
         )}
 
         {addresses.map((a) => {

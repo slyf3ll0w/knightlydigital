@@ -4,7 +4,9 @@ import { money } from "@/lib/statuses";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Loader2, ArrowLeft } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import BackLink from "@/components/BackLink";
+import PageTitle from "@/components/PageTitle";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { type PickerWorkItem } from "@/components/WorkItemPicker";
 import ContactPicker from "@/components/ContactPicker";
@@ -227,12 +229,8 @@ export default function InvoiceEditor({
   return (
     <div className="p-4 lg:p-8 max-w-3xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
-        <Link href={backHref} className="hidden lg:block text-gray-400 hover:text-gray-600">
-          <ArrowLeft size={18} />
-        </Link>
-        <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">
-          {editInvoice ? "Edit Invoice" : "New Invoice"}
-        </h1>
+        <BackLink href={backHref} />
+        <PageTitle>{editInvoice ? "Edit Invoice" : "New Invoice"}</PageTitle>
       </div>
 
       {prefillJob && (

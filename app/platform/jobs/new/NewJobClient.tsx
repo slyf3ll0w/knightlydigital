@@ -3,7 +3,10 @@
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Loader2, ArrowLeft } from "lucide-react";
+import SectionHeader from "@/components/SectionHeader";
+import { Loader2 } from "lucide-react";
+import BackLink from "@/components/BackLink";
+import PageTitle from "@/components/PageTitle";
 import { Suspense } from "react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { alertSheet } from "@/components/ConfirmSheet";
@@ -245,10 +248,8 @@ function NewJobForm() {
   return (
     <div className="p-4 lg:p-8 max-w-2xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
-        <Link href="/app/jobs" className="hidden lg:block text-gray-400 hover:text-gray-600">
-          <ArrowLeft size={18} />
-        </Link>
-        <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">New Job</h1>
+        <BackLink href="/app/jobs" />
+        <PageTitle>New Job</PageTitle>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-5">
@@ -352,10 +353,10 @@ function NewJobForm() {
             card edge. */}
         <div className="card-ledger">
           <div className="px-5 py-4 border-b border-gray-100">
-            <h2 className="text-sm font-semibold text-gray-700">Product / Service</h2>
-            <p className="text-xs text-gray-500 mt-0.5">
-              What this job is for — used for the invoice and the job&apos;s checklist.
-            </p>
+            <SectionHeader
+              title="Product / Service"
+              hint="What this job is for — used for the invoice and the job's checklist."
+            />
           </div>
           <LineItemsEditor
             items={lineItems}

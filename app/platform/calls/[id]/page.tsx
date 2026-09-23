@@ -1,6 +1,8 @@
 import Link from "next/link";
+import SectionHeader from "@/components/SectionHeader";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Briefcase, CalendarClock, FileText, Mail, MapPin, Phone, Receipt, UserRound } from "lucide-react";
+import { Briefcase, CalendarClock, FileText, Mail, MapPin, Phone, Receipt, UserRound } from "lucide-react";
+import BackLink from "@/components/BackLink";
 import { prisma } from "@/lib/db";
 import { requirePageActor, canSell } from "@/lib/permissions";
 import { fmtDateTime, fmtPhone, fmtTime } from "@/lib/format";
@@ -150,9 +152,7 @@ export default async function CallScreenPage({ params }: { params: Promise<{ id:
   return (
     <div className="mx-auto max-w-2xl p-4 lg:p-8">
       {!terminal && <CallsLive />}
-      <Link href="/app/calls" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800">
-        <ArrowLeft size={14} /> Calls
-      </Link>
+      <BackLink href="/app/calls" className="mb-4" />
 
       <CallScreenLive
         callId={call.id}
@@ -180,7 +180,7 @@ export default async function CallScreenPage({ params }: { params: Promise<{ id:
 
       {onThisCall.length > 0 && (
         <section className="card-ledger mt-4 p-4 sm:p-5">
-          <h2 className="text-[13px] font-semibold text-gray-500">On this call</h2>
+          <SectionHeader title="On this call" />
           <ul className="mt-2 divide-y divide-gray-100">
             {onThisCall.map((e) => {
               const Icon = EVENT_ICON[e.kind];
@@ -201,7 +201,7 @@ export default async function CallScreenPage({ params }: { params: Promise<{ id:
       {contact && (
         <section className="card-ledger mt-4 p-4 sm:p-5">
           <div className="flex items-center justify-between gap-3">
-            <h2 className="text-[13px] font-semibold text-gray-500">About {firstName}</h2>
+            <SectionHeader title={`About ${firstName}`} />
             <Link href={`/app/contacts/${contact.id}`} className="inline-flex items-center gap-1 text-xs font-medium text-gray-700 hover:underline">
               <UserRound size={12} /> Open profile
             </Link>
@@ -229,7 +229,7 @@ export default async function CallScreenPage({ params }: { params: Promise<{ id:
 
       {openCount > 0 && (
         <section className="card-ledger mt-4 p-4 sm:p-5">
-          <h2 className="text-[13px] font-semibold text-gray-500">Open with {firstName}</h2>
+          <SectionHeader title={`Open with ${firstName}`} />
           <ul className="mt-2 divide-y divide-gray-100">
             {quotes.map((q) => (
               <OpenItem key={q.id} href={`/app/quotes/${q.id}`} icon={FileText} label={q.title || `Quote #${q.quoteNumber}`} right={money(q.total)} sub={q.status === "AWAITING_RESPONSE" ? "waiting on them" : q.status === "CHANGES_REQUESTED" ? "changes requested" : "draft"} />

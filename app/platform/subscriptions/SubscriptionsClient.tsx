@@ -5,6 +5,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Check, Repeat, Loader2, Pencil, Play, Pause, X, RotateCw } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
+import { SECTION_HUES } from "@/lib/section-colors";
+import { money } from "@/lib/statuses";
+import EmptyState from "@/components/EmptyState";
 import { confirmSheet } from "@/components/ConfirmSheet";
 import PageTitle from "@/components/PageTitle";
 
@@ -76,9 +79,6 @@ const DURATION_OPTIONS = [
   { value: "480", label: "8 hours" },
 ];
 
-function money(n: number | string) {
-  return `$${Number(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
@@ -372,17 +372,22 @@ export default function SubscriptionsClient({
       )}
 
       {subs.length === 0 ? (
-        <div className="card-ledger py-16 text-center">
-          <Repeat size={36} className="text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-700 text-sm font-semibold mb-1.5">No recurring plans yet</p>
-          <p className="mx-auto max-w-[30ch] text-[13px] leading-relaxed text-gray-500">
-            Start one with <span className="font-medium text-gray-700">New plan</span>, or mark a
-            service as recurring in{" "}
-            <Link href="/app/settings/products" className="text-green-600 hover:underline">
-              Services
-            </Link>{" "}
-            so selling it starts a plan.
-          </p>
+        <div className="card-ledger">
+          <EmptyState
+            icon={Repeat}
+            hue={SECTION_HUES.subscriptions}
+            title="No recurring plans yet"
+            body={
+              <>
+                Start one with <span className="font-medium text-gray-700">New plan</span>, or mark
+                a service as recurring in{" "}
+                <Link href="/app/settings/products" className="text-green-600 hover:underline">
+                  Services
+                </Link>{" "}
+                so selling it starts a plan.
+              </>
+            }
+          />
         </div>
       ) : (
         <div className="space-y-6">

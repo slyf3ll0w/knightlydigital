@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Users } from "lucide-react";
+import SectionHeader from "@/components/SectionHeader";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 
 /**
@@ -76,10 +77,14 @@ export default function AssignTeam({
   return (
     <div className="card-ledger p-4">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-[13px] font-semibold text-gray-500 flex items-center gap-1.5">
-          <Users size={12} />
-          Team
-        </h2>
+        <SectionHeader
+          title={
+            <>
+              <Users size={12} />
+              Team
+            </>
+          }
+        />
         {saving && <Loader2 size={12} className="animate-spin text-gray-400" />}
       </div>
       <div className={`space-y-1.5 ${outsourced ? "opacity-50" : ""}`}>

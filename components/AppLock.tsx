@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Loader2, Lock, ScanFace, ShieldCheck } from "lucide-react";
+import SectionHeader from "@/components/SectionHeader";
 import { getCapacitor, nativePlatform } from "@/components/NativeShell";
 import {
   appLockEnabled,
@@ -242,10 +243,7 @@ export function AppLockToggleCard() {
     <div className="card-ledger p-5 mt-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="text-[13px] font-semibold text-gray-500 mb-1">App lock</h2>
-          <p className="text-sm text-gray-600 max-w-md">
-            Require {info.label} to open WorkBench on this device.
-          </p>
+          <SectionHeader title="App lock" hint={`Require ${info.label} to open WorkBench on this device.`} />
         </div>
         <button
           onClick={() => void toggle()}

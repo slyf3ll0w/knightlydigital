@@ -4,7 +4,6 @@ import { useRef, useState } from "react";
 import { inputClsAuto } from "@/components/Input";
 import Link from "next/link";
 import {
-  ArrowLeft,
   ArrowRight,
   Check,
   Download,
@@ -15,6 +14,8 @@ import {
   Users,
   X,
 } from "lucide-react";
+import BackLink from "@/components/BackLink";
+import PageTitle from "@/components/PageTitle";
 import { parseCsv } from "@/lib/csv";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { confirmSheet } from "@/components/ConfirmSheet";
@@ -439,10 +440,8 @@ export default function ImportClient({
   return (
     <div className="p-4 lg:p-8 max-w-3xl mx-auto">
       <div className="flex items-center gap-3 mb-1">
-        <Link href="/app/contacts" className="hidden lg:block text-gray-400 hover:text-gray-600">
-          <ArrowLeft size={18} />
-        </Link>
-        <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">Import Clients</h1>
+        <BackLink href="/app/settings" />
+        <PageTitle>Import Clients</PageTitle>
       </div>
       <p className="text-sm text-gray-500 mb-6 lg:ml-8">
         Bring your client list over from a spreadsheet or another CRM — Jobber and Housecall Pro

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CalendarCheck, Check, Copy, Link2, Loader2, RefreshCw } from "lucide-react";
+import SectionHeader from "@/components/SectionHeader";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { confirmSheet } from "@/components/ConfirmSheet";
 import { getCapacitor } from "@/components/NativeShell";
@@ -258,11 +259,10 @@ export default function CalendarSyncCard() {
           <CalendarCheck size={16} />
         </div>
         <div className="min-w-0">
-          <h2 className="text-[13px] font-semibold text-gray-500 mb-1">Calendar sync</h2>
-          <p className="text-sm text-gray-600 max-w-md">
-            See your Workbench schedule — the jobs you&apos;re on, your appointments, and blocked time — in the
-            calendar app you already use.
-          </p>
+          <SectionHeader
+            title="Calendar sync"
+            hint="See your Workbench schedule — the jobs you're on, your appointments, and blocked time — in the calendar app you already use."
+          />
         </div>
       </div>
 

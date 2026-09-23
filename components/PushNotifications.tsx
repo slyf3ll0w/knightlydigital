@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Bell, BellOff, BellRing, Loader2, X } from "lucide-react";
+import SectionHeader from "@/components/SectionHeader";
 import { postJson } from "@/lib/safe-fetch";
 import { getCapacitor, nativePlatform } from "@/components/NativeShell";
 
@@ -248,10 +249,7 @@ export function PushToggleCard() {
     <div className="card-ledger p-5 mt-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="text-[13px] font-semibold text-gray-500 mb-1">
-            Notifications on this device
-          </h2>
-          <p className="text-sm text-gray-600 max-w-md">{explainer}</p>
+          <SectionHeader title="Notifications on this device" hint={explainer} />
         </div>
         {(state === "on" || state === "off" || state === "loading") && (
           <button

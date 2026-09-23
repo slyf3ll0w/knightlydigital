@@ -4,6 +4,9 @@ import { useEffect, useState } from "react";
 import { inputCls } from "@/components/Input";
 import { useRouter } from "next/navigation";
 import { CalendarClock, KeyRound, Loader2, Plus, UserPlus, X } from "lucide-react";
+import SectionHeader from "@/components/SectionHeader";
+import BackLink from "@/components/BackLink";
+import PageTitle from "@/components/PageTitle";
 import Avatar from "@/components/Avatar";
 import BusinessHoursEditor from "@/components/BusinessHoursEditor";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
@@ -155,11 +158,9 @@ export default function TeamClient({
   return (
     <div className="p-4 lg:p-8 max-w-4xl mx-auto">
       <div className="flex flex-wrap items-center justify-between gap-y-3 mb-6">
-        <div>
-          <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">Team</h1>
-          <p className="text-sm text-gray-500 mt-0.5">
-            Add as many team members as you need — free, no per-user charges.
-          </p>
+        <div className="flex min-w-0 items-start gap-3">
+          <BackLink href="/app/settings" className="mt-1.5" />
+          <PageTitle sub="Add as many team members as you need — free, no per-user charges.">Team</PageTitle>
         </div>
         <button
           onClick={() => setShowAdd((v) => !v)}
@@ -182,10 +183,15 @@ export default function TeamClient({
       {/* Add member */}
       {showAdd && (
         <div className="card-ledger p-5 mb-6">
-          <h2 className="text-[13px] font-semibold text-gray-500 mb-4 flex items-center gap-1.5">
-            <UserPlus size={13} />
-            New team member
-          </h2>
+          <SectionHeader
+            className="mb-4"
+            title={
+              <>
+                <UserPlus size={13} />
+                New team member
+              </>
+            }
+          />
           <div className="grid sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs text-gray-500 mb-1">Full name *</label>
@@ -507,9 +513,7 @@ export default function TeamClient({
 
       {/* Policies */}
       <div className="card-ledger p-5 space-y-5">
-        <h2 className="text-[13px] font-semibold text-gray-500">
-          Lead routing &amp; permissions
-        </h2>
+        <SectionHeader title="Lead routing & permissions" />
 
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>

@@ -97,7 +97,7 @@ export default function TimeGrid({
   })();
 
   return (
-    <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
+    <div className="card-ledger overflow-hidden">
       <div className={wide ? "overflow-x-auto" : ""}>
         <div style={wide ? { minWidth: 56 + columns.length * (columns.length > 7 ? 150 : 110) } : undefined}>
           {/* Column headers */}

@@ -4,7 +4,9 @@ import { useState } from "react";
 import { inputCls } from "@/components/Input";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import BackLink from "@/components/BackLink";
+import PageTitle from "@/components/PageTitle";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import ContactPicker from "@/components/ContactPicker";
 import ServiceChips, { type ServiceLite } from "@/components/ServiceChips";
@@ -162,10 +164,8 @@ export default function NewSeriesForm({
   return (
     <div className="p-4 lg:p-8 max-w-2xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
-        <Link href="/app/subscriptions" className="hidden lg:block text-gray-400 hover:text-gray-600">
-          <ArrowLeft size={18} />
-        </Link>
-        <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">New recurring plan</h1>
+        <BackLink href="/app/subscriptions" />
+        <PageTitle>New recurring plan</PageTitle>
       </div>
 
       <form onSubmit={submit} className="space-y-5">

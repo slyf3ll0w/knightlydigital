@@ -696,7 +696,7 @@ export default function EstimatorEditor({ tool, section, onSaved }: { tool: Edit
           {spec.placeholders && spec.placeholders.length > 0 && <RatesToConfirm items={spec.placeholders} onDone={(k) => touch((s) => (s.placeholders = (s.placeholders ?? []).filter((_, m) => m !== k)))} />}
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <label className="flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-3 py-2.5">
+            <label className="card-ledger flex items-center justify-between gap-3 px-3 py-2.5">
               <span>
                 <span className="block text-sm font-medium text-gray-800">Minimum job charge</span>
                 <span className="block text-xs text-gray-500">A top-up line brings small jobs to this.</span>

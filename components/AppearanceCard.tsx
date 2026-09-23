@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import SectionHeader from "@/components/SectionHeader";
 
 type Appearance = "system" | "light" | "dark";
 
@@ -33,10 +34,11 @@ export default function AppearanceCard() {
 
   return (
     <div className="card-ledger p-5 mt-5">
-      <h2 className="text-[13px] font-semibold text-gray-500 mb-1">Appearance — for this device</h2>
-      <p className="text-sm text-gray-600 mb-3">
-        Light or dark on this phone or computer only. Automatic follows the device&apos;s own setting.
-      </p>
+      <SectionHeader
+        title="Appearance — for this device"
+        hint="Light or dark on this phone or computer only. Automatic follows the device's own setting."
+        className="mb-3"
+      />
       <div className="flex flex-wrap gap-2">
         {(
           [

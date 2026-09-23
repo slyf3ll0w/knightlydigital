@@ -2,10 +2,12 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requirePageActor, canSell, canSeeMoney, viaContactScope, isManager } from "@/lib/permissions";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import SectionHeader from "@/components/SectionHeader";
 import { money, shortDate, quoteDepositAmount } from "@/lib/statuses";
 import { quoteExpired } from "@/lib/quote-expiry";
 import StatusChip from "@/components/StatusChip";
+import BackLink from "@/components/BackLink";
+import PageTitle from "@/components/PageTitle";
 import ViewedFact from "@/components/ViewedFact";
 import QuoteActions from "./QuoteActions";
 import CollectDepositNudge from "./CollectDepositNudge";
@@ -84,23 +86,20 @@ export default async function QuoteDetailPage({
         celebrate={celebrateApproved}
       />
       <div className="flex items-center gap-3 mb-4">
-        <Link href="/app/quotes" className="hidden lg:block text-gray-400 hover:text-gray-600">
-          <ArrowLeft size={18} />
-        </Link>
+        <BackLink href="/app/quotes" />
         <StatusChip kind="quote" status={quote.status} />
       </div>
 
       <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
-        <div>
-          <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">
-            {quote.title || `Quote #${quote.quoteNumber}`}
-          </h1>
-          <p className="text-sm text-gray-500 mt-0.5">
+        <PageTitle
+          sub={
             <Link prefetch={false} href={`/app/contacts/${quote.contactId}`} className="text-green-700 hover:underline">
               {quote.contact.firstName} {quote.contact.lastName}
             </Link>
-          </p>
-        </div>
+          }
+        >
+          {quote.title || `Quote #${quote.quoteNumber}`}
+        </PageTitle>
         <QuoteActions
           quoteId={quote.id}
           status={quote.status}
@@ -411,7 +410,7 @@ export default async function QuoteDetailPage({
 
       {quote.revisions.length > 0 && (
         <div className="mt-6 card-ledger p-5">
-          <h2 className="text-[13px] font-semibold text-gray-500 mb-3">Revision history</h2>
+          <SectionHeader title="Revision history" className="mb-3" />
           <ul className="space-y-2">
             {quote.revisions.map((rev) => {
               const snap = rev.snapshot as {
@@ -436,7 +435,7 @@ export default async function QuoteDetailPage({
                     {shortDate(rev.createdAt, tz)}
                   </span>
                   <span className="numeral-ledger shrink-0 font-medium text-gray-700">
-                    ${Number(rev.total).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                    {money(rev.total)}
                   </span>
                 </li>
               );

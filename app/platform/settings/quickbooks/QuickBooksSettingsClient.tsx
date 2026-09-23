@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import Link from "next/link";
-import { ArrowLeft, CheckCircle2, Loader2, RefreshCw, Unplug, AlertTriangle } from "lucide-react";
+import { CheckCircle2, Loader2, RefreshCw, Unplug, AlertTriangle } from "lucide-react";
+import SectionHeader from "@/components/SectionHeader";
+import BackLink from "@/components/BackLink";
+import PageTitle from "@/components/PageTitle";
 import { confirmSheet } from "@/components/ConfirmSheet";
 
 type Status = {
@@ -151,19 +153,11 @@ export default function QuickBooksSettingsClient({ configured }: { configured: b
 
   return (
     <div className="p-4 lg:p-8 max-w-3xl mx-auto">
-      <Link
-        href="/app/settings"
-        className="hidden lg:inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-4"
-      >
-        <ArrowLeft size={14} />
-        Settings
-      </Link>
-      <div className="mb-6">
-        <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">QuickBooks Online</h1>
-        <p className="text-sm text-gray-500">
-          Push your clients, invoices, and payments into QuickBooks so your books stay current
-          without re-typing anything
-        </p>
+      <div className="flex items-start gap-3 mb-6">
+        <BackLink href="/app/settings" className="mt-1.5" />
+        <PageTitle sub="Push your clients, invoices, and payments into QuickBooks so your books stay current without re-typing anything">
+          QuickBooks Online
+        </PageTitle>
       </div>
 
       {callbackError && (
@@ -182,12 +176,10 @@ export default function QuickBooksSettingsClient({ configured }: { configured: b
 
       {!configured ? (
         <div className="card-ledger p-5">
-          <h2 className="text-sm font-semibold text-gray-700">
-            Coming Soon
-          </h2>
-          <p className="text-sm text-gray-500 mt-2">
-            The QuickBooks connection isn&apos;t enabled on this server yet. Check back soon.
-          </p>
+          <SectionHeader
+            title="Coming Soon"
+            hint="The QuickBooks connection isn't enabled on this server yet. Check back soon."
+          />
         </div>
       ) : loading ? (
         <div className="card-ledger p-8 flex items-center justify-center text-gray-400">
@@ -214,13 +206,10 @@ export default function QuickBooksSettingsClient({ configured }: { configured: b
       ) : !status?.connected ? (
         <div className="card-ledger p-5 space-y-4">
           <div>
-            <h2 className="text-sm font-semibold text-gray-700">
-              Connect Your QuickBooks
-            </h2>
-            <p className="text-sm text-gray-500 mt-1.5">
-              One-way sync, from the Hub into QuickBooks — nothing in QuickBooks is changed unless
-              it came from here:
-            </p>
+            <SectionHeader
+              title="Connect Your QuickBooks"
+              hint="One-way sync, from the Hub into QuickBooks — nothing in QuickBooks is changed unless it came from here:"
+            />
             <ul className="text-sm text-gray-600 mt-2 space-y-1 list-disc pl-5">
               <li>Clients become QuickBooks customers (matched by name, no duplicates)</li>
               <li>Sent and paid invoices appear with their line items, discounts, and tax</li>
@@ -243,9 +232,7 @@ export default function QuickBooksSettingsClient({ configured }: { configured: b
           <div className="card-ledger p-5 space-y-4">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-sm font-semibold text-gray-700">
-                  Connected
-                </h2>
+                <SectionHeader title="Connected" />
                 <p className="text-sm text-gray-600 mt-1">
                   <CheckCircle2 size={14} className="inline mr-1 text-green-600" />
                   {status.qboCompanyName || `QuickBooks company ${status.realmId}`}
@@ -307,13 +294,10 @@ export default function QuickBooksSettingsClient({ configured }: { configured: b
 
           {(status.counts?.errors ?? 0) > 0 && (
             <div className="card-ledger p-5 space-y-3">
-              <h2 className="text-sm font-semibold text-gray-700">
-                Sync Problems ({status.counts?.errors})
-              </h2>
-              <p className="text-xs text-gray-500">
-                These records couldn&apos;t sync — they retry on every sync. If one keeps failing,
-                the message usually says what QuickBooks objected to.
-              </p>
+              <SectionHeader
+                title={`Sync Problems (${status.counts?.errors})`}
+                hint="These records couldn't sync — they retry on every sync. If one keeps failing, the message usually says what QuickBooks objected to."
+              />
               <ul className="divide-y divide-gray-100">
                 {(status.recentErrors ?? []).map((e, i) => (
                   <li key={i} className="py-2">
@@ -333,12 +317,10 @@ export default function QuickBooksSettingsClient({ configured }: { configured: b
           <div className="rounded-lg border border-gray-200 p-5">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-sm font-semibold text-gray-700">
-                  Disconnect
-                </h2>
-                <p className="text-xs text-gray-500 mt-0.5">
-                  Stops all syncing. Everything already in QuickBooks stays there.
-                </p>
+                <SectionHeader
+                  title="Disconnect"
+                  hint="Stops all syncing. Everything already in QuickBooks stays there."
+                />
               </div>
               <button
                 type="button"

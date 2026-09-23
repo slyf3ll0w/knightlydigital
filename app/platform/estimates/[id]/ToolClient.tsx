@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, BookOpen, Calculator, Check, Copy, Globe, History, LayoutDashboard, Loader2, MoreHorizontal, Play, Power, SlidersHorizontal, Sparkles, Trash2 } from "lucide-react";
+import { BookOpen, Calculator, Check, Copy, Globe, History, LayoutDashboard, Loader2, MoreHorizontal, Play, Power, SlidersHorizontal, Sparkles, Trash2 } from "lucide-react";
+import BackLink from "@/components/BackLink";
 import { EstimatorRunnerPanel, valuesToForm } from "@/components/EstimatorRunner";
 import { useAssistant } from "@/components/AssistantContext";
 import { confirmSheet } from "@/components/ConfirmSheet";
@@ -247,9 +247,7 @@ export default function ToolClient({
   return (
     <div className="mx-auto max-w-5xl p-4 lg:p-8" onClick={() => menu && setMenu(false)}>
       {/* header */}
-      <Link href="/app/estimates" className="mb-3 inline-flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-gray-900">
-        <ArrowLeft size={13} /> Estimates
-      </Link>
+      <BackLink href="/app/estimates" className="mb-3" />
       <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div className="flex min-w-0 items-start gap-3">
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px]" style={{ backgroundColor: wash(theme, 12), color: theme.accent }} aria-hidden>
@@ -284,7 +282,7 @@ export default function ToolClient({
                 <MoreHorizontal size={16} />
               </button>
               {menu && (
-                <div className="absolute right-0 top-11 z-10 w-max min-w-[11rem] overflow-hidden rounded-xl border border-gray-200 bg-white py-1 shadow-lg">
+                <div className="sheet-material absolute right-0 top-full mt-1 z-30 w-max min-w-[13rem] whitespace-nowrap rounded-lg shadow-xl border border-gray-200 py-1.5">
                   <button type="button" disabled={busy !== null} onClick={() => void patch({ isActive: !tool.isActive }, "active")} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50">
                     <Power size={14} /> {tool.isActive ? "Turn off" : "Turn on"}
                   </button>

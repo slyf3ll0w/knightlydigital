@@ -5,6 +5,7 @@ import { inputCls } from "@/components/Input";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Mail, Pencil, Phone, Plus, Trash2, User } from "lucide-react";
+import SectionHeader from "@/components/SectionHeader";
 import { confirmSheet } from "@/components/ConfirmSheet";
 import { postJson } from "@/lib/safe-fetch";
 
@@ -127,7 +128,7 @@ export default function PeopleCard({
   return (
     <div className="card-ledger p-4">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-[13px] font-semibold text-gray-500">Contacts</h2>
+        <SectionHeader title="Contacts" />
         {editing === null && (
           <button
             onClick={startNew}

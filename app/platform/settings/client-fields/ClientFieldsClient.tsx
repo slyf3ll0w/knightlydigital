@@ -3,8 +3,12 @@
 import { useState } from "react";
 import { inputClsAuto } from "@/components/Input";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { ArrowDown, ArrowLeft, ArrowUp, Loader2, Plus, X } from "lucide-react";
+import { ArrowDown, ArrowUp, ListPlus, Loader2, Plus, X } from "lucide-react";
+import EmptyState from "@/components/EmptyState";
+import SectionHeader from "@/components/SectionHeader";
+import { SECTION_HUES } from "@/lib/section-colors";
+import BackLink from "@/components/BackLink";
+import PageTitle from "@/components/PageTitle";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 
 /**
@@ -116,10 +120,8 @@ export default function ClientFieldsClient({ defs }: { defs: Def[] }) {
     <div className="p-4 lg:p-8 max-w-3xl mx-auto">
       <div className="flex items-center justify-between mb-1">
         <div className="flex items-center gap-3">
-          <Link href="/app/contacts" className="hidden lg:block text-gray-400 hover:text-gray-600">
-            <ArrowLeft size={18} />
-          </Link>
-          <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">Client Fields</h1>
+          <BackLink href="/app/settings" />
+          <PageTitle>Client Fields</PageTitle>
         </div>
         <button
           onClick={() => setShowAdd((v) => !v)}
@@ -203,9 +205,12 @@ export default function ClientFieldsClient({ defs }: { defs: Def[] }) {
 
       <div className="card-ledger divide-y divide-gray-100 mb-6">
         {active.length === 0 && (
-          <p className="px-4 py-8 text-center text-sm text-gray-500">
-            No custom fields yet — add one to start tailoring client records to your business.
-          </p>
+          <EmptyState
+            icon={ListPlus}
+            hue={SECTION_HUES.clients}
+            title="No custom fields yet"
+            body="Add one to start tailoring client records to your business."
+          />
         )}
         {active.map((d, i) => (
           <div key={d.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
@@ -257,9 +262,7 @@ export default function ClientFieldsClient({ defs }: { defs: Def[] }) {
 
       {archived.length > 0 && (
         <div>
-          <h2 className="text-[13px] font-semibold text-gray-500 mb-2">
-            Archived (values are kept)
-          </h2>
+          <SectionHeader title="Archived (values are kept)" className="mb-2" />
           <div className="card-ledger divide-y divide-gray-100">
             {archived.map((d) => (
               <div key={d.id} className="flex items-center justify-between px-4 py-2.5 opacity-70">

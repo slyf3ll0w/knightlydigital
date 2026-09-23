@@ -32,6 +32,7 @@ import {
   Wand2,
   X,
 } from "lucide-react";
+import Modal from "@/components/Modal";
 import { hapticImpact } from "@/lib/haptics";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { localInputToISO } from "@/lib/statuses";
@@ -1721,12 +1722,9 @@ export default function RouteMapClient({
       </div>
 
       {/* Optimize preview — nothing is written until Apply */}
-      {preview && (
-        <div
-          className="fixed inset-0 z-[1200] flex items-end justify-center bg-black/40 p-0 lg:items-center lg:p-6"
-          onClick={(e) => e.target === e.currentTarget && setPreview(null)}
-        >
-          <div className="flex max-h-[88dvh] w-full max-w-lg flex-col rounded-t-2xl bg-white shadow-xl lg:rounded-2xl">
+      <Modal open={Boolean(preview)} onClose={() => setPreview(null)} size="lg" flush portal>
+        {preview && (
+          <div className="flex max-h-[88dvh] flex-col">
             <div className="flex items-start justify-between border-b border-gray-100 px-5 py-4">
               <div>
                 <h2 className="font-display text-base font-bold text-gray-900">{preview.userName}&apos;s route, optimized</h2>
@@ -1908,8 +1906,8 @@ export default function RouteMapClient({
               </button>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
     </div>
   );
 }

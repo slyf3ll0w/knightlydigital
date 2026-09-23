@@ -74,7 +74,7 @@ export default function CollectSignature({ jobId }: { jobId: string }) {
         onClose={() => {
           if (!busy) setOpen(false);
         }}
-        cardClassName="relative w-full max-w-sm rounded-xl bg-white p-5 shadow-xl"
+        size="sm"
       >
         {open && (
           <>

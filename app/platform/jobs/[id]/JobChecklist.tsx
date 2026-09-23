@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, RotateCcw, Loader2 } from "lucide-react";
+import SectionHeader from "@/components/SectionHeader";
 import { sendOrQueue } from "@/lib/outbox";
 
 export type ChecklistItemView = {
@@ -87,7 +88,7 @@ export default function JobChecklist({
   return (
     <div className="card-ledger p-5">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-[13px] font-semibold text-gray-500">Checklist</h2>
+        <SectionHeader title="Checklist" />
         <span
           className={`stamp ${resolved === items.length ? "text-green-700" : "text-gray-500"}`}
         >

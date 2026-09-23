@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Phone, Mail } from "lucide-react";
+import { Phone, Mail } from "lucide-react";
+import BackLink from "@/components/BackLink";
 import { prisma } from "@/lib/db";
 import { requirePageActor, canSell, contactScope } from "@/lib/permissions";
 import Monogram from "@/components/Monogram";
@@ -38,9 +39,7 @@ export default async function MessageThreadPage({
   return (
     <div className="p-4 lg:p-8 max-w-3xl mx-auto">
       <div className="flex items-center gap-3 mb-5">
-        <Link href="/app/messages" className="text-gray-400 hover:text-gray-600">
-          <ArrowLeft size={18} />
-        </Link>
+        <BackLink href="/app/messages" />
         <Monogram name={name} size={40} />
         <div className="min-w-0 flex-1">
           <Link

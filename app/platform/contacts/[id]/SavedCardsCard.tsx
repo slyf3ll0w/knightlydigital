@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CreditCard, Loader2, Plus, Trash2 } from "lucide-react";
+import EmptyState from "@/components/EmptyState";
+import SectionHeader from "@/components/SectionHeader";
 import { confirmSheet } from "@/components/ConfirmSheet";
 import { FINIX_JS_SRC, type FinixConfig, type FinixForm } from "@/lib/finix-js";
 import { postJson } from "@/lib/safe-fetch";
@@ -164,7 +166,7 @@ export default function SavedCardsCard({
   return (
     <div className="card-ledger p-4">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-[13px] font-semibold text-gray-500">Cards on file</h2>
+        <SectionHeader title="Cards on file" />
         {canManage && finix && !adding && (
           <button
             onClick={() => setAdding(true)}
@@ -183,9 +185,11 @@ export default function SavedCardsCard({
       )}
 
       {cards.length === 0 && !adding && (
-        <p className="text-sm text-gray-400">
-          No cards yet — add one here, or the client can save one when paying online.
-        </p>
+        <EmptyState
+          compact
+          title="No cards yet"
+          body="Add one here, or the client can save one when paying online."
+        />
       )}
 
       {cards.length > 0 && (

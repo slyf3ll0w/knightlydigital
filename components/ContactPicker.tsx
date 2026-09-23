@@ -111,7 +111,7 @@ export default function ContactPicker({
 
       {/* Desktop anchored dropdown */}
       {open && (
-        <div className="absolute left-0 right-0 top-full mt-1 z-40 min-w-[16rem] bg-white rounded-lg shadow-xl ring-1 ring-black/5">
+        <div className="absolute left-0 right-0 top-full mt-1 z-40 min-w-[16rem] overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xl">
           <div className="flex items-center gap-2 border-b border-gray-100 px-3 py-2">
             <Search size={14} className="shrink-0 text-gray-400" />
             <input

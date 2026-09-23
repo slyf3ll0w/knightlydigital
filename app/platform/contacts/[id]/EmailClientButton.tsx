@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Mail, Loader2, X } from "lucide-react";
+import Modal from "@/components/Modal";
 
 /**
  * "Email" action on the contact header — compose a one-off professional
@@ -75,15 +76,8 @@ export default function EmailClientButton({
         Email
       </button>
 
-      {open && (
-        <div
-          className="fixed inset-0 z-50 flex items-end lg:items-center justify-center bg-black/40 p-0 lg:p-4"
-          onClick={close}
-        >
-          <div
-            className="w-full lg:max-w-lg bg-white rounded-t-2xl lg:rounded-xl shadow-xl p-5 space-y-4"
-            onClick={(e) => e.stopPropagation()}
-          >
+      <Modal open={open} onClose={close} size="lg" dismissible={!busy}>
+          <div className="space-y-4">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <h2 className="text-base font-bold text-gray-900">Email {contactName}</h2>
@@ -153,7 +147,11 @@ export default function EmailClientButton({
               </div>
             </div>
 
-            {error && <p className="text-xs text-red-600">{error}</p>}
+            {error && (
+              <p role="alert" className="form-error">
+                {error}
+              </p>
+            )}
 
             <div className="flex items-center justify-end gap-2">
               <button
@@ -173,8 +171,7 @@ export default function EmailClientButton({
               </button>
             </div>
           </div>
-        </div>
-      )}
+      </Modal>
     </>
   );
 }

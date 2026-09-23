@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { Check, KeyRound, Loader2 } from "lucide-react";
+import SectionHeader from "@/components/SectionHeader";
 import { inputCls } from "@/components/Input";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { isNativeGoogleAvailable, nativeGoogleIdToken } from "@/lib/native-google-signin";
@@ -185,10 +186,11 @@ export default function SignInMethodsCard({
 
   return (
     <div className="card-ledger p-5 mt-5">
-      <h2 className="text-[13px] font-semibold text-gray-500 mb-1">Sign-in methods</h2>
-      <p className="text-sm text-gray-600 mb-4">
-        The ways this login opens. Changes here ask you to verify it&apos;s you first.
-      </p>
+      <SectionHeader
+        title="Sign-in methods"
+        hint="The ways this login opens. Changes here ask you to verify it's you first."
+        className="mb-4"
+      />
 
       {error && (
         <div role="alert" className="form-error mb-3">

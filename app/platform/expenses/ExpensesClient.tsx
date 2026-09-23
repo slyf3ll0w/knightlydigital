@@ -3,8 +3,10 @@
 import { useState } from "react";
 import { inputCls } from "@/components/Input";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { ArrowLeft, Check, Download, Loader2, Pause, Pencil, Play, Plus, Repeat, Trash2, X } from "lucide-react";
+import { Check, Download, Loader2, Pause, Pencil, Play, Plus, Receipt, Repeat, Trash2, X } from "lucide-react";
+import EmptyState from "@/components/EmptyState";
+import { SECTION_HUES } from "@/lib/section-colors";
+import BackLink from "@/components/BackLink";
 import { money } from "@/lib/statuses";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { confirmSheet } from "@/components/ConfirmSheet";
@@ -220,9 +222,7 @@ export default function ExpensesClient({
     <div className="p-4 lg:p-8 max-w-3xl mx-auto">
       <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
         <div className="flex items-start gap-3">
-          <Link href="/app/insights" className="mt-1.5 text-gray-400 hover:text-gray-600">
-            <ArrowLeft size={18} />
-          </Link>
+          <BackLink href="/app/business" className="mt-1.5" />
           <PageTitle
             sub={
               <>
@@ -468,10 +468,12 @@ export default function ExpensesClient({
 
       <div className="card-ledger divide-y divide-gray-100">
         {expenses.length === 0 ? (
-          <p className="px-4 py-10 text-center text-sm text-gray-500">
-            No expenses logged yet — track fuel, materials, and equipment to see real profit on
-            Insights.
-          </p>
+          <EmptyState
+            icon={Receipt}
+            hue={SECTION_HUES.business}
+            title="No expenses logged yet"
+            body="Track fuel, materials, and equipment to see real profit on Insights."
+          />
         ) : (
           expenses.map((e) =>
             editId === e.id ? (

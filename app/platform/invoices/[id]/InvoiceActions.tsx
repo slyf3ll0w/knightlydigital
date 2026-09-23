@@ -540,7 +540,6 @@ export default function InvoiceActions({
       <Modal
         open={deleteOpen}
         onClose={() => !busy && setDeleteOpen(false)}
-        cardClassName="relative w-full max-w-md rounded-lg bg-white p-6 shadow-xl"
       >
         {deleteOpen && (
           <>
@@ -591,7 +590,7 @@ export default function InvoiceActions({
               <button
                 onClick={() => doDelete(true)}
                 disabled={confirmText.trim().toUpperCase() !== "DELETE" || busy}
-                className="flex items-center gap-1.5 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-[10px] transition-colors disabled:opacity-40"
+                className="btn-danger"
               >
                 {busy ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
                 Delete Invoice
@@ -604,7 +603,6 @@ export default function InvoiceActions({
       <Modal
         open={pickOpen}
         onClose={() => !savingCard && setPickOpen(false)}
-        cardClassName="relative w-full max-w-md rounded-lg bg-white p-6 shadow-xl"
       >
         {pickOpen && (
           <>

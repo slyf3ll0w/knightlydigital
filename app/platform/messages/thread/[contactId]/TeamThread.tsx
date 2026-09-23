@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Loader2, MessageSquare, Send } from "lucide-react";
+import { Loader2, Send } from "lucide-react";
+import EmptyState from "@/components/EmptyState";
 
 /**
  * Team side of a portal thread. Mirror image of the hub component: company
@@ -124,13 +125,11 @@ export default function TeamThread({
   return (
     <div className="card-ledger p-4 sm:p-5">
       {messages.length === 0 ? (
-        <div className="py-10 text-center">
-          <MessageSquare size={32} className="text-gray-300 mx-auto mb-3" />
-          <p className="text-sm text-gray-500">
-            No messages yet. Anything you send reaches {contactFirstName} in
-            their client portal — plus a text or email so they see it fast.
-          </p>
-        </div>
+        <EmptyState
+          compact
+          title="No messages yet"
+          body={`Anything you send reaches ${contactFirstName} in their client portal — plus a text or email so they see it fast.`}
+        />
       ) : (
         <div className="space-y-3 max-h-[30rem] overflow-y-auto pr-1">
           {messages.map((m) => {

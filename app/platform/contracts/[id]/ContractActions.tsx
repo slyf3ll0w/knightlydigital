@@ -214,10 +214,10 @@ export default function ContractActions({
         onClose={() => {
           if (!busy) setEditing(false);
         }}
-        cardClassName="w-full max-w-2xl bg-white rounded-lg shadow-xl p-5 space-y-3 text-left"
+        size="2xl"
       >
         {editing && (
-          <>
+          <div className="space-y-3 text-left">
             <h2 className="text-base font-semibold text-gray-900">Edit Contract</h2>
             <p className="text-xs text-gray-500">
               Editable until the client signs. If it was already sent, the signing link shows the
@@ -265,7 +265,7 @@ export default function ContractActions({
                 Save Changes
               </button>
             </div>
-          </>
+          </div>
         )}
       </Modal>
     </div>

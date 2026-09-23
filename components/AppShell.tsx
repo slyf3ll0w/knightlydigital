@@ -1242,7 +1242,7 @@ function ShortcutsHelp({
     </p>
   );
   return (
-    <Modal open={open} onClose={onClose} cardClassName="card-ledger w-full max-w-xl p-0 overflow-hidden">
+    <Modal open={open} onClose={onClose} size="xl" flush>
       <div className="flex items-center justify-between border-b border-gray-100 px-5 py-3.5">
         <h2 className="font-display text-[15px] font-semibold text-gray-900">Keyboard shortcuts</h2>
         <button

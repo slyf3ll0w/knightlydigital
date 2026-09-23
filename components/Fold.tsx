@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
+import SectionHeader from "@/components/SectionHeader";
 
 /**
  * Card section that folds shut on phones — tap the header to open. Desktop
@@ -32,7 +33,7 @@ export default function Fold({
         className="flex w-full items-center justify-between px-5 py-4 text-left lg:pointer-events-none"
         aria-expanded={open}
       >
-        <h2 className="text-[13px] font-semibold text-gray-500">{title}</h2>
+        <SectionHeader title={title} />
         <span className="flex items-center gap-2 lg:hidden">
           {meta && <span className="text-[13px] font-semibold text-gray-700">{meta}</span>}
           <ChevronDown

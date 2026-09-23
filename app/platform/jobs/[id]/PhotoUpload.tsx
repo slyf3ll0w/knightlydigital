@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Camera, ImagePlus, Loader2, Trash2 } from "lucide-react";
+import EmptyState from "@/components/EmptyState";
 import { resizePhotoFile } from "@/lib/resize-image";
 import { confirmSheet } from "@/components/ConfirmSheet";
 import { getCapacitor, nativePlatform } from "@/components/NativeShell";
@@ -121,10 +122,7 @@ export default function PhotoUpload({ jobId, photos }: { jobId: string; photos: 
   return (
     <div>
       {photos.length === 0 ? (
-        <div className="px-5 py-8 text-center">
-          <Camera size={28} className="text-gray-200 mx-auto mb-2" />
-          <p className="text-xs text-gray-500">No photos attached yet</p>
-        </div>
+        <EmptyState compact title="No photos attached yet" />
       ) : (
         <div className="p-4 grid grid-cols-3 gap-2">
           {photos.map((photo) => (

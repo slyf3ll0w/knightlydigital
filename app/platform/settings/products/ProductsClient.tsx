@@ -2,7 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Plus, Pencil, Trash2, Loader2, Package } from "lucide-react";
+import SectionHeader from "@/components/SectionHeader";
+import { money } from "@/lib/statuses";
+import { Plus, Pencil, Trash2, Loader2, Package } from "lucide-react";
+import BackLink from "@/components/BackLink";
+import PageTitle from "@/components/PageTitle";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { confirmSheet } from "@/components/ConfirmSheet";
 
@@ -75,10 +79,6 @@ const INTERVAL_LABEL: Record<RecurringInterval, string> = {
   SEMIANNUAL: "6 months",
   ANNUAL: "year",
 };
-
-function money(n: number | string | null) {
-  return `$${Number(n ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
 
 /**
  * The item's traits as one quiet "a · b · c" line instead of a row of
@@ -546,10 +546,8 @@ export default function ProductsClient({
   return (
     <div className="p-4 lg:p-8 max-w-4xl mx-auto">
       <div className="flex items-center gap-3 mb-1">
-        <Link href="/app/settings" className="hidden lg:block text-gray-400 hover:text-gray-600">
-          <ArrowLeft size={18} />
-        </Link>
-        <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">Services</h1>
+        <BackLink href="/app/settings" />
+        <PageTitle>Services</PageTitle>
       </div>
       <p className="text-sm text-gray-500 mb-6 lg:ml-8">
         Your price book. These items autocomplete on quotes and invoices.
@@ -714,12 +712,10 @@ export default function ProductsClient({
         {archivedItems.length > 0 && (
           <div className="card-ledger overflow-hidden">
             <div className="px-4 py-3 border-b border-gray-100">
-              <h2 className="text-sm font-semibold text-gray-500">
-                Archived ({archivedItems.length})
-              </h2>
-              <p className="text-xs text-gray-500 mt-0.5">
-                Hidden from quotes, invoices, and booking — past documents keep them.
-              </p>
+              <SectionHeader
+                title={`Archived (${archivedItems.length})`}
+                hint="Hidden from quotes, invoices, and booking — past documents keep them."
+              />
             </div>
             <div className="divide-y divide-gray-50">
               {archivedItems.map((item) => (

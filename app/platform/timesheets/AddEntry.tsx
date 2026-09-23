@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
+import SectionHeader from "@/components/SectionHeader";
 import { localInputToISO } from "@/lib/statuses";
 
 /** Manager-only manual time entry (paper timesheet, forgotten clock-in). */
@@ -72,9 +73,7 @@ export default function AddEntry({
 
   return (
     <div className="card-ledger p-5 mb-5 space-y-3">
-      <h2 className="text-[13px] font-semibold text-gray-500">
-        Add time entry
-      </h2>
+      <SectionHeader title="Add time entry" />
       <div className="grid sm:grid-cols-2 gap-3">
         <label className="block text-xs font-medium text-gray-600">
           Team member
@@ -134,12 +133,16 @@ export default function AddEntry({
           className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
         />
       </label>
-      {error && <p className="text-xs text-red-600">{error}</p>}
+      {error && (
+        <p role="alert" className="form-error">
+          {error}
+        </p>
+      )}
       <div className="flex items-center gap-3 pt-1">
         <button
           onClick={save}
           disabled={busy}
-          className="px-4 py-2 bg-gray-900 text-white text-sm font-semibold rounded-lg hover:bg-gray-800 disabled:opacity-50"
+          className="btn-primary"
         >
           Save entry
         </button>

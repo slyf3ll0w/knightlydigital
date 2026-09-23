@@ -1,13 +1,16 @@
 import { fmtPhone, fmtTime } from "@/lib/format";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, CalendarDays, ExternalLink, Mail, MapPin, Phone, User, Video } from "lucide-react";
+import SectionHeader from "@/components/SectionHeader";
+import { CalendarDays, ExternalLink, Mail, MapPin, Phone, User, Video } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { requirePageActor, canSell, isManager, appointmentScope } from "@/lib/permissions";
 import { appointmentTypeLabel } from "@/lib/statuses";
 import { resolveSlotInterval } from "@/lib/scheduling";
 import { earliestOpenMinutes, sanitizeBusinessHours } from "@/lib/business-hours";
 import StatusChip from "@/components/StatusChip";
+import BackLink from "@/components/BackLink";
+import PageTitle from "@/components/PageTitle";
 import JobActionRow from "@/components/JobActionRow";
 import AppointmentActions from "./AppointmentActions";
 
@@ -71,9 +74,7 @@ export default async function AppointmentDetailPage({
     // last card (same treatment as the job page)
     <div className="p-4 pb-20 lg:p-8 max-w-3xl mx-auto">
       <div className="flex items-center gap-3 mb-4">
-        <Link href="/app/schedule" className="hidden lg:block text-gray-400 hover:text-gray-600">
-          <ArrowLeft size={18} />
-        </Link>
+        <BackLink href="/app/appointments" />
         <StatusChip kind="appointment" status={appt.status} />
         {appt.tentative && appt.status === "SCHEDULED" && (
           <span className="stamp text-red-700">
@@ -94,7 +95,7 @@ export default async function AppointmentDetailPage({
 
       <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
         <div className="min-w-0">
-          <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">{appt.title}</h1>
+          <PageTitle>{appt.title}</PageTitle>
           <p className="flex items-center gap-1.5 text-sm text-gray-500 mt-1">
             <TypeIcon size={14} className="text-blue-500" />
             {appointmentTypeLabel[appt.type]}
@@ -214,7 +215,7 @@ export default async function AppointmentDetailPage({
 
       {appt.notes && (
         <div className="card-ledger p-5">
-          <h2 className="text-[13px] font-semibold text-gray-500 mb-2">Notes</h2>
+          <SectionHeader title="Notes" className="mb-2" />
           <p className="text-sm text-gray-700 whitespace-pre-wrap">{appt.notes}</p>
         </div>
       )}

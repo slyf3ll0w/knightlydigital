@@ -90,6 +90,7 @@ const LABELS: [prefix: string, label: string][] = [
   ["/app/subscriptions", "Recurring"],
   ["/app/timesheets", "Timesheets"],
   ["/app/contracts", "Agreements"],
+  ["/app/estimates", "Estimates"],
   ["/app/business", "Overview"],
   ["/app/insights", "Insights"],
   ["/app/expenses", "Expenses"],
@@ -122,6 +123,17 @@ const matches = (pathname: string, prefix: string) =>
 export function mobileLabelFor(pathname: string): string | null {
   for (const [prefix, label] of LABELS) if (matches(pathname, prefix)) return label;
   return null;
+}
+
+/**
+ * The page's parent — what "up" means for a route: its hub (PARENTS), else
+ * its section's list page (/app/jobs/[id] → Jobs). This is the mobile
+ * header's no-history fallback AND the target every desktop back arrow
+ * (components/BackLink.tsx) should point at, so the two never disagree.
+ * Null for pages that have no parent (top-level lists, non-app routes).
+ */
+export function parentFor(pathname: string): { label: string; to: string } | null {
+  return fallbackFor(pathname);
 }
 
 /** The no-history fallback for a subpage: its hub, or its section's list. */

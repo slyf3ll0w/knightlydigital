@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
-import { ArrowLeft, Check, Loader2, Lock, Sparkles } from "lucide-react";
+import { Check, Loader2, Lock, Sparkles } from "lucide-react";
+import BackLink from "@/components/BackLink";
+import PageTitle from "@/components/PageTitle";
 
 /**
  * The Workbench Plus upsell. Three states:
@@ -83,18 +84,9 @@ export default function AddonClient({
 
   return (
     <div className="p-4 lg:p-8 max-w-3xl mx-auto">
-      <Link
-        href="/app/settings"
-        className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-4"
-      >
-        <ArrowLeft size={14} />
-        Settings
-      </Link>
-      <div className="mb-6">
-        <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">Workbench Plus</h1>
-        <p className="text-sm text-gray-500">
-          More horsepower for your whole team, billed monthly.
-        </p>
+      <div className="flex items-start gap-3 mb-6">
+        <BackLink href="/app/settings" className="mt-1.5" />
+        <PageTitle sub="More horsepower for your whole team, billed monthly.">Workbench Plus</PageTitle>
       </div>
 
       {isActive ? (

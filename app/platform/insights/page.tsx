@@ -3,8 +3,10 @@ import { requirePageActor, isManager } from "@/lib/permissions";
 import Link from "next/link";
 import { BarChart3 } from "lucide-react";
 import PageTitle from "@/components/PageTitle";
+import BackLink from "@/components/BackLink";
 import { FilterRow, FilterChip } from "@/components/FilterChips";
 import { SECTION_HUES } from "@/lib/section-colors";
+import EmptyState from "@/components/EmptyState";
 import { money } from "@/lib/statuses";
 import { invoiceBalance } from "@/lib/payments";
 
@@ -54,9 +56,7 @@ function BreakdownCard({
         <p className="text-xs text-gray-500">{subtitle}</p>
       </div>
       {rows.length === 0 ? (
-        <p className="px-5 py-8 text-center text-sm text-gray-400 lg:py-10">
-          No paid work in this period yet.
-        </p>
+        <EmptyState compact title="No paid work in this period yet." />
       ) : (
         <div className="space-y-3.5 p-4 lg:space-y-3 lg:p-5">
           {rows.slice(0, 8).map((r) => {
@@ -274,14 +274,16 @@ export default async function InsightsPage({
 
   return (
     <div className="mx-auto max-w-6xl p-4 lg:p-8">
-      <PageTitle
-        section="business"
-        icon={BarChart3}
-        className="mb-3 lg:mb-5"
-        sub="Revenue by source, service, and area."
-      >
-        Insights
-      </PageTitle>
+      <div className="mb-3 flex items-start gap-3 lg:mb-5">
+        <BackLink href="/app/business" className="mt-1.5" />
+        <PageTitle
+          section="business"
+          icon={BarChart3}
+          sub="Revenue by source, service, and area."
+        >
+          Insights
+        </PageTitle>
+      </div>
 
       {/* Range picker — a scrolling chip rail on phones (four buttons in one
           flex row used to squeeze into unreadable slivers), the same control

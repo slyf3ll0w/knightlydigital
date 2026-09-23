@@ -65,7 +65,8 @@ export default function RefundDialog({
       onClose={onClose}
       dismissible={!busy}
       portal
-      cardClassName="w-full max-w-sm overflow-hidden rounded-[14px] bg-white p-0 shadow-2xl"
+      size="sm"
+      flush
     >
       <div className="px-5 pb-4 pt-5">
         <p className="flex items-center gap-2 text-[15px] font-semibold text-gray-900">

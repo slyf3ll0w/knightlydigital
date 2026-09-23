@@ -96,9 +96,9 @@ export default function EntryActions({
       >
         <Pencil size={13} />
       </button>
-      <Modal open={editing} onClose={() => setEditing(false)} cardClassName="w-full max-w-sm card-ledger bg-white p-5 space-y-3">
+      <Modal open={editing} onClose={() => setEditing(false)} size="sm">
       {editing && (
-        <>
+        <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-gray-900">Edit time entry</h3>
             <button onClick={() => setEditing(false)} className="text-gray-400 hover:text-gray-600">
@@ -152,7 +152,7 @@ export default function EntryActions({
               Save
             </button>
           </div>
-        </>
+        </div>
       )}
       </Modal>
     </>

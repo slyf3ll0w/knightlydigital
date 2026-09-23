@@ -1,6 +1,7 @@
 "use client";
 
 import { CreditCard } from "lucide-react";
+import { money } from "@/lib/statuses";
 
 /**
  * The card-terminal ritual for saved-card charges: a full-screen glass
@@ -13,9 +14,6 @@ export type ChargePhase =
   | { state: "processing"; label: string; amount: number; caption?: string }
   | { state: "approved"; label: string; amount: number }
   | { state: "declined"; label: string; amount: number; error: string };
-
-const money = (n: number) =>
-  `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 export default function ChargeOverlay({
   phase,

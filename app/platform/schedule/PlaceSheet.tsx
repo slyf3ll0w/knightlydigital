@@ -412,9 +412,9 @@ export default function PlaceSheet({
         : "";
 
   return (
-    <Modal open={Boolean(intent)} onClose={() => !busy && onClose()} cardClassName="w-full max-w-md space-y-3 rounded-lg bg-white p-5 text-left shadow-xl">
+    <Modal open={Boolean(intent)} onClose={() => !busy && onClose()}>
       {intent && (
-        <>
+        <div className="space-y-3 text-left">
           <div>
             <div className="flex items-baseline justify-between gap-3">
               <h2 className="text-base font-semibold text-gray-900">{heading}</h2>
@@ -481,7 +481,7 @@ export default function PlaceSheet({
                       onChange={(ev) => setContactQ(ev.target.value)}
                     />
                     {contactHits.length > 0 && (
-                      <ul className="absolute z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+                      <ul className="absolute z-20 mt-1 max-h-48 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-xl">
                         {contactHits.map((h) => (
                           <li key={h.id}>
                             <button
@@ -718,7 +718,7 @@ export default function PlaceSheet({
               Cancel
             </button>
           </div>
-        </>
+        </div>
       )}
     </Modal>
   );

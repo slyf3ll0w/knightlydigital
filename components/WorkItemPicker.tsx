@@ -195,7 +195,7 @@ export default function WorkItemPicker({
 
       {/* Desktop / hardware-keyboard autocomplete dropdown */}
       {open && matches.length > 0 && (
-        <div className="absolute left-0 right-0 sm:right-auto sm:w-80 sm:max-w-[calc(100vw-2rem)] top-full mt-1 z-40 bg-white rounded-lg shadow-xl ring-1 ring-black/5 py-1 max-h-72 overflow-y-auto">
+        <div className="absolute left-0 right-0 sm:right-auto sm:w-80 sm:max-w-[calc(100vw-2rem)] top-full mt-1 z-40 rounded-lg border border-gray-200 bg-white shadow-xl py-1 max-h-72 overflow-y-auto">
           {matches.map((item, i) => (
             <button
               key={item.id}

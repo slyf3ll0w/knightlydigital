@@ -1620,9 +1620,9 @@ export default function ScheduleClient({
       {ghost}
 
       {/* New-thing chooser after painting a range */}
-      <Modal open={Boolean(chooser)} onClose={() => setChooser(null)} cardClassName="w-full max-w-sm space-y-3 rounded-lg bg-white p-5 text-left shadow-xl">
+      <Modal open={Boolean(chooser)} onClose={() => setChooser(null)} size="sm">
         {chooser && (
-          <>
+          <div className="space-y-3 text-left">
             <div>
               <h2 className="text-base font-semibold text-gray-900">
                 {dayLabelFor(chooser.date)} · {fmtMinute(chooser.startMin)} – {fmtMinute(chooser.endMin)}
@@ -1668,14 +1668,14 @@ export default function ScheduleClient({
                 <CalendarOff size={15} /> Block off this time
               </button>
             </div>
-          </>
+          </div>
         )}
       </Modal>
 
       {/* Move the day */}
-      <Modal open={Boolean(shiftSheet)} onClose={() => !shiftBusy && setShiftSheet(null)} cardClassName="w-full max-w-md space-y-3 rounded-lg bg-white p-5 text-left shadow-xl">
+      <Modal open={Boolean(shiftSheet)} onClose={() => !shiftBusy && setShiftSheet(null)}>
         {shiftSheet && (
-          <>
+          <div className="space-y-3 text-left">
             <div>
               <h2 className="text-base font-semibold text-gray-900">Move the day</h2>
               <p className="mt-0.5 text-sm text-gray-500">
@@ -1731,14 +1731,14 @@ export default function ScheduleClient({
                 Cancel
               </button>
             </div>
-          </>
+          </div>
         )}
       </Modal>
 
       {/* Block-off-time sheet (create + edit; read-only when not yours) */}
-      <Modal open={Boolean(blockSheet)} onClose={() => !blockBusy && setBlockSheet(null)} cardClassName="w-full max-w-md space-y-3 rounded-lg bg-white p-5 text-left shadow-xl">
+      <Modal open={Boolean(blockSheet)} onClose={() => !blockBusy && setBlockSheet(null)}>
         {blockSheet && (
-          <>
+          <div className="space-y-3 text-left">
             <h2 className="text-base font-semibold text-gray-900">
               {blockSheet.id === null ? "Block Off Time" : blockSheet.canEdit ? "Edit Blocked Time" : blockSheet.mirrored ? "Busy in Google Calendar" : "Blocked Time"}
             </h2>
@@ -1894,7 +1894,7 @@ export default function ScheduleClient({
                 </button>
               )}
             </div>
-          </>
+          </div>
         )}
       </Modal>
 

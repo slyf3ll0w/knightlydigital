@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ExternalLink, Copy, Mail, Loader2, Check, RotateCcw } from "lucide-react";
+import SectionHeader from "@/components/SectionHeader";
 import { confirmSheet } from "@/components/ConfirmSheet";
 
 /**
@@ -81,18 +82,21 @@ export default function PortalAccessCard({
 
   return (
     <div className="card-ledger p-4">
-      <h2 className="text-[13px] font-semibold text-gray-500 mb-2">
-        Client portal
-      </h2>
-      <p className="text-xs text-gray-500 mb-3">
-        The client can view quotes, approve work, see scheduled visits, and pay invoices from
-        their portal.
-        {lastVisitLabel && (
-          <span className="mt-1 block font-medium text-green-700">
-            Last visited {lastVisitLabel}
-          </span>
-        )}
-      </p>
+      <SectionHeader
+        title="Client portal"
+        className="mb-3"
+        hint={
+          <>
+            The client can view quotes, approve work, see scheduled visits, and pay invoices from
+            their portal.
+            {lastVisitLabel && (
+              <span className="mt-1 block font-medium text-green-700">
+                Last visited {lastVisitLabel}
+              </span>
+            )}
+          </>
+        }
+      />
       <div className="space-y-2">
         <a
           href={hubUrl}

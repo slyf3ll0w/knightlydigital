@@ -131,7 +131,7 @@ export default function SchedulePalette({
 
   return (
     <>
-      <aside className="phone-sheet sheet-rise sticky top-4 flex w-80 shrink-0 flex-col rounded-lg border border-gray-200 bg-white max-lg:fixed max-lg:inset-x-0 max-lg:bottom-0 max-lg:top-auto max-lg:z-40 max-lg:max-h-[72dvh] max-lg:w-full max-lg:overflow-hidden max-lg:rounded-t-2xl max-lg:rounded-b-none max-lg:border-x-0 max-lg:border-b-0 max-lg:pb-[env(safe-area-inset-bottom)] max-lg:shadow-[0_-8px_30px_rgba(28,25,23,0.18)] lg:max-h-[calc(100vh-6rem)]">
+      <aside className="card-ledger phone-sheet sheet-rise sticky top-4 flex w-80 shrink-0 flex-col max-lg:fixed max-lg:inset-x-0 max-lg:bottom-0 max-lg:top-auto max-lg:z-40 max-lg:max-h-[72dvh] max-lg:w-full max-lg:overflow-hidden max-lg:rounded-t-2xl max-lg:rounded-b-none max-lg:border-x-0 max-lg:border-b-0 max-lg:pb-[env(safe-area-inset-bottom)] max-lg:shadow-[0_-8px_30px_rgba(28,25,23,0.18)] lg:max-h-[calc(100vh-6rem)]">
         <div className="mx-auto mt-2 h-1 w-9 rounded-full bg-gray-200 lg:hidden" />
         <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
           <h3 className="text-sm font-semibold text-gray-900">Schedule someone</h3>

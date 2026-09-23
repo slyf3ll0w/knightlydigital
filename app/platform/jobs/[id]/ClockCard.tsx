@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Play, Square, Timer } from "lucide-react";
+import SectionHeader from "@/components/SectionHeader";
 import { hapticImpact } from "@/lib/haptics";
 import { formatDuration } from "@/lib/time-entries";
 import { sendOrQueue } from "@/lib/outbox";
@@ -114,9 +115,7 @@ export default function ClockCard({
   return (
     <div className="card-ledger p-4">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-[13px] font-semibold text-gray-500">
-          Time clock
-        </h2>
+        <SectionHeader title="Time clock" />
         {loggedMs > 0 && (
           <span className="flex items-center gap-1 text-xs text-gray-500">
             <Timer size={12} />
@@ -150,7 +149,7 @@ export default function ClockCard({
           <button
             onClick={() => punch("in")}
             disabled={busy}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white text-sm font-semibold rounded-xl hover:bg-green-700 active:scale-[0.98] transition disabled:opacity-50"
+            className="btn-primary btn-lg w-full justify-center"
           >
             <Play size={14} fill="currentColor" />
             Clock In

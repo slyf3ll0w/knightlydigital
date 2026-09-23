@@ -4,7 +4,10 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { inputCls } from "@/components/Input";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import SectionHeader from "@/components/SectionHeader";
 import { Camera, Check, ImagePlus, Loader2, Trash2 } from "lucide-react";
+import BackLink from "@/components/BackLink";
+import PageTitle from "@/components/PageTitle";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { PushToggleCard } from "@/components/PushNotifications";
 import { AppLockToggleCard } from "@/components/AppLock";
@@ -200,10 +203,10 @@ export default function ProfileClient({
 
   return (
     <div className="p-4 lg:p-8 max-w-2xl mx-auto">
-      <h1 className="numeral-ledger text-2xl font-semibold text-gray-900 mb-1">My Profile</h1>
-      <p className="text-sm text-gray-500 mb-6">
-        Signed in as {email} · {roleLabel}
-      </p>
+      <div className="flex items-start gap-3 mb-6">
+        <BackLink href="/app/settings" className="mt-1.5" />
+        <PageTitle sub={`Signed in as ${email} · ${roleLabel}`}>My Profile</PageTitle>
+      </div>
 
       {error && (
         <div role="alert" className="form-error mb-4">
@@ -214,9 +217,7 @@ export default function ProfileClient({
 
       {/* Profile picture */}
       <div className="card-ledger p-5 mb-5">
-        <h2 className="text-[13px] font-semibold text-gray-500 mb-4">
-          Profile picture
-        </h2>
+        <SectionHeader title="Profile picture" className="mb-4" />
         <div className="flex flex-wrap items-center gap-4">
           <Avatar
             name={name}
@@ -287,9 +288,7 @@ export default function ProfileClient({
       </div>
 
       <div className="card-ledger p-5 mb-5">
-        <h2 className="text-[13px] font-semibold text-gray-500 mb-4">
-          Your info
-        </h2>
+        <SectionHeader title="Your info" className="mb-4" />
         <div className="grid sm:grid-cols-2 gap-3 mb-4">
           <div>
             <label className="block text-xs text-gray-500 mb-1">Full name</label>
@@ -312,12 +311,11 @@ export default function ProfileClient({
 
       {/* Email signature — appended to client email messages */}
       <div className="card-ledger p-5 mb-5">
-        <h2 className="text-[13px] font-semibold text-gray-500 mb-1">
-          Email signature
-        </h2>
-        <p className="text-sm text-gray-500 mb-3">
-          Added to the bottom of emails you send to clients from their page.
-        </p>
+        <SectionHeader
+          title="Email signature"
+          hint="Added to the bottom of emails you send to clients from their page."
+          className="mb-3"
+        />
         <textarea
           value={signature}
           onChange={(e) => setSignature(e.target.value)}
@@ -342,11 +340,16 @@ export default function ProfileClient({
       {/* Change email — nothing moves until the new address confirms it, so a
           typo can't lock someone out of their own account. */}
       <div className="card-ledger p-5">
-        <h2 className="text-[13px] font-semibold text-gray-500 mb-1">Sign-in email</h2>
-        <p className="text-xs text-gray-500 mb-4">
-          Currently <span className="font-medium text-gray-700">{email}</span>. Changing it sends a
-          confirmation link to the new address — it only takes effect once you open that link.
-        </p>
+        <SectionHeader
+          title="Sign-in email"
+          className="mb-4"
+          hint={
+            <>
+              Currently <span className="font-medium text-gray-700">{email}</span>. Changing it sends a
+              confirmation link to the new address — it only takes effect once you open that link.
+            </>
+          }
+        />
 
         {pendingEmail ? (
           <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5">
@@ -423,12 +426,10 @@ export default function ProfileClient({
 
       <div className="card-ledger p-5 mt-5 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-[13px] font-semibold text-gray-500 mb-1">
-            Welcome tour
-          </h2>
-          <p className="text-sm text-gray-600">
-            Replay the quick walkthrough of how work flows through the app.
-          </p>
+          <SectionHeader
+            title="Welcome tour"
+            hint="Replay the quick walkthrough of how work flows through the app."
+          />
         </div>
         <Link
           href="/app/dashboard?tour=1"

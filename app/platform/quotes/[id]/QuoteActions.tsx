@@ -498,7 +498,6 @@ export default function QuoteActions({
       <Modal
         open={agreementOpen && Boolean(agreement)}
         onClose={() => !busy && setAgreementOpen(false)}
-        cardClassName="relative w-full max-w-md card-ledger bg-white p-6 shadow-xl"
       >
         {agreementOpen && agreement && (
           <>

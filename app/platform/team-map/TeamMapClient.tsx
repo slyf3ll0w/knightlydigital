@@ -5,6 +5,7 @@ import Link from "next/link";
 import type * as Leaflet from "leaflet";
 import type { Map as LeafletMap, Marker } from "leaflet";
 import { MapPin, Maximize2, Minus, Plus, Timer } from "lucide-react";
+import BackLink from "@/components/BackLink";
 import { formatDuration } from "@/lib/time-entries";
 import { addBasemap, initialView, reducedMotion, rememberView } from "@/lib/basemap";
 import { useMainFill } from "@/lib/use-main-fill";
@@ -203,12 +204,15 @@ export default function TeamMapClient() {
       `}</style>
 
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-200 bg-white px-4 py-3 lg:px-8">
-        <div>
-          <h1 className="font-display text-lg font-bold text-gray-900">Team map</h1>
-          <p className="text-xs text-gray-500">
-            Positions update every few minutes while someone is clocked in with the app open —
-            never off the clock.
-          </p>
+        <div className="flex min-w-0 items-center gap-3">
+          <BackLink href="/app/business" />
+          <div>
+            <h1 className="font-display text-lg font-bold text-gray-900">Team map</h1>
+            <p className="text-xs text-gray-500">
+              Positions update every few minutes while someone is clocked in with the app open —
+              never off the clock.
+            </p>
+          </div>
         </div>
         <Link
           href="/app/timesheets"

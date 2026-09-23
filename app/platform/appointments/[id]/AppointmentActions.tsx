@@ -204,7 +204,7 @@ export default function AppointmentActions({
   // (always at the thumb), a normal header button on desktop. Same classes
   // the job page's Complete Job pill uses; centered without a transform.
   const primaryCls =
-    "flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors disabled:opacity-50 glass-tinted max-lg:fixed max-lg:inset-x-0 max-lg:mx-auto max-lg:w-max max-lg:bottom-[calc(5.5rem+env(safe-area-inset-bottom))] max-lg:z-30 max-lg:rounded-full max-lg:px-6 max-lg:py-3 max-lg:text-[15px]";
+    "btn-primary glass-tinted max-lg:fixed max-lg:inset-x-0 max-lg:mx-auto max-lg:w-max max-lg:bottom-[calc(5.5rem+env(safe-area-inset-bottom))] max-lg:z-30 max-lg:rounded-full max-lg:px-6 max-lg:py-3 max-lg:text-[15px]";
 
   return (
     <div className="flex flex-col items-end gap-2">
@@ -229,7 +229,7 @@ export default function AppointmentActions({
             <MoreHorizontal size={16} />
           </button>
           {menuOpen && (
-            <div className="sheet-material absolute right-0 top-full mt-1 z-20 w-44 rounded-lg shadow-xl ring-1 ring-black/5 py-1.5">
+            <div className="sheet-material absolute right-0 top-full mt-1 z-30 w-max min-w-[13rem] whitespace-nowrap rounded-lg shadow-xl border border-gray-200 py-1.5">
               <button
                 onClick={openEdit}
                 className="flex w-full items-center gap-2 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
@@ -255,9 +255,9 @@ export default function AppointmentActions({
                   </button>
                   <button
                     onClick={() => patch({ status: "CANCELLED" })}
-                    className="flex w-full items-center gap-2 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                    className="flex w-full items-center gap-2 px-3.5 py-2 text-sm text-red-600 hover:bg-red-50"
                   >
-                    <X size={13} className="text-gray-400" />
+                    <X size={13} />
                     Cancel Appointment
                   </button>
                 </>
@@ -358,10 +358,9 @@ export default function AppointmentActions({
         onClose={() => {
           if (!busy) setEditing(false);
         }}
-        cardClassName="w-full max-w-md bg-white rounded-lg shadow-xl p-5 space-y-3 text-left"
       >
         {editing && (
-          <>
+          <div className="space-y-3 text-left">
             <h2 className="text-base font-semibold text-gray-900">Edit Appointment</h2>
 
             <div>
@@ -466,7 +465,7 @@ export default function AppointmentActions({
                 Save Changes
               </button>
             </div>
-          </>
+          </div>
         )}
       </Modal>
     </div>

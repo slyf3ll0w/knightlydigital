@@ -134,6 +134,29 @@
     @apply gap-2 px-5 py-2.5;
   }
 
+  /* ── Danger button — the confirm-dialog "Delete everything" twin of
+     .btn-primary (same shape, lift and disabled state, solid red). Menus
+     never use it: a destructive MENU ITEM is text-red-600 hover:bg-red-50,
+     the solid red is reserved for the final confirm. */
+  .btn-danger {
+    @apply flex items-center gap-1.5 whitespace-nowrap rounded-[10px] bg-red-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
+    transition:
+      transform 0.13s ease,
+      box-shadow 0.13s ease,
+      background-color 0.15s ease;
+  }
+  .btn-danger:hover:not(:disabled) {
+    @apply bg-red-700;
+    transform: translateY(-1px);
+    box-shadow: 0 3px 10px rgba(15, 23, 42, 0.16);
+  }
+  .btn-danger:active:not(:disabled) {
+    @apply bg-red-800;
+    transform: translateY(0) scale(0.98);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.1);
+  }
+
   /* ── Form error — the one red banner. Callers add role="alert" so screen
      readers hear it (none of the 61 inline recipes had one). */
   .form-error {

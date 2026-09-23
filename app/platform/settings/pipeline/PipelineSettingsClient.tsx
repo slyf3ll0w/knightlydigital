@@ -4,7 +4,6 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  ArrowLeft,
   ArrowDown,
   ArrowUp,
   Check,
@@ -14,6 +13,8 @@ import {
   Webhook,
   Zap,
 } from "lucide-react";
+import BackLink from "@/components/BackLink";
+import PageTitle from "@/components/PageTitle";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { confirmSheet } from "@/components/ConfirmSheet";
 
@@ -198,16 +199,15 @@ export default function PipelineSettingsClient({
 
   return (
     <div className="p-4 lg:p-8 max-w-3xl mx-auto">
-      <Link
-        href="/app/leads"
-        className="hidden lg:inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 mb-4"
-      >
-        <ArrowLeft size={14} />
-        Back to the board
-      </Link>
-      <h1 className="numeral-ledger text-2xl font-semibold text-gray-900 mb-1">Lead Pipeline</h1>
-      <p className="text-sm text-gray-500 mb-6">
-        The stages your Leads board runs through, and where outside lead sources plug in.
+      <div className="flex items-center gap-3 mb-1">
+        <BackLink href="/app/settings" />
+        <PageTitle>Lead Pipeline</PageTitle>
+      </div>
+      <p className="text-sm text-gray-500 mb-6 lg:ml-8">
+        The stages your Leads board runs through, and where outside lead sources plug in.{" "}
+        <Link href="/app/leads" className="text-green-700 hover:underline">
+          Open the board
+        </Link>
       </p>
 
       {error && (

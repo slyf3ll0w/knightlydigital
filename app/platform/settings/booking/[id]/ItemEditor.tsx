@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Check, ChevronDown, ChevronUp, Code2, Copy, ExternalLink, Loader2, Plus, RefreshCw, Trash2, X } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, Code2, Copy, ExternalLink, Loader2, Plus, RefreshCw, Trash2, X } from "lucide-react";
+import BackLink from "@/components/BackLink";
 import Avatar from "@/components/Avatar";
 import { confirmSheet } from "@/components/ConfirmSheet";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
@@ -320,9 +321,7 @@ export default function ItemEditor({
     <div className="mx-auto max-w-6xl p-4 lg:p-8">
       {/* Header */}
       <div className="mb-5 flex flex-wrap items-center gap-3">
-        <Link href="/app/settings/booking" className="hidden rounded-full p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-700 lg:block" aria-label="Back">
-          <ArrowLeft size={18} />
-        </Link>
+        <BackLink href="/app/settings/booking" />
         <div className="min-w-0 flex-1">
           <input value={draft.name} onChange={(e) => update({ name: e.target.value })} className="numeral-ledger w-full min-w-0 border-b border-transparent bg-transparent text-2xl font-semibold text-gray-900 hover:border-gray-300 focus:border-green-500 focus:outline-none" aria-label="Name" />
           <p className="flex items-center gap-1.5 text-sm text-gray-500">
@@ -939,7 +938,7 @@ export default function ItemEditor({
               </a>
             </span>
           </div>
-          <iframe key={previewKey} src={previewSrc} title="Preview" className="h-[720px] w-full rounded-lg border border-gray-200 bg-white" />
+          <iframe key={previewKey} src={previewSrc} title="Preview" className="card-ledger h-[720px] w-full" />
         </aside>
       </div>
     </div>

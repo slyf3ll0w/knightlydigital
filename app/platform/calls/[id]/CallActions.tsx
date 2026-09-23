@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
+import SectionHeader from "@/components/SectionHeader";
 import { useRouter } from "next/navigation";
 import { BadgeCheck, Briefcase, CalendarClock, FileText, Loader2, Receipt, Search, UserPlus, X } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
@@ -80,7 +81,7 @@ export default function CallActions({
       {!contact ? (
         <>
           <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <h2 className="text-[13px] font-semibold text-gray-500">Not in your list yet</h2>
+            <SectionHeader title="Not in your list yet" />
             {mode === "idle" && (
               <button type="button" onClick={() => setMode("find")} className="inline-flex items-center gap-1 text-xs font-medium text-gray-600 hover:underline">
                 <Search size={12} /> Already a client on another number?
@@ -132,10 +133,10 @@ export default function CallActions({
       ) : contact.status === "ACTIVE" ? null : (
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
-            <h2 className="text-[13px] font-semibold text-gray-500">{contact.status === "LEAD" ? "Still a lead" : "Archived"}</h2>
-            <p className="mt-0.5 text-sm text-gray-600">
-              {contact.status === "LEAD" ? "Ready to work with them? Make them a client — the lead lands in Converted." : "Bring them back as an active client."}
-            </p>
+            <SectionHeader
+              title={contact.status === "LEAD" ? "Still a lead" : "Archived"}
+              hint={contact.status === "LEAD" ? "Ready to work with them? Make them a client — the lead lands in Converted." : "Bring them back as an active client."}
+            />
           </div>
           <button type="button" onClick={() => void makeClient()} disabled={busy} className="btn-primary shrink-0">
             {busy ? <Loader2 size={14} className="animate-spin" /> : <BadgeCheck size={14} />}
@@ -152,7 +153,7 @@ export default function CallActions({
 
       <div className={`${contact && contact.status === "ACTIVE" ? "" : "mt-4 border-t border-gray-100 pt-4"}`}>
         <div className="flex items-baseline justify-between gap-2">
-          <h2 className="text-[13px] font-semibold text-gray-500">{contact ? `Start something for ${contact.name.split(" ")[0]}` : "Start something"}</h2>
+          <SectionHeader title={contact ? `Start something for ${contact.name.split(" ")[0]}` : "Start something"} />
           {!contact && <span className="text-xs text-gray-400">save them first</span>}
         </div>
         <div className="mt-2.5 grid grid-cols-2 gap-2 sm:grid-cols-4">

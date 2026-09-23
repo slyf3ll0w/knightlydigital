@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { requirePageActor, canSell, isManager, viaContactScope } from "@/lib/permissions";
 import { shortDate, quoteStatusLabel } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
+import BackLink from "@/components/BackLink";
+import PageTitle from "@/components/PageTitle";
 import ViewedFact from "@/components/ViewedFact";
 import ContractActions from "./ContractActions";
 
@@ -39,18 +40,13 @@ export default async function ContractDetailPage({
   return (
     <div className="p-4 lg:p-8 max-w-3xl mx-auto">
       <div className="flex items-center gap-3 mb-4">
-        <Link
-          prefetch={false} href="/app/contracts"
-          className="hidden lg:block text-gray-400 hover:text-gray-600"
-        >
-          <ArrowLeft size={18} />
-        </Link>
+        <BackLink href="/app/contracts" />
         <StatusChip kind="contract" status={contract.status} />
       </div>
 
       <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
         <div className="min-w-0">
-          <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">{contract.title}</h1>
+          <PageTitle>{contract.title}</PageTitle>
           <Link
             prefetch={false} href={`/app/contacts/${contract.contactId}`}
             className="text-sm text-green-700 hover:underline"

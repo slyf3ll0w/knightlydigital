@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, BookOpen, Check, ChevronRight, Heart, Loader2, Play, Plus, Search } from "lucide-react";
+import { BookOpen, Check, ChevronRight, Heart, Loader2, Play, Plus, Search } from "lucide-react";
 import PageTitle from "@/components/PageTitle";
+import BackLink from "@/components/BackLink";
 import EstimatorRunner, { type RunnerEstimator } from "@/components/EstimatorRunner";
 import { confirmSheet } from "@/components/ConfirmSheet";
 import { APP_THEME, wash } from "@/components/EstimatorControls";
@@ -132,9 +133,7 @@ export default function LibraryClient({ manager, defaultIndustry }: { manager: b
 
   return (
     <div className="mx-auto max-w-3xl p-4 lg:p-8">
-      <Link href="/app/estimates" className="mb-3 inline-flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-gray-900">
-        <ArrowLeft size={13} /> Estimates
-      </Link>
+      <BackLink href="/app/estimates" className="mb-3" />
       <div className="mb-5">
         <PageTitle section="quotes" icon={BookOpen} sub="Estimate tools other Workbench businesses have shared. Add one, set your rates, done.">
           Library

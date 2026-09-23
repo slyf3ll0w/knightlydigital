@@ -4,6 +4,7 @@ import { useState } from "react";
 import { inputCls } from "@/components/Input";
 import { useRouter } from "next/navigation";
 import { Check, Loader2, Pencil, X } from "lucide-react";
+import SectionHeader from "@/components/SectionHeader";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 
 type Def = {
@@ -52,7 +53,7 @@ export default function CustomFieldsCard({
   return (
     <div className="card-ledger p-4">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-[13px] font-semibold text-gray-500">Details</h2>
+        <SectionHeader title="Details" />
         {editing ? (
           <div className="flex items-center gap-1">
             <button

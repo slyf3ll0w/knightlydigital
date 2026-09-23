@@ -2,9 +2,12 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requirePageActor, canSeeMoney, viaContactScope, isManager } from "@/lib/permissions";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
+import EmptyState from "@/components/EmptyState";
 import { money, shortDate } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
+import BackLink from "@/components/BackLink";
+import PageTitle from "@/components/PageTitle";
 import ViewedFact from "@/components/ViewedFact";
 import InvoiceActions from "./InvoiceActions";
 import { getProcessor, invoiceBalance } from "@/lib/payments";
@@ -110,17 +113,13 @@ export default async function InvoiceDetailPage({
         celebrate={celebratePaid}
       />
       <div className="flex items-center gap-3 mb-4">
-        <Link href="/app/invoices" className="hidden lg:block text-gray-400 hover:text-gray-600">
-          <ArrowLeft size={18} />
-        </Link>
+        <BackLink href="/app/invoices" />
         <StatusChip kind="invoice" status={invoice.status} />
       </div>
 
       <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
         <div>
-          <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">
-            {invoice.subject || `Invoice #${invoice.invoiceNumber}`}
-          </h1>
+          <PageTitle>{invoice.subject || `Invoice #${invoice.invoiceNumber}`}</PageTitle>
           {invoice.contact && (
             <Link
               prefetch={false} href={`/app/contacts/${invoice.contact.id}`}
@@ -369,7 +368,7 @@ export default async function InvoiceDetailPage({
           )}
         </div>
         {invoice.payments.length === 0 ? (
-          <p className="px-5 py-8 text-center text-sm text-gray-400">No payments recorded yet.</p>
+          <EmptyState compact title="No payments recorded yet." />
         ) : (
           <div className="divide-y divide-gray-50">
             {invoice.payments.map((p) => {

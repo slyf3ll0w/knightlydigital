@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Headphones, Loader2, PhoneOff } from "lucide-react";
+import SectionHeader from "@/components/SectionHeader";
 
 /**
  * My Profile → "Calls in the app": whether business-line calls ring in this
@@ -37,12 +38,14 @@ export default function SoftphoneToggleCard({ initial }: { initial: boolean }) {
     <div className="card-ledger p-5 mt-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="text-[13px] font-semibold text-gray-500 mb-1">Calls in the app</h2>
-          <p className="text-sm text-gray-600 max-w-md">
-            {on
-              ? "Business-line calls ring in your browser while you're signed in on a computer, and calls you place from a client's page go out from here. Your cell rings when nobody picks up within 15 seconds."
-              : "Business-line calls ring on your cell only. Turn this on to answer and place them from your browser."}
-          </p>
+          <SectionHeader
+            title="Calls in the app"
+            hint={
+              on
+                ? "Business-line calls ring in your browser while you're signed in on a computer, and calls you place from a client's page go out from here. Your cell rings when nobody picks up within 15 seconds."
+                : "Business-line calls ring on your cell only. Turn this on to answer and place them from your browser."
+            }
+          />
         </div>
         <button
           type="button"

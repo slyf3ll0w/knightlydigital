@@ -63,7 +63,7 @@ export default function RescheduleButton({
         open={open}
         onClose={() => setOpen(false)}
         dismissible={!busy}
-        cardClassName="card-ledger w-full max-w-sm p-5"
+        size="sm"
       >
         <h3 className="text-sm font-bold text-gray-900 mb-1">Request a new time</h3>
         <p className="text-xs text-gray-500 mb-3">

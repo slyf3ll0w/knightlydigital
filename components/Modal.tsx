@@ -18,18 +18,43 @@ import { createPortal } from "react-dom";
  * Escape and backdrop-click close by default; pass dismissible={false} for
  * flows that must finish (nothing should vanish mid-charge).
  */
+/** Card widths — the same max-w steps every dialog already picked from. */
+const SIZE_CLASS: Record<ModalSize, string> = {
+  sm: "max-w-sm",
+  md: "max-w-md",
+  lg: "max-w-lg",
+  xl: "max-w-xl",
+  "2xl": "max-w-2xl",
+};
+
+export type ModalSize = "sm" | "md" | "lg" | "xl" | "2xl";
+
 export default function Modal({
   open,
   onClose,
   children,
-  cardClassName = "card-ledger w-full max-w-md p-5",
+  size = "md",
+  flush = false,
+  cardClassName,
   dismissible = true,
   portal = false,
 }: {
   open: boolean;
   onClose: () => void;
   children: React.ReactNode;
-  /** Classes for the card itself — width, padding, surface. */
+  /** Card width (max-w-*). Defaults to md — the confirm/edit dialog width. */
+  size?: ModalSize;
+  /**
+   * No card padding + overflow hidden — for dialogs that draw their own
+   * header/footer bands edge to edge (search palette, refund sheet).
+   */
+  flush?: boolean;
+  /**
+   * Escape hatch: REPLACES the composed card classes entirely. Only for
+   * dialogs that need positioning the props can't express (the ⌘K palette's
+   * lg:self-start, a max-h clamp). Everything else uses size/flush so every
+   * dialog is the same .card-ledger surface.
+   */
   cardClassName?: string;
   dismissible?: boolean;
   /**
@@ -64,6 +89,9 @@ export default function Modal({
   }, [open, dismissible, onClose]);
 
   if (phase === "closed") return null;
+  const card =
+    cardClassName ??
+    `card-ledger w-full ${SIZE_CLASS[size]} ${flush ? "p-0 overflow-hidden" : "p-5"}`;
   const node = (
     <div
       className={`modal-pop fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 ${
@@ -79,7 +107,7 @@ export default function Modal({
       role="dialog"
       aria-modal="true"
     >
-      <div className={`modal-card ${cardClassName}`} onClick={(e) => e.stopPropagation()}>
+      <div className={`modal-card ${card}`} onClick={(e) => e.stopPropagation()}>
         {phase === "closing" ? lastChildren.current : children}
       </div>
     </div>

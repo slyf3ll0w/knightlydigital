@@ -3,8 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Loader2, ArrowLeft, CreditCard } from "lucide-react";
+import { Loader2, CreditCard } from "lucide-react";
+import BackLink from "@/components/BackLink";
+import PageTitle from "@/components/PageTitle";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
+import { money } from "@/lib/statuses";
 
 type OutstandingInvoice = {
   id: string;
@@ -28,10 +31,6 @@ const methods = [
   { value: "ZELLE", label: "Zelle" },
   { value: "OTHER", label: "Other" },
 ];
-
-function money(n: number) {
-  return `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
 
 export default function CollectPaymentForm({
   invoices,
@@ -94,17 +93,11 @@ export default function CollectPaymentForm({
   return (
     <div className="p-4 lg:p-8 max-w-3xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
-        <Link href="/app/invoices" className="hidden lg:block text-gray-400 hover:text-gray-600">
-          <ArrowLeft size={18} />
-        </Link>
-        <div>
-          <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">Collect Payment</h1>
-          {selected && (
-            <p className="text-sm text-gray-500">
-              {selected.contactName} — balance {money(selected.balance)}
-            </p>
-          )}
-        </div>
+        {/* Opened from an invoice → back to that invoice; otherwise up to Payments */}
+        <BackLink href={preselectedInvoiceId ? `/app/invoices/${preselectedInvoiceId}` : "/app/payments"} />
+        <PageTitle sub={selected ? `${selected.contactName} — balance ${money(selected.balance)}` : undefined}>
+          Collect Payment
+        </PageTitle>
       </div>
 
       {/* Card processing teaser: ready for the processor, disabled until live */}

@@ -132,7 +132,7 @@ export default function LineCard({
         </div>
       )}
 
-      <Modal open={padOpen} onClose={() => setPadOpen(false)} cardClassName="card-ledger w-full max-w-sm p-5" portal>
+      <Modal open={padOpen} onClose={() => setPadOpen(false)} size="sm" portal>
         <div className="mb-1 flex items-center justify-between">
           <p className="text-[13px] font-semibold text-gray-500">Keypad</p>
           <button type="button" onClick={() => setPadOpen(false)} aria-label="Close" className="rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700">

@@ -24,7 +24,8 @@ import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { hapticImpact } from "@/lib/haptics";
 import { showWinBurst } from "@/lib/win-burst";
 import { money } from "@/lib/statuses";
-import { themedInkVars, themedBgVars } from "@/lib/section-colors";
+import { SECTION_HUES, themedInkVars, themedBgVars } from "@/lib/section-colors";
+import EmptyState from "@/components/EmptyState";
 
 export type BoardStage = {
   id: string;
@@ -379,17 +380,18 @@ export default function LeadsBoardClient({
 
       {/* Board */}
       {board.length === 0 ? (
-        <div className="card-ledger p-10 text-center max-w-xl">
-          <p className="text-base font-semibold text-gray-900 mb-1.5">No leads on the board yet</p>
-          <p className="text-sm text-gray-500 mb-5">
-            New website requests and webhook leads land here automatically — or add one yourself
-            and drag it through your stages to Won.
-          </p>
+        <div className="card-ledger max-w-xl">
+          <EmptyState
+            icon={SquareKanban}
+            hue={SECTION_HUES.leads}
+            title="No leads on the board yet"
+            body="New website requests and webhook leads land here automatically — or add one yourself and drag it through your stages to Won."
+          >
           {/* The columns (which normally host QuickAdd) aren't rendered while the
               board is empty, so render the add form here too — otherwise the
               button below just sets addingTo with nowhere to show the form. */}
           {addingTo ? (
-            <div className="mx-auto max-w-xs text-left">
+            <div className="mx-auto mt-5 w-full max-w-xs text-left">
               <QuickAdd
                 stageId={addingTo}
                 firstStageId={stages[0]?.id ?? addingTo}
@@ -405,12 +407,13 @@ export default function LeadsBoardClient({
             <button
               onClick={() => setAddingTo(stages[0]?.id ?? null)}
               disabled={!stages[0]?.id}
-              className="btn-primary inline-flex"
+              className="btn-primary mt-5 inline-flex"
             >
               <Plus size={15} />
               Add a Lead
             </button>
           )}
+          </EmptyState>
         </div>
       ) : (
         // Horizontal scroller — the scrollbar stays VISIBLE (app-ui slim
@@ -620,7 +623,7 @@ export default function LeadsBoardClient({
       <Modal
         open={Boolean(lostCard)}
         onClose={() => setLostCard(null)}
-        cardClassName="card-ledger w-full max-w-sm p-5"
+        size="sm"
       >
         {lostCard && (
           <>
@@ -795,7 +798,7 @@ function ActionSheet({
   onLost: () => void;
 }) {
   return (
-    <Modal open onClose={onClose} cardClassName="w-full max-w-sm bg-white rounded-2xl p-4">
+    <Modal open onClose={onClose} size="sm">
         <div className="flex items-start justify-between mb-1">
           <div>
             <p className="text-base font-semibold text-gray-900">{card.name}</p>

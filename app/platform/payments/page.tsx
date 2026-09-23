@@ -498,10 +498,11 @@ export default async function PaymentsDashboardPage({
               </div>
             )}
             {settlements.length === 0 ? (
-              <p className="px-4 py-8 text-center text-sm text-gray-400">
-                No payouts yet — your first payout appears here once collected payments settle
-                to your bank account.
-              </p>
+              <EmptyState
+                compact
+                title="No payouts yet"
+                body="Your first payout appears here once collected payments settle to your bank account."
+              />
             ) : (
               <>
                 <div className="divide-y divide-gray-100">

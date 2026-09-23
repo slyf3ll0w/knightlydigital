@@ -2,9 +2,11 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requirePageActor, canSell, viaContactScope, isManager } from "@/lib/permissions";
 import Link from "next/link";
-import { ArrowLeft, Mail, Phone, MapPin } from "lucide-react";
+import { Mail, Phone, MapPin } from "lucide-react";
 import { shortDate, money } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
+import BackLink from "@/components/BackLink";
+import PageTitle from "@/components/PageTitle";
 import RequestActions from "./RequestActions";
 import BookingApprovalBanner from "./BookingApprovalBanner";
 import { slotLabel } from "@/lib/booking-engine";
@@ -48,9 +50,7 @@ export default async function RequestDetailPage({
   return (
     <div className="p-4 lg:p-8 max-w-4xl mx-auto">
       <div className="flex items-center gap-3 mb-4">
-        <Link href="/app/requests" className="hidden lg:block text-gray-400 hover:text-gray-600">
-          <ArrowLeft size={18} />
-        </Link>
+        <BackLink href="/app/requests" />
         <StatusChip kind="request" status={request.status} />
       </div>
 
@@ -73,17 +73,20 @@ export default async function RequestDetailPage({
       )}
 
       <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
-        <div>
-          <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">{request.title}</h1>
-          <p className="text-sm text-gray-500 mt-0.5">
-            Request #{request.requestNumber} · Requested {shortDate(request.createdAt, tz)}
-            {request.preferredDate && (
-              <span className="font-medium text-blue-700">
-                {" "}· Client prefers {shortDate(request.preferredDate, tz)}
-              </span>
-            )}
-          </p>
-        </div>
+        <PageTitle
+          sub={
+            <>
+              Request #{request.requestNumber} · Requested {shortDate(request.createdAt, tz)}
+              {request.preferredDate && (
+                <span className="font-medium text-blue-700">
+                  {" "}· Client prefers {shortDate(request.preferredDate, tz)}
+                </span>
+              )}
+            </>
+          }
+        >
+          {request.title}
+        </PageTitle>
         <RequestActions
           requestId={request.id}
           status={request.status}

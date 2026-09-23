@@ -1,10 +1,22 @@
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import type { ReactNode } from "react";
+import { Plus, type LucideIcon } from "lucide-react";
+import { hueInk } from "@/lib/section-colors";
 
 /**
- * Illustrated empty state for list pages and dashboard panels — small
- * line-art + one clear action, instead of centered gray text. New accounts
- * see these before anything else, so they carry the first impression.
+ * THE empty state — list pages, dashboard panels and in-card "nothing here
+ * yet" rows, instead of the two dozen centered-gray-text recipes. New
+ * accounts see these before anything else, so they carry the first
+ * impression. Three flavors:
+ *
+ * - `art`     — the line-art illustration (the big list pages)
+ * - `icon`    — a section-hued chip-tool tile with a lucide icon (settings
+ *               panels, boards; the recipe the Agreements templates panel set)
+ * - `compact` — no art, tighter padding, for empties INSIDE a card section
+ *               (payments on an invoice, photos on a job, a card's list)
+ *
+ * `children` is the action slot for anything richer than one link (an
+ * inline add form, a second button, example chips).
  */
 
 export type EmptyArt = "requests" | "quotes" | "jobs" | "invoices" | "contacts" | "schedule";
@@ -95,26 +107,62 @@ function Art({ name, hue }: { name: EmptyArt; hue?: string }) {
 
 export default function EmptyState({
   art,
+  icon: Icon,
   title,
   body,
   actionHref,
   actionLabel,
   showPlusIcon = true,
   hue,
+  compact = false,
+  children,
 }: {
-  art: EmptyArt;
+  /** Line-art illustration (list pages). */
+  art?: EmptyArt;
+  /** Lucide icon on a section-hued chip-tool tile (panels, boards). */
+  icon?: LucideIcon;
   title: string;
-  body?: string;
+  body?: ReactNode;
   actionHref?: string;
   actionLabel?: string;
   showPlusIcon?: boolean;
-  /** Section hue for the art's accent strokes */
+  /** Section hue: the art's accent strokes, or the icon tile's fill. */
   hue?: string;
+  /** In-card empty: tighter padding, no art, quieter title. */
+  compact?: boolean;
+  /** Action slot for anything richer than one link. */
+  children?: ReactNode;
 }) {
+  const tile = hue ?? "var(--wb-accent-bright, #2E6FF2)";
+  if (compact) {
+    return (
+      <div className="flex flex-col items-center px-5 py-8 text-center">
+        <p className="text-sm font-medium text-gray-600">{title}</p>
+        {body && <p className="mt-1 max-w-sm text-xs text-gray-500">{body}</p>}
+        {actionHref && actionLabel && (
+          <Link href={actionHref} className="btn-primary btn-sm mt-3 inline-flex">
+            {showPlusIcon && <Plus size={13} />}
+            {actionLabel}
+          </Link>
+        )}
+        {children}
+      </div>
+    );
+  }
   return (
-    <div className="flex flex-col items-center px-6 py-14 text-center">
-      <Art name={art} hue={hue} />
-      <p className="mt-4 text-sm font-semibold text-gray-900">{title}</p>
+    <div className={`flex flex-col items-center px-6 text-center ${art ? "py-14" : "py-10"}`}>
+      {art ? (
+        <Art name={art} hue={hue} />
+      ) : Icon ? (
+        <span
+          className="chip-tool flex h-11 w-11 items-center justify-center rounded-[12px]"
+          style={{ backgroundColor: tile, color: hueInk(tile) }}
+          aria-hidden
+        >
+          <Icon size={20} strokeWidth={2.25} />
+        </span>
+      ) : null}
+      <p className={`text-sm font-semibold text-gray-900 ${art ? "mt-4" : Icon ? "mt-3.5" : ""}`}>{title}</p>
       {body && <p className="mt-1 max-w-sm text-sm text-gray-500">{body}</p>}
       {actionHref && actionLabel && (
         <Link
@@ -125,6 +173,7 @@ export default function EmptyState({
           {actionLabel}
         </Link>
       )}
+      {children}
     </div>
   );
 }
