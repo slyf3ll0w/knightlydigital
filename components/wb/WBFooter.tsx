@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { WB_HOME } from "./WBNav";
+import { WB_EMAIL, WB_EMAIL_HREF, WB_PHONE } from "@/lib/wb-site";
 
 const APP_STORE_URL = "https://apps.apple.com/app/workbench-fsm/id6789991103";
 
@@ -37,7 +38,8 @@ const columns: {
     heading: "Company",
     links: [
       { label: "Streamflaire", href: "https://streamflaire.com", external: true },
-      { label: "info@streamflaire.com", href: "mailto:info@streamflaire.com", external: true },
+      { label: WB_PHONE.display, href: WB_PHONE.href, external: true },
+      { label: WB_EMAIL, href: WB_EMAIL_HREF, external: true },
     ],
   },
   {

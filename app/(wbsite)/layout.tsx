@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import WBNav from "@/components/wb/WBNav";
 import WBFooter from "@/components/wb/WBFooter";
+import { WB_EMAIL, WB_PHONE } from "@/lib/wb-site";
 
 // Escape the agency-site "| Streamflaire Group LLC" title template
 export const metadata: Metadata = {
@@ -46,6 +47,8 @@ const softwareAppJsonLd = {
     "@type": "Organization",
     name: "Streamflaire",
     url: "https://streamflaire.com",
+    telephone: WB_PHONE.e164,
+    email: WB_EMAIL,
   },
   sameAs: ["https://apps.apple.com/app/workbench-fsm/id6789991103"],
 };

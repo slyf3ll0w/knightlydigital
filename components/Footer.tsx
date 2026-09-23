@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import Image from 'next/image';
+import { WB_PHONE } from '@/lib/wb-site';
 
 const serviceLinks = [
   { label: 'Free Job Manager', href: '/crm' },
@@ -147,8 +148,8 @@ export function Footer() {
                 <span>DFW Metroplex</span>
               </li>
               <li>
-                <a href="tel:2145550100" className="transition-colors hover:text-white">
-                  (214) 555-0100
+                <a href={WB_PHONE.href} className="transition-colors hover:text-white">
+                  {WB_PHONE.display}
                 </a>
               </li>
               <li>

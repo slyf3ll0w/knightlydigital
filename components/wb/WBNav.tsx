@@ -3,6 +3,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Phone } from "lucide-react";
+import { WB_PHONE } from "@/lib/wb-site";
 
 /**
  * WorkBench marketing nav. The home is built at /wb; middleware rewrites
@@ -35,14 +37,14 @@ export default function WBNav() {
       />
       <div className="border-b border-gray-200">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5 sm:px-8">
-          <Link href={WB_HOME} className="flex items-center gap-3" aria-label="WorkBench home">
+          <Link href={WB_HOME} className="flex min-w-0 items-center gap-3" aria-label="WorkBench home">
             <Image
               src="/workbench-logo.png"
               alt="WorkBench"
               width={1714}
               height={285}
               priority
-              className="h-7 w-auto"
+              className="h-6 w-auto sm:h-7"
             />
             <span className="mt-1 hidden text-[10.5px] font-semibold uppercase tracking-[0.14em] text-gray-400 md:block">
               by Streamflaire
@@ -66,6 +68,13 @@ export default function WBNav() {
                 </Link>
               );
             })}
+            <a
+              href={WB_PHONE.href}
+              className="inline-flex items-center gap-2 text-[14px] font-semibold text-gray-700 transition-colors hover:text-[#0B57D8]"
+            >
+              <Phone className="h-4 w-4 text-[#F86A0A]" strokeWidth={2.25} aria-hidden />
+              {WB_PHONE.display}
+            </a>
             <Link
               href="/app/login"
               className="wb-navlink text-[14px] font-semibold text-gray-600 transition-colors hover:text-gray-900"
@@ -80,16 +89,23 @@ export default function WBNav() {
             </Link>
           </nav>
           {/* Mobile: log in + the essential action */}
-          <div className="flex items-center gap-4 sm:hidden">
+          <div className="flex shrink-0 items-center gap-3 sm:hidden">
+            <a
+              href={WB_PHONE.href}
+              aria-label={`Call ${WB_PHONE.display}`}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[#0B57D8] ring-1 ring-inset ring-gray-200"
+            >
+              <Phone className="h-4 w-4" strokeWidth={2.25} aria-hidden />
+            </a>
             <Link
               href="/app/login"
-              className="text-[13px] font-semibold text-gray-600"
+              className="whitespace-nowrap text-[13px] font-semibold text-gray-600"
             >
               Log in
             </Link>
             <Link
               href="/apply"
-              className="wb-btn-tool rounded-lg bg-[#0B57D8] px-4 py-2 text-[13px] font-bold text-white"
+              className="wb-btn-tool whitespace-nowrap rounded-lg bg-[#0B57D8] px-4 py-2 text-[13px] font-bold text-white"
             >
               Get started
             </Link>

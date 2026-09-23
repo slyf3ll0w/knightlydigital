@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
+import { WB_PHONE } from '@/lib/wb-site';
 
 const navLinks = [
   { label: 'Home', href: '/' },
@@ -86,8 +87,8 @@ export function Header() {
           >
             <span>Allen, TX — Serving the DFW Metroplex</span>
             <span style={{ color: 'rgba(255,255,255,0.18)' }}>|</span>
-            <a href="tel:2145550100" className="hover:text-white transition-colors">
-              (214) 555-0100
+            <a href={WB_PHONE.href} className="hover:text-white transition-colors">
+              {WB_PHONE.display}
             </a>
             <span style={{ color: 'rgba(255,255,255,0.18)' }}>|</span>
             <a href="mailto:info@streamflaire.com" className="hover:text-white transition-colors">

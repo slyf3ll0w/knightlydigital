@@ -5,6 +5,7 @@ import { AnimateIn } from "@/components/AnimateIn";
 import WBFaq from "@/components/wb/WBFaq";
 import WBPhoneShowcase from "@/components/wb/WBPhoneShowcase";
 import WBShowcase from "@/components/wb/WBShowcase";
+import { WB_PHONE } from "@/lib/wb-site";
 import {
   ArrowRight,
   Bug,
@@ -704,6 +705,16 @@ export default function WBHomePage() {
                   />
                 </a>
               </div>
+              <p className="mt-6 text-[14px] text-blue-100/75">
+                Questions first? Call us at{" "}
+                <a
+                  href={WB_PHONE.href}
+                  className="font-bold text-white underline decoration-white/40 underline-offset-4 hover:decoration-white"
+                >
+                  {WB_PHONE.display}
+                </a>
+                .
+              </p>
             </div>
           </div>
         </AnimateIn>
