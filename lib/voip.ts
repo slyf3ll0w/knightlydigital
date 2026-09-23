@@ -26,21 +26,71 @@ export const VOIP_PLATFORM = "ios-voip";
 /** How long the caller waits for a pushed phone to wake and ring before the cell gets its turn. */
 export const VOIP_WAKE_SECS = 25;
 
-export type VoipTarget = { userId: string; tokens: string[] };
+export type VoipTarget = {
+  /** The membership in the call's company that this phone answers as (its SIP leg, its call rows). */
+  userId: string;
+  tokens: string[];
+  /** The login behind this phone has more than one company, so the system call screen names which one is ringing. */
+  multiCompany: boolean;
+};
 
-/** Team members with a VoIP-registered iPhone who may take calls in the app. */
+/**
+ * Every iPhone that should ring for this company's calls.
+ *
+ * A phone registers its VoIP token under whichever membership the app is
+ * signed into, but a login can have several companies. The phone rings for
+ * all of them: eligibility (active, softphone on, a role that takes calls)
+ * is judged on the membership IN THIS COMPANY, and the token is found on any
+ * membership of the same login. The app, woken by the push while signed
+ * into a different company, switches itself over before it registers
+ * (POST /api/app/line/softphone/ready answers "switch").
+ */
 export async function voipTargetsFor(companyId: string): Promise<VoipTarget[]> {
   if (!apnsConfigured()) return [];
-  const rows = await prisma.pushSubscription.findMany({
-    where: {
-      platform: VOIP_PLATFORM,
-      user: { companyId, isActive: true, softphoneEnabled: true, role: { in: [...SOFTPHONE_ROLES] } },
-    },
-    select: { userId: true, endpoint: true },
+  const members = await prisma.user.findMany({
+    where: { companyId, isActive: true, softphoneEnabled: true, role: { in: [...SOFTPHONE_ROLES] } },
+    select: { id: true, accountId: true },
   });
-  const byUser = new Map<string, string[]>();
-  for (const r of rows) byUser.set(r.userId, [...(byUser.get(r.userId) ?? []), r.endpoint]);
-  return [...byUser].map(([userId, tokens]) => ({ userId, tokens }));
+  if (members.length === 0) return [];
+  const accountIds = [...new Set(members.flatMap((m) => (m.accountId ? [m.accountId] : [])))];
+  const siblings = accountIds.length
+    ? await prisma.user.findMany({
+        where: { accountId: { in: accountIds }, isActive: true, companyId: { not: null } },
+        select: { id: true, accountId: true },
+      })
+    : [];
+  const memberByAccount = new Map(members.flatMap((m) => (m.accountId ? [[m.accountId, m.id] as const] : [])));
+  const membershipsPerAccount = new Map<string, number>();
+  for (const s of siblings) if (s.accountId) membershipsPerAccount.set(s.accountId, (membershipsPerAccount.get(s.accountId) ?? 0) + 1);
+  const rows = await prisma.pushSubscription.findMany({
+    where: { platform: VOIP_PLATFORM, userId: { in: [...new Set([...members.map((m) => m.id), ...siblings.map((s) => s.id)])] } },
+    select: { endpoint: true, user: { select: { id: true, accountId: true } } },
+  });
+  const byUser = new Map<string, VoipTarget>();
+  for (const r of rows) {
+    const local = members.some((m) => m.id === r.user.id) ? r.user.id : r.user.accountId ? memberByAccount.get(r.user.accountId) : undefined;
+    if (!local) continue;
+    const multiCompany = Boolean(r.user.accountId && (membershipsPerAccount.get(r.user.accountId) ?? 0) > 1);
+    const t = byUser.get(local) ?? { userId: local, tokens: [], multiCompany };
+    t.tokens.push(r.endpoint);
+    byUser.set(local, t);
+  }
+  return [...byUser.values()];
+}
+
+/**
+ * The membership this signed-in person should switch to for a call that
+ * belongs to another of their companies — or null if they have none there
+ * that can take calls.
+ */
+export async function siblingMembershipFor(userId: string, companyId: string): Promise<{ id: string; companyName: string } | null> {
+  const me = await prisma.user.findUnique({ where: { id: userId }, select: { accountId: true } });
+  if (!me?.accountId) return null;
+  const target = await prisma.user.findFirst({
+    where: { accountId: me.accountId, companyId, isActive: true, softphoneEnabled: true, role: { in: [...SOFTPHONE_ROLES] } },
+    select: { id: true, company: { select: { name: true } } },
+  });
+  return target ? { id: target.id, companyName: target.company?.name ?? "" } : null;
 }
 
 /**
@@ -52,17 +102,19 @@ export async function pushIncomingCall(
   call: { id: string; label: string; number: string; companyName: string },
   targets: VoipTarget[]
 ): Promise<number> {
-  const payload = { callId: call.id, label: call.label, number: call.number, companyName: call.companyName };
   const dead: string[] = [];
   let reached = 0;
   await Promise.all(
-    targets.flatMap((t) =>
-      t.tokens.map(async (token) => {
+    targets.flatMap((t) => {
+      // Two companies on one phone: the lock screen says which one is ringing.
+      const label = t.multiCompany && call.companyName ? `${call.label} · ${call.companyName}` : call.label;
+      const payload = { callId: call.id, label, number: call.number, companyName: call.companyName };
+      return t.tokens.map(async (token) => {
         const r = await sendVoipPush(token, payload, VOIP_WAKE_SECS);
         if (r === "ok") reached++;
         else if (r === "dead") dead.push(token);
-      })
-    )
+      });
+    })
   );
   if (dead.length) await prisma.pushSubscription.deleteMany({ where: { endpoint: { in: dead } } }).catch(() => {});
   return reached;

@@ -157,6 +157,24 @@ within VOIP_WAKE_SECS (25 s) → the cell rings (scheduleCellFallback). Tokens l
 `PushSubscription` as platform `ios-voip`, dropped on sign-out (`lib/sign-out.ts`).
 See `native-release-queue.md` § App Store for the console/Mac steps.
 
+**Every company on the login rings the phone (2026-09-23).** A token is
+registered under whichever membership the app is signed into, but
+`voipTargetsFor` judges eligibility on the membership in the *call's* company
+and finds the token on any membership of the same Account. When the woken app
+is signed into a different company, `POST …/softphone/ready` answers
+`switch` (+ the membership id; `probe: true` asks without dialing, so the app
+starts switching before it registers). `Softphone.tsx` parks the call in
+localStorage (`stashPendingVoipCall`, 40 s TTL), re-points the session with
+`switchToMembership` and reloads; on the other side it takes the parked call
+back, registers as that company, and POSTs ready for real. CallKit keeps the
+call up across the reload (the native side outlives the page); the lock-screen
+label carries the company name for multi-company logins. The platform layout
+mounts the softphone in the iOS shell even when the current company has no
+line, so the push is heard and the switch happens. Sign-out deletes the token
+from any membership of the login. Known gap: an Answer tapped during the
+~3 s reload itself is carried only if the page saw it — the INVITE still
+rings the app afterwards, so it is a second tap, not a missed call.
+
 Original plan, kept for the Android half:
 
 

@@ -70,6 +70,37 @@ What's in it and why each piece needs the build: `native-release-queue.md`
 § App Store. Windows side is done and on main. Console/env prerequisites
 (David) are listed there too — do them first, or the buttons appear and fail.
 
+### Status 2026-09-23 (Mac session)
+
+Done, all on main: `cap sync ios` (12 plugins, Package.swift + SPM pins
+committed); Sign in with Apple + Associated Domains declared in the pbxproj
+SystemCapabilities; Intents.swift fixed (SiriError and its helpers needed
+`@available(iOS 16.0, *)`; `OpenURLIntent` is iOS 18+, so "Next job" posts
+`capacitorOpenUniversalLink` inside the foregrounded app instead); the real
+reversed Google iOS client id is in Info.plist; **build 6 archived with
+`xcodebuild archive -allowProvisioningUpdates` (no Xcode GUI needed) and
+uploaded to App Store Connect**. The exported IPA was checked:
+`aps-environment = production`, applesignin, associated domains, background
+modes audio + remote-notification + voip, `Metadata.appintents` present.
+
+Not done, because the iPhone was not connected: step 6 (development build
+to the phone + the phone checklist in the queue doc) and step 7's
+**submit**. Build 6 is in TestFlight, which is the better test for VoIP push
+anyway (production token, no sandbox fallback). Run the checklist from the
+TestFlight install; if it passes, submit 1.3 with build 6 in App Store
+Connect using `app-store-listing.md`. If anything native needs a fix, bump
+`CURRENT_PROJECT_VERSION` to 7 and re-archive:
+
+```
+cd ios/App
+xcodebuild -project App.xcodeproj -scheme App -configuration Release \
+  -destination 'generic/platform=iOS' -archivePath /tmp/wb.xcarchive \
+  -allowProvisioningUpdates archive
+xcodebuild -exportArchive -archivePath /tmp/wb.xcarchive \
+  -exportOptionsPlist ExportOptions.plist -exportPath /tmp/wb-upload \
+  -allowProvisioningUpdates      # method app-store-connect, destination upload
+```
+
 ### Mac steps, in order
 
 1. `git pull` → `npm install` → `npx cap sync ios`. Expect **12** plugins

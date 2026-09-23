@@ -76,3 +76,33 @@ export function rememberedVoipToken(): string | null {
     return null;
   }
 }
+
+/**
+ * A pushed call that outlives a page reload: the app was rung for a company
+ * it is not signed into, so it switches companies (a hard navigation) and
+ * picks the call back up on the other side. Short-lived on purpose — a
+ * stale entry must never resurrect a call that is long over.
+ */
+export type PendingVoipCall = { callId: string; label: string; number: string | null; answered: boolean; at: number };
+
+const PENDING_KEY = "wb-voip-pending";
+const PENDING_TTL_MS = 40_000;
+
+export function stashPendingVoipCall(p: PendingVoipCall): void {
+  try {
+    localStorage.setItem(PENDING_KEY, JSON.stringify(p));
+  } catch {}
+}
+
+export function takePendingVoipCall(): PendingVoipCall | null {
+  try {
+    const raw = localStorage.getItem(PENDING_KEY);
+    localStorage.removeItem(PENDING_KEY);
+    if (!raw) return null;
+    const p = JSON.parse(raw) as PendingVoipCall;
+    if (!p?.callId || typeof p.at !== "number" || Date.now() - p.at > PENDING_TTL_MS) return null;
+    return p;
+  } catch {
+    return null;
+  }
+}
