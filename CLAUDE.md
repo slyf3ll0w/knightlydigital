@@ -438,7 +438,12 @@ the form needs an "exactly as on my IRS letter" tick, the contact email flags
 gmial.com-style typos, and the website is loaded server-side at submit
 (`lib/website-check.ts`: public hosts only, redirects re-checked, must answer
 2xx and mention the business) — a bad site is refused with the reason instead
-of being filed.
+of being filed. A registered business's contact email can't be a free/personal
+domain (`isFreeMailDomain`; TCR: "Personal, free and group email IDs are not
+supported"). Telnyx's `failureReasons` is a string OR a list of
+`{ fields, description }` — always read it through `failureText()`. A brand
+whose registration failed is edited in place on re-file (`updateBrand`, PUT)
+and only replaced if Telnyx refuses the edit or it stays REGISTRATION_FAILED.
 
 **Calls list (2026-09-22):** rows show the time on the line (talk time, or
 ring time when nobody picked up) instead of "Answered" / "No answer" — a

@@ -13,6 +13,8 @@ import {
   type RegistrationForm,
   einIssue,
   emailTypoHint,
+  FREE_MAIL_MESSAGE,
+  isFreeMailDomain,
   legalNameHint,
 } from "@/lib/business-line-shared";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
@@ -749,6 +751,7 @@ function RegistrationForm({
   const einMismatch = !sole && !einProblem && einConfirm.replace(/\D/g, "") !== einDigits;
   const nameHint = sole ? null : legalNameHint(f.legalName, f.entityType);
   const emailHint = emailTypoHint(f.contactEmail);
+  const freeMail = !sole && !tollFree && isFreeMailDomain(f.contactEmail);
   // Telnyx's toll-free reviewer: the contact email must be at the website's domain (www/subdomains ignored).
   const siteDomain = (() => {
     const w = (f.website ?? "").trim();
@@ -921,7 +924,9 @@ function RegistrationForm({
           hint={
             tollFree
               ? `Must be at your website's domain${siteDomain ? ` (you@${siteDomain})` : ""} — the reviewer turns down Gmail, Yahoo and other addresses`
-              : "An address at your website's domain helps the carriers match you to the business"
+              : sole
+                ? "Any address you check"
+                : "A business address — the registry turns down Gmail, Outlook, Yahoo and other personal email"
           }
         >
           <input
@@ -935,6 +940,7 @@ function RegistrationForm({
             <span className="mt-0.5 block text-[11px] text-red-600">This address isn't at {siteDomain}, so the reviewer will send it back.</span>
           )}
           {emailHint && <span className="mt-0.5 block text-[11px] text-amber-700">{emailHint}</span>}
+          {freeMail && <span className="mt-0.5 block text-[11px] text-red-600">{FREE_MAIL_MESSAGE}</span>}
         </Field>
         <Field label={sole ? "Your mobile (gets the PIN)" : "Contact phone"}>
           <input value={f.contactPhone} onChange={set("contactPhone")} inputMode="tel" className={inputCls} required />
@@ -967,7 +973,7 @@ function RegistrationForm({
       <div className="flex flex-wrap items-center gap-3">
         <button
           type="submit"
-          disabled={busy || !line.entitled || Boolean(einProblem) || einMismatch || (!sole && !nameConfirmed)}
+          disabled={busy || !line.entitled || Boolean(einProblem) || einMismatch || freeMail || (!sole && !nameConfirmed)}
           className={primaryBtn}
         >
           {busy && <Loader2 size={14} className="animate-spin" />}

@@ -56,6 +56,8 @@ import {
   type RegistrationForm,
   type RegistrationKind,
   einIssue,
+  FREE_MAIL_MESSAGE,
+  isFreeMailDomain,
 } from "@/lib/business-line-shared";
 import { stateName } from "@/lib/us-states";
 import { VoiceError, ensureVoiceRouting, routeNumberToVoiceApp, sanitizeGreeting, voiceEnabled } from "@/lib/voice";
@@ -98,6 +100,9 @@ import {
   type TollFreeVerification,
   type TollFreeVerificationInput,
   isInsufficientFunds,
+  failureText,
+  type TelnyxBrand,
+  updateBrand,
 } from "@/lib/telnyx";
 
 export { VERTICALS, TOLL_FREE_USE_CASES, TOLL_FREE_VOLUMES };
@@ -603,6 +608,8 @@ export function sanitizeRegistrationForm(raw: Record<string, unknown>, kind: Reg
   if (!contactFirstName || !contactLastName) throw new LineError("Enter the contact's first and last name.");
   const contactEmail = str(raw.contactEmail, 200).toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)) throw new LineError("Enter a valid contact email.");
+  // TCR: "Personal, free and group email IDs are not supported" for a registered business (2026-09-23 rejection).
+  if (!tollFree && entityType === "PRIVATE_PROFIT" && isFreeMailDomain(contactEmail)) throw new LineError(FREE_MAIL_MESSAGE);
   if (tollFree && website) {
     // Telnyx's reviewer: "A business contact email must match the business website domain." (2026-09-22)
     const site = new URL(website).hostname.replace(/^www[.]/, "").toLowerCase();
@@ -892,9 +899,11 @@ async function fileRegistration(company: RegCompany, form: RegistrationForm): Pr
     return advance({ ...reused, company: { id: company.id, name: company.name, lineNumber: company.lineNumber, lineType: company.lineType } });
   }
 
-  let brand;
-  try {
-    brand = await createBrand({
+  // A brand whose registration failed (wrong email, name, address…) is edited in place: no second brand, no second fee.
+  const priorReg = company.messagingRegistration;
+  const failedBrandId =
+    priorReg?.kind === "10DLC" && priorReg.brandId && !VERIFIED_BRAND.has(priorReg.brandStatus ?? "") ? priorReg.brandId : null;
+  const brandInput = {
       entityType: form.entityType,
       displayName: form.displayName || form.legalName,
       companyName: form.legalName,
@@ -911,12 +920,33 @@ async function fileRegistration(company: RegCompany, form: RegistrationForm): Pr
       phone: form.contactPhone,
       mobilePhone: form.entityType === "SOLE_PROPRIETOR" ? form.contactPhone : null,
       webhookURL: tenDlcWebhookUrl(),
-    });
+  };
+  let brand: TelnyxBrand;
+  try {
+    brand = failedBrandId ? await updateBrand(failedBrandId, brandInput) : await createBrand(brandInput);
+    if (failedBrandId && brand.status === "REGISTRATION_FAILED") {
+      // The edit didn't re-register it: file a fresh brand after all.
+      console.warn(`[line] brand ${failedBrandId} still REGISTRATION_FAILED after the edit; filing a new one for "${company.name}"`);
+      brand = await createBrand(brandInput);
+    }
   } catch (err) {
     if (isInsufficientFunds(err)) return queueRegistration(company, form, "10DLC");
-    console.error(`[line] 10DLC brand create failed for ${company.name} (${companyId}):`, err);
-    throw await lineFailure("The carrier registry rejected the submission", err, `10DLC brand for "${company.name}"`);
+    if (failedBrandId && err instanceof TelnyxError && err.status >= 400 && err.status < 500) {
+      // Telnyx wouldn't edit that one (some failed brands are terminal): file a fresh brand instead.
+      console.warn(`[line] brand ${failedBrandId} could not be edited (${err.detail}); filing a new one for "${company.name}"`);
+      try {
+        brand = await createBrand(brandInput);
+      } catch (err2) {
+        if (isInsufficientFunds(err2)) return queueRegistration(company, form, "10DLC");
+        console.error(`[line] 10DLC brand create failed for ${company.name} (${companyId}):`, err2);
+        throw await lineFailure("The carrier registry rejected the submission", err2, `10DLC brand for "${company.name}"`);
+      }
+    } else {
+      console.error(`[line] 10DLC brand ${failedBrandId ? "update" : "create"} failed for ${company.name} (${companyId}):`, err);
+      throw await lineFailure("The carrier registry rejected the submission", err, `10DLC brand for "${company.name}"`);
+    }
   }
+  if (!brand.brandId && failedBrandId) brand = { ...brand, brandId: failedBrandId };
   if (!brand.brandId) throw new LineError("Telnyx accepted the brand but returned no id — contact support.", 424);
 
   const data: Prisma.MessagingRegistrationUncheckedCreateInput = {
@@ -971,7 +1001,7 @@ async function fileRegistration(company: RegCompany, form: RegistrationForm): Pr
   // Advance as far as Telnyx lets us right now (EIN brands: usually all the way to campaign review).
   return advance({ ...reg, company: { id: company.id, name: company.name, lineNumber: company.lineNumber, lineType: company.lineType } }, {
     brandRegistration: brand.status,
-    brandFailure: brand.failureReasons,
+    brandFailure: failureText(brand.failureReasons),
   });
 }
 
@@ -1441,7 +1471,7 @@ async function advance(reg: RegWithCompany, brandExtra: Partial<RegistrationSnap
       const brand = await getBrand(reg.brandId);
       patch.brandStatus = brand.identityStatus ?? reg.brandStatus;
       patch.tcrBrandId = brand.tcrBrandId ?? reg.tcrBrandId;
-      snap = { ...snap, brandStatus: brand.identityStatus ?? reg.brandStatus, brandRegistration: brand.status, brandFailure: brand.failureReasons };
+      snap = { ...snap, brandStatus: brand.identityStatus ?? reg.brandStatus, brandRegistration: brand.status, brandFailure: failureText(brand.failureReasons) };
     }
 
     // 2. Campaign — create once the brand is verified
@@ -1466,7 +1496,7 @@ async function advance(reg: RegWithCompany, brandExtra: Partial<RegistrationSnap
         hasCampaign: true,
         campaignStatus: campaign.campaignStatus,
         campaignSubmission: campaign.submissionStatus,
-        campaignFailure: campaign.failureReasons,
+        campaignFailure: failureText(campaign.failureReasons),
       };
       console.warn(`[line] campaign ${campaign.campaignId} created for "${reg.company.name}"`);
     } else if (reg.campaignId) {
@@ -1477,7 +1507,7 @@ async function advance(reg: RegWithCompany, brandExtra: Partial<RegistrationSnap
         ...snap,
         campaignStatus: campaign.campaignStatus ?? reg.campaignStatus,
         campaignSubmission: campaign.submissionStatus,
-        campaignFailure: campaign.failureReasons,
+        campaignFailure: failureText(campaign.failureReasons),
       };
     }
 
@@ -1492,7 +1522,7 @@ async function advance(reg: RegWithCompany, brandExtra: Partial<RegistrationSnap
       }
       if (binding) {
         patch.assignmentStatus = binding.assignmentStatus ?? "PENDING_ASSIGNMENT";
-        snap = { ...snap, assignmentStatus: patch.assignmentStatus as string, assignmentFailure: binding.failureReasons };
+        snap = { ...snap, assignmentStatus: patch.assignmentStatus as string, assignmentFailure: failureText(binding.failureReasons) };
       }
     }
   } catch (err) {

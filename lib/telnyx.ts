@@ -519,18 +519,45 @@ export type BrandInput = {
   webhookURL?: string;
 };
 
+/**
+ * Telnyx reports a failure as a sentence, or as a list like
+ * [{ fields: ["businessContactEmail"], description: "Personal, free and group email IDs are not supported…" }]
+ * (a real 2026-09-23 brand rejection that crashed a Prisma write when stored
+ * as-is). One readable sentence either way; null when there is nothing.
+ */
+export function failureText(v: unknown): string | null {
+  if (v == null) return null;
+  if (typeof v === "string") return v.trim() || null;
+  if (Array.isArray(v)) {
+    const parts = v.map((x) => failureText(x)).filter((s): s is string => Boolean(s));
+    return parts.length ? [...new Set(parts)].join("; ") : null;
+  }
+  if (typeof v === "object") {
+    const o = v as { description?: unknown; message?: unknown; reason?: unknown; fields?: unknown };
+    const text = [o.description, o.message, o.reason].find((s) => typeof s === "string" && s.trim()) as string | undefined;
+    const fields = Array.isArray(o.fields) ? o.fields.filter((f): f is string => typeof f === "string").join(", ") : "";
+    if (text) return fields ? `${fields}: ${text}` : text;
+    try {
+      return JSON.stringify(v).slice(0, 300);
+    } catch {
+      return null;
+    }
+  }
+  return String(v);
+}
+
 export type TelnyxBrand = {
   brandId?: string;
   tcrBrandId?: string;
   identityStatus?: "VERIFIED" | "UNVERIFIED" | "SELF_DECLARED" | "VETTED_VERIFIED";
   status?: "OK" | "REGISTRATION_PENDING" | "REGISTRATION_FAILED";
-  failureReasons?: string;
+  failureReasons?: unknown; // string or a list of { fields, description } — read it through failureText()
   entityType?: string;
   mock?: boolean;
 };
 
-export async function createBrand(input: BrandInput): Promise<TelnyxBrand> {
-  return call<TelnyxBrand>("POST", "/10dlc/brand", {
+function brandBody(input: BrandInput) {
+  return {
     entityType: input.entityType,
     displayName: input.displayName,
     companyName: input.companyName,
@@ -551,7 +578,16 @@ export async function createBrand(input: BrandInput): Promise<TelnyxBrand> {
     isReseller: false,
     mock: tenDlcMock(),
     webhookURL: input.webhookURL,
-  });
+  };
+}
+
+export async function createBrand(input: BrandInput): Promise<TelnyxBrand> {
+  return call<TelnyxBrand>("POST", "/10dlc/brand", brandBody(input));
+}
+
+/** Re-file a brand whose registration failed (wrong email, name, address…) in place: no second brand, no second fee. */
+export async function updateBrand(brandId: string, input: BrandInput): Promise<TelnyxBrand> {
+  return call<TelnyxBrand>("PUT", `/10dlc/brand/${encodeURIComponent(brandId)}`, brandBody(input));
 }
 
 export async function getBrand(brandId: string): Promise<TelnyxBrand> {
@@ -585,7 +621,7 @@ export type TelnyxCampaign = {
   tcrCampaignId?: string;
   campaignStatus?: string;
   submissionStatus?: "CREATED" | "FAILED" | "PENDING";
-  failureReasons?: string;
+  failureReasons?: unknown; // string or a list of { fields, description } — read it through failureText()
   isTMobileRegistered?: boolean;
 };
 
@@ -643,7 +679,7 @@ export type NumberCampaign = {
     | "ASSIGNED"
     | "PENDING_UNASSIGNMENT"
     | "FAILED_UNASSIGNMENT";
-  failureReasons?: string;
+  failureReasons?: unknown; // string or a list of { fields, description } — read it through failureText()
 };
 
 /** Bind the number to the campaign. The number must already sit on a messaging profile. */

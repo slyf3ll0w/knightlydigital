@@ -214,3 +214,20 @@ export function emailTypoHint(email: string): string | null {
   const fix = EMAIL_TYPOS[domain];
   return fix ? `Did you mean ${email.slice(0, at + 1)}${fix}?` : null;
 }
+
+/** Domains the carrier registry calls "personal, free and group email" — refused as a registered business's contact. */
+const FREE_MAIL = new Set([
+  "gmail.com", "googlemail.com", "outlook.com", "hotmail.com", "live.com", "msn.com", "yahoo.com", "ymail.com",
+  "rocketmail.com", "aol.com", "icloud.com", "me.com", "mac.com", "protonmail.com", "proton.me", "pm.me", "zoho.com",
+  "gmx.com", "gmx.net", "mail.com", "yandex.com", "yandex.ru", "fastmail.com", "hey.com", "tutanota.com", "duck.com",
+  "comcast.net", "att.net", "sbcglobal.net", "verizon.net", "bellsouth.net", "cox.net", "charter.net", "earthlink.net",
+]);
+
+export const FREE_MAIL_MESSAGE =
+  "The carrier registry doesn't accept personal email (Gmail, Outlook, Yahoo, iCloud, your internet provider…) for a registered business — use an address at your company's own domain.";
+
+export function isFreeMailDomain(email: string): boolean {
+  const at = email.lastIndexOf("@");
+  if (at < 0) return false;
+  return FREE_MAIL.has(email.slice(at + 1).trim().toLowerCase());
+}

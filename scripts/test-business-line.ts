@@ -9,7 +9,8 @@
 import assert from "node:assert/strict";
 import { TelnyxError, isInsufficientFunds } from "@/lib/telnyx";
 import { needsOperatorReview } from "@/lib/business-line";
-import { einIssue, emailTypoHint, legalNameHint } from "@/lib/business-line-shared";
+import { einIssue, emailTypoHint, isFreeMailDomain, legalNameHint } from "@/lib/business-line-shared";
+import { failureText } from "@/lib/telnyx";
 import { suggestionFromFeature } from "@/lib/geocoding";
 import { isPrivateIp, mentionsBusiness, nameTokens, websiteUrlIssue } from "@/lib/website-check";
 import {
@@ -189,7 +190,13 @@ rejects({ website: "not a url at all" }, /website/);
     assert.ok(err instanceof LineError, String(err));
     assert.match(err.message, /@streamflaire[.]com/);
   }
-  assert.equal(sanitizeRegistrationForm({ ...good, contactEmail: "david@gmail.com" }).contactEmail, "david@gmail.com", "10DLC has no such rule");
+  // 10DLC: a registered business may not use personal email either (TCR, 2026-09-23); a sole proprietor may.
+  assert.throws(() => sanitizeRegistrationForm({ ...good, contactEmail: "david@gmail.com" }), /personal email/);
+  assert.equal(
+    sanitizeRegistrationForm({ ...good, entityType: "SOLE_PROPRIETOR", ein: "", contactEmail: "david@gmail.com" }).contactEmail,
+    "david@gmail.com",
+    "sole proprietors verify by PIN, not business email"
+  );
 }
 // Sole prop: no EIN needed, the mobile is what gets the PIN
 {
@@ -407,4 +414,20 @@ console.log("test-business-line (number rights): all assertions passed");
   assert.ok(!mentionsBusiness("Coming soon", ["Lessly Holdings LLC"]));
   assert.ok(mentionsBusiness("anything", ["The Co"]), "a name with no distinctive word can't be checked, so it passes");
   console.log("test-business-line (pre-flight): all assertions passed");
+}
+
+// Telnyx failure reasons come as a sentence or a list of objects; a 2026-09-23 list crashed the Prisma write.
+{
+  assert.equal(failureText(null), null);
+  assert.equal(failureText("  "), null);
+  assert.equal(failureText("Brand address could not be verified"), "Brand address could not be verified");
+  assert.equal(
+    failureText([{ fields: ["businessContactEmail"], description: "Validation Failed. Personal, free and group email IDs are not supported." }]),
+    "businessContactEmail: Validation Failed. Personal, free and group email IDs are not supported."
+  );
+  assert.equal(failureText([{ description: "a" }, { description: "a" }, { message: "b" }]), "a; b", "de-duplicated, joined");
+  assert.ok(isFreeMailDomain("dalan157@outlook.com"));
+  assert.ok(isFreeMailDomain("me@GMAIL.com"));
+  assert.ok(!isFreeMailDomain("david@lesslyholdings.com"));
+  console.log("test-business-line (failure text + free mail): all assertions passed");
 }
