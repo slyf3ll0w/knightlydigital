@@ -186,6 +186,23 @@ iOS SDK (`telnyx-webrtc-ios` 4.2 via SPM):
 - The microphone: iOS's one prompt is requested natively when the page first
   registers with calls on (`requestMic`), never during an answer.
 
+**One credential per device (build 10, from the build 9 trace).** The phone
+and the desktop shared the user's one SIP credential. With the desktop
+online, the server dialed that credential the instant the call came in
+(`onlineSoftphoneUsers`), the INVITE went to the desktop's registration, and
+the phone — registered two seconds later — posted ready and was told
+`already`: nothing for it to answer, so a lock-screen Answer sat on silence
+until the leg timed out. Worse, the phone's login bumped the desktop's
+registration, so the desktop stopped ringing and could not place calls
+until it re-registered. Now `User.sipCredentialIdIos` / `sipUsernameIos` is
+the iPhone's own Telnyx credential (`GET …/softphone?device=ios`,
+`ensureUserCredential(…, "ios")`), `CallLeg.device` says which one a leg was
+dialed to, `wakeSoftphoneLeg` dials the phone credential and only counts
+phone legs as "already", `voipRegisteredSoftphone` returns it, and
+`POST /api/app/line/call { device: "ios" }` places the phone's outbound leg
+on it. Both ring on an inbound call — the desktop's leg at once, the phone's
+once it wakes — and the first answer wins as before.
+
 Server pieces unchanged from the web engine: VoIP tokens in `PushSubscription`
 as platform `ios-voip` (dropped on sign-out from any membership), the
 VOIP_WAKE_SECS (35 s) window before the cell, a woken leg that rings out

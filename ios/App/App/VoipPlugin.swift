@@ -280,7 +280,9 @@ final class VoipEngine: NSObject {
 
     @MainActor
     private func connect(membership: String?) async {
-        var query: [String: String] = [:]
+        // The phone's own credential — never the browser's (a shared one had the
+        // desktop bumped off the line every time the phone registered).
+        var query: [String: String] = ["device": "ios"]
         if let m = membership { query["membership"] = m }
         let cookie = await siteCookieHeader()
         trace("grant-fetch", "cookies=\(cookie.split(separator: ";").count) session=\(cookie.contains("session-token"))")

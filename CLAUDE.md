@@ -378,7 +378,9 @@ free `sms:`/`tel:` deep links (`lib/messaging.ts`) stay free and untouched.
   a NATIVE engine instead (tier 3, 2026-09-23: `ios/App/App/VoipPlugin.swift`
   = PushKit + CallKit + the Telnyx iOS SDK; the page only mirrors it through
   `components/SoftphoneNativeEngine.ts`), because iOS freezes a background
-  web page; the Android shell still stays a cell. Two
+  web page; the Android shell still stays a cell. The phone has its OWN
+  credential (`User.sipUsernameIos`, `?device=ios`, `CallLeg.device`) — a
+  shared one had the phone's login bumping the desktop off the line. Two
   Telnyx rules that cost a live test: the credential connection needs
   `sip_uri_calling_preference: "internal"` (else SIP 403 on every browser
   dial; `ensureSipUriCalling` heals old ones) and `from_display_name` is

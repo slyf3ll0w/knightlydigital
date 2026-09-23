@@ -372,8 +372,13 @@ model User {
   softphoneSeenAt  DateTime?
   // Per-user Telnyx telephony credential (under Company.lineSipConnectionId);
   // sipUsername is what Call Control dials (sip:<username>@sip.telnyx.com).
-  sipCredentialId  String?
-  sipUsername      String?
+  // One credential per device kind: the browser's and the iPhone app's are
+  // separate registrations at Telnyx, so a phone logging in never bumps the
+  // desktop off the line and each gets exactly the leg meant for it.
+  sipCredentialId     String?
+  sipUsername         String?
+  sipCredentialIdIos  String?
+  sipUsernameIos      String?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
@@ -2972,6 +2977,9 @@ model CallLeg {
   userId       String?
   user         User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
   telnyxCallId String    @unique // call_control_id of this SIP leg
+  // "browser" (a registered tab, rung at once) or "ios" (the iPhone app,
+  // dialed once its VoIP push woke it) — its own credential either way.
+  device       String?
   endedAt      DateTime?
   hangupCause  String?
   createdAt    DateTime  @default(now())

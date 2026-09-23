@@ -188,7 +188,7 @@ export function startNativeSoftphone(voip: VoipPlugin, sessionUpdate: () => (dat
       const res = await fetch("/api/app/line/call", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contactId: target.contactId ?? null, to: target.to ?? null, via: "app" }),
+        body: JSON.stringify({ contactId: target.contactId ?? null, to: target.to ?? null, via: "app", device: "ios" }),
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string; callId?: string; customerNumber?: string };
       if (!res.ok || !data.callId) throw new Error(data.error || "Couldn't place the call.");

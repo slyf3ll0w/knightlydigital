@@ -26,7 +26,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Too many softphone connections in a row — give it a few minutes." }, { status: 429 });
   }
   try {
-    return NextResponse.json(await issueSoftphoneGrant(as.id, as.companyId), { headers: { "Cache-Control": "no-store" } });
+    // The iPhone app registers with its own credential (`device=ios`), never the browser's.
+    const device = req.nextUrl.searchParams.get("device") === "ios" ? "ios" : "browser";
+    return NextResponse.json(await issueSoftphoneGrant(as.id, as.companyId, device), { headers: { "Cache-Control": "no-store" } });
   } catch (err) {
     if (err instanceof SoftphoneError) return NextResponse.json({ error: err.message }, { status: err.status });
     console.error("[softphone] grant failed:", err);

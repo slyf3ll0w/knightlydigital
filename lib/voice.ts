@@ -605,10 +605,11 @@ async function ringSoftphones(call: CallRow, targets: RingTarget[], woke = false
         commandId: `${call.id}:app:${t.userId}`,
       });
       // upsert: the leg's first webhook may have adopted the row already (findCallByLeg).
+      const device = t.device ?? (woke ? "ios" : "browser");
       await prisma.callLeg.upsert({
         where: { telnyxCallId: leg.call_control_id },
-        create: { callId: call.id, userId: t.userId, telnyxCallId: leg.call_control_id },
-        update: { userId: t.userId },
+        create: { callId: call.id, userId: t.userId, telnyxCallId: leg.call_control_id, device },
+        update: { userId: t.userId, device },
       });
       ringing++;
     } catch (err) {
@@ -658,18 +659,21 @@ export async function wakeSoftphoneLeg(userId: string, companyId: string, callId
     console.info(`[voice] wake call=${callId}: late (${Math.round(sinceRing / 1000)} s after the push)`);
     return "late";
   }
+  // The phone's OWN credential: a leg already ringing this user's browser is
+  // not this phone's leg (that mistake read as "already" and left a phone
+  // that had answered on the lock screen with nothing to answer).
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { sipUsername: true, softphoneEnabled: true, role: true, isActive: true },
+    select: { sipUsernameIos: true, softphoneEnabled: true, role: true, isActive: true },
   });
-  if (!user?.sipUsername || !user.softphoneEnabled || !user.isActive || !canUseSoftphone(user.role)) {
-    console.info(`[voice] wake call=${callId}: ineligible (sip=${user?.sipUsername ? "yes" : "no"} on=${user?.softphoneEnabled} active=${user?.isActive} role=${user?.role})`);
+  if (!user?.sipUsernameIos || !user.softphoneEnabled || !user.isActive || !canUseSoftphone(user.role)) {
+    console.info(`[voice] wake call=${callId}: ineligible (sip=${user?.sipUsernameIos ? "yes" : "no"} on=${user?.softphoneEnabled} active=${user?.isActive} role=${user?.role})`);
     return "ineligible";
   }
-  const open = await prisma.callLeg.count({ where: { callId, userId, endedAt: null } });
+  const open = await prisma.callLeg.count({ where: { callId, userId, device: "ios", endedAt: null } });
   if (open > 0) return "already";
-  const rang = await ringSoftphones(call, [{ userId, sipUsername: user.sipUsername }], true);
-  console.info(`[voice] wake call=${callId}: ${rang > 0 ? "ringing" : "late"} — SIP leg to ${user.sipUsername} ${rang > 0 ? "dialed" : "failed"} ${Math.round(sinceRing / 1000)} s after the push`);
+  const rang = await ringSoftphones(call, [{ userId, sipUsername: user.sipUsernameIos, device: "ios" }], true);
+  console.info(`[voice] wake call=${callId}: ${rang > 0 ? "ringing" : "late"} — SIP leg to ${user.sipUsernameIos} ${rang > 0 ? "dialed" : "failed"} ${Math.round(sinceRing / 1000)} s after the push`);
   return rang > 0 ? "ringing" : "late";
 }
 
@@ -953,7 +957,7 @@ export async function startOutboundCall(
   companyId: string,
   userId: string,
   target: { contactId?: string | null; to?: string | null },
-  opts: { via?: "cell" | "app" } = {}
+  opts: { via?: "cell" | "app"; device?: "browser" | "ios" } = {}
 ): Promise<{ callId: string; via: "cell" | "app"; agentNumber: string | null; customerNumber: string }> {
   if (!voiceEnabled()) throw new VoiceError("Calling from the app isn't available on this server yet.", 503);
   const [company, user] = await Promise.all([
@@ -970,8 +974,11 @@ export async function startOutboundCall(
     throw new VoiceError("Your line isn't on the voice app yet — try again in a minute.", 503);
   }
   const via = opts.via ?? "cell";
-  // A registered browser, or the iPhone app's native engine (no heartbeat; the INVITE for its own call wakes it).
-  const softphone = via === "app" ? (await userSoftphoneOnline(userId)) ?? (await voipRegisteredSoftphone(userId)) : null;
+  // The device placing the call gets the leg: the iPhone app names itself
+  // (its own credential, no heartbeat — the INVITE for its call wakes it);
+  // anything else is a registered browser.
+  const softphone =
+    via !== "app" ? null : opts.device === "ios" ? await voipRegisteredSoftphone(userId) : (await userSoftphoneOnline(userId)) ?? (await voipRegisteredSoftphone(userId));
   if (via === "app" && !softphone) throw new VoiceError("Your softphone isn't connected — reload the page, or call from your cell.", 409);
   const agentNumber = via === "app" ? null : (toE164(user?.phone) ?? company.lineForwardTo);
   if (via === "cell" && !agentNumber) throw new VoiceError("Add your cell number under Settings → My Profile so we can ring you first.", 409);

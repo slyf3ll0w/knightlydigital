@@ -82,7 +82,8 @@ export function isSoftphoneOnline(seenAt: Date | null | undefined, now: Date): b
   return Boolean(seenAt && now.getTime() - seenAt.getTime() <= SOFTPHONE_PRESENCE_MS);
 }
 
-export type RingTarget = { userId: string; sipUsername: string };
+export type SoftphoneDevice = "browser" | "ios";
+export type RingTarget = { userId: string; sipUsername: string; device?: SoftphoneDevice };
 
 export type RingPlan = {
   /** Browsers to ring now (already capped). */
@@ -138,13 +139,27 @@ async function ensureSipConnection(company: { id: string; name: string; lineSipC
 }
 
 /** The user's telephony credential under that connection, created on first use. */
+type CredentialCols = { sipCredentialId: string | null; sipUsername: string | null; sipCredentialIdIos: string | null; sipUsernameIos: string | null };
+
+/** The user's credential for this device kind — the browser's and the iPhone's are separate Telnyx registrations. */
+export function credentialFor(user: CredentialCols, device: SoftphoneDevice): { credentialId: string | null; sipUsername: string | null } {
+  return device === "ios"
+    ? { credentialId: user.sipCredentialIdIos, sipUsername: user.sipUsernameIos }
+    : { credentialId: user.sipCredentialId, sipUsername: user.sipUsername };
+}
+
 async function ensureUserCredential(
-  user: { id: string; name: string; sipCredentialId: string | null; sipUsername: string | null },
-  connectionId: string
+  user: { id: string; name: string } & CredentialCols,
+  connectionId: string,
+  device: SoftphoneDevice
 ): Promise<{ credentialId: string; sipUsername: string }> {
-  if (user.sipCredentialId && user.sipUsername) return { credentialId: user.sipCredentialId, sipUsername: user.sipUsername };
-  const cred = await createTelephonyCredential(connectionId, `wb:${user.id}`);
-  await prisma.user.update({ where: { id: user.id }, data: { sipCredentialId: cred.id, sipUsername: cred.sip_username } });
+  const have = credentialFor(user, device);
+  if (have.credentialId && have.sipUsername) return { credentialId: have.credentialId, sipUsername: have.sipUsername };
+  const cred = await createTelephonyCredential(connectionId, `wb:${user.id}${device === "ios" ? ":ios" : ""}`);
+  await prisma.user.update({
+    where: { id: user.id },
+    data: device === "ios" ? { sipCredentialIdIos: cred.id, sipUsernameIos: cred.sip_username } : { sipCredentialId: cred.id, sipUsername: cred.sip_username },
+  });
   return { credentialId: cred.id, sipUsername: cred.sip_username };
 }
 
@@ -166,7 +181,7 @@ export type SoftphoneOff = {
  * credential Telnyx no longer knows (deleted in Mission Control) is
  * recreated once.
  */
-export async function issueSoftphoneGrant(userId: string, companyId: string): Promise<SoftphoneGrant | SoftphoneOff> {
+export async function issueSoftphoneGrant(userId: string, companyId: string, device: SoftphoneDevice = "browser"): Promise<SoftphoneGrant | SoftphoneOff> {
   if (!voiceConfigured()) return { off: "voice" };
   const [company, user] = await Promise.all([
     prisma.company.findUnique({
@@ -175,7 +190,7 @@ export async function issueSoftphoneGrant(userId: string, companyId: string): Pr
     }),
     prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, name: true, role: true, softphoneEnabled: true, sipCredentialId: true, sipUsername: true },
+      select: { id: true, name: true, role: true, softphoneEnabled: true, sipCredentialId: true, sipUsername: true, sipCredentialIdIos: true, sipUsernameIos: true },
     }),
   ]);
   if (!company || !user) throw new SoftphoneError("Not found.", 404);
@@ -186,14 +201,18 @@ export async function issueSoftphoneGrant(userId: string, companyId: string): Pr
 
   try {
     const connectionId = await ensureSipConnection(company);
-    let cred = await ensureUserCredential(user, connectionId);
+    let cred = await ensureUserCredential(user, connectionId, device);
     let token: string;
     try {
       token = await createCredentialToken(cred.credentialId);
     } catch (err) {
       if (!(err instanceof TelnyxError && err.status === 404)) throw err;
       // The credential is gone at Telnyx: forget it and mint a new one.
-      cred = await ensureUserCredential({ ...user, sipCredentialId: null, sipUsername: null }, connectionId);
+      cred = await ensureUserCredential(
+        device === "ios" ? { ...user, sipCredentialIdIos: null, sipUsernameIos: null } : { ...user, sipCredentialId: null, sipUsername: null },
+        connectionId,
+        device
+      );
       token = await createCredentialToken(cred.credentialId);
     }
     return { token, sipUsername: cred.sipUsername, lineNumber: company.lineNumber, companyName: company.name };
@@ -232,14 +251,14 @@ export async function onlineSoftphoneUsers(companyId: string, now = new Date()):
     orderBy: { softphoneSeenAt: "desc" },
     take: MAX_APP_LEGS + 1,
   });
-  return rows.flatMap((r) => (r.sipUsername ? [{ userId: r.id, sipUsername: r.sipUsername }] : []));
+  return rows.flatMap((r) => (r.sipUsername ? [{ userId: r.id, sipUsername: r.sipUsername, device: "browser" as const }] : []));
 }
 
 /** Is THIS user's browser registered right now (outbound calls from the app need it)? */
-export async function userSoftphoneOnline(userId: string, now = new Date()): Promise<{ sipUsername: string } | null> {
+export async function userSoftphoneOnline(userId: string, now = new Date()): Promise<{ sipUsername: string; device: SoftphoneDevice } | null> {
   const u = await prisma.user.findUnique({ where: { id: userId }, select: { sipUsername: true, softphoneSeenAt: true, softphoneEnabled: true } });
   if (!u?.sipUsername || !u.softphoneEnabled || !isSoftphoneOnline(u.softphoneSeenAt, now)) return null;
-  return { sipUsername: u.sipUsername };
+  return { sipUsername: u.sipUsername, device: "browser" };
 }
 
 /* ───────────────────────── Teardown ───────────────────────── */
@@ -252,16 +271,21 @@ export async function userSoftphoneOnline(userId: string, now = new Date()): Pro
 export async function deleteSoftphoneResources(companyId: string): Promise<void> {
   const [company, users] = await Promise.all([
     prisma.company.findUnique({ where: { id: companyId }, select: { lineSipConnectionId: true } }),
-    prisma.user.findMany({ where: { companyId, sipCredentialId: { not: null } }, select: { id: true, sipCredentialId: true } }),
+    prisma.user.findMany({
+      where: { companyId, OR: [{ sipCredentialId: { not: null } }, { sipCredentialIdIos: { not: null } }] },
+      select: { id: true, sipCredentialId: true, sipCredentialIdIos: true },
+    }),
   ]);
   for (const u of users) {
-    if (u.sipCredentialId) await deleteTelephonyCredential(u.sipCredentialId).catch((e) => console.error("[softphone] credential delete failed:", e));
+    for (const id of [u.sipCredentialId, u.sipCredentialIdIos]) {
+      if (id) await deleteTelephonyCredential(id).catch((e) => console.error("[softphone] credential delete failed:", e));
+    }
   }
   if (company?.lineSipConnectionId) {
     await deleteCredentialConnection(company.lineSipConnectionId).catch((e) => console.error("[softphone] connection delete failed:", e));
   }
   await prisma.$transaction([
-    prisma.user.updateMany({ where: { companyId }, data: { sipCredentialId: null, sipUsername: null, softphoneSeenAt: null } }),
+    prisma.user.updateMany({ where: { companyId }, data: { sipCredentialId: null, sipUsername: null, sipCredentialIdIos: null, sipUsernameIos: null, softphoneSeenAt: null } }),
     prisma.company.update({ where: { id: companyId }, data: { lineSipConnectionId: null } }),
   ]);
 }

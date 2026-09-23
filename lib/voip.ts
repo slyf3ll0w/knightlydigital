@@ -112,14 +112,14 @@ export async function membershipOf(actorId: string, userId: string): Promise<{ i
  * VoIP token on this login counts as reachable for an outbound call from
  * the app: the INVITE for its own call is what wakes it.
  */
-export async function voipRegisteredSoftphone(userId: string): Promise<{ sipUsername: string } | null> {
-  const u = await prisma.user.findUnique({ where: { id: userId }, select: { sipUsername: true, softphoneEnabled: true, accountId: true } });
-  if (!u?.sipUsername || !u.softphoneEnabled) return null;
+export async function voipRegisteredSoftphone(userId: string): Promise<{ sipUsername: string; device: "ios" } | null> {
+  const u = await prisma.user.findUnique({ where: { id: userId }, select: { sipUsernameIos: true, softphoneEnabled: true, accountId: true } });
+  if (!u?.sipUsernameIos || !u.softphoneEnabled) return null;
   const token = await prisma.pushSubscription.findFirst({
     where: { platform: VOIP_PLATFORM, OR: [{ userId }, ...(u.accountId ? [{ user: { accountId: u.accountId } }] : [])] },
     select: { id: true },
   });
-  return token ? { sipUsername: u.sipUsername } : null;
+  return token ? { sipUsername: u.sipUsernameIos, device: "ios" } : null;
 }
 
 /**
