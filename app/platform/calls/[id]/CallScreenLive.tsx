@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Grid3x3, Mic, MicOff, Pause, Phone, PhoneIncoming, PhoneMissed, PhoneOff, PhoneOutgoing, Play, UserRound, Voicemail } from "lucide-react";
 import { fmtElapsed, softphone, useSoftphone } from "@/lib/softphone-client";
 import DialPad from "@/components/DialPad";
+import { MicRow, MicWarning } from "@/components/MicControls";
 import CallFromLineButton from "@/components/CallFromLineButton";
 import VoicemailPlayer from "@/components/VoicemailPlayer";
 
@@ -258,6 +259,12 @@ export default function CallScreenLive({
               </button>
             </>
           )}
+        </div>
+      )}
+      {live && !ringing && (
+        <div className="mx-auto mt-4 max-w-xs text-left">
+          <MicRow className="justify-center" />
+          <MicWarning className="mt-2" />
         </div>
       )}
       {live && pad && !dialing && (

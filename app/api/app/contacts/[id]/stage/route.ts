@@ -12,7 +12,12 @@ import { recordLeadWin, recordLeadLoss } from "@/lib/pipeline";
  *   { action: "reopen", stageId }    — undo of won/lost onto a working stage
  *                                      (win history restored server-side)
  * Sales/USER roles can only move their own leads (contactScope).
+ * POST is accepted as the same thing: a caller that forgets the method
+ * used to get a bare 405 with no JSON body, which the form showed as
+ * "Something went wrong — your changes were not saved".
  */
+export const POST = PATCH;
+
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }

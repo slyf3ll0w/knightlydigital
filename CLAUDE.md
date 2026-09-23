@@ -381,6 +381,26 @@ free `sms:`/`tel:` deep links (`lib/messaging.ts`) stay free and untouched.
   dial; `ensureSipUriCalling` heals old ones) and `from_display_name` is
   `A-Za-z0-9 -_~!.+` only (`sipDisplayName`; "(469) …" is a 422). One tab per
   browser (Web Locks); mic requested before the server dials the tab.
+  **Microphone (2026-09-23, after a day of one-way audio — they heard
+  nothing, the legs bridged fine, rows said COMPLETED):** the server cannot
+  see a capture-side failure, so the browser watches itself.
+  `lib/softphone-mic.ts` is the pure watchdog (`MicWatchdog.next(sample)` →
+  dead / silent / ok / unknown from the local track's `muted`/`readyState`,
+  the outbound-rtp `packetsSent` counter and an AnalyserNode peak; nothing is
+  judged while muted, held, or an outbound call is still ringing;
+  `scripts/test-softphone-mic.ts`). `Softphone.tsx` runs it once a second on a
+  live call (`micWatchStart`), feeds `MicMeter` ten times a second through
+  the separate level store (`useMicLevel`, so dialers don't re-render), and
+  puts the verdict in `micWarning`. The input is a choice: `MicPicker`
+  (`micDevices` from `enumerateDevices`, `devicechange` refreshes, an
+  unplugged choice falls back) → `localStorage wb-softphone-mic` →
+  `client.setAudioSettings({ micId })` for the next call and
+  `call.setAudioInDevice` on the live one. `requestMic` is now a real open
+  every time (names the device, flags an OS-muted track) — never just the
+  permission query. UI: `components/MicControls.tsx` — `MicRow` (meter +
+  device + picker) and `MicWarning` on the call card and the call screen,
+  `MicCheck` (picker + 4 s "Test it") on the Calls page LineCard. Console
+  trail: `[softphone] microphone:` / `mic track:` / `mic <verdict>`.
   Diagnose from a laptop with `scripts/diag-with-public-db.mjs` /
   `scripts/diag-telnyx-events.mjs` (see the plan doc). `/app/calls` =
   `LineCard.tsx` (number, where it rings now, the keypad, stat strip) + day-grouped
@@ -393,7 +413,9 @@ free `sms:`/`tel:` deep links (`lib/messaging.ts`) stay free and untouched.
   `softphone.sendDigits` → SDK `call.dtmf`, hang up; otherwise the row's
   status, polled while live) + `CallActions.tsx` (unknown number → Save as a
   lead / client with the number prefilled, or pick an existing client;
-  lead → Make a client = `stage { action: "won" }`; then Quote /
+  lead → Make a client = `PATCH stage { action: "won" }` (the route also
+  answers POST — a caller that forgot the method got a bare 405 the form
+  showed as "Something went wrong"); then Quote /
   Appointment / Job / Invoice links with `?contactId=`). The floating call
   card links to it (and hides itself while on it); every row's name opens
   it; the keypad navigates to it when a call is placed. `DialPad.tsx` is the

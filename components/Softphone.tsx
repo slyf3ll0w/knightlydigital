@@ -6,14 +6,18 @@ import { usePathname } from "next/navigation";
 import { Maximize2, Mic, MicOff, Pause, Phone, PhoneIncoming, PhoneOff, Play, X } from "lucide-react";
 import { nativePlatform } from "@/components/NativeShell";
 import { nativeVoip, onVoip, rememberVoipToken, type VoipIncoming } from "@/lib/native-voip";
+import { MicRow, MicWarning } from "@/components/MicControls";
+import { MIC_CHOICE_KEY, MIC_SILENT_PEAK, MicWatchdog, levelFromSamples, micLabelFor } from "@/lib/softphone-mic";
 import {
   fmtElapsed,
   getSoftphoneState,
   patchSoftphoneCall,
   registerSoftphoneController,
+  setMicLevel,
   setSoftphoneState,
   softphone,
   useSoftphone,
+  type MicTestResult,
   type PlaceCallTarget,
   type SoftphoneCall,
 } from "@/lib/softphone-client";
@@ -55,6 +59,15 @@ import type { TelnyxRTC as TelnyxRTCType } from "@telnyx/webrtc";
  * Microphone: the permission state is read on registration; the Calls page
  * offers to grant it up front, and a call placed from here asks for it BEFORE
  * the server dials, so the INVITE never times out behind the browser prompt.
+ * The input is a choice (MicPicker → localStorage → `setAudioSettings` on the
+ * client, `setAudioInDevice` on a live call), and while a call is up a
+ * watchdog (lib/softphone-mic.ts) reads the local track, the outbound RTP
+ * counter and an AnalyserNode level once a second. One-way audio — they hear
+ * nothing, you hear them fine — is a capture-side problem the server cannot
+ * see (the legs bridge, the row says COMPLETED): the OS picked a webcam mic
+ * or a headset with hands-free off, muted the device, or another app holds
+ * it. So the card shows the level, names the device, says when nothing is
+ * leaving, and offers the picker.
  *
  * Presence is a heartbeat every 30 s while registered and a beacon on
  * pagehide (lib/softphone.ts decides who rings from it). A browser without
@@ -238,6 +251,81 @@ class Ringer {
   }
 }
 
+/**
+ * The input level of whatever stream the softphone is capturing from, on an
+ * AnalyserNode: ten readings a second into the level store (MicMeter) and the
+ * peak since the last takePeak() for the watchdog. Its own AudioContext — the
+ * Ringer's is for output — and it never plays anything.
+ */
+class LevelMeter {
+  private ctx: AudioContext | null = null;
+  private src: MediaStreamAudioSourceNode | null = null;
+  private analyser: AnalyserNode | null = null;
+  private timer: ReturnType<typeof setInterval> | null = null;
+  private peak = 0;
+  /** The stream currently metered, so a caller can release only its own. */
+  stream: MediaStream | null = null;
+
+  attach(stream: MediaStream): boolean {
+    this.detach();
+    const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!Ctx) return false;
+    try {
+      this.ctx = this.ctx ?? new Ctx();
+      if (this.ctx.state !== "running") void this.ctx.resume().catch(() => {});
+      this.src = this.ctx.createMediaStreamSource(stream);
+      this.analyser = this.ctx.createAnalyser();
+      this.analyser.fftSize = 512;
+      this.src.connect(this.analyser);
+    } catch (err) {
+      console.warn("[softphone] level meter unavailable", err);
+      this.detach();
+      return false;
+    }
+    this.stream = stream;
+    const analyser = this.analyser;
+    const buf = new Uint8Array(analyser.fftSize);
+    this.timer = setInterval(() => {
+      analyser.getByteTimeDomainData(buf);
+      const level = levelFromSamples(buf);
+      if (level > this.peak) this.peak = level;
+      setMicLevel(level);
+    }, 100);
+    return true;
+  }
+
+  /** The highest level since the last call, then reset. */
+  takePeak(): number {
+    const p = this.peak;
+    this.peak = 0;
+    return p;
+  }
+
+  /** Release the stream — all of them, or only if it is the given one (a test must not tear down a call's meter). */
+  detach(only?: MediaStream) {
+    if (only && this.stream !== only) return;
+    if (this.timer) clearInterval(this.timer);
+    this.timer = null;
+    try {
+      this.src?.disconnect();
+      this.analyser?.disconnect();
+    } catch {
+      /* already gone */
+    }
+    this.src = null;
+    this.analyser = null;
+    this.stream = null;
+    this.peak = 0;
+    setMicLevel(0);
+  }
+
+  dispose() {
+    this.detach();
+    void this.ctx?.close().catch(() => {});
+    this.ctx = null;
+  }
+}
+
 /** When the browser keeps audio locked, the OS at least shows the call; clicking it brings the tab up. */
 function showIncomingNotice(label: string): Notification | null {
   if (typeof Notification === "undefined" || Notification.permission !== "granted") return null;
@@ -265,6 +353,7 @@ export default function Softphone() {
   /** Outbound calls the user cancelled before their INVITE arrived: decline it if it still shows up. */
   const cancelled = useRef<Set<string>>(new Set());
   const ringer = useRef<Ringer | null>(null);
+  const levelMeter = useRef<LevelMeter | null>(null);
   const notice = useRef<Notification | null>(null);
   /** Set before a hangup we caused (or a failure the poll saw), so the end-of-call cue knows whose it was. */
   const endedBy = useRef<"local" | "remote" | null>(null);
@@ -297,6 +386,150 @@ export default function Softphone() {
     let fallback: ReturnType<typeof setTimeout> | null = null;
     let inviteWatch: ReturnType<typeof setTimeout> | null = null;
     let attempt = 0;
+
+    /* ── Microphone: which one, and whether it is actually sending (lib/softphone-mic.ts) ── */
+    const readMicChoice = (): string | null => {
+      try {
+        return localStorage.getItem(MIC_CHOICE_KEY);
+      } catch {
+        return null;
+      }
+    };
+    const writeMicChoice = (id: string | null) => {
+      try {
+        if (id) localStorage.setItem(MIC_CHOICE_KEY, id);
+        else localStorage.removeItem(MIC_CHOICE_KEY);
+      } catch {
+        /* private window, blocked storage: the choice just doesn't survive a reload */
+      }
+    };
+    setSoftphoneState({ micId: readMicChoice() });
+    const micConstraints = (): MediaStreamConstraints => {
+      const id = getSoftphoneState().micId;
+      return { audio: id ? { deviceId: { exact: id } } : true };
+    };
+    const deviceGone = (err: unknown) =>
+      err instanceof Error && (err.name === "OverconstrainedError" || err.name === "NotFoundError" || err.name === "NotReadableError");
+    const micFailure = (err: unknown): string => {
+      const name = err instanceof Error ? err.name : "";
+      if (name === "NotReadableError") return "The microphone is in use by another app — close it and try again.";
+      if (name === "NotFoundError" || name === "OverconstrainedError") return "No microphone was found on this device.";
+      return "Microphone access was refused — allow it for this site (icon left of the address bar), then reload.";
+    };
+    /** Open the chosen input, falling back to the default once when that device is gone; the caller stops the tracks. */
+    const openMic = async (): Promise<MediaStream> => {
+      try {
+        return await navigator.mediaDevices.getUserMedia(micConstraints());
+      } catch (err) {
+        if (!getSoftphoneState().micId || !deviceGone(err)) throw err;
+        console.info("[softphone] chosen microphone unavailable, back to the default:", err);
+        writeMicChoice(null);
+        setSoftphoneState({ micId: null });
+        return navigator.mediaDevices.getUserMedia({ audio: true });
+      }
+    };
+    const refreshDevices = async () => {
+      try {
+        const ins = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === "audioinput");
+        const labelsKnown = ins.some((d) => d.label);
+        let micId = getSoftphoneState().micId;
+        if (micId && labelsKnown && !ins.some((d) => d.deviceId === micId)) {
+          // Unplugged: the next call must not fail on an exact deviceId nobody has.
+          console.info("[softphone] chosen microphone is gone; back to the default");
+          writeMicChoice(null);
+          micId = null;
+        }
+        if (!unmounted) setSoftphoneState({ micDevices: ins.map((d, i) => ({ id: d.deviceId, label: micLabelFor(d, i) })), micId });
+      } catch {
+        /* enumerateDevices unavailable */
+      }
+    };
+    const onDeviceChange = () => void refreshDevices();
+    navigator.mediaDevices.addEventListener?.("devicechange", onDeviceChange);
+    /** The chosen device becomes the SDK's audio constraint for the calls this client answers ({} = back to its default). */
+    const applyMic = async (c: RtcClient) => {
+      const id = getSoftphoneState().micId;
+      try {
+        await c.setAudioSettings(id ? { micId: id, micLabel: getSoftphoneState().micDevices.find((d) => d.id === id)?.label } : {});
+      } catch (err) {
+        if (!id) return;
+        console.warn("[softphone] chosen microphone refused by the SDK; using the default", err);
+        writeMicChoice(null);
+        setSoftphoneState({ micId: null });
+      }
+    };
+
+    // The watchdog: once a second while a call is up, the local track, the
+    // outbound RTP packet counter and the meter's peak go to MicWatchdog; its
+    // one-line verdict is micWarning on the card. Also the only console trail
+    // that says which device a call captured from.
+    const meter = levelMeter.current ?? (levelMeter.current = new LevelMeter());
+    let micTimer: ReturnType<typeof setInterval> | null = null;
+    let micCall: RtcCall | null = null;
+    const localStreamOf = (call: RtcCall): MediaStream | null => {
+      try {
+        return call.localStream ?? null;
+      } catch {
+        return null; // no peer yet
+      }
+    };
+    const micWatchStop = () => {
+      if (micTimer) clearInterval(micTimer);
+      micTimer = null;
+      micCall = null;
+      meter.detach();
+      if (getSoftphoneState().micWarning) setSoftphoneState({ micWarning: null });
+    };
+    const micWatchStart = (call: RtcCall) => {
+      micWatchStop();
+      micCall = call;
+      const since = Date.now();
+      const track = localStreamOf(call)?.getAudioTracks()[0] ?? null;
+      const label = track?.label || getSoftphoneState().micLabel || null;
+      const dog = new MicWatchdog(label);
+      setSoftphoneState({ micLabel: label, micWarning: null });
+      console.info("[softphone] mic track:", track ? `"${track.label}" ${track.readyState} muted=${track.muted} enabled=${track.enabled}` : "none");
+      let attached: MediaStream | null = null;
+      let lastVerdict = "unknown";
+      micTimer = setInterval(() => {
+        if (micCall !== call || callRef.current !== call) return micWatchStop();
+        void (async () => {
+          const stream = localStreamOf(call);
+          // Follow a replaced track (device switch, SDK recovery).
+          if (stream && stream !== attached) attached = meter.attach(stream) ? stream : null;
+          const t = stream?.getAudioTracks()[0] ?? null;
+          let packets: number | null = null;
+          try {
+            const pc = call.peer?.instance;
+            if (pc) {
+              (await pc.getStats()).forEach((r: { type: string; kind?: string; mediaType?: string; packetsSent?: number }) => {
+                if (r.type === "outbound-rtp" && (r.kind ?? r.mediaType) === "audio" && typeof r.packetsSent === "number") {
+                  packets = (packets ?? 0) + r.packetsSent;
+                }
+              });
+            }
+          } catch {
+            /* stats unavailable: the watchdog judges without them */
+          }
+          if (micCall !== call) return;
+          const cur = getSoftphoneState();
+          const report = dog.next({
+            activeMs: Date.now() - since,
+            track: t ? { readyState: t.readyState, muted: t.muted, enabled: t.enabled } : null,
+            packetsSent: packets,
+            peak: meter.takePeak(),
+            mutedByUser: call.isAudioMuted,
+            held: call.state === "held" || cur.call?.state === "held",
+            waiting: cur.call?.state === "dialing",
+          });
+          if (report.verdict !== lastVerdict) {
+            lastVerdict = report.verdict;
+            console.info(`[softphone] mic ${report.verdict}`, report.message ?? "", `packets=${packets ?? "?"}`);
+          }
+          if ((report.message ?? null) !== cur.micWarning) setSoftphoneState({ micWarning: report.message ?? null });
+        })();
+      }, 1000);
+    };
 
     const beat = (online: boolean) =>
       fetch("/api/app/line/softphone/presence", {
@@ -349,6 +582,7 @@ export default function Softphone() {
       if (callRef.current !== call) return;
       callRef.current = null;
       stopRinger();
+      micWatchStop();
       // One low note when you ended it, two falling notes when the other side did (or it never connected).
       ringer.current?.chime(endedBy.current === "local" ? "local" : "remote");
       endedBy.current = null;
@@ -426,15 +660,34 @@ export default function Softphone() {
         /* Firefox/Safari may refuse the query — the SDK prompts on the first call */
       }
     };
+    /**
+     * Open the microphone and let it go: proves the permission, names the
+     * device, and catches the one thing a permission query can't — a track
+     * the OS reports as muted (device muted in the system, or held by another
+     * app), which is a silent call waiting to happen.
+     */
     const requestMic = async (): Promise<boolean> => {
       try {
-        const s = await navigator.mediaDevices.getUserMedia({ audio: true });
-        s.getTracks().forEach((t) => t.stop());
-        setSoftphoneState({ mic: "granted", error: null });
+        const s = await openMic();
+        const t = s.getAudioTracks()[0] ?? null;
+        const label = t?.label || null;
+        const osMuted = !!t?.muted;
+        s.getTracks().forEach((x) => x.stop());
+        console.info("[softphone] microphone:", label ?? "(no label)", osMuted ? "— the OS reports no audio from it" : "");
+        setSoftphoneState({
+          mic: "granted",
+          error: null,
+          micLabel: label,
+          micWarning: osMuted
+            ? `${label ? `"${label}"` : "Your microphone"} isn't producing any audio right now — the system may have it muted, or another app is using it. Pick another microphone if you have one.`
+            : null,
+        });
+        void refreshDevices();
         return true;
       } catch (err) {
         console.warn("[softphone] microphone refused", err);
-        setSoftphoneState({ mic: "denied", error: "Microphone access was refused — allow it for this site (icon left of the address bar), then reload." });
+        const message = micFailure(err);
+        setSoftphoneState({ mic: message.startsWith("Microphone access") ? "denied" : getSoftphoneState().mic, error: message });
         return false;
       }
     };
@@ -534,12 +787,12 @@ export default function Softphone() {
         .catch(() => {});
     };
 
-    /** Answer the ringing INVITE (microphone first — a permission prompt inside the SDK's answer() would race the INVITE's timeout). */
+    /** Answer the ringing INVITE (microphone first — a permission prompt inside the SDK's answer() would race the INVITE's timeout; the probe also names the device for the watchdog). */
     const doAnswer = () => {
       const c = callRef.current;
       if (!c || c.state !== "ringing") return;
       stopRinger();
-      void (getSoftphoneState().mic === "granted" ? Promise.resolve(true) : requestMic()).then((ok) => {
+      void requestMic().then((ok) => {
         if (callRef.current !== c) return;
         if (ok) void c.answer();
         else void c.hangup();
@@ -554,6 +807,7 @@ export default function Softphone() {
         case "active": {
           if (callRef.current !== call) return;
           stopRinger();
+          if (micCall !== call) micWatchStart(call);
           const cur = getSoftphoneState().call;
           if (cur?.direction === "out" && cur.state === "dialing") {
             // The tab is live but the customer isn't yet: keep "Calling…" until the row says bridged (polled below).
@@ -603,6 +857,8 @@ export default function Softphone() {
       if (unmounted || myGen !== gen) return;
       const c = new TelnyxRTC({ login_token: grant.token });
       c.remoteElement = REMOTE_AUDIO_ID;
+      if (getSoftphoneState().micId) await applyMic(c);
+      if (unmounted || myGen !== gen) return;
       const live = () => !unmounted && myGen === gen && client === c;
       c.on("telnyx.ready", () => {
         if (!live()) return;
@@ -768,11 +1024,55 @@ export default function Softphone() {
           console.warn("[softphone] dtmf failed", err);
         }
       },
+      setMic: async (deviceId: string | null) => {
+        writeMicChoice(deviceId);
+        setSoftphoneState({ micId: deviceId, micWarning: null });
+        const c = clientRef.current;
+        const call = callRef.current;
+        try {
+          if (c) await applyMic(c);
+          if (call && (call.state === "active" || call.state === "held")) {
+            await call.setAudioInDevice(deviceId ?? "default");
+            micWatchStart(call); // the new track, fresh counters, the new name on the card
+          }
+        } catch (err) {
+          console.warn("[softphone] switching microphone failed", err);
+          setSoftphoneState({ error: "Couldn't switch to that microphone — try another, or hang up and call again." });
+        }
+      },
+      testMic: async (): Promise<MicTestResult> => {
+        if (callRef.current) {
+          return { heard: false, label: getSoftphoneState().micLabel, osMuted: false, error: "You're on a call — the meter on the call card shows your microphone." };
+        }
+        let s: MediaStream;
+        try {
+          s = await openMic();
+        } catch (err) {
+          const message = micFailure(err);
+          setSoftphoneState({ mic: message.startsWith("Microphone access") ? "denied" : getSoftphoneState().mic, error: message });
+          return { heard: false, label: null, osMuted: false, error: message };
+        }
+        const t = s.getAudioTracks()[0] ?? null;
+        const label = t?.label || null;
+        setSoftphoneState({ mic: "granted", micLabel: label, error: null });
+        void refreshDevices();
+        const metered = meter.attach(s);
+        await new Promise((r) => setTimeout(r, 4000));
+        const peak = meter.stream === s ? meter.takePeak() : 0;
+        const osMuted = !!t?.muted;
+        meter.detach(s); // only if a call hasn't taken the meter over meanwhile
+        s.getTracks().forEach((x) => x.stop());
+        const heard = metered && peak >= MIC_SILENT_PEAK;
+        console.info("[softphone] mic test:", label ?? "(no label)", `peak=${peak.toFixed(3)}`, osMuted ? "— the OS reports no audio from it" : "");
+        if (heard && getSoftphoneState().micWarning) setSoftphoneState({ micWarning: null });
+        return { heard, label, osMuted, error: metered ? null : "This browser can't meter the microphone." };
+      },
       placeCall: async (target: PlaceCallTarget) => {
         if (!clientRef.current || getSoftphoneState().status !== "ready") throw new Error("The softphone isn't connected.");
         if (callRef.current || getSoftphoneState().call) throw new Error("You're already on a call.");
         // Microphone BEFORE the server dials this tab, so the INVITE isn't answered late (or never) behind the prompt.
-        if (getSoftphoneState().mic !== "granted" && !(await requestMic())) {
+        // Always a real open, not the permission state: it names the device and catches an OS-muted one.
+        if (!(await requestMic())) {
           throw new Error("Microphone access is needed to call from the browser — allow it and try again, or use Call from line to ring your cell.");
         }
         const res = await fetch("/api/app/line/call", {
@@ -928,7 +1228,11 @@ export default function Softphone() {
       if (inviteWatch) clearTimeout(inviteWatch);
       unregister();
       stopRinger();
+      micWatchStop();
+      navigator.mediaDevices.removeEventListener?.("devicechange", onDeviceChange);
       ringer.current?.dispose();
+      levelMeter.current?.dispose();
+      levelMeter.current = null;
       goodbye();
       teardownClient();
       setSoftphoneState({ status: "off", reason: null, call: null });
@@ -1049,6 +1353,12 @@ function CallCard({ call }: { call: SoftphoneCall }) {
           </Link>
         )}
       </div>
+      {!ringing && (
+        <div className="-mt-1 px-4 pb-3">
+          <MicRow />
+          <MicWarning className="mt-2" />
+        </div>
+      )}
       <div className="flex items-center justify-end gap-2 px-4 pb-4">
         {ringing ? (
           <>

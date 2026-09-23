@@ -52,7 +52,7 @@ export default function CallActions({
     const r =
       contact.status === "ARCHIVED"
         ? await postJson(`/api/app/contacts/${contact.id}`, { status: "ACTIVE" }, "PATCH")
-        : await postJson(`/api/app/contacts/${contact.id}/stage`, { action: "won" });
+        : await postJson(`/api/app/contacts/${contact.id}/stage`, { action: "won" }, "PATCH");
     setBusy(false);
     if (!r.ok) {
       setError(r.data?.error ?? GENERIC_ERROR);

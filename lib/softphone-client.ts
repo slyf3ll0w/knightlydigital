@@ -28,6 +28,8 @@ export type SoftphoneCall = {
 
 export type MicState = "unknown" | "prompt" | "granted" | "denied";
 
+export type MicDevice = { id: string; label: string };
+
 export type SoftphoneState = {
   status: SoftphoneStatus;
   /** Why it's off: "voice" | "line" | "addon" | "role" | "disabled" | "native" | "unsupported" | "other_tab". */
@@ -36,9 +38,27 @@ export type SoftphoneState = {
   error: string | null;
   /** Microphone permission for this site — "prompt" means the browser will ask on the first call. */
   mic: MicState;
+  /** Audio inputs the browser lists (labels only once the site has permission). */
+  micDevices: MicDevice[];
+  /** The chosen input's deviceId (kept in localStorage), null = whatever the browser picks. */
+  micId: string | null;
+  /** What the browser calls the device it last captured from. */
+  micLabel: string | null;
+  /** The microphone watchdog's verdict while on a call (lib/softphone-mic.ts), or a probe's: one sentence, or null when audio is leaving fine. */
+  micWarning: string | null;
 };
 
-const INITIAL: SoftphoneState = { status: "off", reason: null, call: null, error: null, mic: "unknown" };
+const INITIAL: SoftphoneState = {
+  status: "off",
+  reason: null,
+  call: null,
+  error: null,
+  mic: "unknown",
+  micDevices: [],
+  micId: null,
+  micLabel: null,
+  micWarning: null,
+};
 let state: SoftphoneState = INITIAL;
 const listeners = new Set<() => void>();
 
@@ -65,6 +85,40 @@ export function useSoftphone(): SoftphoneState {
   return useSyncExternalStore(subscribe, getSoftphoneState, () => INITIAL);
 }
 
+/*
+ * The microphone level is its own tiny store: it ticks ten times a second
+ * while a call (or a mic test) is up, and only the meter should re-render
+ * for that — not every dialer and card subscribed to the call state.
+ */
+let micLevel = 0;
+const levelListeners = new Set<() => void>();
+
+export function setMicLevel(level: number): void {
+  const next = Math.max(0, Math.min(1, level));
+  if (next === micLevel) return;
+  micLevel = next;
+  levelListeners.forEach((l) => l());
+}
+
+function subscribeLevel(l: () => void): () => void {
+  levelListeners.add(l);
+  return () => levelListeners.delete(l);
+}
+
+/** Live input level 0..1 from the microphone the softphone is capturing from; 0 when nothing is open. */
+export function useMicLevel(): number {
+  return useSyncExternalStore(subscribeLevel, () => micLevel, () => 0);
+}
+
+export type MicTestResult = {
+  /** Sound reached the browser from the chosen device during the test. */
+  heard: boolean;
+  label: string | null;
+  /** The track reported no audio from the OS (device muted in the system, or held by another app). */
+  osMuted: boolean;
+  error: string | null;
+};
+
 /** Ready to place a call right now: registered, and not already on one. */
 export function softphoneIdle(s: SoftphoneState): boolean {
   return s.status === "ready" && !s.call;
@@ -83,6 +137,10 @@ export type SoftphoneController = {
   requestMic(): Promise<boolean>;
   /** Touch-tones on the live call (phone menus: "press 1 for…"). Digits 0-9, * and #. */
   sendDigits(digits: string): void;
+  /** Use this audio input (deviceId from micDevices; null = browser default) — for the next call, and the live one if there is one. */
+  setMic(deviceId: string | null): Promise<void>;
+  /** Open the chosen microphone for a few seconds and report whether anything was heard (the meter runs meanwhile). */
+  testMic(): Promise<MicTestResult>;
 };
 
 let controller: SoftphoneController | null = null;
@@ -106,6 +164,9 @@ export const softphone = {
   placeCall: (target: PlaceCallTarget): Promise<void> => (controller ? controller.placeCall(target) : Promise.reject(notConnected())),
   requestMic: (): Promise<boolean> => (controller ? controller.requestMic() : Promise.resolve(false)),
   sendDigits: (digits: string) => controller?.sendDigits(digits),
+  setMic: (deviceId: string | null): Promise<void> => (controller ? controller.setMic(deviceId) : Promise.resolve()),
+  testMic: (): Promise<MicTestResult> =>
+    controller ? controller.testMic() : Promise.resolve({ heard: false, label: null, osMuted: false, error: "The softphone isn't connected." }),
 };
 
 export function fmtElapsed(startedAt: number | null, now: number): string {

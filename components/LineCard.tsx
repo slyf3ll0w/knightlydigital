@@ -6,6 +6,7 @@ import { Grid3x3, Mic, Settings2, X } from "lucide-react";
 import { fmtPhone } from "@/lib/format";
 import { softphone, useSoftphone } from "@/lib/softphone-client";
 import DialPad from "@/components/DialPad";
+import { MicCheck } from "@/components/MicControls";
 import Modal from "@/components/Modal";
 
 /**
@@ -102,6 +103,7 @@ export default function LineCard({
               <Mic size={12} /> Allow the microphone now so the first call doesn&apos;t stall on the prompt
             </button>
           )}
+          {s.status === "ready" && s.mic !== "denied" && <MicCheck className="mt-3" />}
           <button
             type="button"
             onClick={() => setPadOpen(true)}
