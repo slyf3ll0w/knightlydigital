@@ -195,6 +195,32 @@ class Ringer {
     this.timer = null;
   }
 
+  /** End-of-call cue: two falling notes when the other side hung up, one short low note when you did. */
+  chime(kind: "remote" | "local") {
+    const ctx = this.context();
+    if (!ctx || ctx.state !== "running") return;
+    const notes: Array<[number, number]> = kind === "remote" ? [[660, 0], [494, 0.16]] : [[392, 0]];
+    const master = ctx.createGain();
+    master.gain.value = 0.3;
+    master.connect(ctx.destination);
+    const t0 = ctx.currentTime;
+    for (const [f, at] of notes) {
+      const t = t0 + at;
+      const env = ctx.createGain();
+      env.gain.setValueAtTime(0.0001, t);
+      env.gain.exponentialRampToValueAtTime(0.5, t + 0.01);
+      env.gain.exponentialRampToValueAtTime(0.0001, t + 0.22);
+      env.connect(master);
+      const osc = ctx.createOscillator();
+      osc.type = "sine";
+      osc.frequency.value = f;
+      osc.connect(env);
+      osc.start(t);
+      osc.stop(t + 0.25);
+    }
+    setTimeout(() => master.disconnect(), 800);
+  }
+
   dispose() {
     this.stop();
     this.unarm?.();
@@ -230,6 +256,8 @@ export default function Softphone() {
   const cancelled = useRef<Set<string>>(new Set());
   const ringer = useRef<Ringer | null>(null);
   const notice = useRef<Notification | null>(null);
+  /** Set before a hangup we caused (or a failure the poll saw), so the end-of-call cue knows whose it was. */
+  const endedBy = useRef<"local" | "remote" | null>(null);
 
   useEffect(() => {
     if (nativePlatform()) {
@@ -303,6 +331,9 @@ export default function Softphone() {
       if (callRef.current !== call) return;
       callRef.current = null;
       stopRinger();
+      // One low note when you ended it, two falling notes when the other side did (or it never connected).
+      ringer.current?.chime(endedBy.current === "local" ? "local" : "remote");
+      endedBy.current = null;
       setSoftphoneState({ call: null });
     };
 
@@ -548,6 +579,8 @@ export default function Softphone() {
         // Straight to voicemail, like a phone. The server hears it FIRST: a
         // browser leg that merely drops means "ring the cell next".
         const id = getSoftphoneState().call?.callId ?? null;
+        const c = callRef.current;
+        endedBy.current = "local";
         void (async () => {
           if (id) {
             await fetch("/api/app/line/call/decline", {
@@ -556,19 +589,25 @@ export default function Softphone() {
               body: JSON.stringify({ id }),
             }).catch(() => {});
           }
-          if (callRef.current) void callRef.current.hangup();
+          if (c) void c.hangup();
           else cancelPending();
         })();
+        if (c) endCall(c);
+        else endedBy.current = null;
       },
       hangup: () => {
         const c = callRef.current;
         const cur = getSoftphoneState().call;
+        endedBy.current ??= "local";
         if (c) {
           void c.hangup();
           // Outbound, customer not on yet: the SIP leg alone hanging up would leave the customer leg ringing.
           if (cur?.direction === "out" && cur.state === "dialing" && cur.callId) void hangupServerSide(cur.callId);
+          // The card goes now; the SDK's own hangup event a moment later finds nothing to do.
+          endCall(c);
         } else {
           cancelPending();
+          endedBy.current = null;
         }
       },
       toggleMute: () => {
@@ -720,6 +759,7 @@ export default function Softphone() {
           patchSoftphoneCall({ state: "active", startedAt: j.call.answeredAt ? Date.parse(j.call.answeredAt) : Date.now() });
         } else if (TERMINAL.has(j.call.status)) {
           // The leg to this browser or to the customer failed / went unanswered: don't leave a stuck card.
+          endedBy.current = "remote"; // not your hangup — the other side never came on
           softphone.hangup();
           setSoftphoneState({
             call: null,
