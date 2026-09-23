@@ -23,8 +23,15 @@ import { SOFTPHONE_ROLES } from "@/lib/softphone";
 
 export const VOIP_PLATFORM = "ios-voip";
 
-/** How long the caller waits for a pushed phone to wake and ring before the cell gets its turn. */
-export const VOIP_WAKE_SECS = 25;
+/**
+ * How long the caller waits for a pushed phone to wake, register and take its
+ * SIP leg before the cell gets its turn. A cold start on cellular — launch,
+ * load the site, fetch the softphone SDK, register with Telnyx — can take
+ * 20–30 s, and a first test at 25 s lost the call to the cell mid-answer.
+ * Ceiling: VoipPlugin.swift ends an unclaimed CallKit call at 45 s, and
+ * wakeSoftphoneLeg allows this + 5 s, so stay under 40.
+ */
+export const VOIP_WAKE_SECS = 35;
 
 export type VoipTarget = {
   /** The membership in the call's company that this phone answers as (its SIP leg, its call rows). */

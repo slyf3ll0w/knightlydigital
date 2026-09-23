@@ -249,7 +249,7 @@ export-compliance prompt per upload), version 1.3 / build 6.
   "Next job in WorkBench" opens the job.
 - With the app swiped away, call the business line from another phone: the
   iPhone shows a WorkBench call on the lock screen; Answer connects the
-  customer; the caller's ringback ran ~25 s at most before the cell would
+  customer; the caller's ringback ran ~35 s at most before the cell would
   have rung. Decline goes to voicemail. Then the same with the app open.
 - An outbound call from the Calls page shows on the system screen, keeps
   talking with the phone locked, and Mute there mutes the call.

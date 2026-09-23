@@ -499,13 +499,12 @@ async function onAnswered(p: VoiceEventPayload): Promise<void> {
             phones
           )
         : 0;
-      if (ringing > 0) return;
-      if (woken > 0) {
-        // No browser leg whose timeout would hand the call on: if no phone
-        // has woken and answered by then, the cell rings.
-        scheduleCellFallback(call.id, (VOIP_WAKE_SECS + 3) * 1000);
-        return;
-      }
+      // A pushed phone gets its whole wake window even if browsers rang too
+      // (their legs time out sooner and must not hand the call on early —
+      // see the app-leg hangup): this timer is what moves the call to the
+      // cell if no phone has woken by then.
+      if (woken > 0) scheduleCellFallback(call.id, (VOIP_WAKE_SECS + 3) * 1000);
+      if (ringing > 0 || woken > 0) return;
       // Not one browser could be dialed: the cell's turn, ringback already looping.
       return dialCell(call, { ringback: false });
     }
@@ -831,6 +830,9 @@ async function onHangup(p: VoiceEventPayload): Promise<void> {
     // and let it ring out: voicemail, never the cell — that cell IS this
     // phone, and a second ring would land on top of the CallKit call.
     if (decodeState(p.client_state)?.woke) return toVoicemail(call);
+    // A browser leg ran out while a pushed phone may still be waking: leave
+    // the call ringing for it; scheduleCellFallback decides at the window's end.
+    if (call.appRingAt && Date.now() - call.appRingAt.getTime() < (VOIP_WAKE_SECS + 3) * 1000 && (await voipTargetsFor(call.companyId)).length > 0) return;
     return dialCell(call, { ringback: false });
   }
 
