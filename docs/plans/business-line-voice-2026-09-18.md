@@ -153,7 +153,9 @@ iOS is written: `ios/App/App/VoipPlugin.swift` (PushKit + CallKit), `lib/native-
 browsers get SIP legs as before, iPhones get a VoIP push → CallKit shows the call →
 the app loads, registers, POSTs ready → its SIP leg is dialed → an Answer already
 tapped on the system screen answers the INVITE. No browser leg + no phone awake
-within VOIP_WAKE_SECS (25 s) → the cell rings (scheduleCellFallback). Tokens live in
+within VOIP_WAKE_SECS (35 s; was 25, too short for a cold start on cellular) →
+the cell rings (scheduleCellFallback). A browser leg timing out inside that
+window no longer hands the call on — the phone keeps its whole window. Tokens live in
 `PushSubscription` as platform `ios-voip`, dropped on sign-out (`lib/sign-out.ts`).
 See `native-release-queue.md` § App Store for the console/Mac steps.
 
