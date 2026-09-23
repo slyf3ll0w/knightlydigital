@@ -23,8 +23,10 @@ export async function POST(req: NextRequest) {
   const userAgent = req.headers.get("user-agent")?.slice(0, 255) ?? null;
 
   // Native app (Capacitor shell): body = { platform: "ios"|"android", token }
-  // where token is the FCM device token, stored in the endpoint column.
-  if (body?.platform === "ios" || body?.platform === "android") {
+  // where token is the FCM device token, stored in the endpoint column —
+  // or platform "ios-voip", the PushKit token that rings the iPhone for a
+  // business-line call when the app is closed (lib/voip.ts).
+  if (body?.platform === "ios" || body?.platform === "android" || body?.platform === "ios-voip") {
     const token = typeof body?.token === "string" ? body.token.trim() : "";
     if (!token || token.length > 4096 || token.includes(" ")) {
       return NextResponse.json({ error: "Invalid device token." }, { status: 400 });

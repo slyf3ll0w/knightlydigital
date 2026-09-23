@@ -181,7 +181,11 @@ export async function notifyUsers(userIds: string[], payload: PushPayload): Prom
     const rowAccount = new Map(siblingRows.map((r) => [r.id, r.accountId as string]));
 
     const subs = await prisma.pushSubscription.findMany({
-      where: { userId: { in: [...new Set([...userIds, ...siblingRows.map((r) => r.id)])] } },
+      where: {
+        userId: { in: [...new Set([...userIds, ...siblingRows.map((r) => r.id)])] },
+        // VoIP tokens are for ringing the phone (lib/voip.ts), never for a notification.
+        platform: { not: "ios-voip" },
+      },
     });
     if (subs.length === 0) return;
 

@@ -3,7 +3,8 @@
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { usePathname, useRouter } from "next/navigation";
-import { signOut, useSession } from "next-auth/react";
+import { useSession } from "next-auth/react";
+import { appSignOut } from "@/lib/sign-out";
 import {
   Home,
   Briefcase,
@@ -531,7 +532,7 @@ function UserMenu({
             </kbd>
           </button>
           <button
-            onClick={() => signOut({ callbackUrl: "/app/login" })}
+            onClick={() => void appSignOut("/app/login")}
             className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
           >
             <LogOut size={14} className="text-gray-400" />
@@ -2791,7 +2792,7 @@ function MoreSheet({
           {/* Sign out */}
           <div className="card-tool mt-4 overflow-hidden">
             <button
-              onClick={() => signOut({ callbackUrl: "/app/login" })}
+              onClick={() => void appSignOut("/app/login")}
               className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-gray-50 transition-colors"
             >
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-red-50 text-red-600">

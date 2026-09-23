@@ -42,7 +42,11 @@
 	<string>Main</string>
 	<key>UIBackgroundModes</key>
 	<array>
+		<!-- audio: a business-line call keeps talking when the app is backgrounded.
+	     voip: PushKit wakes the closed app for an incoming call (VoipPlugin.swift). -->
+		<string>audio</string>
 		<string>remote-notification</string>
+		<string>voip</string>
 	</array>
 	<key>UIRequiredDeviceCapabilities</key>
 	<array>

@@ -64,6 +64,74 @@ Project exists: **streamflaire-hub**.
    the Apple dev portal → upload to Firebase → Cloud Messaging → Apple app
    config. Until then iOS push will not deliver (Android is unaffected).
 
+## RELEASE 1.3 — iOS, 2026-09-23 (do this batch; the 1.2 section below is history — 1.2 shipped 2026-08-06)
+
+What's in it and why each piece needs the build: `native-release-queue.md`
+§ App Store. Windows side is done and on main. Console/env prerequisites
+(David) are listed there too — do them first, or the buttons appear and fail.
+
+### Mac steps, in order
+
+1. `git pull` → `npm install` → `npx cap sync ios`. Expect **12** plugins
+   (the sign-in plugin is new to iOS). It rewrites
+   `ios/App/CapApp-SPM/Package.swift` with the plugin and with forward-slash
+   paths — commit whatever it writes. The plugin's own sync hook reads
+   `plugins.SocialLogin.providers` from `capacitor.config.ts` (google +
+   apple on, facebook + twitter off) and trims its Package.swift to match,
+   so Alamofire/Facebook never enter the app. If Xcode complains about a
+   missing `GoogleSignIn` module in AppDelegate.swift: File → Add Package
+   Dependencies → `https://github.com/google/GoogleSignIn-iOS` (9.x), add
+   the `GoogleSignIn` product to the App target. (It's already in the
+   dependency graph through the plugin; this only makes it importable.)
+2. `npx cap open ios`. App target → Signing & Capabilities: team
+   7SLBAFUG62; **add Sign in with Apple** (the entitlement is already in
+   `App.entitlements`; the capability must also be on the identifier in the
+   portal, see the queue doc). Confirm Associated Domains, Push
+   Notifications and Background Modes (audio, remote-notification, voip —
+   all three ticked; Info.plist already lists them).
+3. Sources: `ShellViewController.swift`, `VoipPlugin.swift` and
+   `Intents.swift` are registered in the pbxproj by hand — check they show
+   under App and compile. Fix-ups likely to be needed and safe to make:
+   - Intents.swift is iOS 16 API; the deployment target is 15.0, so every
+     type is `@available(iOS 16.0, *)`. If the AppShortcutsProvider needs
+     the app to have an `AppIntents` framework link, add it.
+   - VoipPlugin.swift: `notifyListeners(_:data:retainUntilConsumed:)` is
+     Capacitor 5+; `CAPBridgedPlugin` conformance needs `identifier`,
+     `jsName`, `pluginMethods` (present).
+   - ShellViewController: `capacitorDidLoad` + `registerPluginInstance` are
+     Capacitor 5+.
+4. `Info.plist`: replace `REVERSED_GOOGLE_IOS_CLIENT_ID` with the reversed
+   iOS client id from Google Cloud Console (commit it). Leave it as the
+   placeholder only if Google on iOS is being skipped for this build.
+5. `aps-environment` in App.entitlements is `development`; Xcode switches it
+   to `production` for App Store / TestFlight archives automatically —
+   confirm in the archive's entitlements (Organizer → right-click archive →
+   Show in Finder → `codesign -d --entitlements :- App.app`). Push AND VoIP
+   push both die silently on the wrong value.
+6. Build to David's iPhone (development build → its VoIP token is a
+   *sandbox* token; `lib/apns.ts` tries production first and falls through
+   to sandbox on BadDeviceToken, so testing works against prod Railway with
+   no env change). Then the phone checklist in the queue doc.
+7. Archive → Distribute → App Store Connect → TestFlight → submit 1.3.
+   What's New text: `app-store-listing.md`. Review notes: mention that Sign
+   in with Apple is offered alongside Google (4.8), that VoIP push is used
+   only for incoming business-line calls (every push reports to CallKit),
+   and give the demo login.
+
+### If the calling half fights back
+
+- The pushed call shows on the lock screen but never connects: watch
+  Railway logs for `[apns]` and `[voice]`. "ready" outcome `late` means the
+  server had already handed the call to the cell (VOIP_WAKE_SECS in
+  `lib/voip.ts` is the budget for the app to load and register).
+- No lock-screen call at all: the token row (`PushSubscription` platform
+  `ios-voip`) is missing — `voipToken` only fires after `register()`, which
+  the softphone calls once it is registered with Telnyx; a user whose
+  softphone is off (`softphoneEnabled`) or role can't sell never registers.
+- CallKit answer but silence: the audio session — `configureAudioSession`
+  runs on answer; if WebRTC still has no route, move the category setup
+  into `didActivate` too.
+
 ## RELEASE 1.2 — 2026-08-05 (do this batch first; it supersedes A0/A0b)
 
 All Windows-side work is DONE and committed: iOS 1.2 (build 5) / Android

@@ -1,4 +1,19 @@
-# Social sign-in (Google now, Apple next) — 2026-09-14
+# Social sign-in (Google + Apple) — 2026-09-14, Apple added 2026-09-23
+
+## 2026-09-23 — Sign in with Apple BUILT (web + iOS app), native Google on iOS
+
+One `SocialSignIn` prop (`lib/sign-in-options.ts socialSignInFor`) now decides the
+buttons per surface: web = OAuth redirect for both; Android shell = native Google;
+iOS shell = native Apple + native Google, Google never without Apple (rule 4.8).
+Web Apple: NextAuth Apple provider, client secret minted from the .p8 at boot
+(`lib/apple-signin.ts`); Apple's form_post callback is bounced POST→GET by
+`middleware.ts` so Lax cookies (PKCE, session, verify-intent) survive; the one-time
+`user` field parks in `wb-apple-user`. Native: `lib/native-social-signin.ts` →
+`apple-native` / `google-native` providers (`lib/apple-id-token.ts`, audience =
+bundle id). Placeholder-adoption rule in `resolveSocialSignIn`: connecting an
+identity that only opens an empty account moves it (Hide-My-Email teammates).
+Console/env steps: `native-release-queue.md` § App Store. Store build 1.3 pending.
+
 
 ## What shipped (web Google, no store build)
 

@@ -85,7 +85,7 @@ android` should report **12** for Android.
 | | Version | State |
 |---|---|---|
 | Google Play | versionCode 3 / 1.2 | Live since 2026-09-14; **4 / 1.3 is built in the tree, not yet uploaded** |
-| App Store | 1.2 (build 5) | **Never submitted** |
+| App Store | 1.2 (build 5) | Live since 2026-08-06 as "Workbench FSM" (id6789991103); **1.3 (build 6) is written, needs the Mac** |
 
 Bump `versionCode` in `android/app/build.gradle` on every Play upload (Play
 rejects reuse; `versionName` is cosmetic). Already bumped to **4 / "1.3"** for
@@ -155,6 +155,8 @@ iOS deliberately excluded — `isAndroidShellUserAgent` gates it, because App
 Store rule 4.8 needs Sign in with Apple first. Full design:
 `social-login-2026-09-14.md`.
 
+**Calls ringing the phone when the app is closed — Android half** (queued 2026-09-23). iOS shipped it in 1.3 (PushKit + CallKit). Android needs an FCM high-priority data message → a foreground service with a full-screen incoming-call intent (ConnectionService for the native dialer look), and `components/Softphone.tsx` gating on a matching bridge the way it does on `nativeVoip()` for iOS; server side, a second platform beside `ios-voip` in `lib/voip.ts`. Until then Android phones are cells.
+
 **Microphone permission** (queued 2026-09-21, tier 2 of
 `business-line-voice-2026-09-18.md`). `RECORD_AUDIO` + `MODIFY_AUDIO_SETTINGS`
 are in `AndroidManifest.xml`. Needs a build because a manifest permission is
@@ -164,51 +166,89 @@ shell (`nativePlatform()`), so calls keep ringing the cell in the app. Lifting
 that gate is tier 3 work (foreground service / full-screen intent), not part of
 this build.
 
-## App Store — waiting for the next build
+## App Store — 1.3 (build 6), written 2026-09-23, waiting for the Mac
 
-The iOS app has never been submitted, so everything here lands in one go. All
-of it needs the Mac (`mobile-app-runbook-mac.md` § Mac steps).
+The app is live as **Workbench FSM** (id6789991103) at 1.2 (build 5) since
+2026-08-06, so this is an update, not a first submission. Everything below
+is in the tree and pushed; what's left is Apple/Google console work, the Mac
+build, and a phone to test on.
 
-**1. Sign in with Apple — do this before native Google.** App Store rule 4.8
-means Google cannot appear in the iOS app until Apple sign-in does
-(recorded in `social-login-2026-09-14.md`). Needs a Services ID, a `.p8` key
-and the Team ID; generate the client-secret JWT at boot from env so the
-6-month expiry never bites. Private-relay addresses won't match an
-owner-added teammate's email — the "no company attached" page needs a
-"sign in with password once to link" path.
+**What 1.3 carries** (all four need this build):
 
-**2. Native Google sign-in** — same plugin and provider work as the Play item
-above, gated behind Apple shipping first.
+1. **Sign in with Apple + native Google sign-in** — `lib/apple-signin.ts`,
+   `lib/apple-id-token.ts`, `lib/native-social-signin.ts`,
+   `components/SocialSignInButtons.tsx`. The iOS shell shows Apple first,
+   then Google; rule 4.8 is satisfied because Google never renders there
+   without Apple (`lib/sign-in-options.ts socialSignInFor`). Web Apple
+   sign-in ships with the same deploy (no build): Apple's cross-site
+   callback POST is bounced to a same-site GET by `middleware.ts` so the
+   session cookies survive. The plugin is the one already on Android
+   (`@capgo/capacitor-social-login`, `apple: true` now) — the Mac's
+   `npx cap sync ios` is what adds it to the Xcode project.
+2. **Siri App Intents** — `ios/App/App/Intents.swift`: "Clock me in with
+   WorkBench", "Clock me out with WorkBench", "Next job in WorkBench". Clock
+   runs without opening the app (webview cookies → `GET /api/app/siri/next-job`
+   → `POST /api/app/jobs/[id]/clock`); Next job opens the universal link.
+   iOS 16+, guarded with `@available`.
+3. **Business-line calls in the app, ringing when it's closed** (tier 3) —
+   `ios/App/App/VoipPlugin.swift` (PushKit + CallKit, registered by
+   `ShellViewController.swift`; `Main.storyboard` now points at that class),
+   `lib/native-voip.ts`, `lib/apns.ts` (VoIP push straight to APNs — FCM
+   can't carry it), `lib/voip.ts`, `wakeSoftphoneLeg` in `lib/voice.ts`,
+   `POST /api/app/line/softphone/ready`. `components/Softphone.tsx` registers
+   in the iPhone shell now (Android stays off). `UIBackgroundModes` gained
+   `voip` + `audio`. Design: `business-line-voice-2026-09-18.md` § Tier 3.
+4. **Microphone usage string** — already in Info.plist; rides along.
 
-**3. Microphone usage string** (queued 2026-09-21). `NSMicrophoneUsageDescription`
-is in `Info.plist`; iOS terminates an app that touches the mic without it, which
-is the other reason the softphone stays off in the shell until tier 3
-(PushKit + CallKit). Rides whatever build goes first.
+Also in the tree: `ITSAppUsesNonExemptEncryption = false` (no more
+export-compliance prompt per upload), version 1.3 / build 6.
 
-**4. Siri App Intents** (queued 2026-08-22). "Hey Siri, clock me in" / "next
-job" as real App Intents. The URL tier already works with no build (Shortcuts
-app → Open URLs → `https://workbenchfsm.com/app/go/next-job`); App Intents
-skip opening the app and let Siri confirm conversationally.
-- App Intents extension (Swift, iOS 16+) in `ios/App`: `OpenNextJobIntent`
-  (opens the universal link — trivial) and `ClockInIntent` (POSTs
-  `/api/app/jobs/[id]/clock`; needs the session cookie from the WKWebView
-  cookie store plus a next-job lookup — consider a small
-  `GET /api/app/arrival`-style endpoint returning the target job id).
-- Donate via `AppShortcutsProvider` so they show in Spotlight/Shortcuts.
-- Android has no counterpart: Google Assistant App Actions are deprecated.
+### David — consoles and env, BEFORE the Mac session
 
-### iOS pre-submit checks
+- **Apple developer portal → Identifiers → com.streamflaire.hub**: enable
+  **Sign in with Apple**. (Associated Domains and Push Notifications are
+  already on from 1.2.)
+- **Services ID** for web sign-in (e.g. `com.streamflaire.hub.web`): enable
+  Sign in with Apple, primary App ID = the app, domain `workbenchfsm.com`,
+  return URL `https://workbenchfsm.com/api/auth/callback/apple`. This is
+  `APPLE_SIGNIN_SERVICES_ID`.
+- **Keys**: one key with BOTH "Sign in with Apple" and "Apple Push
+  Notifications service (APNs)" ticked, downloaded once (.p8). The 10-char
+  key id is `APPLE_SIGNIN_KEY_ID`; base64 the whole .p8 file into
+  `APPLE_SIGNIN_PRIVATE_KEY`. `lib/apns.ts` falls back to those same two for
+  VoIP pushes, so no APNs-specific vars are needed — set
+  `APPLE_APNS_KEY_ID` / `APPLE_APNS_PRIVATE_KEY` only if you made a separate
+  key. Upload the same .p8 to Firebase → Cloud Messaging → Apple app config
+  if that was never done (ordinary notifications on iOS need it).
+- **Google Cloud Console** (same project as the web client): create an
+  **iOS** OAuth client, bundle id `com.streamflaire.hub`. Its client id is
+  `GOOGLE_SIGNIN_IOS_CLIENT_ID`; its REVERSED form
+  (`com.googleusercontent.apps.…`) replaces `REVERSED_GOOGLE_IOS_CLIENT_ID`
+  in `ios/App/App/Info.plist` (commit that). Without the env var the iOS
+  app offers Apple only — nothing breaks.
+- **Railway**: `APPLE_SIGNIN_SERVICES_ID`, `APPLE_SIGNIN_KEY_ID`,
+  `APPLE_SIGNIN_PRIVATE_KEY`, `GOOGLE_SIGNIN_IOS_CLIENT_ID`. `APPLE_TEAM_ID`
+  is already set. The web Apple button appears on deploy once the first
+  three exist; check `/api/auth/providers` lists `apple`.
 
-- `aps-environment` in `App.entitlements` is `development`. The distribution
-  archive must carry `production` or push silently dies in the store build.
-- Already in place, just confirm they survive the archive: Associated Domains
-  (`applinks:` + `webcredentials:workbenchfsm.com`), `WKAppBoundDomains`
-  (this is what gives WKWebView service workers, i.e. the offline snapshot in
-  `components/OfflineSupport.tsx` — it no-ops without it), and the usage
-  strings for camera, photos, Face ID and location.
-- If `npx cap sync ios` was ever run on Windows, check
-  `ios/App/CapApp-SPM/Package.swift` for backslash paths before archiving —
-  invalid Swift, breaks SPM on the Mac.
+### Mac — `mobile-app-runbook-mac.md` § RELEASE 1.3
+
+### After it's live — verify on the phone
+
+- Login shows Continue with Apple, then Continue with Google; each opens a
+  system sheet, not a browser, and lands on the dashboard.
+- Settings → My Profile → Sign-in methods: Connect Apple / Google work and
+  don't move you to another company; Verify it's you offers them.
+- "Hey Siri, clock me in with WorkBench" answers with the job's title;
+  "Next job in WorkBench" opens the job.
+- With the app swiped away, call the business line from another phone: the
+  iPhone shows a WorkBench call on the lock screen; Answer connects the
+  customer; the caller's ringback ran ~25 s at most before the cell would
+  have rung. Decline goes to voicemail. Then the same with the app open.
+- An outbound call from the Calls page shows on the system screen, keeps
+  talking with the phone locked, and Mute there mutes the call.
+
+**Android tier 3 is NOT in this release** — see the Play section.
 
 ---
 

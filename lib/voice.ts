@@ -49,7 +49,8 @@ import { fmtPhone } from "@/lib/format";
 import { phoneDigits } from "@/lib/phone";
 import { notifyUsers } from "@/lib/push";
 import { toE164 } from "@/lib/sms";
-import { APP_OUTBOUND_RING_SECS, APP_RING_SECS, onlineSoftphoneUsers, ringPlan, userSoftphoneOnline, type RingTarget } from "@/lib/softphone";
+import { APP_OUTBOUND_RING_SECS, APP_RING_SECS, canUseSoftphone, onlineSoftphoneUsers, ringPlan, userSoftphoneOnline, type RingTarget } from "@/lib/softphone";
+import { VOIP_WAKE_SECS, pushIncomingCall, voipTargetsFor } from "@/lib/voip";
 import {
   TTS,
   TelnyxError,
@@ -479,14 +480,31 @@ async function onAnswered(p: VoiceEventPayload): Promise<void> {
 
   if (call.direction === "INBOUND" && leg === "customer") {
     if (!call.company.lineNumber) return toVoicemail(call);
-    const plan = ringPlan(await onlineSoftphoneUsers(call.companyId), call.company.lineForwardTo);
-    if (plan.first === "voicemail") return toVoicemail(call);
-    if (plan.first === "app") {
+    const [online, phones] = await Promise.all([onlineSoftphoneUsers(call.companyId), voipTargetsFor(call.companyId)]);
+    const plan = ringPlan(online, call.company.lineForwardTo);
+    if (plan.first === "voicemail" && phones.length === 0) return toVoicemail(call);
+    if (plan.first === "app" || phones.length > 0) {
       // Guard the fan-out: a retried webhook must not ring every browser twice.
       const claimed = await prisma.call.updateMany({ where: { id: call.id, appRingAt: null }, data: { appRingAt: new Date(), via: "app" } });
       if (claimed.count === 0) return;
       await callAction(call.telnyxCallId!, "playback_start", { audio_url: ringbackUrl(), loop: "infinity" });
-      if ((await ringSoftphones(call, plan.app)) > 0) return;
+      // Browsers ring now, as SIP legs. iPhones get a VoIP push instead
+      // (lib/voip.ts): iOS shows the call at once, and each phone's SIP leg
+      // is dialed only when the app says it is awake (wakeSoftphoneLeg).
+      const ringing = await ringSoftphones(call, plan.app);
+      const woken = phones.length
+        ? await pushIncomingCall(
+            { id: call.id, label: displayParty(call), number: call.customerNumber, companyName: call.company.name },
+            phones
+          )
+        : 0;
+      if (ringing > 0) return;
+      if (woken > 0) {
+        // No browser leg whose timeout would hand the call on: if no phone
+        // has woken and answered by then, the cell rings.
+        scheduleCellFallback(call.id, (VOIP_WAKE_SECS + 3) * 1000);
+        return;
+      }
       // Not one browser could be dialed: the cell's turn, ringback already looping.
       return dialCell(call, { ringback: false });
     }
@@ -598,6 +616,49 @@ async function ringSoftphones(call: CallRow, targets: RingTarget[]): Promise<num
     }
   }
   return ringing;
+}
+
+/**
+ * After a VoIP push with no browser leg alongside it, nothing else moves the
+ * call on: a phone that never wakes produces no hangup webhook. This timer
+ * does what a timed-out browser leg would have — hands the call to the cell
+ * if it is still unanswered. Idempotent with everything else (dialCell's
+ * agentCallId claim; an open leg means a phone is ringing and its own
+ * timeout will take over).
+ */
+function scheduleCellFallback(callId: string, delayMs: number): void {
+  setTimeout(() => {
+    void (async () => {
+      const call = await prisma.call.findUnique({ where: { id: callId }, include: callInclude });
+      if (!call || call.status !== "RINGING" || call.direction !== "INBOUND" || call.agentCallId) return;
+      const open = await prisma.callLeg.count({ where: { callId, endedAt: null } });
+      if (open > 0) return;
+      await dialCell(call, { ringback: false });
+    })().catch((err) => console.error("[voice] cell fallback failed:", err));
+  }, delayMs);
+}
+
+export type WakeOutcome = "ringing" | "already" | "late" | "ineligible";
+
+/**
+ * The iPhone app is awake for a call it was pushed for
+ * (POST /api/app/line/softphone/ready): dial its SIP leg now, if the call is
+ * still ringing and nobody has it. "late" = it went elsewhere (answered,
+ * cell already ringing, caller gone) and the app should drop the system
+ * call screen.
+ */
+export async function wakeSoftphoneLeg(userId: string, companyId: string, callId: string): Promise<WakeOutcome> {
+  const call = await prisma.call.findFirst({ where: { id: callId, companyId }, include: callInclude });
+  if (!call || call.status !== "RINGING" || call.direction !== "INBOUND" || call.agentCallId || !call.appRingAt) return "late";
+  if (Date.now() - call.appRingAt.getTime() > (VOIP_WAKE_SECS + 5) * 1000) return "late";
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { sipUsername: true, softphoneEnabled: true, role: true, isActive: true },
+  });
+  if (!user?.sipUsername || !user.softphoneEnabled || !user.isActive || !canUseSoftphone(user.role)) return "ineligible";
+  const open = await prisma.callLeg.count({ where: { callId, userId, endedAt: null } });
+  if (open > 0) return "already";
+  return (await ringSoftphones(call, [{ userId, sipUsername: user.sipUsername }])) > 0 ? "ringing" : "late";
 }
 
 /** Hang up every browser leg still ringing on a call, except the one that won. Their hangup webhooks close the rows. */

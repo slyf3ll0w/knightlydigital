@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Maximize2, Mic, MicOff, Pause, Phone, PhoneIncoming, PhoneOff, Play, X } from "lucide-react";
 import { nativePlatform } from "@/components/NativeShell";
+import { nativeVoip, onVoip, rememberVoipToken, type VoipIncoming } from "@/lib/native-voip";
 import {
   fmtElapsed,
   getSoftphoneState,
@@ -56,9 +57,18 @@ import type { TelnyxRTC as TelnyxRTCType } from "@telnyx/webrtc";
  * the server dials, so the INVITE never times out behind the browser prompt.
  *
  * Presence is a heartbeat every 30 s while registered and a beacon on
- * pagehide (lib/softphone.ts decides who rings from it). Native shells
- * never register — a phone is a cell until tier 3 (CallKit / foreground
- * service) — and neither does a browser without WebRTC.
+ * pagehide (lib/softphone.ts decides who rings from it). A browser without
+ * WebRTC never registers, and neither does the Android shell (its tier 3 —
+ * a foreground service — is still queued).
+ *
+ * iPhone app (tier 3, lib/native-voip.ts + ios/App/App/VoipPlugin.swift):
+ * the same registration while the app is open, but the phone can also be
+ * rung while the app is closed. The server sends a VoIP push, iOS shows the
+ * system call screen at once, and the app loads underneath it; once this
+ * component is registered it POSTs /api/app/line/softphone/ready, the SIP
+ * leg is dialed, and an Answer already tapped on the system screen answers
+ * the INVITE the moment it lands. CallKit owns the ringing and the audio
+ * session, so the in-page ringer stays quiet there.
  */
 
 type RtcClient = TelnyxRTCType;
@@ -258,9 +268,15 @@ export default function Softphone() {
   const notice = useRef<Notification | null>(null);
   /** Set before a hangup we caused (or a failure the poll saw), so the end-of-call cue knows whose it was. */
   const endedBy = useRef<"local" | "remote" | null>(null);
+  /** iPhone: a call CallKit is showing that has no SIP INVITE here yet (pushed while the app was closed). */
+  const voipPending = useRef<{ callId: string; answered: boolean; at: number } | null>(null);
+  /** iPhone: the end came from the system call screen, so CallKit already knows. */
+  const endedFromCallKit = useRef(false);
 
   useEffect(() => {
-    if (nativePlatform()) {
+    // The iPhone app has a CallKit bridge; the Android shell does not (yet).
+    const voip = nativeVoip();
+    if (nativePlatform() && !voip) {
       setSoftphoneState({ status: "off", reason: "native" });
       return;
     }
@@ -268,8 +284,10 @@ export default function Softphone() {
       setSoftphoneState({ status: "off", reason: "unsupported" });
       return;
     }
-    ringer.current = ringer.current ?? new Ringer();
-    ringer.current.arm();
+    if (!voip) {
+      ringer.current = ringer.current ?? new Ringer();
+      ringer.current.arm();
+    }
     let unmounted = false;
     /** Bumped on every connect/teardown; handlers from an older client compare and bail. */
     let gen = 0;
@@ -334,7 +352,65 @@ export default function Softphone() {
       // One low note when you ended it, two falling notes when the other side did (or it never connected).
       ringer.current?.chime(endedBy.current === "local" ? "local" : "remote");
       endedBy.current = null;
+      const ended = getSoftphoneState().call?.callId ?? null;
       setSoftphoneState({ call: null });
+      // Keep the system call screen in step: it dismisses when we end here,
+      // unless the end came from that screen in the first place.
+      if (voip && ended && !endedFromCallKit.current) void voip.endCall({ callId: ended, reason: "remoteEnded" });
+      endedFromCallKit.current = false;
+    };
+
+    /** iPhone: tell the server this phone is awake for a pushed call, so its SIP leg gets dialed. */
+    const postReady = async (callId: string) => {
+      if (!voip) return;
+      let outcome = "late";
+      try {
+        const res = await fetch("/api/app/line/softphone/ready", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ callId }),
+        });
+        outcome = ((await res.json().catch(() => ({}))) as { outcome?: string }).outcome ?? "late";
+      } catch {
+        outcome = "late";
+      }
+      if (unmounted || voipPending.current?.callId !== callId || callRef.current) return;
+      if (outcome === "late" || outcome === "ineligible") {
+        // Answered elsewhere, the cell already has it, or the caller is gone.
+        voipPending.current = null;
+        setSoftphoneState({ call: null });
+        void voip.endCall({ callId, reason: "answeredElsewhere" });
+      }
+    };
+
+    /** iPhone: while CallKit shows a pushed call and no INVITE has landed, watch the row so a call that ended elsewhere dismisses. */
+    const watchPending = (callId: string) => {
+      const started = Date.now();
+      const tick = async () => {
+        const p = voipPending.current;
+        if (unmounted || !p || p.callId !== callId || callRef.current) return;
+        if (Date.now() - started > 45_000) {
+          voipPending.current = null;
+          setSoftphoneState({ call: null, error: p.answered ? "The call didn't reach the app in time." : null });
+          void voip?.endCall({ callId, reason: p.answered ? "failed" : "unanswered" });
+          return;
+        }
+        try {
+          const res = await fetch(`/api/app/line/softphone/call?id=${encodeURIComponent(callId)}`, { cache: "no-store" });
+          const j = (await res.json()) as { call?: { status: string } | null };
+          if (!j.call || j.call.status === "IN_PROGRESS" || TERMINAL.has(j.call.status)) {
+            if (voipPending.current?.callId !== callId || callRef.current) return;
+            voipPending.current = null;
+            setSoftphoneState({ call: null });
+            void voip?.endCall({ callId, reason: j.call?.status === "IN_PROGRESS" ? "answeredElsewhere" : "remoteEnded" });
+            return;
+          }
+        } catch {
+          /* next tick */
+        }
+        setTimeout(() => void tick(), 2500);
+      };
+      setTimeout(() => void tick(), 2500);
     };
 
     const checkMic = async () => {
@@ -406,13 +482,15 @@ export default function Softphone() {
         void call.answer();
         return;
       }
+      const pushed = voipPending.current;
+      const known = pushed && (callId === null || pushed.callId === callId) ? pushed : null;
       setSoftphoneState({
         error: null,
         call: {
-          callId,
+          callId: callId ?? known?.callId ?? null,
           direction: "in",
-          label: call.options.remoteCallerName || fmtNumber(call.options.remoteCallerNumber) || "Incoming call",
-          number: call.options.remoteCallerNumber ?? null,
+          label: known ? getSoftphoneState().call?.label || "Incoming call" : call.options.remoteCallerName || fmtNumber(call.options.remoteCallerNumber) || "Incoming call",
+          number: call.options.remoteCallerNumber ?? getSoftphoneState().call?.number ?? null,
           contactId: null,
           state: "ringing",
           startedAt: null,
@@ -420,10 +498,22 @@ export default function Softphone() {
         },
       });
       const ringLabel = call.options.remoteCallerName || fmtNumber(call.options.remoteCallerNumber) || "Incoming call";
-      void ringer.current?.start().then((audible) => {
-        if (!audible && callRef.current === call) notice.current = showIncomingNotice(ringLabel);
-      });
-      if (!document.title.startsWith("☎ ")) document.title = `☎ ${document.title}`;
+      if (voip) {
+        // CallKit rings, not the page. A call pushed while the app was closed
+        // is already on the system screen; one that arrived as an INVITE
+        // first (app in the foreground) is put there now.
+        const id = callId ?? known?.callId ?? null;
+        if (id && !known) void voip.reportIncoming({ callId: id, label: ringLabel, number: call.options.remoteCallerNumber ?? null });
+        if (known) {
+          voipPending.current = null;
+          if (known.answered) doAnswer();
+        }
+      } else {
+        void ringer.current?.start().then((audible) => {
+          if (!audible && callRef.current === call) notice.current = showIncomingNotice(ringLabel);
+        });
+        if (!document.title.startsWith("☎ ")) document.title = `☎ ${document.title}`;
+      }
       // Our own row is the truth about who this is (contact link, formatted number).
       fetch(`/api/app/line/softphone/call${callId ? `?id=${encodeURIComponent(callId)}` : ""}`, { cache: "no-store" })
         .then((r) => (r.ok ? r.json() : null))
@@ -438,8 +528,22 @@ export default function Softphone() {
             return;
           }
           patchSoftphoneCall({ callId: j.call.id, label: j.call.label, number: j.call.number, contactId: j.call.contactId });
+          // The INVITE's header didn't survive the SDK: the row named the call, so the system screen can show it now.
+          if (voip && !callId) void voip.reportIncoming({ callId: j.call.id, label: j.call.label, number: j.call.number });
         })
         .catch(() => {});
+    };
+
+    /** Answer the ringing INVITE (microphone first — a permission prompt inside the SDK's answer() would race the INVITE's timeout). */
+    const doAnswer = () => {
+      const c = callRef.current;
+      if (!c || c.state !== "ringing") return;
+      stopRinger();
+      void (getSoftphoneState().mic === "granted" ? Promise.resolve(true) : requestMic()).then((ok) => {
+        if (callRef.current !== c) return;
+        if (ok) void c.answer();
+        else void c.hangup();
+      });
     };
 
     const onCallUpdate = (call: RtcCall) => {
@@ -456,6 +560,7 @@ export default function Softphone() {
             patchSoftphoneCall({ muted: call.isAudioMuted });
           } else {
             patchSoftphoneCall({ state: "active", startedAt: cur?.startedAt ?? Date.now(), muted: call.isAudioMuted });
+            if (voip && cur?.callId) void voip.reportConnected({ callId: cur.callId });
           }
           return;
         }
@@ -509,6 +614,13 @@ export default function Softphone() {
         void beat(true);
         stopHeartbeat();
         heartbeat = setInterval(() => void beat(true), HEARTBEAT_MS);
+        if (voip) {
+          // Registered: this phone can be pushed for calls from now on — and
+          // if it was launched FOR a call, say so, and the SIP leg gets dialed.
+          void voip.register().catch(() => {});
+          const p = voipPending.current;
+          if (p && !callRef.current) void postReady(p.callId);
+        }
       });
       c.on("telnyx.error", (err: unknown) => {
         if (live()) console.warn("[softphone] error:", err);
@@ -565,21 +677,20 @@ export default function Softphone() {
 
     const unregister = registerSoftphoneController({
       answer: () => {
-        const c = callRef.current;
-        if (!c || c.state !== "ringing") return;
-        stopRinger();
-        // Get the microphone first: a permission prompt inside the SDK's answer() would race the INVITE's timeout.
-        void (getSoftphoneState().mic === "granted" ? Promise.resolve(true) : requestMic()).then((ok) => {
-          if (callRef.current !== c) return;
-          if (ok) void c.answer();
-          else void c.hangup();
-        });
+        const p = voipPending.current;
+        if (!callRef.current && p) {
+          // Pushed call, INVITE not here yet: answer the moment it lands.
+          p.answered = true;
+          return;
+        }
+        doAnswer();
       },
       decline: () => {
         // Straight to voicemail, like a phone. The server hears it FIRST: a
         // browser leg that merely drops means "ring the cell next".
         const id = getSoftphoneState().call?.callId ?? null;
         const c = callRef.current;
+        const pushed = voipPending.current;
         endedBy.current = "local";
         void (async () => {
           if (id) {
@@ -590,10 +701,18 @@ export default function Softphone() {
             }).catch(() => {});
           }
           if (c) void c.hangup();
-          else cancelPending();
+          else if (!pushed) cancelPending();
         })();
         if (c) endCall(c);
-        else endedBy.current = null;
+        else if (pushed) {
+          // Declined before the INVITE arrived (pushed call): the row is
+          // already VOICEMAIL; drop the card and the system screen.
+          voipPending.current = null;
+          endedBy.current = null;
+          setSoftphoneState({ call: null });
+          if (voip && !endedFromCallKit.current) void voip.endCall({ callId: pushed.callId, reason: "declined" });
+          endedFromCallKit.current = false;
+        } else endedBy.current = null;
       },
       hangup: () => {
         const c = callRef.current;
@@ -665,12 +784,13 @@ export default function Softphone() {
         if (!res.ok || !data.callId) throw new Error(data.error || "Couldn't place the call.");
         const placedId = data.callId;
         pendingOutbound.current = { callId: placedId, at: Date.now() };
+        const outLabel = target.label || fmtNumber(data.customerNumber) || "Calling…";
         setSoftphoneState({
           error: null,
           call: {
             callId: placedId,
             direction: "out",
-            label: target.label || fmtNumber(data.customerNumber) || "Calling…",
+            label: outLabel,
             number: data.customerNumber ?? null,
             contactId: target.contactId ?? null,
             state: "dialing",
@@ -678,6 +798,9 @@ export default function Softphone() {
             muted: false,
           },
         });
+        // iPhone: an outgoing call on the system screen too, so the audio
+        // session and the lock-screen controls behave like a phone call.
+        if (voip) void voip.startOutgoing({ callId: placedId, label: outLabel, number: data.customerNumber ?? null }).catch(() => {});
         if (inviteWatch) clearTimeout(inviteWatch);
         inviteWatch = setTimeout(() => {
           if (pendingOutbound.current?.callId !== placedId) return;
@@ -700,6 +823,72 @@ export default function Softphone() {
       }
     };
     window.addEventListener("pagehide", goodbye);
+
+    // iPhone: what the system call screen and PushKit tell us (lib/native-voip.ts).
+    const offVoip: Array<() => void> = [];
+    if (voip) {
+      offVoip.push(
+        onVoip<{ token: string | null }>(voip, "voipToken", ({ token }) => {
+          rememberVoipToken(token);
+          if (!token) return;
+          void fetch("/api/app/push", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ platform: "ios-voip", token }),
+          }).catch(() => {});
+        })
+      );
+      offVoip.push(
+        onVoip<VoipIncoming>(voip, "incomingCall", (inc) => {
+          if (unmounted || !inc?.callId) return;
+          const cur = getSoftphoneState().call;
+          // The INVITE beat the push here (app in the foreground): nothing to add.
+          if (callRef.current && cur?.callId === inc.callId) return;
+          if (callRef.current || voipPending.current) {
+            // Busy with another call: this one rings on, elsewhere.
+            void voip.endCall({ callId: inc.callId, reason: "unanswered" });
+            return;
+          }
+          voipPending.current = { callId: inc.callId, answered: false, at: Date.now() };
+          setSoftphoneState({
+            error: null,
+            call: { callId: inc.callId, direction: "in", label: inc.label || "Incoming call", number: inc.number ?? null, contactId: null, state: "ringing", startedAt: null, muted: false },
+          });
+          if (getSoftphoneState().status === "ready") void postReady(inc.callId);
+          watchPending(inc.callId);
+        })
+      );
+      offVoip.push(
+        onVoip<{ callId: string }>(voip, "callAnswered", ({ callId }) => {
+          if (unmounted) return;
+          const p = voipPending.current;
+          if (callRef.current?.state === "ringing") doAnswer();
+          else if (p && p.callId === callId) p.answered = true;
+        })
+      );
+      offVoip.push(
+        onVoip<{ callId: string; reason: string }>(voip, "callEnded", ({ callId }) => {
+          if (unmounted) return;
+          const cur = getSoftphoneState().call;
+          const p = voipPending.current;
+          if (cur?.callId !== callId && p?.callId !== callId) return;
+          endedFromCallKit.current = true;
+          const c = callRef.current;
+          if (c?.state === "ringing" || (!c && p)) softphone.decline();
+          else if (c) softphone.hangup();
+          endedFromCallKit.current = false;
+        })
+      );
+      offVoip.push(
+        onVoip<{ muted: boolean }>(voip, "muteChanged", ({ muted }) => {
+          const c = callRef.current;
+          if (!c) return;
+          if (muted && !c.isAudioMuted) c.muteAudio();
+          else if (!muted && c.isAudioMuted) c.unmuteAudio();
+          patchSoftphoneCall({ muted: c.isAudioMuted });
+        })
+      );
+    }
 
     // One registration per browser (see the header comment). The tab that holds
     // the lock connects; any other waits, says so, and connects when it's freed.
@@ -733,6 +922,7 @@ export default function Softphone() {
     return () => {
       unmounted = true;
       releaseLock?.();
+      offVoip.forEach((off) => off());
       window.removeEventListener("pagehide", goodbye);
       if (retry) clearTimeout(retry);
       if (inviteWatch) clearTimeout(inviteWatch);

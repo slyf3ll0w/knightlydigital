@@ -144,7 +144,21 @@ was wrong about that; it only applies to a softphone that places PSTN calls).
   while a call is ringing on another page (the card is fixed-position, so it's
   visible everywhere already).
 
-## Tier 3 — native ringing when the app is closed — PLANNED (≈1 week + review)
+## Tier 3 — native ringing when the app is closed — iOS BUILT 2026-09-23 (store build 1.3 pending), Android PLANNED
+
+iOS is written: `ios/App/App/VoipPlugin.swift` (PushKit + CallKit), `lib/native-voip.ts`,
+`lib/apns.ts` (VoIP push direct to APNs), `lib/voip.ts` (targets + push),
+`wakeSoftphoneLeg` in `lib/voice.ts` + `POST /api/app/line/softphone/ready`, and
+`components/Softphone.tsx` now registers in the iPhone shell. Flow: inbound call →
+browsers get SIP legs as before, iPhones get a VoIP push → CallKit shows the call →
+the app loads, registers, POSTs ready → its SIP leg is dialed → an Answer already
+tapped on the system screen answers the INVITE. No browser leg + no phone awake
+within VOIP_WAKE_SECS (25 s) → the cell rings (scheduleCellFallback). Tokens live in
+`PushSubscription` as platform `ios-voip`, dropped on sign-out (`lib/sign-out.ts`).
+See `native-release-queue.md` § App Store for the console/Mac steps.
+
+Original plan, kept for the Android half:
+
 
 - iOS: PushKit VoIP push + CallKit (`@capacitor-community/callkit-voip` or a
   small custom plugin). On `call.initiated` the server sends a VoIP push per
