@@ -46,5 +46,6 @@ is not recorded by the app.
 
 ## Version / build
 
-`MARKETING_VERSION = 1.3`, `CURRENT_PROJECT_VERSION = 6` — bump build to 7
-if a second upload is needed for the same version.
+`MARKETING_VERSION = 1.3`, `CURRENT_PROJECT_VERSION = 7` (build 6 crashed on
+the first closed-app call: PushKit was not registered at launch). Bump to 8 if
+another upload is needed for the same version.

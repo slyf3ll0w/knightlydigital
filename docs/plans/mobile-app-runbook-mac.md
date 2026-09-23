@@ -83,7 +83,17 @@ uploaded to App Store Connect**. The exported IPA was checked:
 `aps-environment = production`, applesignin, associated domains, background
 modes audio + remote-notification + voip, `Metadata.appintents` present.
 
-Not done, because the iPhone was not connected: step 6 (development build
+**Build 7 (later the same day):** the TestFlight build 6 crashed on the
+first closed-app call. Cause: PushKit was registered only when the web
+side asked for the token, i.e. after the page had loaded, so an app
+launched BY a VoIP push had no registry to deliver it to and iOS terminated
+it for never reporting the call. `AppDelegate` now calls
+`VoipEngine.shared.registerForPushes()` at launch, and `VoipEngine` queues
+events raised before `VoipPlugin.load()` (a cold launch for a push runs
+seconds before the bridge exists) and replays them there. Sign-in and Siri
+had already passed on build 6.
+
+Not done on build 6, because the iPhone was not connected: step 6 (development build
 to the phone + the phone checklist in the queue doc) and step 7's
 **submit**. Build 6 is in TestFlight, which is the better test for VoIP push
 anyway (production token, no sandbox fallback). Run the checklist from the

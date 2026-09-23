@@ -47,6 +47,7 @@ public class VoipPlugin: CAPPlugin, CAPBridgedPlugin {
 
     public override func load() {
         engine.plugin = self
+        engine.flushQueued()
     }
 
     @objc func register(_ call: CAPPluginCall) {
@@ -94,6 +95,11 @@ final class VoipEngine: NSObject, PKPushRegistryDelegate, CXProviderDelegate {
 
     weak var plugin: VoipPlugin?
     private(set) var token: String?
+    /// Events raised before the bridge had a plugin to hand them to — a cold
+    /// launch for a push runs this engine seconds before the web page exists.
+    /// Capacitor's own retain-until-consumed only works once the plugin is
+    /// registered, so they queue here and replay in `load()`.
+    private var queued: [(String, [String: Any])] = []
 
     private var registry: PKPushRegistry?
     private let provider: CXProvider
@@ -122,11 +128,23 @@ final class VoipEngine: NSObject, PKPushRegistryDelegate, CXProviderDelegate {
         provider.setDelegate(self, queue: nil)
     }
 
+    private func emit(_ event: String, _ data: [String: Any]) {
+        if let plugin = plugin { plugin.emit(event, data) } else { queued.append((event, data)) }
+    }
+
+    func flushQueued() {
+        let pending = queued
+        queued.removeAll()
+        for (event, data) in pending { plugin?.emit(event, data) }
+    }
+
     // MARK: PushKit
 
+    /// Idempotent: called at launch (AppDelegate) and again whenever the web
+    /// side asks for the token, which re-sends the one we already hold.
     func registerForPushes() {
         if registry != nil {
-            if let token = token { plugin?.emit("voipToken", ["token": token]) }
+            if let token = token { emit("voipToken", ["token": token]) }
             return
         }
         let r = PKPushRegistry(queue: .main)
@@ -139,13 +157,13 @@ final class VoipEngine: NSObject, PKPushRegistryDelegate, CXProviderDelegate {
         guard type == .voIP else { return }
         let hex = pushCredentials.token.map { String(format: "%02x", $0) }.joined()
         token = hex
-        plugin?.emit("voipToken", ["token": hex])
+        emit("voipToken", ["token": hex])
     }
 
     func pushRegistry(_ registry: PKPushRegistry, didInvalidatePushTokenFor type: PKPushType) {
         guard type == .voIP else { return }
         token = nil
-        plugin?.emit("voipToken", ["token": NSNull()])
+        emit("voipToken", ["token": NSNull()])
     }
 
     func pushRegistry(_ registry: PKPushRegistry, didReceiveIncomingPushWith payload: PKPushPayload, for type: PKPushType, completion: @escaping () -> Void) {
@@ -156,7 +174,7 @@ final class VoipEngine: NSObject, PKPushRegistryDelegate, CXProviderDelegate {
         let number = dict["number"] as? String
         // Report FIRST, synchronously — the rule that keeps the app alive.
         reportIncoming(callId: callId, label: label, number: number, fromPush: true)
-        plugin?.emit("incomingCall", ["callId": callId, "label": label, "number": number ?? NSNull()])
+        emit("incomingCall", ["callId": callId, "label": label, "number": number ?? NSNull()])
         completion()
     }
 
@@ -247,7 +265,7 @@ final class VoipEngine: NSObject, PKPushRegistryDelegate, CXProviderDelegate {
     // MARK: CXProviderDelegate — the person acting on the system screen
 
     func providerDidReset(_ provider: CXProvider) {
-        for callId in uuids.keys { plugin?.emit("callEnded", ["callId": callId, "reason": "reset"]) }
+        for callId in uuids.keys { emit("callEnded", ["callId": callId, "reason": "reset"]) }
         uuids.removeAll()
         callIds.removeAll()
     }
@@ -256,13 +274,13 @@ final class VoipEngine: NSObject, PKPushRegistryDelegate, CXProviderDelegate {
         guard let callId = callIds[action.callUUID] else { return action.fail() }
         claim(callId)
         configureAudioSession()
-        plugin?.emit("callAnswered", ["callId": callId])
+        emit("callAnswered", ["callId": callId])
         action.fulfill()
     }
 
     func provider(_ provider: CXProvider, perform action: CXEndCallAction) {
         guard let callId = callIds[action.callUUID] else { return action.fail() }
-        plugin?.emit("callEnded", ["callId": callId, "reason": "user"])
+        emit("callEnded", ["callId": callId, "reason": "user"])
         forget(callId)
         action.fulfill()
     }
@@ -274,22 +292,22 @@ final class VoipEngine: NSObject, PKPushRegistryDelegate, CXProviderDelegate {
 
     func provider(_ provider: CXProvider, perform action: CXSetMutedCallAction) {
         guard let callId = callIds[action.callUUID] else { return action.fail() }
-        plugin?.emit("muteChanged", ["callId": callId, "muted": action.isMuted])
+        emit("muteChanged", ["callId": callId, "muted": action.isMuted])
         action.fulfill()
     }
 
     func provider(_ provider: CXProvider, perform action: CXSetHeldCallAction) {
         guard let callId = callIds[action.callUUID] else { return action.fail() }
-        plugin?.emit("holdChanged", ["callId": callId, "held": action.isOnHold])
+        emit("holdChanged", ["callId": callId, "held": action.isOnHold])
         action.fulfill()
     }
 
     func provider(_ provider: CXProvider, didActivate audioSession: AVAudioSession) {
-        plugin?.emit("audioActivated", [:])
+        emit("audioActivated", [:])
     }
 
     func provider(_ provider: CXProvider, didDeactivate audioSession: AVAudioSession) {
-        plugin?.emit("audioDeactivated", [:])
+        emit("audioDeactivated", [:])
     }
 
     private func configureAudioSession() {

@@ -12,6 +12,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         FirebaseApp.configure()
+        // PushKit must be registered AT LAUNCH: when iOS starts the closed app
+        // for a VoIP push it delivers that push to the registry it finds here,
+        // and an app that has none gets terminated for never reporting the
+        // call to CallKit (seen as a crash the first time a call came in with
+        // the app swiped away). The token only goes to the server once the web
+        // side asks for it (VoipPlugin.register), so nothing rings a device
+        // that has not opted in.
+        VoipEngine.shared.registerForPushes()
         if let shortcutItem = launchOptions?[.shortcutItem] as? UIApplicationShortcutItem {
             NotificationCenter.default.post(name: NSNotification.Name(AppShortcutsPlugin.notificationName), object: nil, userInfo: [AppShortcutsPlugin.userInfoShortcutItemKey: shortcutItem])
         }
