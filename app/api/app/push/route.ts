@@ -77,6 +77,12 @@ export async function DELETE(req: NextRequest) {
   const endpoint = typeof body?.endpoint === "string" ? body.endpoint : "";
   if (!endpoint) return NextResponse.json({ error: "Endpoint required." }, { status: 400 });
 
-  await prisma.pushSubscription.deleteMany({ where: { endpoint, userId: actor.id } });
+  // A VoIP token may sit on a sibling membership of the same login (the
+  // phone rings for every company on it — lib/voip.ts); signing out must
+  // drop it wherever it is, or the phone keeps ringing for a signed-out app.
+  const me = await prisma.user.findUnique({ where: { id: actor.id }, select: { accountId: true } });
+  await prisma.pushSubscription.deleteMany({
+    where: { endpoint, OR: [{ userId: actor.id }, ...(me?.accountId ? [{ user: { accountId: me.accountId } }] : [])] },
+  });
   return NextResponse.json({ ok: true });
 }

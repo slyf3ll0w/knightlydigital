@@ -6,6 +6,8 @@ import { canSell, getSession, peekActor } from "@/lib/permissions";
 import type { Role } from "@prisma/client";
 import { hasAddon } from "@/lib/addon";
 import { voiceConfigured } from "@/lib/telnyx";
+import { SOFTPHONE_ROLES } from "@/lib/softphone";
+import { isIosShellUserAgent } from "@/lib/sign-in-options";
 import { prisma } from "@/lib/db";
 import { paymentsGateStatus } from "@/lib/payments-gate";
 import { atlasAccess, ATLAS_ACCESS_SELECT, ATLAS_PRICING } from "@/lib/assistant-access";
@@ -126,6 +128,23 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // Business-line calls in the browser (lib/softphone.ts): mounted only once
   // the number is on the voice app; the grant route re-checks everything else.
   const softphone = Boolean(company && user && voiceConfigured() && company.lineVoiceAppAt && hasAddon(company) && canSell(user.role as Role));
+  // The iPhone rings for every company on the login (lib/voip.ts). Signed
+  // into one without a line, the app must still hear the push and switch
+  // over, so the softphone mounts (and stays "off") whenever another
+  // membership of this login can take calls.
+  const ringsForSibling =
+    !softphone && user && voiceConfigured() && isIosShellUserAgent((await headers()).get("user-agent"))
+      ? (await prisma.user.count({
+          where: {
+            id: { not: session.user.id },
+            account: { users: { some: { id: session.user.id } } },
+            isActive: true,
+            softphoneEnabled: true,
+            role: { in: [...SOFTPHONE_ROLES] },
+            company: { lineVoiceAppAt: { not: null } },
+          },
+        })) > 0
+      : false;
   const updateRequested =
     gate === "pending" && company?.finixOnboardingState === "UPDATE_REQUESTED";
 
@@ -137,7 +156,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <ForegroundRefresh />
       <TeamLocationReporter />
       <ArrivalNudge />
-      {softphone && <Softphone />}
+      {(softphone || ringsForSibling) && <Softphone />}
       <AppShell
         userName={user?.name ?? session.user.name}
         userEmail={session.user.email}
