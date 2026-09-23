@@ -3,6 +3,7 @@ import Capacitor
 import AppShortcutsPlugin
 import FirebaseCore
 import FirebaseMessaging
+import GoogleSignIn
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -66,6 +67,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
+        // The Google Sign-In SDK returns to the app on its reversed-client-id
+        // scheme (Info.plist CFBundleURLTypes); it must see that URL first.
+        if GIDSignIn.sharedInstance.handle(url) {
+            return true
+        }
         // Called when the app was launched with a url. Feel free to add additional processing here,
         // but if you want the App API to support tracking app url opens, make sure to keep this call
         return ApplicationDelegateProxy.shared.application(app, open: url, options: options)

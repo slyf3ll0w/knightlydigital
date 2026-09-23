@@ -1,14 +1,22 @@
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
+import AppleProvider from "next-auth/providers/apple";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { verifyCaptcha } from "@/lib/captcha";
 import { normalizeEmail } from "@/lib/user-email";
 import { eligibleMembershipsFor, findOrAdoptAccountByEmail, pickMembership } from "@/lib/account";
-import { isGoogleSignInConfigured } from "@/lib/sign-in-options";
+import { isAppleSignInConfigured, isGoogleSignInConfigured } from "@/lib/sign-in-options";
 import { verifyGoogleIdToken } from "@/lib/google-id-token";
-import { identityAccountId, resolveSocialSignIn, type SocialSignInUser } from "@/lib/social-login";
+import { appleFlag, verifyAppleIdToken } from "@/lib/apple-id-token";
+import { appleClientSecret } from "@/lib/apple-signin";
+import {
+  identityAccountId,
+  resolveSocialSignIn,
+  type SocialProvider,
+  type SocialSignInUser,
+} from "@/lib/social-login";
 import type { ReauthVia } from "@/lib/reauth";
 
 /**
@@ -17,34 +25,41 @@ import type { ReauthVia } from "@/lib/reauth";
  * the JWT at a sibling row via the "update" trigger below; nothing downstream
  * (loadActor, company scoping) has to know more than one membership exists.
  *
- * Three ways to prove you own an Account: the password (Credentials provider,
- * a native form POST so password managers see it), a Google sign-in on the
- * web (OAuth redirect) and a Google sign-in in the Android app (the shell's
- * plugin hands us an ID token, verified here). All three land in
- * lib/social-login.ts, which binds the Google subject id to the Account, and
- * all three mint the same JWT shape.
+ * Five ways to prove you own an Account: the password (Credentials provider,
+ * a native form POST so password managers see it), Google or Apple on the
+ * web (OAuth redirect), and Google or Apple in the native apps (the shell's
+ * plugin hands us an ID token, verified here). All of them land in
+ * lib/social-login.ts, which binds the provider's subject id to the
+ * Account, and all of them mint the same JWT shape.
  */
 
 /**
- * What the OAuth callback knows about the session the visitor already holds
- * (assembled per request in app/api/auth/[...nextauth]/route.ts).
+ * What the OAuth callback knows about the request (assembled per request in
+ * app/api/auth/[...nextauth]/route.ts): the session the visitor already
+ * holds, if any, plus a couple of things only that leg can see.
  */
 export type AuthRequestContext = {
   currentAccountId: string | null;
   currentCompanyId: string | null;
   /** A fresh "verify it's you" proof for that account, if the request carries one. */
   reauthVia: ReauthVia | null;
-  /** Set when this Google round-trip IS the verification: the page to return to. */
+  /** Set when this OAuth round-trip IS the verification: the page to return to. */
   reauthReturnTo: string | null;
+  /**
+   * Apple sends the person's name exactly once, on first authorization, as
+   * a form field beside the code — never in the token. The middleware
+   * stashes it for the callback leg (see route.ts); null every other time.
+   */
+  appleName: string | null;
   /** Written by the callback for the route handler to act on. */
   outcome: { reauthGranted?: boolean };
 };
 
-/** Google's OIDC profile — the fields the sign-in rules read. */
-type GoogleProfile = {
+/** The OIDC profile fields the sign-in rules read (Google and Apple alike). */
+type OidcProfile = {
   sub?: string;
   email?: string;
-  email_verified?: boolean;
+  email_verified?: boolean | string;
   name?: string;
 };
 
@@ -52,12 +67,88 @@ function isNonEmptyString(v: unknown): v is string {
   return typeof v === "string" && v.length > 0;
 }
 
+const SOCIAL_PROVIDERS: SocialProvider[] = ["google", "apple"];
+
+function socialProviderOf(providerId: string | undefined): SocialProvider | null {
+  return SOCIAL_PROVIDERS.find((p) => p === providerId) ?? null;
+}
+
+/** "google-native" → google, "apple-native" → apple, anything else → password. */
+function signInMethodOf(providerId: string | undefined): "password" | "google" | "apple" {
+  if (providerId === "google" || providerId === "google-native") return "google";
+  if (providerId === "apple" || providerId === "apple-native") return "apple";
+  return "password";
+}
+
 /**
  * The options, bound to one request. Only the OAuth sign-in callback reads
- * the context (to link a Google identity to the account already signed in);
+ * the context (to link an identity to the account already signed in);
  * every other caller — getServerSession, loadActor — uses `authOptions`.
  */
 export function buildAuthOptions(ctx: AuthRequestContext | null = null): NextAuthOptions {
+  // A malformed key must not take every sign-in down with it (these options
+  // are built at import time too): Apple simply stays off, loudly.
+  let appleSecret: string | null = null;
+  if (isAppleSignInConfigured()) {
+    try {
+      appleSecret = appleClientSecret();
+    } catch (e) {
+      console.error("[auth] Sign in with Apple disabled:", e instanceof Error ? e.message : e);
+    }
+  }
+
+  /**
+   * The native apps' path, one provider per company. The shell's plugin
+   * produced an ID token in place (lib/native-social-signin.ts) and posts it
+   * here. Credentials-shaped because there is no redirect to run — but the
+   * token is verified against the provider's JWKS before it means anything,
+   * and then the SAME rules as the web path decide the account.
+   *
+   * No linkIntent: connecting an identity to the account you are already
+   * signed into goes through POST /api/app/profile/identities, which leaves
+   * the session alone. This is a plain sign-in: the identity decides the
+   * account (a sign-up coming back through the login page is a known
+   * identity — rule 1), never the session held.
+   */
+  function nativeProvider(provider: SocialProvider) {
+    return CredentialsProvider({
+      id: `${provider}-native`,
+      name: provider === "google" ? "Google" : "Apple",
+      credentials: {
+        idToken: { label: "ID token" },
+        // Apple only: the name the sheet returned (first authorization).
+        name: { label: "Name" },
+      },
+      async authorize(credentials) {
+        const idToken = credentials?.idToken;
+        if (!idToken) return null;
+
+        // Signature, issuer, audience, expiry. Null = never happened.
+        const claims =
+          provider === "google"
+            ? await verifyGoogleIdToken(idToken)
+            : await verifyAppleIdToken(idToken, "app");
+        if (!claims) return null;
+
+        const result = await resolveSocialSignIn(
+          {
+            provider,
+            providerAccountId: claims.sub,
+            email: claims.email,
+            emailVerified: claims.emailVerified,
+            name: provider === "google" ? (claims as { name: string | null }).name : credentials?.name || null,
+          },
+          { currentAccountId: ctx?.currentAccountId ?? null, linkIntent: false }
+        );
+
+        // Thrown reasons reach the client as signIn()'s `error`, so the app
+        // shows the same copy as the web ?error= codes.
+        if (!result.ok) throw new Error(result.reason);
+        return result.user satisfies SocialSignInUser;
+      },
+    });
+  }
+
   return {
     providers: [
       CredentialsProvider({
@@ -134,51 +225,20 @@ export function buildAuthOptions(ctx: AuthRequestContext | null = null): NextAut
                 params: { prompt: "select_account", scope: "openid email profile" },
               },
             }),
+            nativeProvider("google"),
           ]
         : []),
-      // The Android shell's path. Google refuses OAuth inside an embedded
-      // webview, so the app signs in through the native Credential Manager
-      // (@capgo/capacitor-social-login) and posts the resulting ID token
-      // here. Credentials-shaped because there is no redirect to run — but
-      // the token is verified against Google's JWKS before it means anything,
-      // and then the SAME rules as the web path decide the account.
-      ...(isGoogleSignInConfigured()
+      // Sign in with Apple on the web. The client secret is a JWT we mint
+      // (lib/apple-signin.ts). Apple answers with a cross-site form POST,
+      // which the middleware turns into a same-site GET before it reaches
+      // this handler — see the note in route.ts.
+      ...(appleSecret
         ? [
-            CredentialsProvider({
-              id: "google-native",
-              name: "Google",
-              credentials: { idToken: { label: "Google ID token" } },
-              async authorize(credentials) {
-                const idToken = credentials?.idToken;
-                if (!idToken) return null;
-
-                // Signature, issuer, audience, expiry. Null = never happened.
-                const claims = await verifyGoogleIdToken(idToken);
-                if (!claims) return null;
-
-                // No linkIntent: connecting an identity to the account you
-                // are already signed into goes through
-                // POST /api/app/profile/identities, which leaves the session
-                // alone. This is a plain sign-in: the Google identity decides
-                // the account (a sign-up coming back through the login page
-                // is a known identity — rule 1), never the session held.
-                const result = await resolveSocialSignIn(
-                  {
-                    provider: "google",
-                    providerAccountId: claims.sub,
-                    email: claims.email,
-                    emailVerified: claims.emailVerified,
-                    name: claims.name,
-                  },
-                  { currentAccountId: ctx?.currentAccountId ?? null, linkIntent: false }
-                );
-
-                // Thrown reasons reach the client as signIn()'s `error`, so
-                // the app shows the same copy as the web ?error= codes.
-                if (!result.ok) throw new Error(result.reason);
-                return result.user satisfies SocialSignInUser;
-              },
+            AppleProvider({
+              clientId: process.env.APPLE_SIGNIN_SERVICES_ID!,
+              clientSecret: appleSecret,
             }),
+            nativeProvider("apple"),
           ]
         : []),
     ],
@@ -191,12 +251,14 @@ export function buildAuthOptions(ctx: AuthRequestContext | null = null): NextAut
     },
     callbacks: {
       // OAuth sign-ins land here with the provider's profile; the password
-      // path (authorize above) has already decided by now and passes through.
+      // and native paths (authorize above) have already decided by now and
+      // pass through.
       async signIn({ user, account, profile }) {
         if (!account || account.type === "credentials") return true;
-        if (account.provider !== "google") return false;
+        const provider = socialProviderOf(account.provider);
+        if (!provider) return false;
 
-        const p = (profile ?? {}) as GoogleProfile;
+        const p = (profile ?? {}) as OidcProfile;
         const sub = isNonEmptyString(account.providerAccountId)
           ? account.providerAccountId
           : isNonEmptyString(p.sub)
@@ -204,12 +266,12 @@ export function buildAuthOptions(ctx: AuthRequestContext | null = null): NextAut
             : null;
         if (!sub) return false;
 
-        // "Verify it's you" through Google: a page sent a signed-in person
-        // here to prove they hold the login. It only counts when this Google
-        // account is already connected to the session's own account; the
+        // "Verify it's you" through a provider: a page sent a signed-in
+        // person here to prove they hold the login. It only counts when this
+        // identity is already connected to the session's own account; the
         // session is never re-minted or switched, they just go back.
         if (ctx?.reauthReturnTo && ctx.currentAccountId) {
-          const owner = await identityAccountId("google", sub);
+          const owner = await identityAccountId(provider, sub);
           const sep = ctx.reauthReturnTo.includes("?") ? "&" : "?";
           if (owner && owner === ctx.currentAccountId) {
             ctx.outcome.reauthGranted = true;
@@ -222,16 +284,17 @@ export function buildAuthOptions(ctx: AuthRequestContext | null = null): NextAut
         // that just verified itself (password, or a connected provider);
         // anything else (signed out, a company-less session bouncing through
         // the login page, or a session with no fresh proof) is a plain
-        // sign-in, decided by the Google identity alone — the session held is
+        // sign-in, decided by the identity alone — the session held is
         // never bound to.
         const linkIntent = Boolean(ctx?.currentAccountId && ctx?.currentCompanyId && ctx?.reauthVia);
         const result = await resolveSocialSignIn(
           {
-            provider: "google",
+            provider,
             providerAccountId: sub,
             email: p.email,
-            emailVerified: p.email_verified === true,
-            name: p.name,
+            // Google sends a boolean; Apple has been known to send "true".
+            emailVerified: appleFlag(p.email_verified),
+            name: provider === "apple" ? (ctx?.appleName ?? p.name) : p.name,
           },
           { currentAccountId: ctx?.currentAccountId ?? null, linkIntent }
         );
@@ -245,11 +308,11 @@ export function buildAuthOptions(ctx: AuthRequestContext | null = null): NextAut
         // A link from inside the app keeps the session exactly where it is —
         // no re-minting onto whatever membership the resolver picked.
         if (linkIntent) {
-          return "/app/settings/profile?linked=google";
+          return `/app/settings/profile?linked=${provider}`;
         }
 
         // NextAuth hands this same object to jwt() below — the membership
-        // fields ride along on it, replacing Google's profile-shaped stub.
+        // fields ride along on it, replacing the provider's profile stub.
         Object.assign(user, result.user satisfies SocialSignInUser);
         return true;
       },
@@ -264,10 +327,7 @@ export function buildAuthOptions(ctx: AuthRequestContext | null = null): NextAut
           token.role = (user as { role?: string }).role;
           token.companyId = (user as { companyId?: string | null }).companyId;
           token.companyName = (user as { companyName?: string | null }).companyName ?? null;
-          token.signInMethod =
-            account?.provider === "google" || account?.provider === "google-native"
-              ? "google"
-              : "password";
+          token.signInMethod = signInMethodOf(account?.provider);
         }
 
         // Company switch: the client calls useSession().update({ switchToUserId })
@@ -358,7 +418,8 @@ export function buildAuthOptions(ctx: AuthRequestContext | null = null): NextAut
         // Sessions minted before authAt existed carry 0: they stay valid until
         // the account's password changes, then fall out like any other.
         session.user.authAt = typeof token.authAt === "number" ? token.authAt : 0;
-        session.user.signInMethod = token.signInMethod === "google" ? "google" : "password";
+        session.user.signInMethod =
+          token.signInMethod === "google" || token.signInMethod === "apple" ? token.signInMethod : "password";
         return session;
       },
     },

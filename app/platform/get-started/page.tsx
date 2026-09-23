@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { headers } from "next/headers";
 import ApplyForm from "@/components/ApplyForm";
-import { googleNativeClientIdFor, googleSignInAvailableFor } from "@/lib/sign-in-options";
+import { socialSignInFor } from "@/lib/sign-in-options";
 
 export const metadata: Metadata = {
   title: "Get started",
@@ -19,18 +19,15 @@ export const metadata: Metadata = {
  * code and it's a four-field signup straight to the dashboard; leave it empty
  * and it's the full application, ending at payment verification.
  */
-export default async function AppGetStartedPage() {
-  // Web gets the Google redirect; the Android app gets the native sheet.
-  const ua = (await headers()).get("user-agent");
-  const googleEnabled = googleSignInAvailableFor(ua);
+export default async function AppGetStartedPage() {
+  const ua = (await headers()).get("user-agent");
   return (
     <div className="app-ui min-h-screen bg-white">
       <div className="mx-auto w-full max-w-lg px-6 py-10 sm:py-14">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/workbench-logo.png" alt="WorkBench" className="mb-8 h-7 w-auto" />
         <ApplyForm
-          googleEnabled={googleEnabled}
-          googleNativeClientId={googleNativeClientIdFor(ua)}
+          social={socialSignInFor(ua)}
           appearance="app"
         />
         <p className="mt-8 text-center text-sm text-gray-500">

@@ -3,7 +3,8 @@ import { prisma } from "@/lib/db";
 import { getActor } from "@/lib/permissions";
 import { verifyPasswordForUser } from "@/lib/account";
 import { verifyGoogleIdToken } from "@/lib/google-id-token";
-import { identityAccountId } from "@/lib/social-login";
+import { verifyAppleIdToken } from "@/lib/apple-id-token";
+import { identityAccountId, PROVIDER_LABEL, type SocialProvider } from "@/lib/social-login";
 import {
   REAUTH_COOKIE,
   REAUTH_INTENT_COOKIE,
@@ -20,19 +21,23 @@ import {
  * GET  → what this login can verify with, and whether it already has.
  * POST → prove it, one of:
  *   { method: "password", currentPassword }          — mints the grant
- *   { method: "google", idToken }                    — native app: the shell's
- *                                                      Google sheet produced
- *                                                      an ID token; it must
- *                                                      belong to THIS login
- *   { method: "google", start: true, returnTo }      — web: remember the wish,
+ *   { method: "google" | "apple", idToken }           — native app: the shell's
+ *                                                      sheet produced an ID
+ *                                                      token; it must belong
+ *                                                      to THIS login
+ *   { method: "google" | "apple", start: true, returnTo }
+ *                                                    — web: remember the wish,
  *                                                      then the page sends the
- *                                                      browser through Google;
- *                                                      the OAuth callback mints
- *                                                      the grant on the way back
+ *                                                      browser through the
+ *                                                      provider; the OAuth
+ *                                                      callback mints the grant
+ *                                                      on the way back
  * DELETE → drop the grant early ("lock").
  *
  * Rate-limited by middleware (the password branch is a guessing surface).
  */
+
+const PROVIDERS: SocialProvider[] = ["google", "apple"];
 
 async function loginFor(userId: string) {
   const user = await prisma.user.findUnique({
@@ -85,33 +90,36 @@ export async function POST(req: NextRequest) {
     return res;
   }
 
-  if (body?.method === "google" && body.start) {
+  const provider = PROVIDERS.find((p) => p === body?.method);
+  if (!provider) return NextResponse.json({ error: "Unknown verification method." }, { status: 400 });
+  const label = PROVIDER_LABEL[provider];
+
+  if (body?.start) {
     const returnTo = isSafeReturnTo(body.returnTo) ? body.returnTo : "/app/settings/profile";
     const res = NextResponse.json({ success: true, returnTo });
     res.cookies.set(REAUTH_INTENT_COOKIE, await createReauthIntent(account.id, returnTo), reauthCookieOptions());
     return res;
   }
 
-  if (body?.method === "google") {
-    if (!body.idToken) return NextResponse.json({ error: "Missing token." }, { status: 400 });
-    const claims = await verifyGoogleIdToken(body.idToken);
-    if (!claims) {
-      return NextResponse.json({ error: "Couldn't verify that Google sign-in." }, { status: 400 });
-    }
-    // The proof is only good if that Google account opens THIS login.
-    const owner = await identityAccountId("google", claims.sub);
-    if (owner !== account.id) {
-      return NextResponse.json(
-        { error: "That Google account isn't connected to this login.", code: "wrong-account" },
-        { status: 400 }
-      );
-    }
-    const res = NextResponse.json({ success: true, via: "google" });
-    res.cookies.set(REAUTH_COOKIE, await createReauthGrant(account.id, "google"), reauthCookieOptions());
-    return res;
+  if (!body?.idToken) return NextResponse.json({ error: "Missing token." }, { status: 400 });
+  const claims =
+    provider === "google"
+      ? await verifyGoogleIdToken(body.idToken)
+      : await verifyAppleIdToken(body.idToken, "app");
+  if (!claims) {
+    return NextResponse.json({ error: `Couldn't verify that ${label} sign-in.` }, { status: 400 });
   }
-
-  return NextResponse.json({ error: "Unknown verification method." }, { status: 400 });
+  // The proof is only good if that identity opens THIS login.
+  const owner = await identityAccountId(provider, claims.sub);
+  if (owner !== account.id) {
+    return NextResponse.json(
+      { error: `That ${label} account isn't connected to this login.`, code: "wrong-account" },
+      { status: 400 }
+    );
+  }
+  const res = NextResponse.json({ success: true, via: provider });
+  res.cookies.set(REAUTH_COOKIE, await createReauthGrant(account.id, provider), reauthCookieOptions());
+  return res;
 }
 
 export async function DELETE() {

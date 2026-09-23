@@ -17,6 +17,7 @@ import AppearanceCard from "@/components/AppearanceCard";
 import Avatar from "@/components/Avatar";
 import AvatarCropModal from "@/components/AvatarCropModal";
 import SignInMethodsCard, { type ConnectedIdentity } from "@/components/SignInMethodsCard";
+import type { SocialSignIn } from "@/lib/sign-in-options";
 import { FlashBanner, useVerifyIdentity } from "@/components/VerifyIdentity";
 
 
@@ -32,8 +33,7 @@ export default function ProfileClient({
   pendingEmail: initialPendingEmail,
   hasPassword: initialHasPassword,
   identities: initialIdentities,
-  googleEnabled,
-  googleNativeClientId = null,
+  social,
   softphoneEnabled = null,
 }: {
   userId: string;
@@ -50,10 +50,8 @@ export default function ProfileClient({
   hasPassword: boolean;
   /** Third-party sign-ins connected to this login. */
   identities: ConnectedIdentity[];
-  /** Google sign-in configured and usable from this browser (not the native shell). */
-  googleEnabled: boolean;
-  /** Android app only — connect Google through the plugin, not a redirect. */
-  googleNativeClientId?: string | null;
+  /** Which providers can be connected from here, and how (lib/sign-in-options.ts). */
+  social: SocialSignIn;
   /** Business-line calls in the browser (lib/softphone.ts): the saved switch, or null when the line isn't on the voice app. */
   softphoneEnabled?: boolean | null;
 }) {
@@ -72,8 +70,7 @@ export default function ProfileClient({
       hasPassword,
       google: identities.some((i) => i.provider === "google"),
       apple: identities.some((i) => i.provider === "apple"),
-      googleWebEnabled: googleEnabled,
-      googleNativeClientId,
+      social,
     },
     "/app/settings/profile"
   );
@@ -402,8 +399,7 @@ export default function ProfileClient({
         email={email}
         hasPassword={hasPassword}
         identities={identities}
-        googleWebEnabled={googleEnabled}
-        googleNativeClientId={googleNativeClientId}
+        social={social}
         verify={verify}
         onPasswordSet={() => setHasPassword(true)}
         onIdentities={setIdentities}

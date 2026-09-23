@@ -63,6 +63,23 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<!-- Google sign-in (the SDK returns to the app on this scheme): the iOS
+	     OAuth client id REVERSED, e.g. com.googleusercontent.apps.1234-abcd.
+	     Placeholder until GOOGLE_SIGNIN_IOS_CLIENT_ID exists — see
+	     docs/plans/native-release-queue.md -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>REVERSED_GOOGLE_IOS_CLIENT_ID</string>
+			</array>
+		</dict>
+	</array>
+	<!-- HTTPS only; no proprietary crypto — skips the export-compliance
+	     question on every upload. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>WKAppBoundDomains</key>
 	<array>
 		<string>workbenchfsm.com</string>

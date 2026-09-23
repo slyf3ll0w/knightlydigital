@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { prisma } from "@/lib/db";
 import { requirePageActor, isManager } from "@/lib/permissions";
-import { googleNativeClientIdFor, googleSignInAvailableFor } from "@/lib/sign-in-options";
+import { socialSignInFor } from "@/lib/sign-in-options";
 import { lineSummary } from "@/lib/business-line";
 import { LEGACY_SECTION_KEYS, settingsHref } from "@/lib/settings-nav";
 import SettingsClient from "./SettingsClient";
@@ -49,8 +49,7 @@ export default async function SettingsPage({
         hasPassword: login?.account ? Boolean(login.account.passwordHash) : true,
         google: providers.has("google"),
         apple: providers.has("apple"),
-        googleWebEnabled: googleSignInAvailableFor(ua),
-        googleNativeClientId: googleNativeClientIdFor(ua),
+        social: socialSignInFor(ua),
       }}
     />
   );

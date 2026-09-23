@@ -2,19 +2,26 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor } from "@/lib/permissions";
 import { proveIdentity, proofError } from "@/lib/reauth";
-import { listIdentities, resolveSocialSignIn, unlinkIdentity, type SocialProvider } from "@/lib/social-login";
+import {
+  listIdentities,
+  PROVIDER_LABEL,
+  resolveSocialSignIn,
+  unlinkIdentity,
+  type SocialProvider,
+} from "@/lib/social-login";
 import { verifyGoogleIdToken } from "@/lib/google-id-token";
+import { verifyAppleIdToken } from "@/lib/apple-id-token";
 
 /**
  * The signed-in person's connected sign-in methods (Settings → My Profile →
- * Connected sign-ins).
+ * Sign-in methods).
  *
  * On the web, connecting is NOT done here — that's the normal OAuth
- * round-trip (signIn("google") while signed in; the callback links the
- * identity to this session's account, lib/auth-options.ts).
+ * round-trip (signIn("google" | "apple") while signed in; the callback links
+ * the identity to this session's account, lib/auth-options.ts).
  *
- * In the native app there is no redirect to come back from, so POST takes the
- * ID token the shell's plugin produced and links it. Deliberately not a
+ * In the native apps there is no redirect to come back from, so POST takes
+ * the ID token the shell's plugin produced and links it. Deliberately not a
  * NextAuth sign-in: a credentials provider would re-mint the JWT and could
  * land the person on a different company than the one they were looking at.
  * Connecting a sign-in method must not move you.
@@ -40,16 +47,14 @@ export async function GET() {
 }
 
 /**
- * DELETE ?provider=google — disconnect; refused when it's the only way in.
- * Takes a fresh "verify it's you" like every other sign-in-method change.
+ * DELETE ?provider=google|apple — disconnect; refused when it's the only way
+ * in. Takes a fresh "verify it's you" like every other sign-in-method change.
  */
 export async function DELETE(req: NextRequest) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const provider = req.nextUrl.searchParams.get("provider") as SocialProvider | null;
-  if (!provider || !PROVIDERS.includes(provider)) {
-    return NextResponse.json({ error: "Unknown sign-in method." }, { status: 400 });
-  }
+  const provider = PROVIDERS.find((p) => p === req.nextUrl.searchParams.get("provider"));
+  if (!provider) return NextResponse.json({ error: "Unknown sign-in method." }, { status: 400 });
   const account = await accountFor(actor.id);
   if (!account) return NextResponse.json({ error: "Account not found." }, { status: 404 });
   const proof = await proveIdentity(actor.id);
@@ -60,33 +65,34 @@ export async function DELETE(req: NextRequest) {
 }
 
 /**
- * POST { provider: "google", idToken } — connect a sign-in method from the
- * native app. The session is untouched either way.
+ * POST { provider: "google" | "apple", idToken, name? } — connect a sign-in
+ * method from the native app. The session is untouched either way.
  *
  * Needs a fresh "verify it's you" (lib/reauth.ts): linking is a way in that
  * outlives a password reset, so it takes the same proof as changing the
  * email or the password does. (The web path proves it the same way, then
- * goes through Google's redirect; the callback checks the grant.)
+ * goes through the provider's redirect; the callback checks the grant.)
  */
 export async function POST(req: NextRequest) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = (await req.json().catch(() => null)) as
-    | { provider?: string; idToken?: string }
+    | { provider?: string; idToken?: string; name?: string }
     | null;
-  // Google is the only provider with a native path today; Apple joins it
-  // when the iOS build ships (docs/plans/social-login-2026-09-14.md).
-  if (body?.provider !== "google") {
-    return NextResponse.json({ error: "Unknown sign-in method." }, { status: 400 });
-  }
-  if (!body.idToken) return NextResponse.json({ error: "Missing token." }, { status: 400 });
+  const provider = PROVIDERS.find((p) => p === body?.provider);
+  if (!provider) return NextResponse.json({ error: "Unknown sign-in method." }, { status: 400 });
+  const label = PROVIDER_LABEL[provider];
+  if (!body?.idToken) return NextResponse.json({ error: "Missing token." }, { status: 400 });
 
-  const claims = await verifyGoogleIdToken(body.idToken);
+  const claims =
+    provider === "google"
+      ? await verifyGoogleIdToken(body.idToken)
+      : await verifyAppleIdToken(body.idToken, "app");
   // A token that fails signature/audience/expiry is not a user error worth
   // explaining — the app just asks them to try again.
   if (!claims) {
-    return NextResponse.json({ error: "Couldn't verify that Google sign-in." }, { status: 400 });
+    return NextResponse.json({ error: `Couldn't verify that ${label} sign-in.` }, { status: 400 });
   }
 
   const account = await accountFor(actor.id);
@@ -96,19 +102,19 @@ export async function POST(req: NextRequest) {
 
   const result = await resolveSocialSignIn(
     {
-      provider: "google",
+      provider,
       providerAccountId: claims.sub,
       email: claims.email,
       emailVerified: claims.emailVerified,
-      name: claims.name,
+      name: provider === "google" ? (claims as { name: string | null }).name : body.name || null,
     },
     { currentAccountId: account.id, linkIntent: true }
   );
   if (!result.ok) {
     const error =
       result.reason === "identity-taken"
-        ? "That Google account is already connected to a different WorkBench login."
-        : "Couldn't connect Google sign-in — please try again.";
+        ? `That ${label} account is already connected to a different WorkBench login.`
+        : `Couldn't connect ${label} sign-in — please try again.`;
     return NextResponse.json({ error }, { status: 400 });
   }
 

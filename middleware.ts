@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { limit, clientIp } from "@/lib/rate-limit";
 import { SUPERADMIN_COOKIE, verifySuperadminSessionToken } from "@/lib/superadmin-session";
+import { APPLE_USER_COOKIE } from "@/lib/sign-in-options";
 
 // Per-IP limits on abuse-prone endpoints: { max requests, window }
 // `methods` narrows the rule (default: every non-GET/HEAD method).
@@ -15,11 +16,11 @@ const rateLimits: { match: (path: string) => boolean; max: number; windowMs: num
     name: "login",
   },
   {
-    // The Android app's Google sign-in: a verified ID token can create an
-    // Account + placeholder membership, so it's an unauthenticated write
+    // The native apps' Google/Apple sign-in: a verified ID token can create
+    // an Account + placeholder membership, so it's an unauthenticated write
     // path. Nothing to guess, so looser than password logins; a JSON 429
     // (the shell calls it with redirect:false, not a document POST).
-    match: (p) => p.startsWith("/api/auth/callback/google-native"),
+    match: (p) => p.startsWith("/api/auth/callback/google-native") || p.startsWith("/api/auth/callback/apple-native"),
     max: 20,
     windowMs: 15 * 60_000,
     name: "login-native",
@@ -160,6 +161,38 @@ const agencyMoved: Record<string, string> = {
 
 export async function middleware(req: NextRequest) {
   const path = req.nextUrl.pathname;
+
+  // Sign in with Apple answers with a cross-site form POST (response_mode=
+  // form_post is mandatory once the name/email scopes are requested), and
+  // browsers send none of our SameSite=Lax cookies on it — no PKCE
+  // verifier, no session, no "verify it's you" intent. NextAuth would fail
+  // the code exchange, and a Connect-from-Settings would come through as a
+  // plain sign-in. So the POST becomes a same-site GET carrying the same
+  // fields: a 303 makes the browser issue a top-level GET, on which every
+  // Lax cookie IS sent. Apple's one-time `user` field (the person's name,
+  // first authorization only) parks in a short cookie for the route.
+  if (req.method === "POST" && path === "/api/auth/callback/apple") {
+    const form = await req.formData().catch(() => null);
+    const url = new URL(req.url);
+    url.search = "";
+    let appleUser: string | null = null;
+    form?.forEach((value, key) => {
+      if (typeof value !== "string") return;
+      if (key === "user") appleUser = value;
+      else url.searchParams.set(key, value);
+    });
+    const res = NextResponse.redirect(url, 303);
+    if (appleUser) {
+      res.cookies.set(APPLE_USER_COOKIE, encodeURIComponent(appleUser), {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/",
+        maxAge: 300,
+      });
+    }
+    return res;
+  }
 
   // ── WorkBench domain routing ───────────────────────────────────────────────
   // This app lives at workbenchfsm.com now: the root serves the WorkBench
@@ -367,6 +400,8 @@ export const config = {
     "/superadmin/:path*",
     "/api/auth/callback/credentials",
     "/api/auth/callback/google-native",
+    "/api/auth/callback/apple-native",
+    "/api/auth/callback/apple",
     "/api/app/auth/reauth",
     "/api/app/register",
     "/api/app/invite-check",

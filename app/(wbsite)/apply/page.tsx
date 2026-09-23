@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { AnimateIn } from "@/components/AnimateIn";
 import ApplyForm from "@/components/ApplyForm";
-import { googleNativeClientIdFor, googleSignInAvailableFor } from "@/lib/sign-in-options";
+import { socialSignInFor } from "@/lib/sign-in-options";
 import { ClipboardList, ShieldCheck, Wrench } from "lucide-react";
 
 export const metadata: Metadata = {
@@ -32,10 +32,8 @@ const steps = [
   },
 ];
 
-export default async function WBApplyPage() {
-  // Web gets the Google redirect; the Android app gets the native sheet.
-  const ua = (await headers()).get("user-agent");
-  const googleEnabled = googleSignInAvailableFor(ua);
+export default async function WBApplyPage() {
+  const ua = (await headers()).get("user-agent");
   return (
     <>
       {/* ── Hero ── */}
@@ -80,7 +78,7 @@ export default async function WBApplyPage() {
       {/* ── Application form ── */}
       <section className="mx-auto max-w-3xl px-5 pb-20 sm:px-8">
         <AnimateIn>
-          <ApplyForm googleEnabled={googleEnabled} googleNativeClientId={googleNativeClientIdFor(ua)} />
+          <ApplyForm social={socialSignInFor(ua)} />
         </AnimateIn>
       </section>
     </>

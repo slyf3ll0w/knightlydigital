@@ -7,24 +7,22 @@ import { Loader2, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 import TurnstileWidget, { TurnstileHandle, captchaEnabled } from "@/components/TurnstileWidget";
 import { Input } from "@/components/Input";
-import GoogleSignInButton, { OrDivider, useGoogleSignInOffered } from "@/components/GoogleSignInButton";
+import SocialSignInButtons, { OrDivider, socialErrorMessage, useSocialSignInOffered } from "@/components/SocialSignInButtons";
+import type { SocialSignIn } from "@/lib/sign-in-options";
 
 // Human-readable copy for the ?error= code NextAuth redirects back with —
-// the password path's codes, then the Google path's (lib/social-login.ts
+// the password path's codes, then the social paths' (lib/social-login.ts
 // rejections and NextAuth's own OAuth failures).
 function errorMessage(code: string): string {
   if (code === "captcha") return "Security check didn't go through — give it a moment, then try again.";
   if (code === "CredentialsSignin")
-    return "Invalid email or password. If you signed up with Google, use the Google button above.";
+    return "Invalid email or password. If you signed up with Google or Apple, use that button above.";
   if (code === "rate-limit") return "Too many attempts — wait a few minutes, then try again.";
-  if (code === "unverified-email")
-    return "That Google account's email address isn't verified, so we can't use it to sign in. Verify it with Google, or log in with your password.";
-  if (code === "no-email")
-    return "Google didn't share an email address for that account. Try another Google account, or log in with your password.";
+  if (code === "unverified-email" || code === "no-email") return socialErrorMessage(code);
   if (code === "staff-only" || code === "AccessDenied")
     return "That sign-in isn't available for this account. Log in with your email and password instead.";
   if (code === "OAuthSignin" || code === "OAuthCallback" || code === "Callback")
-    return "Google sign-in didn't go through — please try again.";
+    return "That sign-in didn't go through — please try again.";
   return "Sign-in failed — please try again.";
 }
 
@@ -33,23 +31,16 @@ function errorMessage(code: string): string {
 // across that reload so a typo'd password only costs the password.
 const EMAIL_KEY = "wb-login-email";
 
-/** The login card — a client form; page.tsx (server) decides the Google props. */
-export default function LoginForm({
-  googleEnabled,
-  googleNativeClientId = null,
-}: {
-  googleEnabled: boolean;
-  /** Android app only — switches the Google button to the native sheet. */
-  googleNativeClientId?: string | null;
-}) {
+/** The login card — a client form; page.tsx (server) decides the social props. */
+export default function LoginForm({ social }: { social: SocialSignIn }) {
   const router = useRouter();
   const { data: session, status } = useSession();
   const [showPassword, setShowPassword] = useState(false);
-  // Whether to render the Google block at all. On the native path this
+  // Whether to render the social block at all. On the native path this
   // resolves after mount (older shells have no plugin), so it gates the
   // divider too — a lone "or" rule above the password form would be worse
-  // than no Google at all.
-  const googleOffered = useGoogleSignInOffered(googleEnabled, googleNativeClientId);
+  // than no buttons at all.
+  const offered = useSocialSignInOffered(social);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [csrfToken, setCsrfToken] = useState("");
@@ -108,6 +99,12 @@ export default function LoginForm({
   }, []);
 
   const staleSession = status === "authenticated" && !session?.user?.companyId;
+  // A company-less session opened with a provider whose address matched no
+  // existing login (an Apple ID that hides its email, typically): the person
+  // may well already have a WorkBench login under their real address.
+  const socialStale =
+    staleSession && (session?.user?.signInMethod === "apple" || session?.user?.signInMethod === "google");
+  const staleProvider = session?.user?.signInMethod === "apple" ? "Apple" : "Google";
 
   function handleSubmit() {
     // The eye toggle may have flipped the field to type="text"; put it back
@@ -163,6 +160,14 @@ export default function LoginForm({
                   sign out
                 </button>
                 , or sign in below with another account.
+                {socialStale && (
+                  <>
+                    {" "}
+                    Already have a WorkBench login under a different email? Log in with that email
+                    and password below — then connect {staleProvider} to it under Settings → My
+                    Profile, and it opens that login from now on.
+                  </>
+                )}
               </div>
             )}
 
@@ -172,18 +177,13 @@ export default function LoginForm({
               </div>
             )}
 
-            {/* Google first: one tap for anyone whose login is (or can be)
-                their Google address — new accounts, owner-added teammates,
-                and existing logins alike (lib/social-login.ts). The password
-                form below is untouched: it stays a native POST. */}
-            {googleOffered && (
+            {/* Google / Apple first: one tap for anyone whose login is (or can
+                be) that address — new accounts, owner-added teammates, and
+                existing logins alike (lib/social-login.ts). The password form
+                below is untouched: it stays a native POST. */}
+            {offered.any && (
               <>
-                <GoogleSignInButton
-                  enabled
-                  callbackUrl="/app/dashboard"
-                  nativeClientId={googleNativeClientId}
-                  onError={setError}
-                />
+                <SocialSignInButtons social={social} callbackUrl="/app/dashboard" onError={setError} />
                 <OrDivider className="my-5" />
               </>
             )}

@@ -7,7 +7,11 @@ import { Loader2, ShieldCheck } from "lucide-react";
 import Modal from "@/components/Modal";
 import { inputCls } from "@/components/Input";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
-import { isNativeGoogleAvailable, nativeGoogleIdToken } from "@/lib/native-google-signin";
+import { nativeAppleIdToken, nativeGoogleIdToken } from "@/lib/native-social-signin";
+import type { SocialSignIn } from "@/lib/sign-in-options";
+import { AppleMark, GoogleMark, useSocialSignInOffered, type SocialProviderId } from "@/components/SocialSignInButtons";
+
+export { GoogleMark };
 
 /**
  * "Verify it's you" — the recent-authentication step in front of every
@@ -24,12 +28,12 @@ import { isNativeGoogleAvailable, nativeGoogleIdToken } from "@/lib/native-googl
  * Proof lasts ten minutes, so a run of changes asks once. How they prove it
  * depends on what the login has: the password, and/or a fresh sign-in
  * through a provider already connected to the account. A login opened with
- * Google and no password verifies with Google — nothing sends it through
- * Forgot password any more.
+ * Google or Apple and no password verifies with that provider — nothing
+ * sends it through Forgot password any more.
  *
- * On the web a Google verification is a full round-trip (the page comes
+ * On the web a provider verification is a full round-trip (the page comes
  * back with ?reauth=ok); `what` is remembered in sessionStorage so the
- * caller can resume — read `pending` after mount. In the Android shell the
+ * caller can resume — read `pending` after mount. In the native apps the
  * plugin's sheet produces an ID token in place, no navigation.
  */
 
@@ -37,25 +41,14 @@ export type SignInMethods = {
   hasPassword: boolean;
   /** A Google account is connected to this login. */
   google: boolean;
+  /** An Apple ID is connected to this login. */
   apple: boolean;
-  /** The web OAuth path is usable from this browser (not an old shell). */
-  googleWebEnabled: boolean;
-  /** Android app only — verify through the plugin's sheet instead of a redirect. */
-  googleNativeClientId: string | null;
+  /** Which providers this surface can run, and how (lib/sign-in-options.ts). */
+  social: SocialSignIn;
 };
 
 const PENDING_KEY = "wb-verify-pending";
-
-export function GoogleMark({ size = 18 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 48 48" aria-hidden="true">
-      <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
-      <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
-      <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
-      <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
-    </svg>
-  );
-}
+const LABEL: Record<SocialProviderId, string> = { google: "Google", apple: "Apple" };
 
 export type Flash = { kind: "ok" | "error"; text: string } | null;
 
@@ -66,17 +59,13 @@ export function useVerifyIdentity(methods: SignInMethods, returnTo: string) {
   const [flash, setFlash] = useState<Flash>(null);
   const [pending, setPending] = useState<string | null>(null);
   const [password, setPassword] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<SocialProviderId | "password" | null>(null);
   const [error, setError] = useState("");
-  const [nativeReady, setNativeReady] = useState(false);
   const resolver = useRef<((ok: boolean) => void) | null>(null);
   const what = useRef("");
+  const runnable = useSocialSignInOffered(methods.social);
 
-  useEffect(() => {
-    if (methods.googleNativeClientId) setNativeReady(isNativeGoogleAvailable());
-  }, [methods.googleNativeClientId]);
-
-  // Coming back from a web Google round-trip, or just loading: is there a
+  // Coming back from a web provider round-trip, or just loading: is there a
   // live proof already?
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -90,11 +79,11 @@ export function useVerifyIdentity(methods: SignInMethods, returnTo: string) {
       if (outcome === "ok") {
         setFresh(true);
         setPending(p);
-        setFlash({ kind: "ok", text: "Verified with Google. You can make changes for the next 10 minutes." });
+        setFlash({ kind: "ok", text: "Verified. You can make changes for the next 10 minutes." });
       } else {
         setFlash({
           kind: "error",
-          text: "That Google account isn't connected to this login, so it can't verify it. Try again with the one you sign in with.",
+          text: "That account isn't connected to this login, so it can't verify it. Try again with the one you sign in with.",
         });
       }
       params.delete("reauth");
@@ -124,7 +113,7 @@ export function useVerifyIdentity(methods: SignInMethods, returnTo: string) {
 
   function finish(ok: boolean) {
     setOpen(false);
-    setBusy(false);
+    setBusy(null);
     if (ok) setFresh(true);
     resolver.current?.(ok);
     resolver.current = null;
@@ -133,55 +122,56 @@ export function useVerifyIdentity(methods: SignInMethods, returnTo: string) {
   async function withPassword(e: React.FormEvent) {
     e.preventDefault();
     if (!password) return;
-    setBusy(true);
+    setBusy("password");
     setError("");
     const res = await postJson("/api/app/auth/reauth", { method: "password", currentPassword: password });
     if (!res.ok) {
-      setBusy(false);
+      setBusy(null);
       setError(res.data?.error ?? GENERIC_ERROR);
       return;
     }
     finish(true);
   }
 
-  async function withGoogle() {
-    setBusy(true);
+  async function withProvider(provider: SocialProviderId) {
+    setBusy(provider);
     setError("");
-    if (methods.googleNativeClientId && nativeReady) {
-      const token = await nativeGoogleIdToken(methods.googleNativeClientId);
+    if (methods.social[provider] === "native") {
+      const token =
+        provider === "google" ? await nativeGoogleIdToken(methods.social) : await nativeAppleIdToken(methods.social);
       if (!token.ok) {
-        setBusy(false);
-        if (!token.canceled) setError("Couldn't verify with Google — please try again.");
+        setBusy(null);
+        if (!token.canceled) setError(`Couldn't verify with ${LABEL[provider]} — please try again.`);
         return;
       }
-      const res = await postJson("/api/app/auth/reauth", { method: "google", idToken: token.idToken });
+      const res = await postJson("/api/app/auth/reauth", { method: provider, idToken: token.idToken });
       if (!res.ok) {
-        setBusy(false);
+        setBusy(null);
         setError(res.data?.error ?? GENERIC_ERROR);
         return;
       }
       finish(true);
       return;
     }
-    // Web: remember what they were doing, then go through Google. The OAuth
-    // callback mints the proof and lands back on returnTo?reauth=ok.
+    // Web: remember what they were doing, then go through the provider. The
+    // OAuth callback mints the proof and lands back on returnTo?reauth=ok.
     try {
       sessionStorage.setItem(PENDING_KEY, what.current);
     } catch {}
     const start = await postJson<{ returnTo: string }>("/api/app/auth/reauth", {
-      method: "google",
+      method: provider,
       start: true,
       returnTo,
     });
     if (!start.ok) {
-      setBusy(false);
+      setBusy(null);
       setError(start.data?.error ?? GENERIC_ERROR);
       return;
     }
-    signIn("google", { callbackUrl: start.data?.returnTo ?? returnTo }).catch(() => setBusy(false));
+    signIn(provider, { callbackUrl: start.data?.returnTo ?? returnTo }).catch(() => setBusy(null));
   }
 
-  const googleOffered = methods.google && (methods.googleNativeClientId ? nativeReady : methods.googleWebEnabled);
+  const providers = (["google", "apple"] as SocialProviderId[]).filter((p) => methods[p] && runnable[p]);
   const passwordOffered = methods.hasPassword;
 
   const dialog = (
@@ -215,14 +205,14 @@ export function useVerifyIdentity(methods: SignInMethods, returnTo: string) {
               className={inputCls}
             />
           </label>
-          <button type="submit" disabled={busy || !password} className="btn-primary justify-center">
-            {busy ? <Loader2 size={14} className="animate-spin" /> : null}
+          <button type="submit" disabled={busy !== null || !password} className="btn-primary justify-center">
+            {busy === "password" ? <Loader2 size={14} className="animate-spin" /> : null}
             Continue
           </button>
         </form>
       )}
 
-      {passwordOffered && googleOffered && (
+      {passwordOffered && providers.length > 0 && (
         <div className="my-3 flex items-center gap-3 text-xs text-gray-400">
           <span className="h-px flex-1 bg-gray-200" />
           or
@@ -230,19 +220,37 @@ export function useVerifyIdentity(methods: SignInMethods, returnTo: string) {
         </div>
       )}
 
-      {googleOffered && (
-        <button
-          type="button"
-          onClick={() => void withGoogle()}
-          disabled={busy}
-          className="flex w-full items-center justify-center gap-3 rounded-lg border border-gray-300 bg-white py-2.5 text-[15px] font-semibold text-gray-800 transition-colors hover:bg-gray-50 active:bg-gray-100 disabled:opacity-60"
-        >
-          {busy && !passwordOffered ? <Loader2 size={18} className="animate-spin text-gray-500" /> : <GoogleMark />}
-          Continue with Google
-        </button>
+      {providers.length > 0 && (
+        <div className="flex flex-col gap-2">
+          {providers.map((provider) =>
+            provider === "google" ? (
+              <button
+                key="google"
+                type="button"
+                onClick={() => void withProvider("google")}
+                disabled={busy !== null}
+                className="flex w-full items-center justify-center gap-3 rounded-lg border border-gray-300 bg-white py-2.5 text-[15px] font-semibold text-gray-800 transition-colors hover:bg-gray-50 active:bg-gray-100 disabled:opacity-60"
+              >
+                {busy === "google" ? <Loader2 size={18} className="animate-spin text-gray-500" /> : <GoogleMark />}
+                Continue with Google
+              </button>
+            ) : (
+              <button
+                key="apple"
+                type="button"
+                onClick={() => void withProvider("apple")}
+                disabled={busy !== null}
+                className="flex w-full items-center justify-center gap-3 rounded-lg bg-black py-2.5 text-[15px] font-semibold text-white transition-colors hover:bg-gray-900 active:bg-gray-800 disabled:opacity-60"
+              >
+                {busy === "apple" ? <Loader2 size={18} className="animate-spin text-gray-300" /> : <AppleMark />}
+                Continue with Apple
+              </button>
+            )
+          )}
+        </div>
       )}
 
-      {!passwordOffered && !googleOffered && (
+      {!passwordOffered && providers.length === 0 && (
         <p className="text-sm text-gray-600">
           This login has no way to verify itself from here. Use{" "}
           <span className="font-medium">Forgot password</span> on the login page to set a password first.
@@ -252,7 +260,7 @@ export function useVerifyIdentity(methods: SignInMethods, returnTo: string) {
       <button
         type="button"
         onClick={() => finish(false)}
-        disabled={busy}
+        disabled={busy !== null}
         className="mt-3 w-full text-center text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50"
       >
         Cancel

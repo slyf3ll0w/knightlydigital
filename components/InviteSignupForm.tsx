@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import TurnstileWidget, { type TurnstileHandle, captchaEnabled } from "@/components/TurnstileWidget";
-import GoogleSignInButton, { OrDivider, useGoogleSignInOffered } from "@/components/GoogleSignInButton";
+import SocialSignInButtons, { OrDivider, useSocialSignInOffered } from "@/components/SocialSignInButtons";
+import { NO_SOCIAL_SIGN_IN, type SocialSignIn } from "@/lib/sign-in-options";
 import { saveCredential } from "@/lib/save-credential";
 
 /**
@@ -22,12 +23,10 @@ import { saveCredential } from "@/lib/save-credential";
  * invite email both point here); the code prefills.
  */
 export default function InviteSignupForm({
-  googleEnabled = false,
-  googleNativeClientId = null,
+  social = NO_SOCIAL_SIGN_IN,
 }: {
-  googleEnabled?: boolean;
-  /** Android app only — switches the Google button to the native sheet. */
-  googleNativeClientId?: string | null;
+  /** Which social buttons this visitor gets, and how they run (lib/sign-in-options.ts). */
+  social?: SocialSignIn;
 }) {
   const { data: session, status, update } = useSession();
   const signedIn = status === "authenticated" && Boolean(session?.user?.accountId);
@@ -38,7 +37,7 @@ export default function InviteSignupForm({
   const [error, setError] = useState("");
   // Gates the button AND its "or" rule: on the native path the answer only
   // arrives after mount (older shells ship no plugin).
-  const googleOffered = useGoogleSignInOffered(googleEnabled, googleNativeClientId);
+  const socialOffered = useSocialSignInOffered(social);
   const [done, setDone] = useState(false);
   const [captchaToken, setCaptchaToken] = useState("");
   const captchaRef = useRef<TurnstileHandle>(null);
@@ -188,15 +187,9 @@ export default function InviteSignupForm({
         </div>
       )}
 
-      {googleOffered && !signedIn && (
+      {socialOffered.any && !signedIn && (
         <div className="mt-6">
-          <GoogleSignInButton
-            enabled
-            callbackUrl={returnUrl}
-            label="Sign up with Google"
-            nativeClientId={googleNativeClientId}
-            onError={setError}
-          />
+          <SocialSignInButtons social={social} callbackUrl={returnUrl} verb="Sign up" onError={setError} />
           <OrDivider className="mt-5" />
         </div>
       )}

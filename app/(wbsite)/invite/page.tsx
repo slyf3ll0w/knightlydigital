@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { AnimateIn } from "@/components/AnimateIn";
 import InviteSignupForm from "@/components/InviteSignupForm";
-import { googleNativeClientIdFor, googleSignInAvailableFor } from "@/lib/sign-in-options";
+import { socialSignInFor } from "@/lib/sign-in-options";
 
 /**
  * Unlisted invite-code signup. Nothing on the marketing site links here and
@@ -18,8 +18,7 @@ export const metadata: Metadata = {
 };
 
 export default async function WBInvitePage() {
-  const ua = (await headers()).get("user-agent");
-  const googleEnabled = googleSignInAvailableFor(ua);
+  const ua = (await headers()).get("user-agent");
   return (
     <>
       <section className="relative overflow-hidden">
@@ -43,7 +42,7 @@ export default async function WBInvitePage() {
 
       <section className="mx-auto max-w-3xl px-5 py-16 sm:px-8 sm:py-20">
         <AnimateIn>
-          <InviteSignupForm googleEnabled={googleEnabled} googleNativeClientId={googleNativeClientIdFor(ua)} />
+          <InviteSignupForm social={socialSignInFor(ua)} />
         </AnimateIn>
       </section>
     </>

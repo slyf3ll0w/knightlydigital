@@ -111,10 +111,20 @@ export async function resolveSocialSignIn(
     select: { id: true, accountId: true },
   });
 
-  if (identity) {
-    if (ctx.linkIntent && ctx.currentAccountId && identity.accountId !== ctx.currentAccountId) {
-      return { ok: false, reason: "identity-taken" };
-    }
+  if (identity && ctx.linkIntent && ctx.currentAccountId && identity.accountId !== ctx.currentAccountId) {
+    // The identity already opens another login. Usually that's a refusal —
+    // except when the other login is an empty shell this very identity
+    // created: someone whose Apple ID hides their email (a private relay
+    // that matches no owner-added teammate) taps Sign in with Apple, lands
+    // in a brand-new company-less account, then follows the "already have a
+    // login?" pointer, signs in with their password and connects Apple from
+    // Settings. Moving the identity here is what makes that path end well;
+    // the shell had nothing in it but this one row.
+    const moved = await adoptPlaceholderIdentity(identity.id, identity.accountId, ctx.currentAccountId);
+    if (!moved) return { ok: false, reason: "identity-taken" };
+    accountId = ctx.currentAccountId;
+    outcome = "linked";
+  } else if (identity) {
     accountId = identity.accountId;
     await prisma.accountIdentity
       .update({ where: { id: identity.id }, data: { lastUsedAt: new Date(), email: email || undefined } })
@@ -149,7 +159,9 @@ export async function resolveSocialSignIn(
     }
   }
 
-  if (outcome !== "existing") {
+  // A moved identity is already bound — nothing to create.
+  const alreadyBound = Boolean(identity) && outcome === "linked";
+  if (outcome !== "existing" && !alreadyBound) {
     try {
       await prisma.accountIdentity.create({
         data: {
@@ -234,6 +246,45 @@ export async function resolveSocialSignIn(
       companyName: user.company?.name ?? null,
     },
   };
+}
+
+/**
+ * Move an identity off a placeholder account onto the caller's, and delete
+ * the placeholder. Only when the other account is provably empty: no
+ * password, no other sign-in method, and no membership in any company
+ * (its rows are the company-less stubs a social sign-up leaves behind).
+ * Anything more and it is somebody's login — refused.
+ */
+async function adoptPlaceholderIdentity(
+  identityId: string,
+  fromAccountId: string,
+  toAccountId: string
+): Promise<boolean> {
+  const other = await prisma.account.findUnique({
+    where: { id: fromAccountId },
+    select: {
+      passwordHash: true,
+      identities: { select: { id: true } },
+      users: { select: { id: true, companyId: true } },
+    },
+  });
+  if (!other) return false;
+  const empty =
+    !other.passwordHash &&
+    other.identities.length === 1 &&
+    other.identities[0]?.id === identityId &&
+    other.users.every((u) => u.companyId === null);
+  if (!empty) return false;
+
+  await prisma.$transaction([
+    prisma.accountIdentity.update({
+      where: { id: identityId },
+      data: { accountId: toAccountId, lastUsedAt: new Date() },
+    }),
+    prisma.user.deleteMany({ where: { accountId: fromAccountId, companyId: null } }),
+    prisma.account.delete({ where: { id: fromAccountId } }),
+  ]);
+  return true;
 }
 
 /** The sign-in methods on an account, for the Connected sign-ins card. */

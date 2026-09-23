@@ -7,10 +7,11 @@ import { Check, KeyRound, Loader2 } from "lucide-react";
 import SectionHeader from "@/components/SectionHeader";
 import { inputCls } from "@/components/Input";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
-import { isNativeGoogleAvailable, nativeGoogleIdToken } from "@/lib/native-google-signin";
+import { nativeAppleIdToken, nativeGoogleIdToken } from "@/lib/native-social-signin";
+import type { SocialSignIn } from "@/lib/sign-in-options";
 import { confirmSheet } from "@/components/ConfirmSheet";
 import { saveCredential } from "@/lib/save-credential";
-import { GoogleMark } from "@/components/VerifyIdentity";
+import { AppleMark, GoogleMark, useSocialSignInOffered, type SocialProviderId } from "@/components/SocialSignInButtons";
 
 export type ConnectedIdentity = {
   provider: string;
@@ -22,32 +23,32 @@ export type ConnectedIdentity = {
 const LABEL: Record<string, string> = { google: "Google", apple: "Apple" };
 
 // Copy for the ?link-error= code the OAuth callback sends back with.
-function linkErrorMessage(code: string): string {
+function linkErrorMessage(code: string, provider: string): string {
+  const label = LABEL[provider] ?? "That";
   if (code === "identity-taken")
-    return "That Google account is already connected to a different WorkBench login. Sign out, sign in with Google, and you'll land on that one.";
-  return "Couldn't connect Google sign-in — please try again.";
+    return `That ${label} account is already connected to a different WorkBench login. Sign out, sign in with ${label}, and you'll land on that one.`;
+  return `Couldn't connect ${label} sign-in — please try again.`;
 }
 
 /**
  * Settings → My Profile → Sign-in methods: the ways this login opens, as one
- * list — Password, Google, Apple (when the iOS build ships) — each with its
- * own set / change / connect / disconnect, the way Google, GitHub and Apple
- * lay theirs out. Every change here goes through "verify it's you" first
- * (components/VerifyIdentity.tsx), so a login opened with Google and no
- * password can add one right here instead of round-tripping through Forgot
- * password.
+ * list — Password, Google, Apple — each with its own set / change / connect
+ * / disconnect, the way Google, GitHub and Apple lay theirs out. Every
+ * change here goes through "verify it's you" first
+ * (components/VerifyIdentity.tsx), so a login opened with Google or Apple
+ * and no password can add one right here instead of round-tripping through
+ * Forgot password.
  *
- * Connect on the web = a Google round-trip while signed in (the callback
+ * Connect on the web = a provider round-trip while signed in (the callback
  * binds the identity to THIS account, lib/auth-options.ts — only with a
- * fresh proof). In the Android app the native sheet produces an ID token and
- * POSTs it, which keeps the session exactly where it is.
+ * fresh proof). In the native apps the system sheet produces an ID token
+ * and POSTs it, which keeps the session exactly where it is.
  */
 export default function SignInMethodsCard({
   email,
   hasPassword,
   identities,
-  googleWebEnabled,
-  googleNativeClientId = null,
+  social,
   verify,
   onPasswordSet,
   onIdentities,
@@ -55,10 +56,8 @@ export default function SignInMethodsCard({
   email: string;
   hasPassword: boolean;
   identities: ConnectedIdentity[];
-  /** Google sign-in configured and usable from this browser (not an old shell). */
-  googleWebEnabled: boolean;
-  /** Android app only — connect Google through the plugin, not a redirect. */
-  googleNativeClientId?: string | null;
+  /** Which providers can be connected from here, and how (lib/sign-in-options.ts). */
+  social: SocialSignIn;
   /** From useVerifyIdentity — resolves true once the person has proved it's them. */
   verify: (what: string) => Promise<boolean>;
   onPasswordSet: () => void;
@@ -68,10 +67,8 @@ export default function SignInMethodsCard({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [flash, setFlash] = useState("");
-  const [nativeReady, setNativeReady] = useState(false);
-  useEffect(() => {
-    if (googleNativeClientId) setNativeReady(isNativeGoogleAvailable());
-  }, [googleNativeClientId]);
+  // In a shell too old for the plugin there is no way to connect from here.
+  const connectable = useSocialSignInOffered(social);
 
   // Read the link round-trip's verdict once, then scrub it so a refresh
   // doesn't resurrect a stale message.
@@ -81,14 +78,13 @@ export default function SignInMethodsCard({
     const linkError = params.get("link-error");
     if (!linked && !linkError) return;
     if (linked) setFlash(`${LABEL[linked] ?? linked} sign-in connected.`);
-    if (linkError) setError(linkErrorMessage(linkError));
+    if (linkError) setError(linkErrorMessage(linkError, params.get("provider") ?? ""));
     params.delete("linked");
     params.delete("link-error");
+    params.delete("provider");
     const qs = params.toString();
     router.replace(window.location.pathname + (qs ? `?${qs}` : ""));
   }, [router]);
-
-  const google = identities.find((i) => i.provider === "google");
 
   // ── Password ───────────────────────────────────────────────────────────
   const [pwOpen, setPwOpen] = useState(false);
@@ -127,33 +123,35 @@ export default function SignInMethodsCard({
     if (!hasPassword) onPasswordSet();
   }
 
-  // ── Google ─────────────────────────────────────────────────────────────
-  async function connectGoogle() {
+  // ── Google / Apple ─────────────────────────────────────────────────────
+  async function connect(provider: SocialProviderId) {
+    const label = LABEL[provider];
     setError("");
     setFlash("");
-    if (!(await verify("connect-google"))) return;
+    if (!(await verify(`connect-${provider}`))) return;
     setBusy(true);
 
-    if (googleNativeClientId && nativeReady) {
-      const token = await nativeGoogleIdToken(googleNativeClientId);
+    if (social[provider] === "native") {
+      const token = provider === "google" ? await nativeGoogleIdToken(social) : await nativeAppleIdToken(social);
       if (!token.ok) {
         setBusy(false);
-        // Backing out of the account sheet is not a failure to report.
-        if (!token.canceled) setError("Couldn't connect Google sign-in — please try again.");
+        // Backing out of the sheet is not a failure to report.
+        if (!token.canceled) setError(`Couldn't connect ${label} sign-in — please try again.`);
         return;
       }
       const res = await postJson<{ identities: ConnectedIdentity[] }>("/api/app/profile/identities", {
-        provider: "google",
+        provider,
         idToken: token.idToken,
+        name: token.name ?? undefined,
       });
       setBusy(false);
       if (!res.ok) return setError(res.data?.error ?? GENERIC_ERROR);
       if (Array.isArray(res.data?.identities)) onIdentities(res.data.identities);
-      setFlash("Google sign-in connected.");
+      setFlash(`${label} sign-in connected.`);
       return;
     }
 
-    signIn("google", { callbackUrl: "/app/settings/profile" }).catch(() => setBusy(false));
+    signIn(provider, { callbackUrl: "/app/settings/profile" }).catch(() => setBusy(false));
   }
 
   async function disconnect(provider: string) {
@@ -178,11 +176,41 @@ export default function SignInMethodsCard({
     setFlash(`${label} sign-in disconnected.`);
   }
 
-  // In a shell too old for the plugin there is no way to connect Google.
-  const canConnectGoogle = googleWebEnabled || (Boolean(googleNativeClientId) && nativeReady);
-
   const rowBtn =
     "px-4 py-2 btn-tool-line bg-white text-sm font-medium text-gray-700 rounded-[10px] hover:bg-gray-50 transition-colors shrink-0 disabled:opacity-50";
+
+  function providerRow(provider: SocialProviderId, mark: React.ReactNode, last: boolean) {
+    const connected = identities.find((i) => i.provider === provider);
+    const canConnect = connectable[provider];
+    return (
+      <li className={`flex flex-wrap items-center justify-between gap-3 py-3 ${last ? "last:pb-0" : ""}`}>
+        <div className="flex items-center gap-3">
+          {mark}
+          <div>
+            <div className="text-sm font-semibold text-gray-900">{LABEL[provider]}</div>
+            <div className="text-xs text-gray-500">
+              {connected
+                ? `Connected${connected.email ? ` · ${connected.email}` : ""}`
+                : canConnect
+                  ? "Not connected"
+                  : provider === "apple"
+                    ? "Not connected · connect from the iPhone app or workbenchfsm.com"
+                    : "Not connected"}
+            </div>
+          </div>
+        </div>
+        {connected ? (
+          <button type="button" onClick={() => void disconnect(provider)} disabled={busy} className={rowBtn}>
+            {busy ? <Loader2 size={13} className="animate-spin" /> : "Disconnect"}
+          </button>
+        ) : canConnect ? (
+          <button type="button" onClick={() => void connect(provider)} disabled={busy} className={rowBtn}>
+            {busy ? <Loader2 size={13} className="animate-spin" /> : "Connect"}
+          </button>
+        ) : null}
+      </li>
+    );
+  }
 
   return (
     <div className="card-ledger p-5 mt-5">
@@ -299,43 +327,8 @@ export default function SignInMethodsCard({
           )}
         </li>
 
-        {/* Google */}
-        <li className="flex flex-wrap items-center justify-between gap-3 py-3">
-          <div className="flex items-center gap-3">
-            <GoogleMark size={20} />
-            <div>
-              <div className="text-sm font-semibold text-gray-900">Google</div>
-              <div className="text-xs text-gray-500">
-                {google ? `Connected${google.email ? ` · ${google.email}` : ""}` : "Not connected"}
-              </div>
-            </div>
-          </div>
-          {google ? (
-            <button type="button" onClick={() => void disconnect("google")} disabled={busy} className={rowBtn}>
-              {busy ? <Loader2 size={13} className="animate-spin" /> : "Disconnect"}
-            </button>
-          ) : canConnectGoogle ? (
-            <button type="button" onClick={() => void connectGoogle()} disabled={busy} className={rowBtn}>
-              {busy ? <Loader2 size={13} className="animate-spin" /> : "Connect"}
-            </button>
-          ) : null}
-        </li>
-
-        {/* Apple — lands with the iOS build (docs/plans/social-login-2026-09-14.md) */}
-        <li className="flex flex-wrap items-center justify-between gap-3 py-3 last:pb-0">
-          <div className="flex items-center gap-3">
-            <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" className="text-gray-900">
-              <path
-                fill="currentColor"
-                d="M16.365 1.43c0 1.14-.417 2.2-1.245 3.06-.9.97-2.03 1.53-3.13 1.44a3.1 3.1 0 0 1-.03-.42c0-1.1.47-2.24 1.29-3.08.41-.45.93-.82 1.55-1.1.63-.28 1.22-.43 1.78-.46.02.19.03.38.03.56Zm3.56 16.53c-.36.83-.79 1.6-1.29 2.3-.68.96-1.24 1.63-1.67 2-.66.6-1.37.91-2.13.93-.55 0-1.21-.16-1.98-.47-.77-.32-1.48-.47-2.13-.47-.68 0-1.41.16-2.19.47-.78.32-1.41.48-1.89.5-.73.03-1.46-.29-2.17-.96-.47-.4-1.05-1.09-1.75-2.08-.75-1.05-1.36-2.27-1.84-3.66C.62 15.05.36 13.6.36 12.2c0-1.6.35-2.98 1.04-4.14a6.1 6.1 0 0 1 2.18-2.2 5.87 5.87 0 0 1 2.95-.83c.58 0 1.34.18 2.29.53.94.35 1.55.53 1.81.53.2 0 .87-.21 2.01-.62 1.08-.38 1.99-.54 2.73-.48 2.02.16 3.53.96 4.54 2.39-1.8 1.09-2.69 2.62-2.67 4.58.02 1.53.57 2.8 1.66 3.81.49.47 1.04.83 1.65 1.09-.13.39-.27.76-.43 1.11Z"
-              />
-            </svg>
-            <div>
-              <div className="text-sm font-semibold text-gray-900">Apple</div>
-              <div className="text-xs text-gray-500">Coming with the iPhone app</div>
-            </div>
-          </div>
-        </li>
+        {providerRow("google", <GoogleMark size={20} />, false)}
+        {providerRow("apple", <AppleMark size={20} className="text-gray-900" />, true)}
       </ul>
     </div>
   );

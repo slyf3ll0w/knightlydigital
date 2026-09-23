@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 import { canSell, requirePageActor, roleLabel } from "@/lib/permissions";
 import { hasAddon } from "@/lib/addon";
 import { voiceConfigured } from "@/lib/telnyx";
-import { googleNativeClientIdFor, googleSignInAvailableFor } from "@/lib/sign-in-options";
+import { socialSignInFor } from "@/lib/sign-in-options";
 import ProfileClient from "./ProfileClient";
 
 export const metadata: Metadata = { title: "My Profile" };
@@ -80,8 +80,7 @@ export default async function ProfilePage() {
         createdAt: i.createdAt.toISOString(),
         lastUsedAt: i.lastUsedAt?.toISOString() ?? null,
       }))}
-      googleEnabled={googleSignInAvailableFor(ua)}
-      googleNativeClientId={googleNativeClientIdFor(ua)}
+      social={socialSignInFor(ua)}
       softphoneEnabled={softphoneRelevant ? (user?.softphoneEnabled ?? true) : null}
     />
   );
