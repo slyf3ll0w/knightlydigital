@@ -93,7 +93,9 @@ What's in it and why each piece needs the build: `native-release-queue.md`
    `Intents.swift` are registered in the pbxproj by hand — check they show
    under App and compile. Fix-ups likely to be needed and safe to make:
    - Intents.swift is iOS 16 API; the deployment target is 15.0, so every
-     type is `@available(iOS 16.0, *)`. If the AppShortcutsProvider needs
+     type is `@available(iOS 16.0, *)`. `AppShortcutsProvider` allows at
+     most 10 shortcuts (there are 9) and each phrase must contain
+     `(.applicationName)`; `ClientEntity` phrases use `(.$client)`. If the AppShortcutsProvider needs
      the app to have an `AppIntents` framework link, add it.
    - VoipPlugin.swift: `notifyListeners(_:data:retainUntilConsumed:)` is
      Capacitor 5+; `CAPBridgedPlugin` conformance needs `identifier`,

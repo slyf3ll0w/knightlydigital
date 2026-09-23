@@ -9,7 +9,7 @@ WorkBench 1.3 turns your iPhone into your business line.
 
 • Calls ring your phone even when WorkBench is closed — answer from the lock screen, talk in the app, and the caller only ever sees your business number
 • Sign in with Apple or Google — one tap, no password to remember
-• Siri: "Hey Siri, clock me in with WorkBench", "clock me out", or "next job"
+• Siri, hands-free: "Call Maria with WorkBench", "Text Maria with WorkBench", "Tell my next client I'm on my way", "Clock me in", "Clock me out", "Call back my last missed call", "Add a note", "What's my day look like"
 • Mute, hold and end calls from the iPhone call screen, with your phone locked
 
 ## Review notes (App Review Information)
@@ -26,9 +26,11 @@ to CallKit immediately; no VoIP push is used for anything else. Background
 modes: `voip` for that, `audio` so an in-progress call keeps going when the
 phone locks.
 
-Siri: three App Intents (clock in, clock out, next job). Clock in/out call
-the app's own API with the user's session; nothing is shared with Siri
-beyond the spoken confirmation.
+Siri: nine App Intents (clock in/out, next job, call a client, text a
+client, on my way, call back a missed call, add a job note, today's
+schedule). Each calls the app's own API with the user's session; a call
+placed by Siri rings the user's own phone first through the business line.
+Nothing is shared with Siri beyond the spoken confirmation.
 
 ## Privacy labels
 

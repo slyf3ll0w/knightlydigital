@@ -185,11 +185,17 @@ build, and a phone to test on.
    session cookies survive. The plugin is the one already on Android
    (`@capgo/capacitor-social-login`, `apple: true` now) — the Mac's
    `npx cap sync ios` is what adds it to the Xcode project.
-2. **Siri App Intents** — `ios/App/App/Intents.swift`: "Clock me in with
-   WorkBench", "Clock me out with WorkBench", "Next job in WorkBench". Clock
-   runs without opening the app (webview cookies → `GET /api/app/siri/next-job`
-   → `POST /api/app/jobs/[id]/clock`); Next job opens the universal link.
-   iOS 16+, guarded with `@available`.
+2. **Siri App Intents** — `ios/App/App/Intents.swift`, nine of them, all but
+   one running without opening the app (webview cookies → the app's own
+   routes, plus read-only helpers under `/api/app/siri/`): clock in, clock
+   out, next job (opens the universal link), **call a client** (the line
+   rings your cell, press 1, then dials them — `POST /api/app/line/call`
+   via cell), **text a client** (`POST /api/app/messages/[contactId]`),
+   **on my way** (`POST /api/app/siri/on-my-way`: the template text from
+   the line, job stamped + noted), **call back last missed call**
+   (`/api/app/siri/last-missed`), **add a job note**, **what's my day**
+   (`/api/app/siri/today` answers in words). Clients are an `AppEntity`
+   resolved through `/api/app/siri/contacts?q=`. iOS 16+, `@available`.
 3. **Business-line calls in the app, ringing when it's closed** (tier 3) —
    `ios/App/App/VoipPlugin.swift` (PushKit + CallKit, registered by
    `ShellViewController.swift`; `Main.storyboard` now points at that class),

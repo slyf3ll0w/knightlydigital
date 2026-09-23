@@ -3,22 +3,35 @@ import Foundation
 import WebKit
 
 /**
- * Siri: "Hey Siri, clock me in with WorkBench" / "clock me out" / "next job".
+ * Siri, hands-free (App Intents, iOS 16+):
  *
- * App Intents (iOS 16+). The clock intents run WITHOUT opening the app:
- * they read the session cookie the app's webview holds, ask the server for
- * "my next job" (GET /api/app/siri/next-job — the job I'm clocked into,
- * else my next scheduled one) and POST the clock action to the same route
- * the app's Clock in button uses. Siri confirms in words. "Next job" opens
- * the app on the universal link the URL tier already served
- * (/app/go/next-job), so the Shortcuts-app recipe and this stay in step.
+ *   "Clock me in with WorkBench"            → next job, clock in
+ *   "Clock me out with WorkBench"           → the job I'm on, clock out
+ *   "Next job in WorkBench"                 → opens the job (universal link)
+ *   "Call Maria Lopez with WorkBench"       → the business line calls her:
+ *                                             your cell rings, "press 1",
+ *                                             then she is dialed
+ *   "Text Maria Lopez with WorkBench"       → Siri asks what to say; it
+ *                                             goes out from the line
+ *   "Tell my next client I'm on my way"     → the On my way text, from the
+ *                                             line, job stamped and noted
+ *   "Call back my last missed call"         → redials the last missed call
+ *   "Add a note in WorkBench"               → dictated, onto the job I'm on
+ *   "What's my day look like in WorkBench"  → reads today's schedule
+ *
+ * Everything but "next job" runs WITHOUT opening the app: the intent reads
+ * the session cookie the app's webview holds and talks to the same routes
+ * the app uses (plus a few read-only ones under /api/app/siri that answer
+ * in words). A phone that is signed out gets a 401 and Siri says so;
+ * nothing here stores credentials.
  *
  * `WorkBenchShortcuts` donates the phrases so they show in Spotlight and
- * the Shortcuts app with no setup. A phone that is signed out gets a 401
- * and Siri says so; nothing here stores credentials.
+ * the Shortcuts app with no setup.
  */
 
 private let siteOrigin = URL(string: "https://workbenchfsm.com")!
+
+// MARK: - Wire types
 
 private struct NextJob: Decodable {
     let id: String
@@ -26,23 +39,50 @@ private struct NextJob: Decodable {
     let clockedIn: Bool
 }
 
-private struct NextJobReply: Decodable {
-    let job: NextJob?
+private struct NextJobReply: Decodable { let job: NextJob? }
+
+private struct ContactRow: Decodable {
+    let id: String
+    let name: String
+    let phone: String?
 }
+
+private struct ContactsReply: Decodable { let contacts: [ContactRow] }
+
+private struct TodayReply: Decodable { let summary: String }
+
+private struct MissedCall: Decodable {
+    let number: String
+    let label: String
+}
+
+private struct MissedReply: Decodable { let call: MissedCall? }
+
+private struct OnMyWayReply: Decodable { let client: String }
+
+private struct ErrorReply: Decodable { let error: String? }
 
 private enum SiriError: Error, CustomLocalizedStringResourceConvertible {
     case signedOut
     case noJob
+    case notOnJob
+    case noMissed
+    case refused(String)
     case server
 
     var localizedStringResource: LocalizedStringResource {
         switch self {
         case .signedOut: return "Open WorkBench and sign in first."
         case .noJob: return "You have no job to clock into right now."
+        case .notOnJob: return "You're not clocked in to a job right now."
+        case .noMissed: return "There's no missed call to return."
+        case .refused(let why): return "\(why)"
         case .server: return "WorkBench didn't answer. Try again in a moment."
         }
     }
 }
+
+// MARK: - Talking to the site
 
 /// The app's webview cookies, as a Cookie header — must be read on the main thread.
 @MainActor
@@ -57,8 +97,10 @@ private func cookieHeader() async -> String {
         .joined(separator: "; ")
 }
 
-private func request(_ path: String, method: String = "GET", json: [String: Any]? = nil) async throws -> (Int, Data) {
-    var req = URLRequest(url: siteOrigin.appendingPathComponent(path))
+private func request(_ path: String, query: [String: String] = [:], method: String = "GET", json: [String: Any]? = nil) async throws -> (Int, Data) {
+    var comps = URLComponents(url: siteOrigin.appendingPathComponent(path), resolvingAgainstBaseURL: false)!
+    if !query.isEmpty { comps.queryItems = query.map { URLQueryItem(name: $0.key, value: $0.value) } }
+    var req = URLRequest(url: comps.url!)
     req.httpMethod = method
     req.setValue(await cookieHeader(), forHTTPHeaderField: "Cookie")
     req.setValue("application/json", forHTTPHeaderField: "Accept")
@@ -72,22 +114,80 @@ private func request(_ path: String, method: String = "GET", json: [String: Any]
     return ((response as? HTTPURLResponse)?.statusCode ?? 0, data)
 }
 
+/// 401 → signed out; 4xx with an error message → that message; anything else → server.
+private func check(_ status: Int, _ data: Data) throws {
+    if status == 401 { throw SiriError.signedOut }
+    if (200...299).contains(status) { return }
+    if let why = (try? JSONDecoder().decode(ErrorReply.self, from: data))?.error, status < 500 {
+        throw SiriError.refused(why)
+    }
+    throw SiriError.server
+}
+
 private func nextJob() async throws -> NextJob? {
     let (status, data) = try await request("/api/app/siri/next-job")
-    if status == 401 { throw SiriError.signedOut }
-    guard status == 200 else { throw SiriError.server }
+    try check(status, data)
     return try JSONDecoder().decode(NextJobReply.self, from: data).job
 }
 
 private func clock(_ action: String, job: NextJob) async throws {
-    let (status, _) = try await request(
+    let (status, data) = try await request(
         "/api/app/jobs/\(job.id)/clock",
         method: "POST",
         json: ["action": action, "clientKey": "siri:\(UUID().uuidString)"]
     )
-    if status == 401 { throw SiriError.signedOut }
-    guard status == 200 else { throw SiriError.server }
+    try check(status, data)
 }
+
+/// Place a call from the business line: rings the person's cell first, whispers who it's for, then dials the client.
+private func placeCall(contactId: String?, to: String?) async throws {
+    var json: [String: Any] = ["via": "cell"]
+    if let contactId = contactId { json["contactId"] = contactId }
+    if let to = to { json["to"] = to }
+    let (status, data) = try await request("/api/app/line/call", method: "POST", json: json)
+    try check(status, data)
+}
+
+// MARK: - Clients, as something Siri can name
+
+@available(iOS 16.0, *)
+struct ClientEntity: AppEntity {
+    static var typeDisplayRepresentation = TypeDisplayRepresentation(name: "Client")
+    static var defaultQuery = ClientQuery()
+
+    var id: String
+    var name: String
+    var phone: String?
+
+    var displayRepresentation: DisplayRepresentation {
+        DisplayRepresentation(title: "\(name)", subtitle: phone.map { "\($0)" })
+    }
+}
+
+@available(iOS 16.0, *)
+struct ClientQuery: EntityStringQuery {
+    private func fetch(_ query: [String: String]) async throws -> [ClientEntity] {
+        let (status, data) = try await request("/api/app/siri/contacts", query: query)
+        try check(status, data)
+        return try JSONDecoder().decode(ContactsReply.self, from: data).contacts.map {
+            ClientEntity(id: $0.id, name: $0.name, phone: $0.phone)
+        }
+    }
+
+    func entities(for identifiers: [String]) async throws -> [ClientEntity] {
+        try await fetch(["ids": identifiers.joined(separator: ",")])
+    }
+
+    func entities(matching string: String) async throws -> [ClientEntity] {
+        try await fetch(["q": string])
+    }
+
+    func suggestedEntities() async throws -> [ClientEntity] {
+        try await fetch([:])
+    }
+}
+
+// MARK: - Intents
 
 @available(iOS 16.0, *)
 struct ClockInIntent: AppIntent {
@@ -97,9 +197,7 @@ struct ClockInIntent: AppIntent {
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
         guard let job = try await nextJob() else { throw SiriError.noJob }
-        if job.clockedIn {
-            return .result(dialog: "You're already clocked in to \(job.title).")
-        }
+        if job.clockedIn { return .result(dialog: "You're already clocked in to \(job.title).") }
         try await clock("in", job: job)
         return .result(dialog: "Clocked in to \(job.title).")
     }
@@ -112,9 +210,7 @@ struct ClockOutIntent: AppIntent {
     static var openAppWhenRun = false
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        guard let job = try await nextJob(), job.clockedIn else {
-            return .result(dialog: "You're not clocked in to anything.")
-        }
+        guard let job = try await nextJob(), job.clockedIn else { throw SiriError.notOnJob }
         try await clock("out", job: job)
         return .result(dialog: "Clocked out of \(job.title).")
     }
@@ -131,6 +227,117 @@ struct OpenNextJobIntent: AppIntent {
         return .result(opensIntent: OpenURLIntent(siteOrigin.appendingPathComponent("/app/go/next-job")))
     }
 }
+
+@available(iOS 16.0, *)
+struct CallClientIntent: AppIntent {
+    static var title: LocalizedStringResource = "Call a client"
+    static var description = IntentDescription("Call a client from your business line. Your phone rings first, then the client.")
+    static var openAppWhenRun = false
+
+    @Parameter(title: "Client", requestValueDialog: "Who do you want to call?")
+    var client: ClientEntity
+
+    static var parameterSummary: some ParameterSummary { Summary("Call \(\.$client) from the business line") }
+
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        try await placeCall(contactId: client.id, to: nil)
+        return .result(dialog: "Calling \(client.name) from your business line. Answer your phone and press 1.")
+    }
+}
+
+@available(iOS 16.0, *)
+struct TextClientIntent: AppIntent {
+    static var title: LocalizedStringResource = "Text a client"
+    static var description = IntentDescription("Send a client a text from your business line.")
+    static var openAppWhenRun = false
+
+    @Parameter(title: "Client", requestValueDialog: "Who do you want to text?")
+    var client: ClientEntity
+
+    @Parameter(title: "Message", requestValueDialog: "What should it say?")
+    var message: String
+
+    static var parameterSummary: some ParameterSummary { Summary("Text \(\.$client): \(\.$message)") }
+
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        let text = message.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { throw SiriError.refused("The message was empty.") }
+        let (status, data) = try await request("/api/app/messages/\(client.id)", method: "POST", json: ["body": text])
+        try check(status, data)
+        return .result(dialog: "Sent to \(client.name).")
+    }
+}
+
+@available(iOS 16.0, *)
+struct OnMyWayIntent: AppIntent {
+    static var title: LocalizedStringResource = "On my way"
+    static var description = IntentDescription("Text the client of your next job that you're on your way.")
+    static var openAppWhenRun = false
+
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        let (status, data) = try await request("/api/app/siri/on-my-way", method: "POST", json: [:])
+        if status == 404 { throw SiriError.noJob }
+        try check(status, data)
+        let reply = try JSONDecoder().decode(OnMyWayReply.self, from: data)
+        return .result(dialog: "Told \(reply.client) you're on your way.")
+    }
+}
+
+@available(iOS 16.0, *)
+struct CallBackMissedIntent: AppIntent {
+    static var title: LocalizedStringResource = "Call back last missed call"
+    static var description = IntentDescription("Return the last missed call on your business line.")
+    static var openAppWhenRun = false
+
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        let (status, data) = try await request("/api/app/siri/last-missed")
+        try check(status, data)
+        guard let call = try JSONDecoder().decode(MissedReply.self, from: data).call else { throw SiriError.noMissed }
+        try await placeCall(contactId: nil, to: call.number)
+        return .result(dialog: "Calling \(call.label) back. Answer your phone and press 1.")
+    }
+}
+
+@available(iOS 16.0, *)
+struct AddJobNoteIntent: AppIntent {
+    static var title: LocalizedStringResource = "Add a job note"
+    static var description = IntentDescription("Add a note to the WorkBench job you're clocked into.")
+    static var openAppWhenRun = false
+
+    @Parameter(title: "Note", requestValueDialog: "What's the note?")
+    var note: String
+
+    static var parameterSummary: some ParameterSummary { Summary("Add note \(\.$note) to my current job") }
+
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        let text = note.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { throw SiriError.refused("The note was empty.") }
+        guard let job = try await nextJob(), job.clockedIn else { throw SiriError.notOnJob }
+        let (status, data) = try await request(
+            "/api/app/jobs/\(job.id)/notes",
+            method: "POST",
+            json: ["body": text, "clientKey": "siri:\(UUID().uuidString)"]
+        )
+        try check(status, data)
+        return .result(dialog: "Added to \(job.title).")
+    }
+}
+
+@available(iOS 16.0, *)
+struct TodayIntent: AppIntent {
+    static var title: LocalizedStringResource = "My day"
+    static var description = IntentDescription("Hear today's WorkBench schedule.")
+    static var openAppWhenRun = false
+
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        let (status, data) = try await request("/api/app/siri/today")
+        try check(status, data)
+        let reply = try JSONDecoder().decode(TodayReply.self, from: data)
+        return .result(dialog: "\(reply.summary)")
+    }
+}
+
+// MARK: - Phrases
 
 @available(iOS 16.0, *)
 struct WorkBenchShortcuts: AppShortcutsProvider {
@@ -152,6 +359,42 @@ struct WorkBenchShortcuts: AppShortcutsProvider {
             phrases: ["Next job in \(.applicationName)", "Open my next job in \(.applicationName)", "What's my next job in \(.applicationName)"],
             shortTitle: "Next job",
             systemImageName: "wrench.and.screwdriver"
+        )
+        AppShortcut(
+            intent: CallClientIntent(),
+            phrases: ["Call \(\.$client) with \(.applicationName)", "Call \(\.$client) from my business line in \(.applicationName)", "Call a client with \(.applicationName)"],
+            shortTitle: "Call a client",
+            systemImageName: "phone"
+        )
+        AppShortcut(
+            intent: TextClientIntent(),
+            phrases: ["Text \(\.$client) with \(.applicationName)", "Message \(\.$client) with \(.applicationName)", "Text a client with \(.applicationName)"],
+            shortTitle: "Text a client",
+            systemImageName: "message"
+        )
+        AppShortcut(
+            intent: OnMyWayIntent(),
+            phrases: ["Tell my next client I'm on my way with \(.applicationName)", "On my way in \(.applicationName)", "Send on my way with \(.applicationName)"],
+            shortTitle: "On my way",
+            systemImageName: "car"
+        )
+        AppShortcut(
+            intent: CallBackMissedIntent(),
+            phrases: ["Call back my last missed call with \(.applicationName)", "Return my missed call in \(.applicationName)"],
+            shortTitle: "Call back",
+            systemImageName: "phone.arrow.up.right"
+        )
+        AppShortcut(
+            intent: AddJobNoteIntent(),
+            phrases: ["Add a note in \(.applicationName)", "Add a job note with \(.applicationName)", "Note this in \(.applicationName)"],
+            shortTitle: "Add a note",
+            systemImageName: "note.text.badge.plus"
+        )
+        AppShortcut(
+            intent: TodayIntent(),
+            phrases: ["What's my day look like in \(.applicationName)", "What's on my schedule in \(.applicationName)", "My day in \(.applicationName)"],
+            shortTitle: "My day",
+            systemImageName: "calendar"
         )
     }
 }
