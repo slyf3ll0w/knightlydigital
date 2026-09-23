@@ -9,7 +9,7 @@ WorkBench 1.3 turns your iPhone into your business line.
 
 • Calls ring your phone even when WorkBench is closed — answer from the lock screen, talk in the app, and the caller only ever sees your business number
 • Sign in with Apple or Google — one tap, no password to remember
-• Siri, hands-free: "Call Maria with WorkBench", "Text Maria with WorkBench", "Tell my next client I'm on my way", "Clock me in", "Clock me out", "Call back my last missed call", "Add a note", "What's my day look like"
+• Siri, hands-free: "Call Maria with WorkBench", "Clock me in", "Clock me out", "Next job", "Call back my last missed call", "Add a note", "What's my day look like"
 • Mute, hold and end calls from the iPhone call screen, with your phone locked
 
 ## Review notes (App Review Information)
@@ -21,8 +21,8 @@ Demo account (company: Streamflaire, role USER, calls-in-app on):
   Email: test@testing.com
   Password: Testing!123
 The business line is Streamflaire's real number. A sample contact ("David
-Lessly") carries the owner's own business line, so a call or text placed
-from the Calls page or from Siri reaches the owner, who will answer during
+Lessly") carries the owner's own business line, so a call placed from the
+Calls page or from Siri reaches the owner, who will answer during
 review. Placing a call rings the reviewer's own phone first through the
 line ("press 1"), then the client — that is the designed flow, not a bug.
 
@@ -32,9 +32,8 @@ to CallKit immediately; no VoIP push is used for anything else. Background
 modes: `voip` for that, `audio` so an in-progress call keeps going when the
 phone locks.
 
-Siri: nine App Intents (clock in/out, next job, call a client, text a
-client, on my way, call back a missed call, add a job note, today's
-schedule). Each calls the app's own API with the user's session; a call
+Siri: App Intents for clock in/out, next job, calling a client, calling
+back a missed call, adding a job note, and today's schedule. Each calls the app's own API with the user's session; a call
 placed by Siri rings the user's own phone first through the business line.
 Nothing is shared with Siri beyond the spoken confirmation.
 
