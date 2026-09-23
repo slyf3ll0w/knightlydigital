@@ -1,4 +1,4 @@
-import { fmtPhone } from "@/lib/format";
+import { fmtPhone, fmtTime } from "@/lib/format";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import Link from "next/link";
@@ -40,6 +40,9 @@ export default async function JobDetailPage({
   const actor = await requirePageActor();
   const companyId = actor.companyId;
   const showMoney = canSeePricing(actor.role); // techs see the work, not the prices
+  // Invoices are a money surface (SALES with payments hidden can't open one),
+  // so the billing card and every "Create Invoice" gate on canSeeMoney
+  const showBilling = canSeeMoney(actor);
   const canEdit = isManager(actor.role) || actor.role === "USER";
   const canOpenContact = canSell(actor.role);
 
@@ -180,6 +183,9 @@ export default async function JobDetailPage({
           })
         ).reduce((s, w) => s + (w.durationMinutes ?? 0), 0);
 
+  // Dates render in the company's zone — the server clock is UTC
+  const tz = company?.timezone ?? "America/Chicago";
+
   const lineTotal = job.lineItems.reduce((s, li) => s + Number(li.total), 0);
   const lineCost = job.lineItems.reduce(
     (s, li) => s + Number(li.unitCost ?? 0) * Number(li.quantity),
@@ -246,7 +252,8 @@ export default async function JobDetailPage({
               scheduledAt={job.scheduledAt?.toISOString() ?? null}
               planBilled={!!job.subscription?.interval && !job.subscription.billPerVisit}
               canConvertToAppointment={canConvertToAppointment}
-              canCloseUnbilled={canSeeMoney(actor)}
+              canCloseUnbilled={showBilling}
+              canInvoice={showBilling}
             />
           </div>
         )}
@@ -288,7 +295,7 @@ export default async function JobDetailPage({
           <div>
             <span className="text-xs font-medium text-gray-500 block">Client sign-off</span>
             <span className="text-green-700 font-medium">
-              {job.completionSignatureName} · {shortDate(job.completionSignedAt)}
+              {job.completionSignatureName} · {shortDate(job.completionSignedAt, tz)}
             </span>
           </div>
         )}
@@ -329,7 +336,7 @@ export default async function JobDetailPage({
         {job.closedAt && (
           <div>
             <span className="text-xs font-medium text-gray-500 block">Closed</span>
-            <span className="text-gray-800">{shortDate(job.closedAt)}</span>
+            <span className="text-gray-800">{shortDate(job.closedAt, tz)}</span>
           </div>
         )}
       </div>
@@ -354,13 +361,10 @@ export default async function JobDetailPage({
                       month: "long",
                       day: "numeric",
                       year: "numeric",
+                      timeZone: tz,
                     })}{" "}
-                    {new Date(job.scheduledAt).toLocaleTimeString("en-US", {
-                      hour: "numeric",
-                      minute: "2-digit",
-                    })}
-                    {job.scheduledEnd &&
-                      ` – ${new Date(job.scheduledEnd).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`}
+                    {fmtTime(job.scheduledAt, tz)}
+                    {job.scheduledEnd && ` – ${fmtTime(job.scheduledEnd, tz)}`}
                   </p>
                 </div>
               )}
@@ -532,6 +536,7 @@ export default async function JobDetailPage({
                       day: "numeric",
                       hour: "numeric",
                       minute: "2-digit",
+                      timeZone: tz,
                     }),
                   }}
                   canEdit={note.userId === actor.id}
@@ -599,7 +604,7 @@ export default async function JobDetailPage({
           )}
 
           {/* Billing */}
-          {showMoney && (
+          {showBilling && (
           <div className="card-ledger p-4">
             {/* Plan-billed recurring work is invoiced by its billing cycle —
                 offering "+ Create Invoice" here would double-bill the client */}

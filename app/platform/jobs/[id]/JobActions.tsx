@@ -18,6 +18,7 @@ export default function JobActions({
   planBilled = false,
   canConvertToAppointment = false,
   canCloseUnbilled = false,
+  canInvoice = false,
 }: {
   jobId: string;
   status: string;
@@ -35,6 +36,10 @@ export default function JobActions({
   // May close a job nothing bills for (no invoice, no plan) — a money call,
   // so techs only see "Close Job" once an invoice exists
   canCloseUnbilled?: boolean;
+  // May open the invoice builder (canSeeMoney): techs, and sales with
+  // payments hidden, get no "Create Invoice" — the link would only bounce
+  // them to the dashboard
+  canInvoice?: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -184,7 +189,7 @@ export default function JobActions({
           Complete Job
         </button>
       )}
-      {status === "REQUIRES_INVOICING" && !planBilled && (
+      {status === "REQUIRES_INVOICING" && !planBilled && canInvoice && (
         <button
           onClick={() => router.push(`/app/invoices/new?jobId=${jobId}`)}
           className="btn-primary glass-tinted max-lg:fixed max-lg:inset-x-0 max-lg:mx-auto max-lg:w-max max-lg:bottom-[calc(5.5rem+env(safe-area-inset-bottom))] max-lg:z-30 max-lg:rounded-full max-lg:px-6 max-lg:py-3 max-lg:text-[15px]"
@@ -222,7 +227,7 @@ export default function JobActions({
                   Edit Job
                 </button>
               )}
-              {status !== "ARCHIVED" && !hasInvoice && !planBilled && (
+              {status !== "ARCHIVED" && !hasInvoice && !planBilled && canInvoice && (
                 <button
                   onClick={() => router.push(`/app/invoices/new?jobId=${jobId}`)}
                   className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"

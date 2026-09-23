@@ -25,6 +25,11 @@ export default async function MessageDetailPage({
   });
   if (!message) notFound();
 
+  // Dates render in the company's zone — the server clock is UTC.
+  const tz =
+    (await prisma.company.findUnique({ where: { id: actor.companyId }, select: { timezone: true } }))
+      ?.timezone ?? "America/Chicago";
+
   const baseUrl = (process.env.NEXTAUTH_URL ?? "").replace(/\/+$/, "");
   const publicUrl = `${baseUrl}/message/${message.publicToken}`;
 
@@ -66,7 +71,7 @@ export default async function MessageDetailPage({
       <div className="flex flex-wrap gap-x-8 gap-y-2 px-5 py-4 card-ledger mb-6 text-sm">
         <div>
           <span className="text-xs font-medium text-gray-500 block">Sent</span>
-          <span className="text-gray-800">{shortDate(message.createdAt)}</span>
+          <span className="text-gray-800">{shortDate(message.createdAt, tz)}</span>
         </div>
         {message.contact.email && (
           <div>
@@ -84,13 +89,13 @@ export default async function MessageDetailPage({
           <span className="text-xs font-medium text-gray-500 block">Email opened</span>
           {message.emailOpenedAt ? (
             message.emailOpenKind === "confident" ? (
-              <span className="font-medium text-green-700">{shortDate(message.emailOpenedAt)}</span>
+              <span className="font-medium text-green-700">{shortDate(message.emailOpenedAt, tz)}</span>
             ) : (
               <span
                 className="font-medium text-blue-700"
                 title="Their mail app auto-loaded the email's images (Apple Mail privacy proxy) — this usually means an open, but Apple makes prefetches look identical, so it isn't certain."
               >
-                {shortDate(message.emailOpenedAt)} · likely
+                {shortDate(message.emailOpenedAt, tz)} · likely
               </span>
             )
           ) : (
@@ -103,6 +108,7 @@ export default async function MessageDetailPage({
           viewCount={message.viewCount}
           sent
           label="Viewed online"
+          tz={tz}
         />
       </div>
 

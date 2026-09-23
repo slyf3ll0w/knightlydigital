@@ -1,26 +1,13 @@
 import type { Metadata } from "next";
-import { prisma } from "@/lib/db";
-import { requirePageActor, isManager } from "@/lib/permissions";
-import ContractTemplatesClient from "./ContractTemplatesClient";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = { title: "Agreement templates" };
+export const metadata: Metadata = { title: "Agreements — Templates" };
 
-export default async function ContractTemplatesPage() {
-  const actor = await requirePageActor((a) => isManager(a.role));
-
-  const templates = await prisma.contractTemplate.findMany({
-    where: { companyId: actor.companyId },
-    orderBy: [{ isActive: "desc" }, { name: "asc" }],
-  });
-
-  return (
-    <ContractTemplatesClient
-      templates={templates.map((t) => ({
-        id: t.id,
-        name: t.name,
-        body: t.body,
-        isActive: t.isActive,
-      }))}
-    />
-  );
+/**
+ * Agreement templates moved onto the Agreements page itself
+ * (/app/contracts?view=templates) so one page owns both what's been sent
+ * and what it starts from. Old links and the Settings index still land here.
+ */
+export default function ContractTemplatesPage() {
+  redirect("/app/contracts?view=templates");
 }

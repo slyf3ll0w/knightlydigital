@@ -76,13 +76,40 @@ export default function ClientFieldsClient({ defs }: { defs: Def[] }) {
     }
   }
 
-  function move(def: Def, dir: -1 | 1) {
+  async function move(def: Def, dir: -1 | 1) {
+    if (busy) return;
     const idx = active.findIndex((d) => d.id === def.id);
     const other = active[idx + dir];
     if (!other) return;
-    // swap sort orders
-    call(`/api/app/contact-fields/${def.id}`, { sortOrder: other.sortOrder }, "PATCH");
-    call(`/api/app/contact-fields/${other.id}`, { sortOrder: def.sortOrder }, "PATCH");
+    // Swap sort orders — two PATCHes, one after the other (there's no reorder
+    // endpoint). If the second fails, put the first back so the list can't be
+    // left with both rows on the same slot.
+    setBusy(true);
+    setError("");
+    try {
+      const first = await postJson(
+        `/api/app/contact-fields/${def.id}`,
+        { sortOrder: other.sortOrder },
+        "PATCH"
+      );
+      if (!first.ok) {
+        setError(first.data?.error ?? GENERIC_ERROR);
+        return;
+      }
+      const second = await postJson(
+        `/api/app/contact-fields/${other.id}`,
+        { sortOrder: def.sortOrder },
+        "PATCH"
+      );
+      if (!second.ok) {
+        await postJson(`/api/app/contact-fields/${def.id}`, { sortOrder: def.sortOrder }, "PATCH");
+        setError(second.data?.error ?? GENERIC_ERROR);
+        return;
+      }
+    } finally {
+      setBusy(false);
+      router.refresh();
+    }
   }
 
   return (

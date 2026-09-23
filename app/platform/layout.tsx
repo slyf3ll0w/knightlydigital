@@ -48,7 +48,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     );
 
   // Fresh from DB (not JWT) so logo/brand and role changes apply without re-login
-  const [company, { user }, teamCount] = await Promise.all([
+  const [company, { user, actor }, teamCount] = await Promise.all([
     session.user.companyId
       ? prisma.company.findUnique({
           where: { id: session.user.companyId },
@@ -142,6 +142,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         userName={user?.name ?? session.user.name}
         userEmail={session.user.email}
         role={user?.role ?? session.user.role}
+        salesSeePayments={actor?.salesSeePayments ?? true}
         companyName={company?.name ?? session.user.companyName}
         companyLogoUrl={company?.logoUrl}
         wallpaper={resolveWallpaper(company?.wallpaper, company?.logoWallpaper ?? false)}

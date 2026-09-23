@@ -100,6 +100,9 @@ type CompanyForPdf = {
   brandColor: string | null;
   brandColorSecondary: string | null;
   documentColor: string | null;
+  /** IANA zone the document's dates are read in (server clock is UTC).
+   *  Optional so test fixtures without it still render — falls back to UTC. */
+  timezone?: string | null;
 };
 
 type ContactForPdf = {
@@ -117,6 +120,7 @@ const companySelect = {
   name: true, phone: true, email: true, address: true, city: true, state: true, zip: true,
   logoData: true, logoMime: true, logoUrl: true,
   brandColor: true, brandColorSecondary: true, documentColor: true,
+  timezone: true,
 } as const;
 
 const contactSelect = {
@@ -328,6 +332,7 @@ export type QuoteForPdf = {
 /** Exported for scripts/test-pdf-render.mts — routes go through quotePdf. */
 export function buildQuoteDocument(quote: QuoteForPdf, logo: LogoSrc) {
   const accent = brandAccent(quote.company);
+  const tz = quote.company.timezone ?? undefined;
 
   // Mirror the acceptance page: totals over the items the client kept.
   const included = quote.lineItems.filter((li) => !(li.isOptional && li.optedOut));
@@ -347,8 +352,8 @@ export function buildQuoteDocument(quote: QuoteForPdf, logo: LogoSrc) {
   // Approved/converted skip the status meta line — the stamp says it.
   const stamped = quote.status === "APPROVED" || quote.status === "CONVERTED";
   const metaLines = [
-    `Date: ${shortDate(quote.sentAt ?? quote.createdAt)}`,
-    ...(quote.validUntil ? [`Valid until: ${shortDate(quote.validUntil)}`] : []),
+    `Date: ${shortDate(quote.sentAt ?? quote.createdAt, tz)}`,
+    ...(quote.validUntil ? [`Valid until: ${shortDate(quote.validUntil, tz)}`] : []),
     ...(quote.status !== "AWAITING_RESPONSE" && !stamped
       ? [QUOTE_STATUS_LABEL[quote.status] ?? quote.status]
       : []),
@@ -394,7 +399,7 @@ export function buildQuoteDocument(quote: QuoteForPdf, logo: LogoSrc) {
             <Text style={styles.sectionLabel}>APPROVED</Text>
             <Text style={styles.bodyText}>
               Signed by {quote.signatureName}
-              {quote.approvedAt ? ` on ${shortDate(quote.approvedAt)}` : ""}
+              {quote.approvedAt ? ` on ${shortDate(quote.approvedAt, tz)}` : ""}
             </Text>
           </View>
         ) : null}
@@ -465,6 +470,7 @@ export type InvoiceForPdf = {
 /** Exported for scripts/test-pdf-render.mts — routes go through invoicePdf. */
 export function buildInvoiceDocument(invoice: InvoiceForPdf, logo: LogoSrc) {
   const accent = brandAccent(invoice.company);
+  const tz = invoice.company.timezone ?? undefined;
 
   // Payments carry any card surcharge on top of the invoice total, so the
   // amount owed reconciles against total + Σ payment surcharges (the same
@@ -475,8 +481,8 @@ export function buildInvoiceDocument(invoice: InvoiceForPdf, logo: LogoSrc) {
   const isPaid = invoice.status === "PAID";
 
   const metaLines = [
-    `Date: ${shortDate(invoice.issuedAt ?? invoice.createdAt)}`,
-    ...(invoice.dueDate ? [`Due: ${shortDate(invoice.dueDate)}`] : []),
+    `Date: ${shortDate(invoice.issuedAt ?? invoice.createdAt, tz)}`,
+    ...(invoice.dueDate ? [`Due: ${shortDate(invoice.dueDate, tz)}`] : []),
   ];
 
   return (
@@ -532,7 +538,7 @@ export function buildInvoiceDocument(invoice: InvoiceForPdf, logo: LogoSrc) {
             {invoice.payments.map((p) => (
               <View key={p.id} style={styles.totalRow}>
                 <Text style={styles.totalLabel}>
-                  {shortDate(p.paidAt)}  ·  {paymentMethodLabel[p.method] ?? p.method}
+                  {shortDate(p.paidAt, tz)}  ·  {paymentMethodLabel[p.method] ?? p.method}
                   {p.referenceNumber ? `  ·  Ref ${p.referenceNumber}` : ""}
                 </Text>
                 <Text>{money(p.amount)}</Text>
@@ -590,6 +596,7 @@ export async function statementPdf(
   const { company, invoices, ...contactBits } = contact;
   const logo = await loadLogo(company);
   const accent = brandAccent(company);
+  const tz = company.timezone ?? undefined;
   const now = new Date();
 
   const rows = invoices.map((inv) => {
@@ -615,9 +622,9 @@ export async function statementPdf(
         <View key={r.id} style={styles.tr} wrap={false}>
           <View style={styles.colItem}>
             <Text style={styles.itemName}>#{r.invoiceNumber}{r.subject ? `  ${r.subject}` : ""}</Text>
-            <Text style={styles.itemDesc}>Issued {shortDate(r.issuedAt ?? r.createdAt)}</Text>
+            <Text style={styles.itemDesc}>Issued {shortDate(r.issuedAt ?? r.createdAt, tz)}</Text>
           </View>
-          <Text style={styles.colUnit}>{r.dueDate ? shortDate(r.dueDate) : "—"}</Text>
+          <Text style={styles.colUnit}>{r.dueDate ? shortDate(r.dueDate, tz) : "—"}</Text>
           <Text style={styles.colUnit}>{money(r.total)}</Text>
           <Text style={[styles.colTotal, styles.itemName]}>
             {money(showBalance ? r.balance : r.paid)}
@@ -635,7 +642,7 @@ export async function statementPdf(
           logo={logo}
           docType="Statement"
           docNumber={0}
-          metaLines={[`As of ${shortDate(now)}`]}
+          metaLines={[`As of ${shortDate(now, tz)}`]}
           accent={accent}
         />
         <BillTo contact={contactBits} />

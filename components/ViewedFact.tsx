@@ -13,6 +13,7 @@ export default function ViewedFact({
   viewCount,
   sent,
   label = "Viewed",
+  tz,
 }: {
   firstViewedAt: Date | null;
   lastViewedAt: Date | null;
@@ -20,6 +21,8 @@ export default function ViewedFact({
   sent: boolean;
   /** Fact heading — e.g. "Viewed online" where an email-open fact sits beside it */
   label?: string;
+  /** Company IANA zone — server components must pass it (the server clock is UTC). */
+  tz?: string;
 }) {
   if (!firstViewedAt && !sent) return null;
   return (
@@ -30,12 +33,12 @@ export default function ViewedFact({
           className="inline-flex items-center gap-1 font-medium text-green-700"
           title={
             viewCount > 1 && lastViewedAt
-              ? `Opened ${viewCount} times — last on ${shortDate(lastViewedAt)}`
+              ? `Opened ${viewCount} times — last on ${shortDate(lastViewedAt, tz)}`
               : undefined
           }
         >
           <Eye size={13} />
-          {shortDate(firstViewedAt)}
+          {shortDate(firstViewedAt, tz)}
           {viewCount > 1 ? ` · ${viewCount}×` : ""}
         </span>
       ) : (

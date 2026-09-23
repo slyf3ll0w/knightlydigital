@@ -13,7 +13,7 @@ export default async function EditQuotePage({
   const companyId = actor.companyId;
 
   const { id } = await params;
-  const [quote, contacts, workItems, estimatorRows] = await Promise.all([
+  const [quote, contacts, workItems, estimatorRows, company] = await Promise.all([
     prisma.quote.findFirst({
       where: { id, companyId, ...viaContactScope(actor) },
       include: { lineItems: { orderBy: { sortOrder: "asc" } } },
@@ -28,8 +28,10 @@ export default async function EditQuotePage({
       orderBy: { name: "asc" },
     }),
     prisma.estimator.findMany({ where: { companyId, isActive: true }, select: ESTIMATOR_SELECT, orderBy: { name: "asc" } }),
+    prisma.company.findUnique({ where: { id: companyId }, select: { timezone: true } }),
   ]);
   if (!quote) notFound();
+  const tz = company?.timezone ?? "America/Chicago";
 
   // Editable until the client signs off — approved/converted/archived
   // quotes are locked (change requests are exactly when edits happen)
@@ -55,7 +57,10 @@ export default async function EditQuotePage({
         clientMessage: quote.clientMessage ?? "",
         disclaimer: quote.disclaimer ?? "",
         notes: quote.notes ?? "",
-        validUntil: quote.validUntil ? quote.validUntil.toLocaleDateString("en-CA") : null,
+        // The date input's value: the company's calendar day, not the UTC one
+        validUntil: quote.validUntil
+          ? quote.validUntil.toLocaleDateString("en-CA", { timeZone: tz })
+          : null,
         lineItems: quote.lineItems.map((li) => ({
           name: li.name,
           description: li.description,

@@ -91,7 +91,9 @@ export async function POST(req: NextRequest) {
 
   // Deliver the signing link to the client's inbox — ties the eventual
   // signature to their email address (and they don't need anyone to text
-  // them a link)
+  // them a link). `emailed` tells the form whether it actually went out.
+  // Re-send later with POST /api/app/contracts/[id]/send.
+  let emailed = false;
   if (contact.email) {
     const baseUrl = process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com";
     const { subject, html } = contractSignEmail({
@@ -101,8 +103,13 @@ export async function POST(req: NextRequest) {
       title,
       signUrl: `${baseUrl}/contract/${contract.publicToken}`,
     });
-    await sendEmail({ companyId, to: contact.email, subject, html, fromName: company?.name });
+    emailed = Boolean(
+      await sendEmail({ companyId, to: contact.email, subject, html, fromName: company?.name })
+    );
   }
 
-  return NextResponse.json(contract, { status: 201 });
+  return NextResponse.json(
+    { ...contract, emailed, emailedTo: emailed ? contact.email : null },
+    { status: 201 }
+  );
 }

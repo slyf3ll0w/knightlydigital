@@ -29,7 +29,7 @@ const STANDALONE = new Set([
 /**
  * Top-level destinations: the tab bar plus every row in the More sheet. They
  * never get a back control from the prefix map — but several are also linked
- * to from other pages (Settings lists Services / Contracts / Forms; the
+ * to from other pages (Settings lists Services / Forms; the
  * scheduling card links Team), so when we know the route you arrived from
  * they still name it. The four settings sub-hubs belong in this list: they're
  * their own nav items, not children of the Settings page, which is why they
@@ -55,7 +55,6 @@ const ROOTS = new Set([
   "/app/roadmap",
   "/app/settings",
   "/app/settings/products",
-  "/app/settings/contracts",
   "/app/settings/booking",
   "/app/settings/team",
 ]);
@@ -67,14 +66,15 @@ const ROOTS = new Set([
  */
 const LABELS: [prefix: string, label: string][] = [
   ["/app/settings/products", "Services"],
-  ["/app/settings/contracts", "Agreement templates"],
   ["/app/settings/booking", "Booking & forms"],
-  ["/app/settings/team", "Team"],
+  ["/app/settings/team", "Team & roles"],
   ["/app/settings/profile", "My Profile"],
-  ["/app/settings/pipeline", "Lead Pipeline"],
-  ["/app/settings/client-fields", "Client Fields"],
-  ["/app/settings/quickbooks", "QuickBooks"],
-  ["/app/settings/import", "Import"],
+  ["/app/settings/pipeline", "Lead pipeline"],
+  ["/app/settings/client-fields", "Client custom fields"],
+  ["/app/settings/quickbooks", "QuickBooks Online"],
+  ["/app/settings/import", "Import clients"],
+  ["/app/settings/automations", "Automation rules"],
+  ["/app/settings/addon", "Workbench Plus"],
   ["/app/settings", "Settings"],
   ["/app/dashboard", "Home"],
   ["/app/schedule/map", "Routes"],

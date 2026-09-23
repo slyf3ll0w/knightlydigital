@@ -5,6 +5,7 @@ import { Plus, ChevronRight, Briefcase, Download } from "lucide-react";
 import PageTitle from "@/components/PageTitle";
 import { SECTION_HUES } from "@/lib/section-colors";
 import { money, shortDate } from "@/lib/statuses";
+import { fmtTime } from "@/lib/format";
 import StatusChip from "@/components/StatusChip";
 import EmptyState from "@/components/EmptyState";
 import KpiStrip from "@/components/KpiStrip";
@@ -34,6 +35,10 @@ export default async function JobsPage({
   const scope = jobScope(actor);
   const showMoney = canSeePricing(actor.role);
   const canCreate = isManager(actor.role) || actor.role === "USER";
+  // Dates render in the company's zone — the server clock is UTC.
+  const tz =
+    (await prisma.company.findUnique({ where: { id: companyId }, select: { timezone: true } }))
+      ?.timezone ?? "America/Chicago";
 
   const { status, unscheduled, q, page: pageParam, sort: sortRaw } = await searchParams;
   const sort = pickSort(sortRaw, JOB_SORTS);
@@ -182,11 +187,8 @@ export default async function JobsPage({
                 const total = j.lineItems.reduce((s, li) => s + Number(li.total), 0);
                 const when = j.scheduledAt
                   ? j.scheduledAnytime
-                    ? `${shortDate(j.scheduledAt)} · Anytime`
-                    : `${shortDate(j.scheduledAt)} · ${new Date(j.scheduledAt).toLocaleTimeString(
-                        "en-US",
-                        { hour: "numeric", minute: "2-digit" }
-                      )}`
+                    ? `${shortDate(j.scheduledAt, tz)} · Anytime`
+                    : `${shortDate(j.scheduledAt, tz)} · ${fmtTime(j.scheduledAt, tz)}`
                   : "Unscheduled";
                 return (
                   <Link
@@ -220,7 +222,7 @@ export default async function JobsPage({
                     </div>
                     <span className="hidden lg:block text-sm text-gray-500">#{j.jobNumber}</span>
                     <span className="hidden lg:block text-sm text-gray-500">
-                      {j.scheduledAt ? shortDate(j.scheduledAt) : "Unscheduled"}
+                      {j.scheduledAt ? shortDate(j.scheduledAt, tz) : "Unscheduled"}
                     </span>
                     <span className="hidden lg:block">
                       <StatusChip kind="job" status={j.status} />

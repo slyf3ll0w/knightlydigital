@@ -31,6 +31,10 @@ export default async function ContactsPage({
 }) {
   const actor = await requirePageActor((a) => canSell(a.role));
   const companyId = actor.companyId;
+  // Dates render in the company's zone — the server clock is UTC.
+  const tz =
+    (await prisma.company.findUnique({ where: { id: companyId }, select: { timezone: true } }))
+      ?.timezone ?? "America/Chicago";
 
   const { q, status, assignee, page: pageParam, sort: sortRaw } = await searchParams;
   const sort = pickSort(sortRaw, CLIENT_SORTS);
@@ -206,7 +210,7 @@ export default async function ContactsPage({
                     {c.assignedTo?.name ?? "—"}
                   </span>
                   <span className="hidden lg:block text-sm text-gray-500">
-                    {shortDate(c.updatedAt)}
+                    {shortDate(c.updatedAt, tz)}
                   </span>
                   {/* The last column holds the Call button (below, outside the link) when there's a phone. */}
                   {c.phone ? <span className="hidden lg:block w-9" /> : <ChevronRight size={14} className="text-gray-400 shrink-0 hidden lg:block" />}

@@ -99,7 +99,7 @@ export function LineControl({
       {!number ? (
         <div className="mt-2 space-y-2">
           <p className="text-xs text-gray-500">
-            No number provisioned. The company buys one from Settings → Features, or attach a number the
+            No number provisioned. The company buys one from Settings → Phone &amp; texting, or attach a number the
             Telnyx account already owns (a toll-free bought by hand, a ported number):
           </p>
           <div className="flex flex-wrap items-center gap-2">

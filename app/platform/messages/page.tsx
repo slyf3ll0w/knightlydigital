@@ -16,7 +16,7 @@ import { shortDate } from "@/lib/statuses";
 export default async function MessagesInboxPage() {
   const actor = await requirePageActor((a) => canSell(a.role));
 
-  const [latest, unread] = await Promise.all([
+  const [latest, unread, company] = await Promise.all([
     // Latest message per contact = the conversation list
     prisma.portalMessage.findMany({
       where: { companyId: actor.companyId, ...viaContactScope(actor) },
@@ -33,7 +33,10 @@ export default async function MessagesInboxPage() {
       where: { companyId: actor.companyId, direction: "INBOUND", readByTeamAt: null },
       _count: { _all: true },
     }),
+    // Dates render in the company's zone — the server clock is UTC.
+    prisma.company.findUnique({ where: { id: actor.companyId }, select: { timezone: true } }),
   ]);
+  const tz = company?.timezone ?? "America/Chicago";
   const unreadByContact = new Map(unread.map((u) => [u.contactId, u._count._all]));
 
   return (
@@ -81,7 +84,7 @@ export default async function MessagesInboxPage() {
                       ) : null}
                     </p>
                     <span className="ml-auto shrink-0 text-xs text-gray-500">
-                      {shortDate(m.createdAt)}
+                      {shortDate(m.createdAt, tz)}
                     </span>
                   </div>
                   <p

@@ -13,12 +13,15 @@ export default function RequestActions({
   contactId,
   title,
   details,
+  canDelete = false,
 }: {
   requestId: string;
   status: string;
   contactId: string;
   title: string;
   details: string;
+  /** The DELETE route is managers-only — don't offer what would 403 */
+  canDelete?: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -38,13 +41,16 @@ export default function RequestActions({
 
   async function setStatus(newStatus: string) {
     setOpen(false);
+    setBusy(true);
     try {
-      await fetch(`/api/app/requests/${requestId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus }),
-      });
+      const { ok, data } = await postJson(
+        `/api/app/requests/${requestId}`,
+        { status: newStatus },
+        "PATCH"
+      );
+      if (!ok) alertSheet({ message: data?.error ?? "Couldn't update the request." });
     } finally {
+      setBusy(false);
       router.refresh();
     }
   }
@@ -170,13 +176,15 @@ export default function RequestActions({
                 Restore to New
               </button>
             )}
-            <button
-              onClick={deleteRequest}
-              className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-red-600 hover:bg-red-50"
-            >
-              <Trash2 size={14} className="text-red-400" />
-              Delete (spam)
-            </button>
+            {canDelete && (
+              <button
+                onClick={deleteRequest}
+                className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-red-600 hover:bg-red-50"
+              >
+                <Trash2 size={14} className="text-red-400" />
+                Delete (spam)
+              </button>
+            )}
           </div>
         )}
       </div>

@@ -6,6 +6,7 @@ import { Pencil, Trash2, X } from "lucide-react";
 import { localInputToISO } from "@/lib/statuses";
 import { confirmSheet } from "@/components/ConfirmSheet";
 import Modal from "@/components/Modal";
+import { postJson } from "@/lib/safe-fetch";
 
 /** ISO → datetime-local value in the browser's timezone. */
 function toLocalInput(iso: string | null): string {
@@ -62,16 +63,34 @@ export default function EntryActions({
     )
       return;
     setBusy(true);
-    await fetch(`/api/app/time-entries/${entry.id}`, { method: "DELETE" }).catch(() => null);
-    setBusy(false);
-    setEditing(false);
-    router.refresh();
+    setError(null);
+    try {
+      const { ok, data } = await postJson(`/api/app/time-entries/${entry.id}`, undefined, "DELETE");
+      if (!ok) {
+        setError(data?.error ?? "Couldn't delete — try again.");
+        return;
+      }
+      setEditing(false);
+      router.refresh();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Re-seed the draft from the row every time the sheet opens, so an
+  // abandoned edit (or a refreshed entry) never lingers in the fields
+  function open() {
+    setStart(toLocalInput(entry.startedAt));
+    setEnd(toLocalInput(entry.endedAt));
+    setNote(entry.note ?? "");
+    setError(null);
+    setEditing(true);
   }
 
   return (
     <>
       <button
-        onClick={() => setEditing(true)}
+        onClick={open}
         className="p-1.5 text-gray-300 hover:text-gray-600 shrink-0"
         title="Edit entry"
       >

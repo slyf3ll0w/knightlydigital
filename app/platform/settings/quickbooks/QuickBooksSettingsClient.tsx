@@ -51,11 +51,22 @@ export default function QuickBooksSettingsClient({ configured }: { configured: b
   const [syncMessage, setSyncMessage] = useState("");
   const [syncError, setSyncError] = useState("");
   const [disconnecting, setDisconnecting] = useState(false);
+  // A failed status read is NOT "not connected" — showing the Connect card on
+  // a 500 would invite someone to re-link a company that's already linked.
+  const [loadError, setLoadError] = useState("");
 
   const loadStatus = useCallback(async () => {
     try {
       const res = await fetch("/api/app/quickbooks/status");
-      if (res.ok) setStatus(await res.json());
+      if (res.ok) {
+        setStatus(await res.json());
+        setLoadError("");
+      } else {
+        const data = await res.json().catch(() => null);
+        setLoadError(data?.error ?? "Couldn't load the QuickBooks connection status.");
+      }
+    } catch {
+      setLoadError("Couldn't reach the server. Check your connection and try again.");
     } finally {
       setLoading(false);
     }
@@ -120,10 +131,21 @@ export default function QuickBooksSettingsClient({ configured }: { configured: b
     )
       return;
     setDisconnecting(true);
-    await fetch("/api/app/quickbooks/disconnect", { method: "POST" });
-    setDisconnecting(false);
     setSyncMessage("");
     setSyncError("");
+    try {
+      const res = await fetch("/api/app/quickbooks/disconnect", { method: "POST" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        setSyncError(data?.error ?? "Couldn't disconnect QuickBooks — please try again.");
+        return;
+      }
+    } catch {
+      setSyncError("Couldn't reach the server. Check your connection and try again.");
+      return;
+    } finally {
+      setDisconnecting(false);
+    }
     loadStatus();
   }
 
@@ -170,6 +192,24 @@ export default function QuickBooksSettingsClient({ configured }: { configured: b
       ) : loading ? (
         <div className="card-ledger p-8 flex items-center justify-center text-gray-400">
           <Loader2 size={18} className="animate-spin" />
+        </div>
+      ) : loadError ? (
+        <div className="card-ledger p-5 space-y-3">
+          <div role="alert" className="form-error flex items-start gap-2">
+            <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+            {loadError}
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setLoading(true);
+              loadStatus();
+            }}
+            className="flex items-center gap-1.5 rounded-[10px] btn-tool-line bg-white px-3.5 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+          >
+            <RefreshCw size={13} />
+            Try again
+          </button>
         </div>
       ) : !status?.connected ? (
         <div className="card-ledger p-5 space-y-4">

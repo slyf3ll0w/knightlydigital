@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight, MapPin, Timer, Download } from "lucide-react
 import { prisma } from "@/lib/db";
 import { requirePageActor, isManager } from "@/lib/permissions";
 import { entryMs, formatDuration, mapsHref } from "@/lib/time-entries";
+import { startOfWeekIn, zonedMidnight, zonedParts } from "@/lib/timezone";
 import EntryActions from "./EntryActions";
 import AddEntry from "./AddEntry";
 import PageTitle from "@/components/PageTitle";
@@ -22,17 +23,29 @@ export default async function TimesheetsPage({
   const manager = isManager(actor.role);
   const { week } = await searchParams;
 
+  // The week runs in the company's zone — the server clock is UTC, so a
+  // Date built from the server's own getters lands on the wrong Sunday for
+  // a Central company every evening.
+  const tz =
+    (await prisma.company.findUnique({ where: { id: actor.companyId }, select: { timezone: true } }))
+      ?.timezone ?? "America/Chicago";
+
   // Resolve the Sunday of the requested week (default: this week)
-  const anchor = week ? new Date(`${week}T12:00:00`) : new Date();
-  const weekStart = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate());
-  weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-  const weekEnd = new Date(weekStart.getTime() + 7 * 86400000);
+  const weekMatch = week ? /^(\d{4})-(\d{2})-(\d{2})$/.exec(week) : null;
+  const anchor = weekMatch
+    ? zonedMidnight(tz, Number(weekMatch[1]), Number(weekMatch[2]), Number(weekMatch[3]))
+    : new Date();
+  const weekStart = startOfWeekIn(tz, anchor);
+  const ws = zonedParts(tz, weekStart);
+  // Midnights via the calendar (not +7×86400000) so a DST switch inside the
+  // week can't shift the boundary by an hour
+  const weekEnd = zonedMidnight(tz, ws.y, ws.m, ws.d + 7);
   const now = new Date();
 
-  const toParam = (d: Date) =>
-    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  const prevWeek = toParam(new Date(weekStart.getTime() - 7 * 86400000));
-  const nextWeek = toParam(new Date(weekStart.getTime() + 7 * 86400000));
+  const toParam = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: tz });
+  const prevWeek = toParam(zonedMidnight(tz, ws.y, ws.m, ws.d - 7));
+  const nextWeek = toParam(weekEnd);
+  const weekLastDay = zonedMidnight(tz, ws.y, ws.m, ws.d + 6);
   const isCurrentWeek = now >= weekStart && now < weekEnd;
 
   const [entries, teamUsers, recentJobs] = await Promise.all([
@@ -77,9 +90,9 @@ export default async function TimesheetsPage({
   const grandTotal = entries.reduce((s, e) => s + entryMs(e, now), 0);
 
   const fmtDay = (d: Date) =>
-    d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+    d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: tz });
   const fmtTime = (d: Date) =>
-    d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+    d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: tz });
 
   return (
     <div className="p-4 lg:p-8 max-w-4xl mx-auto">
@@ -88,7 +101,7 @@ export default async function TimesheetsPage({
           sub={
             <>
               {manager ? "Team hours" : "Your hours"} · week of{" "}
-              {weekStart.toLocaleDateString("en-US", { month: "long", day: "numeric" })}
+              {weekStart.toLocaleDateString("en-US", { month: "long", day: "numeric", timeZone: tz })}
             </>
           }
         >
@@ -118,7 +131,7 @@ export default async function TimesheetsPage({
             <ChevronRight size={16} />
           </Link>
           <a
-            href={`/api/app/export/timesheets?from=${weekStart.toLocaleDateString("en-CA")}&to=${new Date(weekStart.getTime() + 6 * 86400_000).toLocaleDateString("en-CA")}`}
+            href={`/api/app/export/timesheets?from=${toParam(weekStart)}&to=${toParam(weekLastDay)}`}
             title="Download this week as CSV"
             className="ml-1 flex items-center gap-1.5 px-3 py-1.5 btn-tool-line bg-white text-xs font-medium text-gray-700 rounded-lg hover:bg-gray-50"
           >

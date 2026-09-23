@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { MapPin, Plus, Pencil, Trash2, Loader2, ChevronDown, ChevronRight } from "lucide-react";
 import { confirmSheet } from "@/components/ConfirmSheet";
+import { postJson } from "@/lib/safe-fetch";
 
 type Addr = {
   id: string;
@@ -113,8 +114,17 @@ export default function AddressesCard({
     )
       return;
     setBusy(true);
+    setError("");
     try {
-      await fetch(`/api/app/contacts/${contactId}/addresses/${id}`, { method: "DELETE" });
+      const { ok, data } = await postJson(
+        `/api/app/contacts/${contactId}/addresses/${id}`,
+        undefined,
+        "DELETE"
+      );
+      if (!ok) {
+        setError(data?.error ?? "Couldn't remove this address.");
+        return;
+      }
       router.refresh();
     } finally {
       setBusy(false);
@@ -216,6 +226,12 @@ export default function AddressesCard({
           );
         })}
       </div>
+
+      {error && editing === null && (
+        <p role="alert" className="form-error mt-3">
+          {error}
+        </p>
+      )}
 
       {editing !== null && (
         <div className="mt-3 pt-3 border-t border-gray-100 space-y-2">

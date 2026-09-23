@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import WorkItemPicker, { type PickerWorkItem } from "@/components/WorkItemPicker";
 
@@ -30,7 +31,29 @@ export type EditorLineItem = {
   isOptional?: boolean; // quotes: client may opt out in the hub
   requiresAgreement?: boolean; // quotes: snapshot of the price-book flag
   serviceDate?: string | null; // invoices: preserved through edits
+  /**
+   * Client-side row identity, never sent to the API (every parent maps the
+   * fields it posts by name). Rows used to be keyed by index, so deleting a
+   * preset row above a custom one re-parented the custom row's WorkItemPicker
+   * onto the deleted row's state — its "custom mode" is decided once on mount.
+   */
+  _key?: string;
 };
+
+let lineKeySeq = 0;
+/** A fresh row key: randomUUID where the runtime has it, a counter otherwise. */
+export function newLineKey(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  lineKeySeq += 1;
+  return `line-${Date.now().toString(36)}-${lineKeySeq}`;
+}
+
+/** Rows loaded from the server (or built elsewhere) get a key if they lack one. */
+export function withLineKeys(items: EditorLineItem[]): EditorLineItem[] {
+  return items.map((li) => (li._key ? li : { ...li, _key: newLineKey() }));
+}
 
 export const emptyEditorLine: EditorLineItem = {
   name: "",
@@ -45,6 +68,11 @@ export const emptyEditorLine: EditorLineItem = {
   requiresAgreement: false,
   serviceDate: null,
 };
+
+/** A blank row with its own key — what "Add line item" and hydration should spread from. */
+export function newEditorLine(): EditorLineItem {
+  return { ...emptyEditorLine, _key: newLineKey() };
+}
 
 /** The recurringInterval to SEND: null when the user chose a one-time sale. */
 export function payloadRecurringInterval(li: EditorLineItem): string | null {
@@ -76,6 +104,13 @@ export default function LineItemsEditor({
   /** Jobs: the last row may be deleted (a job without line items is valid). */
   allowEmpty?: boolean;
 }) {
+  // Parents that hydrate rows from `emptyEditorLine` directly (older
+  // editors) arrive keyless — hand them keys once, before any row can move.
+  useEffect(() => {
+    if (items.some((li) => !li._key)) onChange(withLineKeys(items));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items]);
+
   function update(i: number, patch: Partial<EditorLineItem>) {
     onChange(items.map((li, idx) => (idx === i ? { ...li, ...patch } : li)));
   }
@@ -100,7 +135,7 @@ export default function LineItemsEditor({
       ) : (
         <div className="space-y-3">
           {items.map((li, i) => (
-            <div key={i} className="border border-gray-100 rounded-lg p-3 space-y-2">
+            <div key={li._key ?? `row-${i}`} className="border border-gray-100 rounded-lg p-3 space-y-2">
               {/* Phone: name + delete on row 1, qty/price on row 2; sm+: one row */}
               <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_32px] sm:grid-cols-[minmax(0,1fr)_70px_110px_32px] gap-2 items-start">
                 <div className="col-span-2 sm:col-span-1 min-w-0 sm:order-1">
@@ -197,7 +232,7 @@ export default function LineItemsEditor({
       )}
       <button
         type="button"
-        onClick={() => onChange([...items, { ...emptyEditorLine }])}
+        onClick={() => onChange([...items, newEditorLine()])}
         className="mt-3 flex items-center gap-1 text-sm text-green-600 hover:underline font-medium"
       >
         <Plus size={13} /> Add line item

@@ -6,6 +6,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Mail, Pencil, Phone, Plus, Trash2, User } from "lucide-react";
 import { confirmSheet } from "@/components/ConfirmSheet";
+import { postJson } from "@/lib/safe-fetch";
 
 type Person = {
   id: string;
@@ -105,8 +106,17 @@ export default function PeopleCard({
     )
       return;
     setBusy(true);
+    setError("");
     try {
-      await fetch(`/api/app/contacts/${contactId}/people/${p.id}`, { method: "DELETE" });
+      const { ok, data } = await postJson(
+        `/api/app/contacts/${contactId}/people/${p.id}`,
+        undefined,
+        "DELETE"
+      );
+      if (!ok) {
+        setError(data?.error ?? "Couldn't remove this contact.");
+        return;
+      }
       router.refresh();
     } finally {
       setBusy(false);
@@ -189,6 +199,12 @@ export default function PeopleCard({
           )
         )}
       </div>
+
+      {error && editing === null && (
+        <p role="alert" className="form-error mt-3">
+          {error}
+        </p>
+      )}
 
       {editing !== null && (
         <div className="mt-3 pt-3 border-t border-gray-100 space-y-2">

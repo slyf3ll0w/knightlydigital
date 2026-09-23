@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Check, Repeat, Loader2, Pencil, Play, Pause, X, RotateCw } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { confirmSheet } from "@/components/ConfirmSheet";
@@ -108,6 +109,7 @@ export default function SubscriptionsClient({
   team: { id: string; name: string }[];
   canManage: boolean;
 }) {
+  const router = useRouter();
   const [subs, setSubs] = useState<Sub[]>(initialSubs);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [runningAll, setRunningAll] = useState(false);
@@ -179,30 +181,12 @@ export default function SubscriptionsClient({
       visitAssigneeIds: editForm.visitAssignees,
     });
     if (data) {
+      // Merge what the server actually stored (it normalizes dates, may
+      // reject a card, rolls the visit cursor) — the form is only a draft.
+      // The contact relation isn't on the PATCH response, so keep ours.
       setSubs((list) =>
         list.map((s) =>
-          s.id === id
-            ? {
-                ...s,
-                name: editForm.name.trim(),
-                ...((s.interval || s.billPerVisit) && {
-                  unitPrice: parseFloat(editForm.unitPrice) || 0,
-                  quantity: parseFloat(editForm.quantity) || 1,
-                  savedCardId: editForm.savedCardId || null,
-                }),
-                ...(s.interval && {
-                  interval: editForm.interval,
-                  nextRunDate: `${editForm.nextRunDate}T12:00:00`,
-                }),
-                visitFrequency: editForm.visitFrequency || null,
-                nextVisitDate: editForm.visitFrequency
-                  ? `${editForm.nextVisitDate}T12:00:00`
-                  : null,
-                visitStartMinutes: editForm.visitTime === "" ? null : Number(editForm.visitTime),
-                visitDurationMinutes: Number(editForm.visitDuration) || 60,
-                visitAssigneeIds: editForm.visitAssignees,
-              }
-            : s
+          s.id === id ? { ...s, ...data, contact: data.contact ?? s.contact } : s
         )
       );
       setEditId(null);
@@ -211,6 +195,7 @@ export default function SubscriptionsClient({
         setFlash(`${created} upcoming visit${created === 1 ? "" : "s"} added to the schedule.`);
         setTimeout(() => setFlash(""), 6000);
       }
+      router.refresh();
     }
   }
 
@@ -228,14 +213,18 @@ export default function SubscriptionsClient({
 
   async function setStatus(id: string, status: Sub["status"]) {
     const data = await patch(id, { status });
-    if (data) setSubs((list) => list.map((s) => (s.id === id ? { ...s, status } : s)));
+    if (data) {
+      setSubs((list) => list.map((s) => (s.id === id ? { ...s, status } : s)));
+      router.refresh();
+    }
   }
 
   async function billNow(id: string) {
     const data = await patch(id, { action: "billNow" });
     if (data) {
-      setFlash("Invoice generated. Refresh to see the updated next run date.");
+      setFlash("Invoice generated.");
       setTimeout(() => setFlash(""), 5000);
+      router.refresh();
     }
   }
 
@@ -248,8 +237,9 @@ export default function SubscriptionsClient({
       setError((data as { error?: string })?.error ?? GENERIC_ERROR);
       return;
     }
-    setFlash(`Processed ${data?.processed ?? 0} due subscription(s). Refresh to see changes.`);
+    setFlash(`Processed ${data?.processed ?? 0} due subscription(s).`);
     setTimeout(() => setFlash(""), 6000);
+    router.refresh();
   }
 
   const [billingReady, setBillingReady] = useState(false);
@@ -272,9 +262,10 @@ export default function SubscriptionsClient({
     const n = data?.invoices ?? 0;
     const charged = data?.charged ?? 0;
     setFlash(
-      `${n} invoice${n === 1 ? "" : "s"} created${charged > 0 ? `, ${charged} charged to cards on file` : ""}. Refresh to see them.`
+      `${n} invoice${n === 1 ? "" : "s"} created${charged > 0 ? `, ${charged} charged to cards on file` : ""}.`
     );
     setTimeout(() => setFlash(""), 8000);
+    router.refresh();
   }
 
   // Ready-to-bill queue, grouped per client

@@ -33,8 +33,9 @@ export default async function NewAppointmentPage({
       },
       orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
     }),
-    // Techs can't open appointments (canSell), so they're never offered
-    isManager(actor.role)
+    // Managers and USER (dispatchers) may assign — same rule as the PATCH
+    // route. Techs can't open appointments (canSell), so they're never offered
+    isManager(actor.role) || actor.role === "USER"
       ? prisma.user.findMany({
           where: { companyId, isActive: true, role: { not: "TECH" } },
           select: { id: true, name: true },

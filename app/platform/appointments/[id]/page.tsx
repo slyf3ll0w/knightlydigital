@@ -1,4 +1,4 @@
-import { fmtPhone } from "@/lib/format";
+import { fmtPhone, fmtTime } from "@/lib/format";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, CalendarDays, ExternalLink, Mail, MapPin, Phone, User, Video } from "lucide-react";
@@ -40,9 +40,10 @@ export default async function AppointmentDetailPage({
         assignedTo: { select: { name: true } },
       },
     }),
-    // Only managers may reassign, so only they need the roster (techs can't
-    // open appointments, so they're never offered)
-    isManager(actor.role)
+    // Managers and USER (dispatchers) may reassign — same rule as the PATCH
+    // route — so only they need the roster (techs can't open appointments,
+    // so they're never offered)
+    isManager(actor.role) || actor.role === "USER"
       ? prisma.user.findMany({
           where: { companyId: actor.companyId, isActive: true, role: { not: "TECH" } },
           select: { id: true, name: true },
@@ -51,18 +52,18 @@ export default async function AppointmentDetailPage({
       : Promise.resolve([]),
     prisma.company.findUnique({
       where: { id: actor.companyId },
-      select: { schedulingIntervalMinutes: true, businessHours: true },
+      select: { schedulingIntervalMinutes: true, businessHours: true, timezone: true },
     }),
   ]);
   if (!appt) notFound();
 
   const TypeIcon = typeIcons[appt.type];
+  // Read in the company's zone — the server clock is UTC
+  const tz = company?.timezone ?? "America/Chicago";
   const when = appt.scheduledAnytime
-    ? `${new Date(appt.scheduledAt).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })} — Anytime`
-    : `${new Date(appt.scheduledAt).toLocaleString("en-US", { weekday: "long", month: "long", day: "numeric", hour: "numeric", minute: "2-digit" })}${
-        appt.scheduledEnd
-          ? ` – ${new Date(appt.scheduledEnd).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`
-          : ""
+    ? `${new Date(appt.scheduledAt).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric", timeZone: tz })} — Anytime`
+    : `${new Date(appt.scheduledAt).toLocaleString("en-US", { weekday: "long", month: "long", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: tz })}${
+        appt.scheduledEnd ? ` – ${fmtTime(appt.scheduledEnd, tz)}` : ""
       }`;
 
   return (

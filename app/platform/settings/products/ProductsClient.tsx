@@ -214,12 +214,16 @@ export default function ProductsClient({
       }))
     )
       return;
+    setError("");
     const { ok, data } = await postJson<{ archived?: boolean }>(
       `/api/app/work-items/${id}`,
       undefined,
       "DELETE"
     );
-    if (!ok) return;
+    if (!ok) {
+      setError(data?.error ?? GENERIC_ERROR);
+      return;
+    }
     if (data?.archived) {
       setItems((list) => list.map((i) => (i.id === id ? { ...i, isActive: false } : i)));
     } else {
@@ -228,14 +232,17 @@ export default function ProductsClient({
   }
 
   async function reactivate(id: string) {
+    setError("");
     const { ok, data } = await postJson<WorkItem>(
       `/api/app/work-items/${id}`,
       { isActive: true },
       "PATCH"
     );
-    if (ok && data) {
-      setItems((list) => list.map((i) => (i.id === id ? { ...i, isActive: true } : i)));
+    if (!ok || !data) {
+      setError(data?.error ?? GENERIC_ERROR);
+      return;
     }
+    setItems((list) => list.map((i) => (i.id === id ? { ...i, isActive: true } : i)));
   }
 
   const editorRow = (
@@ -449,7 +456,11 @@ export default function ProductsClient({
           </select>
           {templates.length === 0 && (
             <p className="mt-1 text-xs text-gray-500">
-              Create reusable agreements in Settings → Agreements first.
+              Create reusable agreements in{" "}
+              <Link href="/app/contracts?view=templates" className="underline">
+                Agreements → Templates
+              </Link>{" "}
+              first.
             </p>
           )}
         </div>
@@ -506,7 +517,7 @@ export default function ProductsClient({
         </div>
         <p className="text-xs text-gray-500">
           {form.depositType === "NONE"
-            ? "Falls back to your company-wide default deposit (Settings → Company)."
+            ? "Falls back to your company-wide default deposit (Settings → Payments & accounting)."
             : form.depositType === "FULL"
               ? "The whole price is collected up front when the client approves the quote."
               : "Collected as a deposit invoice when the client approves a quote containing this service."}
@@ -543,6 +554,13 @@ export default function ProductsClient({
       <p className="text-sm text-gray-500 mb-6 lg:ml-8">
         Your price book. These items autocomplete on quotes and invoices.
       </p>
+
+      {/* Remove / reactivate errors — the editor row shows its own copy */}
+      {error && editingId === null && (
+        <div role="alert" className="form-error mb-4">
+          {error}
+        </div>
+      )}
 
       <div className="flex justify-end mb-4">
         {editingId !== "new" && (

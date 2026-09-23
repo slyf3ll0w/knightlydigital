@@ -154,9 +154,19 @@ export function money(n: number | string | { toString(): string } | null | undef
   return `${v < 0 ? "−" : ""}$${abs}`;
 }
 
-export function shortDate(d: Date | string | null | undefined): string {
+/**
+ * "Sep 18, 2026". Pass the company's IANA zone from server components — the
+ * server runs on UTC, so without it an evening timestamp reads as tomorrow.
+ * Client components may omit it (the browser's zone is the right one there).
+ */
+export function shortDate(d: Date | string | null | undefined, tz?: string): string {
   if (!d) return "—";
-  return new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  return new Date(d).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    ...(tz ? { timeZone: tz } : {}),
+  });
 }
 
 /**
@@ -165,7 +175,13 @@ export function shortDate(d: Date | string | null | undefined): string {
  * the raw string is ambiguous and the server would store it in its own zone.
  */
 export function localInputToISO(value: string): string | null {
-  return value ? new Date(value).toISOString() : null;
+  if (!value) return null;
+  // A bare "YYYY-MM-DD" (a date picked with no time yet) parses as UTC
+  // midnight, which in the Americas is the previous evening — anchor it at
+  // local noon instead so the day can never cross. "YYYY-MM-DDTHH:mm" is
+  // local time already.
+  const local = /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T12:00` : value;
+  return new Date(local).toISOString();
 }
 
 /** Deposit owed on a quote, given its totals and deposit settings. */

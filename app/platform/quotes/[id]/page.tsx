@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { requirePageActor, canSell, viaContactScope } from "@/lib/permissions";
+import { requirePageActor, canSell, canSeeMoney, viaContactScope, isManager } from "@/lib/permissions";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { money, shortDate, quoteDepositAmount } from "@/lib/statuses";
@@ -44,7 +44,11 @@ export default async function QuoteDetailPage({
 
   // Valid through the END of the valid-until day in the company's timezone
   const companyTz = await prisma.company.findUnique({ where: { id: companyId }, select: { timezone: true } });
-  const expired = quoteExpired(quote.validUntil, companyTz?.timezone ?? "America/Chicago");
+  const tz = companyTz?.timezone ?? "America/Chicago";
+  const expired = quoteExpired(quote.validUntil, tz);
+  // The deposit invoice is a money surface: SALES with payments hidden can
+  // sell the quote but neither see nor issue the invoice that collects on it
+  const seeMoney = canSeeMoney(actor);
 
   // Agreement gate: any price-book item flagged "requires agreement" (that
   // the client didn't opt out of) means conversion waits on a signature
@@ -112,11 +116,13 @@ export default async function QuoteDetailPage({
           }
           hasDeposit={deposit > 0}
           depositInvoiced={!!depositInvoice}
+          canDelete={isManager(actor.role)}
         />
       </div>
 
       {/* Approved with an uncollected deposit → make collecting it the obvious next step */}
       {deposit > 0 &&
+        seeMoney &&
         !depositInvoice &&
         (quote.status === "APPROVED" || quote.status === "CONVERTED") && (
           <CollectDepositNudge quoteId={quote.id} amount={deposit} />
@@ -131,13 +137,14 @@ export default async function QuoteDetailPage({
         </div>
         <div>
           <span className="text-xs font-medium text-gray-500 block">Created</span>
-          <span className="text-gray-800">{shortDate(quote.createdAt)}</span>
+          <span className="text-gray-800">{shortDate(quote.createdAt, tz)}</span>
         </div>
         <ViewedFact
           firstViewedAt={quote.firstViewedAt}
           lastViewedAt={quote.lastViewedAt}
           viewCount={quote.viewCount}
           sent={!!quote.sentAt}
+          tz={tz}
         />
         {quote.validUntil && (
           <div>
@@ -150,14 +157,16 @@ export default async function QuoteDetailPage({
                   : "text-gray-800"
               }
             >
-              {shortDate(quote.validUntil)}
+              {shortDate(quote.validUntil, tz)}
               {expired && ["DRAFT", "AWAITING_RESPONSE", "CHANGES_REQUESTED"].includes(quote.status)
                 ? " · Expired"
                 : ""}
             </span>
           </div>
         )}
-        {deposit > 0 && (
+        {/* The required amount is quote pricing (any seller); the invoice it
+            became is money (canSeeMoney) */}
+        {deposit > 0 && (!depositInvoice || seeMoney) && (
           <div>
             <span className="text-xs font-medium text-gray-500 block">
               {depositInvoice ? "Deposit" : "Required deposit"}
@@ -217,7 +226,7 @@ export default async function QuoteDetailPage({
           <div>
             <span className="text-xs font-medium text-gray-500 block">Approved</span>
             <span className="text-gray-800">
-              {shortDate(quote.approvedAt)}
+              {shortDate(quote.approvedAt, tz)}
               {quote.signatureName ? ` by ${quote.signatureName}` : ""}
             </span>
           </div>
@@ -421,13 +430,10 @@ export default async function QuoteDetailPage({
                       ` · sent ${new Date(snap.sentAt).toLocaleDateString("en-US", {
                         month: "short",
                         day: "numeric",
+                        timeZone: tz,
                       })}`}
                     {" · replaced "}
-                    {new Date(rev.createdAt).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                    })}
+                    {shortDate(rev.createdAt, tz)}
                   </span>
                   <span className="numeral-ledger shrink-0 font-medium text-gray-700">
                     ${Number(rev.total).toLocaleString("en-US", { minimumFractionDigits: 2 })}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { inputCls } from "@/components/Input";
 import { useRouter } from "next/navigation";
 import { CalendarClock, KeyRound, Loader2, Plus, UserPlus, X } from "lucide-react";
@@ -88,9 +88,15 @@ export default function TeamClient({
   const [hoursCustom, setHoursCustom] = useState(false);
   const [policyBusy, setPolicyBusy] = useState(false);
   // Draft hourly-cost inputs, saved on blur (keyed by member id)
-  const [rates, setRates] = useState<Record<string, string>>(() =>
-    Object.fromEntries(users.map((u) => [u.id, u.hourlyCost != null ? String(u.hourlyCost) : ""]))
-  );
+  const seedRates = () =>
+    Object.fromEntries(users.map((u) => [u.id, u.hourlyCost != null ? String(u.hourlyCost) : ""]));
+  const [rates, setRates] = useState<Record<string, string>>(seedRates);
+  // Re-seed whenever the server sends fresh rows (after a refresh) — a rate
+  // that failed to save, or one edited elsewhere, must not linger as a draft
+  useEffect(() => {
+    setRates(seedRates());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [users]);
 
   const canManage = (m: Member) => m.id !== actorId && manageable.includes(m.role);
   const activeMembers = users.filter((u) => u.isActive);

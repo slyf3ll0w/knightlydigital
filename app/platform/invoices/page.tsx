@@ -36,6 +36,10 @@ export default async function InvoicesPage({
   const actor = await requirePageActor(canSeeMoney);
   const companyId = actor.companyId;
   const scope = viaContactScope(actor);
+  // Dates render in the company's zone — the server clock is UTC.
+  const tz =
+    (await prisma.company.findUnique({ where: { id: companyId }, select: { timezone: true } }))
+      ?.timezone ?? "America/Chicago";
 
   const { status, q, page: pageParam, sort: sortRaw } = await searchParams;
   const sort = pickSort(sortRaw, INVOICE_SORTS);
@@ -258,7 +262,7 @@ export default async function InvoicesPage({
                             #{inv.invoiceNumber}
                             {/* A dash for a missing due date reads like a glitch —
                                 say nothing instead */}
-                            {balance > 0 && inv.dueDate ? ` · Due ${shortDate(inv.dueDate)}` : ""}
+                            {balance > 0 && inv.dueDate ? ` · Due ${shortDate(inv.dueDate, tz)}` : ""}
                             {inv.subject ? ` · ${inv.subject}` : ""}
                           </p>
                           <StatusChip kind="invoice" status={inv.status} className="shrink-0" />
@@ -273,7 +277,7 @@ export default async function InvoicesPage({
                     </div>
                     <span className="hidden lg:block text-sm text-gray-500">#{inv.invoiceNumber}</span>
                     <span className="hidden lg:block text-sm text-gray-500">
-                      {shortDate(inv.dueDate)}
+                      {shortDate(inv.dueDate, tz)}
                     </span>
                     <span className="hidden lg:block">
                       <StatusChip kind="invoice" status={inv.status} />

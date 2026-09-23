@@ -20,7 +20,7 @@ import {
 import AddressAutocomplete from "@/components/AddressAutocomplete";
 
 /**
- * Settings → Features: the company's business line (lib/business-line.ts).
+ * Settings → Phone & texting: the company's business line (lib/business-line.ts).
  *
  * Three moments, top to bottom:
  *   1. No number yet → pick an area code, get one. Calls forward right away.

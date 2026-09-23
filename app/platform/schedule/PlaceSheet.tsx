@@ -85,6 +85,14 @@ export default function PlaceSheet({
   const [startTime, setStartTime] = useState("09:00");
   const [duration, setDuration] = useState(60);
   const [durationTouched, setDurationTouched] = useState(false);
+  // The debounced duration-hint below fires 350 ms after the last keystroke
+  // and closed over whatever `durationTouched` was when the title changed —
+  // so typing a title, then picking a length, then the hint landing used to
+  // overwrite the length just picked. The ref is what the callback reads.
+  const durationTouchedRef = useRef(false);
+  useEffect(() => {
+    durationTouchedRef.current = durationTouched;
+  }, [durationTouched]);
   const [hint, setHint] = useState<{ minutes: number; source: string; samples: number } | null>(null);
   const [assignees, setAssignees] = useState<string[]>([]);
   // Outsourced = a subcontractor does it; the one legitimate empty crew
@@ -219,7 +227,7 @@ export default function PlaceSheet({
         if (my !== seq.current) return;
         if (res.ok && data.minutes) {
           setHint(data);
-          if (!durationTouched) setDuration(data.minutes);
+          if (!durationTouchedRef.current) setDuration(data.minutes);
         } else setHint(null);
       } catch {
         /* hint is a nicety */
@@ -307,6 +315,17 @@ export default function PlaceSheet({
         }
         contactId = data.id;
         contactName = `${newContact.firstName} ${newContact.lastName}`.trim();
+        // The person now exists — commit them to the sheet before the job /
+        // appointment call, so a failure there and another tap reuse this
+        // contact instead of creating a second one.
+        setContact({
+          id: contactId,
+          name: contactName,
+          address: address.trim() || null,
+          phone: newContact.phone.trim() || null,
+          lead: kind === "appointment",
+          sub: "",
+        });
       }
       if (!contactId) {
         setErr("Pick who this is for.");

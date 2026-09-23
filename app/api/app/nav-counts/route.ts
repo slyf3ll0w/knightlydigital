@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, canSeeMoney, contactScope, viaContactScope } from "@/lib/permissions";
 import { totalUnread } from "@/lib/chat";
+import { pastDueFilter } from "@/lib/due-dates";
 
 /**
  * Sidebar badge counts: new requests + past-due invoices, role-scoped the
@@ -26,7 +27,7 @@ export async function GET() {
             ...scope,
             OR: [
               { status: "PAST_DUE" },
-              { status: "AWAITING_PAYMENT", dueDate: { lt: new Date() } },
+              { status: "AWAITING_PAYMENT", dueDate: pastDueFilter() },
             ],
           },
         })

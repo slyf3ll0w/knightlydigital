@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useMemo } from "react";
+import { Fragment, useState, useRef, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
@@ -20,13 +20,28 @@ import {
   FileSignature,
   Filter,
   Globe,
+  Phone,
+  PhoneCall,
   RefreshCw,
   Tags,
   Sparkles,
   UserRound,
   Users,
   Zap,
+  type LucideIcon,
 } from "lucide-react";
+import {
+  ADDON_LINK,
+  QUICKBOOKS_LINK,
+  SETTINGS_LINK_GROUPS,
+  SETTINGS_SECTIONS,
+  normalizeSettingsSection,
+  settingsHref,
+  type SettingsLink,
+  type SettingsSection,
+  type SettingsSectionKey,
+} from "@/lib/settings-nav";
+import { useUnsavedWarning } from "@/lib/use-unsaved-warning";
 import { Input, Textarea, Select } from "@/components/Input";
 import { FlashBanner, useVerifyIdentity, type SignInMethods } from "@/components/VerifyIdentity";
 import { resizeImageFile } from "@/lib/resize-image";
@@ -165,7 +180,7 @@ function SettingsLinkRow({
   label: string;
   sub: string;
   hue: string;
-  icon: typeof Package;
+  icon: LucideIcon;
 }) {
   return (
     <Link
@@ -194,125 +209,60 @@ function SettingsLinkRow({
  *  - Phones: an index screen of grouped rows (the iOS Settings idiom) that
  *    pushes into one section at a time, with an in-page back control.
  * The open section rides in the URL (?s=…) so browser/edge back works and
- * sections are linkable.
+ * sections are linkable. The list itself (sections, link groups, labels)
+ * lives in lib/settings-nav.ts so the shell and ⌘K name things the same way;
+ * this file only maps icon names to components and renders.
  */
-const SETTINGS_SECTIONS = [
-  {
-    key: "business",
-    label: "Business",
-    sub: "Company info, portal link, timezone",
-    icon: Building2,
-  },
-  {
-    key: "customization",
-    label: "Appearance & Branding",
-    sub: "Theme, logo, colors, wallpaper",
-    icon: Palette,
-  },
-  {
-    key: "payments",
-    label: "Payments",
-    sub: "Online payments, deposits, surcharging",
-    icon: CreditCard,
-  },
-  {
-    key: "features",
-    label: "Automations & AI",
-    sub: "Assistant, texts, review requests",
-    icon: Zap,
-  },
-] as const;
-type SectionId = (typeof SETTINGS_SECTIONS)[number]["key"];
+type SectionId = SettingsSectionKey;
 type Section = SectionId | "home";
 
-const SECTION_IDS = SETTINGS_SECTIONS.map((s) => s.key) as readonly SectionId[];
+const SECTION_ICONS: Record<SettingsSection["icon"], LucideIcon> = {
+  Building2,
+  Palette,
+  Phone,
+  CreditCard,
+  Zap,
+};
 
-// Deeper setup lives on its own pages — the nav links straight to them
-const SETUP_LINKS = [
-  {
-    href: "/app/settings/products",
-    label: "Services",
-    sub: "Your price book — items autocomplete on quotes and invoices",
-    hueKey: "services",
-    icon: Package,
-  },
-  {
-    href: "/app/settings/automations",
-    label: "Automations",
-    sub: "“When this happens, do that” rules Atlas builds — run free, pause any time",
-    hueKey: "business",
-    icon: Zap,
-  },
-  {
-    href: "/app/settings/contracts",
-    label: "Agreement templates",
-    sub: "Reusable agreements clients e-sign from a link",
-    hueKey: "contracts",
-    icon: FileSignature,
-  },
-  {
-    href: "/app/settings/pipeline",
-    label: "Lead Pipeline",
-    sub: "Leads board stages and the ad-platform lead webhook",
-    hueKey: "leads",
-    icon: Filter,
-  },
-  {
-    href: "/app/settings/booking",
-    label: "Booking & forms",
-    sub: "Your booking page and website forms, each with its own link",
-    hueKey: "forms",
-    icon: Globe,
-  },
-  {
-    href: "/app/settings/quickbooks",
-    label: "QuickBooks Online",
-    sub: "Sync clients, invoices, and payments automatically",
-    hueKey: "payments",
-    icon: RefreshCw,
-  },
-] as const;
+const LINK_ICONS: Record<SettingsLink["icon"], LucideIcon> = {
+  Package,
+  FileSignature,
+  Tags,
+  Filter,
+  Globe,
+  Users,
+  Upload,
+  UserRound,
+  RefreshCw,
+  Sparkles,
+};
 
-// Premium add-on (lib/addon.ts) — only rendered while the company's
-// superadmin visibility switch (Company.addonEnabled) is on.
-const ADDON_LINK = {
-  href: "/app/settings/addon",
-  label: "Workbench Plus",
-  sub: "Premium add-on — more horsepower for your team",
-  hueKey: "payments",
-  icon: Sparkles,
-} as const;
+/** Desktop rail entry for a standalone page. */
+function RailLink({ link }: { link: SettingsLink }) {
+  const Icon = LINK_ICONS[link.icon];
+  return (
+    <Link
+      href={link.href}
+      className="flex w-full items-center gap-2.5 rounded-[10px] px-3 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-900"
+    >
+      <Icon size={16} style={{ color: SECTION_HUES[link.hueKey] }} />
+      {link.label}
+    </Link>
+  );
+}
 
-const WORKSPACE_LINKS = [
-  {
-    href: "/app/settings/team",
-    label: "Team",
-    sub: "Invite your crew and set what each role can see",
-    hueKey: "team",
-    icon: Users,
-  },
-  {
-    href: "/app/settings/client-fields",
-    label: "Client Custom Fields",
-    sub: "Extra fields every client record carries",
-    hueKey: "clients",
-    icon: Tags,
-  },
-  {
-    href: "/app/settings/import",
-    label: "Import Clients",
-    sub: "Bring your client list in from a CSV",
-    hueKey: "clients",
-    icon: Upload,
-  },
-  {
-    href: "/app/settings/profile",
-    label: "My Profile",
-    sub: "Your name, password, email signature, and calendar sync",
-    hueKey: "business",
-    icon: UserRound,
-  },
-] as const;
+/** Phone index / in-panel row for a standalone page. */
+function LinkRow({ link }: { link: SettingsLink }) {
+  return (
+    <SettingsLinkRow
+      href={link.href}
+      label={link.label}
+      sub={link.sub}
+      hue={SECTION_HUES[link.hueKey]}
+      icon={LINK_ICONS[link.icon]}
+    />
+  );
+}
 
 const TIMEZONES = [
   { value: "America/New_York", label: "Eastern (New York)" },
@@ -837,7 +787,7 @@ function DangerZone({ companyName, signInMethods }: { companyName: string; signI
   const nameMatches = confirmName === companyName;
   const { verify, flash, setFlash, pending, clearPending, dialog } = useVerifyIdentity(
     signInMethods,
-    "/app/settings?s=business"
+    settingsHref("company")
   );
   // Back from a Google verification: reopen the card they were on.
   useEffect(() => {
@@ -852,18 +802,23 @@ function DangerZone({ companyName, signInMethods }: { companyName: string; signI
     setError("");
     if (!(await verify("delete-account"))) return;
     setBusy(true);
-    const res = await fetch("/api/app/company/delete", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ confirmName }),
-    });
-    const data = await res.json().catch(() => null);
-    if (!res.ok) {
+    try {
+      const res = await fetch("/api/app/company/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirmName }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setError(data?.error ?? "Something went wrong. Nothing was deleted.");
+        return;
+      }
+      await signOut({ callbackUrl: "/" });
+    } catch {
+      setError("Couldn't reach the server. Nothing was deleted — check your connection and try again.");
+    } finally {
       setBusy(false);
-      setError(data?.error ?? "Something went wrong. Nothing was deleted.");
-      return;
     }
-    await signOut({ callbackUrl: "/" });
   }
 
   return (
@@ -967,19 +922,17 @@ export default function SettingsClient({
 
   // The open section mirrors the URL (?s=…) so back/edge-swipe and deep
   // links work; local state keeps the switch instant while the route settles.
-  const normalizedSection: Section = (SECTION_IDS as readonly string[]).includes(
-    initialSection ?? ""
-  )
-    ? (initialSection as SectionId)
-    : "home";
+  // Old keys (?s=features, ?s=customization, ?s=business) map to their new
+  // homes — page.tsx already redirects them, this is the belt to its braces.
+  const normalizedSection: Section = normalizeSettingsSection(initialSection) ?? "home";
   const [section, setSection] = useState<Section>(normalizedSection);
   useEffect(() => setSection(normalizedSection), [normalizedSection]);
-  // Desktop always shows a panel — "home" (the phone index) reads as Business
-  const active: SectionId = section === "home" ? "business" : section;
+  // Desktop always shows a panel — "home" (the phone index) reads as Company
+  const active: SectionId = section === "home" ? "company" : section;
   const show = (s: SectionId) => active === s;
   function goSection(s: Section) {
     setSection(s);
-    router.push(s === "home" ? "/app/settings" : `/app/settings?s=${s}`);
+    router.push(s === "home" ? settingsHref() : settingsHref(s));
   }
   const [form, setForm] = useState({
     name: company.name,
@@ -1049,100 +1002,142 @@ export default function SettingsClient({
     set("sectionColors", JSON.stringify(next));
   }
 
-  // Appearance is a per-DEVICE preference (localStorage, not the database):
-  // field phones want their own light/dark choice, and it must apply with no
-  // network round-trip. The head script in app/layout.tsx owns the stamping;
-  // applyHubTheme() re-reads localStorage. Light is the default — Automatic
-  // (follow the device) is an explicit opt-in, otherwise phones set to system
-  // dark flip the app to dark mid-session, which reads as a bug.
-  const [appearance, setAppearance] = useState<"system" | "light" | "dark">("light");
-  useEffect(() => {
+  // Two fields the server refuses (400) rather than quietly fixing: an empty
+  // business name and a surcharge rate outside 0–10%. While invalid they are
+  // shown inline and kept OUT of the diff — never sent, never "Saved".
+  const surchargePct = Number(form.surchargeRate);
+  const surchargeRateOk =
+    form.surchargeRate.trim() !== "" &&
+    Number.isFinite(surchargePct) &&
+    surchargePct >= 0 &&
+    surchargePct <= 10;
+  const nameError = form.name.trim() ? "" : "Business name can't be empty.";
+  const surchargeError =
+    form.surchargeEnabled && !surchargeRateOk ? "Enter a rate between 0% and 10%." : "";
+
+  // The diff between what's typed and what the server last confirmed —
+  // only these keys go over the wire (the PATCH route is partial-safe).
+  function unsavedOf(f: typeof form): Partial<typeof form> {
+    const changed: Partial<typeof form> = {};
+    for (const key of Object.keys(f) as (keyof typeof f)[]) {
+      if (f[key] === savedRef.current[key]) continue;
+      if (key === "name" && !f.name.trim()) continue;
+      if (key === "surchargeRate" && !surchargeRateOk) continue;
+      (changed as Record<string, unknown>)[key] = f[key];
+    }
+    return changed;
+  }
+
+  // Auto-save bookkeeping (continued): pendingRef holds the diff waiting on
+  // the debounce so an unmount can still flush it; saveChainRef serialises
+  // requests so an older response can never land after a newer one and
+  // overwrite savedRef with stale confirmation.
+  const pendingRef = useRef<{ payload: Record<string, unknown>; changed: Partial<typeof form> } | null>(null);
+  const saveChainRef = useRef<Promise<void>>(Promise.resolve());
+
+  const hasUnsaved = Object.keys(unsavedOf(form)).length > 0;
+  // Leaving with an edit still debouncing or a save in flight: the native
+  // prompt on tab close, a confirm sheet on in-app links. (Unmount also
+  // flushes the pending diff with keepalive below, so nothing is lost even
+  // when they go.)
+  useUnsavedWarning(hasUnsaved || saving);
+
+  async function save(payload: Record<string, unknown>, changed: Partial<typeof form>) {
+    setSaving(true);
+    setSaveError("");
+    let ok = false;
     try {
-      const t = localStorage.getItem("hub-theme");
-      if (t === "light" || t === "dark" || t === "system") setAppearance(t);
-    } catch {}
-  }, []);
-  function pickAppearance(v: "system" | "light" | "dark") {
-    setAppearance(v);
-    try {
-      localStorage.setItem("hub-theme", v);
-    } catch {}
-    (window as unknown as { applyHubTheme?: () => void }).applyHubTheme?.();
+      const res = await fetch("/api/app/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        // Survive a navigation that unloads the page mid-request
+        keepalive: true,
+      });
+      ok = res.ok;
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        setSaveError(data?.error ?? "Couldn't save your changes. Please try again.");
+      }
+    } catch {
+      setSaveError("Couldn't reach the server. Check your connection and try again.");
+    }
+    setSaving(false);
+    if (!ok) return;
+
+    savedRef.current = { ...savedRef.current, ...changed };
+    // Edits made while the request was in flight reschedule themselves;
+    // otherwise flash the Saved indicator.
+    if (Object.keys(unsavedOf(formRef.current)).length === 0) {
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    }
+    router.refresh();
   }
 
   // Debounced auto-save: edits land on the server ~800ms after the last
   // change — there is no Save button. router.refresh() re-renders the shell
   // so sidebar/branding changes apply immediately.
   useEffect(() => {
-    const changed: Partial<typeof form> = {};
-    for (const key of Object.keys(form) as (keyof typeof form)[]) {
-      if (form[key] !== savedRef.current[key]) {
-        (changed as Record<string, unknown>)[key] = form[key];
+    const changed = unsavedOf(form);
+    if (Object.keys(changed).length === 0) {
+      pendingRef.current = null;
+      return;
+    }
+
+    const payload: Record<string, unknown> = { ...changed };
+    // Same transforms the old Save button applied
+    if ("surchargeRate" in payload || "surchargeEnabled" in payload) {
+      payload.surchargeEnabled = form.surchargeEnabled;
+      // Percent → fraction (3.5 → 0.035); an invalid rate never goes out
+      if (surchargeRateOk) payload.surchargeRate = Math.round(surchargePct * 100) / 10000;
+      else delete payload.surchargeRate;
+    }
+    if ("defaultDepositType" in payload || "defaultDepositValue" in payload) {
+      payload.defaultDepositType = form.defaultDepositType;
+      payload.defaultDepositValue = form.defaultDepositValue;
+    }
+    if ("defaultTaxRate" in payload) {
+      payload.defaultTaxRate = form.defaultTaxRate
+        ? parseFloat(form.defaultTaxRate) / 100
+        : null;
+    }
+    // Stored as a JSON string in the form (string diffing) — the API wants
+    // the object
+    if ("sectionColors" in payload) {
+      try {
+        payload.sectionColors = JSON.parse(form.sectionColors);
+      } catch {
+        delete payload.sectionColors;
       }
     }
-    if (Object.keys(changed).length === 0) return;
+    pendingRef.current = { payload, changed };
 
-    const t = setTimeout(async () => {
-      const payload: Record<string, unknown> = { ...changed };
-      // Same transforms the old Save button applied
-      if ("surchargeRate" in payload || "surchargeEnabled" in payload) {
-        payload.surchargeEnabled = form.surchargeEnabled;
-        payload.surchargeRate = parseFloat(form.surchargeRate) / 100;
-      }
-      if ("defaultDepositType" in payload || "defaultDepositValue" in payload) {
-        payload.defaultDepositType = form.defaultDepositType;
-        payload.defaultDepositValue = form.defaultDepositValue;
-      }
-      if ("defaultTaxRate" in payload) {
-        payload.defaultTaxRate = form.defaultTaxRate
-          ? parseFloat(form.defaultTaxRate) / 100
-          : null;
-      }
-      // Stored as a JSON string in the form (string diffing) — the API wants
-      // the object
-      if ("sectionColors" in payload) {
-        try {
-          payload.sectionColors = JSON.parse(form.sectionColors);
-        } catch {
-          delete payload.sectionColors;
-        }
-      }
-
-      setSaving(true);
-      setSaveError("");
-      let ok = false;
-      try {
-        const res = await fetch("/api/app/settings", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-        ok = res.ok;
-        if (!res.ok) {
-          const data = await res.json().catch(() => null);
-          setSaveError(data?.error ?? "Couldn't save your changes. Please try again.");
-        }
-      } catch {
-        setSaveError("Couldn't reach the server. Check your connection and try again.");
-      }
-      setSaving(false);
-      if (!ok) return;
-
-      savedRef.current = { ...savedRef.current, ...changed };
-      // Edits made while the request was in flight reschedule themselves;
-      // otherwise flash the Saved indicator.
-      const settled = (Object.keys(formRef.current) as (keyof typeof form)[]).every(
-        (k) => formRef.current[k] === savedRef.current[k]
-      );
-      if (settled) {
-        setSaved(true);
-        setTimeout(() => setSaved(false), 2000);
-      }
-      router.refresh();
+    const t = setTimeout(() => {
+      pendingRef.current = null;
+      saveChainRef.current = saveChainRef.current.then(() => save(payload, changed));
     }, 800);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form, router]);
+
+  // Unmount inside the debounce window (they tapped a link right after
+  // typing): the last edit must not die with the timer. keepalive lets the
+  // request outlive the page.
+  useEffect(
+    () => () => {
+      const p = pendingRef.current;
+      pendingRef.current = null;
+      if (!p) return;
+      void fetch("/api/app/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(p.payload),
+        keepalive: true,
+      }).catch(() => {});
+    },
+    []
+  );
 
   async function uploadLogo(file: File) {
     setLogoError("");
@@ -1241,122 +1236,101 @@ export default function SettingsClient({
       </div>
 
       <div className="lg:grid lg:grid-cols-[230px_minmax(0,1fr)] lg:items-start lg:gap-10">
-        {/* Desktop: the settings nav rail */}
+        {/* Desktop: the settings nav rail. Workbench Plus rides with Phone &
+            texting (the business line is what it unlocks). */}
         <nav className="sticky top-8 hidden lg:block">
           <div className="space-y-0.5">
-            {SETTINGS_SECTIONS.map((s) => (
-              <button
-                key={s.key}
-                type="button"
-                onClick={() => goSection(s.key)}
-                className={`flex w-full items-center gap-2.5 rounded-[10px] px-3 py-2 text-left text-sm transition-colors ${
-                  active === s.key
-                    ? "bg-green-500/10 font-semibold text-green-700"
-                    : "font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                }`}
-              >
-                <s.icon size={16} className={active === s.key ? undefined : "text-gray-400"} />
-                {s.label}
-              </button>
-            ))}
+            {SETTINGS_SECTIONS.map((s) => {
+              const Icon = SECTION_ICONS[s.icon];
+              return (
+                <Fragment key={s.key}>
+                  <button
+                    type="button"
+                    onClick={() => goSection(s.key)}
+                    className={`flex w-full items-center gap-2.5 rounded-[10px] px-3 py-2 text-left text-sm transition-colors ${
+                      active === s.key
+                        ? "bg-green-500/10 font-semibold text-green-700"
+                        : "font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                    }`}
+                  >
+                    <Icon size={16} className={active === s.key ? undefined : "text-gray-400"} />
+                    {s.label}
+                  </button>
+                  {s.key === "phone" && company.addonEnabled && <RailLink link={ADDON_LINK} />}
+                </Fragment>
+              );
+            })}
           </div>
-          <p className="mb-1 mt-6 px-3 text-xs font-semibold text-gray-400">Setup</p>
-          <div className="space-y-0.5">
-            {(company.addonEnabled ? [...SETUP_LINKS, ADDON_LINK] : [...SETUP_LINKS]).map((l) => (
-              <Link
-                key={l.href}
-                href={l.href}
-                className="flex w-full items-center gap-2.5 rounded-[10px] px-3 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-900"
-              >
-                <l.icon size={16} style={{ color: SECTION_HUES[l.hueKey] }} />
-                {l.label}
-              </Link>
-            ))}
-          </div>
-          <p className="mb-1 mt-6 px-3 text-xs font-semibold text-gray-400">Workspace</p>
-          <div className="space-y-0.5">
-            {WORKSPACE_LINKS.map((l) => (
-              <Link
-                key={l.href}
-                href={l.href}
-                className="flex w-full items-center gap-2.5 rounded-[10px] px-3 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-900"
-              >
-                <l.icon size={16} style={{ color: SECTION_HUES[l.hueKey] }} />
-                {l.label}
-              </Link>
-            ))}
-          </div>
+          {SETTINGS_LINK_GROUPS.map((g) => (
+            <div key={g.key}>
+              <p className="mb-1 mt-6 px-3 text-xs font-semibold text-gray-400">{g.label}</p>
+              <div className="space-y-0.5">
+                {g.links.map((l) => (
+                  <RailLink key={l.href} link={l} />
+                ))}
+              </div>
+            </div>
+          ))}
         </nav>
 
         {/* Phones: the settings index — grouped rows, the iOS Settings idiom */}
         {section === "home" && (
           <div className="space-y-6 lg:hidden">
             <div className="card-ledger divide-y divide-gray-100 overflow-hidden">
-              {SETTINGS_SECTIONS.map((s) => (
-                <button
-                  key={s.key}
-                  type="button"
-                  onClick={() => goSection(s.key)}
-                  className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors active:bg-gray-100"
-                >
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-green-500/10 text-green-700">
-                    <s.icon size={17} strokeWidth={2.25} />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-[15px] font-medium text-gray-900">{s.label}</span>
-                    <span className="block truncate text-xs text-gray-500">{s.sub}</span>
-                  </span>
-                  <ChevronRight size={16} className="shrink-0 text-gray-300" />
-                </button>
-              ))}
+              {SETTINGS_SECTIONS.map((s) => {
+                const Icon = SECTION_ICONS[s.icon];
+                return (
+                  <Fragment key={s.key}>
+                    <button
+                      type="button"
+                      onClick={() => goSection(s.key)}
+                      className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors active:bg-gray-100"
+                    >
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-green-500/10 text-green-700">
+                        <Icon size={17} strokeWidth={2.25} />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-[15px] font-medium text-gray-900">{s.label}</span>
+                        <span className="block truncate text-xs text-gray-500">{s.sub}</span>
+                      </span>
+                      <ChevronRight size={16} className="shrink-0 text-gray-300" />
+                    </button>
+                    {s.key === "phone" && company.addonEnabled && <LinkRow link={ADDON_LINK} />}
+                  </Fragment>
+                );
+              })}
             </div>
-            <div>
-              <p className="mb-2 px-1 text-[13px] font-semibold text-gray-500">Setup</p>
-              <div className="card-ledger divide-y divide-gray-100 overflow-hidden">
-                {(company.addonEnabled ? [...SETUP_LINKS, ADDON_LINK] : [...SETUP_LINKS]).map((l) => (
-                  <SettingsLinkRow
-                    key={l.href}
-                    href={l.href}
-                    label={l.label}
-                    sub={l.sub}
-                    hue={SECTION_HUES[l.hueKey]}
-                    icon={l.icon}
-                  />
-                ))}
+            {SETTINGS_LINK_GROUPS.map((g) => (
+              <div key={g.key}>
+                <p className="mb-2 px-1 text-[13px] font-semibold text-gray-500">{g.label}</p>
+                <div className="card-ledger divide-y divide-gray-100 overflow-hidden">
+                  {g.links.map((l) => (
+                    <LinkRow key={l.href} link={l} />
+                  ))}
+                </div>
               </div>
-            </div>
-            <div>
-              <p className="mb-2 px-1 text-[13px] font-semibold text-gray-500">Workspace</p>
-              <div className="card-ledger divide-y divide-gray-100 overflow-hidden">
-                {WORKSPACE_LINKS.map((l) => (
-                  <SettingsLinkRow
-                    key={l.href}
-                    href={l.href}
-                    label={l.label}
-                    sub={l.sub}
-                    hue={SECTION_HUES[l.hueKey]}
-                    icon={l.icon}
-                  />
-                ))}
-              </div>
-            </div>
+            ))}
           </div>
         )}
 
         {/* The open section's cards — hidden on phones while the index shows */}
         <div className={section === "home" ? "hidden lg:block" : ""}>
-      {show("business") && <PortalLinkCard slug={company.slug} />}
+      {show("company") && <PortalLinkCard slug={company.slug} />}
 
       <div className="space-y-6">
         {/* Business info */}
-        {show("business") && (
+        {show("company") && (
         <div className="card-ledger p-5 space-y-4">
           <h2 className="text-sm font-semibold text-gray-700">Business Info</h2>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Business name *</label>
             <Input type="text" value={form.name} onChange={(e) => set("name", e.target.value)}
               required
-              className="w-full focus:ring-2" />
+              aria-invalid={Boolean(nameError)}
+              className={`w-full focus:ring-2 ${nameError ? "border-red-400" : ""}`} />
+            {nameError && (
+              <p className="text-xs text-red-600 mt-1">{nameError} Your last saved name stays until you enter one.</p>
+            )}
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
@@ -1444,45 +1418,13 @@ export default function SettingsClient({
         )}
 
         {/* Custom sending domain — invisible until EMAIL_DOMAINS_ENABLED */}
-        {show("business") && <EmailDomainCard isOwner={isOwner} />}
+        {show("company") && <EmailDomainCard isOwner={isOwner} />}
 
-        {/* Appearance — per-device light/dark (phones AND desktop). Light is
-            the default; Automatic follows the OS setting only when chosen. */}
-        {show("customization") && (
-        <div className="card-ledger p-5 space-y-4">
-          <div>
-            <h2 className="text-sm font-semibold text-gray-700">Appearance</h2>
-            <p className="text-xs text-gray-500 mt-0.5">
-              Light or dark for this device — Automatic follows your device&apos;s setting
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {(
-              [
-                ["light", "Light"],
-                ["dark", "Dark"],
-                ["system", "Automatic"],
-              ] as const
-            ).map(([value, label]) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => pickAppearance(value)}
-                className={`rounded-[10px] border px-3.5 py-2 text-sm font-medium transition-colors ${
-                  appearance === value
-                    ? "border-green-500 ring-2 ring-green-500/30 text-gray-900"
-                    : "border-gray-300 text-gray-600 hover:bg-gray-50"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
-        )}
+        {/* Per-device light/dark lives on My Profile (components/AppearanceCard.tsx)
+            — it's a personal choice, not a company one. */}
 
         {/* Branding */}
-        {show("customization") && (
+        {show("branding") && (
         <div className="card-ledger p-5 space-y-4">
           <div>
             <h2 className="text-sm font-semibold text-gray-700">Branding</h2>
@@ -1711,7 +1653,7 @@ export default function SettingsClient({
         )}
 
         {/* Sidebar — desktop-only chrome, so the card hides on phones */}
-        {show("customization") && (
+        {show("branding") && (
         <div className="hidden lg:block card-ledger p-5 space-y-4">
           <div>
             <h2 className="text-sm font-semibold text-gray-700">Sidebar</h2>
@@ -1782,7 +1724,7 @@ export default function SettingsClient({
         {/* What your clients see — live branding preview of the client-facing
             surfaces. Client pages are always light, so the mock pins its own
             colors (arbitrary values dodge the dark-theme utility remap). */}
-        {show("customization") && (
+        {show("branding") && (
         <div className="hidden lg:block card-ledger p-5 space-y-4">
           <div>
             <h2 className="text-sm font-semibold text-gray-700">
@@ -1885,12 +1827,22 @@ export default function SettingsClient({
               <label className="block text-sm font-medium text-gray-700 mb-1">Surcharge rate</label>
               <div className="flex items-center gap-2">
                 <Input type="number" value={form.surchargeRate} onChange={(e) => set("surchargeRate", e.target.value)}
+                  onBlur={() => {
+                    // Out-of-range but numeric → clamp into 0–10 on blur; a
+                    // blank or non-number stays (with the error) until fixed.
+                    const n = Number(form.surchargeRate);
+                    if (form.surchargeRate.trim() === "" || !Number.isFinite(n)) return;
+                    const clamped = Math.min(10, Math.max(0, n));
+                    if (clamped !== n) set("surchargeRate", clamped.toFixed(2));
+                  }}
                   min="0" max="10" step="0.01"
-                  className="w-24 focus:ring-2" />
+                  aria-invalid={Boolean(surchargeError)}
+                  className={`w-24 focus:ring-2 ${surchargeError ? "border-red-400" : ""}`} />
                 <span className="text-sm text-gray-500">% added to card payments</span>
               </div>
+              {surchargeError && <p className="text-xs text-red-600 mt-1">{surchargeError}</p>}
               <p className="text-xs text-gray-500 mt-1">
-                Example: on a $500 invoice, customer pays ${(500 * (1 + parseFloat(form.surchargeRate || "0") / 100)).toFixed(2)} by card
+                Example: on a $500 invoice, customer pays ${(500 * (1 + (surchargeRateOk ? surchargePct : 0) / 100)).toFixed(2)} by card
               </p>
             </div>
           )}
@@ -1969,8 +1921,29 @@ export default function SettingsClient({
         </div>
         )}
 
+        {/* Accounting — QuickBooks Online lives on its own page */}
+        {show("payments") && (
+        <div className="card-ledger overflow-hidden">
+          <LinkRow link={QUICKBOOKS_LINK} />
+        </div>
+        )}
+
+        {/* Automation rules — the Atlas-built "when this happens, do that"
+            list has its own page; this is the one way in from Settings */}
+        {show("automations") && (
+        <div className="card-ledger overflow-hidden">
+          <SettingsLinkRow
+            href="/app/settings/automations"
+            label="Automation rules"
+            sub="“When this happens, do that” rules Atlas builds — run free, pause any time"
+            hue={SECTION_HUES.business}
+            icon={Zap}
+          />
+        </div>
+        )}
+
         {/* AI assistant */}
-        {show("features") && (
+        {show("automations") && (
         <div className="card-ledger p-5 space-y-4">
           <div>
             <h2 className="text-sm font-semibold text-gray-700">AI Assistant</h2>
@@ -1987,13 +1960,13 @@ export default function SettingsClient({
         )}
 
         {/* Business line — the company's own number: calls forward to a cell, texts go out from it once registered */}
-        {show("features") && line?.enabled && <BusinessLineCard initial={line} />}
+        {show("phone") && line?.enabled && <BusinessLineCard initial={line} />}
 
         {/* Text notifications — the one-time consent attestation behind provider texts */}
-        {show("features") && <SmsNotificationsCard initialOnAt={company.smsAcknowledgedAt} hasLine={Boolean(line?.number)} />}
+        {show("phone") && <SmsNotificationsCard initialOnAt={company.smsAcknowledgedAt} hasLine={Boolean(line?.number)} />}
 
         {/* On my way texts */}
-        {show("features") && (
+        {show("phone") && (
         <div className="card-ledger p-5 space-y-4">
           <div>
             <h2 className="text-sm font-semibold text-gray-700">
@@ -2027,8 +2000,21 @@ export default function SettingsClient({
         </div>
         )}
 
-        {/* Review requests */}
-        {show("features") && (
+        {/* Call log — every call on the line, with voicemails */}
+        {show("phone") && (
+        <div className="card-ledger overflow-hidden">
+          <SettingsLinkRow
+            href="/app/calls"
+            label="Call log"
+            sub="Every call on your business line — answered, missed, and voicemails to play"
+            hue={SECTION_HUES.chat}
+            icon={PhoneCall}
+          />
+        </div>
+        )}
+
+        {/* Review requests — part of what clients experience after they pay */}
+        {show("branding") && (
         <div className="card-ledger p-5 space-y-4">
           <div>
             <h2 className="text-sm font-semibold text-gray-700">Review Requests</h2>
@@ -2045,7 +2031,7 @@ export default function SettingsClient({
         )}
       </div>
 
-      {isOwner && show("business") && (
+      {isOwner && show("company") && (
         <DangerZone companyName={company.name} signInMethods={signInMethods} />
       )}
         </div>

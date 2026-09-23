@@ -190,13 +190,18 @@ export default function InvoiceActions({
   // Duplicate into a fresh draft and jump straight to it
   async function duplicateInvoice() {
     setOpen(false);
-    const res = await fetch(`/api/app/invoices/${invoiceId}/duplicate`, { method: "POST" });
-    const data = await res.json().catch(() => null);
-    if (!res.ok || !data?.id) {
-      alertSheet({ message: data?.error ?? "Couldn't duplicate the invoice." });
-      return;
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/app/invoices/${invoiceId}/duplicate`, { method: "POST" });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.id) {
+        alertSheet({ message: data?.error ?? "Couldn't duplicate the invoice." });
+        return;
+      }
+      router.push(`/app/invoices/${data.id}`);
+    } finally {
+      setBusy(false);
     }
-    router.push(`/app/invoices/${data.id}`);
   }
 
   // Archive shelves the invoice without touching its payments — the
@@ -465,7 +470,8 @@ export default function InvoiceActions({
             )}
             <button
               onClick={duplicateInvoice}
-              className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
+              disabled={busy}
+              className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-60"
             >
               <CopyPlus size={14} className="text-gray-400" />
               Duplicate Invoice

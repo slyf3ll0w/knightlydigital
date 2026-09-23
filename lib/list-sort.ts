@@ -138,3 +138,25 @@ export function requestOrderBy(sort: string) {
       return [{ createdAt: "desc" as const }];
   }
 }
+
+/** Agreements — newest first; the status tabs do the "awaiting" sorting. */
+export const CONTRACT_SORTS = [
+  { value: "newest", label: "Newest first" },
+  { value: "updated", label: "Last updated" },
+  { value: "client", label: "Client A–Z" },
+] as const satisfies readonly SortOption[];
+
+export function contractOrderBy(sort: string) {
+  switch (sort) {
+    case "updated":
+      return [{ updatedAt: "desc" as const }];
+    case "client":
+      return [
+        { contact: { lastName: "asc" as const } },
+        { contact: { firstName: "asc" as const } },
+        { createdAt: "desc" as const },
+      ];
+    default:
+      return [{ createdAt: "desc" as const }];
+  }
+}

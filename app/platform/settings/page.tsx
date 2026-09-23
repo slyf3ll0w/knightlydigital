@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { requirePageActor, isManager } from "@/lib/permissions";
 import { googleNativeClientIdFor, googleSignInAvailableFor } from "@/lib/sign-in-options";
 import { lineSummary } from "@/lib/business-line";
+import { LEGACY_SECTION_KEYS, settingsHref } from "@/lib/settings-nav";
 import SettingsClient from "./SettingsClient";
 
 export default async function SettingsPage({
@@ -13,6 +14,11 @@ export default async function SettingsPage({
 }) {
   const actor = await requirePageActor((a) => isManager(a.role));
   const companyId = actor.companyId;
+
+  // Old section keys (?s=features / customization / business) still arrive
+  // from notifications, emails and bookmarks — send them to the new panel.
+  const { s } = await searchParams;
+  if (s && LEGACY_SECTION_KEYS[s]) redirect(settingsHref(LEGACY_SECTION_KEYS[s]));
 
   const [company, login, ua, line] = await Promise.all([
     prisma.company.findUnique({ where: { id: companyId } }),
@@ -25,12 +31,11 @@ export default async function SettingsPage({
       },
     }),
     headers().then((h) => h.get("user-agent")),
-    // Business line card (Features): number, forwarding, 10DLC status
+    // Business line card (Phone & texting): number, forwarding, 10DLC status
     lineSummary(companyId, { id: actor.id, name: actor.name }).catch(() => null),
   ]);
   if (!company) redirect("/app/register");
 
-  const { s } = await searchParams;
   const providers = new Set(login?.account?.identities.map((i) => i.provider) ?? []);
 
   return (

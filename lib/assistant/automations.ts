@@ -132,7 +132,7 @@ const manageAutomation: Tool = {
       if (c.compiled.spec.actions.some((a) => a.type === "email_client") && !emailEnabled()) warnings.push("Email isn't configured on this server yet — email actions will be skipped until it is.");
       if (c.compiled.spec.actions.some((a) => a.type === "request_review")) {
         const co = await prisma.company.findUnique({ where: { id: actor.companyId }, select: { reviewLink: true } });
-        if (!co?.reviewLink) warnings.push("The company has no review link set (Settings → Business) — review requests will be skipped until one is.");
+        if (!co?.reviewLink) warnings.push("The company has no review link set (Settings → Branding & client experience) — review requests will be skipped until one is.");
       }
       const preview = await previewAutomation(actor.companyId, c.compiled);
       return {

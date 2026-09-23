@@ -12,6 +12,7 @@ import {
 import { csvCell, csvText, csvResponse } from "@/lib/csv";
 import { invoiceBalance } from "@/lib/payments";
 import { entryMs } from "@/lib/time-entries";
+import { zonedMidnight } from "@/lib/timezone";
 
 /**
  * GET /api/app/export/[entity] — one-click CSV export, the "your data is
@@ -25,12 +26,22 @@ import { entryMs } from "@/lib/time-entries";
 
 const MAX_ROWS = 10000;
 
-function parseDay(s: string | null, end = false): Date | null {
+/**
+ * A `YYYY-MM-DD` query day as an instant in the company's zone: local
+ * midnight starting it, or the last millisecond of it. The server runs on UTC,
+ * so `new Date("2026-09-18T00:00:00")` would be midnight in London, not Dallas.
+ */
+function parseDay(s: string | null, tz: string, end = false): Date | null {
   if (!s || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
-  return new Date(`${s}T${end ? "23:59:59" : "00:00:00"}`);
+  const [y, m, d] = s.split("-").map(Number);
+  return end
+    ? new Date(zonedMidnight(tz, y, m, d + 1).getTime() - 1)
+    : zonedMidnight(tz, y, m, d);
 }
 
-const day = (d: Date | null | undefined) => (d ? d.toISOString().slice(0, 10) : "");
+/** `YYYY-MM-DD` of an instant as the company's calendar reads it. */
+const dayIn = (tz: string, d: Date | null | undefined) =>
+  d ? d.toLocaleDateString("en-CA", { timeZone: tz }) : "";
 const num = (v: number | { toString(): string } | null | undefined) =>
   v == null ? "" : Number(v).toFixed(2);
 const fullName = (c: { firstName: string; lastName: string } | null | undefined) =>
@@ -44,13 +55,19 @@ export async function GET(
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const companyId = actor.companyId;
   const { entity } = await params;
-  const from = parseDay(req.nextUrl.searchParams.get("from"));
-  const to = parseDay(req.nextUrl.searchParams.get("to"), true);
+  const company = await prisma.company.findUnique({
+    where: { id: companyId },
+    select: { timezone: true },
+  });
+  const tz = company?.timezone ?? "America/Chicago";
+  const day = (d: Date | null | undefined) => dayIn(tz, d);
+  const from = parseDay(req.nextUrl.searchParams.get("from"), tz);
+  const to = parseDay(req.nextUrl.searchParams.get("to"), tz, true);
   const range = (field: string) =>
     from || to
       ? { [field]: { ...(from ? { gte: from } : {}), ...(to ? { lte: to } : {}) } }
       : {};
-  const stamp = new Date().toISOString().slice(0, 10);
+  const stamp = day(new Date());
 
   switch (entity) {
     case "clients": {

@@ -10,6 +10,7 @@ import { PushToggleCard } from "@/components/PushNotifications";
 import { AppLockToggleCard } from "@/components/AppLock";
 import CalendarSyncCard from "@/components/CalendarSyncCard";
 import SoftphoneToggleCard from "@/components/SoftphoneToggleCard";
+import AppearanceCard from "@/components/AppearanceCard";
 import Avatar from "@/components/Avatar";
 import AvatarCropModal from "@/components/AvatarCropModal";
 import SignInMethodsCard, { type ConnectedIdentity } from "@/components/SignInMethodsCard";
@@ -129,11 +130,19 @@ export default function ProfileClient({
 
   async function removeAvatar() {
     setAvatarBusy(true);
-    await fetch("/api/app/profile/avatar", { method: "DELETE" }).catch(() => {});
-    setAvatarBusy(false);
-    setHasAvatar(false);
-    setAvatarVersion(Date.now());
-    router.refresh();
+    setError("");
+    try {
+      const { ok, data } = await postJson("/api/app/profile/avatar", undefined, "DELETE");
+      if (!ok) {
+        setError(data?.error ?? GENERIC_ERROR);
+        return;
+      }
+      setHasAvatar(false);
+      setAvatarVersion(Date.now());
+      router.refresh();
+    } finally {
+      setAvatarBusy(false);
+    }
   }
 
   async function saveProfile() {
@@ -401,6 +410,9 @@ export default function ProfileClient({
       <PushToggleCard />
 
       {softphoneEnabled !== null && <SoftphoneToggleCard initial={softphoneEnabled} />}
+
+      {/* Light / dark for this device — personal, so it lives here, not in Settings */}
+      <AppearanceCard />
 
       <AppLockToggleCard />
 

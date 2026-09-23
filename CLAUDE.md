@@ -285,7 +285,7 @@ free `sms:`/`tel:` deep links (`lib/messaging.ts`) stay free and untouched.
 - **Inbound** (`/api/public/webhooks/telnyx`): the `to` number resolves the
   company FIRST, the contact match is scoped to it, and an unknown texter
   becomes a contact ("Unknown caller · (214) 555-0100") so nothing is lost.
-- **UI**: Settings → Features `BusinessLineCard.tsx` (get a number →
+- **UI**: Settings → Phone & texting `BusinessLineCard.tsx` (get a number →
   forwarding → registration form → status chip / rejection + resubmit / OTP
   entry for sole props); routes `/api/app/line` (GET, PATCH forwardTo),
   `/line/provision`, `/line/register`, `/line/refresh`, `/line/otp`.

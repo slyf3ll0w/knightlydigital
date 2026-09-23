@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, jobScope } from "@/lib/permissions";
+import { startOfDayIn } from "@/lib/timezone";
 
 /**
  * GET /app/go/next-job — resolve "my next job" and bounce there.
@@ -19,8 +20,15 @@ export async function GET(req: NextRequest) {
   const actor = await getActor();
   if (!actor) return to("/app/login");
 
+  // "Today" is the company's day, not the UTC server's — at 7pm Central the
+  // server is already on tomorrow, which used to drop the evening's jobs.
+  const company = await prisma.company.findUnique({
+    where: { id: actor.companyId },
+    select: { timezone: true },
+  });
+  const tz = company?.timezone ?? "America/Chicago";
   const now = new Date();
-  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfDay = startOfDayIn(tz, now);
 
   const [openEntry, next] = await Promise.all([
     prisma.timeEntry.findFirst({

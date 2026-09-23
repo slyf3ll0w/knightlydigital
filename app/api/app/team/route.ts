@@ -1,15 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
-import { getActor, isManager, canManageRole, roleLabel, type Role } from "@/lib/permissions";
+import { getActor, isManager, canSell, canManageRole, roleLabel, type Role } from "@/lib/permissions";
 import { emailWhere, normalizeEmail } from "@/lib/user-email";
 import { findOrAdoptAccountByEmail } from "@/lib/account";
 import { sendEmail, teamAddedEmail } from "@/lib/email";
 
+/**
+ * GET — the team roster. Managers get the full list (the Team settings page:
+ * email, phone, inactive members). Anyone who can sell (USER/SALES) gets a
+ * slim active-only roster — New Job's crew picker needs it, and a scheduled
+ * job with nobody on it is refused (NEEDS_CREW), so a 403 here used to make
+ * job creation impossible for them in a multi-person company. Techs: none.
+ */
 export async function GET() {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!isManager(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!canSell(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  if (!isManager(actor.role)) {
+    const roster = await prisma.user.findMany({
+      where: { companyId: actor.companyId, isActive: true },
+      select: { id: true, name: true, role: true, isActive: true },
+      orderBy: { createdAt: "asc" },
+    });
+    return NextResponse.json(roster);
+  }
 
   const users = await prisma.user.findMany({
     where: { companyId: actor.companyId },

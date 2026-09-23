@@ -137,6 +137,12 @@ export default async function ContactDetailPage({
     ? contact.timesWon > 1
     : contact.status === "ACTIVE" || contact.timesWon > 0;
 
+  // Dates render in the company's zone — the server clock is UTC
+  const tz = contact.company.timezone;
+  // Payments, balances and invoice rows are money: SALES with payments
+  // hidden works the client but never sees what they've paid or owe
+  const seeMoney = canSeeMoney(actor);
+
   const lifetimeValue = contact.payments.reduce((s, p) => s + Number(p.amount), 0);
   const currentBalance = contact.invoices
     .filter((i) => i.status !== "DRAFT")
@@ -202,7 +208,7 @@ export default async function ContactDetailPage({
       amount: null as number | null,
       viewed: null as Date | null,
     })),
-    ...contact.invoices.map((inv) => ({
+    ...(seeMoney ? contact.invoices : []).map((inv) => ({
       key: `i-${inv.id}`,
       href: `/app/invoices/${inv.id}`,
       type: "Invoice",
@@ -240,10 +246,10 @@ export default async function ContactDetailPage({
   // In a browser the softphone needs no cell (components/Softphone.tsx); the button picks the flow itself.
   const canCallFromLine = Boolean(contact.company.lineVoiceAppAt && contact.phone);
   const textsSetupHint = !hasLine
-    ? "Set up a business line in Settings → Features to start texting clients"
+    ? "Set up a business line in Settings → Phone & texting to start texting clients"
     : !lineRegistered
       ? "Texting registration is still with the carriers — reminders switch to text once it clears"
-      : "Turn on text notifications in Settings → Features to start texting clients";
+      : "Turn on text notifications in Settings → Phone & texting to start texting clients";
 
   return (
     <div className="p-4 lg:p-8 max-w-4xl mx-auto">
@@ -373,7 +379,7 @@ export default async function ContactDetailPage({
               payments: contact.payments.length,
             }}
           />
-          <ContactCreateMenu contactId={contact.id} />
+          <ContactCreateMenu contactId={contact.id} canSeeMoney={canSeeMoney(actor)} />
         </div>
       </div>
 
@@ -431,11 +437,11 @@ export default async function ContactDetailPage({
                       )}
                     </span>
                     <span className="hidden lg:block text-sm text-gray-500">
-                      {shortDate(row.date)}
+                      {shortDate(row.date, tz)}
                     </span>
                     <span className="mt-1 flex items-center gap-2 lg:mt-0 lg:flex-col lg:items-start lg:gap-0.5">
                       <span className="text-xs text-gray-500 lg:hidden">
-                        {row.type} · {shortDate(row.date)}
+                        {row.type} · {shortDate(row.date, tz)}
                       </span>
                       <StatusChip kind={row.kind} status={row.status} />
                       {row.viewed && (
@@ -444,7 +450,7 @@ export default async function ContactDetailPage({
                           title="Client opened this document"
                         >
                           <Eye size={10} />
-                          Seen {shortDate(row.viewed)}
+                          Seen {shortDate(row.viewed, tz)}
                         </span>
                       )}
                     </span>
@@ -594,6 +600,7 @@ export default async function ContactDetailPage({
                       day: "numeric",
                       hour: "numeric",
                       minute: "2-digit",
+                      timeZone: tz,
                     }),
                   }}
                   canEdit={note.userId === actor.id}
@@ -640,21 +647,23 @@ export default async function ContactDetailPage({
             values={(contact.customFields as Record<string, string>) ?? {}}
           />
 
-          <div className="card-ledger p-4">
-            <h2 className="text-[13px] font-semibold text-gray-500 mb-3">
-              Overview
-            </h2>
-            <div className="space-y-3">
-              <div>
-                <p className="text-xl font-bold text-gray-900">{money(lifetimeValue)}</p>
-                <p className="text-xs text-gray-500">Lifetime value</p>
-              </div>
-              <div>
-                <p className="text-xl font-bold text-gray-900">{money(currentBalance)}</p>
-                <p className="text-xs text-gray-500">Current balance</p>
+          {seeMoney && (
+            <div className="card-ledger p-4">
+              <h2 className="text-[13px] font-semibold text-gray-500 mb-3">
+                Overview
+              </h2>
+              <div className="space-y-3">
+                <div>
+                  <p className="text-xl font-bold text-gray-900">{money(lifetimeValue)}</p>
+                  <p className="text-xs text-gray-500">Lifetime value</p>
+                </div>
+                <div>
+                  <p className="text-xl font-bold text-gray-900">{money(currentBalance)}</p>
+                  <p className="text-xs text-gray-500">Current balance</p>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {(recentCalls.length > 0 || canCallFromLine) && (
             <div className="card-ledger p-4">
@@ -692,7 +701,7 @@ export default async function ContactDetailPage({
             contactId={contact.id}
             hubUrl={hubUrl}
             hasEmail={!!contact.email}
-            lastVisitLabel={contact.hubLastVisitAt ? shortDate(contact.hubLastVisitAt) : null}
+            lastVisitLabel={contact.hubLastVisitAt ? shortDate(contact.hubLastVisitAt, tz) : null}
             canReset={isManager(actor.role)}
           />
         </div>

@@ -115,6 +115,12 @@ export default function AppointmentForm({
     setError("");
     if (!contactId) return setError("Pick a client.");
     if (!start) return setError("Pick a date and time.");
+    // The picker holds a bare "YYYY-MM-DD" until a time is chosen — that's
+    // not a booking yet, and it used to save as UTC midnight (the evening
+    // before, in the Americas)
+    if (!anytime && [start, end].some((v) => v && v.length < 16)) {
+      return setError("Pick a time, or choose Anytime");
+    }
     if (type === "IN_PERSON" && !effectiveAddress.trim()) {
       return setError("In-person appointments need an address.");
     }

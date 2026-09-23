@@ -163,11 +163,16 @@ export default function BookingHome({
   // ── Client hub form ───────────────────────────────────────────────────────
   const [hubForm, setHubForm] = useState<string | null>(initialHubFormId);
   async function saveHubForm(id: string | null) {
-    setHubForm(id);
+    const previous = hubForm;
+    setHubForm(id); // optimistic — rolled back below if the save fails
     setBusy(true);
+    setError("");
     const { ok, data } = await postJson("/api/app/settings", { hubBookingTypeId: id }, "PATCH");
     setBusy(false);
-    if (!ok) return setError(data?.error ?? GENERIC_ERROR);
+    if (!ok) {
+      setHubForm(previous);
+      return setError(data?.error ?? GENERIC_ERROR);
+    }
     router.refresh();
   }
   const hubFormMeta = items.find((t) => t.id === hubForm && t.isActive)?.name ?? "Plain request form";
@@ -646,6 +651,12 @@ export default function BookingHome({
             )}
             <label className="mb-1 mt-4 block text-xs font-medium text-gray-500">Name</label>
             <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder={KIND_META[newKind].defaultName} className={inputCls} />
+            {/* The page banner sits behind this modal — say it here too */}
+            {error && (
+              <div role="alert" className="form-error mt-3">
+                {error}
+              </div>
+            )}
             <div className="mt-4 flex flex-col gap-2 lg:flex-row lg:items-center">
               <button onClick={() => create()} disabled={busy} className="btn-primary h-11 justify-center lg:h-10">
                 {busy && <Loader2 size={14} className="animate-spin" />}

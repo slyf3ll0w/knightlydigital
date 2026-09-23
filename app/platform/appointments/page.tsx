@@ -4,6 +4,8 @@ import { Plus, ChevronRight, CalendarClock } from "lucide-react";
 import PageTitle from "@/components/PageTitle";
 import { SECTION_HUES } from "@/lib/section-colors";
 import { shortDate } from "@/lib/statuses";
+import { fmtTime } from "@/lib/format";
+import { startOfDayIn } from "@/lib/timezone";
 import StatusChip from "@/components/StatusChip";
 import EmptyState from "@/components/EmptyState";
 import Monogram from "@/components/Monogram";
@@ -17,7 +19,13 @@ import { requirePageActor, canSell, appointmentScope } from "@/lib/permissions";
 export default async function AppointmentsPage() {
   const actor = await requirePageActor((a) => canSell(a.role));
   const companyId = actor.companyId;
-  const now = new Date();
+  // "Upcoming" starts at the company's midnight, not the UTC server's — at
+  // 7pm Central the server is already on tomorrow and tonight's appointments
+  // used to slide into "Past".
+  const tz =
+    (await prisma.company.findUnique({ where: { id: companyId }, select: { timezone: true } }))
+      ?.timezone ?? "America/Chicago";
+  const startOfToday = startOfDayIn(tz, new Date());
 
   const [upcoming, past] = await Promise.all([
     prisma.appointment.findMany({
@@ -25,7 +33,7 @@ export default async function AppointmentsPage() {
         companyId,
         ...appointmentScope(actor),
         status: "SCHEDULED",
-        scheduledAt: { gte: new Date(now.getFullYear(), now.getMonth(), now.getDate()) },
+        scheduledAt: { gte: startOfToday },
       },
       orderBy: { scheduledAt: "asc" },
       take: 100,
@@ -40,7 +48,7 @@ export default async function AppointmentsPage() {
         ...appointmentScope(actor),
         OR: [
           { status: { in: ["COMPLETED", "CANCELLED", "NO_SHOW"] } },
-          { status: "SCHEDULED", scheduledAt: { lt: new Date(now.getFullYear(), now.getMonth(), now.getDate()) } },
+          { status: "SCHEDULED", scheduledAt: { lt: startOfToday } },
         ],
       },
       orderBy: { scheduledAt: "desc" },
@@ -84,9 +92,8 @@ export default async function AppointmentsPage() {
                 </div>
                 <p className="truncate text-xs text-gray-500 mt-0.5">
                   {a.contact.firstName} {a.contact.lastName} · {typeLabel[a.type] ?? a.type} ·{" "}
-                  {shortDate(a.scheduledAt)}
-                  {!a.scheduledAnytime &&
-                    ` ${a.scheduledAt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`}
+                  {shortDate(a.scheduledAt, tz)}
+                  {!a.scheduledAnytime && ` ${fmtTime(a.scheduledAt, tz)}`}
                   {a.assignedTo?.name ? ` · ${a.assignedTo.name}` : ""}
                 </p>
               </div>

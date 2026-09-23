@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { prisma } from "@/lib/db";
-import { requirePageActor, canSell, contactScope } from "@/lib/permissions";
+import { requirePageActor, canSell, isManager, contactScope } from "@/lib/permissions";
 import NewContractForm from "./NewContractForm";
 
-export const metadata: Metadata = { title: "New Contract" };
+export const metadata: Metadata = { title: "New Agreement" };
 
 export default async function NewContractPage({
   searchParams,
@@ -31,6 +31,9 @@ export default async function NewContractPage({
       contacts={contacts}
       templates={templates}
       prefilledContactId={contactId ?? ""}
+      // Opened from a client page → back to that client; otherwise the list
+      backHref={contactId ? `/app/contacts/${contactId}` : "/app/contracts"}
+      canManageTemplates={isManager(actor.role)}
     />
   );
 }

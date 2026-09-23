@@ -144,7 +144,7 @@ export default function EmailClientButton({
                   </label>
                 ) : (
                   <span className="text-xs text-gray-500">
-                    Add a logo in Settings → Branding to include it here.
+                    Add a logo in Settings → Branding &amp; client experience to include it here.
                   </span>
                 )}
                 <span className="text-xs text-gray-500">

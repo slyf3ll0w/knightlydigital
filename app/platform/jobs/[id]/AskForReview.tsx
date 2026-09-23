@@ -4,7 +4,8 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Star } from "lucide-react";
 import { smsHref, isApplePlatform, canSendSms } from "@/lib/messaging";
-import { confirmSheet } from "@/components/ConfirmSheet";
+import { confirmSheet, alertSheet } from "@/components/ConfirmSheet";
+import { postJson } from "@/lib/safe-fetch";
 
 /**
  * Texts the client a "leave us a review" message with the company's Google
@@ -25,6 +26,7 @@ export default function AskForReview({
 }) {
   const router = useRouter();
   const [sent, setSent] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   // Same device gate as On My Way — no texting app on a Windows/Linux desktop
   const [supported, setSupported] = useState(false);
@@ -44,16 +46,29 @@ export default function AskForReview({
       }
       return;
     }
-    setSent(true);
-    fetch(`/api/app/jobs/${jobId}/review-request`, { method: "POST" })
-      .then(() => router.refresh())
-      .catch(() => {});
-    window.location.href = smsHref(phone, message, isApplePlatform());
+    if (busy) return;
+    setBusy(true);
+    try {
+      // Record the request first — a 400 (no phone on file, already asked)
+      // has to be seen, not swallowed behind an sms: hand-off that never
+      // reaches anyone
+      const { ok, data } = await postJson(`/api/app/jobs/${jobId}/review-request`);
+      if (!ok) {
+        alertSheet({ message: data?.error ?? "Couldn't send the review request." });
+        return;
+      }
+      setSent(true);
+      router.refresh();
+      window.location.href = smsHref(phone, message, isApplePlatform());
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
     <button
       onClick={send}
+      disabled={busy}
       title={
         hasReviewLink
           ? "Text the client your Google review link (opens your Messages app)"

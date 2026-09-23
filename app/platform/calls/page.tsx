@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { PhoneCall } from "lucide-react";
 import { prisma } from "@/lib/db";
-import { requirePageActor, canSell, isManager } from "@/lib/permissions";
+import { requirePageActor, canSell, isManager, contactScope } from "@/lib/permissions";
 import PageTitle from "@/components/PageTitle";
 import EmptyState from "@/components/EmptyState";
 import CallRow, { type CallRowData } from "@/components/CallRow";
@@ -49,6 +49,19 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
   const actor = await requirePageActor((a) => canSell(a.role));
   const { contact: contactId, f } = await searchParams;
   const filter: Filter = f === "missed" || f === "voicemail" || f === "out" ? f : "all";
+  // Managers see every call. SALES/USER see calls with their own leads, calls
+  // nobody has been matched to yet (an unknown number is a lead to claim), and
+  // calls they placed or answered themselves — mirroring contactScope.
+  const scope: Record<string, unknown> = isManager(actor.role)
+    ? {}
+    : {
+        OR: [
+          { contact: contactScope(actor) },
+          { contactId: null },
+          { userId: actor.id },
+          { answeredByUserId: actor.id },
+        ],
+      };
 
   const [company, rows] = await Promise.all([
     prisma.company.findUnique({
@@ -56,7 +69,7 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
       select: { lineNumber: true, lineForwardTo: true, lineVoiceAppAt: true, timezone: true, messagingRegistration: { select: { status: true } } },
     }),
     prisma.call.findMany({
-      where: { companyId: actor.companyId, ...(contactId ? { contactId } : {}) },
+      where: { companyId: actor.companyId, ...scope, ...(contactId ? { contactId } : {}) },
       orderBy: { createdAt: "desc" },
       take: 300,
       select: {
@@ -105,7 +118,7 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
     voicemailsUnseen: calls.filter((c) => c.status === "VOICEMAIL" && !c.seenAt).length,
     talkWeekSec: calls.filter((c) => c.createdAt.getTime() >= weekAgo).reduce((sum, c) => sum + (c.durationSec ?? 0), 0),
   };
-  await markCallsSeen(actor.companyId).catch(() => {});
+  await markCallsSeen(actor.companyId, scope).catch(() => {});
 
   const hasLine = Boolean(company?.lineNumber && !company.lineNumber.startsWith("pending:"));
   const routed = hasLine && Boolean(company?.lineVoiceAppAt);
@@ -171,16 +184,16 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
               hasLine
                 ? routed
                   ? "Calls to your business line show up here as they happen — answered, missed, or with the voicemail ready to play."
-                  : "Your line is still on plain forwarding. Save your ring-through number again in Settings → Features to turn on call announcements and voicemail."
+                  : "Your line is still on plain forwarding. Save your ring-through number again in Settings → Phone & texting to turn on call announcements and voicemail."
                 : isManager(actor.role)
-                  ? "Get a business line in Settings → Features: a number of your own that rings your browser and your cell, announces who's calling, and takes voicemail."
-                  : "Ask an owner to set up a business line in Settings → Features."
+                  ? "Get a business line in Settings → Phone & texting: a number of your own that rings your browser and your cell, announces who's calling, and takes voicemail."
+                  : "Ask an owner to set up a business line in Settings → Phone & texting."
             }
           />
           {isManager(actor.role) && (
             <p className="mt-4 text-center">
-              <Link href="/app/settings?s=features" className="text-sm font-medium underline text-gray-700">
-                Open Settings → Features
+              <Link href="/app/settings?s=phone" className="text-sm font-medium underline text-gray-700">
+                Open Settings → Phone &amp; texting
               </Link>
             </p>
           )}

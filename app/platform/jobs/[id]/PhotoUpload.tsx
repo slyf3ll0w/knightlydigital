@@ -6,8 +6,9 @@ import { Camera, ImagePlus, Loader2, Trash2 } from "lucide-react";
 import { resizePhotoFile } from "@/lib/resize-image";
 import { confirmSheet } from "@/components/ConfirmSheet";
 import { getCapacitor, nativePlatform } from "@/components/NativeShell";
+import { postJson } from "@/lib/safe-fetch";
 
-type Photo = { id: string; url: string; caption: string | null; type: string };
+type Photo ={ id: string; url: string; caption: string | null; type: string };
 
 const TYPE_LABEL: Record<string, string> = {
   BEFORE: "Before",
@@ -100,11 +101,20 @@ export default function PhotoUpload({ jobId, photos }: { jobId: string; photos: 
     )
       return;
     setBusy(true);
+    setError("");
     try {
-      await fetch(`/api/app/jobs/${jobId}/photos/${photoId}`, { method: "DELETE" });
+      const { ok, data } = await postJson(
+        `/api/app/jobs/${jobId}/photos/${photoId}`,
+        undefined,
+        "DELETE"
+      );
+      if (!ok) {
+        setError(data?.error ?? "Couldn't remove that photo.");
+        return;
+      }
+      router.refresh();
     } finally {
       setBusy(false);
-      router.refresh();
     }
   }
 

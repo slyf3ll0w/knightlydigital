@@ -2,27 +2,21 @@
 
 import { useEffect, useState } from "react";
 import { inputCls } from "@/components/Input";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
-import {
-  ArrowLeft,
-  Archive,
-  ChevronRight,
-  FileSignature,
-  Loader2,
-  Plus,
-  RotateCcw,
-  X,
-} from "lucide-react";
-import PageTitle from "@/components/PageTitle";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Archive, ChevronRight, FileSignature, Loader2, Plus, RotateCcw, X } from "lucide-react";
 import { SECTION_HUES, hueInk } from "@/lib/section-colors";
 import { confirmSheet } from "@/components/ConfirmSheet";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import Modal from "@/components/Modal";
 
 /**
- * Reusable contract templates. {{client_name}}, {{company_name}}, and
- * {{date}} fill in automatically when a contract is created from one.
+ * The Templates view of /app/contracts — reusable agreement templates.
+ * {{client_name}}, {{company_name}}, and {{date}} fill in automatically when
+ * an agreement is created from one.
+ *
+ * The page (a server component) owns the title and the header "New
+ * Template" button; that button is a link to `?view=templates&new=1`, which
+ * this panel reads to open the editor, so the header stays server-rendered.
  *
  * The editor is a dialog rather than an inline card: the body is a tall
  * textarea, and inline it pushed the template list off the screen on phones.
@@ -34,8 +28,10 @@ type Template = { id: string; name: string; body: string; isActive: boolean };
 const STARTER_BODY =
   "This Service Agreement is made on {{date}} between {{company_name}} and {{client_name}}.\n\n1. Services. \n\n2. Payment. \n\n3. Term & cancellation. \n";
 
-export default function ContractTemplatesClient({ templates }: { templates: Template[] }) {
+export default function TemplatesPanel({ templates }: { templates: Template[] }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const wantsNew = searchParams.get("new") === "1";
   const [editing, setEditing] = useState<string | "new" | null>(null);
   const [name, setName] = useState("");
   const [body, setBody] = useState("");
@@ -45,26 +41,44 @@ export default function ContractTemplatesClient({ templates }: { templates: Temp
   const active = templates.filter((t) => t.isActive);
   const archived = templates.filter((t) => !t.isActive);
 
+  // Header "New Template" arrives as ?new=1 — open the editor on it
+  useEffect(() => {
+    if (!wantsNew) return;
+    setEditing("new");
+    setName("");
+    setBody(STARTER_BODY);
+    setError("");
+  }, [wantsNew]);
+
   // Escape closes the editor (the backdrop tap and Cancel handle the rest)
   useEffect(() => {
     if (editing === null) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !busy) setEditing(null);
+      if (e.key === "Escape" && !busy) close();
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [editing, busy]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editing, busy, wantsNew]);
+
+  function close() {
+    setEditing(null);
+    // Drop ?new=1 so a refresh (or the next save) doesn't reopen the editor
+    if (wantsNew) router.replace("/app/contracts?view=templates", { scroll: false });
+  }
 
   function startNew() {
     setEditing("new");
     setName("");
     setBody(STARTER_BODY);
+    setError("");
   }
 
   function startEdit(t: Template) {
     setEditing(t.id);
     setName(t.name);
     setBody(t.body);
+    setError("");
   }
 
   async function save() {
@@ -76,10 +90,12 @@ export default function ContractTemplatesClient({ templates }: { templates: Temp
         : await postJson(`/api/app/contract-templates/${editing}`, { name, body }, "PATCH");
     setBusy(false);
     if (!ok) {
+      // Shown inside the open dialog (below) — the page banner is hidden
+      // behind the scrim, so a save failure used to look like a hang
       setError(data?.error ?? GENERIC_ERROR);
       return;
     }
-    setEditing(null);
+    close();
     router.refresh();
   }
 
@@ -98,59 +114,40 @@ export default function ContractTemplatesClient({ templates }: { templates: Temp
       !(await confirmSheet({
         title: "Archive this template?",
         message:
-          "It stops showing up when you create a contract. Agreements already sent are untouched, and you can restore it any time.",
+          "It stops showing up when you create an agreement. Agreements already sent are untouched, and you can restore it any time.",
         confirmLabel: "Archive Template",
         destructive: true,
       }))
     )
       return;
     await setActive(editing, false);
-    setEditing(null);
+    close();
   }
 
+  const errorBox = (
+    <div role="alert" className="form-error flex items-center justify-between">
+      {error}
+      <button onClick={() => setError("")} className="p-0.5 text-red-400 hover:text-red-600">
+        <X size={14} />
+      </button>
+    </div>
+  );
+
   return (
-    <div className="mx-auto max-w-3xl p-4 lg:p-8">
-      {/* Title row: the desktop back arrow keeps its place; on phones the
-          shell header owns going back, and the New button is icon-sized so
-          the long title never has to share a line with a wide label. */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <Link href="/app/settings" className="hidden shrink-0 text-gray-400 hover:text-gray-600 lg:block">
-            <ArrowLeft size={18} />
-          </Link>
-          <PageTitle section="contracts" icon={FileSignature}>
-            Agreement templates
-          </PageTitle>
-        </div>
-        <button
-          onClick={startNew}
-          aria-label="New template"
-          className="btn-primary h-10 shrink-0 justify-center sm:px-4"
-        >
-          <Plus size={16} />
-          <span className="hidden sm:inline">New Template</span>
-        </button>
-      </div>
-      <p className="mb-5 mt-2 text-sm text-gray-500 lg:ml-8 lg:mb-6">
-        Write your agreements once, send them to any client for an e-signature.{" "}
+    <div>
+      <p className="mb-4 text-sm text-gray-500">
+        Write an agreement once, send it to any client for an e-signature.{" "}
         <code className="rounded-md bg-gray-100 px-1 text-xs">{"{{client_name}}"}</code>,{" "}
         <code className="rounded-md bg-gray-100 px-1 text-xs">{"{{company_name}}"}</code> and{" "}
         <code className="rounded-md bg-gray-100 px-1 text-xs">{"{{date}}"}</code> fill in
         automatically.
       </p>
 
-      {error && (
-        <div role="alert" className="form-error mb-4 flex items-center justify-between">
-          {error}
-          <button onClick={() => setError("")} className="p-0.5 text-red-400 hover:text-red-600">
-            <X size={14} />
-          </button>
-        </div>
-      )}
+      {/* Archive / restore failures land here; save failures show in the dialog */}
+      {error && editing === null && <div className="mb-4">{errorBox}</div>}
 
       {/* Templates — whole-row tap targets with a chevron, the list idiom the
-          rest of the mobile app uses (the old row crammed a pencil and an
-          Archive button into 44px of trailing space). */}
+          rest of the app uses */}
       <div className="card-ledger mb-6 divide-y divide-gray-100">
         {active.length === 0 ? (
           <div className="flex flex-col items-center px-6 py-10 text-center">
@@ -168,10 +165,7 @@ export default function ContractTemplatesClient({ templates }: { templates: Temp
             <p className="mt-1 max-w-xs text-sm text-gray-500">
               Write your first service agreement once and reuse it on every client.
             </p>
-            <button
-              onClick={startNew}
-              className="btn-primary mt-5 inline-flex"
-            >
+            <button onClick={startNew} className="btn-primary mt-5 inline-flex">
               <Plus size={15} />
               New Template
             </button>
@@ -219,7 +213,7 @@ export default function ContractTemplatesClient({ templates }: { templates: Temp
       {/* Editor — centered dialog on desktop, bottom sheet on phones */}
       <Modal
         open={editing !== null}
-        onClose={() => !busy && setEditing(null)}
+        onClose={() => !busy && close()}
         cardClassName="w-full max-w-xl rounded-lg bg-white p-5 text-left shadow-xl"
       >
         {editing !== null && (
@@ -242,7 +236,7 @@ export default function ContractTemplatesClient({ templates }: { templates: Temp
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-gray-500">
-                  Contract text *
+                  Agreement text *
                 </label>
                 <textarea
                   value={body}
@@ -251,6 +245,7 @@ export default function ContractTemplatesClient({ templates }: { templates: Temp
                   className={`${inputCls} font-mono text-xs leading-relaxed lg:min-h-[18rem]`}
                 />
               </div>
+              {error && errorBox}
             </div>
 
             {/* Actions stack full-width on phones (thumb-sized), inline on
@@ -267,7 +262,7 @@ export default function ContractTemplatesClient({ templates }: { templates: Temp
               {/* Cancel sinks to the bottom of the phone stack so the
                   destructive action isn't the last thing under your thumb */}
               <button
-                onClick={() => setEditing(null)}
+                onClick={close}
                 disabled={busy}
                 className="order-last flex h-11 items-center justify-center rounded-[10px] px-4 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 lg:order-none lg:h-10"
               >

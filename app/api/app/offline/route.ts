@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, jobScope } from "@/lib/permissions";
+import { startOfDayIn } from "@/lib/timezone";
 
 /**
  * The offline warm list: pages worth caching before the user loses signal.
@@ -13,8 +14,13 @@ export async function GET() {
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const scope = jobScope(actor);
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
+  // Company-local midnight — the server's own clock is UTC.
+  const company = await prisma.company.findUnique({
+    where: { id: actor.companyId },
+    select: { timezone: true },
+  });
+  const tz = company?.timezone ?? "America/Chicago";
+  const startOfToday = startOfDayIn(tz, new Date());
   const endOfTomorrow = new Date(startOfToday.getTime() + 48 * 60 * 60 * 1000);
 
   // Today's and tomorrow's schedule — the pages a tech needs in the field.

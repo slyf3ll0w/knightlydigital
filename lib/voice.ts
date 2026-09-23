@@ -835,7 +835,7 @@ export async function startOutboundCall(
   ]);
   if (!company) throw new VoiceError("Company not found.", 404);
   if (!hasAddon(company)) throw new VoiceError("Calling from your business line is part of Workbench Plus.", 402);
-  if (!isRealLineNumber(company.lineNumber)) throw new VoiceError("Get a business line first (Settings → Features).", 409);
+  if (!isRealLineNumber(company.lineNumber)) throw new VoiceError("Get a business line first (Settings → Phone & texting).", 409);
   if (!company.lineVoiceAppAt && !(await ensureVoiceRouting(companyId))) {
     throw new VoiceError("Your line isn't on the voice app yet — try again in a minute.", 503);
   }
@@ -1039,9 +1039,12 @@ export async function runStaleCallSweep(now = new Date()): Promise<{ closed: num
 }
 
 /** The Calls page was opened: everything finished is now seen. */
-export async function markCallsSeen(companyId: string): Promise<void> {
+export async function markCallsSeen(companyId: string, scope: Record<string, unknown> = {}): Promise<void> {
+  // `scope` = the viewer's call visibility (the Calls page's where clause):
+  // a salesperson opening their own list must not mark the whole company's
+  // missed calls as looked at.
   await prisma.call.updateMany({
-    where: { companyId, seenAt: null, status: { in: ["COMPLETED", "MISSED", "VOICEMAIL", "NO_ANSWER", "FAILED"] } },
+    where: { companyId, ...scope, seenAt: null, status: { in: ["COMPLETED", "MISSED", "VOICEMAIL", "NO_ANSWER", "FAILED"] } },
     data: { seenAt: new Date() },
   });
 }

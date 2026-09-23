@@ -12,7 +12,9 @@ export async function GET() {
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!canSell(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  // Picker feed (new job/request forms) — archived clients stay out
+  // Picker feed (new job/request forms) — archived clients stay out. An
+  // explicit select: the whole row carried hubToken (the client-portal login
+  // secret) and the processor identity to every seller's browser.
   const contacts = await prisma.contact.findMany({
     where: {
       companyId: actor.companyId,
@@ -20,7 +22,23 @@ export async function GET() {
       status: { in: ["LEAD", "ACTIVE"] },
     },
     orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
-    include: { addresses: { orderBy: { createdAt: "asc" } } },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      address: true,
+      city: true,
+      state: true,
+      zip: true,
+      addresses: {
+        select: { id: true, label: true, address: true, city: true, state: true, zip: true },
+        orderBy: { createdAt: "asc" },
+      },
+    },
+    // A picker, not an export: the searchable dropdown filters client-side,
+    // and a client book past this size needs a search endpoint, not a bigger
+    // payload.
+    take: 2000,
   });
 
   return NextResponse.json(contacts);

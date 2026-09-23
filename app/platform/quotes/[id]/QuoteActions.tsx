@@ -44,6 +44,7 @@ export default function QuoteActions({
   agreement = null,
   hasDeposit = false,
   depositInvoiced = false,
+  canDelete = false,
 }: {
   quoteId: string;
   status: string;
@@ -55,6 +56,8 @@ export default function QuoteActions({
   agreement?: AgreementState;
   hasDeposit?: boolean;
   depositInvoiced?: boolean;
+  /** The DELETE route is managers-only — don't offer what would 403 */
+  canDelete?: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -237,13 +240,18 @@ export default function QuoteActions({
   // Duplicate into a fresh draft and jump straight to it
   async function duplicateQuote() {
     setOpen(false);
-    const res = await fetch(`/api/app/quotes/${quoteId}/duplicate`, { method: "POST" });
-    const data = await res.json().catch(() => null);
-    if (!res.ok || !data?.id) {
-      alertSheet({ message: data?.error ?? "Couldn't duplicate the quote." });
-      return;
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/app/quotes/${quoteId}/duplicate`, { method: "POST" });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.id) {
+        alertSheet({ message: data?.error ?? "Couldn't duplicate the quote." });
+        return;
+      }
+      router.push(`/app/quotes/${data.id}`);
+    } finally {
+      setBusy(false);
     }
-    router.push(`/app/quotes/${data.id}`);
   }
 
   async function copyLink() {
@@ -388,7 +396,8 @@ export default function QuoteActions({
             </a>
             <button
               onClick={duplicateQuote}
-              className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
+              disabled={busy}
+              className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-60"
             >
               <CopyPlus size={14} className="text-gray-400" />
               Duplicate Quote
@@ -470,13 +479,16 @@ export default function QuoteActions({
                 Edit Quote
               </Link>
             )}
-            <button
-              onClick={deleteQuote}
-              className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-red-600 hover:bg-red-50"
-            >
-              <Trash2 size={14} />
-              Delete
-            </button>
+            {canDelete && (
+              <button
+                onClick={deleteQuote}
+                disabled={busy}
+                className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-red-600 hover:bg-red-50 disabled:opacity-60"
+              >
+                <Trash2 size={14} />
+                Delete
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -497,7 +509,10 @@ export default function QuoteActions({
             </p>
             {agreement.templates.length === 0 ? (
               <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4">
-                No agreement templates yet — create one under Settings → Agreement templates
+                No agreement templates yet — create one under{" "}
+                <Link href="/app/contracts?view=templates" className="underline">
+                  Agreements → Templates
+                </Link>{" "}
                 first.
               </p>
             ) : (

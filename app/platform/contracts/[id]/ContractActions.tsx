@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Copy, ExternalLink, Loader2, Pencil, Trash2, X } from "lucide-react";
+import { Check, Copy, ExternalLink, Loader2, Pencil, Send, Trash2, X } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { confirmSheet } from "@/components/ConfirmSheet";
 import Modal from "@/components/Modal";
 
-/** Contract controls: copy the signing link, edit while unsigned, void/reopen, delete. */
+/** Contract controls: copy the signing link, email it (again), edit while
+ *  unsigned, void/reopen, delete. */
 export default function ContractActions({
   contractId,
   status,
@@ -15,6 +16,7 @@ export default function ContractActions({
   canDelete,
   title,
   body,
+  contactEmail,
 }: {
   contractId: string;
   status: string;
@@ -22,13 +24,42 @@ export default function ContractActions({
   canDelete: boolean;
   title: string;
   body: string;
+  /** Client's email on file — the resend button needs one. */
+  contactEmail: string | null;
 }) {
   const router = useRouter();
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [sentTo, setSentTo] = useState("");
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ title, body });
+
+  // Sent confirmation auto-dismisses — floats as a pill like quotes/invoices
+  useEffect(() => {
+    if (!sentTo) return;
+    const t = setTimeout(() => setSentTo(""), 3000);
+    return () => clearTimeout(t);
+  }, [sentTo]);
+
+  /** Email the signing link (again) — same email the create route sends;
+   *  also refreshes the 30-day link expiry. */
+  async function emailLink() {
+    setBusy(true);
+    setError("");
+    const { ok, data } = await postJson<{ to?: string }>(
+      `/api/app/contracts/${contractId}/send`,
+      undefined,
+      "POST"
+    );
+    setBusy(false);
+    if (!ok) {
+      setError(data?.error ?? GENERIC_ERROR);
+      return;
+    }
+    setSentTo(data?.to ?? contactEmail ?? "the client");
+    router.refresh();
+  }
 
   function openEdit() {
     setForm({ title, body });
@@ -89,13 +120,24 @@ export default function ContractActions({
       setError(data?.error ?? GENERIC_ERROR);
       return;
     }
-    router.push("/app/contacts");
+    router.push("/app/contracts");
     router.refresh();
   }
 
+  const unsigned = status === "SENT" || status === "DRAFT";
+
   return (
     <div className="flex flex-col items-end gap-2">
-      <div className="flex items-center gap-2">
+      {sentTo && (
+        // Floating pill on every screen size; outer span owns the centering
+        // so the entrance animation's transform doesn't fight -translate-x-1/2
+        <span className="fixed left-1/2 -translate-x-1/2 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] lg:bottom-8 z-40 max-w-[calc(100vw-2rem)]">
+          <span className="msg-enter block truncate rounded-full bg-gray-900/95 px-4 py-2 text-xs font-medium text-white shadow-lg">
+            Emailed to {sentTo}
+          </span>
+        </span>
+      )}
+      <div className="flex flex-wrap items-center justify-end gap-2">
         {status !== "VOID" && (
           <button
             onClick={copyLink}
@@ -103,6 +145,21 @@ export default function ContractActions({
           >
             {copied ? <Check size={13} /> : <Copy size={13} />}
             {copied ? "Copied!" : "Copy Signing Link"}
+          </button>
+        )}
+        {unsigned && (
+          <button
+            onClick={emailLink}
+            disabled={busy || !contactEmail}
+            title={
+              contactEmail
+                ? `Email the signing link to ${contactEmail}`
+                : "No client email on file — add one on the client page, or copy the signing link"
+            }
+            className="flex items-center gap-1.5 px-3 py-2 btn-tool-line bg-white rounded-[10px] text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+          >
+            <Send size={13} />
+            {status === "DRAFT" ? "Email for Signature" : "Email Signing Link Again"}
           </button>
         )}
         <a

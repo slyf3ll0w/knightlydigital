@@ -211,8 +211,21 @@ export default function ItemEditor({
     },
     [flush]
   );
+  // Unmount inside the 700 ms window (they tapped Back right after typing):
+  // send what's still pending instead of dropping it. keepalive lets the
+  // request outlive the page.
   useEffect(() => () => {
     if (timer.current) clearTimeout(timer.current);
+    const body = pending.current;
+    pending.current = {};
+    if (Object.keys(body).length === 0) return;
+    void fetch(`/api/app/booking-types/${draft.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      keepalive: true,
+    }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const setMembers = (members: Draft["members"]) => update({ members }, { members });
@@ -617,7 +630,7 @@ export default function ItemEditor({
                 <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-600">
                   Online payments aren&apos;t live for your account yet — finish payment setup under{" "}
                   <Link href="/app/settings?s=payments" className="font-semibold underline">
-                    Settings → Online Payments
+                    Settings → Payments &amp; accounting
                   </Link>{" "}
                   and this turns on.
                 </div>

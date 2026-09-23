@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { canChargeOnline } from "@/lib/payments-gate";
 import { prisma } from "@/lib/db";
-import { getActor, canSell, viaContactScope } from "@/lib/permissions";
+import { getActor, canSell, canSeeMoney, viaContactScope } from "@/lib/permissions";
 import { createDepositInvoice } from "@/lib/deposits";
 import { sendEmail, invoiceLinkEmail } from "@/lib/email";
 import { inPreview, previewBlockedError } from "@/lib/preview";
@@ -22,7 +22,10 @@ export async function POST(
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (await inPreview(actor.companyId))
     return NextResponse.json(previewBlockedError("Collecting deposits"), { status: 403 });
-  if (!canSell(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  // Issuing an invoice is a money action: SALES with payments hidden may
+  // sell the quote but not collect on it (mirrors the CollectDepositNudge gate).
+  if (!canSell(actor.role) || !canSeeMoney(actor))
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const companyId = actor.companyId;
 
   const { id } = await params;

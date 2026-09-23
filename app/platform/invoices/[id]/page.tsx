@@ -40,6 +40,11 @@ export default async function InvoiceDetailPage({
 
   if (!invoice) notFound();
 
+  // Dates render in the company's zone — the server clock is UTC.
+  const tz =
+    (await prisma.company.findUnique({ where: { id: companyId }, select: { timezone: true } }))
+      ?.timezone ?? "America/Chicago";
+
   // Originating quote: direct link (deposit invoices) or via the converted job
   const sourceQuote = invoice.quote ?? invoice.job?.quote ?? null;
 
@@ -185,22 +190,23 @@ export default async function InvoiceDetailPage({
         )}
         <div>
           <span className="text-xs font-medium text-gray-500 block">Issued</span>
-          <span className="text-gray-800">{shortDate(invoice.issuedAt ?? invoice.createdAt)}</span>
+          <span className="text-gray-800">{shortDate(invoice.issuedAt ?? invoice.createdAt, tz)}</span>
         </div>
         <div>
           <span className="text-xs font-medium text-gray-500 block">Due date</span>
-          <span className="text-gray-800">{shortDate(invoice.dueDate)}</span>
+          <span className="text-gray-800">{shortDate(invoice.dueDate, tz)}</span>
         </div>
         <ViewedFact
           firstViewedAt={invoice.firstViewedAt}
           lastViewedAt={invoice.lastViewedAt}
           viewCount={invoice.viewCount}
           sent={invoice.status !== "DRAFT"}
+          tz={tz}
         />
         {invoice.paidAt && (
           <div>
             <span className="text-xs font-medium text-gray-500 block">Paid</span>
-            <span className="text-gray-800">{shortDate(invoice.paidAt)}</span>
+            <span className="text-gray-800">{shortDate(invoice.paidAt, tz)}</span>
           </div>
         )}
       </div>
@@ -226,7 +232,7 @@ export default async function InvoiceDetailPage({
                 )}
                 {item.serviceDate && (
                   <p className="text-xs text-gray-500 mt-0.5">
-                    Service date: {shortDate(item.serviceDate)}
+                    Service date: {shortDate(item.serviceDate, tz)}
                   </p>
                 )}
                 <p className="text-xs text-gray-500 mt-0.5">
@@ -277,7 +283,7 @@ export default async function InvoiceDetailPage({
                     )}
                     {item.serviceDate && (
                       <p className="text-gray-500 text-xs mt-0.5">
-                        Service date: {shortDate(item.serviceDate)}
+                        Service date: {shortDate(item.serviceDate, tz)}
                       </p>
                     )}
                   </td>
@@ -380,8 +386,10 @@ export default async function InvoiceDetailPage({
                     id: p.id,
                     amount: Number(p.amount),
                     method: p.method,
-                    paidAtDate: p.paidAt.toISOString().slice(0, 10),
-                    paidAtLabel: shortDate(p.paidAt),
+                    // The edit form's <input type="date"> value — the company's
+                    // calendar day, not the UTC one
+                    paidAtDate: p.paidAt.toLocaleDateString("en-CA", { timeZone: tz }),
+                    paidAtLabel: shortDate(p.paidAt, tz),
                     referenceNumber: p.referenceNumber ?? "",
                     details: p.details ?? "",
                   }}

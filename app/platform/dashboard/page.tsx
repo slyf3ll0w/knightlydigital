@@ -239,7 +239,8 @@ export default async function DashboardPage() {
   );
   const needs = [
     {
-      show: seeMoney,
+      // Billing the queue is POST /api/app/subscriptions/bill-ready — manager-only
+      show: isManager(actor.role),
       count: readyToBill.length,
       icon: Repeat,
       hue: SECTION_HUES.subscriptions,
@@ -351,7 +352,7 @@ export default async function DashboardPage() {
   // Compact ledger time ("10:00a") — fits the rail column without wrapping
   const fmtTime = (d: Date) =>
     d
-      .toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+      .toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: tz })
       .replace(" AM", "a")
       .replace(" PM", "p");
   const todayItems = [
@@ -677,7 +678,7 @@ export default async function DashboardPage() {
                   </p>
                   <p className="text-[11px] text-gray-500">
                     since{" "}
-                    {e.startedAt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+                    {e.startedAt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: tz })}
                   </p>
                 </div>
               </div>

@@ -27,8 +27,23 @@ export async function PATCH(
   const body = await req.json();
 
   // Recurring + agreement settings are revalidated together (the gate flag is
-  // derived from the attached template, so it can't be patched independently).
-  const recurring = await sanitizeRecurringAndAgreement(body, companyId);
+  // derived from the attached template, so it can't be patched independently)
+  // — but only when the PATCH is actually about them. The sanitizer fills in
+  // nulls/false for every key it doesn't see, so running it on a bare
+  // `{ isActive: true }` (reactivating an archived service) used to wipe the
+  // item's cadence and agreement template on the way past.
+  const RECURRING_AGREEMENT_KEYS = [
+    "recurringInterval",
+    "recurringCreatesJob",
+    "recurringInvoiceMode",
+    "agreementTemplateId",
+    "agreementTiming",
+    "requiresAgreement",
+  ] as const;
+  const touchesRecurring = RECURRING_AGREEMENT_KEYS.some((k) => body[k] !== undefined);
+  const recurring = touchesRecurring
+    ? await sanitizeRecurringAndAgreement(body, companyId)
+    : { data: {} };
   if ("error" in recurring) {
     return NextResponse.json({ error: recurring.error }, { status: 400 });
   }

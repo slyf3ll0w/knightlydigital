@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { requirePageActor, canSell, viaContactScope } from "@/lib/permissions";
+import { requirePageActor, canSell, viaContactScope, isManager } from "@/lib/permissions";
 import Link from "next/link";
 import { ArrowLeft, Mail, Phone, MapPin } from "lucide-react";
 import { shortDate, money } from "@/lib/statuses";
@@ -37,12 +37,13 @@ export default async function RequestDetailPage({
     request.status === "NEEDS_APPROVAL"
       ? (request.appointments.find((a) => a.tentative && a.status === "SCHEDULED") ?? null)
       : null;
-  const company = tentativeAppt
-    ? await prisma.company.findUnique({
-        where: { id: companyId },
-        select: { timezone: true, arrivalWindowMinutes: true },
-      })
-    : null;
+  // Always loaded: every date on the page reads in the company's zone (the
+  // server clock is UTC), not just the tentative slot label.
+  const company = await prisma.company.findUnique({
+    where: { id: companyId },
+    select: { timezone: true, arrivalWindowMinutes: true },
+  });
+  const tz = company?.timezone ?? "America/Chicago";
 
   return (
     <div className="p-4 lg:p-8 max-w-4xl mx-auto">
@@ -60,7 +61,7 @@ export default async function RequestDetailPage({
           windowLabel={
             tentativeAppt && company
               ? slotLabel(
-                  company.timezone,
+                  tz,
                   tentativeAppt.scheduledAt,
                   new Date(
                     tentativeAppt.scheduledAt.getTime() + company.arrivalWindowMinutes * 60000
@@ -75,10 +76,10 @@ export default async function RequestDetailPage({
         <div>
           <h1 className="numeral-ledger text-2xl font-semibold text-gray-900">{request.title}</h1>
           <p className="text-sm text-gray-500 mt-0.5">
-            Request #{request.requestNumber} · Requested {shortDate(request.createdAt)}
+            Request #{request.requestNumber} · Requested {shortDate(request.createdAt, tz)}
             {request.preferredDate && (
               <span className="font-medium text-blue-700">
-                {" "}· Client prefers {shortDate(request.preferredDate)}
+                {" "}· Client prefers {shortDate(request.preferredDate, tz)}
               </span>
             )}
           </p>
@@ -89,6 +90,7 @@ export default async function RequestDetailPage({
           contactId={request.contactId}
           title={request.title}
           details={request.details ?? ""}
+          canDelete={isManager(actor.role)}
         />
       </div>
 
@@ -136,12 +138,13 @@ export default async function RequestDetailPage({
                     <span className="text-green-700 hover:underline truncate">
                       {a.title} ·{" "}
                       {a.scheduledAnytime
-                        ? `${shortDate(a.scheduledAt)}, anytime`
+                        ? `${shortDate(a.scheduledAt, tz)}, anytime`
                         : new Date(a.scheduledAt).toLocaleString("en-US", {
                             month: "short",
                             day: "numeric",
                             hour: "numeric",
                             minute: "2-digit",
+                            timeZone: tz,
                           })}
                     </span>
                     <span className="flex items-center gap-1.5 shrink-0">
@@ -182,7 +185,7 @@ export default async function RequestDetailPage({
                     className="flex items-center justify-between text-sm text-green-700 hover:underline"
                   >
                     <span>Job #{j.jobNumber}</span>
-                    <span className="text-gray-500">{shortDate(j.scheduledAt)}</span>
+                    <span className="text-gray-500">{shortDate(j.scheduledAt, tz)}</span>
                   </Link>
                 ))}
               </div>

@@ -52,6 +52,7 @@ import PullToRefresh from "@/components/PullToRefresh";
 import ConfirmSheetHost from "@/components/ConfirmSheet";
 import { HomeFill, ScheduleFill, ChatFill, MoreFill } from "@/components/TabIcons";
 import { mobileBackFor } from "@/lib/mobile-nav";
+import { SETTINGS_SECTIONS, settingsHref } from "@/lib/settings-nav";
 import { AtlasMark } from "@/components/AtlasIcon";
 import { AssistantProvider } from "@/components/AssistantContext";
 import Modal from "@/components/Modal";
@@ -131,9 +132,16 @@ function tint(hex: string, amount: number): string {
 
 // Per-role visibility, mirroring lib/permissions.ts (server still enforces):
 // sell = managers/USER/SALES, money = managers/USER/SALES-with-toggle (the
-// toggle isn't known client-side, so SALES keeps the nav item and the page
-// decides), manage = OWNER/ADMIN.
-type NavItem = { href: string; label: string; icon: typeof Home; show?: (role: string) => boolean };
+// company's salesSeePayments toggle arrives as the `salesSeePayments` prop
+// and is threaded into every `show` as `salesMoney`, so a salesperson with
+// payments off never sees a money door that would only bounce them),
+// manage = OWNER/ADMIN.
+type NavItem = {
+  href: string;
+  label: string;
+  icon: typeof Home;
+  show?: (role: string, salesMoney: boolean) => boolean;
+};
 
 // Nav-count refresh throttle (module-level: survives re-renders, resets on
 // full reload). See the nav-counts effect below. 45 s: the badges (new
@@ -146,7 +154,9 @@ let lastNavCountsAt = 0;
 
 const isManagerRole = (r: string) => r === "OWNER" || r === "ADMIN";
 const sellRoles = (r: string) => isManagerRole(r) || r === "USER" || r === "SALES";
-const moneyRoles = (r: string) => isManagerRole(r) || r === "USER" || r === "SALES";
+// = lib/permissions canSeeMoney: SALES only with the company toggle on.
+const moneyRoles = (r: string, salesMoney: boolean) =>
+  isManagerRole(r) || r === "USER" || (r === "SALES" && salesMoney);
 
 // Jobber-style grouping: Home + Schedule, then the work lifecycle in order,
 // then business tools. Labeled sections read like mainstream SaaS nav.
@@ -190,7 +200,8 @@ const navGroups: { label?: string; items: NavItem[] }[] = [
       { href: "/app/expenses", label: "Expenses", icon: Wallet, show: isManagerRole },
       // Same labels as the Settings index — one name per page everywhere.
       { href: "/app/settings/products", label: "Services", icon: Tag, show: isManagerRole },
-      { href: "/app/settings/contracts", label: "Agreement templates", icon: FileSignature, show: isManagerRole },
+      { href: "/app/settings/booking", label: "Booking & forms", icon: Globe, show: isManagerRole },
+      { href: "/app/settings/team", label: "Team & roles", icon: UserPlus, show: isManagerRole },
     ],
   },
 ];
@@ -244,9 +255,8 @@ const railGroups: { key: string; label: string; items: NavItem[] }[] = [
       { href: "/app/expenses", label: "Expenses", icon: Wallet, show: isManagerRole },
       // Same labels as the Settings index — one name per page everywhere.
       { href: "/app/settings/products", label: "Services", icon: Tag, show: isManagerRole },
-      { href: "/app/settings/contracts", label: "Agreement templates", icon: FileSignature, show: isManagerRole },
       { href: "/app/settings/booking", label: "Booking & forms", icon: Globe, show: isManagerRole },
-      { href: "/app/settings/team", label: "Team", icon: UserPlus, show: isManagerRole },
+      { href: "/app/settings/team", label: "Team & roles", icon: UserPlus, show: isManagerRole },
     ],
   },
 ];
@@ -275,7 +285,6 @@ const railAnims: Record<string, string> = {
   "/app/subscriptions": "cycle",
   "/app/business": "grow",
   "/app/settings/products": "swing",
-  "/app/settings/contracts": "sheet",
   "/app/settings/booking": "spring",
   "/app/settings/team": "spring",
   "/app/settings": "turn",
@@ -329,7 +338,6 @@ const sectionTints: Record<string, string> = {
   "/app/subscriptions": SECTION_HUES.subscriptions,
   "/app/business": SECTION_HUES.business,
   "/app/settings/products": SECTION_HUES.services,
-  "/app/settings/contracts": SECTION_HUES.contracts,
   "/app/chat": SECTION_HUES.chat,
   "/app/messages": SECTION_HUES.chat,
   "/app/calls": SECTION_HUES.chat,
@@ -362,8 +370,8 @@ function trackPath(pathname: string): string | null {
   return priorPath;
 }
 
-const forRole = (items: NavItem[], role: string) =>
-  items.filter((i) => !i.show || i.show(role));
+const forRole = (items: NavItem[], role: string, salesMoney: boolean) =>
+  items.filter((i) => !i.show || i.show(role, salesMoney));
 
 // Guided-tour anchors (components/TourGuide.tsx). Keyed by href so the
 // desktop sidebar and mobile tab bar both carry them — the visible one wins.
@@ -382,12 +390,20 @@ const tourKeys: Record<string, string> = {
  * the same accent as every page CTA (the green→accent bridge), so the
  * shell's most prominent action finally matches the product's.
  */
-function CreateMenu({ role, previewMode }: { role: string; previewMode?: boolean }) {
+function CreateMenu({
+  role,
+  previewMode,
+  salesMoney,
+}: {
+  role: string;
+  previewMode?: boolean;
+  salesMoney: boolean;
+}) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   // Invoicing + payment recording are locked pre-approval — no dead doors
-  const items = forRole(createItems, role).filter(
+  const items = forRole(createItems, role, salesMoney).filter(
     (i) => !previewMode || (i.href !== "/app/invoices/new" && i.href !== "/app/payments/new")
   );
 
@@ -797,12 +813,14 @@ function CommandPalette({
   onClose,
   role,
   previewMode,
+  salesMoney,
   userId,
 }: {
   open: boolean;
   onClose: () => void;
   role: string;
   previewMode: boolean;
+  salesMoney: boolean;
   userId?: string | null;
 }) {
   const router = useRouter();
@@ -893,7 +911,7 @@ function CommandPalette({
   // id, so the form opens already pointed at the right person/job.
   const recordActions = (rec: DrillTarget): Row[] => {
     const id = rec.href.split("/").pop() ?? "";
-    const money = moneyRoles(role) && !previewMode;
+    const money = moneyRoles(role, salesMoney) && !previewMode;
     if (rec.group === "Clients") {
       const acts = [
         { href: rec.href, label: `Open ${rec.label}`, icon: Users, ok: true },
@@ -918,13 +936,22 @@ function CommandPalette({
   const hasActions = (row: { href: string; label: string; group: string }) =>
     (row.group === "Clients" || row.group === "Jobs") && recordActions(row).length > 1;
   const destinations: Row[] = [
-    ...forRole(railDrivers, role),
-    ...railGroups.flatMap((g) => forRole(g.items, role)),
+    ...forRole(railDrivers, role, salesMoney),
+    ...railGroups.flatMap((g) => forRole(g.items, role, salesMoney)),
     { href: "/app/chat", label: "Team Chat", icon: MessagesSquare },
     ...(manager ? [{ href: "/app/settings", label: "Settings", icon: Settings }] : []),
+    // Each settings section is its own destination — "Phone & texting" is
+    // findable by name, not by remembering which panel holds it.
+    ...(manager
+      ? SETTINGS_SECTIONS.map((s) => ({
+          href: settingsHref(s.key),
+          label: `Settings › ${s.label}`,
+          icon: Settings,
+        }))
+      : []),
     { href: "/app/settings/profile", label: "My Profile", icon: CircleUserRound },
   ].map((d) => ({ ...d, group: "Go to" }));
-  const creates: Row[] = forRole(createItems, role)
+  const creates: Row[] = forRole(createItems, role, salesMoney)
     // Same preview-mode lock as CreateMenu — no dead doors pre-approval
     .filter((c) => !previewMode || (c.href !== "/app/invoices/new" && c.href !== "/app/payments/new"))
     .map((c) => ({
@@ -1123,7 +1150,12 @@ function CommandPalette({
 // a letter starts a record. Single keys: `/` opens the palette, `?` the cheat
 // sheet. Sequences arm for 1.6 seconds and never fire while a field has
 // focus, so typing a note can't teleport the page.
-type SeqShortcut = { key: string; href: string; label: string; show?: (role: string) => boolean };
+type SeqShortcut = {
+  key: string;
+  href: string;
+  label: string;
+  show?: (role: string, salesMoney: boolean) => boolean;
+};
 
 const goShortcuts: SeqShortcut[] = [
   { key: "h", href: "/app/dashboard", label: "Home" },
@@ -1157,10 +1189,10 @@ const newShortcuts: SeqShortcut[] = [
 
 // Same preview-mode lock as CreateMenu: invoicing + payment recording wait
 // for approval, so their shortcuts do too.
-const seqFor = (list: SeqShortcut[], role: string, previewMode: boolean) =>
+const seqFor = (list: SeqShortcut[], role: string, previewMode: boolean, salesMoney: boolean) =>
   list.filter(
     (s) =>
-      (!s.show || s.show(role)) &&
+      (!s.show || s.show(role, salesMoney)) &&
       (!previewMode || (s.href !== "/app/invoices/new" && s.href !== "/app/payments/new"))
   );
 
@@ -1177,18 +1209,20 @@ function ShortcutsHelp({
   onClose,
   role,
   previewMode,
+  salesMoney,
 }: {
   open: boolean;
   onClose: () => void;
   role: string;
   previewMode: boolean;
+  salesMoney: boolean;
 }) {
   const [mac, setMac] = useState(false);
   useEffect(() => {
     setMac(/Mac|iPhone|iPad/.test(navigator.platform));
   }, []);
-  const go = seqFor(goShortcuts, role, false);
-  const creates = seqFor(newShortcuts, role, previewMode);
+  const go = seqFor(goShortcuts, role, false, salesMoney);
+  const creates = seqFor(newShortcuts, role, previewMode, salesMoney);
   const row = (label: string, keys: React.ReactNode) => (
     <div key={label} className="flex items-center justify-between gap-4 py-[5px] text-[13px] text-gray-700">
       <span className="min-w-0 truncate">{label}</span>
@@ -1246,10 +1280,12 @@ function ShortcutsHelp({
 function KeyboardShortcuts({
   role,
   previewMode,
+  salesMoney,
   openPalette,
 }: {
   role: string;
   previewMode: boolean;
+  salesMoney: boolean;
   openPalette: () => void;
 }) {
   const router = useRouter();
@@ -1287,7 +1323,7 @@ function KeyboardShortcuts({
       const mode = pendingRef.current;
       if (mode) {
         arm(null);
-        const hit = seqFor(mode === "g" ? goShortcuts : newShortcuts, role, previewMode).find(
+        const hit = seqFor(mode === "g" ? goShortcuts : newShortcuts, role, previewMode, salesMoney).find(
           (s) => s.key === k
         );
         if (hit) {
@@ -1317,7 +1353,7 @@ function KeyboardShortcuts({
       if (timerRef.current) clearTimeout(timerRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [role, previewMode, pathname]);
+  }, [role, previewMode, salesMoney, pathname]);
 
   return (
     <>
@@ -1336,6 +1372,7 @@ function KeyboardShortcuts({
         onClose={() => setHelpOpen(false)}
         role={role}
         previewMode={previewMode}
+        salesMoney={salesMoney}
       />
     </>
   );
@@ -1346,6 +1383,10 @@ interface AppShellProps {
   userName?: string | null;
   userEmail?: string | null;
   role?: string | null;
+  /** Company.salesSeePayments (Actor.salesSeePayments): whether SALES may
+   *  open invoices/payments. Only changes what SALES sees; default on, like
+   *  the actor's own fallback. */
+  salesSeePayments?: boolean;
   companyName?: string | null;
   companyLogoUrl?: string | null;
   wallpaper?: string | null;
@@ -1356,9 +1397,9 @@ interface AppShellProps {
   sidebarLogoSize?: number | null;
   brandColor?: string | null;
   brandColorSecondary?: string | null;
-  /** Company.brandFont — app-wide Google Font override (Settings → Branding) */
+  /** Company.brandFont — app-wide Google Font override (Settings → Branding & client experience) */
   brandFont?: string | null;
-  /** Company.sectionColors — per-section hue overrides (Settings → Branding) */
+  /** Company.sectionColors — per-section hue overrides (Settings → Branding & client experience) */
   sectionColors?: unknown;
   teamCount?: number;
   needsTour?: boolean;
@@ -1382,6 +1423,7 @@ export default function AppShell({
   userName,
   userEmail,
   role,
+  salesSeePayments = true,
   companyName,
   companyLogoUrl,
   wallpaper = "none",
@@ -1404,6 +1446,9 @@ export default function AppShell({
   const atlasLocked = atlas.level === "locked";
   const userRole = role ?? "OWNER";
   const manager = isManagerRole(userRole);
+  // The company's SALES money toggle, threaded into every nav filter
+  // (forRole/seqFor → moneyRoles) so the shell agrees with canSeeMoney.
+  const salesMoney = salesSeePayments;
   // Rail color is no longer its own customization — it follows the THEME:
   // light gray in light mode (rail-gray, tinted by the tenant primary in
   // globals.css), dark gray in dark mode (the dark bridge repaints it).
@@ -1687,7 +1732,6 @@ export default function AppShell({
         !pathname.startsWith("/app/settings/booking") &&
         !pathname.startsWith("/app/settings/team") &&
         !pathname.startsWith("/app/settings/products") &&
-        !pathname.startsWith("/app/settings/contracts") &&
         !pathname.startsWith("/app/settings/profile")
       );
     }
@@ -1773,11 +1817,11 @@ export default function AppShell({
           Create moved to the top bar; the rail is pure navigation. */}
       <nav ref={railNavRef} className="relative flex-1 py-3 overflow-y-auto">
         <span ref={railIndRef} aria-hidden className="rail-indicator" />
-        {forRole(railDrivers, userRole).map(({ href, label, icon: Icon }) =>
+        {forRole(railDrivers, userRole, salesMoney).map(({ href, label, icon: Icon }) =>
           navLink(href, label, Icon)
         )}
         {railGroups
-          .map((g) => ({ ...g, items: forRole(g.items, userRole) }))
+          .map((g) => ({ ...g, items: forRole(g.items, userRole, salesMoney) }))
           .filter((g) => g.items.length > 0)
           .map((g) => {
             const open = (openGroups[g.key] ?? false) || g.items.some((i) => isActive(i.href));
@@ -1938,11 +1982,11 @@ export default function AppShell({
       })()
     : undefined;
 
-  // Custom section colors (Settings → Branding → Section colors): four
+  // Custom section colors (Settings → Branding & client experience → Section colors): four
   // theme-guarded vars per overridden section; defaults live in globals.css.
   const sectionVars = sectionColorVars(sanitizeSectionColors(sectionColors));
 
-  // App-wide brand font (Settings → Branding): any Google Font, loaded on the
+  // App-wide brand font (Settings → Branding & client experience): any Google Font, loaded on the
   // fly exactly like the booking forms do. Overrides body + display vars on
   // the shell root; .numeral-ledger and .stamp pin Oxanium explicitly in
   // globals.css, so ledger numerals keep their character.
@@ -1988,6 +2032,7 @@ export default function AppShell({
         open={moreOpen}
         onClose={() => setMoreOpen(false)}
         role={userRole}
+        salesMoney={salesMoney}
         counts={counts}
         teamCount={teamCount}
         userName={userName}
@@ -2126,7 +2171,7 @@ export default function AppShell({
 
           {/* Global create — the page-level CTA color, one click from
               anywhere (the rail is pure navigation now) */}
-          <CreateMenu role={userRole} previewMode={previewMode} />
+          <CreateMenu role={userRole} previewMode={previewMode} salesMoney={salesMoney} />
 
           {/* Team chat — always one click away without spending sidebar space.
               Shown even for solo companies: the chat page nudges them to add
@@ -2234,6 +2279,7 @@ export default function AppShell({
         onClose={() => setPaletteOpen(false)}
         role={userRole}
         previewMode={previewMode}
+        salesMoney={salesMoney}
         userId={userId}
       />
 
@@ -2241,6 +2287,7 @@ export default function AppShell({
       <KeyboardShortcuts
         role={userRole}
         previewMode={previewMode}
+        salesMoney={salesMoney}
         openPalette={() => setPaletteOpen(true)}
       />
 
@@ -2263,6 +2310,7 @@ export default function AppShell({
 
       <MobileTabBar
         role={userRole}
+        salesMoney={salesMoney}
         isActive={isActive}
         pastDue={counts.pastDue}
         chatUnread={counts.chat}
@@ -2343,6 +2391,7 @@ export default function AppShell({
  */
 function MobileTabBar({
   role,
+  salesMoney,
   isActive,
   pastDue,
   chatUnread,
@@ -2350,6 +2399,7 @@ function MobileTabBar({
   previewMode,
 }: {
   role: string;
+  salesMoney: boolean;
   isActive: (href: string) => boolean;
   pastDue: number;
   chatUnread: number;
@@ -2358,7 +2408,7 @@ function MobileTabBar({
 }) {
   const pathname = usePathname();
   const [sheetOpen, setSheetOpen] = useState(false);
-  const creates = forRole(createItems, role).filter(
+  const creates = forRole(createItems, role, salesMoney).filter(
     (i) => !previewMode || (i.href !== "/app/invoices/new" && i.href !== "/app/payments/new")
   );
 
@@ -2553,6 +2603,7 @@ function MoreSheet({
   open,
   onClose,
   role,
+  salesMoney,
   counts,
   teamCount,
   userName,
@@ -2568,6 +2619,7 @@ function MoreSheet({
   open: boolean;
   onClose: () => void;
   role: string;
+  salesMoney: boolean;
   counts: { requests: number; pastDue: number; chat: number };
   teamCount: number;
   userName?: string | null;
@@ -2596,7 +2648,7 @@ function MoreSheet({
     const active = isActive(href);
     // Section hue on the icon tile — with this many destinations the color
     // is wayfinding: a quick glance finds Jobs orange / Invoices sky without
-    // reading labels. (Tenants can repaint these in Settings → Branding.)
+    // reading labels. (Tenants can repaint these in Settings → Branding & client experience.)
     // The hue rainbow stays CONFINED to the two nav sheets — lists, tiles,
     // and chips elsewhere on phones hold the one-accent discipline.
     const tint = sectionTints[href];
@@ -2655,13 +2707,12 @@ function MoreSheet({
 
   const teamItems: NavItem[] = [
     ...(teamCount > 1 ? [{ href: "/app/chat", label: "Team Chat", icon: MessagesSquare }] : []),
-    ...(manager
-      ? [
-          { href: "/app/settings/booking", label: "Booking & forms", icon: Globe },
-          { href: "/app/settings/team", label: "Team", icon: UserPlus },
-          { href: "/app/settings", label: "Settings", icon: Settings },
-        ]
-      : []),
+  ];
+  // Settings sits beside Help, not under "Team" — it was the one row on the
+  // phone that no heading described.
+  const accountItems: NavItem[] = [
+    ...(manager ? [{ href: "/app/settings", label: "Settings", icon: Settings }] : []),
+    { href: "/app/support", label: "Help & Feedback", icon: LifeBuoy },
   ];
 
   return (
@@ -2723,9 +2774,9 @@ function MoreSheet({
 
           {navGroups
             .slice(1) // Home + Schedule already live on the tab bar
-            .map((g) => group(g.label ?? null, forRole(g.items, role)))}
+            .map((g) => group(g.label ?? null, forRole(g.items, role, salesMoney)))}
           {group(teamItems.length > 0 ? "Team" : null, teamItems)}
-          {group("Support", [{ href: "/app/support", label: "Help & Feedback", icon: LifeBuoy }])}
+          {group("Settings & help", accountItems)}
 
           {/* Sign out */}
           <div className="card-tool mt-4 overflow-hidden">

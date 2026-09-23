@@ -7,6 +7,7 @@ import PayoutButton from "./PayoutButton";
 import RefundAction from "./RefundAction";
 import { Plus, ArrowUpRight, ChevronRight, DollarSign, Download } from "lucide-react";
 import { money, shortDate } from "@/lib/statuses";
+import { startOfMonthIn, zonedParts } from "@/lib/timezone";
 import EmptyState from "@/components/EmptyState";
 import PageTitle from "@/components/PageTitle";
 import KpiStrip from "@/components/KpiStrip";
@@ -67,8 +68,12 @@ export default async function PaymentsDashboardPage({
       finixMerchantId: true,
       finixOnboardingState: true,
       brandColor: true,
+      timezone: true,
     },
   });
+  // "This month" and every date on the page read in the company's zone —
+  // the server clock is UTC.
+  const tz = company?.timezone ?? "America/Chicago";
 
   const processor = getProcessor();
   const online =
@@ -146,9 +151,7 @@ export default async function PaymentsDashboardPage({
   }
 
   const today = new Date();
-  const monthStart = new Date();
-  monthStart.setDate(1);
-  monthStart.setHours(0, 0, 0, 0);
+  const monthStart = startOfMonthIn(tz, today);
   const [monthAgg, allAgg, monthPayments] = await Promise.all([
     prisma.payment.aggregate({
       where: { companyId, processorRef: { not: null }, paidAt: { gte: monthStart } },
@@ -167,10 +170,11 @@ export default async function PaymentsDashboardPage({
   ]);
 
   // Day-by-day bars for the "Collected" card, like the dashboard's
-  const dailyOnline = Array.from({ length: today.getDate() }, () => 0);
+  const dailyOnline = Array.from({ length: zonedParts(tz, today).d }, () => 0);
   for (const p of monthPayments) {
     const amt = Number(p.amount);
-    if (amt > 0) dailyOnline[new Date(p.paidAt).getDate() - 1] += amt;
+    const dayIdx = zonedParts(tz, new Date(p.paidAt)).d - 1;
+    if (amt > 0 && dayIdx >= 0 && dayIdx < dailyOnline.length) dailyOnline[dayIdx] += amt;
   }
 
   // Evidence already uploaded per dispute — best-effort, like the reads above
@@ -344,9 +348,9 @@ export default async function PaymentsDashboardPage({
             </p>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 bg-gray-50/60 px-5 py-3 sm:px-6">
-            <p className="text-xs text-gray-500">A short application in Settings starts it.</p>
+            <p className="text-xs text-gray-500">A short application in Settings → Payments &amp; accounting starts it.</p>
             <Link
-              href="/app/settings"
+              href="/app/settings?s=payments"
               className="btn-primary"
             >
               Set up payments <ArrowUpRight size={14} />
@@ -439,7 +443,7 @@ export default async function PaymentsDashboardPage({
                         {d.respond_by && (
                           <span className="text-xs text-gray-500">
                             {" "}
-                            · respond by {shortDate(new Date(d.respond_by))}
+                            · respond by {shortDate(new Date(d.respond_by), tz)}
                           </span>
                         )}
                       </span>
@@ -514,7 +518,7 @@ export default async function PaymentsDashboardPage({
                       className="flex lg:grid lg:grid-cols-[110px_1fr_110px_110px_110px] gap-4 items-center px-4 py-2.5"
                     >
                       <span className="text-sm text-gray-500 w-20 lg:w-auto shrink-0">
-                        {s.created_at ? shortDate(new Date(s.created_at)) : ""}
+                        {s.created_at ? shortDate(new Date(s.created_at), tz) : ""}
                       </span>
                       <span className={`stamp ${state.tone} flex-1 lg:flex-none`}>
                         {state.label}
@@ -589,7 +593,7 @@ export default async function PaymentsDashboardPage({
                     className="flex lg:grid lg:grid-cols-[110px_1fr_90px_130px_110px_56px] gap-4 items-center px-4 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
                   >
                     <span className="text-sm text-gray-500 w-20 lg:w-auto shrink-0">
-                      {shortDate(p.paidAt)}
+                      {shortDate(p.paidAt, tz)}
                     </span>
                     <div className="flex-1 lg:flex-none min-w-0">
                       <p className="text-sm font-medium text-gray-900 truncate">

@@ -42,7 +42,7 @@ export default function RootLayout({
         {/* Theme stamp — runs before paint so there's no light/dark flash.
             data-mode on <html> drives every dark-theme rule in globals.css;
             "hub-theme" in localStorage ("light" | "dark" | "system") is the
-            per-device choice from Settings → Appearance. The app is LIGHT
+            per-device choice from My Profile → Appearance. The app is LIGHT
             unless the user explicitly chose Dark or Automatic — following the
             device theme by default made the app flip to dark mid-session on
             phones set to system dark, which read as a bug.

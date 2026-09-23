@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, canSeeMoney, contactScope, viaContactScope } from "@/lib/permissions";
+import { pastDueFilter } from "@/lib/due-dates";
 
 /**
  * Recent-activity feed for the mobile header bell: the same events the push
@@ -103,7 +104,7 @@ export async function GET() {
             ...scope,
             OR: [
               { status: "PAST_DUE" },
-              { status: "AWAITING_PAYMENT", dueDate: { lt: new Date() } },
+              { status: "AWAITING_PAYMENT", dueDate: pastDueFilter() },
             ],
           },
           orderBy: { dueDate: "asc" },

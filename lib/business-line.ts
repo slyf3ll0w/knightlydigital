@@ -1654,7 +1654,7 @@ export async function runLineReleaseSweep(now = new Date()): Promise<{ stamped: 
           {
             title: "Your business line",
             body: `Your plan ended, so ${c.lineNumber} will be released in ${LINE_GRACE_DAYS} days. Resubscribe to keep it, or port it out before then.`,
-            url: "/app/settings?s=features",
+            url: "/app/settings?s=phone",
             tag: `line-release-${c.id}`,
           }
         ).catch(() => {});

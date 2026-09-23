@@ -37,6 +37,10 @@ export default async function QuotesPage({
   const actor = await requirePageActor((a) => canSell(a.role));
   const companyId = actor.companyId;
   const scope = viaContactScope(actor);
+  // Dates render in the company's zone — the server clock is UTC.
+  const tz =
+    (await prisma.company.findUnique({ where: { id: companyId }, select: { timezone: true } }))
+      ?.timezone ?? "America/Chicago";
 
   const { status, q, page: pageParam, sort: sortRaw } = await searchParams;
   const sort = pickSort(sortRaw, QUOTE_SORTS);
@@ -229,7 +233,7 @@ export default async function QuotesPage({
                     {q.title && <p className="text-xs text-gray-500 truncate">{q.title}</p>}
                   </div>
                   <span className="hidden lg:block text-sm text-gray-500">#{q.quoteNumber}</span>
-                  <span className="hidden lg:block text-sm text-gray-500">{shortDate(q.createdAt)}</span>
+                  <span className="hidden lg:block text-sm text-gray-500">{shortDate(q.createdAt, tz)}</span>
                   <span className="hidden lg:block">
                     <StatusChip kind="quote" status={q.status} />
                   </span>

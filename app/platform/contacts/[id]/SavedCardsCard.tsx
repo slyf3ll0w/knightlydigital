@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { CreditCard, Loader2, Plus, Trash2 } from "lucide-react";
 import { confirmSheet } from "@/components/ConfirmSheet";
 import { FINIX_JS_SRC, type FinixConfig, type FinixForm } from "@/lib/finix-js";
+import { postJson } from "@/lib/safe-fetch";
 
 /**
  * Cards on file, staff side. Lists every saved card (default first) and — for
@@ -115,13 +116,21 @@ export default function SavedCardsCard({
 
   async function makeDefault(card: Card) {
     setBusyId(card.id);
-    await fetch(`/api/app/contacts/${contactId}/payment-method`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ cardId: card.id }),
-    });
-    setBusyId(null);
-    router.refresh();
+    setError("");
+    try {
+      const { ok, data } = await postJson(
+        `/api/app/contacts/${contactId}/payment-method`,
+        { cardId: card.id },
+        "PATCH"
+      );
+      if (!ok) {
+        setError(data?.error ?? "Couldn't change the default card. Please try again.");
+        return;
+      }
+      router.refresh();
+    } finally {
+      setBusyId(null);
+    }
   }
 
   async function removeCard(card: Card) {
@@ -135,13 +144,21 @@ export default function SavedCardsCard({
     )
       return;
     setBusyId(card.id);
-    await fetch(`/api/app/contacts/${contactId}/payment-method`, {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ cardId: card.id }),
-    });
-    setBusyId(null);
-    router.refresh();
+    setError("");
+    try {
+      const { ok, data } = await postJson(
+        `/api/app/contacts/${contactId}/payment-method`,
+        { cardId: card.id },
+        "DELETE"
+      );
+      if (!ok) {
+        setError(data?.error ?? "Couldn't remove the card. Please try again.");
+        return;
+      }
+      router.refresh();
+    } finally {
+      setBusyId(null);
+    }
   }
 
   return (
@@ -158,6 +175,12 @@ export default function SavedCardsCard({
           </button>
         )}
       </div>
+
+      {error && !adding && (
+        <div role="alert" className="form-error mb-3">
+          {error}
+        </div>
+      )}
 
       {cards.length === 0 && !adding && (
         <p className="text-sm text-gray-400">

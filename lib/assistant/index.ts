@@ -156,7 +156,7 @@ const APP_CHEATSHEET = `Navigation map — ONLY for when the user asks where som
 - Timesheets + labor cost (managers): /app/timesheets
 - Client messages (portal thread): /app/messages — Team chat: /app/chat
 - Business (expenses, recurring expenses, insights): /app/business
-- Agreements (e-sign): /app/contracts — templates: /app/settings/contracts
+- Agreements (e-sign): /app/contracts — templates: /app/contracts?view=templates
 - Price book: /app/settings/products
 - Estimate tools (saved quote calculators you build for them): /app/estimates
 - Automations (when-this-then-that rules you build for them; pause/delete + run log): /app/settings/automations

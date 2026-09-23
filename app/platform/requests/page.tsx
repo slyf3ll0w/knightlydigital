@@ -33,6 +33,10 @@ export default async function RequestsPage({
 }) {
   const actor = await requirePageActor((a) => canSell(a.role));
   const companyId = actor.companyId;
+  // Dates render in the company's zone — the server clock is UTC.
+  const tz =
+    (await prisma.company.findUnique({ where: { id: companyId }, select: { timezone: true } }))
+      ?.timezone ?? "America/Chicago";
 
   const { status, assignee, q, page: pageParam, sort: sortRaw } = await searchParams;
   const sort = pickSort(sortRaw, REQUEST_SORTS);
@@ -192,7 +196,7 @@ export default async function RequestsPage({
                       <p className="min-w-0 flex-1 truncate text-[15.5px] font-semibold text-gray-900">
                         {r.title}
                       </p>
-                      <p className="shrink-0 text-xs text-gray-500">{shortDate(r.createdAt)}</p>
+                      <p className="shrink-0 text-xs text-gray-500">{shortDate(r.createdAt, tz)}</p>
                     </div>
                     <div className="mt-0.5 flex items-center justify-between gap-3">
                       <p className="min-w-0 flex-1 truncate text-[13px] text-gray-600">
@@ -206,7 +210,7 @@ export default async function RequestsPage({
                   {r.contact.firstName} {r.contact.lastName}
                 </span>
                 <span className="hidden lg:block text-sm text-gray-600 truncate">{r.title}</span>
-                <span className="hidden lg:block text-sm text-gray-500">{shortDate(r.createdAt)}</span>
+                <span className="hidden lg:block text-sm text-gray-500">{shortDate(r.createdAt, tz)}</span>
                 <span className="hidden lg:block">
                   <StatusChip kind="request" status={r.status} />
                 </span>

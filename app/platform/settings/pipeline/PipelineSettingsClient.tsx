@@ -66,12 +66,18 @@ export default function PipelineSettingsClient({
 
   const refresh = () => startTransition(() => router.refresh());
 
-  async function run(fn: () => Promise<{ ok: boolean; data: { error?: string } | null }>) {
+  // Optimistic edits: `rollback` runs when the server says no, so the list
+  // never keeps showing a change that didn't save
+  async function run(
+    fn: () => Promise<{ ok: boolean; data: { error?: string } | null }>,
+    rollback?: () => void
+  ) {
     setSaving(true);
     setError("");
     const { ok, data } = await fn();
     setSaving(false);
     if (!ok) {
+      rollback?.();
       setError(data?.error ?? GENERIC_ERROR);
       return false;
     }
@@ -79,7 +85,16 @@ export default function PipelineSettingsClient({
     return true;
   }
 
+  // The Converted section lives outside `stages`; its color/name preview is
+  // held here so a failed save can put it back too
+  const [convertedLocal, setConvertedLocal] = useState(convertedStage);
+
   async function patchStage(id: string, patch: Partial<Stage>) {
+    const before = stages;
+    const convertedBefore = convertedLocal;
+    if (convertedLocal && id === convertedLocal.id) {
+      setConvertedLocal({ ...convertedLocal, ...patch });
+    }
     setStages((s) => s.map((st) => (st.id === id ? { ...st, ...patch } : st)));
     // Claiming a trigger releases it from the stage that had it (server does
     // the same) — mirror locally so the selects don't show a stale claim
@@ -92,17 +107,38 @@ export default function PipelineSettingsClient({
         )
       );
     }
-    await run(() => postJson(`/api/app/pipeline/stages/${id}`, patch, "PATCH"));
+    await run(
+      () => postJson(`/api/app/pipeline/stages/${id}`, patch, "PATCH"),
+      () => {
+        setStages(before);
+        setConvertedLocal(convertedBefore);
+      }
+    );
   }
 
   async function move(index: number, dir: -1 | 1) {
+    const before = stages;
     const next = [...stages];
     const [item] = next.splice(index, 1);
     next.splice(index + dir, 0, item);
     setStages(next);
-    await run(() =>
-      postJson("/api/app/pipeline/stages/reorder", { orderedIds: next.map((s) => s.id) })
+    await run(
+      () => postJson("/api/app/pipeline/stages/reorder", { orderedIds: next.map((s) => s.id) }),
+      () => setStages(before)
     );
+  }
+
+  // The color picker fires `change` on every drag tick in some browsers —
+  // preview locally as it moves, and PATCH once when the picker settles
+  const [colorDraft, setColorDraft] = useState<Record<string, string>>({});
+  function commitColor(id: string, current: string | null) {
+    const v = colorDraft[id];
+    setColorDraft((d) => {
+      const rest = { ...d };
+      delete rest[id];
+      return rest;
+    });
+    if (v && v !== current) patchStage(id, { color: v });
   }
 
   async function removeStage(stage: Stage) {
@@ -115,8 +151,12 @@ export default function PipelineSettingsClient({
       }))
     )
       return;
+    const before = stages;
     setStages((s) => s.filter((st) => st.id !== stage.id));
-    await run(() => postJson(`/api/app/pipeline/stages/${stage.id}`, undefined, "DELETE"));
+    await run(
+      () => postJson(`/api/app/pipeline/stages/${stage.id}`, undefined, "DELETE"),
+      () => setStages(before)
+    );
   }
 
   async function addStage(e: React.FormEvent) {
@@ -240,8 +280,9 @@ export default function PipelineSettingsClient({
 
               <input
                 type="color"
-                value={stage.color ?? "#0C0F0C"}
-                onChange={(e) => patchStage(stage.id, { color: e.target.value })}
+                value={colorDraft[stage.id] ?? stage.color ?? "#0C0F0C"}
+                onChange={(e) => setColorDraft((d) => ({ ...d, [stage.id]: e.target.value }))}
+                onBlur={() => commitColor(stage.id, stage.color)}
                 className="w-8 h-8 rounded cursor-pointer border border-gray-200 bg-white p-0.5"
                 title="Column color"
               />
@@ -288,23 +329,26 @@ export default function PipelineSettingsClient({
         </div>
 
         {/* Converted — the built-in terminal section */}
-        {convertedStage && (
+        {convertedLocal && (
           <div className="mt-3 rounded-lg border border-green-200 bg-green-50/50 px-3 py-2.5">
             <div className="flex flex-wrap items-center gap-2">
               <input
                 type="color"
-                value={convertedStage.color ?? "#22C55E"}
-                onChange={(e) => patchStage(convertedStage.id, { color: e.target.value })}
+                value={colorDraft[convertedLocal.id] ?? convertedLocal.color ?? "#22C55E"}
+                onChange={(e) =>
+                  setColorDraft((d) => ({ ...d, [convertedLocal.id]: e.target.value }))
+                }
+                onBlur={() => commitColor(convertedLocal.id, convertedLocal.color)}
                 className="w-8 h-8 rounded cursor-pointer border border-gray-200 bg-white p-0.5"
                 title="Section color"
               />
               <input
-                defaultValue={convertedStage.name}
+                defaultValue={convertedLocal.name}
                 maxLength={40}
                 onBlur={(e) => {
                   const v = e.target.value.trim();
-                  if (v && v !== convertedStage.name) patchStage(convertedStage.id, { name: v });
-                  else e.target.value = convertedStage.name;
+                  if (v && v !== convertedLocal.name) patchStage(convertedLocal.id, { name: v });
+                  else e.target.value = convertedLocal.name;
                 }}
                 className="flex-1 min-w-[120px] px-2.5 py-1.5 text-sm font-medium border border-green-200 lg:border-transparent lg:hover:border-gray-200 focus:border-gray-300 rounded-lg focus:outline-none bg-transparent"
               />

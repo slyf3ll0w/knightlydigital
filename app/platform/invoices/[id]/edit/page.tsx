@@ -37,7 +37,9 @@ export default async function EditInvoicePage({
         subject: invoice.subject ?? "",
         notes: invoice.notes ?? "",
         clientMessage: invoice.clientMessage ?? "",
-        taxRatePercent: invoice.taxRate ? String(Number(invoice.taxRate) * 100) : "",
+        // Same rounding as the quote editor: 0.07 * 100 is 7.000000000000001
+        // in floating point, and that's what the field used to show
+        taxRatePercent: invoice.taxRate ? String(Math.round(Number(invoice.taxRate) * 100000) / 1000) : "",
         discountType:
           invoice.discountType === "PERCENT" || invoice.discountType === "FIXED"
             ? invoice.discountType
@@ -53,6 +55,9 @@ export default async function EditInvoicePage({
           description: li.description,
           quantity: Number(li.quantity),
           unitPrice: Number(li.unitPrice),
+          // Hidden margin figure — the editor PATCHes every line back, so a
+          // cost left out here was a cost erased on save
+          unitCost: li.unitCost != null ? Number(li.unitCost) : null,
           workItemId: li.workItemId,
           recurringInterval: li.recurringInterval,
           serviceDate: li.serviceDate ? li.serviceDate.toISOString() : null,

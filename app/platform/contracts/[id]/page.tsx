@@ -1,12 +1,15 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { requirePageActor, canSell, isManager, viaContactScope } from "@/lib/permissions";
-import { shortDate } from "@/lib/statuses";
+import { shortDate, quoteStatusLabel } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
 import ViewedFact from "@/components/ViewedFact";
 import ContractActions from "./ContractActions";
+
+export const metadata: Metadata = { title: "Agreement" };
 
 export default async function ContractDetailPage({
   params,
@@ -18,9 +21,17 @@ export default async function ContractDetailPage({
   const { id } = await params;
   const contract = await prisma.contract.findFirst({
     where: { id, companyId: actor.companyId, ...viaContactScope(actor) },
-    include: { contact: true },
+    include: {
+      contact: true,
+      quote: { select: { id: true, quoteNumber: true, status: true } },
+    },
   });
   if (!contract) notFound();
+
+  // Dates render in the company's zone — the server clock is UTC.
+  const tz =
+    (await prisma.company.findUnique({ where: { id: actor.companyId }, select: { timezone: true } }))
+      ?.timezone ?? "America/Chicago";
 
   const baseUrl = process.env.NEXTAUTH_URL ?? "";
   const signUrl = `${baseUrl}/contract/${contract.publicToken}`;
@@ -29,7 +40,7 @@ export default async function ContractDetailPage({
     <div className="p-4 lg:p-8 max-w-3xl mx-auto">
       <div className="flex items-center gap-3 mb-4">
         <Link
-          prefetch={false} href={`/app/contacts/${contract.contactId}`}
+          prefetch={false} href="/app/contracts"
           className="hidden lg:block text-gray-400 hover:text-gray-600"
         >
           <ArrowLeft size={18} />
@@ -54,15 +65,28 @@ export default async function ContractDetailPage({
           canDelete={isManager(actor.role)}
           title={contract.title}
           body={contract.body}
+          contactEmail={contract.contact.email}
         />
       </div>
 
-      {(contract.sentAt || contract.firstViewedAt) && (
+      {(contract.sentAt || contract.firstViewedAt || contract.quote) && (
         <div className="flex flex-wrap gap-x-8 gap-y-2 px-5 py-4 card-ledger mb-6 text-sm">
           {contract.sentAt && (
             <div>
               <span className="text-xs font-medium text-gray-500 block">Sent</span>
-              <span className="text-gray-800">{shortDate(contract.sentAt)}</span>
+              <span className="text-gray-800">{shortDate(contract.sentAt, tz)}</span>
+            </div>
+          )}
+          {contract.quote && (
+            <div>
+              <span className="text-xs font-medium text-gray-500 block">From quote</span>
+              <Link
+                prefetch={false}
+                href={`/app/quotes/${contract.quote.id}`}
+                className="text-green-700 hover:underline"
+              >
+                Quote #{contract.quote.quoteNumber} ({quoteStatusLabel[contract.quote.status]})
+              </Link>
             </div>
           )}
           <ViewedFact
@@ -70,6 +94,7 @@ export default async function ContractDetailPage({
             lastViewedAt={contract.lastViewedAt}
             viewCount={contract.viewCount}
             sent={!!contract.sentAt || contract.status !== "DRAFT"}
+            tz={tz}
           />
         </div>
       )}
@@ -84,6 +109,7 @@ export default async function ContractDetailPage({
               year: "numeric",
               hour: "numeric",
               minute: "2-digit",
+              timeZone: tz,
             })}`}
           {contract.signedFromIp && ` · IP ${contract.signedFromIp}`}
         </div>

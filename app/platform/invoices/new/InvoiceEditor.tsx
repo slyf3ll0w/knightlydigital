@@ -10,7 +10,7 @@ import { type PickerWorkItem } from "@/components/WorkItemPicker";
 import ContactPicker from "@/components/ContactPicker";
 import LineItemsEditor, {
   type EditorLineItem,
-  emptyEditorLine,
+  newEditorLine,
   payloadRecurringInterval,
 } from "@/components/LineItemsEditor";
 
@@ -32,6 +32,7 @@ type EditInvoice = {
     description: string;
     quantity: number;
     unitPrice: number;
+    unitCost?: number | string | null;
     workItemId?: string | null;
     recurringInterval?: string | null;
     serviceDate?: string | null;
@@ -90,17 +91,7 @@ export default function InvoiceEditor({
         : null;
   const initLines: EditorLineItem[] = editInvoice
     ? editInvoice.lineItems.map((li) => ({
-        ...emptyEditorLine,
-        name: li.name ?? "",
-        description: li.description ?? "",
-        quantity: String(li.quantity),
-        unitPrice: String(li.unitPrice),
-        workItemId: li.workItemId ?? undefined,
-        recurringInterval: li.recurringInterval ?? null,
-        serviceDate: li.serviceDate ?? null,
-      }))
-    : sourceLines?.map((li) => ({
-        ...emptyEditorLine,
+        ...newEditorLine(),
         name: li.name ?? "",
         description: li.description ?? "",
         quantity: String(li.quantity),
@@ -108,7 +99,18 @@ export default function InvoiceEditor({
         unitCost: li.unitCost != null ? String(Number(li.unitCost)) : "",
         workItemId: li.workItemId ?? undefined,
         recurringInterval: li.recurringInterval ?? null,
-      })) ?? [{ ...emptyEditorLine }];
+        serviceDate: li.serviceDate ?? null,
+      }))
+    : sourceLines?.map((li) => ({
+        ...newEditorLine(),
+        name: li.name ?? "",
+        description: li.description ?? "",
+        quantity: String(li.quantity),
+        unitPrice: String(li.unitPrice),
+        unitCost: li.unitCost != null ? String(Number(li.unitCost)) : "",
+        workItemId: li.workItemId ?? undefined,
+        recurringInterval: li.recurringInterval ?? null,
+      })) ?? [newEditorLine()];
 
   const [contactId, setContactId] = useState(prefillJob?.contactId ?? prefilledContactId);
   const [jobId] = useState(prefillJob?.id ?? "");

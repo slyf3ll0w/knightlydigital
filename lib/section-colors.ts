@@ -50,7 +50,7 @@ export const SECTION_LABELS: Record<SectionKey, string> = {
   subscriptions: "Recurring",
   business: "Business",
   services: "Services",
-  contracts: "Agreement templates",
+  contracts: "Agreements",
   chat: "Team Chat",
   forms: "Booking & forms",
   team: "Team",

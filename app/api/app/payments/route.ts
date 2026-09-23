@@ -84,9 +84,10 @@ export async function POST(req: NextRequest) {
     });
     return NextResponse.json({ payment, fullyPaid }, { status: 201 });
   } catch (e) {
-    return NextResponse.json(
-      { error: e instanceof Error ? e.message : "Failed to record payment." },
-      { status: 500 }
-    );
+    // recordPayment's own "Invoice not found" is pre-checked above (scoped),
+    // so anything landing here is a DB/email failure — log it and keep the
+    // internals (Prisma messages, table names) out of the response.
+    console.error("[payments] recordPayment failed:", e);
+    return NextResponse.json({ error: "Failed to record payment." }, { status: 500 });
   }
 }

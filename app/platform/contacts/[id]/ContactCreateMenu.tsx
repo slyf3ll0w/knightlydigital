@@ -4,8 +4,13 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { Plus, Inbox, CalendarClock, FileText, FileSignature, Briefcase, Receipt, DollarSign } from "lucide-react";
 
-/** Per-client scoped Create menu (Jobber's client-page Create button). */
-export default function ContactCreateMenu({ contactId }: { contactId: string }) {
+/**
+ * Per-client scoped Create menu (Jobber's client-page Create button).
+ * `canSeeMoney` = lib/permissions canSeeMoney(actor): Invoice/Payment are
+ * only offered to roles that can open those forms (SALES needs the
+ * salesSeePayments toggle).
+ */
+export default function ContactCreateMenu({ contactId, canSeeMoney }: { contactId: string; canSeeMoney: boolean }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -23,8 +28,12 @@ export default function ContactCreateMenu({ contactId }: { contactId: string }) 
     { href: `/app/quotes/new?contactId=${contactId}`, label: "Quote", icon: FileText },
     { href: `/app/contracts/new?contactId=${contactId}`, label: "Contract", icon: FileSignature },
     { href: `/app/jobs/new?contactId=${contactId}`, label: "Job", icon: Briefcase },
-    { href: `/app/invoices/new?contactId=${contactId}`, label: "Invoice", icon: Receipt },
-    { href: `/app/payments/new?contactId=${contactId}`, label: "Payment", icon: DollarSign },
+    ...(canSeeMoney
+      ? [
+          { href: `/app/invoices/new?contactId=${contactId}`, label: "Invoice", icon: Receipt },
+          { href: `/app/payments/new?contactId=${contactId}`, label: "Payment", icon: DollarSign },
+        ]
+      : []),
   ];
 
   return (

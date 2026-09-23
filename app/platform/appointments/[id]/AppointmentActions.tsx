@@ -82,6 +82,18 @@ export default function AppointmentActions({
     setEditing(true);
   }
 
+  // Same idea for the reschedule strip: start from what's saved, not from
+  // whatever was typed and abandoned last time (or from the first render's
+  // props, which router.refresh() has since moved past)
+  function openReschedule() {
+    setAnytime(scheduledAnytime);
+    setStart(toLocalInput(scheduledAt));
+    setEnd(toLocalInput(scheduledEnd));
+    setError("");
+    setMenuOpen(false);
+    setRescheduling(true);
+  }
+
   async function saveEdit() {
     if (!form.title.trim()) {
       setError("The appointment needs a title.");
@@ -149,6 +161,12 @@ export default function AppointmentActions({
   }
 
   async function saveReschedule() {
+    // A date with no time yet is a bare "YYYY-MM-DD" from the picker — not a
+    // schedule, and it used to save as UTC midnight (the evening before)
+    if (!anytime && [start, end].some((v) => v && v.length < 16)) {
+      setError("Pick a time, or choose Anytime");
+      return;
+    }
     const ok = await patch(
       anytime
         ? {
@@ -220,10 +238,7 @@ export default function AppointmentActions({
                 Edit Details
               </button>
               <button
-                onClick={() => {
-                  setMenuOpen(false);
-                  setRescheduling(true);
-                }}
+                onClick={openReschedule}
                 className="flex w-full items-center gap-2 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
               >
                 <CalendarDays size={13} className="text-gray-400" />

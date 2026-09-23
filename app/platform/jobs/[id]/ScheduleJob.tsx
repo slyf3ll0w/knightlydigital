@@ -71,8 +71,28 @@ export default function ScheduleJob({
     arrivalWindowMinutes == null ? "" : String(arrivalWindowMinutes)
   );
 
+  // A fresh draft every time the panel opens: Cancel used to leave abandoned
+  // edits behind for the next open, and after a save + router.refresh() the
+  // props moved on while these stayed at their first-render values.
+  function openPanel() {
+    setAnytime(scheduledAnytime);
+    setStart(toLocalInput(scheduledAt));
+    setEnd(toLocalInput(scheduledEnd));
+    setDay(toLocalDate(scheduledAt));
+    setWindow(arrivalWindowMinutes == null ? "" : String(arrivalWindowMinutes));
+    setError("");
+    setOpen(true);
+  }
+
   async function save() {
     setError("");
+    // The picker holds a bare "YYYY-MM-DD" until a time is chosen — that's
+    // not a schedule yet, and it used to save as UTC midnight (the evening
+    // before, in the Americas)
+    if (!anytime && [start, end].some((v) => v && v.length < 16)) {
+      setError("Pick a time, or choose Anytime");
+      return;
+    }
     setLoading(true);
     const body = {
       arrivalWindowMinutes: window_ === "" ? null : Number(window_),
@@ -114,7 +134,7 @@ export default function ScheduleJob({
   if (!open) {
     return (
       <button
-        onClick={() => setOpen(true)}
+        onClick={openPanel}
         className={`flex items-center gap-1.5 text-sm font-medium hover:underline ${
           scheduledAt ? "text-green-700" : "text-amber-600"
         }`}
