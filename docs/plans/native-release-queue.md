@@ -166,7 +166,12 @@ shell (`nativePlatform()`), so calls keep ringing the cell in the app. Lifting
 that gate is tier 3 work (foreground service / full-screen intent), not part of
 this build.
 
-## App Store — 1.3 (build 6), written 2026-09-23, waiting for the Mac
+## App Store — 1.3 SUBMITTED 2026-09-23 (build 12), Waiting for Review
+
+Builds 6–11 were the road to a working native calling engine (see
+`business-line-voice-2026-09-18.md` § Tier 3 and `mobile-app-runbook-mac.md`
+§ RELEASE 1.3 status). Everything below shipped in build 12. Clear this
+section once 1.3 is live.
 
 The app is live as **Workbench FSM** (id6789991103) at 1.2 (build 5) since
 2026-08-06, so this is an update, not a first submission. Everything below

@@ -1,5 +1,16 @@
 # App Store — Workbench FSM, 1.3 update (2026-09-23)
 
+**Submitted 2026-09-23 16:26 CDT with build 12 — Waiting for Review.** New
+screenshots (Summit Plumbing demo, captured on the iPhone 17 Pro Max and
+iPad Pro 13" simulators, 6 each) are in
+`~/Desktop/appstore-screenshots/2026-09-23-1.3/` (`iphone-6.5/` is the
+1284×2778 set that was uploaded to the 6.5" slot, which ASC applies to every
+iPhone size). Reviewer sign-in was switched to the Streamflaire demo
+(test@testing.com) because it is the account with a business line. Capture
+trick: `simctl openurl` sends universal links to Safari on a simulator, so
+each screen was reached by rewriting `server.url` in the built app's
+`capacitor.config.json` and reinstalling (the session survives a reinstall).
+
 The listing (name, screenshots, privacy labels, age rating) is already live
 from 1.2 (id6789991103). This is only what changes for 1.3.
 
