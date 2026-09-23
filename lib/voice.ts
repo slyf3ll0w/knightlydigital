@@ -593,6 +593,7 @@ async function ringSoftphones(call: CallRow, targets: RingTarget[], woke = false
   let ringing = 0;
   const label = displayParty(call);
   for (const t of targets) {
+    const device = t.device ?? (woke ? "ios" : "browser");
     try {
       const leg = await dialCall({
         to: sipUri(t.sipUsername),
@@ -602,10 +603,14 @@ async function ringSoftphones(call: CallRow, targets: RingTarget[], woke = false
         clientState: encodeState({ callId: call.id, leg: "app", stage: "ring", userId: t.userId, ...(woke ? { woke: true } : {}) }),
         timeoutSecs: woke ? VOIP_APP_RING_SECS : APP_RING_SECS,
         linkTo: call.telnyxCallId!,
-        commandId: `${call.id}:app:${t.userId}`,
+        // command_id is Telnyx's idempotency key. One per call, user AND
+        // device: the phone's wake leg used to share the browser leg's key,
+        // so Telnyx answered the second dial with the first leg and never
+        // rang the phone at all (found in the Prog. Voice Call Flow Tool —
+        // the phone's leg simply did not exist).
+        commandId: `${call.id}:app:${t.userId}:${device}`,
       });
       // upsert: the leg's first webhook may have adopted the row already (findCallByLeg).
-      const device = t.device ?? (woke ? "ios" : "browser");
       await prisma.callLeg.upsert({
         where: { telnyxCallId: leg.call_control_id },
         create: { callId: call.id, userId: t.userId, telnyxCallId: leg.call_control_id, device },

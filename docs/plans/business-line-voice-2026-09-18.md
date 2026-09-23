@@ -203,6 +203,21 @@ phone legs as "already", `voipRegisteredSoftphone` returns it, and
 on it. Both ring on an inbound call — the desktop's leg at once, the phone's
 once it wakes — and the first answer wins as before.
 
+**The dial that never happened (the build 10 test, read in Telnyx's Prog.
+Voice Call Flow Tool).** With its own credential the phone registered,
+posted ready, and the server dialed it — and Telnyx's records showed no such
+leg. `ringSoftphones` sent `command_id = <call>:app:<user>` for every leg,
+and command_id is Telnyx's idempotency key: the wake leg for the phone
+carried the same key as the browser leg dialed two seconds earlier for the
+same call and user, so Telnyx returned that first leg instead of creating
+one, our upsert re-labelled the browser leg's row as the phone's, and the
+phone waited for an INVITE that was never sent. The key now includes the
+device. (Build 11 also disconnects cleanly in the background, settles 1.5 s
+after REGED before asking for its leg, declines when End is tapped on a
+call whose leg never came, and the browser drops a dead call before judging
+a new INVITE "busy" — a stuck desktop tab was answering every new leg with
+normal_clearing.)
+
 Server pieces unchanged from the web engine: VoIP tokens in `PushSubscription`
 as platform `ios-voip` (dropped on sign-out from any membership), the
 VOIP_WAKE_SECS (35 s) window before the cell, a woken leg that rings out
