@@ -137,3 +137,24 @@ export function micLabelFor(d: { label: string; deviceId: string }, index: numbe
   if (d.deviceId === "default") return "System default";
   return `Microphone ${index + 1}`;
 }
+
+/**
+ * A device name short enough for a native <select>: Chrome sizes its
+ * dropdown to the longest option, and Windows names run to "Default -
+ * Microphone Array (Intel® Smart Sound Technology for Digital
+ * Microphones) (8086:ae20)", which walked off the right edge of the screen
+ * from the call card. The full name stays in the option's tooltip.
+ */
+export function shortMicLabel(label: string, max = 34): string {
+  let s = label
+    .replace(/\s*\([0-9a-f]{4}:[0-9a-f]{4}\)\s*$/i, "") // USB vendor:product ids
+    .replace(/^(default|communications)\s*-\s*/i, (_, w: string) => `${w[0].toUpperCase()}${w.slice(1).toLowerCase()}: `)
+    .replace(/\s+/g, " ")
+    .trim();
+  if (s.length <= max) return s;
+  // Drop the trailing parenthetical (the driver/vendor) before cutting words.
+  const paren = s.replace(/\s*\([^()]*\)\s*$/, "").trim();
+  if (paren.length >= 8 && paren.length <= max) return paren;
+  if (paren.length >= 8) s = paren;
+  return `${s.slice(0, max - 1).trimEnd()}…`;
+}

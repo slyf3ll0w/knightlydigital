@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { AlertTriangle, Mic } from "lucide-react";
 import { softphone, useMicLevel, useSoftphone, type MicTestResult } from "@/lib/softphone-client";
+import { shortMicLabel } from "@/lib/softphone-mic";
 
 /**
  * The softphone's microphone, made visible: a live level meter (the input
@@ -44,8 +45,8 @@ export function MicPicker({ className = "" }: { className?: string }) {
     >
       <option value="">Browser default</option>
       {s.micDevices.map((d) => (
-        <option key={d.id} value={d.id}>
-          {d.label}
+        <option key={d.id} value={d.id} title={d.label}>
+          {shortMicLabel(d.label)}
         </option>
       ))}
     </select>
