@@ -50,6 +50,7 @@ public class VoipPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "placeCall", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "reportConnected", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "currentCalls", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setSpeaker", returnType: CAPPluginReturnPromise),
     ]
 
     private let engine = VoipEngine.shared
@@ -118,7 +119,13 @@ public class VoipPlugin: CAPPlugin, CAPBridgedPlugin {
 
     /// What the engine has right now — a page that just (re)loaded catches up from this.
     @objc func currentCalls(_ call: CAPPluginCall) {
-        call.resolve(["calls": engine.snapshot(), "ready": engine.isReady])
+        call.resolve(["calls": engine.snapshot(), "ready": engine.isReady, "speaker": engine.speakerOn])
+    }
+
+    /// Speakerphone on or off (the earpiece is the default on a phone call).
+    @objc func setSpeaker(_ call: CAPPluginCall) {
+        engine.setSpeaker(call.getBool("on") ?? true)
+        call.resolve(["on": engine.speakerOn])
     }
 
     fileprivate func emit(_ event: String, _ data: [String: Any]) {
@@ -151,6 +158,38 @@ final class VoipEngine: NSObject {
     /// The page asked for the engine (signed in, calls on): reconnect on foreground.
     var wantConnected = false
     var isReady: Bool { clientReady }
+    private(set) var speakerOn = false
+
+    func setSpeaker(_ on: Bool) {
+        speakerOn = on
+        if on { client?.setSpeaker() } else { client?.setEarpiece() }
+        emit("speakerChanged", ["on": on])
+    }
+
+    /// The SDK runs WebRTC in manual-audio mode and switches its audio OFF
+    /// when it builds a call's media (Peer.configureAudioSession). CallKit
+    /// activates the audio session when Answer is tapped — which in this
+    /// flow is BEFORE the INVITE arrives and the media is built — so the
+    /// activation the SDK needs has already happened by the time it resets.
+    /// Result: a connected call with silence both ways. Once the call is up,
+    /// hand the SDK the already-active session again (the SDK's own sample
+    /// does the same, 0.75 s after answering).
+    private func nudgeAudio(_ why: String) {
+        guard let c = client else { return }
+        let session = AVAudioSession.sharedInstance()
+        if c.isAudioDeviceEnabled {
+            trace("audio-ok", why)
+            return
+        }
+        if session.category != .playAndRecord {
+            // CallKit has not activated a voice session yet: didActivate will.
+            trace("audio-wait", "\(why) category=\(session.category.rawValue)")
+            return
+        }
+        trace("audio-nudge", why)
+        c.enableAudioSession(audioSession: session)
+        if speakerOn { c.setSpeaker() }
+    }
 
     /// Background with no call: a clean disconnect, so Telnyx forgets this
     /// socket's registration now rather than whenever it notices the socket
@@ -278,7 +317,19 @@ final class VoipEngine: NSObject {
     /// Register with Telnyx as the signed-in person (or, for a call of another
     /// company on this login, as that membership). A fresh token every time a
     /// socket is opened — they live minutes, not hours.
-    func ensureConnected(membership: String?) {
+    func ensureConnected(membership: String?, fresh: Bool = false) {
+        // `fresh`: a socket iOS may have frozen behind our back (a push into a
+        // backgrounded app) is not trusted — a leg dialed to its registration
+        // dies at Telnyx with 480. Unless a call is live on it, start over.
+        if fresh, let c = client, calls.values.allSatisfy({ $0.sdk == nil }) {
+            trace("connect-fresh", "was=\(c.isConnected() ? "connected" : "dead") ready=\(clientReady)")
+            c.delegate = nil
+            c.disconnect()
+            client = nil
+            clientReady = false
+            connecting = false
+            for id in calls.keys { calls[id]?.readyPosted = false }
+        }
         if let c = client, c.isConnected(), loginMembership == membership, !connecting {
             trace("connected-already", "ready=\(clientReady)")
             if clientReady { flushReady() }
@@ -476,6 +527,7 @@ final class VoipEngine: NSObject {
         if r.answered {
             sdk.answer()
             emit("callAnswered", ["callId": r.callId])
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.75) { self.nudgeAudio("after-attach-answer") }
         }
     }
 
@@ -552,6 +604,7 @@ final class VoipEngine: NSObject {
             byUUID[r.uuid] = nil
             if let id = r.sdk?.callInfo?.callId { bySdk[id] = nil }
         }
+        if calls.isEmpty { speakerOn = false }
     }
 
     private func hold(_ r: Rec, _ on: Bool) {
@@ -589,7 +642,7 @@ extension VoipEngine: PKPushRegistryDelegate {
         reportIncoming(callId: callId, label: label, number: number, sdk: nil)
         trace("push", "state=\(UIApplication.shared.applicationState.rawValue) client=\(client == nil ? "none" : (client!.isConnected() ? "connected" : "dead")) ready=\(clientReady)", callId: callId)
         // Then wake the engine; when it is registered it tells the server (flushReady).
-        ensureConnected(membership: nil)
+        ensureConnected(membership: nil, fresh: true)
         completion()
     }
 }
@@ -612,7 +665,10 @@ extension VoipEngine: CXProviderDelegate {
         r.answered = true
         calls[id] = r
         trace("callkit-answer", "sdk=\(r.sdk != nil) ready=\(clientReady)", callId: id)
-        if let sdk = r.sdk { sdk.answer() }
+        if let sdk = r.sdk {
+            sdk.answer()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.75) { self.nudgeAudio("after-callkit-answer") }
+        }
         // No INVITE yet (pushed call, engine still registering): attach() answers it on arrival.
         emit("callAnswered", ["callId": id])
         action.fulfill()
@@ -679,8 +735,12 @@ extension VoipEngine: CXProviderDelegate {
     }
 
     func provider(_ provider: CXProvider, didActivate audioSession: AVAudioSession) {
-        trace("audio-activate", "client=\(client != nil)")
+        trace("audio-activate", "client=\(client != nil) calls=\(calls.values.filter { $0.sdk != nil }.count)")
         client?.enableAudioSession(audioSession: audioSession)
+        if speakerOn { client?.setSpeaker() }
+        // Media built before this activation (the INVITE beat the tap) is
+        // covered here; media built after it is covered by nudgeAudio.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { self.nudgeAudio("after-activate") }
         emit("audioActivated", [:])
     }
 
@@ -704,9 +764,14 @@ extension VoipEngine: TxClientDelegate {
 
     func onSocketDisconnected() {
         DispatchQueue.main.async {
-            self.trace("telnyx-disconnected")
+            self.trace("telnyx-disconnected", "pending=\(self.calls.values.filter { $0.sdk == nil }.count)")
             self.clientReady = false
             self.emit("engineState", ["ready": false])
+            // A call is waiting on this registration: come back on a fresh
+            // socket and ask for the leg again (the server dials it anew).
+            if self.calls.values.contains(where: { $0.sdk == nil }) {
+                self.ensureConnected(membership: self.wantMembership, fresh: true)
+            }
         }
     }
 
@@ -759,6 +824,7 @@ extension VoipEngine: TxClientDelegate {
                 if let sid = call.callInfo?.callId { self.bySdk[sid] = id }
                 self.calls[id] = r
                 call.answer()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.75) { self.nudgeAudio("after-outbound-answer") }
                 return
             }
             let id = ourId ?? "sip:\(call.callInfo?.callId.uuidString ?? UUID().uuidString)"
@@ -771,9 +837,11 @@ extension VoipEngine: TxClientDelegate {
     func onCallStateUpdated(callState: CallState, callId: UUID) {
         DispatchQueue.main.async {
             guard let id = self.bySdk[callId], var r = self.calls[id] else { return }
-            self.trace("call-state", "\(callState)", callId: id)
+            self.trace("call-state", "\(callState) audio=\(self.client?.isAudioDeviceEnabled ?? false)", callId: id)
             switch callState {
             case .ACTIVE:
+                self.nudgeAudio("active")
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { self.nudgeAudio("active+1s") }
                 if r.direction == .inbound && !r.connected {
                     r.connected = true
                     self.calls[id] = r

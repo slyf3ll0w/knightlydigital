@@ -608,7 +608,11 @@ async function ringSoftphones(call: CallRow, targets: RingTarget[], woke = false
         // so Telnyx answered the second dial with the first leg and never
         // rang the phone at all (found in the Prog. Voice Call Flow Tool —
         // the phone's leg simply did not exist).
-        commandId: `${call.id}:app:${t.userId}:${device}`,
+        // A woken phone may ask again after re-registering (its first leg
+        // died at 480), so its key is per attempt; the browser fan-out keeps
+        // one key per call (the appRingAt claim already stops a retried
+        // webhook ringing twice).
+        commandId: woke ? `${call.id}:app:${t.userId}:${device}:${Date.now()}` : `${call.id}:app:${t.userId}:${device}`,
       });
       // upsert: the leg's first webhook may have adopted the row already (findCallByLeg).
       await prisma.callLeg.upsert({
@@ -855,7 +859,18 @@ async function onHangup(p: VoiceEventPayload): Promise<void> {
     // An iPhone that a push woke was showing this call on its lock screen
     // and let it ring out: voicemail, never the cell — that cell IS this
     // phone, and a second ring would land on top of the CallKit call.
-    if (decodeState(p.client_state)?.woke) return toVoicemail(call);
+    if (decodeState(p.client_state)?.woke) {
+      // A leg that died within seconds without ringing (480: the phone's
+      // registration had gone stale) is not "rang out": the phone
+      // re-registers and asks again, so the call stays ringing for it.
+      const row = await prisma.callLeg.findUnique({ where: { id: appLeg.id }, select: { createdAt: true } });
+      const legAgeMs = row ? now.getTime() - row.createdAt.getTime() : Infinity;
+      if (cause !== "timeout" && legAgeMs < 8000) {
+        console.info(`[voice] woken leg died in ${Math.round(legAgeMs / 1000)} s (${cause}); the call stays ringing for the phone to try again`);
+        return;
+      }
+      return toVoicemail(call);
+    }
     // A browser leg ran out while a pushed phone may still be waking: leave
     // the call ringing for it; scheduleCellFallback decides at the window's end.
     if (call.appRingAt && Date.now() - call.appRingAt.getTime() < (VOIP_WAKE_SECS + 3) * 1000 && (await voipTargetsFor(call.companyId)).length > 0) return;

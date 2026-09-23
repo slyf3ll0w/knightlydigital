@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Grid3x3, Mic, MicOff, Pause, Phone, PhoneIncoming, PhoneMissed, PhoneOff, PhoneOutgoing, Play, UserRound, Voicemail } from "lucide-react";
+import { Grid3x3, Mic, MicOff, Pause, Phone, PhoneIncoming, PhoneMissed, PhoneOff, PhoneOutgoing, Play, UserRound, Voicemail, Volume2 } from "lucide-react";
 import { fmtElapsed, softphone, useSoftphone } from "@/lib/softphone-client";
 import DialPad from "@/components/DialPad";
 import { MicRow, MicWarning } from "@/components/MicControls";
@@ -255,6 +255,19 @@ export default function CallScreenLive({
               >
                 {held ? <Play size={20} /> : <Pause size={20} />}
               </button>
+              {sp.speaker !== null && (
+                // iPhone: speakerphone (the system call screen has the same switch).
+                <button
+                  type="button"
+                  onClick={() => softphone.toggleSpeaker()}
+                  disabled={dialing}
+                  className={`${btn} ${sp.speaker ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
+                  title={sp.speaker ? "Speaker off" : "Speaker"}
+                  aria-label={sp.speaker ? "Speaker off" : "Speaker"}
+                >
+                  <Volume2 size={20} />
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setPad((v) => !v)}

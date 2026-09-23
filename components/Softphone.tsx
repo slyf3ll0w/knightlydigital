@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Maximize2, Mic, MicOff, Pause, Phone, PhoneIncoming, PhoneOff, Play, X } from "lucide-react";
+import { Maximize2, Mic, MicOff, Pause, Phone, PhoneIncoming, PhoneOff, Play, Volume2, X } from "lucide-react";
 import { nativePlatform } from "@/components/NativeShell";
 import { useSession } from "next-auth/react";
 import { nativeVoip } from "@/lib/native-voip";
@@ -1190,6 +1190,7 @@ function useNow(active: boolean): number {
 }
 
 function CallCard({ call }: { call: SoftphoneCall }) {
+  const speaker = useSoftphone().speaker;
   const now = useNow(call.state === "active" || call.state === "held");
   const pathname = usePathname();
   const ringing = call.state === "ringing";
@@ -1297,6 +1298,19 @@ function CallCard({ call }: { call: SoftphoneCall }) {
             >
               {held ? <Play size={18} /> : <Pause size={18} />}
             </button>
+            {speaker !== null && (
+              // iPhone: speakerphone (the system call screen has the same switch).
+              <button
+                type="button"
+                onClick={() => softphone.toggleSpeaker()}
+                disabled={dialing}
+                className={`${btn} ${speaker ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
+                title={speaker ? "Speaker off" : "Speaker"}
+                aria-label={speaker ? "Speaker off" : "Speaker"}
+              >
+                <Volume2 size={18} />
+              </button>
+            )}
             <button
               type="button"
               onClick={() => softphone.hangup()}

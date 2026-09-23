@@ -170,6 +170,11 @@ export function startNativeSoftphone(voip: VoipPlugin, sessionUpdate: () => (dat
       if (!stopped && isCurrent(callId)) patchSoftphoneCall({ state: held ? "held" : "active" });
     })
   );
+  off.push(
+    onVoip<{ on: boolean }>(voip, "speakerChanged", ({ on }) => {
+      if (!stopped) setSoftphoneState({ speaker: on });
+    })
+  );
 
   // ── What the card asks of it ──────────────────────────────────────────────
   const withCall = (fn: (callId: string) => void) => {
@@ -182,6 +187,7 @@ export function startNativeSoftphone(voip: VoipPlugin, sessionUpdate: () => (dat
     hangup: () => withCall((id) => void voip.endCall({ callId: id, reason: "user" })),
     toggleMute: () => withCall((id) => void voip.setMuted({ callId: id, muted: !current()?.muted })),
     toggleHold: () => withCall((id) => void voip.setHeld({ callId: id, held: current()?.state !== "held" })),
+    toggleSpeaker: () => void voip.setSpeaker({ on: !getSoftphoneState().speaker }),
     placeCall: async (target: PlaceCallTarget) => {
       if (getSoftphoneState().status !== "ready") throw new Error("The phone isn't connected to your business line yet.");
       if (current()) throw new Error("You're already on a call.");
@@ -221,12 +227,13 @@ export function startNativeSoftphone(voip: VoipPlugin, sessionUpdate: () => (dat
   });
 
   // ── Start ─────────────────────────────────────────────────────────────────
-  setSoftphoneState({ status: "connecting", reason: null, error: null, micDevices: [], micId: null, micLabel: null, micWarning: null });
+  setSoftphoneState({ status: "connecting", reason: null, error: null, micDevices: [], micId: null, micLabel: null, micWarning: null, speaker: false });
   takePendingVoipCall(); // a company switch mid-call: the engine's snapshot below is the truth now
   void voip
     .currentCalls()
-    .then(({ calls, ready }) => {
+    .then(({ calls, ready, speaker }) => {
       if (stopped) return;
+      if (typeof speaker === "boolean") setSoftphoneState({ speaker });
       const first = calls[0];
       if (first && !current()) {
         setSoftphoneState({ call: toCard(first) });
@@ -247,6 +254,6 @@ export function startNativeSoftphone(voip: VoipPlugin, sessionUpdate: () => (dat
     stopped = true;
     off.forEach((f) => f());
     unregister();
-    setSoftphoneState({ status: "off", reason: null, call: null });
+    setSoftphoneState({ status: "off", reason: null, call: null, speaker: null });
   };
 }

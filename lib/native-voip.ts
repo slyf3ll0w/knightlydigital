@@ -50,7 +50,9 @@ export type VoipPlugin = {
   /** Outbound: the row says the customer is on. */
   reportConnected(o: { callId: string }): Promise<void>;
   /** What the engine holds right now — a page that just (re)loaded catches up from this. */
-  currentCalls(): Promise<{ calls: VoipCallSnapshot[]; ready: boolean }>;
+  currentCalls(): Promise<{ calls: VoipCallSnapshot[]; ready: boolean; speaker?: boolean }>;
+  /** Speakerphone on or off. */
+  setSpeaker(o: { on: boolean }): Promise<{ on: boolean }>;
   addListener(event: string, cb: (data: unknown) => void): Promise<Handle> | Handle;
 };
 

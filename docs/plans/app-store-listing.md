@@ -47,9 +47,11 @@ is not recorded by the app.
 
 ## Version / build
 
-`MARKETING_VERSION = 1.3`, `CURRENT_PROJECT_VERSION = 10` (build 9 added the
-server-log trace; build 10 registers with the phone's own SIP credential —
-the shared one was the cause found by that trace). Build 6 crashed on
+`MARKETING_VERSION = 1.3`, `CURRENT_PROJECT_VERSION = 12` (build 9 added the
+server-log trace; 10 the phone's own SIP credential; 11 clean background
+disconnect + settle + decline-on-end; 12 the audio fix — the SDK's manual
+audio was left off when CallKit activated the session before the media
+existed — plus fresh reconnects on push and a speaker switch). Build 6 crashed on
 the first closed-app call (PushKit was not registered at launch); build 7
 rang but could not take the call from the lock screen (the web page is frozen
 in the background); build 8 embeds the Telnyx iOS SDK as a native engine.

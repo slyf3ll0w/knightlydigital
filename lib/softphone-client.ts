@@ -46,6 +46,8 @@ export type SoftphoneState = {
   micLabel: string | null;
   /** The microphone watchdog's verdict while on a call (lib/softphone-mic.ts), or a probe's: one sentence, or null when audio is leaving fine. */
   micWarning: string | null;
+  /** iPhone only: speakerphone on/off; null where there is no such switch (the browser). */
+  speaker: boolean | null;
 };
 
 const INITIAL: SoftphoneState = {
@@ -58,6 +60,7 @@ const INITIAL: SoftphoneState = {
   micId: null,
   micLabel: null,
   micWarning: null,
+  speaker: null,
 };
 let state: SoftphoneState = INITIAL;
 const listeners = new Set<() => void>();
@@ -141,6 +144,8 @@ export type SoftphoneController = {
   setMic(deviceId: string | null): Promise<void>;
   /** Open the chosen microphone for a few seconds and report whether anything was heard (the meter runs meanwhile). */
   testMic(): Promise<MicTestResult>;
+  /** iPhone: speakerphone on/off. Absent where there is no such switch. */
+  toggleSpeaker?(): void;
 };
 
 let controller: SoftphoneController | null = null;
@@ -161,6 +166,7 @@ export const softphone = {
   hangup: () => controller?.hangup(),
   toggleMute: () => controller?.toggleMute(),
   toggleHold: () => controller?.toggleHold(),
+  toggleSpeaker: () => controller?.toggleSpeaker?.(),
   placeCall: (target: PlaceCallTarget): Promise<void> => (controller ? controller.placeCall(target) : Promise.reject(notConnected())),
   requestMic: (): Promise<boolean> => (controller ? controller.requestMic() : Promise.resolve(false)),
   sendDigits: (digits: string) => controller?.sendDigits(digits),

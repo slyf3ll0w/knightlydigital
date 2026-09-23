@@ -218,6 +218,24 @@ call whose leg never came, and the browser drops a dead call before judging
 a new INVITE "busy" — a stuck desktop tab was answering every new leg with
 normal_clearing.)
 
+**Silence on a connected call (build 11 → 12).** With the dial fixed, an
+outbound call from the phone connected end to end at Telnyx (the phone's leg
+answered, the customer dialed and answered) and nobody heard anything. The
+SDK runs WebRTC in manual-audio mode and sets its audio OFF when it builds a
+call's media (`Peer.configureAudioSession`); CallKit activates the audio
+session when Answer / Start is tapped, which in this flow is always BEFORE
+the INVITE arrives, so the activation the SDK needs has already happened by
+the time it resets. `nudgeAudio` hands the SDK the already-active session
+again after answering and on ACTIVE (`enableAudioSession`, what the SDK's own
+sample does 0.75 s after answering). Also in build 12: a push never trusts an
+existing socket (`ensureConnected(fresh:)` — a socket iOS froze in the
+background reported dead the second the push arrived, the leg dialed to its
+registration died at 480, and nothing reconnected), a disconnect with a
+pushed call pending reconnects and asks for the leg again (server: the wake
+leg's command_id is per attempt, and a woken leg that dies within 8 s of a
+non-timeout cause leaves the call ringing instead of going to voicemail), and
+a speakerphone switch (`setSpeaker`, on the card and the call screen).
+
 Server pieces unchanged from the web engine: VoIP tokens in `PushSubscription`
 as platform `ios-voip` (dropped on sign-out from any membership), the
 VOIP_WAKE_SECS (35 s) window before the cell, a woken leg that rings out
